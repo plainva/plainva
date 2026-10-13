@@ -1,3 +1,4 @@
+import { updateVaultText, type TextUpdateFiles } from "@plainva/core";
 import { parseBaseConfig, serializeBaseConfig } from "../base/baseFormat";
 import { taskDbDueKey } from "./taskDatabase";
 
@@ -53,14 +54,14 @@ export async function shouldOfferDueTimeColumn(
 }
 
 /** Retypes the due column as date & time. Returns the column's key, or null when there was nothing to do. */
-export async function convertDueColumnToDateTime(
-  adapter: { readTextFile(path: string): Promise<string>; writeTextFile(path: string, content: string): Promise<void> },
-  dbPath: string
-): Promise<string | null> {
-  const config = parseBaseConfig(await adapter.readTextFile(dbPath));
-  const key = dayOnlyDueColumn(config);
-  if (!key) return null;
-  config.columns[key] = { ...config.columns[key], input: "datetime" };
-  await adapter.writeTextFile(dbPath, serializeBaseConfig(config));
-  return key;
+export async function convertDueColumnToDateTime(adapter: TextUpdateFiles, dbPath: string): Promise<string | null> {
+  const update = await updateVaultText(adapter, dbPath, (text) => {
+    const config = parseBaseConfig(text);
+    const found = dayOnlyDueColumn(config);
+    if (!found) return null;
+    config.columns[found] = { ...config.columns[found], input: "datetime" };
+    return serializeBaseConfig(config);
+  });
+  // The key is the database's own answer, as it lay there; the working copy of an open conflict is retyped by its own.
+  return dayOnlyDueColumn(parseBaseConfig(update.before));
 }

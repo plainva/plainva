@@ -1,4 +1,4 @@
-import { deleteFrontmatterPath, readFrontmatterPath, setFrontmatterPath } from "@plainva/core";
+import { deleteFrontmatterPath, readFrontmatterPath, setFrontmatterPath, updateVaultText, type TextFileUpdate, type TextUpdateFiles } from "@plainva/core";
 import {
   applyTaskCompletion,
   canRepeat,
@@ -29,9 +29,8 @@ import { applyIndexChanges } from "./fileActions";
  */
 
 export interface TaskWriteDeps {
-  vaultAdapter: {
-    readTextFile(path: string): Promise<string>;
-    writeTextFile(path: string, content: string): Promise<void>;
+  /** The vault's chain — a note is read, changed and written in one step (`updateVaultText`). */
+  vaultAdapter: TextUpdateFiles & {
     /** Needed by `writeNextOccurrenceNote` to find a free name. */
     exists(path: string): Promise<boolean>;
   };
@@ -59,27 +58,27 @@ export interface TaskToggleResult {
 }
 
 /**
- * Reads, mutates and writes a task note through the adapter chain, then keeps
- * index, tree and provider in step. A mutation that changes nothing writes
- * nothing. Throws on a failed read/write — the caller reports it.
+ * Reads, mutates and writes a task note in ONE step of the adapter chain
+ * (`updateVaultText`), then keeps index, tree and provider in step. The
+ * mutation gets the note as it lies there at that moment — and, where the
+ * note has an open conflict, a second time with the person's own version — so
+ * it keeps nothing on the way; what it did is read from the result's
+ * `before`. A mutation that changes nothing writes nothing. Throws on a
+ * failed read/write — the caller reports it.
  */
 export async function writeTaskNote(
   deps: TaskWriteDeps,
   path: string,
   mutate: (raw: string) => string
-): Promise<boolean> {
-  const raw = await deps.vaultAdapter.readTextFile(path);
-  const next = mutate(raw);
-  let written = false;
-  if (next !== raw) {
-    await deps.vaultAdapter.writeTextFile(path, next);
+): Promise<TextFileUpdate> {
+  const update = await updateVaultText(deps.vaultAdapter, path, mutate);
+  if (update.changed) {
     if (deps.indexer) await applyIndexChanges(deps.indexer, { added: [path] }).catch(() => undefined);
     deps.triggerFileTreeUpdate([path]);
-    written = true;
   }
   deps.onChanged?.();
   if (deps.pimRuntime) void deps.pimRuntime.worker.triggerImmediate().catch(() => undefined);
-  return written;
+  return update;
 }
 
 /**

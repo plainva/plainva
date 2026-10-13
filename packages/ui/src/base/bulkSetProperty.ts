@@ -1,4 +1,4 @@
-import { updateFrontmatterString } from "@plainva/core";
+import { updateFrontmatterString, updateVaultText } from "@plainva/core";
 import { createLimiter } from "../lib/concurrencyLimiter";
 import { writableProperties, writeNoteProperty, type PropertyWriteAdapter } from "./writeProperty";
 
@@ -120,11 +120,15 @@ export async function rewriteNoteProperties(
   const failed: { path: string; message: string }[] = [];
   for (const path of paths) {
     try {
-      const text = await adapter.readTextFile(path);
-      const next = change(writableProperties(text));
-      if (next === null) continue;
-      await adapter.writeTextFile(path, updateFrontmatterString(text, next));
-      written.push(path);
+      // Whether the note is one to change is said by the note itself, as it
+      // lies there when it is written; where it has an open conflict the
+      // change is asked again for the user's own version, and that answer
+      // counts for that version only.
+      const update = await updateVaultText(adapter, path, (text) => {
+        const next = change(writableProperties(text));
+        return next === null ? null : updateFrontmatterString(text, next);
+      });
+      if (change(writableProperties(update.before)) !== null) written.push(path);
     } catch (e) {
       failed.push({ path, message: e instanceof Error ? e.message : String(e) });
     }

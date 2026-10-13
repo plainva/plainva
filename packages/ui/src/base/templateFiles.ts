@@ -1,6 +1,6 @@
 import { scanTemplate, replaceTemplateTokens, type TemplateToken } from "./templateEngine";
 import { parse as parseYaml } from "yaml";
-import { deleteFrontmatterPath, noteBodyOf, setFrontmatterPath, wikiTargetForFile } from "@plainva/core";
+import { deleteFrontmatterPath, noteBodyOf, setFrontmatterPath, updateVaultText, wikiTargetForFile, type TextUpdateFiles } from "@plainva/core";
 import { frontmatterBlockOf } from "../services/docMeta";
 import { resolveTemplate, type TemplateContext } from "./templateEngine";
 
@@ -261,7 +261,7 @@ export interface TemplateForSweepResult {
  * Broken/unreadable templates are skipped — a rename must never fail over one.
  */
 export async function retargetTemplateForInFolder(opts: {
-  adapter: ScopedTemplateListAdapter & { writeTextFile(path: string, content: string): Promise<void> };
+  adapter: ScopedTemplateListAdapter & TextUpdateFiles;
   folder: string;
   oldBasePath: string;
   newBasePath: string;
@@ -275,26 +275,27 @@ export async function retargetTemplateForInFolder(opts: {
   const changedPaths: string[] = [];
   let renamed = 0;
 
+  const retargeted = (content: string): { hits: number; next: string | null } => {
+    const raw = rawTemplateForOf(content);
+    let hits = 0;
+    const next = (raw?.values ?? []).map((value) => {
+      const target = templateForTargetOf(value);
+      if (target === null || !templateMatchesBase([target], oldBasePath)) return value;
+      hits++;
+      const qualified = target.includes("/") || target.includes("\\");
+      return `[[${qualified ? newBasePath : bareTarget}]]`;
+    });
+    return { hits, next: !raw || hits === 0 ? null : setFrontmatterPath(content, TEMPLATE_FOR_PATH, raw.scalar ? next[0] : next) };
+  };
+
   for (const item of await listTemplates(adapter, folder)) {
     try {
-      const content = await adapter.readTextFile(item.path);
-      const raw = rawTemplateForOf(content);
-      if (!raw) continue;
-      let changed = 0;
-      const next = raw.values.map((value) => {
-        const target = templateForTargetOf(value);
-        if (target === null || !templateMatchesBase([target], oldBasePath)) return value;
-        changed++;
-        const qualified = target.includes("/") || target.includes("\\");
-        return `[[${qualified ? newBasePath : bareTarget}]]`;
-      });
-      if (changed === 0) continue;
-      await adapter.writeTextFile(
-        item.path,
-        setFrontmatterPath(content, TEMPLATE_FOR_PATH, raw.scalar ? next[0] : next)
-      );
+      // Counted on the template as it was changed; a working copy of an open conflict is retargeted the same way.
+      const update = await updateVaultText(adapter, item.path, (content) => retargeted(content).next);
+      const { hits } = retargeted(update.before);
+      if (!hits) continue;
       changedPaths.push(item.path);
-      renamed += changed;
+      renamed += hits;
     } catch {
       /* skip broken template — the rename itself must go through */
     }

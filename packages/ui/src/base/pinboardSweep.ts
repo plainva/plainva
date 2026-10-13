@@ -1,3 +1,4 @@
+import { updateVaultText, type TextUpdateFiles } from "@plainva/core";
 import { parseBaseConfig, serializeBaseConfig } from "./baseFormat";
 import { retargetPinboardPaths } from "./pinboardModel";
 
@@ -18,10 +19,8 @@ import { retargetPinboardPaths } from "./pinboardModel";
  * never parsed or rewritten (no accidental format normalization).
  */
 export interface PinboardSweepDeps {
-  adapter: {
-    readTextFile(path: string): Promise<string>;
-    writeTextFile(path: string, content: string): Promise<void>;
-  };
+  /** A vault's chain, or a storage with nothing above it: each `.base` is read, changed and written in one step. */
+  adapter: TextUpdateFiles;
   queryService: { listBaseFilePaths(): Promise<string[]> } | null | undefined;
 }
 
@@ -48,20 +47,14 @@ export async function sweepPinboardRefs(
   } catch {
     return [];
   }
-  const changed: string[] = [];
-  for (const basePath of basePaths) {
-    let text: string;
-    try {
-      text = await deps.adapter.readTextFile(basePath);
-    } catch {
-      continue;
-    }
-    if (!text.includes("pinboardOrder") && !text.includes("pinboardPinned")) continue;
+  /** A `.base` text with its pinboard lists retargeted — `null` where it names none of the moved paths. */
+  const retargeted = (text: string): string | null => {
+    if (!text.includes("pinboardOrder") && !text.includes("pinboardPinned")) return null;
     let cfg: any;
     try {
       cfg = parseBaseConfig(text);
     } catch {
-      continue;
+      return null;
     }
     let any = false;
     for (const v of Array.isArray(cfg.views) ? cfg.views : []) {
@@ -80,11 +73,22 @@ export async function sweepPinboardRefs(
         }
       }
     }
-    if (!any) continue;
+    return any ? serializeBaseConfig(cfg) : null;
+  };
+  const changed: string[] = [];
+  for (const basePath of basePaths) {
+    // Looked at first, without the chain's gate: a base without pinboard keys
+    // (nearly all of them) is never parsed and never rewritten.
+    let text: string;
     try {
-      // Through the caller's adapter chain (backup/sync like every write).
-      await deps.adapter.writeTextFile(basePath, serializeBaseConfig(cfg));
-      changed.push(basePath);
+      text = await deps.adapter.readTextFile(basePath);
+    } catch {
+      continue;
+    }
+    if (retargeted(text) === null) continue;
+    try {
+      // Through the caller's adapter chain (backup/sync like every write), read and written in one step.
+      if ((await updateVaultText(deps.adapter, basePath, retargeted)).changed) changed.push(basePath);
     } catch (e) {
       // One unwritable base must never break the rename/move itself.
       console.warn("[pinboardSweep] rewriting", basePath, "failed", e);

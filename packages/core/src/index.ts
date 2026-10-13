@@ -29,6 +29,7 @@ export * from "./vault/backupNaming.js";
 export * from "./vault/BackupVaultAdapter.js";
 export * from "./vault/VersionHistoryService.js";
 export * from "./vault/ConflictAwareVaultAdapter.js";
+export * from "./vault/updateText.js";
 export * from "./vault/conflictSession.js";
 export * from "./vault/ConflictFileStore.js";
 export * from "./vault/QueueingVaultAdapter.js";

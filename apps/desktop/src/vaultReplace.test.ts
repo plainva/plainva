@@ -23,11 +23,11 @@ const deps = (files: Record<string, string>) => {
   return {
     written,
     io: {
-      read: vi.fn(async (p: string) => {
+      readTextFile: vi.fn(async (p: string) => {
         if (!(p in files)) throw new Error(`missing ${p}`);
         return files[p];
       }),
-      write: vi.fn(async (p: string, c: string) => {
+      writeTextFile: vi.fn(async (p: string, c: string) => {
         written[p] = c;
         files[p] = c;
       }),
@@ -46,7 +46,7 @@ describe("runVaultReplace", () => {
     });
     expect(res).toMatchObject({ notes: 1, hits: 1, cancelled: false });
     expect(written).toEqual({ "a.md": "beta" });
-    expect(io.read).toHaveBeenCalledTimes(1);
+    expect(io.readTextFile).toHaveBeenCalledTimes(1);
   });
 
   it("skips — and names — a note that changed since the preview", async () => {
@@ -123,6 +123,6 @@ describe("runVaultReplace", () => {
     });
     expect(res).toEqual({ notes: 0, hits: 0, skipped: [], cancelled: false });
     expect(written).toEqual({});
-    expect(io.read).not.toHaveBeenCalled();
+    expect(io.readTextFile).not.toHaveBeenCalled();
   });
 });

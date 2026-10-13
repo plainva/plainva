@@ -1,10 +1,12 @@
 import {
+  ConflictError,
   findIndexCandidates,
   convertWikilinksToMarkdownLinks,
   frontmatterSpan,
   isPlainvaManagedIndex,
   isReservedOkfName,
   noteWithoutProperties,
+  replaceVaultText,
   type IndexCandidate,
   type VaultQueryService,
   type WikilinkConversionResult,
@@ -159,23 +161,37 @@ export async function adoptFileAsIndex(opts: {
 }): Promise<AdoptionResult> {
   const { adapter, queryService, candidatePath, folder, prepare } = opts;
 
+  const indexPath = folder ? `${folder}/index.md` : "index.md";
   let preparation: WikilinkConversionResult | undefined;
   if (prepare) {
-    const content = await adapter.readTextFile(candidatePath);
-    await backupIndexFile(adapter, candidatePath, content);
+    // A note with an open conflict is not moved, nor is one moved onto a path
+    // that has one: the vault's chain refuses the rename below. Asked first —
+    // prepared and then left under its old name, the note would be neither
+    // what it was nor an overview.
+    for (const path of [candidatePath, indexPath]) {
+      const open = await adapter.getConflictSession?.(path);
+      if (open) throw new ConflictError("Resolve the open conflict before moving or deleting this file or folder", open.workingCopyPath);
+    }
     // A wiki link is resolved by the link rule over the whole vault, title
     // included — where it leads in the editor. It becomes a Markdown link only
     // where that is one of the notes a listing may point at; resolving over
     // those notes alone made a link lead to ANOTHER note of the same name
     // whenever the one it means is not among them.
     const only = new Set(await listMarkdownPaths(queryService));
-    const prepared = convertWikilinksToMarkdownLinks(noteWithoutProperties(content), { sourcePath: candidatePath, allFilePaths: await queryService.linkTargets(), only });
-    preparation = prepared.result;
-    // A note without a block and without a link to convert is as it has to be: nothing is written.
-    if (prepared.content !== content) await adapter.writeTextFile(candidatePath, prepared.content);
+    const allFilePaths = await queryService.linkTargets();
+    // The backup holds exactly the text that is replaced: the note is written
+    // only if it still is the text that was backed up and prepared, and
+    // prepared anew where it changed meanwhile (`replaceVaultText`). A note
+    // without a block and without a link to convert is as it has to be:
+    // nothing is written.
+    await replaceVaultText(adapter, candidatePath, async (content) => {
+      await backupIndexFile(adapter, candidatePath, content);
+      const prepared = convertWikilinksToMarkdownLinks(noteWithoutProperties(content), { sourcePath: candidatePath, allFilePaths, only });
+      preparation = prepared.result;
+      return prepared.content;
+    });
   }
 
-  const indexPath = folder ? `${folder}/index.md` : "index.md";
   const renamed = await renameFileWithLinkUpdates({
     adapter,
     queryService,

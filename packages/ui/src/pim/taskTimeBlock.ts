@@ -1,6 +1,7 @@
 import {
   setFrontmatterPath,
   readFrontmatterPath,
+  updateVaultText,
   wikiTargetForPath,
   type IVaultAdapter,
   type IPimTarget,
@@ -172,7 +173,6 @@ export async function createTaskTimeBlock(opts: CreateTaskTimeBlockOptions): Pro
     // The event is already live; a note that cannot be written (locked, gone)
     // must not roll it back — the block is the thing the user asked for.
     try {
-      const content = await opts.adapter.readTextFile(opts.notePath);
       const anchor: TaskBlockAnchor = {
         uid: res.uid,
         account: key.accountId,
@@ -181,9 +181,12 @@ export async function createTaskTimeBlock(opts: CreateTaskTimeBlockOptions): Pro
       };
       // setFrontmatterPath, NOT upsertFrontmatterKeys: the latter replaces the
       // whole `plainva` map, which would silently drop the sibling `plainva.pim`
-      // anchor of a mirrored remote task.
-      const next = setFrontmatterPath(content, ["plainva", "blocks"], [...readTaskBlocks(content), anchor]);
-      await opts.adapter.writeTextFile(opts.notePath, next);
+      // anchor of a mirrored remote task. And into the note as it lies there
+      // now — the provider call took its time, and a second block made
+      // meanwhile must stay in the list.
+      await updateVaultText(opts.adapter, opts.notePath, (content) =>
+        setFrontmatterPath(content, ["plainva", "blocks"], [...readTaskBlocks(content), anchor])
+      );
       anchored = true;
     } catch {
       anchored = false;

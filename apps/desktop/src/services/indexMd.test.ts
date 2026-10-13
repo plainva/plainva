@@ -228,4 +228,26 @@ describe("adoptFileAsIndex", () => {
 
     expect(store.get("Projects/index.md")).toBe("---\ntype: MOC\n---\nInhalt mit [[Alpha]]\n");
   });
+
+  it.each([
+    ["the note itself", "Projects/MOC.md", "Projects/MOC.CONFLICT-1.md"],
+    ["the place it would be moved to", "Projects/index.md", "Projects/index.CONFLICT-1.md"],
+  ])("an open conflict on %s: nothing is prepared — the vault's chain would refuse the rename afterwards", async (_where, conflicted, workingCopy) => {
+    const original = "---\ntype: MOC\n---\n# Projekte\n\n- [[Alpha]]\n";
+    const { store, adapter, queryService } = makeVault({ "Projects/MOC.md": original, "Projects/Alpha.md": "# A\n" });
+    // As the chain answers for a path whose conflict is open (finding 2026-10-12).
+    const chain: IndexMdAdapter = {
+      ...adapter,
+      getConflictSession: async (path) => (path === conflicted ? ({ workingCopyPath: workingCopy } as never) : null),
+      updateTextFile: async () => {
+        throw new Error("the note was changed although it cannot be moved");
+      },
+    };
+    const refused = await adoptFileAsIndex({ adapter: chain, queryService, candidatePath: "Projects/MOC.md", folder: "Projects", prepare: true })
+      .then(() => null, (error: unknown) => error);
+    expect(refused).toMatchObject({ name: "ConflictError", conflictPath: workingCopy });
+    // Neither prepared nor moved, and no backup of a note nothing was done to.
+    expect(store.get("Projects/MOC.md")).toBe(original);
+    expect([...store.keys()].sort()).toEqual(["Projects/Alpha.md", "Projects/MOC.md"]);
+  });
 });

@@ -6,6 +6,7 @@ import {
   taskNoteKey,
   taskNotePath,
   type TaskAnchorRecord,
+  type TextUpdateFiles,
 } from "@plainva/core";
 import { applyLinkUpdates, type LinkUpdatePlan } from "../lib/renameNote";
 
@@ -137,10 +138,8 @@ export interface TaskNameCleanupJournalStore {
   write(text: string | null): void;
 }
 
-export interface TaskNameCleanupRunner {
+export interface TaskNameCleanupRunner extends TextUpdateFiles {
   exists(path: string): Promise<boolean>;
-  readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, content: string): Promise<void>;
   journal: TaskNameCleanupJournalStore;
   /** What the rename will do to links (`planLinkUpdates`); null without an index. */
   planLinks(from: string, to: string): Promise<LinkUpdatePlan | null>;

@@ -33,7 +33,7 @@ import {
   formatFullScan,
   scanChangedNothing,
 } from "@plainva/core";
-import { isInternalPath, linkTargetName, resolveLinkTarget } from "@plainva/core";
+import { isInternalPath, linkTargetName, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
@@ -843,6 +843,23 @@ export function reportMoveFailure(error: unknown): void {
   toast.error(i18n.t("dialogs.renameErrorMsg", { error: errorText(error) }));
 }
 
+/**
+ * The vault's text files as the shared writers take them (`TextUpdateFiles`):
+ * its read, the plain write of a whole text, and the ONE way for a change of a
+ * file that exists (`vaultOps.update`) — each with the index following. One
+ * definition, so no screen hands a shared writer a read and a write without
+ * the entry: such a pair reads the file itself and writes it back as if an
+ * editor had held it since (finding 2026-10-12).
+ */
+export function vaultTextFiles(v: MobileVault): Required<Pick<TextUpdateFiles, "readTextFile" | "writeTextFile" | "updateTextFile">> & { exists(path: string): Promise<boolean> } {
+  return {
+    readTextFile: (path) => vaultOps.read(v, path),
+    writeTextFile: (path, content) => vaultOps.save(v, path, content),
+    updateTextFile: (path, change) => vaultOps.update(v, path, change),
+    exists: (path) => v.files.exists(path),
+  };
+}
+
 export const vaultOps = {
   async listFolder(v: MobileVault, folder: string): Promise<FolderListing> {
     // Operating-system bookkeeping is not content (issue 110, E10): the one
@@ -1204,6 +1221,32 @@ export const vaultOps = {
     // a settings file. An index that lags is acceptable; the next full pass
     // repairs it.
     if (v.indexer) await v.reindexPaths([path]);
+  },
+
+  /**
+   * A change of a text file where it lies — the phone's ONE way for whoever
+   * reads a file, changes a place of it and writes it back: a property, a
+   * task's box, a link, a line of a list (finding 2026-10-12). The pending
+   * text of an open editor goes to the file first; then the vault's chain
+   * reads, changes and writes in one step (`updateTextFile`), so the change
+   * starts from the file as it lies there — whoever wrote it last — and a
+   * note with an open conflict takes it in the person's own version as well.
+   * The index follows what was written.
+   *
+   * `save` above stays the way for a whole text somebody holds or makes: a
+   * new file, a generated one, a file put back.
+   */
+  async update(v: MobileVault, path: string, change: TextChange): Promise<TextFileUpdate> {
+    await noteSaver.flush(path, v);
+    const update = await updateVaultText(v.files, path, change);
+    if (v.indexer) {
+      const written = [
+        ...(update.changed ? [path] : []),
+        ...(update.conflict?.changed && update.conflict.workingCopyPath !== path ? [update.conflict.workingCopyPath] : []),
+      ];
+      if (written.length > 0) await v.reindexPaths(written);
+    }
+    return update;
   },
 
   /**

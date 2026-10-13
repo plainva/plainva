@@ -95,7 +95,9 @@ describe("where the two writers that went through it are wired", () => {
     const index = sourceFile("packages/ui/src/lib/indexMd.ts");
     const adopt = index.slice(index.indexOf("export async function adoptFileAsIndex"));
     expect(adopt).toMatch(/convertWikilinksToMarkdownLinks\(noteWithoutProperties\(content\), /);
-    expect(adopt).toMatch(/if \(prepared\.content !== content\) await adapter\.writeTextFile\(candidatePath, prepared\.content\);/);
+    // In place of exactly the text that was backed up and prepared; nothing is written where the text stays as it is.
+    expect(adopt).toMatch(/await replaceVaultText\(adapter, candidatePath, async \(content\) => \{\s+await backupIndexFile\(adapter, candidatePath, content\);/);
+    expect(adopt).toMatch(/return prepared\.content;\s+\}\);/);
     expect(index).not.toMatch(/parseMarkdownAst|inShapeOf/);
   });
 

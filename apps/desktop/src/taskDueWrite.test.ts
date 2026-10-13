@@ -19,21 +19,15 @@ const LIST = "# Shopping\n\n- [ ] Milk 📅 2026-10-02 #home\n- [ ] Bread\n- [x]
 function vault(files: Record<string, string>) {
   const store = new Map(Object.entries(files));
   const writes: string[] = [];
-  const deps: TaskDueDeps = {
-    readTextFile: async (path) => {
-      const text = store.get(path);
-      if (text === undefined) throw new Error(`missing ${path}`);
-      return text;
-    },
-    writeNoteText: async (path, content) => { writes.push(path); store.set(path, content); },
-    writeDbNote: async (path, mutate) => {
-      const raw = store.get(path);
-      if (raw === undefined) throw new Error(`missing ${path}`);
-      const next = mutate(raw);
-      if (next !== raw) { writes.push(path); store.set(path, next); }
-    },
-    dueKey: "due",
+  // What a shell hands in: its entry for a change of a note where it lies.
+  const update = async (path: string, change: (text: string) => string | null) => {
+    const before = store.get(path);
+    if (before === undefined) throw new Error(`missing ${path}`);
+    const next = change(before);
+    if (next !== null && next !== before) { writes.push(path); store.set(path, next); }
+    return { before };
   };
+  const deps: TaskDueDeps = { updateNoteText: update, writeDbNote: update, dueKey: "due" };
   return { deps, store, writes };
 }
 

@@ -24,6 +24,18 @@ vi.mock("./vaultService", () => ({
       if (content === undefined) throw new Error(`missing ${path}`);
       return content;
     },
+    // The phone's one way for a change of a file where it lies: the editor's
+    // pending save first, then read, change and save in one step.
+    update: async (_v: unknown, path: string, change: (text: string) => string | null) => {
+      log.push(`flush ${path}`);
+      const before = files.get(path);
+      if (before === undefined) throw new Error(`missing ${path}`);
+      const next = change(before);
+      if (next === null || next === before) return { before, text: before, changed: false, conflict: null };
+      log.push(`save ${path}`);
+      files.set(path, next);
+      return { before, text: next, changed: true, conflict: null };
+    },
     rename: async (_v: unknown, path: string, stem: string) => {
       const next = `${path.slice(0, path.lastIndexOf("/") + 1)}${stem}.md`;
       files.set(next, files.get(path)!);

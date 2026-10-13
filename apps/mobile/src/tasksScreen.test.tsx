@@ -49,9 +49,20 @@ vi.mock("./services/vaultService", () => ({
       throw new Error(`ENOENT ${path}`);
     },
     save: vi.fn(async () => {}),
+    update: vi.fn(async () => ({ before: "", text: "", changed: false, conflict: null })),
     remove: vi.fn(async () => {}),
     renameReport: vi.fn(),
   },
+  // What the screen hands the shared task writers; nothing in these tests writes.
+  vaultTextFiles: () => ({
+    readTextFile: async (path: string) => {
+      if (path === "Aufgaben.base") return TASK_BASE;
+      throw new Error(`ENOENT ${path}`);
+    },
+    writeTextFile: vi.fn(async () => {}),
+    updateTextFile: vi.fn(async () => ({ before: "", text: "", changed: false, conflict: null })),
+    exists: async () => false,
+  }),
 }));
 
 import { TasksScreen } from "./screens/TasksScreen";

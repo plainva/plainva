@@ -52,6 +52,62 @@ export interface DeletionConfirmation {
   confirmed: true;
 }
 
+/**
+ * A change of a text file that starts from the file as it lies there: its
+ * text in, the new text out — or `null` to leave the file alone.
+ *
+ * Pure and synchronous. It runs inside the gate the vault's chain holds for
+ * the path, so whatever takes time (a query, another file, a question to the
+ * user) is done before. And it is called more than once: where the file has
+ * an open conflict a second time, with the user's own version of the file
+ * (see `ConflictAwareVaultAdapter.updateTextFile`), and again for a window
+ * whose attempt lost against another writer. So a change keeps nothing on the
+ * way — what its caller wants to know about it (how many links, which entry),
+ * the caller reads from the result's `before`.
+ */
+export type TextChange = (text: string) => string | null;
+
+/**
+ * A change that was not made because the file did not hold still: a window
+ * that reaches the chain over a bus read it, and every time it came back with
+ * the changed text another writer had been there (`updateTextFile`).
+ */
+export class TextFileChangedError extends Error {
+  constructor(public readonly path: string) {
+    super(`The file kept changing while it was being updated: ${path}`);
+    this.name = "TextFileChangedError";
+  }
+}
+
+/** What a read-change-write did (`updateTextFile`). */
+export interface TextFileUpdate {
+  /** The text of the file named, before the call … */
+  before: string;
+  /** … and after it. */
+  text: string;
+  /** Whether the file named was written. */
+  changed: boolean;
+  /**
+   * The open conflict of the file named, where it has one: where the user's
+   * own version lies, and whether the same change was made there as well.
+   */
+  conflict: { workingCopyPath: string; changed: boolean } | null;
+}
+
+/** What a read-change-write starts from, for a window that cannot run its change inside the gate (`readTextFileState`). */
+export interface TextFileState {
+  /** The text of the file named. */
+  text: string;
+  /** The user's own version of it while its conflict is open; `null` where it has none, or where the file named IS that version. */
+  workingCopy: string | null;
+}
+
+/** The texts a change made of a `TextFileState`; `null` leaves that one alone. */
+export interface TextFileChange {
+  text: string | null;
+  workingCopy: string | null;
+}
+
 export interface IVaultAdapter {
   /** Owned by the conflict-aware pipeline (or forwarded to that owner by another window). */
   getConflictSession?(path: string): Promise<ConflictEditSession | null>;
@@ -60,6 +116,19 @@ export interface IVaultAdapter {
   preserveConflict?(path: string, text: string, writer: ConflictWriter): Promise<ConflictEditSession>;
   writeEditorText?(path: string, text: string, baseText: string | null): Promise<EditorWriteResult>;
   resolveConflict?(path: string, resolution: ConflictResolution): Promise<void>;
+  /**
+   * Reads a text file, changes it and writes it back as ONE step — the way in
+   * for whoever changes a place of a file that exists: a property, a task's
+   * box, a link, a line appended. Owned by the conflict-aware pipeline like
+   * the methods above; callers go through `updateVaultText`, which also
+   * serves a storage that has no chain.
+   * @throws VaultFileNotFoundError
+   */
+  updateTextFile?(path: string, change: TextChange): Promise<TextFileUpdate>;
+  /** The two halves of `updateTextFile` for a window that reaches the chain over a bus: read … */
+  readTextFileState?(path: string): Promise<TextFileState>;
+  /** … and write, if the file still is as it was read. `null` says it is not: read again. */
+  writeTextFileChange?(path: string, expected: TextFileState, next: TextFileChange): Promise<TextFileUpdate | null>;
   /**
    * Initializes the vault adapter (e.g., connects to DB, authenticates).
    */

@@ -274,6 +274,21 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
       await indexAfterWrite(result.session?.workingCopyPath ?? path);
       return result;
     }), { vaultPath: deps.vaultPath }),
+    // A change of a file where it lies, from a window that cannot run it
+    // inside this window's gate: the file's state goes out, and what the
+    // other window made of it is written only if the file still is that.
+    await bus.handle("update-read", ({ path }) => {
+      if (!deps.vaultAdapter.readTextFileState) throw new Error("Conflict-safe editing is unavailable");
+      return deps.vaultAdapter.readTextFileState(path);
+    }, { vaultPath: deps.vaultPath }),
+    await bus.handle("update-write", ({ path, expected, next }) => withPendingWrite(deps.vaultPath, path, async () => {
+      if (!deps.vaultAdapter.writeTextFileChange) throw new Error("Conflict-safe editing is unavailable");
+      const written = await deps.vaultAdapter.writeTextFileChange(path, expected, next);
+      if (written?.changed) await indexAfterWrite(path);
+      // The person's own version of a file with an open conflict took the change as well.
+      if (written?.conflict?.changed && written.conflict.workingCopyPath !== path) await indexAfterWrite(written.conflict.workingCopyPath);
+      return written;
+    }), { vaultPath: deps.vaultPath }),
     await bus.handle("conflict-read", ({ path }) => deps.vaultAdapter.getConflictSession?.(path) ?? Promise.resolve(null), { vaultPath: deps.vaultPath }),
     await bus.handle("conflict-list", () => deps.vaultAdapter.listConflictSessions?.() ?? Promise.resolve([]), { vaultPath: deps.vaultPath }),
     await bus.handle("conflict-diagnostics", () => deps.vaultAdapter.listConflictDiagnostics?.() ?? Promise.resolve([]), { vaultPath: deps.vaultPath }),

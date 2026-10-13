@@ -4,7 +4,9 @@ import {
   upsertFrontmatterKeys,
   deleteFrontmatterPath,
   noteLinkResolver,
+  updateVaultText,
   type LinkTargetRow,
+  type TextUpdateFiles,
 } from "@plainva/core";
 
 /**
@@ -16,9 +18,8 @@ import {
  * never touched (they simply become unresolved links, Obsidian parity).
  */
 
-export interface RelationCleanupDeps {
-  readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, content: string): Promise<void>;
+/** The note's files — a vault's chain, or a storage with nothing above it (`updateVaultText`) — and the link rule's corpus. */
+export interface RelationCleanupDeps extends TextUpdateFiles {
   /** The link rule's corpus (`VaultQueryService.linkTargets`): every file a link can lead to. */
   listLinkTargets(): Promise<readonly LinkTargetRow[]>;
 }
@@ -51,28 +52,32 @@ export async function removeRelationLinksToNoteShared(
   opts: { notePath: string; propertyKey: string; targetNotePath: string }
 ): Promise<{ changed: boolean; removed: number }> {
   const { notePath, propertyKey, targetNotePath } = opts;
-  const [content, files] = await Promise.all([deps.readTextFile(notePath), deps.listLinkTargets()]);
-  const linkedNote = noteLinkResolver(files);
-  const fm = extractFrontmatter(parseMarkdownAst(content));
-  const props: Record<string, unknown> = fm.success && fm.data ? (fm.data as Record<string, unknown>) : {};
-  if (!(propertyKey in props)) return { changed: false, removed: 0 };
-
+  // What a link leads to is asked first: the change itself runs on the note's text alone.
+  const linkedNote = noteLinkResolver(await deps.listLinkTargets());
   const resolvesToTarget = (value: unknown): boolean => {
     const base = linkBaseOf(value);
     return base != null && linkedNote(notePath, base) === targetNotePath;
   };
 
-  const values = currentValues(props, propertyKey);
-  const kept = values.filter((v) => !resolvesToTarget(v));
-  const removed = values.length - kept.length;
-  if (removed === 0) return { changed: false, removed: 0 };
-
-  const next =
-    kept.length === 0
-      ? deleteFrontmatterPath(content, [propertyKey])
-      : upsertFrontmatterKeys(content, {
-          [propertyKey]: Array.isArray(props[propertyKey]) ? kept : kept[0],
-        });
-  await deps.writeTextFile(notePath, next);
-  return { changed: true, removed };
+  const cleaned = (content: string): { removed: number; next: string | null } => {
+    const fm = extractFrontmatter(parseMarkdownAst(content));
+    const props: Record<string, unknown> = fm.success && fm.data ? (fm.data as Record<string, unknown>) : {};
+    const values = propertyKey in props ? currentValues(props, propertyKey) : [];
+    const kept = values.filter((v) => !resolvesToTarget(v));
+    const removed = values.length - kept.length;
+    if (removed === 0) return { removed, next: null };
+    return {
+      removed,
+      next: kept.length === 0
+        ? deleteFrontmatterPath(content, [propertyKey])
+        : upsertFrontmatterKeys(content, {
+            [propertyKey]: Array.isArray(props[propertyKey]) ? kept : kept[0],
+          }),
+    };
+  };
+  // Counted on the note as it was changed; where it has an open conflict, the
+  // user's own version is cleaned the same way and counts for itself.
+  const update = await updateVaultText(deps, notePath, (content) => cleaned(content).next);
+  const removed = cleaned(update.before).removed;
+  return { changed: removed > 0, removed };
 }

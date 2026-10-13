@@ -1,5 +1,5 @@
 import { flushPendingSave } from "../platform/services";
-import { buildLinkTargetIndex, editInShape, frontmatterSpan, linkTargetName, nextWhere, resolveLinkTargetIndexed, wikiTargetForPath, wordBoundedPattern, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
+import { buildLinkTargetIndex, editInShape, frontmatterSpan, linkTargetName, nextWhere, resolveLinkTargetIndexed, updateVaultText, wikiTargetForPath, wordBoundedPattern, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 import { wikiTargetToPath } from "../lib/wikiResolver";
 
@@ -7,7 +7,8 @@ import { wikiTargetToPath } from "../lib/wikiResolver";
  * Write actions shared by the graph views (accept a suggestion, connect-drag).
  * Every write goes through the FULL adapter chain (backup + sync queue) and is
  * preceded by the save-flush handshake so a pending editor save can never
- * overwrite the change one second later.
+ * overwrite the change one second later. A change to a note that exists goes
+ * into the note as it lies there at that moment (`updateVaultText`).
  */
 
 /**
@@ -40,11 +41,10 @@ export async function appendWikiLink(
   const link = `[[${target}]]`;
 
   await flushPendingSave(sourcePath);
-  const current = await adapter.readTextFile(sourcePath);
   // The link and the empty line in front of it end the way the note's lines
   // end (`editInShape`): they were written with `\n` into every note, and one
   // that lies there with `\r\n` got two lines of the other kind per link.
-  await adapter.writeTextFile(sourcePath, editInShape(current, (text) => {
+  await updateVaultText(adapter, sourcePath, (current) => editInShape(current, (text) => {
     const needsBlankLine = text.length > 0 && !text.endsWith("\n\n");
     const separator = text.length === 0 ? "" : text.endsWith("\n") ? (needsBlankLine ? "\n" : "") : "\n\n";
     return `${text}${separator}${link}\n`;
@@ -102,19 +102,26 @@ export async function removeLinksTo(
 ): Promise<number> {
   const corpus = buildLinkTargetIndex(await queryService.linkTargets());
   await flushPendingSave(sourcePath);
-  const current = await adapter.readTextFile(sourcePath);
-  let removed = 0;
-  const next = replaceWikiLinks(current, (full, target, alias) => {
-    // The name the index lists the link under: an anchor may begin with `^`
-    // as well (`[[Note^block]]`) — such a link is an edge in the graph and
-    // was not found here.
-    const name = linkTargetName(target);
-    if (resolveLinkTargetIndexed(sourcePath, name, corpus) !== targetPath) return full;
-    removed++;
-    return alias ?? name;
+  const unlinked = (current: string): { removed: number; next: string } => {
+    let removed = 0;
+    const next = replaceWikiLinks(current, (full, target, alias) => {
+      // The name the index lists the link under: an anchor may begin with `^`
+      // as well (`[[Note^block]]`) — such a link is an edge in the graph and
+      // was not found here.
+      const name = linkTargetName(target);
+      if (resolveLinkTargetIndexed(sourcePath, name, corpus) !== targetPath) return full;
+      removed++;
+      return alias ?? name;
+    });
+    return { removed, next };
+  };
+  const written = await updateVaultText(adapter, sourcePath, (current) => {
+    const result = unlinked(current);
+    return result.removed > 0 ? result.next : null;
   });
-  if (removed > 0) await adapter.writeTextFile(sourcePath, next);
-  return removed;
+  // Counted in the note as it was changed — not in the version of an open
+  // conflict, which took the same change.
+  return unlinked(written.before).removed;
 }
 
 /**
@@ -230,14 +237,19 @@ export async function applyInlineLink(
   const target = wikiTargetForPath(targetPath, allPaths);
 
   await flushPendingSave(sourcePath);
-  const content = await adapter.readTextFile(sourcePath);
-  const occ = findFirstUnlinkedOccurrence(content, terms);
-  if (!occ) return null;
-  const link = occ.matched === target ? `[[${occ.matched}]]` : `[[${target}|${occ.matched}]]`;
-  const next = content.substring(0, occ.index) + link + content.substring(occ.index + occ.matched.length);
-  await adapter.writeTextFile(sourcePath, next);
+  const linked = (content: string): { matched: string; link: string; next: string } | null => {
+    const occ = findFirstUnlinkedOccurrence(content, terms);
+    if (!occ) return null;
+    const link = occ.matched === target ? `[[${occ.matched}]]` : `[[${target}|${occ.matched}]]`;
+    return { matched: occ.matched, link, next: content.substring(0, occ.index) + link + content.substring(occ.index + occ.matched.length) };
+  };
+  const written = await updateVaultText(adapter, sourcePath, (content) => linked(content)?.next ?? null);
+  // What was linked in the note as it was changed; a note that no longer
+  // carries the mention answers null.
+  const done = linked(written.before);
+  if (!done) return null;
   notifyOpenEditor(sourcePath);
-  return { matched: occ.matched, link };
+  return { matched: done.matched, link: done.link };
 }
 
 /**

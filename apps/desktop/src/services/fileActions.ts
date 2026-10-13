@@ -1,5 +1,5 @@
 import { retargetDesktopBookmarks } from "./bookmarks";
-import { frontmatterSpan, isTextFile, toPathIdentity, type VaultQueryService } from "@plainva/core";
+import { frontmatterSpan, isTextFile, toPathIdentity, updateVaultText, type VaultQueryService } from "@plainva/core";
 import { errorText, landedAtDestination, moveItemName, retargetTemplateForInFolder, sweepPinboardRefs, type PinboardSweepDeps } from "@plainva/ui";
 import { copyCandidate, parentOf } from "../components/fileTreeModel";
 import { renameFileWithLinkUpdates, type RenameAdapter } from "./renameNote";
@@ -182,9 +182,7 @@ export async function renameToName(opts: {
   // Before the move, while the old name is still the truth.
   if (opts.carryHeading && wasNote) {
     try {
-      const before = await adapter.readTextFile(oldPath);
-      const carried = carryMirroredHeading(before, renameInitialName(oldPath, false), name);
-      if (carried !== null) await adapter.writeTextFile(oldPath, carried);
+      await updateVaultText(adapter, oldPath, (before) => carryMirroredHeading(before, renameInitialName(oldPath, false), name));
     } catch (e) {
       console.warn("[fileActions] heading carry before rename failed", e);
     }

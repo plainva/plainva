@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { normalizeJournalHeading, type JournalEntry } from "@plainva/core";
+import { normalizeJournalHeading, updateVaultText, type JournalEntry } from "@plainva/core";
 import {
   appendJournalEntry,
   ensureDailyNote,
@@ -74,6 +74,15 @@ export function useJournalFiles(): JournalFiles | null {
         // flushed before the read). The adapter counts this write as the app's
         // own, so no watcher would ever tell it.
         window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path, vaultPath } }));
+      },
+      // A change of a note that exists: one step of the chain, then the same notices.
+      updateTextFile: async (path, change) => {
+        const update = await updateVaultText(vaultAdapter, path, change);
+        if (update.changed) {
+          await written(path);
+          window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path, vaultPath } }));
+        }
+        return update;
       },
     };
   }, [vaultPath, vaultAdapter, indexer, triggerFileTreeUpdate]);

@@ -8,7 +8,7 @@ import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "../service
 import { listPendingShares, shareTarget, validateShare, type PendingShare, type ShareTargetPort } from "../services/shareTarget";
 import { importSharedContent } from "../services/shareImport";
 import { appendPlannedJournalEntry, planSharedJournalEntry } from "../services/journalService";
-import { vaultOps, type MobileVault } from "../services/vaultService";
+import { vaultTextFiles, type MobileVault } from "../services/vaultService";
 import { providerListLabel, sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
 import { leaveThen } from "../services/leaveQuestion";
@@ -46,8 +46,7 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
   useEffect(() => {
     if (!taskDb || !asTask) return;
     let stale = false;
-    const adapter = { readTextFile: (p: string) => vaultOps.read(vault, p), writeTextFile: (p: string, c: string) => vaultOps.save(vault, p, c), exists: (p: string) => vault.files.exists(p) };
-    void providerListLabel(adapter, taskDb).then(name => { if (!stale) setProviderList(name ?? null); }).catch(() => { if (!stale) setProviderList(null); });
+    void providerListLabel(vaultTextFiles(vault), taskDb).then(name => { if (!stale) setProviderList(name ?? null); }).catch(() => { if (!stale) setProviderList(null); });
     return () => { stale = true; };
   }, [taskDb, asTask, vault]);
   const dismissed = useRef(new Set<string>()), abort = useRef<AbortController | null>(null);
@@ -84,7 +83,7 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
   const importEntry = async () => {
     if (!entry || busy) return;
     const controller = new AbortController(); abort.current = controller; setBusy(true); setError(null);
-    const taskAdapter = { readTextFile: (p: string) => vaultOps.read(vault, p), writeTextFile: (p: string, c: string) => vaultOps.save(vault, p, c), exists: (p: string) => vault.files.exists(p) };
+    const taskAdapter = vaultTextFiles(vault);
     const makesTask = asTask && !toJournal && !!taskDb && !entry.plan;
     const intoJournal = toJournal && !entry.plan;
     let taskTitle = "";

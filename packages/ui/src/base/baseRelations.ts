@@ -1,4 +1,4 @@
-import { foldPathNormalization } from "@plainva/core";
+import { foldPathNormalization, updateVaultText, type TextUpdateFiles } from "@plainva/core";
 import { parseBaseConfig, serializeBaseConfig } from "./baseFormat";
 import { parseSourceClause, type SourceClause } from "./filterExpr";
 import { isValidNewPropertyName } from "./renameProperty";
@@ -10,10 +10,8 @@ import { isValidNewPropertyName } from "./renameProperty";
  * writeReverseColumnChange is side-effect free and unit-testable.
  */
 
-export interface BaseFileAdapter {
-  readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, content: string): Promise<void>;
-}
+/** The files a database's config is changed in: a vault's chain, or a storage with nothing above it (`updateVaultText`). */
+export type BaseFileAdapter = TextUpdateFiles;
 
 function clone(config: any): any {
   return config == null ? {} : JSON.parse(JSON.stringify(config));
@@ -275,10 +273,14 @@ export async function writeReverseColumnChange(
   targetBasePath: string,
   mutate: (cfg: any) => any
 ): Promise<boolean> {
-  const text = await adapter.readTextFile(targetBasePath);
-  const next = mutate(parseBaseConfig(text));
-  if (next == null) return false;
-  await adapter.writeTextFile(targetBasePath, serializeBaseConfig(next));
+  // The file says whether there is something to write, as it lies there when
+  // it is written. Where it has an open conflict, `mutate` is asked again for
+  // the user's own version of it.
+  const update = await updateVaultText(adapter, targetBasePath, (text) => {
+    const next = mutate(parseBaseConfig(text));
+    return next == null ? null : serializeBaseConfig(next);
+  });
+  if (mutate(parseBaseConfig(update.before)) == null) return false;
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: targetBasePath } }));
   }

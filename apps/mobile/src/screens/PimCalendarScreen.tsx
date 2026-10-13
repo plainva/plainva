@@ -238,13 +238,12 @@ export function PimCalendarScreen({
       try {
         const vault = await getMobileVault();
         const qs = vault.queryService;
-        const adapter = vault.adapter;
-        if (!qs || !adapter) return;
+        if (!qs) return;
         const bases = await qs.listBases();
         const cands: OverlayCandidate[] = [];
         for (const b of bases) {
           try {
-            cands.push(...overlayCandidates(b.path, b.title, await adapter.readTextFile(b.path)));
+            cands.push(...overlayCandidates(b.path, b.title, await vault.files.readTextFile(b.path)));
           } catch {
             /* one unreadable database costs its own views, not the row */
           }
@@ -253,7 +252,7 @@ export function PimCalendarScreen({
         if (!alive) return;
         setOvCands(cands);
         setOvKeys(keys);
-        setOvEntries(keys.length ? await loadBaseOverlay(keys, bases, { vaultAdapter: adapter, queryService: qs }) : []);
+        setOvEntries(keys.length ? await loadBaseOverlay(keys, bases, { vaultAdapter: vault.files, queryService: qs }) : []);
       } catch {
         if (alive) setOvCands([]);
       }
@@ -272,9 +271,8 @@ export function PimCalendarScreen({
         try {
           const vault = await getMobileVault();
           const qs = vault.queryService;
-          const adapter = vault.adapter;
-          if (!qs || !adapter) return;
-          setOvEntries(next.length ? await loadBaseOverlay(next, await qs.listBases(), { vaultAdapter: adapter, queryService: qs }) : []);
+          if (!qs) return;
+          setOvEntries(next.length ? await loadBaseOverlay(next, await qs.listBases(), { vaultAdapter: vault.files, queryService: qs }) : []);
         } catch {
           setOvEntries([]);
         }

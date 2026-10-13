@@ -2,6 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import {
   deleteFrontmatterPath,
   renameFrontmatterKey,
+  type TextChange,
 } from "@plainva/core";
 import { buildMobilePlanDeps } from "./cascadeDelete";
 import { getMobileSettings } from "./mobileSettings";
@@ -154,11 +155,13 @@ export async function commitBulkValue(
  * A note as the shared property writers read and write it on the phone — ONE
  * definition for a cell and for a selection.
  *
- * Reading lands the editor's pending keystrokes first: the note may be open,
- * and the rewrite of its properties has to start from the live text. Writing
- * is `vaultOps.save` — the vault's chain (a version of the note as it was, the
- * conflict check, the sync queue) and the index — so a property written here
- * keeps every guarantee a write on the phone has.
+ * A property goes into the note through `vaultOps.update`: the editor's
+ * pending keystrokes land first — the note may be open, and the rewrite of its
+ * properties has to start from the live text —, then the vault's chain reads
+ * the note, changes it and writes it in one step (a version of the note as it
+ * was, the sync queue) and the index follows. So a property written here
+ * keeps every guarantee a write on the phone has, and starts from the note as
+ * it lies there, whoever wrote it last (finding 2026-10-12).
  *
  * The selection had no part in this (finding 2026-10-09): its screen handed
  * the shared loop `vault.adapter`, the storage BELOW the chain. Forty notes
@@ -175,6 +178,9 @@ function noteFiles(v: MobileVault): PropertyWriteAdapter {
       return vaultOps.read(v, p);
     },
     writeTextFile: (p, text) => vaultOps.save(v, p, text),
+    // What the shared property writers use: the note is read where it is
+    // written, in one step of the chain (finding 2026-10-12).
+    updateTextFile: (p, change) => vaultOps.update(v, p, change),
   };
 }
 
@@ -219,6 +225,8 @@ export async function writeRelationSchema(
       await v.files.writeTextFile(p, text);
       if (v.indexer) await v.reindexPaths([p]);
     },
+    // The reverse column goes into the TARGET base as that file lies there.
+    updateTextFile: (p: string, change: TextChange) => vaultOps.update(v, p, change),
   };
   return applyRelationWrite(
     adapter,
@@ -336,12 +344,7 @@ export async function renameBaseProperty(
   let changed = 0;
   for (const p of rowPaths) {
     try {
-      const text = await vaultOps.read(v, p);
-      const next = renameFrontmatterKey(text, oldName, newName);
-      if (next !== text) {
-        await vaultOps.save(v, p, next);
-        changed++;
-      }
+      if ((await vaultOps.update(v, p, (text) => renameFrontmatterKey(text, oldName, newName))).changed) changed++;
     } catch {
       /* note lacks the key or already carries the new one — skip */
     }
@@ -367,9 +370,7 @@ export async function deleteBaseProperty(
   if (cleanNotes) {
     for (const p of rowPaths) {
       try {
-        const text = await vaultOps.read(v, p);
-        const next = deleteFrontmatterPath(text, [name]);
-        if (next !== text) await vaultOps.save(v, p, next);
+        await vaultOps.update(v, p, (text) => deleteFrontmatterPath(text, [name]));
       } catch {
         /* skip unreadable notes; the column is gone either way */
       }
@@ -475,6 +476,7 @@ export function pinboardEntryFiles(v: MobileVault): PinboardEntryFiles {
       return vaultOps.read(v, p);
     },
     write: (p, text) => vaultOps.save(v, p, text),
+    update: (p, change) => vaultOps.update(v, p, change),
     rename: (p, stem) => vaultOps.rename(v, p, stem),
     // The person's own draft with nothing in it, a confirmed discard, or what
     // an app that went away during an entry left behind unchanged.

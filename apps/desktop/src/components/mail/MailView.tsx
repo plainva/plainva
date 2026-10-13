@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Archive, Ban, BellOff, Clock, Copy, ExternalLink, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, Link2, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, TriangleAlert, X } from "lucide-react";
 import { Banner, Button, EmptyState, ICON, IconButton, mailRowActions, MenuItem, MenuLabel, MenuSeparator, MenuSurface, RowActionList, SelectionBar, plainvaProducer, toast, type LinkTarget, type MailRowCaps } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { firstAngleValue, nameBeforeAngle, trimChars } from "@plainva/core";
+import { firstAngleValue, nameBeforeAngle, trimChars, updateVaultText } from "@plainva/core";
 import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
 import { mailSnoozedKey } from "../../services/settingsProfile";
@@ -1547,8 +1547,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         if (withEml && res.created) {
           const raw = await fetchRawMessage(vaultPath, account, mailbox, message.id);
           const emlPath = await saveEmlFile(vaultAdapter, message, raw, folder);
-          const content = await vaultAdapter.readTextFile(res.path);
-          await vaultAdapter.writeTextFile(res.path, `${content.trimEnd()}\n\n[[${emlPath}]]\n`);
+          await updateVaultText(vaultAdapter, res.path, (content) => `${content.trimEnd()}\n\n[[${emlPath}]]\n`);
           touched.push(emlPath);
         }
         if (res.created) {

@@ -20,8 +20,9 @@ import { vaultOps, type MobileVault } from "./vaultService";
 
 /**
  * The journal on the phone (plan Journal, J2/J4): the shared write path with
- * this shell's one way of writing — `vaultOps.save` (own-write marking, index)
- * and a sync nudge afterwards. The desktop's twin is `hooks/useJournal.ts`.
+ * this shell's one way of writing — `vaultOps.update` for a change of a daily
+ * note that exists, `vaultOps.save` for a whole text (own-write marking,
+ * index) — and a sync nudge afterwards. The desktop's twin is `hooks/useJournal.ts`.
  */
 
 /** The vault's journal heading (setting, default "Journal"). */
@@ -47,6 +48,16 @@ export function journalFiles(vault: MobileVault): JournalFiles {
       // a change from outside.
       window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path } }));
       listeners.forEach((listener) => listener(path));
+    },
+    // A change of a daily note that exists: one step of the chain, then the same notices.
+    updateTextFile: async (path, change) => {
+      const update = await vaultOps.update(vault, path, change);
+      if (update.changed) {
+        syncSoon();
+        window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path } }));
+        listeners.forEach((listener) => listener(path));
+      }
+      return update;
     },
   };
 }

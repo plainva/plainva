@@ -30,6 +30,9 @@ const SHELLS = ["apps/desktop/src", "apps/mobile/src", "packages/ui/src"];
 /** The functions a property reaches a note through, and where a call of each is looked for. */
 const WRITERS: Record<string, string[]> = {
   writeNoteProperty: SHELLS,
+  // What `writeNoteProperty` is built on: a note's text with one column set.
+  // Called directly where a property is one part of a larger change of a note.
+  withNoteProperty: SHELLS,
   updateFrontmatterString: SHELLS,
   bulkSetProperty: SHELLS,
   rewriteNoteProperties: SHELLS,
@@ -91,13 +94,15 @@ const SITES: Site[] = [
     says: [SAID, /day: entry\.day/], within: 600,
   },
   {
-    file: "apps/desktop/src/services/pim/entryEventSync.ts", writer: "writeNoteProperty", calls: 1,
+    file: "apps/desktop/src/services/pim/entryEventSync.ts", writer: "withNoteProperty", calls: 1,
     // Decided, not forgotten: this runs after every calendar cycle without
     // anyone asking for it, and a note that cannot follow its appointment
     // fails again on the next one — a message per cycle would never stop. The
     // anchor is kept, so the move is tried again once the note can be written.
     how: "no message — a background reconcile: collected in errors for the caller, tried again every cycle",
-    says: [/result\.errors\.push\(/], within: 600,
+    // The date goes in with the anchor's new start, in one change of the note (`updateVaultText`): what the
+    // writer throws for the note leaves that change, and the catch around it collects it.
+    says: [/result\.errors\.push\(/], within: 700,
   },
   // ── Phone ────────────────────────────────────────────────────────────────
   {
@@ -143,8 +148,15 @@ const SITES: Site[] = [
   },
   {
     file: "packages/ui/src/base/writeProperty.ts", writer: "updateFrontmatterString", calls: 1,
+    // Inside the change `writeNoteProperty` hands the vault's chain: what it throws for the note is the caller's.
     how: "thrown on to the caller of writeNoteProperty, which is listed above",
-    says: [/^text, next\)\);\s*\}/], within: 60,
+    says: [/^text, next\);\s*\}/], within: 60,
+  },
+  {
+    file: "packages/ui/src/base/writeProperty.ts", writer: "withNoteProperty", calls: 1,
+    // The change itself: `writeNoteProperty` is this one call, handed to the vault's chain.
+    how: "thrown on to the caller of writeNoteProperty, which is listed above — its one change",
+    says: [/^text, column, value\)\);\s*\}/], within: 60,
   },
 ];
 

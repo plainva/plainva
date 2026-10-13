@@ -1,10 +1,10 @@
-import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError } from "./IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError, type TextChange, type TextFileChange, type TextFileState, type TextFileUpdate } from "./IVaultAdapter.js";
 import type { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
 import { mergeText, mergeEditorText, containsTextChanges } from "../conflict-resolver.js";
 import { parseBackupFileName } from "./backupNaming.js";
 import { readLocalText } from "./localText.js";
 import { withPathMutation } from "./pathMutation.js";
-import { ConflictSessions, conflictDiagnostic, type ConflictEditSession, type ConflictResolution, type ConflictSessionGate, type ConflictWriter, type EditorWriteResult } from "./conflictSession.js";
+import { ConflictSessions, conflictDiagnostic, conflictSessionKey, type ConflictEditSession, type ConflictResolution, type ConflictSessionGate, type ConflictWriter, type EditorWriteResult } from "./conflictSession.js";
 
 export class ConflictError extends Error {
   public conflictPath?: string;
@@ -13,6 +13,43 @@ export class ConflictError extends Error {
     this.name = "ConflictError";
     this.conflictPath = conflictPath;
   }
+}
+
+/**
+ * What a write without a starting text is told at a file whose open conflict
+ * holds somebody else's draft: nothing was written. The message is what is
+ * left of the error where it loses its class (the desktop's window bus hands
+ * a failed write on as its message), so a surface recognises the refusal by
+ * how it begins.
+ */
+export const OPEN_CONFLICT_MESSAGE = "The file has an open conflict; nothing was written. Resolve the conflict first";
+
+/**
+ * That refusal. A `ConflictError` otherwise says the text was KEPT — in the
+ * working copy it names; this one says nothing was written anywhere. It has a
+ * name of its own, so a surface that asks an error for `ConflictError` to say
+ * "saved in your conflict copy" does not say it here.
+ */
+export class OpenConflictError extends ConflictError {
+  constructor(conflictPath?: string) {
+    super(OPEN_CONFLICT_MESSAGE, conflictPath);
+    this.name = "OpenConflictError";
+  }
+}
+
+/**
+ * What a change makes of a file and of the working copy of its open conflict.
+ * The file comes first, and what the change throws there is the caller's. The
+ * working copy is the user's own version and may be a text the change cannot
+ * take — a block it refuses, a line that is not there: it is left alone then.
+ */
+export function changeOf(state: TextFileState, change: TextChange): TextFileChange {
+  const text = change(state.text);
+  let workingCopy: string | null = null;
+  if (state.workingCopy !== null) {
+    try { workingCopy = change(state.workingCopy); } catch { workingCopy = null; }
+  }
+  return { text, workingCopy };
 }
 
 async function sha256Hash(text: string): Promise<string> {
@@ -52,10 +89,10 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
   }
 
   private async preserveLocked(gate: ConflictSessionGate, path: string, text: string, state: SyncState | null, writer: ConflictWriter,
-    diagnosticBase?: { text: string | null; source: "captured" | "backup" | "none" }): Promise<ConflictEditSession> {
+    diagnosticBase?: { text: string | null; source: "captured" | "backup" | "none" }, plain = false): Promise<ConflictEditSession> {
     const disk = await this.inner.exists(path) ? await this.inner.readTextFile(path) : null;
     const base = state?.base_text ?? null;
-    return this.sessions.preserveLocked(gate, { path, text, base, external: disk, writer,
+    return this.sessions.preserveLocked(gate, { path, text, base, external: disk, writer, plain,
       diagnostic: await conflictDiagnostic({ path, adapter: this.adapterKind, writer, disk,
         expectedLocalHash: state?.local_sha256 ?? null, base: diagnosticBase ? diagnosticBase.text : base, baseSource: diagnosticBase?.source ?? (base === null ? "none" : "captured"),
         wasWrittenByUs: disk !== null && this.wasWrittenByUs(path, await sha256Hash(disk)) }) });
@@ -208,20 +245,144 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     return this.inner.readBinaryFile(path);
   }
 
+  /**
+   * Writes a whole text over a file, for a writer that names no text it
+   * started from: a view that holds its text since it loaded it, a file made
+   * anew, a version put back. The file on disk is compared with what the chain
+   * knew last; a change from outside is merged in, or kept as a conflict.
+   *
+   * Whoever changes a place of a file that exists — a property, a task's box,
+   * a link — reads and writes through `updateTextFile` instead: it starts from
+   * the file as it lies there and never has to merge.
+   */
   async writeTextFile(path: string, localContent: string): Promise<void> {
     // Capture the base before waiting behind an incoming write. Its completion
     // advances sync_state, but cannot retroactively update the user's draft.
     const requestedState = await this.syncRepo.getSyncState(path);
     return this.sessions.withMutation(path, async gate => {
       if (gate.session) {
-        await this.sessions.writeLocked(gate.session, localContent);
+        // A writer that names the working copy itself read that copy, or
+        // holds it: a version of it put back, a database opened from its own
+        // conflict copy. It writes the copy and nothing else, as asked.
+        if (this.namesWorkingCopy(path, gate)) {
+          await this.sessions.writeLocked(gate.session, localContent);
+          return;
+        }
+        // An open conflict: the user's own version lies in the working copy,
+        // and this writer did not start from it. It replaces the copy only
+        // where the copy is still its own earlier text (`writePlainLocked`).
+        if (!(await this.sessions.writePlainLocked(gate.session, localContent))) {
+          throw new OpenConflictError(gate.session.workingCopyPath);
+        }
         throw new ConflictError("The changes are saved in the local conflict working copy", gate.session.workingCopyPath);
       }
-      return this.writeTextFileLocked(path, localContent, requestedState, gate);
+      return this.writeTextFileLocked(path, localContent, requestedState, gate, true);
     });
   }
 
-  private async writeTextFileLocked(path: string, localContent: string, syncState: SyncState | null, gate: ConflictSessionGate): Promise<void> {
+  /**
+   * Reads a text file, changes it and writes it back, in one step (finding
+   * 2026-10-12).
+   *
+   * For a writer that changes a place of a file that exists — a cell of a
+   * database, a value set across a selection, a task's box, a line of the
+   * journal, the links a rename rewrites. It has just read the file; through
+   * `writeTextFile` the chain did not learn that and judged it like an editor
+   * holding a text from minutes ago. A note changed below the chain — by an
+   * earlier build of the app, by another program in a folder the user picked —
+   * was refused as a conflict that way, with a conflict copy of a note nobody
+   * else had touched; and a note with an open conflict lost the user's own
+   * text, because the writer had read the note (the other side) and what it
+   * wrote was put in place of the working copy.
+   *
+   * Here the chain reads inside the gate it holds for the path and calls
+   * `change` with that text. So the disk holds exactly the text the change
+   * started from, by construction: nothing to compare, nothing to merge, no
+   * conflict copy. Only the local marker follows — as on opening a note
+   * (`acknowledgeExternalUpdate`); the merge base stays the sync's. Version,
+   * permission check and sync queue are the links' below, as for any write.
+   *
+   * A file with an open conflict is changed like any other: tables, task
+   * lists and the other devices read the file itself, so that is where the
+   * change belongs. The same change is then made in the working copy, the
+   * user's own version, so that it does not fall behind — whichever version
+   * the user keeps, the change is in it. Where it finds no place there (a
+   * task's line that reads differently in the user's version, a block the
+   * change refuses), the working copy stays as it is; it is never replaced.
+   * A writer that names the working copy itself changes that one only.
+   *
+   * A file that is not there is an error: a change needs something to change.
+   * What `change` throws reaches the caller, and nothing is written.
+   */
+  async updateTextFile(path: string, change: TextChange): Promise<TextFileUpdate> {
+    return this.sessions.withMutation(path, async gate => {
+      const state = await this.stateLocked(path, gate);
+      return this.applyLocked(path, gate, state, changeOf(state, change));
+    });
+  }
+
+  /** `updateTextFile` in two steps, for a window that reaches this chain over a bus and cannot hand over a function: the read … */
+  async readTextFileState(path: string): Promise<TextFileState> {
+    return this.sessions.withMutation(path, gate => this.stateLocked(path, gate));
+  }
+
+  /** … and the write — if the file, and the working copy of its conflict, still are what was read. `null` says they are not: read again. */
+  async writeTextFileChange(path: string, expected: TextFileState, next: TextFileChange): Promise<TextFileUpdate | null> {
+    return this.sessions.withMutation(path, async gate => {
+      const state = await this.stateLocked(path, gate);
+      if (state.text !== expected.text || state.workingCopy !== expected.workingCopy) return null;
+      return this.applyLocked(path, gate, state, next);
+    });
+  }
+
+  /** Whether the caller named the working copy of the conflict itself, not the file it belongs to. */
+  private namesWorkingCopy(path: string, gate: ConflictSessionGate): boolean {
+    return !!gate.session && conflictSessionKey(path) === gate.session.workingCopyPath;
+  }
+
+  private async stateLocked(path: string, gate: ConflictSessionGate): Promise<TextFileState> {
+    if (gate.session && this.namesWorkingCopy(path, gate)) return { text: await this.sessions.draftLocked(gate.session), workingCopy: null };
+    const text = await this.inner.readTextFile(path);
+    return { text, workingCopy: gate.session ? await this.sessions.draftLocked(gate.session) : null };
+  }
+
+  private async applyLocked(path: string, gate: ConflictSessionGate, state: TextFileState, next: TextFileChange): Promise<TextFileUpdate> {
+    const session = gate.session;
+    const changed = next.text !== null && next.text !== state.text;
+    const text = changed ? next.text! : state.text;
+    if (session && this.namesWorkingCopy(path, gate)) {
+      // The draft is what was read: the session's journal takes the new text as it takes an editor's.
+      if (changed) await this.sessions.writeLocked(session, text, state.text);
+      return { before: state.text, text, changed, conflict: { workingCopyPath: session.workingCopyPath, changed } };
+    }
+    if (changed) {
+      // An ordinary write, as `writeTextFileLocked` makes one for a file nobody else touched.
+      await this.inner.writeTextFile(path, text);
+      const hash = await sha256Hash(text);
+      // Remembered BEFORE the hash lands in sync_state: an indexer pass that
+      // reads the file in between asks `wasWrittenByUs` and stays quiet.
+      this.rememberWrite(path, hash);
+      await this.syncRepo.updateLocalHash(path, hash);
+    }
+    if (!session) return { before: state.text, text, changed, conflict: null };
+    let carried = false;
+    if (state.workingCopy !== null && next.workingCopy !== null && next.workingCopy !== state.workingCopy) {
+      try {
+        await this.sessions.writeLocked(session, next.workingCopy, state.workingCopy);
+        carried = true;
+      } catch (error) {
+        // The file has the change. Where the session's journal took the new
+        // draft before the step failed, the working copy follows with the
+        // session's next step; otherwise the user's own version stays what
+        // it was, and the difference shows when the two are compared.
+        carried = (await this.sessions.journaledDraft(session).catch(() => null)) === next.workingCopy;
+        console.warn(`[ConflictAware] ${path}: the working copy of the open conflict ${carried ? "takes the change with its next step" : "did not take the change"}`, error);
+      }
+    }
+    return { before: state.text, text, changed, conflict: { workingCopyPath: session.workingCopyPath, changed: carried } };
+  }
+
+  private async writeTextFileLocked(path: string, localContent: string, syncState: SyncState | null, gate: ConflictSessionGate, plain = false): Promise<void> {
     const isNew = !(await this.inner.exists(path));
     if (isNew) {
       await this.inner.writeTextFile(path, localContent);
@@ -270,13 +431,13 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
       const baseContent = capturedBase != null && await sha256Hash(capturedBase) === syncState.local_sha256
         ? { text: capturedBase, source: "captured" as const } : await this.findBaseContent(path, syncState.local_sha256);
       if (baseContent === null) {
-        const session = await this.preserveLocked(gate, path, localContent, syncState, "adapter", { text: null, source: "none" });
+        const session = await this.preserveLocked(gate, path, localContent, syncState, "adapter", { text: null, source: "none" }, plain);
         throw new ConflictError(`Cannot automatically merge ${path}: base version not found. Saved locally as ${session.workingCopyPath}.`, session.workingCopyPath);
       }
 
       const mergeResult = mergeText(baseContent.text, localContent, currentDiskContent);
       if (mergeResult.hasConflicts) {
-        const session = await this.preserveLocked(gate, path, localContent, syncState, "adapter", baseContent);
+        const session = await this.preserveLocked(gate, path, localContent, syncState, "adapter", baseContent, plain);
         throw new ConflictError(`Cannot automatically merge ${path}: conflicting changes. Saved locally as ${session.workingCopyPath}.`, session.workingCopyPath);
       }
       

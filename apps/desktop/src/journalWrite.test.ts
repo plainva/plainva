@@ -15,8 +15,9 @@ import {
   type DailyNoteCreateConfig,
   type JournalFiles,
 } from "@plainva/ui";
-import { parseJournal } from "@plainva/core";
+import { ConflictAwareVaultAdapter, SyncStateRepository, TextFileChangedError, parseJournal } from "@plainva/core";
 import { LocalVaultAdapter } from "../../../packages/core/src/vault/LocalVaultAdapter";
+import { realSqlite } from "../../../packages/core/test/helpers/realSqlite";
 
 /**
  * Plan Journal, J2: the one write path both shells use — against real files.
@@ -30,9 +31,16 @@ const CONFIG: DailyNoteCreateConfig = { folder: "Journal", format: "YYYY-MM-DD",
 let root: string;
 let vault: LocalVaultAdapter;
 
-/** What a shell hands in: its adapter, and the shared daily-note rule run headless. */
-function filesOf(adapter: LocalVaultAdapter, config: DailyNoteCreateConfig = CONFIG): JournalFiles {
+/** The vault's chain over the same folder, as a shell builds it — for what only a chain does. */
+async function chainOver(files: LocalVaultAdapter): Promise<{ chain: ConflictAwareVaultAdapter; close(): Promise<void> }> {
+  const db = await realSqlite();
+  return { chain: new ConflictAwareVaultAdapter(files, new SyncStateRepository(db)), close: () => db.close() };
+}
+
+/** What a shell hands in: its adapter — the files alone, or the vault's chain — and the shared daily-note rule run headless. */
+function filesOf(adapter: LocalVaultAdapter | ConflictAwareVaultAdapter, config: DailyNoteCreateConfig = CONFIG): JournalFiles {
   return {
+    ...(adapter instanceof ConflictAwareVaultAdapter ? { updateTextFile: (path, change) => adapter.updateTextFile(path, change) } satisfies Partial<JournalFiles> : {}),
     ensureDailyNote: (date) => ensureDailyNote(date, config, {
       exists: (path) => adapter.exists(path),
       readTextFile: (path) => adapter.readTextFile(path),
@@ -85,32 +93,52 @@ describe("appendJournalEntry", () => {
     expect(await vault.readTextFile(PATH)).toBe("# Sunday\r\n\r\n## Journal\r\n- 09:00 early\r\n- [ ] 14:05 later\r\n\r\n## Notes\r\nkeep me\r\n");
   });
 
-  it("redoes the change when the note moved on between reading and writing", async () => {
-    await vault.createDir("Journal");
-    await vault.writeTextFile(PATH, "## Journal\n- 09:00 early\n");
-    const files = filesOf(vault);
-    let reads = 0;
-    const racing: JournalFiles = {
-      ...files,
-      readTextFile: async (path) => {
-        // Another writer — a sync pull, the editor's autosave — lands right after the first read.
-        if (++reads === 2) await vault.writeTextFile(PATH, "## Journal\n- 09:00 early\n- 13:00 from the other device\n");
-        return files.readTextFile(path);
-      },
-    };
-    const result = await appendJournalEntry(racing, { date: DAY, text: "mine", heading: "Journal", now: NOW });
-    expect(result.ok).toBe(true);
-    expect(await vault.readTextFile(PATH)).toBe("## Journal\n- 09:00 early\n- 13:00 from the other device\n- 14:05 mine\n");
+  it("the entry goes into the note as it lies there when it is written: what another writer left since stays, and nothing is merged", async () => {
+    const { chain, close } = await chainOver(vault);
+    try {
+      await vault.createDir("Journal");
+      // The chain knows the note as it was written here …
+      await chain.writeTextFile(PATH, "## Journal\n- 09:00 early\n");
+      // … and another writer — a sync pull, a second program — changes it below the chain.
+      await vault.writeTextFile(PATH, "## Journal\n- 09:00 early\n- 13:00 from the other device\n");
+      const result = await appendJournalEntry(filesOf(chain), { date: DAY, text: "mine", heading: "Journal", now: NOW });
+      expect(result.ok).toBe(true);
+      expect(await vault.readTextFile(PATH)).toBe("## Journal\n- 09:00 early\n- 13:00 from the other device\n- 14:05 mine\n");
+      expect(await chain.listConflictSessions()).toEqual([]);
+      // What the undo takes back is the entry, from the text it went into.
+      expect(result.ok && result.undo?.before).toBe("## Journal\n- 09:00 early\n- 13:00 from the other device\n");
+    } finally { await close(); }
   });
 
-  it("gives up rather than overwrite a note that never holds still", async () => {
+  it("a thought captured while the day's note has an open conflict lands in both versions, and the one typed here stays", async () => {
+    const { chain, close } = await chainOver(vault);
+    try {
+      await vault.createDir("Journal");
+      await chain.writeTextFile(PATH, "## Journal\n- 09:00 early\n");
+      await vault.writeTextFile(PATH, "## Journal\n- 09:00 early, as another device left it\n");
+      const saved = await chain.writeEditorText(PATH, "## Journal\n- 09:00 early, as it was typed here\n", "## Journal\n- 09:00 early\n");
+      const copy = saved.session!.workingCopyPath;
+      const result = await appendJournalEntry(filesOf(chain), { date: DAY, text: "mine", heading: "Journal", now: NOW });
+      // It used to be refused, with the other device's text and the new line in place of what was typed here.
+      expect(result.ok).toBe(true);
+      expect(await vault.readTextFile(PATH)).toBe("## Journal\n- 09:00 early, as another device left it\n- 14:05 mine\n");
+      expect(await vault.readTextFile(copy)).toBe("## Journal\n- 09:00 early, as it was typed here\n- 14:05 mine\n");
+      // The undo takes the line out of both again.
+      expect(result.ok && result.undo && await undoJournalChange(filesOf(chain), result.undo, "Journal")).toBe(true);
+      expect(await vault.readTextFile(PATH)).toBe("## Journal\n- 09:00 early, as another device left it\n");
+      expect(await vault.readTextFile(copy)).toBe("## Journal\n- 09:00 early, as it was typed here\n");
+    } finally { await close(); }
+  });
+
+  it("gives up rather than overwrite a note that never holds still — in a window beside the main one, whose change kept losing", async () => {
     await vault.createDir("Journal");
-    await vault.writeTextFile(PATH, "## Journal\n");
-    const files = filesOf(vault);
-    let n = 0;
-    const restless: JournalFiles = { ...files, readTextFile: async () => `## Journal\n- 09:00 version ${n++}\n` };
+    await vault.writeTextFile(PATH, "## Journal\n- 14:05 mine\n");
+    // What `RemoteVaultAdapter.updateTextFile` answers after its last attempt (see ownerBus.test.ts).
+    const restless: JournalFiles = { ...filesOf(vault), updateTextFile: async (path) => { throw new TextFileChangedError(path); } };
     expect(await appendJournalEntry(restless, { date: DAY, text: "mine", heading: "Journal", now: NOW })).toEqual({ ok: false, reason: "changed" });
-    expect(await vault.readTextFile(PATH)).toBe("## Journal\n");
+    const entry = parseJournal(await vault.readTextFile(PATH), { heading: "Journal" }).entries[0];
+    expect(await undoJournalChange(restless, { path: PATH, before: "## Journal\n", after: "x", kind: "insert", entry }, "Journal")).toBe(false);
+    expect(await vault.readTextFile(PATH)).toBe("## Journal\n- 14:05 mine\n");
   });
 
   it("refuses an empty text and reports a note that cannot be created", async () => {

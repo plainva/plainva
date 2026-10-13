@@ -24,13 +24,24 @@ const files: Record<string, string> = {};
 const saved: Record<string, string> = {};
 
 vi.mock("./services/vaultService", () => ({
-  vaultOps: {
-    read: vi.fn(async (_v: unknown, p: string) => files[p]),
-    save: vi.fn(async (_v: unknown, p: string, c: string) => {
+  // What the screen hands the shared replace: the vault's text files, with the
+  // phone's one way for a change of a file — here over this test's store.
+  vaultTextFiles: () => ({
+    readTextFile: async (p: string) => files[p],
+    writeTextFile: async (p: string, c: string) => {
       saved[p] = c;
       files[p] = c;
-    }),
-  },
+    },
+    updateTextFile: async (p: string, change: (text: string) => string | null) => {
+      const before = files[p];
+      const next = change(before);
+      if (next === null || next === before) return { before, text: before, changed: false, conflict: null };
+      saved[p] = next;
+      files[p] = next;
+      return { before, text: next, changed: true, conflict: null };
+    },
+    exists: async (p: string) => p in files,
+  }),
 }));
 
 const match = (lineText: string) => ({ line: 1, start: 0, end: 5, lineText });

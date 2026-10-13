@@ -268,5 +268,9 @@ describe("where the journal gets a daily note's text", () => {
     const phone = sourceFile("apps/mobile/src/services/journalService.ts");
     expect(phone).toContain("readTextFile: (path) => vaultOps.read(vault, path),");
     expect(phone).toMatch(/writeTextFile: async \(path, content\) => \{\s+await vaultOps\.save\(vault, path, content\);/);
+    // A change of a daily note that exists goes through the vault's entry: the
+    // chain reads the file itself and hands the journal that same text.
+    expect(desktop).toMatch(/updateTextFile: async \(path, change\) => \{\s+const update = await updateVaultText\(vaultAdapter, path, change\);/);
+    expect(phone).toMatch(/updateTextFile: async \(path, change\) => \{\s+const update = await vaultOps\.update\(vault, path, change\);/);
   });
 });

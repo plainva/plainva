@@ -158,6 +158,10 @@ export interface RpcMap {
   "tab-transfer-cancel": { args: { id: string }; result: import("./tabTransfer").TransferResult };
   write: { args: { path: string; content: string }; result: void };
   "editor-write": { args: { path: string; content: string; baseText: string | null }; result: import("@plainva/core").EditorWriteResult };
+  /** The two halves of a change of a file where it lies (`RemoteVaultAdapter.updateTextFile`): what the file is … */
+  "update-read": { args: { path: string }; result: import("@plainva/core").TextFileState };
+  /** … and the change made of it, written only if the file still is that. `null`: it is not, read again. */
+  "update-write": { args: { path: string; expected: import("@plainva/core").TextFileState; next: import("@plainva/core").TextFileChange }; result: import("@plainva/core").TextFileUpdate | null };
   "conflict-read": { args: { path: string }; result: import("@plainva/core").ConflictEditSession | null };
   "conflict-list": { args: Record<string, never>; result: import("@plainva/core").ConflictEditSession[] };
   "conflict-diagnostics": { args: Record<string, never>; result: import("@plainva/core").ConflictDiagnostic[] };
@@ -466,6 +470,8 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "tab-transfer-cancel": "app",
   write: "vault",
   "editor-write": "vault",
+  "update-read": "vault",
+  "update-write": "vault",
   "conflict-read": "vault",
   "conflict-list": "vault",
   "conflict-diagnostics": "vault",

@@ -19,7 +19,7 @@ import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { journalFailureText, journalFiles, journalHeading, onJournalWrite } from "../services/journalService";
 import { syncSoon } from "../services/syncService";
 import { getMobileSettings } from "../services/mobileSettings";
-import { vaultOps, type MobileVault } from "../services/vaultService";
+import { vaultOps, vaultTextFiles, type MobileVault } from "../services/vaultService";
 
 /**
  * The journal as a screen (plan Journal, J5) — the phone's twin of the desktop
@@ -100,10 +100,7 @@ export function JournalScreen({
         // The phone's own way of writing - own-write marking and the index -
         // behind the shared property writer. Zero CLEARS the property.
         await writeNoteProperty(
-          {
-            readTextFile: (path: string) => vaultOps.read(vault, path),
-            writeTextFile: (path: string, content: string) => vaultOps.save(vault, path, content).then(() => undefined),
-          },
+          vaultTextFiles(vault),
           day.path,
           key,
           value > 0 ? value : "",

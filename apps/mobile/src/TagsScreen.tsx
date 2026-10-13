@@ -7,7 +7,7 @@ import { usePullToRefresh } from "./lib/usePullToRefresh";
 import { useLongPress } from "./lib/useLongPress";
 import { mPrompt } from "./services/mobileDialogs";
 import { RowActionSheet } from "./components/RowActionSheet";
-import { vaultOps, type MobileVault } from "./services/vaultService";
+import { vaultTextFiles, type MobileVault } from "./services/vaultService";
 import { AppBar } from "./components/AppBar";
 
 /**
@@ -109,8 +109,7 @@ export function TagsScreen({
     const out = await renameTagAcrossVault(
       {
         findNotesWithTag: (tg) => service.findNotesWithTag(tg),
-        readTextFile: (path) => vaultOps.read(vault, path),
-        writeTextFile: (path, content) => vaultOps.save(vault, path, content),
+        ...vaultTextFiles(vault),
         rename: renameTagInText,
       },
       fullTag,

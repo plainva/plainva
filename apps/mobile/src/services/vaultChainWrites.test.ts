@@ -9,11 +9,12 @@ import ts from "typescript";
 import {
   BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictError, DEFAULT_BACKUP_RETENTION, DEFAULT_TEXT_SHAPE, QueueingVaultAdapter,
   SyncQueue, SyncStateRepository, VaultIndexer, VaultQueryService, VersionHistoryService, applyTextShape, containsTextChanges,
-  editorTextOf, mergeEditorText, type IDatabaseAdapter,
+  editorTextOf, isOpenTaskState, mergeEditorText, resolveTaskOrdinal, updateVaultText, type IDatabaseAdapter, type TaskRecord, type TextChange,
+  type TextFileUpdate,
 } from "@plainva/core";
 import {
-  bulkSetProperty, combineFilters, createEntryEvent, createInlineBase, createTaskDatabase, createTemplateIn, importAttachment,
-  saveNoteAsTemplateIn, writeNoteProperty, type BulkSetResult,
+  TaskMutationGate, assertFileStillThere, bulkSetProperty, combineFilters, createEntryEvent, createInlineBase, createTaskDatabase, createTemplateIn,
+  errorText, importAttachment, saveNoteAsTemplateIn, serializeBaseConfig, toggleTaskAtIndex, writeNoteProperty, type BulkSetResult,
 } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
@@ -61,12 +62,12 @@ const js = (code: string) => ts.transpileModule(code, { compilerOptions: { targe
 const run = <T>(code: string, answer: string, scope: Record<string, unknown>) =>
   new Function(...Object.keys(scope), `${js(code)}\nreturn ${answer};`)(...Object.values(scope)) as T;
 
-// The phone's read and save of a file, its note saver and what remembers an editor's text.
+// The phone's read, save and change of a file, its note saver and what remembers an editor's text.
 const serviceFile = sourceOf("src/services/vaultService.ts");
-const fileMethods = all(serviceFile, ts.isMethodDeclaration).filter((m) => ["read", "save"].includes(m.name.getText(serviceFile)));
+const fileMethods = all(serviceFile, ts.isMethodDeclaration).filter((m) => ["read", "save", "update"].includes(m.name.getText(serviceFile)));
 const saverSource = all(serviceFile, ts.isVariableDeclaration).find((d) => d.name.getText(serviceFile) === "noteSaver")?.initializer;
 const rememberSource = all(serviceFile, ts.isFunctionDeclaration).find((f) => f.name?.text === "rememberPersistedText");
-if (fileMethods.length !== 2 || !saverSource || !rememberSource) throw new Error("the phone's read, save and note saver moved — re-point this harness");
+if (fileMethods.length !== 3 || !saverSource || !rememberSource) throw new Error("the phone's read, save, update and note saver moved — re-point this harness");
 const serviceCode =
   "const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map();\n" +
   `${rememberSource.getText(serviceFile).replace(/^export /, "")}\n` +
@@ -75,7 +76,7 @@ const serviceCode =
 // The phone's property writers and the query a database screen runs.
 const baseOpsFile = sourceOf("src/services/baseOps.ts");
 const baseOpsCode = all(baseOpsFile, ts.isFunctionDeclaration)
-  .filter((f) => ["noteFiles", "commitCellValue", "commitBulkValue", "queryView"].includes(f.name?.text ?? ""))
+  .filter((f) => ["noteFiles", "commitCellValue", "commitBulkValue", "queryView", "saveBaseConfig"].includes(f.name?.text ?? ""))
   .map((f) => f.getText(baseOpsFile).replace(/^export /, ""))
   .join("\n");
 
@@ -85,6 +86,19 @@ const flowSource = all(screenFile, ts.isVariableDeclaration).find((d) => d.name.
 const outcomeSource = flowSource && all(flowSource, ts.isVariableDeclaration).find((d) => d.name.getText(screenFile) === "result")?.initializer;
 if (!outcomeSource || !ts.isAwaitExpression(outcomeSource)) throw new Error("the database screen's write for a selection moved — re-point this harness");
 const selectionWrite = outcomeSource.expression.getText(screenFile);
+
+/** A callback a screen declares with `useCallback`: the function itself, as it stands there. */
+function screenCallback(file: ts.SourceFile, name: string): string {
+  const declared = all(file, ts.isVariableDeclaration).find((d) => d.name.getText(file) === name)?.initializer;
+  if (!declared || !ts.isCallExpression(declared) || declared.expression.getText(file) !== "useCallback" || !declared.arguments[0]) {
+    throw new Error(`${file.fileName} declares no callback ${name} — re-point this harness`);
+  }
+  return declared.arguments[0].getText(file);
+}
+// What the database screen runs for one cell, and the task list for a tick.
+const cellCode = `const writeCell = ${screenCallback(screenFile, "writeCell")};`;
+const tasksFile = sourceOf("src/screens/TasksScreen.tsx");
+const tickCode = `const mutateCheckbox = ${screenCallback(tasksFile, "mutateCheckbox")};\nconst toggle = ${screenCallback(tasksFile, "toggle")};`;
 
 /** The expression a file of the phone hands to a shared writer as its vault: an argument by place, or a property of the first one. */
 function handedTo(file: string, callee: string, where: number | string): string {
@@ -101,13 +115,18 @@ function handedTo(file: string, callee: string, where: number | string): string 
 }
 
 interface PhoneServices {
-  vaultOps: { read(v: MobileVault, path: string): Promise<string>; save(v: MobileVault, path: string, text: string): Promise<void> };
+  vaultOps: {
+    read(v: MobileVault, path: string): Promise<string>;
+    save(v: MobileVault, path: string, text: string): Promise<void>;
+    update(v: MobileVault, path: string, change: TextChange): Promise<TextFileUpdate>;
+  };
   noteSaver: SaveCoordinator<MobileVault>;
   rememberPersistedText(v: MobileVault, path: string, text: string): void;
 }
 interface PhoneWriters {
   commitCellValue(v: MobileVault, path: string, col: string, value: unknown): Promise<void>;
   queryView(v: MobileVault, config: unknown, viewIndex: number): Promise<Record<string, unknown>[]>;
+  saveBaseConfig(v: MobileVault, path: string, config: unknown): Promise<void>;
   /** The phone's writer for a selection, where its service has one. */
   commitBulkValue: unknown;
 }
@@ -126,6 +145,8 @@ let clock: number;
 /** Paths the chain merged for, paths an index run called changed from outside, and how often the sync was told. */
 let merged: string[], foreign: string[], kicks: number;
 let enqueued: Promise<void>, syncing: boolean;
+/** What a screen told the user, in order: `error: …`, `info: …`. */
+let shown: string[];
 
 async function openPhone(database: IDatabaseAdapter): Promise<void> {
   root = await mkdtemp(join(tmpdir(), "plainva-phone-chain-"));
@@ -133,7 +154,7 @@ async function openPhone(database: IDatabaseAdapter): Promise<void> {
   await raw.initialize();
   db = database;
   clock = Date.now();
-  merged = []; foreign = []; kicks = 0; syncing = false; enqueued = Promise.resolve();
+  merged = []; foreign = []; kicks = 0; syncing = false; enqueued = Promise.resolve(); shown = [];
   // boot(): storage, above it versions, the sync queue and the conflict check — and the index over all of it.
   const backup = new BackupVaultAdapter(raw, { policy: DEFAULT_BACKUP_RETENTION, now: () => clock, snapshotRecursiveDeletes: true });
   const queue = new SyncQueue(db);
@@ -156,15 +177,15 @@ async function openPhone(database: IDatabaseAdapter): Promise<void> {
   } as unknown as MobileVault;
   const syncSoon = () => { kicks += 1; };
   services = run<PhoneServices>(serviceCode, "{ vaultOps, noteSaver, rememberPersistedText }", {
-    createSaveCoordinator, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE,
+    createSaveCoordinator, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE, updateVaultText,
     writeDraft: () => {}, clearDraft: () => {}, noteConflict: () => {}, conflictCopyPath: () => { throw new Error("actual conflict path required"); },
     syncSoon, toast: { warning: () => {}, error: () => {} }, i18n: { t: (key: string) => key }, window: new EventTarget(), CustomEvent,
     console: { error: () => {}, warn: () => {} },
   });
   writers = run<PhoneWriters>(
     baseOpsCode,
-    "{ commitCellValue, queryView, commitBulkValue: typeof commitBulkValue === 'function' ? commitBulkValue : undefined }",
-    { ...services, writeNoteProperty, bulkSetProperty, combineFilters, syncSoon },
+    "{ commitCellValue, queryView, saveBaseConfig, commitBulkValue: typeof commitBulkValue === 'function' ? commitBulkValue : undefined }",
+    { ...services, writeNoteProperty, bulkSetProperty, combineFilters, syncSoon, serializeBaseConfig, assertFileStillThere },
   );
 }
 
@@ -198,6 +219,37 @@ const queued = async () =>
 const versionsOf = async (path: string) => Promise.all((await history.listVersions(path)).map((v) => history.readVersionText(v.backupPath)));
 const knownToChain = async (path: string) => (await repo.getSyncState(path))?.local_sha256 === sha(await raw.readTextFile(path));
 const conflictCopies = async (folder: string) => (await readdir(join(root, folder))).filter((name) => name.includes(".CONFLICT"));
+
+/** A screen's toasts, kept as what the user would read: the key and what was put into it. */
+const surface = {
+  toast: {
+    error: (message: string) => { shown.push(`error: ${message}`); },
+    info: (message: string) => { shown.push(`info: ${message}`); },
+    warning: (message: string) => { shown.push(`warning: ${message}`); },
+  },
+  t: (key: string, values?: Record<string, unknown>) => (values ? `${key} ${JSON.stringify(values)}` : key),
+};
+/** One cell, the way the database screen writes it: its own callback, with what it names there. */
+function writeCell(path: string, col: string, value: unknown): Promise<boolean> {
+  return run<(path: string, col: string, value: unknown) => Promise<boolean>>(cellCode, "writeCell", {
+    commitCellValue: writers.commitCellValue, vault, errorText, ...surface,
+  })(path, col, value);
+}
+/** A tick in the task list: the screen's two callbacks, with what they name there. */
+function tick(task: Pick<TaskRecord, "path" | "ordinal" | "text" | "state">): Promise<void> {
+  return run<(task: unknown) => Promise<void>>(tickCode, "toggle", {
+    gate: new TaskMutationGate(), vaultOps: services.vaultOps, vault, resolveTaskOrdinal, isOpenTaskState, toggleTaskAtIndex,
+    setTick: () => {}, setTasks: () => {}, ...surface,
+  })(task);
+}
+/** What another device or another program left reaches the disk below the chain — as a pull writes it, or a second app. */
+const landedFromOutside = (path: string, text: string) => raw.writeTextFile(path, text);
+/** Typing in the note's editor, saved the way the note screen saves it. `opened` is the text the editor was opened with. */
+async function typed(path: string, text: string, opened?: string): Promise<void> {
+  if (opened !== undefined) services.rememberPersistedText(vault, path, opened);
+  services.noteSaver.schedule(vault, path, text);
+  await services.noteSaver.flush(path, vault);
+}
 
 describe("a property set across the selection of a database, on the phone", () => {
   it("is written by the phone's own writer, not by the shared loop over the storage below the chain", () => {
@@ -285,6 +337,234 @@ describe("a property set across the selection of a database, on the phone", () =
     expect(await raw.readTextFile("Projects/Delta.md")).toBe(refused);
     expect(await versionsOf("Projects/Delta.md")).toEqual([]);
     expect(await queued()).toEqual(NOTES.filter((path) => path !== "Projects/Delta.md").map((path) => `write ${path}`).sort());
+  });
+});
+
+/**
+ * A writer that reads a note, changes one place and writes it back has just
+ * read the file: a cell, a value set across a selection, a tick in the task
+ * list (finding 2026-10-12). The chain judged it like an editor that holds a
+ * text from minutes ago — it was not told which text the writer started from.
+ */
+const ALPHA = "Projects/Alpha.md";
+const withLine = (line: string) => `---\nstatus: open\nowner: Ada\n---\n# Alpha\n\n${line}\n\n- [ ] Call Ada\n`;
+const SYNCED = withLine("Text of Alpha.");
+const THEIRS = withLine("Text of Alpha, as another device left it.");
+const MINE = withLine("Text of Alpha, as it was typed on this phone.");
+const CALL_ADA = { path: ALPHA, ordinal: 0, text: "Call Ada", state: "open" as const };
+
+/**
+ * Alpha with an open conflict: the note was open in the editor when another
+ * device's version arrived, and both had changed the same line. The note now
+ * carries the other device's text, the working copy what was typed here.
+ */
+async function openConflict(): Promise<string> {
+  await syncedVault({ [ALPHA]: SYNCED });
+  await landedFromOutside(ALPHA, THEIRS);
+  await typed(ALPHA, MINE, SYNCED);
+  const session = await chain.getConflictSession(ALPHA);
+  if (!session) throw new Error("the save did not open a conflict");
+  expect(await raw.readTextFile(ALPHA)).toBe(THEIRS);
+  expect(await raw.readTextFile(session.workingCopyPath)).toBe(MINE);
+  return session.workingCopyPath;
+}
+
+/** What both versions of Alpha read after a change that was made to each of them (decision E1: into the note AND into the user's own version). */
+const inBoth = async (copy: string, change: (text: string) => string) => {
+  expect(await raw.readTextFile(ALPHA)).toBe(change(THEIRS));
+  expect(await raw.readTextFile(copy)).toBe(change(MINE));
+  // The conflict stays what it is — two versions of one line — until the user decides it.
+  expect((await chain.getConflictSession(ALPHA))?.workingCopyPath).toBe(copy);
+  expect(await conflictCopies("Projects")).toEqual([copy.split("/").pop()]);
+};
+const done = (text: string) => text.replace("status: open", "status: done");
+const ticked = (text: string) => text.replace("- [ ] Call Ada", "- [x] Call Ada");
+
+describe("a note with an open conflict: what was typed on this phone stays in its working copy, and a change lands in both versions", () => {
+  it("through a cell written in the note's row", async () => {
+    const copy = await openConflict();
+    // It used to be refused, with the other device's text and `status: done` in place of the working
+    // copy: the writer read the note, which carries their side, and the chain put what it wrote there.
+    expect(await writeCell(ALPHA, "status", "done")).toBe(true);
+    expect(shown).toEqual([]);
+    await inBoth(copy, done);
+    // The row the table shows next carries the value: it reads the note.
+    const rows = await writers.queryView(vault, DATABASE, 0);
+    expect(rows.find((row) => row["file.path"] === ALPHA)?.status).toBe("done");
+  });
+
+  it("through a value set across a selection the note is part of", async () => {
+    const copy = await openConflict();
+    const result = await setAcrossSelection([ALPHA, "Projects/Beta.md"], "status", "done");
+    // It used to be one note counted as failed.
+    expect(result.failed).toEqual([]);
+    expect([...result.written].sort()).toEqual([ALPHA, "Projects/Beta.md"]);
+    await inBoth(copy, done);
+    expect(await raw.readTextFile("Projects/Beta.md")).toBe(note("Beta", "done"));
+  });
+
+  it("through a tick in the task list", async () => {
+    const copy = await openConflict();
+    await tick(CALL_ADA);
+    expect(shown).toEqual([]);
+    await inBoth(copy, ticked);
+  });
+
+  it("a task that reads differently in the working copy is ticked in the note alone", async () => {
+    await syncedVault({ [ALPHA]: SYNCED });
+    await landedFromOutside(ALPHA, THEIRS);
+    // Typed here: the line above, and the task's wording.
+    const reworded = MINE.replace("- [ ] Call Ada", "- [ ] Call Ada on Monday");
+    await typed(ALPHA, reworded, SYNCED);
+    const copy = (await chain.getConflictSession(ALPHA))!.workingCopyPath;
+    await tick(CALL_ADA);
+    expect(shown).toEqual([]);
+    expect(await raw.readTextFile(ALPHA)).toBe(ticked(THEIRS));
+    // Not guessed at: the working copy has no task of that wording, so it stays as it was typed.
+    expect(await raw.readTextFile(copy)).toBe(reworded);
+  });
+
+  it("and so does the sentence typed half a minute before — the one no version holds", async () => {
+    const copy = await openConflict();
+    // Ten minutes later the user types on, in the conflict; that save takes a version of the working copy as it was.
+    clock += 10 * 60_000;
+    const sentence = "A sentence typed half a minute ago.";
+    await typed(ALPHA, MINE.replace("\n\n- [ ]", `\n\n${sentence}\n\n- [ ]`));
+    expect(await raw.readTextFile(copy)).toContain(sentence);
+    expect(await versionsOf(copy)).toEqual([MINE]);
+    // Half a minute later, a cell: within the two minutes in which the versions layer takes no second version.
+    clock += 30_000;
+    await writeCell(ALPHA, "status", "done");
+    expect(await raw.readTextFile(copy)).toContain(sentence);
+    expect(await raw.readTextFile(copy)).toContain("as it was typed on this phone");
+    expect(await raw.readTextFile(copy)).toContain("status: done");
+    expect(await raw.readTextFile(ALPHA)).toBe(done(THEIRS));
+  });
+
+  it("the row of the working copy itself changes the working copy alone", async () => {
+    const copy = await openConflict();
+    expect(await writeCell(copy, "status", "done")).toBe(true);
+    expect(shown).toEqual([]);
+    expect(await raw.readTextFile(copy)).toBe(done(MINE));
+    expect(await raw.readTextFile(ALPHA)).toBe(THEIRS);
+    expect((await chain.getConflictSession(ALPHA))?.workingCopyPath).toBe(copy);
+  });
+});
+
+/**
+ * A database screen holds its configuration and saves it whole, without saying
+ * which text it started from — a writer the chain cannot hand the file as it
+ * lies there. At a database with an open conflict such a write used to go in
+ * place of the user's own version of the configuration, like a cell's did. It
+ * is refused now, unless the working copy is what such a write left there
+ * itself (decision E2).
+ */
+const BASE = "Projects/Projects.base";
+const database = (name: string) => ({ filters: { and: ['file.folder == "Projects"'] }, views: [{ type: "table", name }] });
+const baseText = (name: string) => serializeBaseConfig(database(name));
+
+describe("a database with an open conflict: its screen's save does not go in place of the user's own version", () => {
+  it("the configuration as it was changed here stays in the working copy; the save is refused", async () => {
+    await syncedVault({ [BASE]: baseText("Table") }, [BASE]);
+    await landedFromOutside(BASE, baseText("Their table"));
+    const saved = await chain.writeEditorText(BASE, baseText("My table"), baseText("Table"));
+    const copy = saved.session!.workingCopyPath;
+    // The screen shows the database as the file reads — the other side's — and saves a change of that.
+    await expect(writers.saveBaseConfig(vault, BASE, database("Their table, sorted"))).rejects.toThrow("The file has an open conflict; nothing was written");
+    // It used to be written in place of the working copy: "My table" was gone.
+    expect(await raw.readTextFile(copy)).toBe(baseText("My table"));
+    expect(await raw.readTextFile(BASE)).toBe(baseText("Their table"));
+  });
+
+  it("a working copy that such a save left there itself takes the next one", async () => {
+    await syncedVault({ [BASE]: baseText("Table") }, [BASE]);
+    // Changed below the chain, on the line the screen changes next: its save cannot be merged and is kept as a working copy.
+    await landedFromOutside(BASE, baseText("Their table"));
+    await expect(writers.saveBaseConfig(vault, BASE, database("My table"))).rejects.toThrow();
+    const copy = (await chain.getConflictSession(BASE))!.workingCopyPath;
+    expect(await raw.readTextFile(copy)).toBe(baseText("My table"));
+    // The screen saves on: its newer configuration replaces its own older one, nobody else's.
+    await expect(writers.saveBaseConfig(vault, BASE, database("My table, sorted"))).rejects.toThrow();
+    expect(await raw.readTextFile(copy)).toBe(baseText("My table, sorted"));
+    expect(await raw.readTextFile(BASE)).toBe(baseText("Their table"));
+  });
+});
+
+/**
+ * A note changed below the chain is one the chain no longer knows: by a build
+ * of this app from before 2026-10-12 (a value set across a selection, the
+ * anchor of an entry put in the calendar), or by another app in a folder the
+ * user picked. An index run reports it as changed from outside and, on
+ * purpose, does not put right what the chain knows — that would take the merge
+ * base from the sync. So it stays unknown until it is opened in an editor or
+ * pushed, and in a vault without a sync provider that is never by itself.
+ */
+const FOUR = NOTES.slice(0, 4);
+const five = (name: string, set: Partial<Record<"status" | "owner" | "area", string>> = {}) =>
+  `---\nstatus: ${set.status ?? "open"}\nowner: ${set.owner ?? "Ada"}\ndue: 2026-10-20\narea: ${set.area ?? "Lab"}\neffort: 3\n---\n# ${name}\n\nText of ${name}.\n`;
+
+/** Four notes whose `status` was set below the chain, and the index run of the next start. */
+async function changedBelowTheChain(): Promise<void> {
+  await syncedVault(Object.fromEntries(FOUR.map((path) => [path, five(nameOf(path))])), FOUR);
+  // What "Set value…" did on the phone before: the shared loop over the storage below the chain.
+  const below = await bulkSetProperty(raw, FOUR, "status", "waiting");
+  expect(below.failed).toEqual([]);
+  for (const path of FOUR) expect(await raw.readTextFile(path), path).toBe(five(nameOf(path), { status: "waiting" }));
+  await indexer.indexVaultFull("resume");
+  await enqueued;
+  expect([...foreign].sort()).toEqual([...FOUR].sort());
+  for (const path of FOUR) expect(await knownToChain(path), path).toBe(false);
+}
+
+describe("a note changed below the chain is written again like any other", () => {
+  it("the same property with another value, the property on the next line, one three lines away, the same value", async () => {
+    await changedBelowTheChain();
+    const landed = [
+      await writeCell("Projects/Alpha.md", "status", "done"),
+      await writeCell("Projects/Beta.md", "owner", "Grace"),
+      await writeCell("Projects/Gamma.md", "area", "Office"),
+      await writeCell("Projects/Delta.md", "status", "waiting"),
+    ];
+    // It used to be refused for the first two ("conflicting changes"), each with a conflict copy of a
+    // note nobody else had touched; the third was merged, the fourth written. In all four the writer
+    // had read exactly the text that stood on disk.
+    expect(shown).toEqual([]);
+    expect(landed).toEqual([true, true, true, true]);
+    expect(await raw.readTextFile("Projects/Alpha.md")).toBe(five("Alpha", { status: "done" }));
+    expect(await raw.readTextFile("Projects/Beta.md")).toBe(five("Beta", { status: "waiting", owner: "Grace" }));
+    expect(await raw.readTextFile("Projects/Gamma.md")).toBe(five("Gamma", { status: "waiting", area: "Office" }));
+    expect(await raw.readTextFile("Projects/Delta.md")).toBe(five("Delta", { status: "waiting" }));
+    expect(merged).toEqual([]);
+    expect(await chain.listConflictSessions()).toEqual([]);
+    expect(await conflictCopies("Projects")).toEqual([]);
+    // What the sync merges against stays what it was: the text both sides last agreed on.
+    for (const path of FOUR) expect((await repo.getSyncState(path))?.base_text, path).toBe(five(nameOf(path)));
+  });
+
+  it("a value set across the selection lands on every one of them", async () => {
+    await changedBelowTheChain();
+    const result = await setAcrossSelection(FOUR, "status", "done");
+    // It used to be four notes counted as failed, and four conflict copies.
+    expect(result.failed).toEqual([]);
+    expect([...result.written].sort()).toEqual([...FOUR].sort());
+    for (const path of FOUR) expect(await raw.readTextFile(path), path).toBe(five(nameOf(path), { status: "done" }));
+    expect(await conflictCopies("Projects")).toEqual([]);
+    for (const path of FOUR) expect(await knownToChain(path), path).toBe(true);
+  });
+
+  it("a tick lands in a note that was saved here and then changed by another app", async () => {
+    await syncedVault({ [ALPHA]: SYNCED });
+    // Saved from the editor: the chain knows the new text, and no sync has taken it as the merge base.
+    const edited = withLine("Text of Alpha, edited on this phone.");
+    await typed(ALPHA, edited, SYNCED);
+    await landedFromOutside(ALPHA, `${edited}\nA line another app added.\n`);
+    await tick(CALL_ADA);
+    // It used to be "base version not found" and a conflict copy, although the other app's line stands
+    // at the far end of the note: for the text the chain knew, no copy was kept to merge against.
+    expect(shown).toEqual([]);
+    expect(await raw.readTextFile(ALPHA)).toBe(`${edited.replace("- [ ] Call Ada", "- [x] Call Ada")}\nA line another app added.\n`);
+    expect(await chain.listConflictSessions()).toEqual([]);
+    expect(await conflictCopies("Projects")).toEqual([]);
   });
 });
 

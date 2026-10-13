@@ -4,7 +4,9 @@ import {
   resolveLinkTargetIndexed,
   renameNoteLinks,
   renameFrontmatterWikiLinks,
+  updateVaultText,
   type FrontmatterLinkRename,
+  type TextUpdateFiles,
   type VaultQueryService,
 } from "@plainva/core";
 import { sweepPinboardRefs } from "../base/pinboardSweep";
@@ -35,9 +37,12 @@ import { sweepPinboardRefs } from "../base/pinboardSweep";
  * points at the new name is not found again.
  */
 
-export interface RenameAdapter {
-  readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, content: string): Promise<void>;
+/**
+ * The files a rename works on: a vault's chain, or a storage with nothing
+ * above it. Each referencing note is read, changed and written in one step
+ * (`updateVaultText`).
+ */
+export interface RenameAdapter extends TextUpdateFiles {
   renameItem(oldPath: string, newPath: string): Promise<void>;
 }
 
@@ -178,7 +183,7 @@ export async function planLinkUpdates(
  * a block scalar): it still names the old file, and nothing was guessed.
  */
 export async function applyLinkUpdates(
-  adapter: Pick<RenameAdapter, "readTextFile" | "writeTextFile">,
+  adapter: TextUpdateFiles,
   plan: LinkUpdatePlan
 ): Promise<{ renamedLinks: number; changedFiles: number; changedPaths: string[]; failed: boolean }> {
   let renamedLinks = 0;
@@ -186,8 +191,8 @@ export async function applyLinkUpdates(
   let failed = false;
   const changedPaths: string[] = [];
   for (const source of plan.sources) {
-    try {
-      let text = await adapter.readTextFile(source.path);
+    const rewritten = (read: string): { renamed: number; left: number; next: string | null } => {
+      let text = read;
       let left = 0;
 
       let bodyCount = 0;
@@ -211,9 +216,16 @@ export async function applyLinkUpdates(
         }
       }
 
-      if (bodyCount + fmCount > 0) {
-        await adapter.writeTextFile(source.path, text);
-        renamedLinks += bodyCount + fmCount;
+      return { renamed: bodyCount + fmCount, left, next: bodyCount + fmCount > 0 ? text : null };
+    };
+    try {
+      // Counted on the note as it was changed. Where the note has an open
+      // conflict, the links in the user's own version are rewritten the same
+      // way — the file they lead to has its new name whichever version is kept.
+      const update = await updateVaultText(adapter, source.path, (read) => rewritten(read).next);
+      const { renamed, left } = rewritten(update.before);
+      if (renamed > 0) {
+        renamedLinks += renamed;
         changedFiles++;
         changedPaths.push(source.path);
       }

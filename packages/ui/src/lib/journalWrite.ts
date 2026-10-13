@@ -1,17 +1,20 @@
 /**
  * The journal's write path — ONE for both shells (plan Journal, J2).
  *
- * Every change to a journal is the same five steps: resolve the daily note
- * (creating it on the way, headless — decision E4), read it, transform the text
- * with the pure functions of `@plainva/core`, read it AGAIN immediately before
- * writing and redo the transformation if the file moved on in between, write.
- * A sync pull, the open editor's autosave and a second capture can all land in
- * that window; the pure functions find the entry again by its spelling, so a
- * retry costs nothing and a lost update is not possible.
+ * Every change to a journal is the same steps: resolve the daily note (creating
+ * it on the way, headless — decision E4), then read it, transform the text with
+ * the pure functions of `@plainva/core` and write it as ONE step
+ * (`updateVaultText`): the vault's chain reads the note inside the gate it
+ * holds for it, so a sync pull, the open editor's autosave and a second capture
+ * cannot land between the read and the write, and a lost update is not
+ * possible. Where the note has an open conflict, the same change goes into the
+ * person's own version as well — the pure functions find an entry by its
+ * spelling. A window that reaches the chain over a bus redoes a change that
+ * lost against another writer; when the note never holds still it gives up.
  *
- * The write itself goes through whatever the shell hands in — the desktop's
- * vault adapter, the phone's `vaultOps.save` — so own-write marking, backups,
- * the index and an encrypted workspace are the shell's one way, not a second.
+ * The step goes through whatever the shell hands in — the desktop's vault
+ * adapter, the phone's `vaultOps.update` — so own-write marking, backups, the
+ * index and an encrypted workspace are the shell's one way, not a second.
  *
  * An OPEN editor of the note is part of the path, the way it is for every shared
  * write (graph actions, mention linking): its pending save is flushed BEFORE the
@@ -29,19 +32,23 @@ import {
   restoreJournalEntry,
   setJournalEntryTask,
   toggleJournalTask,
+  updateVaultText,
+  TextFileChangedError,
   type JournalEditFailure,
   type JournalEntry,
   type JournalEntryRef,
   type TaskBoxState,
+  type TextUpdateFiles,
 } from "@plainva/core";
 import { flushPendingSave } from "../platform/services";
 
-export interface JournalFiles {
+/**
+ * The shell's files: its read, its write and its entry for a change of a note
+ * that exists — own-write marking, index update and change notice included.
+ */
+export interface JournalFiles extends TextUpdateFiles {
   /** The daily note for a day, created without questions when it is missing; `null` = it cannot be created. */
   ensureDailyNote(date: Date): Promise<{ path: string; created: boolean } | null>;
-  readTextFile(path: string): Promise<string>;
-  /** The shell's write: own-write marking, index update and change notice included. */
-  writeTextFile(path: string, content: string): Promise<void>;
 }
 
 /**
@@ -64,26 +71,29 @@ export type JournalWriteResult =
 
 type Transform = (raw: string) => { ok: true; content: string; entry: JournalEntry } | { ok: false; reason: JournalEditFailure };
 
-/** How often a change that lost the race against another writer is redone before it gives up. */
-const ATTEMPTS = 4;
-
 async function changeNote(
-  files: Pick<JournalFiles, "readTextFile" | "writeTextFile">,
+  files: TextUpdateFiles,
   path: string,
   transform: Transform,
 ): Promise<{ ok: true; before: string; after: string; entry: JournalEntry } | { ok: false; reason: JournalWriteFailure }> {
-  for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
-    // Unsaved typing in an open editor goes to disk first (see the head of this file).
-    await flushPendingSave(path);
-    const raw = await files.readTextFile(path);
-    const edit = transform(raw);
-    if (!edit.ok) return edit;
-    // Immediately before the write: is this still the text that was transformed?
-    if ((await files.readTextFile(path)) !== raw) continue;
-    if (edit.content !== raw) await files.writeTextFile(path, edit.content);
-    return { ok: true, before: raw, after: edit.content, entry: edit.entry };
+  // Unsaved typing in an open editor goes to disk first (see the head of this file).
+  await flushPendingSave(path);
+  let before: string, after: string;
+  try {
+    ({ before, text: after } = await updateVaultText(files, path, (raw) => {
+      const edit = transform(raw);
+      return edit.ok ? edit.content : null;
+    }));
+  } catch (error) {
+    if (error instanceof TextFileChangedError) return { ok: false, reason: "changed" };
+    throw error;
   }
-  return { ok: false, reason: "changed" };
+  // What the change did, read from the note as it was changed. `after` is the
+  // text that was written, not this second run's: ticking a repeating task
+  // gives its successor a fresh id each time the transform runs.
+  const edit = transform(before);
+  if (!edit.ok) return edit;
+  return { ok: true, before, after, entry: edit.entry };
 }
 
 export interface JournalCapture {
@@ -186,23 +196,22 @@ export async function deleteJournalEntry(files: JournalFiles, target: JournalTar
  * afterwards by the entry's spelling — never by overwriting what somebody else
  * wrote in the meantime.
  */
-export async function undoJournalChange(files: Pick<JournalFiles, "readTextFile" | "writeTextFile">, undo: JournalUndo, heading: string): Promise<boolean> {
-  for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
-    await flushPendingSave(undo.path);
-    const raw = await files.readTextFile(undo.path);
-    let next: string | null;
-    if (raw === undo.after) next = undo.before;
-    else if (undo.kind === "insert") {
+export async function undoJournalChange(files: TextUpdateFiles, undo: JournalUndo, heading: string): Promise<boolean> {
+  const undone = (raw: string): string | null => {
+    if (raw === undo.after) return undo.before;
+    if (undo.kind === "insert") {
       const removal = removeJournalEntry(raw, undo.entry, { heading });
-      next = removal.ok ? removal.content : null;
-    } else {
-      const restored = restoreJournalEntry(raw, undo.entry, { heading });
-      next = restored.ok ? restored.content : null;
+      return removal.ok ? removal.content : null;
     }
-    if (next === null) return false;
-    if ((await files.readTextFile(undo.path)) !== raw) continue;
-    await files.writeTextFile(undo.path, next);
-    return true;
+    const restored = restoreJournalEntry(raw, undo.entry, { heading });
+    return restored.ok ? restored.content : null;
+  };
+  await flushPendingSave(undo.path);
+  try {
+    const { before } = await updateVaultText(files, undo.path, undone);
+    return undone(before) !== null;
+  } catch (error) {
+    if (error instanceof TextFileChangedError) return false;
+    throw error;
   }
-  return false;
 }

@@ -4,11 +4,15 @@ import {
   frontmatterSpan,
   migrateOkfFile,
   OKF_ROOT_INDEX_PATH,
+  OpenConflictError,
   readRootOkfDeclaration,
+  replaceVaultText,
+  VaultFileNotFoundError,
   type OkfMigrateFileOptions,
   type OkfScanResult,
   type OkfConversionOptions,
   type OkfVersionState,
+  type TextUpdateFiles,
 } from "@plainva/core";
 
 /**
@@ -31,9 +35,13 @@ import {
  * rollback, whatever the edit is.
  */
 
-export interface OkfConversionAdapter {
-  readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, content: string): Promise<void>;
+/**
+ * The vault's files: its chain, or a storage with nothing above it. A file is
+ * replaced by what was made of exactly the text its backup holds
+ * (`replaceVaultText`); the backup and what an undo puts back are written as
+ * whole files.
+ */
+export interface OkfConversionAdapter extends TextUpdateFiles {
   createDir(path: string): Promise<void>;
   exists(path: string): Promise<boolean>;
   /**
@@ -44,6 +52,12 @@ export interface OkfConversionAdapter {
    * that is what both shells already hand in.
    */
   listDir?(path?: string, recursive?: boolean): Promise<Array<{ path: string; isDirectory: boolean }>>;
+  /**
+   * Removes a file. Used for one thing: a backup the run wrote for a file it
+   * did not convert in the end (see `runOkfTransform`). Optional for the same
+   * reason as the walk; both shells hand in the vault's chain, which has it.
+   */
+  deleteItem?(path: string): Promise<void>;
 }
 
 export interface OkfConversionSample {
@@ -131,31 +145,87 @@ export async function runOkfTransform(opts: {
   const createdDirs = new Set<string>(); // per-run ensureDirs cache (WP4)
   let cancelled = false;
 
-  const processOne = async (path: string): Promise<void> => {
-    const content = await adapter.readTextFile(path);
+  /** What a file's text comes to: the text to write, or why none is written. */
+  type Verdict = { next: string } | { unchanged: true } | { veto: string };
+  const judge = (path: string, content: string): Verdict => {
     const result = transform(path, content);
-    if (!result.changed) {
+    if (!result.changed) return { unchanged: true };
+    const veto = opts.validate?.(path, content, result.content) ?? null;
+    // Post-write validation failed — never write a file we made worse.
+    return veto !== null ? { veto } : { next: result.content };
+  };
+
+  const processOne = async (path: string): Promise<void> => {
+    // The text that was judged last, what it came to, and the text this call's backup holds.
+    const last: { content: string; verdict: Verdict; backedUp: string | null } = { content: "", verdict: { unchanged: true }, backedUp: null };
+    if (dryRun) {
+      // What the run itself answers (`replaceVaultText`): a file with an open
+      // conflict is not converted, neither of its two texts.
+      const open = await adapter.getConflictSession?.(path);
+      if (open) throw new OpenConflictError(open.workingCopyPath);
+      last.content = await adapter.readTextFile(path);
+      last.verdict = judge(path, last.content);
+    } else {
+      const backupPath = `${backupDir}/${path}`;
+      // An undo puts back whatever lies in the backup folder. So a backup this
+      // call wrote must not stay there for a file the run did not convert — a
+      // file that changed while it was prepared and then needed nothing, one
+      // that was given up on, one that was moved away meanwhile: an undo would
+      // bring the earlier text back over somebody's change, or the file back
+      // to a place it left. It is removed. Where it cannot be — files that
+      // cannot remove, a file written a moment ago and still held by a scanner
+      // — it is brought to what the file reads (`now`), so that an undo
+      // changes nothing.
+      const dropBackup = async (now: string | null): Promise<void> => {
+        const removed = adapter.deleteItem ? await adapter.deleteItem(backupPath).then(() => true, (error) => error instanceof VaultFileNotFoundError) : false;
+        if (!removed && now !== null && now !== last.backedUp) await adapter.writeTextFile(backupPath, now);
+      };
+      // The backup holds exactly the text that is replaced, because the backup
+      // is what an undo puts back: the file is written only if it still is the
+      // text that was judged and backed up, and judged anew where somebody
+      // changed it meanwhile (`replaceVaultText`). A file with an open conflict
+      // is refused there and reported as skipped: resolve it, then run again.
+      try {
+        await replaceVaultText(adapter, path, async (content) => {
+          last.content = content;
+          last.verdict = judge(path, content);
+          if (!("next" in last.verdict)) return null;
+          await ensureDirs(adapter, backupPath.split("/").slice(0, -1).join("/"), createdDirs);
+          await adapter.writeTextFile(backupPath, content);
+          last.backedUp = content;
+          return last.verdict.next;
+        });
+      } catch (error) {
+        // Not converted, as far as this call knows — except where the file
+        // reads what was made of the backed-up text: a write that failed after
+        // it had reached the file. That backup is the file's original and stays.
+        if (last.backedUp !== null) {
+          const made = "next" in last.verdict && last.backedUp === last.content ? last.verdict.next : null;
+          await (async () => {
+            if (!(await adapter.exists(path))) return dropBackup(null);
+            const now = await adapter.readTextFile(path);
+            if (now !== made) await dropBackup(now);
+          })().catch(() => undefined);
+        }
+        throw error;
+      }
+      if (last.backedUp !== null && !("next" in last.verdict)) await dropBackup(last.content);
+    }
+    const { content, verdict } = last;
+    if ("unchanged" in verdict) {
       report.unchanged++;
       return;
     }
-    const veto = opts.validate?.(path, content, result.content) ?? null;
-    if (veto !== null) {
-      // Post-write validation failed — never write a file we made worse.
-      report.skipped.push({ path, error: veto });
+    if ("veto" in verdict) {
+      report.skipped.push({ path, error: verdict.veto });
       return;
     }
     if (report.samples.length < sampleLimit) {
       report.samples.push({
         path,
         before: frontmatterPreview(content),
-        after: frontmatterPreview(result.content),
+        after: frontmatterPreview(verdict.next),
       });
-    }
-    if (!dryRun) {
-      const backupPath = `${backupDir}/${path}`;
-      await ensureDirs(adapter, backupPath.split("/").slice(0, -1).join("/"), createdDirs);
-      await adapter.writeTextFile(backupPath, content);
-      await adapter.writeTextFile(path, result.content);
     }
     report.changed.push(path);
   };
@@ -277,6 +347,17 @@ export async function runOkfMigration(opts: {
  * exactly the set of files the run changed — no journal of names needed, and
  * a run that was interrupted halfway rolls back just as cleanly as one that
  * finished. This is the undo of the conversion AND of the migration.
+ *
+ * A file the run prepared and did not convert in the end — it changed
+ * meanwhile and then needed nothing, or was given up on — has no backup here:
+ * the run removes the one it wrote. Only files that cannot remove leave one,
+ * holding the text the file had when the run let go of it.
+ *
+ * What an undo does not do is compare: a file edited after the run is put
+ * back to what it was before the run, the edit with it. And a file whose
+ * conflict opened after the run is reported as failed: a whole text for a
+ * file with an open conflict is refused by the vault's chain — or, where the
+ * working copy is such a write's own, goes into that copy and not the file.
  *
  * Deliberately NOT deleted afterwards. The backup folder is the only copy of
  * the pre-conversion state; removing it as part of an undo would leave the

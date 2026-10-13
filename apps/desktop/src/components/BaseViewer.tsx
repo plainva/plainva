@@ -9,7 +9,7 @@ import { saveBaseExport } from "../services/exportBase";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette } from "lucide-react";
-import { renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, type WorkspaceCommentRecord } from "@plainva/core";
+import { renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, updateVaultText, type WorkspaceCommentRecord } from "@plainva/core";
 import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, rewriteNoteProperties, isEmptyPropertyValue, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
 import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
 import { Button, calendarPickerOptions, dueModelOf, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
@@ -401,10 +401,8 @@ export function BaseViewer({
   const setEntryColor = useCallback(async (path: string, hex: string | null) => {
     if (!vaultAdapter) return;
     try {
-      const fresh = await vaultAdapter.readTextFile(path);
-      const next = withNoteColor(fresh, hex);
-      if (next === fresh) return;
-      await vaultAdapter.writeTextFile(path, next);
+      const update = await updateVaultText(vaultAdapter, path, (fresh) => withNoteColor(fresh, hex));
+      if (!update.changed) return;
       if (indexer) await applyIndexChanges(indexer, { added: [path] });
       triggerFileTreeUpdate();
     } catch (e) {
@@ -1158,6 +1156,7 @@ export function BaseViewer({
       ...desktopDraftFiles(vaultAdapter, indexer ?? null),
       read: (p) => vaultAdapter.readTextFile(p),
       write: (p, text) => vaultAdapter.writeTextFile(p, text),
+      update: (p, change) => updateVaultText(vaultAdapter, p, change),
       rename: async (p, stem) => {
         const result = await renameToName({ adapter: vaultAdapter, queryService: queryService ?? null, oldPath: p, newName: stem, isFolder: false });
         if (!result.ok) throw new Error(result.reason);
@@ -1313,18 +1312,15 @@ export function BaseViewer({
     async (templatePath: string, assign: boolean) => {
       if (!vaultAdapter) return;
       try {
-        const content = await vaultAdapter.readTextFile(templatePath);
-        let result: { content: string; changed: boolean };
-        if (assign) {
-          const rows = queryService
-            ? await queryService.db.query<{ path: string }>(`SELECT path FROM files`)
-            : [];
-          result = addTemplateForAssignment(content, activePath, rows.map((r) => r.path));
-        } else {
-          result = removeTemplateForAssignment(content, activePath);
-        }
-        if (!result.changed) return;
-        await vaultAdapter.writeTextFile(templatePath, result.content);
+        // What the link is written as is asked first; the change itself runs on the template's text alone.
+        const paths = assign && queryService
+          ? (await queryService.db.query<{ path: string }>(`SELECT path FROM files`)).map((r) => r.path)
+          : [];
+        const update = await updateVaultText(vaultAdapter, templatePath, (content) => {
+          const result = assign ? addTemplateForAssignment(content, activePath, paths) : removeTemplateForAssignment(content, activePath);
+          return result.changed ? result.content : null;
+        });
+        if (!update.changed) return;
         if (indexer) await applyIndexChanges(indexer, { added: [templatePath] }).catch(() => {});
       } catch (e) {
         console.error("[BaseViewer] toggling template assignment failed", e);
@@ -1800,9 +1796,7 @@ export function BaseViewer({
       for (const row of affected) {
         const path = row["file.path"];
         try {
-          const text = await vaultAdapter.readTextFile(path);
-          const newText = renameFrontmatterKey(text, oldName, newName);
-          if (newText !== text) await vaultAdapter.writeTextFile(path, newText);
+          await updateVaultText(vaultAdapter, path, (text) => renameFrontmatterKey(text, oldName, newName));
         } catch (e) {
           console.error("Failed to rename property in", path, e);
         }
@@ -1914,9 +1908,7 @@ export function BaseViewer({
         for (const row of affected) {
           const path = row["file.path"];
           try {
-            const text = await vaultAdapter.readTextFile(path);
-            const newText = deleteFrontmatterPath(text, [column]);
-            if (newText !== text) await vaultAdapter.writeTextFile(path, newText);
+            await updateVaultText(vaultAdapter, path, (text) => deleteFrontmatterPath(text, [column]));
           } catch (e) {
             console.error("Failed to remove property from", path, e);
           }

@@ -21,6 +21,14 @@ export interface ConflictEditSession {
   foreignCopySnapshot: string | null;
   /** Persisted before replacing the original; a restart must not resume editing its old copy. */
   resolution: { content: string; originalHash: string | null; copyHash: string; keepCopyAs?: string } | null;
+  /**
+   * The hash of the draft as a write WITHOUT a starting text left it
+   * (`writePlainLocked`); `null` or absent as soon as anyone else has written
+   * the draft. Only a draft that still is such a write's own text may be
+   * replaced by the next one (finding 2026-10-12). Absent in a session an
+   * older version wrote: that draft counts as somebody else's.
+   */
+  plainDraft?: string | null;
 }
 
 export interface ConflictDiagnostic {
@@ -90,6 +98,7 @@ export function decodeConflictSession(value: string): ConflictEditSession {
     || (s.baseText !== null && typeof s.baseText !== "string")
     || typeof s.draftText !== "string"
     || (s.pendingText !== null && typeof s.pendingText !== "string")
+    || (s.plainDraft !== undefined && !hash(s.plainDraft))
     || (s.foreignCopySnapshot !== null && (!safePath(s.foreignCopySnapshot) || !s.foreignCopySnapshot.startsWith(".plainva/conflict-revisions/")))
     || (s.resolution !== null && (!s.resolution || typeof s.resolution.content !== "string"
       || !hash(s.resolution.originalHash) || !s.resolution.copyHash || !hash(s.resolution.copyHash)
@@ -158,10 +167,15 @@ export class ConflictSessions {
 
   list(): Promise<ConflictEditSession[]> { return this.store.listConflictSessions(); }
 
-  /** Preserving an observed version never overwrites a newer editor draft. */
+  /**
+   * Preserving an observed version never overwrites a newer editor draft.
+   * `plain` says the text comes from a write that named no starting text
+   * (`writeTextFile`): the draft it opens is that writer's own, and its next
+   * write may replace it (`writePlainLocked`).
+   */
   async preserveLocked(gate: ConflictSessionGate, input: {
     path: string; text: string; base: string | null; external: string | null; writer: ConflictWriter;
-    diagnostic?: ConflictDiagnostic;
+    diagnostic?: ConflictDiagnostic; plain?: boolean;
   }): Promise<ConflictEditSession> {
     if (gate.session) {
       if (gate.session.resolution) throw new Error("Conflict resolution is still being completed");
@@ -174,7 +188,7 @@ export class ConflictSessions {
       baseRevision: input.base === null ? null : await conflictHash(input.base), baseText: input.base,
       externalRevision: input.external === null ? null : await conflictHash(input.external),
       draftRevision: 1, workingHash: null, draftText: input.text, pendingText: input.text, createdAt: Date.now(), writer: input.writer,
-      foreignCopySnapshot: null, resolution: null,
+      foreignCopySnapshot: null, resolution: null, plainDraft: input.plain ? await conflictHash(input.text) : null,
     };
     // Journal first. Failure to create the file leaves the entire input recoverable.
     await this.store.saveConflictSession(session); gate.session = session;
@@ -192,12 +206,60 @@ export class ConflictSessions {
       // The merge decides the shape, as in the adapter's own merge.
       else text = merged.mergedText;
     }
+    // Whoever writes here knows the draft: it is no longer the text a write
+    // without a starting text left behind (see `writePlainLocked`).
+    if (text !== session.draftText) session.plainDraft = null;
     session.draftRevision++;
     session.draftText = text;
     session.pendingText = text;
     await this.store.saveConflictSession(session);
     await this.recoverDraft(session);
     return session;
+  }
+
+  /**
+   * The draft the journal holds for this conflict — asked inside its gate
+   * (this takes none), after a write of the draft failed half way: the journal
+   * is written before the working copy, so it may hold what the file does not
+   * yet, and the session's next step then writes it there.
+   */
+  async journaledDraft(session: ConflictEditSession): Promise<string | null> {
+    return (await this.store.getConflictSession(session.originalPath))?.draftText ?? null;
+  }
+
+  /** The draft of an open conflict as it stands — the user's own version of the file — read inside its gate. */
+  async draftLocked(session: ConflictEditSession): Promise<string> {
+    if (session.resolution) throw new Error("Conflict resolution is still being completed");
+    await this.recoverDraft(session);
+    return session.draftText;
+  }
+
+  /**
+   * A write that names no text it started from, into a file with an open
+   * conflict (finding 2026-10-12). Answers whether the draft now holds `text`.
+   *
+   * It used to replace the draft, whatever the draft was. A writer of that
+   * kind read the file itself — which carries the OTHER side while a conflict
+   * is open — or holds a text from before; put in place of the draft, its text
+   * took the user's own version away, and only a snapshot older than the
+   * versions layer's interval still had it.
+   *
+   * So the draft is replaced only where it still is what such a write left
+   * there: then it is that writer's own, older text, and the new one follows
+   * it. Any other draft stays, and nothing is written.
+   */
+  async writePlainLocked(session: ConflictEditSession, text: string): Promise<boolean> {
+    if (session.resolution) throw new Error("Conflict resolution is still being completed");
+    await this.recoverDraft(session);
+    if (text === session.draftText) return true;
+    if (!session.plainDraft || session.plainDraft !== await conflictHash(session.draftText)) return false;
+    session.draftRevision++;
+    session.draftText = text;
+    session.pendingText = text;
+    session.plainDraft = await conflictHash(text);
+    await this.store.saveConflictSession(session);
+    await this.recoverDraft(session);
+    return true;
   }
 
   private async recoverDraft(session: ConflictEditSession): Promise<void> {

@@ -3,7 +3,9 @@ import {
   extractFrontmatter,
   upsertFrontmatterKeys,
   noteLinkResolver,
+  updateVaultText,
   wikiTargetForPath,
+  type TextUpdateFiles,
   type VaultQueryService,
 } from "@plainva/core";
 import { removeRelationLinksToNoteShared } from "@plainva/ui";
@@ -19,10 +21,11 @@ import { removeRelationLinksToNoteShared } from "@plainva/ui";
  * for the touched note (the Editor save pattern) so reverse lookups refresh.
  */
 
-export interface RelationWriteAdapter {
-  readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, content: string): Promise<void>;
-}
+/**
+ * The note's files: the vault's chain, or a storage with nothing above it. A
+ * note is read, changed and written in one step (`updateVaultText`).
+ */
+export type RelationWriteAdapter = TextUpdateFiles;
 
 const WIKILINK_VALUE_RE = /^\s*\[\[([^[\]]+)\]\]\s*$/;
 
@@ -47,18 +50,17 @@ function currentValues(props: Record<string, unknown>, key: string): unknown[] {
   return [value];
 }
 
-async function loadNote(
-  adapter: RelationWriteAdapter,
-  queryService: VaultQueryService,
-  notePath: string
-): Promise<{ content: string; props: Record<string, unknown>; allFilePaths: string[]; linkedNote: LinkedNote }> {
+async function linkRule(queryService: VaultQueryService): Promise<{ allFilePaths: string[]; linkedNote: LinkedNote }> {
   // The link rule's corpus: what a stored value leads to is asked of every
   // file, what a new link is called of the notes alone.
-  const [content, files] = await Promise.all([adapter.readTextFile(notePath), queryService.linkTargets()]);
-  const fm = extractFrontmatter(parseMarkdownAst(content));
-  const props: Record<string, unknown> = fm.success && fm.data ? (fm.data as Record<string, unknown>) : {};
+  const files = await queryService.linkTargets();
   const allFilePaths = files.filter((f) => f.mode !== "attachment").map((f) => f.path);
-  return { content, props, allFilePaths, linkedNote: noteLinkResolver(files) };
+  return { allFilePaths, linkedNote: noteLinkResolver(files) };
+}
+
+function propertiesOf(content: string): Record<string, unknown> {
+  const fm = extractFrontmatter(parseMarkdownAst(content));
+  return fm.success && fm.data ? (fm.data as Record<string, unknown>) : {};
 }
 
 type LinkedNote = ReturnType<typeof noteLinkResolver>;
@@ -84,27 +86,24 @@ export async function addRelationLink(opts: {
   limit?: "one";
 }): Promise<{ changed: boolean }> {
   const { adapter, queryService, notePath, propertyKey, targetNotePath, limit } = opts;
-  const { content, props, allFilePaths, linkedNote } = await loadNote(adapter, queryService, notePath);
-  const values = currentValues(props, propertyKey);
-
+  // What a link leads to and what a new one is called is asked first: the
+  // change itself runs on the note's text alone, as it lies there when it is
+  // written.
+  const { allFilePaths, linkedNote } = await linkRule(queryService);
   const linkText = `[[${wikiTargetForPath(targetNotePath, allFilePaths)}]]`;
 
-  if (limit === "one") {
-    const already =
-      values.length === 1 && resolvesToTarget(values[0], notePath, targetNotePath, linkedNote);
-    if (already) return { changed: false };
-    await adapter.writeTextFile(notePath, upsertFrontmatterKeys(content, { [propertyKey]: linkText }));
-    return { changed: true };
-  }
-
-  if (values.some((v) => resolvesToTarget(v, notePath, targetNotePath, linkedNote))) {
-    return { changed: false };
-  }
-  await adapter.writeTextFile(
-    notePath,
-    upsertFrontmatterKeys(content, { [propertyKey]: [...values, linkText] })
-  );
-  return { changed: true };
+  const linked = (content: string): string | null => {
+    const values = currentValues(propertiesOf(content), propertyKey);
+    if (limit === "one") {
+      const already =
+        values.length === 1 && resolvesToTarget(values[0], notePath, targetNotePath, linkedNote);
+      return already ? null : upsertFrontmatterKeys(content, { [propertyKey]: linkText });
+    }
+    if (values.some((v) => resolvesToTarget(v, notePath, targetNotePath, linkedNote))) return null;
+    return upsertFrontmatterKeys(content, { [propertyKey]: [...values, linkText] });
+  };
+  const update = await updateVaultText(adapter, notePath, linked);
+  return { changed: linked(update.before) !== null };
 }
 
 /**
@@ -126,6 +125,7 @@ export async function removeRelationLinksToNote(opts: {
     {
       readTextFile: (p) => adapter.readTextFile(p),
       writeTextFile: (p, c) => adapter.writeTextFile(p, c),
+      updateTextFile: (p, change) => updateVaultText(adapter, p, change),
       listLinkTargets: () => queryService.linkTargets(),
     },
     { notePath, propertyKey, targetNotePath }

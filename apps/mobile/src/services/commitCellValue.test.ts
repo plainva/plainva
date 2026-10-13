@@ -17,19 +17,25 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
  */
 
 const files = new Map<string, string>();
-const flushed: string[] = [];
+const updated: string[] = [];
 const synced = vi.fn();
 
 vi.mock("./vaultService", () => ({
-  noteSaver: {
-    flush: vi.fn(async (path: string) => {
-      flushed.push(path);
-    }),
-  },
+  noteSaver: { flush: vi.fn(async () => {}) },
   vaultOps: {
     read: vi.fn(async (_v: unknown, path: string) => files.get(path) ?? ""),
     save: vi.fn(async (_v: unknown, path: string, text: string) => {
       files.set(path, text);
+    }),
+    // The phone's one way for a change of a file where it lies, over this
+    // test's store: read, change, save.
+    update: vi.fn(async (_v: unknown, path: string, change: (text: string) => string | null) => {
+      updated.push(path);
+      const before = files.get(path) ?? "";
+      const next = change(before);
+      if (next === null || next === before) return { before, text: before, changed: false, conflict: null };
+      files.set(path, next);
+      return { before, text: next, changed: true, conflict: null };
     }),
   },
 }));
@@ -45,7 +51,7 @@ const frontmatter = (text: string) => text.split("---")[1] ?? "";
 
 beforeEach(() => {
   files.clear();
-  flushed.length = 0;
+  updated.length = 0;
   synced.mockClear();
 });
 
@@ -130,14 +136,17 @@ describe("commitCellValue: a block that cannot be written to", () => {
 });
 
 describe("commitCellValue: the surrounding contract", () => {
-  it("lands the editor's pending keystrokes before rewriting the frontmatter", async () => {
+  it("goes through the phone's one way for a change of a note, which lands the editor's pending keystrokes first", async () => {
     files.set(NOTE, `---\ntype: task\n---\n\n# Bericht\n`);
 
     await commitCellValue(vault, NOTE, "status", "Offen");
 
-    // Rewriting from stale text would drop whatever was typed since the last
-    // autosave — the flush is why the rewrite starts from the live note.
-    expect(flushed).toEqual([NOTE]);
+    // Rewriting from a text the cell read itself would drop whatever was typed
+    // since the last autosave, and hand the vault's chain a whole text it
+    // judges like an editor's. `vaultOps.update` flushes the note's pending
+    // save and lets the chain read the note (its order is held in
+    // readChangeWrite.test.ts and run over real files in vaultChainWrites.test.ts).
+    expect(updated).toEqual([NOTE]);
     expect(synced).toHaveBeenCalledTimes(1);
   });
 

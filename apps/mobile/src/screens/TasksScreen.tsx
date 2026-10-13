@@ -32,7 +32,7 @@ import { mSelect, mTargets } from "../services/mobileDialogs";
 import { setTaskDone } from "../services/taskCompletionAction";
 import { getPimCache, pimForegroundSync, pimSyncNow, pimTargetForCalendarKey, writablePimCalendarOptions } from "../services/pim/pimService";
 import { syncSoon } from "../services/syncService";
-import { vaultOps, type MobileVault } from "../services/vaultService";
+import { vaultOps, vaultTextFiles, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
 
 /**
@@ -207,15 +207,9 @@ export function TasksScreen({
   const ptrIndicator = usePullToRefresh(ptrRef);
 
   /** Promotion and creation write through vaultOps.save, so the new note lands
-   *  in the index, the backup chain and the sync queue like any other write. */
-  const promotionAdapter = useMemo(
-    () => ({
-      readTextFile: (path: string) => vaultOps.read(vault, path),
-      writeTextFile: (path: string, content: string) => vaultOps.save(vault, path, content),
-      exists: (path: string) => vault.files.exists(path),
-    }),
-    [vault]
-  );
+   *  in the index, the backup chain and the sync queue like any other write —
+   *  and the line of the source note is replaced through vaultOps.update. */
+  const promotionAdapter = useMemo(() => vaultTextFiles(vault), [vault]);
 
   // Mirrored provider tasks reach this list through the task sync, and that
   // runs at the END of a PIM cycle — which is asleep while the app is away
@@ -396,9 +390,7 @@ export function TasksScreen({
   /** One note in or out of the task list. The marker lives in the note. */
   const setNoteExcluded = async (path: string, excluded: boolean) => {
     try {
-      const raw = await vault.files.readTextFile(path);
-      const next = setNoteTaskExclusion(raw, excluded, { setFrontmatterPath, deleteFrontmatterPath });
-      if (next !== raw) await vault.files.writeTextFile(path, next);
+      await vaultOps.update(vault, path, (raw) => setNoteTaskExclusion(raw, excluded, { setFrontmatterPath, deleteFrontmatterPath }));
       setTick((x) => x + 1);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -408,9 +400,7 @@ export function TasksScreen({
   const hideAllTemplates = async () => {
     for (const path of templateNotePaths) {
       try {
-        const raw = await vault.files.readTextFile(path);
-        const next = setNoteTaskExclusion(raw, true, { setFrontmatterPath, deleteFrontmatterPath });
-        if (next !== raw) await vault.files.writeTextFile(path, next);
+        await vaultOps.update(vault, path, (raw) => setNoteTaskExclusion(raw, true, { setFrontmatterPath, deleteFrontmatterPath }));
       } catch {
         /* one unreadable note must not stop the rest */
       }
@@ -542,26 +532,28 @@ export function TasksScreen({
    * ONE write path for every change to a checkbox line — the tick, and since the
    * planner the priority mark (B3); the desktop's twin is `mutateCheckbox` in
    * TasksView. `mutate` edits the fresh file at the verified ordinal,
-   * `optimistic` is what the row shows until the index catches up.
+   * `optimistic` is what the row shows until the index catches up. The line
+   * is found and changed in the note as it lies there when it is written
+   * (`vaultOps.update`) — and, where the note has an open conflict, in the
+   * person's own version as well.
    */
   const mutateCheckbox = useCallback(
     async (task: TaskRecord, mutate: (fresh: string, ordinal: number) => ChecklistMutationResult, optimistic: (row: TaskRecord) => TaskRecord) => {
       gate.begin();
-      try {
-        const fresh = await vaultOps.read(vault, task.path);
-        // The ordinal was taken from a snapshot; if the note changed since, it
-        // may point at a different line now. Re-read and check before writing.
+      // The ordinal was taken from a snapshot; if the note changed since, it
+      // may point at a different line now. Checked on the text that is written.
+      const changed = (fresh: string): string | null => {
         const ordinal = resolveTaskOrdinal(fresh, task);
-        if (ordinal < 0) {
-          setTick((x) => x + 1);
-          return;
-        }
+        if (ordinal < 0) return null;
         const next = mutate(fresh, ordinal);
-        if (!next.changed) {
+        return next.changed ? next.content : null;
+      };
+      try {
+        const update = await vaultOps.update(vault, task.path, changed);
+        if (changed(update.before) === null) {
           setTick((x) => x + 1);
           return;
         }
-        await vaultOps.save(vault, task.path, next.content);
         setTasks((prev) => prev.map((tk) => (tk.path === task.path && tk.ordinal === task.ordinal ? optimistic(tk) : tk)));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
@@ -605,12 +597,7 @@ export function TasksScreen({
   const writeDbNote = useCallback(
     async (path: string, mutate: (raw: string) => string) => {
       try {
-        const raw = await vaultOps.read(vault, path);
-        const next = mutate(raw);
-        if (next !== raw) {
-          await vaultOps.save(vault, path, next);
-          syncSoon();
-        }
+        if ((await vaultOps.update(vault, path, mutate)).changed) syncSoon();
         setTick((x) => x + 1);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
@@ -651,7 +638,7 @@ export function TasksScreen({
       if (!taskDb) return;
       try {
         const { columnAdded } = await setDbTaskPriority(
-          { readTextFile: (path) => vaultOps.read(vault, path), writeTextFile: (path, content) => vaultOps.save(vault, path, content), writeNote: writeDbNote },
+          { ...vaultTextFiles(vault), writeNote: writeDbNote },
           taskDb,
           target.path,
           rank,
@@ -817,7 +804,7 @@ export function TasksScreen({
           toast.info(t("tasks.dueTimeOffer", { name: dayOnly }), {
             label: t("tasks.dueTimeOfferAction"),
             run: () => {
-              void convertDueColumnToDateTime({ readTextFile: (path) => vaultOps.read(vault, path), writeTextFile: (path, content) => vaultOps.save(vault, path, content) }, taskDb)
+              void convertDueColumnToDateTime(vaultTextFiles(vault), taskDb)
                 .then((key) => {
                   if (!key) return;
                   syncSoon();

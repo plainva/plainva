@@ -1,4 +1,4 @@
-import { deleteFrontmatterPath, frontmatterSpan, readFrontmatterPath, readTextShape, setFrontmatterPath } from "@plainva/core";
+import { deleteFrontmatterPath, frontmatterSpan, readFrontmatterPath, readTextShape, setFrontmatterPath, type TextChange, type TextFileUpdate } from "@plainva/core";
 import { finalizeItemContent } from "../lib/newItemContent";
 import { templateCaretInEditor, templateCaretInNote } from "../lib/templateCaret";
 import { resolveNewItemTarget } from "./baseRelations";
@@ -83,6 +83,13 @@ export interface PinboardEntryFiles extends PinboardDraftSweepFiles {
   exists(path: string): Promise<boolean>;
   read(path: string): Promise<string>;
   write(path: string, content: string): Promise<void>;
+  /**
+   * The vault's entry for a change of a note where it lies (`updateTextFile`
+   * of its chain): the entry is ended in the file as it is at that moment. A
+   * shell with a vault brings it; a storage with nothing above it is read and
+   * written.
+   */
+  update?(path: string, change: TextChange): Promise<TextFileUpdate>;
   /**
    * Renames within the folder through the shell's link-safe path, so the
    * change travels as a move. Resolves to the new path.
@@ -404,9 +411,12 @@ async function endPinboardEntry(files: PinboardEntryFiles, opts: FinalizePinboar
     await files.remove(draft.path);
     return { outcome: "removed", path: null };
   }
-  let next = removePinboardEntryChips(current, opts.removedChips ?? []);
-  next = applyPinboardEntryTitle(next, title, draft.stem);
-  if (next !== current) await files.write(draft.path, next);
+  const ended = (text: string): string => applyPinboardEntryTitle(removePinboardEntryChips(text, opts.removedChips ?? []), title, draft.stem);
+  if (files.update) await files.update(draft.path, ended);
+  else {
+    const next = ended(current);
+    if (next !== current) await files.write(draft.path, next);
+  }
 
   const name = title.trim() ? captureFileName(title, 80) : null;
   if (!name || name === draft.stem) return { outcome: "kept", path: draft.path };

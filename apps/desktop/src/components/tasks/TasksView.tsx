@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat, Flag } from "lucide-react";
-import { isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
+import { isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, updateVaultText, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
 import { errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
@@ -633,19 +633,26 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     async (task: TaskRecord, mutate: (fresh: string, ordinal: number) => ChecklistMutationResult, optimistic: (row: TaskRecord) => TaskRecord) => {
       if (!vaultAdapter) return;
       taskMutationGate.begin();
-      try {
-        const fresh = await vaultAdapter.readTextFile(task.path);
-        // Guard against a stale ordinal (the note changed since it was listed):
-        // only flip when the ordinal still points at the same task text.
+      // The line is found and changed in the note as it lies there when it is
+      // written (`updateVaultText`) — and, where the note has an open conflict,
+      // in the person's own version as well. Guard against a stale ordinal (the
+      // note changed since it was listed): only flip when the ordinal still
+      // points at the same task text.
+      const changed = (fresh: string): { found: boolean; next: string | null } => {
         const ordinal = resolveTaskOrdinal(fresh, task);
-        if (ordinal < 0) {
+        if (ordinal < 0) return { found: false, next: null };
+        const res = mutate(fresh, ordinal);
+        return { found: true, next: res.changed ? res.content : null };
+      };
+      try {
+        const update = await updateVaultText(vaultAdapter, task.path, (fresh) => changed(fresh).next);
+        const done = changed(update.before);
+        if (!done.found) {
           taskMutationGate.finish();
           setRefreshTick((x) => x + 1);
           return;
         }
-        const res = mutate(fresh, ordinal);
-        if (!res.changed) { taskMutationGate.finish(); return; }
-        await vaultAdapter.writeTextFile(task.path, res.content);
+        if (done.next === null) { taskMutationGate.finish(); return; }
         setTasks((prev) => prev.map((t2) => (t2.path === task.path && t2.ordinal === task.ordinal ? optimistic(t2) : t2)));
       } catch (error) {
         console.error("[TasksView] updating a checkbox task failed", task.path, error);
@@ -763,11 +770,9 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     async (path: string, excluded: boolean) => {
       if (!vaultAdapter) return;
       try {
-        const raw = await vaultAdapter.readTextFile(path);
         // Shared with the phone (S31): unhiding deletes the key rather than
         // writing `true`, so never-hidden and unhidden are byte-identical.
-        const next = setNoteTaskExclusion(raw, excluded, { setFrontmatterPath, deleteFrontmatterPath });
-        if (next !== raw) await vaultAdapter.writeTextFile(path, next);
+        await updateVaultText(vaultAdapter, path, (raw) => setNoteTaskExclusion(raw, excluded, { setFrontmatterPath, deleteFrontmatterPath }));
         setTasks((prev) => prev.map((t2) => (t2.path === path ? { ...t2, excluded } : t2)));
       } catch (e) {
         console.error("[TasksView] toggling note exclusion failed", path, e);
@@ -811,7 +816,12 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     if (!taskDb) return;
     try {
       const { columnAdded } = await setDbTaskPriority(
-        { readTextFile: (path) => vaultAdapter.readTextFile(path), writeTextFile: (path, content) => vaultAdapter.writeTextFile(path, content), writeNote: writeDbNote },
+        {
+          readTextFile: (path) => vaultAdapter.readTextFile(path),
+          writeTextFile: (path, content) => vaultAdapter.writeTextFile(path, content),
+          updateTextFile: (path, change) => updateVaultText(vaultAdapter, path, change),
+          writeNote: writeDbNote,
+        },
         taskDb,
         target.path,
         rank,
@@ -860,10 +870,9 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       try {
         outcome = await applyTaskDueChanges(
           {
-            readTextFile: (path) => vaultAdapter.readTextFile(path),
-            writeNoteText: (path, content) => vaultAdapter.writeTextFile(path, content),
+            updateNoteText: (path, change) => updateVaultText(vaultAdapter, path, change),
             // The task-note chain of the tick: write, index, tree, provider nudge.
-            writeDbNote: async (path, mutate) => { await writeTaskNote(taskWriteDeps(), path, mutate); },
+            writeDbNote: (path, mutate) => writeTaskNote(taskWriteDeps(), path, mutate),
             dueKey: dbDueKey,
           },
           changes,

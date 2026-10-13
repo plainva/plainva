@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-09-30
+Laatst bijgewerkt: 2026-10-13
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -11,6 +11,8 @@ Welke diensten in het algemeen werken (ook via WebDAV of de desktop-client van d
 Als een tekstconflict niet automatisch kan worden samengevoegd, blijft er per origineel één lokale werkkopie open. Volgende bewerkingen worden in diezelfde kopie opgeslagen, ook na opnieuw openen of herstarten. De melding legt uit: **Je bewerkt je conflictkopie. Deze wordt na het samenvoegen gesynchroniseerd.**
 
 In de vergelijking toont **Bewaarde versies vergelijken** de opgeslagen beginversie, indien beschikbaar. Als de werkkopie buiten deze sessie verandert, wordt ook die andere versie bewaard en kun je die daar vergelijken. Overnemen, beide bewaren en verwerpen controleren de huidige bestanden opnieuw; laad een verouderde vergelijking opnieuw. Los het conflict op voordat je het betrokken bestand of de map verplaatst of verwijdert. Oudere conflictkopieën blijven apart vermeld.
+
+Zolang een conflict openstaat, blijft de rest van de app met de notitie werken. Een wijziging buiten de editor — een cel in een database, een afgevinkte taak, een journaalitem, een link die een hernoemde notitie volgt — wordt in de notitie en ook in je conflictkopie geschreven; ze blijft dus bewaard, welke versie je ook houdt. Heeft je kopie de plek niet meer waar de wijziging thuishoort (bijvoorbeeld een taak die je daar anders hebt geformuleerd), dan blijft de kopie zoals je haar hebt achtergelaten en toont de vergelijking het verschil.
 
 De diagnose-export bevat ook recente conflicten: opslagtype, schrijvende component, hashvergelijking en verschillen in regeleinden, BOM of de laatste nieuwe regel. Deze conflictrecords bevatten geen notitietekst of bestandsnamen. De export is altijd in het Engels, ongeacht de taal van de app, zodat je hem ongewijzigd in een issue op GitHub kunt plakken.
 

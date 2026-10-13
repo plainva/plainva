@@ -12,7 +12,10 @@ import {
   VaultIndexer,
   parseJournal,
   selectNoteFragment,
+  updateVaultText,
   type IDatabaseAdapter,
+  type TextChange,
+  type TextFileUpdate,
 } from "@plainva/core";
 import {
   deleteJournalEntry,
@@ -42,7 +45,7 @@ import type { MobileVault } from "./vaultService";
  * the widget's order all failed for that day, and the day showed empty.
  *
  * What runs here is the phone's own way: its journal service
- * (`journalService.ts`), the three vault operations it writes through — read
+ * (`journalService.ts`), the four vault operations it writes through — read
  * from `vaultService.ts`, which boots the native vault when it is imported —,
  * the adapter chain `boot()` puts over a picked folder, and under it a fake of
  * the native folder plugin. What is asserted are the bytes the plugin was
@@ -54,6 +57,7 @@ const SETTINGS = { journalHeading: "Journal", dailyFolder: "Journal", dailyForma
 type PhoneOps = {
   read(v: MobileVault, path: string): Promise<string>;
   save(v: MobileVault, path: string, text: string): Promise<void>;
+  update(v: MobileVault, path: string, change: TextChange): Promise<TextFileUpdate>;
   ensureDailyNote(v: MobileVault, date: Date, mode?: "interactive" | "headless"): Promise<{ path: string; created: boolean } | null>;
 };
 const phone = vi.hoisted(() => ({ ops: null as unknown }));
@@ -64,6 +68,7 @@ vi.mock("./vaultService", () => {
     vaultOps: {
       read: (v: MobileVault, path: string) => real().read(v, path),
       save: (v: MobileVault, path: string, text: string) => real().save(v, path, text),
+      update: (v: MobileVault, path: string, change: TextChange) => real().update(v, path, change),
       ensureDailyNote: (v: MobileVault, date: Date, mode?: "interactive" | "headless") => real().ensureDailyNote(v, date, mode),
     },
   };
@@ -74,10 +79,10 @@ vi.mock("@plainva/ui/i18n", () => ({ default: { t: (key: string) => key } }));
 
 import { appendPlannedJournalEntry, captureJournalEntry, journalFiles, journalHeading } from "./journalService";
 
-/** `vaultOps.read`, `.save` and `.ensureDailyNote` as `vaultService.ts` defines them, run against the scope they need. */
+/** `vaultOps.read`, `.save`, `.update` and `.ensureDailyNote` as `vaultService.ts` defines them, run against the scope they need. */
 function phoneOps(): PhoneOps {
   const file = ts.createSourceFile("vaultService.ts", readFileSync(resolve("src/services/vaultService.ts"), "utf8"), ts.ScriptTarget.Latest, true);
-  const wanted = ["read", "save", "ensureDailyNote"];
+  const wanted = ["read", "save", "update", "ensureDailyNote"];
   const methods = new Map<string, string>();
   const ofVaultOps = (node: ts.MethodDeclaration) =>
     ts.isObjectLiteralExpression(node.parent) && ts.isVariableDeclaration(node.parent.parent) && node.parent.parent.name.getText(file) === "vaultOps";
@@ -88,9 +93,12 @@ function phoneOps(): PhoneOps {
   visit(file);
   for (const name of wanted) if (!methods.has(name)) throw new Error(`vaultOps.${name} is gone from vaultService.ts — re-point this harness`);
   const code = ts.transpileModule(`const vaultOps = {${wanted.map((name) => methods.get(name)).join(",\n")}};`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
-  // What the three methods reach for. The daily note of this test exists, so
-  // nothing behind "it was created" is ever asked for.
+  // What the four methods reach for. The daily note of this test exists, so
+  // nothing behind "it was created" is ever asked for; and no editor holds a
+  // pending save of it, so the flush before a change has nothing to land.
   const scope = {
+    updateVaultText,
+    noteSaver: { flush: async () => {} },
     getMobileSettings: () => SETTINGS,
     getActiveVaultEntry: async () => ({ name: "Notes" }),
     ensureSharedDailyNote: ensureDailyNote,

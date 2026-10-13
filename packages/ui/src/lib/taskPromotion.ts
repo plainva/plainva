@@ -1,4 +1,4 @@
-import { applyTextShape, readTextShape, scanTasks, trimEndChars, wikiTargetForPath } from "@plainva/core";
+import { applyTextShape, readTextShape, scanTasks, trimEndChars, updateVaultText, wikiTargetForPath, type TextUpdateFiles } from "@plainva/core";
 import { TASK_LINE_RE, FENCE_RE } from "./taskToggle";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
@@ -127,10 +127,12 @@ export function findColumnKey(
   return null;
 }
 
-/** Minimal adapter surface promotion needs (satisfied by both shells). */
-export interface TaskPromotionAdapter {
-  readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, content: string): Promise<void>;
+/**
+ * Minimal adapter surface promotion needs (satisfied by both shells): a
+ * vault's chain, or a storage with nothing above it. The new note is written,
+ * the source note is read, changed and written in one step (`updateVaultText`).
+ */
+export interface TaskPromotionAdapter extends TextUpdateFiles {
   exists(path: string): Promise<boolean>;
 }
 
@@ -238,9 +240,23 @@ export async function promoteTask(opts: PromoteTaskOptions): Promise<PromoteTask
 
   // Replace the checkbox with a link to the new note (alias = cleaned title so
   // the line reads naturally even when the link target is a qualified path).
+  // The source is read again where it is written: the template was read and
+  // the new note written since the guard above. The line is the task at its
+  // place — or, where lines moved meanwhile (or in the user's own version of
+  // a note with an open conflict), the one task of that wording. A text that
+  // carries no such task, or several, is left alone.
   const linkTarget = wikiTargetForPath(notePath, [...allNotePaths, notePath]);
-  const replaced = replaceCheckboxWithLink(source, task.ordinal, linkTarget, title);
-  if (replaced.changed) await adapter.writeTextFile(sourcePath, replaced.content);
+  const linked = (fresh: string): string | null => {
+    const tasks = scanTasks(fresh);
+    const same = tasks[task.ordinal]?.text === task.text ? [tasks[task.ordinal]] : tasks.filter((t) => t.text === task.text);
+    if (same.length !== 1) return null;
+    const replaced = replaceCheckboxWithLink(fresh, same[0].ordinal, linkTarget, title);
+    return replaced.changed ? replaced.content : null;
+  };
+  const update = await updateVaultText(adapter, sourcePath, linked);
+  // The task note exists either way. A source that changed under the step
+  // keeps its checkbox, and says so where somebody looks for the reason.
+  if (linked(update.before) === null) console.warn(`[taskPromotion] ${sourcePath}: the task's line was not found again; its checkbox stays beside the new note`);
 
   return { ok: true, notePath, title };
 }

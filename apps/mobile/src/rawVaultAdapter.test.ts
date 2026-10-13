@@ -95,7 +95,6 @@ const SITES: Record<string, Site[]> = {
   "screens/NavigatorScreen.tsx": [["handed to useBookmarkTargets", 1, READS_ONLY]],
   "screens/NoteScreen.tsx": [["handed to renameBookmarksOnDisk", 1, BOOKMARKS]],
   "screens/PimAccountsScreen.tsx": [["handed to listTemplates", 1, READS_ONLY]],
-  "screens/PimCalendarScreen.tsx": [["kept as adapter", 2, "reads: the databases laid over the calendar are read through it (`readTextFile`, `loadBaseOverlay`), nothing else"]],
   "screens/SecurityAreaScreen.tsx": [["handed to resumeMobileWorkspaceSetup as vault", 1, WORKSPACE]],
   "screens/SecurityWizardScreen.tsx": [["handed to activatePreparedMobileWorkspace as vault", 1, WORKSPACE]],
   "screens/SettingsAreaScreens.tsx": [["handed to listTemplates", 1, READS_ONLY]],
@@ -109,8 +108,11 @@ const SITES: Record<string, Site[]> = {
   "services/mobileComments.ts": [["handed to new BundleCommentStore as vault", 1, COMMENTS]],
   "services/mobileSettingsSync.ts": [
     ["kept as raw", 3, SIDEBAND],
+    // Seen since a name the storage is kept under is followed (2026-10-13): the key file is written through `raw`.
+    ["calls writeTextFile", 1, SIDEBAND],
     ["handed to applyBookmarkProfileOnDisk", 1, BOOKMARKS],
     ["kept as rawVault", 1, SIDEBAND],
+    ["handed to keyfile.run", 1, SIDEBAND],
   ],
   "services/profileImportJournal.ts": [
     ["calls writeTextFile", 1, `${BOOKMARKS} (the bookmarks an interrupted import had found are put back)`],

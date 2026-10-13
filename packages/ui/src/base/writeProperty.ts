@@ -1,4 +1,4 @@
-import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, FrontmatterSurgicalError } from "@plainva/core";
+import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, updateVaultText, FrontmatterSurgicalError, type TextUpdateFiles } from "@plainva/core";
 import { UNREADABLE_PROPERTY_VALUE } from "../lib/errorText";
 import { resolvePropertyWriteKey } from "./propertyModel";
 
@@ -9,11 +9,13 @@ import { resolvePropertyWriteKey } from "./propertyModel";
  * overlay writes the same date column by dragging an entry to another day, and
  * two implementations of "put this value in that column" would drift on the
  * casing rule below — the one place where the naive version is wrong.
+ *
+ * The files are a vault's chain, or a storage with nothing above it. The note
+ * is read, changed and written back in one step (`updateVaultText`): on a
+ * chain that is its entry for exactly this, which starts from the note as it
+ * lies there (finding 2026-10-12).
  */
-export interface PropertyWriteAdapter {
-  readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, content: string): Promise<void>;
-}
+export type PropertyWriteAdapter = TextUpdateFiles;
 
 /**
  * Does this cell value mean "remove the property"?
@@ -66,7 +68,11 @@ export async function writeNoteProperty(
   column: string,
   value: unknown
 ): Promise<void> {
-  const text = await adapter.readTextFile(path);
+  await updateVaultText(adapter, path, (text) => withNoteProperty(text, column, value));
+}
+
+/** A note's text with one column set — or, for an empty value, removed. */
+export function withNoteProperty(text: string, column: string, value: unknown): string {
   const props = writableProperties(text);
   // A note may carry the property under a different CASING than the column key
   // ("Frist" vs. column "frist" — the panel capitalizes bare keys for display,
@@ -77,5 +83,5 @@ export async function writeNoteProperty(
   const writeKey = resolvePropertyWriteKey(props, column);
   const next: Record<string, unknown> = { ...props, [writeKey]: value };
   if (isEmptyPropertyValue(value)) delete next[writeKey];
-  await adapter.writeTextFile(path, updateFrontmatterString(text, next));
+  return updateFrontmatterString(text, next);
 }

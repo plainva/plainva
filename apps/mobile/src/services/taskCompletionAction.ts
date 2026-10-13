@@ -14,7 +14,7 @@ import {
 } from "@plainva/ui";
 import { readFrontmatterPath, setFrontmatterPath } from "@plainva/core";
 import { getMobileSettings } from "./mobileSettings";
-import { getMobileVault, vaultOps, type MobileVault } from "./vaultService";
+import { getMobileVault, vaultOps, vaultTextFiles, type MobileVault } from "./vaultService";
 
 /**
  * Ticking a task off, in one place (S11).
@@ -62,16 +62,17 @@ async function setTaskDoneLocked(vault: MobileVault, path: string, done: boolean
   const model = await loadModel(vault);
   if (!model) return { changed: false };
 
-  const raw = await vaultOps.read(vault, path);
-  const next = applyTaskCompletion(
-    raw,
-    model.completion,
-    done,
-    (c, p) => readFrontmatterPath(c, p),
-    (c, p, v) => setFrontmatterPath(c, p, v)
+  // The note as it lies there when the box is written (`vaultOps.update`);
+  // what follows reads the note as it was then.
+  const { before: raw, changed } = await vaultOps.update(vault, path, (text) =>
+    applyTaskCompletion(
+      text,
+      model.completion,
+      done,
+      (c, p) => readFrontmatterPath(c, p),
+      (c, p, v) => setFrontmatterPath(c, p, v)
+    )
   );
-  const changed = next !== raw;
-  if (changed) await vaultOps.save(vault, path, next);
   if (!done) return { changed };
 
   // The next occurrence is EARNED by checking the box — there is no hidden
@@ -94,7 +95,7 @@ async function setTaskDoneLocked(vault: MobileVault, path: string, done: boolean
   if (model.dueKey) content = setFrontmatterPath(content, [model.dueKey], spawnedDue);
   try {
     const created = await writeNextOccurrenceNote(
-      { exists: (p) => vault.files.exists(p), readTextFile: (p) => vaultOps.read(vault, p), writeTextFile: (p, c) => vaultOps.save(vault, p, c) },
+      vaultTextFiles(vault),
       path,
       content,
       completedOn

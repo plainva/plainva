@@ -1,4 +1,4 @@
-import { readFrontmatterPath, setFrontmatterPath } from "@plainva/core";
+import { readFrontmatterPath, setFrontmatterPath, updateVaultText, type TextUpdateFiles } from "@plainva/core";
 import { verifiedProviderIdentityOf } from "../lib/accountProfile";
 
 /**
@@ -31,10 +31,8 @@ import { verifiedProviderIdentityOf } from "../lib/accountProfile";
  *    `plainva.blocks` anchor of a time-blocked task.
  */
 
-export interface ProviderTaskAdapter {
-  readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, content: string): Promise<void>;
-}
+/** The note's files: a vault's chain, or a storage with nothing above it (`updateVaultText`). */
+export type ProviderTaskAdapter = TextUpdateFiles;
 
 /** What the provider needs to create a task. Mirrors `PimTaskDraft` without
  * importing the PIM types into this layer. */
@@ -182,7 +180,6 @@ export async function createProviderTask(
 
   let anchored: boolean;
   try {
-    const content = await opts.adapter.readTextFile(opts.notePath);
     const anchor = buildTaskAnchor({
       uid,
       listId: opts.listId,
@@ -190,7 +187,8 @@ export async function createProviderTask(
       provider: opts.provider,
       identity: opts.identity,
     });
-    await opts.adapter.writeTextFile(opts.notePath, setFrontmatterPath(content, ["plainva", "pim"], anchor));
+    // Into the note as it lies there now: the provider call took its time.
+    await updateVaultText(opts.adapter, opts.notePath, (content) => setFrontmatterPath(content, ["plainva", "pim"], anchor));
     anchored = true;
   } catch {
     anchored = false;

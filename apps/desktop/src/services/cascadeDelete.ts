@@ -1,5 +1,6 @@
 import {
   noteLinkResolver,
+  updateVaultText,
   type IVaultAdapter,
 
   type VaultQueryService,
@@ -269,9 +270,10 @@ export async function executeDeletionPlan(opts: {
       try {
         const folder = await getTemplateFolder(opts.vaultPath);
         for (const tpl of await listTemplates(adapter, folder)) {
-          const content = await adapter.readTextFile(tpl.path);
-          const res = removeTemplateForAssignment(content, basePath);
-          if (res.changed) await adapter.writeTextFile(tpl.path, res.content);
+          await updateVaultText(adapter, tpl.path, (content) => {
+            const res = removeTemplateForAssignment(content, basePath);
+            return res.changed ? res.content : null;
+          });
         }
       } catch (e) {
         console.error("cascade templateFor sweep failed", e);

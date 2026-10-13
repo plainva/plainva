@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { VaultFileExistsError, VaultFileNotFoundError, VaultIndexer, parseJournal } from "@plainva/core";
+import {
+  BackupVaultAdapter, ConflictAwareVaultAdapter, DEFAULT_BACKUP_RETENTION, QueueingVaultAdapter, SyncQueue, SyncStateRepository, VaultFileExistsError,
+  VaultFileNotFoundError, VaultIndexer, parseJournal, updateVaultText,
+} from "@plainva/core";
 import { parseBaseConfig, parseHeadings } from "@plainva/ui";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { ExternalVaultAdapter } from "./ExternalVaultAdapter";
@@ -184,5 +187,43 @@ describe("external-folder backup inventory", () => {
       return list(args);
     };
     await expect(new ExternalVaultAdapter(plugin, "folder").listDirForBackup([])).rejects.toThrow("folder access denied");
+  });
+});
+
+/**
+ * A folder the user picked is where another app writes into a vault: a second
+ * editor, a file manager, a sync client. A change of a note where it lies — a
+ * task's box, a property — reads the file inside the chain's gate, so it
+ * starts from what that app left (finding 2026-10-12, the addendum to it).
+ */
+describe("a change of a note in a picked folder, through the chain boot builds over it", () => {
+  it("lands after the note was saved here and then changed by another app: nothing to merge, no conflict copy", async () => {
+    const files = new Map<string, string | Uint8Array>([["Note.md", "# Title\n\n- [ ] Call Ada\n"]]);
+    const { plugin } = fakePlugin(files);
+    const folder = new ExternalVaultAdapter(plugin, "h1");
+    await folder.initialize();
+    const db = await realSqlite();
+    try {
+      // boot(): the picked folder, above it versions, the queue and the conflict check.
+      const repo = new SyncStateRepository(db, folder, "phone-a");
+      const chain = new ConflictAwareVaultAdapter(
+        new QueueingVaultAdapter(new BackupVaultAdapter(folder, { policy: DEFAULT_BACKUP_RETENTION }), new SyncQueue(db)), repo, undefined, repo, "external-folder",
+      );
+      // Saved from the editor: the chain knows this text, and no sync has taken it as a merge base.
+      await chain.writeEditorText("Note.md", "# Title\n\nEdited here.\n\n- [ ] Call Ada\n", "# Title\n\n- [ ] Call Ada\n");
+      // Another app writes into the folder — the map is the folder.
+      files.set("Note.md", "# Title\n\nEdited here.\n\n- [ ] Call Ada\n\nA line another app added.\n");
+
+      const update = await updateVaultText(chain, "Note.md", (note) => note.replace("- [ ] Call Ada", "- [x] Call Ada"));
+
+      // It used to be "base version not found" and a conflict copy: the writer handed the chain the
+      // whole text, and for the text the chain knew no copy was kept to merge against.
+      expect(update.changed).toBe(true);
+      expect(text(files.get("Note.md")!)).toBe("# Title\n\nEdited here.\n\n- [x] Call Ada\n\nA line another app added.\n");
+      expect(await chain.listConflictSessions()).toEqual([]);
+      expect([...files.keys()].filter((path) => path.includes(".CONFLICT"))).toEqual([]);
+      // And the chain knows the file again: the next change from outside is seen as one.
+      expect(chain.wasWrittenByUs("Note.md", (await repo.getSyncState("Note.md"))!.local_sha256!)).toBe(true);
+    } finally { await db.close(); }
   });
 });

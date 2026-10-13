@@ -18,11 +18,14 @@ import {
   trimEndChars,
   taskNoteKey,
   taskNoteStem,
+  updateVaultText,
   type TaskNoteIdentity,
+  type TextUpdateFiles,
 } from "@plainva/core";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
 import { anchorMatchesTask, buildTaskAnchor, taskAnchorIdentity } from "./providerTask";
+import { isFileNotFound } from "../lib/movedNote";
 import { buildNewItemContent } from "../lib/newItemContent";
 import { generatedStamp } from "../lib/okfProvenance";
 import { resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, type TaskCompletionModel } from "../lib/taskDatabase";
@@ -50,9 +53,8 @@ import { taskSyncPaused, trackTaskSync } from "./taskSyncPause";
  *     task needs an explicit list choice; documented follow-up)
  */
 
-export interface TaskSyncAdapter {
-  readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, content: string): Promise<void>;
+/** The vault's files: its chain, or a storage with nothing above it (`updateVaultText`). */
+export interface TaskSyncAdapter extends TextUpdateFiles {
   exists(path: string): Promise<boolean>;
   createDir(path: string): Promise<void>;
   /**
@@ -482,29 +484,49 @@ async function reconcileList(
     }
 
     // Field-wise three-way merge, local wins on a per-field tie.
-    const merged: PimTaskFields = {
-      title: localChanged && localFields.title !== base.title ? localFields.title : remoteFields.title,
-      due: localChanged && localFields.due !== base.due ? localFields.due : remoteFields.due,
-      completed: localChanged && localFields.completed !== base.completed ? localFields.completed : remoteFields.completed,
+    const mergeFields = (local: PimTaskFields): PimTaskFields => {
+      const changed = !fieldsEqual(local, base);
+      return {
+        title: changed && local.title !== base.title ? local.title : remoteFields.title,
+        due: changed && local.due !== base.due ? local.due : remoteFields.due,
+        completed: changed && local.completed !== base.completed ? local.completed : remoteFields.completed,
+      };
     };
+    const merged = mergeFields(localFields);
 
     // Apply to the note when it differs from the local state.
     if (!fieldsEqual(merged, localFields)) {
-      let updated = upgradeAnchorIfStale(applyFieldsToNote(content, merged, localFields, db), account, listId, rt);
-      // The provider repeats this task (finding 2026-09-20): done at the last
-      // agreement, open again under the SAME id with a later due date — and
-      // nobody reopened it here. The note says so from now on, because "I
-      // ticked this yesterday and it is open again" otherwise reads as a sync
-      // fault. Rides along with the write that reopens the note; never a
-      // write of its own.
-      if (providerReopened(base, remoteFields) && localFields.completed === base.completed) updated = markRecurringAtProvider(updated);
+      // What the merge writes, as a function of the text it goes into
+      // (`updateVaultText`): the note as it lies there at that moment, and —
+      // where the note has an open conflict — the person's own version, which
+      // takes the same change merged with what it says itself. A text that is
+      // no longer this task is left alone: only the bytes authorize a write.
+      const mergedInto = (text: string): string | null => {
+        if (text !== content && !taskNoteMatches(readTaskNoteIdentity(text), taskId(rt.uid))) return null;
+        const own = text === content ? localFields : readNoteFields(text, db, base.completed);
+        const fields = text === content ? merged : mergeFields(own);
+        if (fieldsEqual(fields, own)) return null;
+        let updated = upgradeAnchorIfStale(applyFieldsToNote(text, fields, own, db), account, listId, rt);
+        // The provider repeats this task (finding 2026-09-20): done at the last
+        // agreement, open again under the SAME id with a later due date — and
+        // nobody reopened it here. The note says so from now on, because "I
+        // ticked this yesterday and it is open again" otherwise reads as a sync
+        // fault. Rides along with the write that reopens the note; never a
+        // write of its own.
+        if (providerReopened(base, remoteFields) && own.completed === base.completed) updated = markRecurringAtProvider(updated);
+        return updated;
+      };
       try {
-        if (!await fileStillEquals(adapter, notePath, content)) continue;
-        await adapter.writeTextFile(notePath, updated);
-        content = updated;
-        result.changedNotes.push(notePath);
+        const written = await updateVaultText(adapter, notePath, mergedInto);
+        if (written.changed) result.changedNotes.push(notePath);
+        // Edited since it was read: the note is merged as it lies there, and
+        // the state and the push follow from the next cycle's read of it.
+        if (written.before !== content) continue;
+        content = written.text;
       } catch (e) {
-        result.errors.push(`${notePath}: ${e instanceof Error ? e.message : String(e)}`);
+        // Moved or deleted since it was read: nothing to report, the next
+        // cycle finds the note where it is now (or tombstones it).
+        if (!isFileNotFound(e)) result.errors.push(`${notePath}: ${e instanceof Error ? e.message : String(e)}`);
         continue;
       }
     }

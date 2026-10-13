@@ -1,5 +1,5 @@
 import { afterTaskSyncResume, clearPinboardCache, InlineSuggestProvider } from "@plainva/ui";
-import { projectPublicationFeedbackForOwner, sameStoredValue } from "@plainva/core";
+import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import { relocateDrafts } from "../services/draftJournal";
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
@@ -1060,6 +1060,7 @@ export const VaultProvider: React.FC<{
               adapter: {
                 readTextFile: (p) => vaultAdapter.readTextFile(p),
                 writeTextFile: (p, c) => vaultAdapter.writeTextFile(p, c),
+                updateTextFile: (p, change) => updateVaultText(vaultAdapter, p, change),
                 exists: (p) => vaultAdapter.exists(p),
                 createDir: (p) => vaultAdapter.createDir(p),
                 // A note whose task a person deleted elsewhere (journal, P1)

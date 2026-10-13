@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, BellOff, Copy, ExternalLink, FileText, Link2, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, PenLine, Reply, ReplyAll, Forward, Star, Trash2, TriangleAlert } from "lucide-react";
-import { hasEmlWikiLink } from "@plainva/core";
+import { hasEmlWikiLink, updateVaultText } from "@plainva/core";
 import { Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, getPlatformServices, ICON, IconButton, plainvaProducer, toast, useStableHandler, type LinkTarget } from "@plainva/ui";
 import type { ForwardSource, MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
 import { parseUnsubscribe, preferredRoute, mailErrorText } from "@plainva/ui/mail";
@@ -529,9 +529,8 @@ export function MailMessageScreen({
           // over the wire again, which on a phone connection is not free.
           const raw = await fetchRawMessage(vaultId, account, mailbox, messageId);
           const emlPath = await saveEmlFile(vault.files, message, raw, folder);
-          const content = res.created ? await vault.files.readTextFile(res.path) : existing;
-          await vault.files.writeTextFile(res.path, `${content.trimEnd()}\n\n[[${emlPath}]]\n`);
-          emlAdded = true;
+          // Into the note as it lies there now: the raw copy took its time.
+          emlAdded = (await updateVaultText(vault.files, res.path, (content) => (hasEmlWikiLink(content) ? null : `${content.trimEnd()}\n\n[[${emlPath}]]\n`))).changed;
         }
       }
       toast.success(

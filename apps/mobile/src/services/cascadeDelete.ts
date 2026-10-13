@@ -1,4 +1,4 @@
-import { noteLinkResolver } from "@plainva/core";
+import { noteLinkResolver, updateVaultText, type TextChange } from "@plainva/core";
 import {
   buildDeletionPlan,
   cleanupRefsFor,
@@ -79,6 +79,8 @@ export async function executeMobileCascade(
     const cleanupDeps = {
       readTextFile: (p: string) => v.files.readTextFile(p),
       writeTextFile: (p: string, c: string) => v.files.writeTextFile(p, c),
+      // Every pending save landed above; the index follows below.
+      updateTextFile: (p: string, change: TextChange) => updateVaultText(v.files, p, change),
       listLinkTargets: () => qs.linkTargets(),
     };
     for (const ref of cleanupRefsFor(plan, pathSet)) {
