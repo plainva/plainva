@@ -237,10 +237,11 @@ describe("a properties block without entries", () => {
 
   it("edits a block whose fences carry blanks in place", () => {
     // The Markdown parser takes it for a block, so the index shows its
-    // properties; the writers must find the same block.
+    // properties; the writers must find the same block. Its fences stay as
+    // they are written (since 2026-10-13): a write changes an entry.
     const note = "--- \na: 1\n---  \n# Note\n";
     expect(frontmatterKeys(note)).toEqual(["a"]);
-    expect(setFrontmatterPath(note, ["b"], 2)).toBe("---\na: 1\nb: 2\n---\n# Note\n");
+    expect(setFrontmatterPath(note, ["b"], 2)).toBe("--- \na: 1\nb: 2\n---  \n# Note\n");
   });
 });
 
@@ -250,14 +251,16 @@ describe("a properties block without entries", () => {
  * so the index and the properties panel had its properties; the writers read
  * one long line, found no block and put a second one on top (2026-10-11).
  *
- * What they write into such a note: the block with `\n`, and not a byte of the
- * text. The note's line end comes from the one definition of it
- * (`readTextShape`), which knows `\n` and `\r\n`; no writer sets a lone `\r`.
+ * What they write into such a note: the entry that changes, and not a byte of
+ * anything else — the lines that are there keep the line end they have (since
+ * 2026-10-13; until then the whole block came back with `\n`). A line that is
+ * new ends in the note's line end, which comes from the one definition of it
+ * (`readTextShape`) and is `\n` or `\r\n`; no writer sets a lone `\r`.
  */
 describe("a note whose lines end in a carriage return of its own", () => {
   const TEXT = "# Single\r\rText with a [[Link]].\r";
   const CLASSIC = `---\rstage: open\r# a comment\rtags:\r  - a\r  - b\r---\r${TEXT}`;
-  const WRITTEN = `---\nstage: open\n# a comment\ntags:\n  - a\n  - b\nowner: Anna\n---\n${TEXT}`;
+  const WRITTEN = `---\rstage: open\r# a comment\rtags:\r  - a\r  - b\rowner: Anna\n---\r${TEXT}`;
 
   it("reads the entries of its block line by line", () => {
     expect(frontmatterKeys(CLASSIC)).toEqual(["stage", "tags"]);
@@ -265,20 +268,21 @@ describe("a note whose lines end in a carriage return of its own", () => {
     expect(readFrontmatterPath(CLASSIC, ["tags"])).toEqual(["a", "b"]);
   });
 
-  it("writes into the block that is there, with `\\n`, and leaves the text as it is", () => {
+  it("writes into the block that is there: a new line with `\\n`, every other line as it stands", () => {
     expect(setFrontmatterPath(CLASSIC, ["owner"], "Anna")).toBe(WRITTEN);
     expect(upsertFrontmatterKeys(CLASSIC, { owner: "Anna" })).toBe(WRITTEN);
     // One block, and the next write finds it again.
     expect(frontmatterKeys(WRITTEN)).toEqual(["stage", "tags", "owner"]);
-    expect(deleteFrontmatterPath(WRITTEN, ["owner"])).toBe(WRITTEN.replace("owner: Anna\n", ""));
-    expect(renameFrontmatterKey(CLASSIC, "stage", "state")).toBe(`---\nstate: open\n# a comment\ntags:\n  - a\n  - b\n---\n${TEXT}`);
-    expect(renameFrontmatterTag(CLASSIC, "a", "c").content).toBe(`---\nstage: open\n# a comment\ntags:\n  - c\n  - b\n---\n${TEXT}`);
+    expect(deleteFrontmatterPath(WRITTEN, ["owner"])).toBe(CLASSIC);
+    expect(renameFrontmatterKey(CLASSIC, "stage", "state")).toBe(CLASSIC.replace("stage", "state"));
+    expect(renameFrontmatterTag(CLASSIC, "a", "c").content).toBe(CLASSIC.replace("- a", "- c"));
   });
 
   it("gives a note without a block its first one in front of the untouched text", () => {
     expect(setFrontmatterPath(TEXT, ["owner"], "Anna")).toBe(`---\nowner: Anna\n---\n${TEXT}`);
     expect(ensureOkfFrontmatter(TEXT, { type: "Note" }).content).toBe(`---\ntype: Note\n---\n${TEXT}`);
-    expect(setFrontmatterPath(`---\r---\r${TEXT}`, ["owner"], "Anna")).toBe(`---\nowner: Anna\n---\n${TEXT}`);
+    // An empty block that is there keeps its fences as they are.
+    expect(setFrontmatterPath(`---\r---\r${TEXT}`, ["owner"], "Anna")).toBe(`---\rowner: Anna\n---\r${TEXT}`);
   });
 
   it("removes the block with its last entry: the text is the note, byte for byte", () => {
@@ -305,8 +309,8 @@ describe("a note whose lines end in a carriage return of its own", () => {
   it("finds the block behind a stray carriage return in a note with other line ends", () => {
     // The parser closes the block on the fence behind it; the writers read on
     // to the end of the note and found none.
-    expect(setFrontmatterPath("---\na: 1\r---\n# Note\n", ["b"], 2)).toBe("---\na: 1\nb: 2\n---\n# Note\n");
-    expect(setFrontmatterPath("---\r\na: 1\rb: 2\r\n---\r\n# Note\r\n", ["c"], 3)).toBe("---\r\na: 1\r\nb: 2\r\nc: 3\r\n---\r\n# Note\r\n");
+    expect(setFrontmatterPath("---\na: 1\r---\n# Note\n", ["b"], 2)).toBe("---\na: 1\rb: 2\n---\n# Note\n");
+    expect(setFrontmatterPath("---\r\na: 1\rb: 2\r\n---\r\n# Note\r\n", ["c"], 3)).toBe("---\r\na: 1\rb: 2\r\nc: 3\r\n---\r\n# Note\r\n");
   });
 
   it("finds the block of a note whose lines end in `\\r\\r\\n`", () => {
@@ -320,17 +324,20 @@ describe("a note whose lines end in a carriage return of its own", () => {
 
     const written = setFrontmatterPath(note, ["owner"], "Anna");
     expect(frontmatterKeys(written)).toEqual(["stage", "tags", "owner"]);
-    // The block in the note's line end, `\r\n`, and the text as it was.
-    expect(written.startsWith("---\r\nstage: open\r\n")).toBe(true);
-    expect(written.endsWith(`owner: Anna\r\n---\r\n${text}`)).toBe(true);
+    // The new line behind all three characters of the line end above it, in
+    // the note's line end, `\r\n` — and every other byte as it was.
+    expect(written).toBe(`---\r\r\nstage: open\r\r\ntags: [a]\r\r\nowner: Anna\r\n---\r${text}`);
     expect(deleteFrontmatterPath(deleteFrontmatterPath(deleteFrontmatterPath(written, ["owner"]), ["tags"]), ["stage"])).toBe(text);
   });
 
   it("sets no carriage return of its own, whatever the note's lines end in", () => {
+    const lone = (text: string) => (text.match(/\r(?!\n)/g) ?? []).length;
     for (const note of [CLASSIC, TEXT, `---\r---\r${TEXT}`, "---\ra: 1\n---\nText\n", "---\na: 1\rb: 2\n---\nText\r", "Text\r\nmore\rtext\r", "---\r\r\na: 1\r\r\n---\r\r\nText\r\r\n"]) {
       const written = setFrontmatterPath(note, ["owner"], "Anna");
-      const block = frontmatterSpan(written)!;
-      expect(written.slice(0, block.end), JSON.stringify(note)).not.toMatch(/\r(?!\n)/);
+      // The ones that stand there stay; the line that is new ends in `\n` or `\r\n`.
+      expect(lone(written), JSON.stringify(note)).toBe(lone(note));
+      expect(written, JSON.stringify(note)).toMatch(/owner: Anna\r?\n/);
+      expect(frontmatterSpan(written), JSON.stringify(note)).not.toBeNull();
       expect(noteBodyOf(written), JSON.stringify(note)).toBe(noteBodyOf(note));
     }
   });
@@ -571,10 +578,11 @@ describe("renameFrontmatterWikiLinks", () => {
     ])("in a block the library would write differently (%s)", (_name, eol, mark) => {
       const note = mark + BLOCK.join(eol);
       expect(renameFrontmatterWikiLinks(note, renames)).toEqual({ content: mark + after(BLOCK).join(eol), renamed: 5, skipped: 0 });
-      // The proof that this block is one the library rewrites: any other
-      // writer of this file brings the lines back in its own form.
-      const rewritten = upsertFrontmatterKeys(note, { status: "open" });
-      for (const form of ["title:    Spaced out", "tags: [a, b]", `long: ${LONG}`, "plz: 01067", '- "[[Alt]]"']) expect(rewritten, form).not.toContain(eol + form + eol);
+      // Until 2026-10-12 every other writer of this file brought these lines
+      // back in the library's form. Now each of them changes its entry and
+      // leaves the rest (`frontmatter-entry.test.ts`).
+      const written = upsertFrontmatterKeys(note, { status: "open" });
+      for (const form of ["title:    Spaced out", "tags: [a, b]", `long: ${LONG}`, "plz: 01067", '- "[[Alt]]"']) expect(written, form).toContain(eol + form + eol);
     });
 
     it("writes a name the way the scalar's quotes need it", () => {

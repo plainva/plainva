@@ -211,7 +211,10 @@ describe("a new note from a template on the phone", () => {
     // The live editor hides the block and refuses a caret in it. Counted on by
     // what the header grew, such a caret came to stand in the `type` line.
     const built = await fromTemplate("---\nstatus: {{cursor}}\n---\n# {{title}}\n");
-    expect(built.content).toBe("---\nstatus:\ntype: Note\n---\n# Neu\n");
+    // The template's line stays as the template wrote it, the blank behind its
+    // colon included (since 2026-10-13): the header gets a `type`, and nothing
+    // else in it is written anew.
+    expect(built.content).toBe("---\nstatus: \ntype: Note\n---\n# Neu\n");
     expect(behindCaret(built)).toBe("# Neu\n");
   });
 

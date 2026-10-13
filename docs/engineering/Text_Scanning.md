@@ -40,6 +40,14 @@ keeps the class closed.
      one place, `frontmatterLines` in
      `packages/ui/src/components/editorFrontmatter.ts` — kept per document, so
      no part of the editor scans the lines for itself on a transaction;
+   - `packages/core/src/frontmatter-entry.ts` — a property of that block,
+     changed where it stands: the block stays text, the YAML library says
+     where a key and a value are, and setting, removing or renaming one entry
+     changes its characters or its lines and nothing else (ADR 0009, addendum
+     2026-10-13). The writers in `frontmatter-surgical.ts` and
+     `updateFrontmatterString` go through it; a block that was read is never
+     printed by the library, and `yamlWriters.test.ts` fails a file that
+     takes more from the library than `parse` without being listed there;
    - `packages/core/src/vault/htmlCheckbox.ts` — the tag tokenizer behind the
      HTML task box, shared by both renderers and the writer;
    - `packages/core/src/vault/filterComparison.ts` — the `column op "value"`

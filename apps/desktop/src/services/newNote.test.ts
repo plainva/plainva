@@ -114,11 +114,12 @@ describe("templateAsNewNote", () => {
     const grown = templateAsNewNote(resolved("---\nstatus: entwurf\n---\n# Titel\n\n|Text\n"), "Note");
     expect(grown.content).toBe("---\nstatus: entwurf\ntype: Note\n---\n# Titel\n\nText\n");
     expect(behindCaret(grown)).toBe("Text\n");
-    // The writer sets the block's lines anew: fences lose their blanks, a list
-    // gets its indent. The text behind the block is not touched.
-    const rewritten = templateAsNewNote(resolved("--- \ntags:\n- a\n---  \n|Text\n"), "Note");
-    expect(rewritten.content).toBe("---\ntags:\n  - a\ntype: Note\n---\nText\n");
-    expect(behindCaret(rewritten)).toBe("Text\n");
+    // The writer adds its line and leaves the block as the template wrote it
+    // (since 2026-10-13; until then it set the block's lines anew): the blanks
+    // behind its fences stay, and so does a list at the margin.
+    const kept = templateAsNewNote(resolved("--- \ntags:\n- a\n---  \n|Text\n"), "Note");
+    expect(kept.content).toBe("--- \ntags:\n- a\ntype: Note\n---  \nText\n");
+    expect(behindCaret(kept)).toBe("Text\n");
     const empty = templateAsNewNote(resolved("---\n---\n# Titel\n|"), "Note");
     expect(empty.content).toBe("---\ntype: Note\n---\n# Titel\n");
     expect(behindCaret(empty)).toBe("");
@@ -147,11 +148,15 @@ describe("templateAsNewNote", () => {
     // The live editor hides the block and takes no caret in it. Counted on by
     // what the note grew, this caret came to stand at the end of the `type` line.
     const note = templateAsNewNote(resolved("---\nstatus: |\n---\n# Titel\n"), "Note");
-    expect(note.content).toBe("---\nstatus:\ntype: Note\n---\n# Titel\n");
+    // The template's line stays as the template wrote it, the blank behind
+    // its colon included (since 2026-10-13): only `type` is new to the block.
+    expect(note.content).toBe("---\nstatus: \ntype: Note\n---\n# Titel\n");
     expect(behindCaret(note)).toBe("# Titel\n");
-    // A template that is only properties: the caret goes to the end.
+    // A template that is only properties: the caret goes to the end. Nothing
+    // is put behind a block that is there (a write used to add an empty line
+    // to a note without text — a byte behind the block that nobody asked for).
     const only = templateAsNewNote(resolved("---\nstatus: entwurf\n---\n|"), "Note");
-    expect(only.content).toBe("---\nstatus: entwurf\ntype: Note\n---\n\n");
+    expect(only.content).toBe("---\nstatus: entwurf\ntype: Note\n---\n");
     expect(only.caret).toBe(only.content.length);
   });
 

@@ -431,3 +431,134 @@ only where that text carried no properties block.
    to the editor as it was: for a template written on Windows the caret stood
    one character too far right for every line above it, and one more behind
    a mark.
+
+## Addendum 2026-10-13 (a property is changed where it stands)
+
+Finding 2026-10-11: point 2 of the decision calls the surgical write path
+"byte-identical" for untouched keys. It was not. Every writer of a property —
+the surgical helpers and `updateFrontmatterString` alike — ended in one
+function that printed the document the YAML library had read
+(`doc.toString()`): the WHOLE block, in the library's form and from the values
+as it had read them. Setting, removing or renaming one property turned
+`plz: 01067` into `1067`, took the plus off `phone: +4915112345678` and the
+last digits off `id: 12345678901234567890`, wrote `.5` as `0.5`, `1e3` as
+`1e+3` and `0x1F` as `0x1f`, folded a long line at 80 characters (a quoted
+address got a backslash at the line end, inside the value), padded `[a, b]`
+to `[ a, b ]`, indented a list and made one blank line of several. It also
+ran over notes nobody had opened: a tag renamed vault-wide, a column removed
+from a database, the OKF conversion.
+
+1. **The block stays text.** A block that is there is changed entry by entry,
+   as text (`packages/core/src/frontmatter-entry.ts`). The library reads it
+   and says where a key and a value stand (its source tokens); what is
+   written is a list of changes to the text:
+   - a value is replaced by replacing its characters — a scalar in the quotes
+     it has, the comment behind it left alone;
+   - a new key is a new line behind the last entry of its map, indented as
+     the others are, in front of whatever comment ends the block;
+   - an entry is removed by removing its lines;
+   - a key is renamed by replacing the characters of the key;
+   - a list changes item by item: the items that stay keep their characters,
+     one that goes takes its line, a new one gets a line in the list's own
+     form — at the list's indentation, or between its brackets where it is
+     written in brackets; an item that only moves keeps its characters too
+     (a value the list already holds is written the way it stands there),
+     however long the list is; a map changes entry by entry in the same way,
+     also a map in braces and a block that is one such map.
+
+   Written anew — from the value, in the library's form — is only an entry
+   whose value changes its SHAPE (a text that becomes a list, a list that
+   becomes empty), and of it only what stands behind its colon. The library
+   writes nothing else of a note: `written()` in that module is the one place
+   it prints, and it is handed a value, never a document that was read.
+2. **Nothing is taken on trust.** Before a note is handed back, its block is
+   read again and has to say exactly what the change was meant to make it
+   say, with the text behind it untouched. Where a change cannot be made in
+   its place, the entry is written anew (in the order given below); where
+   that does not give the expected block either, the note is refused
+   (`FrontmatterSurgicalError`) and stays as it is. That is what happens to a
+   value another entry refers to (`a: &x 1`, `b: *x`): changed or removed, it
+   would change `b` as well. The refusal begins like the refusal of a block
+   that is no map, so the user is told what point 9 of the addendum of
+   2026-10-09 tells them: correct the block in the note's text.
+
+   The measure a write is read back against is the value as it was handed. A
+   text, a number and a boolean are themselves — not what the library reads
+   back from what it writes for them: measured that way, at the root of a
+   document, a text of several lines that begins with a blank came back
+   changed, and the changed text was written (found by the review before this
+   landed). Where the library's own form cannot say a text at the place it
+   has to stand — one that ends in empty lines, as the last entry of the block
+   or in front of an empty line; one of two lines between brackets — that
+   text is written between double quotes, on one line, and what stands beside
+   it keeps its characters. The order is: the value where it stands, with
+   what is new in the library's own form; the same with what is new between
+   double quotes; the entry at the end of the path written anew behind its
+   colon, both ways; and only then the entry at the top of the path, both
+   ways. A block that cannot say what it holds, because a
+   reference in it leads nowhere (`title: *Draft*` is a reference for YAML,
+   not emphasis), is refused the same way; the index reads no property from
+   it either. A tag rename, which runs over every note of a vault, passes
+   such a block by.
+3. **An entry is its own lines.** Removing an entry removes the lines from
+   its key through the last line of its value, and no line above or below
+   it. The library used to take the comment lines above a key along; such a
+   line may as well be an entry somebody commented out. A map this leaves
+   without an entry still goes with its last entry (the namespace rule of
+   point 1 of the decision). An entry ends with its last line that says
+   something: the library counts the empty lines and comments behind a last
+   entry without a value (`icon:`, `-`) to the map or list that holds it, and
+   they are not taken at its word. Behind a text that keeps its empty lines
+   (`|+`) the empty lines behind a removed entry go with it, or one stays in
+   its place — whichever leaves the text saying what it said.
+4. **This amends the addendum of 2026-10-09 in four places.**
+   - Point 3: a block goes with its last entry where nothing but blank lines
+     is left in it. One that still holds a comment stays, and takes the next
+     entry.
+   - Point 8: a whole-set write no longer re-serialises what it does not
+     change. `updateFrontmatterString` writes the DIFFERENCE between the set
+     it is handed and what the note says: a key whose handed value is what
+     the YAML says — or what the index's reader hands out for it, since the
+     set comes from that reader, which reads `tags: a, b` as two tags — stays
+     byte for byte; a key the set no longer names loses its lines; one key
+     gone and one key new with the same value is a rename in place. The
+     properties panel's rename used to move the entry to the end of the
+     block. A key the reader does not hand out (`__proto__`) was never
+     offered to whoever made the set; its absence from the set removes
+     nothing.
+   - Point 10, "what the writers write": the block is no longer written anew
+     in the note's line end. A line that is new ends in it (`\n` or `\r\n`,
+     from `readTextShape`); the lines that are there keep the line end they
+     have, a carriage return of its own included. No writer sets one. `\r\r\n`
+     ends ONE line of an entry, as it does for an editor: a new line goes
+     behind all three characters.
+   - The fences are never written: blanks behind a fence stay, and a note
+     that ends on its closing fence gets no line end behind it.
+5. **A key has the name the index gives it.** The index reads the block as
+   data, where every key is a text: `2024:` is the property "2024". The
+   writers asked the library for the key's own text and found none — a write
+   put a second entry `"2024":` beside the first, and removing or renaming did
+   nothing and said nothing. Now a key is found by its name; where two keys
+   have one name, it is the last, whose value the block says under it.
+6. **A line that is new is not folded,** and nothing is written as `null`
+   (the library printed a key without a value as `? key`). Several keys for a
+   note without a block (`upsertFrontmatterKeys`, the importers) are written
+   in one go: nothing is there that a line could be set beside.
+7. **Tests and the guard.** `packages/core/test/frontmatter-entry.test.ts`
+   sends one block that holds every form above
+   (`test/helpers/propertyBlock.ts`) through every writer, in each shape a
+   note lies on disk in (`\n`, `\r\n`, `\r\n` behind a byte order mark), and
+   compares the whole note; 3000 generated notes hold every other line in
+   place. The same block runs through each shell's own write path: the
+   desktop's properties panel and database cell
+   (`PropertiesSection.entryBytes.test.tsx`,
+   `useBaseCells.entryBytes.test.tsx`) and the phone's cell and selection
+   over its adapter chain (`apps/mobile/src/services/propertyEntryBytes.test.ts`).
+   `apps/desktop/src/yamlWriters.test.ts` lists every shipped file that takes
+   more from the YAML library than `parse`, and fails a file that starts to.
+8. **Not changed here.** The copy of a note that leaves the vault
+   (`publishedSlices.ts`) still writes the properties its allow-list lets
+   through anew: a comment or a line left standing could carry what was
+   withheld, so values the library reads as numbers leave in the library's
+   form. `readFrontmatterPath` and `frontmatterKeys` still ask the library
+   for a key's own text and do not see a property whose key is a number.

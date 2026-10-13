@@ -1,9 +1,10 @@
-import { parseDocument, Document, YAMLMap, isMap } from "yaml";
+import { parseDocument, Document, isMap } from "yaml";
 import { readTextShape } from "./textFileShape.js";
 
 /**
- * The properties block of a note: where it is, how its YAML becomes a document
- * that can be edited, and how the note is put together again afterwards.
+ * The properties block of a note: where it is, how its YAML is read as a
+ * document in which an entry can be found, and how a note gets a block or
+ * loses one.
  *
  * There is ONE answer to each of the three, and it lives here (finding
  * 2026-10-07). Before, some thirty places carried a pattern of their own for
@@ -16,7 +17,13 @@ import { readTextShape } from "./textFileShape.js";
  *
  * `frontmatterSpan`, `noteBodyOf` and `noteWithoutProperties` are the public
  * half (re-exported by `frontmatter-surgical.ts`). The rest is shared by the
- * two modules that write properties and is not part of the package API.
+ * modules that write properties and is not part of the package API.
+ *
+ * This module READS a block. It does not write one: a block that is there is
+ * changed entry by entry, as text, in `frontmatter-entry.ts`. The function
+ * that used to stand here and print the document the library had read —
+ * `joinDocument` — wrote every block in the library's form, and with it values
+ * nobody had asked to change (finding 2026-10-11).
  */
 
 /** Raised when a document cannot be edited safely (caller should skip the file). */
@@ -180,12 +187,16 @@ export function noteWithoutProperties(content: string): string {
 }
 
 export interface SplitDocument {
+  /** The block as the YAML library reads it; an empty document for a note without a block. */
   doc: Document;
+  /** Where the block is in the note; null for a note without one. */
+  span: FrontmatterSpan | null;
   /** The note's text behind the block. */
   body: string;
   hadFrontmatter: boolean;
   /** Whether the block carried an entry when it was read. */
   hadEntries: boolean;
+  /** The line end a line gets that is new to the note. */
   eol: string;
   byteOrderMark: string;
   /** The note as it was read. */
@@ -193,9 +204,13 @@ export interface SplitDocument {
 }
 
 /**
- * `sourceTokens` keeps, on every node, the token it was read from — for a
- * writer that changes one value where it stands instead of writing the block
- * anew (`renameFrontmatterWikiLinks`).
+ * A note's block, read as a YAML document. Throws `FrontmatterSurgicalError`
+ * for a block that is not parseable YAML or that is no map: such a note is
+ * left alone, never written around.
+ *
+ * `sourceTokens` keeps, on every node, the token it was read from — for the
+ * writers, which change an entry where it stands and need to know where that
+ * is (`frontmatter-entry.ts`, `renameFrontmatterWikiLinks`).
  */
 export function splitDocument(content: string, options: { sourceTokens?: boolean } = {}): SplitDocument {
   // The note's line end, by the one definition of it (`readTextShape`: what
@@ -203,17 +218,18 @@ export function splitDocument(content: string, options: { sourceTokens?: boolean
   // the block of a note with one stray line end was written in that one.
   //
   // That definition knows two line ends. A note whose lines end in a carriage
-  // return of its own has neither, so its block is written with `\n` — the
-  // line end a new file gets — and its text stays as it is, byte for byte. No
-  // writer sets a lone `\r`: this code reads a block written with one
-  // (`yamlLinesOf`), a reader that takes the YAML library's word does not.
+  // return of its own has neither, so a line that is new to it is written with
+  // `\n` — the line end a new file gets. No writer sets a lone `\r`: this code
+  // reads a block written with one (`yamlLinesOf`), a reader that takes the
+  // YAML library's word does not. The lines that are there keep the line end
+  // they have, whatever it is.
   const eol = readTextShape(content).shape.eol;
   const byteOrderMark = byteOrderMarkOf(content);
   const span = frontmatterSpan(content);
 
   if (!span) {
     const doc = new Document({});
-    return { doc, body: content.slice(byteOrderMark.length), hadFrontmatter: false, hadEntries: false, eol, byteOrderMark, content };
+    return { doc, span, body: content.slice(byteOrderMark.length), hadFrontmatter: false, hadEntries: false, eol, byteOrderMark, content };
   }
 
   const doc = options.sourceTokens ? parseDocument(span.yaml, { keepSourceTokens: true }) : parseDocument(span.yaml);
@@ -226,35 +242,5 @@ export function splitDocument(content: string, options: { sourceTokens?: boolean
     throw new FrontmatterSurgicalError("Frontmatter is not a YAML map");
   }
   const hadEntries = isMap(doc.contents) && doc.contents.items.length > 0;
-  return { doc, body: content.slice(span.end), hadFrontmatter: true, hadEntries, eol, byteOrderMark, content };
-}
-
-export function ensureMapContents(doc: Document): YAMLMap {
-  if (doc.contents === null || doc.contents === undefined) {
-    doc.contents = doc.createNode({}) as unknown as Document["contents"];
-  }
-  if (!isMap(doc.contents)) {
-    throw new FrontmatterSurgicalError("Frontmatter is not a YAML map");
-  }
-  return doc.contents;
-}
-
-/**
- * The note after an edit of its properties.
- *
- * A block that still has entries is written between its fences. One that lost
- * its last entry goes, fences included (`composeNote`) — set and removed again,
- * a property leaves the note as it was. And where nothing was there and nothing
- * is, the note comes back untouched: no block is made for no entry, and an
- * empty block a note already carries is not tidied away in passing.
- */
-export function joinDocument(split: SplitDocument): string {
-  const { doc, eol, byteOrderMark } = split;
-  const yaml = doc.toString().trim().replace(/\r?\n/g, eol);
-
-  if (yaml !== "{}" && yaml !== "") {
-    return composeNote({ byteOrderMark, yaml, body: split.body || eol, eol });
-  }
-  if (!split.hadEntries) return split.content;
-  return composeNote({ byteOrderMark, yaml: "", body: split.body, eol });
+  return { doc, span, body: content.slice(span.end), hadFrontmatter: true, hadEntries, eol, byteOrderMark, content };
 }

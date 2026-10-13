@@ -1,23 +1,19 @@
 import { CST, Scalar, isAlias, isMap, isScalar, isSeq, type YAMLMap } from "yaml";
-import {
-  FrontmatterSurgicalError,
-  ensureMapContents,
-  frontmatterSpan,
-  joinDocument,
-  splitDocument,
-  type SplitDocument,
-} from "./frontmatter-block.js";
+import { frontmatterSpan, splitDocument, type SplitDocument } from "./frontmatter-block.js";
+import { changeScalars, removeEntry, renameEntryKey, setEntries, setEntry } from "./frontmatter-entry.js";
 
 /**
- * Surgical frontmatter edits: unlike updateFrontmatterString (which replaces
- * the whole frontmatter map from a props object), these helpers touch only the
- * keys they are asked to touch. Untouched keys keep their order, formatting
- * and YAML comments; the markdown body is preserved byte-for-byte. This is the
- * only write path allowed for bulk operations over files the user never
- * opened (OKF conversion), where silent reformatting would be unacceptable.
+ * Surgical frontmatter edits: these helpers change the entry they are asked
+ * to change, where it stands, and nothing else in the note. Every other entry
+ * keeps its place, its form and its comments, byte for byte, and so does the
+ * text behind the block. This is the only write path allowed for operations
+ * over files the user never opened (a tag renamed vault-wide, a column removed
+ * from a database, the OKF conversion), where silent reformatting would be
+ * unacceptable.
  *
- * What a properties block is, and what becomes of one that loses its last
- * entry, is decided in `frontmatter-block.ts` — for these helpers and for
+ * How an entry is changed where it stands is `frontmatter-entry.ts`; what a
+ * properties block is, and what becomes of one that loses its last entry, is
+ * decided in `frontmatter-block.ts` — for these helpers and for
  * updateFrontmatterString alike.
  */
 
@@ -32,12 +28,7 @@ export function upsertFrontmatterKeys(
   content: string,
   updates: Record<string, unknown>
 ): string {
-  const split = splitDocument(content);
-  ensureMapContents(split.doc);
-  for (const [key, value] of Object.entries(updates)) {
-    split.doc.set(key, value);
-  }
-  return joinDocument(split);
+  return setEntries(content, Object.entries(updates));
 }
 
 /**
@@ -49,13 +40,7 @@ export function setFrontmatterPath(
   path: readonly string[],
   value: unknown
 ): string {
-  if (path.length === 0) {
-    throw new FrontmatterSurgicalError("Path must not be empty");
-  }
-  const split = splitDocument(content);
-  ensureMapContents(split.doc);
-  split.doc.setIn(path, value);
-  return joinDocument(split);
+  return setEntry(content, path, value);
 }
 
 /**
@@ -115,11 +100,24 @@ function isNode(value: unknown): value is { toJSON: () => unknown } {
 }
 
 /**
+ * What becomes of one tag in the properties when `old` is renamed to `next`:
+ * the tag itself and its children (`old/sub` -> `next/sub`). Handed the value
+ * as the YAML reads it and the text it is written with; answers the value it
+ * was handed where the tag is another one.
+ */
+function renamedTag(value: unknown, _written: string | null, old: string, next: string): unknown {
+  if (typeof value !== "string") return value;
+  if (value === old) return next;
+  return value.startsWith(old + "/") ? next + value.slice(old.length) : value;
+}
+
+/**
  * Renames a tag value inside the `tags`/`tag` frontmatter key — the exact tag and
- * its children (`old/sub` -> `new/sub`) — mutating the scalar values in place so
- * the list format, order, other keys and comments are preserved. Returns the
- * content unchanged (and changed=false) when there is no parseable frontmatter or
- * no matching tag. The inline `#tag` rewrite in the body is the caller's job.
+ * its children (`old/sub` -> `new/sub`) — where it stands: the characters of the
+ * tag change, in the quotes it has, and nothing else in the note does. Returns
+ * the content unchanged (and changed=false) when there is no parseable
+ * frontmatter or no matching tag. The inline `#tag` rewrite in the body is the
+ * caller's job.
  */
 export function renameFrontmatterTag(
   content: string,
@@ -131,110 +129,37 @@ export function renameFrontmatterTag(
   if (!o || !n || o === n) return { content, changed: false };
   let split: SplitDocument;
   try {
-    split = splitDocument(content);
+    split = splitDocument(content, { sourceTokens: true });
   } catch {
     return { content, changed: false };
   }
-  if (!split.hadFrontmatter || !isMap(split.doc.contents)) return { content, changed: false };
-
-  let changed = false;
-  const renamed = (v: unknown): unknown => {
-    if (typeof v !== "string") return v;
-    if (v === o) {
-      changed = true;
-      return n;
-    }
-    if (v.startsWith(o + "/")) {
-      changed = true;
-      return n + v.slice(o.length);
-    }
-    return v;
-  };
-
-  for (const key of ["tags", "tag"]) {
-    const node = split.doc.contents.get(key, true);
-    if (isSeq(node)) {
-      for (const item of node.items) {
-        if (isScalar(item)) {
-          const nv = renamed(item.value);
-          if (nv !== item.value) item.value = nv;
-        }
-      }
-    } else if (isScalar(node)) {
-      const nv = renamed(node.value);
-      if (nv !== node.value) node.value = nv;
-    }
-  }
-
-  if (!changed) return { content, changed: false };
-  return { content: joinDocument(split), changed: true };
+  const result = changeScalars(content, ["tags", "tag"], (value, written) => renamedTag(value, written, o, n), split);
+  return result.changed > 0 ? { content: result.content, changed: true } : { content, changed: false };
 }
 
 /**
- * Deletes a nested key. Parent maps that become empty through this deletion
- * are removed as well (an empty `plainva:` namespace should not linger) — and
- * so is the block itself once its last entry is gone: a property set and
- * removed again leaves the note as it was.
+ * Deletes a nested key: the lines of its entry go, and no other line of the
+ * note. Parent maps that become empty through this deletion are removed as
+ * well (an empty `plainva:` namespace should not linger) — and so is the block
+ * itself once nothing is left in it: a property set and removed again leaves
+ * the note as it was.
  * Returns the content unchanged if the path does not exist.
  */
 export function deleteFrontmatterPath(content: string, path: readonly string[]): string {
-  if (path.length === 0) {
-    throw new FrontmatterSurgicalError("Path must not be empty");
-  }
-  const split = splitDocument(content);
-  if (!split.hadFrontmatter || split.doc.contents === null) {
-    return content;
-  }
-  ensureMapContents(split.doc);
-  if (!split.doc.hasIn(path)) {
-    return content;
-  }
-  split.doc.deleteIn(path);
-
-  for (let depth = path.length - 1; depth > 0; depth--) {
-    const parentPath = path.slice(0, depth);
-    const parent = split.doc.getIn(parentPath);
-    if (isMap(parent) && parent.items.length === 0) {
-      split.doc.deleteIn(parentPath);
-    } else {
-      break;
-    }
-  }
-  return joinDocument(split);
+  return removeEntry(content, path);
 }
 
 /**
- * Renames a top-level key in place (position, value and attached comments are
- * kept). No-op when oldKey is absent; throws when newKey already exists.
+ * Renames a top-level key in place: the characters of the key change;
+ * position, value and comments stay. No-op when oldKey is absent; throws when
+ * newKey already exists.
  */
 export function renameFrontmatterKey(
   content: string,
   oldKey: string,
   newKey: string
 ): string {
-  const split = splitDocument(content);
-  if (!split.hadFrontmatter || split.doc.contents === null) {
-    return content;
-  }
-  const map = ensureMapContents(split.doc);
-
-  const pair = map.items.find(
-    (item) => (item.key as { value?: unknown } | null)?.value === oldKey
-  );
-  if (!pair) {
-    return content;
-  }
-  if (map.items.some((item) => (item.key as { value?: unknown } | null)?.value === newKey)) {
-    throw new FrontmatterSurgicalError(
-      `Cannot rename '${oldKey}' to '${newKey}': target key already exists`
-    );
-  }
-  const newKeyNode = split.doc.createNode(newKey);
-  const oldKeyNode = pair.key as { commentBefore?: string | null; comment?: string | null };
-  (newKeyNode as { commentBefore?: string | null }).commentBefore = oldKeyNode.commentBefore;
-  (newKeyNode as { comment?: string | null }).comment = oldKeyNode.comment;
-  pair.key = newKeyNode;
-  return joinDocument(split);
+  return renameEntryKey(content, oldKey, newKey);
 }
 
 export interface FrontmatterLinkRename {
@@ -334,11 +259,11 @@ function valueUnder(map: YAMLMap, key: string): unknown {
  * spacing and line ends, every other entry and the text behind the block stay
  * byte for byte.
  *
- * It does not write the block anew through the YAML library the way the other
- * helpers here do (finding 2026-10-09). A rename runs over notes nobody
- * opened, and a block written anew comes back in the library's form: a long
- * line folded at 80 characters, `[a, b]` as `[ a, b ]`, `- item` under a key
- * indented, `007` as `7`.
+ * It does not write the block anew through the YAML library (finding
+ * 2026-10-09; no helper here does any more, see `frontmatter-entry.ts`). A
+ * rename runs over notes nobody opened, and a block written anew came back in
+ * the library's form: a long line folded at 80 characters, `[a, b]` as
+ * `[ a, b ]`, `- item` under a key indented, `007` as `7`.
  *
  * Only the listed keys are inspected; missing keys and non-string items are
  * no-ops. `skipped` counts links that name one of the targets and could not
@@ -355,8 +280,8 @@ export function renameFrontmatterWikiLinks(
   if (renames.length === 0) return { content, renamed: 0, skipped: 0 };
   const split = splitDocument(content, { sourceTokens: true });
   const span = frontmatterSpan(content);
-  if (!span || !split.hadFrontmatter || split.doc.contents === null) return { content, renamed: 0, skipped: 0 };
-  const map = ensureMapContents(split.doc);
+  const map = split.doc.contents;
+  if (!span || !split.hadFrontmatter || !isMap(map)) return { content, renamed: 0, skipped: 0 };
 
   const byKey = new Map<string, Map<string, string>>();
   for (const r of renames) {
@@ -456,9 +381,9 @@ export function ensureOkfFrontmatter(
   options: EnsureOkfFrontmatterOptions
 ): EnsureOkfFrontmatterResult {
   const split = splitDocument(content);
-  const map = ensureMapContents(split.doc);
+  const map = split.doc.contents;
 
-  const existingType = map.has("type") ? split.doc.get("type") : undefined;
+  const existingType = isMap(map) && map.has("type") ? split.doc.get("type") : undefined;
   const typeIsBlank =
     existingType === undefined ||
     existingType === null ||
@@ -466,6 +391,5 @@ export function ensureOkfFrontmatter(
   if (!typeIsBlank) {
     return { content, changed: false, setType: false };
   }
-  split.doc.set("type", options.type);
-  return { content: joinDocument(split), changed: true, setType: true };
+  return { content: setEntry(content, ["type"], options.type), changed: true, setType: true };
 }

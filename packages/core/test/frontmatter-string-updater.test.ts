@@ -92,7 +92,8 @@ This is a horizontal rule.
     // the two old fences as well (finding 2026-10-07).
     expect(updateFrontmatterString(`---\n---\nBody`, { title: "Test" })).toBe("---\ntitle: Test\n---\nBody");
     expect(updateFrontmatterString(`---\r\n---\r\nBody`, { title: "Test" })).toBe("---\r\ntitle: Test\r\n---\r\nBody");
-    expect(updateFrontmatterString(`---\n\n---\nBody`, { title: "Test" })).toBe("---\ntitle: Test\n---\nBody");
+    // A line the block holds — also a blank one — stays where it is (since 2026-10-13).
+    expect(updateFrontmatterString(`---\n\n---\nBody`, { title: "Test" })).toBe("---\n\ntitle: Test\n---\nBody");
   });
 
   it.each([
@@ -152,9 +153,92 @@ This is a horizontal rule.
   it("should preserve CRLF line endings if the original file used them", () => {
     const original = `---\r\ntitle: test\r\n---\r\n\r\nBody`;
     const result = updateFrontmatterString(original, { title: "updated" });
-    
+
     // Line endings should be CRLF
     expect(result).toBe(`---\r\ntitle: updated\r\n---\r\n\r\nBody`);
+  });
+
+  /**
+   * The set is written as its DIFFERENCE to what the note says (finding
+   * 2026-10-11). The properties panel and a database cell read a note's
+   * properties, change one and hand all of them back; every key of the set
+   * was then written anew, from the value as it had been read — and the whole
+   * block with it, in the YAML library's form.
+   */
+  describe("writes the difference, entry by entry", () => {
+    const NOTE = [
+      "---",
+      "tags: a, b",
+      "aliases: [x, y] # the other names",
+      "2024: goals",
+      "plz: 01067",
+      "okf_version: 1",
+      "# about the status",
+      "status: open # for now",
+      "---",
+      "Text",
+      "",
+    ].join("\n");
+    /** The set the panel and a cell start from. */
+    const read = (): Record<string, unknown> => {
+      const result = extractFrontmatter(parseMarkdownAst(NOTE));
+      if (!result.success || !result.data) throw new Error("the reader refused the note");
+      return { ...(result.data as Record<string, unknown>) };
+    };
+
+    it("the reader reads a text as a list and a number as a text — handed back, neither is a change", () => {
+      expect(read()).toEqual({ tags: ["a", "b"], aliases: ["x", "y"], "2024": "goals", plz: 1067, okf_version: "1", status: "open" });
+      expect(updateFrontmatterString(NOTE, read())).toBe(NOTE);
+    });
+
+    it("one value changed: its characters, and no other entry moves", () => {
+      // `tags: a, b` came back as a list, the bracket list as a block list without its comment,
+      // `plz: 01067` as `1067`, and beside `2024: goals` stood a second entry `"2024": goals`.
+      expect(updateFrontmatterString(NOTE, { ...read(), status: "done" })).toBe(NOTE.replace("status: open # for now", "status: done # for now"));
+      expect(updateFrontmatterString(NOTE, { ...read(), "2024": "plans" })).toBe(NOTE.replace("2024: goals", "2024: plans"));
+      expect(updateFrontmatterString(NOTE, { ...read(), aliases: ["x", "y", "z"] })).toBe(NOTE.replace("[x, y]", "[x, y, z]"));
+    });
+
+    it("a key the set no longer names loses its lines, and the comment above it stays", () => {
+      const set = read();
+      delete set.status;
+      expect(updateFrontmatterString(NOTE, set)).toBe(NOTE.replace("status: open # for now\n", ""));
+      const without2024 = read();
+      delete without2024["2024"];
+      expect(updateFrontmatterString(NOTE, without2024)).toBe(NOTE.replace("2024: goals\n", ""));
+    });
+
+    it("a key that is new gets a line behind the last entry", () => {
+      expect(updateFrontmatterString(NOTE, { ...read(), owner: "Anna" })).toBe(NOTE.replace("status: open # for now\n", "status: open # for now\nowner: Anna\n"));
+    });
+
+    it("one key gone and one new with the same value: the entry is renamed where it stands", () => {
+      // The panel's rename. It used to remove the entry and put a new one at the end of the block.
+      const renamed = Object.fromEntries(Object.entries(read()).map(([key, value]) => [key === "plz" ? "postcode" : key, value]));
+      expect(updateFrontmatterString(NOTE, renamed)).toBe(NOTE.replace("plz: 01067", "postcode: 01067"));
+      const status = Object.fromEntries(Object.entries(read()).map(([key, value]) => [key === "status" ? "state" : key, value]));
+      expect(updateFrontmatterString(NOTE, status)).toBe(NOTE.replace("status: open # for now", "state: open # for now"));
+      // A text the reader read as a list only because it stood under `tags`: under
+      // another name the note has to say the list itself — where the entry stands.
+      const list = Object.fromEntries(Object.entries(read()).map(([key, value]) => [key === "tags" ? "labels" : key, value]));
+      expect(updateFrontmatterString(NOTE, list)).toBe(NOTE.replace("tags: a, b", "labels:\n  - a\n  - b"));
+      // Another value under the new name is no rename: the old entry goes, the new one is new.
+      const other = read();
+      delete other.plz;
+      expect(updateFrontmatterString(NOTE, { ...other, postcode: "D-01067" })).toBe(NOTE.replace("plz: 01067\n", "").replace("status: open # for now\n", "status: open # for now\npostcode: D-01067\n"));
+    });
+
+    it("a text the reader read as a list becomes one once the list changes", () => {
+      expect(updateFrontmatterString(NOTE, { ...read(), tags: ["a", "b", "c"] })).toBe(NOTE.replace("tags: a, b", "tags:\n  - a\n  - b\n  - c"));
+    });
+
+    it("the same set gives the same note, however often it is asked", () => {
+      // The chain calls a change more than once (ADR 0031): for the note, for a version of it, and to count.
+      const set = { ...read(), status: "done", owner: "Anna" };
+      const once = updateFrontmatterString(NOTE, set);
+      expect(updateFrontmatterString(NOTE, set)).toBe(once);
+      expect(updateFrontmatterString(once, set)).toBe(once);
+    });
   });
 
   /**
@@ -165,9 +249,10 @@ This is a horizontal rule.
   describe("in a note whose lines end in a carriage return of its own", () => {
     const TEXT = "# Just a note\r[[link]]\r";
 
-    it("writes the block that is there with `\\n` and leaves the text as it is", () => {
-      expect(updateFrontmatterString(`---\rtitle: test\rdelete_me: yes\r---\r${TEXT}`, { title: "updated" })).toBe(`---\ntitle: updated\n---\n${TEXT}`);
-      expect(updateFrontmatterString(`---\r---\r${TEXT}`, { title: "Test" })).toBe(`---\ntitle: Test\n---\n${TEXT}`);
+    it("changes the entries of the block that is there and leaves every other line its line end", () => {
+      // Until 2026-10-12 the whole block came back with `\n`. A line that is new still ends in `\n`.
+      expect(updateFrontmatterString(`---\rtitle: test\rdelete_me: yes\r---\r${TEXT}`, { title: "updated" })).toBe(`---\rtitle: updated\r---\r${TEXT}`);
+      expect(updateFrontmatterString(`---\r---\r${TEXT}`, { title: "Test" })).toBe(`---\rtitle: Test\n---\r${TEXT}`);
       expect(updateFrontmatterString(TEXT, { title: "Test" })).toBe(`---\ntitle: Test\n---\n${TEXT}`);
     });
 
@@ -191,7 +276,7 @@ This is a horizontal rule.
       if (!read.success || !read.data) return;
 
       const written = updateFrontmatterString(note, { ...read.data, owner: "Anna" });
-      expect(written).toBe(`---\ntitle: Old Mac\ntags:\n  - a\n  - b\ndue: 2026-10-11\nowner: Anna\n---\n${TEXT}`);
+      expect(written).toBe(`---\rtitle: Old Mac\rtags:\r  - a\r  - b\rdue: 2026-10-11\rowner: Anna\n---\r${TEXT}`);
       // And the index reads the written block the same way.
       expect(extractFrontmatter(parseMarkdownAst(written))).toEqual({ success: true, data: { ...read.data, owner: "Anna" } });
     });
