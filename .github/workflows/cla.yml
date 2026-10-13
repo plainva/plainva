@@ -30,5 +30,10 @@ jobs:
         with:
           path-to-signatures: 'signatures/version1/cla.json'
           path-to-document: 'https://github.com/plainva/plainva/blob/main/CLA.md'
-          branch: 'main'
+          # The bot commits each signature itself, so the file cannot live on
+          # `main`: `main` only accepts commits whose required checks are green,
+          # and a signature commit has none ("4 of 4 required status checks are
+          # expected" - every signature after 2026-09-28 was lost that way). The
+          # branch `cla-signatures` holds this record and must stay unprotected.
+          branch: 'cla-signatures'
           allowlist: 'bot*,dependabot*'
