@@ -5,6 +5,73 @@ All notable changes to Plainva are documented here. The format is based on
 follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once it
 reaches 1.0.
 
+## [0.8.5] - 2026-10-13
+
+Forward with attachments. This release brings together the changes since 0.8.4: mail that forwards the files of the original and answers from the right mailbox, calendar blockers that follow their event, spell checking as one switch, typing that no longer stutters on save — and a long list of fixes for sync, files and links. Shared improvements apply to desktop and mobile.
+
+If you sync a vault across devices, please update all of them (see *Sync and files* below).
+
+### Mail
+
+- **Forward** brings the files of the original along. Each file says what is happening to it — loading, there, did not arrive, stays behind — and before a message goes out without one of the files shown, Plainva asks once. From a Microsoft mailbox every file up to 2.8 MB travels; on its own, Plainva brings along at most 18 MB per message when forwarding.
+- A received attachment can be saved into the vault on the desktop too (**Save to vault**): next to the filed mail, under the name of the file, never over an existing one.
+- A message the mail server refuses comes back into a compose window with the reason, instead of being lost behind one line of error text.
+- A reply, a forward and a new message start from the mailbox they are written in, with its signature. The desktop composer used to take the first mailbox that is stored.
+- **Each mailbox signs in as its own account.** With two Microsoft or two Gmail mailboxes in one vault, the second one read and sent with the sign-in of the first. That is fixed on both shells. An account that is connected twice with mail in the same vault asks for a sign-in once after the update.
+- A Microsoft mailbox can send from the desktop composer.
+- A message that is HTML only has a text for a reply, a forward and the filed note.
+- The composer asks before a changed draft is discarded — when it is closed, when the vault is switched or closed, and when another message is started while it is open.
+- A link in a message says where it leads before you follow it, and warns when its text names another address. In the spam folder no image loads on its own.
+
+### Calendar
+
+- Blockers follow their event. A blocker holds the time of an event free in another calendar; when the event is moved, changed or deleted, its blockers follow, and a blocker you move asks whether you meant the blocker or the event.
+- An event or task shows the moment you save it, marked as on its way until the provider has answered; a dragged event stays where you drop it. Thanks for [#119](https://github.com/plainva/plainva/issues/119).
+- The calendar no longer turns up empty after a failed refresh: a locked store is temporary, a problem with one calendar stays with that calendar, and a line above the calendar says what has not been synced and since when.
+- The all-day row shows five rows and counts the rest.
+
+### Writing and editing
+
+- **Spell checking** is one switch per device (**Settings**), off until you turn it on. It underlines misspelled words in notes, table cells, emails, comments, journal entries and tasks, using the spell checker of your system; code, keys and passwords are never checked. On Linux the switch has no effect yet.
+- Saving no longer holds up typing. On Windows every save used to trigger a walk through the whole vault; a changed folder now gets a shallow check, and the full scan runs outside the interface. Thanks for [#122](https://github.com/plainva/plainva/issues/122).
+- A table cell is edited in a field as tall as its text. Thanks for [#118](https://github.com/plainva/plainva/issues/118).
+- The right column is one row grid for properties, database fields and origin, and its headings no longer jump with the scrollbar.
+- Every menu closes on Escape and on a press beside it, also when the press lands in a floating window; a dialog lies in front of floating windows.
+- macOS: the shortcut for the global quick capture can be changed again. Thanks for [#123](https://github.com/plainva/plainva/issues/123).
+
+### Tasks
+
+- A task's date opens the date picker, **All to today** moves every overdue task in one step, the checkbox is larger, and the capture field completes `[[` links and `#` tags.
+- Bookmarks can be reordered. A shared note is named after its title, without the id of the share.
+- Voice notes are recorded as m4a where the system's web view supports it.
+
+### Links and renaming
+
+- One rule decides where a wiki link leads: the path, then the file name, last the `title` in the properties. It holds for click, tap, embeds, the graph, backlinks and relations, and the link pickers write the file name.
+- Renaming a note changes the link target in the notes that link to it and nothing else — byte for byte, in the text and in the properties. No note is written back from its parsed form any more.
+
+### Sync and files
+
+**Please update every device that works with the same vault.** The fixes below take effect on each device only once it runs 0.8.5, and a device on an older version can still upload a damaged version of a text file that is not UTF-8. Updated devices then keep the original as a conflict copy.
+
+- Two devices working on the same file could lose a change without a conflict being shown — for example when an upload did not go through between two edits, or, on the phone, after a change to a settings file, a table or a database. The sync now keeps the version it last agreed on with the server to itself, and nothing else writes over it.
+- A text file that is not UTF-8 — a `.csv` from Excel in Windows-1252, a `.txt` in UTF-16 — travels byte for byte, without a merge and with a conflict copy when both sides changed it. Older versions could write such a file back damaged, and on the desktop a single such file could stop the vault from loading. A copy that an older version already pulled damaged gets the server's bytes back at the next sync, as long as the server still has the original.
+- Every text file keeps its line endings and its byte order mark, a note included: editing changes the lines you edit, and a merge — on save, in the sync, when a conflict is resolved — keeps the file's shape. Notes that start with a byte order mark are read correctly by the journal, the outline and embedded sections.
+- On the phone, everything that writes into an open vault takes the same path as the editor: a property set across a selection, a calendar anchor, templates and a voice note get their version, their conflict check and their place in the sync queue.
+- Properties: removing the last property leaves no empty block behind, a property that cannot be written is reported and taken back, and a template's cursor mark stands where the template says, also with Windows line endings.
+- A property, a ticked task or a journal entry written into a note with an open conflict no longer replaces your own text in that note.
+- Changing one property leaves every other property as it was written: `01067` stays `01067`, and a phone number keeps its plus sign.
+- A file whose details cannot be read for a moment is no longer treated as deleted, so such an error no longer reaches the sync as a deletion.
+
+### Phone
+
+- The command palette reaches twelve more commands.
+- **Google on Android:** an account connected with a client ID of your own signs in through the browser again. Since 0.8.3 only the system dialog was used, which works with the built-in entry alone. Accounts already connected through the system dialog stay as they are, and a failed sign-in says why.
+- A large pinboard shows its cards, the find panel in a note stands clear of the status bar, a held kanban card is either the menu or a move, and the Enter key that confirms a Japanese or Chinese composition no longer submits the field.
+- Mail on the phone: a note sent as an attachment arrives with its file, the search keeps its hits, and the notice that offers **Undo** ends with its window.
+
+Encrypted workspaces, the on-device calendar, voice notes and the location stamp remain experimental. These are specific corrections and improvements, not an independent security audit.
+
 ## [0.8.4] - 2026-09-30
 
 A journal for your day. This release brings together the changes since 0.8.3: a journal in the daily note with capture from anywhere, a task planner, widgets on the phone, voice notes, search and writing for every script — and fixes for synced vaults, including notes lost after a move in 0.8.3. Shared improvements apply to desktop and mobile.
