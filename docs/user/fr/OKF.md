@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Dernière mise à jour : 2026-09-04
+Dernière mise à jour : 2026-10-13
 
 OKF (Open Knowledge Format) est une convention ouverte pour les collections de connaissances en Markdown : des fichiers Markdown purs avec un petit en-tête frontmatter uniforme. Cette page explique ce qu'est l'OKF, ce que Plainva fait automatiquement pour lui — et pourquoi vous n'êtes *obligé* d'utiliser rien de tout cela.
 
@@ -58,7 +58,7 @@ Depuis l'OKF 0.2, une note peut dire d'où elle vient, qui l'a relue et si elle 
 - `verified` n'est écrit que par **Marquer comme relue** dans la section **Confiance et provenance** : Plainva ajoute `human:<votre nom>` avec l'instant actuel à la liste — une seconde relecture n'écrase jamais la première. Votre nom est demandé une fois par vault ; il reste sur cet appareil et peut être modifié sous **Paramètres → Vault → Contenu et structure → Nom du relecteur**.
 - L'éditeur ne touche jamais lui-même à ces champs, et les notes existantes ne sont jamais tamponnées après coup. `status` et `stale_after` sont à vous de définir, comme une propriété ou dans le frontmatter.
 
-**Faire évoluer la version du bundle.** La version de la convention vit une seule fois dans l'`index.md` racine. Un vault qui déclare encore `"0.1"` continue de fonctionner sans changement — sous **Paramètres → Vault → Contenu et structure → Version du bundle** (sur le téléphone : **Réglages → Vault → Maintenance → Version du bundle**), vous la faites passer à 0.2 avec **Mettre à niveau…**. La boîte de dialogue montre au préalable ce qui change : la ligne dans l'`index.md` racine et, via une case à cocher (activée par défaut), la suppression du champ hérité `okf_version` des notes qui le portent encore. Chaque fichier est sauvegardé avant d'être modifié ; **Nettoyer…** ne fait que la seconde partie. Le tableau des champs et les règles d'écriture en détail se trouvent dans la [Référence du format de fichier](File_Format_Reference.md).
+**Faire évoluer la version du bundle.** La version de la convention vit une seule fois dans l'`index.md` racine. Un vault qui déclare encore `"0.1"` continue de fonctionner sans changement — sous **Paramètres → Vault → Contenu et structure → Version du bundle** (sur le téléphone : **Paramètres → Vault → Maintenance → Version du bundle**), vous la faites passer à 0.2 avec **Mettre à niveau…**. La boîte de dialogue montre au préalable ce qui change : la ligne dans l'`index.md` racine et, via une case à cocher (activée par défaut), la suppression du champ hérité `okf_version` des notes qui le portent encore. Chaque fichier est sauvegardé avant d'être modifié ; **Nettoyer…** ne fait que la seconde partie. Le tableau des champs et les règles d'écriture en détail se trouvent dans la [Référence du format de fichier](File_Format_Reference.md).
 
 ## index.md : la table des matières par dossier
 
@@ -88,7 +88,7 @@ Un conseil de l'assistant : les modifications passent normalement par la synchro
 
 ### Sur le téléphone
 
-Le même chemin existe sur mobile : **Réglages → Vault → Maintenance → Convertir au format OKF**. Les étapes sont identiques — analyse, décisions, aperçu, conversion — et l'aperçu nomme les notes concernées avant que quoi que ce soit ne soit écrit.
+Le même chemin existe sur mobile : **Paramètres → Vault → Maintenance → Convertir au format OKF**. Les étapes sont identiques — analyse, décisions, aperçu, conversion — et l'aperçu nomme les notes concernées avant que quoi que ce soit ne soit écrit.
 
 Deux choses s'y ajoutent, parce qu'un téléphone peut retirer une application de la mémoire à tout moment :
 

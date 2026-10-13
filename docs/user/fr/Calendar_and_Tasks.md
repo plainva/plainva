@@ -1,6 +1,6 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-10-06
+Dernière mise à jour : 2026-10-13
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
@@ -97,7 +97,7 @@ Dans **Paramètres → Agenda → Rappels**, activez **Me rappeler les rendez-vo
 
 **Les deux interrupteurs sont indépendants.** Si vous voulez uniquement être rappelé pour vos tâches, activez **Tâches à échéance** et désactivez **Rappeler les rendez-vous** — auparavant l'un dépendait de l'autre, sans que rien ne le dise nulle part.
 
-Un rappel indique désormais **ce qu'**il annonce : « Rendez-vous · 09:30 » ou « Tâche · échéance aujourd'hui ». Sur Android, chaque type porte en plus sa propre icône dans la barre de statut. Et **une ligne sous les réglages indique ce qui a été planifié** — « Planifié : 12 rendez-vous · 3 tâches » — ou pourquoi rien ne l'a été, par exemple parce qu'aucune base de tâches n'est définie sur cet appareil (elle arrive via la synchronisation des paramètres).
+Un rappel indique désormais **ce qu**'il annonce : « Rendez-vous · 09:30 » ou « Tâche · échéance aujourd'hui ». Sur Android, chaque type porte en plus sa propre icône dans la barre de statut. Et **une ligne sous les réglages indique ce qui a été planifié** — « Planifié : 12 rendez-vous · 3 tâches » — ou pourquoi rien ne l'a été, par exemple parce qu'aucune base de tâches n'est définie sur cet appareil (elle arrive via la synchronisation des paramètres).
 
 **La différence avec le téléphone figure dans le réglage, pas en petits caractères.** Sur le téléphone, le système d'exploitation prend le rappel en charge et le réveille même application fermée. Sur l'ordinateur, ce relais n'existe pas : **Plainva réveille lui-même et doit donc fonctionner.** Application fermée, le rappel est manqué et n'est pas rattrapé. En contrepartie, il n'y a ici aucune limite.
 
