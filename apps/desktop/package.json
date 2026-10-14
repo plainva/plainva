@@ -88,6 +88,6 @@
     "typescript": "~6.0.3",
     "vite": "^8.3.2",
     "vitest": "^5.0.3",
-    "webdriverio": "9"
+    "webdriverio": "10"
   }
 }
