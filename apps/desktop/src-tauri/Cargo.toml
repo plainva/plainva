@@ -46,7 +46,7 @@ keyring = { version = "3", features = ["apple-native", "windows-native", "sync-s
 trash = "5.2.6"
 tauri-plugin-updater = "2.10.1"
 tauri-plugin-process = "2.3.1"
-zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
+zip = { version = "9.0.1", default-features = false, features = ["deflate"] }
 walkdir = "2.5.0"
 # Direct reqwest for the OAuth token POST (oauth_token_request): a native HTTP client
 # sends NO Origin header, unlike the webview fetch (Azure AADSTS90023). tauri-plugin-http
