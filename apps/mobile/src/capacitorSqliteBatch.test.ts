@@ -83,16 +83,21 @@ describe("CapacitorSqliteAdapter.runBatch", () => {
     expect(calls).toEqual([]);
   });
 
-  it("inside an open transaction runs the statements in it, one by one, as before", async () => {
-    // The indexer flushes its batches inside `transaction()`. SQLite has no
-    // nested transactions, and this path must stay exactly what it was.
+  it("sent from inside its caller's own transaction, it runs the statements in it, one by one, as before", async () => {
+    // The indexer flushes its batches inside its `transaction()` and says so.
+    // SQLite has no nested transactions, and this path must stay exactly what
+    // it was. (Without the word, such a batch would wait for its own caller's
+    // turn: capacitorSqliteTurns.test.ts.)
     const adapter = new CapacitorSqliteAdapter("idx");
     await adapter.initialize();
     await adapter.transaction(async () => {
-      await adapter.runBatch([
-        { sql: "DELETE FROM files WHERE id = ?", params: ["f1"] },
-        { sql: "INSERT INTO files (id) VALUES (?)", params: ["f1"] },
-      ]);
+      await adapter.runBatch(
+        [
+          { sql: "DELETE FROM files WHERE id = ?", params: ["f1"] },
+          { sql: "INSERT INTO files (id) VALUES (?)", params: ["f1"] },
+        ],
+        { inOpenTransaction: true },
+      );
     });
     expect(calls.map((c) => c.op)).toEqual(["begin", "run", "run", "commit"]);
 

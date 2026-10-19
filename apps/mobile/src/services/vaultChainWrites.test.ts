@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -9,7 +9,7 @@ import ts from "typescript";
 import {
   BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictError, DEFAULT_BACKUP_RETENTION, DEFAULT_TEXT_SHAPE, QueueingVaultAdapter,
   SyncQueue, SyncStateRepository, VaultIndexer, VaultQueryService, VersionHistoryService, applyTextShape, containsTextChanges,
-  editorTextOf, isOpenTaskState, mergeEditorText, resolveTaskOrdinal, updateVaultText, type IDatabaseAdapter, type TaskRecord, type TextChange,
+  editorTextOf, initializeSchema, isOpenTaskState, mergeEditorText, resolveTaskOrdinal, updateVaultText, type IDatabaseAdapter, type TaskRecord, type TextChange,
   type TextFileUpdate,
 } from "@plainva/core";
 import {
@@ -18,6 +18,8 @@ import {
 } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
+import { phoneSqlite, type PhonePlatform } from "../../../../packages/core/test/helpers/phoneSqlitePlugin";
+import { CapacitorSqliteAdapter } from "../adapters/CapacitorSqliteAdapter";
 import { createSaveCoordinator, type SaveCoordinator } from "./saveCoordinator";
 import type { MobileVault } from "./vaultService";
 
@@ -570,91 +572,223 @@ describe("a note changed below the chain is written again like any other", () =>
 
 /**
  * The phone's database is ONE connection, and its plugin refuses a second
- * transaction while one is open (`Database.beginTransaction`: "Already in
- * transaction"); the desktop's adapter queues them. Every write through the
- * chain opens one for the sync queue and one for the index — so on the phone
- * the notes of a selection are written one after the other, where the desktop
- * writes six at a time.
+ * transaction while one is open — Android with "Already in transaction"
+ * (`Database.beginTransaction`), iOS with SQLite's own refusal. Every write
+ * through the chain opens one for the sync queue and one for the index, and
+ * the sync, the index and the calendar open theirs: whichever came second was
+ * refused (finding 2026-10-12). A write that met one had its file changed on
+ * disk and counted as failed — no entry in the queue, a hash the chain did not
+ * know, and in the editor a conflict copy as soon as the person typed on.
  *
- * The chain has a gate of its own, but it only holds apart writes below a
- * common folder (`withPathMutation` locks a path and its ancestors) — and the
- * index is written outside it. A selection reaches across folders as soon as
- * its database is built on a tag, so the notes here share none.
- *
+ * Here the phone's own database adapter (`CapacitorSqliteAdapter`) runs over a
+ * stand-in for the plugin (`phoneSqlitePlugin.ts`): one connection over a real
+ * SQLite, served call by call the way the bridge serves the native side, and
+ * answering as the plugin's sources say Android and iOS do. The flows are the
+ * phone's own: its note saver, its cell writer, its chain.
  */
+vi.mock("@capacitor-community/sqlite", async () => (await import("../../../../packages/core/test/helpers/phoneSqlitePlugin")).phoneSqlite.module);
+
+/** Notes in four folders: the chain's own gate holds apart writes below a common folder only. */
 const APART = ["Alpha.md", "Inbox/Beta.md", "Projects/Gamma.md", "Archive/Delta.md"];
 
-/**
- * `node:sqlite` refuses a second BEGIN the way the plugin does, but answers
- * within one turn of the event loop, so two transactions never meet. Here the
- * first one after `arm()` is held open until a second one knocks, or until the
- * wait is over: the bridge to the native side, in the one place where it matters.
- */
-function heldOpen(inner: IDatabaseAdapter, waitMs: number) {
-  let open = false, armed = false, knock: (() => void) | null = null;
-  const counts = { refused: 0 };
-  const database: IDatabaseAdapter = {
+/** How many transactions the app asked for — the adapter keeps one that has to wait to itself. */
+let asked = 0;
+let onAsk: (() => void) | null = null;
+
+/** The phone's database as `boot` opens it: its own adapter over the plugin's stand-in, with the schema. */
+async function phoneDatabase(platform: PhonePlatform): Promise<IDatabaseAdapter> {
+  phoneSqlite.reset(platform);
+  const inner = new CapacitorSqliteAdapter("plainva-index");
+  await inner.initialize();
+  await initializeSchema(inner);
+  asked = 0;
+  return {
     initialize: () => inner.initialize(),
     close: () => inner.close(),
     execute: (sql, params) => inner.execute(sql, params),
     query: (sql, params) => inner.query(sql, params),
     queryOne: (sql, params) => inner.queryOne(sql, params),
-    async transaction(fn) {
-      if (open) {
-        counts.refused += 1;
-        knock?.();
-        throw new Error("Already in transaction");
-      }
-      open = true;
-      try {
-        if (armed) {
-          armed = false;
-          await new Promise<void>((done) => {
-            const timer = setTimeout(done, waitMs);
-            knock = () => { clearTimeout(timer); done(); };
-          });
-          knock = null;
-        }
-        return await inner.transaction(fn);
-      } finally {
-        open = false;
-      }
+    transaction(fn) {
+      asked += 1;
+      onAsk?.();
+      return inner.transaction(fn);
     },
+    runBatch: (statements, options) => inner.runBatch(statements, options),
   };
-  return { database, counts, arm: () => { armed = true; } };
 }
 
-describe("one connection, one transaction", () => {
-  it("the phone writes the notes of a selection one after the other, so none is refused", async () => {
+const hops = async (n: number) => {
+  for (let i = 0; i < n; i++) await new Promise<void>((resolve) => setImmediate(resolve));
+};
+
+/**
+ * `holder` opens a transaction, and it stays open while `flow` comes along —
+ * as a sync cycle's or an index pass's does while it reads a file between two
+ * of its statements. It goes on once `flow` has asked for a transaction of its
+ * own (and a refusal, if there were one, has come back), or is through. A
+ * holder that is through without opening one fails the test at once.
+ */
+async function whileOneIsOpen<T>(holder: () => Promise<unknown>, flow: () => Promise<T>): Promise<{ holding: Promise<unknown>; flowing: Promise<T> }> {
+  const held = phoneSqlite.holdNextTransaction();
+  const holding = holder();
+  let open = false;
+  await Promise.race([held.opened.then(() => { open = true; }), holding.then(() => {}, () => {})]);
+  if (!open) {
+    held.release();
+    throw new Error("the holder was through without opening a transaction to hold");
+  }
+  const before = asked;
+  const askedOne = new Promise<void>((resolve) => {
+    onAsk = () => { if (asked > before) resolve(); };
+  });
+  const flowing = flow();
+  await Promise.race([askedOne, flowing.then(() => {}, () => {})]);
+  await hops(8);
+  onAsk = null;
+  held.release();
+  return { holding, flowing };
+}
+
+describe.each(["android", "ios"] as const)("one connection, two flows (%s)", (platform) => {
+  beforeEach(async () => {
     await closePhone();
-    const held = heldOpen(await realSqlite(), 40);
-    await openPhone(held.database);
-    await syncedVault({}, APART);
-    held.arm();
-    const result = await setAcrossSelection(APART, "status", "done");
-    expect(held.counts.refused).toBe(0);
-    expect(result.failed).toEqual([]);
-    expect(await queued()).toEqual(APART.map((path) => `write ${path}`).sort());
+    await openPhone(await phoneDatabase(platform));
+    await syncedVault();
   });
 
-  it("three at a time is what such a connection refuses — the file changes, and the queue never hears of it", async () => {
-    await closePhone();
-    const held = heldOpen(await realSqlite(), 5_000);
-    await openPhone(held.database);
-    await syncedVault({}, APART);
-    held.arm();
-    // The shared loop with the gate the phone used to give it, over the chain it now gets.
-    const result = await bulkSetProperty(
-      { readTextFile: (path) => services.vaultOps.read(vault, path), writeTextFile: (path, text) => services.vaultOps.save(vault, path, text) },
-      APART.slice(0, 3), "status", "done", { concurrency: 3 },
+  it("an editor's save that meets the sync marking an upload done ends with its entry and a state the chain knows — and typing on is an ordinary save", async () => {
+    // The worker uploaded Beta and marks it done.
+    await vault.syncQueue!.queueWrite("Projects/Beta.md");
+    const [upload] = await db.query<{ id: number }>("SELECT id FROM offline_queue");
+    const typedText = `${note("Alpha")}\nA line typed a moment ago.\n`;
+    services.rememberPersistedText(vault, "Projects/Alpha.md", note("Alpha"));
+    const { holding, flowing } = await whileOneIsOpen(
+      () => vault.syncQueue!.markSynced(upload.id, "Projects/Beta.md"),
+      () => {
+        services.noteSaver.schedule(vault, "Projects/Alpha.md", typedText);
+        return services.noteSaver.flush("Projects/Alpha.md", vault);
+      },
     );
-    expect(held.counts.refused).toBeGreaterThan(0);
-    expect(result.failed.map((f) => f.message)).toContain("Already in transaction");
-    for (const { path } of result.failed) {
-      expect(await raw.readTextFile(path), path).toBe(note(nameOf(path), "done"));
-      expect(await queued(), path).not.toContain(`write ${path}`);
-    }
+    // It used to be refused here, with the typed text already on disk.
+    await flowing;
+    await holding;
+    expect(phoneSqlite.counts.refused).toBe(0);
+    expect(await raw.readTextFile("Projects/Alpha.md")).toBe(typedText);
+    expect(await queued()).toEqual(["write Projects/Alpha.md"]);
+    expect(await knownToChain("Projects/Alpha.md")).toBe(true);
+
+    // Typing on. The next save used to meet a disk the chain did not know,
+    // try to merge two versions of the same line, and leave a conflict copy
+    // of a note nobody else had touched.
+    const more = typedText.replace("typed a moment ago.", "typed a moment ago, and a few more words.");
+    services.noteSaver.schedule(vault, "Projects/Alpha.md", more);
+    await services.noteSaver.flush("Projects/Alpha.md", vault);
+    expect(await raw.readTextFile("Projects/Alpha.md")).toBe(more);
+    expect(merged).toEqual([]);
+    expect(await chain.listConflictSessions()).toEqual([]);
+    expect(await conflictCopies("Projects")).toEqual([]);
   });
+
+  it("a cell written while the index follows a file a pull brought: written, queued, known, and in the rows the table asks for next", async () => {
+    await raw.writeTextFile("Projects/Gamma.md", note("Gamma", "open", "Grace"));
+    const { holding, flowing } = await whileOneIsOpen(
+      () => indexer.indexPath("Projects/Gamma.md"),
+      () => writers.commitCellValue(vault, "Projects/Alpha.md", "status", "done"),
+    );
+    // It used to be refused, the value on disk, and the table showing the old one.
+    await flowing;
+    await holding;
+    expect(phoneSqlite.counts.refused).toBe(0);
+    expect(await raw.readTextFile("Projects/Alpha.md")).toBe(note("Alpha", "done"));
+    expect(await queued()).toContain("write Projects/Alpha.md");
+    expect(await knownToChain("Projects/Alpha.md")).toBe(true);
+    expect(await versionsOf("Projects/Alpha.md")).toEqual([note("Alpha")]);
+    const rows = await writers.queryView(vault, DATABASE, 0);
+    expect(rows.find((row) => row["file.path"] === "Projects/Alpha.md")?.status).toBe("done");
+  });
+
+  it("a new note, a rename, a confirmed deletion, a new folder and an attachment that meet an index pass each get their entry", async () => {
+    let pulled = 0;
+    // The index follows a file a pull just wrote — a new one each time.
+    const indexPass = async () => {
+      await raw.writeTextFile("Projects/Gamma.md", note("Gamma", "open", `Grace ${++pulled}`));
+      return indexer.indexPath("Projects/Gamma.md");
+    };
+    const meet = async (flow: () => Promise<unknown>) => {
+      const { holding, flowing } = await whileOneIsOpen(indexPass, flow);
+      await flowing;
+      await holding;
+    };
+    // Each of these used to be refused after its change was on disk.
+    await meet(() => services.vaultOps.save(vault, "Projects/New.md", note("New")));
+    await meet(() => chain.renameItem("Projects/Beta.md", "Projects/Bet.md"));
+    await meet(() => chain.deleteItem("Projects/Delta.md", false, { confirmed: true }));
+    await meet(() => chain.createDir("Inbox"));
+    await meet(() => chain.writeBinaryFile("Projects/photo.jpg", new Uint8Array([1, 2, 3])));
+    expect(phoneSqlite.counts.refused).toBe(0);
+    const entries = await queued();
+    for (const entry of ["write Projects/New.md", "rename Projects/Beta.md", "delete Projects/Delta.md", "mkdir Inbox", "write Projects/photo.jpg"]) {
+      expect(entries, entry).toContain(entry);
+    }
+    // The person's confirmation is in the queue, and the rename took the sync row along: a moved note is no new file.
+    const deletion = await db.queryOne<{ delete_confirmed_at: number | null }>("SELECT delete_confirmed_at FROM offline_queue WHERE operation = 'delete'");
+    expect(deletion?.delete_confirmed_at).not.toBeNull();
+    expect(await repo.getSyncState("Projects/Beta.md")).toBeNull();
+    expect(await repo.getSyncState("Projects/Bet.md")).not.toBeNull();
+  });
+
+  it("the sync marks an upload done while a save's entry is open: it is marked, not left in the queue to go up again", async () => {
+    await vault.syncQueue!.queueWrite("Projects/Beta.md");
+    const [upload] = await db.query<{ id: number }>("SELECT id FROM offline_queue");
+    const { holding, flowing } = await whileOneIsOpen(
+      () => vault.syncQueue!.queueWrite("Projects/Alpha.md"),
+      () => vault.syncQueue!.markSynced(upload.id, "Projects/Beta.md"),
+    );
+    await flowing;
+    await holding;
+    expect(phoneSqlite.counts.refused).toBe(0);
+    expect(await queued()).toEqual(["write Projects/Alpha.md"]);
+  });
+
+  it("a selection of notes is written several at a time, as on the desktop, and none is refused", async () => {
+    // Across folders, so that nothing but the database holds the notes apart.
+    for (const path of APART) await raw.writeTextFile(path, note(nameOf(path)));
+    await indexer.indexVaultFull("the notes of the selection");
+    // A note is under way from its first read to its write: how many were at once.
+    const read = raw.readTextFile.bind(raw), write = raw.writeTextFile.bind(raw);
+    const begun = new Set<string>(), finished = new Set<string>();
+    let mostAtOnce = 0;
+    raw.readTextFile = async (path) => {
+      if (APART.includes(path) && !begun.has(path)) {
+        begun.add(path);
+        mostAtOnce = Math.max(mostAtOnce, begun.size - finished.size);
+      }
+      return read(path);
+    };
+    raw.writeTextFile = async (path, text) => {
+      await write(path, text);
+      if (begun.has(path)) finished.add(path);
+    };
+    const result = await setAcrossSelection(APART, "status", "done");
+    // One at a time — the gate the phone had for a while — would be 1 here.
+    expect(mostAtOnce).toBeGreaterThan(1);
+    await enqueued;
+    expect(phoneSqlite.counts.refused).toBe(0);
+    expect(result.failed).toEqual([]);
+    for (const path of APART) {
+      expect(await raw.readTextFile(path), path).toBe(note(nameOf(path), "done"));
+      expect(await knownToChain(path), path).toBe(true);
+    }
+    expect(await queued()).toEqual(APART.map((path) => `write ${path}`).sort());
+  });
+});
+
+it("boot hands its chain the reporter, as the desktop's vault context does: an entry made up for or given up is a line in the diagnostics", () => {
+  const built = all(serviceFile, ts.isNewExpression)
+    .filter((node) => node.expression.getText(serviceFile) === "QueueingVaultAdapter")
+    .map((node) => node.getText(serviceFile));
+  expect(built).toHaveLength(1);
+  expect(built[0]).toMatch(/onEntry: \(report\) => logDiagnostic\("sync", formatQueueEntryReport\(report\)\)/);
 });
 
 /**

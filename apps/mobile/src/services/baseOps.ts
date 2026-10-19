@@ -128,16 +128,21 @@ export async function commitCellValue(
  * Sets one property across many notes — the selection of a database (plan
  * Mehrfachauswahl, P5) — through the same write as one cell.
  *
- * The loop, its progress, its cancel and its count of the notes that failed
- * are the shared ones the desktop runs. The phone's own are the vault it
- * hands that loop, and the gate: ONE note at a time. A write through the chain
- * opens a transaction for the sync queue and one for the index, and the
- * phone's database is a single connection whose plugin refuses a second
- * transaction while one is open — the note would be changed on disk and
- * counted as failed, with no entry in the queue. The chain's own gate does not
- * prevent that: it holds apart writes below a common folder only, and the
- * index is written outside it. (The desktop's database adapter queues its
- * transactions; that is why it writes six at a time.)
+ * The loop, its progress, its cancel, its count of the notes that failed and
+ * how many notes it writes at a time are the shared ones the desktop runs;
+ * the phone's own is the vault it hands that loop.
+ *
+ * It wrote one note at a time for a while (finding 2026-10-12): every write
+ * through the chain opens a transaction for the sync queue and one for the
+ * index, and the plugin of the phone's single database connection refused a
+ * second transaction while one was open — the note was changed on disk and
+ * counted as failed. The database's transactions take their turns since
+ * (`adapters/transactionTurns.ts`), so the selection writes several notes at
+ * a time again, with the desktop's gate, and none is refused
+ * (`vaultChainWrites.test.ts`). Measured on 2026-10-19 with a probe outside
+ * the repository, against the simulated connection with 1 and 3 ms added to
+ * each call (48 notes): one at a time took 425 to 435 ms per note, two to six
+ * at a time 200 to 285 ms per note. Not measured on a device.
  */
 export async function commitBulkValue(
   v: MobileVault,
@@ -146,7 +151,7 @@ export async function commitBulkValue(
   value: unknown,
   options: Pick<BulkSetOptions, "onProgress" | "isCancelled"> = {},
 ): Promise<BulkSetResult> {
-  const result = await bulkSetProperty(noteFiles(v), paths, col, value, { ...options, concurrency: 1 });
+  const result = await bulkSetProperty(noteFiles(v), paths, col, value, options);
   if (result.written.length > 0) syncSoon();
   return result;
 }

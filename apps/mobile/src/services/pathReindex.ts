@@ -51,32 +51,29 @@ import type { IVaultAdapter, VaultFileInfo, VaultIndexer } from "@plainva/core";
 /**
  * One at a time on the phone's index database.
  *
- * That database is a single connection, and a second transaction cannot open
- * while one is open (`CapacitorSqliteAdapter.transaction`: Android answers
- * "Already in transaction", SQLite on iOS refuses the second BEGIN). Left to
- * itself the index meets itself there in two ways. The batches of a long pull
- * are handed over without waiting for one another, and two of them indexing
- * side by side refuse each other's files. And a pass announces what it found
- * — a new file to upload, a vanished one to delete remotely — to hooks that
- * open a transaction of their own without waiting: the next path's pass runs
- * into it, and of several files one pass announces, only the first is queued.
+ * That database is a single connection. Its plugin refuses a second
+ * transaction while one is open, and the phone's adapter used to pass the
+ * refusal on: the batches of a long pull, handed over without waiting for one
+ * another, refused each other's files, and of several files one pass
+ * announced to hooks that queue without waiting, only the first was queued.
+ * Since 2026-10-12 the adapter has its transactions wait for one another
+ * (`adapters/transactionTurns.ts`), as the desktop's always has.
  *
- * So a pass over a path and what a pass sets off each take a turn here, in the
- * order they were asked for. A batch asks for its next path only when the one
- * before is through, so a save that arrives in the middle of a pull waits for
- * the turns already asked for — the path each batch has in flight and what
- * those passes set off — not for the batches.
+ * The row here keeps the ORDER: a pass over a path and what a pass sets off
+ * each take a turn, in the order they were asked for. A batch asks for its
+ * next path only when the one before is through, so a save that arrives in
+ * the middle of a pull waits for the turns already asked for — the path each
+ * batch has in flight and what those passes set off — not for the batches.
  *
  * Whoever else opens a transaction on this database is not in the row: a full
  * scan, a folder that is re-read, the app's own move in the index, the look at
  * a note opened in an external folder, every save's entry in the sync queue,
  * the sync worker's queue, the calendar cache. A pass that meets one of them
- * is refused, and that is what the second attempt is for. A full scan that
- * found something to write holds its transaction until it is through; a file
- * the index is told of meanwhile is refused at both attempts — its caller has
- * waited some 400 ms by then — and is left to the next full scan. (A save
- * rarely gets that far while a scan writes: its own entry in the sync queue
- * is refused first.)
+ * waits for it at the database. A full scan that found something to write
+ * holds its transaction until it is through; a file the index is told of
+ * meanwhile is indexed after it, and its caller waits that long. A pass that
+ * fails for a reason of its own — the index could not look at the path — gets
+ * the second attempt.
  */
 export interface IndexTurns {
   take<T>(work: () => Promise<T>): Promise<T>;
@@ -98,7 +95,7 @@ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, 
 export interface AnnouncerOptions {
   /** Resolves once the full scan that is under way when it is asked has settled (`VaultIndexer.whenIdle`). */
   whenIdle?: () => Promise<void>;
-  /** How long a queue entry that was refused waits, after that scan, for its second attempt. */
+  /** How long a queue entry that failed waits, after that scan, for its second attempt. */
   retryDelayMs?: number;
   /** Told that an entry could not be queued at either attempt (no path). */
   onDropped?: () => void;
@@ -116,10 +113,11 @@ export type Announce = (queue: () => Promise<unknown>, stillDue?: () => Promise<
  * What a pass sets off and nobody waits for: an upload or a remote deletion
  * to queue. For a file another program changed or removed, the index's word
  * is the only way the change reaches the sync, and it is said once — when a
- * pass notices. So an entry that is refused (another transaction is open) is
- * not let go at that: it waits for a full scan under way and a moment more,
- * and is tried once again. What fails then is counted, not dropped without a
- * word.
+ * pass notices. So an entry that fails (a transaction it met was refused,
+ * before the database had its transactions wait; a database that closed under
+ * it) is not let go at that: it waits for a full scan under way and a moment
+ * more, and is tried once again. What fails then is counted, not dropped
+ * without a word.
  *
  * The entries have a row of their own, so that nothing announced later
  * overtakes one that waits — and they take a turn in the shared row only for
@@ -229,9 +227,9 @@ export function createPathReindexer(
     if (!indexer) return;
     const first = await pass(indexer, paths);
     if (first.failed.length === 0) return;
-    // A removal that was refused met an open transaction, most likely a full
-    // scan's — and that one holds its transaction until it is through. (Or
-    // the index could not look at the path itself; the second pass asks again.)
+    // A removal that failed is tried again after the full scan under way: a
+    // removal that is left to that scan is reported by it. (Or the index could
+    // not look at the path itself; the second pass asks again.)
     if (first.removalWaits) await indexer.whenIdle?.();
     await wait(retryDelayMs);
     const second = await pass(indexer, first.failed);

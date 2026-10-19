@@ -1,4 +1,4 @@
-import { BatchStatement, IDatabaseAdapter } from "./IDatabaseAdapter.js";
+import { BatchOptions, BatchStatement, IDatabaseAdapter } from "./IDatabaseAdapter.js";
 
 /**
  * Runs an ordered list of write statements atomically when the adapter offers a
@@ -12,14 +12,20 @@ import { BatchStatement, IDatabaseAdapter } from "./IDatabaseAdapter.js";
  *
  * The statements must be pure writes (no reads) whose relative order is enough —
  * see the indexer's cold-full-scan, where reads are pre-loaded before the batch.
+ *
+ * A caller inside the body of its own `transaction()` passes
+ * `{ inOpenTransaction: true }` ({@link BatchOptions}): where transactions wait
+ * for one another, a batch without that word would wait for its own caller.
  */
 export async function runStatementsAtomic(
   db: IDatabaseAdapter,
-  statements: BatchStatement[]
+  statements: BatchStatement[],
+  options?: BatchOptions
 ): Promise<void> {
   if (statements.length === 0) return;
   if (db.runBatch) {
-    await db.runBatch(statements);
+    if (options) await db.runBatch(statements, options);
+    else await db.runBatch(statements);
     return;
   }
   for (const s of statements) {

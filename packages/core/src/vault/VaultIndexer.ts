@@ -402,7 +402,7 @@ export class VaultIndexer {
     return this.inPass(async (pass) => {
       // The caller holds a file. A pass that misses it in an older listing
       // does not report it gone, and where it has not decided yet it leaves
-      // the row too (stillMine) — also when this pass is refused.
+      // the row too (stillMine) — also when this pass fails.
       this.touch(fileInfo.path);
       await this.dbAdapter.transaction(async () => {
         if (fileInfo.name.endsWith(".md")) await this._indexFileInternal(fileInfo, pass);
@@ -826,9 +826,10 @@ export class VaultIndexer {
       // rolled back, for the next scan to report to a register that had
       // answered already. And the question itself could be answered wrongly:
       // a scan's own removal of the row, not committed yet, read as "nothing
-      // here", and nobody came back when that scan failed. Where a second
-      // transaction is refused, so is this pass, and the phone's door comes
-      // again; where it waits (the desktop), this pass waits its turn.
+      // here", and nobody came back when that scan failed. A second
+      // transaction waits for the first in both shells (the phone's since
+      // 2026-10-12, when its adapter stopped passing the plugin's refusal on),
+      // so this pass waits its turn.
       const outcome = await this.dbAdapter.transaction(async (): Promise<"reported" | "removed" | "unchanged" | "folder-gone"> => {
         // Only fire the deletion flow if it was actually indexed.
         const known = await this.dbAdapter.queryOne<{ id: string }>(
@@ -888,7 +889,7 @@ export class VaultIndexer {
     // The file is there. Whoever read the index before this moment and misses
     // the file in an older listing does not report it gone, and where it has
     // not decided yet it leaves the row too (stillMine) — also when this pass
-    // does not get to write, its transaction refused.
+    // does not get to write.
     this.touch(path);
 
     // Same mtime as indexed -> the event is an echo (our own save already
@@ -1462,9 +1463,13 @@ export class VaultIndexer {
         },
       };
       const FLUSH_AT = 4000;
+      // The flushes run inside this very transaction, and say so: where a
+      // batch is a transaction of its own (the phone's single connection), one
+      // that did not would wait for the scan it belongs to.
+      const INSIDE_THIS_SCAN = { inOpenTransaction: true } as const;
       const flushIfLarge = async () => {
         if (batch.length >= FLUSH_AT) {
-          await runStatementsAtomic(this.dbAdapter, batch);
+          await runStatementsAtomic(this.dbAdapter, batch, INSIDE_THIS_SCAN);
           batch.length = 0;
         }
       };
@@ -1516,7 +1521,7 @@ export class VaultIndexer {
       }
 
       // Flush the tail (all writes when runBatch is unavailable).
-      await runStatementsAtomic(this.dbAdapter, batch);
+      await runStatementsAtomic(this.dbAdapter, batch, INSIDE_THIS_SCAN);
     });
 
     // Fire host callbacks AFTER the transaction so their DB work (enqueue) does not nest

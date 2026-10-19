@@ -31,6 +31,7 @@ import {
   PimCacheRepository,
   toPathIdentity,
   formatFullScan,
+  formatQueueEntryReport,
   scanChangedNothing,
 } from "@plainva/core";
 import { isInternalPath, linkTargetName, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles } from "@plainva/core";
@@ -502,15 +503,15 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
   let workspaceState: SqlWorkspaceStateStore | null = null;
   let permissioned: PermissionedVaultAdapter | null = null;
 
-  // A pass over a path and what a pass sets off each take a turn: one
-  // transaction at a time on the phone's one connection (pathReindex.ts). The
-  // hooks below queued without waiting, each in a transaction of its own — of
+  // A pass over a path and what a pass sets off each take a turn, in the
+  // order they were asked for (pathReindex.ts); the database itself has its
+  // transactions wait for one another (CapacitorSqliteAdapter). The hooks
+  // below queued without waiting, each in a transaction of its own — of
   // several files one pass announced, the second ran into the first.
   const indexTurns = createIndexTurns();
-  // An entry that is refused all the same — somebody outside that row had a
-  // transaction open — is tried once more and then named in the diagnostics:
-  // for a file changed or removed outside the app, the index's word is the
-  // only one the sync gets.
+  // An entry that fails all the same is tried once more and then named in the
+  // diagnostics: for a file changed or removed outside the app, the index's
+  // word is the only one the sync gets.
   const announce = createAnnouncer(indexTurns, {
     whenIdle: async () => { await indexer?.whenIdle(); },
     onDropped: () => logDiagnostic("index", "an upload or a deletion the index announced could not be queued"),
@@ -530,6 +531,8 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
 
   let files: IVaultAdapter;
   let backup: BackupVaultAdapter | null;
+  /** The plain vault's queueing link: its owed entries get their last attempt before the database closes. */
+  let ownQueue: QueueingVaultAdapter | null = null;
   let syncRepo: SyncStateRepository | null;
   const ownDeletions = new OwnDeletionRegister();
   let indexer: VaultIndexer | null;
@@ -630,7 +633,11 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       if (await backup!.exists(request.path)) { await backup!.createDir(".plainva/workspace/forks"); await backup!.writeBinaryFile(forkPath, await backup!.readBinaryFile(request.path)); }
       await workspaceState!.saveLocalFork({ forkId, originalPath: request.path, forkPath, reason: "permission-denied", createdAt: new Date().toISOString() });
     }) : null;
-    const queueing = workspaceState ? new WorkspaceQueueingVaultAdapter(permissioned!, workspaceState) : new QueueingVaultAdapter(backup, queue);
+    // An entry of the sync queue that fails after its change is on disk is made
+    // up for while its write waits (QueueingVaultAdapter); one given up fails
+    // its write and is named in the diagnostics, like on the desktop.
+    if (!workspaceState) ownQueue = new QueueingVaultAdapter(backup, queue, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) });
+    const queueing = workspaceState ? new WorkspaceQueueingVaultAdapter(permissioned!, workspaceState) : ownQueue!;
     syncRepo = new SyncStateRepository(db, adapter, await mobileSyncDeviceId());
     const conflictAware = new ConflictAwareVaultAdapter(queueing, syncRepo, (path, mergedText) => {
       window.dispatchEvent(new CustomEvent("m-auto-merged", { detail: { path, mergedText } }));
@@ -751,6 +758,9 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       clearPinboardCache(queryService ?? files);
       indexAbort.abort();
       await indexer?.whenIdle();
+      // An entry that waits for its next attempt is no transaction the
+      // database could wait for: it gets its last one while the database is open.
+      await ownQueue?.flush();
       if (db) await db.close().catch(() => {});
     },
   };

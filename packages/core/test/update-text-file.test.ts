@@ -207,16 +207,21 @@ describe("a file changed below the chain", () => {
   });
 
   it("a queue entry the database refused does not turn the next change into a conflict", async () => {
-    // The phone's database is one connection that refuses a second transaction: the file is written, the entry is not.
+    // The phone's database is one connection, and until its transactions waited for one another it refused a second
+    // one: the file was written, the entry was not. Since then the write does not fail for a moment's trouble with its
+    // entry — the entry is made up for while the write waits (queueing-vault-adapter-owed.test.ts).
     await synced();
     let refuse = true;
-    const once = { queueWrite: async (path: string) => { if (refuse) { refuse = false; throw new Error("Already in transaction"); } await queue.queueWrite(path); } };
+    let asked = 0;
+    const once = { queueWrite: async (path: string) => { asked += 1; if (refuse) { refuse = false; throw new Error("Already in transaction"); } await queue.queueWrite(path); } };
     chain = build(raw, once);
-    await expect(chain.updateTextFile(NOTE, status("done"))).rejects.toThrow("Already in transaction");
+    await chain.updateTextFile(NOTE, status("done"));
     expect(await onDisk()).toBe(note("Text of Alpha.", "done"));
     await chain.updateTextFile(NOTE, owner("Grace"));
     expect(await onDisk()).toBe(note("Text of Alpha.", "done", "Grace"));
     expect(await conflictCopies()).toEqual([]);
+    // The refused entry, made up for, and the next one: one row, since a newer write of a file supersedes an older.
+    expect(asked).toBe(3);
     expect(await queued()).toEqual([`write ${NOTE}`]);
   });
 
