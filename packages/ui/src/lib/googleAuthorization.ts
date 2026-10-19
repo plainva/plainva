@@ -203,11 +203,25 @@ export function googleAuthorizationMessage(error: unknown, t: Translate): string
 
 /** Which services a scope string asks for — the names, never the scopes. */
 export function googleServicesOfScope(scope: string): string {
-  const parts = scope.split(/\s+/).filter(Boolean);
+  // A scope is a URL; it is read by host and path, never as a substring.
+  // Short scopes (`openid`, `email`) are no URL and name no service.
+  const scopes = scope
+    .split(/\s+/)
+    .filter(Boolean)
+    .flatMap((part) => {
+      try {
+        const url = new URL(part);
+        return [{ host: url.hostname, path: url.pathname }];
+      } catch {
+        return [];
+      }
+    });
+  const api = (prefix: string) =>
+    scopes.some(({ host, path }) => host === "www.googleapis.com" && (path === prefix || path.startsWith(`${prefix}.`)));
   const services: string[] = [];
-  if (parts.some((p) => p.includes("/auth/drive"))) services.push("files");
-  if (parts.some((p) => p.includes("/auth/calendar") || p.includes("/auth/tasks"))) services.push("calendar");
-  if (parts.some((p) => p.includes("mail.google.com") || p.includes("/auth/gmail"))) services.push("mail");
+  if (api("/auth/drive")) services.push("files");
+  if (api("/auth/calendar") || api("/auth/tasks")) services.push("calendar");
+  if (scopes.some(({ host }) => host === "mail.google.com") || api("/auth/gmail")) services.push("mail");
   return services.length ? services.join("+") : "identity";
 }
 

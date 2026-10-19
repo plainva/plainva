@@ -205,7 +205,7 @@ describe("editorSession", () => {
       const off = Array.from(content.querySelectorAll('[spellcheck="false"]')).map((el) => el.textContent ?? "");
       // Inline code and the URL are spans inside a checked line …
       expect(off).toContain("`code`");
-      expect(off.some((text) => text.includes("https://example.com/pfad"))).toBe(true);
+      expect(off).toContain("https://example.com/pfad");
       // … the fenced block and the frontmatter are whole lines.
       expect(off).toContain("const a = 1;");
       expect(off).toContain("title: Xyzzy");

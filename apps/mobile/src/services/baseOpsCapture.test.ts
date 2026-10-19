@@ -170,7 +170,7 @@ describe("planMobilePinboardEntry", () => {
       "mark and \\r\\n, block": `${mark}---\r\nprio: hoch\r\n---\r\n# Liste\r\n\r\n- [ ] |\r\nEnde\r\n`,
     };
     for (const [name, marked] of Object.entries(templates)) {
-      answerTemplateFile.mockResolvedValueOnce({ text: marked.replace("|", ""), cursor: marked.indexOf("|") });
+      answerTemplateFile.mockResolvedValueOnce({ text: marked.replace(/\|/g, ""), cursor: marked.indexOf("|") });
       const draft = await ready({ ...zettel, newItemFolder: "Zettel", newItemTemplate: "Templates/Zettel.md" });
       const written = files.get(draft.path)!;
       expect(written, name).toBe(draft.initial);

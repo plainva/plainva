@@ -239,7 +239,7 @@ describe("pinboardEntryCaret: the caret of a new entry, in the text its editor h
   async function planned(marked: string): Promise<{ draft: PinboardDraft; written: string; doc: string }> {
     const { files, store } = memoryFiles();
     const at = marked.indexOf("|");
-    const draft = await ready(files, { template: async () => ({ text: marked.replace("|", ""), caret: at }) });
+    const draft = await ready(files, { template: async () => ({ text: marked.replace(/\|/g, ""), caret: at }) });
     const written = store.get(draft.path)!;
     return { draft, written, doc: editorTextOf(written) };
   }

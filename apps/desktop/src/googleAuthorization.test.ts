@@ -117,6 +117,15 @@ describe("a failed Android Google sign-in names its cause", () => {
     expect(googleServicesOfScope("openid email")).toBe("identity");
   });
 
+  it("reads a scope by its host and path, not by a substring", () => {
+    expect(googleServicesOfScope("https://www.googleapis.com/auth/drive.file")).toBe("files");
+    expect(googleServicesOfScope("https://www.googleapis.com/auth/gmail.send")).toBe("mail");
+    expect(googleServicesOfScope("https://www.googleapis.com/auth/userinfo.email")).toBe("identity");
+    expect(googleServicesOfScope("https://www.googleapis.com/auth/drivex")).toBe("identity");
+    expect(googleServicesOfScope("https://example.com/auth/drive https://example.com/mail.google.com/")).toBe("identity");
+    expect(googleServicesOfScope("https://mail.google.com.example.com/")).toBe("identity");
+  });
+
   it("reports a result nobody was waiting for", () => {
     expect(googleOrphanResultDiagnostic({ stage: "result", resultCode: -1, hadIntent: true })).toBe("a sign-in result arrived with no call waiting, resultCode -1, intent present");
     expect(googleOrphanResultDiagnostic(undefined)).toBeNull();
