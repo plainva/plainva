@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-10-13
+Last updated: 2026-10-19
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -27,6 +27,7 @@ The diagnostics export also includes recent conflict events: storage type, write
 - If both sides change the same file, Plainva merges them automatically (3-way merge). If that is not possible, your version is safely preserved as a `.CONFLICT` file — nothing is ever lost (see [FAQ](FAQ.md)).
 - **Resolving conflicts**: a banner in the affected note (and **Resolve conflict…** in the `.CONFLICT` file's right-click menu in the tree) opens the comparison dialog — the file's current state on the left, your preserved version on the right, editable with per-block take-over. **Save right side & resolve** writes the result into the file and cleans up the conflict copy; **Keep the other side** discards your copy (a version snapshot remains). The sync error dialog also lists existing conflict copies and takes you to the same comparison with one click.
 - **Mass-deletion protection**: if an unusually large share of the synced files is about to be deleted in the cloud at once (for example because the local vault folder was emptied or moved), Plainva holds the deletions and asks first: **Delete in the cloud** executes them, **Don't delete (restore)** discards them and restores the files from the cloud on the next sync. Deletions you confirmed in Plainva yourself are not held — for large deletions (more than 10 files or more than 20% of the vault) Plainva instead asks a second time before deleting.
+- **A file deleted in the cloud that has changes here**: if another device deleted a file in the cloud while this device still had changes to it that were not uploaded yet, Plainva does not delete it. It keeps the file, uploads it again as a new file and tells you once which file it was. If you do want it gone, delete it again here. This applies on desktop and mobile.
 - Attachments (images etc.) are synced too.
 - **Empty folders** sync as well: a folder created in Plainva appears in the cloud right away, and empty cloud folders appear on your other devices with the next full listing at the latest.
 - Credentials and tokens are stored in the operating system's keychain (status: **Settings → App → About & diagnostics → OS keychain**), never in files inside the vault.

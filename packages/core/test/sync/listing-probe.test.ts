@@ -276,16 +276,127 @@ describe("a listing is a claim, not a fact (finding 2026-09-20)", () => {
     expect(vault.deleteItem).not.toHaveBeenCalled();
     expect(incomplete.mock.calls[0][0]).toMatchObject({ missing: 1, present: 1 });
 
-    // Really gone: nothing is left to compare it with, and the mark comes off.
+    // Really gone: nothing is left to compare it with. The row goes with its
+    // mark, and the file is queued to go up again as a new one.
     remoteAlive.delete(marked);
     const report = vi.fn();
     worker.onDeletionReport = report;
 
     await worker.runCycle();
 
-    expect(stateRepo.clearRecheck).toHaveBeenCalledWith(marked);
+    expect(stateRepo.deleteSyncState).toHaveBeenCalledWith(marked);
+    expect(queue.queueWrite).toHaveBeenCalledWith(marked);
     expect(vault.deleteItem).not.toHaveBeenCalled();
     expect(report.mock.calls.at(-1)?.[0]).toMatchObject({ mirrored: 0, keptLocalEdits: [marked] });
+  });
+
+  it("carries a kept file up again and says so once (finding 2026-10-19)", async () => {
+    // A file with changes of this device that the remote lost: before, its row
+    // kept pointing at the deleted copy, nothing queued the upload, and every
+    // full listing found it missing again and announced it again.
+    build();
+    const edited = known[39]!;
+    vault.readTextFile.mockImplementation(async (p: string) => (p === edited ? "changed here" : "same"));
+    listOnly(39);
+    remoteAlive.delete(edited);
+    const report = vi.fn();
+    worker.onDeletionReport = report;
+
+    await worker.runCycle();
+    await worker.runCycle();
+    await worker.runCycle();
+
+    expect(vault.deleteItem).not.toHaveBeenCalled();
+    expect(states.has(edited)).toBe(false);
+    expect(queue.queueWrite).toHaveBeenCalledWith(edited);
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(report.mock.calls[0][0]).toMatchObject({ mirrored: 0, keptLocalEdits: [edited] });
+  });
+
+  it("mirrors the deletion of a file that differs from its base only in form (line ends, byte order mark)", async () => {
+    // Bytes that differ from a base this device recorded in another form are
+    // no edit: keeping the file would carry a deletion made on purpose
+    // elsewhere back to every device (review of finding 2026-10-19).
+    build();
+    const shaped = known[39]!;
+    const base = "line one\nline two\n";
+    states.get(shaped).base_sha256 = await sha(base);
+    stateRepo.getBaseText = vi.fn(async (p: string) => (p === shaped ? base : null));
+    const bom = String.fromCharCode(0xfeff);
+    vault.readTextFile.mockImplementation(async (p: string) => (p === shaped ? `${bom}line one\r\nline two\r\n` : "same"));
+    listOnly(39);
+    remoteAlive.delete(shaped);
+    const report = vi.fn();
+    worker.onDeletionReport = report;
+
+    await worker.runCycle();
+
+    expect(vault.deleteItem).toHaveBeenCalledWith(shaped);
+    expect(queue.queueWrite).not.toHaveBeenCalledWith(shaped);
+    expect(report.mock.calls.at(-1)?.[0]).toMatchObject({ mirrored: 1, keptLocalEdits: [] });
+  });
+
+  it("does not trust a base text that is not the synced base (a streamed push leaves an earlier one behind)", async () => {
+    // The hash moved on to the pushed version; the row still holds the text of
+    // an earlier one, and the local file says that earlier text again. That is
+    // a change against the synced base, not "unchanged": kept and carried up.
+    build();
+    const file = known[39]!;
+    states.get(file).base_sha256 = await sha("version two");
+    stateRepo.getBaseText = vi.fn(async (p: string) => (p === file ? "version one" : null));
+    vault.readTextFile.mockImplementation(async (p: string) => (p === file ? "version one" : "same"));
+    listOnly(39);
+    remoteAlive.delete(file);
+
+    await worker.runCycle();
+
+    expect(vault.deleteItem).not.toHaveBeenCalled();
+    expect(queue.queueWrite).toHaveBeenCalledWith(file);
+  });
+
+  it("does not carry a kept file up while the remote can only answer \"unknown\" about it", async () => {
+    // A row without the file's id leaves an id-based provider nothing but a
+    // name search. Its "unknown" is not "gone": carried up as new next to a
+    // living original, the file would stand twice under one name.
+    build();
+    const edited = known[39]!;
+    vault.readTextFile.mockImplementation(async (p: string) => (p === edited ? "changed here" : "same"));
+    listOnly(39);
+    target.probeExists.mockImplementation(async (probe: RemoteProbe): Promise<RemotePresence> => {
+      probes.push(probe);
+      if (probe.path === edited) return "unknown";
+      return remoteAlive.has(probe.path) ? "present" : "absent";
+    });
+    const report = vi.fn();
+    worker.onDeletionReport = report;
+
+    await worker.runCycle();
+
+    expect(states.has(edited)).toBe(true);
+    expect(queue.queueWrite).not.toHaveBeenCalledWith(edited);
+    expect(vault.deleteItem).not.toHaveBeenCalled();
+    expect(report).not.toHaveBeenCalled();
+  });
+
+  it("does not take a kept file for gone while the remote still holds it", async () => {
+    // The listing lost a file that carries changes here, but the remote has it:
+    // nothing is queued as new (that would put a second copy next to it), and
+    // the listing is known to be incomplete.
+    build();
+    const edited = known[39]!;
+    vault.readTextFile.mockImplementation(async (p: string) => (p === edited ? "changed here" : "same"));
+    listOnly(39);
+    const report = vi.fn();
+    worker.onDeletionReport = report;
+    const incomplete = vi.fn();
+    worker.onListingIncomplete = incomplete;
+
+    await worker.runCycle();
+
+    expect(states.has(edited)).toBe(true);
+    expect(queue.queueWrite).not.toHaveBeenCalledWith(edited);
+    expect(report).not.toHaveBeenCalled();
+    expect(incomplete.mock.calls[0][0]).toMatchObject({ missing: 1, present: 1 });
   });
 
   it("keeps that mark while the question about the file gets no answer at all", async () => {
@@ -313,8 +424,12 @@ describe("a listing is a claim, not a fact (finding 2026-09-20)", () => {
     expect(probes.filter((p) => p.path === marked).length).toBeGreaterThanOrEqual(4);
     expect(stateRepo.clearRecheck).not.toHaveBeenCalled();
     expect(vault.deleteItem).not.toHaveBeenCalled();
-    // The file is kept, and said to be: it carries changes of this device.
-    expect(report.mock.calls.at(-1)?.[0]).toMatchObject({ mirrored: 0, keptLocalEdits: [marked] });
+    // Nothing is decided on no answer: the row stays, nothing is queued, and
+    // the file is not announced as kept — it is asked about again next time
+    // (finding 2026-10-19: the announcement came back with every cycle).
+    expect(stateRepo.deleteSyncState).not.toHaveBeenCalledWith(marked);
+    expect(queue.queueWrite).not.toHaveBeenCalledWith(marked);
+    expect(report).not.toHaveBeenCalled();
   });
 
   it("does not let a journal alone delete a large share: uncorroborated entries are asked about", async () => {

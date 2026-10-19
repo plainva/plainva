@@ -7,6 +7,7 @@ import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
 import { mergeText, mergeWithoutBase } from "../conflict-resolver.js";
 import { classifyTaskNotes, preserveDisplacedTask, taskNotesEquivalent } from "../pim/taskNoteIdentity.js";
 import { isTextFile, mergeableText } from "./fileType.js";
+import { editorTextOf } from "../textFileShape.js";
 import { findCollidingPath, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
 import { withPathSpellings } from "./spellingSyncTarget.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
@@ -373,7 +374,15 @@ export type MirrorDeletionOutcome =
   | "localOnly"
   | "stillRemote"
   /** A rename or delete of this path (or a folder above it) still waits in the queue. */
-  | "awaitingStructure";
+  | "awaitingStructure"
+  /**
+   * The remote never confirmed this file (no sync row, or one without a remote
+   * marker): its deletion there undoes nothing here, and the local file is
+   * left to the push as it is.
+   */
+  | "untracked"
+  /** The file carries local edits, and the remote could not say whether it still holds it: asked again next time. */
+  | "unverified";
 
 /** Per-cycle account of the deletions the worker mirrored — or deliberately did not. */
 export interface DeletionReport {
@@ -381,7 +390,11 @@ export interface DeletionReport {
   mirrored: number;
   /** Of those, the ones the journal explained (confirmed on another device). */
   explained: number;
-  /** Kept although the remote deleted them: they carry unsynced local edits. */
+  /**
+   * Kept although the remote deleted them, because they carry unsynced local
+   * edits — and queued to go up again as new files, so the next cycle does not
+   * meet them a second time.
+   */
   keptLocalEdits: string[];
 }
 
@@ -1427,6 +1440,29 @@ export class SyncWorker {
     }
   }
 
+  /**
+   * Whether the local copy of a text file says what the synced base says,
+   * read the way an editor reads it: `\n` line ends, no byte order mark — a
+   * file an older version rewrote in another form (§ 3.50) is then not taken
+   * for an edit made here.
+   *
+   * The stored base text is trusted only where it IS the synced base: the
+   * remote confirmed the file, and the text hashes to the recorded base. A
+   * row the remote never confirmed holds this device's own text (the indexer
+   * writes it for every new file), and a streamed push advances the hash but
+   * leaves the text of an earlier version behind — on either, "same text"
+   * would remove a file nobody deleted.
+   */
+  private async sameTextAsBase(path: string, state: SyncState): Promise<boolean> {
+    if (!state.remote_etag || !state.base_sha256 || !isTextFile(path)) return false;
+    const baseText = await this.stateRepo.getBaseText(path);
+    if (baseText == null) return false;
+    if ((await sha256Bytes(new TextEncoder().encode(baseText))) !== state.base_sha256) return false;
+    const localText = mergeableText(path, await this.vault.readBinaryFile(path));
+    if (localText == null) return false;
+    return editorTextOf(localText) === editorTextOf(baseText);
+  }
+
   /** Whether this device's listing carries exactly the identity `path`. */
   private async holdsLocalIdentity(path: string): Promise<boolean> {
     const slash = path.lastIndexOf("/");
@@ -1485,7 +1521,15 @@ export class SyncWorker {
       return "gone";
     }
     const localSha = await this.localSha(path);
-    if (state?.base_sha256 && localSha === state.base_sha256) {
+    // Unchanged since the last sync — by its hash, or by its text where only
+    // the form differs from the recorded base (line ends, byte order mark,
+    // § 3.50). Bytes that differ from a base this device once recorded in
+    // another form are no edit, and keeping such a file would carry a
+    // deletion made on purpose elsewhere back to every device (finding
+    // 2026-10-19).
+    const unchanged = Boolean(state?.base_sha256 && localSha === state.base_sha256)
+      || (state != null && (await this.sameTextAsBase(path, state)));
+    if (unchanged) {
       // The invariant of plan A1: no local file is removed on the word of a
       // listing while the target can be asked about the file itself. A probe
       // that finds it alive ends the matter — for this file, and the cycle
@@ -1504,24 +1548,37 @@ export class SyncWorker {
       changedPaths.push(path);
       return "deleted";
     }
+    // Nothing of ours was up there: a row the remote never confirmed (or none
+    // at all) has no deletion to mirror. The local file stays as it is and
+    // goes up, if at all, the way any local file does.
+    if (!state?.remote_etag) return "untracked";
+
     // Local has unsynced edits -> keep it. Counted and reported (P1): a silent
     // skip is how a "deleted" note used to reappear without anyone knowing why.
     //
-    // A row still marked to be looked at again (`SyncState.recheck`) has
-    // nothing left to be compared with once the remote no longer holds the
-    // file: the mark comes off, or the push would hold this file back for
-    // good. Where the absence is only a listing's word the file is asked for
-    // first — one that is still up there keeps its mark, and meets the
-    // reconcile when a listing carries it again.
-    if (state?.recheck) {
-      if (verify) {
-        const presence = await this.probePresenceOrFailure(path, state);
-        if (presence === "present") return "stillRemote";
-        // No answer is not "gone": the mark stays, and the next listing asks again.
-        if (presence === "failed") return "keptLocalEdits";
-      }
-      await this.stateRepo.clearRecheck(path);
+    // Where the absence is only a listing's word, the file is asked for first
+    // (plan A1, as for a deletion): one that is still up there is the
+    // listing's mistake. Only "gone" counts as gone. No answer, and the
+    // "unknown" of a provider that can only search by name for a file without
+    // its id (the search that lost files on 2026-09-20), are asked again with
+    // the next listing — carried up as new next to a living original, the
+    // file would stand twice under one name on Drive.
+    if (verify) {
+      const presence = await this.probePresenceOrFailure(path, state);
+      if (presence === "present") return "stillRemote";
+      if (presence !== "absent") return "unverified";
     }
+    // Keeping it means carrying it up again (finding 2026-10-19). The row
+    // still pointed at a remote file that no longer exists: nothing queued the
+    // upload, the next full listing found the same file missing again, and the
+    // shell said "kept" every cycle while the file lived on this device only.
+    // As `keepSuspendedDeletionsLocal` does for the files of a held mass
+    // deletion, the row goes — the push then treats the file as new instead of
+    // as an update to a remote file that is gone — and the write is queued.
+    // That also ends a `SyncState.recheck` mark: once the remote holds no copy,
+    // there is nothing left to compare the local one with.
+    await this.stateRepo.deleteSyncState(path);
+    await this.queue.queueWrite(path);
     return "keptLocalEdits";
   }
 
@@ -2039,6 +2096,11 @@ export class SyncWorker {
           if (excludedFromSync(path)) continue;
           // Our own queued rename/delete explains the absence (issue 113).
           if (awaitingStructure(path)) continue;
+          // The same pull also lists the path: a file deleted under one id and
+          // put back under another (a device that kept its edits carries it up
+          // as new) is alive, and the reconcile above already has it. Acting on
+          // the stale deletion removed the fresh copy here.
+          if (remotePaths.has(path)) continue;
           // Guarded like reconcile: an explicit deleted[] entry is delivered exactly
           // once per cursor position, so a failed mirror must block cursor adoption
           // below (otherwise the deletion stays unmirrored until the next full listing).

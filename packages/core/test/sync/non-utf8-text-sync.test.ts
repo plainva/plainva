@@ -831,9 +831,10 @@ describe("what an older version left behind for a file that is not UTF-8", () =>
     expect(a.problems()).toEqual([]);
   });
 
-  it("on that device, when the file was deleted elsewhere before it was looked at: it is kept, the mark comes off, and its next change goes up", async () => {
+  it("on that device, when the file was deleted elsewhere before it was looked at: it is kept, goes up again, the mark comes off, and its next change goes up", async () => {
     const { a, dav, uploads, remoteBytes, remoteFiles } = await heldByAnOlderVersion();
     await update(a);
+    const before = uploads("Data.csv");
     // Another device deleted the file. By the hashes this device kept, its own
     // copy does not read as "unchanged since the last sync" — so it stays.
     dav.files.delete("Data.csv");
@@ -841,16 +842,20 @@ describe("what an older version left behind for a file that is not UTF-8", () =>
     expect(await a.bytes("Data.csv")).toEqual(original);
     expect(a.removals()).toEqual([{ mirrored: 0, kept: ["Data.csv"] }]);
     // Nothing is left to compare it with: the mark is gone, or no change of
-    // this file would ever be pushed again.
+    // this file would ever be pushed again. Kept means carried up again, as a
+    // new file and byte for byte (finding 2026-10-19: it used to stay on this
+    // device only, announced as kept in every cycle).
     expect((await a.row("Data.csv"))!.recheck).toBeNull();
-    expect(remoteFiles()).toEqual(["Keep.md"]);
+    expect(remoteFiles()).toEqual(["Data.csv", "Keep.md"]);
+    expect(remoteBytes("Data.csv")).toEqual(original);
+    expect(uploads("Data.csv")).toBe(before + 1);
 
     const next = windows1252("id;name\r\n1;Grün\r\n2;Blau\r\n3;Rot\r\n4;Weiß\r\n");
     await a.put("Data.csv", next);
     await a.cycle(); await a.cycle();
     expect(remoteBytes("Data.csv")).toEqual(next);
     expect(await a.bytes("Data.csv")).toEqual(next);
-    expect(uploads("Data.csv")).toBe(2);
+    expect(uploads("Data.csv")).toBe(before + 2);
     expect(await a.waiting()).toEqual([]);
     a.removals();
     await a.cycle();

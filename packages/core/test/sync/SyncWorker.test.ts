@@ -913,6 +913,43 @@ describe("SyncWorker", () => {
     expect(vault.deleteItem).not.toHaveBeenCalledWith("keep.md");
   });
 
+  it("does not mirror a deletion the same incremental pull contradicts by listing the path (review of finding 2026-10-19)", async () => {
+    // Deleted under one id and put back under another — a device that kept its
+    // edits carries the file up as new — the feed reports both. The file is
+    // alive; acting on the stale deletion removed the fresh copy here.
+    worker["cursor"] = "c0";
+    const sameSha = await sha("same");
+    stateRepo.getAllStates.mockResolvedValueOnce(new Map([["back.md", { remote_etag: "e-old", base_sha256: sameSha }]]));
+    vault.exists.mockResolvedValue(true);
+    vault.readTextFile.mockResolvedValue("same");
+    target.download.mockResolvedValue(new TextEncoder().encode("same"));
+    target.pull.mockResolvedValueOnce({ etagMap: new Map([["back.md", "e-new"]]), deleted: ["back.md"], nextCursor: "c1" });
+
+    await worker.runCycle();
+
+    expect(target.pull).toHaveBeenCalledWith("c0");
+    expect(vault.deleteItem).not.toHaveBeenCalledWith("back.md");
+  });
+
+  it("never removes a file the remote never confirmed, although its stored text equals the local one (review of finding 2026-10-19)", async () => {
+    // A note made here and not yet uploaded: the indexer stored this device's
+    // own text as its base text. Another device deletes its own file of the
+    // same name, and the feed reports that path. Nothing of ours was up there.
+    worker["cursor"] = "c0";
+    stateRepo.getAllStates.mockResolvedValueOnce(new Map([["Untitled.md", { local_sha256: await sha("mine"), remote_etag: null, base_sha256: null }]]));
+    stateRepo.getBaseText.mockResolvedValue("mine");
+    vault.exists.mockResolvedValue(true);
+    vault.readTextFile.mockResolvedValue("mine");
+    target.pull.mockResolvedValueOnce({ etagMap: new Map(), deleted: ["Untitled.md"], nextCursor: "c1" });
+    const report = vi.fn();
+    worker.onDeletionReport = report;
+
+    await worker.runCycle();
+
+    expect(vault.deleteItem).not.toHaveBeenCalled();
+    expect(report).not.toHaveBeenCalled();
+  });
+
   it("runs a periodic full listing after N incremental cycles (1a)", async () => {
     worker["cursor"] = "c0";
     worker["cyclesSinceFull"] = 20; // at the threshold -> the next cycle must be a full listing
@@ -1322,6 +1359,37 @@ describe("SyncWorker", () => {
       await worker.runCycle();
 
       expect(vault.deleteItem).not.toHaveBeenCalled();
+      expect(report).toHaveBeenCalledWith({ mirrored: 0, explained: 0, keptLocalEdits: ["edited.md"] });
+      // Kept means carried up again: the row that pointed at the deleted remote
+      // file goes, and the file is queued as a new one (finding 2026-10-19).
+      expect(stateRepo.deleteSyncState).toHaveBeenCalledWith("edited.md");
+      expect(queue.queueWrite).toHaveBeenCalledWith("edited.md");
+    });
+
+    it("a kept file is announced once, even when the provider repeats its deletion (finding 2026-10-19)", async () => {
+      // An incremental pull delivers `deleted[]` again while the cursor cannot
+      // move on. Before, the kept file stayed tied to the deleted remote copy
+      // and was announced in every cycle; once it is carried up as a new file,
+      // a repeated deletion of the old copy has nothing left to say about it.
+      const states = new Map<string, any>([["edited.md", { remote_etag: "e2", base_sha256: await sha("old") }]]);
+      stateRepo.getAllStates.mockImplementation(async () => new Map(states));
+      stateRepo.getSyncState.mockImplementation(async (p: string) => states.get(p) ?? null);
+      stateRepo.deleteSyncState.mockImplementation(async (p: string) => void states.delete(p));
+      vault.exists.mockResolvedValue(true);
+      vault.readTextFile.mockResolvedValue("typed here");
+      target.pull.mockResolvedValue({ etagMap: new Map(), deleted: ["edited.md"], nextCursor: "c0" });
+      const report = vi.fn();
+      worker.onDeletionReport = report;
+
+      for (let i = 0; i < 3; i++) {
+        worker["cursor"] = "c0";
+        await worker.runCycle();
+      }
+
+      expect(target.pull).toHaveBeenCalledWith("c0");
+      expect(vault.deleteItem).not.toHaveBeenCalled();
+      expect(queue.queueWrite).toHaveBeenCalledWith("edited.md");
+      expect(report).toHaveBeenCalledTimes(1);
       expect(report).toHaveBeenCalledWith({ mirrored: 0, explained: 0, keptLocalEdits: ["edited.md"] });
     });
 

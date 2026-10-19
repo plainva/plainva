@@ -28,7 +28,7 @@ import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
 import { authorizeNativeGoogle, forgetNativeGoogleTokens } from "./googleNativeAuthorization";
 import i18n from "@plainva/ui/i18n";
-import { workspaceSyncFailureText } from "@plainva/ui";
+import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 import { mConfirm } from "./mobileDialogs";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
@@ -966,7 +966,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
       }
       try {
         const kept = await w.keepSuspendedDeletionsLocal();
-        toast.info(i18n.t("sync.pullGuardKept", { n: kept }));
+        toast.info(i18n.t("sync.pullGuardKept", { count: kept }));
       } catch (e) {
         console.error("[syncService] keepSuspendedDeletionsLocal failed", e);
         toast.error(i18n.t("sync.pullGuardFailed"));
@@ -975,9 +975,12 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
   };
   w.onDeletionReport = (report) => {
     // Same rule as the desktop: a deletion kept back because of unsynced local
-    // edits is said, not swallowed.
-    if (report.keptLocalEdits.length > 0) {
-      toast.info(i18n.t("sync.deletionsKeptLocalEdits", { n: report.keptLocalEdits.length }));
+    // edits is said, not swallowed — with the names of the files and what
+    // happens to them (finding 2026-10-19), and the paths in the diagnostics.
+    const kept = keptDeletionsText(report.keptLocalEdits);
+    if (kept) {
+      logDiagnostic("sync", keptDeletionsDiagnostic(report.keptLocalEdits));
+      toast.info(kept);
     }
   };
   worker = w;

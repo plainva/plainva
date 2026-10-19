@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-10-13
+Stan na: 2026-10-19
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -27,6 +27,7 @@ Eksport diagnostyczny zawiera także ostatnie konflikty: typ pamięci, komponent
 - Jeśli obie strony zmienią ten sam plik, Plainva scala je automatycznie (scalanie trójstronne). Jeśli nie jest to możliwe, Twoja wersja jest bezpiecznie zachowywana jako plik `.CONFLICT` — nic nigdy nie ginie (patrz [FAQ](FAQ.md)).
 - **Rozwiązywanie konfliktów**: baner w dotkniętej notatce (oraz **Rozwiąż konflikt…** w menu kontekstowym pliku `.CONFLICT` w drzewie) otwiera okno porównania — bieżący stan pliku po lewej, Twoja zachowana wersja po prawej, edytowalne z przejmowaniem poszczególnych bloków. **Zapisz prawą wersję i rozwiąż** zapisuje wynik do pliku i usuwa kopię konfliktu; **Zachowaj drugą stronę** odrzuca Twoją kopię (pozostaje migawka wersji). Okno dialogowe błędu synchronizacji również wyświetla listę istniejących kopii konfliktów i jednym kliknięciem przenosi do tego samego porównania.
 - **Ochrona przed masowym usuwaniem**: jeśli niezwykle duża część synchronizowanych plików ma zostać usunięta w chmurze naraz (np. dlatego, że lokalny folder vaultu został opróżniony lub przeniesiony), Plainva wstrzymuje usunięcia i najpierw pyta: **Usuń w chmurze** wykonuje je, **Nie usuwaj (przywróć)** odrzuca je i przywraca pliki z chmury przy następnej synchronizacji. Usunięcia potwierdzone samodzielnie w Plainva nie są wstrzymywane — przy dużych usunięciach (ponad 10 plików lub ponad 20% vaultu) Plainva zamiast tego prosi o drugie potwierdzenie przed usunięciem.
+- **Usunięty w chmurze, zmieniony tutaj**: jeśli inne urządzenie usunęło plik w chmurze, gdy to urządzenie miało w nim jeszcze niewysłane zmiany, Plainva go nie usuwa. Zachowuje plik, wysyła go ponownie jako nowy i jeden raz informuje, o który plik chodzi. Jeśli jednak ma zniknąć, usuń go tutaj jeszcze raz. Dotyczy to komputera i telefonu.
 - Załączniki (obrazy itp.) są synchronizowane razem z notatkami.
 - **Puste foldery** również są synchronizowane: folder utworzony w Plainva pojawia się w chmurze od razu, a puste foldery w chmurze pojawiają się na Twoich innych urządzeniach najpóźniej przy najbliższym pełnym listowaniu.
 - Dane dostępowe i tokeny są przechowywane w pęku kluczy systemu operacyjnego (status: **Ustawienia → Aplikacja → Informacje i diagnostyka → Pęk kluczy systemu**), nigdy w plikach wewnątrz vaultu.

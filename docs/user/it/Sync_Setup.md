@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione
 
-Ultimo aggiornamento: 2026-10-13
+Ultimo aggiornamento: 2026-10-19
 
 Plainva sincronizza facoltativamente ogni vault con uno storage a tua scelta — direttamente dall'app, senza alcun servizio gestito da Plainva in mezzo: i tuoi dati viaggiano esclusivamente tra il tuo computer e il tuo account/server. Questa pagina illustra la configurazione per provider.
 
@@ -27,6 +27,7 @@ L’esportazione diagnostica include anche i conflitti recenti: tipo di archivia
 - Se entrambe le parti modificano lo stesso file, Plainva le unisce automaticamente (unione a tre vie). Se non è possibile, la tua versione viene preservata in sicurezza come file `.CONFLICT` — non si perde mai nulla (vedi [FAQ](FAQ.md)).
 - **Risoluzione dei conflitti**: un banner nella nota interessata (e **Risolvi conflitto…** nel menu contestuale del file `.CONFLICT` nell'albero) apre la finestra di dialogo di confronto — lo stato attuale del file a sinistra, la tua versione preservata a destra, modificabile con la ripresa dei singoli blocchi. **Salva la versione destra e risolvi** scrive il risultato nel file e rimuove la copia di conflitto; **Mantieni l'altra parte** scarta la tua copia (resta uno snapshot nella cronologia versioni). Anche la finestra di dialogo degli errori di sincronizzazione elenca le copie di conflitto esistenti e porta con un clic allo stesso confronto.
 - **Protezione dalle eliminazioni di massa**: se una quota insolitamente grande dei file sincronizzati sta per essere eliminata nel cloud in una sola volta (ad esempio perché la cartella locale del vault è stata svuotata o spostata), Plainva sospende le eliminazioni e chiede prima conferma: **Elimina nel cloud** le esegue, **Non eliminare (ripristina)** le scarta e ripristina i file dal cloud alla prossima sincronizzazione. Le eliminazioni che hai confermato tu stesso in Plainva non vengono trattenute — per le eliminazioni grandi (più di 10 file o più del 20% del vault) Plainva chiede invece una seconda conferma prima di eliminare.
+- **Eliminato nel cloud, modificato qui**: se un altro dispositivo ha eliminato un file nel cloud mentre questo dispositivo aveva ancora modifiche non caricate, Plainva non lo elimina. Conserva il file, lo carica di nuovo come file nuovo e ti dice una volta di quale file si tratta. Se vuoi davvero eliminarlo, eliminalo di nuovo qui. Vale su desktop e su mobile.
 - Vengono sincronizzati anche gli allegati (immagini ecc.).
 - **Le cartelle vuote** si sincronizzano anch'esse: una cartella creata in Plainva appare subito nel cloud, e le cartelle vuote nel cloud compaiono sui tuoi altri dispositivi al più tardi con il successivo elenco completo.
 - Le credenziali e i token sono memorizzati nel portachiavi del sistema operativo (stato: **Impostazioni → App → Informazioni e diagnostica → Portachiavi del sistema operativo**), mai in file dentro il vault.

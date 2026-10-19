@@ -21,7 +21,7 @@ import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpl
 import { createLimiter, formatListingReport, formatTaskSync, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
-import { workspaceSyncFailureText } from "@plainva/ui";
+import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
@@ -1576,7 +1576,7 @@ export const VaultProvider: React.FC<{
                 } else {
                   try {
                     const kept = await guardedWorker.keepSuspendedDeletionsLocal();
-                    toast.info(i18n.t("sync.pullGuardKept", { n: kept }));
+                    toast.info(i18n.t("sync.pullGuardKept", { count: kept }));
                   } catch (e) {
                     console.error("[VaultContext] keepSuspendedDeletionsLocal failed", e);
                     toast.error(i18n.t("sync.pullGuardFailed"));
@@ -1587,9 +1587,13 @@ export const VaultProvider: React.FC<{
             syncWorker.onDeletionReport = (report) => {
               // A remote deletion the worker did NOT mirror because the local
               // copy carries unsynced edits used to be silent — and silence is
-              // how a "deleted" note came back without anyone knowing why.
-              if (report.keptLocalEdits.length > 0) {
-                toast.info(i18n.t("sync.deletionsKeptLocalEdits", { n: report.keptLocalEdits.length }));
+              // how a "deleted" note came back without anyone knowing why. The
+              // notice names the files and what happens to them (finding
+              // 2026-10-19), and the diagnostics keep the paths.
+              const kept = keptDeletionsText(report.keptLocalEdits);
+              if (kept) {
+                logDiagnostic("sync", keptDeletionsDiagnostic(report.keptLocalEdits));
+                toast.info(kept);
               }
             };
             syncWorker.start();
