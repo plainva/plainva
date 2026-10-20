@@ -11,11 +11,17 @@ import { isNotTextFileError, NotTextFileError } from "@plainva/core";
 import { decideDirtyExternalUpdate, keepTextBeside, openEditorText } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
+import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
+import { appStorageBytes, capacitorFilesystem, fakeAppStorage } from "../adapters/fakeAppStorage";
 import { fakeVaultFolder, folderBytes } from "../adapters/fakeVaultFolder";
 import type { VaultFolderNative } from "../platform/vaultFolder";
 import { createSaveCoordinator, type SaveCoordinator } from "./saveCoordinator";
 import type { MobileVault } from "./vaultService";
+
+// The container adapter's two plugins, for the tests of the app's own storage below.
+vi.mock("@capacitor/filesystem", async () => (await import("../adapters/fakeAppStorage")).capacitorFilesystem);
+vi.mock("@capacitor/core", async () => (await import("../adapters/fakeAppStorage")).capacitorCore);
 
 /**
  * The phone and a file that does not lie there the way an editor holds it:
@@ -419,6 +425,93 @@ describe("the phone and a folder the user picked on the device", () => {
     expect(conflicts).toEqual([]);
     expect(await vault.files.listConflictSessions!()).toEqual([]);
     expect([...folder.keys()].filter((path) => path.includes(".CONFLICT"))).toEqual([]);
+  });
+});
+
+describe("the phone and a vault in the app's own storage", () => {
+  // The phone's code once more, over the raw adapter of the app's container,
+  // against a fake of the two plugins it talks to (fakeAppStorage.ts). The
+  // fake answers a read AS TEXT the way each system's library does, and what
+  // lies in it afterwards is the file, byte for byte.
+  const MARK_BYTES = [0xef, 0xbb, 0xbf];
+  const marked = (body: string) => new Uint8Array([...MARK_BYTES, ...utf8(body)]);
+  let autoMerged: string[];
+  /** The chain `boot()` puts over the raw adapter of the container. */
+  const containerVault = async (adapter: CapacitorVaultAdapter): Promise<MobileVault> => {
+    await adapter.initialize();
+    const snapshots = new BackupVaultAdapter(adapter);
+    const syncRepo = new SyncStateRepository(db, adapter, "device-a");
+    const files = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(snapshots, new SyncQueue(db)), syncRepo,
+      (path) => { autoMerged.push(path); }, syncRepo, "container");
+    return { vaultId: "vault-container", adapter, files, backup: snapshots, db, indexer: null, reindexPaths: async () => {} } as unknown as MobileVault;
+  };
+  beforeEach(() => { autoMerged = []; });
+
+  for (const system of ["ios", "android"] as const) {
+    it(`keeps a file's byte order mark when it is edited on ${system === "ios" ? "an iPhone" : "an Android phone"}: one byte is new, every other one stays`, async () => {
+      const { files: stored } = fakeAppStorage(system);
+      vault = await containerVault(new CapacitorVaultAdapter("vault"));
+      for (const [path, body, typed] of [
+        ["Note.md", "one\r\ntwo\r\nthree\r\n", "one\nTwo\nthree\n"],
+        ["Data.csv", "id;name\r\n1;Ada\r\n", "id;name\n1;Ida\n"],
+      ]) {
+        stored.set(`vault/${path}`, marked(body));
+        const before = appStorageBytes(`vault/${path}`);
+        const file = await open(path);
+        expect(file.doc, path).toBe(body.split("\r\n").join("\n"));
+        file.type(typed);
+        await phone.noteSaver.flushAll();
+        const after = appStorageBytes(`vault/${path}`);
+        // On an iPhone the adapter handed a file out without its mark — it
+        // asked the system for text, and Foundation leaves the mark out —, the
+        // editor's read took the file for one without, and its save wrote it
+        // back so: three bytes fewer (finding 2026-10-11).
+        expect(after.slice(0, 3), path).toEqual(MARK_BYTES);
+        expect(after.length, path).toBe(before.length);
+        expect(after.filter((byte, at) => byte !== before[at]), path).toHaveLength(1);
+        expect(phone.getLastPersistedText(vault, path), path).toBe(typed);
+      }
+      expect(conflicts).toEqual([]);
+    });
+  }
+
+  it("opens a vault an older build read without the marks on an iPhone: a whole text written over a note and the editor's save keep its mark, and no write ends in a conflict copy", async () => {
+    /** The adapter as it read until 2026-10-20: the text the system made of the file. */
+    class SystemText extends CapacitorVaultAdapter {
+      override async readTextFile(path: string): Promise<string> {
+        return (await capacitorFilesystem.Filesystem.readFile({ path: `vault/${path}`, encoding: "utf8" })).data as string;
+      }
+    }
+    const { files: stored } = fakeAppStorage("ios");
+    stored.set("vault/Note.md", marked("one\r\ntwo\r\n"));
+    stored.set("vault/Tasks.md", marked("- [ ] first\r\n- [ ] second\r\n"));
+    // What that build left in the index of such a vault: for each file a
+    // marker and a merge base of its text WITHOUT the mark.
+    await new VaultIndexer((await containerVault(new SystemText("vault"))).files, db).indexVaultFull("older build");
+    expect((await db.queryOne<{ base_text: string }>("SELECT base_text FROM sync_state WHERE path = 'Note.md'"))?.base_text).toBe("one\r\ntwo\r\n");
+
+    // This build over the same container.
+    vault = await containerVault(new CapacitorVaultAdapter("vault"));
+
+    // A whole text written over a note nobody has opened since — a version put
+    // back, a view that holds the text it loaded. The text it read does not
+    // have the hash on record, so the write goes through the merge with the
+    // base on record, which that build wrote without the mark and which hashes
+    // to the marker: it lands, and the note keeps its mark and its line ends.
+    const tasks = await vault.files.readTextFile("Tasks.md");
+    await vault.files.writeTextFile("Tasks.md", editInShape(tasks, (text) => text.replace("- [ ] first", "- [x] first")));
+    expect(autoMerged).toEqual(["Tasks.md"]);
+    expect(appStorageBytes("vault/Tasks.md")).toEqual([...MARK_BYTES, ...utf8("- [x] first\r\n- [ ] second\r\n")]);
+
+    // The editor: one character, saved.
+    const note = await open("Note.md");
+    note.type("one\ntwo!\n");
+    await phone.noteSaver.flushAll();
+    expect(appStorageBytes("vault/Note.md")).toEqual([...MARK_BYTES, ...utf8("one\r\ntwo!\r\n")]);
+
+    expect(conflicts).toEqual([]);
+    expect(await vault.files.listConflictSessions!()).toEqual([]);
+    expect([...stored.keys()].filter((path) => path.includes(".CONFLICT"))).toEqual([]);
   });
 });
 

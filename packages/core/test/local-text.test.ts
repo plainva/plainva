@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readLocalText } from "../src/vault/localText.js";
+import { isHashWithoutMark, isMarkerTakenWithoutMark, readLocalText } from "../src/vault/localText.js";
 import { VaultFileNotFoundError } from "../src/vault/IVaultAdapter.js";
 import { utf8TextOf } from "../src/textFileShape.js";
 
@@ -144,5 +144,44 @@ describe("reading a local file that cannot be read at all", () => {
       async readBinaryFile(): Promise<Uint8Array> { throw new Error("device not ready"); },
     };
     await expect(readLocalText(file, "Data.csv")).rejects.toThrow("device not ready");
+  });
+});
+
+describe("a marker a reader took without the file's byte order mark", () => {
+  // Two readers handed a file out without its mark: the adapter for a folder
+  // the user picked until 2026-10-09, the phone's container adapter on iOS
+  // until 2026-10-20. What the index and the open of a note recorded there is
+  // the hash of the text behind the mark; what a sync recorded, the hash of the
+  // bytes.
+  const body = "- [ ] first\r\n- [ ] second\r\n";
+
+  it("is the hash of the text behind the mark, and of nothing else", async () => {
+    const recorded = await sha256(utf8(body));
+    expect(await isHashWithoutMark(MARK + body, recorded)).toBe(true);
+    // A file without a mark has nothing a reader could have left out.
+    expect(await isHashWithoutMark(body, recorded)).toBe(false);
+    // The marker that is right is not this one, and neither is one of another text.
+    expect(await isHashWithoutMark(MARK + body, await sha256(utf8(MARK + body)))).toBe(false);
+    expect(await isHashWithoutMark(MARK + body.replace("first", "changed elsewhere"), recorded)).toBe(false);
+    // Only one mark was ever left out.
+    expect(await isHashWithoutMark(MARK + MARK + body, recorded)).toBe(false);
+    expect(await isHashWithoutMark(MARK + body, null)).toBe(false);
+    expect(await isHashWithoutMark(MARK + body, undefined)).toBe(false);
+  });
+
+  it("names the file that is there only where the base the sync recorded is that file, mark and all", async () => {
+    const file = { text: MARK + body, sha256: await sha256(utf8(MARK + body)) };
+    const withoutMark = await sha256(utf8(body));
+    // The row such a reader left beside a pull: the marker without the mark, the base with it.
+    expect(await isMarkerTakenWithoutMark(file, { local_sha256: withoutMark, base_sha256: file.sha256 })).toBe(true);
+    // A mark another program added to a file that had none: the marker and the
+    // base are both the hash of the text behind it. That is a change.
+    expect(await isMarkerTakenWithoutMark(file, { local_sha256: withoutMark, base_sha256: withoutMark })).toBe(false);
+    // No base yet (nothing synced): the two cannot be told apart, and the merge with the base on record decides.
+    expect(await isMarkerTakenWithoutMark(file, { local_sha256: withoutMark, base_sha256: null })).toBe(false);
+    // A marker that matches has nothing to explain; no row, no marker, nothing either.
+    expect(await isMarkerTakenWithoutMark(file, { local_sha256: file.sha256, base_sha256: file.sha256 })).toBe(false);
+    expect(await isMarkerTakenWithoutMark(file, { local_sha256: null, base_sha256: file.sha256 })).toBe(false);
+    expect(await isMarkerTakenWithoutMark(file, null)).toBe(false);
   });
 });

@@ -11,7 +11,7 @@ import { parseMarkdownAst } from "../markdown-parser.js";
 import { extractFrontmatterLinks, extractLinksAndTags } from "../ast-scanner.js";
 import { extractFrontmatter } from "../metadata-extractor.js";
 import { isTextFile } from "../sync/fileType.js";
-import { readLocalText, type LocalText } from "./localText.js";
+import { isMarkerTakenWithoutMark, readLocalText, type LocalText } from "./localText.js";
 import { encodeIndexedProperty } from "./indexedProperty.js";
 import { indexedRowStamp, type IndexedRowStamp } from "./indexedRowStamp.js";
 import { segmentedIndexText } from "./spacelessText.js";
@@ -478,6 +478,12 @@ export class VaultIndexer {
    * `isOwnWrite` closes the other window: the app's own write reaching the
    * disk before the adapter recorded its hash — on an external folder a pass
    * runs on every note open and every return to the foreground.
+   *
+   * `markerNamesThisFile` closes a third: a marker a reader took of this very
+   * file without its byte order mark, where the base the sync recorded is the
+   * file as it lies there (`isMarkerTakenWithoutMark`, asked by the callers,
+   * which hold the text). The file is the one on record. The marker itself is
+   * left to whoever writes or opens the file next.
    */
   private judgeSyncState(
     path: string,
@@ -485,10 +491,11 @@ export class VaultIndexer {
     oldSyncState: SyncState | null,
     knownToIndex: boolean,
     pass: IndexPass,
+    markerNamesThisFile = false,
   ): { isNewLocalFile: boolean; keepsSyncedBase: boolean } {
     const orphaned = !!oldSyncState && !knownToIndex;
     const differs = !!oldSyncState?.local_sha256 && oldSyncState.local_sha256 !== sha256;
-    if (differs && !orphaned && !this.options?.isOwnWrite?.(path, sha256)) {
+    if (differs && !orphaned && !markerNamesThisFile && !this.options?.isOwnWrite?.(path, sha256)) {
       pass.externalMods.push({ path, oldHash: oldSyncState!.local_sha256!, newHash: sha256 });
     }
     return { isNewLocalFile: !oldSyncState || orphaned, keepsSyncedBase: orphaned && !!oldSyncState?.base_sha256 };
@@ -619,7 +626,8 @@ export class VaultIndexer {
       ? lookups.syncStateByPath.get(fileInfo.path) ?? null
       : await this.syncRepo.getSyncState(fileInfo.path);
     const knownToIndex = existingFileState !== null;
-    const { isNewLocalFile, keepsSyncedBase } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex, pass);
+    const markerNamesThisFile = read.exact && await isMarkerTakenWithoutMark({ text: read.text, sha256 }, oldSyncState);
+    const { isNewLocalFile, keepsSyncedBase } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex, pass, markerNamesThisFile);
     // A row is written for the path: a pass that read the index earlier leaves it alone (stillMine).
     this.touch(fileInfo.path);
     // The id the row is written under (rowIdFor), asked after the lookups above.
@@ -881,7 +889,8 @@ export class VaultIndexer {
       ? lookups.syncStateByPath.get(fileInfo.path) ?? null
       : await this.syncRepo.getSyncState(fileInfo.path);
     const knownToIndex = existingFileState !== null;
-    const { isNewLocalFile, keepsSyncedBase } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex, pass);
+    const markerNamesThisFile = textContent !== null && await isMarkerTakenWithoutMark({ text: textContent, sha256 }, oldSyncState);
+    const { isNewLocalFile, keepsSyncedBase } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex, pass, markerNamesThisFile);
     this.touch(fileInfo.path);
     // The id the row is written under (rowIdFor), asked after the lookups above.
     const fileId = await this.rowIdFor(fileInfo.path, lookups);

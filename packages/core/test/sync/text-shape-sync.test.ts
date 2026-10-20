@@ -60,8 +60,10 @@ async function device(dav: ByteExactDav) {
   // connection this test database has.
   let queued: Promise<unknown> = Promise.resolve();
   const later = (work: () => Promise<unknown>) => { queued = queued.then(work); };
+  /** Every file the index took for changed by someone else. */
+  const foreign: string[] = [];
   const indexer = new VaultIndexer(raw, db, {
-    onExternalModification: (p) => later(() => queue.queueWrite(p)),
+    onExternalModification: (p) => { foreign.push(p); later(() => queue.queueWrite(p)); },
     onNewLocalFile: (p) => later(() => queue.queueWrite(p)),
     onLocalFileDeleted: (p) => later(() => queue.queueDelete(p)),
   });
@@ -77,7 +79,12 @@ async function device(dav: ByteExactDav) {
   worker.onFilesChanged = (paths) => void pulled.push(...paths);
   const file = (p: string) => path.join(root, p);
   return {
-    root, app, repo, db, indexer,
+    root, app, repo, db, indexer, foreign,
+    /** A pass that reads this one file again whatever its time says, as a rebuilt index does. */
+    async reread(p: string) {
+      await indexer.indexFile(await raw.getFileInfo(p));
+      await queued;
+    },
     /** When the file was last written: a file the sync left alone keeps its time. */
     async written(p: string) { return (await fs.stat(file(p))).mtimeMs; },
     /** What the shell does: the watcher's pass, then a sync cycle. */
@@ -325,5 +332,109 @@ describe("what an older version left behind for a file with a mark", () => {
     expect(await b.text("Note.md")).toBe(MARK + body.replace("one", "one here"));
     expect(w.uploads("Note.md")).toBe(2);
     expect(await b.files()).toEqual(["Note.md"]);
+  });
+
+  it("on a device whose text reader left the mark out — a marker that is the hash of the text without it — nothing moves, a write beside an editor lands without a conflict copy, and no pass takes the file for changed elsewhere", async () => {
+    const w = world();
+    const a = await device(w.dav);
+    await a.put("Note.md", MARK + body);
+    await a.put("Plan.md", MARK + "# Plan\r\n");
+    await a.put("Data.csv", MARK + "id;name\r\n1;Ada\r\n");
+    await a.cycle();
+    const b = await device(w.dav);
+    await b.cycle();
+    // Until 2026-10-20 the phone's own storage on iOS handed a file out without
+    // its mark: the pull laid the file down with it and recorded the base with
+    // it, and the index and the marker took the hash of the text they were
+    // handed (the state such a build left, read off a run of it).
+    for (const [p, text] of [["Note.md", body], ["Plan.md", "# Plan\r\n"], ["Data.csv", "id;name\r\n1;Ada\r\n"]]) {
+      await b.db.execute("UPDATE sync_state SET local_sha256 = ? WHERE path = ?", [await sha(text), p]);
+      await b.db.execute("UPDATE files SET sha256 = ? WHERE path = ?", [await sha(text), p]);
+    }
+    // And the note's row keeps no base text: an upload streamed past 8 MB
+    // keeps none, so nothing could be merged against.
+    await b.db.execute("UPDATE sync_state SET base_text = NULL WHERE path = ?", ["Note.md"]);
+    expect((await b.repo.getSyncState("Note.md"))!.base_sha256).toBe(await sha(MARK + body));
+    const written = await b.written("Note.md");
+    await b.cycle();
+    await b.cycle();
+    expect(w.uploads("Note.md")).toBe(1);
+    expect(await b.written("Note.md")).toBe(written);
+
+    // A whole text written over the file — a version put back, a view that
+    // holds the text it loaded. (A checkbox or a property changes its place
+    // through `updateVaultText`, which asks no marker.) The marker does not
+    // match the file. Taken for a change from elsewhere, the write had no base
+    // text to merge against and ended as a conflict copy.
+    await b.app.writeTextFile("Note.md", MARK + body.replace("one", "one here"));
+    expect(await b.text("Note.md")).toBe(MARK + body.replace("one", "one here"));
+    expect(await b.app.listConflictSessions()).toEqual([]);
+    expect(await b.files()).toEqual(["Data.csv", "Note.md", "Plan.md"]);
+    // The write put the marker right.
+    expect((await b.repo.getSyncState("Note.md"))!.local_sha256).toBe(await sha(MARK + body.replace("one", "one here")));
+
+    // A note and a table, read again by the index whatever their time says, as
+    // a rebuilt index does: nobody changed them.
+    await b.reread("Plan.md");
+    await b.reread("Data.csv");
+    expect(b.foreign).toEqual([]);
+
+    await b.cycle();
+    await a.cycle();
+    expect(w.remote("Note.md")).toBe(MARK + body.replace("one", "one here"));
+    expect(await a.text("Note.md")).toBe(MARK + body.replace("one", "one here"));
+    expect(w.uploads("Note.md")).toBe(2);
+    expect(w.uploads("Plan.md")).toBe(1);
+    expect(w.uploads("Data.csv")).toBe(1);
+  });
+
+  it("on such a device, a file another program changed since: a whole text written over it merges with the base the sync recorded, no conflict copy", async () => {
+    const w = world();
+    const a = await device(w.dav);
+    await a.put("Note.md", MARK + body);
+    await a.cycle();
+    const b = await device(w.dav);
+    await b.cycle();
+    // The marker such a reader left: the text without the mark. The base is the sync's, mark and all.
+    await b.db.execute("UPDATE sync_state SET local_sha256 = ? WHERE path = ?", [await sha(body), "Note.md"]);
+    // Another program changes the last line; a view that holds the text it loaded changes the first.
+    await b.put("Note.md", MARK + body.replace("five", "five there"));
+    await b.app.writeTextFile("Note.md", MARK + body.replace("one", "one here"));
+    // The marker names the base the sync recorded, short of its mark: that is the
+    // version both sides started from. Taken for no base at all, the write ended
+    // as a conflict copy.
+    expect(await b.text("Note.md")).toBe(MARK + body.replace("one", "one here").replace("five", "five there"));
+    expect(await b.app.listConflictSessions()).toEqual([]);
+    expect(await b.files()).toEqual(["Note.md"]);
+  });
+});
+
+describe("a byte order mark another program adds to a synced file", () => {
+  // An editor that saves "UTF-8 with BOM", Excel's "CSV UTF-8", the iPhone's
+  // Files app over the app's own storage: the same text, a mark in front. The
+  // marker on record is then the hash of the text behind the mark — as the one
+  // a reader that left marks out recorded —, and the base the sync recorded is
+  // that hash too. It is a change, and stays one.
+  const body = "id;name\r\n1;Ada\r\n2;Grace\r\n";
+
+  it("is reported, goes up and reaches the other device", async () => {
+    const { a, b, remote, uploads } = await synced("Data.csv", body);
+    await b.put("Data.csv", MARK + body);
+    await b.reread("Data.csv");
+    expect(b.foreign).toEqual(["Data.csv"]);
+    await b.cycle();
+    await a.cycle();
+    expect(remote("Data.csv")).toBe(MARK + body);
+    expect(await a.text("Data.csv")).toBe(MARK + body);
+    expect(uploads("Data.csv")).toBe(2);
+  });
+
+  it("is kept by a whole text written over the file from the text before it", async () => {
+    const { b } = await synced("Data.csv", body);
+    await b.put("Data.csv", MARK + body);
+    // A view that holds the text it loaded before the mark came, and writes a row more.
+    await b.app.writeTextFile("Data.csv", `${body}3;Edsger\r\n`);
+    expect(await b.text("Data.csv")).toBe(`${MARK}${body}3;Edsger\r\n`);
+    expect(await b.app.listConflictSessions()).toEqual([]);
   });
 });

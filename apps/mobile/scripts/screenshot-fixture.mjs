@@ -826,9 +826,9 @@ export async function seedFixtureContent(page, { notes, attachments, storage, cl
     async ({ notes, attachments, storage, cloudNotes, cloudVaultId }) => {
       const { Filesystem, Preferences } = globalThis.Capacitor.Plugins;
       const DIRECTORY = "DATA"; // Directory.Data — where CapacitorVaultAdapter keeps the vault
-      // Notes go in as TEXT: the adapter reads them with Encoding.UTF8, so a
-      // base64 payload would come back as its own base64 string and every note
-      // would render as gibberish.
+      // Notes go in as TEXT: in the browser build the adapter hands a file out
+      // as what the store was given, so a base64 payload would come back as its
+      // own base64 string and every note would render as gibberish.
       for (const [path, text] of notes) {
         await Filesystem.writeFile({
           path: `vault/${path}`,

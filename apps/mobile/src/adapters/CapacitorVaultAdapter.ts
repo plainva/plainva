@@ -1,4 +1,5 @@
-import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { Capacitor } from "@capacitor/core";
+import { Directory, Filesystem } from "@capacitor/filesystem";
 import {
   VaultFileExistsError,
   VaultFileNotFoundError,
@@ -93,22 +94,42 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
 
   async dispose(): Promise<void> {}
 
+  /**
+   * A file's text as every adapter hands it out: its bytes, decoded HERE, with
+   * a byte order mark as the first character where the file has one
+   * (`textOfFileBytes`).
+   *
+   * The plugin can be asked for text, and this adapter did ask until
+   * 2026-10-20. Then the system's own library decodes, and the two decide
+   * differently about a leading mark: Android's reader leaves it in the text,
+   * Foundation skips it. On an iPhone a note or a `.csv` reached the editor
+   * without its mark and was saved without it, a write beside the editor
+   * dropped it as well, the hash the index kept was not the one of the file,
+   * and the sync carried the loss to every other device (finding 2026-10-11 —
+   * read in the sources of the plugin's two libraries and of Foundation, run
+   * on no iPhone). So neither system's decoder is asked: both hand out the
+   * bytes, as base64, the way `readBinaryFile` and the folder adapter get
+   * them, and one rule makes the text of them.
+   *
+   * Bytes that are not UTF-8 come out with replacement characters, on both
+   * systems, as from the folder adapter. Nobody is handed that reading as the
+   * file: the chain above asks the bytes what such a file is and refuses it
+   * (`readExactText`, `readLocalFile` in the core), whichever kind of reader
+   * lies below. iOS' own reader used to refuse such a file outright.
+   *
+   * The browser build is the one exception: its store keeps a file as what it
+   * was GIVEN and hands that back whatever is asked for, and a text file was
+   * given as its text (`atomicWriteText`), which is no base64. There the text
+   * IS the file. Only what a fixture laid down as bytes (a Blob) is decoded,
+   * as on a phone.
+   */
   async readTextFile(path: string): Promise<string> {
     return this.stored(path, async (raw) => {
       try {
-        const res = await Filesystem.readFile({
-          path: this.full(raw),
-          directory: Directory.Data,
-          encoding: Encoding.UTF8,
-        });
-        // The web shell hands back what it was given, whatever is asked: for
-        // a file laid down as bytes (a Blob) that is the Blob. Read here the
-        // way Android's reader reads — every byte that is not UTF-8 replaced —
-        // so that a file in another encoding is in the browser what it is on
-        // a phone: a text with replacement characters from this reader, its
-        // own bytes from `readBinaryFile` (see `readLocalFile` in the core).
+        const res = await Filesystem.readFile({ path: this.full(raw), directory: Directory.Data });
         if (res.data instanceof Blob) return textOfFileBytes(new Uint8Array(await res.data.arrayBuffer()));
-        return res.data as string;
+        if (!Capacitor.isNativePlatform()) return res.data;
+        return textOfFileBytes(b64ToBytes(res.data));
       } catch (error) {
         if (isMissingFile(error)) throw new VaultFileNotFoundError(path);
         throw error;

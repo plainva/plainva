@@ -88,6 +88,34 @@ file — a silent reformat of existing vault content, which this ADR rules out.
    plain `TextDecoder` drops it; a pulled file, a version restored from an
    encrypted workspace's history, and every file in a folder the phone reaches
    through the system's document provider came back without the mark they had.
+   **The phone's own storage (added 2026-10-20).** Its adapter asked the system
+   for a file's text, and the two systems decode differently: Android's reader
+   leaves a leading mark in the text, Foundation skips it. On an iPhone a file
+   reached the editor without its mark and was saved without it, a write
+   beside the editor dropped it as well, and the sync carried the loss to every
+   other device (read in the sources of the plugin's libraries and of
+   Foundation, run on no iPhone). The adapter reads the bytes and decodes them
+   by this rule on both systems, so no system decoder has a say; only the
+   browser build, whose store keeps a text file as the text it was given,
+   hands that text out. Bytes that are not UTF-8 come out with replacement
+   characters on both systems, as from the folder adapter — iOS' own reader
+   refused them —, and the chain refuses such a file either way (the
+   paragraph of 2026-10-20 below). A build before this left a local marker
+   that is the hash of the text without its mark beside a base the sync
+   recorded with it. The write chain and the index take such a marker for the
+   file that is there where that base is the file as it lies
+   (`isMarkerTakenWithoutMark` in `packages/core/src/vault/localText.ts`), and
+   a merge takes that base for the version the marker names; otherwise a whole
+   text written over such a file — a version put back, a view that holds its
+   text — ended as a conflict copy, and a pass that read the file again called
+   it changed elsewhere. A mark another program adds to a file the sync knows
+   without one is no such marker: the base has no mark either, and the change
+   is reported and merged like any other (a row cannot tell one corner apart:
+   such a build wrote the file back without its mark, its upload had not gone
+   out, and another program put the mark back — that mark may be lost again,
+   never the text). In a vault without sync the merge with the base on record
+   decides, and a pass that reads such a file again reports it as changed
+   until it is opened or written.
 5. **Writers beside an editor follow the same rule.** One that adds or
    replaces a line thinks in `\n` and writes in the file's shape
    (`editInShape`); one that writes a whole text anew over an existing file
@@ -207,6 +235,10 @@ bundle. For point 8: `packages/core/test/noteSource.test.ts`,
 `packages/core/test/journal.test.ts`, and
 `apps/mobile/src/adapters/externalVaultAdapter.test.ts`, which reads the same
 files with and without a mark through the phone's adapter for a picked folder.
+For the phone's own storage (point 4):
+`apps/mobile/src/adapters/capacitorVaultAdapter.test.ts`, against a fake of
+the storage plugin that answers a read as text the way each system's library
+does, with the same note between a phone and another device.
 For point 9: `packages/core/test/markdown-places.test.ts`, the guard
 `apps/desktop/src/markdownParseSites.test.ts`, and a daily note with a mark
 taken through every change the journal makes, on each shell's own way and

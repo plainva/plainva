@@ -38,9 +38,9 @@ import { initializeSchema } from "../../src/db/Schema.js";
  * server.
  *
  * Every case runs with the two kinds of text reader the platforms have: one
- * that replaces what is not UTF-8 (Node, Android, the phone's folder adapter)
- * and one that refuses the file (Rust on the desktop, iOS). The core must not
- * depend on which one it is given.
+ * that replaces what is not UTF-8 (Node, both phone adapters) and one that
+ * refuses the file (Rust on the desktop). The core must not depend on which
+ * one it is given.
  */
 
 type Reader = "replaces" | "refuses";

@@ -226,8 +226,8 @@ async function pickedFolder(): Promise<Storage> {
 }
 
 const STORAGES = [
-  { name: "the app's storage, read by a reader that replaces (Android)", make: () => onDisk("replaces") },
-  { name: "the app's storage, read by a reader that refuses (iOS)", make: () => onDisk("refuses") },
+  { name: "the app's storage, read by a reader that replaces (Android, and the iPhone since 2026-10-20)", make: () => onDisk("replaces") },
+  { name: "the app's storage, read by a reader that refuses (the iPhone until 2026-10-20)", make: () => onDisk("refuses") },
   { name: "a folder the user picked, decoded in JavaScript", make: () => pickedFolder() },
 ] as const;
 

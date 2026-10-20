@@ -83,14 +83,61 @@ const sha256OfBytes = async (bytes: Uint8Array): Promise<string> =>
 
 type Reader = Pick<IVaultAdapter, "readTextFile" | "readBinaryFile">;
 
+const BYTE_ORDER_MARK = 0xfeff;
+
+/** Whether `recorded` is the hash of `text` WITHOUT its leading byte order mark. */
+export async function isHashWithoutMark(text: string, recorded: string | null | undefined): Promise<boolean> {
+  if (!recorded || text.charCodeAt(0) !== BYTE_ORDER_MARK) return false;
+  return (await sha256OfBytes(new TextEncoder().encode(text.slice(1)))) === recorded;
+}
+
+/**
+ * Whether a sync row's local marker, which does not match the file, was taken
+ * of this very file by a reader that left its byte order mark out — so the
+ * file is the one on record, and nobody else changed it.
+ *
+ * Two readers did that: the adapter for a folder the user picked, until
+ * 2026-10-09, and the phone's container adapter on iOS, which asked the system
+ * for a file's text until 2026-10-20 (Foundation leaves a leading mark out).
+ * What the index and the open of a note recorded there is the hash of the text
+ * behind the mark; what a sync recorded is the hash of the bytes, mark and all.
+ * With a reader that hands the mark out, such a marker no longer matched:
+ * every pass that read the file again announced it as changed elsewhere, and a
+ * whole text written over it found no base that hashes to the marker — the
+ * base the sync recorded carries the mark — and ended as a conflict copy.
+ *
+ * The marker alone cannot tell that apart from a mark another program ADDED
+ * to a file without one (an editor saving "UTF-8 with BOM", Excel's "CSV
+ * UTF-8", the iPhone's Files app over the app's own storage): there the marker
+ * is the hash of the text behind the mark too. So it is asked only where the
+ * base the sync recorded is the file as it lies there — with the mark. A mark
+ * added to a file that the sync knows without one stays a change, reported
+ * and merged like any other. One corner the row cannot tell apart: such a
+ * build wrote a file back without its mark, the upload had not gone out, and
+ * another program then put the mark back — the mark may be lost again there,
+ * never the text.
+ *
+ * A row without a synced base (a vault without sync) is left to the merge with
+ * the base on record, which such a build wrote without the mark and which
+ * hashes to the marker; a pass that reads such a file again, as a rebuilt
+ * index does, reports it as changed elsewhere until it is opened or written.
+ */
+export async function isMarkerTakenWithoutMark(
+  file: { text: string; sha256: string },
+  row: { local_sha256: string | null; base_sha256: string | null } | null | undefined,
+): Promise<boolean> {
+  if (!row?.local_sha256 || row.local_sha256 === file.sha256 || row.base_sha256 !== file.sha256) return false;
+  return isHashWithoutMark(file.text, row.local_sha256);
+}
+
 /**
  * Reads a file of this device and says whether what came back IS the file.
  *
  * A text reader is taken at its word only where it can be: for a file whose
  * bytes are not UTF-8 the string it hands out is not the file, and what a
  * platform makes of it differs. One kind of reader replaces every such byte
- * (Node, Android, the phone's folder adapter, which decodes in JavaScript),
- * the other refuses the file (Rust, through which the desktop reads; iOS).
+ * (Node, and both phone adapters, which decode in JavaScript), the other
+ * refuses the file (Rust, through which the desktop reads).
  *
  * The text read stays the first step — it is the cheap one, and for a UTF-8
  * file it is exact. Only where it failed, or came back with a replacement

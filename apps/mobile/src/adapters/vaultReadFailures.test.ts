@@ -13,6 +13,8 @@ vi.mock("@capacitor/filesystem", () => ({
   },
 }));
 vi.mock("../platform/atomicFile", () => ({ atomicWriteText: vi.fn(), atomicWriteBase64: vi.fn() }));
+// A phone: the container adapter reads a text file's bytes there, as the answers below hand them out (base64).
+vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => true, getPlatform: () => "ios" }, registerPlugin: () => ({}) }));
 
 const entry = { name: "note.md", isDirectory: false, size: 4, mtime: 1 };
 const plugin = { read: native.read, stat: native.stat, mkdir: native.mkdir, list: native.list } as unknown as VaultFolderNative;

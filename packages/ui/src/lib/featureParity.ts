@@ -1084,29 +1084,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-14",
   },
   {
-    id: "byte-order-mark-in-app-storage",
-    title: "A file in the app's own storage keeps its byte order mark",
-    area: "vault",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "A text file keeps its line endings and its byte order mark (ADR 0003, addendum " +
-      "2026-10-09). The desktop and a vault in a folder the user picked read the " +
-      "bytes and keep the mark (ExternalVaultAdapter, textOfFileBytes). A vault in " +
-      "the app's own storage reads its text through the system " +
-      "(CapacitorVaultAdapter, Filesystem.readFile with UTF-8), and there the two " +
-      "platforms differ: Android decodes with an InputStreamReader, which leaves the " +
-      "mark in the text; iOS decodes with Foundation's String(contentsOf:encoding:), " +
-      "whose UTF-8 path skips a leading EF BB BF. On an iPhone such a file reaches " +
-      "the editor without its mark and is saved without it, a write beside the " +
-      "editor drops it as well, and the sync carries the loss to every other " +
-      "device. Read on 2026-10-11 in the sources of the plugin's two libraries and " +
-      "of Foundation; run on no device. Closing it means reading the bytes there as " +
-      "the picked folder does. Listed in the maintainer's open-items plan.",
-    verified: "2026-10-11",
-  },
-  {
     id: "overview-prepare-on-adopt",
     title: "Prepare a note for OKF while adopting it as a folder's overview",
     area: "vault",

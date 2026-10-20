@@ -5,11 +5,11 @@ import { LocalVaultAdapter } from "../../src/vault/LocalVaultAdapter.js";
  * not UTF-8, and the bytes such a file is made of.
  *
  * One kind replaces every byte that is not UTF-8 by the replacement character:
- * Node (`LocalVaultAdapter` as it is), Android, the phone's folder adapter,
- * which decodes in JavaScript. The other refuses the file: Rust's
- * `read_to_string`, through which the desktop reads, and iOS. The core must
- * not depend on which one it is given, so a test of such a file runs with
- * both.
+ * Node (`LocalVaultAdapter` as it is) and both phone adapters, which decode in
+ * JavaScript. The other refuses the file: Rust's `read_to_string`, through
+ * which the desktop reads (and the iPhone's own reader, which the app's
+ * storage asked until 2026-10-20). The core must not depend on which one it is
+ * given, so a test of such a file runs with both.
  */
 export type Reader = "replaces" | "refuses";
 

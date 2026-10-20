@@ -2,7 +2,7 @@ import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, Vault
 import type { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
 import { mergeText, mergeEditorText, containsTextChanges } from "../conflict-resolver.js";
 import { parseBackupFileName } from "./backupNaming.js";
-import { NotTextFileError, readExactText, readLocalText } from "./localText.js";
+import { NotTextFileError, isHashWithoutMark, isMarkerTakenWithoutMark, readExactText, readLocalText } from "./localText.js";
 import { withPathMutation } from "./pathMutation.js";
 import { ConflictSessions, conflictDiagnostic, conflictSessionKey, type ConflictBytesResolution, type ConflictEditSession, type ConflictResolution, type ConflictSessionGate, type ConflictWriter, type EditorWriteResult } from "./conflictSession.js";
 
@@ -414,7 +414,11 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     // stored hash claims (see `lastWritten`).
     const ownContent = this.wasWrittenByUs(path, diskSha256);
 
-    if (syncState && syncState.local_sha256 && syncState.local_sha256 !== diskSha256 && !ownContent) {
+    // Nor is a file whose marker was taken of it by a reader that left its
+    // byte order mark out (`isMarkerTakenWithoutMark`): the file on record, to
+    // be written like any other. The write below records the hash of what it wrote.
+    if (syncState && syncState.local_sha256 && syncState.local_sha256 !== diskSha256 && !ownContent
+      && !(await isMarkerTakenWithoutMark({ text: currentDiskContent, sha256: diskSha256 }, syncState))) {
       // Self-heal a legacy byte-hash. The indexer used to hash non-.md text files (e.g.
       // `.base`) as raw bytes (sha256 of readBinaryFile), which can differ from the text
       // hash used here even when the file is byte-for-byte unchanged. If the stored hash
@@ -422,9 +426,10 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
       // externally — adopt it and record a proper text hash instead of falsely
       // flagging a conflict on every save.
       //
-      // Still met today where a platform's text reader hands a file out
-      // without its byte order mark while the sync recorded the hash of its
-      // bytes. The text written here is a local change like any other: it
+      // Met until 2026-10-20 on iOS as well, where the phone's container
+      // adapter handed a file out without its byte order mark while the sync
+      // had recorded the hash of its bytes; a reader that does so would meet
+      // it again. The text written here is a local change like any other: it
       // becomes the base only for a file no sync has seen (see
       // `updateLocalHashAndUnsyncedBaseText`). Written over a base the sync
       // recorded, it made the next change from another device replace this one.
@@ -443,8 +448,14 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
 
       // External modification detected! Attempt 3-way merge.
       console.warn(`[ConflictAware] disk changed under us for ${path} (diskSha=${diskSha256.slice(0, 8)}, expected local=${syncState.local_sha256.slice(0, 8)}) -> attempting merge`);
+      // The base on record is the version the marker names where the two hash
+      // alike — or, for the base the sync recorded, where the marker was taken
+      // of that version by a reader that left its byte order mark out
+      // (`isHashWithoutMark`).
       const capturedBase = syncState.base_text;
-      const baseContent = capturedBase != null && await sha256Hash(capturedBase) === syncState.local_sha256
+      const capturedHash = capturedBase != null ? await sha256Hash(capturedBase) : null;
+      const baseContent = capturedBase != null && (capturedHash === syncState.local_sha256
+        || (capturedHash === syncState.base_sha256 && await isHashWithoutMark(capturedBase, syncState.local_sha256)))
         ? { text: capturedBase, source: "captured" as const } : await this.findBaseContent(path, syncState.local_sha256);
       if (baseContent === null) {
         const session = await this.preserveLocked(gate, path, localContent, syncState, "adapter", { text: null, source: "none" }, plain);
