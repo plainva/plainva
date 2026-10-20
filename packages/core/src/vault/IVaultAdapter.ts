@@ -229,7 +229,8 @@ export interface IVaultAdapter {
    *
    * `followLinks: false` lists what lies in the folder itself and leaves out
    * what its links point at — what a recursive delete of it removes (the
-   * snapshot before one on the phone, `BackupVaultAdapter`). A walk that never
+   * snapshot before one on the phone, `BackupVaultAdapter`); a folder that is
+   * itself a link holds nothing of its own. A walk that never
    * follows a link has nothing to leave out; one that follows links and
    * cannot leave them out throws rather than answer with more than was asked
    * for. For an adapter without this method the wrappers answer with

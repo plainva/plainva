@@ -242,6 +242,12 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     // removes the links and not what they point at. Dot-named entries this
     // walk never lists (`dotEntries` has nothing to leave out here).
     const followLinks = options?.followLinks ?? true;
+    // A folder that is itself a link holds nothing of its own: what it lists
+    // lies where it points, and a delete takes the link alone.
+    if (!followLinks && raw) {
+      const own = await this.plugin.stat({ handle: this.handle, path: raw }).catch(() => null);
+      if (own?.entry?.link) return { files: [], skipped: [] };
+    }
     await this.walk(raw, recursive ?? false, out, { skipped, seen: new Set(), followLinks, includeHidden: false, excludeDirNames: [], signal: options?.signal });
     return this.identities(out, raw, skipped);
   }

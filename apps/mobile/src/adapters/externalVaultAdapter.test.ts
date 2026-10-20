@@ -379,6 +379,20 @@ describe("a walk over a picked folder (issue #125)", () => {
     expect(walked.skipped.map((s) => s.reason).sort()).toEqual(["cycle", "unreadable", "unreadable"]);
   });
 
+  it("lists nothing of a folder that is itself a link when asked without links: the delete takes the link alone", async () => {
+    const { plugin } = fakePlugin(new Map([["note.md", "n"], ["Linked/far.md", "far"]]));
+    // `Linked` is a link to a folder elsewhere: the plugin answers for what it points at, and says so.
+    const stat = plugin.stat.bind(plugin);
+    plugin.stat = async (args) => {
+      const res = await stat(args);
+      return args.path === "Linked" && res.entry ? { entry: { ...res.entry, link: true } } : res;
+    };
+    const adapter = new ExternalVaultAdapter(plugin, "folder");
+    expect(await adapter.listDirReport("Linked", true, { followLinks: false })).toEqual({ files: [], skipped: [] });
+    // The walk of the vault follows it, as before.
+    expect((await adapter.listDirReport("Linked", true)).files.map((f) => f.path)).toEqual(["Linked/far.md"]);
+  });
+
   it("packs two folders the platform gives one identity: without a link between them there is nothing to cut", async () => {
     const { plugin } = fakePlugin(new Map([["A/x.md", "x"], ["B/y.md", "y"]]));
     const list = plugin.list.bind(plugin);
