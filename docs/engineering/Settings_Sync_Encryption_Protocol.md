@@ -52,8 +52,9 @@ double content-encryption of sideband files.
 - `.plainva` is excluded from pull/reconcile/deletion-mirror/queue
   (`isLocalOnlyPath`), so the sync core's data-safety guards are untouched.
 - The sideband files are read/written locally only through the **raw** adapter
-  (never the conflict-aware app adapter, which would create `sync_state` rows and
-  `.CONFLICT` copies of a settings file).
+  (not the conflict-aware app adapter, which until 2026-10-20 would have created
+  `sync_state` rows and `.CONFLICT` copies of a settings file; since then it
+  leaves the app's own files under `.plainva` alone).
 
 ## 3. Crypto primitives
 

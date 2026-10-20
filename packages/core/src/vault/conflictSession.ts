@@ -189,6 +189,60 @@ export class ConflictSessions {
   list(): Promise<ConflictEditSession[]> { return this.store.listConflictSessions(); }
 
   /**
+   * Ends conflicts that should never have been opened — the ones the
+   * conflict-aware adapter left on the app's own files (`ends` says which).
+   * The file stays as it is on disk. What the conflict holds is not lost: its
+   * draft is first put in the working copy, as every step of a session does
+   * (`recoverDraft`; a working copy another program changed is set aside as
+   * well), a copy of the working copy is kept under
+   * `.plainva/conflict-revisions/`, where the sessions keep the versions they
+   * set aside, and only once that copy reads back the same are the working
+   * copy and the session removed. A resolution that had been confirmed and not
+   * yet carried out is carried out instead, as confirmed; where the files
+   * changed since, the conflict is ended as above.
+   *
+   * Any other failure leaves the session for the next time: a copy made before
+   * it stays where it is, and a resolution half carried out is finished then.
+   * Answers which conflicts were ended with their working copy set aside,
+   * which by their confirmed resolution, and which could not be ended.
+   */
+  async release(ends: (session: ConflictEditSession) => boolean): Promise<{ setAside: string[]; carriedOut: string[]; failed: string[] }> {
+    const setAside: string[] = [];
+    const carriedOut: string[] = [];
+    const failed: string[] = [];
+    for (const listed of await this.store.listConflictSessions()) {
+      if (!ends(listed)) continue;
+      try {
+        await this.withMutation(listed.originalPath, async gate => {
+          const session = gate.session;
+          if (!session || !ends(session)) return;
+          if (session.resolution) {
+            try {
+              await this.finishResolution(session);
+              carriedOut.push(session.originalPath);
+              return;
+            } catch (error) {
+              // Only new evidence ends it below; a write that failed is tried again next time.
+              if (!(error instanceof Error && error.message === "comparisonChanged")) throw error;
+            }
+          }
+          await this.recoverDraft(session);
+          const name = session.workingCopyPath.slice(session.workingCopyPath.lastIndexOf("/") + 1);
+          const kept = `.plainva/conflict-revisions/${crypto.randomUUID()}-${name}`;
+          await copyFileContent(this.files, session.workingCopyPath, kept);
+          if (await fileSha256(this.files, kept) !== await fileSha256(this.files, session.workingCopyPath)) throw new Error("The working copy could not be kept");
+          await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true });
+          await this.store.removeConflictSession(session.originalPath);
+          setAside.push(session.originalPath);
+        });
+      } catch {
+        failed.push(listed.originalPath);
+      }
+    }
+    return { setAside, carriedOut, failed };
+  }
+
+  /**
    * Preserving an observed version never overwrites a newer editor draft.
    * `plain` says the text comes from a write that named no starting text
    * (`writeTextFile`): the draft it opens is that writer's own, and its next

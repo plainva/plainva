@@ -1,7 +1,7 @@
 import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError, type TextChange, type TextFileChange, type TextFileState, type TextFileUpdate, type VaultWalkOptions } from "./IVaultAdapter.js";
 import type { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
 import { mergeText, mergeEditorText, containsTextChanges } from "../conflict-resolver.js";
-import { parseBackupFileName } from "./backupNaming.js";
+import { WORKSPACE_FORKS_FOLDER, isPlainvaInternalPath, parseBackupFileName } from "./backupNaming.js";
 import { NotTextFileError, isHashWithoutMark, isMarkerTakenWithoutMark, readExactText, readLocalText } from "./localText.js";
 import { withPathMutation } from "./pathMutation.js";
 import { ConflictSessions, conflictDiagnostic, conflictSessionKey, type ConflictBytesResolution, type ConflictEditSession, type ConflictResolution, type ConflictSessionGate, type ConflictWriter, type EditorWriteResult } from "./conflictSession.js";
@@ -52,6 +52,46 @@ export function changeOf(state: TextFileState, change: TextChange): TextFileChan
   return { text, workingCopy };
 }
 
+/**
+ * The app's own files — the ones under `.plainva`: the bookmarks, the notes
+ * opened last, the pins of a map, the sideband files of the sync. What the app
+ * writes there itself — a whole text, or a change it makes (`writeTextFile`,
+ * `updateTextFile` and its two halves) — this link keeps nothing about and
+ * decides no conflict over, as the two below it take no version and no queue
+ * entry (finding 2026-10-12; so since 2026-10-20).
+ *
+ * It has nothing to decide one with: an own file has no version and no merge
+ * base, so there is never a text to merge against. A file that anything else
+ * had written since this link's last write — a settings profile, which writes
+ * the bookmarks through the chain's lowest link; a second device, in a folder
+ * both write to — ended as "base version not found" with a conflict copy, and
+ * so did every write after it: no bookmark could be set any more, no pin was
+ * kept. Every writer of such a file had to know to stay below this link, and
+ * the ones that did say so where they are handed their adapter.
+ *
+ * The local forks of an encrypted workspace are no such files: they lie under
+ * `.plainva` (`WORKSPACE_FORKS_FOLDER`), but they are copies of a person's
+ * notes and are guarded like any note. An editor's save is no such write: it
+ * keeps every protection wherever the file lies. Everything else under
+ * `.plainva` counts as the app's — a note kept there (only a setting typed to
+ * point into the hidden folder puts one there) keeps the protections of an
+ * editor's save, not those of a note against what the app writes to it. Nor
+ * is the rule above any merge lifted: no text over a file that is no text
+ * (`NotTextFileError`).
+ */
+const isOwnFile = (path: string): boolean => {
+  const key = conflictSessionKey(path);
+  return isPlainvaInternalPath(key) && !key.startsWith(`${WORKSPACE_FORKS_FOLDER}/`);
+};
+
+/**
+ * A conflict this link left on an own file by a write of the app's own (its
+ * writer is the adapter, not an editor): the kind that should never have been
+ * opened. It is neither listed nor handed out, nothing waits for it, and it is
+ * ended in the background (`endOwnFileConflicts`).
+ */
+const isOwnFileConflict = (session: ConflictEditSession): boolean => session.writer === "adapter" && isOwnFile(session.originalPath);
+
 async function sha256Hash(text: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(text);
@@ -88,9 +128,101 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     private readonly adapterKind = "local"
   ) { this.sessions = new ConflictSessions(inner, syncRepo, mutationScope); }
 
-  getConflictSession(path: string): Promise<ConflictEditSession | null> { return this.sessions.get(path); }
-  listConflictSessions(): Promise<ConflictEditSession[]> { return this.sessions.list(); }
+  /**
+   * The open conflict of a file, asked by its name or by its working copy's —
+   * never one a version before 2026-10-20 left on an own file
+   * (`isOwnFileConflict`), and such a conflict is not even touched: it is
+   * looked up first (`conflictNamed`), before a step of the session would
+   * carry out its resolution or write its draft.
+   */
+  async getConflictSession(path: string): Promise<ConflictEditSession | null> {
+    if (isOwnFile(path)) {
+      void this.endOwnFileConflicts();
+      const kept = await this.conflictNamed(path);
+      if (kept && isOwnFileConflict(kept)) return null;
+    }
+    return this.sessions.get(path);
+  }
+
+  /**
+   * The open conflict a name belongs to, without a step of its session: the
+   * file's own, or — only for a name that can be one — the conflict whose
+   * working copy it is. An image or an attachment costs one lookup, not a read
+   * of every open conflict.
+   */
+  private async conflictNamed(path: string): Promise<ConflictEditSession | null> {
+    const key = conflictSessionKey(path);
+    return await this.syncRepo.getConflictSession(key)
+      ?? (key.includes(".CONFLICT-") ? (await this.sessions.list()).find(s => s.workingCopyPath === key) ?? null : null);
+  }
+
+  /** The open conflicts of the vault — never those a version before 2026-10-20 left on the app's own files (`isOwnFileConflict`). */
+  async listConflictSessions(): Promise<ConflictEditSession[]> {
+    void this.endOwnFileConflicts();
+    return (await this.sessions.list()).filter(session => !isOwnFileConflict(session));
+  }
   listConflictDiagnostics() { return this.syncRepo.listConflictDiagnostics(); }
+
+  /**
+   * Ends the conflicts a version before 2026-10-20 left on the app's own files
+   * — once per adapter, so once per opened vault, in the background: started by
+   * the first write of an own file and by the first look at the vault's
+   * conflicts, and waited for by none of them. Until it is through, such a
+   * conflict is neither listed nor handed out, and a write passes it by
+   * (`takesOwnWay`).
+   *
+   * What the working copy holds is the text of a write that never reached the
+   * file — reported as failed for a bookmark, dropped in silence for a pin —
+   * and the file on disk is the one every surface has shown since. The file
+   * stays, and a copy of the working copy is kept under
+   * `.plainva/conflict-revisions/` (`ConflictSessions.release`) — unless a
+   * resolution had been confirmed and not yet carried out: that is carried out
+   * as confirmed. One that cannot be ended now stays as it is, and is tried
+   * again the next time the vault is open. What was ended, how, and what was
+   * not, the console says.
+   */
+  endOwnFileConflicts(): Promise<void> {
+    return (this.ownFileConflictsEnded ??= this.sessions.release(isOwnFileConflict).then(({ setAside, carriedOut, failed }) => {
+      if (setAside.length) console.info(`[ConflictAware] ended the conflict an older version left on ${setAside.join(", ")}; what it held is kept under .plainva/conflict-revisions`);
+      if (carriedOut.length) console.info(`[ConflictAware] ended the conflict an older version left on ${carriedOut.join(", ")} as its confirmed resolution said`);
+      if (failed.length) console.warn(`[ConflictAware] could not end the conflict an older version left on ${failed.join(", ")}; it is tried again next time`);
+    }, (error) => {
+      console.warn("[ConflictAware] the conflicts older versions left on the app's own files could not be read", error);
+    }));
+  }
+  private ownFileConflictsEnded: Promise<void> | null = null;
+
+  /**
+   * Whether a write of the app's own takes the own file's way (see `isOwnFile`)
+   * — asked inside the gate. Where a person's conflict is open at the file (an
+   * editor's save, at a note in a folder a setting points into `.plainva`), the
+   * way of any file is taken, so the person's version is not passed by.
+   */
+  private takesOwnWay(path: string, gate: ConflictSessionGate): boolean {
+    return isOwnFile(path) && (!gate.session || isOwnFileConflict(gate.session));
+  }
+
+  /** The text of an own file as it lies there, or the refusal: no text over a file that is no text (see the class comment). */
+  private async ownFileText(path: string): Promise<string | null> {
+    return await this.inner.exists(path) ? readExactText(this.inner, path) : null;
+  }
+
+  /** A whole text over an own file, inside the gate: no comparison, no marker, no conflict. */
+  private async writeOwnLocked(path: string, text: string): Promise<void> {
+    await this.ownFileText(path);
+    await this.inner.writeTextFile(path, text);
+  }
+
+  /** A change of an own file, inside the gate: made of the file as it lies there, written through the links below. `null` where `expected` is not what lies there. */
+  private async updateOwnLocked(path: string, expected: string | null, next: (text: string) => string | null): Promise<TextFileUpdate | null> {
+    const before = await this.ownFileText(path);
+    if (before === null) throw new VaultFileNotFoundError(path);
+    if (expected !== null && before !== expected) return null;
+    const made = next(before);
+    if (made === null || made === before) return { before, text: before, changed: false, conflict: null };
+    await this.inner.writeTextFile(path, made);
+    return { before, text: made, changed: true, conflict: null };
+  }
 
   async preserveConflict(path: string, text: string, writer: ConflictWriter): Promise<ConflictEditSession> {
     const state = await this.syncRepo.getSyncState(path);
@@ -154,7 +286,8 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
         if (disk !== null) await this.syncRepo.updateLocalHash(path, hash);
         return { stored, session: null };
       }
-      try { await this.writeTextFileLocked(path, candidate, requestedState, gate); }
+      // A conflict this opens is the editor's, though it names no starting text (see `isOwnFileConflict`).
+      try { await this.writeTextFileLocked(path, candidate, requestedState, gate, false, "editor-save"); }
       catch (error) {
         const session = gate.session as ConflictEditSession | null;
         if (!(error instanceof ConflictError) || !session) throw error;
@@ -263,10 +396,13 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
    * the file as it lies there and never has to merge.
    */
   async writeTextFile(path: string, localContent: string): Promise<void> {
+    // An own file: what an older version left there is ended in the background (`endOwnFileConflicts`).
+    if (isOwnFile(path)) void this.endOwnFileConflicts();
     // Capture the base before waiting behind an incoming write. Its completion
     // advances sync_state, but cannot retroactively update the user's draft.
-    const requestedState = await this.syncRepo.getSyncState(path);
+    const requestedState = isOwnFile(path) ? null : await this.syncRepo.getSyncState(path);
     return this.sessions.withMutation(path, async gate => {
+      if (this.takesOwnWay(path, gate)) return this.writeOwnLocked(path, localContent);
       if (gate.session) {
         // A writer that names the working copy itself read that copy, or
         // holds it: a version of it put back, a database opened from its own
@@ -322,7 +458,9 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
    * What `change` throws reaches the caller, and nothing is written.
    */
   async updateTextFile(path: string, change: TextChange): Promise<TextFileUpdate> {
+    if (isOwnFile(path)) void this.endOwnFileConflicts();
     return this.sessions.withMutation(path, async gate => {
+      if (this.takesOwnWay(path, gate)) return (await this.updateOwnLocked(path, null, change))!;
       const state = await this.stateLocked(path, gate);
       return this.applyLocked(path, gate, state, changeOf(state, change));
     });
@@ -330,12 +468,17 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
 
   /** `updateTextFile` in two steps, for a window that reaches this chain over a bus and cannot hand over a function: the read … */
   async readTextFileState(path: string): Promise<TextFileState> {
-    return this.sessions.withMutation(path, gate => this.stateLocked(path, gate));
+    if (isOwnFile(path)) void this.endOwnFileConflicts();
+    return this.sessions.withMutation(path, async gate => this.takesOwnWay(path, gate)
+      ? { text: await readExactText(this.inner, path), workingCopy: null }
+      : this.stateLocked(path, gate));
   }
 
   /** … and the write — if the file, and the working copy of its conflict, still are what was read. `null` says they are not: read again. */
   async writeTextFileChange(path: string, expected: TextFileState, next: TextFileChange): Promise<TextFileUpdate | null> {
+    if (isOwnFile(path)) void this.endOwnFileConflicts();
     return this.sessions.withMutation(path, async gate => {
+      if (this.takesOwnWay(path, gate)) return expected.workingCopy === null ? this.updateOwnLocked(path, expected.text, () => next.text) : null;
       const state = await this.stateLocked(path, gate);
       if (state.text !== expected.text || state.workingCopy !== expected.workingCopy) return null;
       return this.applyLocked(path, gate, state, next);
@@ -391,7 +534,7 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     return { before: state.text, text, changed, conflict: { workingCopyPath: session.workingCopyPath, changed: carried } };
   }
 
-  private async writeTextFileLocked(path: string, localContent: string, syncState: SyncState | null, gate: ConflictSessionGate, plain = false): Promise<void> {
+  private async writeTextFileLocked(path: string, localContent: string, syncState: SyncState | null, gate: ConflictSessionGate, plain = false, writer: ConflictWriter = "adapter"): Promise<void> {
     const isNew = !(await this.inner.exists(path));
     if (isNew) {
       await this.inner.writeTextFile(path, localContent);
@@ -458,13 +601,13 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
         || (capturedHash === syncState.base_sha256 && await isHashWithoutMark(capturedBase, syncState.local_sha256)))
         ? { text: capturedBase, source: "captured" as const } : await this.findBaseContent(path, syncState.local_sha256);
       if (baseContent === null) {
-        const session = await this.preserveLocked(gate, path, localContent, syncState, "adapter", { text: null, source: "none" }, plain);
+        const session = await this.preserveLocked(gate, path, localContent, syncState, writer, { text: null, source: "none" }, plain);
         throw new ConflictError(`Cannot automatically merge ${path}: base version not found. Saved locally as ${session.workingCopyPath}.`, session.workingCopyPath);
       }
 
       const mergeResult = mergeText(baseContent.text, localContent, currentDiskContent);
       if (mergeResult.hasConflicts) {
-        const session = await this.preserveLocked(gate, path, localContent, syncState, "adapter", baseContent, plain);
+        const session = await this.preserveLocked(gate, path, localContent, syncState, writer, baseContent, plain);
         throw new ConflictError(`Cannot automatically merge ${path}: conflicting changes. Saved locally as ${session.workingCopyPath}.`, session.workingCopyPath);
       }
       
@@ -555,13 +698,9 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     // refused there for the same reason; the conflict's own ways out write
     // below this adapter.
     return this.runExclusive(path, async () => {
-      // Asked of the path's own session, and — only for a name that can be one
-      // — of the session whose working copy it is: an image or an attachment
-      // costs one lookup, not a read of every open conflict.
-      const key = conflictSessionKey(path);
-      const session = await this.syncRepo.getConflictSession(key)
-        ?? (key.includes(".CONFLICT-") ? (await this.sessions.list()).find(s => s.workingCopyPath === key) ?? null : null);
-      if (session) throw new OpenConflictError(session.workingCopyPath);
+      // A conflict an older version left on an own file waits for nobody (`isOwnFileConflict`).
+      const session = await this.conflictNamed(path);
+      if (session && !isOwnFileConflict(session)) throw new OpenConflictError(session.workingCopyPath);
       return this.inner.writeBinaryFile(path, content);
     });
   }
@@ -584,7 +723,7 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
   private async requireResolved(path: string): Promise<void> {
     const key = path.replace(/\\/g, "/").normalize("NFC").replace(/\/$/, "").toLowerCase();
     const affected = (candidate: string) => candidate.toLowerCase() === key || candidate.toLowerCase().startsWith(key + "/");
-    const session = (await this.sessions.list()).find(s => affected(s.originalPath) || affected(s.workingCopyPath));
+    const session = (await this.sessions.list()).find(s => !isOwnFileConflict(s) && (affected(s.originalPath) || affected(s.workingCopyPath)));
     if (session) throw new ConflictError("Resolve the open conflict before moving or deleting this file or folder", session.workingCopyPath);
   }
 

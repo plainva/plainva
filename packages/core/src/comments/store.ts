@@ -167,9 +167,10 @@ export type BundleCommentsMode =
 
 export interface BundleCommentStoreDeps {
   /**
-   * The RAW adapter - what the sideband step uses. The conflict-aware app
-   * adapter would mint sync_state rows and `.CONFLICT` copies of the bundle,
-   * and a comment must never become a write to the note.
+   * The RAW adapter - what the sideband step uses. Until 2026-10-20 the
+   * conflict-aware app adapter would have minted sync_state rows and
+   * `.CONFLICT` copies of the bundle (since then it leaves the app's own files
+   * alone), and a comment must never become a write to the note.
    */
   vault: IVaultAdapter;
   /** Same stable vault identity as the sideband, including across wrappers. */

@@ -18,9 +18,11 @@
  * unchanged IDs; concurrent migrations therefore converge without duplicates.
  *
  * The sideband (a Plainva sync connection) carries the files directly,
- * OUTSIDE the file queue, through the worker's raw adapter - never the
- * conflict-aware app adapter, which would mint sync_state rows and `.CONFLICT`
- * copies. A comment must never become a write to the note. Since no provider
+ * OUTSIDE the file queue, through the worker's raw adapter - not the
+ * conflict-aware app adapter, which until 2026-10-20 would have minted
+ * sync_state rows and `.CONFLICT` copies of them (since then it leaves the
+ * app's own files alone). A comment must never become a write to the note.
+ * Since no provider
  * lists `.plainva/`, the devices announce themselves in a small grow-only
  * roster (`comments.devices.json`, device ids only - the same ids that stand
  * in the file names in the clear); every device re-adds itself each cycle, so

@@ -2,9 +2,10 @@
  * Sideband profile-sync step (settings-sync plan P1). Runs once per sync cycle,
  * OUTSIDE the file queue/reconcile/merge path: it downloads/uploads the small
  * `.plainva/sync/settings.json` directly through the sync target and reads/writes
- * the local copy through the worker's raw adapter (never the conflict-aware app
- * adapter — that would create sync_state rows and `.CONFLICT` copies of the
- * settings file). The shell provides a `ProfileSettingsPort` that maps the
+ * the local copy through the worker's raw adapter (not the conflict-aware app
+ * adapter — until 2026-10-20 that would have created sync_state rows and
+ * `.CONFLICT` copies of the settings file; since then it leaves the app's own
+ * files alone). The shell provides a `ProfileSettingsPort` that maps the
  * logical values to and from its native settings store (re-keying).
  *
  * Since the bars plan (P6) the profile can be SPLIT: everything personal goes

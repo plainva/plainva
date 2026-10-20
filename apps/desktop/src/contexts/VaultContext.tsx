@@ -1,5 +1,5 @@
 import { afterTaskSyncResume, clearPinboardCache, InlineSuggestProvider } from "@plainva/ui";
-import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText } from "@plainva/core";
+import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText, WORKSPACE_FORKS_FOLDER } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import { relocateDrafts } from "../services/draftJournal";
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
@@ -854,9 +854,9 @@ export const VaultProvider: React.FC<{
       }, async (request) => {
         const forkId = createWorkspaceObjectId();
         const safeName = request.path.split("/").pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") || "external-change";
-        const forkPath = `.plainva/workspace/forks/${forkId}-${safeName}`;
+        const forkPath = `${WORKSPACE_FORKS_FOLDER}/${forkId}-${safeName}`;
         if (await backupVaultAdapter.exists(request.path)) {
-          await backupVaultAdapter.createDir(".plainva/workspace/forks");
+          await backupVaultAdapter.createDir(WORKSPACE_FORKS_FOLDER);
           await backupVaultAdapter.writeBinaryFile(forkPath, await backupVaultAdapter.readBinaryFile(request.path));
         }
         await workspaceStateStore.saveLocalFork({ forkId, originalPath: request.path, forkPath, reason: "permission-denied", createdAt: new Date().toISOString() });
@@ -3096,8 +3096,9 @@ export const VaultProvider: React.FC<{
    * signed objects.
    *
    * The open store reads through the BACKUP adapter, exactly what the sync
-   * worker hands the sideband step: the conflict-aware app adapter would mint
-   * sync_state rows and `.CONFLICT` copies of the comment bundle.
+   * worker hands the sideband step: until 2026-10-20 the conflict-aware app
+   * adapter would have minted sync_state rows and `.CONFLICT` copies of the
+   * comment bundle (since then it leaves the app's own files alone).
    * `BackupVaultAdapter` skips `.plainva` for snapshots anyway, so nothing
    * here lands in the version history either.
    */

@@ -59,10 +59,10 @@ const HISTORY =
   "the version history reads its snapshots where the versions layer put them (`.plainva/backups`); what it restores is written through the `writeAdapter` it is handed, and that is `vault.files`";
 const VERSIONS_LAYER = "the versions layer's own control — when a version is taken and how long it is kept; no file of the user's is written";
 const BOOKMARKS =
-  "`.plainva/bookmarks.json` is the app's own file: no version, never queued — it travels with the settings profile, which writes it below the chain as well. One file, one level: written on two, the chain would meet a text it does not know, which is this very finding";
+  "`.plainva/bookmarks.json` is the app's own file: no version, never queued, and since 2026-10-20 no conflict check either — no link of the chain keeps anything about what the app writes under `.plainva`, so what is kept of it does not depend on the level (`own-files-chain.test.ts` in the core). It is written where the settings profile writes it, which carries the list between devices";
 const RECENTS = "`.plainva/recents.json`, the notes opened last on this device: the app's own file, never versioned, never synced";
 const COMMENTS =
-  "the comment files under `.plainva/sync` go up as a sideband of the sync; through the chain a reply would get sync state and conflict copies like a note (see `mobileCommentStore`)";
+  "the comment files under `.plainva/sync` go up as a sideband of the sync, and are read and written where its steps read them (see `mobileCommentStore`)";
 const SIDEBAND = "the settings profile and the key file are sideband files of the sync (`.plainva/sync`), read and written where the sync's own steps read them";
 const SYNC =
   "the sync works below the chain: what it pulls must not be queued to go up again, and it takes its own versions and decides conflicts itself";

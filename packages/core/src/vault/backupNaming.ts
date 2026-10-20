@@ -81,3 +81,12 @@ export function isPlainvaInternalPath(path: string): boolean {
   const norm = path.replace(/\\/g, "/");
   return norm === ".plainva" || norm.startsWith(".plainva/");
 }
+
+/**
+ * Where an encrypted workspace keeps its local forks: copies of notes a member
+ * may not change, kept so that nothing typed is lost. They lie under
+ * `.plainva`, yet they are a person's text, not the app's (see
+ * `ConflictAwareVaultAdapter`); the desktop opens them from the quarantine
+ * card in a window of their own.
+ */
+export const WORKSPACE_FORKS_FOLDER = ".plainva/workspace/forks";

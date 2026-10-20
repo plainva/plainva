@@ -35,7 +35,7 @@ import {
   formatQueueEntryReport,
   scanChangedNothing,
 } from "@plainva/core";
-import { isInternalPath, linkTargetName, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles } from "@plainva/core";
+import { isInternalPath, linkTargetName, resolveLinkTarget, updateVaultText, WORKSPACE_FORKS_FOLDER, type TextChange, type TextFileUpdate, type TextUpdateFiles } from "@plainva/core";
 import { copyFileContent, isNotTextFileError, NotTextFileError, type EditorWriteResult } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -636,8 +636,8 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     }, async (request) => {
       const forkId = createWorkspaceObjectId();
       const safeName = request.path.split("/").pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") || "external-change";
-      const forkPath = `.plainva/workspace/forks/${forkId}-${safeName}`;
-      if (await backup!.exists(request.path)) { await backup!.createDir(".plainva/workspace/forks"); await backup!.writeBinaryFile(forkPath, await backup!.readBinaryFile(request.path)); }
+      const forkPath = `${WORKSPACE_FORKS_FOLDER}/${forkId}-${safeName}`;
+      if (await backup!.exists(request.path)) { await backup!.createDir(WORKSPACE_FORKS_FOLDER); await backup!.writeBinaryFile(forkPath, await backup!.readBinaryFile(request.path)); }
       await workspaceState!.saveLocalFork({ forkId, originalPath: request.path, forkPath, reason: "permission-denied", createdAt: new Date().toISOString() });
     }) : null;
     // An entry of the sync queue that fails after its change is on disk is made

@@ -121,6 +121,13 @@ Otherwise the window reads again — four attempts, then it gives up
   (a vault that is not open, the double of a test) and throws where an object
   hands on a chain without its entry: such a wrapper would bring the finding
   back in the app while every test still passed.
+- **Addendum 2026-10-20 — the app's own files.** What the app writes to its
+  own files under `.plainva` moves not even the local marker: the
+  conflict-aware link keeps nothing about such a file and decides no conflict
+  over it, through this entry as through `writeTextFile` (finding 2026-10-12).
+  The local forks of an encrypted workspace and an editor's save are guarded
+  as before. See [The vault's adapter chain](../engineering/Vault_Adapter_Chain.md),
+  "The app's own files".
 
 ## Alternatives
 

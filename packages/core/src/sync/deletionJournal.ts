@@ -10,8 +10,9 @@
  * The journal carries the intent. It is a small sideband file under
  * `.plainva/sync/` — like settings, secrets, keyfile and comments it travels
  * outside the queue/reconcile/merge path and is written through the RAW vault
- * adapter (never the conflict-aware one: that would create `sync_state` rows and
- * `.CONFLICT` copies for a file that is not a note). Every device merges the
+ * adapter (not the conflict-aware one: until 2026-10-20 that would have created
+ * `sync_state` rows and `.CONFLICT` copies for a file that is not a note; since
+ * then it leaves the app's own files alone). Every device merges the
  * remote copy into its own before it reconciles, so a path listed here is an
  * EXPLAINED absence: it is mirrored, and the incoming mass-deletion guard
  * does not count it. Outgoing deletions require their own operation-specific

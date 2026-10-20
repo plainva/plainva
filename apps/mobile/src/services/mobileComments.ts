@@ -116,8 +116,9 @@ export async function ensureMobileCommentAuthorName(vault: MobileVault): Promise
  * The one store of a vault, chosen once (N0).
  *
  * Reads and writes through the RAW sandbox adapter, like the sideband step
- * does: the app-facing chain would mint sync_state rows and `.CONFLICT` copies
- * of the comment file - a reply must never become a write to the note. The
+ * does: until 2026-10-20 the app-facing chain would have minted sync_state
+ * rows and `.CONFLICT` copies of the comment file (since then it leaves the
+ * app's own files alone) - a reply must never become a write to the note. The
  * reviewer name is read at post time, not captured: the settings screen can
  * change it while the vault stays open.
  */
