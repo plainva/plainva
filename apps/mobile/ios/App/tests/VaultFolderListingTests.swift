@@ -69,6 +69,10 @@ struct VaultFolderListingTests {
         // `stat` answers as `list` does.
         let sharedStat = try VaultFolderListing.describeFollowing(vault.appendingPathComponent("Shared"))
         try require(sharedStat?["isDirectory"] as? Bool == true, "stat follows a link")
+        // The snapshot before a recursive delete keeps nothing of a folder that is a link (the delete takes the link alone).
+        try require(sharedStat?["link"] as? Bool == true, "…and says that the path is a link")
+        let projectsStat = try VaultFolderListing.describeFollowing(vault.appendingPathComponent("Projects"))
+        try require(projectsStat?["link"] == nil, "…and a folder of its own is none")
         let danglingStat = try VaultFolderListing.describeFollowing(vault.appendingPathComponent("Projects/Zenn/articles"))
         try require(danglingStat == nil, "a link that points nowhere is not there")
         do {

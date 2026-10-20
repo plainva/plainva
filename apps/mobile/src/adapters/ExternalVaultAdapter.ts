@@ -246,7 +246,7 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     // lies where it points, and a delete takes the link alone.
     if (!followLinks && raw) {
       const own = await this.plugin.stat({ handle: this.handle, path: raw }).catch(() => null);
-      if (own?.entry?.link) return { files: [], skipped: [] };
+      if (own?.entry?.link && own.entry.isDirectory) return { files: [], skipped: [] };
     }
     await this.walk(raw, recursive ?? false, out, { skipped, seen: new Set(), followLinks, includeHidden: false, excludeDirNames: [], signal: options?.signal });
     return this.identities(out, raw, skipped);
