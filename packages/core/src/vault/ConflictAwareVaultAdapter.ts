@@ -1,4 +1,4 @@
-import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError, type TextChange, type TextFileChange, type TextFileState, type TextFileUpdate } from "./IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError, type TextChange, type TextFileChange, type TextFileState, type TextFileUpdate, type VaultWalkOptions } from "./IVaultAdapter.js";
 import type { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
 import { mergeText, mergeEditorText, containsTextChanges } from "../conflict-resolver.js";
 import { parseBackupFileName } from "./backupNaming.js";
@@ -571,7 +571,7 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     await (this.inner as any).setFileTimes?.(path, times);
   }
 
-  async listDirReport(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultListing> {
+  async listDirReport(path?: string, recursive?: boolean, options?: VaultWalkOptions): Promise<VaultListing> {
     return this.inner.listDirReport
       ? this.inner.listDirReport(path, recursive, options)
       : { files: await this.inner.listDir(path, recursive, options), skipped: [] };

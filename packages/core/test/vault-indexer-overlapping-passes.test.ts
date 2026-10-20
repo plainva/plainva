@@ -4,7 +4,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { realSqlite } from "./helpers/realSqlite.js";
 import type { IDatabaseAdapter } from "../src/db/IDatabaseAdapter.js";
-import { VaultFileNotFoundError } from "../src/vault/IVaultAdapter.js";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 
@@ -86,6 +85,16 @@ function beforeTheNthRead(nth: number, work: () => Promise<void>): void {
   };
 }
 
+/** Refuses every statement that writes for `file`, until the returned function is called. */
+function refuseEveryWriteOf(file: string): () => void {
+  const execute = db.execute.bind(db);
+  db.execute = async (sql, params) => {
+    if (Array.isArray(params) && params.includes(file)) throw new Error("disk full");
+    return execute(sql, params);
+  };
+  return () => { db.execute = execute; };
+}
+
 /** The same database with the desktop adapter's manners: a second transaction waits for the first. */
 function waiting(inner: IDatabaseAdapter): IDatabaseAdapter {
   let last: Promise<unknown> = Promise.resolve();
@@ -160,11 +169,13 @@ describe("what a pass found is its own", () => {
     await vault.writeTextFile("Folder/a.md", "# a\n");
     await vault.writeTextFile("Folder/b.md", "# b\n");
     await vault.writeTextFile("c.md", "# c\n");
-    // The folder's second note vanishes between the look and the read: the pass is
+    // The folder's second note cannot be written (the disk is full): the pass is
     // rolled back as a whole, the first note with it — and what it had found so far
-    // goes with the pass.
-    beforeTheNthRead(2, () => Promise.reject(new VaultFileNotFoundError("Folder")));
-    await expect(indexer.reconcileFolder("Folder")).rejects.toBeInstanceOf(VaultFileNotFoundError);
+    // goes with the pass. (A note that cannot be READ no longer ends a pass over a
+    // folder: it is left out and named, issue #125 — vault-indexer-unreadable-entry.test.ts.)
+    const restore = refuseEveryWriteOf("Folder/b.md");
+    await expect(indexer.reconcileFolder("Folder")).rejects.toThrow("disk full");
+    restore();
     expect(fresh).toEqual([]);
     expect(await row("Folder/a.md")).toBeNull();
 
@@ -319,12 +330,13 @@ describe("a pass leaves alone what another pass indexed since it began", () => {
         await expect(ask()).rejects.toThrow();
       });
       await indexer.indexVaultFull();
-      // The scan reported the file gone while it lay there. The row it had
-      // decided on is gone all the same…
+      // The scan used to report the file gone while it lay there. It neither
+      // reports it nor removes its row: it decides what it removes right
+      // before it does, and somebody has seen the file since it began…
       expect(gone).toEqual([]);
-      expect(await row("Old.md")).toBeNull();
+      expect(await row("Old.md")).not.toBeNull();
 
-      // …and the next pass over the path gives the file its row back.
+      // …and the next pass over the path reads the file again.
       await ask();
       expect(await row("Old.md")).not.toBeNull();
       expect(gone).toEqual([]);

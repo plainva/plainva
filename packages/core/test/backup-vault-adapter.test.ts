@@ -4,6 +4,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
 import { BackupVaultAdapter, DEFAULT_BACKUP_RETENTION } from "../src/vault/BackupVaultAdapter.js";
+import type { VaultFileInfo } from "../src/vault/IVaultAdapter.js";
 
 describe("BackupVaultAdapter", () => {
   let tempDir: string;
@@ -162,6 +163,136 @@ describe("BackupVaultAdapter", () => {
       );
       // Both children are recoverable; the untouched sibling was not copied.
       expect(contents.sort()).toEqual(["A", "B"]);
+    });
+
+    it("says when it could not cover a folder below, and still snapshots the rest (issue 125)", async () => {
+      // A walk that names what it could not list — the phone's picked folder
+      // since issue 125 — instead of failing as a whole: a folder it named was
+      // not covered, and the person deleting the folder is told so.
+      const reported: string[] = [];
+      const reporting = innerAdapter as typeof innerAdapter & { listDirReport?: (p?: string, r?: boolean) => Promise<{ files: VaultFileInfo[]; skipped: { path: string; reason: "cycle" | "unreadable" }[] }> };
+      const listDir = innerAdapter.listDir.bind(innerAdapter);
+      reporting.listDirReport = async (p = "", r = false) => ({
+        files: (await listDir(p, r)).filter((f) => !f.path.startsWith("Projekte/Sub")),
+        skipped: [{ path: "Projekte/Sub", reason: "unreadable" }, { path: "Projekte/Loop", reason: "cycle" }],
+      });
+      const adapter = new BackupVaultAdapter(innerAdapter, {
+        policy: { minSnapshotIntervalSeconds: 3600 },
+        now: () => clock,
+        snapshotRecursiveDeletes: true,
+        onBackupError: (path) => void reported.push(path),
+      });
+      await seedFolder();
+
+      await adapter.deleteItem("Projekte", true);
+
+      expect(reported).toEqual(["Projekte"]);
+      const backups = await innerAdapter.listDir(".plainva/backups", true);
+      const contents = await Promise.all(backups.filter((b) => !b.isDirectory).map((b) => innerAdapter.readTextFile(b.path)));
+      expect(contents).toEqual(["A"]);
+      delete reporting.listDirReport;
+    });
+
+    it("asks for the folder's own files, not what its links point at — and a cut loop is no gap", async () => {
+      // The delete removes a link and leaves what it points at; the snapshot
+      // covers what the delete removes. A walk that cut a loop left nothing
+      // of the folder out, so nobody is told of one.
+      const reported: string[] = [];
+      const asked: unknown[] = [];
+      const reporting = innerAdapter as typeof innerAdapter & { listDirReport?: (p?: string, r?: boolean, o?: unknown) => Promise<{ files: VaultFileInfo[]; skipped: { path: string; reason: "cycle" | "unreadable" }[] }> };
+      const listDir = innerAdapter.listDir.bind(innerAdapter);
+      reporting.listDirReport = async (p = "", r = false, o) => {
+        asked.push(o);
+        return { files: await listDir(p, r), skipped: [{ path: "Projekte/Loop", reason: "cycle" }] };
+      };
+      const adapter = new BackupVaultAdapter(innerAdapter, {
+        policy: { minSnapshotIntervalSeconds: 3600 },
+        now: () => clock,
+        snapshotRecursiveDeletes: true,
+        onBackupError: (path) => void reported.push(path),
+      });
+      await seedFolder();
+
+      await adapter.deleteItem("Projekte", true);
+
+      expect(asked).toEqual([{ followLinks: false, dotEntries: false }]);
+      expect(reported).toEqual([]);
+      const backups = await innerAdapter.listDir(".plainva/backups", true);
+      const contents = await Promise.all(backups.filter((b) => !b.isDirectory).map((b) => innerAdapter.readTextFile(b.path)));
+      expect(contents.sort()).toEqual(["A", "B"]);
+      delete reporting.listDirReport;
+    });
+
+    it("keeps what the tree shows: nothing under a dot-named entry, whatever the walk lists", async () => {
+      // The phone's own folder lists dot-named entries in its reporting walk;
+      // `.git` and another program's settings are not copied one by one.
+      const reporting = innerAdapter as typeof innerAdapter & { listDirReport?: (p?: string, r?: boolean, o?: unknown) => Promise<{ files: VaultFileInfo[]; skipped: { path: string; reason: "cycle" | "unreadable" }[] }> };
+      const hidden: VaultFileInfo[] = [
+        { path: "Projekte/.git/config", name: "config", isDirectory: false, size: 1, mtime: 1 },
+        { path: "Projekte/Sub/.obsidian/app.json", name: "app.json", isDirectory: false, size: 1, mtime: 1 },
+        { path: "Projekte/.plainva/backups/old.md", name: "old.md", isDirectory: false, size: 1, mtime: 1 },
+      ];
+      const listDir = innerAdapter.listDir.bind(innerAdapter);
+      reporting.listDirReport = async (p = "", r = false) => ({ files: [...(await listDir(p, r)), ...hidden], skipped: [] });
+      const adapter = new BackupVaultAdapter(innerAdapter, {
+        policy: { minSnapshotIntervalSeconds: 3600 },
+        now: () => clock,
+        snapshotRecursiveDeletes: true,
+      });
+      await seedFolder();
+      for (const h of hidden) await innerAdapter.writeTextFile(h.path, "hidden");
+
+      await adapter.deleteItem("Projekte", true);
+
+      const backups = await innerAdapter.listDir(".plainva/backups", true);
+      const contents = await Promise.all(backups.filter((b) => !b.isDirectory).map((b) => innerAdapter.readTextFile(b.path)));
+      expect(contents.sort()).toEqual(["A", "B"]);
+      delete reporting.listDirReport;
+    });
+
+    it("measures what lies below from the folder: one under a dot-named folder keeps its files", async () => {
+      const adapter = new BackupVaultAdapter(innerAdapter, {
+        policy: { minSnapshotIntervalSeconds: 3600 },
+        now: () => clock,
+        snapshotRecursiveDeletes: true,
+      });
+      await innerAdapter.createDir(".archive/x");
+      await innerAdapter.writeTextFile(".archive/x/a.md", "A");
+      await innerAdapter.createDir(".archive/y");
+      await innerAdapter.writeTextFile(".archive/y/b.md", "B");
+
+      await adapter.deleteItem(".archive/x", true);
+      // Named the way a caller may name it: measured from the folder's identity all the same.
+      await adapter.deleteItem(".archive/y/", true);
+
+      expect(await innerAdapter.exists(".archive/x")).toBe(false);
+      const backups = await innerAdapter.listDir(".plainva/backups", true);
+      const contents = await Promise.all(backups.filter((b) => !b.isDirectory).map((b) => innerAdapter.readTextFile(b.path)));
+      expect(contents.sort()).toEqual(["A", "B"]);
+    });
+
+    it("keeps the files when the report of a gap fails", async () => {
+      const reporting = innerAdapter as typeof innerAdapter & { listDirReport?: (p?: string, r?: boolean, o?: unknown) => Promise<{ files: VaultFileInfo[]; skipped: { path: string; reason: "cycle" | "unreadable" }[] }> };
+      const listDir = innerAdapter.listDir.bind(innerAdapter);
+      reporting.listDirReport = async (p = "", r = false) => ({
+        files: (await listDir(p, r)).filter((f) => !f.path.startsWith("Projekte/Sub")),
+        skipped: [{ path: "Projekte/Sub", reason: "unreadable" }],
+      });
+      const adapter = new BackupVaultAdapter(innerAdapter, {
+        policy: { minSnapshotIntervalSeconds: 3600 },
+        now: () => clock,
+        snapshotRecursiveDeletes: true,
+        onBackupError: () => { throw new Error("the notice could not be shown"); },
+      });
+      await seedFolder();
+
+      await adapter.deleteItem("Projekte", true);
+
+      expect(await innerAdapter.exists("Projekte")).toBe(false);
+      const backups = await innerAdapter.listDir(".plainva/backups", true);
+      const contents = await Promise.all(backups.filter((b) => !b.isDirectory).map((b) => innerAdapter.readTextFile(b.path)));
+      expect(contents).toEqual(["A"]);
+      delete reporting.listDirReport;
     });
 
     it("leaves the desktop alone — off by default", async () => {

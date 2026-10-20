@@ -17,6 +17,7 @@ import type { DeletionJournal } from "./deletionJournal.js";
 import { withPathMutation } from "../vault/pathMutation.js";
 import { ConflictSessions, conflictDiagnostic, type ConflictSessionGate } from "../vault/conflictSession.js";
 import { isAppleDoubleCompanion, isSystemJunkPath } from "../vault/systemJunk.js";
+import { indexedRowStamp, type IndexedRowStamp } from "../vault/indexedRowStamp.js";
 
 // Re-exported so every existing import keeps working: the rule moved out
 // (N1/S2) because the PIM worker asks the same question, not because callers
@@ -1477,6 +1478,22 @@ export class SyncWorker {
     return entries.some((entry) => entry.path === path);
   }
 
+  /**
+   * The read stamps an index row of the file at `path` can carry while the
+   * worker removes it: the row the index holds now, and the file's own time —
+   * the stamp of every row a pass writes for exactly this file, also one it
+   * writes or reads again after this question (a scan that had read the file
+   * before it went). Without either, nothing will be reported.
+   */
+  private async ownRemovalStamps(path: string): Promise<IndexedRowStamp[]> {
+    const stamps: IndexedRowStamp[] = [];
+    const indexed = await this.queue.indexedRow(path);
+    if (indexed) stamps.push(indexed);
+    const info = await Promise.resolve().then(() => this.vault.getFileInfo(path)).catch(() => null);
+    if (info && !info.isDirectory && !stamps.some((s) => s.mtime === info.mtime)) stamps.push(indexedRowStamp(info.mtime));
+    return stamps;
+  }
+
   private async mirrorRemoteDeletionLocked(
     path: string,
     stateMap: Map<string, SyncState>,
@@ -1537,11 +1554,16 @@ export class SyncWorker {
       if (verify && (await this.probePresence(path, state)) === "present") return "stillRemote";
       // The indexer will report this file as vanished; the shell must be able
       // to tell that the WORKER removed it (plan A2) — marked before, not after.
-      this.options.ownDeletions?.mark(path);
+      // Marked for the rows that can be reported for this file, not for the
+      // path: a mark that answered by name answered the next file of that
+      // name instead (finding 2026-10-12).
+      const register = this.options.ownDeletions;
+      const stamps = register ? await this.ownRemovalStamps(path) : [];
+      if (stamps.length > 0) register!.mark(path, stamps);
       try {
         await this.vault.deleteItem(path);
       } catch (e) {
-        this.options.ownDeletions?.unmark(path);
+        if (stamps.length > 0) register!.unmark(path);
         throw e;
       }
       await this.stateRepo.deleteSyncState(path);

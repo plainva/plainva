@@ -274,7 +274,7 @@ export function EditorHost({
    */
   const importFileAtCaret = useStableHandler(async (file: File, at: number) => {
     try {
-      const { insert } = await importAttachment(
+      const { insert, path: written } = await importAttachment(
         { name: file.name || "", mime: file.type, bytes: new Uint8Array(await file.arrayBuffer()) },
         {
           configuredFolder: getMobileSettings().attachmentFolder,
@@ -289,6 +289,8 @@ export function EditorHost({
           writeBinaryFile: (p, bytes) => vault.files.writeBinaryFile(p, bytes),
         },
       );
+      // The index hears of the file now, not at the next full scan (finding 2026-10-12).
+      void vault.reindexPaths([written]);
       const view = sessionRef.current?.view;
       if (view) {
         const pos = Math.min(at, view.state.doc.length);
@@ -1390,6 +1392,7 @@ export function EditorHost({
         const bytes = await mediaResultBytes(photo, (uri) => Filesystem.readFile({ path: uri }));
         const name = await availablePhotoPath((candidate) => vault.files.exists(candidate), photo);
         await vault.files.writeBinaryFile(name, bytes);
+        void vault.reindexPaths([name]);
         run((view) => {
           const pos = Math.min(insertAt, view.state.doc.length);
           const embed = `![[${name}]]`;

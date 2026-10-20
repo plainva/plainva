@@ -21,7 +21,7 @@ const MARKDOWN = new TextEncoder().encode("# My notes\n");
 
 describe("isSystemJunkName", () => {
   it("knows the files and folders macOS and Windows leave behind", () => {
-    for (const name of [".DS_Store", "Thumbs.db", "desktop.ini", "Icon\r", ".Spotlight-V100", ".Trashes", ".fseventsd"]) {
+    for (const name of [".DS_Store", "Thumbs.db", "desktop.ini", "Icon\r", ".Spotlight-V100", ".Trashes", ".fseventsd", "$RECYCLE.BIN", "System Volume Information"]) {
       expect(isSystemJunkName(name), JSON.stringify(name)).toBe(true);
     }
   });

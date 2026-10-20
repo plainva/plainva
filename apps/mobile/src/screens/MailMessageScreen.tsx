@@ -52,7 +52,7 @@ import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntim
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { getMobileSettings } from "../services/mobileSettings";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
-import type { MobileVault } from "../services/vaultService";
+import { vaultTextFiles, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
 import { mailStatus } from "./mail/mailStatus";
 import { RowActionSheet } from "../components/RowActionSheet";
@@ -458,6 +458,8 @@ export function MailMessageScreen({
     try {
       const base64 = await fetchAttachment(vaultId, account, mailbox, messageId, index);
       const path = await saveMailAttachment(vault.files, getMobileSettings().mailFolder, name, base64);
+      // The index hears of the file now, not at the next full scan (finding 2026-10-12).
+      void vault.reindexPaths([path]);
       toast.success(t("mail.attachmentSaved", { name: path }));
     } catch (e) {
       toast.error(describe(e, t));
@@ -488,8 +490,10 @@ export function MailMessageScreen({
         }
         // The same creation path as a promoted checkbox and as "+ Entry", so
         // a task born from a mail is not subtly unlike the others.
+        // Through the vault's save, as the task view creates one: the index
+        // hears of the note at once (finding 2026-10-12).
         const res = await createTaskInDatabase({
-          adapter: vault.files,
+          adapter: vaultTextFiles(vault),
           dbPath,
           title: message.subject.trim() || t("mail.noSubject"),
           noteType: getMobileSettings().defaultNoteType,
@@ -504,7 +508,7 @@ export function MailMessageScreen({
         // it names (C4, S17). Its failures are reported; they never cost the
         // note, which is already written.
         await sendTaskToProviderList(
-          vault.files,
+          vaultTextFiles(vault),
           dbPath,
           res.notePath,
           message.subject.trim() || t("mail.noSubject"),
@@ -517,6 +521,8 @@ export function MailMessageScreen({
       // OKF 0.2 provenance (plan P3b): the capture names its producer, the
       // Message-ID becomes the note's source — same stamp as the desktop.
       const res = await captureMailAsNote({ adapter: vault.files, message, accountId: account.id, mailbox, folder, generatedBy: await plainvaProducer("mail-capture") });
+      // The index hears of what was filed now, not at the next full scan (finding 2026-10-12).
+      const filed = [res.path];
       let emlAdded = false;
       if (mode === "eml") {
         // S20: this was gated on `res.created`. Capturing the same message a
@@ -529,10 +535,12 @@ export function MailMessageScreen({
           // over the wire again, which on a phone connection is not free.
           const raw = await fetchRawMessage(vaultId, account, mailbox, messageId);
           const emlPath = await saveEmlFile(vault.files, message, raw, folder);
+          filed.push(emlPath);
           // Into the note as it lies there now: the raw copy took its time.
           emlAdded = (await updateVaultText(vault.files, res.path, (content) => (hasEmlWikiLink(content) ? null : `${content.trimEnd()}\n\n[[${emlPath}]]\n`))).changed;
         }
       }
+      void vault.reindexPaths(filed);
       toast.success(
         res.created
           ? t("mail.captured", { name: res.path })

@@ -177,6 +177,7 @@ public class VaultFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDel
             || (e.domain == NSPOSIXErrorDomain && e.code == Int(ENOENT))
     }
 
+    /** The entry itself, a link as a link: what `delete` asks before it removes one (never its target). */
     private func describe(_ url: URL) throws -> [String: Any] {
         let values = try url.resourceValues(forKeys: VaultFolderPlugin.keys)
         let isDir = values.isDirectory ?? false
@@ -194,12 +195,11 @@ public class VaultFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDel
 
     // MARK: file operations
 
+    /** One folder by the desktop's rules: links followed, what cannot be listed named (VaultFolderListing, issue #125). */
     @objc func list(_ call: CAPPluginCall) {
         withFolder(call) { base in
             guard let dir = target(base, call.getString("path") ?? "") else { throw NSError(domain: "VaultFolder", code: 1, userInfo: [NSLocalizedDescriptionKey: "path escapes the folder"]) }
-            let urls = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: Array(VaultFolderPlugin.keys), options: [])
-            let entries = try urls.map { try self.describe($0) }
-            call.resolve(["entries": entries])
+            call.resolve(try VaultFolderListing.list(dir))
         }
     }
 
@@ -207,7 +207,12 @@ public class VaultFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDel
         withFolder(call) { base in
             guard let url = target(base, call.getString("path") ?? "") else { throw NSError(domain: "VaultFolder", code: 1, userInfo: [NSLocalizedDescriptionKey: "path escapes the folder"]) }
             do {
-                call.resolve(["entry": try describe(url)])
+                // A link answers for what it points at, as in `list`; one that points nowhere is not there.
+                if let entry = try VaultFolderListing.describeFollowing(url) {
+                    call.resolve(["entry": entry])
+                } else {
+                    call.resolve(["entry": NSNull()])
+                }
             } catch where isMissing(error) {
                 call.resolve(["entry": NSNull()])
             }

@@ -4,6 +4,7 @@ import {
   VaultFileNotFoundError,
   type IVaultAdapter,
   type VaultFileInfo,
+  type VaultWalkOptions,
   trimChars,
   PathSpellings,
   withStoredSpelling,
@@ -186,10 +187,14 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
     return this.identities(out, "");
   }
 
-  async listDirReport(path = "", recursive = false, options?: { signal?: AbortSignal }) {
+  async listDirReport(path = "", recursive = false, options?: VaultWalkOptions) {
     const raw = await this.realPath(path);
     const files: VaultFileInfo[] = [];
-    await this.walk(raw, recursive, files, true, [], 0, options?.signal);
+    // The walk of the index lists dot-named entries; asked without them — the
+    // snapshot before a recursive delete —, it walks as the tree does
+    // (`listDir`) and never goes into such a folder. It follows no link on
+    // its own (`followLinks` has nothing to leave out here).
+    await this.walk(raw, recursive, files, options?.dotEntries !== false, [], 0, options?.signal);
     return { files: this.identities(files, raw), skipped: [] };
   }
 

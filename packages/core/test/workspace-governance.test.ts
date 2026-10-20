@@ -126,7 +126,7 @@ describe("workspace governance P4-P7 contracts", () => {
     const raw = new TestVault(); await raw.writeTextFile("existing.md", "before");
     const readerPolicy: WorkspacePolicyPayload = structuredClone(runtime.policy.payload);
     readerPolicy.assignments[0].role = "Reader"; readerPolicy.assignments[0].capabilities = ["comment.read", "content.read", "history.read"];
-    const reader = new PermissionedVaultAdapter(raw, accessAuthorizer({ ...runtime, policy: { ...runtime.policy, payload: readerPolicy } }));
+    const reader = new PermissionedVaultAdapter(raw, new MemoryWorkspaceStateStore(), accessAuthorizer({ ...runtime, policy: { ...runtime.policy, payload: readerPolicy } }));
     await expect(reader.writeTextFile("existing.md", "after")).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
     await expect(reader.writeTextFile("new.md", "new")).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
     await expect(reader.renameItem("existing.md", "renamed.md")).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
@@ -136,7 +136,7 @@ describe("workspace governance P4-P7 contracts", () => {
 
     const contributorPolicy: WorkspacePolicyPayload = structuredClone(runtime.policy.payload);
     contributorPolicy.assignments[0].role = "Contributor"; contributorPolicy.assignments[0].capabilities = ["content.create"];
-    const contributor = new PermissionedVaultAdapter(raw, accessAuthorizer({ ...runtime, policy: { ...runtime.policy, payload: contributorPolicy } }));
+    const contributor = new PermissionedVaultAdapter(raw, new MemoryWorkspaceStateStore(), accessAuthorizer({ ...runtime, policy: { ...runtime.policy, payload: contributorPolicy } }));
     await contributor.writeTextFile("new.md", "allowed");
     await expect(contributor.writeTextFile("new.md", "overwrite")).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
   });

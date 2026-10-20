@@ -143,9 +143,9 @@ async function phone(dav: ByteExactDav) {
     isOwnWrite: (p, sha256) => files.wasWrittenByUs(p, sha256),
     onExternalModification: (p) => enqueueLocal(p),
     onNewLocalFile: (p) => enqueueLocal(p),
-    onLocalFileDeleted: (p) => {
+    onLocalFileDeleted: (p, row) => {
       gone.push(p);
-      if (ownDeletions.consume(p)) return;
+      if (ownDeletions.consume(p, row)) return;
       if (!isInternal(p)) setOff.push(announce(() => queue.queueDelete(p), stillGone(p)));
     },
   });
@@ -531,9 +531,16 @@ describe("a file a pull removed leaves the index with the pull", () => {
       told.index = here.reindexPaths(pulled);
       await refused;
     });
-    // The second note is gone by the time the scan gets to it: the scan fails and is rolled back.
-    here.whenTheIndexReadsItsNth(2, () => Promise.reject(new VaultFileNotFoundError("n2.md")));
-    await expect(here.resume()).rejects.toBeInstanceOf(VaultFileNotFoundError);
+    // The second note's row cannot be written (a full disk): the scan fails and
+    // is rolled back. (A note the scan cannot READ no longer fails it — it is
+    // left out and named, issue #125.)
+    const execute = here.db.execute.bind(here.db);
+    here.db.execute = async (sql, params) => {
+      if (Array.isArray(params) && params.includes("n2.md")) throw new Error("disk full");
+      return execute(sql, params);
+    };
+    await expect(here.resume()).rejects.toThrow("disk full");
+    here.db.execute = execute;
     await told.index;
     await here.settle();
 

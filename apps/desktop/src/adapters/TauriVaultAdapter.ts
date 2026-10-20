@@ -1,5 +1,5 @@
 import { checkedPathExists, checkedReadTextFile, checkedReadDirectory, type CheckedDirEntry } from "./checkedFilesystem";
-import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError, VaultFileExistsError, VaultListing, VaultWalkSkip, isInternalPath, INTERNAL_PATH_RULES, createYielder, trimEndChars, PathSpellings, withStoredSpelling, type SpellingSource } from "@plainva/core";
+import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError, VaultFileExistsError, VaultListing, VaultWalkSkip, type VaultWalkOptions, isInternalPath, INTERNAL_PATH_RULES, createYielder, trimEndChars, PathSpellings, withStoredSpelling, type SpellingSource } from "@plainva/core";
 import { readFile, stat, remove, rename, mkdir, exists } from "@tauri-apps/plugin-fs";
 import { join, normalize, sep } from "@tauri-apps/api/path";
 import { Channel, invoke } from "@tauri-apps/api/core";
@@ -507,7 +507,12 @@ export class TauriVaultAdapter implements IVaultAdapter {
     return parsed;
   }
 
-  async listDirReport(path: string = "", recursive: boolean = false, options?: { signal?: AbortSignal }): Promise<VaultListing> {
+  async listDirReport(path: string = "", recursive: boolean = false, options?: VaultWalkOptions): Promise<VaultListing> {
+    // This walk follows links (#72) and lists dot-named entries that are not
+    // internal; it cannot leave either out. Nothing on the desktop asks it to
+    // (the snapshot before a recursive delete is the phone's, which has no
+    // trash); answering with them would be more than was asked for.
+    if (options?.followLinks === false || options?.dotEntries === false) throw new Error("The desktop's folder walk follows links and lists dot-named entries; it cannot leave them out");
     const raw = path ? await this.realPath(path) : "";
     const absPath = await this.getAbsolutePath(raw);
     // The internal-path filter hides `.plainva`, `.git`, … from a walk over the

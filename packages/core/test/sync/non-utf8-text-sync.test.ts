@@ -91,7 +91,7 @@ async function device(dav: ByteExactDav, reader: Reader) {
     isOwnWrite: (p, sha) => app.wasWrittenByUs(p, sha),
     onExternalModification: (p) => { events.push(`changed ${p}`); if (!localOnly(p)) later(() => queue.queueWrite(p)); },
     onNewLocalFile: (p) => { events.push(`new ${p}`); if (!localOnly(p)) later(() => queue.queueWrite(p)); },
-    onLocalFileDeleted: (p) => { if (!ownDeletions.consume(p) && !localOnly(p)) later(() => queue.queueDelete(p)); },
+    onLocalFileDeleted: (p, row) => { if (!ownDeletions.consume(p, row) && !localOnly(p)) later(() => queue.queueDelete(p)); },
   });
   const target = new WebDavSyncTarget({ url: dav.url, user: "u", pass: "p" }, dav.fetch);
   target.allowRootCreation = false;

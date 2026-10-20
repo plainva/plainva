@@ -39,7 +39,7 @@ import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
 import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, noteBodyOf, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readIndexedIdentity, editorTextOf } from "@plainva/core";
 import { resolveGoverningBaseOf } from "../services/baseOps";
-import { getLastPersistedText, keepTextShape, noteSaver, NotTextFileError, rememberPersistedText, reportMoveFailure, vaultOps, type MobileVault } from "../services/vaultService";
+import { getLastPersistedText, keepTextShape, noteSaver, NotTextFileError, rememberPersistedText, reportMoveFailure, vaultOps, vaultTextFiles, type MobileVault } from "../services/vaultService";
 import { shareVaultFile } from "../services/shareFile";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { mPrompt } from "../services/mobileDialogs";
@@ -906,8 +906,10 @@ export function NoteScreen({
       ? (await vault.queryService.listNotes().catch(() => [])).map((n) => n.path)
       : [];
     const title = commentTaskTitle(comment.body, t("comments.commentTaskFallback"));
+    // Through the vault's save, as the task view creates one: the index hears
+    // of the note at once (finding 2026-10-12).
     const res = await createTaskInDatabase({
-      adapter: vault.files,
+      adapter: vaultTextFiles(vault),
       dbPath,
       title,
       noteType: getMobileSettings().defaultNoteType,

@@ -32,10 +32,10 @@ import type { IVaultAdapter, VaultFileInfo, VaultIndexer } from "@plainva/core";
  *    a transaction of its own — which then tells the shell
  *    (`onLocalFileDeleted`), and a full scan under way that misses the same
  *    file says nothing more (`VaultIndexer.stillMine`). What the plain sync
- *    worker removed is answered there while its mark is still fresh; the
- *    worker of an encrypted workspace leaves no mark on the phone, and its
- *    removals go on to the workspace's authorization as they did when the
- *    next full scan reported them.
+ *    worker removed is answered there while its mark is still fresh. What
+ *    the worker of an encrypted workspace wrote or removed, the workspace
+ *    answers itself: a report of something it already holds goes nowhere
+ *    (`PermissionedVaultAdapter.authorizeExternalChange`, finding 2026-10-12).
  *    Only "it is not there" counts as gone: a read that failed for any other
  *    reason proves nothing, and a deletion is never concluded from it.
  *  - A path that could not be followed is tried once more, as the desktop's

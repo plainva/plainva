@@ -226,8 +226,18 @@ export interface IVaultAdapter {
    * Exists so the full re-index can answer "did the scan even see my file?" —
    * a folder silently missing from the walk used to be indistinguishable from
    * a folder that is genuinely empty.
+   *
+   * `followLinks: false` lists what lies in the folder itself and leaves out
+   * what its links point at — what a recursive delete of it removes (the
+   * snapshot before one on the phone, `BackupVaultAdapter`). A walk that never
+   * follows a link has nothing to leave out; one that follows links and
+   * cannot leave them out throws rather than answer with more than was asked
+   * for. For an adapter without this method the wrappers answer with
+   * `listDir` and read no option: the app adapters all have it, and
+   * `LocalVaultAdapter` (Node), whose `listDir` follows links to folders and
+   * lists dot-named entries, leaves its callers to hold their own rules.
    */
-  listDirReport?(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultListing>;
+  listDirReport?(path?: string, recursive?: boolean, options?: VaultWalkOptions): Promise<VaultListing>;
 
   /** Complete backup inventory, including hidden files. Excluded DIRECTORY
    * names are pruned at every depth; symbolic links are not followed.
@@ -272,6 +282,20 @@ export interface VaultWalkSkip {
    * `unreadable` — listing the entry failed (permissions, offline network share).
    */
   reason: "cycle" | "unreadable";
+}
+
+/** How a reporting directory walk goes (see `IVaultAdapter.listDirReport`). */
+export interface VaultWalkOptions {
+  signal?: AbortSignal;
+  /** False: what lies in the folder itself, without what its links point at. */
+  followLinks?: boolean;
+  /**
+   * False: no entry whose name starts with a dot, and no walk into such a
+   * folder — the folder as the tree shows it. Same rule as `followLinks`: a
+   * walk that lists no such entry has nothing to leave out, one that cannot
+   * leave them out throws.
+   */
+  dotEntries?: boolean;
 }
 
 /** Result of a reporting directory walk (see `IVaultAdapter.listDirReport`). */

@@ -24,6 +24,11 @@ export const SYSTEM_JUNK_NAMES: ReadonlySet<string> = new Set([
   ".spotlight-v100",
   ".trashes",
   ".fseventsd",
+  // Windows, at the root of a drive: the recycle bin and the volume's own
+  // bookkeeping. A vault at a drive's root cannot list them, and a scan named
+  // them as left out at every start (issue 125).
+  "$recycle.bin",
+  "system volume information",
 ]);
 
 /** The custom-folder-icon file: the name really ends in a carriage return. */

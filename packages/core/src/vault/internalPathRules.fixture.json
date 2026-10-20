@@ -7,7 +7,7 @@
       ".idea", ".vscode",
       "Icon\r"
     ],
-    "exactIgnoreCase": [".ds_store", "thumbs.db", "desktop.ini", ".spotlight-v100", ".trashes", ".fseventsd"],
+    "exactIgnoreCase": [".ds_store", "thumbs.db", "desktop.ini", ".spotlight-v100", ".trashes", ".fseventsd", "$recycle.bin", "system volume information"],
     "prefix": [".stfolder", ".plainva-tmp-"],
     "dotSuffix": ["_cache"]
   },
@@ -15,7 +15,7 @@
     ".plainva", ".obsidian", ".trash", ".smart-env", ".git", "node_modules", ".venv", "__pycache__",
     ".tox", ".turbo", ".cache", ".idea", ".vscode", "Icon\r",
     ".DS_Store", ".ds_store", "Thumbs.db", "THUMBS.DB", "desktop.ini", "Desktop.ini",
-    ".Spotlight-V100", ".Trashes", ".fseventsd",
+    ".Spotlight-V100", ".Trashes", ".fseventsd", "$RECYCLE.BIN", "$Recycle.Bin", "System Volume Information",
     ".stfolder", ".stfolder.removed-20260101",
     ".plainva-tmp-412-7-note.md", ".plainva-tmp-1234567890.tmp", ".plainva-tmp-6F9619FF-8B86-D011-B42D-00C04FC964FF",
     ".mypy_cache", ".pytest_cache", ".ruff_cache", ".rumdl_cache"

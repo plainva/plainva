@@ -68,7 +68,15 @@ export async function initializePersonalWorkspaceMigration(input: {
   await publishWorkspaceBootstrap(input.store, input.runtime, input.signal);
   meta.phase = "migrating";
 
-  const inventory = (await input.vault.listDir("", true))
+  // The walk with what it left out (issue #125): a folder it could not read
+  // — a link to a drive that is not mounted, a folder without access — is no
+  // folder whose objects are gone. The plain listing hands over the files
+  // only, and every object under such a folder went out as a deletion.
+  const listing = input.vault.listDirReport
+    ? await input.vault.listDirReport("", true, { signal: input.signal })
+    : { files: await input.vault.listDir("", true, { signal: input.signal }), skipped: [] };
+  const unjudged = (path: string) => listing.skipped.some((s) => !s.path || s.path === path || path.startsWith(`${s.path}/`));
+  const inventory = listing.files
     .filter((entry) => entry.path && !isWorkspaceLocalOnlyPath(entry.path))
     .sort((left, right) => {
       const leftDepth = left.path.split("/").length;
@@ -122,14 +130,14 @@ export async function initializePersonalWorkspaceMigration(input: {
   // The watcher cannot observe changes made while Plainva was closed. Reconcile
   // the durable object map against the startup inventory so offline edits and
   // deletions enter the same signed queue before the first pull.
-  const missingObjects = [...objectsByPath.values()].filter((object) => !object.deleted && !localPaths.has(object.path));
+  const missingObjects = [...objectsByPath.values()].filter((object) => !object.deleted && !localPaths.has(object.path) && !unjudged(object.path));
   for (const object of missingObjects) {
     if (input.signal?.aborted) throw new DOMException("Encrypted workspace migration aborted", "AbortError");
     if (pendingPaths.has(object.path)) { queued += 1; continue; }
     await input.state.enqueue("delete", object.path);
     queued += 1;
   }
-  const staleProbes = [...probesByPath.keys()].filter((path) => !localPaths.has(path));
+  const staleProbes = [...probesByPath.keys()].filter((path) => !localPaths.has(path) && !unjudged(path));
   if (probeUpserts.length) await input.state.upsertLocalProbes(probeUpserts);
   if (staleProbes.length) await input.state.deleteLocalProbes(staleProbes);
   meta.migrationTotal = inventory.length + missingObjects.length;

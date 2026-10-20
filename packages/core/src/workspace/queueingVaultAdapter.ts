@@ -1,4 +1,4 @@
-import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, WatchEvent } from "../vault/IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, WatchEvent, type VaultWalkOptions } from "../vault/IVaultAdapter.js";
 import { normalizeVaultPath } from "./path.js";
 import { WorkspaceStateStore } from "./state.js";
 
@@ -43,7 +43,7 @@ export class WorkspaceQueueingVaultAdapter implements IVaultAdapter {
     await (this.raw as any).setFileTimes?.(path, times);
   }
 
-  async listDirReport(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultListing> {
+  async listDirReport(path?: string, recursive?: boolean, options?: VaultWalkOptions): Promise<VaultListing> {
     return this.raw.listDirReport
       ? this.raw.listDirReport(path, recursive, options)
       : { files: await this.raw.listDir(path, recursive, options), skipped: [] };

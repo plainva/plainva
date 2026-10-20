@@ -1,6 +1,6 @@
 # FAQ & Fehlerbehebung
 
-Stand: 2026-09-30
+Stand: 2026-10-20
 
 Antworten auf die häufigsten Fragen — von Obsidian-Kompatibilität über Konfliktdateien bis zu Backups.
 
@@ -106,6 +106,14 @@ Danach zeigt Plainva einen kurzen Bericht: wie viele Dateien neu, geändert oder
 
 Zusätzlich gleicht Plainva automatisch ab, sobald Du aus einem anderen Programm ins Fenster zurückkehrst (höchstens alle 30 Sekunden; die Cloud höchstens alle 5 Minuten). Bleibt eine Datei auch danach unsichtbar, hilft **Index vollständig neu aufbauen** unter Einstellungen → Vault → Wartung.
 
+### Suche, Tags oder Datenbanken fehlt ein Teil meines Vaults
+
+Beim Einlesen folgt Plainva Links so, wie das System es tut: Ein Link auf einen Ordner wird als dieser Ordner gelesen, ein Link auf eine Datei als diese Datei — am Desktop und in einem Ordner, den Du am iPhone ausgewählt hast. Was sich nicht lesen lässt, lässt Plainva aus und nennt es: einen Link auf einen Ort, den es auf diesem Gerät nicht gibt (etwa einen Ordner, der nur auf einem anderen Rechner liegt und hier als Link angekommen ist) oder einen Ordner ohne Zugriff. Ein Hinweis nennt sie einmal — **ließ sich nicht lesen und fehlt im Suchindex** —, der Rest des Vaults wird wie gewohnt erfasst. Nichts unter einem solchen Eintrag gilt als gelöscht, weder für den Index noch für den Sync eines verschlüsselten Workspace.
+
+Lässt sich der Index gar nicht aktualisieren, sagt der Hinweis, warum (**Der Suchindex konnte nicht aktualisiert werden: …**); der Vault bleibt mit dem offen, was der Index schon enthält, und beim nächsten Einlesen versucht Plainva es erneut. Am Telefon wird auch ein Suchindex genannt, der sich nicht öffnen lässt: Suche, Tags, Datenbanken, die Synchronisation und der Kalender bleiben dann aus, bis Plainva ihn öffnen kann.
+
+Entferne oder repariere den Eintrag, den der Hinweis nennt, und wähle dann **Vault neu einlesen** (am Telefon: eine Liste nach unten ziehen).
+
 ### Ich habe eine Datei außerhalb von Plainva verschoben
 
 Plainva folgt ihr. Der Dateibaum zeigt die Datei am neuen Ort, auch wenn Du sie im Finder, im Explorer oder in einem anderen Programm verschoben hast. Ist die Notiz gerade offen — oder öffnest Du sie noch am alten Ort, etwa über ein Lesezeichen —, sucht Plainva sie: Liegt genau eine Datei mit demselben Inhalt und derselben Änderungszeit woanders, folgt der Tab ihr, eine kurze Meldung nennt den neuen Ordner, und Lesezeichen, Plätze auf der Pinnwand und Kommentare der Notiz ziehen mit um. Ungespeicherte Änderungen wandern mit an den neuen Ort. Ist das nicht eindeutig, etwa weil derselbe Inhalt an mehreren Stellen liegt, fragt **Verschoben?**, und Du wählst die richtige Datei aus. Findet Plainva keine, bleibt es bei **Diese Datei existiert nicht mehr**; den veralteten Eintrag im Index räumt Plainva dabei von selbst weg. Hattest Du ungespeicherte Änderungen, bleiben sie erhalten, und **Hier erneut speichern** legt die Datei am alten Ort wieder an — von selbst schreibt Plainva dort nichts. Solange die Suche noch den ganzen Vault durchgeht, steht **Suche noch an anderer Stelle im Vault …** dabei.
@@ -114,7 +122,7 @@ Das gilt genauso für einen geöffneten Tab mit einer Datenbank (`.base`) oder e
 
 Am Telefon gibt es keine laufende Beobachtung des Ordners. Stattdessen liest Plainva den Vault neu ein, sobald Du **in die App zurückkehrst** (höchstens einmal pro Minute), und wenn Du eine Liste **herunterziehst** — das gilt für jeden Vault, auch für den in der App selbst, den unter iOS die Dateien-App zeigt. Eine verschobene Notiz folgt ihrer Datei dort genauso, auch eine gerade offene; findet Plainva sie nicht, erscheint **Diese Notiz wurde nicht gefunden.**
 
-Systemdateien übergeht Plainva: `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (Ordnersymbole), `.Spotlight-V100`, `.Trashes`, `.fseventsd` und die AppleDouble-Dateien, die macOS auf Netzlaufwerken und USB-Sticks neben jede Datei legt (`._Notiz.md`). Sie erscheinen nicht im Dateibaum und werden weder hoch- noch heruntergeladen. Eine Kopie, die eine frühere Version schon in die Cloud geladen hat, bleibt dort unangetastet. Eine eigene Notiz, deren Name nur zufällig mit `._` beginnt, bleibt sichtbar — Plainva erkennt AppleDouble-Dateien an ihrem Inhalt, nicht am Namen.
+Systemdateien übergeht Plainva: `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (Ordnersymbole), `.Spotlight-V100`, `.Trashes`, `.fseventsd`, `$RECYCLE.BIN`, `System Volume Information` (beide unter Windows im Stammverzeichnis eines Laufwerks) und die AppleDouble-Dateien, die macOS auf Netzlaufwerken und USB-Sticks neben jede Datei legt (`._Notiz.md`). Sie erscheinen nicht im Dateibaum und werden weder hoch- noch heruntergeladen. Eine Kopie, die eine frühere Version schon in die Cloud geladen hat, bleibt dort unangetastet. Eine eigene Notiz, deren Name nur zufällig mit `._` beginnt, bleibt sichtbar — Plainva erkennt AppleDouble-Dateien an ihrem Inhalt, nicht am Namen.
 
 ### Warum sehe ich keine Animationen?
 

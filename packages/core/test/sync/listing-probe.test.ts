@@ -104,6 +104,8 @@ describe("a listing is a claim, not a fact (finding 2026-09-20)", () => {
       getPendingDeleteOperations: vi.fn().mockResolvedValue([]),
       markDeletesJournaled: vi.fn().mockResolvedValue(undefined),
       discardPendingDeletes: vi.fn().mockResolvedValue([]),
+      // The index holds every file of this vault, each row with the same stamp.
+      indexedRow: vi.fn().mockResolvedValue({ mtime: 7 }),
     };
     addConflictFixture(stateRepo, vault);
   });
@@ -498,10 +500,41 @@ describe("a listing is a claim, not a fact (finding 2026-09-20)", () => {
 
     await worker.runCycle();
 
-    // What a shell's onLocalFileDeleted does: ask once, then queue nothing.
-    expect(own.consume(known[38])).toBe(true);
-    expect(own.consume(known[38])).toBe(false);
-    expect(own.consume(known[0])).toBe(false);
+    // What a shell's onLocalFileDeleted does: ask once — for the row the index
+    // reports gone — then queue nothing.
+    expect(own.consume(known[38], { mtime: 7 })).toBe(true);
+    expect(own.consume(known[38], { mtime: 7 })).toBe(false);
+    expect(own.consume(known[0], { mtime: 7 })).toBe(false);
+    // Another row at that path is another file: the mark does not answer for it.
+    expect(own.consume(known[39], { mtime: 8 })).toBe(false);
+  });
+
+  it("marks a file the index does not hold for its own time only", async () => {
+    const own = new OwnDeletionRegister();
+    queue.indexedRow.mockResolvedValue(null);
+    vault.getFileInfo = vi.fn(async (p: string) => ({ path: p, name: p, isDirectory: false, size: 4, mtime: 9 }));
+    build({ ownDeletions: own });
+    listOnly(37);
+    remoteAlive = new Set(known.slice(0, 37));
+
+    await worker.runCycle();
+
+    // A row a pass writes for that file meanwhile carries the file's time, and
+    // is answered; the next file of that name carries another, and is not.
+    expect(own.consume(known[38], { mtime: 9 })).toBe(true);
+    expect(own.consume(known[39], { mtime: 10 })).toBe(false);
+  });
+
+  it("leaves no mark where neither the index nor the file can say which it is", async () => {
+    const own = new OwnDeletionRegister();
+    queue.indexedRow.mockResolvedValue(null);
+    build({ ownDeletions: own });
+    listOnly(37);
+    remoteAlive = new Set(known.slice(0, 37));
+
+    await worker.runCycle();
+
+    expect(own.size).toBe(0);
   });
 
   it("records provider ids from the listing for rows that have none", async () => {

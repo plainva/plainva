@@ -62,6 +62,18 @@ export interface IDatabaseAdapter {
   transaction<T>(fn: () => Promise<T>): Promise<T>;
 
   /**
+   * True where `transaction()` does NOT roll back. The desktop's adapter sits
+   * on a connection pool and cannot hold a transaction across calls: there
+   * `transaction()` only keeps a second one out, every statement is committed
+   * as it runs, and every `runBatch` is a transaction of its own. Whoever
+   * says what it wrote once its transaction is through has to say what it
+   * had written when the transaction fails — nobody takes it back
+   * (`VaultIndexer.announceWhatStays`). Absent or false: a transaction that
+   * failed wrote nothing.
+   */
+  readonly keepsWhatAFailedTransactionWrote?: boolean;
+
+  /**
    * Runs an ORDERED batch of write statements atomically in a single database
    * transaction (BEGIN/COMMIT, ROLLBACK on any error). Optional: adapters without
    * a native transactional path omit it, and callers fall back to per-statement

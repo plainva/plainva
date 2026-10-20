@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-20
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
@@ -106,6 +106,14 @@ Plainva then shows a short report: how many files were new, changed or removed �
 
 Plainva additionally reconciles automatically whenever you return to the window from another program (at most every 30 seconds; the cloud at most every 5 minutes). If a file stays invisible even then, use **Rebuild the index from scratch** under Settings → Vault → Maintenance.
 
+### Search, tags or databases miss part of my vault
+
+When Plainva reads the vault it follows links the way the system does: a link to a folder is read as that folder, a link to a file as that file — on the desktop and in a folder you picked on the iPhone. What it cannot read, it leaves out and names: a link to a place that does not exist on this device (for example a folder that exists only on another computer and arrived here as a link), or a folder without access. A notice names them once — **could not be read and is left out of the search index** — and the rest of the vault is indexed as usual. Nothing under such an entry is treated as deleted, neither by the index nor by the sync of an encrypted workspace.
+
+If the index cannot be updated at all, the notice says why (**The search index could not be updated: …**); the vault stays open with what the index already holds, and the next time the vault is read Plainva tries again. On the phone a search index that cannot be opened is named as well: search, tags, databases, the sync and the calendar then stay off until Plainva can open it.
+
+Remove or repair the entry the notice names, then use **Read the vault again** (on the phone: pull down a list).
+
 ### I moved a file outside Plainva
 
 Plainva follows it. The file tree shows the file at its new place, even when you moved it in Finder, Explorer or another program. If the note is open — or you open it at its old place, say from a bookmark — Plainva looks for it: when exactly one file elsewhere has the same content and the same modification time, the tab follows it, a short message names the new folder, and bookmarks, places on the pinboard and the note's comments move along. Unsaved changes go with it to the new place. When that is not clear-cut, for example because the same content exists in several places, **Moved?** asks and you pick the right file. When Plainva finds none, the tab stays at **This file no longer exists**, and Plainva removes the outdated index entry by itself. If you had unsaved changes, they are kept, and **Save here again** puts the file back at its old place — Plainva never writes there on its own. While the search still goes through the whole vault, **Still looking elsewhere in the vault…** says so.
@@ -114,7 +122,7 @@ The same goes for an open tab with a database (`.base`) or an image, and on the 
 
 On the phone nothing watches the folder while you work. Instead, Plainva reads the vault again whenever you **return to the app** (at most once a minute) and whenever you **pull down** a list — for every vault, including the one inside the app, which the Files app shows on iOS. A moved note follows its file there the same way, an open one included; if Plainva cannot find it, **This note could not be found.** appears.
 
-Plainva skips system files: `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (folder icons), `.Spotlight-V100`, `.Trashes`, `.fseventsd`, and the AppleDouble files macOS puts next to every file on network drives and USB sticks (`._Note.md`). They do not appear in the file tree and are neither uploaded nor downloaded. A copy an earlier version already uploaded stays in the cloud untouched. A note of your own whose name merely starts with `._` stays visible — Plainva recognises AppleDouble files by their content, not by their name.
+Plainva skips system files: `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (folder icons), `.Spotlight-V100`, `.Trashes`, `.fseventsd`, `$RECYCLE.BIN` and `System Volume Information` (both at the root of a drive on Windows), and the AppleDouble files macOS puts next to every file on network drives and USB sticks (`._Note.md`). They do not appear in the file tree and are neither uploaded nor downloaded. A copy an earlier version already uploaded stays in the cloud untouched. A note of your own whose name merely starts with `._` stays visible — Plainva recognises AppleDouble files by their content, not by their name.
 
 ### Why don't I see any animations?
 

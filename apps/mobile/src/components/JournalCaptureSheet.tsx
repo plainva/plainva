@@ -56,7 +56,7 @@ export function JournalCaptureSheet({
   /** A voice memo, written the way the photo is (plan Journal-Erweiterungen, X4). */
   const onRecorded = async (memo: VoiceMemoResult) => {
     try {
-      const { insert } = await importAttachment(
+      const { insert, path: written } = await importAttachment(
         { name: voiceMemoFileName(new Date(), t("voiceMemo.fileName"), memo.extension), mime: memo.mime, bytes: memo.bytes },
         { configuredFolder: ms.attachmentFolder || "Attachments", noteFolder: ms.dailyFolder || "" },
         {
@@ -65,6 +65,8 @@ export function JournalCaptureSheet({
           writeBinaryFile: (p, bytes) => vault.files.writeBinaryFile(p, bytes),
         },
       );
+      // The index hears of the recording now, not at the next full scan (finding 2026-10-12).
+      void vault.reindexPaths([written]);
       setValue((v) => (v.trim() ? `${v.trimEnd()}\n${insert}` : insert));
     } catch (error) {
       toast.error(errorText(error));
@@ -88,6 +90,7 @@ export function JournalCaptureSheet({
       const bytes = await mediaResultBytes(photo, (uri) => Filesystem.readFile({ path: uri }));
       const name = await availablePhotoPath((candidate) => vault.files.exists(candidate), photo);
       await vault.files.writeBinaryFile(name, bytes);
+      void vault.reindexPaths([name]);
       syncSoon();
       setValue((v) => `${v}${v && !/\s$/.test(v) ? " " : ""}![[${name}]]`);
       toast.info(t("journal.attachImage"));

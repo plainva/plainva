@@ -175,9 +175,11 @@ describe("VaultIndexer", () => {
     await testIndexer.indexVaultFull();
 
     // After first index, mock the bulk-pass lookups (P2.4 query order):
-    // #1 known files, #2 files id/state, #3 offline_queue, #4 sync_state.
-    db.mockedResults.push([{ path: "ext.md", mtime_local: 0 }]); // For the SELECT path, mtime_local FROM files
-    db.mockedResults.push([]); // bulk: files id/state
+    // #1 known files, #2 the rows as they are when the scan writes,
+    // #3 offline_queue, #4 sync_state. The index knows the file in both
+    // readings — a file it does not hold is new, not changed elsewhere.
+    db.mockedResults.push([{ path: "ext.md", mtime_local: 0 }]); // For the SELECT rowid, path, mtime_local FROM files
+    db.mockedResults.push([{ path: "ext.md", sync_state: "synced", ctime: null }]); // bulk: files rows by path
     db.mockedResults.push([]); // bulk: offline_queue
     db.mockedResults.push([{ path: "ext.md", local_sha256: "old_fake_hash" }]); // bulk: sync_state
 

@@ -180,9 +180,9 @@ async function world(opts: WorldOptions) {
     onNewLocalFile: (p) => {
       if (live) void queue.queueWrite(p);
     },
-    onLocalFileDeleted: (p) => {
+    onLocalFileDeleted: (p, row) => {
       if (!live || p.includes(".plainva")) return;
-      if (ownDeletions.consume(p)) return;
+      if (ownDeletions.consume(p, row)) return;
       void queue.queueDelete(p);
     },
   });

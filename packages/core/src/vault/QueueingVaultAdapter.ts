@@ -1,4 +1,4 @@
-import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo } from "./IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, type VaultWalkOptions } from "./IVaultAdapter.js";
 import { SyncQueue } from "../sync/SyncQueue.js";
 import { isSystemJunkPath } from "./systemJunk.js";
 
@@ -218,7 +218,7 @@ export class QueueingVaultAdapter implements IVaultAdapter {
     await (this.inner as any).setFileTimes?.(path, times);
   }
 
-  async listDirReport(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultListing> {
+  async listDirReport(path?: string, recursive?: boolean, options?: VaultWalkOptions): Promise<VaultListing> {
     return this.inner.listDirReport
       ? this.inner.listDirReport(path, recursive, options)
       : { files: await this.inner.listDir(path, recursive, options), skipped: [] };

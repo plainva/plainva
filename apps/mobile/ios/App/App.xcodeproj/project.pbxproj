@@ -23,6 +23,7 @@
 		7A0002000000000000000005 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A0001000000000000000005 /* PrivacyInfo.xcprivacy */; };
 		7B0002000000000000000001 /* ShareTargetPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B0001000000000000000001 /* ShareTargetPlugin.swift */; };
 		7C0002000000000000000001 /* VaultFolderPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C0001000000000000000001 /* VaultFolderPlugin.swift */; };
+		7C0002000000000000000002 /* VaultFolderListing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C0001000000000000000002 /* VaultFolderListing.swift */; };
 		7D0002000000000000000001 /* DevicePimPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D0001000000000000000001 /* DevicePimPlugin.swift */; };
 		7F0002000000000000000001 /* WidgetBridgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0001000000000000000001 /* WidgetBridgePlugin.swift */; };
 		7F0002000000000000000002 /* WidgetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0001000000000000000002 /* WidgetStore.swift */; };
@@ -93,6 +94,7 @@
 		7A0001000000000000000005 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7B0001000000000000000001 /* ShareTargetPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareTargetPlugin.swift; sourceTree = "<group>"; };
 		7C0001000000000000000001 /* VaultFolderPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFolderPlugin.swift; sourceTree = "<group>"; };
+		7C0001000000000000000002 /* VaultFolderListing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFolderListing.swift; sourceTree = "<group>"; };
 		7D0001000000000000000001 /* DevicePimPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicePimPlugin.swift; sourceTree = "<group>"; };
 		7F0001000000000000000001 /* WidgetBridgePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBridgePlugin.swift; sourceTree = "<group>"; };
 		7F0001000000000000000002 /* WidgetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/WidgetStore.swift; sourceTree = SOURCE_ROOT; };
@@ -181,6 +183,7 @@
 				7A0001000000000000000005 /* PrivacyInfo.xcprivacy */,
 				7B0001000000000000000001 /* ShareTargetPlugin.swift */,
 				7C0001000000000000000001 /* VaultFolderPlugin.swift */,
+				7C0001000000000000000002 /* VaultFolderListing.swift */,
 				7D0001000000000000000001 /* DevicePimPlugin.swift */,
 				7F0001000000000000000001 /* WidgetBridgePlugin.swift */,
 				7B0001000000000000000002 /* App.entitlements */,
@@ -370,6 +373,7 @@
 				7B0002000000000000000001 /* ShareTargetPlugin.swift in Sources */,
 				7E0002000000000000000001 /* ShareQueueStore.swift in Sources */,
 				7C0002000000000000000001 /* VaultFolderPlugin.swift in Sources */,
+				7C0002000000000000000002 /* VaultFolderListing.swift in Sources */,
 				7D0002000000000000000001 /* DevicePimPlugin.swift in Sources */,
 				7F0002000000000000000001 /* WidgetBridgePlugin.swift in Sources */,
 				7F0002000000000000000002 /* WidgetStore.swift in Sources */,

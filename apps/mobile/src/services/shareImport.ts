@@ -85,6 +85,13 @@ export interface ShareImportContext {
    * entry. Handed in whenever a journal plan may have to be resumed.
    */
   appendJournal?(entry: ShareJournalEntry): Promise<string>;
+  /**
+   * Told of every attachment this import writes into the vault, so that the
+   * host can tell the index (`MobileVault.reindexPaths`, finding 2026-10-12):
+   * a shared photo was on disk and synced, and unknown to search and to every
+   * list drawn from the index until the next full scan.
+   */
+  onFileWritten?(path: string): void;
 }
 
 /** One durable native plan owns every path; no automatic rename after a retry. */
@@ -152,6 +159,7 @@ async function runImport(port: ShareTargetPort, incoming: PendingShare, ctx: Sha
         } else {
           await ctx.files.writeBinaryFile(path, bytes);
           if (await hash(await ctx.files.readBinaryFile(path)) !== file.sha256) throw new Error("SHARE_WRITE_FAILED");
+          ctx.onFileWritten?.(path);
         }
         await port.markImported({ id: share.id, fileId: file.id });
       }

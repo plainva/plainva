@@ -152,6 +152,7 @@ export * from "./lib/moveOutcome";
 export * from "./lib/connectionErrorText";
 export * from "./lib/workspaceSyncFailureText";
 export * from "./lib/keptDeletionsText";
+export * from "./lib/indexNotices";
 export * from "./lib/foreignLegacyComments";
 export * from "./lib/externalUpdateDecision";
 export * from "./lib/fuzzyScore";

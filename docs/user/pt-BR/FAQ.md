@@ -1,6 +1,6 @@
 # FAQ e Solução de Problemas
 
-Última revisão: 2026-09-30
+Última revisão: 2026-10-20
 
 Respostas para as perguntas mais comuns — da compatibilidade com o Obsidian a arquivos de conflito e backups.
 
@@ -106,6 +106,14 @@ O Plainva então mostra um breve relatório: quantos arquivos eram novos, altera
 
 Além disso, o Plainva concilia automaticamente sempre que você volta para a janela vindo de outro programa (no máximo a cada 30 segundos; a nuvem no máximo a cada 5 minutos). Se um arquivo continuar invisível mesmo assim, use **Reconstruir o índice do zero** em Configurações → Vault → Manutenção.
 
+### Falta uma parte do meu vault na busca, nas tags ou nos bancos de dados
+
+Ao ler o vault, o Plainva segue links como o sistema faz: um link para uma pasta é lido como essa pasta, um link para um arquivo como esse arquivo — no computador e em uma pasta que você escolheu no iPhone. O que ele não consegue ler, ele deixa de fora e nomeia: um link para um local que não existe neste dispositivo (por exemplo, uma pasta que só existe em outro computador e chegou aqui como link) ou uma pasta sem acesso. Um aviso os nomeia uma vez — **ficou fora do índice de busca** — e o restante do vault é indexado como sempre. Nada que esteja sob uma entrada dessas é tratado como excluído, nem pelo índice nem pela sincronização de um espaço de trabalho criptografado.
+
+Se o índice não puder ser atualizado de forma alguma, o aviso diz por quê (**Não foi possível atualizar o índice de busca: …**); o vault continua aberto com o que o índice já contém e, na próxima vez que o vault for lido, o Plainva tenta de novo. No celular, um índice de busca que não pode ser aberto também é nomeado: a busca, as tags, os bancos de dados, a sincronização e o calendário ficam então desativados até que o Plainva consiga abri-lo.
+
+Remova ou conserte a entrada que o aviso nomeia e depois use **Reler o vault** (no celular: puxe uma lista para baixo).
+
 ### Movi um arquivo para fora do Plainva
 
 O Plainva o acompanha. A árvore de arquivos mostra o arquivo no novo lugar, mesmo que você o tenha movido no Finder, no Explorador ou em outro programa. Se a nota estiver aberta — ou se você a abrir no lugar antigo, por exemplo a partir de um favorito —, o Plainva a procura: quando exatamente um arquivo em outro lugar tem o mesmo conteúdo e a mesma data de modificação, a aba o acompanha, uma mensagem curta indica a nova pasta, e favoritos, lugares no mural e comentários da nota mudam junto. As alterações não salvas vão junto para o novo lugar. Se não for inequívoco, por exemplo porque o mesmo conteúdo existe em vários lugares, **Movido?** pergunta qual é, e você escolhe o arquivo certo. Se o Plainva não encontrar nenhum, a aba continua em **Este arquivo não existe mais**, e o Plainva remove sozinho a entrada desatualizada do índice. Se você tinha alterações não salvas, elas ficam guardadas, e **Salvar aqui de novo** recria o arquivo no lugar antigo — o Plainva nunca grava ali por conta própria. Enquanto a busca ainda percorre o vault inteiro, **Ainda procurando em outros lugares do vault…** avisa.
@@ -114,7 +122,7 @@ O mesmo vale para uma aba aberta com um banco de dados (`.base`) ou uma imagem, 
 
 No celular, nada observa a pasta enquanto você trabalha. Em vez disso, o Plainva lê o vault de novo sempre que você **volta ao app** (no máximo uma vez por minuto) e sempre que você **puxa uma lista para baixo** — para todo vault, inclusive o que fica dentro do app e que o app Arquivos mostra no iOS. Ali uma nota movida acompanha o arquivo da mesma forma, inclusive uma aberta; se o Plainva não a encontrar, aparece **Esta nota não foi encontrada.**
 
-O Plainva ignora arquivos do sistema: `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (ícones de pasta), `.Spotlight-V100`, `.Trashes`, `.fseventsd` e os arquivos AppleDouble que o macOS coloca ao lado de cada arquivo em unidades de rede e pendrives (`._Nota.md`). Eles não aparecem na árvore de arquivos e não são enviados nem baixados. Uma cópia que uma versão anterior já enviou continua intacta na nuvem. Uma nota sua cujo nome apenas começa com `._` continua visível — o Plainva reconhece arquivos AppleDouble pelo conteúdo, não pelo nome.
+O Plainva ignora arquivos do sistema: `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (ícones de pasta), `.Spotlight-V100`, `.Trashes`, `.fseventsd`, `$RECYCLE.BIN`, `System Volume Information` (ambos na raiz de uma unidade no Windows) e os arquivos AppleDouble que o macOS coloca ao lado de cada arquivo em unidades de rede e pendrives (`._Nota.md`). Eles não aparecem na árvore de arquivos e não são enviados nem baixados. Uma cópia que uma versão anterior já enviou continua intacta na nuvem. Uma nota sua cujo nome apenas começa com `._` continua visível — o Plainva reconhece arquivos AppleDouble pelo conteúdo, não pelo nome.
 
 ### Por que não vejo nenhuma animação?
 

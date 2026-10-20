@@ -87,9 +87,12 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
     const makesTask = asTask && !toJournal && !!taskDb && !entry.plan;
     const intoJournal = toJournal && !entry.plan;
     let taskTitle = "";
+    // The attachments the import writes; the index hears of them with the note.
+    const written: string[] = [];
     try {
       const path = await importSharedContent(port, entry, {
         vaultId: vault.vaultId, files: vault.files, folder, signal: controller.signal,
+        onFileWritten: (p) => void written.push(p),
         // A journal plan may have to be RESUMED after a restart, whatever the chips say now.
         appendJournal: (planned) => appendPlannedJournalEntry(vault, planned),
         ...(intoJournal ? { toJournal: async () => planSharedJournalEntry() } : {}),
@@ -108,7 +111,7 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
         },
         onProgress: (done, total) => setProgress(t("shareInbox.progress", { done, total })),
       });
-      await vault.reindexPaths([path]).catch(() => toast.error(t("shareInbox.indexIssue")));
+      await vault.reindexPaths([path, ...written]).catch(() => toast.error(t("shareInbox.indexIssue")));
       // A journal entry lands in a note that usually exists already; only a new note is announced as created.
       if (!intoJournal && !entry.plan?.journal) notifyFileOps([{ type: "create", path }]);
       // The note is the deliverable and exists; the provider copy is the

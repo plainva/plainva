@@ -24,6 +24,31 @@ export interface VaultFolderEntry {
   mtime: number;
   /** Creation time where the platform has it (iOS); absent otherwise. */
   ctime?: number;
+  /**
+   * A folder's identity where the platform has one (iOS: device and inode of
+   * the folder a link points at): what lets a walk cut a link that leads back
+   * into a folder it is already in (issue 125).
+   */
+  identity?: string;
+  /**
+   * Reached through a link (iOS): kind, size and times are those of what the
+   * link points at. A walk follows it; the backup inventory leaves it out, as
+   * the desktop's backup does.
+   */
+  link?: boolean;
+}
+
+/** An entry a listing could not describe: a link that points nowhere, a socket (issue 125). */
+export interface VaultFolderSkip {
+  name: string;
+  reason: "unreadable";
+  /**
+   * What it is (iOS): a link that points nowhere (`link`), neither file nor
+   * folder (`special`), a name the vault's paths cannot address (`name`), or
+   * one whose values could not be read (`unreadable`). The backup inventory
+   * leaves the first two out, as the desktop's backup does, and fails on the rest.
+   */
+  kind?: "link" | "special" | "name" | "unreadable";
 }
 
 export type VaultFolderAccess =
@@ -43,7 +68,7 @@ export interface VaultFolderNative {
   resolve(opts: { handle: string }): Promise<VaultFolderAccess>;
   release(opts: { handle: string }): Promise<void>;
   /** ONE listing query per folder (SAF: DocumentsContract with a projection). */
-  list(opts: { handle: string; path: string }): Promise<{ entries: VaultFolderEntry[] }>;
+  list(opts: { handle: string; path: string }): Promise<{ entries: VaultFolderEntry[]; skipped?: VaultFolderSkip[]; identity?: string }>;
   /** Only a confirmed absence returns null (or rejects with code ENOENT).
    * Permission, provider and I/O failures reject and must stay failures. */
   stat(opts: { handle: string; path: string }): Promise<{ entry: VaultFolderEntry | null }>;

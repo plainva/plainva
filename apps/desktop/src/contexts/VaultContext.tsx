@@ -6,7 +6,7 @@ import React, { createContext, useContext, useState, useEffect, useLayoutEffect,
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, formatQueueEntryReport, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, formatFullScan, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, formatQueueEntryReport, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, formatFullScan, formatFullScanFailure, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { rotateLegacyFileGrant } from "../services/accountGrantMigration";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
@@ -18,7 +18,7 @@ import { settlePendingWrites } from "../services/pendingWrites";
 import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown";
 import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
-import { createLimiter, formatListingReport, formatTaskSync, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
+import { createIndexNotices, createLimiter, formatListingReport, formatTaskSync, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
@@ -803,9 +803,10 @@ export const VaultProvider: React.FC<{
       workspaceRuntimeRef.current = workspaceRuntime;
       let resolvedWorkspaceSecurityStatus = workspaceSecurityStatus;
       const workspaceStateStore = workspaceSecurityStatus ? new SqlWorkspaceStateStore(dbAdapter) : null;
-      const workspaceMaterializedPaths = new Set<string>();
       workspaceStateRef.current = workspaceStateStore;
-      const permissionedWorkspaceAdapter = workspaceStateStore ? new PermissionedVaultAdapter(backupVaultAdapter, async (request) => {
+      // With the workspace's state: what the worker brought from another
+      // device is nothing the index reports for this one (finding 2026-10-12).
+      const permissionedWorkspaceAdapter = workspaceStateStore ? new PermissionedVaultAdapter(backupVaultAdapter, workspaceStateStore, async (request) => {
         if (!workspaceRuntime) return false;
         const existing = await workspaceStateStore.getObjectByPath(request.path);
         const objectId = existing?.objectId ?? createWorkspaceObjectId();
@@ -914,7 +915,6 @@ export const VaultProvider: React.FC<{
       // are indexed but were never enqueued. Push them when this vault has a sync target.
       const enqueueLocalChange = async (changedPath: string) => {
         if (!hasSyncTarget || changedPath.includes(".plainva") || changedPath.includes(".CONFLICT")) return;
-        if (workspaceMaterializedPaths.delete(changedPath)) return;
         if (permissionedWorkspaceAdapter && !await permissionedWorkspaceAdapter.authorizeExternalChange(changedPath, true)) return;
         const queued = workspaceStateStore
           ? workspaceStateStore.enqueue("write", changedPath)
@@ -932,6 +932,18 @@ export const VaultProvider: React.FC<{
       // mass data loss). The first pull's reconcile adopts/merges the remote instead, and
       // onFirstCycleComplete then sweeps only the genuinely local-only files.
       let deferInitialEnqueue = true;
+      // The index is owed a full scan until it is known to have had one — a
+      // cold index until its first scan goes through, a warm one on which none
+      // ever did (`indexComplete`; issue 125). Every file such a scan did not
+      // reach is still "new" to it, so the deferral above holds until then, and
+      // the task reconciler creates no notes either: the anchors it looks for
+      // come from the index. Owed from the start, so no cycle runs before the
+      // open has looked.
+      let coldIndexOwed = true;
+      // Whether the first sync has swept the local-only files (onFirstCycleComplete).
+      let localOnlySwept = false;
+      // What a full scan left out, or why it failed, said once on screen (issue 125).
+      const indexNotices = createIndexNotices(toast);
       // What the sync worker removes itself is not the user's deletion (finding
       // 2026-09-20): the worker marks a path before it mirrors a remote deletion,
       // and `onLocalFileDeleted` below asks once and then queues nothing. Without
@@ -954,16 +966,17 @@ export const VaultProvider: React.FC<{
           if (deferInitialEnqueue) return;
           void enqueueLocalChange(path);
         },
-        onLocalFileDeleted: (path) => {
+        onLocalFileDeleted: (path, row) => {
           // An editor that shows this file learns that it vanished (issue 110,
           // E9) — moved or deleted outside Plainva while open. It looks for
           // the file; the owner bridge carries the event to other windows.
           if (!path.includes(".plainva")) window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
           if (path.includes(".plainva") || path.includes(".CONFLICT")) return;
-          if (workspaceMaterializedPaths.delete(path)) return;
           // The worker mirrored a remote deletion: its sync_state is already
-          // gone and the remote has nothing left to delete.
-          if (ownDeletions.consume(path)) return;
+          // gone and the remote has nothing left to delete. Asked for the row
+          // the index removed: the mark answers for the file the worker took
+          // away, not for a later one of that name (finding 2026-10-12).
+          if (ownDeletions.consume(path, row)) return;
           if (hasSyncTarget) {
             if (permissionedWorkspaceAdapter) {
               void permissionedWorkspaceAdapter.authorizeExternalChange(path, false).then((allowed) => {
@@ -985,8 +998,32 @@ export const VaultProvider: React.FC<{
           }
         },
         // One line per full scan (issue 122): what set it off, how much it
-        // walked, how long it took and what it changed. Counts only.
-        onFullScan: (info) => logDiagnostic("index", formatFullScan(info)),
+        // walked, how long it took and what it changed. Counts only. On
+        // screen, what it left out, by name (issue 125).
+        onFullScan: (info) => {
+          // First, so that a line or a notice that fails cannot keep the
+          // deferral up for the rest of the session.
+          if (coldIndexOwed) {
+            coldIndexOwed = false;
+            deferInitialEnqueue = false;
+            // The first sync may have swept the local-only files already, over
+            // what the failed scan had reached: the ones this scan found only
+            // now go up as well (the sweep passes over what is queued).
+            if (localOnlySwept) {
+              syncQueue.enqueueLocalOnlyFiles()
+                .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
+                .catch((e) => console.error("[VaultContext] enqueueLocalOnlyFiles failed", e));
+            }
+          }
+          logDiagnostic("index", formatFullScan(info));
+          indexNotices.scanned(info);
+        },
+        // A scan that failed is said once, with its reason (issue 125): the
+        // index keeps what it got, and the next scan tries again.
+        onFullScanFailed: (info) => {
+          logDiagnostic("index", formatFullScanFailure(info));
+          indexNotices.failed(info);
+        },
         onProgress: (current, total, msgPath) => {
           // Only the INITIAL vault load reports progress into React state (P3):
           // background re-indexes (watcher echo of our own saves, sync pulls)
@@ -1077,7 +1114,7 @@ export const VaultProvider: React.FC<{
               generatedBy: await plainvaProducer("task-sync"),
               // One query instead of reading every note once per task.
               anchorsByUid: await queryService.getTaskAnchors(),
-              mayCreateNotes: firstSyncSettled,
+              mayCreateNotes: firstSyncSettled && !coldIndexOwed,
               // Deletions the user confirmed here whose provider task should
               // follow (E4b). The reconciler owns the call: it has the target,
               // the etag and the CalDAV href, and it retries next cycle.
@@ -1167,7 +1204,13 @@ export const VaultProvider: React.FC<{
         reportInitialProgress = false; // background reconcile: no loading bar
         // Warm index: files are already known, so the background pass discovers no mass
         // of "new" files — let any genuinely new ones (created while closed) enqueue.
-        deferInitialEnqueue = false;
+        // Unless no full scan has gone through on it: a first scan that failed
+        // keeps the rows it wrote, and the files it never reached are still new
+        // to it (issue 125) — the deferral holds until a scan goes through.
+        if (await indexer.indexComplete().catch(() => false)) {
+          coldIndexOwed = false;
+          deferInitialEnqueue = false;
+        }
         void indexer
           .indexVaultFull("open")
           .then((report) => {
@@ -1188,9 +1231,16 @@ export const VaultProvider: React.FC<{
         // Fresh/empty index: block with progress so the tree isn't empty. Every file is
         // "new" here — the deferred enqueue (3c) keeps this from mass-pushing over the
         // remote; the first pull reconciles and onFirstCycleComplete sweeps local-only.
-        await perfMeasure("initial full index (cold)", () => indexer.indexVaultFull("open, empty index"));
+        // A scan that fails no longer keeps the vault from opening (issue 125): the
+        // index holds what it got, the failure is on screen (onFullScanFailed), and
+        // the next full scan — the watcher's, a refresh — tries again. The index
+        // is owed that scan from the start (coldIndexOwed), and onFullScan settles it.
+        await perfMeasure("initial full index (cold)", () => indexer.indexVaultFull("open, empty index"))
+          .catch((error: unknown) => {
+            // Called off because another vault opens: the load ends here, as at every other step.
+            if (currentAbortSignal.aborted) throw error;
+          });
         reportInitialProgress = false;
-        deferInitialEnqueue = false;
       }
 
       // If it's a new WebDAV connection, we enqueue all local files to trigger an initial push
@@ -1407,7 +1457,6 @@ export const VaultProvider: React.FC<{
                   }
                 };
                 worker.onFilesChanged = (paths) => {
-                  for (const changedPath of paths) workspaceMaterializedPaths.add(changedPath);
                   indexQueue.enqueue(paths, { source: "sync" });
                   for (const changedPath of paths) {
                     if (!changedPath.includes(".CONFLICT")) {
@@ -1508,6 +1557,7 @@ export const VaultProvider: React.FC<{
               syncQueue.enqueueLocalOnlyFiles()
                 .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
                 .catch((e) => console.error("[VaultContext] enqueueLocalOnlyFiles failed", e));
+              localOnlySwept = true;
             };
             syncWorker.onFilesChanged = (paths) => {
               // Pulled writes/deletions happen outside the editor; re-index so the
@@ -2324,21 +2374,20 @@ export const VaultProvider: React.FC<{
   };
 
   /**
-   * The expensive sibling of refreshVault: drop every indexed row and parse the
-   * whole vault again. This is what the maintenance page always CLAIMED to do
-   * ("Index neu aufbauen") while actually running the cheap reconcile.
+   * The expensive sibling of refreshVault: read every file of the vault again
+   * ("Index neu aufbauen"). The way both shells rebuild is the core's
+   * (`VaultIndexer.rebuildIndex`): it used to drop every indexed row first,
+   * and every file then came back as a new one — announced for an upload
+   * nobody needed, its creation time and its sync label lost (finding
+   * 2026-10-12). sync_state stays, as it always did: it carries the remote
+   * base for every file.
    */
   const rebuildIndex = async () => {
     const indexer = state.indexer;
-    const db = state.dbAdapter;
-    if (!indexer || !db) return;
+    if (!indexer) return;
     setState(s => ({ ...s, isLoading: true }));
     try {
-      // sync_state stays: it carries the remote base for every file, and losing
-      // it would make the next cycle re-upload the entire vault.
-      await db.execute(`DELETE FROM files`);
-      await db.execute(`DELETE FROM fts_notes`);
-      await indexer.indexVaultFull("index rebuild");
+      await indexer.rebuildIndex("index rebuild");
       bumpTree();
       toast.success(i18n.t("refresh.rebuildDone", { defaultValue: "Index vollständig neu aufgebaut." }));
     } catch (e) {

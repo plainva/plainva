@@ -71,6 +71,31 @@ describe("own deletions register", () => {
     expect(own.consume("Notes/a.md")).toBe(false);
   });
 
+  it("answers for the row it was set for, and goes without answering when another row is reported at the path", () => {
+    const own = new OwnDeletionRegister();
+    own.mark("Notes/a.md", [{ mtime: 100 }]);
+    expect(own.consume("Notes/a.md", { mtime: 100 })).toBe(true);
+
+    // The removal of the worker's file was never reported — the file was back
+    // before a pass had looked. A later file of that name is deleted: another
+    // row, another file, the user's deletion. The mark goes with the question.
+    own.mark("Notes/b.md", [{ mtime: 100 }]);
+    expect(own.consume("Notes/b.md", { mtime: 200 })).toBe(false);
+    expect(own.size).toBe(0);
+
+    // A report that does not say which row went is not about the worker's file.
+    own.mark("Notes/c.md", [{ mtime: 100 }]);
+    expect(own.consume("Notes/c.md")).toBe(false);
+
+    // Every row that can be reported for the file answers: the one the index
+    // held when the worker asked, and one carrying the file's own time.
+    own.mark("Notes/d.md", [{ mtime: 0 }, { mtime: 300 }]);
+    expect(own.consume("Notes/d.md", { mtime: 300 })).toBe(true);
+    // Nothing to answer for sets no mark.
+    own.mark("Notes/e.md", []);
+    expect(own.size).toBe(0);
+  });
+
   it("covers every file below a marked folder, forgets an unmarked path, and expires", () => {
     let clock = 0;
     const own = new OwnDeletionRegister(1_000, () => clock);

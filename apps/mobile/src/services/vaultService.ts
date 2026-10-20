@@ -31,6 +31,7 @@ import {
   PimCacheRepository,
   toPathIdentity,
   formatFullScan,
+  formatFullScanFailure,
   formatQueueEntryReport,
   scanChangedNothing,
 } from "@plainva/core";
@@ -88,8 +89,11 @@ import {
   noteLargeFileTrimmed,
   notifyFileOps,
   scaffoldVaultTemplate,
+  createIndexNotices,
+  indexUnavailableText,
   type VaultTemplateDefinition,
 } from "@plainva/ui";
+import { Capacitor } from "@capacitor/core";
 import i18n from "@plainva/ui/i18n";
 import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName } from "@plainva/ui";
 import { applyTextShape, DEFAULT_TEXT_SHAPE, editorTextOf, openEditorText, type TextFileShape } from "@plainva/ui";
@@ -578,7 +582,9 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     });
     queue = new SyncQueue(db);
     workspaceState = workspaceStatus ? new SqlWorkspaceStateStore(db) : null;
-    permissioned = workspaceState ? new PermissionedVaultAdapter(backup, async (request) => {
+    // With the workspace's state: what the worker brought from another device
+    // is nothing the index reports for this one (finding 2026-10-12).
+    permissioned = workspaceState ? new PermissionedVaultAdapter(backup, workspaceState, async (request) => {
       if (!workspaceRuntime) return false;
       const existing = await workspaceState!.getObjectByPath(request.path);
       const objectId = existing?.objectId ?? createWorkspaceObjectId();
@@ -644,11 +650,27 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     }, workspaceState ?? syncRepo, isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud");
     files = conflictAware;
 
+    // What a full scan left out, or why it failed, said once on screen (issue 125).
+    const indexNotices = createIndexNotices(toast);
     indexer = new VaultIndexer(files, db, {
       scanSignal: indexAbort.signal,
       // One line per full scan (issue 122), the same one the desktop writes:
       // what set it off, how much it walked, how long it took, what it changed.
-      onFullScan: (info) => logDiagnostic("index", formatFullScan(info)),
+      // On screen, what it left out, by name (issue 125).
+      onFullScan: (info) => {
+        // The index is whole once a full scan has gone through — the gate the
+        // task reconciler waits for before it creates a note (taskSyncRuntime).
+        // Said first: a line or a notice that fails must not keep it closed.
+        indexPassSettled = true;
+        logDiagnostic("index", formatFullScan(info));
+        indexNotices.scanned(info);
+      },
+      // A scan that failed is said once, with its reason (issue 125): the
+      // index keeps what it got, and the next scan tries again.
+      onFullScanFailed: (info) => {
+        logDiagnostic("index", formatFullScanFailure(info));
+        indexNotices.failed(info);
+      },
       // The app's own save is never a foreign change (P1): a pass reading the
       // file between the write and its hash update asks the adapter first.
       isOwnWrite: (path, sha256) => conflictAware.wasWrittenByUs(path, sha256),
@@ -660,7 +682,7 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
         if (deferInitialEnqueue) return;
         void enqueueLocal(path);
       },
-      onLocalFileDeleted: (path) => {
+      onLocalFileDeleted: (path, row) => {
         // A note screen that shows this file learns that it vanished (issue
         // 110, E9) — moved or deleted outside Plainva while open, found by the
         // re-read on return or the pull. The editor looks for it.
@@ -668,8 +690,10 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
         // The worker mirrored a remote deletion (finding 2026-09-20): nothing is
         // left to delete remotely, and queueing it is how a wrongly mirrored
         // file went back up as a remote deletion. Asked first, so the mark is
-        // consumed whether or not enqueueing is on yet.
-        if (ownDeletions.consume(path)) return;
+        // consumed whether or not enqueueing is on yet — and asked for the row
+        // the index removed: the mark answers for the file the worker took
+        // away, not for a later one of that name (finding 2026-10-12).
+        if (ownDeletions.consume(path, row)) return;
         if (!syncEnqueueEnabled || isInternal(path)) return;
         const plain = queue;
         if (permissioned) { void permissioned.authorizeExternalChange(path, false).then((allowed) => { if (allowed) void announce(() => workspaceState!.enqueue("delete", path), stillGone(path)); }).catch(() => {}); }
@@ -691,17 +715,29 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       void indexer
         .indexVaultFull("open")
         .then(() => {
+          // Got through after the vault began to close: it belongs to no open
+          // vault (as on the desktop).
+          if (indexAbort.signal.aborted) return;
           indexPassSettled = true;
           window.dispatchEvent(new CustomEvent("m-vault-changed"));
         })
         .catch(() => {});
     } else {
-      await indexer.indexVaultFull("open, empty index");
-      indexPassSettled = true;
+      // A scan that fails leaves the index as far as it got (issue 125). It
+      // used to throw into the catch below, which took the whole database with
+      // it — search, tags, databases, the sync queue and the calendar — for
+      // one link to a folder that was not on the phone, and said nothing. The
+      // failure is on screen now (onFullScanFailed); the next full scan, at the
+      // return to the app or a pull to refresh, tries again, and only one that
+      // goes through counts the index as settled (onFullScan).
+      await indexer.indexVaultFull("open, empty index").catch(() => {});
     }
     searchAvailable = true;
   } catch (err) {
     console.warn("[mobile] index unavailable (expected on the plain web dev server)", err);
+    // On a device the database not opening is no expected case, and the vault
+    // runs without search, tags, databases, the sync and the calendar: said.
+    if (Capacitor.isNativePlatform()) toast.error(indexUnavailableText(err));
     // The search index is optional; durable conflict editing is not. The
     // same file journal is used before and after the database recovers.
     const settings = getMobileSettings();

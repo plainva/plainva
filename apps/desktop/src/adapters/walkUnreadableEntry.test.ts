@@ -65,3 +65,15 @@ describe("one entry the walk cannot use", () => {
     expect(report.skipped).toEqual([{ path: "docs", reason: "unreadable" }]);
   });
 });
+
+describe("a walk without links", () => {
+  it("is refused, not answered with what lies behind them: this walk follows links (#72)", async () => {
+    listing = [file("keep.md")];
+    await expect(new TauriVaultAdapter("/vault").listDirReport("", true, { followLinks: false })).rejects.toThrow("cannot leave them out");
+  });
+
+  it("…and so is one without dot-named entries, which this walk lists", async () => {
+    listing = [file("keep.md")];
+    await expect(new TauriVaultAdapter("/vault").listDirReport("", true, { dotEntries: false })).rejects.toThrow("cannot leave them out");
+  });
+});

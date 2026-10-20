@@ -367,7 +367,7 @@ export function MailListScreen({
       capture: async (id) => {
         const message = await fetchMessage(vault, acct, box, id);
         const v = await getMobileVault();
-        await captureMailAsNote({
+        const filed = await captureMailAsNote({
           adapter: v.files,
           message,
           accountId: acct.id,
@@ -375,6 +375,8 @@ export function MailListScreen({
           folder: getMobileSettings().mailFolder || "Mail",
           generatedBy: await plainvaProducer("mail-capture"),
         });
+        // The index hears of the note now, not at the next full scan (finding 2026-10-12).
+        void v.reindexPaths([filed.path]);
       },
     });
     if (result.removed.length > 0) setRows((prev) => prev.filter((m) => !result.removed.includes(m.id)));

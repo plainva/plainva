@@ -2,6 +2,7 @@ import type { DeletionConfirmation } from "../vault/IVaultAdapter.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { SyncOperation } from "./ISyncTarget.js";
 import { isTwinSpelling } from "./pathIdentity.js";
+import { indexedRowStamp, type IndexedRowStamp } from "../vault/indexedRowStamp.js";
 
 function containsPath(parent: string, path: string): boolean {
   return path === parent || path.startsWith(parent + "/");
@@ -305,6 +306,20 @@ export class SyncQueue {
       failed: Number(row?.failed ?? 0),
       manual: Number(row?.manual ?? 0),
     };
+  }
+
+  /**
+   * What the index holds for `path`: the stamp of its row, or null where the
+   * index holds no row for it. The worker asks before it removes a file to
+   * mirror a remote deletion — the index will report THAT row gone, or nothing
+   * at all (`OwnDeletionRegister`).
+   */
+  async indexedRow(path: string): Promise<IndexedRowStamp | null> {
+    const row = await this.db.queryOne<{ mtime_local: number | null }>(
+      `SELECT mtime_local FROM files WHERE path = ?`,
+      [path]
+    );
+    return row ? indexedRowStamp(row.mtime_local) : null;
   }
 
   /**
