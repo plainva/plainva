@@ -1,9 +1,21 @@
 import { OpenConflictError } from "./ConflictAwareVaultAdapter.js";
 import { TextFileChangedError, type IVaultAdapter, type TextChange, type TextFileUpdate } from "./IVaultAdapter.js";
+import { readExactText } from "./localText.js";
 
 /** What a read-change-write needs of the files it is handed. */
 export type TextUpdateFiles = Pick<IVaultAdapter, "readTextFile" | "writeTextFile"> &
-  Partial<Pick<IVaultAdapter, "updateTextFile" | "readTextFileState" | "writeTextFileChange" | "writeEditorText" | "getConflictSession">>;
+  Partial<Pick<IVaultAdapter, "updateTextFile" | "readTextFileState" | "writeTextFileChange" | "writeEditorText" | "getConflictSession" | "readBinaryFile">>;
+
+/**
+ * The text a storage with no chain above it hands out for a change — or the
+ * refusal where it is a reading of bytes that are not UTF-8, as the chain
+ * refuses it (`readExactText`; finding 2026-10-11). A double of a test that
+ * cannot hand out bytes is taken at its word.
+ */
+function textToChange(files: TextUpdateFiles, path: string): Promise<string> {
+  const { readBinaryFile } = files;
+  return readBinaryFile ? readExactText({ readTextFile: (p) => files.readTextFile(p), readBinaryFile: (p) => readBinaryFile.call(files, p) }, path) : files.readTextFile(path);
+}
 
 /**
  * Reads a text file, changes it and writes it back — the ONE call for whoever
@@ -29,7 +41,7 @@ export async function updateVaultText(files: TextUpdateFiles, path: string, chan
   if (files.writeEditorText || files.getConflictSession) {
     throw new Error("These files hand on a vault's chain without its entry for a change (updateTextFile)");
   }
-  const before = await files.readTextFile(path);
+  const before = await textToChange(files, path);
   const next = change(before);
   if (next === null || next === before) return { before, text: before, changed: false, conflict: null };
   await files.writeTextFile(path, next);
@@ -96,7 +108,7 @@ export async function replaceVaultText(
     }
     throw new TextFileChangedError(path);
   }
-  let text = await files.readTextFile(path);
+  let text = await textToChange(files, path);
   for (let attempt = 0; attempt < REPLACE_ATTEMPTS; attempt++) {
     const read = text;
     const next = await prepare(read);

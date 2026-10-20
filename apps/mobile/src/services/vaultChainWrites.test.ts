@@ -9,12 +9,12 @@ import ts from "typescript";
 import {
   BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictError, DEFAULT_BACKUP_RETENTION, DEFAULT_TEXT_SHAPE, QueueingVaultAdapter,
   SyncQueue, SyncStateRepository, VaultIndexer, VaultQueryService, VersionHistoryService, applyTextShape, containsTextChanges,
-  editorTextOf, initializeSchema, isOpenTaskState, mergeEditorText, resolveTaskOrdinal, updateVaultText, type IDatabaseAdapter, type TaskRecord, type TextChange,
+  editorTextOf, initializeSchema, isNotTextFileError, isOpenTaskState, mergeEditorText, resolveTaskOrdinal, updateVaultText, type IDatabaseAdapter, type TaskRecord, type TextChange,
   type TextFileUpdate,
 } from "@plainva/core";
 import {
   TaskMutationGate, assertFileStillThere, bulkSetProperty, combineFilters, createEntryEvent, createInlineBase, createTaskDatabase, createTemplateIn,
-  errorText, importAttachment, saveNoteAsTemplateIn, serializeBaseConfig, toggleTaskAtIndex, writeNoteProperty, type BulkSetResult,
+  errorText, importAttachment, keepTextBeside, saveNoteAsTemplateIn, serializeBaseConfig, toggleTaskAtIndex, writeNoteProperty, type BulkSetResult,
 } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
@@ -71,7 +71,7 @@ const saverSource = all(serviceFile, ts.isVariableDeclaration).find((d) => d.nam
 const rememberSource = all(serviceFile, ts.isFunctionDeclaration).find((f) => f.name?.text === "rememberPersistedText");
 if (fileMethods.length !== 3 || !saverSource || !rememberSource) throw new Error("the phone's read, save, update and note saver moved — re-point this harness");
 const serviceCode =
-  "const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map();\n" +
+  "const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map(); const keptTexts = new Map();\n" +
   `${rememberSource.getText(serviceFile).replace(/^export /, "")}\n` +
   `const vaultOps = {${fileMethods.map((m) => m.getText(serviceFile)).join(",\n")}}; const noteSaver = ${saverSource.getText(serviceFile)};`;
 
@@ -183,6 +183,9 @@ async function openPhone(database: IDatabaseAdapter): Promise<void> {
     writeDraft: () => {}, clearDraft: () => {}, noteConflict: () => {}, conflictCopyPath: () => { throw new Error("actual conflict path required"); },
     syncSoon, toast: { warning: () => {}, error: () => {} }, i18n: { t: (key: string) => key }, window: new EventTarget(), CustomEvent,
     console: { error: () => {}, warn: () => {} },
+    // A failed write goes past the keep for a file that is no text: with these
+    // missing, it came out as a ReferenceError instead of its own error.
+    isNotTextFileError, keepTextBeside,
   });
   writers = run<PhoneWriters>(
     baseOpsCode,

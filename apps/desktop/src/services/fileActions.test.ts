@@ -189,6 +189,18 @@ describe("duplicateFile", () => {
     expect(copy).toBe("img/photo (Kopie).png");
     expect(files.get(copy)).toEqual(bytes);
   });
+
+  it("copies a text-named file whose bytes are not UTF-8 byte for byte (finding 2026-10-11)", async () => {
+    // A `.csv` Excel saved in Windows-1252: `Grün` is 47 72 FC 6E. The double's
+    // text read refuses it as the desktop's reader does; the copy used to fail
+    // there, and was the decoded text where a reader replaces.
+    const bytes = new Uint8Array([0x47, 0x72, 0xfc, 0x6e, 0x0d, 0x0a]);
+    const { adapter, files } = makeAdapter({ "Data.csv": bytes });
+    const copy = await duplicateFile(adapter, "Data.csv", "Kopie");
+    expect(copy).toBe("Data (Kopie).csv");
+    expect(files.get(copy)).toEqual(bytes);
+    expect(files.get("Data.csv")).toEqual(bytes);
+  });
 });
 
 describe("reindexAfterRename", () => {

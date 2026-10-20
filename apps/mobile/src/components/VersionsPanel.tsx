@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, History } from "lucide-react";
 import { VersionHistoryService, type FileVersion } from "@plainva/core";
-import { Button, EmptyState, ICON, editorTextOf, toast, versionCopyPath } from "@plainva/ui";
+import { Button, EmptyState, ICON, comparesAsText, editorTextOf, toast, versionCopyPath } from "@plainva/ui";
 import { CompareVersions } from "./CompareVersions";
 import { mConfirm } from "../services/mobileDialogs";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
@@ -37,17 +37,30 @@ export function VersionsPanel({
   const [versions, setVersions] = useState<FileVersion[] | null>(null);
   const [selected, setSelected] = useState<FileVersion | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [current, setCurrent] = useState<string>("");
+  /**
+   * The chosen version has nothing to show as text: another kind of file — or
+   * a file whose name says text and whose bytes are not UTF-8, kept byte for
+   * byte in the history (finding 2026-10-11). It can still be restored.
+   */
+  const [noPreview, setNoPreview] = useState(false);
+  /** The note's text as it lies there, or null where the file is no text (or not there). */
+  const [current, setCurrent] = useState<string | null>("");
   const [currentMtime, setCurrentMtime] = useState<number | null>(null);
+  // What the NAME says — the rule both shells' comparisons share; whether a
+  // version or the file IS text is asked of its bytes, where it is read.
+  const namedText = comparesAsText(path);
 
   useEffect(() => {
     let stale = false;
     void service.listVersions(path).then((v) => {
       if (!stale) setVersions(v);
     });
-    void vaultOps.read(vault, path).then((text) => {
+    if (namedText) void vaultOps.read(vault, path).then((text) => {
       // Shown the way an editor holds it; a restore copies the snapshot itself.
       if (!stale) setCurrent(editorTextOf(text));
+    }).catch(() => {
+      // No text to compare with: the file is in another encoding, or gone.
+      if (!stale) setCurrent(null);
     });
     void vault.adapter
       .getFileInfo(path)
@@ -58,15 +71,18 @@ export function VersionsPanel({
     return () => {
       stale = true;
     };
-  }, [service, vault, path]);
+  }, [service, vault, path, namedText]);
 
   const open = (v: FileVersion) => {
     setSelected(v);
     setPreview(null);
+    // A file that is no text by its name is not put through a text reader.
+    setNoPreview(!namedText);
+    if (!namedText) return;
     void service
       .readVersionText(v.backupPath)
       .then((text) => setPreview(editorTextOf(text)))
-      .catch(() => setPreview(t("versions.binaryNoPreview")));
+      .catch(() => setNoPreview(true));
   };
 
   const whenLabel = useMemo(() => new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }), [i18n.language]);
@@ -158,14 +174,38 @@ export function VersionsPanel({
   };
 
   if (selected) {
+    const actions = (
+      <>
+        <Button variant="primary" onClick={() => doRestore(selected)}>
+          {t("compare.restoreThis")}
+        </Button>
+        <Button variant="ghost" onClick={() => doRestoreAsCopy(selected)}>
+          {t("versions.restoreAsCopy")}
+        </Button>
+      </>
+    );
     return (
       <>
         <button className="m-row" onClick={() => setSelected(null)}>
           <ChevronLeft size={ICON.head} />
           <span>{when(selected.timestamp)}</span>
         </button>
-        {preview === null ? (
+        {noPreview ? (
+          // Nothing of the version is shown — what a decoder makes of it is
+          // not the version. It goes back byte for byte all the same.
+          <div className="m-compare">
+            <p className="m-hint" data-testid="version-no-preview">{t(namedText ? "editor.notTextBody" : "versions.binaryNoPreview")}</p>
+            <div className="m-compare-footer"><div className="m-compare-actions">{actions}</div></div>
+          </div>
+        ) : preview === null ? (
           <p className="m-hint">{t("versions.loading")}</p>
+        ) : current === null ? (
+          // The version is text and the file that lies there is not: there is
+          // no second text to hold it against, so it is shown on its own.
+          <div className="m-compare">
+            <pre className="m-version-preview" data-testid="version-preview">{preview}</pre>
+            <div className="m-compare-footer"><div className="m-compare-actions">{actions}</div></div>
+          </div>
         ) : (
           <CompareVersions
             inNote={current}
@@ -173,16 +213,7 @@ export function VersionsPanel({
             noteMeta={{ title: t("compare.tabNote"), subtitle: `${t("compare.currentState")} · ${when(currentMtime)}` }}
             otherMeta={{ title: t("compare.savedVersion"), subtitle: when(selected.timestamp) }}
             cost={(s) => t("compare.costRestore", { added: s.added, removed: s.removed })}
-            actions={
-              <>
-                <Button variant="primary" onClick={() => doRestore(selected)}>
-                  {t("compare.restoreThis")}
-                </Button>
-                <Button variant="ghost" onClick={() => doRestoreAsCopy(selected)}>
-                  {t("versions.restoreAsCopy")}
-                </Button>
-              </>
-            }
+            actions={actions}
           />
         )}
       </>

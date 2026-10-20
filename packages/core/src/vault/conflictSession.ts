@@ -1,6 +1,7 @@
 import type { IVaultAdapter } from "./IVaultAdapter.js";
 import { withPathMutation } from "./pathMutation.js";
 import { mergeEditorText } from "../conflict-resolver.js";
+import { copyFileContent, fileSha256 } from "./localText.js";
 
 export type ConflictWriter = "adapter" | "editor-save" | "editor-external" | "sync-pull";
 
@@ -67,6 +68,26 @@ export interface ConflictResolution {
   copyText: string;
   content: string;
   disposition?: "adopt" | "discard";
+  keepCopyAs?: string;
+}
+
+/**
+ * The answer to an open conflict whose two sides could not be compared as
+ * text: another program turned the file into no text after the conflict
+ * began (finding 2026-10-11). What the comparison saw is named by the hashes
+ * of the bytes, since there was no text to name it by.
+ */
+export interface ConflictBytesResolution {
+  /** SHA-256 of the file's bytes as the comparison saw them; null where it saw no file. */
+  originalSha256: string | null;
+  /** SHA-256 of the working copy's bytes as the comparison saw them. */
+  copySha256: string;
+  /**
+   * "adopt": the working copy takes the file's place, byte for byte.
+   * "discard": the file stays as it lies, and the working copy goes — or
+   * stays beside it as a file of its own (`keepCopyAs`).
+   */
+  disposition: "adopt" | "discard";
   keepCopyAs?: string;
 }
 
@@ -309,6 +330,44 @@ export class ConflictSessions {
       session.resolution = { content, originalHash: original === null ? null : await conflictHash(original), copyHash: await conflictHash(copy!), ...(resolution.keepCopyAs ? { keepCopyAs: resolution.keepCopyAs } : {}) };
       await this.store.saveConflictSession(session);
       await this.finishResolution(session);
+    }, resolution.keepCopyAs ? [resolution.keepCopyAs] : []);
+  }
+
+  /**
+   * Ends an open conflict whose file is no text any more (see
+   * `ConflictBytesResolution`). `resolve` compares two texts and writes one,
+   * and this file has none: here the answer goes byte for byte, and only if
+   * both files still are what the comparison saw. The working copy — the
+   * user's own text — takes the file's place; or the file stays and the
+   * working copy goes, or stays beside it under a name of its own.
+   */
+  async resolveBytes(path: string, resolution: ConflictBytesResolution): Promise<void> {
+    await this.withMutation(path, async gate => {
+      const session = gate.session;
+      if (!session) throw new Error("Conflict session no longer exists");
+      if (session.resolution) throw new Error("Conflict resolution is still being completed");
+      await this.recoverDraft(session);
+      const original = await fileSha256(this.files, session.originalPath);
+      const copy = await fileSha256(this.files, session.workingCopyPath);
+      if (original !== resolution.originalSha256 || copy === null || copy !== resolution.copySha256) throw new Error("comparisonChanged");
+      // Letting the copy go where no file is left would leave nothing at all.
+      if (resolution.disposition === "discard" && !resolution.keepCopyAs && original === null) throw new Error("Cannot discard a conflict whose original is missing");
+      if (resolution.keepCopyAs && (resolution.disposition !== "discard" || !safePath(resolution.keepCopyAs) || await this.files.exists(resolution.keepCopyAs))) {
+        throw new Error("comparisonChanged");
+      }
+      if (resolution.disposition === "adopt") {
+        await copyFileContent(this.files, session.workingCopyPath, session.originalPath);
+        if (await fileSha256(this.files, session.originalPath) !== copy) throw new Error("Conflict resolution could not be confirmed");
+        // The local marker follows the write in the same gate, as in
+        // `finishResolution`; the sync base stays the last confirmed remote one.
+        await this.store.updateLocalHash(session.originalPath, copy);
+        await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true });
+      } else if (resolution.keepCopyAs) {
+        await this.files.renameItem(session.workingCopyPath, resolution.keepCopyAs);
+      } else {
+        await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true });
+      }
+      await this.store.removeConflictSession(session.originalPath);
     }, resolution.keepCopyAs ? [resolution.keepCopyAs] : []);
   }
 

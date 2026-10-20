@@ -7,6 +7,7 @@ import {
   type VaultWalkOptions,
   trimChars,
   PathSpellings,
+  textOfFileBytes,
   withStoredSpelling,
   type SpellingSource,
 } from "@plainva/core";
@@ -100,6 +101,13 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
           directory: Directory.Data,
           encoding: Encoding.UTF8,
         });
+        // The web shell hands back what it was given, whatever is asked: for
+        // a file laid down as bytes (a Blob) that is the Blob. Read here the
+        // way Android's reader reads — every byte that is not UTF-8 replaced —
+        // so that a file in another encoding is in the browser what it is on
+        // a phone: a text with replacement characters from this reader, its
+        // own bytes from `readBinaryFile` (see `readLocalFile` in the core).
+        if (res.data instanceof Blob) return textOfFileBytes(new Uint8Array(await res.data.arrayBuffer()));
         return res.data as string;
       } catch (error) {
         if (isMissingFile(error)) throw new VaultFileNotFoundError(path);

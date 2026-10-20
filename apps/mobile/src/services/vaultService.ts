@@ -36,6 +36,7 @@ import {
   scanChangedNothing,
 } from "@plainva/core";
 import { isInternalPath, linkTargetName, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles } from "@plainva/core";
+import { copyFileContent, isNotTextFileError, NotTextFileError, type EditorWriteResult } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
@@ -96,7 +97,7 @@ import {
 import { Capacitor } from "@capacitor/core";
 import i18n from "@plainva/ui/i18n";
 import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName } from "@plainva/ui";
-import { applyTextShape, DEFAULT_TEXT_SHAPE, editorTextOf, openEditorText, type TextFileShape } from "@plainva/ui";
+import { applyTextShape, DEFAULT_TEXT_SHAPE, editorTextOf, keepTextBeside, openEditorText, type KeptText, type TextFileShape } from "@plainva/ui";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
 
@@ -1120,14 +1121,16 @@ export const vaultOps = {
     // is taken from the LAST SAVED text, so a duplicate made while typing
     // silently loses whatever came after the last autosave.
     await noteSaver.flush(path, v);
-    const text = await v.files.readTextFile(path);
     const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
     const base = path.split("/").pop()!.replace(/\.md$/i, "");
     let candidate = `${dir}${base} 2.md`;
     for (let n = 2; await v.files.exists(candidate); n++) {
       candidate = `${dir}${base} ${n + 1}.md`;
     }
-    await v.files.writeTextFile(candidate, text);
+    // The note as it lies there: its text where it is text, its bytes where
+    // not — a note in another encoding is copied, not re-encoded (the
+    // desktop's duplicate asks the same function).
+    await copyFileContent(v.files, path, candidate);
     reportCreated(candidate);
     if (v.indexer) await v.reindexPaths([candidate]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
@@ -1240,7 +1243,12 @@ export const vaultOps = {
    * further right with every line, and no suggestion on it could be accepted.
    *
    * The shape the editor's save puts back is remembered here, per file. A file
-   * whose name says text and whose bytes do not is refused (`NotTextFileError`).
+   * whose name says text and whose bytes do not is refused (`NotTextFileError`)
+   * — by the vault's read, where its bytes are not UTF-8 (a `.csv` in
+   * Windows-1252, a note in UTF-16), and by the first bytes, where a text view
+   * was asked to show something else (`openEditorText`). The phone used to
+   * open the first kind with replacement characters, and its first save wrote
+   * that reading over the file (finding 2026-10-11).
    */
   async readEditor(v: MobileVault, path: string): Promise<string> {
     const session = await v.files.getConflictSession?.(path);
@@ -1482,14 +1490,21 @@ export const vaultOps = {
 const lastPersistedText = new Map<string, string>();
 const editorBaseText = new Map<string, string>();
 const editorTextShape = new Map<string, TextFileShape>();
+/**
+ * What the editor of a note kept beside its file because the file had turned
+ * into no text (`keepTextBeside`): typing that goes on is kept into the same
+ * copy. Gone as soon as the editor and its file agree on a text again — a
+ * load, a save the file took, a version adopted from the disk.
+ */
+const keptTexts = new Map<string, KeptText>();
 
-/** The name says text, the bytes do not (C15): nothing of the file may be shown or saved. */
-export class NotTextFileError extends Error {
-  constructor(readonly path: string) {
-    super("The file is not text");
-    this.name = "NotTextFileError";
-  }
-}
+/**
+ * The name says text, the bytes do not (C15): nothing of the file may be shown
+ * or saved. The refusal is the core's — the vault's read throws it for bytes
+ * that are not UTF-8, `readEditor` above for a text view over other bytes —,
+ * handed on from here because this is where the note screen takes it from.
+ */
+export { NotTextFileError };
 
 /** An editor's text as its file holds it: in the shape the file was read in. */
 export function editorDiskText(vault: MobileVault, path: string, text: string): string {
@@ -1506,6 +1521,18 @@ export function rememberPersistedText(vault: MobileVault, path: string, text: st
   const key = JSON.stringify([vault.vaultId, path]);
   lastPersistedText.set(key, text);
   editorBaseText.set(key, text);
+  // Editor and file agree on a text: a copy kept beside the file before holds
+  // another one, and is never written into again.
+  keptTexts.delete(key);
+}
+
+/**
+ * A text that takes an editor's place — a restored draft — is another text
+ * than one kept beside its file before (`keepTextBeside`): it is never
+ * written into that copy.
+ */
+export function forgetKeptText(vault: MobileVault, path: string): void {
+  keptTexts.delete(JSON.stringify([vault.vaultId, path]));
 }
 
 /** A confirmed comment write is our echo; newer typing still needs its old merge base. */
@@ -1521,6 +1548,7 @@ export function clearPersistedTextCache(): void {
   lastPersistedText.clear();
   editorBaseText.clear();
   editorTextShape.clear();
+  keptTexts.clear();
 }
 
 /**
@@ -1548,17 +1576,53 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
     // same guard). A file that changed elsewhere meanwhile is the external
     // update's business — this text has nothing to add to it.
     if (base !== undefined && text === base && text === lastPersistedText.get(key)) return;
+    // The file turned into no text while the note was open — another program
+    // saved it in another encoding, or a pull brought such a version (finding
+    // 2026-10-11). Nothing is written over it: the text is kept beside it as a
+    // conflict copy, the way a conflict keeps one, and the note screen shows
+    // the file as what it is now. The desktop's save does the same.
+    const keepBeside = async (error: unknown): Promise<void> => {
+      if (!isNotTextFileError(error)) throw error;
+      // Typing that went on while a keep ran goes into the same copy — one
+      // copy for one buffer, the one the card points to.
+      const earlier = keptTexts.get(key) ?? null;
+      const kept = await keepTextBeside(vault.files, path, applyTextShape(text, shape), earlier);
+      keptTexts.set(key, kept);
+      // Nothing of this text is unsaved any more: it lies beside the file. The
+      // merge base stays what editor and file last agreed on, as on the
+      // desktop — should the file be text again by the next save, that save
+      // brings all of the typing into it.
+      lastPersistedText.set(key, text);
+      noteConflict(path, kept.copy, vault.vaultId);
+      try { await vault.reindexPaths([kept.copy]); } catch { /* a later index pass repairs the derived data */ }
+      if (kept.copy !== earlier?.copy) toast.warning(i18n.t("dialogs.conflictSavedMsg", { path: kept.copy }));
+      window.dispatchEvent(new CustomEvent("m-note-not-text", { detail: { vaultId: vault.vaultId, path, kept: kept.copy } }));
+    };
     if (vault.files.writeEditorText) {
-      const result = await vault.files.writeEditorText(path, applyTextShape(text, shape), base === undefined ? null : applyTextShape(base, shape));
+      let result: EditorWriteResult;
+      try {
+        result = await vault.files.writeEditorText(path, applyTextShape(text, shape), base === undefined ? null : applyTextShape(base, shape));
+      } catch (error) {
+        await keepBeside(error);
+        return;
+      }
       if (result.session) noteConflict(path, result.session.workingCopyPath, vault.vaultId, result.session);
       const stored = editorTextOf(result.stored);
       editorBaseText.set(key, text);
       lastPersistedText.set(key, stored);
+      // The file took this text: a copy kept beside it before holds another.
+      keptTexts.delete(key);
       try { await vault.reindexPaths([result.session?.workingCopyPath ?? path]); } catch { /* a later index pass repairs the derived data */ }
       window.dispatchEvent(new CustomEvent("m-editor-save-confirmed", { detail: { vaultId: vault.vaultId, path, input: text, stored, revision } }));
       return;
     }
-    const disk = editorTextOf(await vault.files.readTextFile(path));
+    let disk: string;
+    try {
+      disk = editorTextOf(await vault.files.readTextFile(path));
+    } catch (error) {
+      await keepBeside(error);
+      return;
+    }
     let candidate = text;
     // A pull can advance the sync index while the editor still holds its old
     // base. Preserve that ancestry through delayed saves and further typing.
@@ -1574,6 +1638,7 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
     if (!containsTextChanges(disk, candidate, stored)) throw new Error("The saved note could not be confirmed");
     editorBaseText.set(key, text);
     lastPersistedText.set(key, stored);
+    keptTexts.delete(key);
     window.dispatchEvent(new CustomEvent("m-editor-save-confirmed", { detail: { vaultId: vault.vaultId, path, input: text, stored, revision } }));
   },
   onSchedule: (vault, path, text, revision) => writeDraft(vault, path, text, revision),
@@ -1591,10 +1656,20 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
   // change that. The text stays in the editor and the draft journal; the note
   // screen looks for the file and asks where the text goes.
   // (Asked by the error code: a vanished file is the adapter's FILE_NOT_FOUND.)
-  isTerminal: (err) => err instanceof ConflictError || (err as { code?: string } | null)?.code === "FILE_NOT_FOUND",
+  // Nor is a file that is no text any more (NOT_TEXT_FILE): the adapter writes
+  // no text over it, however often it is asked. The write above keeps the text
+  // beside such a file; what still arrives here met the change between its
+  // read and its write.
+  isTerminal: (err) => err instanceof ConflictError || ["FILE_NOT_FOUND", "NOT_TEXT_FILE"].includes((err as { code?: string } | null)?.code ?? ""),
   onError: (path, err, attempt, vault) => {
     if ((err as { code?: string } | null)?.code === "FILE_NOT_FOUND") {
       window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path, vaultId: vault.vaultId } }));
+      return;
+    }
+    if ((err as { code?: string } | null)?.code === "NOT_TEXT_FILE") {
+      // The text stays in the editor and the draft journal; the file stays as
+      // the other program left it. Said in the words the screen uses for it.
+      toast.warning(i18n.t("editor.notTextTitle"));
       return;
     }
     console.error(`[noteSaver] save failed for ${path} (attempt ${attempt})`, err);

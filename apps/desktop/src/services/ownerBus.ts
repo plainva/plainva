@@ -306,6 +306,14 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
       deps.refresh();
       await indexAfterWrite(path);
     }), { vaultPath: deps.vaultPath }),
+    await bus.handle("conflict-resolve-bytes", ({ path, resolution }) => withPendingWrite(deps.vaultPath, path, async () => {
+      if (!deps.vaultAdapter.resolveConflictBytes) throw new Error("Conflict-safe editing is unavailable");
+      const session = await deps.vaultAdapter.getConflictSession?.(path);
+      await deps.vaultAdapter.resolveConflictBytes(path, resolution);
+      if (deps.indexer && session) await applyIndexChanges(deps.indexer, { removed: [session.workingCopyPath], added: [path, ...(resolution.keepCopyAs ? [resolution.keepCopyAs] : [])] });
+      deps.refresh();
+      await indexAfterWrite(path);
+    }), { vaultPath: deps.vaultPath }),
   );
 
   offs.push(

@@ -28,7 +28,7 @@ vi.mock("@capacitor/core", () => ({
   registerPlugin: () => ({}),
 }));
 
-import { clearDraft, flushDrafts, readDraft, relocateDrafts, relocatedPath, writeDraft } from "./draftJournal";
+import { clearDraft, clearDraftIf, flushDrafts, readDraft, releaseLeftoverDraft, relocateDrafts, relocatedPath, takeLeftoverDraft, writeDraft } from "./draftJournal";
 
 const vault = { vaultId: "local" } as any;
 
@@ -228,5 +228,57 @@ describe("drafts follow an in-app move (issue 113)", () => {
     await relocateDrafts(vault, [{ from: "Inbox", to: "Archive/Inbox" }]);
     expect(await readDraft(vault, "Inbox/Note.md")).toBeNull();
     expect(await readDraft(vault, "Archive/Inbox/Note.md")).toMatchObject({ text: "unsaved", revision: 3 });
+  });
+});
+
+describe("a draft left from an earlier run (finding 2026-10-11)", () => {
+  beforeEach(() => store.clear());
+
+  it("is handed out once — and a draft of this run, which belongs to the note's saver, never", async () => {
+    writeDraft(vault, "Old.csv", "left when the app went", 4);
+    writeDraft(vault, "New.csv", "typed in this run", 1);
+    await flushDrafts(vault);
+    // The first one as an earlier run of the app left it.
+    const file = [...store.keys()].find((key) => JSON.parse(store.get(key)!).path === "Old.csv")!;
+    store.set(file, JSON.stringify({ ...JSON.parse(store.get(file)!), ts: 1 }));
+    expect(await takeLeftoverDraft(vault, "Old.csv")).toMatchObject({ text: "left when the app went", revision: 4 });
+    expect(await takeLeftoverDraft(vault, "Old.csv")).toBeNull();
+    expect(await takeLeftoverDraft(vault, "New.csv")).toBeNull();
+    expect(await takeLeftoverDraft(vault, "None.csv")).toBeNull();
+  });
+
+  it("is cleared once kept only while the journal still holds that draft — a newer one of this run, counted from 1 again, stays", async () => {
+    writeDraft(vault, "Kept.csv", "kept beside the file", 4);
+    await flushDrafts(vault);
+    const kept = (await readDraft(vault, "Kept.csv"))!;
+    // Typing in this run journals revision 1 — lower than the earlier run's 4.
+    writeDraft(vault, "Kept.csv", "typed in this run", 1);
+    await flushDrafts(vault);
+    clearDraftIf(vault, "Kept.csv", kept);
+    await new Promise((r) => setTimeout(r, 10));
+    expect((await readDraft(vault, "Kept.csv"))?.text).toBe("typed in this run");
+    // Counted up to the same revision again, later: still another draft.
+    await new Promise((r) => setTimeout(r, 5));
+    writeDraft(vault, "Kept.csv", "typed later in this run", 4);
+    await flushDrafts(vault);
+    clearDraftIf(vault, "Kept.csv", kept);
+    await new Promise((r) => setTimeout(r, 10));
+    expect((await readDraft(vault, "Kept.csv"))?.text).toBe("typed later in this run");
+    // Still that draft: it goes.
+    const now = (await readDraft(vault, "Kept.csv"))!;
+    clearDraftIf(vault, "Kept.csv", now);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(await readDraft(vault, "Kept.csv")).toBeNull();
+  });
+
+  it("hands a draft out again that could not be kept", async () => {
+    writeDraft(vault, "Again.csv", "not kept the first time", 2);
+    await flushDrafts(vault);
+    const file = [...store.keys()].find((key) => JSON.parse(store.get(key)!).path === "Again.csv")!;
+    store.set(file, JSON.stringify({ ...JSON.parse(store.get(file)!), ts: 1 }));
+    const first = (await takeLeftoverDraft(vault, "Again.csv"))!;
+    expect(await takeLeftoverDraft(vault, "Again.csv")).toBeNull();
+    releaseLeftoverDraft(vault, "Again.csv", first);
+    expect(await takeLeftoverDraft(vault, "Again.csv")).toMatchObject({ text: "not kept the first time" });
   });
 });

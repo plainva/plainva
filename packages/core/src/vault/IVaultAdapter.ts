@@ -1,4 +1,4 @@
-import type { ConflictDiagnostic, ConflictEditSession, ConflictResolution, ConflictWriter, EditorWriteResult } from "./conflictSession.js";
+import type { ConflictBytesResolution, ConflictDiagnostic, ConflictEditSession, ConflictResolution, ConflictWriter, EditorWriteResult } from "./conflictSession.js";
 
 export class VaultError extends Error {
   constructor(message: string, public readonly code: string) {
@@ -116,6 +116,8 @@ export interface IVaultAdapter {
   preserveConflict?(path: string, text: string, writer: ConflictWriter): Promise<ConflictEditSession>;
   writeEditorText?(path: string, text: string, baseText: string | null): Promise<EditorWriteResult>;
   resolveConflict?(path: string, resolution: ConflictResolution): Promise<void>;
+  /** The way out of an open conflict whose file is no text any more: byte for byte, by the hashes the comparison saw. */
+  resolveConflictBytes?(path: string, resolution: ConflictBytesResolution): Promise<void>;
   /**
    * Reads a text file, changes it and writes it back as ONE step — the way in
    * for whoever changes a place of a file that exists: a property, a task's

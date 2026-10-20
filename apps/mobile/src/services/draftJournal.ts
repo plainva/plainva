@@ -141,6 +141,25 @@ export function clearDraft(v: MobileVault, path: string, upToRevision = Infinity
   }).catch(() => {});
 }
 
+/**
+ * Clears the journal entry only while it is still exactly this draft (its
+ * `ts` and revision) — for a draft kept beside its file (finding 2026-10-11).
+ * A revision alone says nothing across runs of the app: the coordinator
+ * counts from 1 again, so a newer draft of this run would pass for older.
+ */
+export function clearDraftIf(v: MobileVault, path: string, draft: { ts: number; revision?: number }): void {
+  const file = draftFile(v, path);
+  void serial(file, async () => {
+    const stored = await readDraftFile(v, path);
+    if (!stored || stored.ts !== draft.ts || stored.revision !== draft.revision) return;
+    try {
+      await Filesystem.deleteFile({ path: file, directory: Directory.Data });
+    } catch {
+      // A draft left there is offered or kept again; one deleted is gone.
+    }
+  }).catch(() => {});
+}
+
 /** The journal entry as it sits on disk, without the retention sweep. */
 async function readDraftFile(v: MobileVault, path: string): Promise<NoteDraft | null> {
   try {
@@ -216,6 +235,31 @@ export async function readDraft(v: MobileVault, path: string): Promise<NoteDraft
     void pruneDrafts(v);
   }
   return readDraftFile(v, path);
+}
+
+/** When this module came up: every draft of this run of the app was journaled after it. */
+const runStartedAt = Date.now();
+const handedOver = new Set<string>();
+const leftoverKey = (v: MobileVault, path: string, draft: NoteDraft) => JSON.stringify([v.vaultId, path, draft.ts, draft.revision ?? null]);
+
+/**
+ * The draft of a note from before this run of the app — of an editor that
+ * held changes when the app went —, handed out once per run (finding
+ * 2026-10-11; the desktop's journal does the same). A draft of this run
+ * belongs to the note's saver, which saves or keeps its own text.
+ */
+export async function takeLeftoverDraft(v: MobileVault, path: string): Promise<NoteDraft | null> {
+  const draft = await readDraft(v, path);
+  if (!draft || draft.ts >= runStartedAt) return null;
+  const key = leftoverKey(v, path, draft);
+  if (handedOver.has(key)) return null;
+  handedOver.add(key);
+  return draft;
+}
+
+/** A draft `takeLeftoverDraft` handed out that could not be kept: handed out again on the next ask. */
+export function releaseLeftoverDraft(v: MobileVault, path: string, draft: NoteDraft): void {
+  handedOver.delete(leftoverKey(v, path, draft));
 }
 
 /** Boot hygiene: drafts older than the retention window disappear. */

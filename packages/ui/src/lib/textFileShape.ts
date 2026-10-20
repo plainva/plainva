@@ -29,6 +29,13 @@ export interface OpenedEditorText {
  * veto without the shape. The phone had neither (finding 2026-10-08): it
  * showed whatever decoded, and it wrote every text file back with `\n`.
  *
+ * `raw` is the file's text as the vault hands it out, and the vault hands out
+ * none for bytes that are not UTF-8 — it refuses a `.csv` in Windows-1252 or a
+ * note in UTF-16 before this function is asked (`readExactText` in the core,
+ * since 2026-10-12). What is left to veto here is a text view over bytes that
+ * ARE valid UTF-8 and still no text: an archive, a database dump, whatever
+ * carries a NUL near its start.
+ *
  * The save shape is the file's own, for a note as for any other text file
  * (maintainer, 2026-10-09). A note used to be the exception — saved with `\n`
  * whatever it had arrived with, its mark alone kept — and so the first edit of

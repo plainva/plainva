@@ -7,6 +7,8 @@ import {
   parseBackupPath,
   parseBatchFolderStamp,
 } from "./backupNaming.js";
+import { readExactText, readLocalFile, writeFileVersion } from "./localText.js";
+import { isTextFile } from "../sync/fileType.js";
 
 export interface FileVersion {
   backupPath: string;
@@ -18,16 +20,6 @@ export interface OrphanedBackupGroup {
   originalPath: string;
   /** Sorted newest first. */
   versions: FileVersion[];
-}
-
-const TEXT_EXTENSIONS = new Set(["md", "base", "txt", "json", "canvas", "csv", "yml", "yaml"]);
-
-/** Restores of these go through the text pipeline so sync-state hashes stay maintained. */
-export function isTextLikePath(path: string): boolean {
-  const name = path.split(/[/\\]/).pop() || "";
-  const dot = name.lastIndexOf(".");
-  if (dot < 0) return false;
-  return TEXT_EXTENSIONS.has(name.slice(dot + 1).toLowerCase());
 }
 
 function abortError(): Error {
@@ -66,8 +58,13 @@ export class VersionHistoryService {
     return versions;
   }
 
+  /**
+   * A snapshot's text for a preview or a comparison — or `NotTextFileError`
+   * where the snapshot holds bytes that are not UTF-8: there is nothing of it
+   * to show as text, with either kind of text reader.
+   */
   async readVersionText(backupPath: string): Promise<string> {
-    return this.adapter.readTextFile(backupPath);
+    return readExactText(this.adapter, backupPath);
   }
 
   async readVersionBinary(backupPath: string): Promise<Uint8Array> {
@@ -75,10 +72,19 @@ export class VersionHistoryService {
   }
 
   /**
-   * Writes the snapshot content to `targetPath`. Text-like targets go through
-   * `writeTextFile` (keeps ConflictAware's sha256 bookkeeping intact),
-   * everything else byte-exact through `writeBinaryFile`. Parent directories
-   * are created implicitly by the adapters.
+   * Writes the snapshot content to `targetPath`. Parent directories are
+   * created implicitly by the adapters.
+   *
+   * A snapshot that is text — the target's name says so AND the snapshot's
+   * bytes are UTF-8, the one question `mergeableText` asks — goes through
+   * `writeTextFile` (keeps ConflictAware's sha256 bookkeeping intact).
+   * Everything else goes byte for byte through `writeBinaryFile`: an image, and
+   * a `.csv` in Windows-1252 just the same (`writeFileVersion`, which also says
+   * what happens where the file at the target is no text any more). The name
+   * alone used to decide, by a list of extensions of this file's own (finding
+   * 2026-10-11): the snapshot of such a file came back as its decoded text
+   * where the reader replaces what is not UTF-8, and not at all where it
+   * refuses.
    *
    * `beforeWrite` runs AFTER the snapshot content is read but BEFORE the
    * target is written — the caller's forced pre-restore backup goes here.
@@ -92,15 +98,14 @@ export class VersionHistoryService {
     beforeWrite?: () => Promise<void>;
   }): Promise<void> {
     const { backupPath, targetPath, writeAdapter, beforeWrite } = opts;
-    if (isTextLikePath(targetPath)) {
-      const text = await this.adapter.readTextFile(backupPath);
-      await beforeWrite?.();
-      await writeAdapter.writeTextFile(targetPath, text);
-    } else {
-      const bytes = await this.adapter.readBinaryFile(backupPath);
-      await beforeWrite?.();
-      await writeAdapter.writeBinaryFile(targetPath, bytes);
-    }
+    // Read as text first where the name says text: the cheap read, and for a
+    // UTF-8 snapshot it is the snapshot. Anything else is not put through a
+    // text reader at all.
+    const snapshot = isTextFile(targetPath)
+      ? await readLocalFile(this.adapter, backupPath)
+      : { text: "", exact: false, bytes: await this.adapter.readBinaryFile(backupPath) };
+    await beforeWrite?.();
+    await writeFileVersion(writeAdapter, targetPath, snapshot);
   }
 
   /**

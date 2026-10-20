@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-10-12
+Ultimo aggiornamento: 2026-10-20
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -232,7 +232,7 @@ Eventi e note giornaliere sono deliberatamente separati: **Calendario** mostra i
 
 Oltre a note e database, il navigatore mostra ora gli **allegati**: immagini, PDF e tutto ciò che si trova nella cartella. Un’immagine si apre dentro Plainva; il resto passa al sistema, che sa che cos’è un PDF mentre Plainva no. **Condividi** consegna un file a qualsiasi altra app.
 
-Un file di testo — `.txt`, `.csv`, `.json`, codice sorgente e simili, vedi [Note e Markdown](Notes_and_Markdown.md) — si apre anche qui dentro Plainva e viene salvato così com’è arrivato: con i suoi fine riga e il suo BOM. Lo stesso vale per una nota: modificarla cambia le righe che hai modificato e nient’altro nel file. Se l’inizio del file rivela che non è testo, Plainva non lo mostra e propone **Condividi**: mostrarlo e salvarlo lo danneggerebbe.
+Un file di testo — `.txt`, `.csv`, `.json`, codice sorgente e simili, vedi [Note e Markdown](Notes_and_Markdown.md) — si apre anche qui dentro Plainva e viene salvato così com’è arrivato: con i suoi fine riga e il suo BOM. Lo stesso vale per una nota: modificarla cambia le righe che hai modificato e nient’altro nel file. Se l’inizio del file rivela che non è testo, Plainva non lo mostra e propone **Condividi**: mostrarlo e salvarlo lo danneggerebbe. Lo stesso vale per un file — anche una nota — scritto in una codifica diversa da UTF-8, come Windows-1252: Plainva mostra **Questo file non è testo** e non vi scrive sopra nulla.
 
 Il menu ⋮ di una nota contiene **Esporta come Markdown…**: consegna il file stesso al pannello di condivisione del sistema, dove trovi Stampa, «Salva su File» e ogni editor installato. **Condividi**, sopra, invia solo il testo della nota. Se la nota ha annotazioni aperte, Plainva chiede prima **Includere le annotazioni?** — **Come elenco alla fine (leggibile ovunque)** o **Marcate nel testo (CriticMarkup)**; i marcatori di ancoraggio invisibili vengono rimossi in ogni caso.
 

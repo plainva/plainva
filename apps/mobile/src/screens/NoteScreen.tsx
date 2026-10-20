@@ -1,4 +1,4 @@
-import { getConflict, subscribeConflicts } from "../services/conflictState";
+import { getConflict, noteConflict, subscribeConflicts } from "../services/conflictState";
 import { useReaderChrome } from "../hooks/useReaderChrome";
 import { listMobilePublicationFeedback } from "../services/mobileComments";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -39,12 +39,15 @@ import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
 import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, noteBodyOf, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readIndexedIdentity, editorTextOf } from "@plainva/core";
 import { resolveGoverningBaseOf } from "../services/baseOps";
-import { getLastPersistedText, keepTextShape, noteSaver, NotTextFileError, rememberPersistedText, reportMoveFailure, vaultOps, vaultTextFiles, type MobileVault } from "../services/vaultService";
+import { forgetKeptText, getLastPersistedText, keepTextShape, noteSaver, NotTextFileError, rememberPersistedText, reportMoveFailure, vaultOps, vaultTextFiles, type MobileVault } from "../services/vaultService";
 import { shareVaultFile } from "../services/shareFile";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { mPrompt } from "../services/mobileDialogs";
 import { confirmDeleteFile } from "../lib/deleteFile";
-import { clearDraft, readDraft, type NoteDraft } from "../services/draftJournal";
+import { clearDraft, clearDraftIf, readDraft, releaseLeftoverDraft, takeLeftoverDraft, type NoteDraft } from "../services/draftJournal";
+import { keepTextBeside, newestConflictCopy } from "@plainva/ui";
+import { NoteConflictCard } from "../components/NoteConflictCard";
+import { ConflictCompareSheet } from "../components/ConflictCompareSheet";
 import { NoteContextSheet, type ContextTab } from "../components/NoteContextSheet";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
@@ -119,6 +122,10 @@ export function NoteScreen({
    * another app instead, which knows what it is.
    */
   const [notText, setNotText] = useState(false);
+  /** Counts the times a file shown as "not text" was loaded again because it changed. */
+  const [loadAgain, setLoadAgain] = useState(0);
+  /** The comparison of a file shown as "not text" with the text kept beside it. */
+  const [notTextCompare, setNotTextCompare] = useState(false);
   /**
    * A note that could not be read is looked for first (issue 110, E9): the
    * phone's own vault is visible in the iOS Files app, and a note moved there
@@ -172,6 +179,11 @@ export function NoteScreen({
   const [editing, setEditing] = useState(getMobileSettings().defaultView === "edit");
   const [workspaceCapabilities, setWorkspaceCapabilities] = useState<WorkspaceCapability[] | null>(null);
   const [draft, setDraft] = useState<NoteDraft | null>(null);
+  /** The draft on offer, for a load that finds the file turned into no text (it keeps the text beside it). */
+  const offeredDraftRef = useRef<NoteDraft | null>(null);
+  useEffect(() => { offeredDraftRef.current = draft; }, [draft]);
+  /** Offers a load is keeping beside the file: a second load that fails meanwhile keeps them no second time. */
+  const claimedOffersRef = useRef(new WeakSet<NoteDraft>());
   useEffect(() => {
     let stale = false;
     if (!vault.workspaceRuntime || !vault.workspaceState) { setWorkspaceCapabilities(null); return; }
@@ -512,6 +524,64 @@ export function NoteScreen({
         // open) — show a friendly not-found body instead of a fatal unhandled
         // rejection.
         setLoadError(!refused);
+        // A text the draft journal holds for it from an earlier run of the app
+        // — an editor that held changes when the app went — is kept beside
+        // the file as a conflict copy (finding 2026-10-11; the desktop's
+        // editor does the same): it cannot go into the file, and the journal
+        // offers a draft only for a file that loads. A draft of this run is
+        // the saver's, which keeps its own text. And the card leads to the
+        // newest copy beside the file — kept here or left by the sync — where
+        // none is noted yet, as the desktop's banner does.
+        //
+        // A draft still on offer from when the file was text is kept beside
+        // it as well, unless it is the one just taken from the journal: the
+        // journal may hold it no more (this phone journals one text per note,
+        // and typing since overwrote it, or a save cleared it). The offer is
+        // taken down while it is kept — restored or discarded meanwhile, it
+        // was kept a second time or against the reader's word — and comes
+        // back if it could not be kept. A journal entry goes only while it is
+        // still the draft that was kept (`clearDraftIf`).
+        if (refused) {
+          const offered = offeredDraftRef.current;
+          const claim = offered && !claimedOffersRef.current.has(offered) ? offered : null;
+          if (claim) {
+            claimedOffersRef.current.add(claim);
+            setDraft((current) => (current === claim ? null : current));
+          }
+          let taken: NoteDraft | null = null;
+          let offerKept = false;
+          void (async () => {
+            const keep = async (text: string, kept: () => void) => {
+              const { copy } = await keepTextBeside(vault.files, path, editorTextOf(text));
+              kept();
+              noteConflict(path, copy, vault.vaultId);
+              try { await vault.reindexPaths([copy]); } catch { /* a later index pass repairs the derived data */ }
+              toast.warning(t("dialogs.conflictSavedMsg", { path: copy }));
+            };
+            const stored = await takeLeftoverDraft(vault, path);
+            const same = !!claim && !!stored && stored.ts === claim.ts && stored.revision === claim.revision;
+            if (stored) {
+              taken = stored;
+              await keep(stored.text, () => { taken = null; offerKept = same; });
+              clearDraftIf(vault, path, stored);
+            }
+            if (claim && !same) {
+              await keep(claim.text, () => { offerKept = true; });
+              clearDraftIf(vault, path, claim);
+            }
+            const newest = await newestConflictCopy(vault.files, path);
+            if (!stale && newest && !getConflict(path)) noteConflict(path, newest, vault.vaultId);
+          })().catch((keepError) => {
+            // Not kept: the journal hands its draft out again, the offer comes
+            // back, and a later load tries once more.
+            if (taken) releaseLeftoverDraft(vault, path, taken);
+            if (claim && !offerKept) {
+              claimedOffersRef.current.delete(claim);
+              setDraft((current) => current ?? claim);
+            }
+            console.error("[mobile] could not look beside the file that is no text", keepError);
+          });
+        }
       });
     void vaultOps.getBookmarks(vault).then((marks) => {
       if (!stale) setMarked(marks.some((m) => m.type === "file" && m.path === path));
@@ -519,7 +589,7 @@ export function NoteScreen({
     return () => {
       stale = true;
     };
-  }, [vault, path, t]);
+  }, [vault, path, t, loadAgain]);
 
   // One match at the same modification time (a move keeps it): the screen
   // follows it and says where. Anything less certain: the reader picks. None:
@@ -712,6 +782,72 @@ export function NoteScreen({
       vanishTimerRef.current = null;
       void lookForVanishedFile();
     }, 400);
+  });
+
+  // What a file IS can change while this screen shows it (finding 2026-10-11;
+  // the desktop's editor does the same). A file shown as "not text" is loaded
+  // again when it changes: saved as UTF-8 in another program, it shows as what
+  // it is now. And a note that is open when its file turns into something that
+  // is no text — the editor's re-read tells — is not left standing with a text
+  // that is no longer the file's. Unsaved text goes to its save, which keeps
+  // it beside the file (`kept`): then nothing of it is left to lose here.
+  const noticeFileChanged = useStableHandler((event: Event) => {
+    const d = (event as CustomEvent<{ vaultId?: string; path?: string; kept?: string }>).detail;
+    if (d?.path !== path || (d.vaultId && d.vaultId !== vault.vaultId)) return;
+    if (event.type === "m-external-update") {
+      if (notText) setLoadAgain((n) => n + 1);
+      return;
+    }
+    const text = liveText();
+    if (!d.kept && (doc === null || noteSaver.hasPending(path, vault) || (text !== null && text !== (getLastPersistedText(vault, path) ?? doc)))) return;
+    setEditing(false);
+    setDoc(null);
+    setNotText(true);
+    // The load's own way, which also looks beside the file: a pull that
+    // brought the other version leaves this phone's own beside it, and the
+    // card leads there at once, as the desktop's banner does.
+    setLoadAgain((n) => n + 1);
+  });
+  useEffect(() => {
+    window.addEventListener("m-external-update", noticeFileChanged);
+    window.addEventListener("m-note-not-text", noticeFileChanged);
+    return () => {
+      window.removeEventListener("m-external-update", noticeFileChanged);
+      window.removeEventListener("m-note-not-text", noticeFileChanged);
+    };
+  }, [noticeFileChanged]);
+  /**
+   * The note read again after the context sheet changed it — a property
+   * written, a version restored. A restored version can be one that is no
+   * text (finding 2026-10-11): then the screen shows the file as what it is
+   * now, as the desktop's editor does after a restore, instead of the text
+   * it held before. The restore saved what was typed first.
+   */
+  const readAgain = useStableHandler(() => {
+    void vaultOps.readEditor(vault, path).then((text) => {
+      // Text, whatever the screen showed before — as after a load: a version
+      // restored from the docked pane can make a file text again.
+      setLoadError(false);
+      setNotText(false);
+      setDoc(text);
+      setReloadTick((n) => n + 1);
+      // What was read, for the day the file vanishes (issue 110, E9), as the load keeps it.
+      if (vault.db) {
+        void readIndexedIdentity(vault.db, path)
+          .then((identity) => { if (identity) knownIdentityRef.current = identity; })
+          .catch(() => {});
+      }
+    }).catch((error) => {
+      if (!(error instanceof NotTextFileError)) {
+        console.error("[mobile] could not read the note again", error);
+        return;
+      }
+      setEditing(false);
+      setDoc(null);
+      setNotText(true);
+      // The load's own way, which also looks beside the file (the card).
+      setLoadAgain((n) => n + 1);
+    });
   });
 
   /** Regenerates this overview from the folder it belongs to. */
@@ -1147,8 +1283,16 @@ export function NoteScreen({
               variant="ghost"
               size="sm"
               onClick={() => {
+                // Being kept beside a file that is no text this moment (the
+                // banner goes with the next frame): once is enough.
+                if (claimedOffersRef.current.has(draft)) return;
                 const d = draft;
                 setDraft(null);
+                // Another text than one kept beside a file that is no text:
+                // never written into that copy (the desktop does the same).
+                // Let go in the write lane, after a keep of the typing still
+                // under way there has set its copy, and before this text's save.
+                void noteSaver.withWriteLock(path, vault, async () => forgetKeptText(vault, path));
                 setDoc(d.text);
                 setReloadTick((n) => n + 1);
                 noteSaver.schedule(vault, path, d.text);
@@ -1160,6 +1304,7 @@ export function NoteScreen({
               variant="ghost"
               size="sm"
               onClick={() => {
+                if (claimedOffersRef.current.has(draft)) return;
                 clearDraft(vault, path);
                 setDraft(null);
               }}
@@ -1340,6 +1485,25 @@ export function NoteScreen({
             <p className="m-hint" data-testid="note-still-looking">{t("editor.movedFileStillLooking")}</p>
           )}
         </EmptyState>
+      )}
+      {doc === null && notText && readerConflict && (
+        /* What the editor held when the file turned into no text is kept
+           beside it (finding 2026-10-11): from here, this card is the way to
+           it — and the comparison offers to put it in the file's place. */
+        <NoteConflictCard conflict={readerConflict} path={path} vault={vault} onOpenCopy={() => onOpenNote(readerConflict.copyPath)} onShowDiff={() => setNotTextCompare(true)} />
+      )}
+      {doc === null && notText && readerConflict && notTextCompare && (
+        <ConflictCompareSheet
+          vault={vault}
+          conflictPath={readerConflict.copyPath}
+          originalPath={path}
+          onClose={() => setNotTextCompare(false)}
+          onResolved={() => {
+            setNotTextCompare(false);
+            // The copy may have taken the file's place: it is text again.
+            setLoadAgain((n) => n + 1);
+          }}
+        />
       )}
       {doc === null && notText && (
         /* C15 (S13): the extension promised text, the bytes did not keep the
@@ -1634,22 +1798,12 @@ export function NoteScreen({
           initialTab={info}
           onClose={() => setInfo(null)}
           onCommentProperty={startPropertyComment}
-          onMutated={() => {
-            void vaultOps.readEditor(vault, path).then((text) => {
-              setDoc(text);
-              setReloadTick((n) => n + 1);
-            });
-          }}
+          onMutated={readAgain}
           onJumpToLine={(line) =>
             window.dispatchEvent(new CustomEvent("m-editor-goto-line", { detail: { vaultId: vault.vaultId, path, line } }))
           }
           onOpenNote={onOpenNote}
-          onRestored={() => {
-            void vaultOps.readEditor(vault, path).then((text) => {
-              setDoc(text);
-              setReloadTick((n) => n + 1);
-            });
-          }}
+          onRestored={readAgain}
           path={path}
           vault={vault}
         />
@@ -1673,22 +1827,12 @@ export function NoteScreen({
         key={info ?? "props"}
         onClose={() => setInfo(null)}
         onCommentProperty={startPropertyComment}
-        onMutated={() => {
-          void vaultOps.readEditor(vault, path).then((text) => {
-            setDoc(text);
-            setReloadTick((n) => n + 1);
-          });
-        }}
+        onMutated={readAgain}
         onJumpToLine={(line) =>
           window.dispatchEvent(new CustomEvent("m-editor-goto-line", { detail: { vaultId: vault.vaultId, path, line } }))
         }
         onOpenNote={onOpenNote}
-        onRestored={() => {
-          void vaultOps.readEditor(vault, path).then((text) => {
-            setDoc(text);
-            setReloadTick((n) => n + 1);
-          });
-        }}
+        onRestored={readAgain}
         path={path}
         vault={vault}
       />

@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-10-12
+Stand: 2026-10-20
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -232,7 +232,7 @@ Termine und Tagesnotizen sind bewusst getrennt: **Kalender** zeigt die verbunden
 
 Der Navigator zeigt neben Notizen und Datenbanken auch **Anhänge** — Bilder, PDFs, alles, was sonst im Ordner liegt. Ein Bild öffnet sich in Plainva; alles andere reicht die App an das System weiter, das mit einem PDF umgehen kann und Plainva nicht. Über **Teilen** geht eine Datei an jede andere App.
 
-Eine Textdatei — `.txt`, `.csv`, `.json`, Quelltext und Ähnliches, siehe [Notizen & Markdown](Notes_and_Markdown.md) — öffnet sich auch hier in Plainva selbst, und sie wird so gespeichert, wie sie ankam: mit ihren Zeilenenden und ihrem BOM. Für eine Notiz gilt dasselbe: Bearbeitest Du sie, ändern sich die Zeilen, die Du bearbeitet hast, und sonst nichts in der Datei. Verrät der Dateianfang, dass es doch keine Textdatei ist, zeigt Plainva sie nicht an, sondern bietet **Teilen** an: sie anzuzeigen und zu speichern würde sie beschädigen.
+Eine Textdatei — `.txt`, `.csv`, `.json`, Quelltext und Ähnliches, siehe [Notizen & Markdown](Notes_and_Markdown.md) — öffnet sich auch hier in Plainva selbst, und sie wird so gespeichert, wie sie ankam: mit ihren Zeilenenden und ihrem BOM. Für eine Notiz gilt dasselbe: Bearbeitest Du sie, ändern sich die Zeilen, die Du bearbeitet hast, und sonst nichts in der Datei. Verrät der Dateianfang, dass es doch keine Textdatei ist, zeigt Plainva sie nicht an, sondern bietet **Teilen** an: sie anzuzeigen und zu speichern würde sie beschädigen. Ebenso eine Datei — auch eine Notiz —, die in einer anderen Kodierung als UTF-8 geschrieben ist, etwa Windows-1252: Plainva zeigt **Diese Datei ist kein Text** und schreibt nichts über sie.
 
 Im ⋮-Menü einer Notiz steht **Als Markdown exportieren…**: Das übergibt die Datei selbst an das Teilen-Blatt des Systems — dort findest Du Drucken, „In Dateien sichern“ und jeden installierten Editor. **Teilen** darüber verschickt dagegen nur den Text der Notiz. Trägt die Notiz offene Anmerkungen, fragt Plainva vorher **Anmerkungen mitexportieren?** — **Als Liste am Ende (überall lesbar)** oder **Im Text markieren (CriticMarkup)**; die unsichtbaren Anker-Markierungen fallen in jedem Fall weg.
 

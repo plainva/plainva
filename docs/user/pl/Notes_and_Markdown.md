@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-10-11
+Stan na: 2026-10-20
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -186,7 +186,7 @@ Twoje notatki to zwykłe pliki `.md`, więc może je otworzyć dowolny edytor Ma
 - **Linkowanie**: wpisz `[[`, a Plainva zaproponuje najpierw notatki, a pod nimi, w sekcji **Załączniki**, pliki z Twojego sejfu.
 - **Podgląd**: pliki graficzne (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) otwierają się we wbudowanej przeglądarce obrazów z opcjami **Powiększ**/**Pomniejsz**, **Dopasuj** i **Rozmiar rzeczywisty (1:1)**.
 - **Edycja**: przycisk **Edytuj** otwiera edytor obrazów z **Kadrowaniem**, obracaniem/odbiciem, **Zmianą rozmiaru**, narzędziami rysowania (**Pisak**, **Strzałka**, **Prostokąt**, **Tekst**) oraz **Cofnij**/**Ponów**. Zapisz bezpośrednio lub **Zapisz jako kopię…**. Edytowalne formaty to PNG, JPG i WebP; pozostałe formaty otwierają się tylko do podglądu.
-- **Pliki tekstowe** otwierają się w samej Plainvie: `.txt`, `.csv`, `.json`, `.yaml`, kod źródłowy i podobne. Jeśli Twój sejf potrzebuje więcej, dopisz rozszerzenia w **Ustawienia → Twój sejf → Treść i struktura → Więcej plików tekstowych** — lista może tylko dodawać, nigdy odbierać. Jeśli początek pliku pokaże, że to jednak nie tekst, Plainva go nie wyświetli i zaproponuje program domyślny: wyświetlenie i zapisanie uszkodziłoby plik. Tak otwarty plik zachowuje przy zapisie swoje końce wierszy i BOM, tak jak notatka — należy do Ciebie, nie do Plainvy. Podczas edycji Plainva koloruje tekst na podstawie rozszerzenia pliku — to samo podświetlanie, jakie otrzymuje blok kodu wewnątrz notatki. Narzędzia notatki pozostają wyłączone: brak Podglądu na żywo, brak nagłówka właściwości, brak `[[links]]`, brak menu "/". Znajdź i zamień pozostaje, ponieważ to funkcja tekstu, a nie funkcja notatki.
+- **Pliki tekstowe** otwierają się w samej Plainvie: `.txt`, `.csv`, `.json`, `.yaml`, kod źródłowy i podobne. Jeśli Twój sejf potrzebuje więcej, dopisz rozszerzenia w **Ustawienia → Twój sejf → Treść i struktura → Więcej plików tekstowych** — lista może tylko dodawać, nigdy odbierać. Jeśli początek pliku pokaże, że to jednak nie tekst, Plainva go nie wyświetli i zaproponuje program domyślny: wyświetlenie i zapisanie uszkodziłoby plik. Tak samo jest z plikiem — także notatką — zapisanym w innym kodowaniu niż UTF-8, na przykład Windows-1252: Plainva pokazuje **Ten plik nie jest tekstem** i niczego w nim nie zapisuje. Tak otwarty plik zachowuje przy zapisie swoje końce wierszy i BOM, tak jak notatka — należy do Ciebie, nie do Plainvy. Podczas edycji Plainva koloruje tekst na podstawie rozszerzenia pliku — to samo podświetlanie, jakie otrzymuje blok kodu wewnątrz notatki. Narzędzia notatki pozostają wyłączone: brak Podglądu na żywo, brak nagłówka właściwości, brak `[[links]]`, brak menu "/". Znajdź i zamień pozostaje, ponieważ to funkcja tekstu, a nie funkcja notatki.
 - Inne załączniki otwierają się jednym kliknięciem w domyślnym programie systemowym — w drzewie plików tak samo jak przez `[[odnośnik]]`, zakładkę czy wyszukiwanie.
 
 ## A co z Obsidian?

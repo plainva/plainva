@@ -32,7 +32,7 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
   stat: async () => ({ mtime: new Date() }),
 }));
 
-import { clearDraft, pathHash, readDraft, recordDraft, relocateDrafts, relocatedPath } from "./draftJournal";
+import { clearDraft, pathHash, readDraft, recordDraft, releaseLeftoverDrafts, relocateDrafts, relocatedPath, takeLeftoverDrafts } from "./draftJournal";
 
 const VAULT = "C:/vaults/main";
 const NOTE = "Notes/A.md";
@@ -214,5 +214,40 @@ describe("drafts follow an in-app move (issue 113)", () => {
     await relocateDrafts(VAULT, [{ from: NOTE, to: "B/A.md" }]);
     expect((await readDraft(VAULT, "B/A.md"))?.text).toBe("new place");
     expect(await readDraft(VAULT, NOTE)).toBeNull();
+  });
+});
+
+describe("drafts left from an earlier run (finding 2026-10-11)", () => {
+  beforeEach(() => files.clear());
+
+  it("are handed out once each — and a draft of this run, which belongs to an editor still open, never", async () => {
+    // As an earlier run of the app left them: two editors that held changes.
+    files.set(FILE, JSON.stringify({ version: 2, entries: [
+      { vaultPath: VAULT, notePath: NOTE, text: "left in the main window", revision: 7, savedAt: 1, sessionId: "earlier-a" },
+      { vaultPath: VAULT, notePath: NOTE, text: "left in another window", revision: 3, savedAt: 2, sessionId: "earlier-b" },
+    ] }));
+    await recordDraft(VAULT, NOTE, "typed in this run", 2, "now");
+    expect((await takeLeftoverDrafts(VAULT, NOTE)).map((draft) => draft.text).sort()).toEqual(["left in another window", "left in the main window"]);
+    // Once per run: another pane, another load asks in vain.
+    expect(await takeLeftoverDrafts(VAULT, NOTE)).toEqual([]);
+  });
+
+  it("hands a draft out again that could not be kept", async () => {
+    files.set(FILE, JSON.stringify({ version: 2, entries: [
+      { vaultPath: VAULT, notePath: NOTE, text: "not kept the first time", revision: 5, savedAt: 1, sessionId: "earlier-d" },
+    ] }));
+    const [first] = await takeLeftoverDrafts(VAULT, NOTE);
+    expect(await takeLeftoverDrafts(VAULT, NOTE)).toEqual([]);
+    releaseLeftoverDrafts(VAULT, NOTE, [first]);
+    expect((await takeLeftoverDrafts(VAULT, NOTE)).map((draft) => draft.text)).toEqual(["not kept the first time"]);
+  });
+
+  it("hands a note none of the drafts of another note or vault that sit in its journal file", async () => {
+    // `pathHash` loses the end of a path: today Notes/B.md's entries land in Notes/A.md's file.
+    files.set(FILE, JSON.stringify({ version: 2, entries: [
+      { vaultPath: VAULT, notePath: "Notes/B.md", text: "B's unsaved text", revision: 4, savedAt: 1, sessionId: "earlier-b" },
+      { vaultPath: "C:/vaults/other", notePath: NOTE, text: "another vault's text", revision: 2, savedAt: 1, sessionId: "earlier-c" },
+    ] }));
+    expect(await takeLeftoverDrafts(VAULT, NOTE)).toEqual([]);
   });
 });

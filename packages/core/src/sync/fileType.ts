@@ -53,8 +53,12 @@ export function isTextFile(path: string): boolean {
  * read a file of this device through `readLocalText`, which answers the same
  * question and gives the hash all of them compare by.
  *
- * What the app itself does with such a file does not ask yet: an editor that
- * opens it, a restored version, a duplicate take the text a reader hands out.
+ * The app itself asks the same (since 2026-10-12; it used to take the text a
+ * reader handed out). Its adapter chain hands out a file's text or refuses the
+ * file, and writes no text over one it could not read as text; a snapshot, a
+ * restored version and a duplicate go byte for byte where the file is no text
+ * (`readExactText`, `writeFileVersion` and `copyFileContent` in
+ * `vault/localText.ts`).
  */
 export function mergeableText(path: string, bytes: Uint8Array): string | null {
   return isTextFile(path) ? utf8TextOf(bytes) : null;

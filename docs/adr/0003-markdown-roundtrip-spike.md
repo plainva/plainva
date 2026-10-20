@@ -159,15 +159,42 @@ the server's copy once more, and nothing of it is pushed before. As long as
 a device with an older version can still send a decoded text: such a version,
 arriving over an unchanged file in another encoding, is taken like any other,
 and that file is kept next to it as a `.CONFLICT` copy.
-What the app itself does with such a file is outside this decision — the
-editors, a restored version, a duplicate still take the text a reader hands out
-for the file. Where the platform's reader replaces instead of refusing, a file
-in Windows-1252 passes `openEditorText` (which refuses a file for a NUL
-character only) with replacement characters in it, and a save writes them; the
-user guide says not to edit such a file in Plainva. Tests:
-`packages/core/test/sync/non-utf8-text-sync.test.ts` (two devices, both kinds
-of text reader, bytes on both disks and on the server),
+What the app itself does with such a file is answered in the next paragraph.
+Tests: `packages/core/test/sync/non-utf8-text-sync.test.ts` (two devices, both
+kinds of text reader, bytes on both disks and on the server),
 `packages/core/test/local-text.test.ts`.
+
+**2026-10-20 — the same question, answered for the app.** The app asks what
+the sync asks. The adapter chain both shells hand out
+(`ConflictAwareVaultAdapter`) hands out a file's text or refuses the file
+(`NotTextFileError`, through `readExactText` in
+`packages/core/src/vault/localText.ts`), whether the platform's text reader
+replaces such bytes or refuses them; and it writes no text over a file it could
+not read as one — not an editor's save, not a change through its one entry for
+reading, changing and writing back (`updateTextFile`), not a whole text. An
+editor shows such a file as not text on both shells, a note included, and an
+auxiliary window of the desktop reads the same way. The version kept before a
+write is the file's bytes where the file is no text. A restored version, a
+duplicate and the copy of a conflict that takes a file's place are written as
+text only where they are text, and byte for byte otherwise
+(`writeFileVersion`, `copyFileContent`); the version history keeps no list of
+text extensions of its own. What an editor held when its file turned into such
+a file is kept beside it as a conflict copy (`keepTextBeside`), both shells
+lead from such a file to the newest copy beside it, kept there or left by the
+sync (`newestConflictCopy`), and the comparison of both shells settles a copy
+that cannot be laid out as text byte for byte, through one way
+(`settleConflictCopy`) — an open conflict through its own gate
+(`resolveConflictBytes`); while a conflict is open, no bytes are written into
+either side of it. Which files a comparison reads as text is one rule of both
+shells (`comparesAsText`). Until then the extension decided: where the reader
+replaces, an editor opened a `.csv` in Windows-1252 with replacement
+characters, its first save wrote them, and the version kept before that save
+was the same reading; where it refuses, the desktop's editor called the file
+missing. A read-only view that offers to convert such a file to UTF-8 is a
+separate question (maintainer, 2026-10-19). Tests:
+`packages/core/test/non-utf8-text-in-app.test.ts` (both kinds of text reader,
+bytes read), `apps/mobile/src/services/notTextFiles.test.ts`,
+`apps/desktop/e2e/not-text.spec.ts`, `apps/mobile/e2e-prod/not-text.spec.ts`.
 
 Tests: `packages/core/test/text-file-shape.test.ts`,
 `packages/core/test/conflict-resolver.test.ts`,

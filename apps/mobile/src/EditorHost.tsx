@@ -49,9 +49,10 @@ import {
   vaultOps,
   type MobileVault,
 } from "./services/vaultService";
-import { Banner, decideDirtyExternalUpdate, textDirectionOf, toast } from "@plainva/ui";
-import { clearConflict, getConflict, noteConflict, subscribeConflicts } from "./services/conflictState";
+import { decideDirtyExternalUpdate, textDirectionOf, toast } from "@plainva/ui";
+import { getConflict, noteConflict, subscribeConflicts } from "./services/conflictState";
 import { ConflictCompareSheet } from "./components/ConflictCompareSheet";
+import { NoteConflictCard } from "./components/NoteConflictCard";
 import { syncSoon } from "./services/syncService";
 import { mActions, mConfirm } from "./services/mobileDialogs";
 import { applyTemplateInteractive } from "./services/templateInteractive";
@@ -165,22 +166,6 @@ export function EditorHost({
   // and reopening the note does not make an unresolved conflict disappear.
   const conflict = useSyncExternalStore(subscribeConflicts, () => getConflict(path));
   const [conflictDiff, setConflictDiff] = useState(false);
-  // A conflict outlives the app now (P1, Build-91 feedback): the copy may have
-  // been deleted from the file list in the meantime, and a card pointing at
-  // nothing would lie — it goes when its copy is gone.
-  useEffect(() => {
-    if (!conflict) return;
-    let stale = false;
-    vault.files
-      .exists(conflict.copyPath)
-      .then((ok) => {
-        if (!stale && !ok) clearConflict(path);
-      })
-      .catch(() => {});
-    return () => {
-      stale = true;
-    };
-  }, [conflict, path, vault]);
   // Slash-command sheets (R3.4): the shared plugin fires the same picker
   // events as on the desktop; this host renders them as bottom sheets.
   const [tableSheet, setTableSheet] = useState<{ pos: number } | null>(null);
@@ -724,10 +709,15 @@ export function EditorHost({
       let disk: string;
       try {
         disk = await vaultOps.readEditor(vault, path);
-      } catch {
+      } catch (error) {
         // Gone from under us (issue 110, E9): the screen looks for the file —
         // the text in this editor stays until it knows where it goes.
         if (!(await vault.adapter.exists(path).catch(() => true))) onVanishedRef.current?.();
+        // Still there, and no text any more: another program — or a pull —
+        // put the file there in another encoding (asked by the refusal's
+        // code). The screen says what the file is now; what was typed and not
+        // saved stays here, and its save says why it is refused.
+        else if ((error as { code?: string } | null)?.code === "NOT_TEXT_FILE") window.dispatchEvent(new CustomEvent("m-note-not-text", { detail: { vaultId: vault.vaultId, path } }));
         return;
       }
       if (sessionRef.current !== s) return;
@@ -1418,32 +1408,9 @@ export function EditorHost({
   return (
     <>
       {/* S5: a conflict is an END STATE, so it stays on screen until the user
-          acts on it. It used to be a toast — one per retry round, each round
-          writing another .CONFLICT file that no surface pointed at. The two
-          ways out are the two questions anyone has here: where is my text, and
-          what is different. */}
+          acts on it (`NoteConflictCard`). */}
       {conflict && (
-        <Banner
-          actions={
-            <>
-              <Button onClick={() => onOpenNote(conflict.copyPath)} size="sm" variant="ghost">
-                {t("mobile.conflictOpenCopy")}
-              </Button>
-              <Button onClick={() => setConflictDiff(true)} size="sm" variant="ghost">
-                {t("mobile.conflictShowDiff")}
-              </Button>
-            </>
-          }
-          kind="warning"
-          rounded
-        >
-          <b>{t("mobile.conflictTitle")}</b>
-          <br />
-          {t(conflict.working ? "conflict.workingCopy" : "mobile.conflictBody")}
-          {conflict.foreignCopySnapshot && <><br />{t("conflict.workingCopyChanged")}</>}
-          <br />
-          <code>{conflict.copyPath}</code>
-        </Banner>
+        <NoteConflictCard conflict={conflict} path={path} vault={vault} onOpenCopy={() => onOpenNote(conflict.copyPath)} onShowDiff={() => setConflictDiff(true)} />
       )}
       <div
         className={`m-editor${showEditToolbar ? " is-docked" : ""}`}

@@ -1,5 +1,5 @@
 import type { IVaultAdapter } from "@plainva/core";
-import type { TextFileShape } from "@plainva/ui";
+import type { KeptText, TextFileShape } from "@plainva/ui";
 
 /** Mutable persistence state belongs to one editor lifetime, outside React. */
 export class EditorSaveLifetime {
@@ -16,6 +16,14 @@ export class EditorSaveLifetime {
    */
   shape: TextFileShape | null = null;
   recoveredDraft: { revision: number; sessionId?: string } | null = null;
+  /**
+   * What this editor kept beside its file because the file had turned into
+   * no text (`keepTextBeside`, finding 2026-10-11): typing that goes on is
+   * kept into the same copy. Gone with the next load, and once the file takes
+   * the editor's text again. Here, not in the component: a save that ends
+   * after the pane moved to another file belongs to this lifetime.
+   */
+  kept: KeptText | null = null;
   baseInput: string | null = null;
   savedRevision = -1;
   discardedRevision = -1;
@@ -29,7 +37,7 @@ export class EditorSaveLifetime {
   isActive(): boolean { return this.active; }
   setTransferFrozen(frozen: boolean): void { this.transferFrozen = frozen; }
   recover(draft: { revision: number; sessionId?: string }): void { this.recoveredDraft = draft; }
-  update(patch: Partial<Pick<EditorSaveLifetime, "dirty" | "persisted" | "revision" | "shape" | "baseInput" | "savedRevision" | "discardedRevision" | "activeWrites" | "recoveredDraft">>): void {
+  update(patch: Partial<Pick<EditorSaveLifetime, "dirty" | "persisted" | "revision" | "shape" | "kept" | "baseInput" | "savedRevision" | "discardedRevision" | "activeWrites" | "recoveredDraft">>): void {
     Object.assign(this, patch);
   }
   nextRevision(): number { return ++this.revision; }

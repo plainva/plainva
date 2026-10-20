@@ -1,4 +1,4 @@
-import { changeOf, TextFileChangedError, type IVaultAdapter, type DeletionConfirmation, type TextChange, type TextFileChange, type TextFileState, type TextFileUpdate, type VaultFileInfo, type VaultListing, type WatchEvent } from "@plainva/core";
+import { changeOf, readExactText, TextFileChangedError, type IVaultAdapter, type DeletionConfirmation, type TextChange, type TextFileChange, type TextFileState, type TextFileUpdate, type VaultFileInfo, type VaultListing, type WatchEvent } from "@plainva/core";
 import { bytesToBase64 } from "./TauriVaultAdapter";
 import type { WindowBus } from "../services/windowBus";
 
@@ -40,8 +40,15 @@ export class RemoteVaultAdapter implements IVaultAdapter {
 
   // --- reads: local, unchanged -------------------------------------------
 
+  /**
+   * The file's text, or `NotTextFileError` where its bytes are not UTF-8 — the
+   * answer the owner's adapter chain gives (`readExactText`). The reads of
+   * this window do not pass that chain, and the reader below refuses such a
+   * file with an error of its own: an auxiliary window's editor would call a
+   * `.csv` in Windows-1252 missing where the main window says what it is.
+   */
   readTextFile(path: string): Promise<string> {
-    return this.reads.readTextFile(path);
+    return readExactText(this.reads, path);
   }
 
   readBinaryFile(path: string): Promise<Uint8Array> {
@@ -79,6 +86,9 @@ export class RemoteVaultAdapter implements IVaultAdapter {
   }
   resolveConflict(path: string, resolution: import("@plainva/core").ConflictResolution) {
     return this.bus.request("conflict-resolve", { path, resolution }, { vaultPath: this.vaultPath });
+  }
+  resolveConflictBytes(path: string, resolution: import("@plainva/core").ConflictBytesResolution) {
+    return this.bus.request("conflict-resolve-bytes", { path, resolution }, { vaultPath: this.vaultPath });
   }
 
   async writeTextFile(path: string, content: string): Promise<void> {

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { EditorState } from "@codemirror/state";
-import { BINARY_PROBE_BYTES, applyTextShape, editorTextOf, getExtraTextExtensions, looksBinary, openEditorText, opensExternally, readTextShape, resolveOpenAction, setExtraTextExtensions } from "@plainva/ui";
+import { BINARY_PROBE_BYTES, applyTextShape, comparesAsText, editorTextOf, getExtraTextExtensions, looksBinary, openEditorText, opensExternally, readTextShape, resolveOpenAction, setExtraTextExtensions } from "@plainva/ui";
 
 /**
  * The rule from issue #55 and the ratchet that keeps it in one place.
@@ -200,8 +200,45 @@ describe("resolveOpenAction", () => {
   });
 });
 
+describe("comparesAsText", () => {
+  it("lays a file out as text where Plainva opens it as text or the sync merges it as text — an image as an image", () => {
+    for (const p of ["Notes/Plan.md", "Tasks.base", "script.py", "data.csv", "board.canvas", "page.html", "notes.org", "x.gitignore"]) {
+      expect(comparesAsText(p), p).toBe(true);
+    }
+    // An SVG is text AND an image; it is shown as the image it is.
+    for (const p of ["Bild.svg", "Bild.png", "Doc.pdf", "archive.zip", "noext"]) {
+      expect(comparesAsText(p), p).toBe(false);
+    }
+    setExtraTextExtensions(["adoc"]);
+    try {
+      expect(comparesAsText("Guide.adoc")).toBe(true);
+    } finally {
+      setExtraTextExtensions([]);
+    }
+  });
+});
+
 describe("the decision stays in one place", () => {
   const desktopSrc = join(__dirname);
+
+  /**
+   * The comparisons of both shells read a file as text by ONE rule (finding
+   * 2026-10-11). The desktop asked a list of its own, then the sync's alone;
+   * a conflict of a `.py` file an editor had saved fell outside both, and its
+   * copy was put in the file's place as bytes while the conflict stayed open.
+   */
+  it("is the comparisons' rule too, in both shells", () => {
+    const surfaces = [
+      join(desktopSrc, "components/CompareModal.tsx"),
+      join(desktopSrc, "../../mobile/src/components/ConflictCompareSheet.tsx"),
+      join(desktopSrc, "../../mobile/src/components/VersionsPanel.tsx"),
+    ];
+    for (const file of surfaces) {
+      const src = readFileSync(file, "utf8");
+      expect(src, file).toMatch(/comparesAsText\(/);
+      expect(src, file).not.toMatch(/\bisTextFile\(|\bisTextLikePath\(/);
+    }
+  });
 
   /**
    * Both places that render a vault path must consult the shared rule. Today

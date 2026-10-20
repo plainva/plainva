@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import ts from "typescript";
 import { EditorState } from "@codemirror/state";
+import { isNotTextFileError } from "@plainva/core";
 import { applyTextShape, decideDirtyExternalUpdate, editorTextOf, openEditorText } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { ConflictAwareVaultAdapter } from "../../../../packages/core/src/vault/ConflictAwareVaultAdapter";
@@ -70,13 +71,18 @@ async function opened(path: string) {
     },
   };
   const runs: Promise<unknown>[] = [];
-  const ui = { content: vi.fn(), conflict: vi.fn(), error: vi.fn() };
+  const ui = { content: vi.fn(), conflict: vi.fn(), error: vi.fn(), reload: vi.fn(), save: vi.fn(async (_text: string) => {}) };
+  /** True where the load found no text in the file — the editor shows "not text". */
+  const notText = { current: false };
   const deps = {
     activePath: path, vaultPath: root, vaultAdapter: files, saveState: lifetime, sessionRef: { current: session }, contentRef: { current: loaded.text },
     withPendingWrite: (vault: string, target: string, work: () => Promise<void>) => { const run = withPendingWrite(vault, target, work); runs.push(run.catch(() => {})); return run; },
-    decideDirtyExternalUpdate, applyTextShape, editorTextOf, openEditorText, dirtyStore,
+    decideDirtyExternalUpdate, applyTextShape, editorTextOf, openEditorText, dirtyStore, isNotTextFileError,
     loadJournal: async () => ({ clearDraft: async () => {} }),
-    setContent: ui.content, setConflictInfo: ui.conflict, setSaveError: ui.error,
+    setContent: ui.content, setConflictInfo: ui.conflict, setSaveError: ui.error, setReloadNonce: ui.reload,
+    notTextRef: notText, t: (key: string) => key,
+    // The save itself is the original's business (editorSaveRecovery.test.ts): here, that it is asked.
+    persistText: ui.save,
     saveTimeoutRef: { current: null }, draftTimerRef: { current: null }, vanishCheckRef: { current: null },
     window, console: { log: () => {}, error: vi.fn() },
   };
@@ -91,8 +97,12 @@ async function opened(path: string) {
     session.view.state = EditorState.create({ doc: text }); deps.contentRef.current = text;
     lifetime.dirty = true; lifetime.nextRevision(); dirtyStore.set(path, true, lifetime.id);
   }
-  return { lifetime, session, ui, changedOnDisk, type };
+  return { lifetime, session, ui, notText, changedOnDisk, type };
 }
+
+/** "Größe;Maß" and a line end, as a program saving in Windows-1252 writes it: no UTF-8. */
+const WINDOWS_1252 = Uint8Array.from([0x47, 0x72, 0xf6, 0xdf, 0x65, 0x3b, 0x4d, 0x61, 0xdf, 0x0a]);
+const bytesOf = async (path: string) => [...await readFile(join(root, path))];
 
 describe("original desktop reaction to a file that changed on disk", () => {
   it("adopts a rewritten note with \\r\\n and a mark quietly, in the editor's text", async () => {
@@ -161,5 +171,43 @@ describe("original desktop reaction to a file that changed on disk", () => {
     await raw.writeTextFile("Other.md", "one\ntwo\nthree\n");
     await other.changedOnDisk();
     expect(other.lifetime.shape).toEqual({ eol: "\n", bom: false });
+  });
+
+  it("loads anew, and writes nothing, when another program saved the open file in another encoding", async () => {
+    await raw.writeTextFile("Data.csv", "Größe;Maß\n");
+    const h = await opened("Data.csv");
+    await writeFile(join(root, "Data.csv"), WINDOWS_1252);
+    await h.changedOnDisk();
+    // The load's own way shows the file as what it is now: no text.
+    expect(h.ui.reload).toHaveBeenCalledTimes(1);
+    expect(h.ui.error).not.toHaveBeenCalled();
+    expect(await bytesOf("Data.csv")).toEqual([...WINDOWS_1252]);
+    expect(await files.getConflictSession("Data.csv")).toBeNull();
+  });
+
+  it("hands unsaved typing to the save when the open file turned into another encoding — which keeps it beside the file", async () => {
+    await raw.writeTextFile("Data.csv", "Größe;Maß\n");
+    const h = await opened("Data.csv");
+    h.type("Größe;Maß\n1;2\n");
+    await writeFile(join(root, "Data.csv"), WINDOWS_1252);
+    await h.changedOnDisk();
+    expect(h.ui.save).toHaveBeenCalledWith("Größe;Maß\n1;2\n");
+    expect(h.ui.reload).not.toHaveBeenCalled();
+    expect(h.ui.error).not.toHaveBeenCalled();
+    // No conflict session of a reading and no write here: the file is as the other program left it.
+    expect(h.session.view.state.doc.toString()).toBe("Größe;Maß\n1;2\n");
+    expect(await bytesOf("Data.csv")).toEqual([...WINDOWS_1252]);
+    expect(await files.getConflictSession("Data.csv")).toBeNull();
+  });
+
+  it("loads a file shown as not text anew when it changes, without reading it here", async () => {
+    await raw.writeTextFile("Data.csv", "Größe;Maß\n");
+    const h = await opened("Data.csv");
+    h.notText.current = true;
+    const read = vi.spyOn(files, "readTextFile");
+    await raw.writeTextFile("Data.csv", "Größe;Maß\n1;2\n");
+    await h.changedOnDisk();
+    expect(h.ui.reload).toHaveBeenCalledTimes(1);
+    expect(read).not.toHaveBeenCalled();
   });
 });

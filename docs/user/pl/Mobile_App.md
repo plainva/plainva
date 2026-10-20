@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-10-12
+Stan na: 2026-10-20
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -232,7 +232,7 @@ Wydarzenia i notatki dzienne są celowo rozdzielone: **Kalendarz** pokazuje poł
 
 Oprócz notatek i baz nawigator pokazuje teraz **załączniki** — obrazy, pliki PDF i wszystko inne, co leży w folderze. Obraz otwiera się w Plainvie; resztę aplikacja przekazuje systemowi, który wie, czym jest PDF, a Plainva nie. Przez **Udostępnij** plik trafia do dowolnej innej aplikacji.
 
-Plik tekstowy — `.txt`, `.csv`, `.json`, kod źródłowy i podobne, zob. [Notatki i Markdown](Notes_and_Markdown.md) — również tutaj otwiera się w samej Plainvie i jest zapisywany tak, jak przyszedł: ze swoimi końcami wierszy i BOM. To samo dotyczy notatki: gdy ją edytujesz, zmieniają się wiersze, które edytujesz, i nic poza tym w pliku. Jeśli początek pliku pokaże, że to jednak nie tekst, Plainva go nie wyświetli i zaproponuje **Udostępnij**: wyświetlenie i zapisanie uszkodziłoby plik.
+Plik tekstowy — `.txt`, `.csv`, `.json`, kod źródłowy i podobne, zob. [Notatki i Markdown](Notes_and_Markdown.md) — również tutaj otwiera się w samej Plainvie i jest zapisywany tak, jak przyszedł: ze swoimi końcami wierszy i BOM. To samo dotyczy notatki: gdy ją edytujesz, zmieniają się wiersze, które edytujesz, i nic poza tym w pliku. Jeśli początek pliku pokaże, że to jednak nie tekst, Plainva go nie wyświetli i zaproponuje **Udostępnij**: wyświetlenie i zapisanie uszkodziłoby plik. Tak samo jest z plikiem — także notatką — zapisanym w innym kodowaniu niż UTF-8, na przykład Windows-1252: Plainva pokazuje **Ten plik nie jest tekstem** i niczego w nim nie zapisuje.
 
 W menu ⋮ notatki znajdziesz **Eksportuj jako Markdown…**: przekazuje sam plik do systemowego panelu udostępniania, gdzie są Drukuj, „Zapisz w Plikach” i każdy zainstalowany edytor. **Udostępnij** powyżej wysyła tylko tekst notatki. Jeśli notatka ma otwarte adnotacje, Plainva najpierw pyta **Dołączyć adnotacje?** — **Jako lista na końcu (czytelna wszędzie)** lub **Oznaczone w tekście (CriticMarkup)**; niewidoczne znaczniki kotwic znikają w każdym przypadku.
 

@@ -6,6 +6,7 @@ import {
   parseBackupFileName,
 } from "./backupNaming.js";
 import { trimEndChars } from "../textScan.js";
+import { readLocalFile } from "./localText.js";
 
 export interface BackupRetentionPolicy {
   /**
@@ -210,12 +211,21 @@ export class BackupVaultAdapter implements IVaultAdapter {
 
     // We only backup files that exist.
     // If it throws VaultFileNotFoundError, it means it's a new file, so no backup needed.
+    //
+    // A snapshot is the file as it lay there. Before a text write the old
+    // state is read as text — the cheap read, and for a UTF-8 file it IS the
+    // file. Where it is not (`readLocalFile`), the bytes are the snapshot: the
+    // history held the decoded reading of a `.csv` in Windows-1252, a version
+    // that never existed, where the reader replaces what is not UTF-8 — and
+    // nothing at all where it refuses, the write going on without its
+    // snapshot (finding 2026-10-11).
     let oldContent: string | Uint8Array;
     try {
       if (isBinary) {
         oldContent = await this.inner.readBinaryFile(path);
       } else {
-        oldContent = await this.inner.readTextFile(path);
+        const old = await readLocalFile(this.inner, path);
+        oldContent = old.exact ? old.text : old.bytes ?? await this.inner.readBinaryFile(path);
       }
     } catch (err: any) {
       if (err instanceof VaultFileNotFoundError || err.code === "FILE_NOT_FOUND" || err.name === "VaultFileNotFoundError") {
@@ -226,10 +236,10 @@ export class BackupVaultAdapter implements IVaultAdapter {
 
     const ts = this.now();
     const backupPath = makeBackupPath(path, ts);
-    if (isBinary) {
-      await this.inner.writeBinaryFile(backupPath, oldContent as Uint8Array);
+    if (typeof oldContent === "string") {
+      await this.inner.writeTextFile(backupPath, oldContent);
     } else {
-      await this.inner.writeTextFile(backupPath, oldContent as string);
+      await this.inner.writeBinaryFile(backupPath, oldContent);
     }
     this.lastSnapshotAt.set(path, ts); // WP5 5a: skip the listing until the next interval
 

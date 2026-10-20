@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-10-12
+Laatst bijgewerkt: 2026-10-20
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -232,7 +232,7 @@ Afspraken en dagnotities zijn bewust gescheiden: **Kalender** toont de gekoppeld
 
 Naast notities en databases toont de navigator nu ook **bijlagen** — afbeeldingen, pdf’s, alles wat verder in de map ligt. Een afbeelding opent in Plainva; de rest geeft de app door aan het systeem, dat weet wat een pdf is en Plainva niet. Via **Delen** gaat een bestand naar elke andere app.
 
-Een tekstbestand — `.txt`, `.csv`, `.json`, broncode en dergelijke, zie [Notities & Markdown](Notes_and_Markdown.md) — opent ook hier in Plainva zelf en wordt opgeslagen zoals het aankwam: met zijn regeleindes en zijn BOM. Voor een notitie geldt hetzelfde: bewerk je er een, dan veranderen de regels die je hebt bewerkt en verder niets in het bestand. Blijkt uit het begin van het bestand dat het toch geen tekst is, dan toont Plainva het niet en biedt **Delen** aan: tonen en opslaan zou het bestand beschadigen.
+Een tekstbestand — `.txt`, `.csv`, `.json`, broncode en dergelijke, zie [Notities & Markdown](Notes_and_Markdown.md) — opent ook hier in Plainva zelf en wordt opgeslagen zoals het aankwam: met zijn regeleindes en zijn BOM. Voor een notitie geldt hetzelfde: bewerk je er een, dan veranderen de regels die je hebt bewerkt en verder niets in het bestand. Blijkt uit het begin van het bestand dat het toch geen tekst is, dan toont Plainva het niet en biedt **Delen** aan: tonen en opslaan zou het bestand beschadigen. Hetzelfde geldt voor een bestand — ook een notitie — dat in een andere codering dan UTF-8 is geschreven, zoals Windows-1252: Plainva toont **Dit bestand is geen tekst** en schrijft er niets overheen.
 
 In het ⋮-menu van een notitie staat **Exporteren als Markdown…**: dat geeft het bestand zelf aan het deelvenster van het systeem, waar je Afdrukken, ‘Bewaar in Bestanden’ en elke geïnstalleerde editor vindt. **Delen** daarboven verstuurt alleen de tekst van de notitie. Heeft de notitie open annotaties, dan vraagt Plainva eerst **Annotaties meenemen?** — **Als lijst aan het einde (overal leesbaar)** of **Gemarkeerd in de tekst (CriticMarkup)**; de onzichtbare ankermarkeringen verdwijnen in elk geval.
 

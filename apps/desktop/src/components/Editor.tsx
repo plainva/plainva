@@ -22,7 +22,7 @@ import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
-import { applyTextShape, editorTextOf, inShapeOf, isVaultPathLink, openEditorText, planRelativeLinkOpen, resolveOpenAction, resolveRelativeTarget, type LinkKind } from "@plainva/ui";
+import { applyTextShape, editorTextOf, inShapeOf, isVaultPathLink, keepTextBeside, newestConflictCopy, openEditorText, planRelativeLinkOpen, resolveOpenAction, resolveRelativeTarget, type KeptText, type LinkKind } from "@plainva/ui";
 import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor } from "@plainva/ui";
 import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext } from "@plainva/ui";
 import { answerEditorPathProbe } from "@plainva/ui";
@@ -74,7 +74,7 @@ import { parkTreeReveal } from "@plainva/ui";
 import { imageMimeType } from "@plainva/ui";
 import { openContextMenu } from "../services/contextMenuStore";
 import { pendingWriteFor, withPendingWrite, waitForPendingWrites } from "../services/pendingWrites";
-import { frontmatterSpan, mergeEditorText, containsTextChanges, readIndexedIdentity, type MissingFileOutcome } from "@plainva/core";
+import { frontmatterSpan, isNotTextFileError, mergeEditorText, containsTextChanges, readIndexedIdentity, type MissingFileOutcome } from "@plainva/core";
 import { EditorSaveLifetime } from "../services/editorSaveLifetime";
 import { propertyCommentStore } from "../services/propertyComments";
 import { editorCommandTarget } from "../services/editorCommandTarget";
@@ -741,6 +741,11 @@ export const Editor: React.FC<{
    * shown as text at all — the system app gets the offer instead.
    */
   const [notText, setNotText] = useState(false);
+  /** The same, for the listener that hears of a change to the file. */
+  const notTextRef = useRef(false);
+  useEffect(() => { notTextRef.current = notText; }, [notText]);
+  /** What a load that ends in "not text" looks up beside the file (filled further down, after the load). */
+  const lookBesideRef = useRef<(path: string, alive: () => boolean) => void>(() => {});
   const [conflictInfo, setConflictInfo] = useState<{ conflictPath: string; working?: boolean; foreignCopySnapshot?: string | null } | null>(null);
   // Crash/draft recovery (P2.4): a journal snapshot survived that never made
   // it to disk — offered in a banner, applied only on explicit user action.
@@ -794,7 +799,16 @@ export const Editor: React.FC<{
     }).catch((error) => { console.error("Could not journal the pending note save", error); });
     await withPendingWrite(draftVault, path, async () => {
       await journal;
-      if (revAtSave < saveState.savedRevision || revAtSave <= saveState.discardedRevision) return;
+      if (revAtSave < saveState.savedRevision || revAtSave <= saveState.discardedRevision) {
+        // Behind what was saved, or given up — adopted from the disk, kept
+        // beside a file that is no text —: the snapshot just journaled for it
+        // is obsolete as well. Left there, it was offered or kept once more.
+        if (draftVault) {
+          const { clearDraft } = await import("../services/draftJournal");
+          await clearDraft(draftVault, path, revAtSave, saveState.id);
+        }
+        return;
+      }
       saveState.update({ activeWrites: saveState.activeWrites + 1 });
       if (current()) { setIsSaving(true); setSaveError(null); }
       try {
@@ -839,6 +853,9 @@ export const Editor: React.FC<{
         saveState.update({ baseInput: val });
         saveState.update({ savedRevision: revAtSave });
         saveState.update({ persisted: stored });
+        // The file took this text: a copy kept beside it before holds another
+        // text, and is never written into again.
+        if (!unchanged) saveState.update({ kept: null });
         const sameRevision = saveState.revision === revAtSave;
         if (sameRevision) dirtyStore.set(path, false, saveState.id);
         if (current() && sameRevision) {
@@ -879,6 +896,72 @@ export const Editor: React.FC<{
           window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path, vaultPath: draftVault } }));
         } catch (error) { console.error("Could not refresh the saved note index", error); }
       } catch (error) {
+        // The file turned into no text while this editor held changes —
+        // another program saved it in another encoding, or a pull brought such
+        // a version (finding 2026-10-11). Nothing is written over it. The text
+        // is kept beside it as a conflict copy, the way a conflict keeps one,
+        // and the editor shows the file as what it is now; the comparison
+        // offers to take the copy in its place. (The phone's saver does the
+        // same.)
+        if (isNotTextFileError(error)) {
+          // What is still scheduled for this revision goes, as when the buffer
+          // adopts the disk: a save timer that fired after the next load kept
+          // the same text once more, or wrote it over a version that is text
+          // again. The timers are the pane's: once it shows another file,
+          // they are that file's.
+          if (current() && saveState.revision === revAtSave) {
+            if (saveTimeoutRef.current !== null) { window.clearTimeout(saveTimeoutRef.current); saveTimeoutRef.current = null; }
+            if (draftTimerRef.current !== null) { window.clearTimeout(draftTimerRef.current); draftTimerRef.current = null; }
+          }
+          const earlier = saveState.kept;
+          let kept: KeptText;
+          try {
+            kept = await keepTextBeside(vaultAdapter, path, shape ? applyTextShape(val, shape) : val, earlier);
+          } catch (keepError) {
+            // Not even beside it: the text stays in the editor and its journal,
+            // and the failed save says why the file did not take it.
+            console.error("Could not keep the unsaved text beside the file", keepError);
+            if (current()) setSaveError(t("editor.notTextTitle"));
+            throw error;
+          }
+          // Typing that goes on is kept into the same copy (`keepTextBeside`).
+          saveState.update({ kept });
+          // This revision is done with; a save of it still under way gives up
+          // and drops its journal entry (above).
+          saveState.update({ savedRevision: revAtSave });
+          saveState.update({ discardedRevision: Math.max(saveState.discardedRevision, revAtSave) });
+          const sameRevision = saveState.revision === revAtSave;
+          if (sameRevision) {
+            saveState.update({ dirty: false });
+            dirtyStore.set(path, false, saveState.id);
+          }
+          if (draftVault) {
+            const { clearDraft } = await import("../services/draftJournal");
+            await clearDraft(draftVault, path, revAtSave, saveState.id);
+            // A draft restored from the journal is in this text now, as on a save.
+            const recovered = saveState.recoveredDraft;
+            if (recovered && sameRevision) {
+              await clearDraft(draftVault, path, recovered.revision, recovered.sessionId);
+              saveState.update({ recoveredDraft: null });
+            }
+          }
+          triggerFileTreeUpdate([kept.copy]);
+          // Said wherever the editor went meanwhile — once per copy.
+          if (kept.copy !== earlier?.copy) toast.warning(t("dialogs.conflictSavedMsg", { path: kept.copy }));
+          if (current()) {
+            setSaveError(null);
+            setConflictInfo({ conflictPath: kept.copy });
+            // Typing that came after this revision — also while the journal
+            // entry was cleared just now — is the next save's: it is kept the
+            // same way. Otherwise nothing is left to save here.
+            if (saveState.revision === revAtSave) {
+              loadedPathRef.current = null;
+              setNotText(true);
+              setContent("");
+            }
+          }
+          return;
+        }
         const e = error as Error & { conflictPath?: string };
         console.error("Failed to save file", error);
         if (current()) {
@@ -915,6 +998,11 @@ export const Editor: React.FC<{
       const draftPath = activePath;
       draftTimerRef.current = window.setTimeout(() => {
         draftTimerRef.current = null;
+        // A save that covered this revision first — Ctrl+S, a closed tab —
+        // has cleared its entry already. Journalled now, the entry stayed for
+        // days with a text the file has; and where the file has turned into
+        // no text by the next run, nobody can tell it from unsaved typing.
+        if (rev <= saveState.savedRevision || rev <= saveState.discardedRevision) return;
         const text = getText();
         void import("../services/draftJournal")
           .then(({ recordDraft }) => recordDraft(draftVault, draftPath, text, rev, saveState.id))
@@ -1077,8 +1165,13 @@ export const Editor: React.FC<{
     // channel (a floating peek) always publishes — it drives its own inline
     // Properties, independent of pane focus.
     if (ownsGlobalStats && !isActivePane) return;
-    channel.set({ path: activePath, content: activePath ? content : "", kind: activePath ? "markdown" : "none" });
-  }, [activePath, content, isActivePane, channel, ownsGlobalStats]);
+    // A file shown as "not text" is no document to count, to read properties
+    // of or to write them into (finding 2026-10-11): the status bar named it
+    // UTF-8, and the Properties column wrote into it — which only keeps one
+    // more copy beside it.
+    const isDocument = !!activePath && !notText;
+    channel.set({ path: activePath, content: isDocument ? content : "", kind: isDocument ? "markdown" : "none" });
+  }, [activePath, content, notText, isActivePane, channel, ownsGlobalStats]);
   // Register a stable wrapper so the channel doesn't need re-registration on
   // every render (handlePropertiesChange is a fresh closure each time).
   const handlePropertiesChangeRef = useRef(handlePropertiesChange);
@@ -1986,9 +2079,17 @@ export const Editor: React.FC<{
         if (!opened) {
           setNotText(true);
           setIsLoading(false);
+          lookBesideRef.current(activePath, () => isMounted);
           return;
         }
         saveState.update({ shape: opened.shape });
+        // A new buffer from here: a copy kept beside the file for the one
+        // before holds another text, and is never written into again. Here,
+        // not where the load began — a save of that buffer still queued, which
+        // the load waited for, kept into that buffer's copy, and may have said
+        // "not text" for a file that is text again by now.
+        saveState.update({ kept: null });
+        setNotText(false);
         const normalized = opened.text;
         // The freshly loaded disk state counts as "our" persisted baseline.
         saveState.update({ persisted: normalized });
@@ -2016,6 +2117,22 @@ export const Editor: React.FC<{
         }
       }
     }).catch(e => {
+      // The file lies there, and its bytes are not UTF-8 — a `.csv` Excel
+      // saved in Windows-1252, a note in UTF-16 (finding 2026-10-11). The
+      // vault's read refuses it with either kind of text reader, in this
+      // window and in an auxiliary one, and the same state shows as for a
+      // file the first bytes gave away above. The desktop used to end here in
+      // "This file no longer exists": its reader refuses such bytes, and every
+      // failed load counted as a missing file.
+      if (isNotTextFileError(e)) {
+        if (isMounted) {
+          setNotText(true);
+          setContent("");
+          setIsLoading(false);
+          lookBesideRef.current(activePath, () => isMounted);
+        }
+        return;
+      }
       console.error("Failed to load file content:", e);
       if (isMounted) {
         // A missing file is a STATE, never content (issue #34): the error text
@@ -2033,6 +2150,48 @@ export const Editor: React.FC<{
     // `reloadNonce`: a clean note whose file vanished while open loads again,
     // and the failed load looks for the file (issue 110, E9).
   }, [vaultAdapter, activePath, vaultPath, saveState, reloadNonce]);
+
+  // A file that loaded as "not text" (finding 2026-10-11): the way to what
+  // lies beside it, after every load — the banner leads to the newest
+  // conflict copy of it, kept here or left by the sync (`newestConflictCopy`;
+  // the phone's card the same way) —, and a text the draft journal holds for
+  // it from an earlier run of the app. That one belongs to an editor that
+  // held changes when the app went; it cannot go into the file, and the
+  // journal offers a draft only for a file that loads as text. Kept beside
+  // it, once. A draft of this run belongs to an editor that is still open —
+  // this one, another pane, another window — and that editor keeps its own
+  // text when it saves; only the main window, which began the run, looks.
+  //
+  // Called by the load, which knows when (a reload can end in "not text"
+  // without the state ever reading anything else); the latest render's
+  // values are kept here, as for the session (`sessionDepsRef`).
+  useLayoutEffect(() => {
+    lookBesideRef.current = (path, alive) => {
+      if (!vaultPath || !vaultAdapter) return;
+      const vault = vaultPath, files = vaultAdapter;
+      void (async () => {
+        if (isOwnerWindow()) {
+          const { clearDraft, releaseLeftoverDrafts, takeLeftoverDrafts } = await import("../services/draftJournal");
+          const leftovers = await takeLeftoverDrafts(vault, path);
+          for (const [at, draft] of leftovers.entries()) {
+            try {
+              // In the editor's shape, as the phone keeps it: an older journal may hold a mark or `\r\n`.
+              const kept = await keepTextBeside(files, path, editorTextOf(draft.text));
+              await clearDraft(vault, path, draft.revision, draft.sessionId);
+              triggerFileTreeUpdate([kept.copy]);
+              toast.warning(t("dialogs.conflictSavedMsg", { path: kept.copy }));
+            } catch (error) {
+              // Not kept: handed out again at the next look, this one and those after it.
+              releaseLeftoverDrafts(vault, path, leftovers.slice(at));
+              throw error;
+            }
+          }
+        }
+        const newest = await newestConflictCopy(files, path);
+        if (alive() && newest) setConflictInfo({ conflictPath: newest });
+      })().catch((error) => console.error("Could not look beside the file that is no text", error));
+    };
+  });
 
   // The identity of what was just loaded, kept for the day the file vanishes.
   useEffect(() => {
@@ -2327,6 +2486,13 @@ export const Editor: React.FC<{
       if (!activePath || !vaultAdapter || detail.path !== activePath
         || (detail.vaultPath && detail.vaultPath !== vaultPath)) return;
       const path = activePath;
+      // Nothing of a file shown as "not text" is held here. When it changes —
+      // saved as UTF-8 in the other program, say — it is loaded anew, and
+      // shows as what it is now.
+      if (notTextRef.current) {
+        setReloadNonce((n) => n + 1);
+        return;
+      }
       const capturedSession = sessionRef.current;
       void withPendingWrite(vaultPath ?? "", path, async () => {
         if (!current() || sessionRef.current !== capturedSession) return;
@@ -2369,6 +2535,9 @@ export const Editor: React.FC<{
         saveState.update({ discardedRevision: revision });
         saveState.update({ baseInput: disk });
         saveState.update({ persisted: disk });
+        // The buffer holds the file's text now: a copy kept beside it before
+        // holds another, and is never written into again.
+        saveState.update({ kept: null });
         applyExternalText(disk, "external modification");
         saveState.update({ dirty: false });
         dirtyStore.set(path, false, saveState.id);
@@ -2379,6 +2548,15 @@ export const Editor: React.FC<{
         await vaultAdapter.acknowledgeExternalUpdate?.(path);
       }).catch(async (error) => {
         if (!current()) return;
+        // Another program saved the open file in another encoding: it is no
+        // text any more. With nothing unsaved the load's own way says so. A
+        // changed text goes to the save now, which keeps it beside the file
+        // as a conflict copy — the file stays as the other program left it.
+        if (isNotTextFileError(error)) {
+          if (saveState.dirty) void persistText(sessionRef.current?.view.state.doc.toString() ?? contentRef.current).catch(() => {});
+          else setReloadNonce((n) => n + 1);
+          return;
+        }
         // The file is gone — moved or deleted outside Plainva, or by sync
         // (issue 110, E9). That is not a failed save; the vanish check takes
         // over. Asked by existence, because a client window's error comes
@@ -2539,9 +2717,12 @@ export const Editor: React.FC<{
   // One CodeMirror session per open file: created when the pane shows an
   // editor (live/source) with loaded content, destroyed on file switch / read
   // mode / unmount. A language switch rebuilds it (localized header labels).
+  // A file that turns into no text while it is open ends its session as well
+  // (finding 2026-10-11): kept alive behind the "not text" state, a command
+  // such as "Insert template" still typed into it, and its save kept that.
   const isReadMode = viewMode === 'read';
   useLayoutEffect(() => {
-    if (isLoading || isReadMode || !activePath || loadedPathRef.current !== activePath) return;
+    if (isLoading || isReadMode || notText || !activePath || loadedPathRef.current !== activePath) return;
     const parent = editorContainerRef.current;
     if (!parent) return;
     const session = createEditorSession({
@@ -2614,7 +2795,7 @@ export const Editor: React.FC<{
     // viewMode is handled by setMode below (the compartment swap keeps the
     // syntax tree); content is owned by the view while mounted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, isReadMode, activePath, vaultPath, i18n.language, workspaceReadOnly]);
+  }, [isLoading, isReadMode, notText, activePath, vaultPath, i18n.language, workspaceReadOnly]);
 
   useEffect(() => { sessionRef.current?.setEditable(!workspaceReadOnly && !saveState.transferFrozen); }, [workspaceReadOnly, saveState]);
 
@@ -3485,6 +3666,11 @@ export const Editor: React.FC<{
             onClick={() => {
               const offer = draftOffer;
               setDraftOffer(null);
+              // Another text than one kept beside a file that is no text: it
+              // is never written into that copy (`keepTextBeside`). Let go in
+              // the write lane, after a keep of the typing still under way
+              // there has set its copy, and before this text's own save.
+              if (activePath) void withPendingWrite(vaultPath ?? "", activePath, async () => { saveState.update({ kept: null }); });
               const view = sessionRef.current?.view;
               if (view) {
                 saveState.recover(offer);
@@ -3546,7 +3732,9 @@ export const Editor: React.FC<{
       )}
       <div className={commentsAccessible ? "pv-comment-layout" : undefined} style={commentsAccessible ? undefined : { display: "contents" }}>
       <div ref={readScrollRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: "var(--bg-primary)", overflowY: viewMode === 'read' ? "auto" : "hidden" }}>
-        {viewMode === 'read' ? (
+        {/* A note that is no text shows that in the read view as well: the
+            reader would show an empty note in its place. */}
+        {viewMode === 'read' && !notText ? (
           <>
             {managedIndex && (
               <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", padding: "0.5rem 1rem", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "var(--text-ui)", color: "var(--text-muted)" }}>

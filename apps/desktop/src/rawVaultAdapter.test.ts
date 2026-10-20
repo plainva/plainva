@@ -34,7 +34,7 @@ const BELOW_THE_CHAIN = anyOf(
   built("TauriVaultAdapter"),
 );
 
-const VERSIONS_LAYER = "the versions layer's own control: a version of the file as it is, taken before a restore writes over it — the restore itself goes through `vaultAdapter`";
+const VERSIONS_LAYER = "the versions layer's own control: a version of the file as it is, taken before a restore — or a conflict copy adopted byte for byte — writes over it; the write itself goes through `vaultAdapter`";
 const KEY_FILE = "the key file of the sync's encryption (`.plainva/sync`) is a sideband file of the sync, read and written where the sync's own steps read it";
 const NOT_OPEN = "a vault that is not open — its folder was picked or created a moment ago — has no chain yet; opening it takes every file as new";
 
@@ -43,7 +43,7 @@ type Site = [use: string, times: number, why: string];
 const SITES: Record<string, Site[]> = {
   "components/CompareModal.tsx": [
     ["taken from useVault()", 1, VERSIONS_LAYER],
-    ["calls forceBackup", 2, VERSIONS_LAYER],
+    ["calls forceBackup", 3, VERSIONS_LAYER],
   ],
   "components/OnlineVaultSetup.tsx": [["builds TauriVaultAdapter", 1, NOT_OPEN]],
   "components/SplashScreen.tsx": [["builds TauriVaultAdapter", 1, NOT_OPEN]],

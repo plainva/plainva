@@ -7,7 +7,8 @@ import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import ts from "typescript";
 import { BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictError, QueueingVaultAdapter, SyncQueue, SyncStateRepository, VaultIndexer, VersionHistoryService, applyTextShape, containsTextChanges, DEFAULT_TEXT_SHAPE, editInShape, editorTextOf, mergeEditorText, type IDatabaseAdapter } from "@plainva/core";
-import { decideDirtyExternalUpdate, openEditorText } from "@plainva/ui";
+import { isNotTextFileError, NotTextFileError } from "@plainva/core";
+import { decideDirtyExternalUpdate, keepTextBeside, openEditorText } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
@@ -44,18 +45,19 @@ const serviceSource = readFileSync(resolve("src/services/vaultService.ts"), "utf
 const serviceFile = ts.createSourceFile("vaultService.ts", serviceSource, ts.ScriptTarget.Latest, true);
 const functions = ["editorDiskText", "keepTextShape", "rememberPersistedText", "rememberCommentWrite", "getLastPersistedText"];
 const methods = ["readEditor", "saveEditorText", "save"];
-const found = { functions: [] as string[], methods: [] as string[], refusal: "", saver: "" };
+const found = { functions: [] as string[], methods: [] as string[], saver: "" };
 (function visit(node: ts.Node) {
   if (ts.isFunctionDeclaration(node) && node.name && functions.includes(node.name.text)) found.functions.push(node.getText(serviceFile).replace(/^export /, ""));
-  if (ts.isClassDeclaration(node) && node.name?.text === "NotTextFileError") found.refusal = node.getText(serviceFile).replace(/^export /, "");
   if (ts.isMethodDeclaration(node) && methods.includes(node.name.getText(serviceFile))) found.methods.push(node.getText(serviceFile));
   if (ts.isVariableDeclaration(node) && node.name.getText(serviceFile) === "noteSaver") found.saver = node.initializer!.getText(serviceFile);
   ts.forEachChild(node, visit);
 })(serviceFile);
-if (found.functions.length !== functions.length || found.methods.length !== methods.length || !found.refusal || !found.saver) throw new Error("the phone's editor read/save definitions moved — re-point this harness");
+if (found.functions.length !== functions.length || found.methods.length !== methods.length || !found.saver) throw new Error("the phone's editor read/save definitions moved — re-point this harness");
+// The refusal for a file that is no text is the core's (`NotTextFileError`): handed in below, as the service imports it.
+if (!/export \{ NotTextFileError \}/.test(serviceSource)) throw new Error("the phone's refusal for a file that is no text moved — re-point this harness");
 const serviceCompiled = ts.transpileModule(
-  "const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map();\n" +
-  found.refusal + "\n" + found.functions.join("\n") + "\n" +
+  "const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map(); const keptTexts = new Map();\n" +
+  found.functions.join("\n") + "\n" +
   "const vaultOps = {" + found.methods.join(",\n") + "}; const noteSaver = " + found.saver + ";\n",
   { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
 
@@ -96,6 +98,9 @@ beforeEach(async () => {
     writeDraft: () => {}, clearDraft: () => {}, noteConflict: (path: string) => { conflicts.push(path); },
     conflictCopyPath: () => { throw new Error("actual conflict path required"); },
     syncSoon: () => {}, toast: { warning: () => {} }, i18n: { t: (key: string) => key }, window: events, CustomEvent, console: { error: () => {} },
+    // A failed write goes past the keep for a file that is no text: with these
+    // missing, it came out as a ReferenceError instead of its own error.
+    NotTextFileError, isNotTextFileError, keepTextBeside,
   };
   phone = new Function(...Object.keys(deps), serviceCompiled +
     "\nreturn {vaultOps,noteSaver,getLastPersistedText,rememberPersistedText,keepTextShape,editorDiskText,NotTextFileError};")(...Object.values(deps)) as Phone;

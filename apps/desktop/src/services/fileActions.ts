@@ -1,5 +1,5 @@
 import { retargetDesktopBookmarks } from "./bookmarks";
-import { frontmatterSpan, isTextFile, toPathIdentity, updateVaultText, type VaultQueryService } from "@plainva/core";
+import { copyFileContent, frontmatterSpan, toPathIdentity, updateVaultText, type VaultQueryService } from "@plainva/core";
 import { errorText, landedAtDestination, moveItemName, retargetTemplateForInFolder, sweepPinboardRefs, type PinboardSweepDeps } from "@plainva/ui";
 import { copyCandidate, parentOf } from "../components/fileTreeModel";
 import { renameFileWithLinkUpdates, type RenameAdapter } from "./renameNote";
@@ -323,18 +323,16 @@ export async function reindexAfterRename(
   });
 }
 
-/** "Datei duplizieren" (P8): text files copy as text, attachments byte-wise;
- *  the copy gets the next free "(Kopie)" name next to the original. */
+/** "Datei duplizieren" (P8): text files copy as text, everything else byte for
+ *  byte — a text-named file in another encoding included (`copyFileContent`,
+ *  the phone's duplicate asks the same). The copy gets the next free "(Kopie)"
+ *  name next to the original. */
 export async function duplicateFile(adapter: FileActionAdapter, path: string, copySuffix: string): Promise<string> {
   let candidate = copyCandidate(path, copySuffix, 1);
   for (let n = 2; await adapter.exists(candidate); n++) {
     candidate = copyCandidate(path, copySuffix, n);
   }
-  if (isTextFile(path)) {
-    await adapter.writeTextFile(candidate, await adapter.readTextFile(path));
-  } else {
-    await adapter.writeBinaryFile(candidate, await adapter.readBinaryFile(path));
-  }
+  await copyFileContent(adapter, path, candidate);
   return candidate;
 }
 

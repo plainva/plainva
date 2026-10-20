@@ -82,6 +82,9 @@ const SITES: Record<string, Site[]> = {
     ["handed to scaffoldVaultTemplate as adapter", 1, FIRST_VAULT],
   ],
   "BookmarksScreen.tsx": [["handed to useBookmarkTargets", 1, READS_ONLY]],
+  // A conflict copy of a file that is no text takes the file's place byte for
+  // byte; what it replaces is kept as a version first, whatever the interval says.
+  "components/ConflictCompareSheet.tsx": [["calls forceBackup", 1, VERSIONS_LAYER]],
   "components/DeletedFilesSheet.tsx": [["handed to new VersionHistoryService", 2, HISTORY]],
   "components/TemplateRules.tsx": [["handed to listTemplates", 1, READS_ONLY]],
   "components/TodayJournalSection.tsx": [["handed to loadImageBlob", 1, READS_ONLY]],

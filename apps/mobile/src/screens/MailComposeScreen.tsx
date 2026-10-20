@@ -228,7 +228,10 @@ export function MailComposeScreen({ draft, onBack, onDone, onOpenAccounts, vault
     });
     if (!picked) return;
     try {
-      const raw = await vault.adapter.readTextFile(picked);
+      // Through the vault, as the desktop reads it: a template in another
+      // encoding is refused there, not read with replacement characters into
+      // a mail (finding 2026-10-11).
+      const raw = await vault.files.readTextFile(picked);
       const title = subject || (picked.split("/").pop() ?? "").replace(/\.md$/i, "");
       const body0 = templateInsertText(raw, title);
       const ctx = await withShellContext(body0, { title, now: new Date(), folder: "" });
