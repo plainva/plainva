@@ -379,14 +379,30 @@ showed all of these as links; the reading view did not.
    where the two readings differ — is gone for wiki links; it stays for a
    Markdown link's destination, which is Markdown. A rename writes the new
    name as the name it is, as before, and the next rename finds it.
-5. **The reading view shows these links.** A label is handed to the renderer
-   as it is written, so it is shown as the text around it is — `*the* alias`
-   with its emphasis, as the editor shows it — unless it would not stay in its
-   brackets (a bracket, a `<`, a code span it does not close, a backslash at
-   its end, a `^` at its start); then it is shown character for character. A
-   link written with `\|` — in a table cell and outside one — opens the file
-   it names (the backslash was taken for part of the name), and such an embed
-   keeps its size.
+5. **The reading view shows these links.** A name is shown as it is written:
+   it is the file's name, the one the link opens — `[[__init__]]` is no bold
+   "init", `[[Tom &amp; Jerry]]` no "Tom & Jerry". (The editor's live preview
+   still hides the emphasis marks in a name; and the reader marks a
+   `==…==` wherever it stands, for it reads the text, not how it is written.)
+   An alias is the text the link shows. It is handed to the renderer as it is
+   written, so it is shown as the text around it is — `*the* alias` with its
+   emphasis, as the editor shows it — unless it would not stay in its
+   brackets (a bracket, a `<`, a bare `|`, a `$` anywhere, a code span it does
+   not close, a backslash at its end, a `^` at its start); then it is shown
+   character for character. A bare `|` is on that list because a table
+   counts the cells of a line by them, in a code span too; a `$` because a
+   note's math, once it is read, pairs it with one outside the link — behind
+   a backslash and in a code span too, for math reads neither. What is shown character for
+   character is spelled out only where Markdown would read something into
+   it — `my_note` and `Tom & Jerry` stand as they are written —, with a
+   backslash, except a backtick and a `$`, which are spelled as character
+   references: inside a code span or math a backslash is a character, so an
+   escaped one would close a code span or math opened before the link. A
+   place in the label, wherever it is not spelled out, is a place in the
+   rendered label; a place in what the link hides (its brackets, the target
+   before an alias) stands for the whole link. A link written with `\|` — in
+   a table cell and outside one — opens the file it names (the backslash was
+   taken for part of the name), and such an embed keeps its size.
 6. **The index catches up in a step of its format (6).** A note's rows are
    written when its file changes. The step hands the next full scan only the
    notes whose rows the two readings may list differently
@@ -415,7 +431,9 @@ mark), `packages/core/test/wiki-link-reading-migration.test.ts` (the selection
 against the old reading, kept in the test, over generated notes; the step on
 real SQLite and the full scan after it),
 `packages/core/test/link-rewrite.test.ts`,
-`packages/core/test/linear-link-scans.test.ts`, and each shell's own rename to
+`packages/core/test/linear-link-scans.test.ts`,
+`apps/desktop/src/lib/readerSourceRendering.test.tsx` (the labels in the
+renderer the reading view uses, with math), and each shell's own rename to
 and from such a name with a real index —
 `apps/desktop/src/renameLinkBytes.test.ts` and
 `apps/mobile/src/services/renameLinkBytes.test.ts`.

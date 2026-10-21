@@ -103,10 +103,12 @@ describe("the sites", () => {
     // A line that is a long run of `[`: every `[[` would look for its `]]` to
     // the end of the line again; the first one that finds none settles it for
     // the rest of the line. The budgets are the parser's own time for such a
-    // text and more — a run of `]` it reads in quadratic time by itself.
+    // text and more — a run of `]` it reads in quadratic time by itself. A
+    // line of N characters: looked through again from every `[[`, it costs
+    // billions of steps, far beyond the budget on any machine.
     const parse = (text: string) => parseMarkdownTree(text);
-    within(5_000, () => parse("[[".repeat(N / 4)));
-    within(5_000, () => parse("![[".repeat(N / 6)));
+    within(5_000, () => parse("[[".repeat(N / 2)));
+    within(5_000, () => parse("![[".repeat(N / 3)));
     within(5_000, () => parse("[[ x\n".repeat(N / 10)));
     // Many links on one line, and many lines with one: each is read once.
     const links = N / 10;

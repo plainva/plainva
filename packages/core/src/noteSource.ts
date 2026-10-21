@@ -165,8 +165,8 @@ interface ReaderEdit {
   to: number;
   text: string;
   embed?: string;
-  /** Exact visible spelling within a generated Markdown destination. */
-  visible?: { from: number; to: number; start: number; end: number };
+  /** Stretches of the source that stand in `text` as they are written (`start`/`end` within it): a place in them maps exactly. */
+  visible?: Array<{ from: number; to: number; start: number; end: number }>;
 }
 interface ReaderSpan { from: number; to: number; start: number; end: number; exact: boolean }
 export interface ReaderSource {
@@ -189,24 +189,33 @@ function* relativeDates(source: string): Generator<{ index: number; raw: string;
   }
 }
 
-/** A label longer than this is not looked through for its code spans; it is shown as it is written. */
+/** An alias longer than this is not looked through for its code spans; it is shown as it is written. */
 const LONGEST_LABEL_READ = 2000;
 
 /**
- * Whether a wiki link's label can stand as the text of a Markdown link the way
+ * Whether a wiki link's alias can stand as the text of a Markdown link the way
  * it is written — the renderer then shows it as it shows the text around it:
  * `*the* alias` with its emphasis, a code span as one. It can where it keeps
  * to itself: no bracket in it (one would end the link text, or open a link of
- * its own), no `<`, no backslash left over at its end, no `^` at its start (a
+ * its own), no `<`, no bare `|` (a table counts the cells of a line by them),
+ * no `$` anywhere — once a note's math is read, a `$` pairs with one outside
+ * the link, behind a backslash and in a code span too, for math reads
+ * neither —, no backslash left over at its end, no `^` at its start (a
  * footnote's sign there), and every code span it opens closed again.
  */
 function labelKeepsToItself(label: string): boolean {
-  if (label.length > LONGEST_LABEL_READ || label.startsWith("^")) return false;
+  if (label.length > LONGEST_LABEL_READ || label.startsWith("^") || label.includes("$")) return false;
+  // A table splits its line at every bar a backslash does not stand in front
+  // of, in a code span too: it does so before anything else is read.
+  for (let at = 0; at < label.length; at++) {
+    if (label[at] === "\\") at++;
+    else if (label[at] === "|") return false;
+  }
   for (let at = 0; at < label.length; at++) {
     const char = label[at];
     if (char === "[" || char === "]" || char === "<") return false;
     if (char === "\\") {
-      // The backslash and what it stands in front of are one piece.
+      // The backslash and what it stands in front of are one piece — a `\|` the bar it spells.
       if (++at === label.length) return false;
     } else if (char === "`") {
       let run = 1;
@@ -227,24 +236,53 @@ function labelKeepsToItself(label: string): boolean {
   return true;
 }
 
-/** What Markdown could read something into, in a text that is to be shown as it is written. */
-const READ_INTO = "\\`*_[]<>&~^$";
+/** CommonMark's ASCII punctuation: what a backslash in front of it escapes. */
+const ASCII_PUNCTUATION = /[!-/:-@[-\x60{-~]/;
+/** A letter or a digit: a run of `_` between two of them opens and closes nothing. */
+const WORD_CHARACTER = /[\p{L}\p{N}]/u;
+/** An `&` that begins a character reference; one in front of anything else stays an `&`. */
+const CHARACTER_REFERENCE = /&(?:#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{0,31});/y;
 
 /**
- * A label as the text of a Markdown link, shown character for character as it
- * is written. A `\|` stays the bar it spells (`wikiLink.ts`) — in a table
- * cell a bare bar would end the cell.
+ * What has to be spelled out in a label, so that the text of a Markdown link
+ * shows it character for character as it is written: each such character with
+ * its place in the label and its spelling. Only what Markdown would read
+ * something into is spelled out — `my_note` and `Tom & Jerry` stand as they
+ * are written, and a place in them stays a place in the rendered text.
+ *
+ * A backtick and a `$` are spelled as character references, not escaped:
+ * inside a code span or math a backslash is a character like any other, so
+ * `` \` `` would still close a code span opened before the link
+ * (`Don`t [[Note|a `` b]]`), and `\$` the math of a `$` before it. A bare `|`
+ * is escaped, for a table counts the cells of a line by them; a `\|` stays
+ * the bar it spells (`wikiLink.ts`). (A `==…==` the reader marks wherever it
+ * stands: it reads the text, not how it is written.)
  */
-function labelAsWritten(label: string): string {
-  let out = "";
+function* labelSpellings(label: string): Generator<{ at: number; text: string }> {
   for (let at = 0; at < label.length; at++) {
     const char = label[at];
-    if (char === "\\" && label[at + 1] === "|") {
-      out += "\\|";
-      at++;
-    } else out += READ_INTO.includes(char) ? `\\${char}` : char;
+    if (char === "\\") {
+      const next = label[at + 1];
+      if (next === "|") at++;
+      // It escapes what follows it where that is punctuation — at the label's
+      // end, the bracket that closes the link text.
+      else if (next === undefined || ASCII_PUNCTUATION.test(next)) yield { at, text: "\\\\" };
+    } else if (char === "_") {
+      let end = at;
+      while (label[end + 1] === "_") end++;
+      const inert = at > 0 && end + 1 < label.length && WORD_CHARACTER.test(label[at - 1]) && WORD_CHARACTER.test(label[end + 1]);
+      if (!inert) for (let mark = at; mark <= end; mark++) yield { at: mark, text: "\\_" };
+      at = end;
+    } else if (char === "&") {
+      CHARACTER_REFERENCE.lastIndex = at;
+      if (CHARACTER_REFERENCE.test(label)) yield { at, text: "\\&" };
+    } else if (char === "`") yield { at, text: "&#96;" };
+    else if (char === "$") yield { at, text: "&#36;" };
+    else if (char === "^") {
+      // A footnote's sign only where it opens the link text.
+      if (at === 0) yield { at, text: "\\^" };
+    } else if ("*~[]<>|".includes(char)) yield { at, text: `\\${char}` };
   }
-  return out;
 }
 
 /**
@@ -294,15 +332,30 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
         edits.push({ from, to, text: `![${alt}](wiki-${scheme}://${encodeTarget(target)})`, embed: kind === "note" ? target : undefined });
       } else {
         const target = inner.slice(0, parts.headEnd);
-        const labelAt = parts.aliasStart < 0 ? 0 : parts.aliasStart;
-        const label = parts.aliasStart < 0 ? target : inner.slice(parts.aliasStart);
-        if (labelKeepsToItself(label)) {
-          // The label is Markdown prose as it stands; its spelling and its offsets are kept.
-          const labelFrom = innerFrom + labelAt;
-          edits.push({ from, to, text: `[${label}](wiki://${encodeTarget(target)})`, visible: { from: labelFrom, to: labelFrom + label.length, start: 1, end: label.length + 1 } });
-        } else {
-          edits.push({ from, to, text: `[${labelAsWritten(label)}](wiki://${encodeTarget(target)})` });
+        const labelFrom = innerFrom + (parts.aliasStart < 0 ? 0 : parts.aliasStart);
+        const label = clean.text.slice(labelFrom, to - 2);
+        // A name is a file's name, shown as it is written — `[[__init__]]` is
+        // no bold "init", `[[Tom &amp; Jerry]]` no "Tom & Jerry" —, the name
+        // the link opens: what Markdown would read something into is spelled
+        // out. An alias is the text the link shows, shown as the text around
+        // it is where it keeps to itself.
+        const spellings = parts.aliasStart < 0 || !labelKeepsToItself(label) ? [...labelSpellings(label)] : [];
+        // One edit for the link, so that a place in what it hides (`[[`, a
+        // target before an alias) stands for the whole link; a place in the
+        // label, wherever it is not spelled out, is a place in the rendered
+        // label.
+        let text = "[";
+        const visible: NonNullable<ReaderEdit["visible"]> = [];
+        let at = 0;
+        for (const spelled of [...spellings, { at: label.length, text: "" }]) {
+          if (spelled.at > at) {
+            visible.push({ from: labelFrom + at, to: labelFrom + spelled.at, start: text.length, end: text.length + spelled.at - at });
+            text += label.slice(at, spelled.at);
+          }
+          text += spelled.text;
+          at = spelled.at + 1;
         }
+        edits.push({ from, to, text: `${text}](wiki://${encodeTarget(target)})`, visible });
       }
     }
     if (node.type !== "code" && node.type !== "inlineCode" && node.type !== "html") {
@@ -333,7 +386,7 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
   for (const edit of edits) {
     if (edit.from < cursor) continue;
     if (edit.from > cursor) add(cursor, edit.from, clean.text.slice(cursor, edit.from), true);
-    if (edit.visible) visible.push({ from: edit.visible.from, to: edit.visible.to, start: length + edit.visible.start, end: length + edit.visible.end, exact: true });
+    for (const stretch of edit.visible ?? []) visible.push({ from: stretch.from, to: stretch.to, start: length + stretch.start, end: length + stretch.end, exact: true });
     if (edit.embed) embeds.push({ from: length, to: length + edit.text.length, target: edit.embed });
     add(edit.from, edit.to, edit.text, false);
     cursor = edit.to;

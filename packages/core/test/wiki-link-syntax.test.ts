@@ -148,20 +148,50 @@ describe("the text between the brackets", () => {
 describe("the reading view", () => {
   const read = (text: string) => prepareReaderSource(text).text;
 
-  it("shows these links as links, their labels as the text around them is shown", () => {
-    expect(read("[[_private_]] and [[Note|*the* alias]]")).toBe("[_private_](wiki://_private_) and [*the* alias](wiki://Note)");
-    expect(read(`${MARK}x [[_a_]]\r\ny [[Tom &amp; Jerry]]\r\n`)).toBe("x [_a_](wiki://_a_)\ny [Tom &amp; Jerry](wiki://Tom%20%26amp%3B%20Jerry)\n");
-    // A place in a label is a place in the rendered label.
-    const source = prepareReaderSource("A [[Note|*the* alias]]");
-    const at = "A [[Note|*the* alias]]".indexOf("alias]]");
-    expect(source.text.slice(source.toRendered(at), source.toRendered(at) + 5)).toBe("alias");
+  it("shows these links as links: a name as it is written, an alias as the text around it is shown", () => {
+    expect(read("[[_private_]] and [[Note|*the* alias]]")).toBe("[\\_private\\_](wiki://_private_) and [*the* alias](wiki://Note)");
+    expect(read(`${MARK}x [[_a_]]\r\ny [[Tom &amp; Jerry]]\r\n`)).toBe("x [\\_a\\_](wiki://_a_)\ny [Tom \\&amp; Jerry](wiki://Tom%20%26amp%3B%20Jerry)\n");
+    expect(read("[[My\\_Note]] and [[Note|My\\_Note]]")).toBe("[My\\\\\\_Note](wiki://My%5C_Note) and [My\\_Note](wiki://Note)");
+    // Only what Markdown would read something into is spelled out: a `_`
+    // between letters, an `&` that begins no reference, a backslash in front
+    // of a letter and a `^` past the start stand as they are written.
+    expect(read("[[my_note]] [[Tom & Jerry]] [[a\\b]] [[x^y]] [[^z]] [[snake__case]] [[_lead]]")).toBe(
+      "[my_note](wiki://my_note) [Tom & Jerry](wiki://Tom%20%26%20Jerry) [a\\b](wiki://a%5Cb) [x^y](wiki://x%5Ey) [\\^z](wiki://%5Ez) [snake__case](wiki://snake__case) [\\_lead](wiki://_lead)",
+    );
+    // A place in a label is a place in the rendered label, both ways — an
+    // alias's, and a name's, also beside a character spelled out.
+    for (const [text, word] of [["A [[Note|*the* alias]]", "alias"], ["A [[My Note]]", "Note"], ["A [[my_note]]", "note"], ["A [[Tom & Jerry]]", "Jerry"], ["A [[__init__]]", "init"], ["A [[Note|a [b] c]]", "c"]]) {
+      const source = prepareReaderSource(text);
+      const at = text.indexOf(word);
+      const rendered = source.toRendered(at);
+      expect(source.text.slice(rendered, rendered + word.length)).toBe(word);
+      expect(source.toOriginal(rendered)).toBe(at);
+      expect(source.toOriginal(rendered + word.length, "end")).toBe(at + word.length);
+    }
+    // A place in what the link hides — its brackets, the target before an
+    // alias — stands for the whole link (a comment there marks the link).
+    const hidden = prepareReaderSource("A [[Note|alias]]");
+    expect([hidden.toRendered(4), hidden.toRendered(8, "end")]).toEqual([2, hidden.text.length]);
   });
 
   it("writes a label as it is where it would not stay in its brackets", () => {
     expect(read("[[a]b]]")).toBe("[a\\]b](wiki://a%5Db)");
     expect(read("[[Trailing\\]]")).toBe("[Trailing\\\\](wiki://Trailing%5C)");
-    expect(read(`[[Note|a ${TICK} b]] and ${TICK}code${TICK}`)).toBe(`[a \\${TICK} b](wiki://Note) and ${TICK}code${TICK}`);
     expect(read("[[<b>]]")).toBe("[\\<b\\>](wiki://%3Cb%3E)");
+    // A backtick and a `$` are spelled out: inside a code span or math a
+    // backslash is a character, so an escaped one would still close a code
+    // span or math opened before the link.
+    expect(read(`Don${TICK}t [[Note|a ${TICK}${TICK} b]]`)).toBe(`Don${TICK}t [a &#96;&#96; b](wiki://Note)`);
+    expect(read(`[[Note|a ${TICK} b]] and ${TICK}code${TICK}`)).toBe(`[a &#96; b](wiki://Note) and ${TICK}code${TICK}`);
+    expect(read("Price $3 or [[Note|cost $5]] and [[$5]]")).toBe("Price $3 or [cost &#36;5](wiki://Note) and [&#36;5](wiki://%245)");
+    // An alias with a `$` anywhere is written out — behind a backslash and in
+    // a code span too, for math reads neither.
+    expect(read("[[Note|cost \\$5]]")).toBe("[cost \\\\&#36;5](wiki://Note)");
+    expect(read(`[[Shell|run ${TICK}echo $HOME${TICK}]]`)).toBe("[run &#96;echo &#36;HOME&#96;](wiki://Shell)");
+    // A bare `|` in an alias is escaped: a table counts the cells of a line by
+    // them — in a code span too, for it splits the line before it reads one.
+    expect(read("[[Note|a|b]]\n|---|---|\n")).toBe("[a\\|b](wiki://Note)\n|---|---|\n");
+    expect(read(`[[Note|run ${TICK}a|b${TICK} c]]\n|---|---|\n`)).toBe("[run &#96;a\\|b&#96; c](wiki://Note)\n|---|---|\n");
   });
 
   it("opens the file a link written with `\\|` names, and takes an embed's size from it", () => {
