@@ -584,6 +584,81 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-12",
   },
   {
+    id: "mail-base64-reading",
+    title: "Reading base64 in an IMAP message that is not written as the rule says",
+    area: "pim",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "For an IMAP mailbox the two shells read a message with two parsers. Both " +
+      "read a \"=\" inside base64 as the end of a group and go on reading behind " +
+      "it - every line padded on its own, two encodings joined into one (finding " +
+      "2026-10-12; one table of examples is held against both, in " +
+      "imapClient.test.ts and in mail_imap.rs). In two things the desktop's parser " +
+      "(mail-parser) reads less than the phone's reader (net/mime.ts). A last group " +
+      "without its padding is dropped: the last one or two bytes of a file that is " +
+      "not a text file, of the message's text, of an encoded word in a header. And " +
+      "one character that is no base64 gives the whole part up - in a body any " +
+      "but a blank, a tab, a line break or a single hyphen, though RFC 2045 says " +
+      "to pass any of them over; in an encoded word any but a blank, a tab or a " +
+      "line break, so a hyphen too: a file, a text file too, is handed out as it " +
+      "stands in the message, undecoded; an encoded word in a header is shown as it " +
+      "was written; " +
+      "and the text of a message in such a part is shown undecoded or, inside a " +
+      "multipart, listed as a file instead. A Microsoft mailbox is not affected: Graph " +
+      "delivers the message decoded. Closing this means reading base64 in " +
+      "mail_imap.rs itself, from a part's own header and its raw body - for the " +
+      "text and for every file - instead of taking the parser's reading, or a " +
+      "parser that reads it (what_the_parser_gives_up_in_base64 in mail_imap.rs " +
+      "fails on the day one of the two is gone).",
+    mobile: "yes",
+    verified: "2026-10-21",
+  },
+  {
+    id: "mail-digest-parts",
+    title: "The parts of a digest that name no type of their own",
+    area: "pim",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "In a multipart/digest a part that names no type of its own is an enclosed " +
+      "message (RFC 2046, 5.1.5); without any header line it begins with the empty " +
+      "line. For an IMAP mailbox the desktop's parser (mail-parser, mail_imap.rs) " +
+      "reads it so: the digest has no text of its own, and the enclosed messages " +
+      "are listed as files. The phone's reader (net/mime.ts) does not know that " +
+      "default and reads such a part as plain text: the first enclosed message, " +
+      "its header lines included, is shown as the text of the digest, and none is " +
+      "listed. Closing this means the default in the phone's reader together with " +
+      "one rule for which parts count as attachments (mail-attachment-list): the " +
+      "default alone would leave such a digest empty on the phone, which lists no " +
+      "enclosed message without a file name. Held on each side by the same " +
+      "message, in imapClient.test.ts and in mail_imap.rs (finding 2026-10-21).",
+    verified: "2026-10-21",
+  },
+  {
+    id: "mail-imap-opening-line",
+    title: "The opening words of a message in the list of an IMAP mailbox",
+    area: "pim",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "A row of the message list can open with the first words of the message. " +
+      "For a Microsoft mailbox both shells have them (Graph's bodyPreview). For an " +
+      "IMAP mailbox only the phone has: its client takes the first bytes of the " +
+      "body along in the request of the list and reads the line from them " +
+      "(net/imap.ts, previewFromBodyPrefix in net/mime.ts), and shows it as the " +
+      "third line of a row (MailListScreen.tsx). The desktop's client " +
+      "(mail_imap.rs) does not ask for them, so the one place the desktop shows " +
+      "the words - the rows of an opened conversation - falls back to the " +
+      "sender's address there (MailView.tsx). Closing this means the same request " +
+      "in mail_imap.rs and the same reading of it; whether the desktop's list row " +
+      "itself should open with the words is a separate question of its design " +
+      "(written down with the fix to the line's reading, finding 2026-10-12).",
+    mobile: "yes",
+    verified: "2026-10-13",
+  },
+  {
     id: "note-copy-as-email",
     title: "Copying a note as formatted text for an email",
     area: "pim",

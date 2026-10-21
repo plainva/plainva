@@ -742,15 +742,70 @@ pub async fn mail_fetch_attachment(
 /// in any more" (`MAIL_MAILBOX_CHANGED` in the shared mail client).
 const MAILBOX_CHANGED: &str = "MAIL_MAILBOX_CHANGED";
 
-/// Base64 as it stands in a message body: line breaks are stripped before this
-/// is asked, and a missing or surplus `=` at the end is not a reason to give
-/// the file up.
-const BODY_BASE64: base64::engine::GeneralPurpose = base64::engine::GeneralPurpose::new(
-    &base64::alphabet::STANDARD,
-    base64::engine::GeneralPurposeConfig::new()
-        .with_decode_padding_mode(base64::engine::DecodePaddingMode::Indifferent)
-        .with_decode_allow_trailing_bits(true),
-);
+/// The bytes a base64 body stands for, read as mail really writes it.
+///
+/// Nothing in a body is a reason to give the file up. What is not base64 is
+/// passed over (the line breaks, a blank), and a `=` ends a group wherever it
+/// stands — one or two characters are one byte, three are two — with the
+/// reading going on behind it. A generator that pads every line on its own, or
+/// joins two encodings into one, writes exactly that. The parser reads it so,
+/// and so does the phone's reader (`base64Bytes` in
+/// `packages/ui/src/mail/net/mime.ts`); a strict decoder does not, and this
+/// used to be one (finding 2026-10-12). It refused such a body, the file was
+/// then handed out as the parser's UTF-8 reading of it, and a list written in
+/// Latin-1 was saved and forwarded as another file than the one attached.
+///
+/// The end of the body ends a group like a `=` does, so a last group without
+/// its padding is read; only a single character left over there is no byte.
+///
+/// This is asked for a part the parser itself took for base64. One with any
+/// other character in it — not a blank, a tab, a line break or a single hyphen
+/// — the parser has given up before and calls not encoded at all: it never
+/// arrives here, and `attachment_bytes` hands it out as it stands (parity
+/// catalog, `mail-base64-reading`).
+fn base64_bytes(body: &[u8]) -> Vec<u8> {
+    /// Two characters of an open group are one byte, three are two.
+    fn end_group(out: &mut Vec<u8>, group: u32, count: u8) {
+        match count {
+            2 => out.push((group >> 4) as u8),
+            3 => out.extend_from_slice(&[(group >> 10) as u8, (group >> 2) as u8]),
+            _ => {}
+        }
+    }
+    let mut out = Vec::with_capacity(body.len() / 4 * 3 + 3);
+    // The characters of the open group, six bits each, and how many they are.
+    let (mut group, mut count) = (0u32, 0u8);
+    for &byte in body {
+        let six_bits = match byte {
+            b'A'..=b'Z' => byte - b'A',
+            b'a'..=b'z' => byte - b'a' + 26,
+            b'0'..=b'9' => byte - b'0' + 52,
+            b'+' => 62,
+            b'/' => 63,
+            b'=' => {
+                if count == 1 {
+                    // A single character in front of `=`: its six bits begin
+                    // a byte. That is the parser's reading, kept here so that
+                    // a text file and any other file are read alike.
+                    out.push((group << 2) as u8);
+                } else {
+                    end_group(&mut out, group, count);
+                }
+                (group, count) = (0, 0);
+                continue;
+            }
+            _ => continue,
+        };
+        group = (group << 6) | u32::from(six_bits);
+        count += 1;
+        if count == 4 {
+            out.extend_from_slice(&group.to_be_bytes()[1..]);
+            (group, count) = (0, 0);
+        }
+    }
+    end_group(&mut out, group, count);
+    out
+}
 
 /// Quoted-printable with the transfer encoding taken off, as mail really comes.
 ///
@@ -855,16 +910,13 @@ fn attachment_bytes(raw: &[u8], part: &mail_parser::MessagePart) -> Vec<u8> {
         return part.contents().to_vec();
     }
     let body = raw.get(part.offset_body as usize..part.offset_end as usize);
-    let own = body.and_then(|body| match part.encoding {
-        Encoding::None => Some(body.to_vec()),
-        Encoding::QuotedPrintable => Some(quoted_printable_bytes(body)),
-        Encoding::Base64 => {
-            let compact: Vec<u8> = body.iter().copied().filter(|b| !b.is_ascii_whitespace()).collect();
-            BODY_BASE64.decode(compact).ok()
-        }
+    let own = body.map(|body| match part.encoding {
+        Encoding::None => body.to_vec(),
+        Encoding::QuotedPrintable => quoted_printable_bytes(body),
+        Encoding::Base64 => base64_bytes(body),
     });
-    // A body the parser could read and this cannot is still better handed out
-    // as the parser read it than not at all.
+    // A part whose place in the message is not where the parser says is still
+    // better handed out as the parser read it than not at all.
     own.unwrap_or_else(|| part.contents().to_vec())
 }
 
@@ -1534,6 +1586,234 @@ mod tests {
         let one = attachment_contents(&raw, &[1]).unwrap().pop().map(|f| f.content_base64);
         let all = attachment_contents(&raw, &[0, 1, 2]).unwrap();
         assert_eq!(one.as_deref(), Some(all[1].content_base64.as_str()));
+    }
+
+    const PDF_PART: &[u8] = b"--bnd\r\nContent-Type: application/pdf; name=\"rechnung.pdf\"\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: attachment; filename=\"rechnung.pdf\"\r\n\r\nAAECA//+\r\n";
+
+    /// The message `imapClient.test.ts` builds as `mixed`: `parts`, and a PDF
+    /// behind them.
+    fn mixed(parts: &[u8]) -> Vec<u8> {
+        let mut raw = Vec::new();
+        raw.extend_from_slice(b"From: Anna Beispiel <anna@example.org>\r\nSubject: Reise\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"bnd\"\r\n\r\n");
+        raw.extend_from_slice(parts);
+        raw.extend_from_slice(PDF_PART);
+        raw.extend_from_slice(b"--bnd--\r\n");
+        raw
+    }
+
+    /// The file of the message `imapClient.test.ts` builds as `withFile` — the
+    /// text, a file of type `mime` whose base64 body is `data`, and the PDF —
+    /// as the frontend receives it. The text and the PDF beside it have to be
+    /// what they are, whatever the file's body is.
+    fn file_of(mime: &str, data: &[u8]) -> Vec<u8> {
+        let mut parts = Vec::new();
+        parts.extend_from_slice(b"--bnd\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\nHallo Marco,\r\n");
+        parts.extend_from_slice(format!("--bnd\r\nContent-Type: {mime}; name=\"datei.bin\"\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: attachment; filename=\"datei.bin\"\r\n\r\n").as_bytes());
+        parts.extend_from_slice(data);
+        parts.extend_from_slice(b"\r\n");
+        let raw = mixed(&parts);
+        let written = String::from_utf8_lossy(data);
+        let parsed = parse_message(&raw).expect("parses");
+        assert_eq!(plain_text_body(&parsed).as_deref(), Some("Hallo Marco,"), "{written:?}");
+        let found = attachment_contents(&raw, &[0, 1]).unwrap();
+        assert_eq!(found.len(), 2, "{written:?}");
+        assert_eq!(fetched_bytes(&found[1]), vec![0, 1, 2, 3, 255, 254], "{written:?}");
+        fetched_bytes(&found[0])
+    }
+
+    fn subject_of(word: &str) -> String {
+        let raw = format!("From: a@example.org\r\nSubject: {word}\r\n\r\nText\r\n");
+        header_text(&parse_message(raw.as_bytes()).expect("parses"), mail_parser::HeaderName::Subject)
+    }
+
+    /// "Grüße aus München." as the text of a message in base64, the second
+    /// line ending in `last_line`.
+    fn base64_text(last_line: &str) -> Vec<u8> {
+        format!("From: a@example.org\r\nSubject: Reise\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nR3LDvMOfZQ==\r\n{last_line}\r\n").into_bytes()
+    }
+
+    /// What a `=` inside base64 means is one reading on both shells (finding
+    /// 2026-10-12): it ends a group, and the reading goes on behind it. A
+    /// generator that pads every line on its own, or joins two encodings into
+    /// one, writes that. The rows are the ones `imapClient.test.ts` holds for
+    /// the phone's reader, which threw on most of them — on every `=` that is
+    /// not exactly the padding its length asks for, and on a single character
+    /// left over — and lost the whole message with it.
+    #[test]
+    fn base64_with_padding_inside_is_read_whole() {
+        let rows: [(&[u8], &[u8]); 16] = [
+            (b"SGVsbG8=\r\nV2VsdA==", b"HelloWelt"),
+            (b"SGVsbG8=V2VsdA==", b"HelloWelt"),
+            // One `=` short, and the padding as the rule wants it.
+            (b"QQ=", b"A"),
+            (b"QUJDRA=", b"ABCD"),
+            (b"QUJDREU==", b"ABCDE"),
+            // A `=` that has no group to end.
+            (b"QUJD=", b"ABC"),
+            (b"QUJD====", b"ABC"),
+            (b"=", b""),
+            (b"====", b""),
+            (b"", b""),
+            // A single character is six bits: in front of `=` they begin a byte, at the end they are none.
+            (b"Q=", b"@"),
+            (b"QUJDR", b"ABC"),
+            // Blanks, line breaks and a lone hyphen are no base64 and are passed over.
+            (b"QUJD RUZH", b"ABCEFG"),
+            (b"QUJD\tRUZH", b"ABCEFG"),
+            (b"QUJD\r\n\r\nRUZH", b"ABCEFG"),
+            (b"QUJD-RUZH", b"ABCEFG"),
+        ];
+        for (data, file) in rows {
+            let written = String::from_utf8_lossy(data);
+            // A file that is not text is the parser's own reading; a text file
+            // is read here (`attachment_bytes`). The same bytes either way.
+            assert_eq!(file_of("application/octet-stream", data), file, "{written:?}");
+            assert_eq!(file_of("text/csv", data), file, "as a text file: {written:?}");
+        }
+    }
+
+    /// The same reading in the text of a message and in a word of a header,
+    /// with the messages `imapClient.test.ts` holds for the phone's reader.
+    #[test]
+    fn padding_inside_base64_is_read_in_the_text_and_in_a_header() {
+        // Every line encoded and padded on its own.
+        let single = base64_text("IGF1cyBNw7xuY2hlbi4=");
+        assert_eq!(plain_text_body(&parse_message(&single).expect("parses")).as_deref(), Some("Grüße aus München."));
+
+        let both = b"From: a@example.org\r\nSubject: Reise\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=\"alt\"\r\n\r\n--alt\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nR3LDvMOfZQ==\r\nIGF1cyBNw7xuY2hlbi4=\r\n--alt\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nPHA+R3LDvMOfZQ==\r\nIGF1cyBNw7xuY2hlbi48L3A+\r\n--alt--\r\n";
+        let parsed = parse_message(both).expect("parses");
+        assert_eq!(plain_text_body(&parsed).as_deref(), Some("Grüße aus München."));
+        assert_eq!(parsed.body_html(0).as_deref(), Some("<p>Grüße aus München.</p>"));
+
+        // One `=` short, and a `=` inside the word.
+        assert_eq!(subject_of("=?utf-8?B?R3LDvMOfZQ=?="), "Grüße");
+        assert_eq!(subject_of("=?utf-8?B?R3LD=vMOfZQ==?="), "Grüße");
+    }
+
+    /// A text file is the bytes it was attached with, also where its base64 is
+    /// padded line by line (finding 2026-10-12). The strict decoder this used
+    /// to be refused such a body, and the file left as the parser's UTF-8
+    /// reading of it: "Köln" in Latin-1 became another file.
+    #[test]
+    fn a_text_attachment_with_padding_inside_its_base64_keeps_its_bytes() {
+        // "K\xf6" and "ln", each encoded and padded on its own.
+        let raw = three_files("base64", b"S/Y=\r\nbG4=");
+        let parsed = parse_message(&raw).unwrap();
+        // What the parser offers for this part: its text, in UTF-8.
+        assert_eq!(parsed.attachments().nth(1).unwrap().contents(), "Köln".as_bytes());
+        let found = attachment_contents(&raw, &[1]).unwrap();
+        assert_eq!(fetched_bytes(&found[0]), b"K\xf6ln");
+    }
+
+    /// Where this parser reads less than the phone's reader: the two points of
+    /// the parity catalog's `mail-base64-reading`, each as the parser has it
+    /// (`imapClient.test.ts` holds what the phone reads there). Held so that
+    /// the entry goes when a difference goes.
+    #[test]
+    fn what_the_parser_gives_up_in_base64() {
+        // 1. A last group without its padding is dropped: the last one or two
+        //    bytes of a file, of the text of a message, of a word in a header.
+        assert_eq!(file_of("application/octet-stream", b"QUJDRA"), b"ABC");
+        assert_eq!(file_of("application/octet-stream", b"QUJDREU"), b"ABC");
+        assert_eq!(file_of("application/octet-stream", b"SGVsbG8=V2VsdA"), b"HelloWel");
+        let unpadded = base64_text("IGF1cyBNw7xuY2hlbi4");
+        assert_eq!(plain_text_body(&parse_message(&unpadded).expect("parses")).as_deref(), Some("Grüße aus Münche"));
+        assert_eq!(subject_of("=?utf-8?B?R3LDvMOfZQ?="), "Grüß");
+        //    A text FILE is read here, not by the parser, and keeps them.
+        assert_eq!(file_of("text/csv", b"QUJDRA"), b"ABCD");
+
+        // 2. One character that is no base64 — other than a blank, a tab, a
+        //    line break or a single hyphen —, and the part is not decoded at
+        //    all. A file is handed out as it stands in the message, a text
+        //    file too: the parser calls such a part not encoded …
+        let foreign: [&[u8]; 5] = [b"QUJD*RUZH", b"QUJD--RUZH", b"QUJD.RUZH", b"QUJD\x0bRUZH", b"QUJDRU\xe4ZH"];
+        for data in foreign {
+            let written = String::from_utf8_lossy(data);
+            assert_eq!(file_of("application/octet-stream", data), data, "{written:?}");
+            assert_eq!(file_of("text/csv", data), data, "as a text file: {written:?}");
+        }
+        //    … a word in a header as it was written - in a word a hyphen too,
+        //    which the parser passes over in a body …
+        assert_eq!(subject_of("=?utf-8?B?R3LDvMOf*ZQ==?="), "=?utf-8?B?R3LDvMOf*ZQ==?=");
+        assert_eq!(subject_of("=?utf-8?B?R3LD-vMOfZQ==?="), "=?utf-8?B?R3LD-vMOfZQ==?=");
+        //    … and the text of a message is no longer its text: the part is
+        //    listed as a file without a name.
+        let raw = mixed(b"--bnd\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nR3LDvMOfZQ==\r\n*IGF1cyBNw7xuY2hlbi4=\r\n");
+        let parsed = parse_message(&raw).expect("parses");
+        assert_eq!(plain_text_body(&parsed), None);
+        assert_eq!(parsed.attachments().map(|part| part.attachment_name()).collect::<Vec<_>>(), vec![None, Some("rechnung.pdf")]);
+    }
+
+    /// A part needs no header lines (RFC 2046, 5.1): it begins with the empty
+    /// line then, and is plain text from its first line - outside a
+    /// multipart/digest (`a_digest_part_without_a_type_is_an_enclosed_message`).
+    /// The phone's reader took the first paragraph of such a part for its
+    /// header (finding 2026-10-12); these are the parts `imapClient.test.ts`
+    /// holds for it.
+    #[test]
+    fn a_part_without_header_lines_is_text_from_its_first_line() {
+        let text_of = |part: &str| {
+            let raw = mixed(format!("--bnd\r\n{part}\r\n").as_bytes());
+            let parsed = parse_message(&raw).expect("parses");
+            assert_eq!(parsed.attachments().map(|file| file.attachment_name()).collect::<Vec<_>>(), vec![Some("rechnung.pdf")], "{part:?}");
+            plain_text_body(&parsed)
+        };
+        assert_eq!(text_of("\r\nErster Absatz.\r\n\r\nZweiter Absatz.").as_deref(), Some("Erster Absatz.\r\n\r\nZweiter Absatz."));
+        assert_eq!(text_of("\r\nNur eine Zeile.").as_deref(), Some("Nur eine Zeile."));
+        // A first line that looks like a header line is text behind the empty line.
+        assert_eq!(text_of("\r\nHinweis: das ist Text.\r\n\r\nZweiter Absatz.").as_deref(), Some("Hinweis: das ist Text.\r\n\r\nZweiter Absatz."));
+        // Only ONE empty line ends the header lines; further ones are the text's own.
+        assert_eq!(text_of("\r\n\r\n\r\nErster Absatz.").as_deref(), Some("\r\n\r\nErster Absatz."));
+        // A part that is nothing but the empty line is an empty text.
+        assert_eq!(plain_text_body(&parse_message(&mixed(b"--bnd\r\n\r\n")).expect("parses")).as_deref(), Some(""));
+
+        // Written with bare line feeds.
+        let bare = b"Subject: Reise\nContent-Type: multipart/mixed; boundary=\"bnd\"\n\n--bnd\n\nErster Absatz.\n\nZweiter Absatz.\n--bnd--\n";
+        assert_eq!(plain_text_body(&parse_message(bare).expect("parses")).as_deref(), Some("Erster Absatz.\n\nZweiter Absatz."));
+
+        // As the plain version next to an HTML one.
+        let both = b"Subject: Reise\r\nContent-Type: multipart/alternative; boundary=\"alt\"\r\n\r\n--alt\r\n\r\nErster Absatz.\r\n\r\nZweiter Absatz.\r\n--alt\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Erster Absatz.</p><p>Zweiter Absatz.</p>\r\n--alt--\r\n";
+        let parsed = parse_message(both).expect("parses");
+        assert_eq!(plain_text_body(&parsed).as_deref(), Some("Erster Absatz.\r\n\r\nZweiter Absatz."));
+        assert_eq!(parsed.body_html(0).as_deref(), Some("<p>Erster Absatz.</p><p>Zweiter Absatz.</p>"));
+
+        // A whole message without header lines.
+        let headerless = b"\r\nErster Absatz.\r\n\r\nZweiter Absatz.\r\n";
+        assert_eq!(plain_text_body(&parse_message(headerless).expect("parses")).as_deref(), Some("Erster Absatz.\r\n\r\nZweiter Absatz.\r\n"));
+    }
+
+    /// An empty line between a delimiter and the header lines of a part — a
+    /// generator's mistake — leaves the part without a header by the rule: the
+    /// lines behind it are its text, and a file behind it is no file of the
+    /// message. The phone's reader took such lines for the header by accident
+    /// and reads them as this parser does now; `imapClient.test.ts` holds the
+    /// same two messages for it.
+    #[test]
+    fn header_lines_behind_the_empty_line_are_the_parts_text() {
+        let versions = b"Subject: Reise\r\nContent-Type: multipart/alternative; boundary=\"sl\"\r\n\r\n--sl\r\n\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nGr=C3=BC=C3=9Fe\r\n--sl\r\n\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Hallo</p>\r\n--sl--\r\n";
+        let parsed = parse_message(versions).expect("parses");
+        assert_eq!(
+            plain_text_body(&parsed).as_deref(),
+            Some("Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nGr=C3=BC=C3=9Fe")
+        );
+        // A file behind such a line is text as well, and no file of the message.
+        let file = b"Subject: Reise\r\nContent-Type: multipart/mixed; boundary=\"b\"\r\n\r\n--b\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nHallo Marco,\r\n--b\r\n\r\nContent-Type: application/pdf; name=\"a.pdf\"\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: attachment; filename=\"a.pdf\"\r\n\r\nAAECA//+\r\n--b--\r\n";
+        let parsed = parse_message(file).expect("parses");
+        assert_eq!(plain_text_body(&parsed).as_deref(), Some("Hallo Marco,"));
+        assert_eq!(parsed.attachments().count(), 0);
+    }
+
+    /// In a multipart/digest a part that names no type of its own is an
+    /// enclosed message (RFC 2046, 5.1.5): this parser has no text for the
+    /// digest and lists the enclosed messages as files. The phone's reader does
+    /// not know that default (parity catalog, `mail-digest-parts`);
+    /// `imapClient.test.ts` holds the same message for it.
+    #[test]
+    fn a_digest_part_without_a_type_is_an_enclosed_message() {
+        let digest = b"Subject: Reise\r\nContent-Type: multipart/digest; boundary=\"dg\"\r\n\r\n--dg\r\n\r\nFrom: anna@example.org\r\nSubject: Erste\r\n\r\nText der ersten.\r\n--dg\r\n\r\nFrom: ben@example.org\r\nSubject: Zweite\r\n\r\nText der zweiten.\r\n--dg--\r\n";
+        let parsed = parse_message(digest).expect("parses");
+        assert_eq!(plain_text_body(&parsed), None);
+        assert_eq!(parsed.attachments().count(), 2);
     }
 
     /// P9.1: the thread headers of an envelope, read out of the header block the
