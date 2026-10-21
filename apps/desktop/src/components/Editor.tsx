@@ -27,11 +27,11 @@ import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, jumpToLineTop, selectAndCe
 import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext } from "@plainva/ui";
 import { answerEditorPathProbe } from "@plainva/ui";
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
-import { docIconValue } from "@plainva/ui";
+import { docIconValue, editedNoteProperties, withNoteColor, withNoteIcon } from "@plainva/ui";
 import { ColorPopover } from "./ColorPopover";
 import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, insertAnchorMarkers, removeAnchorMarkers, wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState } from "@plainva/core";
+import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, insertAnchorMarkers, removeAnchorMarkers, wikiTargetForPath, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
@@ -1227,36 +1227,14 @@ export const Editor: React.FC<{
   // `content` state (used in read mode) may lag by the E3 sync debounce.
   const currentText = () => sessionRef.current?.view.state.doc.toString() ?? content;
 
-  const applyPlainvaValue = (key: "icon" | "header_color", value: string | null) => {
-    try {
-      const base = currentText();
-      const next =
-        value === null
-          ? deleteFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, key])
-          : setFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, key], value);
-      if (next !== base) handlePropertiesChange(next);
-    } catch (e) {
-      console.warn("[Editor] updating plainva frontmatter failed", e);
-    }
-  };
-
-  // Icon + tint are written together: emoji picks clear a stale tint, icon-set
-  // picks ("lucide:<name>") persist their color in plainva.icon_color.
-  const applyDocIcon = (value: string | null, color: string | null) => {
-    try {
-      const base = currentText();
-      let next =
-        value === null
-          ? deleteFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "icon"])
-          : setFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "icon"], value);
-      next =
-        color === null
-          ? deleteFrontmatterPath(next, [PLAINVA_NAMESPACE_KEY, "icon_color"])
-          : setFrontmatterPath(next, [PLAINVA_NAMESPACE_KEY, "icon_color"], color);
-      if (next !== base) handlePropertiesChange(next);
-    } catch (e) {
-      console.warn("[Editor] updating plainva icon failed", e);
-    }
+  // The note's icon and colour: written into the text this editor holds, by
+  // the shared rules (`withNoteIcon`, `withNoteColor`) the phone's editor
+  // follows too. A note that refuses the change — a block at its top that is
+  // no YAML map — is said by `editedNoteProperties`; two handlers of their own
+  // caught that here and wrote it to the console (finding 2026-10-09).
+  const applyNoteProperties = (change: (text: string) => string) => {
+    const next = editedNoteProperties(currentText(), change);
+    if (next !== null) handlePropertiesChange(next);
   };
 
   // Slash commands `/icon` + `/header color` fire window events; anchor the
@@ -3924,9 +3902,9 @@ export const Editor: React.FC<{
           y={iconPicker.y}
           labels={emojiPickerLabels}
           showRemove={!!docMeta.icon}
-          onSelect={(emoji) => { applyDocIcon(emoji, null); setIconPicker(null); }}
-          onSelectIcon={(name, color) => { applyDocIcon(docIconValue(name), color); setIconPicker(null); }}
-          onRemove={() => { applyDocIcon(null, null); setIconPicker(null); }}
+          onSelect={(emoji) => { applyNoteProperties((text) => withNoteIcon(text, emoji, null)); setIconPicker(null); }}
+          onSelectIcon={(name, color) => { applyNoteProperties((text) => withNoteIcon(text, docIconValue(name), color)); setIconPicker(null); }}
+          onRemove={() => { applyNoteProperties((text) => withNoteIcon(text, null, null)); setIconPicker(null); }}
           onClose={() => setIconPicker(null)}
         />
       )}
@@ -3960,8 +3938,8 @@ export const Editor: React.FC<{
           x={colorPicker.x}
           y={colorPicker.y}
           value={docMeta.headerColor}
-          onSelect={(color, { close }) => { applyPlainvaValue("header_color", color); if (close) setColorPicker(null); }}
-          onRemove={() => { applyPlainvaValue("header_color", null); setColorPicker(null); }}
+          onSelect={(color, { close }) => { applyNoteProperties((text) => withNoteColor(text, color)); if (close) setColorPicker(null); }}
+          onRemove={() => { applyNoteProperties((text) => withNoteColor(text, null)); setColorPicker(null); }}
           onClose={() => setColorPicker(null)}
         />
       )}

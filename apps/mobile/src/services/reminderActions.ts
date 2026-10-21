@@ -1,4 +1,4 @@
-import { snoozeMoment, snoozeTask, toast } from "@plainva/ui";
+import { errorText, snoozeMoment, snoozeTask, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import type { CalendarFocus } from "./calendarFocus";
 import { getPimCache, openMeetingNoteFor } from "./pim/pimService";
@@ -49,7 +49,11 @@ export async function runReminderIntent(intent: ReminderIntent, host: ReminderAc
         else if (result.spawnedDue) toast.info(i18n.t("tasks.repeatSpawned", { date: result.spawnedDue }));
         else if (result.changed) toast.info(i18n.t("reminders.taskDone"));
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        // The tick writes the note's completion property: the sentence a
+        // property write gets, with the reason as `errorText` reads it
+        // (finding 2026-10-12) — the bare message of a block that is no YAML
+        // quotes the note's own line.
+        toast.error(i18n.t("mobile.propertyWriteFailed", { message: errorText(e) }));
       }
       return;
     }

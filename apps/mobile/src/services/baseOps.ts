@@ -1,9 +1,5 @@
 import { Capacitor } from "@capacitor/core";
-import {
-  deleteFrontmatterPath,
-  renameFrontmatterKey,
-  type TextChange,
-} from "@plainva/core";
+import type { TextChange } from "@plainva/core";
 import { buildMobilePlanDeps } from "./cascadeDelete";
 import { configuredNoteType } from "./newNote";
 import {
@@ -38,8 +34,12 @@ import {
   viewPrefill,
   writeNoteProperty,
   bulkSetProperty,
+  renamePropertyAcrossNotes,
+  removePropertyAcrossNotes,
   type BulkSetOptions,
   type BulkSetResult,
+  type NoteRewriteResult,
+  type RenamePropertyOutcome,
   type PropertyWriteAdapter,
   type PinboardDraft,
   type PinboardDraftLedger,
@@ -333,8 +333,16 @@ export async function listBasePaths(v: MobileVault): Promise<Array<{ path: strin
 
 /**
  * Renames a property in the config (shared renamePropertyInConfig) and moves
- * the frontmatter key in every source note (desktop rename contract).
- * Returns the number of rewritten notes.
+ * the frontmatter key in every source note — by the shared rule
+ * (`renamePropertyAcrossNotes`): checked first. Where a note cannot take the
+ * new name, nothing is written, the database included, and the answer names
+ * the notes; a write that fails during the run is counted in the result.
+ *
+ * The loop that stood here swallowed every error (finding 2026-10-09) — "note
+ * lacks the key or already carries the new one", its comment said, of a case
+ * in which the note keeps the old key under a column that no longer exists.
+ * And it read and wrote past the editor: the notes go through `noteFiles` now,
+ * as a cell and a selection do, so pending keystrokes land first.
  */
 export async function renameBaseProperty(
   v: MobileVault,
@@ -343,24 +351,24 @@ export async function renameBaseProperty(
   oldName: string,
   newName: string,
   rowPaths: string[],
-): Promise<number> {
-  const nc = renamePropertyInConfig(config, oldName, newName);
-  await saveBaseConfig(v, basePath, nc);
-  let changed = 0;
-  for (const p of rowPaths) {
-    try {
-      if ((await vaultOps.update(v, p, (text) => renameFrontmatterKey(text, oldName, newName))).changed) changed++;
-    } catch {
-      /* note lacks the key or already carries the new one — skip */
-    }
-  }
-  if (changed > 0) syncSoon();
-  return changed;
+): Promise<RenamePropertyOutcome> {
+  const outcome = await renamePropertyAcrossNotes({
+    adapter: noteFiles(v),
+    paths: rowPaths,
+    oldName,
+    newName,
+    saveConfig: () => saveBaseConfig(v, basePath, renamePropertyInConfig(config, oldName, newName)),
+  });
+  if (outcome.status === "renamed" && outcome.result.written.length > 0) syncSoon();
+  return outcome;
 }
 
 /**
  * Deletes a property from the config (shared deletePropertyFromConfig) and
- * optionally removes the frontmatter key from the source notes.
+ * optionally removes the frontmatter key from the source notes. Answers which
+ * notes were cleaned and which could not be written — not checked first, see
+ * `renamePropertyAcrossNotes`. The loop that stood here skipped a note it
+ * could not write without a word (finding 2026-10-09).
  */
 export async function deleteBaseProperty(
   v: MobileVault,
@@ -369,19 +377,12 @@ export async function deleteBaseProperty(
   name: string,
   rowPaths: string[],
   cleanNotes: boolean,
-): Promise<void> {
+): Promise<NoteRewriteResult> {
   const nc = deletePropertyFromConfig(config, name);
   await saveBaseConfig(v, basePath, nc);
-  if (cleanNotes) {
-    for (const p of rowPaths) {
-      try {
-        await vaultOps.update(v, p, (text) => deleteFrontmatterPath(text, [name]));
-      } catch {
-        /* skip unreadable notes; the column is gone either way */
-      }
-    }
-  }
+  const result = cleanNotes ? await removePropertyAcrossNotes(noteFiles(v), rowPaths, name) : { written: [], unchanged: [], failed: [] };
   syncSoon();
+  return result;
 }
 
 /**

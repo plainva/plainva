@@ -1017,6 +1017,7 @@
     "configure": "Konfiguruj",
     "iconColor": "Kolor ikony bazy danych",
     "confirmRenameProperty": "Właściwość „{{old}}” zostanie zmieniona na „{{new}}” w {{count}} plikach. Kontynuować?",
+    "renamePropertyRefused": "Nie zmieniono nazwy właściwości „{{old}}” i niczego nie zapisano. Notatki, które nie mogą przyjąć nowej nazwy: {{count}} ({{notes}}). {{reason}}",
     "renamingProperty": "Zmienianie nazwy właściwości…",
     "deletingProperty": "Usuwanie właściwości…",
     "deletingProgress": "„{{column}}” · {{done}} z {{total}} plików",
@@ -2759,7 +2760,6 @@
     "openDb": "Otwórz jako bazę",
     "dbEmpty": "Brak wpisów",
     "setStatus": "Zmień status",
-    "statusUpdateFailed": "Nie udało się zmienić statusu.",
     "dbDoneKey": "zrobione",
     "repeat": "Powtarzanie",
     "rowActions": "Akcje zadania",
@@ -4950,7 +4950,8 @@
     "driveFolder": "Dostawca zwrócił nieprawidłowy identyfikator folderu. Operacja została zatrzymana.",
     "htmlDepth": "Ten HTML ma zbyt wiele poziomów zagnieżdżenia. Uprość go lub zaimportuj eksport w formacie Markdown.",
     "propertiesBlock": "Bloku na początku notatki nie da się odczytać jako właściwości. Popraw go w tekście notatki i spróbuj ponownie.",
-    "propertyValue": "Właściwość „{{key}}” zawiera wartość, której nie da się odczytać. Popraw ją w tekście notatki i spróbuj ponownie."
+    "propertyValue": "Właściwość „{{key}}” zawiera wartość, której nie da się odczytać. Popraw ją w tekście notatki i spróbuj ponownie.",
+    "propertyNameTaken": "Notatka ma już właściwość o nowej nazwie."
   },
   "audio": {
     "play": "Odtwórz {{name}}",

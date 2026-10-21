@@ -1,6 +1,6 @@
 # Référence du format de fichier
 
-Dernière mise à jour : 2026-10-09
+Dernière mise à jour : 2026-10-21
 
 Cette page est le contrat précis, tel qu'il est stocké sur le disque, pour **chaque fichier d'un vault Plainva**. Elle est écrite pour qu'un outil — un autre programme, un script ou un assistant IA — puisse lire et modifier en toute sécurité les fichiers du vault directement, sans passer par l'interface de Plainva. Si vous utilisez seulement l'application, vous n'avez jamais besoin de cette page ; les [autres pages du guide](README.md) couvrent l'usage normal.
 
@@ -54,7 +54,7 @@ A **bold** thought that links to [[Another Note]].
 
 Un bloc peut être vide : `---` directement suivi de `---` est un bloc sans propriétés, et non deux séparateurs — le texte de la note commence à la ligne suivante. Plainva ne laisse aucun bloc vide derrière lui : lorsque la dernière propriété est supprimée, les deux lignes `---` disparaissent avec elle. Elles ne restent que si le texte lui-même commence par une ligne `---`, qui serait sinon lue comme le début d'un bloc.
 
-Un bloc que Plainva ne peut pas lire comme des propriétés est laissé tel quel : du texte entre les deux lignes `---` qui n'est pas du YAML, du YAML qui est une liste au lieu de lignes `clé: valeur`, ou une valeur dont la forme ne convient pas à sa propriété. Modifier une propriété d'une telle note — sous **Propriétés** ou dans une base de données — ne change rien, et Plainva le dit : **La propriété n'a pas pu être enregistrée**, suivi de la raison, qui nomme la propriété lorsqu'une seule valeur est en cause. Corrigez le bloc dans le texte de la note, et la modification passe.
+Un bloc que Plainva ne peut pas lire comme des propriétés est laissé tel quel : du texte entre les deux lignes `---` qui n'est pas du YAML, du YAML qui est une liste au lieu de lignes `clé: valeur`, ou une valeur dont la forme ne convient pas à sa propriété. Modifier une propriété d'une telle note — sous **Propriétés**, dans une base de données, sur un tableau d'affichage, dans la liste des tâches, ou son icône et sa couleur — ne change rien, et Plainva le dit : **La propriété n'a pas pu être enregistrée**, suivi de la raison, qui nomme la propriété lorsqu'une seule valeur est en cause. Corrigez le bloc dans le texte de la note, et la modification passe.
 
 ### Champs de frontmatter OKF
 

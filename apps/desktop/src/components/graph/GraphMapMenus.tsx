@@ -6,7 +6,7 @@ import { ICON, MenuItem, MenuLabel, MenuSeparator, MenuSurface } from "@plainva/
 import { appendWikiLink } from "../../services/graphActions";
 import { findRelationOptions, loadRelationCatalog, writeRelationLink, type RelationOption } from "../../services/graphRelationTargets";
 import { appConfirm } from "../../services/appDialogs";
-import { toast } from "@plainva/ui";
+import { errorText, toast } from "@plainva/ui";
 
 /**
  * Context menus + the connect-gesture popover of the vault map (P6). All
@@ -236,8 +236,11 @@ export function GraphConnectMenu(props: {
       }
       await writeRelationLink(adapter, queryService, state.source, state.target, option.propertyKey, option.limitOne);
       finish(t("graph.connectDone", { defaultValue: "Link erstellt." }));
-    } catch {
-      toast.error(t("graph.cleanupActionFailed", { defaultValue: "Aktion fehlgeschlagen." }));
+    } catch (e) {
+      // A relation is a property of the source note: the sentence a property
+      // write gets, with its reason (finding 2026-10-12). "Action failed."
+      // stood here, and the phone showed the YAML parser's own message.
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
       props.onClose();
     }
   };

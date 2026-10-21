@@ -1009,6 +1009,7 @@
     "configure": "Configure",
     "iconColor": "Database icon color",
     "confirmRenameProperty": "Rename property \"{{old}}\" to \"{{new}}\" in {{count}} files. Continue?",
+    "renamePropertyRefused": "“{{old}}” was not renamed and nothing was changed. Notes that cannot take the new name: {{count}} ({{notes}}). {{reason}}",
     "renamingProperty": "Renaming property…",
     "deletingProperty": "Removing property…",
     "deletingProgress": "\"{{column}}\" · {{done}} of {{total}} files",
@@ -2715,7 +2716,6 @@
     "openDb": "Open as database",
     "dbEmpty": "No entries yet",
     "setStatus": "Change status",
-    "statusUpdateFailed": "Could not change the status.",
     "dbDoneKey": "done",
     "repeat": "Repeat",
     "rowActions": "Task actions",
@@ -4828,7 +4828,8 @@
     "driveFolder": "The provider returned an invalid folder identifier. The operation was stopped.",
     "htmlDepth": "This HTML is too deeply nested. Simplify it or import a Markdown export.",
     "propertiesBlock": "The block at the top of the note cannot be read as properties. Correct it in the note's text and try again.",
-    "propertyValue": "The property \"{{key}}\" holds a value that cannot be read. Correct it in the note's text and try again."
+    "propertyValue": "The property \"{{key}}\" holds a value that cannot be read. Correct it in the note's text and try again.",
+    "propertyNameTaken": "The note already has a property with the new name."
   },
   "audio": {
     "play": "Play {{name}}",

@@ -1005,6 +1005,7 @@
     "configure": "配置",
     "iconColor": "数据库图标颜色",
     "confirmRenameProperty": "将在{{count}}个文件中把属性“{{old}}”重命名为“{{new}}”。是否继续？",
+    "renamePropertyRefused": "“{{old}}”未重命名，未作任何更改。无法使用新名称的笔记：{{count}} 条（{{notes}}）。{{reason}}",
     "renamingProperty": "正在重命名属性…",
     "deletingProperty": "正在移除属性…",
     "deletingProgress": "“{{column}}” · {{done}}/{{total}}个文件",
@@ -2693,7 +2694,6 @@
     "openDb": "作为数据库打开",
     "dbEmpty": "暂无条目",
     "setStatus": "更改状态",
-    "statusUpdateFailed": "无法更改状态。",
     "dbDoneKey": "done",
     "repeat": "重复",
     "rowActions": "任务操作",
@@ -4767,7 +4767,8 @@
     "driveFolder": "提供商返回了无效的文件夹标识符。操作已停止。",
     "htmlDepth": "此HTML的嵌套层级过深。请简化结构，或导入Markdown格式的导出文件。",
     "propertiesBlock": "笔记开头的区块无法作为属性读取。请在笔记文本中修正后重试。",
-    "propertyValue": "属性“{{key}}”的值无法读取。请在笔记文本中修正后重试。"
+    "propertyValue": "属性“{{key}}”的值无法读取。请在笔记文本中修正后重试。",
+    "propertyNameTaken": "笔记中已有使用新名称的属性。"
   },
   "audio": {
     "play": "播放 {{name}}",

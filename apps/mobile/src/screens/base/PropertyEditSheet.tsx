@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Pencil, Trash2, X } from "lucide-react";
-import { baseStemOf, Button, Chip, chipPaletteIndex, type CuratedOption, ICON, IconButton, isValidNewPropertyName, isValidReverseColumnName, mergeObservedOptions, PALETTE_NAMES, parseBaseConfig, type PropertyType, reverseColumnState, reverseIntentFor, Switch, toast } from "@plainva/ui";
+import { baseStemOf, Button, Chip, chipPaletteIndex, type CuratedOption, errorText, ICON, IconButton, isValidNewPropertyName, isValidReverseColumnName, mergeObservedOptions, notesCarryingProperty, PALETTE_NAMES, parseBaseConfig, type PropertyType, renameRefusedText, reverseColumnState, reverseIntentFor, Switch, toast } from "@plainva/ui";
 import { mActions, mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { deleteBaseProperty, listBasePaths, renameBaseProperty, writeRelationSchema } from "../../services/baseOps";
 import { vaultOps } from "../../services/vaultService";
@@ -49,7 +49,6 @@ export function PropertyEditSheet({
   config,
   column,
   rows,
-  rowPaths,
   columnLabel,
   onMutate,
   onReload,
@@ -60,7 +59,6 @@ export function PropertyEditSheet({
   config: any;
   column: string;
   rows: any[];
-  rowPaths: string[];
   columnLabel: (col: string) => string;
   /** Clone-mutate-save for schema edits (type, options). */
   onMutate: (mutate: (cfg: any) => void) => void;
@@ -135,7 +133,29 @@ export function PropertyEditSheet({
         toast.error(t("properties.renameInvalid"));
         return;
       }
-      await renameBaseProperty(vault, basePath, config, column, name, rowPaths);
+      // What the rename did is said (finding 2026-10-09; the desktop's twin is
+      // `renameColumn` in BaseViewer). A note that cannot take the new name
+      // stops it before anything is written, and the sheet stays open on the
+      // property as it is. A write that failed during the run is counted. And
+      // an error of the database itself no longer leaves as an unhandled
+      // rejection. The notes are the desktop's: every note of the database's
+      // sources that carries the property — the view's rows stood here, which
+      // left the notes its filters hide behind and asked notes that do not
+      // carry the property at all (finding 2026-10-21).
+      try {
+        const paths = await notesCarryingProperty(vault.queryService, config, column, rows);
+        const outcome = await renameBaseProperty(vault, basePath, config, column, name, paths);
+        if (outcome.status === "refused") {
+          toast.error(renameRefusedText(column, outcome.refused));
+          return;
+        }
+        if (outcome.status === "renamed" && outcome.result.failed.length > 0) {
+          toast.error(t("database.bulkSetPartial", { done: outcome.result.written.length, failed: outcome.result.failed.length }));
+        }
+      } catch (e) {
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+        return;
+      }
       onReload();
       onClose();
     })();
@@ -242,11 +262,13 @@ export function PropertyEditSheet({
 
   const remove = () => {
     void (async () => {
+      // The notes the property is taken out of: see `rename`.
+      const paths = await notesCarryingProperty(vault.queryService, config, column, rows);
       const mode = await mActions({
         title: t("properties.deleteProperty"),
         message: t("properties.deletePropertyConfirm", { column: columnLabel(column) }),
         options: [
-          { value: "notes", label: t("properties.deleteFromNotes", { count: rowPaths.length }) },
+          { value: "notes", label: t("properties.deleteFromNotes", { count: paths.length }) },
           { value: "config", label: t("properties.deleteProperty") },
         ],
       });
@@ -258,7 +280,16 @@ export function PropertyEditSheet({
         confirmLabel: t("common.delete"),
       });
       if (!ok) return;
-      await deleteBaseProperty(vault, basePath, config, column, rowPaths, mode === "notes");
+      // The notes that could not be cleaned are counted (finding 2026-10-09):
+      // each was skipped without a word. The column is gone either way, so
+      // the sheet closes on it.
+      try {
+        const result = await deleteBaseProperty(vault, basePath, config, column, paths, mode === "notes");
+        if (result.failed.length > 0) toast.error(t("database.bulkSetPartial", { done: result.written.length, failed: result.failed.length }));
+      } catch (e) {
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+        return;
+      }
       onReload();
       onClose();
     })();

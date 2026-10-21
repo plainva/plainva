@@ -1,6 +1,5 @@
 import {
-  parseMarkdownAst,
-  extractFrontmatter,
+  readFrontmatterPath,
   upsertFrontmatterKeys,
   deleteFrontmatterPath,
   noteLinkResolver,
@@ -40,8 +39,7 @@ function linkBaseOf(value: unknown): string | null {
   return base || null;
 }
 
-function currentValues(props: Record<string, unknown>, key: string): unknown[] {
-  const value = props[key];
+function currentValues(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
   if (value == null || value === "") return [];
   return [value];
@@ -59,10 +57,14 @@ export async function removeRelationLinksToNoteShared(
     return base != null && linkedNote(notePath, base) === targetNotePath;
   };
 
+  // What the note holds is read with the reader of the writers below (finding
+  // 2026-10-12). The reader of the index stood here: its schema rejects a
+  // proper YAML map with a value it does not take — an empty `tags:` —, such
+  // a note came back as holding no property at all, and a link to a note that
+  // was being deleted stayed in it without a word.
   const cleaned = (content: string): { removed: number; next: string | null } => {
-    const fm = extractFrontmatter(parseMarkdownAst(content));
-    const props: Record<string, unknown> = fm.success && fm.data ? (fm.data as Record<string, unknown>) : {};
-    const values = propertyKey in props ? currentValues(props, propertyKey) : [];
+    const stored = readFrontmatterPath(content, [propertyKey]);
+    const values = currentValues(stored);
     const kept = values.filter((v) => !resolvesToTarget(v));
     const removed = values.length - kept.length;
     if (removed === 0) return { removed, next: null };
@@ -71,7 +73,7 @@ export async function removeRelationLinksToNoteShared(
       next: kept.length === 0
         ? deleteFrontmatterPath(content, [propertyKey])
         : upsertFrontmatterKeys(content, {
-            [propertyKey]: Array.isArray(props[propertyKey]) ? kept : kept[0],
+            [propertyKey]: Array.isArray(stored) ? kept : kept[0],
           }),
     };
   };

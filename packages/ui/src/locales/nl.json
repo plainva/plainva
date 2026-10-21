@@ -1009,6 +1009,7 @@
     "configure": "Configureren",
     "iconColor": "Icoonkleur van de database",
     "confirmRenameProperty": "Eigenschap \"{{old}}\" wordt in {{count}} bestanden hernoemd naar \"{{new}}\". Doorgaan?",
+    "renamePropertyRefused": "“{{old}}” is niet hernoemd en er is niets gewijzigd. Notities die de nieuwe naam niet kunnen krijgen: {{count}} ({{notes}}). {{reason}}",
     "renamingProperty": "Eigenschap wordt hernoemd…",
     "deletingProperty": "Eigenschap wordt verwijderd…",
     "deletingProgress": "\"{{column}}\" · {{done}} van {{total}} bestanden",
@@ -2715,7 +2716,6 @@
     "openDb": "Als database openen",
     "dbEmpty": "Nog geen items",
     "setStatus": "Status wijzigen",
-    "statusUpdateFailed": "Kon de status niet wijzigen.",
     "dbDoneKey": "klaar",
     "repeat": "Herhaling",
     "rowActions": "Taakacties",
@@ -4828,7 +4828,8 @@
     "driveFolder": "De provider heeft een ongeldige mapidentificatie teruggestuurd. De bewerking is gestopt.",
     "htmlDepth": "Deze HTML is te diep genest. Vereenvoudig de structuur of importeer een Markdown-export.",
     "propertiesBlock": "Het blok bovenaan de notitie kan niet als eigenschappen worden gelezen. Corrigeer het in de tekst van de notitie en probeer het opnieuw.",
-    "propertyValue": "De eigenschap \"{{key}}\" bevat een waarde die niet kan worden gelezen. Corrigeer die in de tekst van de notitie en probeer het opnieuw."
+    "propertyValue": "De eigenschap \"{{key}}\" bevat een waarde die niet kan worden gelezen. Corrigeer die in de tekst van de notitie en probeer het opnieuw.",
+    "propertyNameTaken": "De notitie heeft al een eigenschap met de nieuwe naam."
   },
   "audio": {
     "play": "{{name}} afspelen",

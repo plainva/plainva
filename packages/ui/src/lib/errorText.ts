@@ -35,7 +35,8 @@ const INPUT_REJECTIONS = new Map([
 /**
  * A properties block the writers refuse (`FrontmatterSurgicalError` in
  * `@plainva/core`, `writableProperties` here): not parseable YAML, no YAML
- * map, or a map with a value the reader cannot take.
+ * map, a map with a value the reader cannot take — or, for a rename, a note
+ * that already carries a property of the new name.
  *
  * Said in the user's language, and WITHOUT what follows the first sentence of
  * the YAML parser's message: that quotes the line it stumbled over — the
@@ -46,6 +47,12 @@ const INPUT_REJECTIONS = new Map([
 const UNREADABLE_PROPERTIES_BLOCK = ["Frontmatter is not parseable YAML", "Frontmatter is not a YAML map"];
 /** How the refusal of ONE unreadable value begins; the property's name follows. */
 export const UNREADABLE_PROPERTY_VALUE = "Frontmatter value cannot be read: ";
+/**
+ * A rename onto a key the note already carries (`renameFrontmatterKey`): the
+ * message begins and ends like this, with the two names between. They are not
+ * repeated — whoever shows the sentence has just typed them.
+ */
+const PROPERTY_NAME_TAKEN = ["Cannot rename '", "': target key already exists"] as const;
 
 function propertiesErrorText(message: string): string | null {
   const said = (key: string, fallback: string, values?: Record<string, string>) => {
@@ -54,6 +61,9 @@ function propertiesErrorText(message: string): string | null {
   };
   if (message.startsWith(UNREADABLE_PROPERTY_VALUE)) {
     return said("propertyValue", message, { key: message.slice(UNREADABLE_PROPERTY_VALUE.length) });
+  }
+  if (message.startsWith(PROPERTY_NAME_TAKEN[0]) && message.endsWith(PROPERTY_NAME_TAKEN[1])) {
+    return said("propertyNameTaken", "The note already has a property with the new name.");
   }
   // Without a translation it is still only the beginning: never the quote.
   const block = UNREADABLE_PROPERTIES_BLOCK.find((start) => message.startsWith(start));

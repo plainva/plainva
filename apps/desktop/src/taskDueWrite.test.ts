@@ -1,9 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { scanTasks } from "@plainva/core";
+import { beforeEach, describe, expect, it } from "vitest";
+import i18n from "@plainva/ui/i18n";
+import { scanTasks, VaultFileNotFoundError } from "@plainva/core";
 import {
-  applyTaskDueChanges, buildPlanner, formatPickedDay, overdueToDayChanges, plannerRowsFromDb, plannerRowsFromTasks, withDueDay,
+  applyTaskDueChanges, buildPlanner, formatPickedDay, overdueToDayChanges, plannerRowsFromDb, plannerRowsFromTasks, taskDueFailureText, withDueDay,
   type PlannerRow, type TaskDueChange, type TaskDueDeps,
 } from "@plainva/ui";
+
+beforeEach(async () => {
+  await i18n.changeLanguage("en");
+});
 
 /**
  * Moving a task's due day (plan Befunde 2026-10-06, W2/W3): a tap on a task's
@@ -22,7 +27,8 @@ function vault(files: Record<string, string>) {
   // What a shell hands in: its entry for a change of a note where it lies.
   const update = async (path: string, change: (text: string) => string | null) => {
     const before = store.get(path);
-    if (before === undefined) throw new Error(`missing ${path}`);
+    // What the vault's adapters throw for a file that is not there.
+    if (before === undefined) throw new VaultFileNotFoundError(path);
     const next = change(before);
     if (next !== null && next !== before) { writes.push(path); store.set(path, next); }
     return { before };
@@ -130,6 +136,85 @@ describe("applyTaskDueChanges", () => {
     ]);
     expect(outcome).toMatchObject({ moved: 1, skipped: 2 });
     expect(store.get("Tasks/Offer.md")).toBe(DB_NOTE);
+  });
+
+  it.each([
+    ["a YAML list", "---\n- a\n- list\n---\n# Offer\n", /cannot be read as properties/],
+    ["YAML that cannot be parsed", "---\ndue: [unclosed\n---\nSecret line of the note\n", /cannot be read as properties/],
+  ])("a database entry whose note refuses the date is failed, not skipped — and the reason is said: %s", async (_label, note, reason) => {
+    // "Not moved because they changed in the meantime" is the sentence for
+    // skipped tasks. A note that could not be written was counted among them
+    // (finding 2026-10-12).
+    const { deps, store, writes } = vault({ "Tasks/Offer.md": note });
+    const outcome = await applyTaskDueChanges(deps, [{ source: "database", path: "Tasks/Offer.md", day: "2026-10-06" }]);
+    expect(outcome).toMatchObject({ moved: 0, skipped: 0, undo: [] });
+    expect(outcome.failed.map((f) => f.path)).toEqual(["Tasks/Offer.md"]);
+    expect(writes).toEqual([]);
+    expect(store.get("Tasks/Offer.md")).toBe(note);
+    const said = taskDueFailureText(outcome)!;
+    expect(said).toMatch(/^Property could not be saved: /);
+    expect(said).toMatch(reason);
+    expect(said).not.toContain("unclosed");
+    expect(said).not.toContain("Secret");
+  });
+
+  it("a section moved at once says one count for the notes it could not write", async () => {
+    const refused = "---\n- a\n- list\n---\n# Offer\n";
+    const { deps, store } = vault({ "Tasks/Offer.md": refused, "Tasks/Report.md": DAY_NOTE, "Shopping.md": LIST });
+    // The checkbox note is read, and the vault refuses its write.
+    const failing: TaskDueDeps = {
+      ...deps,
+      updateNoteText: async (path, change) => {
+        change(store.get(path)!);
+        throw new Error("Operation not permitted (os error 1)");
+      },
+    };
+    const outcome = await applyTaskDueChanges(failing, [
+      { source: "database", path: "Tasks/Offer.md", day: "2026-10-06" },
+      { source: "database", path: "Tasks/Report.md", day: "2026-10-06" },
+      // Gone since it was listed: skipped, as it was — not failed.
+      { source: "database", path: "Tasks/Gone.md", day: "2026-10-06" },
+      line("Shopping.md", LIST, 0),
+      line("Shopping.md", LIST, 3),
+    ]);
+    expect(outcome).toMatchObject({ moved: 1, skipped: 1 });
+    // One entry per note, with how many of its tasks were to move.
+    expect(outcome.failed).toEqual([
+      { path: "Tasks/Offer.md", message: "Frontmatter is not a YAML map", tasks: 1 },
+      { path: "Shopping.md", message: "Operation not permitted (os error 1)", tasks: 2 },
+    ]);
+    expect(outcome.lines).toEqual([]);
+    expect(store.get("Shopping.md")).toBe(LIST);
+    // Tasks on both sides: one moved, three did not.
+    expect(taskDueFailureText(outcome)).toBe("1 changed, 3 failed.");
+  });
+
+  it("a note that is there and cannot be read is failed with its reason, not \"changed in the meantime\"", async () => {
+    // Another program holds the file: nothing was read, and nothing about the
+    // note changed. Only a note that is gone is skipped.
+    const held = "The process cannot access the file because it is being used by another process. (os error 32)";
+    const { deps } = vault({ "Tasks/Report.md": DAY_NOTE, "Shopping.md": LIST });
+    const holding: TaskDueDeps = {
+      ...deps,
+      writeDbNote: async () => { throw new Error(held); },
+      updateNoteText: async () => { throw new Error(held); },
+    };
+    const outcome = await applyTaskDueChanges(holding, [
+      { source: "database", path: "Tasks/Report.md", day: "2026-10-06" },
+      line("Shopping.md", LIST, 0),
+    ]);
+    expect(outcome).toMatchObject({ moved: 0, skipped: 0 });
+    expect(outcome.failed).toEqual([
+      { path: "Tasks/Report.md", message: held, tasks: 1 },
+      { path: "Shopping.md", message: held, tasks: 1 },
+    ]);
+  });
+
+  it("says nothing of failures where there are none", async () => {
+    const { deps } = vault({ "Tasks/Report.md": DAY_NOTE });
+    const outcome = await applyTaskDueChanges(deps, [{ source: "database", path: "Tasks/Report.md", day: "2026-10-06" }]);
+    expect(outcome.failed).toEqual([]);
+    expect(taskDueFailureText(outcome)).toBeNull();
   });
 
   it("writes nothing for a day that is not one, and nothing when the day is already there", async () => {

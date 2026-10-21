@@ -216,6 +216,9 @@ export async function renameToName(opts: {
         renamedLinks += sweep.renamed;
         changedFiles += sweep.changedPaths.length;
         for (const p of sweep.changedPaths) if (!changedPaths.includes(p)) changedPaths.push(p);
+        // A template that could not be written still names the old file: the
+        // rename says that not every link could be updated (finding 2026-10-12).
+        if (sweep.failed.length > 0) linkUpdateFailed = true;
       } catch (e) {
         console.warn("[fileActions] templateFor sweep after .base rename failed", e);
         linkUpdateFailed = true;

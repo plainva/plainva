@@ -344,8 +344,8 @@ up to it was read as YAML.
    `writeNoteProperty` and of what it is built on, in both shells, with how
    its failure reaches the user. The callers of the surgical helpers (a
    note's icon and colour, a column renamed or removed across its notes, the
-   task and pinboard write paths) are not covered by it and have not all
-   been read for this.
+   task and pinboard write paths) were not covered by it then; point 11 is
+   about them.
 10. **A carriage return of its own ends a line** (added 2026-10-11). The
     definition knew `\n` and `\r\n`. The Markdown parser it follows also ends
     a line at a `\r` alone: the line end of a file from a classic Mac, a
@@ -378,6 +378,60 @@ up to it was read as YAML.
       file. A file's shape knows two line ends, so the editor reads a `\r`
       alone as a line break and writes `\n`: a file from a classic Mac does
       not keep the line ends it came with.
+11. **The callers of the surgical helpers say it too, and a rename across
+    notes asks first** (added 2026-10-21). Point 9 covered `writeNoteProperty`
+    and what it is built on. `setFrontmatterPath` and its siblings have more
+    callers, and those failed in three ways: into the console (a note's icon
+    and colour, a property renamed or removed across the notes of a
+    database), as an unhandled rejection (a reverse relation edited in its
+    cell), or with the bare message on screen — the parser's quote of the
+    note's line once more (the pinboard's colour and labels, the phone's task
+    list, a relation written from the graph). All of them use the sentence of
+    point 9 now, and a loop its count. `silentPropertyWrites.test.ts` lists
+    every call of the four helpers, and of every function that hands their
+    failure on, by the stretch of code it stands in — down to where the
+    failure is said, counted, or left quiet for a written reason (a new note
+    the app builds itself, the provider sync, a tick redeemed from the
+    home-screen widget).
+    - **A rename asks first; a removal does not.** A property is renamed in
+      the database before its notes, and it has to be: the notes are written
+      one after the other. A note that cannot follow — its block is no YAML
+      map, or it already carries a property of the new name — was left with
+      the old key under a column that no longer existed; where it carried the
+      new name already, the column went on to show that other value for it. A
+      rename is a move, and half a move is a state nobody asked for. So every
+      note is asked first, with the function that will rename it
+      (`renamePropertyAcrossNotes`), and where one refuses nothing starts: not
+      the question, not the database, not a note. The message names the
+      notes. A note that cannot be READ at that moment does not refuse — it
+      is gone or held by something else, which correcting the note does not
+      settle — and the run counts it if it still cannot be read then; so does
+      it count a write that fails, which no check can rule out. Removing a
+      property is not asked first: what stays behind in a note that could not
+      be written is a key the database no longer shows — the state asked for,
+      less tidy — and refusing to drop a column over it would help nobody.
+    - **Which notes, and what waits for the database.** A rename and a
+      removal go through the notes of the database's sources that carry the
+      property, as the index lists them (`notesCarryingProperty`, both
+      shells) — not the rows of the view on screen, whose filters may hide
+      notes that would be left behind, and not a note that holds no such
+      property, which would stop a rename it has nothing to do with. A
+      computed column (the links back of a relation, a rollup) goes through
+      no note, and a note that carries the property in another casing is
+      changed in its own spelling, as a single write is. What
+      follows the database's own save — its notes, the other database of a
+      relation — waits for that save to land; a save that does not land puts
+      the view back on the database it showed, and a change that other files
+      follow is not kept for a database file that has moved.
+    - **Point 8 again, for relations.** `addRelationLink` and the relation
+      cleanup behind a deletion took the links a note holds from the index's
+      reader and then set the whole list. For a note that reader does not take
+      (the empty `tags:` of point 8) the list read as empty: ONE added link
+      replaced the links the note carried (measured), and a link to a deleted
+      note stayed without a word. They read the list from the note now, with
+      the reader of the writer that sets it (`readFrontmatterPath`) — as the
+      graph's relation writers have done since a change of a note goes
+      through the chain's one entry (ADR 0031).
 
 ## Addendum 2026-10-09 (the write rule for new files, on the phone too)
 

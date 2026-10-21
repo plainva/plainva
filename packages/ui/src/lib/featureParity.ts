@@ -311,6 +311,42 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-20",
   },
   {
+    id: "base-date-type-converts-values",
+    title: "Switching a date column between \"Date only\" and \"Date & time\" converts the stored values",
+    area: "database",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "On the desktop the view settings of a calendar or timeline carry a Format for the " +
+      "date field; switching it rewrites the value in every shown note — a day gets 12:00, " +
+      "a time is dropped after a question — so the notes and the column's type keep agreeing. " +
+      "The phone sets a column's type in its property sheet (Date, Date & time) and leaves " +
+      "the notes as they are, without a question: the values are then read by the new type. " +
+      "The loop is the shared rewriteNoteProperties, so nothing of the platform stands in the " +
+      "way. Read against the code on 2026-10-21 while the surgical property writers learned " +
+      "to say a failed write; put off that day, listed in the maintainer's open-items plan.",
+    verified: "2026-10-21",
+  },
+  {
+    id: "base-fill-missing-property",
+    title: "Writing a property (empty) into the notes of a database that lack it",
+    area: "database",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop's column editor offers to add a property to the shown notes that do " +
+      "not carry it, and a view that needs a column it has to create (a date for a " +
+      "calendar, a selection for a board) writes it into the notes the same way. The " +
+      "phone's property sheet has no such row and its view switch creates no column: a " +
+      "property reaches a note there when a cell is filled in. The loop is the shared " +
+      "rewriteNoteProperties. Read against the code on 2026-10-21 while the surgical " +
+      "property writers learned to say a failed write; put off that day, listed in the " +
+      "maintainer's open-items plan.",
+    verified: "2026-10-21",
+  },
+  {
     id: "base-peek-depth",
     title: "Peek preview of a database entry",
     area: "database",
@@ -323,6 +359,42 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "opens a bottom sheet with the row's fields and prev/next. Rendering a full " +
       "editor inside a sheet would nest two scroll surfaces on a small screen.",
     verified: "2026-08-19",
+  },
+  {
+    id: "base-reverse-relation-edit",
+    title: "Adding or removing a link in the cell of a reverse relation",
+    area: "database",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "Both shells show a computed reverse column — the notes whose relation points at " +
+      "this row. On the desktop its cell is an editor: adding a link writes the owning " +
+      "property of the other note, removing one takes it out there. On the phone a tap on " +
+      "such a cell opens the first linked note, and the relation is changed from the " +
+      "owning side only. The writers are the desktop's services/relations.ts and the " +
+      "shared relationCleanup; the phone's cell sheet has no editor that calls them. Read " +
+      "against the code on 2026-10-21 while the desktop's cell learned to say a note that " +
+      "refuses the link; put off that day, listed in the maintainer's open-items plan.",
+    verified: "2026-10-21",
+  },
+  {
+    id: "base-template-assignment",
+    title: "Assigning a template to the databases it belongs to",
+    area: "database",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Both shells let a database name one default template for its new entries. The " +
+      "desktop also assigns templates to databases (plainva.templateFor): the \"Entry\" " +
+      "menu lists the templates of this database first and toggles the assignment, and a " +
+      "template has a dialog for its target databases. The phone creates an entry from " +
+      "the default template or from the folder and type rules, offers no choice among " +
+      "templates there and neither reads nor writes the assignment. Read against the code " +
+      "on 2026-10-21 while the desktop's two assignment surfaces learned to say a template " +
+      "that refuses it; put off that day, listed in the maintainer's open-items plan.",
+    verified: "2026-10-21",
   },
   {
     id: "board-card-color-entry",

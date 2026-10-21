@@ -1,6 +1,6 @@
 # Database (.base)
 
-Ultimo aggiornamento: 2026-10-06
+Ultimo aggiornamento: 2026-10-21
 
 Con i file `.base` trasformi le note in database: tabelle, bacheche, calendari — con filtri, proprietà tipizzate e relazioni tra database. Il concetto ricorda i database di Notion, con una differenza decisiva: **i dati non vivono nel database, vivono nelle tue note.**
 
@@ -60,12 +60,12 @@ Sul telefono, **Configura** apre le stesse aree come un elenco; toccarne una apr
 
 Cliccare sull'intestazione di una colonna apre l'editor delle proprietà (**Proprietà: X**):
 
-- **Nome** — rinominare influisce sulle note: al salvataggio, la proprietà viene rinominata nel frontmatter di ogni nota corrispondente (con conferma e un indicatore di avanzamento).
+- **Nome** — rinominare influisce sulle note: al salvataggio, la proprietà viene rinominata nel frontmatter di ogni nota corrispondente (con conferma e un indicatore di avanzamento). Plainva interroga prima ogni nota: se una non può ricevere il nuovo nome — ha già una proprietà con quel nome, oppure il blocco all'inizio non può essere letto come proprietà — non viene rinominato nulla e un messaggio indica quelle note.
 - **Tipo di campo** — Testo, Numero, Valutazione, Casella di controllo, Data, Data e ora, Elenco, Tag, Selezione, Stato, Selezione multipla, URL, Email, Telefono, Relazione (lo stesso menu di tipi raggruppato del pannello **Proprietà** delle note).
   Una **Valutazione** è un numero disegnato come punti (cinque, se la colonna non dice altro). Il file conserva `umore: 4`, un semplice numero che leggono anche Obsidian e qualsiasi foglio di calcolo; si ordina e si filtra come un numero. Premi il punto che deve contare; premere il valore attuale lo cancella.
 - **Giorno dal nome del file** (`file.day`) — calendari e linee del tempo possono collocare le note giornaliere in base al loro **nome di file**, senza che la data stia anche nel frontmatter. Il campo compare nel selettore del campo data non appena il vault dà un nome alle note giornaliere (cartella e formato sotto **Impostazioni → Il tuo vault → Contenuto e struttura**); viene calcolato dal nome, non sta in nessuna nota e non si può modificare, quindi una scheda collocata così non si può nemmeno trascinare su un altro giorno (rinominerebbe il file). Obsidian non conosce questo campo: una vista che lo usa lì resta vuota.
 - **Opzioni** (per Selezione/Stato/Selezione multipla) — valori fissi con un **Colore** e, per **Stato**, un **Gruppo**/fase (ad es. da fare → in corso → completato); riordina trascinando. Quando apri l'editor della colonna, l'elenco delle opzioni è già precompilato con i valori usati nel database, così puoi assegnare un colore a ciascuno senza doverlo ridigitare.
-- **Elimina proprietà** — rimuove colonna, schema, filtri e regole di ordinamento dal database. La casella **Rimuovila anche dal frontmatter delle note** (attiva per impostazione predefinita) pulisce anche le note sorgente.
+- **Elimina proprietà** — rimuove colonna, schema, filtri e regole di ordinamento dal database. La casella **Rimuovila anche dal frontmatter delle note** (attiva per impostazione predefinita) pulisce anche le note sorgente. Una nota che non può essere modificata conserva la proprietà; un messaggio conta le note modificate e quelle non riuscite.
 
 Note comportamentali:
 

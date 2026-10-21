@@ -303,13 +303,30 @@ const saveSource = declared(viewer, "saveConfig");
 if (!saveSource || !ts.isArrowFunction(saveSource)) throw new Error("the database view's config save moved — re-point this harness");
 const saveCode = `const saveConfig = ${saveSource.getText(viewer)};`;
 /** The view's save of a configuration, with what it names there; the configuration is handed over as its text. */
-function saveConfig(text: string): Promise<void> {
-  return run<(config: unknown) => Promise<void>>(saveCode, "saveConfig", {
-    vaultAdapter, activePath: BASE, embedded: false, indexer: null, queryService: null, activeViewIndex: 0,
+function saveConfig(text: string, scope: Record<string, unknown> = {}, options?: { park?: boolean }): Promise<boolean> {
+  return run<(config: unknown, options?: { park?: boolean }) => Promise<boolean>>(saveCode, "saveConfig", {
+    vaultAdapter, activePath: BASE, embedded: false, indexer: null, queryService: null, activeViewIndex: 0, dbConfig: null, content: "",
     serializeBaseConfig: (config: string) => config, setContent: () => {}, setDbConfig: () => {}, setPendingConfig: () => {}, setDbData: () => {},
     assertFileStillThere: async () => {}, isFileNotFound: () => false, lookForFile: () => {}, applyIndexChanges: async () => {}, rememberFile: () => {},
-    queryForActiveView: async () => [], ...surface,
-  })(text);
+    queryForActiveView: async () => [], ...surface, ...scope,
+  })(text, options);
+}
+
+/** What a view shows, held the way React holds it: a value, or an update of the one before. */
+function viewState(config: string, text: string) {
+  const state = { config, text, pending: null as string | null, lookedFor: 0 };
+  const apply = <T>(was: T, next: T | ((was: T) => T)) => (typeof next === "function" ? (next as (was: T) => T)(was) : next);
+  return {
+    state,
+    scope: {
+      dbConfig: config,
+      content: text,
+      setDbConfig: (next: string | ((was: string) => string)) => { state.config = apply(state.config, next); },
+      setContent: (next: string | ((was: string) => string)) => { state.text = apply(state.text, next); },
+      setPendingConfig: (next: string | null) => { state.pending = next; },
+      lookForFile: () => { state.lookedFor += 1; },
+    },
+  };
 }
 
 describe("a database with an open conflict: its view's save does not go in place of the user's own version", () => {
@@ -323,7 +340,37 @@ describe("a database with an open conflict: its view's save does not go in place
     // It used to be written in place of the working copy: "My table" was gone.
     expect(await raw.readTextFile(copy)).toBe(baseText("My table"));
     expect(await raw.readTextFile(BASE)).toBe(baseText("Their table"));
-    expect(shown).toEqual(["console: Failed to save database config The file has an open conflict; nothing was written. Resolve the conflict first"]);
+    // Said, not only logged (finding 2026-10-12): the view went on as if the database had been saved.
+    expect(shown).toEqual(["console: Failed to save database config The file has an open conflict; nothing was written. Resolve the conflict first", "error: editor.saveFailed"]);
+  });
+
+  it("a save that is refused puts the view back on the database it showed", async () => {
+    // The view showed the new configuration before the write and kept it when
+    // the write was refused: a renamed column stood there, under which no note
+    // carried a value, and the next save of any setting wrote it (finding
+    // 2026-10-21) — half a rename after all.
+    await openVault({ [BASE]: baseText("Table") });
+    await landedFromOutside(BASE, baseText("Their table"));
+    await vaultAdapter.writeEditorText(BASE, baseText("My table"), baseText("Table"));
+    const view = viewState("the database as shown", baseText("Their table"));
+    expect(await saveConfig(baseText("Their table, renamed"), view.scope)).toBe(false);
+    expect(view.state.config).toBe("the database as shown");
+    expect(view.state.text).toBe(baseText("Their table"));
+    expect(view.state.pending).toBeNull();
+  });
+
+  it("a change other files follow is not kept for a database that has moved", async () => {
+    // A setting of the view waits for the file and goes with it once it is
+    // found; a rename does not, since its notes would not wait with it.
+    await openVault({ [BASE]: baseText("Table") });
+    const gone = { assertFileStillThere: async () => { throw Object.assign(new Error("gone"), { code: "FILE_NOT_FOUND" }); }, isFileNotFound: (e: unknown) => (e as { code?: string }).code === "FILE_NOT_FOUND" };
+    const setting = viewState("as shown", baseText("Table"));
+    expect(await saveConfig(baseText("Table, sorted"), { ...setting.scope, ...gone })).toBe(false);
+    expect(setting.state).toMatchObject({ config: baseText("Table, sorted"), pending: baseText("Table, sorted"), lookedFor: 1 });
+    const rename = viewState("as shown", baseText("Table"));
+    expect(await saveConfig(baseText("Table, renamed"), { ...rename.scope, ...gone }, { park: false })).toBe(false);
+    expect(rename.state).toMatchObject({ config: "as shown", text: baseText("Table"), pending: null, lookedFor: 1 });
+    expect(await raw.readTextFile(BASE)).toBe(baseText("Table"));
   });
 
   it("a working copy that such a save left there itself takes the next one", async () => {

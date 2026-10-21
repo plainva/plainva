@@ -435,19 +435,30 @@ export function BaseScreen({
   /**
    * Writes the config of this database — never to a place its file has left
    * (issue 110, E9): the change then waits and goes with the file once found.
+   * Answers whether it was written; `shown` is the config the screen showed
+   * before `next`.
    */
-  const persistConfig = useStableHandler(async (next: any): Promise<void> => {
+  const persistConfig = useStableHandler(async (next: any, shown?: any): Promise<boolean> => {
     try {
       await saveBaseConfig(vault, path, next);
       setPendingConfig(null);
       rememberFile();
+      return true;
     } catch (e) {
       if (isFileNotFound(e)) {
         setPendingConfig(next);
         lookForFile();
-        return;
+        return false;
       }
-      toast.warning(t("mobile.saveRetry"));
+      // The database was not written, and nothing writes it again (finding
+      // 2026-10-09): "retrying in the background" is the editor's sentence,
+      // whose saver does retry. The screen goes back to the database it
+      // showed, unless something else changed it since — as the desktop
+      // does (finding 2026-10-21): it went on showing a config no file held,
+      // and the next change made here wrote it along.
+      if (shown !== undefined) setLoaded((now) => (now && now.config === next ? { ...now, config: shown } : now));
+      toast.error(t("editor.saveFailed"));
+      return false;
     }
   });
   /** "Save here again": the reader brings the database back where it was, with the waiting change. */
@@ -474,7 +485,7 @@ export function BaseScreen({
     const next = JSON.parse(JSON.stringify(loaded.config));
     mutate(next);
     setLoaded({ ...loaded, config: next });
-    void persistConfig(next);
+    void persistConfig(next, loaded.config);
   };
 
   /**
@@ -512,12 +523,15 @@ export function BaseScreen({
       await vaultOps.createFolder(vault, folder);
     } catch {
       if (!(await vault.files.exists(folder).catch(() => false))) {
-        toast.error(t("mobile.saveRetry"));
+        // The folder was not created and nothing tries again: the desktop's
+        // sentence for it, not the editor's "retrying" (finding 2026-10-09).
+        toast.error(t("database.createFolderFailed"));
         return null;
       }
     }
     setLoaded({ ...loaded, config: next });
-    await persistConfig(next);
+    // No entry for a database that was not saved — as on the desktop.
+    if (!(await persistConfig(next, loaded.config))) return null;
     return { config: next, folder };
   }, [loaded, path, vault, t, persistConfig]);
 
@@ -954,7 +968,7 @@ export function BaseScreen({
         else v[k] = val;
       }
       setLoaded({ config: next, stem: loaded.stem });
-      void persistConfig(next);
+      void persistConfig(next, config);
     },
     [config, loaded, viewIndex, persistConfig],
   );
@@ -2498,7 +2512,6 @@ export function BaseScreen({
           onReload={() => {
             void loadBase(vault, path).then(setLoaded);
           }}
-          rowPaths={(rows ?? []).map((r) => rowPath(r)).filter(Boolean)}
           rows={rows ?? []}
           vault={vault}
         />

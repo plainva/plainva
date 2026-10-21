@@ -1013,6 +1013,7 @@
     "configure": "Configura",
     "iconColor": "Colore dell'icona del database",
     "confirmRenameProperty": "La proprietà \"{{old}}\" verrà rinominata in \"{{new}}\" in {{count}} file. Continuare?",
+    "renamePropertyRefused": "“{{old}}” non è stata rinominata e nulla è stato modificato. Note che non possono ricevere il nuovo nome: {{count}} ({{notes}}). {{reason}}",
     "renamingProperty": "Rinomina della proprietà…",
     "deletingProperty": "Rimozione della proprietà…",
     "deletingProgress": "\"{{column}}\" · {{done}} di {{total}} file",
@@ -2737,7 +2738,6 @@
     "openDb": "Apri come database",
     "dbEmpty": "Ancora nessuna voce",
     "setStatus": "Cambia stato",
-    "statusUpdateFailed": "Impossibile cambiare lo stato.",
     "dbDoneKey": "fatto",
     "repeat": "Ripetizione",
     "rowActions": "Azioni dell'attività",
@@ -4889,7 +4889,8 @@
     "driveFolder": "Il provider ha restituito un identificatore di cartella non valido. L’operazione è stata interrotta.",
     "htmlDepth": "Questo HTML contiene troppi livelli di annidamento. Semplificalo o importa un’esportazione Markdown.",
     "propertiesBlock": "Il blocco all’inizio della nota non può essere letto come proprietà. Correggilo nel testo della nota e riprova.",
-    "propertyValue": "La proprietà \"{{key}}\" contiene un valore che non può essere letto. Correggilo nel testo della nota e riprova."
+    "propertyValue": "La proprietà \"{{key}}\" contiene un valore che non può essere letto. Correggilo nel testo della nota e riprova.",
+    "propertyNameTaken": "La nota ha già una proprietà con il nuovo nome."
   },
   "audio": {
     "play": "Riproduci {{name}}",

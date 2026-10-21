@@ -1,6 +1,6 @@
 # Bazy danych (.base)
 
-Stan na: 2026-10-06
+Stan na: 2026-10-21
 
 Dzięki plikom `.base` zamieniasz notatki w bazy danych: tabele, tablice, kalendarze — z filtrami, typowanymi właściwościami i relacjami między bazami danych. Koncepcja przypomina bazy danych Notion, z jedną decydującą różnicą: **dane nie znajdują się w bazie danych, lecz w Twoich notatkach.**
 
@@ -60,12 +60,12 @@ Na telefonie **Konfiguruj** otwiera te same obszary jako listę; dotknięcie jed
 
 Kliknięcie nagłówka kolumny otwiera edytor właściwości (**Właściwość: X**):
 
-- **Nazwa** — zmiana nazwy wpływa na notatki: po zapisaniu właściwość jest zmieniana we frontmatter każdej pasującej notatki (z potwierdzeniem i wskaźnikiem postępu).
+- **Nazwa** — zmiana nazwy wpływa na notatki: po zapisaniu właściwość jest zmieniana we frontmatter każdej pasującej notatki (z potwierdzeniem i wskaźnikiem postępu). Plainva najpierw sprawdza każdą notatkę: jeśli któraś nie może przyjąć nowej nazwy — ma już właściwość o tej nazwie albo bloku na jej początku nie da się odczytać jako właściwości — nic nie zostaje zmienione, a komunikat wskazuje te notatki.
 - **Typ pola** — Tekst, Liczba, Ocena, Pole wyboru, Data, Data i godzina, Lista, Tagi, Wybór, Status, Wielokrotny wybór, URL, E-mail, Telefon, Relacja (to samo pogrupowane menu typów co w panelu **Właściwości** notatek).
   **Ocena** to liczba rysowana jako kropki (pięć, jeśli kolumna nie mówi inaczej). W pliku stoi `nastroj: 4` — zwykła liczba, którą przeczyta też Obsidian i każdy arkusz; sortowanie i filtrowanie działają jak dla liczby. Naciskasz kropkę, która ma się liczyć; naciśnięcie bieżącej wartości ją kasuje.
 - **Dzień z nazwy pliku** (`file.day`) — kalendarze i osie czasu mogą umieszczać notatki dzienne według ich **nazwy pliku**, bez zapisywania daty także we frontmatterze. Pole pojawia się w wyborze pola daty, gdy tylko sejf nazywa notatki dzienne (folder i format w **Ustawienia → Twój sejf → Treść i struktura**); jest wyliczane z nazwy, nie stoi w żadnej notatce i nie da się go edytować — karty umieszczonej w ten sposób nie przeciągniesz też na inny dzień (to zmieniłoby nazwę pliku). Obsidian nie zna tego pola: widok, który go używa, pozostaje tam pusty.
 - **Opcje** (dla Wybór/Status/Wielokrotny wybór) — stałe wartości z **kolorem** i, dla **Status**, **grupą**/etapem (np. do zrobienia → w toku → gotowe); zmiana kolejności przez przeciąganie. Po otwarciu edytora kolumny lista opcji jest już wypełniona wartościami używanymi w bazie danych, dzięki czemu możesz nadać każdej z nich kolor bez konieczności wpisywania jej od nowa.
-- **Usuń właściwość** — usuwa kolumnę, schemat, filtry i reguły sortowania z bazy danych. Checkbox **Usuń również z frontmatter notatek** (domyślnie włączony) dodatkowo czyści notatki źródłowe.
+- **Usuń właściwość** — usuwa kolumnę, schemat, filtry i reguły sortowania z bazy danych. Checkbox **Usuń również z frontmatter notatek** (domyślnie włączony) dodatkowo czyści notatki źródłowe. Notatka, której nie da się zmienić, zachowuje właściwość; jeden komunikat podaje liczbę notatek zmienionych i tych, których nie udało się zmienić.
 
 Uwagi dotyczące zachowania:
 

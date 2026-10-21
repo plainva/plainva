@@ -1,4 +1,7 @@
 import { deleteFrontmatterPath, readFrontmatterPath, readTasksMetadata, resolveTaskOrdinal, setChecklistTaskDue, setFrontmatterPath, setTasksField, type TextChange } from "@plainva/core";
+import i18n from "i18next";
+import { errorText } from "./errorText";
+import { isFileNotFound } from "./movedNote";
 import { isOpenState, type PlannerRow } from "./taskPlanner";
 
 /**
@@ -48,8 +51,16 @@ export interface TaskDueDeps {
 export interface TaskDueOutcome {
   /** How many tasks now carry their new day. */
   moved: number;
-  /** Tasks that were left alone: gone or changed since they were listed, or unreadable. */
+  /** Tasks that were left alone: gone or changed since they were listed. */
   skipped: number;
+  /**
+   * Notes that are there and could not be read or written, with the reason
+   * and how many of their tasks were to move: a properties block the writer
+   * refuses, a file another program holds, an error of the vault. They used to
+   * be counted as skipped, and the shells said of them that they had "changed
+   * in the meantime" (finding 2026-10-12). One entry per note.
+   */
+  failed: Array<{ path: string; message: string; tasks: number }>;
   /** The same changes pointing back at the day each task had — hand it to `applyTaskDueChanges` to undo. */
   undo: TaskDueChange[];
   /** Notes with checkboxes that were rewritten, for the shell's index update. */
@@ -81,7 +92,8 @@ function storedDay(raw: unknown): string | null {
  * move; a task that cannot be found any more is counted, not guessed at.
  */
 export async function applyTaskDueChanges(deps: TaskDueDeps, changes: readonly TaskDueChange[]): Promise<TaskDueOutcome> {
-  const out: TaskDueOutcome = { moved: 0, skipped: 0, undo: [], notePaths: [], lines: [] };
+  const out: TaskDueOutcome = { moved: 0, skipped: 0, failed: [], undo: [], notePaths: [], lines: [] };
+  const reasonOf = (e: unknown): string => (e instanceof Error ? e.message : String(e));
   const byNote = new Map<string, Array<Extract<TaskDueChange, { source: "note" }>>>();
 
   for (const change of changes) {
@@ -119,8 +131,11 @@ export async function applyTaskDueChanges(deps: TaskDueDeps, changes: readonly T
       // there but was not a date cannot be brought back, so nothing is offered.
       if (seen.previous) out.undo.push({ source: "database", path: change.path, day: seen.previous });
       else if (seen.empty) out.undo.push({ source: "database", path: change.path, day: null });
-    } catch {
-      out.skipped += 1;
+    } catch (e) {
+      // A note that is gone since it was listed is left alone; one that is
+      // there and could not be read or written failed, with its reason.
+      if (isFileNotFound(e)) out.skipped += 1;
+      else out.failed.push({ path: change.path, message: reasonOf(e), tasks: 1 });
     }
   }
 
@@ -159,11 +174,30 @@ export async function applyTaskDueChanges(deps: TaskDueDeps, changes: readonly T
         out.lines.push(...lines);
       }
       out.skipped += skipped;
-    } catch {
-      out.skipped += list.length;
+    } catch (e) {
+      if (isFileNotFound(e)) out.skipped += list.length;
+      else out.failed.push({ path, message: reasonOf(e), tasks: list.length });
     }
   }
   return out;
+}
+
+/**
+ * What to say of the notes a move could not write, or null when there is none:
+ * the sentence a property write gets, with its reason, where one note failed
+ * and nothing else happened — and one count where a section was moved. Both
+ * shells say this; "not moved because they changed in the meantime"
+ * (`tasks.dueSkipped`) is the sentence for `skipped`, and it was said of
+ * these too.
+ */
+export function taskDueFailureText(outcome: TaskDueOutcome): string | null {
+  if (outcome.failed.length === 0) return null;
+  if (outcome.failed.length === 1 && outcome.moved === 0 && outcome.skipped === 0) {
+    return i18n.t("mobile.propertyWriteFailed", { message: errorText(outcome.failed[0].message) });
+  }
+  // Tasks on both sides: `moved` counts tasks, and so does this.
+  const failed = outcome.failed.reduce((sum, note) => sum + note.tasks, 0);
+  return i18n.t("database.bulkSetPartial", { done: outcome.moved, failed });
 }
 
 /**

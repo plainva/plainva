@@ -417,24 +417,40 @@ export function TasksScreen({
     return [...seen];
   }, [tasks]);
 
-  /** One note in or out of the task list. The marker lives in the note. */
+  /**
+   * One note in or out of the task list. The marker lives in the note. Throws
+   * what the write throws; the two gestures below say it — one note in the
+   * sentence a property write gets, the templates in one count. The single
+   * note used to show the bare message (for a block that is no YAML, the
+   * parser's quote of the note's line), the templates nothing at all (finding
+   * 2026-10-12).
+   */
+  const writeNoteExcluded = async (path: string, excluded: boolean) => {
+    await vaultOps.update(vault, path, (raw) => setNoteTaskExclusion(raw, excluded, { setFrontmatterPath, deleteFrontmatterPath }));
+  };
+
   const setNoteExcluded = async (path: string, excluded: boolean) => {
     try {
-      await vaultOps.update(vault, path, (raw) => setNoteTaskExclusion(raw, excluded, { setFrontmatterPath, deleteFrontmatterPath }));
+      await writeNoteExcluded(path, excluded);
       setTick((x) => x + 1);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
     }
   };
 
   const hideAllTemplates = async () => {
+    let hidden = 0;
+    let failed = 0;
     for (const path of templateNotePaths) {
       try {
-        await vaultOps.update(vault, path, (raw) => setNoteTaskExclusion(raw, true, { setFrontmatterPath, deleteFrontmatterPath }));
+        await writeNoteExcluded(path, true);
+        hidden += 1;
       } catch {
-        /* one unreadable note must not stop the rest */
+        // One template that cannot be written must not stop the rest.
+        failed += 1;
       }
     }
+    if (failed > 0) toast.error(t("database.bulkSetPartial", { done: hidden, failed }));
     setTick((x) => x + 1);
   };
 
@@ -630,10 +646,15 @@ export function TasksScreen({
         if ((await vaultOps.update(vault, path, mutate)).changed) syncSoon();
         setTick((x) => x + 1);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        // A status, a priority, a repeat rule: each is one property of the
+        // task's note. The sentence a property write gets, with the reason as
+        // `errorText` reads it (finding 2026-10-12) — the bare message stood
+        // here, and for a block that is no YAML that is the parser's quote of
+        // the note's own line.
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
       }
     },
-    [vault]
+    [vault, t]
   );
 
   /**
@@ -761,7 +782,8 @@ export function TasksScreen({
           if (result.spawnedDue) toast.info(t("tasks.repeatSpawned", { date: result.spawnedDue }));
           if (result.spawnFailed) toast.error(t("tasks.repeatFailed"));
         })
-        .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
+        // The tick writes the note's completion property; see `writeDbNote`.
+        .catch((e) => toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) })));
     },
     [t]
   );

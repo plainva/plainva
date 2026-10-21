@@ -4,7 +4,7 @@ import { Check, Lightbulb, X } from "lucide-react";
 import type { GraphSuggestion } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { appendWikiLink, applyInlineLink, findFirstUnlinkedOccurrence } from "../../services/graphActions";
-import { buildOccurrenceSnippet, ICON, type OccurrenceSnippet } from "@plainva/ui";
+import { buildOccurrenceSnippet, ICON, toast, type OccurrenceSnippet } from "@plainva/ui";
 import { loadGraphCached } from "../../services/graphCache";
 import { getGraphState, suggestionKey } from "../../services/graphState";
 import { createGraphScene, type GraphEngineDeps, type GraphScene } from "@plainva/ui";
@@ -260,10 +260,13 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
         graphState?.dismissSuggestion(key);
         setDismissTick((n) => n + 1);
       } catch {
-        /* surfaced through the unchanged suggestion list */
+        // The suggestion stays in the list, and a message says the link was
+        // not written (finding 2026-10-12): an unchanged list alone told
+        // nobody, and the phone announced a retry that nothing makes.
+        toast.error(t("graph.cleanupActionFailed"));
       }
     },
-    [vaultAdapter, queryService, graphState, previews]
+    [vaultAdapter, queryService, graphState, previews, t]
   );
 
   const dismissSuggestion = useCallback(

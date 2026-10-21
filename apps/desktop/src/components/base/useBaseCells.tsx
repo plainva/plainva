@@ -310,27 +310,55 @@ export function useBaseCells({
 
       const rowLinkText = noteIndex ? noteIndex.targetFor(rowPath) : String(row["file.name"] ?? rowPath);
       const changedPaths = new Map<string, "added" | "removed">();
-      for (const [, rawValue] of added) {
+      // Every counterpart note is a write of its own. One that fails — a
+      // properties block the writer refuses, an error of the vault — is said,
+      // and the cell goes on showing what that note holds: the link it could
+      // not be given is not shown, the link it could not be relieved of stays.
+      // The writes stood in a `try … finally` without a catch (finding
+      // 2026-10-09): the first failure left the editor as an unhandled
+      // rejection, the notes behind it were never tried, nothing was said.
+      const notAdded = new Set<string>();
+      const notRemoved = new Set<string>();
+      let firstFailure: unknown = null;
+      for (const [key, rawValue] of added) {
         const target = parseWikiLinkValue(rawValue)?.target ?? rawValue.replace(/^\[\[/, "").replace(/\]\]$/, "");
-        const notePath = await queryService.resolveNotePath(target, rowPath);
-        if (!notePath || notePath === rowPath) continue;
-        await addRelationLink({ adapter: vaultAdapter, queryService, notePath, propertyKey: rev.property, targetNotePath: rowPath, limit: owningLimit });
-        changedPaths.set(notePath, "added");
+        try {
+          const notePath = await queryService.resolveNotePath(target, rowPath);
+          if (!notePath || notePath === rowPath) continue;
+          await addRelationLink({ adapter: vaultAdapter, queryService, notePath, propertyKey: rev.property, targetNotePath: rowPath, limit: owningLimit });
+          changedPaths.set(notePath, "added");
+        } catch (e) {
+          console.error("Failed to add a relation link", target, e);
+          notAdded.add(key);
+          firstFailure ??= e;
+        }
       }
-      for (const [, rawValue] of removed) {
+      for (const [key, rawValue] of removed) {
         const target = parseWikiLinkValue(rawValue)?.target ?? rawValue.replace(/^\[\[/, "").replace(/\]\]$/, "");
-        const notePath = await queryService.resolveNotePath(target, rowPath);
-        if (!notePath) continue;
-        await removeRelationLinksToNote({ adapter: vaultAdapter, queryService, notePath, propertyKey: rev.property, targetNotePath: rowPath });
-        changedPaths.set(notePath, "removed");
+        try {
+          const notePath = await queryService.resolveNotePath(target, rowPath);
+          if (!notePath) continue;
+          await removeRelationLinksToNote({ adapter: vaultAdapter, queryService, notePath, propertyKey: rev.property, targetNotePath: rowPath });
+          changedPaths.set(notePath, "removed");
+        } catch (e) {
+          console.error("Failed to remove a relation link", target, e);
+          notRemoved.add(key);
+          firstFailure ??= e;
+        }
       }
+      const failures = notAdded.size + notRemoved.size;
+      if (failures === 1) toast.error(t("mobile.propertyWriteFailed", { message: errorText(firstFailure) }));
+      else if (failures > 1) toast.error(t("database.bulkSetPartial", { done: changedPaths.size, failed: failures }));
+      const shown = failures === 0
+        ? nextArr
+        : [...nextArr.filter((v) => !notAdded.has(targetOf(v))), ...current.filter((v) => notRemoved.has(targetOf(v)))];
 
       // In-memory: the edited reverse cell plus visible counterpart rows'
       // owning property (self-relations show both sides in the same table).
       const rowKeys = new Set([String(row["file.name"] ?? "").toLowerCase(), rowPath.toLowerCase(), rowPath.toLowerCase().replace(/\.md$/, "")]);
       setDbData((prev) => prev.map((r) => {
         const p: string = r["file.path"];
-        if (p === rowPath) return { ...r, [col]: nextArr };
+        if (p === rowPath) return { ...r, [col]: shown };
         const change = changedPaths.get(p);
         if (!change) return r;
         if (change === "added") {
@@ -799,6 +827,7 @@ export function useBaseCells({
     renderEditableCell,
     handleCellSave,
     commitCellValue,
+    commitReverseCellValue,
     resolveTarget,
     /** Whether `resolveTarget` has its lookup — false while the index is loading. */
     linksReady: linkLookup !== null,

@@ -1009,6 +1009,7 @@
     "configure": "Konfigurieren",
     "iconColor": "Icon-Farbe der Datenbank",
     "confirmRenameProperty": "Die Eigenschaft \"{{old}}\" wird in {{count}} Dateien in \"{{new}}\" umbenannt. Fortfahren?",
+    "renamePropertyRefused": "„{{old}}“ wurde nicht umbenannt, nichts wurde geändert. Notizen, die den neuen Namen nicht annehmen können: {{count}} ({{notes}}). {{reason}}",
     "renamingProperty": "Eigenschaft wird umbenannt…",
     "deletingProperty": "Eigenschaft wird entfernt…",
     "deletingProgress": "\"{{column}}\" · {{done}} von {{total}} Dateien",
@@ -2715,7 +2716,6 @@
     "openDb": "Als Datenbank öffnen",
     "dbEmpty": "Noch keine Einträge",
     "setStatus": "Status ändern",
-    "statusUpdateFailed": "Status konnte nicht geändert werden.",
     "dbDoneKey": "erledigt",
     "repeat": "Wiederholung",
     "rowActions": "Aufgabenaktionen",
@@ -4828,7 +4828,8 @@
     "driveFolder": "Der Anbieter hat eine ungültige Ordnerkennung zurückgegeben. Der Vorgang wurde abgebrochen.",
     "htmlDepth": "Dieses HTML ist zu tief verschachtelt. Vereinfache es oder importiere einen Markdown-Export.",
     "propertiesBlock": "Der Block am Anfang der Notiz lässt sich nicht als Eigenschaften lesen. Korrigiere ihn im Text der Notiz und versuche es erneut.",
-    "propertyValue": "Die Eigenschaft „{{key}}“ enthält einen Wert, der sich nicht lesen lässt. Korrigiere ihn im Text der Notiz und versuche es erneut."
+    "propertyValue": "Die Eigenschaft „{{key}}“ enthält einen Wert, der sich nicht lesen lässt. Korrigiere ihn im Text der Notiz und versuche es erneut.",
+    "propertyNameTaken": "Die Notiz hat schon eine Eigenschaft mit dem neuen Namen."
   },
   "audio": {
     "play": "{{name}} abspielen",

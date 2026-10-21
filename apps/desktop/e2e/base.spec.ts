@@ -1815,6 +1815,43 @@ test('Base: renaming a property updates the config and the note frontmatter', as
   await expect(page.locator('table').getByText('active').first()).toBeVisible();
 });
 
+test('Base: renaming a property does not start where a note cannot take the new name', async ({ page }) => {
+  await page.goto('/');
+  // A block at the top of the note that is a YAML list: no key can be renamed
+  // in it. The index still lists the note with its status, so the rename
+  // would reach it — and used to leave it behind under a database already
+  // renamed, with the failure in the console (finding 2026-10-09).
+  const refused = '---\n- a\n- list\n---\n# Alpha\n';
+  await page.evaluate((text) => { (window as any).mockFs['/test-vault/Projekte/Alpha.md'] = text; }, refused);
+  const files = () => page.evaluate(() => ({
+    base: (window as any).mockFs['/test-vault/Cockpit.base'] as string,
+    alpha: (window as any).mockFs['/test-vault/Projekte/Alpha.md'] as string,
+    beta: (window as any).mockFs['/test-vault/Projekte/Beta.md'] as string,
+    gamma: (window as any).mockFs['/test-vault/Projekte/Gamma.md'] as string,
+  }));
+  const before = await files();
+  await openBase(page, 'Cockpit');
+  await expect(page.locator('table').getByText('Alpha')).toBeVisible();
+
+  await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'columns');
+  await page.locator('.base-config-panel').getByRole('button', { name: /Eigenschaft: status|Property: status/ }).click();
+  const dialog = page.getByRole('dialog', { name: /Eigenschaft: status|Property: status/ });
+  await dialog.getByRole('textbox', { name: 'Name' }).fill('zustand');
+  await dialog.getByRole('button', { name: /Speichern|Save/ }).click();
+
+  // One message says that nothing was renamed, and names the note that stands in the way.
+  const said = page.locator('.pv-toast--error', { hasText: /was not renamed|wurde nicht umbenannt/ });
+  await expect(said).toHaveCount(1);
+  await expect(said).toContainText('Alpha');
+  // Nothing was written: the database keeps the old name, and so do the notes
+  // that could have followed — byte for byte.
+  expect(await files()).toEqual(before);
+  expect(before.alpha).toBe(refused);
+  expect(before.base).toContain('note.status');
+  await expect(page.locator('table').getByText('zustand')).toHaveCount(0);
+});
+
 test('Wizard: a brand-new EMPTY folder is pickable via the browsable picker; tag sources keep their dropdown (P8/F4)', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('aside').getByText('Cockpit', { exact: true })).toBeVisible({ timeout: 10000 });

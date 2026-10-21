@@ -32,7 +32,7 @@ import { formatDueLabel } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
 import { buildPlanner, isOpenState, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
-import { applyTaskDueChanges, DateJumpPicker, DateJumpPopover, formatPickedDay, overdueToDayChanges, TaskCheckButton, useWeekStartDay, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
+import { applyTaskDueChanges, DateJumpPicker, DateJumpPopover, formatPickedDay, overdueToDayChanges, TaskCheckButton, taskDueFailureText, useWeekStartDay, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
 import { TimeBlockModal } from "../pimcal/TimeBlockModal";
 
 const inlineLinkStyle: React.CSSProperties = { color: "var(--accent-color)" };
@@ -745,8 +745,13 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       try {
         await writeTaskNote(taskWriteDeps(), path, mutate);
       } catch (e) {
+        // A status, a priority, a repeat rule: each is one property of the
+        // task's note, and each gets the sentence a property write gets, with
+        // its reason (finding 2026-10-12). All three said "Could not change
+        // the status" and no more — also where the reason was the answer, as
+        // for a task that repeats at its provider.
         console.error("[TasksView] updating a task note failed", path, e);
-        toast.error(t("tasks.statusUpdateFailed", { defaultValue: "Status konnte nicht geändert werden." }));
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
       }
     },
     [vaultAdapter, taskWriteDeps, t]
@@ -778,8 +783,9 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
             toast.error(t("tasks.repeatFailed", { defaultValue: "Die nächste Aufgabe konnte nicht angelegt werden." }));
           }
         } catch (e) {
+          // The tick writes the note's completion property; see `writeDbNote`.
           console.error("[TasksView] updating a task note failed", path, e);
-          toast.error(t("tasks.statusUpdateFailed", { defaultValue: "Status konnte nicht geändert werden." }));
+          toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
         }
       })();
     },
@@ -798,25 +804,52 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   // Writes/removes the `plainva.tasks: false` opt-out marker in the note's
   // frontmatter (through the adapter's atomic + backup chain), then optimistically
   // updates the local state; a metadata re-index re-derives it from disk.
-  const setNoteExcluded = useCallback(
+  //
+  // Throws what the write throws; the two gestures below say it — one note in
+  // the sentence a property write gets, the templates in one count. It ended
+  // in the console here, for both (finding 2026-10-12).
+  const writeNoteExcluded = useCallback(
     async (path: string, excluded: boolean) => {
       if (!vaultAdapter) return;
-      try {
-        // Shared with the phone (S31): unhiding deletes the key rather than
-        // writing `true`, so never-hidden and unhidden are byte-identical.
-        await updateVaultText(vaultAdapter, path, (raw) => setNoteTaskExclusion(raw, excluded, { setFrontmatterPath, deleteFrontmatterPath }));
-        setTasks((prev) => prev.map((t2) => (t2.path === path ? { ...t2, excluded } : t2)));
-      } catch (e) {
-        console.error("[TasksView] toggling note exclusion failed", path, e);
-        setRefreshTick((x) => x + 1);
-      }
+      // Shared with the phone (S31): unhiding deletes the key rather than
+      // writing `true`, so never-hidden and unhidden are byte-identical.
+      await updateVaultText(vaultAdapter, path, (raw) => setNoteTaskExclusion(raw, excluded, { setFrontmatterPath, deleteFrontmatterPath }));
+      setTasks((prev) => prev.map((t2) => (t2.path === path ? { ...t2, excluded } : t2)));
     },
     [vaultAdapter, setTasks]
   );
 
+  const setNoteExcluded = useCallback(
+    async (path: string, excluded: boolean) => {
+      try {
+        await writeNoteExcluded(path, excluded);
+      } catch (e) {
+        console.error("[TasksView] toggling note exclusion failed", path, e);
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+        setRefreshTick((x) => x + 1);
+      }
+    },
+    [writeNoteExcluded, t]
+  );
+
   const hideAllTemplates = useCallback(async () => {
-    for (const p of templateNotePaths) await setNoteExcluded(p, true);
-  }, [templateNotePaths, setNoteExcluded]);
+    let hidden = 0;
+    let failed = 0;
+    for (const p of templateNotePaths) {
+      try {
+        await writeNoteExcluded(p, true);
+        hidden += 1;
+      } catch (e) {
+        // One template that cannot be written must not stop the rest.
+        console.error("[TasksView] hiding a template failed", p, e);
+        failed += 1;
+      }
+    }
+    if (failed > 0) {
+      toast.error(t("database.bulkSetPartial", { done: hidden, failed }));
+      setRefreshTick((x) => x + 1);
+    }
+  }, [templateNotePaths, writeNoteExcluded, t]);
 
   const open = useCallback(
     (task: TaskRecord) => {
@@ -946,6 +979,10 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     const outcome = await applyDue(changes);
     if (!outcome) return;
     if (outcome.skipped > 0) toast.warning(t("tasks.dueSkipped", { count: outcome.skipped }));
+    // A note that could not be written is not one that "changed in the
+    // meantime" (finding 2026-10-12): one task says why, a section counts.
+    const failed = taskDueFailureText(outcome);
+    if (failed) toast.error(failed);
     if (outcome.moved === 0) return;
     const undo = outcome.undo;
     toast.success(announce(outcome), undo.length > 0 ? { label: t("common.undo"), run: () => void applyDue(undo) } : undefined);

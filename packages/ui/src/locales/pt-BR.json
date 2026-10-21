@@ -1013,6 +1013,7 @@
     "configure": "Configurar",
     "iconColor": "Cor do ícone do banco de dados",
     "confirmRenameProperty": "Renomear a propriedade \"{{old}}\" para \"{{new}}\" em {{count}} arquivos. Continuar?",
+    "renamePropertyRefused": "“{{old}}” não foi renomeada e nada foi alterado. Notas que não podem receber o novo nome: {{count}} ({{notes}}). {{reason}}",
     "renamingProperty": "Renomeando propriedade…",
     "deletingProperty": "Removendo propriedade…",
     "deletingProgress": "\"{{column}}\" · {{done}} de {{total}} arquivos",
@@ -2737,7 +2738,6 @@
     "openDb": "Abrir como banco de dados",
     "dbEmpty": "Nenhuma entrada ainda",
     "setStatus": "Alterar status",
-    "statusUpdateFailed": "Não foi possível alterar o status.",
     "dbDoneKey": "feito",
     "repeat": "Repetição",
     "rowActions": "Ações da tarefa",
@@ -4889,7 +4889,8 @@
     "driveFolder": "O provedor retornou um identificador de pasta inválido. A operação foi interrompida.",
     "htmlDepth": "Este HTML tem níveis de aninhamento demais. Simplifique-o ou importe uma exportação em Markdown.",
     "propertiesBlock": "O bloco no início da nota não pode ser lido como propriedades. Corrija-o no texto da nota e tente novamente.",
-    "propertyValue": "A propriedade \"{{key}}\" contém um valor que não pode ser lido. Corrija-o no texto da nota e tente novamente."
+    "propertyValue": "A propriedade \"{{key}}\" contém um valor que não pode ser lido. Corrija-o no texto da nota e tente novamente.",
+    "propertyNameTaken": "A nota já tem uma propriedade com o novo nome."
   },
   "audio": {
     "play": "Reproduzir {{name}}",

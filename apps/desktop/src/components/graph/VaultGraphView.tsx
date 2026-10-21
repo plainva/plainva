@@ -9,7 +9,7 @@ import { EmptyState, ICON, markFreshNote, MenuItem, MenuSurface } from "@plainva
 import { BasePeekModal } from "../BasePeekModal";
 import { appConfirm, appPrompt } from "../../services/appDialogs";
 import { requestCascadeDelete } from "../../services/cascadeDelete";
-import { toast } from "@plainva/ui";
+import { errorText, toast } from "@plainva/ui";
 import { renameFileWithLinkUpdates } from "../../services/renameNote";
 import { createConnectedNote, removeLinksTo } from "../../services/graphActions";
 import { loadGraphCached } from "../../services/graphCache";
@@ -509,8 +509,9 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
       try {
         const n = await removeRelationLink(vaultAdapter, queryService, source, target, propertyKey);
         if (n > 0) toast.success(t("graph.edgeRemoved", { defaultValue: "{{n}} Link(s) entfernt.", n }));
-      } catch {
-        toast.error(t("graph.cleanupActionFailed", { defaultValue: "Aktion fehlgeschlagen." }));
+      } catch (e) {
+        // A relation is a property of the source note; see `linkAsRelation`.
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
       }
     },
     [vaultAdapter, queryService, t, titleOf]

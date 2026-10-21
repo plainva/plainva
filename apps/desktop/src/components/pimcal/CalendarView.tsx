@@ -527,7 +527,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         } catch (e) {
           console.error("[CalendarView] toggling a task failed", task.path, e);
           setTasks((prev) => prev.map((x) => (x.path === task.path ? { ...x, done: task.done } : x)));
-          toast.error(t("tasks.statusUpdateFailed", { defaultValue: "Status konnte nicht geändert werden." }));
+          // The tick writes the note's completion property: the sentence of a
+          // property write, with its reason (finding 2026-10-12).
+          toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
         }
       })();
     },

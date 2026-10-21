@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next";
 import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Tags, Trash2 } from "lucide-react";
 import type { NoteCardData, VaultQueryService } from "@plainva/core";
-import { AudioEmbed, Button, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, searchableCellText, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, BaseSearchField, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, listTaskLines, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
+import { AudioEmbed, Button, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, searchableCellText, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, BaseSearchField, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, errorText, toast, toggleTaskAtIndex, listTaskLines, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath, updateVaultText } from "@plainva/core";
 import { ColorPopover } from "../ColorPopover";
 import type { BaseCells } from "./useBaseCells";
@@ -385,10 +385,14 @@ export function BasePinboardView({
     try {
       const update = await updateVaultText(vaultAdapter, path, (fresh) => withNoteColor(fresh, hex));
       if (update.changed) await afterCardWrite(path, true); // header tint mirrors into tree/tabs
-    } catch (e: any) {
-      toast.error(String(e?.message ?? e));
+    } catch (e) {
+      // The sentence every refused property write gets, with the reason as
+      // `errorText` reads it (finding 2026-10-12): the bare message of a block
+      // that is no YAML quotes the note's own line. The card is drawn from the
+      // note, so it keeps the colour the note has.
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
     }
-  }, [vaultAdapter, afterCardWrite]);
+  }, [vaultAdapter, afterCardWrite, t]);
 
   const presentSet = useMemo(() => new Set(paths), [paths]);
   const persistSections = useCallback((next: { order?: string[]; pinned?: string[] }) => {
@@ -452,10 +456,11 @@ export function BasePinboardView({
         setLabelEdit((s) => (s && s.path === path ? { ...s, fmTags: list } : s));
       }
       if (update.changed) await afterCardWrite(path, true); // tags/properties are index metadata
-    } catch (e: any) {
-      toast.error(String(e?.message ?? e));
+    } catch (e) {
+      // See `handleSetColor`: the one sentence, and the reason through `errorText`.
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
     }
-  }, [vaultAdapter, labelProp, afterCardWrite]);
+  }, [vaultAdapter, labelProp, afterCardWrite, t]);
 
   // ── Drag reorder (splice semantics, D3); disabled when a sort rule is set ──
   const canDrag = !hasSort && !embedded;

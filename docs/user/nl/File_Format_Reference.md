@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-10-09
+Laatst bijgewerkt: 2026-10-21
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -54,7 +54,7 @@ A **bold** thought that links to [[Another Note]].
 
 Een blok mag leeg zijn: `---` direct gevolgd door `---` is een blok zonder eigenschappen, niet twee scheidingslijnen — de tekst van de notitie begint op de regel erna. Plainva laat geen leeg blok achter: wordt de laatste eigenschap verwijderd, dan verdwijnen de twee `---`-regels mee. Ze blijven alleen staan als de tekst zelf met een `---`-regel begint, die anders als het begin van een blok zou worden gelezen.
 
-Een blok dat Plainva niet als eigenschappen kan lezen, blijft precies zoals het is: tekst tussen de twee `---`-regels die geen YAML is, YAML dat een lijst is in plaats van `sleutel: waarde`-regels, of een waarde in een vorm die de eigenschap niet aanneemt. Wijzig je bij zo'n notitie een eigenschap — onder **Eigenschappen** of in een database —, dan verandert er niets, en Plainva meldt dat: **Eigenschap kon niet worden opgeslagen**, gevolgd door de reden, die de eigenschap noemt wanneer één waarde de oorzaak is. Corrigeer het blok in de tekst van de notitie, dan lukt de wijziging.
+Een blok dat Plainva niet als eigenschappen kan lezen, blijft precies zoals het is: tekst tussen de twee `---`-regels die geen YAML is, YAML dat een lijst is in plaats van `sleutel: waarde`-regels, of een waarde in een vorm die de eigenschap niet aanneemt. Wijzig je bij zo'n notitie een eigenschap — onder **Eigenschappen**, in een database, op een prikbord, in de takenlijst, of het pictogram en de kleur ervan —, dan verandert er niets, en Plainva meldt dat: **Eigenschap kon niet worden opgeslagen**, gevolgd door de reden, die de eigenschap noemt wanneer één waarde de oorzaak is. Corrigeer het blok in de tekst van de notitie, dan lukt de wijziging.
 
 ### OKF-frontmattervelden
 

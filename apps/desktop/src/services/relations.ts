@@ -1,6 +1,5 @@
 import {
-  parseMarkdownAst,
-  extractFrontmatter,
+  readFrontmatterPath,
   upsertFrontmatterKeys,
   noteLinkResolver,
   updateVaultText,
@@ -43,8 +42,18 @@ function linkBaseOf(value: unknown): string | null {
   return base || null;
 }
 
-function currentValues(props: Record<string, unknown>, key: string): unknown[] {
-  const value = props[key];
+/**
+ * What the note holds under `key`, as a list — read with the reader of the
+ * writer that will set the key (finding 2026-10-12).
+ *
+ * The values used to come from the reader of the index, whose schema rejects a
+ * proper YAML map with a value it does not take (an empty `tags:`, a year
+ * among the tags). "Could not be read" passed for "holds no link", and adding
+ * ONE link replaced the list the note carried. A block the writer itself
+ * cannot read answers no values here, and the write then refuses the note.
+ */
+function currentValues(content: string, key: string): unknown[] {
+  const value = readFrontmatterPath(content, [key]);
   if (Array.isArray(value)) return value;
   if (value == null || value === "") return [];
   return [value];
@@ -56,11 +65,6 @@ async function linkRule(queryService: VaultQueryService): Promise<{ allFilePaths
   const files = await queryService.linkTargets();
   const allFilePaths = files.filter((f) => f.mode !== "attachment").map((f) => f.path);
   return { allFilePaths, linkedNote: noteLinkResolver(files) };
-}
-
-function propertiesOf(content: string): Record<string, unknown> {
-  const fm = extractFrontmatter(parseMarkdownAst(content));
-  return fm.success && fm.data ? (fm.data as Record<string, unknown>) : {};
 }
 
 type LinkedNote = ReturnType<typeof noteLinkResolver>;
@@ -93,7 +97,7 @@ export async function addRelationLink(opts: {
   const linkText = `[[${wikiTargetForPath(targetNotePath, allFilePaths)}]]`;
 
   const linked = (content: string): string | null => {
-    const values = currentValues(propertiesOf(content), propertyKey);
+    const values = currentValues(content, propertyKey);
     if (limit === "one") {
       const already =
         values.length === 1 && resolvesToTarget(values[0], notePath, targetNotePath, linkedNote);

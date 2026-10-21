@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-10-09
+Stand: 2026-10-21
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -54,7 +54,7 @@ Ein **fetter** Gedanke mit einem Link zu [[Andere Notiz]].
 
 Ein Block darf leer sein: `---` direkt gefolgt von `---` ist ein Block ohne Eigenschaften, nicht zwei Trennlinien — der Text der Notiz beginnt in der Zeile danach. Plainva lässt keinen leeren Block zurück: Wird die letzte Eigenschaft entfernt, verschwinden die beiden `---`-Zeilen mit. Sie bleiben nur stehen, wenn der Text selbst mit einer `---`-Zeile beginnt, die sonst als Beginn eines Blocks gelesen würde.
 
-Ein Block, den Plainva nicht als Eigenschaften lesen kann, bleibt genau so stehen: Text zwischen den beiden `---`-Zeilen, der kein YAML ist, YAML, das eine Liste statt `Schlüssel: Wert`-Zeilen ist, oder ein Wert in einer Form, die seine Eigenschaft nicht annimmt. Änderst Du an einer solchen Notiz eine Eigenschaft — unter **Eigenschaften** oder in einer Datenbank —, ändert sich nichts, und Plainva sagt es: **Eigenschaft konnte nicht gespeichert werden**, gefolgt vom Grund, der die Eigenschaft nennt, wenn ein einzelner Wert die Ursache ist. Korrigiere den Block im Text der Notiz, dann geht die Änderung durch.
+Ein Block, den Plainva nicht als Eigenschaften lesen kann, bleibt genau so stehen: Text zwischen den beiden `---`-Zeilen, der kein YAML ist, YAML, das eine Liste statt `Schlüssel: Wert`-Zeilen ist, oder ein Wert in einer Form, die seine Eigenschaft nicht annimmt. Änderst Du an einer solchen Notiz eine Eigenschaft — unter **Eigenschaften**, in einer Datenbank, auf einer Pinnwand, in der Aufgabenliste, auch ihr Symbol oder ihre Farbe —, ändert sich nichts, und Plainva sagt es: **Eigenschaft konnte nicht gespeichert werden**, gefolgt vom Grund, der die Eigenschaft nennt, wenn ein einzelner Wert die Ursache ist. Korrigiere den Block im Text der Notiz, dann geht die Änderung durch.
 
 ### OKF-Frontmatter-Felder
 

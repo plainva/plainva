@@ -34,7 +34,7 @@ import {
 import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, isVaultPathLink, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
-import { selectNoteFragment, planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, deleteFrontmatterPath, noteBodyOf, PLAINVA_NAMESPACE_KEY, setFrontmatterPath, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
+import { selectNoteFragment, planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, noteBodyOf, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
 import { EMBED_ROWS, scopedEmbedRows } from "./services/baseOps";
 import { ColorPickSheet } from "./components/ColorPickSheet";
 import { EmojiPickSheet } from "./components/EmojiPickSheet";
@@ -61,7 +61,7 @@ import { getMobileSettings } from "./services/mobileSettings";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { availablePhotoPath, cameraErrorMessage, isCameraCancellation, mediaResultBytes } from "./services/photoCapture";
 import { pickDeviceFiles } from "./services/pickFiles";
-import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
+import { editedNoteProperties, recallScrollTop, rememberScrollTop, withNoteColor, withNoteIcon } from "@plainva/ui";
 import { readSelectionVerbs, selectAll, SelectionToolbarSurface, type SelectionToolbarPosition } from "@plainva/ui";
 
 /**
@@ -875,25 +875,21 @@ export function EditorHost({
     };
   }, [importFileAtCaret]);
 
-  // Desktop applyPlainvaValue/applyDocIcon contract: rewrite the plainva:
-  // frontmatter namespace on the live document (emoji icons clear a stale
-  // icon_color, exactly like the desktop's emoji pick).
-  const applyPlainva = (mutate: (base: string) => string) => {
+  // The note's icon and colour: written into the live document by the shared
+  // rules (`withNoteIcon`, `withNoteColor`), the desktop's `applyNoteProperties`
+  // contract. A note that refuses the change — a block at its top that is no
+  // YAML map — is said by `editedNoteProperties`; it used to go to the console
+  // and the pick did nothing (finding 2026-10-09).
+  const applyPlainva = (change: (text: string) => string) => {
     const view = sessionRef.current?.view;
     if (!view) return;
-    try {
-      const base = view.state.doc.toString();
-      const next = mutate(base);
-      if (next !== base) {
-        // Deliberately NO userEvent: the shared frontmatterProtectPlugin
-        // rejects user-initiated ("input") changes inside the frontmatter —
-        // this programmatic metadata write must pass the filter (the desktop
-        // properties path dispatches the same way).
-        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
-      }
-    } catch (e) {
-      console.warn("[EditorHost] updating plainva frontmatter failed", e);
-    }
+    const next = editedNoteProperties(view.state.doc.toString(), change);
+    if (next === null) return;
+    // Deliberately NO userEvent: the shared frontmatterProtectPlugin rejects
+    // user-initiated ("input") changes inside the frontmatter — this
+    // programmatic metadata write must pass the filter (the desktop
+    // properties path dispatches the same way).
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
   };
 
   const handleEmojiPick = (char: string, color?: string | null) => {
@@ -912,12 +908,7 @@ export function EditorHost({
     } else {
       // An icon may carry a tint (P4.2). Without one the stale colour is
       // cleared, exactly as the desktop's pick does.
-      applyPlainva((base) => {
-        const withIcon = setFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "icon"], char);
-        return color
-          ? setFrontmatterPath(withIcon, [PLAINVA_NAMESPACE_KEY, "icon_color"], color)
-          : deleteFrontmatterPath(withIcon, [PLAINVA_NAMESPACE_KEY, "icon_color"]);
-      });
+      applyPlainva((text) => withNoteIcon(text, char, color || null));
     }
   };
 
@@ -1664,12 +1655,7 @@ export function EditorHost({
             emojiPick === "icon"
               ? () => {
                   setEmojiPick(null);
-                  applyPlainva((base) =>
-                    deleteFrontmatterPath(
-                      deleteFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "icon"]),
-                      [PLAINVA_NAMESPACE_KEY, "icon_color"],
-                    ),
-                  );
+                  applyPlainva((text) => withNoteIcon(text, null, null));
                 }
               : undefined
           }
@@ -1683,11 +1669,11 @@ export function EditorHost({
           onClose={() => setColorPick(false)}
           onPick={(hex) => {
             setColorPick(false);
-            applyPlainva((base) => setFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "header_color"], hex));
+            applyPlainva((text) => withNoteColor(text, hex));
           }}
           onRemove={() => {
             setColorPick(false);
-            applyPlainva((base) => deleteFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "header_color"]));
+            applyPlainva((text) => withNoteColor(text, null));
           }}
         />
       )}

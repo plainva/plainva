@@ -1005,6 +1005,7 @@
     "configure": "設定",
     "iconColor": "データベースアイコンの色",
     "confirmRenameProperty": "プロパティ「{{old}}」を{{count}}件のファイルで「{{new}}」に名前変更します。続行しますか？",
+    "renamePropertyRefused": "「{{old}}」は名前変更されず、何も変更されていません。新しい名前を付けられないノート: {{count}}件（{{notes}}）。{{reason}}",
     "renamingProperty": "プロパティを名前変更しています…",
     "deletingProperty": "プロパティを削除しています…",
     "deletingProgress": "「{{column}}」 · {{total}}件中{{done}}件",
@@ -2693,7 +2694,6 @@
     "openDb": "データベースとして開く",
     "dbEmpty": "まだ項目がありません",
     "setStatus": "ステータスを変更",
-    "statusUpdateFailed": "ステータスを変更できませんでした。",
     "dbDoneKey": "done",
     "repeat": "繰り返し",
     "rowActions": "タスクの操作",
@@ -4767,7 +4767,8 @@
     "driveFolder": "プロバイダーから無効なフォルダー識別子が返されました。処理を停止しました。",
     "htmlDepth": "このHTMLは入れ子が深すぎます。構造を簡略化するか、Markdown形式のエクスポートをインポートしてください。",
     "propertiesBlock": "ノートの先頭にあるブロックをプロパティとして読み取れません。ノートのテキストで修正してから、もう一度お試しください。",
-    "propertyValue": "プロパティ「{{key}}」の値を読み取れません。ノートのテキストで修正してから、もう一度お試しください。"
+    "propertyValue": "プロパティ「{{key}}」の値を読み取れません。ノートのテキストで修正してから、もう一度お試しください。",
+    "propertyNameTaken": "ノートにはすでに新しい名前のプロパティがあります。"
   },
   "audio": {
     "play": "{{name}} を再生",

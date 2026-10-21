@@ -1,6 +1,6 @@
 # Referencia del formato de archivo
 
-Última actualización: 2026-10-09
+Última actualización: 2026-10-21
 
 Esta página es el contrato exacto, tal como queda en el disco, para **cada archivo de un vault de Plainva**. Está escrita para que una herramienta — u otro programa, un script o un asistente de IA — pueda leer y editar con seguridad los archivos del vault directamente, sin pasar por la interfaz de Plainva. Si solo usas la aplicación, nunca necesitas esta página; las [demás páginas de la guía](README.md) cubren el uso normal.
 
@@ -54,7 +54,7 @@ A **bold** thought that links to [[Another Note]].
 
 Un bloque puede estar vacío: `---` seguido directamente de `---` es un bloque sin propiedades, no dos separadores; el texto de la nota empieza en la línea siguiente. Plainva no deja ningún bloque vacío: cuando se elimina la última propiedad, las dos líneas `---` desaparecen con ella. Solo permanecen cuando el propio texto empieza con una línea `---`, que de otro modo se leería como el inicio de un bloque.
 
-Un bloque que Plainva no puede leer como propiedades se deja tal como está: texto entre las dos líneas `---` que no es YAML, YAML que es una lista en lugar de líneas `clave: valor`, o un valor con una forma que su propiedad no admite. Cambiar una propiedad de una nota así —en **Propiedades** o en una base de datos— no cambia nada, y Plainva lo dice: **No se pudo guardar la propiedad**, seguido del motivo, que nombra la propiedad cuando la causa es un solo valor. Corrige el bloque en el texto de la nota y el cambio se aplicará.
+Un bloque que Plainva no puede leer como propiedades se deja tal como está: texto entre las dos líneas `---` que no es YAML, YAML que es una lista en lugar de líneas `clave: valor`, o un valor con una forma que su propiedad no admite. Cambiar una propiedad de una nota así —en **Propiedades**, en una base de datos, en un tablón, en la lista de tareas, o su icono y su color— no cambia nada, y Plainva lo dice: **No se pudo guardar la propiedad**, seguido del motivo, que nombra la propiedad cuando la causa es un solo valor. Corrige el bloque en el texto de la nota y el cambio se aplicará.
 
 ### Campos de frontmatter OKF
 

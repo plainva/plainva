@@ -133,6 +133,86 @@ describe("a database cell that cannot be written, says so", () => {
   });
 });
 
+describe("a write that fails is said for what it is", () => {
+  // Three kinds of the same silence (finding 2026-10-09, read on 2026-10-12):
+  // "retrying in the background" where nothing retries, the bare message of an
+  // error where `errorText` words it — for a properties block that is no YAML
+  // that message is the parser's quote of the note's own line —, and a loop
+  // that swallowed whatever a note threw. The desktop's
+  // `silentPropertyWrites.test.ts` lists every such call of both shells; what
+  // stands here are the phone's own sentences.
+  const from = (text: string, anchor: string, length: number) => text.slice(text.indexOf(anchor), text.indexOf(anchor) + length);
+
+  it("the context graph does not announce a retry after a link it could not write", () => {
+    const accept = from(strip(read("components", "ContextGraph.tsx")), "const accept = (", 900);
+    expect(accept).toMatch(/catch \{\s*toast\.error\(t\("graph\.cleanupActionFailed"\)\);/);
+    expect(accept).not.toMatch(/mobile\.saveRetry/);
+  });
+
+  it("the database screen does not announce a retry for its own file or for a folder", () => {
+    const text = strip(read("screens", "base", "BaseScreen.tsx"));
+    expect(text).not.toMatch(/mobile\.saveRetry/);
+    expect(from(text, "const persistConfig = useStableHandler(", 1000)).toMatch(/toast\.error\(t\("editor\.saveFailed"\)\);/);
+    expect(from(text, "const askStorageFolder = useCallback(", 1500)).toMatch(/toast\.error\(t\("database\.createFolderFailed"\)\);\s*return null;/);
+  });
+
+  it("the tasks screen says a refused write in the sentence of a property write, not in the error's own words", () => {
+    const text = strip(read("screens", "TasksScreen.tsx"));
+    for (const anchor of ["const writeDbNote = useCallback(", "const setNoteExcluded = async (", "const toggleDbRow = useCallback("]) {
+      const stretch = from(text, anchor, 800);
+      expect(stretch, anchor).toMatch(/mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}/);
+      expect(stretch, anchor).not.toMatch(/e instanceof Error \? e\.message/);
+    }
+  });
+
+  it("hiding every template at once counts the notes it could not write", () => {
+    const hide = from(strip(read("screens", "TasksScreen.tsx")), "const hideAllTemplates = async (", 600);
+    expect(hide).toMatch(/failed \+= 1;/);
+    expect(hide).toMatch(/if \(failed > 0\) toast\.error\(t\("database\.bulkSetPartial", \{ done: hidden, failed \}\)\);/);
+  });
+
+  it("a tick from a notification or in the calendar says why it did not land", () => {
+    const text = strip(read("services", "reminderActions.ts"));
+    expect(from(text, "export async function runReminderIntent(", 900)).toMatch(/toast\.error\(i18n\.t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);/);
+    const calendar = from(strip(read("screens", "PimCalendarScreen.tsx")), "const toggleTask = useCallback(", 1200);
+    expect(calendar).toMatch(/\.catch\(\(e\) => toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\)\)/);
+    expect(calendar).not.toMatch(/e instanceof Error \? e\.message/);
+  });
+
+  it("the pinboard says a refused colour or label through errorText", () => {
+    const text = strip(read("screens", "base", "PinboardView.tsx"));
+    expect([...text.matchAll(/toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);/g)]).toHaveLength(2);
+    expect(from(text, "const pickColor = useCallback(", 1500)).not.toMatch(/toast\.error\(String\(/);
+  });
+
+  it("a property renamed or removed from the sheet waits for what happened and says it", () => {
+    const text = strip(read("screens", "base", "PropertyEditSheet.tsx"));
+    const rename = from(text, "const rename = () => {", 1600);
+    expect(rename).toMatch(/const outcome = await renameBaseProperty\(/);
+    expect(rename, "a refusal leaves the sheet open on the property as it is").toMatch(/toast\.error\(renameRefusedText\(column, outcome\.refused\)\);\s*return;/);
+    expect(rename).toMatch(/database\.bulkSetPartial/);
+    const remove = from(text, "const remove = () => {", 1400);
+    expect(remove).toMatch(/const result = await deleteBaseProperty\(/);
+    expect(remove).toMatch(/if \(result\.failed\.length > 0\) toast\.error\(t\("database\.bulkSetPartial"/);
+    // Neither loop of the service swallows a note any more.
+    const ops = strip(read("services", "baseOps.ts"));
+    expect(from(ops, "export async function renameBaseProperty(", 700)).not.toMatch(/catch/);
+    expect(from(ops, "export async function deleteBaseProperty(", 700)).not.toMatch(/catch/);
+  });
+
+  it("the sentences exist in every language", () => {
+    for (const lang of LANGS) {
+      const d = dict(lang);
+      expect(d.database?.renamePropertyRefused, `${lang} lacks database.renamePropertyRefused`).toContain("{{notes}}");
+      expect(d.database?.bulkSetPartial, `${lang} lacks database.bulkSetPartial`).toContain("{{failed}}");
+      expect(d.database?.createFolderFailed, `${lang} lacks database.createFolderFailed`).toBeTruthy();
+      expect(d.inputRejected?.propertyNameTaken, `${lang} lacks inputRejected.propertyNameTaken`).toBeTruthy();
+      expect(d.graph?.cleanupActionFailed, `${lang} lacks graph.cleanupActionFailed`).toBeTruthy();
+      expect(d.editor?.saveFailed, `${lang} lacks editor.saveFailed`).toBeTruthy();
+    }
+  });
+});
+
 describe("saving with .eml saves the .eml", () => {
   const text = strip(read("screens", "MailMessageScreen.tsx"));
 
@@ -161,6 +241,10 @@ function dict(lang: string): {
   workspaceSecurity?: Record<string, string>;
   mobile?: Record<string, string>;
   mail?: Record<string, string>;
+  database?: Record<string, string>;
+  inputRejected?: Record<string, string>;
+  graph?: Record<string, string>;
+  editor?: Record<string, string>;
 } {
   return JSON.parse(readFileSync(join(LOCALES, `${lang}.json`), "utf8")) as never;
 }

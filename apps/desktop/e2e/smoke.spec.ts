@@ -868,6 +868,47 @@ test('Document header: /icon sets an emoji icon via the picker (W3)', async ({ p
   await expect(page.locator('.pv-doc-header-icon').first()).toContainText('🚀', { timeout: 10000 });
 });
 
+test('Document header: an icon picked for a note whose block is no YAML map says why and writes nothing', async ({ page }) => {
+  // A block at the top of the note that is a YAML list: nothing an icon can be
+  // written into. The pick used to do nothing and say nothing — the refusal
+  // went to the console (finding 2026-10-09).
+  const block = '---\n- a\n- list\n---\n';
+  await page.addInitScript((head) => {
+    (window as any).mockFs['/test-vault/Icons.md'] = `${head}\nIcon test body\n`;
+  }, block);
+
+  await page.goto('/');
+  await expect(page.getByText('Icons', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByText('Icons', { exact: true }).click();
+  await expect(page.getByText('Icon test body')).toBeVisible();
+
+  const editor = page.locator('.cm-content').first();
+  await editor.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/icon');
+  await page
+    .locator('.cm-tooltip-autocomplete li', { hasText: /Dokument-Icon|Document icon/ })
+    .first()
+    .click();
+  const picker = page.getByRole('dialog');
+  await expect(picker).toBeVisible();
+  await page.keyboard.type('rocket');
+  await picker.locator('button[aria-label="rocket"]').first().click();
+
+  // One sentence says why, …
+  await expect(
+    page.locator('.pv-toast--error', { hasText: /Property could not be saved|Eigenschaft konnte nicht gespeichert werden/ }),
+  ).toHaveCount(1);
+  // … no icon is drawn that the note does not hold, …
+  await expect(page.locator('.pv-doc-header-icon', { hasText: '🚀' })).toHaveCount(0);
+  // … and the block of the note is what it was: no icon was written into it.
+  const saved = await page.evaluate(() => (window as any).mockFs['/test-vault/Icons.md'] as string);
+  expect(saved.startsWith(block)).toBe(true);
+  expect(saved).not.toContain('plainva');
+  expect(saved).not.toContain('🚀');
+});
+
 test('Emoji: /emoji inserts a Unicode emoji into the text via the picker', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).mockFs['/test-vault/EmojiText.md'] = "---\ntype: Note\n---\n\nEmoji body\n";

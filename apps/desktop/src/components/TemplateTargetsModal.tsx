@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Database, Plus, X } from "lucide-react";
-import { addTemplateForAssignment, ICON, Modal, parseTemplateForTargets, removeTemplateForAssignment, templateMatchesBase } from "@plainva/ui";
+import { addTemplateForAssignment, errorText, ICON, Modal, parseTemplateForTargets, removeTemplateForAssignment, templateMatchesBase, toast } from "@plainva/ui";
 import { updateVaultText } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import { applyIndexChanges } from "../services/fileActions";
@@ -66,7 +66,13 @@ export function TemplateTargetsModal({ templatePath, onClose }: { templatePath: 
       await change((text) => addTemplateForAssignment(text, basePath, paths));
       setQuery("");
     } catch (e) {
+      // Said, not only logged (finding 2026-10-12): a template whose block at
+      // the top is no YAML map took no assignment, and the dialog went on
+      // offering the database as if nothing had been asked. The chips are
+      // drawn from the template as it was last read or written, so they show
+      // what it holds.
       console.error("[TemplateTargetsModal] assigning failed", e);
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
     }
   };
 
@@ -78,6 +84,7 @@ export function TemplateTargetsModal({ templatePath, onClose }: { templatePath: 
       await change((text) => removeTemplateForAssignment(text, target));
     } catch (e) {
       console.error("[TemplateTargetsModal] unassigning failed", e);
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
     }
   };
 

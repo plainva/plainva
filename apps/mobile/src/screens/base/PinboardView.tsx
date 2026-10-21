@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
 import { mimeTypeForPath, readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
-import { AudioEmbed, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, listTaskLines, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, scrollerOf, SectionLabel, spliceIntoSequence, splitMultiValue } from "@plainva/ui";
+import { AudioEmbed, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, listTaskLines, errorText, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, scrollerOf, SectionLabel, spliceIntoSequence, splitMultiValue } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { mActions, mMultiSelect, mSelect } from "../../services/mobileDialogs";
 import { confirmDeleteFile } from "../../lib/deleteFile";
@@ -360,8 +360,12 @@ export function PinboardView({
       const hex = picked ? PALETTE_SWATCH[picked] : null;
       const update = await vaultOps.update(vault, path, (fresh) => withNoteColor(fresh, hex));
       if (update.changed) onMutated();
-    } catch (e: any) {
-      toast.error(String(e?.message ?? e));
+    } catch (e) {
+      // The sentence every refused property write gets, with the reason as
+      // `errorText` reads it (finding 2026-10-12): the bare message of a block
+      // that is no YAML quotes the note's own line. The card is drawn from the
+      // note, so it keeps the colour the note has.
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
     }
   }, [vault, t, onMutated, cards]);
 
@@ -421,8 +425,10 @@ export function PinboardView({
         return list.length > 0 ? setFrontmatterPath(text, [key], list) : deleteFrontmatterPath(text, [key]);
       });
       if (update.changed) onMutated();
-    } catch (e: any) {
-      toast.error(String(e?.message ?? e));
+    } catch (e) {
+      // See `pickColor`: the one sentence, and the reason through `errorText`.
+      // The labels on the card come from the index, which heard of no write.
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
     }
   }, [vault, labelProp, labelsByPath, chipEntries, labelOptions, t, onMutated]);
 

@@ -3,6 +3,7 @@ import { parse as parseYaml } from "yaml";
 import { deleteFrontmatterPath, noteBodyOf, setFrontmatterPath, updateVaultText, wikiTargetForFile, type TextUpdateFiles } from "@plainva/core";
 import { frontmatterBlockOf } from "../services/docMeta";
 import { resolveTemplate, type TemplateContext } from "./templateEngine";
+import { isFileNotFound } from "../lib/movedNote";
 
 /**
  * Template file helpers (moved from the desktop newItemFlow in R3 so the
@@ -250,6 +251,13 @@ export interface TemplateForSweepResult {
   changedPaths: string[];
   /** Number of rewritten templateFor entries across all templates. */
   renamed: number;
+  /**
+   * Templates that are assigned to the renamed database and could not be
+   * written: they still name the old file. They used to be skipped without a
+   * trace (finding 2026-10-12); the rename now says that not every link could
+   * be updated.
+   */
+  failed: string[];
 }
 
 /**
@@ -258,7 +266,8 @@ export interface TemplateForSweepResult {
  * regular backlink-driven rename chain cannot see these links — this dedicated
  * sweep over the template folder is the only carrier. Bare entries stay bare
  * (new file name; qualified on collision), qualified entries stay qualified.
- * Broken/unreadable templates are skipped — a rename must never fail over one.
+ * A rename must never fail over a template: one that is gone is skipped, one
+ * that is there and cannot be read or written is listed in `failed`.
  */
 export async function retargetTemplateForInFolder(opts: {
   adapter: ScopedTemplateListAdapter & TextUpdateFiles;
@@ -273,6 +282,7 @@ export async function retargetTemplateForInFolder(opts: {
   const adjusted = opts.allFilePaths.map((p) => (p === oldBasePath ? newBasePath : p));
   const bareTarget = wikiTargetForFile(newBasePath, adjusted);
   const changedPaths: string[] = [];
+  const failed: string[] = [];
   let renamed = 0;
 
   const retargeted = (content: string): { hits: number; next: string | null } => {
@@ -296,17 +306,27 @@ export async function retargetTemplateForInFolder(opts: {
       if (!hits) continue;
       changedPaths.push(item.path);
       renamed += hits;
-    } catch {
-      /* skip broken template — the rename itself must go through */
+    } catch (e) {
+      // The rename itself must go through. A template that is gone since it
+      // was listed names no database any more; one that is there and could
+      // not be read or written may still name the old file.
+      if (!isFileNotFound(e)) failed.push(item.path);
     }
   }
-  return { changedPaths, renamed };
+  return { changedPaths, renamed, failed };
 }
 
 /**
  * Adds a templateFor assignment onto `basePath` (no-op when a stored entry
  * already matches it). The link text is collision-safe via wikiTargetForFile;
- * existing entries are kept verbatim. Malformed frontmatter → unchanged.
+ * existing entries are kept verbatim.
+ *
+ * A template whose properties block cannot be written — no YAML map, YAML that
+ * cannot be read — throws what the writer throws. It used to answer "nothing
+ * changed", the answer of a template that is assigned already, and so the
+ * menu that asked said nothing and showed the template as it was (finding
+ * 2026-10-12). `removeTemplateForAssignment` has no such case: it finds
+ * nothing to remove in a block it cannot read.
  */
 export function addTemplateForAssignment(
   content: string,
@@ -320,11 +340,7 @@ export function addTemplateForAssignment(
     .filter((t): t is string => t !== null);
   if (templateMatchesBase(targets, basePath)) return { content, changed: false };
   const link = `[[${wikiTargetForFile(basePath, [...allFilePaths])}]]`;
-  try {
-    return { content: setFrontmatterPath(content, TEMPLATE_FOR_PATH, [...values, link]), changed: true };
-  } catch {
-    return { content, changed: false };
-  }
+  return { content: setFrontmatterPath(content, TEMPLATE_FOR_PATH, [...values, link]), changed: true };
 }
 
 /**
