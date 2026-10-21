@@ -543,9 +543,15 @@ option {
    lists as a theme card grid. Applied only to marker-carrying listings. */
 .pv-index-doc h1 { border-bottom: 2px solid var(--accent-color); padding-bottom: 0.35rem; }
 .pv-index-doc ul { list-style: none; padding: 0; margin: 0.75rem 0 1.25rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
-.pv-index-doc ul li { border: 1px solid var(--border-color); background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 9px 12px; font-size: var(--text-md); line-height: 1.45; }
+/* A tile holds its text (finding 2026-10-19): a grid item is as wide as its
+   longest word unless told otherwise, so a long name ran into the next tile.
+   The name stays on one line and ends in "…" (the tip carries the whole
+   name); a description after it wraps, even inside one long word. */
+.pv-index-doc ul li { min-width: 0; overflow: hidden; overflow-wrap: anywhere; border: 1px solid var(--border-color); background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 9px 12px; font-size: var(--text-md); line-height: 1.45; }
 .pv-index-doc ul li a { font-weight: 600; text-decoration: none; }
 .pv-index-doc ul li a:hover { text-decoration: underline; }
+.pv-index-link { display: inline-flex; align-items: center; gap: 0.45em; max-width: 100%; vertical-align: bottom; color: var(--accent-color); cursor: pointer; }
+.pv-index-link-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Peek window for notes opened from a .base view (Base-UX2 P5) */
 /* Floating peek window: free-floating (non-modal), draggable + resizable. The

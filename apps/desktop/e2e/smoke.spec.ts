@@ -1547,6 +1547,73 @@ test('index.md read view: listing links open in-app and the managed marker stays
   await expect(page.getByRole('tab', { name: 'Alt' })).toBeVisible();
 });
 
+// --- index.md tiles: a long name stays inside its tile (finding 2026-10-19, B1) ---
+test('index.md read view: a long name ends in "…" inside its tile, the tip names it whole, a description wraps', async ({ page }) => {
+  const LONG = 'Patientenverfuegung_Und_Vorsorgevollmacht_Fuer_Den_Notfall_2026';
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.addInitScript((long) => {
+    Object.assign((window as any).mockFs, {
+      '/test-vault/P': { isDir: true },
+      '/test-vault/P/index.md': `# P\n\n* [${long}](${long}.md) - Unterschrieben_und_beim_Hausarzt_hinterlegt_Kopie_im_Ordner\n* [Kurz](Kurz.md)\n* [Mitte](Mitte.md) - eine Beschreibung\n\n<!-- plainva:index generated -->\n`,
+      [`/test-vault/P/${long}.md`]: '# Lang\n',
+      '/test-vault/P/Kurz.md': '# Kurz\n',
+      '/test-vault/P/Mitte.md': '# Mitte\n',
+    });
+  }, LONG);
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await aside.getByText('P', { exact: true }).click();
+  await aside.getByText('index', { exact: true }).click();
+
+  const tiles = page.locator('.pv-index-doc ul li');
+  await expect(tiles).toHaveCount(3);
+  const longLink = page.locator('.markdown-reader').getByRole('link', { name: LONG });
+  await expect(longLink).toBeVisible();
+
+  // No tile is wider than its column, and no text leaves its tile.
+  const geometry = await tiles.evaluateAll((items) => items.map((li) => {
+    const box = li.getBoundingClientRect();
+    const name = li.querySelector('.pv-index-link-name') as HTMLElement | null;
+    return {
+      left: box.left, right: box.right, top: box.top,
+      overflows: li.scrollWidth > li.clientWidth + 1,
+      nameRight: name?.getBoundingClientRect().right ?? 0,
+      nameCut: name ? name.scrollWidth > name.clientWidth : false,
+    };
+  }));
+  for (const tile of geometry) {
+    expect(tile.overflows).toBe(false);
+    expect(tile.nameRight).toBeLessThanOrEqual(tile.right);
+  }
+  // Side by side in one row: the first tile ends before the second begins.
+  expect(geometry[1].top).toBe(geometry[0].top);
+  expect(geometry[0].right).toBeLessThanOrEqual(geometry[1].left);
+  // The long name is cut with an ellipsis; the short ones are whole.
+  expect(geometry.map((tile) => tile.nameCut)).toEqual([true, false, false]);
+  expect(await page.locator('.pv-index-link-name').first().evaluate((el) => getComputedStyle(el).textOverflow)).toBe('ellipsis');
+
+  // The tip names the cut name whole; a whole name gets none.
+  await longLink.hover();
+  await expect(page.locator('.pv-tooltip')).toHaveText(LONG);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ animations: 'disabled', path: test.info().outputPath('index-tiles-long-name.png') });
+  await page.locator('.markdown-reader').getByRole('link', { name: 'Kurz' }).hover();
+  await expect(page.locator('.pv-tooltip')).toHaveCount(0);
+  await page.waitForTimeout(700);
+  await expect(page.locator('.pv-tooltip')).toHaveCount(0);
+
+  // The description after a long name goes to the next line and wraps there.
+  const longTile = tiles.first();
+  const lineHeight = await longTile.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
+  const linkBox = (await longLink.boundingBox())!;
+  const tileBox = (await longTile.boundingBox())!;
+  expect(tileBox.height).toBeGreaterThan(linkBox.height + lineHeight * 0.8);
+
+  // And the cut name still opens its note.
+  await longLink.click();
+  await expect(page.getByRole('tab', { name: 'Lang' }).or(page.getByRole('tab', { name: LONG }))).toBeVisible();
+});
+
 /* ---------------------------------------------------------------- Gesamtplan 2026-07-04: Splash-Standard, Vault entfernen, Vault-Templates, Settings-UX */
 
 test('Splash: shows by default despite lastVaultPath (auto-open is opt-in)', async ({ page }) => {

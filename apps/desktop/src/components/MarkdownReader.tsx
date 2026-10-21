@@ -367,6 +367,17 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
     toast.warning(t("dialogs.linkNotFoundMsg", { target: outcome.path }));
   };
 
+  /**
+   * The tooltip host reads `data-tip` when the pointer or the focus arrives,
+   * and React hears both first: the attribute is set right then, and only
+   * while the tile shows less than the whole name.
+   */
+  const offerFullName = (link: HTMLElement) => {
+    const name = link.querySelector<HTMLElement>(".pv-index-link-name");
+    if (name && name.scrollWidth > name.clientWidth) link.setAttribute("data-tip", name.textContent ?? "");
+    else link.removeAttribute("data-tip");
+  };
+
   const linkIconFor = (target: RelativeTarget): React.ReactNode => {
     if (!showLinkIcons) return null;
     if (target.kind === "folder") return <Folder size={ICON.ui} style={{ flexShrink: 0, opacity: 0.75 }} aria-hidden="true" />;
@@ -488,18 +499,30 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
             const rel = href != null && sourcePath != null ? resolveRelativeTarget(sourcePath, href) : null;
             if (rel) {
               const icon = linkIconFor(rel);
+              if (icon) {
+                // A tile of the managed index.md (finding 2026-10-19): the name
+                // is its own element so a long one ends in "…" inside its tile
+                // instead of running into the next; the full name is the tip,
+                // offered only when the tile actually cuts it.
+                return (
+                  <a
+                    href="#"
+                    className="pv-index-link"
+                    onClick={(e) => { e.preventDefault(); void handleRelativeLinkClick(rel, e.ctrlKey || e.metaKey); }}
+                    onPointerEnter={(e) => offerFullName(e.currentTarget)}
+                    onFocus={(e) => offerFullName(e.currentTarget)}
+                  >
+                    {icon}
+                    <span className="pv-index-link-name">{children}</span>
+                  </a>
+                );
+              }
               return (
                 <a
                   href="#"
                   onClick={(e) => { e.preventDefault(); void handleRelativeLinkClick(rel, e.ctrlKey || e.metaKey); }}
-                  style={{
-                    color: 'var(--accent-color)',
-                    textDecoration: icon ? 'none' : 'underline',
-                    cursor: 'pointer',
-                    ...(icon ? { display: 'inline-flex', alignItems: 'center', gap: '0.45em' } : null),
-                  }}
+                  style={{ color: 'var(--accent-color)', textDecoration: 'underline', cursor: 'pointer' }}
                 >
-                  {icon}
                   {children}
                 </a>
               );

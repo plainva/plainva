@@ -404,6 +404,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-22",
   },
   {
+    id: "managed-index-tiles",
+    title: "A managed index.md shown as tiles",
+    area: "editor",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Both shells open a managed index.md read-only, with the same banner and the " +
+      "same two buttons. The desktop's reader lays its link list out as a grid of " +
+      "tiles (a long name ends in \"…\" inside its tile, the tip names it whole - " +
+      "finding 2026-10-19). The mobile shell reads every note in the editor's live " +
+      "preview, which has no tile layout: the list stays a list, one link per line, " +
+      "and a long name wraps instead of running into a neighbour, so the finding " +
+      "has no counterpart there. Tiles would be a reader of their own for one file.",
+    verified: "2026-10-21",
+  },
+  {
     id: "markdown-path-links",
     title: "Follow a Markdown link that names a path",
     area: "editor",
@@ -473,7 +490,10 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "One device switch and one rule serve both shells (lib/spellcheck.ts); what " +
       "checks the text is the platform. On Windows (WebView2) and macOS (WKWebView) " +
       "the WebView checks with the system's languages, on a phone the keyboard and " +
-      "the system do. On Linux nothing checks: wry 0.57 never switches WebKitGTK's " +
+      "the system do. macOS needs one step of its own: WKWebView marks nothing " +
+      "until the app's \"Check Spelling While Typing\" is on, which src-tauri sets " +
+      "at start (src/macos_spellcheck.rs, issue #135 - until then nothing was " +
+      "marked on a Mac either). On Linux nothing checks: wry 0.57 never switches WebKitGTK's " +
       "spell checker on (no call in its source), and WebKitGTK has it off until an " +
       "application enables it on the WebKitWebContext and names the languages. " +
       "Closing this needs a Linux-only step in src-tauri (enable it and pass the " +

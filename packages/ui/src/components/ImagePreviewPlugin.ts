@@ -1,11 +1,13 @@
 import { trimEndChars } from "@plainva/core";
 import { RangeSetBuilder } from "@codemirror/state";
+import { syntaxTree } from "@codemirror/language";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { imageMimeType } from "../services/imageFiles";
 import { findMediaEmbeds, imageBasename, imageCandidates, type ImageLookup } from "../lib/imageTarget";
 import { mountAudioPlayer } from "./audioPlayer";
 import { anchorFramesAt, anchorFramesSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
 import { pickImageRegion } from "./anchorRegion";
+import { isEscapedAt, isLiteralAt } from "./literalSyntax";
 import i18n from "../i18n";
 
 /**
@@ -273,6 +275,9 @@ export function imagePreviewPlugin(
 
     update(update: ViewUpdate) {
       let needsRebuild = update.docChanged || update.viewportChanged
+        // The parser reaches a stretch later than the text: what turned out
+        // to be code is drawn as text from then on.
+        || syntaxTree(update.startState) !== syntaxTree(update.state)
         // A comment appearing or being selected changes the frame, and the
         // frame lives inside the widget's DOM.
         || update.transactions.some(hasAnchorHighlightChange);
@@ -305,6 +310,12 @@ export function imagePreviewPlugin(
         const text = view.state.sliceDoc(from, to);
 
         for (const embed of findMediaEmbeds(text)) {
+          // Escaped, or inside code or a comment, the embed is text that
+          // shows the syntax (the tour's `![[skizze.svg|240]]`), as in the
+          // read view and for note embeds. A picture in an HTML block is
+          // still drawn, as it always was (literalSyntax.ts).
+          if (isEscapedAt(text, embed.start)) continue;
+          if (isLiteralAt(view.state, from + embed.start)) continue;
           const source = resolveImageSource(embed.target, vaultRoot, lookup);
           if (!source) continue; // absolute/escaping targets never load
 

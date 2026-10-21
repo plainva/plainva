@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type HTMLAttributes, type ReactElement, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Ellipsis, FileText } from "lucide-react";
-import { trimSpaceBeforeLineEnds, type JournalEntry } from "@plainva/core";
+import { codeSpanRanges, trimSpaceBeforeLineEnds, type JournalEntry } from "@plainva/core";
 import { resolveCoverSource } from "../base/coverImage";
 import { ICON } from "../lib/iconSizes";
 import { findMediaEmbeds, imageCandidates } from "../lib/imageTarget";
@@ -9,6 +9,7 @@ import { renderInlineMarkdown, type InlineLinkHandlers } from "../lib/inlineMark
 import { addDaysToKey } from "../lib/taskPlanner";
 import { formatJournalTime, newestFirst, type JournalDay } from "../lib/journalFeed";
 import { AudioEmbed } from "./AudioEmbed";
+import { isEscapedAt } from "./literalSyntax";
 import { boundaryLabel } from "../lib/today";
 import { Rating } from "./ui/Rating";
 import { useDayBoundaryMinutes } from "../hooks/useTodayKey";
@@ -76,7 +77,11 @@ const FOLD_LINES = 6;
 
 /** The text without its media embeds, and the embeds - pictures and sound apart (X3). */
 function splitMedia(text: string): { prose: string; images: string[]; sounds: string[] } {
-  const embeds = findMediaEmbeds(text);
+  // An embed in a code span, or escaped, is written-out syntax and stays in
+  // the text, as in the editor and the read view (literalSyntax.ts).
+  const code = codeSpanRanges(text);
+  const embeds = findMediaEmbeds(text).filter((embed) =>
+    !isEscapedAt(text, embed.start) && !code.some((span) => embed.start >= span.from && embed.start < span.to));
   if (embeds.length === 0) return { prose: text, images: [], sounds: [] };
   let prose = "";
   let at = 0;

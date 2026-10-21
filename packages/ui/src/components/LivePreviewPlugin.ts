@@ -400,6 +400,15 @@ class TableWidget extends WidgetType {
         bubbleClass: "cm-anchor-bubble--cell",
       });
       cell.addEventListener("mousedown", (e) => {
+        // A press inside the open field is the field's own (GitHub issue 118): it
+        // places the caret or starts a selection there. Prevented, every
+        // click and tap after the first kept the text selected the field
+        // opened with, and only the arrow keys could move the caret.
+        // CodeMirror stays out of it all the same.
+        if (e.target instanceof Element && e.target.closest("textarea.cm-md-table-input")) {
+          e.stopPropagation();
+          return;
+        }
         if (e.button !== 0) return; // left button only; right opens the menu
         // The corner opens the card, not the cell editor (V7).
         if (e.target instanceof HTMLElement && e.target.closest(".cm-anchor-corner")) return;

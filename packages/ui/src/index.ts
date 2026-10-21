@@ -355,6 +355,7 @@ export * from "./components/codeHighlight";
 export * from "./components/documentHeader";
 export * from "./components/editorCompletion";
 export * from "./components/editorSession";
+export * from "./components/lineJump";
 export * from "./components/editorTouchCommands";
 export * from "./components/editorTriggers";
 export * from "./components/emojiData";

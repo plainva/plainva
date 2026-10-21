@@ -94,6 +94,12 @@ tauri-plugin-single-instance = "2"
 # is registered until the user switches it on. Desktop only, like the crate.
 tauri-plugin-global-shortcut = "2"
 
+# Spell checking in WKWebView (issue #135, src/macos_spellcheck.rs): the
+# app's "Check Spelling While Typing" lives in its defaults. Already in the
+# lock file through tauri and wry; only the two classes are asked for.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSUserDefaults"] }
+
 [dev-dependencies]
 # Scope-coverage test only: the same glob the fs plugin matches paths with.
 glob = "0.3"

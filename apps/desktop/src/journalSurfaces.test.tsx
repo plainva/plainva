@@ -88,6 +88,17 @@ describe("JournalDayList", () => {
     expect(host.querySelector('.pv-tag-pill[data-tag="client"]')).not.toBeNull();
   });
 
+  it("keeps an embed in a code span as text — written-out syntax, not a picture (TestFlight build 136)", async () => {
+    const raw = "# Sunday\n\n## Journal\n\n- 09:12 The syntax is `![[a.png|240]]`, escaped \\![[c.png]], and here is one: ![[b.png]]\n";
+    const loadImage = vi.fn(async () => new Blob(["x"], { type: "image/png" }));
+    const { host } = await mount(<JournalDayList days={[dayOf("2026-09-20", raw)]} todayKey="2026-09-20" loadImage={loadImage} {...listProps} />);
+    await settle();
+    const asked = loadImage.mock.calls.map((call) => String((call as unknown[])[0]));
+    expect(asked.some((path) => path.endsWith("b.png"))).toBe(true);
+    expect(asked.some((path) => path.endsWith("a.png") || path.endsWith("c.png"))).toBe(false);
+    expect(host.querySelector(".pv-journal-text code")?.textContent).toBe("![[a.png|240]]");
+  });
+
   it("names yesterday, and writes the year only for a day of another year", async () => {
     const { host } = await mount(
       <JournalDayList days={[dayOf("2026-09-19", NOTE), dayOf("2025-12-31", NOTE)]} todayKey="2026-09-20" {...listProps} />,

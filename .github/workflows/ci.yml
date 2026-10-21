@@ -155,6 +155,24 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @plainva/core test
 
+  # The desktop's Rust has code of its own for macOS (issue #135: spell
+  # checking in WKWebView) that the Linux job never compiles; until 2026-10 it
+  # was first compiled by a release. Not a required check, like core-macos.
+  rust-macos:
+    name: Rust check (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: 'apps/desktop/src-tauri -> target'
+      # tauri::generate_context! embeds frontendDist at compile time.
+      - run: mkdir -p apps/desktop/dist
+      - run: cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --locked -- -D warnings
+
   webkit:
     name: WebKit editor regression
     runs-on: ubuntu-latest

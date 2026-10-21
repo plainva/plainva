@@ -4848,6 +4848,9 @@ textarea {
 .m-note-chrome { flex: none; z-index: var(--z-m-bar); background: var(--surface); transition: transform var(--dur-2) var(--ease-effects); }
 .m-page--note[data-reader-overlay] > .m-note-chrome { position: absolute; top: 0; left: 0; right: 0; }
 .m-page--note[data-reader-overlay] .m-editor .cm-content { padding-top: calc(var(--m-reader-chrome-height, var(--m-docked-h)) + var(--space-3)); }
+/* The same bar covers the top of every scroll the editor makes: a heading
+   picked in the outline starts below it, not under it (lineJump.ts). */
+.m-page--note[data-reader-overlay] .m-editor .cm-scroller { --pv-editor-covered-top: var(--m-reader-chrome-height); }
 .m-note-chrome.is-away { transform: translateY(-100%); pointer-events: none; }
 .m-note-pencil { transition: transform var(--dur-2) var(--ease-effects), opacity var(--dur-2) var(--ease-effects); }
 .m-note-pencil.is-away { transform: translateY(calc(100% + 32px)); opacity: 0; pointer-events: none; }

@@ -31,7 +31,7 @@ import {
   Image as ImageIcon,
   Paperclip,
 } from "lucide-react";
-import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, isVaultPathLink, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, isVaultPathLink, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { selectNoteFragment, planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, deleteFrontmatterPath, noteBodyOf, PLAINVA_NAMESPACE_KEY, setFrontmatterPath, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
@@ -309,8 +309,7 @@ export function EditorHost({
       toast.warning(t("dialogs.anchorNotFoundMsg", { anchor: anchor.replace(/^#/, ""), defaultValue: "Section \"{{anchor}}\" not found." }));
       return;
     }
-    const l = view.state.doc.line(Math.min(Math.max(hit.line, 1), view.state.doc.lines));
-    view.dispatch({ selection: { anchor: l.from }, scrollIntoView: true });
+    jumpToLineTop(view, hit.line);
   });
   useEffect(() => {
     const onAnchor = (e: Event) => {
@@ -678,7 +677,7 @@ export function EditorHost({
           // Let CodeMirror own its native selection while the viewport changes;
           // an unfocused DOM range is discarded by the next layout update.
           if (!editableRef.current) view.focus();
-          view.dispatch({ selection: { anchor: m.from, head: m.to }, scrollIntoView: true });
+          selectAndCenter(view, m.from, m.to);
         } else if (jump.from !== undefined) {
           toast.info(t("searchResults.changed"));
         }
@@ -694,7 +693,7 @@ export function EditorHost({
         const view = sessionRef.current?.view;
         if (!view) return;
         const at = Math.min(caret.offset, view.state.doc.length);
-        view.dispatch({ selection: { anchor: at }, scrollIntoView: true });
+        selectAndCenter(view, at);
       });
     }
 
@@ -1010,8 +1009,7 @@ export function EditorHost({
       const hit = forThisNote(e);
       const line = hit && (hit.detail.line as number | undefined);
       if (!hit || !line) return;
-      const l = hit.view.state.doc.line(Math.min(Math.max(line, 1), hit.view.state.doc.lines));
-      hit.view.dispatch({ selection: { anchor: l.from }, scrollIntoView: true });
+      jumpToLineTop(hit.view, line);
     };
     /**
      * Jump to a comment's passage (Stufe D, D6).
@@ -1029,7 +1027,7 @@ export function EditorHost({
       const from = Math.min(Math.max((hit.detail.from as number | undefined) ?? -1, 0), len);
       const to = Math.min(Math.max((hit.detail.to as number | undefined) ?? -1, from), len);
       if (from === to) return;
-      hit.view.dispatch({ selection: { anchor: from, head: to }, scrollIntoView: true });
+      selectAndCenter(hit.view, from, to);
     };
     const onSetMode = (e: Event) => {
       const hit = forThisNote(e);

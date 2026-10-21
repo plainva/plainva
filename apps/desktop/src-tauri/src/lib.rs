@@ -11,6 +11,8 @@ mod checked_fs;
 mod backup;
 mod db_batch;
 mod linux_appimage;
+#[cfg(target_os = "macos")]
+mod macos_spellcheck;
 mod mail_imap;
 mod mail_pool;
 mod mail_smtp;
@@ -325,6 +327,11 @@ pub fn run() {
     // (issue #85, see src/linux_appimage.rs). No-op for deb/rpm and dev runs.
     #[cfg(target_os = "linux")]
     linux_appimage::apply();
+
+    // Before the first web view: WKWebView reads whether to check spelling
+    // once, when its text checker starts (issue #135).
+    #[cfg(target_os = "macos")]
+    macos_spellcheck::enable_continuous_spell_checking();
 
     let builder = tauri::Builder::default();
 

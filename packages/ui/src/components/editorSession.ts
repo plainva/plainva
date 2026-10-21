@@ -33,6 +33,7 @@ import { markdownFolding } from "./foldingExtension";
 import { searchPanelOpen } from "@codemirror/search";
 import { searchSetup } from "./searchSetup";
 import { blockHandles } from "./blockHandles";
+import { coveredTopMargins } from "./lineJump";
 import { minimalDocChange } from "../lib/textDiff";
 import { countWords } from "../lib/wordCount";
 import { markdownToPlainText } from "../lib/markdownToPlainText";
@@ -492,6 +493,8 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     basicSetup({ foldGutter: false, highlightActiveLineGutter: false, searchKeymap: false }),
     keymap.of([indentWithTab]),
     EditorView.theme({ "&": { height: "100%" }, "& .cm-scroller": { height: "100% !important" } }),
+    // What a shell lays over the top edge stays out of every scroll's way.
+    coveredTopMargins,
     updateListener,
     languageComp.of([]),
     EditorView.lineWrapping,
@@ -534,6 +537,8 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     keymap.of([indentWithTab]),
     // The old host's container theme: the scroller fills the pane height.
     EditorView.theme({ "&": { height: "100%" }, "& .cm-scroller": { height: "100% !important" } }),
+    // What a shell lays over the top edge stays out of every scroll's way.
+    coveredTopMargins,
     updateListener,
     // Syntax-highlight fenced code blocks (#10/#3): codeLanguages lazy-loads
     // the matching grammar for ```lang fences.

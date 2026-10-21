@@ -23,7 +23,7 @@ import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
 import { applyTextShape, editorTextOf, inShapeOf, isVaultPathLink, keepTextBeside, newestConflictCopy, openEditorText, planRelativeLinkOpen, resolveOpenAction, resolveRelativeTarget, type KeptText, type LinkKind } from "@plainva/ui";
-import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor } from "@plainva/ui";
+import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, jumpToLineTop, selectAndCenter, requestAnchorJump, resolveAnchor, splitLinkAnchor } from "@plainva/ui";
 import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext } from "@plainva/ui";
 import { answerEditorPathProbe } from "@plainva/ui";
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
@@ -1380,9 +1380,7 @@ export const Editor: React.FC<{
     }
     const view = sessionRef.current?.view;
     if (!view || !line) return false;
-    const ln = view.state.doc.line(Math.max(1, Math.min(line, view.state.doc.lines)));
-    view.dispatch({ selection: { anchor: ln.from }, effects: EditorView.scrollIntoView(ln.from, { y: "start" }) });
-    view.focus();
+    jumpToLineTop(view, line, { focus: true });
     return true;
   }, [viewMode]);
   useEffect(() => {
@@ -1967,10 +1965,7 @@ export const Editor: React.FC<{
       // A backlink names its line (P7); the search names a term.
       const match = resolveSearchJump(view.state.doc.toString(), jump);
       if (!match) { if (jump.from !== undefined) toast.info(t("searchResults.changed")); return; }
-      view.dispatch({
-        selection: { anchor: match.from, head: match.to },
-        effects: EditorView.scrollIntoView(match.from, { y: 'center' }),
-      });
+      selectAndCenter(view, match.from, match.to);
       view.focus();
     };
     // A result click can also commit navigation state and replace reader text
@@ -2012,7 +2007,7 @@ export const Editor: React.FC<{
       // over from the file as it was written. Clamped all the same — the file
       // may have changed between that write and this load.
       const pos = Math.min(Math.max(caret.offset, 0), view.state.doc.length);
-      view.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: 'center' }) });
+      selectAndCenter(view, pos);
       view.focus();
     };
     tick(120);
