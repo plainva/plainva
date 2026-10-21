@@ -39,13 +39,15 @@ export interface PimTaskFields {
   due: string | null;
   completed: boolean;
   /**
-   * Only in a stored base (B2): `due` was agreed while the note could not
-   * hold it - the task database had no date column, or the note was adopted
-   * without it. Until a date is written into the note, the note does not
-   * speak for the due date; reading its missing property as "cleared" pushed
-   * the provider's date away the moment a date column was added.
+   * Only in a stored base (B2): the note held `due` when it was agreed. A
+   * base without it - written while the database had no date column, for a
+   * note adopted without a date, or by a build before this field existed -
+   * means a note that carries NO due property does not speak for the due
+   * date: it is given the agreed one instead of being read as "cleared". That
+   * reading pushed the provider's dates away the moment a date column was
+   * added. A note that carries a date always speaks for it.
    */
-  dueUnheld?: boolean;
+  dueHeld?: boolean;
 }
 
 /** Reconcile bookkeeping of one remote task <-> vault note pair. A row with

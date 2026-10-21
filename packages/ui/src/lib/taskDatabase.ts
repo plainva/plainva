@@ -153,7 +153,9 @@ const DONE_WORDS = new Set([
   "已完成", "完成",
 ]);
 
-/** Cancelled-like options: closed, but never the one a tick writes. */
+/** Cancelled-like options: closed, and never the one a tick writes - unless
+ * the database has no done word at all, where the old rule (last option)
+ * still decides. */
 const CANCELLED_WORDS = new Set([
   "cancelled", "canceled", "abandoned", "dropped", "won't do", "wont do",
   "abgebrochen", "verworfen", "storniert", "abgesagt", "entfällt",

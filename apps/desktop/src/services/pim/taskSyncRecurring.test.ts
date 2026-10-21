@@ -148,7 +148,7 @@ describe("a task the provider repeats", () => {
     expect(readFrontmatterPath(note, ["plainva", "pim", "uid"])).toBe("series-1");
     expect(readFrontmatterPath(note, ["plainva", "pim", "list"])).toBe("l1");
     expect(target.updateTask).not.toHaveBeenCalled();
-    expect((await cache.getTaskStates("a1", "l1"))[0]!.baseFields).toEqual({ title: "Pflanzen gießen", due: "2026-09-20", completed: false });
+    expect((await cache.getTaskStates("a1", "l1"))[0]!.baseFields).toEqual({ title: "Pflanzen gießen", due: "2026-09-20", completed: false, dueHeld: true });
 
     // The next round of the series leaves the mark alone and writes it once.
     await cache.replaceTasks("a1", "l1", [rt({ uid: "series-1", title: "Pflanzen gießen", due: "2026-09-20", completed: true, etag: '"e4"' })]);

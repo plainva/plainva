@@ -240,6 +240,52 @@ describe("a task ticked at the provider reaches its note (B2)", () => {
     expect(api.writes).toEqual([]);
   });
 
+  it("keeps a time the person put into the note when Google, which knows days only, changes something else", async () => {
+    const { api, vault, cycle } = setup(buildTaskDbFile("Aufgaben", LABELS).content);
+    await cycle();
+    const path = "Aufgaben/Steuern einreichen.md";
+    vault.files.set(path, vault.files.get(path)!.replace(/frist: .*/, "frist: 2026-11-02T10:00"));
+    await cycle();
+    expect(api.writes).toEqual([]);
+
+    api.tick();
+    await cycle();
+    const note = vault.files.get(path)!;
+    expect(readFrontmatterPath(note, ["erledigt"])).toBe(true);
+    expect(String(readFrontmatterPath(note, ["frist"]))).toContain("2026-11-02T10:00");
+    expect(api.writes).toEqual([]);
+  });
+
+  it("sends a date the person entered after a date column was added, instead of writing over it", async () => {
+    const { api, vault, cycle } = setup(DB_WITHOUT_DUE);
+    await cycle();
+    const path = "Aufgaben/Steuern einreichen.md";
+    vault.files.set("Aufgaben.base", buildTaskDbFile("Aufgaben", LABELS).content);
+    // Filled in before the next cycle: the note speaks for its date now.
+    vault.files.set(path, vault.files.get(path)!.replace("---\n# ", "frist: 2026-11-05\n---\n# "));
+    expect(String(readFrontmatterPath(vault.files.get(path)!, ["frist"]))).toBe("2026-11-05");
+    await cycle();
+    expect(String(readFrontmatterPath(vault.files.get(path)!, ["frist"]))).toBe("2026-11-05");
+    expect(api.writes.some((w) => w.includes("2026-11-05"))).toBe(true);
+  });
+
+  it("sends a date cleared in a note whose agreement predates the marker, once that row was seen", async () => {
+    const { api, vault, cycle } = setup(buildTaskDbFile("Aufgaben", LABELS).content);
+    await cycle();
+    // The row as a build before this change wrote it: no `dueHeld`.
+    const [state] = await cache.getTaskStates("a1", "l1");
+    const { dueHeld: _held, ...legacy } = state!.baseFields!;
+    await cache.upsertTaskState({ ...state!, baseFields: legacy });
+    await cycle(); // seen once: the note holds the date
+    expect((await cache.getTaskStates("a1", "l1"))[0]!.baseFields?.dueHeld).toBe(true);
+
+    const path = "Aufgaben/Steuern einreichen.md";
+    vault.files.set(path, vault.files.get(path)!.replace(/frist: .*\n/, ""));
+    await cycle();
+    expect(readFrontmatterPath(vault.files.get(path)!, ["frist"]) ?? null).toBeNull();
+    expect(api.writes.some((w) => w.includes('"due":null'))).toBe(true);
+  });
+
   it("keeps a due time the provider gives, and never sends it back without it", async () => {
     // The phone's reminders hand over a time with the day.
     await cache.replaceTaskLists("a1", [{ id: "l1", name: "Erinnerungen" }]);
