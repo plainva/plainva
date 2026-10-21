@@ -18,12 +18,20 @@ export interface ByteExactDav {
 
 const enc = (p: string) => p.split("/").map(encodeURIComponent).join("/");
 
-export function byteExactDav(base = "https://dav.example.com/dav/Vault/"): ByteExactDav {
+export interface ByteExactDavOptions {
+  /** "honor" (default): If-Match / If-None-Match on PUT as a real server; "ignore": neither is looked at. */
+  conditions?: "honor" | "ignore";
+  /** Weak entity tags (`W/"…"`): a strong comparison, as If-Match demands, never matches them. */
+  weakEtags?: boolean;
+}
+
+export function byteExactDav(base = "https://dav.example.com/dav/Vault/", options: ByteExactDavOptions = {}): ByteExactDav {
   const basePath = new URL(base).pathname;
   const files = new Map<string, { bytes: Uint8Array; etag: string }>();
   const folders = new Set<string>([""]);
   const log: string[] = [];
   let seq = 0;
+  const tag = (etag: string) => (options.weakEtags ? `W/"${etag}"` : `"${etag}"`);
 
   const rel = (url: string): string => {
     const pathname = new URL(url).pathname;
@@ -39,7 +47,7 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/"): ByteE
       return `<d:response><d:href>${href(p, true)}</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat></d:response>`;
     }
     const f = files.get(p)!;
-    return `<d:response><d:href>${href(p, false)}</d:href><d:propstat><d:prop><d:resourcetype/><d:getetag>"${f.etag}"</d:getetag><d:getcontentlength>${f.bytes.length}</d:getcontentlength></d:prop></d:propstat></d:response>`;
+    return `<d:response><d:href>${href(p, false)}</d:href><d:propstat><d:prop><d:resourcetype/><d:getetag>${tag(f.etag)}</d:getetag><d:getcontentlength>${f.bytes.length}</d:getcontentlength></d:prop></d:propstat></d:response>`;
   };
   const multistatus = (paths: string[]) =>
     new Response(`<?xml version="1.0"?><d:multistatus xmlns:d="DAV:">${paths.map(entry).join("")}</d:multistatus>`, { status: 207 });
@@ -64,14 +72,25 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/"): ByteE
       }
       case "GET": {
         const f = files.get(p);
-        return f ? new Response(f.bytes as BodyInit, { status: 200, headers: { ETag: `"${f.etag}"` } }) : status(404);
+        return f ? new Response(f.bytes as BodyInit, { status: 200, headers: { ETag: tag(f.etag) } }) : status(404);
       }
       case "PUT": {
+        // Preconditions as RFC 9110 has them (Nextcloud, Apache mod_dav): a
+        // strong comparison of the entity tag, "*" for "any current file".
+        // `conditions: "ignore"` plays a server that evaluates neither.
+        if (options.conditions !== "ignore") {
+          const ifMatch = headers.get("If-Match");
+          const ifNoneMatch = headers.get("If-None-Match");
+          const current = files.get(p);
+          const strong = current ? `"${current.etag}"` : null;
+          if (ifMatch !== null && (current === undefined || (ifMatch.trim() !== "*" && !ifMatch.split(",").some((t) => t.trim() === strong && !options.weakEtags)))) return status(412);
+          if (ifNoneMatch !== null && current !== undefined && (ifNoneMatch.trim() === "*" || ifNoneMatch.split(",").some((t) => t.trim() === strong))) return status(412);
+        }
         if (!folders.has(parent(p))) return status(409);
         const body = init?.body as Uint8Array | undefined;
         const etag = `e${++seq}`;
         files.set(p, { bytes: body ? new Uint8Array(body) : new Uint8Array(), etag });
-        return status(201, { ETag: `"${etag}"` });
+        return status(201, { ETag: tag(etag) });
       }
       case "MKCOL": {
         if (folders.has(p) || files.has(p)) return status(405);

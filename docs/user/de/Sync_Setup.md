@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-10-19
+Stand: 2026-10-21
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -12,7 +12,7 @@ Bei einem nicht automatisch lösbaren Textkonflikt bleibt eine lokale Arbeitskop
 
 Im Vergleich findest Du unter **Gesicherte Stände vergleichen** den gesicherten Ausgangsstand, sofern vorhanden. Wird die Arbeitskopie außerhalb dieser Bearbeitung geändert, bleibt auch diese andere Fassung erhalten und lässt sich dort vergleichen. Übernehmen, beide Fassungen behalten und Verwerfen prüfen den aktuellen Stand erneut; ist die Ansicht veraltet, lade den Vergleich neu. Löse den Konflikt vor dem Verschieben oder Löschen der betroffenen Datei beziehungsweise ihres Ordners. Ältere Konfliktkopien bleiben einzeln sichtbar.
 
-Solange ein Konflikt offen ist, arbeitet die übrige App mit der Notiz weiter. Eine Änderung von außerhalb des Editors — eine Zelle in einer Datenbank, ein abgehakter Punkt in der Aufgabenliste, ein Journal-Eintrag, ein Link, der einer umbenannten Notiz folgt — wird in die Notiz und ebenso in Deine Konfliktkopie geschrieben; sie bleibt also, welche Fassung Du auch behältst. Hat Deine Kopie die Stelle nicht mehr, an die die Änderung gehört (etwa eine Aufgabe, die Du dort umformuliert hast), bleibt die Kopie, wie Du sie hinterlassen hast, und der Vergleich zeigt den Unterschied.
+Solange ein Konflikt offen ist, arbeitet die übrige App mit der Notiz weiter. Eine Änderung von außerhalb des Editors — eine Zelle in einer Datenbank, ein abgehakter Punkt in der Aufgabenliste, ein Journal-Eintrag, ein Link, der einer umbenannten Notiz folgt — wird in die Notiz und ebenso in Deine Konfliktkopie geschrieben; sie bleibt also, welche Fassung Du auch behältst. Hat Deine Kopie die Stelle nicht mehr, an die die Änderung gehört (etwa eine Aufgabe, die Du dort umformuliert hast), bleibt die Kopie, wie Du sie hinterlassen hast, und der Vergleich zeigt den Unterschied. Widerspricht ein anderes Gerät derselben Stelle in der Notiz selbst, bevor Dein Gerät sie hochgeladen hat, geht deren eigener Text nicht verloren: er bleibt als weitere Konfliktkopie neben der Notiz.
 
 Der Diagnoseexport enthält zusätzlich die letzten Konfliktereignisse mit Speicherart, Schreiber, Hash-Vergleich und Unterschieden bei Zeilenenden, BOM oder abschließendem Umbruch. Diese Konfliktdaten enthalten keine Notizinhalte oder Dateinamen. Der Export ist immer englisch, unabhängig von der App-Sprache, damit Du ihn unverändert in ein Issue auf GitHub einfügen kannst.
 

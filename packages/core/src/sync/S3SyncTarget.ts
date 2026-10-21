@@ -1,6 +1,7 @@
 import { syncHttpError } from "./errorKind.js";
-import { fetchWithTransferTimeout } from "./transferTimeout.js";
-import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence } from "./ISyncTarget.js";
+import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence, RemoteChangedError, type ExpectedRemote } from "./ISyncTarget.js";
+import { ConditionalWrites } from "./conditionalWrite.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
@@ -353,6 +354,43 @@ export class S3SyncTarget implements ISyncTarget {
     return { notModified: false as const, bytes: new Uint8Array(await res.arrayBuffer()), etag: res.headers.get("ETag") ?? undefined };
   }
 
+  /** Whether the store evaluates conditional writes; see `ConditionalWrites`. */
+  private readonly conditions = new ConditionalWrites("S3");
+
+  /**
+   * The condition for an upload that expects `expected` (Sammelplan § 3.103):
+   * the ETag of its merge base, or "no object". A marker the listing took
+   * from `LastModified` (a store that lists no ETag) is no entity tag and
+   * gets none; the upload then asks right before it writes.
+   */
+  private static conditionFor(expected: ExpectedRemote): Record<string, string> | null {
+    if (expected.kind === "absent") return { "if-none-match": "*" };
+    if (!expected.marker || S3SyncTarget.isTimeMarker(expected.marker)) return null;
+    return { "if-match": `"${expected.marker}"` };
+  }
+
+  private static isTimeMarker(marker: string): boolean {
+    return /^\d{4}-\d{2}-\d{2}T/.test(marker) && !Number.isNaN(Date.parse(marker));
+  }
+
+  /**
+   * `stat`, its marker compared the way the listing wrote it. A listing
+   * without ETags carries `LastModified` as the store spelled it (with
+   * milliseconds, as an ISO string); the HEAD answer carries the same moment
+   * to the second — and an ETag where the store has one there. So a time
+   * marker is compared with the HEAD's modification time at whole seconds,
+   * whatever else the HEAD says.
+   */
+  private async statLikeListing(filePath: string, expected: ExpectedRemote | undefined): Promise<RemoteStat | null> {
+    const current = await this.stat(filePath);
+    if (current && expected?.kind === "marker" && S3SyncTarget.isTimeMarker(expected.marker)) {
+      const second = (ms: number) => Math.floor(ms / 1000);
+      const same = current.modifiedAt !== undefined && second(current.modifiedAt) === second(Date.parse(expected.marker));
+      return same ? { ...current, etag: expected.marker } : { ...current, etag: current.modifiedAt === undefined ? current.etag : new Date(current.modifiedAt).toISOString() };
+    }
+    return current;
+  }
+
   /**
    * One HEAD (C31). The marker mirrors the listing: the ETag, or — for the
    * rare store that omits it — the last-modified time in the ISO form the
@@ -421,11 +459,41 @@ export class S3SyncTarget implements ISyncTarget {
 
     if (op.operation === "write") {
       const content = op.content || new Uint8Array();
-      const res = await this.signedFetch("PUT", encodeS3Key(this.keyFor(op.file_path)), {
+      const put = (condition: Record<string, string>) => this.signedFetch("PUT", encodeS3Key(this.keyFor(op.file_path)), {
         body: op.contentRef ? undefined : content,
         bodyRef: op.contentRef,
+        signedHeaders: condition,
         unsignedHeaders: { "Content-Type": mimeTypeForPath(op.file_path) },
       });
+      const expected = op.expectedRemote;
+      const stat = () => this.statLikeListing(op.file_path, expected);
+      const condition = expected && this.conditions.conditionsHold ? S3SyncTarget.conditionFor(expected) : null;
+      if (expected && !condition) await this.conditions.askFirst(op.file_path, expected, stat);
+      let res = await put(condition ?? {});
+      if (expected && condition && !res.ok) {
+        // 409 ConditionalRequestConflict: another conditional write to the
+        // same key is in flight — the remote is changing under this upload.
+        if (res.status === 409) throw new RemoteChangedError(op.file_path, "409");
+        // AWS answers an If-Match on a key that is gone (or a delete marker)
+        // with 404, not 412: asked, the remote holds nothing — another device
+        // deleted the file meanwhile, and the reconcile decides.
+        if (res.status === 404 && expected.kind === "marker") {
+          discardResponse(res);
+          await this.conditions.refused(op.file_path, expected, stat, "404");
+          res = await put({});
+        } else if (res.status === 412) {
+          discardResponse(res);
+          await this.conditions.refused(op.file_path, expected, stat, "412");
+          res = await put({});
+        } else if (res.status === 501) {
+          discardResponse(res);
+          // A store without conditional writes (AWS has them since 2024,
+          // MinIO and R2 too; other S3-compatible stores may not).
+          this.conditions.notSupported("501");
+          await this.conditions.askFirst(op.file_path, expected, stat);
+          res = await put({});
+        }
+      }
       if (!res.ok) throw syncHttpError(`S3 PUT failed: ${res.status} ${res.statusText}`, res);
       const etag = res.headers.get("ETag") || undefined;
       return { etag: etag?.replace(/"/g, "") };

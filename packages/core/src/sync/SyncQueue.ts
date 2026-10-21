@@ -19,6 +19,13 @@ function endpoints(op: SyncOperation): string[] {
 /**
  * Manages the offline queue and basic synchronization state.
  */
+/**
+ * The start of `last_error` for a write the remote refused again and again
+ * (Sammelplan § 3.103): it needs a person, and a newer write of the same file
+ * supersedes it (`queueWrite`).
+ */
+export const REMOTE_REFUSAL = "Refused by the remote:";
+
 export class SyncQueue {
   constructor(
     private readonly db: IDatabaseAdapter
@@ -28,7 +35,13 @@ export class SyncQueue {
    * Queues a write operation.
    * This is called AFTER the file was written locally.
    */
-  async queueWrite(path: string, options?: { force?: boolean }): Promise<void> {
+  /**
+   * `supersedeRefused`: whether this write takes the place of one the remote
+   * kept refusing (default). The sync's own reconcile passes false: it only
+   * queues again what is already waiting, and would otherwise lift a write
+   * that needs a person every cycle.
+   */
+  async queueWrite(path: string, options?: { force?: boolean; supersedeRefused?: boolean }): Promise<void> {
     await this.db.transaction(async () => {
       // Coalesce: a newer write supersedes earlier still-pending writes of the same
       // file, so the queue does not grow unbounded with redundant full-content rows
@@ -42,11 +55,15 @@ export class SyncQueue {
         [path]
       );
       if (!structural) {
+        // A write the remote kept refusing (`REMOTE_REFUSAL`) is superseded
+        // like any pending one: the newer write carries the newer content and
+        // asks the remote afresh — the answer to a held deletion ("keep it
+        // here"), the next edit. Left in place, it blocked them.
         await this.db.execute(
           `DELETE FROM offline_queue
            WHERE file_path = ? AND operation = 'write'
-             AND COALESCE(requires_manual_intervention, 0) = 0`,
-          [path]
+             AND (COALESCE(requires_manual_intervention, 0) = 0 OR (? = 1 AND last_error LIKE ?))`,
+          [path, options?.supersedeRefused === false ? 0 : 1, `${REMOTE_REFUSAL}%`]
         );
       }
 
@@ -512,6 +529,21 @@ export class SyncQueue {
     await this.db.execute(
       `UPDATE offline_queue
        SET requires_manual_intervention = 0, retry_count = 0, next_retry_at = 0, last_error = NULL`
+    );
+  }
+
+  /**
+   * Leaves an operation queued for the next pass without counting a failed
+   * attempt (Sammelplan § 3.103): nothing went wrong — the remote moved since
+   * this device last looked, and the next cycle's reconcile runs before the
+   * push. Due at once; only the worker's cycle pushes, after its pull. (The
+   * engine counts refusals in a row itself and hands a write that keeps being
+   * refused to a person.)
+   */
+  async deferToReconcile(queueId: number, reason: string): Promise<void> {
+    await this.db.execute(
+      `UPDATE offline_queue SET next_retry_at = 0, last_error = ? WHERE id = ?`,
+      [reason, queueId]
     );
   }
 

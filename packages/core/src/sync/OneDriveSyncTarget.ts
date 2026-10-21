@@ -1,6 +1,7 @@
 import { syncHttpError, SyncRootMissingError } from "./errorKind.js";
 import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
-import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence } from "./ISyncTarget.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence, RemoteChangedError, type ExpectedRemote } from "./ISyncTarget.js";
+import { ConditionalWrites } from "./conditionalWrite.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
@@ -27,6 +28,14 @@ const DEFAULT_ROOT = "Plainva";
 const SIMPLE_UPLOAD_LIMIT = 4 * 1024 * 1024;
 /** Upload-session chunk size: must be a multiple of 320 KiB; 16×320 KiB = 5 MiB. */
 const UPLOAD_CHUNK = 16 * 320 * 1024;
+
+/** How an upload is made conditional (see `OneDriveSyncTarget.conditionFor`); empty: unconditional. */
+interface UploadCondition {
+  /** The item's `eTag`: Graph answers 412 when it changed. */
+  ifMatch?: string;
+  /** `conflictBehavior=fail`: Graph answers 409 when the file exists. */
+  mustNotExist?: boolean;
+}
 
 interface GraphItem {
   id: string;
@@ -333,11 +342,72 @@ export class OneDriveSyncTarget implements ISyncTarget {
     return idx === -1 ? "" : normalized.substring(0, idx);
   }
 
-  private async uploadSmall(relPath: string, content: Uint8Array): Promise<Response> {
-    return this.authedFetch("PUT", this.itemUrl(relPath, "content"), {
-      headers: { "Content-Type": mimeTypeForPath(relPath) },
+  private async uploadSmall(relPath: string, content: Uint8Array, condition: UploadCondition = {}): Promise<Response> {
+    const url = this.itemUrl(relPath, "content") + (condition.mustNotExist ? "?@microsoft.graph.conflictBehavior=fail" : "");
+    return this.authedFetch("PUT", url, {
+      headers: { "Content-Type": mimeTypeForPath(relPath), ...(condition.ifMatch ? { "if-match": condition.ifMatch } : {}) },
       body: (content as unknown) as BodyInit,
     });
+  }
+
+  /** Whether Graph evaluates the conditions below; see `ConditionalWrites`. */
+  private readonly conditions = new ConditionalWrites("OneDrive");
+
+  /**
+   * The condition of an upload that expects `expected` (Sammelplan § 3.103).
+   * The marker of the listing is the item's `cTag` (it moves with the content
+   * only), and Graph's `if-match` is documented for the `eTag`: so the item is
+   * asked first, its `cTag` compared with the merge base, and the upload is
+   * made conditional on the `eTag` of that very answer — whatever changes the
+   * item after the question, the write is refused. "No file" is
+   * `conflictBehavior=fail`.
+   */
+  private async conditionFor(relPath: string, expected: ExpectedRemote): Promise<UploadCondition> {
+    if (expected.kind === "absent") {
+      if (this.conditions.conditionsHold) return { mustNotExist: true };
+      await this.conditions.askFirst(relPath, expected, () => this.statFor(relPath, expected));
+      return {};
+    }
+    const item = await this.statItem(relPath);
+    if (!this.holds(expected, item)) throw new RemoteChangedError(relPath, "found before the upload");
+    return this.conditions.conditionsHold && item?.eTag ? { ifMatch: item.eTag } : {};
+  }
+
+  /**
+   * Does the item hold the version the upload expects? The marker is the
+   * item's `cTag` where the listing carried one — and its `eTag` where it did
+   * not: Graph's delta leaves the `cTag` out on OneDrive for Business and
+   * SharePoint, so a row a delta wrote names the version by its `eTag`, while
+   * the item, asked, answers with both.
+   */
+  private holds(expected: ExpectedRemote, item: GraphItem | null): boolean {
+    if (expected.kind === "absent") return item === null;
+    return item !== null && (this.itemEtag(item) === expected.marker || item.eTag === expected.marker);
+  }
+
+  /** `stat` for `ConditionalWrites`: the item's answer, its marker the expected one wherever it holds. */
+  private async statFor(relPath: string, expected: ExpectedRemote): Promise<RemoteStat | null> {
+    const item = await this.statItem(relPath);
+    if (!item) return null;
+    const current = this.statOf(item);
+    return expected.kind === "marker" && this.holds(expected, item) ? { ...current, etag: expected.marker } : current;
+  }
+
+  /**
+   * Graph refused the condition `tried` (412; 409 for a file that must not
+   * exist). Throws `RemoteChangedError` when the content really moved.
+   * Answers the condition for one more attempt: the item's new `eTag` where
+   * only its metadata moved (a rename of nothing, a property Graph keeps),
+   * none where Graph did not evaluate the condition as meant.
+   */
+  private async afterRefusal(relPath: string, expected: ExpectedRemote, tried: UploadCondition, status: number): Promise<UploadCondition> {
+    if (tried.ifMatch && expected.kind === "marker") {
+      const item = await this.statItem(relPath);
+      if (!this.holds(expected, item)) throw new RemoteChangedError(relPath, String(status));
+      if (item?.eTag && item.eTag !== tried.ifMatch) return { ifMatch: item.eTag };
+    }
+    await this.conditions.refused(relPath, expected, () => this.statFor(relPath, expected), String(status));
+    return {};
   }
 
   /**
@@ -347,11 +417,19 @@ export class OneDriveSyncTarget implements ISyncTarget {
    * whole file never exists in memory (issue #48). The session protocol is
    * identical either way.
    */
-  private async uploadLarge(relPath: string, content: Uint8Array | undefined, ref?: SyncContentRef): Promise<GraphItem> {
-    const sessionRes = await this.authedFetch("POST", this.itemUrl(relPath, "createUploadSession"), {
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ item: { "@microsoft.graph.conflictBehavior": "replace" } }),
+  private async uploadLarge(relPath: string, content: Uint8Array | undefined, ref?: SyncContentRef, expected?: ExpectedRemote): Promise<GraphItem> {
+    const open = (condition: UploadCondition) => this.authedFetch("POST", this.itemUrl(relPath, "createUploadSession"), {
+      headers: { "Content-Type": "application/json", ...(condition.ifMatch ? { "if-match": condition.ifMatch } : {}) },
+      body: JSON.stringify({ item: { "@microsoft.graph.conflictBehavior": condition.mustNotExist ? "fail" : "replace" } }),
     });
+    const condition = expected ? await this.conditionFor(relPath, expected) : {};
+    let sessionRes = await open(condition);
+    if (expected && (condition.ifMatch || condition.mustNotExist) && (sessionRes.status === 412 || sessionRes.status === 409)) {
+      discardResponse(sessionRes);
+      const next = await this.afterRefusal(relPath, expected, condition, sessionRes.status);
+      sessionRes = await open(next);
+      if (next.ifMatch && sessionRes.status === 412) throw new RemoteChangedError(relPath, "412");
+    }
     if (!sessionRes.ok) {
       throw syncHttpError(`OneDrive upload session failed: ${sessionRes.status} ${sessionRes.statusText}`, sessionRes);
     }
@@ -376,6 +454,13 @@ export class OneDriveSyncTarget implements ISyncTarget {
             headers,
             body: (content!.subarray(start, end) as unknown) as BodyInit,
           });
+      // The session's last chunk commits the item: with `conflictBehavior`
+      // `fail`, a file that appeared meanwhile is refused there (409), and a
+      // precondition, where Graph checks it again, with 412.
+      if (expected && (res.status === 409 || res.status === 412) && end === total) {
+        discardResponse(res);
+        throw new RemoteChangedError(relPath, String(res.status));
+      }
       if (!res.ok) {
         throw syncHttpError(`OneDrive chunk upload failed: ${res.status} ${res.statusText}`, res);
       }
@@ -394,16 +479,28 @@ export class OneDriveSyncTarget implements ISyncTarget {
       const content = op.content || new Uint8Array();
       const size = op.contentRef ? op.contentRef.size : content.length;
 
+      const expected = op.expectedRemote;
       if (size > SIMPLE_UPLOAD_LIMIT) {
-        const item = await this.uploadLarge(op.file_path, op.contentRef ? undefined : content, op.contentRef);
+        const item = await this.uploadLarge(op.file_path, op.contentRef ? undefined : content, op.contentRef, expected);
         return { etag: this.itemEtag(item), remoteId: item.id };
       }
 
-      let res = await this.uploadSmall(op.file_path, content);
-      if (res.status === 404 || res.status === 409) {
+      const condition = expected ? await this.conditionFor(op.file_path, expected) : {};
+      let res = await this.uploadSmall(op.file_path, content, condition);
+      // A file that must not exist and a missing parent chain can both answer
+      // 409: only an item that is there tells them apart.
+      const exists = condition.mustNotExist === true && res.status === 409 && (await this.stat(op.file_path)) !== null;
+      if (!exists && (res.status === 404 || res.status === 409)) {
         // Missing parent chain: create it once, then retry (WebDAV MKCOL pattern).
+        discardResponse(res);
         await this.ensureFolder(this.parentFolderOf(op.file_path));
-        res = await this.uploadSmall(op.file_path, content);
+        res = await this.uploadSmall(op.file_path, content, condition);
+      }
+      if (expected && (res.status === 412 || (condition.mustNotExist && res.status === 409))) {
+        discardResponse(res);
+        const next = await this.afterRefusal(op.file_path, expected, condition, res.status);
+        res = await this.uploadSmall(op.file_path, content, next);
+        if (next.ifMatch && res.status === 412) throw new RemoteChangedError(op.file_path, "412");
       }
       if (!res.ok) throw syncHttpError(`OneDrive upload failed: ${res.status} ${res.statusText}`, res);
       const item = (await res.json()) as GraphItem;
@@ -547,12 +644,21 @@ export class OneDriveSyncTarget implements ISyncTarget {
 
   /** One item GET without `:/content` (C31); marker as in `pull` (`itemEtag`). */
   public async stat(filePath: string): Promise<RemoteStat | null> {
+    const item = await this.statItem(filePath);
+    return item ? this.statOf(item) : null;
+  }
+
+  /** The file's item as Graph answers it, or null (no file, a folder, a conflict copy). */
+  private async statItem(filePath: string): Promise<GraphItem | null> {
     if (filePath.includes(".CONFLICT")) return null;
     const res = await this.authedFetch("GET", `${this.itemUrl(filePath)}?select=id,name,cTag,eTag,lastModifiedDateTime,size,folder,file`);
     if (res.status === 404) return null;
     if (!res.ok) throw syncHttpError(`OneDrive metadata lookup failed: ${res.status} ${res.statusText}`, res);
     const item = (await res.json()) as GraphItem;
-    if (item.folder) return null;
+    return item.folder ? null : item;
+  }
+
+  private statOf(item: GraphItem): RemoteStat {
     const modifiedAt = item.lastModifiedDateTime ? Date.parse(item.lastModifiedDateTime) : Number.NaN;
     return {
       etag: this.itemEtag(item),

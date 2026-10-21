@@ -674,6 +674,7 @@ export class SyncWorker {
     console.log(`[SyncWorker] started (poll interval ${this.intervalMs}ms)`);
     // Recover operations that got stuck (manual-intervention / backoff) in a
     // previous session before running the first cycle, then sync.
+    this.engine.resetRefusals?.();
     this.queue.resetStuckOperations()
       .catch((e) => console.error("[SyncWorker] resetStuckOperations failed:", e))
       .finally(() => { if (this.isRunning) this.executeCycle(); });
@@ -689,6 +690,7 @@ export class SyncWorker {
       return;
     }
     console.log("[SyncWorker] manual retry: resetting stuck operations");
+    this.engine.resetRefusals?.();
     try {
       await this.queue.resetStuckOperations();
     } catch (e) {
@@ -999,14 +1001,36 @@ export class SyncWorker {
    * `knownBase` is handed in where the caller has already judged the row's
    * base text — `null` for one that is not the common ancestor: the copy is
    * then kept without a starting version rather than with a wrong one.
+   *
+   * Where a conflict of the file is open already, its working copy holds the
+   * person's own version (the draft), and the session keeps that — not the
+   * text the file itself holds now. That text can carry changes made after the
+   * conflict began and not uploaded yet: a change from outside an editor goes
+   * into the file as well as into the draft (§ 3.87), and another program can
+   * change the file. The remote version is written over it next, so it is
+   * kept as a copy of its own beside the file, byte for byte, unless it is the
+   * draft (Sammelplan § 3.102 no. 5; it used to be lost — a snapshot of the
+   * versions layer held it only where the last one was older than its
+   * interval).
    */
-  private async preserveLocalAsConflict(path: string, localContent: string, external: string, state: SyncState | null, gate: ConflictSessionGate, knownBase?: string | null): Promise<string> {
+  private async preserveLocalAsConflict(path: string, localContent: string, external: string, state: SyncState | null, gate: ConflictSessionGate, changedPaths: string[], knownBase?: string | null): Promise<string> {
     const base = knownBase !== undefined ? knownBase : state?.base_text ?? await this.stateRepo.getBaseText(path);
+    const open = gate.session;
     const session = await new ConflictSessions(this.vault, this.stateRepo, this.stateRepo).preserveLocked(gate, {
       path, text: localContent, base, external, writer: "sync-pull",
       diagnostic: await conflictDiagnostic({ path, adapter: "cloud", writer: "sync-pull", disk: localContent,
         expectedLocalHash: state?.local_sha256 ?? null, base, baseSource: base === null ? "none" : "captured", wasWrittenByUs: false }),
     });
+    // Not where the text is the draft, in whatever shape (line ends, mark).
+    // Not skipped where it equals the session's "external" version either:
+    // for a conflict the write chain opened, that is what another program
+    // wrote on this device — never uploaded.
+    if (open && session === open && editorTextOf(localContent) !== editorTextOf(session.draftText)) {
+      // The text is the file's own, decoded from UTF-8 with its mark and line
+      // ends (`mergeableText`): encoded again, it is the file's bytes.
+      const bytes = new TextEncoder().encode(localContent);
+      await this.keepByteCopy(path, bytes, await sha256Bytes(bytes), changedPaths);
+    }
     return session.workingCopyPath;
   }
 
@@ -1020,7 +1044,7 @@ export class SyncWorker {
   private async reconcileWithoutBase(path: string, localContent: string, remoteContent: string, state: SyncState | null, gate: ConflictSessionGate, changedPaths: string[], knownBase?: string | null): Promise<string> {
     const united = mergeWithoutBase(localContent, remoteContent);
     if (!united.hasConflicts) return united.mergedText;
-    changedPaths.push(await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate, knownBase));
+    changedPaths.push(await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate, changedPaths, knownBase));
     return remoteContent;
   }
 
@@ -1117,7 +1141,7 @@ export class SyncWorker {
         await adoptBaseText();
         await this.stateRepo.clearPendingPushSha(path);
         await this.lookedAt(path, state);
-        await this.queue.queueWrite(path);
+        await this.queue.queueWrite(path, { supersedeRefused: false });
         return;
       } else if (state && state.base_sha256 && localSha === state.base_sha256) {
         writeNeeded = true; // local unchanged since base -> fast-forward to remote
@@ -1726,7 +1750,7 @@ export class SyncWorker {
         await this.stateRepo.updateRemoteState(path, remoteEtag, state?.remote_id ?? null, now);
         await this.stateRepo.clearPendingPushSha(path);
         await this.lookedAt(path, state);
-        await this.queue.queueWrite(path);
+        await this.queue.queueWrite(path, { supersedeRefused: false });
         return;
       } else if (state && state.base_sha256 && localSha === state.base_sha256) {
         mergedContent = remoteContent; // local unchanged since base -> fast-forward
@@ -1745,7 +1769,7 @@ export class SyncWorker {
         if (baseText !== null) {
           const mergeRes = mergeText(baseText, localContent, remoteContent);
           if (mergeRes.hasConflicts) {
-            const cp = await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate, baseText);
+            const cp = await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate, changedPaths, baseText);
             changedPaths.push(cp);
             mergedContent = remoteContent; // adopt remote; local kept as .CONFLICT
           } else {
@@ -1803,7 +1827,7 @@ export class SyncWorker {
       // processQueue (below) propagates it this same cycle.
       await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
       await this.stateRepo.updateRemoteState(path, remoteEtag, null, now);
-      await this.queue.queueWrite(path);
+      await this.queue.queueWrite(path, { supersedeRefused: false });
     } else {
       // Fully in sync with the remote version.
       await this.stateRepo.updateRemoteState(path, remoteEtag, null, now);
@@ -1987,6 +2011,17 @@ export class SyncWorker {
       // Overlap the network downloads for the files this cycle will actually
       // reconcile (P3.3): everything AFTER the download — merge, writes,
       // sync_state, the failure counters — stays strictly sequential below.
+      // Files whose upload the remote refused in the last push (Sammelplan
+      // § 3.103) are reconciled whatever the listing says: the upload waits
+      // for this reconcile, and a listing that shows the marker the row
+      // already has — a service whose answers disagree, a listing that lags —
+      // would otherwise never bring it.
+      const refused = this.engine.takeRefusedPaths?.() ?? new Set<string>();
+      // Those this pull does not reach (not listed — an incremental listing, a
+      // deletion — or the cycle ends early) are asked for again next time.
+      const unreached = new Set(refused);
+      const unchanged = (s: SyncState | null, remoteEtag: string, path: string) =>
+        !!s && s.remote_etag === remoteEtag && !s.recheck && !refused.has(path);
       const reconcileOrder: string[] = [];
       for (const [path, remoteEtag] of pullResult.etagMap.entries()) {
         if (excludedFromSync(path)) continue;
@@ -1994,8 +2029,7 @@ export class SyncWorker {
         // reconcile skips those (live-checked below), so downloading would be
         // wasted bandwidth at best and a resurrection vector at worst.
         if (awaitingStructure(path)) continue;
-        const s = stateMap.get(path) ?? null;
-        if (s && s.remote_etag === remoteEtag && !s.recheck) continue;
+        if (unchanged(stateMap.get(path) ?? null, remoteEtag, path)) continue;
         reconcileOrder.push(path);
       }
       // Prefer the most-recently-modified remote files first (Drive reports
@@ -2023,6 +2057,7 @@ export class SyncWorker {
         // Never pull device-local state (.plainva/*, .CONFLICT copies): downloading a
         // remote index DB over the live local one corrupts it. See isLocalOnlyPath.
         // Nor operating-system bookkeeping (E10).
+        unreached.delete(path);
         if (excludedFromSync(path)) continue;
         this.emitProgress("pull", ++pullIdx, pullTotal);
 
@@ -2033,12 +2068,13 @@ export class SyncWorker {
         // older version left it for a file it had synced as decoded text, and
         // what lies here may be that text, written back. Such a file is
         // compared with the server's copy once, whatever its ETag says.
-        if (state && state.remote_etag === remoteEtag && !state.recheck) continue;
+        if (unchanged(state, remoteEtag, path)) continue;
 
         await guardPullStep(path, () =>
           this.reconcilePulledFile(path, remoteEtag, state, now, changedPaths, () => prefetcher.get(path))
         );
       }
+      if (unreached.size > 0) this.engine.keepRefusedPaths?.(unreached);
 
       // 2a. Provider ids (finding 2026-09-20). Only pushes used to record one, so
       // a vault this device mostly PULLED had none — and without an id an

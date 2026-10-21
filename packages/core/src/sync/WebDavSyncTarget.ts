@@ -1,7 +1,8 @@
 import { syncHttpError, SyncRootMissingError } from "./errorKind.js";
-import { fetchWithTransferTimeout } from "./transferTimeout.js";
+import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
 import { parseDavListing } from "./xmlListing.js";
-import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncUploader, RemoteProbe, RemotePresence } from "./ISyncTarget.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncUploader, RemoteProbe, RemotePresence, type ExpectedRemote } from "./ISyncTarget.js";
+import { ConditionalWrites } from "./conditionalWrite.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
 import { trimChars, trimEndChars } from "../textScan.js";
@@ -164,19 +165,50 @@ export class WebDavSyncTarget implements ISyncTarget {
    * else keeps the buffered request. Both hand back a `Response`, so the caller
    * (including the missing-parent retry) needs no second branch.
    */
-  private async put(op: SyncOperation, url: string): Promise<Response> {
+  private async put(op: SyncOperation, url: string, condition: Record<string, string> = {}): Promise<Response> {
     if (op.contentRef && this.uploader) {
       return streamUpload(this.uploader, {
         ref: op.contentRef,
         url,
         method: "PUT",
-        headers: this.headers,
+        headers: { ...this.headers, ...condition },
       });
     }
     return this.request("PUT", url, {
-      headers: this.headers,
+      headers: { ...this.headers, ...condition },
       body: (op.content || new Uint8Array()) as any as BodyInit,
     });
+  }
+
+  /** Whether the server evaluates the preconditions below; see `ConditionalWrites`. */
+  private readonly conditions = new ConditionalWrites("WebDAV");
+
+  /**
+   * The precondition for an upload that expects `expected` on the server
+   * (Sammelplan § 3.103): the entity tag of its merge base, compared strongly
+   * as `If-Match` demands — or "no file" (`If-None-Match: *`). A weak tag
+   * (`W/…`) never matches strongly, so it gets none; the upload then asks
+   * right before it writes.
+   */
+  private static conditionFor(expected: ExpectedRemote): Record<string, string> | null {
+    if (expected.kind === "absent") return { "If-None-Match": "*" };
+    if (!expected.marker || expected.marker.startsWith("W/")) return null;
+    return { "If-Match": `"${expected.marker}"` };
+  }
+
+  /**
+   * One PUT, and once more after creating a missing parent. RFC 4918 answers a
+   * PUT into a missing collection with 409, but real servers (some
+   * Nextcloud/Apache setups) answer 404 instead — seen on the maintainer's
+   * Nextcloud during the mobile roundtrip. A failing PUT path can only mean a
+   * missing parent: create it and retry once.
+   */
+  private async putCreatingParents(op: SyncOperation, url: string, condition: Record<string, string>): Promise<Response> {
+    const res = await this.put(op, url, condition);
+    if (res.status !== 409 && res.status !== 404) return res;
+    discardResponse(res);
+    await this.ensureDir(op.file_path);
+    return this.put(op, url, condition);
   }
 
   public async push(op: SyncOperation): Promise<PushResult | void> {
@@ -186,23 +218,25 @@ export class WebDavSyncTarget implements ISyncTarget {
 
     if (op.operation === "write") {
       const url = this.urlForPath(op.file_path);
+      const expected = op.expectedRemote;
+      const stat = () => this.stat(op.file_path);
+      const condition = expected && this.conditions.conditionsHold ? WebDavSyncTarget.conditionFor(expected) : null;
+      if (expected && !condition) await this.conditions.askFirst(op.file_path, expected, stat);
 
-      const res = await this.put(op, url);
-
-      if (!res.ok) {
-        // RFC 4918 answers a PUT into a missing collection with 409, but real
-        // servers (some Nextcloud/Apache setups) answer 404 instead — seen on
-        // the maintainer's Nextcloud during the mobile roundtrip. A failing
-        // PUT path can only mean a missing parent: create it and retry once.
-        if (res.status === 409 || res.status === 404) {
-            await this.ensureDir(op.file_path);
-            const retryRes = await this.put(op, url);
-            if (!retryRes.ok) throw syncHttpError(`WebDAV PUT failed: ${retryRes.status} ${retryRes.statusText}`, retryRes);
-            const etag = retryRes.headers.get("ETag") || undefined;
-            return { etag: etag?.replace(/"/g, "") };
+      let res = await this.putCreatingParents(op, url, condition ?? {});
+      if (expected && condition && (res.status === 412 || res.status === 501)) {
+        // 412: the server holds another version — or did not evaluate the
+        // condition as meant; 501: it does not implement it. Only the first
+        // is a reason not to write (`ConditionalWrites`).
+        discardResponse(res);
+        if (res.status === 412) await this.conditions.refused(op.file_path, expected, stat, "412");
+        else {
+          this.conditions.notSupported("501");
+          await this.conditions.askFirst(op.file_path, expected, stat);
         }
-        throw syncHttpError(`WebDAV PUT failed: ${res.status} ${res.statusText}`, res);
+        res = await this.putCreatingParents(op, url, {});
       }
+      if (!res.ok) throw syncHttpError(`WebDAV PUT failed: ${res.status} ${res.statusText}`, res);
 
       const etag = res.headers.get("ETag") || undefined;
       return { etag: etag?.replace(/"/g, "") };

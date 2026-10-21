@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-10-19
+Última revisão: 2026-10-21
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
@@ -12,7 +12,7 @@ Quando um conflito de texto não pode ser mesclado automaticamente, uma única c
 
 Na comparação, **Comparar versões preservadas** mostra a versão inicial salva, quando disponível. Se a cópia de trabalho mudar fora desta sessão, a outra versão também será preservada e poderá ser comparada ali. Adotar, manter ambas e descartar verificam os arquivos atuais novamente; recarregue uma comparação desatualizada. Resolva o conflito antes de mover ou excluir o arquivo afetado ou sua pasta. Cópias antigas em conflito continuam listadas separadamente.
 
-Enquanto um conflito está aberto, o restante do aplicativo continua trabalhando com a nota. Uma alteração feita fora do editor — uma célula de um banco de dados, uma tarefa marcada, uma entrada do diário, um link que acompanha uma nota renomeada — é gravada na nota e também na sua cópia em conflito; assim ela permanece, seja qual for a versão que você mantiver. Se a sua cópia não tiver mais o lugar ao qual a alteração pertence (por exemplo, uma tarefa que você reformulou ali), a cópia fica como você a deixou e a comparação mostra a diferença.
+Enquanto um conflito está aberto, o restante do aplicativo continua trabalhando com a nota. Uma alteração feita fora do editor — uma célula de um banco de dados, uma tarefa marcada, uma entrada do diário, um link que acompanha uma nota renomeada — é gravada na nota e também na sua cópia em conflito; assim ela permanece, seja qual for a versão que você mantiver. Se a sua cópia não tiver mais o lugar ao qual a alteração pertence (por exemplo, uma tarefa que você reformulou ali), a cópia fica como você a deixou e a comparação mostra a diferença. Se outro dispositivo alterar o mesmo lugar da própria nota antes de o seu dispositivo enviá-la, o texto próprio da nota não se perde: ele fica como mais uma cópia de conflito ao lado da nota.
 
 A exportação de diagnóstico também inclui conflitos recentes: tipo de armazenamento, componente que gravou, comparação de hashes e diferenças de finais de linha, BOM ou quebra de linha final. Esses registros não contêm texto das notas nem nomes de arquivos. A exportação é sempre em inglês, independentemente do idioma do app, para que você possa colá-la como está em uma issue no GitHub.
 

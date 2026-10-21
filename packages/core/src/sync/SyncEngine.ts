@@ -1,5 +1,5 @@
-import { SyncQueue } from "./SyncQueue.js";
-import { ISyncTarget, SyncContentRef } from "./ISyncTarget.js";
+import { SyncQueue, REMOTE_REFUSAL } from "./SyncQueue.js";
+import { ISyncTarget, RemoteChangedError, SyncContentRef, type ExpectedRemote } from "./ISyncTarget.js";
 import { SyncStateRepository } from "../vault/SyncStateRepository.js";
 import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
 import { findCollidingPath, foldPathForCollision, foldPathNormalization, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
@@ -35,6 +35,25 @@ export type ContentRefResolver = (
   minBytes: number,
 ) => Promise<SyncContentRef | null>;
 
+/**
+ * What an upload of a file with this sync row expects on the remote
+ * (Sammelplan § 3.103): the version of its merge base — the marker the row
+ * recorded with it — or no file at all, where the row knows of no remote copy
+ * (a new file; one kept although the cloud deleted it, whose row went,
+ * § 3.115). A row with a base but no marker (a server that sent no ETag on
+ * the last upload, until the next listing brings one) expects nothing: the
+ * upload stays unconditional, as before.
+ */
+export function expectedRemoteOf(state: { base_sha256: string | null; base_etag: string | null; remote_etag: string | null } | null): ExpectedRemote | undefined {
+  if (state?.base_sha256) return state.base_etag ? { kind: "marker", marker: state.base_etag } : undefined;
+  if (!state || (!state.base_etag && !state.remote_etag)) return { kind: "absent" };
+  return undefined;
+}
+
+function isRemoteChanged(err: unknown): boolean {
+  return err instanceof RemoteChangedError || (err instanceof Error && err.name === "RemoteChangedError");
+}
+
 export class SyncEngine {
   private readonly maxRetryCount = 5;
   /**
@@ -44,6 +63,42 @@ export class SyncEngine {
    * remaining op would only burn their retry budgets.
    */
   private readonly maxConsecutiveFailures = 3;
+
+  /**
+   * Uploads the remote refused because it moved (`RemoteChangedError`), by
+   * path: how many times in a row. A refusal is no failure — the next cycle's
+   * reconcile settles it — but one that comes back cycle after cycle is
+   * settled by nothing (a remote deletion whose mirroring is on hold, a
+   * service whose markers disagree with themselves). After `maxRetryCount`
+   * in a row the write needs a person, as after as many failures, instead of
+   * waiting unseen. Any upload of the path that goes through starts the count
+   * again.
+   */
+  private readonly refusals = new Map<string, number>();
+  /** Paths refused since the worker last asked: reconciled in its next pull whatever the listing says. */
+  private readonly reconcileAgain = new Set<string>();
+
+  /**
+   * The paths whose upload the remote refused since the last call — the
+   * worker reconciles them in its next pull even where the listing shows the
+   * marker the row already has (Sammelplan § 3.103: an upload must not wait
+   * on a reconcile that the listing never triggers).
+   */
+  takeRefusedPaths(): Set<string> {
+    const paths = new Set(this.reconcileAgain);
+    this.reconcileAgain.clear();
+    return paths;
+  }
+
+  /** Paths the worker took and could not reconcile (not listed, the cycle ended early): asked for again. */
+  keepRefusedPaths(paths: Iterable<string>): void {
+    for (const path of paths) this.reconcileAgain.add(path);
+  }
+
+  /** A person asked to try again (`resetStuckOperations`): every refused path starts counting anew. */
+  resetRefusals(): void {
+    this.refusals.clear();
+  }
 
   /** Paths are identities here; the proxy finds the remote's spelling (ADR 0016). */
   private readonly target: ISyncTarget;
@@ -212,6 +267,7 @@ export class SyncEngine {
     }
     let consecutiveFailures = 0;
     let pushIdx = 0;
+    const refusedThisPass = new Set<string>();
     const localListings = new Map<string, Promise<VaultFileInfo[] | null>>();
     const remoteFolders: { value?: Map<string, Set<string>> } = {};
     for (let op of pending) {
@@ -412,6 +468,7 @@ export class SyncEngine {
               if (!op.force && state && state.base_sha256) {
                  if (currentSha === state.base_sha256 && state.remote_etag) {
                    // Already in sync with the server, skip push.
+                   this.refusals.delete(op.file_path);
                    await this.queue.markSynced(op.id, op.file_path, op.file_path);
                    consecutiveFailures = 0;
                    continue;
@@ -443,6 +500,15 @@ export class SyncEngine {
                  }
               }
 
+              // The upload names the version it expects on the remote, and a
+              // target that can makes the write conditional on it (Sammelplan
+              // § 3.103). Pulling first and pushing after is no comparison at
+              // the moment of writing: another device that uploaded in between
+              // had its version overwritten, and its change was lost on the
+              // server and on both devices, without a conflict copy. A forced
+              // re-encrypt write stays unconditional, as with 3b above.
+              op.expectedRemote = op.force ? undefined : expectedRemoteOf(state);
+
               // Push journal (2026-07-16): persist the content hash BEFORE the
               // upload starts. If the app dies (or the response is lost) after
               // the server committed the write but before the base advanced
@@ -463,7 +529,39 @@ export class SyncEngine {
               throw err;
             }
          }
-        let result = await this.target.push(op);
+        let result;
+        try {
+          result = await this.target.push(op);
+        } catch (err) {
+          // The remote no longer holds what the upload expected, and nothing
+          // was written. Not a failure: the upload stays queued, due at once,
+          // and spends no retry — the next cycle's reconcile, which runs
+          // before its push, merges the remote version in or keeps this
+          // device's version as a conflict copy, and the upload after it
+          // expects the version it found.
+          if (op.operation === "write" && isRemoteChanged(err)) {
+            refusedThisPass.add(op.file_path);
+            const message = (err as Error).message;
+            if (this.stateRepo) await this.stateRepo.clearPendingPushSha(op.file_path);
+            const inARow = (this.refusals.get(op.file_path) ?? 0) + 1;
+            this.refusals.set(op.file_path, inARow);
+            if (inARow >= this.maxRetryCount) {
+              // From here the queue row is the record: it waits for a person
+              // or for a newer write of the file, which starts at zero. Nor is
+              // it reconciled again by force — that would queue it anew each
+              // cycle.
+              console.error(`[SyncEngine] not pushing ${op.file_path}: ${message}, ${inARow} times in a row; it needs attention`);
+              await this.queue.markRequiresManualIntervention(op.id, `${REMOTE_REFUSAL} ${message} (${inARow} times in a row)`);
+              this.refusals.delete(op.file_path);
+            } else {
+              console.warn(`[SyncEngine] not pushing ${op.file_path}: ${message}; it is reconciled first`);
+              await this.queue.deferToReconcile(op.id, message);
+              this.reconcileAgain.add(op.file_path);
+            }
+            continue;
+          }
+          throw err;
+        }
 
         if (op.operation === "rename" && op.new_path && result && result.renameSourceMissing) {
           // The remote source vanished (deleted or moved by another device).
@@ -531,6 +629,7 @@ export class SyncEngine {
         }
         const syncedPath = op.operation === "rename" && op.new_path ? op.new_path : op.file_path;
         console.log(`[SyncEngine] pushed ${op.operation} ${op.file_path}`);
+        this.refusals.delete(syncedPath);
         await this.queue.markSynced(op.id, op.file_path, syncedPath);
 
         // A delete is only safe to forget once the remote delete succeeded; clean the
@@ -620,6 +719,12 @@ export class SyncEngine {
         consecutiveFailures++;
         if (consecutiveFailures >= this.maxConsecutiveFailures) break;
       }
+    }
+    // A count belongs to one run of refusals of a file's upload: once no write
+    // of the path waits any more — uploaded, retired because the file went,
+    // superseded by a move or a deletion — the next run starts at zero.
+    for (const path of [...this.refusals.keys()]) {
+      if (!refusedThisPass.has(path) && !(await this.queue.hasPendingOperation(path))) this.refusals.delete(path);
     }
   }
 }

@@ -468,7 +468,7 @@ describe("SyncWorker", () => {
     expect(writeCall![1]).toContain("Line 1 (local)");
     expect(writeCall![1]).toContain("Line 2 (external)");
     // The merge result is queued so it propagates back to the remote.
-    expect(queue.queueWrite).toHaveBeenCalledWith("note.md");
+    expect(queue.queueWrite).toHaveBeenCalledWith("note.md", { supersedeRefused: false });
     // Until that upload is through, the common ancestor is the REMOTE version
     // — hash and text. The merged text recorded in its place made the next
     // remote change replace the local one (finding 2026-10-12).
@@ -520,7 +520,7 @@ describe("SyncWorker", () => {
       const writes = vault.writeTextFile.mock.calls;
       expect(writes.map((c: any[]) => c[0])).toEqual([day]);
       expect(writes[0][1]).toBe("# 2026-09-20\n\n## Journal\n\n- 08:00 breakfast\n- 09:10 on the train\n- 10:45 call with the workshop\n- 12:30 lunch\n\n## Notes\n");
-      expect(queue.queueWrite).toHaveBeenCalledWith(day);
+      expect(queue.queueWrite).toHaveBeenCalledWith(day, { supersedeRefused: false });
     });
 
     it("unites two daily notes that were created apart, with no common ancestor", async () => {
@@ -534,7 +534,7 @@ describe("SyncWorker", () => {
       const writes = vault.writeTextFile.mock.calls;
       expect(writes.map((c: any[]) => c[0])).toEqual([day]);
       expect(writes[0][1]).toContain("- 09:10 on the train\n- 10:45 call with the workshop\n- 12:30 lunch\n");
-      expect(queue.queueWrite).toHaveBeenCalledWith(day);
+      expect(queue.queueWrite).toHaveBeenCalledWith(day, { supersedeRefused: false });
     });
 
     it("still preserves the local note when the two differ in anything but journal entries", async () => {
@@ -574,7 +574,7 @@ describe("SyncWorker", () => {
     // but the still-unsynced local change is queued for push.
     const wroteNote = vault.writeTextFile.mock.calls.some((c: any[]) => c[0] === "note.md");
     expect(wroteNote).toBe(false);
-    expect(queue.queueWrite).toHaveBeenCalledWith("note.md");
+    expect(queue.queueWrite).toHaveBeenCalledWith("note.md", { supersedeRefused: false });
     // The local change is not the common ancestor before it has been uploaded:
     // the base text stays the remote version (finding 2026-10-12).
     expect(stateRepo.updateLocalHashAndBaseTextGuarded).toHaveBeenCalledWith("note.md", await sha(local), remote, await sha(local));
@@ -1622,7 +1622,7 @@ describe("SyncWorker", () => {
       expect(stateRepo.updateBaseState).toHaveBeenCalledWith("note.md", await sha(p1), "etag-p1");
       expect(stateRepo.clearPendingPushSha).toHaveBeenCalledWith("note.md");
       // …and the newer local content is (re-)queued for push.
-      expect(queue.queueWrite).toHaveBeenCalledWith("note.md");
+      expect(queue.queueWrite).toHaveBeenCalledWith("note.md", { supersedeRefused: false });
     });
 
     it("a genuinely foreign remote change still preserves a .CONFLICT despite a stale journal entry", async () => {
