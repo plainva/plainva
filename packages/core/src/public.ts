@@ -12,6 +12,7 @@ export * from "./ast-scanner.js";
 export * from "./ast-mutations.js";
 export * from "./linkEncoding.js";
 export * from "./linkRewrite.js";
+export * from "./wikiLink.js";
 export * from "./conflict-resolver.js";
 export * from "./vault/IVaultAdapter.js";
 export * from "./vault/LinkResolver.js";

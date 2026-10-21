@@ -145,9 +145,15 @@ describe("original desktop save completion", () => {
   it("keeps a save that a note another program saved in another encoding cannot take beside it, as a conflict copy — the note keeps its bytes", async () => {
     const h = harness(); h.edit("my draft\n");
     // Still scheduled for this revision when the save came: the debounced save and the journal snapshot.
+    // Far out, so that no save outlasts them on a loaded machine (20 ms did,
+    // in a full run of the suite); whether the save lets them go is asked of
+    // clearTimeout.
     const scheduled = vi.fn();
-    h.saveTimeoutRef.current = window.setTimeout(scheduled, 20);
-    h.draftTimerRef.current = window.setTimeout(scheduled, 20);
+    const letGo = vi.spyOn(window, "clearTimeout");
+    const save = window.setTimeout(scheduled, 60_000);
+    const draft = window.setTimeout(scheduled, 60_000);
+    h.saveTimeoutRef.current = save;
+    h.draftTimerRef.current = draft;
     await writeFile(join(root, "Note.md"), FOREIGN);
     await h.persist("my draft\n");
     expect([...await readFile(join(root, "Note.md"))]).toEqual([...FOREIGN]);
@@ -167,8 +173,11 @@ describe("original desktop save completion", () => {
     // Nothing of this revision is still scheduled to run.
     expect(h.saveTimeoutRef.current).toBeNull();
     expect(h.draftTimerRef.current).toBeNull();
-    await new Promise((done) => setTimeout(done, 40));
+    expect(letGo).toHaveBeenCalledWith(save);
+    expect(letGo).toHaveBeenCalledWith(draft);
     expect(scheduled).not.toHaveBeenCalled();
+    window.clearTimeout(save);
+    window.clearTimeout(draft);
   });
 
   it("keeps nothing a second time when a save of the kept revision comes round after the next load — and drops what it journaled", async () => {

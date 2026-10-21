@@ -3,21 +3,29 @@ import remarkFrontmatter from "remark-frontmatter";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import remarkObsidianPreserve from "./remark-obsidian-preserve.ts";
+import { remarkWikiLinks } from "./wikiLinkSyntax.ts";
 import { unified } from "unified";
 
 export type ParseMarkdownAstOptions = {
   preserveObsidianSyntax?: boolean;
 };
 
-const markdownParser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]);
+/**
+ * A note's Markdown: tables, task lists, the properties block — and wiki
+ * links. `[[Note]]` and `![[Note]]` are read by the tokenizer, where a code
+ * span is read, and reach the tree as nodes of their own (`wikiLinkSyntax.ts`).
+ */
+const markdownParser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]).use(remarkWikiLinks);
 
+/** The same, with a callout's marker (`[!info]`) kept as it is written for the serializer. */
 const obsidianPreservingMarkdownParser = unified()
   .use(remarkParse)
   .use(remarkGfm)
   .use(remarkFrontmatter, ["yaml"])
+  .use(remarkWikiLinks)
   .use(remarkObsidianPreserve);
 
-/** CommonMark alone: no tables, no bare addresses turned into links, no properties block. */
+/** CommonMark alone: no tables, no bare addresses turned into links, no properties block, no wiki links. */
 const commonMarkParser = unified().use(remarkParse);
 
 const BYTE_ORDER_MARK = 0xfeff;
@@ -35,6 +43,8 @@ export interface MarkdownTreeNode {
   value?: string;
   depth?: number;
   url?: string;
+  /** On a wiki link (`type: "wikiLink"`): written with a `!` in front. */
+  embed?: boolean;
   children?: MarkdownTreeNode[];
   position?: { start: MarkdownTreePoint; end: MarkdownTreePoint };
 }
@@ -108,9 +118,10 @@ export function parseMarkdownAst(
 }
 
 /**
- * The tree of a note for a reader of places: tables, task lists and the
- * properties block as `parseMarkdownAst` reads them, without the check of the
- * tree's shape that function runs. Every position is a place in `text`.
+ * The tree of a note for a reader of places: tables, task lists, the
+ * properties block and wiki links as `parseMarkdownAst` reads them, without
+ * the check of the tree's shape that function runs. Every position is a place
+ * in `text`.
  */
 export function parseMarkdownTree(text: string): MarkdownTreeNode {
   return parsedInText((source) => markdownParser.parse(source), text) as unknown as MarkdownTreeNode;
@@ -118,7 +129,8 @@ export function parseMarkdownTree(text: string): MarkdownTreeNode {
 
 /**
  * The tree of a text that is CommonMark and nothing more — what another
- * program wrote before it was a note here. Every position is a place in `text`.
+ * program wrote before it was a note here; `[[` opens no wiki link in it.
+ * Every position is a place in `text`.
  */
 export function parseCommonMarkTree(text: string): MarkdownTreeNode {
   return parsedInText((source) => commonMarkParser.parse(source), text) as unknown as MarkdownTreeNode;

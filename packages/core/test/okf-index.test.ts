@@ -5,6 +5,7 @@ import {
   relativeMarkdownUrl,
   convertWikilinksToMarkdownLinks,
 } from "../src/okf-index.js";
+import { readNoteLinks } from "../src/linkRewrite.js";
 
 describe("relativeMarkdownUrl", () => {
   it("builds relative urls from a folder", () => {
@@ -186,24 +187,33 @@ describe("convertWikilinksToMarkdownLinks", () => {
     expect(content).toBe("| a |\n|---|\n| [one \\| two](Alpha.md) |\n");
   });
 
-  it("counts a link whose place cannot be told as not converted, and leaves it", () => {
-    // `&amp;` is read as `&`: the link names `Alpha & Co`, which the line does not spell.
+  it("reads a character reference in a wiki link as the characters it is written with", () => {
+    // The link names "Alpha &amp; Co", as the line spells it (finding 2026-10-11) —
+    // not the note "Alpha & Co", which it was taken for until then.
     const note = "[[Alpha &amp; Co]] and ![[Alpha &amp; Co]]\n";
-    const vault = [...allFiles, "Projects/Alpha & Co.md"];
-    expect(convertWikilinksToMarkdownLinks(note, { sourcePath: "Projects/MOC.md", allFilePaths: vault })).toEqual({ content: note, result: { converted: 0, embeds: 1, unresolved: 1 } });
+    expect(convertWikilinksToMarkdownLinks(note, { sourcePath: "Projects/MOC.md", allFilePaths: [...allFiles, "Projects/Alpha & Co.md"] })).toEqual({ content: note, result: { converted: 0, embeds: 1, unresolved: 1 } });
+    // The Markdown link is written so that it reads as that name: `\&` keeps `&amp;` from being read as `&`.
+    const converted = convertWikilinksToMarkdownLinks(note, { sourcePath: "Projects/MOC.md", allFilePaths: [...allFiles, "Projects/Alpha &amp; Co.md"] });
+    expect(converted).toEqual({
+      content: "[Alpha \\&amp; Co](Alpha%20\\&amp;%20Co.md) and ![[Alpha &amp; Co]]\n",
+      result: { converted: 1, embeds: 1, unresolved: 0 },
+    });
+    expect(readNoteLinks(converted.content).links.map((link) => link.target)).toEqual(["Alpha &amp; Co.md", "Alpha &amp; Co"]);
+    // The bar in an alias is the bar it spells, `\|` as well: the label reads "a|b".
+    expect(convertWikilinksToMarkdownLinks("[[Alpha|a\\|b]]\n", { sourcePath: "Projects/MOC.md", allFilePaths: allFiles }).content).toBe("[a|b](Alpha.md)\n");
   });
 
-  it("converts the link behind an address or a reference, never a place that only looks like it", () => {
+  it("converts a link where the tokenizer reads it: behind an address it did not take, and behind a character reference", () => {
     const options = { sourcePath: "Projects/MOC.md", allFilePaths: allFiles };
-    // Cut out of its text, the address takes `[[Alpha` along; the link is the one behind it.
+    // An address behind a bracket is cut out of the text only after the link behind it was read.
     expect(convertWikilinksToMarkdownLinks("[www.example.com/[[Alpha]] [[Alpha]]]\n", options)).toEqual({
-      content: "[www.example.com/[[Alpha]] [Alpha](Alpha.md)]\n",
-      result: { converted: 1, embeds: 0, unresolved: 0 },
+      content: "[www.example.com/[Alpha](Alpha.md) [Alpha](Alpha.md)]\n",
+      result: { converted: 2, embeds: 0, unresolved: 0 },
     });
-    // `&#33;` is read as `!`: an embed the source does not spell as one. It stays, and is counted as an embed.
+    // `&#33;` is a `!` by reference — text; the link behind it is no embed.
     expect(convertWikilinksToMarkdownLinks("&#33;[[Alpha]] and [[Alpha]]\n", options)).toEqual({
-      content: "&#33;[[Alpha]] and [Alpha](Alpha.md)\n",
-      result: { converted: 1, embeds: 1, unresolved: 0 },
+      content: "&#33;[Alpha](Alpha.md) and [Alpha](Alpha.md)\n",
+      result: { converted: 2, embeds: 0, unresolved: 0 },
     });
   });
 

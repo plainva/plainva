@@ -27,18 +27,21 @@ Not a #123 tag.
 [[Folder/Note|Alias Name]]
 ![[Image.png|100x100]]
 `;
-    // We must pass preserveObsidianSyntax to parse these correctly as HTML nodes
+    // The index parses with the option; the links are the same without it —
+    // a wiki link is the tokenizer's node either way (wiki-link-syntax.test.ts).
     const ast = parseMarkdownAst(md, { preserveObsidianSyntax: true });
     const result = extractLinksAndTags(ast);
 
-    // Each link carries its line (Build-91 feedback, P7) — the preserve plugin
-    // derives it from the text node it split, so a link on the third line of a
-    // paragraph is on line 4 of this fixture, not on the paragraph's first.
-    expect(result.links).toEqual([
+    // Each link carries its line (Build-91 feedback, P7) — the line its node
+    // stands on, so a link on the third line of a paragraph is on line 4 of
+    // this fixture, not on the paragraph's first.
+    const links = [
       { type: "wikilink", target: "WikiLink", rawTarget: "WikiLink", alias: undefined, line: 2 },
       { type: "wikilink", target: "Folder/Note", rawTarget: "Folder/Note", alias: "Alias Name", line: 3 },
       { type: "embed", target: "Image.png", rawTarget: "Image.png", alias: "100x100", line: 4 }
-    ]);
+    ];
+    expect(result.links).toEqual(links);
+    expect(extractLinksAndTags(parseMarkdownAst(md)).links).toEqual(links);
   });
 
   it("should extract standard markdown links", () => {

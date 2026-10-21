@@ -3,6 +3,7 @@ import { rewriteNoteLinks } from "./linkRewrite.js";
 import { serializeMarkdownLink } from "./markdown-serializer.js";
 import { buildLinkTargetIndex, resolveLinkTargetIndexed, type LinkCorpusFile } from "./vault/LinkResolver.js";
 import { OKF_VERSION } from "./metadata.js";
+import { wikiLinkParts } from "./wikiLink.js";
 
 /**
  * OKF index.md support (SPEC §6/§11): spec-shaped directory listings,
@@ -226,11 +227,12 @@ export function convertWikilinksToMarkdownLinks(
     if (link.type === "embed") result.embeds++;
     if (link.type !== "wikilink") return null;
 
-    const pipe = link.inner.split("|");
-    const alias = pipe.length > 1 ? pipe.slice(1).join("|") : undefined;
-    const hashIdx = pipe[0].indexOf("#");
-    const target = hashIdx >= 0 ? pipe[0].slice(0, hashIdx) : pipe[0];
-    const anchor = hashIdx >= 0 ? pipe[0].slice(hashIdx) : "";
+    // What stands between the brackets is read by the one rule for it; an
+    // alias's `\|` is the bar it spells, and the new link's label is that text.
+    const { rawTarget: head, alias } = wikiLinkParts(link.inner);
+    const hashIdx = head.indexOf("#");
+    const target = hashIdx >= 0 ? head.slice(0, hashIdx) : head;
+    const anchor = hashIdx >= 0 ? head.slice(hashIdx) : "";
 
     const resolved = resolveLinkTargetIndexed(opts.sourcePath, target, corpusIndex);
     if (!resolved || (opts.only && !opts.only.has(resolved.replace(/\\/g, "/")))) {
@@ -239,7 +241,7 @@ export function convertWikilinksToMarkdownLinks(
     }
 
     const url = relativeMarkdownUrl(sourceFolder, resolved) + encodeMarkdownLinkAnchor(anchor);
-    const text = alias ?? (hashIdx >= 0 ? pipe[0] : target.split("/").pop()!);
+    const text = alias ?? (hashIdx >= 0 ? head : target.split("/").pop()!);
     return { replacement: serializeMarkdownLink(text, url, { inTable: link.inTable }) };
   });
 

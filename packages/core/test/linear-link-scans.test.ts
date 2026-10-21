@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bracketLinks, nextWhere, replaceBracketLinks, wikiLinks } from "../src/linkScan.js";
+import { parseMarkdownTree } from "../src/markdown-parser.js";
 import { prepareReaderSource } from "../src/noteSource.js";
 import remarkObsidianPreserve from "../src/remark-obsidian-preserve.js";
 import { projectPublishedMarkdown } from "../src/workspace/publishedSlices.js";
@@ -78,24 +79,39 @@ describe("the sites", () => {
     within(5_000, () => prepareReaderSource("[[".repeat(N / 2)));
   });
 
-  it("the preserve plugin splits one text node, positions included", () => {
+  it("the preserve plugin splits one text node at a callout's marker, positions included", () => {
+    // A wiki link reaches the tree as a node of its own (wikiLinkSyntax.ts):
+    // what is left of `[[…]]` in a text's value was written with a backslash
+    // or a reference, and stays text.
     const tree = { type: "root", children: [{ type: "paragraph", children: [{ type: "text", value: "a [[x]] b\n![[y]] [!info] [!] c", position: { start: { line: 3, column: 5, offset: 40 } } }] }] };
     remarkObsidianPreserve()(tree);
     type Node = { type: string; value: string; position: { start: { line: number; column: number }; end: { line: number; column: number } } };
     const nodes = tree.children[0].children as unknown as Node[];
     expect(nodes.map((n) => [n.type, n.value, n.position.start.line, n.position.start.column, n.position.end.line, n.position.end.column])).toEqual([
-      ["text", "a ", 3, 5, 3, 7],
-      ["html", "[[x]]", 3, 7, 3, 12],
-      ["text", " b\n", 3, 12, 4, 1],
-      ["html", "![[y]]", 4, 1, 4, 7],
-      ["text", " ", 4, 7, 4, 8],
+      ["text", "a [[x]] b\n![[y]] ", 3, 5, 4, 8],
       ["html", "[!info]", 4, 8, 4, 15],
       ["text", " [!] c", 4, 15, 4, 21],
     ]);
     const hostile = (value: string) => ({ type: "root", children: [{ type: "paragraph", children: [{ type: "text", value, position: { start: { line: 1, column: 1, offset: 0 } } }] }] });
-    within(1_000, () => remarkObsidianPreserve()(hostile("[[".repeat(N / 2))));
-    // Many links in one paragraph: their positions are counted once, not per link.
-    within(1_000, () => remarkObsidianPreserve()(hostile("[[a]]\n".repeat(N / 6))));
+    within(1_000, () => remarkObsidianPreserve()(hostile("[!".repeat(N / 2))));
+    within(1_000, () => remarkObsidianPreserve()(hostile("[!a".repeat(N / 3))));
+    // Many markers in one paragraph: their positions are counted once, not per marker.
+    within(1_000, () => remarkObsidianPreserve()(hostile("[!info]\n".repeat(N / 8))));
+  });
+
+  it("the tokenizer follows a `[[` without its `]]` once per line, not once per bracket", () => {
+    // A line that is a long run of `[`: every `[[` would look for its `]]` to
+    // the end of the line again; the first one that finds none settles it for
+    // the rest of the line. The budgets are the parser's own time for such a
+    // text and more — a run of `]` it reads in quadratic time by itself.
+    const parse = (text: string) => parseMarkdownTree(text);
+    within(5_000, () => parse("[[".repeat(N / 4)));
+    within(5_000, () => parse("![[".repeat(N / 6)));
+    within(5_000, () => parse("[[ x\n".repeat(N / 10)));
+    // Many links on one line, and many lines with one: each is read once.
+    const links = N / 10;
+    within(5_000, () => expect(parse("[[a]] ".repeat(links)).children?.[0].children?.filter((node) => node.type === "wikiLink")).toHaveLength(links));
+    within(5_000, () => parse("[[a]]\n".repeat(links)));
   });
 
   it("TiddlyWiki tags, Notion and HTML-folder links, Roam uploads", async () => {

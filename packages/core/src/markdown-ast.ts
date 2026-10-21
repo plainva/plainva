@@ -4,6 +4,13 @@ import { z } from "zod";
 
 export type MarkdownTextNode = { type: "text"; value: string };
 export type MarkdownHtmlNode = { type: "html"; value: string };
+/**
+ * A wiki link or an embed, read by the tokenizer (`wikiLinkSyntax.ts`). `value`
+ * is the link as it stands in the note — `[[Note|alias]]`, `![[image.png]]` —,
+ * so the text of a heading that holds one reads as it is written;
+ * `wikiLinkParts()` tells the file, the anchor and the alias in it.
+ */
+export type MarkdownWikiLinkNode = { type: "wikiLink"; value: string; embed: boolean };
 export type MarkdownYamlNode = { type: "yaml"; value: string };
 export type MarkdownEmphasisNode = { type: "emphasis"; children: MarkdownPhrasingNode[] };
 export type MarkdownStrongNode = { type: "strong"; children: MarkdownPhrasingNode[] };
@@ -32,6 +39,7 @@ export type MarkdownFootnoteReferenceNode = { type: "footnoteReference"; identif
 export type MarkdownPhrasingNode =
   | MarkdownTextNode
   | MarkdownHtmlNode
+  | MarkdownWikiLinkNode
   | MarkdownEmphasisNode
   | MarkdownStrongNode
   | MarkdownLinkNode
@@ -74,6 +82,7 @@ export let markdownBlockContentNodeSchema: z.ZodType<MarkdownBlockContentNode>;
 
 const textNode = z.object({ type: z.literal("text"), value: z.string() }).passthrough();
 const htmlNode = z.object({ type: z.literal("html"), value: z.string() }).passthrough();
+const wikiLinkNode = z.object({ type: z.literal("wikiLink"), value: z.string(), embed: z.boolean() }).passthrough();
 const yamlNode = z.object({ type: z.literal("yaml"), value: z.string() }).passthrough();
 const inlineCodeNode = z.object({ type: z.literal("inlineCode"), value: z.string() }).passthrough();
 const thematicBreakNode = z.object({ type: z.literal("thematicBreak") }).passthrough();
@@ -101,6 +110,7 @@ const tableNode = z.object({ type: z.literal("table"), align: z.array(z.union([z
 // Public, interface-typed aliases (unchanged API surface).
 export const markdownTextNodeSchema: z.ZodType<MarkdownTextNode> = textNode;
 export const markdownHtmlNodeSchema: z.ZodType<MarkdownHtmlNode> = htmlNode;
+export const markdownWikiLinkNodeSchema: z.ZodType<MarkdownWikiLinkNode> = wikiLinkNode;
 export const markdownYamlNodeSchema: z.ZodType<MarkdownYamlNode> = yamlNode;
 export const markdownInlineCodeNodeSchema: z.ZodType<MarkdownInlineCodeNode> = inlineCodeNode;
 export const markdownThematicBreakNodeSchema: z.ZodType<MarkdownThematicBreakNode> = thematicBreakNode;
@@ -128,6 +138,7 @@ export const markdownTableNodeSchema: z.ZodType<MarkdownTableNode> = tableNode;
 markdownPhrasingNodeSchema = z.lazy(() => z.discriminatedUnion("type", [
   textNode,
   htmlNode,
+  wikiLinkNode,
   emphasisNode,
   strongNode,
   linkNode,
@@ -162,6 +173,7 @@ export type MarkdownAst = z.infer<typeof markdownAstSchema>;
 
 export function isMarkdownTextNode(node: any): node is MarkdownTextNode { return node?.type === "text"; }
 export function isMarkdownHtmlNode(node: any): node is MarkdownHtmlNode { return node?.type === "html"; }
+export function isMarkdownWikiLinkNode(node: any): node is MarkdownWikiLinkNode { return node?.type === "wikiLink"; }
 export function isMarkdownYamlNode(node: any): node is MarkdownYamlNode { return node?.type === "yaml"; }
 export function isMarkdownEmphasisNode(node: any): node is MarkdownEmphasisNode { return node?.type === "emphasis"; }
 export function isMarkdownStrongNode(node: any): node is MarkdownStrongNode { return node?.type === "strong"; }

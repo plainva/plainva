@@ -20,8 +20,11 @@ import { adoptFileAsIndex, errorText, landedAtDestination, MoveBlockedError, mov
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import {
+  fill,
   LINK_COUNT,
   LINKING_NOTES,
+  MARKED,
+  MARKED_NAMES,
   NEW_NAME,
   NEW_PATH,
   NOTES_WITH_A_LINK,
@@ -142,14 +145,42 @@ describe("renaming a note on the phone", () => {
   });
 
   it("says so when a link cannot be rewritten where it stands, and leaves that note as it is", async () => {
-    // `&amp;` inside the link is read as `&`: the note links to "R & D" without spelling it.
-    const note = `${String.fromCharCode(0xfeff)}* [[R &amp; D]] is the link\r\n* *the rest* stays\r\n`;
+    // A destination is Markdown: `&amp;` in it is read as `&`, and the note
+    // links to "R & D.md" without spelling it.
+    const note = `${String.fromCharCode(0xfeff)}* [the lab](R%20&amp;%20D.md) is the link\r\n* *the rest* stays\r\n`;
     await writeVault({ "Lab.md": note, "R & D.md": "# R & D\n" });
 
     const report = await phone.renameReport(vault, "R & D.md", "Research");
 
     expect(report).toEqual({ newPath: "Research.md", renamedLinks: 0, changedFiles: 0, linkUpdateFailed: true });
     await expectFile("Lab.md", note);
+  });
+
+  it("follows a wiki link with a character reference to the file it names as it is written", async () => {
+    // A wiki link holds a file's name, not Markdown (finding 2026-10-11): `[[R &amp; D]]` names "R &amp; D".
+    const note = `${String.fromCharCode(0xfeff)}* [[R &amp; D]] is the link\r\n* *the rest* stays\r\n`;
+    await writeVault({ "Lab.md": note, "R & D.md": "# R & D\n", "R &amp; D.md": "# R &amp; D\n" });
+
+    expect(await phone.renameReport(vault, "R & D.md", "Research")).toEqual({ newPath: "Research.md", renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false });
+    await expectFile("Lab.md", note);
+
+    expect(await phone.renameReport(vault, "R &amp; D.md", "Lab notes")).toEqual({ newPath: "Lab notes.md", renamedLinks: 1, changedFiles: 1, linkUpdateFailed: false });
+    await expectFile("Lab.md", note.replace("[[R &amp; D]]", "[[Lab notes]]"));
+  });
+});
+
+describe("renaming a note on the phone to a name Markdown reads something into, and back", () => {
+  it.each(MARKED_NAMES)("%s", async (name) => {
+    await writeVault({ [MARKED.path]: "# Setup\n\n## Part\n", [MARKED.linkingPath]: fill(MARKED.linking, MARKED.name) });
+    const renamedPath = `Code/${name}.md`;
+
+    expect(await phone.renameReport(vault, MARKED.path, name)).toEqual({ newPath: renamedPath, renamedLinks: MARKED.links, changedFiles: 1, linkUpdateFailed: false });
+    await expectFile(MARKED.linkingPath, fill(MARKED.linking, name));
+
+    // The phone brings its index up to date itself: the links are backlinks under that name, and the next rename finds them.
+    expect((await query.getBacklinks(renamedPath)).map((row) => row.source_path)).toEqual(Array(MARKED.links).fill(MARKED.linkingPath));
+    expect(await phone.renameReport(vault, renamedPath, MARKED.name)).toEqual({ newPath: MARKED.path, renamedLinks: MARKED.links, changedFiles: 1, linkUpdateFailed: false });
+    await expectFile(MARKED.linkingPath, fill(MARKED.linking, MARKED.name));
   });
 });
 

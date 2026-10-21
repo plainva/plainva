@@ -1,6 +1,7 @@
 import { IDatabaseAdapter } from "./IDatabaseAdapter.js";
 import { migratePathIdentity } from "./pathIdentityMigration.js";
 import { flagLossyTextBases } from "./lossyTextBaseMigration.js";
+import { markNotesForWikiLinkReading } from "./wikiLinkReadingMigration.js";
 import { runStatementsAtomic } from "./batch.js";
 import { segmentedIndexText, SPACELESS_GLOB } from "../vault/spacelessText.js";
 
@@ -645,7 +646,12 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
 // spaces (Gesamtplan Volltextsuche CJK, 2026-09-30). It is the first step that
 // re-parses nothing: the table is copied into its new shape, so search never
 // stands empty, and only notes holding such text get the new columns filled.
-const INDEX_FORMAT_VERSION = 5;
+//
+// Version 6 reads a wiki link where the tokenizer reads a code span, as the
+// name it is written as (finding 2026-10-11). Only the notes whose links the
+// two readings may list differently are read again by the next full scan
+// (`wikiLinkReadingMigration.ts`).
+const INDEX_FORMAT_VERSION = 6;
 
 async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
   let stored: number;
@@ -662,7 +668,8 @@ async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
 
   await upgradeFullTextTable(db);
   if (stored >= 4) {
-    await fillSegmentedColumns(db);
+    if (stored < 5) await fillSegmentedColumns(db);
+    await markNotesForWikiLinkReading(db);
   } else {
     // Below 4 every note is re-parsed, which fills the new columns as well.
     // Backfill BEFORE the mtime reset — ctime derives from mtime_local.

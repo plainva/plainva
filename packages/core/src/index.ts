@@ -20,6 +20,7 @@ export * from "./okf-conversion.js";
 export * from "./okf-index.js";
 export * from "./linkEncoding.js";
 export * from "./linkRewrite.js";
+export * from "./wikiLink.js";
 export * from "./suggestionPark.js";
 export * from "./okf-trust.js";
 export * from "./okf-migration.js";

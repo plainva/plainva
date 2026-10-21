@@ -119,6 +119,25 @@ export const LINK_COUNT = Object.values(LINKING_NOTES).reduce((sum, template) =>
 export const NOTES_WITH_A_LINK: readonly string[] = [...Object.keys(LINKING_NOTES), NEW_PATH].sort();
 
 /**
+ * A note renamed to a name Markdown reads something into, and back (finding
+ * 2026-10-11). For Markdown `__init__` is a word in bold and `~~old~~` one
+ * struck through; until the wiki link was read by the tokenizer the index
+ * listed no link to such a name, and a reference like `&amp;` it listed
+ * resolved. The rename wrote the new name — and the next rename left the
+ * links on it. (`*` stands in no file's name on Windows.)
+ */
+export const MARKED_NAMES: readonly string[] = ["__init__", "_private_", "~~old~~", "Tom &amp; Jerry"];
+export const MARKED = {
+  /** The note that is renamed, under its plain name. */
+  path: "Code/Setup.md",
+  name: "Setup",
+  linkingPath: "Linking.md",
+  /** The note that links to it: a link, an alias, an embed with an anchor, a link in a table cell. */
+  linking: windows(["* See [[{T}]] and [[{T}|*the* alias]]", "* and ![[{T}#Part]]", "", "| a |", "|---|", "| [[{T}\\|in a table]] |", ""]),
+  links: 4,
+};
+
+/**
  * A note that is adopted as the overview of its folder. `{A}`, `{B}`, `{C}`
  * and `{G}` stand where a wiki link becomes a Markdown link when the note is
  * prepared for it; nothing else of the note changes then, but for its

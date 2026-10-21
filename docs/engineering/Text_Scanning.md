@@ -25,7 +25,13 @@ keeps the class closed.
    - `packages/core/src/linkScan.ts` — wiki and Markdown link scanners
      (`wikiLinks`, `bracketLinks`, `replaceBracketLinks`, the matchers and the
      `nextWhere` cursor they are built on), used by the editor plugins, the
-     inline renderer, the importers, publications and the reader;
+     inline renderer, the importers and publications;
+   - `packages/core/src/wikiLinkSyntax.ts` — `[[…]]` and `![[…]]` as a
+     construct of the Markdown tokenizer, read before anything is read into
+     them (ADR 0003, addendum 2026-10-21): a `[[` that finds no `]]` before
+     its line ends settles that for every `[[` behind it on the line, so a run
+     of brackets is read once (`linear-link-scans.test.ts`). The index, the
+     link rewriter and the reading view take wiki links from its nodes;
    - `packages/core/src/linkRewrite.ts` — where the links of a note stand in
      its text (`readNoteLinks`), and their rewrite in that place
      (`rewriteNoteLinks`, `renameNoteLinks`): a rename and the preparation of

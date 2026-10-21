@@ -3,6 +3,7 @@ import remarkStringify from "remark-stringify";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import { MarkdownAst } from "./markdown-ast.js";
+import { remarkWikiLinks } from "./wikiLinkSyntax.js";
 
 const processor = unified()
   .use(remarkStringify, {
@@ -14,7 +15,8 @@ const processor = unified()
     listItemIndent: "one"
   })
   .use(remarkGfm)
-  .use(remarkFrontmatter, ["yaml"]);
+  .use(remarkFrontmatter, ["yaml"])
+  .use(remarkWikiLinks);
 
 /**
  * Markdown from a tree, in this serializer's own form: `-` for a list item,
@@ -30,9 +32,10 @@ const processor = unified()
  * from a tree of their own.
  */
 export function serializeMarkdownAst(ast: MarkdownAst): string {
-  // remark-stringify outputs 'html' nodes as raw text without escaping.
-  // Since our remark-obsidian-preserve plugin parsed wikilinks and embeds into 'html' nodes,
-  // they will naturally be preserved here.
+  // A wiki link is a node of its own and is written as it stands in it
+  // (wikiLinkSyntax.ts). A callout's marker arrives as an 'html' node
+  // (remark-obsidian-preserve), which remark-stringify writes as it stands,
+  // without escaping.
   return processor.stringify(ast as any);
 }
 

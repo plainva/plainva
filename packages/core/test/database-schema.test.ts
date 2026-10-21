@@ -67,11 +67,11 @@ describe("Database Schema", () => {
     expect(reset).toContain(`LIKE '%.md'`);
     const stamp = db.queries.find(q => q.query.includes("INSERT OR REPLACE INTO meta"));
     expect(stamp).toBeDefined();
-    expect(stamp!.params).toEqual(["5"]);
+    expect(stamp!.params).toEqual(["6"]);
   });
 
   it("skips the reindex when the stored index format is current", async () => {
-    db.mockedOneResults.push({ value: "5" });
+    db.mockedOneResults.push({ value: "6" });
     await initializeSchema(db);
 
     const queries = db.queries.map(q => q.query);
@@ -94,7 +94,7 @@ describe("Database Schema", () => {
     expect(swap).toBeGreaterThan(copy);
     expect(queries.some(q => q.includes("UPDATE files SET mtime_local = 0"))).toBe(false);
     const stamp = db.queries.find(q => q.query.includes("INSERT OR REPLACE INTO meta") && q.query.includes("index_format_version"));
-    expect(stamp!.params).toEqual(["5"]);
+    expect(stamp!.params).toEqual(["6"]);
   });
 
   it("can execute insert and select on sync_state", async () => {

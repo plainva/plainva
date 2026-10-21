@@ -181,55 +181,72 @@ describe("what is a link, and what only looks like one", () => {
     const table = "| note | state |\n|---|:-:|\n| [[Old\\|the old one]] | open |\n| [x](Old.md) and ![[Old\\|200]] | plain \\| pipe [[Old]] |\n";
     const after = "| note | state |\n|---|:-:|\n| [[New\\|the old one]] | open |\n| [x](New.md) and ![[New\\|200]] | plain \\| pipe [[New]] |\n";
     expect(rename(table, { Old: "New", "Old.md": "New.md" })).toEqual({ content: after, renamed: 4, unplaced: 0 });
-    // Until now the cell came back as `[[New|the old one]]`: the bare `|` ended it, and the row had a cell more.
+    // While a rename wrote the tree back, the cell came out as `[[New|the old
+    // one]]`: the bare `|` ended it, and the row had a cell more. A wiki link
+    // is a node that holds what is written now, so a tree written back keeps
+    // the backslash too — and still writes the table in its own form.
     const serialized = serializeMarkdownAst(parseMarkdownAst(table, { preserveObsidianSyntax: true }));
-    expect(serialized).toContain("[[Old|the old one]]");
+    expect(serialized).toContain("[[Old\\|the old one]]");
+    expect(serialized).not.toContain("|---|:-:|");
   });
 
-  it("reads a backslash escape the way the parser does, and writes the link back around it", () => {
-    // The parser takes `\(` for `(`: the index lists the file `Old (1)`.
-    expect(rename("[[Old \\(1\\)]] and [[Old \\(1\\)#H|a]]", { "Old (1)": "New" }).content).toBe("[[New]] and [[New#H|a]]");
-    // An escaped bracket in front of the link, and inside its opening.
-    expect(rename("\\[[Old]] and [\\[Old]]", { Old: "New" }).content).toBe("\\[[New]] and [\\[New]]");
-    // `\|` outside a table is the same separator.
+  it("takes what stands between the brackets as it is written: a backslash is a character of the name", () => {
+    // Markdown reads `\(` as `(` and `\_` as `_`. A wiki link holds a file's
+    // name, not Markdown: these name "Old \(1\)" and "My\_Note", which is
+    // where a click on them leads. Until 2026-10-12 the index listed "Old (1)".
+    const escaped = "[[Old \\(1\\)]] and [[My\\_Note|a]]";
+    expect(rename(escaped, { "Old (1)": "New", My_Note: "New" })).toEqual({ content: escaped, renamed: 0, unplaced: 0 });
+    expect(rename(escaped, { "Old \\(1\\)": "New (2)", "My\\_Note": "My_New_Note" }).content).toBe("[[New (2)]] and [[My_New_Note|a]]");
+    // The one spelling besides the plain one: `\|`, the bar of a table cell,
+    // is the bar — outside a table as well.
     expect(rename("[[Old\\|alias]]", { Old: "New" }).content).toBe("[[New\\|alias]]");
-    // A character the note escapes in the old name is escaped in the new one:
-    // left bare, a `_` can pair up with one further on, and the link is none.
-    expect(rename("[[My\\_Note]] and [[My\\_Note|a]]", { My_Note: "My_New_Note (2)" }).content).toBe("[[My\\_New\\_Note (2)]] and [[My\\_New\\_Note (2)|a]]");
-    expect(rename("[[Old \\(1\\)]]", { "Old (1)": "New (2)" }).content).toBe("[[New \\(2\\)]]");
+    // A bracket behind a backslash opens no link, and neither does one that is
+    // spelled as a character reference.
+    const none = "\\[[Old]] and [\\[Old]] and &#91;[Old]] and &#91;&#91;Old]]\n";
+    expect(rename(none, { Old: "New" })).toEqual({ content: none, renamed: 0, unplaced: 0 });
+    expect(readNoteLinks(none)).toEqual({ links: [], unplaced: [] });
+    // The brackets that are written open one, whatever stands in front of
+    // them: a `[` or a `!` by reference is text, a backslash behind a
+    // backslash is one.
+    expect(rename("&#91;[[Old]] and &#33;[[Old]] and \\\\[[Old]]\n", { Old: "New" })).toEqual({ content: "&#91;[[New]] and &#33;[[New]] and \\\\[[New]]\n", renamed: 3, unplaced: 0 });
+    expect(readNoteLinks("&#33;[[Old]]").links.map((link) => link.type)).toEqual(["wikilink"]);
   });
 
-  it("writes a wiki link's new name as the name it is", () => {
-    // As the rewrite in the tree did: a wiki link holds a file's name, not
-    // Markdown, and a backslash in it would be part of the name for every
-    // reader that takes it so. The index scans Markdown text, though, and
-    // lists no link where the marks of a name pair up — the same as for a
-    // link somebody typed that way. That is the scan's to put right, not this
-    // rewrite's to cover by spelling a name another way.
-    expect(rename("See [[Old]] here.\n", { Old: "__init__" })).toEqual({ content: "See [[__init__]] here.\n", renamed: 1, unplaced: 0 });
-    expect(rename("See [[Old|x]] here.\n", { Old: "Tom &amp; Jerry" })).toEqual({ content: "See [[Tom &amp; Jerry|x]] here.\n", renamed: 1, unplaced: 0 });
+  it("writes a wiki link's new name as the name it is, and reads it as the link it is", () => {
+    // A wiki link holds a file's name, not Markdown. The marks of a name pair
+    // up for Markdown — `__init__` is a word in bold —, and until 2026-10-12
+    // the index listed no link then: no backlink, and the next rename left
+    // such a link on the old name.
+    const once = rename("See [[Old]] here.\n", { Old: "__init__" });
+    expect(once).toEqual({ content: "See [[__init__]] here.\n", renamed: 1, unplaced: 0 });
+    expect(rename(once.content, { __init__: "setup" })).toEqual({ content: "See [[setup]] here.\n", renamed: 1, unplaced: 0 });
+    const reference = rename("See [[Old|x]] here.\n", { Old: "Tom &amp; Jerry" });
+    expect(reference).toEqual({ content: "See [[Tom &amp; Jerry|x]] here.\n", renamed: 1, unplaced: 0 });
+    expect(rename(reference.content, { "Tom &amp; Jerry": "Old" })).toEqual({ content: "See [[Old|x]] here.\n", renamed: 1, unplaced: 0 });
   });
 
-  it("does not guess at a link with a character reference in it: it is reported, and no character moves", () => {
-    // `&amp;` is read as `&`, so the index lists the file `Old & Co` — which the note does not spell.
+  it("reads a character reference in a wiki link as the characters it is written with; in a destination it leaves the link unplaced", () => {
+    // The link names "Old &amp; Co": what the line says, and where a click on
+    // it leads. Until 2026-10-12 the index listed "Old & Co", and the link
+    // could not be placed.
     const note = "[[Old &amp; Co]] and [[Old]] on one line\n[[Old]] on the next\n";
-    expect(rename(note, { "Old & Co": "New" })).toEqual({ content: note, renamed: 0, unplaced: 1 });
-    // The links beside it are found where they stand.
+    expect(rename(note, { "Old & Co": "New" })).toEqual({ content: note, renamed: 0, unplaced: 0 });
+    expect(rename(note, { "Old &amp; Co": "New" })).toEqual({ content: "[[New]] and [[Old]] on one line\n[[Old]] on the next\n", renamed: 1, unplaced: 0 });
     expect(rename(note, { Old: "New" })).toEqual({ content: "[[Old &amp; Co]] and [[New]] on one line\n[[New]] on the next\n", renamed: 2, unplaced: 0 });
-    // A destination with a reference in it.
+    // A Markdown link's destination IS Markdown: `&amp;` reads as `&` there,
+    // and the note does not spell the file's name. It is reported, and no
+    // character moves.
     const link = "[x](Old&amp;Co.md)\n";
     expect(rename(link, { "Old&Co.md": "New.md" })).toEqual({ content: link, renamed: 0, unplaced: 1 });
     // A link that names another file is nobody's failure.
-    expect(rename(note, { Other: "New" })).toEqual({ content: note, renamed: 0, unplaced: 0 });
-    // A reference that opens a link the source does not spell: `&#91;` is read as `[`.
-    const spelled = "&#91;[Old]] and [[Old]]\n";
-    expect(rename(spelled, { Old: "New" })).toEqual({ content: "&#91;[Old]] and [[New]]\n", renamed: 1, unplaced: 1 });
+    expect(rename(link, { "Other.md": "New.md" })).toEqual({ content: link, renamed: 0, unplaced: 0 });
   });
 
   it("finds a link in text the parser has cut up after reading it", () => {
     // An address the tokenizer does not take for a link — in square brackets,
     // right behind an HTML tag or a character reference — is cut out of its
-    // text afterwards, and the pieces around it say no longer where they stand.
+    // text afterwards, and the pieces around it say no longer where they
+    // stand. A wiki link is no piece of that text: it has a place of its own.
     const cases = [
       "[[Old]] [john@example.com] and [www.example.com] and {http://example.com} ![[Old]]\n",
       "<b>www.example.com</b> [[Old]] and <i>john@example.com</i> [[Old|x]]\n",
@@ -246,45 +263,34 @@ describe("what is a link, and what only looks like one", () => {
     }
   });
 
-  it("leaves an address alone that ends in what looks like a link, and finds the link behind it", () => {
-    // Cut out of its text after reading, such an address takes `[[Old` along
-    // and leaves `]]` to the text behind it. For the index that is no link —
-    // and the source spells it exactly like the one that follows.
-    const cases: Array<[string, string]> = [
-      ["x&#32;www.example.com/[[Old]] then [[Old]]\n", "x&#32;www.example.com/[[Old]] then [[New]]\n"],
-      ["[www.example.com/[[Old]] [[Old]]]\n", "[www.example.com/[[Old]] [[New]]]\n"],
-      ["<b>www.example.com/[[Old]] and [[Old]]</b>\n", "<b>www.example.com/[[Old]] and [[New]]</b>\n"],
-      ["``www.example.com/[[Old|a]] and ![[Old|a]] and [[Old|a]]\r\n", "``www.example.com/[[Old|a]] and ![[New|a]] and [[New|a]]\r\n"],
-      ["[[Old]] [www.example.com/[[Old]] [[Old]] [www.example.com/[[Old]] [[Old]]\n", "[[New]] [www.example.com/[[Old]] [[New]] [www.example.com/[[Old]] [[New]]\n"],
+  it("reads a link glued to an address the way the tokenizer does: whichever of the two it reads first", () => {
+    // An address the tokenizer takes itself — `www.` behind a blank, `https://`
+    // — starts further left than the link behind it and takes `[[Old` along:
+    // that is no link, for the index and here.
+    const taken: Array<[string, string, number]> = [
+      ["www.example.com/[[Old]] and [[Old]]\n", "www.example.com/[[Old]] and [[New]]\n", 1],
+      ["see https://example.com/[[Old]] and (https://example.com/[[Old]]) then [[Old|a]]\r\n", "see https://example.com/[[Old]] and (https://example.com/[[Old]]) then [[New|a]]\r\n", 1],
     ];
-    for (const [note, renamed] of cases) {
-      expect(rename(note, { Old: "New" }), note).toEqual({ content: renamed, renamed: renamed.split("New").length - 1, unplaced: 0 });
-      // The links read are the ones the index lists: none of them in the address.
+    // An address it does not take — `www.` behind a bracket, an HTML tag, a
+    // character reference, a backtick — is cut out of the text afterwards. By
+    // then the link behind it has been read: it is a link, and the address
+    // ends in front of it. (Until 2026-10-12 the address took the link along
+    // here too, because the link was looked for after the cut.)
+    const read: Array<[string, string, number]> = [
+      ["x&#32;www.example.com/[[Old]] then [[Old]]\n", "x&#32;www.example.com/[[New]] then [[New]]\n", 2],
+      ["[www.example.com/[[Old]] [[Old]]]\n", "[www.example.com/[[New]] [[New]]]\n", 2],
+      ["<b>www.example.com/[[Old]] and [[Old]]</b>\n", "<b>www.example.com/[[New]] and [[New]]</b>\n", 2],
+      ["``www.example.com/[[Old|a]] and ![[Old|a]] and [[Old|a]]\r\n", "``www.example.com/[[New|a]] and ![[New|a]] and [[New|a]]\r\n", 3],
+      ["[www.example.com/[[Old]]/more and [[Old]]\n", "[www.example.com/[[New]]/more and [[New]]\n", 2],
+    ];
+    for (const [note, renamed, count] of [...taken, ...read]) {
+      expect(rename(note, { Old: "New" }), note).toEqual({ content: renamed, renamed: count, unplaced: 0 });
+      // The links read are the ones the index lists.
       const indexed = extractLinksAndTags(parseMarkdownAst(note, { preserveObsidianSyntax: true })).links.filter((link) => link.type !== "markdown-link");
       expect(readNoteLinks(note).links.map((link) => `${link.type} ${link.target}`), note).toEqual(indexed.map((link) => `${link.type} ${link.target}`));
       // A second run finds nothing left to do.
       expect(rename(renamed, { Old: "New" }), renamed).toEqual({ content: renamed, renamed: 0, unplaced: 0 });
     }
-    // An address the tokenizer takes itself says where it stands, and so does the text around it.
-    expect(rename("www.example.com/[[Old]] and [[Old]]\n", { Old: "New" })).toEqual({ content: "www.example.com/[[Old]] and [[New]]\n", renamed: 1, unplaced: 0 });
-    // Where the whole link lies inside the address, the index lists it, and it follows the rename.
-    expect(rename("[www.example.com/[[Old]]/more and [[Old]]\n", { Old: "New" })).toEqual({ content: "[www.example.com/[[New]]/more and [[New]]\n", renamed: 2, unplaced: 0 });
-  });
-
-  it("changes nothing at a place that only looks like the link: a reference in front of it makes it another one", () => {
-    // `&#91;` is read as `[`: for the parser the first link names "[Old". The
-    // second is the link to Old, and the only one that follows the rename.
-    expect(rename("&#91;[[Old]] and [[Old]]\n", { Old: "New" })).toEqual({ content: "&#91;[[Old]] and [[New]]\n", renamed: 1, unplaced: 0 });
-    // `&#33;` is read as `!`: the first is an embed of Old the source does not spell as one.
-    expect(rename("&#33;[[Old]] and [[Old]]\n", { Old: "New" })).toEqual({ content: "&#33;[[Old]] and [[New]]\n", renamed: 1, unplaced: 1 });
-    expect(rename("&#33;[[Old]] and [[New]]\n", { Old: "New" })).toEqual({ content: "&#33;[[Old]] and [[New]]\n", renamed: 0, unplaced: 1 });
-    // A link the source does not spell at all, in front of one it spells for
-    // another file: the place that is spelled `[[Old]]` is no link to Old.
-    const neither = "&#91;&#91;Old]] and &#91;[[Old]]\n";
-    expect(rename(neither, { Old: "New" })).toEqual({ content: neither, renamed: 0, unplaced: 1 });
-    const read = readNoteLinks(neither);
-    expect(read.links).toEqual([]);
-    expect(read.unplaced.map((link) => `${link.type} ${link.target}`).sort()).toEqual(["wikilink Old", "wikilink [Old"]);
   });
 
   it("reads a note with two byte order marks the way the index does: the second is a character of its text", () => {
@@ -330,8 +336,10 @@ describe("the destination of a Markdown link", () => {
     expect(rename("[x](Projects%20(old)/Old.md)", { "Projects (old)/Old.md": "Projects (old)/New Name.md" }).content).toBe("[x](Projects%20(old)/New%20Name.md)");
     expect(rename("[x](../a%20b/c%20d/Old.md#H)", { "../a b/c d/Old.md": "../a b/c d/New.md" }).content).toBe("[x](../a%20b/c%20d/New.md#H)");
     expect(rename("[x](<My Folder/Old.md>)", { "My Folder/Old.md": "My Folder/New One.md" }).content).toBe("[x](<My Folder/New One.md>)");
-    // An escape in a folder's name stays an escape.
-    expect(rename("[[My\\_Folder/Old]] [x](a\\(b\\)/Old.md)", { "My_Folder/Old": "My_Folder/New", "a(b)/Old.md": "a(b)/New.md" }).content).toBe("[[My\\_Folder/New]] [x](a\\(b\\)/New.md)");
+    // An escape in a folder's name stays an escape — in a destination, which
+    // is Markdown. The wiki link beside it names the folder "My\_Folder", with
+    // its backslash, and is not this file's.
+    expect(rename("[[My\\_Folder/Old]] [x](a\\(b\\)/Old.md)", { "My_Folder/Old": "My_Folder/New", "a(b)/Old.md": "a(b)/New.md" }).content).toBe("[[My\\_Folder/Old]] [x](a\\(b\\)/New.md)");
     // A folder the new target names another way is written anew with it.
     expect(rename("[x](Sub%20(1)/Old.md) [[Sub/Old]]", { "Sub (1)/Old.md": "Projects/Sub (1)/New.md", "Sub/Old": "Projects/Sub/New" }).content).toBe("[x](Projects/Sub%20%281%29/New.md) [[Projects/Sub/New]]");
   });
@@ -341,7 +349,7 @@ describe("the destination of a Markdown link", () => {
     // tool's blank as `%20`, its brackets as they are, an escaped character.
     expect(rename("[x](Old%20Note%20(draft).md)", { "Old Note (draft).md": "New Note (draft).md" }).content).toBe("[x](New%20Note%20(draft).md)");
     expect(rename("[x](R%20(1)%20Old.md)", { "R (1) Old.md": "R (1) New.md" }).content).toBe("[x](R%20(1)%20New.md)");
-    expect(rename("[[Report 2025]] [[My\\_Report 2025|r]]", { "Report 2025": "Report 2026", "My_Report 2025": "My_Report 2026" }).content).toBe("[[Report 2026]] [[My\\_Report 2026|r]]");
+    expect(rename("[[Report 2025]] [x](My\\_Report%202025.md)", { "Report 2025": "Report 2026", "My_Report 2025.md": "My_Report 2026.md" }).content).toBe("[[Report 2026]] [x](My\\_Report%202026.md)");
     // A letter written as two encoded bytes is one piece, and is replaced as one.
     expect(rename("[x](%C3%84%20Old.md)", { "Ä Old.md": "Ö Old.md" }).content).toBe("[x](%C3%96%20Old.md)");
     // A `%` that encodes nothing is a `%`.
@@ -435,6 +443,8 @@ describe("the links as they are read", () => {
     ["links of every kind", "[[A]] [[B|b]] [[C#h]] [[D^e]] ![[E.png|100]] [[ F ]] [[#only an anchor]] [g](G.md) [h](H%20I.md#J) [k](<K L.md>) [m](https://example.com) <https://example.com> [[N\\|n]] `[[O]]` [p][q]\n\n[q]: Q.md\n"],
     ["a table", "| a |\n|---|\n| [[A\\|a]] [b](B.md) ![[C]] |\n"],
     ["escapes and references", "\\[[A]] [\\[B]] [[C \\(1\\)]] [[D &amp; E]] [[F&#124;f]] [[_g_]] [[__h__]] [[i_j_k]]\n"],
+    ["names and aliases Markdown reads something into", "[[_a_]] [[__b__]] [[*c*]] [[~~d~~]] [[E|*the* alias]] [[F|a `code` alias]] [[_g]] and [[h_]] ![[_i_|100]] [[J &amp; K]] [[<l>]] [[m@n.oo]] [[www.p.com]]\n\n| t |\n|---|\n| [[_q_\\|*r*]] |\n"],
+    ["a link glued to what Markdown would make a link of", "[[1]](https://example.com) [[S]][ref] [[ref]] [[^1]] text[^1]\n\n[ref]: https://example.com\n[^1]: note\n"],
     ["a label with a link in it", "[see [[A]] and ![[B]]](C.md)\n"],
     ["text the parser cut up after reading", "[[A]] [john@example.com] [www.example.com] {http://example.com} [[B]]\n\n<b>www.example.com</b> [[C]]\n\n# H [www.example.com] [[D]]\n\nx&#32;www.example.com [[E|e]] ![[F]]\n"],
   ];

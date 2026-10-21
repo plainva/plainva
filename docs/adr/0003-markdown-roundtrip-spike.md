@@ -298,7 +298,8 @@ silent reformat of existing vault content.
    is guessed. Where the two readings do not even hold the same number of
    links (`&#91;` spells a bracket), a place is only tried, and the note is
    read once more with a name of its own there: a link is handed out only
-   where the parser reads it.
+   where the parser reads it. (For a wiki link this second reading is gone
+   since the addendum of 2026-10-21: it is placed by its own node.)
 3. **Preparing an overview changes two things.** The properties block goes by
    the rule every writer follows when a block goes (`noteWithoutProperties`,
    over `composeNote`), and each wiki link that leads to a listed note is
@@ -319,7 +320,8 @@ silent reformat of existing vault content.
    carries marks that pair up (`[[_draft_]]`) is none for it, typed by hand
    or written by a rename. The rename writes the name as it is — a backslash
    in it would be part of the name for every reader that takes a wiki link
-   as it stands — and leaves that to the scan.
+   as it stands — and leaves that to the scan. (Done in the addendum of
+   2026-10-21.)
 
 Tests: `packages/core/test/link-rewrite.test.ts` (every form of link and of
 note; the rewriter lists the links the index lists),
@@ -329,3 +331,91 @@ files, a real index and bytes read back —
 `apps/desktop/src/renameLinkBytes.test.ts` and
 `apps/mobile/src/services/renameLinkBytes.test.ts`, over the notes in
 `packages/core/test/helpers/renameNotes.ts`.
+
+## Addendum 2026-10-21 (a wiki link is read by the tokenizer)
+
+Finding 2026-10-11: a wiki link was looked for in the text the Markdown parser
+had finished — in the value of each text node, after the parser had read
+emphasis, code spans, escapes and character references into it. Whatever
+Markdown read something into was gone by then. `[[_private_]]` was two
+brackets, an emphasis and two brackets; `[[_x]] and [[y_]]` one emphasis
+across both links; an alias with a code span three pieces. None of them was a
+link for the index — no backlink, no edge in the graph, and a rename left them
+on the old name (point 5 of the addendum above left that to the scan). And
+`[[Tom &amp; Jerry]]` was listed as a link to "Tom & Jerry", which is not what
+the line says and not where a click on it leads. The editor reads the line and
+showed all of these as links; the reading view did not.
+
+1. **A wiki link is a construct of the tokenizer.** `[[` and `![[` are read
+   where a code span or an HTML tag is read: from the left, before anything is
+   read into the text (`packages/core/src/wikiLinkSyntax.ts`, in both parses
+   of a note; not in the parse of another program's CommonMark). The form is
+   the one the scan knew: `[[`, then anything but a line end up to the first
+   `]]`; a `!` right in front makes it an embed. It reaches the tree as a node
+   of its own (`wikiLink`, holding the link as it stands, with its place), and
+   the index, the link rewriter and the reading view read that node.
+2. **What starts further left wins.** A link inside a code span, an HTML tag,
+   an address in angle brackets or a bare address the tokenizer takes is none.
+   A bracket behind a backslash or spelled as a character reference opens
+   none (`\[[Note]]`, `&#91;[Note]]`); until now the index listed both. What
+   starts at `[[` takes its line up to the `]]`: `[[1]](https://example.com)`
+   is a wiki link and a text in parentheses — the editor read it so already —,
+   and `[[link]]` is a wiki link even where `[link]` is defined. In the text of
+   a Markdown link or a reference link a wiki link is a node of that text; a
+   Markdown link whose text begins with one, `[[[Note]] and more](url)`, is
+   read from its first `[[` as well — a wiki link to `[Note` and text —, as
+   the editor reads it.
+3. **The text between the brackets is not Markdown.** It is a file's name, an
+   anchor and an alias, as they are written (`packages/core/src/wikiLink.ts`).
+   A backslash or a character reference in it is the character it is:
+   `[[My\_Note]]` names "My\_Note", `[[Tom &amp; Jerry]]` names
+   "Tom &amp; Jerry" — what the editor and a click read. One spelling besides
+   the plain one is kept: in a table cell the bar is written `\|`, so a `\|`
+   is a bar wherever it stands — the one that begins the alias and one in the
+   alias —, outside a table as well, where notes carry that spelling too (the
+   Markdown parse read it so before).
+4. **The rewriter places a wiki link by its node.** The second reading of
+   point 2 above — finding a link in the source lines, and trying a place
+   where the two readings differ — is gone for wiki links; it stays for a
+   Markdown link's destination, which is Markdown. A rename writes the new
+   name as the name it is, as before, and the next rename finds it.
+5. **The reading view shows these links.** A label is handed to the renderer
+   as it is written, so it is shown as the text around it is — `*the* alias`
+   with its emphasis, as the editor shows it — unless it would not stay in its
+   brackets (a bracket, a `<`, a code span it does not close, a backslash at
+   its end, a `^` at its start); then it is shown character for character. A
+   link written with `\|` — in a table cell and outside one — opens the file
+   it names (the backslash was taken for part of the name), and such an embed
+   keeps its size.
+6. **The index catches up in a step of its format (6).** A note's rows are
+   written when its file changes. The step hands the next full scan only the
+   notes whose rows the two readings may list differently
+   (`packages/core/src/db/wikiLinkReadingMigration.ts`): a link whose text
+   holds a character Markdown reads something into — a bracket and a `<`
+   among them —, one with a `(` glued to its end or an address glued to its
+   front, a note with a definition, a bracket or a `!` spelled with a
+   backslash or a reference. The choice reads the text the index holds for
+   search, nothing from disk, in one pass over each note; a note with a line
+   longer than the indexer reads links from (10 000 characters) has no rows in
+   either reading and is left out. It is held against the old reading itself,
+   kept in its test, over generated notes. Measured on real vaults (about
+   1 350 notes that link): about one in a hundred is read again.
+   Where only the line a link is listed on would differ — a character
+   reference for a line break in front of it, an address cut out of the text
+   around it —, the row keeps its line until its note changes.
+7. **What stays as it was.** Code, HTML and the properties block hold no link;
+   a link in the properties is read by its own rule (a whole value `[[…]]`).
+   A bare `|` in a table cell still ends the cell before a link can — the row
+   is split first. `remark-obsidian-preserve.ts` keeps only a callout's marker
+   for the serializer, which writes a wiki link node as it stands.
+
+Tests: `packages/core/test/wiki-link-syntax.test.ts` (the forms at the parser,
+the index, the rewriter and the reading view, with `\r\n` and a byte order
+mark), `packages/core/test/wiki-link-reading-migration.test.ts` (the selection
+against the old reading, kept in the test, over generated notes; the step on
+real SQLite and the full scan after it),
+`packages/core/test/link-rewrite.test.ts`,
+`packages/core/test/linear-link-scans.test.ts`, and each shell's own rename to
+and from such a name with a real index —
+`apps/desktop/src/renameLinkBytes.test.ts` and
+`apps/mobile/src/services/renameLinkBytes.test.ts`.
