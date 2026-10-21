@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-10-20
+Stand: 2026-10-21
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -131,7 +131,7 @@ Ein Tipp auf eine Termin-Erinnerung öffnet den Termin selbst — die Tagesansic
 
 **Wann das Telefon nachsieht.** Im Hintergrund läuft auf einem Telefon keine Uhr — der regelmäßige Abgleich steht also still, solange die App weg ist. Deshalb fragt Plainva von sich aus nach, sobald Du **in die App zurückkehrst** und sobald Du **Kalender**, **Aufgaben** oder die **Kalenderkonten** öffnest; höchstens einmal pro Minute, damit häufiges Hin- und Herwechseln keine Kette von Abgleichen auslöst. Beim Zurückkehren werden zugleich die **Erinnerungen neu geplant**, auch wenn nichts Neues dazugekommen ist — die Uhr ist ja trotzdem weitergelaufen. Willst Du nicht warten, gibt es weiterhin **Jetzt aktualisieren** und das Herunterziehen der Liste.
 
-**Was nicht aktuell ist und was nicht passt.** Wird ein Konto oder ein Kalender nicht abgeglichen, steht das auch am Telefon in einer Zeile über dem Kalender – wer, seit wann und warum – mit **Erneut versuchen**; die Termine darunter bleiben als letzter Stand stehen. In der Ansicht **Monat** zeigt ein Tag höchstens drei Punkte; eine Zahl dahinter (etwa **+3**) sagt, wie viele Einträge er darüber hinaus hat. Arbeitsort, Fokuszeit und Abwesenheit stehen im Zeitraster als ruhiges Band in der Ganztägig-Zeile, nicht als Termin.
+**Was nicht aktuell ist und was nicht passt.** Wird ein Konto oder ein Kalender nicht abgeglichen, steht das auch am Telefon in einer Zeile über dem Kalender – wer, seit wann und warum – mit **Erneut versuchen**; die Termine darunter bleiben als letzter Stand stehen. In der Ansicht **Monat** zeigt ein Tag höchstens drei Punkte; eine Zahl dahinter (etwa **+3**) sagt, wie viele Einträge er darüber hinaus hat. Arbeitsort, Fokuszeit und Abwesenheit stehen im Zeitraster als ruhiges Band in der Ganztägig-Zeile, nicht als Termin. Der Bereich **Aufgaben** hat dieselbe Zeile für Aufgabenlisten, und sein Aktualisieren fragt sofort bei den Anbietern nach, wie am Desktop.
 
 Konten verwaltest Du über das Zahnrad-Symbol im Termin-Kalender: **CalDAV** verbindest Du direkt auf dem Gerät mit einem App-Passwort (z. B. Fastmail, Nextcloud, iCloud); Google und Microsoft folgen über die Browser-Anmeldung. Je Konto lassen sich einzelne Kalender ein- und ausblenden.
 

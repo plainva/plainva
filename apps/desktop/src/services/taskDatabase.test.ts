@@ -116,6 +116,45 @@ describe("resolveTaskStatusModel + classifyTaskStatus", () => {
     expect(classifyTaskStatus("Backlog", model)).toBeNull(); // foreign value is ambiguous
   });
 
+  // Finding B2 (19.10.): "the last option is done" wrote "Abgebrochen" for
+  // every task ticked off at the provider.
+  it("takes a done word for done wherever it stands, never a cancelled option after it", () => {
+    const config = parseBaseConfig(`properties:
+  note.status:
+    plainva:
+      input: status
+      options:
+        - value: Offen
+        - value: Erledigt
+        - value: Abgebrochen
+views:
+  - type: table
+    name: T
+`);
+    const model = resolveTaskStatusModel(config)!;
+    expect(model.done).toBe("Erledigt");
+    expect(model.closed).toEqual(["Abgebrochen"]);
+    // Cancelled counts as closed - read as open it would reopen the provider's task.
+    expect(classifyTaskStatus("Abgebrochen", model)).toBe(true);
+    expect(classifyTaskStatus("Offen", model)).toBe(false);
+  });
+
+  it("without a done word, takes the last option that is not a cancelled one", () => {
+    const config = parseBaseConfig(`properties:
+  note.phase:
+    plainva:
+      input: select
+      options:
+        - value: Idee
+        - value: Fertig gestellt
+        - value: Cancelled
+views:
+  - type: table
+    name: T
+`);
+    expect(resolveTaskStatusModel(config)).toMatchObject({ open: "Idee", done: "Fertig gestellt", closed: ["Cancelled"] });
+  });
+
   it("returns null when the database has no status/select column", () => {
     const config = parseBaseConfig(`properties:\n  note.frist:\n    plainva:\n      input: date\nviews:\n  - type: table\n    name: T\n`);
     expect(resolveTaskStatusModel(config)).toBeNull();

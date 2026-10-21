@@ -4855,3 +4855,57 @@ textarea {
 .m-image-stage { flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; }
 .m-image-stage img { max-width: 100%; max-height: 100%; object-fit: contain; flex: none; user-select: none; }
 .m-image-tools { display: flex; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-2); }
+
+/* Database entries and tasks in the day columns and the all-day strip
+   (TestFlight, build 125): notes, not appointments - a line with a mark, an
+   outline for a task with a due time, never the event fill. */
+.m-cal-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: 0 var(--space-1);
+  font-size: var(--text-xs);
+  background: var(--bg-primary);
+  color: var(--text-main);
+  text-align: left;
+  overflow: hidden;
+}
+.m-cal-note--timed {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  min-height: var(--space-5);
+}
+.m-cal-note--task {
+  border: 1.5px dashed var(--border-color);
+  border-radius: var(--radius-xs);
+}
+.m-cal-note-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.m-cal-note-title.is-done {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+.m-cal-note-box {
+  display: inline-flex;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-muted);
+}
+.m-cal-note-box[data-state="done"] {
+  color: var(--accent-color);
+}

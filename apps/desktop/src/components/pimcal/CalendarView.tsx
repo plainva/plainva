@@ -5,7 +5,7 @@ import { CalendarRange, CheckSquare, ChevronLeft, Diamond, ChevronRight, Link2, 
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { errorText, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, layoutSpanningEvents, sameEventRef, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
+import { errorText, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
 import { PimConflictError, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
 import {
   blockLinkKey,
@@ -22,10 +22,9 @@ import {
   updateEventWithBlockers,
   type BlockFollowDeps,
   type BlockFollowReport,
-  type EventWriteOutcome,
   type ResolvedBlocker,
 } from "@plainva/ui";
-import { CalendarSyncNotice, type EventChange } from "@plainva/ui";
+import { CalendarSyncNotice, syncProblemsFor, type EventChange } from "@plainva/ui";
 import { useVault, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { listExistingDailyNotes } from "../../services/dailyNotes";
@@ -285,7 +284,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         setAccounts(acc);
         setCalendars(cals);
         setEvents(evs);
-        setSyncProblems(notFresh);
+        // The task lists have their line above the task view (B2).
+        setSyncProblems(syncProblemsFor(notFresh, "calendar"));
       } catch {
         /* cache unreadable — leave the previous state */
       }
@@ -658,6 +658,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const refresh = useCallback(() => {
     pimRuntime?.worker.triggerImmediate().catch(() => undefined);
   }, [pimRuntime]);
+  /**
+   * The cycle after a write (issue 119). Never answered by a cycle that was
+   * already running: that one may have read before the write landed.
+   */
+  const refreshAfterWrite = useCallback(() => {
+    pimRuntime?.worker.triggerImmediate({ afterWrite: true }).catch(() => undefined);
+  }, [pimRuntime]);
 
   // ---- event writes (stage 3: single events; series stay read-only) -------
 
@@ -823,24 +830,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     [calName, t]
   );
 
-  /** The loaded row after a write: a drag changed when it is, a form what it says too. */
-  const landWrite = useCallback(
-    (e: PimEventRow, out: Exclude<EventWriteOutcome, { kind: "conflict" }>, moved: boolean, shape: "time" | "form") => {
-      const rows = out.rows;
-      setEvents((prev) => {
-        // Moved: the old row is gone, the new one takes its place. In place:
-        // keep the row's identity, take the edited fields.
-        if (moved) return [...prev.filter((ev) => !sameEventRef(ev, e)), ...rows];
-        const row = rows[0];
-        if (!row) return prev;
-        return prev.map((ev) => {
-          if (!sameEventRef(ev, e)) return ev;
-          return shape === "time" ? { ...ev, start: row.start, end: row.end, allDay: row.allDay } : { ...ev, ...row };
-        });
-      });
-    },
-    []
-  );
+  // A written row is never put into `cachedEvents` (issue 119). The shared
+  // overlay holds it until the cache lists it; a copy here made the overlay
+  // step aside at once, and the next reload from a cycle that had started
+  // before the write took the event off the screen until the cycle after.
 
   /**
    * ONE update of one event, with its blockers (K3). The event and every
@@ -857,7 +850,6 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       }
       if (out.kind === "duplicate") toast.error(out.error instanceof Error ? out.error.message : String(out.error));
       const moved = !!moveTo && (moveTo.accountId !== e.accountId || moveTo.calendarId !== e.calendarId);
-      landWrite(e, out, moved, shape);
       const followed = out.blockers.followed;
       const n = followed.length;
       const message = !announce
@@ -876,9 +868,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         message,
         back && after ? () => retryWrites.current?.apply(after, back, moved ? { accountId: e.accountId, calendarId: e.calendarId } : null, shape) : undefined,
       );
-      refresh();
+      refreshAfterWrite();
     },
-    [followDeps, landWrite, reportBlockers, refresh, t, i18n.language]
+    [followDeps, reportBlockers, refresh, refreshAfterWrite, t, i18n.language]
   );
 
   /**
@@ -942,10 +934,16 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
 
   /** A refused write, said once, with the way to try it again. */
   const reportWriteFailure = useCallback(
-    (error: unknown, retry: () => void) => {
+    (error: unknown, retry: () => void, what: "save" | "delete" = "save") => {
       const reason = error instanceof Error ? error.message : String(error);
-      logDiagnostic("calendar", `event write refused: ${reason}`);
-      toast.error(t("pim.eventWriteRefused", { reason, defaultValue: "Der Termin wurde nicht gespeichert: {{reason}}" }), {
+      logDiagnostic("calendar", `event ${what === "delete" ? "delete" : "write"} refused: ${reason}`);
+      // A refused deletion said "was not saved" (issue 119) - true of nothing
+      // the person had done.
+      const message =
+        what === "delete"
+          ? t("pim.eventDeleteRefused", { reason, defaultValue: "Der Termin wurde nicht gelöscht: {{reason}}" })
+          : t("pim.eventWriteRefused", { reason, defaultValue: "Der Termin wurde nicht gespeichert: {{reason}}" });
+      toast.error(message, {
         label: t("pim.eventWriteRetry", { defaultValue: "Erneut versuchen" }),
         run: retry,
       });
@@ -1000,16 +998,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           (out) => out.rows.map((row) => ({ kind: "create" as const, row })),
           id,
         ).then(
-          (out) => {
-            setEvents((prev) => [...prev, ...out.rows]);
-            refresh();
-          },
+          () => refreshAfterWrite(),
           (error) => reportWriteFailure(error, create),
         );
       };
       create();
     },
-    [editState, saveEventForm, reportWriteFailure, targetFor, refresh, t]
+    [editState, saveEventForm, reportWriteFailure, targetFor, refreshAfterWrite, t]
   );
 
   // ---- drag reschedule (move/resize existing single events) ----------------
@@ -1071,10 +1066,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: e, patch: { selfResponse: response } }, () =>
         respond({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, response),
       );
-      setEvents((prev) => prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, selfResponse: response } : ev)));
-      refresh();
+      refreshAfterWrite();
     },
-    [targetFor, refresh, t]
+    [targetFor, refreshAfterWrite, t]
   );
 
   // ---- quick colour set (context menu): set/clear the per-event colour without
@@ -1106,10 +1100,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         reportWriteFailure(err, () => retryWrites.current?.color(e, color));
         return;
       }
-      setEvents((prev) => prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, color } : ev)));
-      refresh();
+      refreshAfterWrite();
     },
-    [targetFor, refresh, reportWriteFailure, t]
+    [targetFor, refresh, refreshAfterWrite, reportWriteFailure, t]
   );
 
   // ---- quick create (feedback round 3: click/drag on an empty slot) --------
@@ -1167,19 +1160,17 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       try {
         // Gone from view with the confirmation; a refusal brings it back.
         const report = await deleteEventWithBlockers(followDeps, e, blockers);
-        const gone = [e, ...report.followed];
-        setEvents((prev) => prev.filter((ev) => !gone.some((ref) => sameEventRef(ev, ref))));
         reportBlockers(report, null);
       } catch (err) {
         if (err instanceof PimConflictError) {
           toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
         } else {
-          reportWriteFailure(err, () => retryWrites.current?.remove(e, blockers));
+          reportWriteFailure(err, () => retryWrites.current?.remove(e, blockers), "delete");
         }
       }
-      refresh();
+      refreshAfterWrite();
     },
-    [followDeps, reportBlockers, refresh, reportWriteFailure, t]
+    [followDeps, reportBlockers, refreshAfterWrite, reportWriteFailure, t]
   );
 
   useEffect(() => {
@@ -1245,14 +1236,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
         } else {
           if (out.kind === "duplicate") toast.error(out.error instanceof Error ? out.error.message : String(out.error));
-          landWrite(blocker, out, !!moveTo && (moveTo.accountId !== blocker.accountId || moveTo.calendarId !== blocker.calendarId), shape);
         }
-        refresh();
+        refreshAfterWrite();
       } catch (error) {
         reportWriteFailure(error, () => retryWrites.current?.write(blocker, draft, moveTo, shape));
       }
     },
-    [blockerPrompt, followDeps, applyEventWrite, landWrite, refresh, reportWriteFailure, t]
+    [blockerPrompt, followDeps, applyEventWrite, refreshAfterWrite, reportWriteFailure, t]
   );
 
   const cancelBlockerPrompt = useCallback(() => {
@@ -1299,7 +1289,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       const instance = prompt.event;
       // "all" targets the MASTER row (cache keeps it despite the day-grid
       // filtering it out); an unresolvable master degrades to an error toast.
-      const subject = scope === "this" ? instance : await resolveSeriesMaster(instance);
+      const subject = scope === "this" ? instance : seriesDeleteSubject(instance, await resolveSeriesMaster(instance));
       if (!subject) {
         toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
         return;
@@ -1487,11 +1477,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         draft: bd,
         mode,
         onCreated: (accountId, calId, res) => {
-          // Optimistic for a one-off block (a recurring block expands server-side,
-          // so we let the worker re-query bring its instances).
-          if (!recurrence) {
-            setEvents((prev) => [...prev, { ...draftToRow(accountId, calId, res.uid, bd), etag: res.etag, href: res.href }]);
-          }
+          // Shown until the cache has it, like every other written event (issue
+          // 119). A recurring block expands at the provider; the overlay knows
+          // its occurrences by their series and steps aside for them.
+          showWrittenEvents(pendingEventWrites, [{ kind: "create", row: { ...draftToRow(accountId, calId, res.uid, bd), etag: res.etag, href: res.href } }]);
         },
       });
       if (ok > 0) {
@@ -1500,14 +1489,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         // the provider — not for an invitation of somebody else, which is not
         // the user's to write — and shown on the loaded rows at once.
         if (mayChangeEvent(source, writableAnyKeys)) void recordBlockers(followDeps, source, created);
-        setEvents((prev) =>
-          prev.map((ev) =>
-            ev.accountId === source.accountId && ev.calendarId === source.calendarId && !ev.blockOf && blockLinkKey(ev) === source.uid
-              ? { ...ev, blocks: uniqueBlockRefs([...(ev.blocks ?? []), ...created]) }
-              : ev
-          )
+        showWrittenEvents(
+          pendingEventWrites,
+          loadedEvents.current
+            .filter((ev) => ev.accountId === source.accountId && ev.calendarId === source.calendarId && !ev.blockOf && blockLinkKey(ev) === source.uid)
+            .map((ev) => ({ kind: "update" as const, ref: ev, patch: { blocks: uniqueBlockRefs([...(ev.blocks ?? []), ...created]) } })),
         );
-        refresh();
+        refreshAfterWrite();
       }
       if (failed.length > 0) {
         for (const failure of failed) logDiagnostic("calendar", `block in ${failure.label}: ${failure.reason}`);
@@ -1528,7 +1516,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
       }
     },
-    [resolveSeriesMaster, accounts, pimRuntime, refresh, calName, followDeps, writableAnyKeys, t]
+    [resolveSeriesMaster, accounts, pimRuntime, refreshAfterWrite, calName, followDeps, writableAnyKeys, t]
   );
 
   /** The OTHER writable calendars (never the event's own) for the block dialog.

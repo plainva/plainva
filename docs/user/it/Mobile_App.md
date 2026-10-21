@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-10-20
+Ultimo aggiornamento: 2026-10-21
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -131,7 +131,7 @@ Un tocco su un promemoria di evento apre l’evento stesso: la vista giorno alla
 
 **Quando il telefono va a vedere.** In background su un telefono non gira alcun orologio: la sincronizzazione periodica è quindi ferma finché l’app non è in primo piano. Per questo Plainva va a vedere da sé non appena **torni nell’app** e ogni volta che apri **Calendari**, **Attività** o gli **Account calendario** — al massimo una volta al minuto, così un continuo andirivieni non innesca una catena di sincronizzazioni. Il ritorno **ripianifica anche i promemoria**, anche quando non è arrivato nulla di nuovo: l’orologio è comunque andato avanti. Se non vuoi aspettare, restano **Aggiorna ora** e il tirare la lista verso il basso.
 
-**Ciò che non è aggiornato e ciò che non ci sta.** Quando un account o un calendario non viene sincronizzato, anche il telefono lo dice in una riga sopra il calendario — quale, da quando e perché — con **Riprova**; gli appuntamenti sotto restano come ultimo stato noto. Nella vista **Mese** un giorno mostra al massimo tre punti; un numero dopo di essi (per esempio **+3**) dice quante altre voci contiene. Luogo di lavoro, tempo di concentrazione e assenza compaiono nella griglia oraria come una banda discreta nella striscia dell'intera giornata, non come un appuntamento.
+**Ciò che non è aggiornato e ciò che non ci sta.** Quando un account o un calendario non viene sincronizzato, anche il telefono lo dice in una riga sopra il calendario — quale, da quando e perché — con **Riprova**; gli appuntamenti sotto restano come ultimo stato noto. Nella vista **Mese** un giorno mostra al massimo tre punti; un numero dopo di essi (per esempio **+3**) dice quante altre voci contiene. Luogo di lavoro, tempo di concentrazione e assenza compaiono nella griglia oraria come una banda discreta nella striscia dell'intera giornata, non come un appuntamento. L'area **Attività** ha la stessa riga per gli elenchi attività, e il suo aggiornamento interroga subito i fornitori, come sul desktop.
 
 Gestisci gli account dall'icona a forma di ingranaggio nel calendario degli eventi: collega **CalDAV** sul dispositivo con una password per app (es. Fastmail, Nextcloud, iCloud); Google e Microsoft seguono tramite accesso dal browser. Per ogni account puoi mostrare o nascondere singoli calendari.
 

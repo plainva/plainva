@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-10-20
+Laatst bijgewerkt: 2026-10-21
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -131,7 +131,7 @@ Tik op een afspraakherinnering en de afspraak zelf opent — de dagweergave op d
 
 **Wanneer de telefoon kijkt.** Op de achtergrond loopt op een telefoon geen klok: de regelmatige synchronisatie staat dus stil zolang de app weg is. Daarom kijkt Plainva uit zichzelf zodra je **terugkeert in de app** en zodra je **Agenda's**, **Taken** of de **Agenda-accounts** opent — hoogstens één keer per minuut, zodat veel heen en weer schakelen geen reeks synchronisaties in gang zet. Bij terugkeer worden meteen ook de **herinneringen opnieuw ingepland**, ook als er niets nieuws bij is gekomen: de klok is immers toch doorgelopen. Wil je niet wachten, dan zijn **Nu verversen** en het naar beneden trekken van de lijst er nog steeds.
 
-**Wat niet actueel is en wat niet past.** Wordt een account of een agenda niet gesynchroniseerd, dan staat dat ook op de telefoon in een regel boven de agenda — welke, sinds wanneer en waarom — met **Opnieuw proberen**; de afspraken eronder blijven staan als laatst bekende stand. In de weergave **Maand** toont een dag hooguit drie stippen; een getal erachter (bijvoorbeeld **+3**) zegt hoeveel vermeldingen hij daarnaast heeft. Werklocatie, focustijd en afwezigheid staan in het tijdraster als een rustige band in de strook voor hele dagen, niet als afspraak.
+**Wat niet actueel is en wat niet past.** Wordt een account of een agenda niet gesynchroniseerd, dan staat dat ook op de telefoon in een regel boven de agenda — welke, sinds wanneer en waarom — met **Opnieuw proberen**; de afspraken eronder blijven staan als laatst bekende stand. In de weergave **Maand** toont een dag hooguit drie stippen; een getal erachter (bijvoorbeeld **+3**) zegt hoeveel vermeldingen hij daarnaast heeft. Werklocatie, focustijd en afwezigheid staan in het tijdraster als een rustige band in de strook voor hele dagen, niet als afspraak. Het gebied **Taken** heeft dezelfde regel voor takenlijsten, en verversen daar vraagt de aanbieders meteen, zoals op de desktop.
 
 Beheer accounts via het tandwielicoon in de afsprakenkalender: verbind **CalDAV** op het apparaat met een app-wachtwoord (bijv. Fastmail, Nextcloud, iCloud); Google en Microsoft volg je via aanmelden in de browser. Per account kun je losse kalenders tonen of verbergen.
 

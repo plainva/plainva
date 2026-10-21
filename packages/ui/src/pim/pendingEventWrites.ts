@@ -62,6 +62,20 @@ export const SETTLED_EVENT_WRITE_TTL_MS = 3 * 60_000;
 const sameRef = (row: PendingEventRef, ref: PendingEventRef): boolean =>
   row.accountId === ref.accountId && row.calendarId === ref.calendarId && row.uid === ref.uid;
 
+/**
+ * Whether the cache lists a created event. A SERIES never appears under its
+ * own uid in a day query - the views read occurrences (`uid#…`, carrying the
+ * series as `seriesMaster`), and the master row stays out of the grid. Asked by
+ * uid alone, a new weekly meeting was "not there yet" for the overlay's whole
+ * life and stood on screen twice on its first day (issue 119).
+ */
+const listsCreated = (rows: readonly PimEventRow[], created: PimEventRow): boolean =>
+  rows.some(
+    (row) =>
+      sameRef(row, created) ||
+      (row.accountId === created.accountId && row.calendarId === created.calendarId && row.seriesMaster === created.uid),
+  );
+
 // An absent field and a null one are the same statement about a cached row.
 const sameValue = (a: unknown, b: unknown): boolean => a === b || sameStoredValue(a ?? null, b ?? null);
 
@@ -80,7 +94,7 @@ export function applyPendingEventWrites(rows: readonly PimEventRow[], writes: re
       shown = shown.filter((row) => !sameRef(row, write.ref));
     } else if (write.kind === "update") {
       shown = shown.map((row) => (sameRef(row, write.ref) ? { ...row, ...write.patch, ...(sending ? { pending: true as const } : {}) } : row));
-    } else if (!shown.some((row) => sameRef(row, write.row))) {
+    } else if (!listsCreated(shown, write.row)) {
       // A settled create carries its real uid: once the cache lists that
       // event, the cached row is the one shown and this one steps aside.
       shown.push(sending ? { ...write.row, pending: true } : write.row);
@@ -94,7 +108,7 @@ export function unsettledEventWrites(rows: readonly PimEventRow[], writes: reado
   return writes.filter((write) => {
     if (write.state === "sending") return true;
     if (now - (write.settledAt ?? now) > SETTLED_EVENT_WRITE_TTL_MS) return false;
-    if (write.kind === "create") return !rows.some((row) => sameRef(row, write.row));
+    if (write.kind === "create") return !listsCreated(rows, write.row);
     const cached = rows.find((row) => sameRef(row, write.ref));
     if (write.kind === "delete") return cached !== undefined;
     // An event that left the cache has nothing to patch any more.
@@ -172,6 +186,18 @@ export class PendingEventWrites {
   clear(): void {
     if (this.writes.length > 0) this.set([]);
   }
+}
+
+/**
+ * Writes the provider already accepted, shown until the cache has them - for
+ * the few writes that did not go through `writeEventOptimistically` (a block
+ * created in other calendars, the list an event gains). Laid over the cached
+ * rows like every other settled write: a view that keeps its own copy of what
+ * it wrote loses it to the first reload from a cycle that started earlier,
+ * which is how an event appeared, vanished and came back (issue 119).
+ */
+export function showWrittenEvents(store: PendingEventWrites, changes: readonly PendingEventChange[]): void {
+  for (const change of changes) store.settle(store.begin(change));
 }
 
 /** One overlay per app: the editor that writes and the views that show are different components. */

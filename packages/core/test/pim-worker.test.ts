@@ -188,6 +188,65 @@ describe("PimWorker", () => {
     expect((await cache.getScopeState("a1", "tasklists"))?.lastError).toBeNull();
   });
 
+  // Finding B2 (19.10.): ticked at the provider, never ticked in Plainva. One
+  // list that failed ended the account's cycle, so no list after it was asked,
+  // and the reason stood on no row anything shows.
+  it("a task list that fails costs only that list and says why on its own row", async () => {
+    let failA = true;
+    const target: IPimTarget = {
+      ...unusedWrites,
+      provider: "google",
+      listCalendars: async () => [{ id: "cal1", name: "Home", supportsEvents: true }],
+      pullEvents: async () => ({ events: [] }),
+      listTaskLists: async () => [
+        { id: "la", name: "Arbeit" },
+        { id: "lb", name: "Privat" },
+      ],
+      pullTasks: vi.fn(async (listId: string) => {
+        if (listId === "la" && failA) throw new Error("google api 500 (INTERNAL) for https://tasks.googleapis.com/tasks/v1/lists/la/tasks");
+        return { tasks: [{ uid: `t-${listId}`, listId, title: "T", completed: true }] };
+      }),
+    };
+    const statuses: Array<[string, string | undefined]> = [];
+    const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW, onStatusChange: (s, m) => statuses.push([s, m]) });
+    await worker.triggerImmediate();
+
+    // The other list arrived, whatever the list before it did.
+    expect((await cache.listTasks("a1", "lb")).map((t) => [t.uid, t.completed])).toEqual([["t-lb", true]]);
+    expect((await cache.getScopeState("a1", "tasks:la"))?.lastError).toContain("500");
+    expect((await cache.getScopeState("a1", "tasks:lb"))?.lastError ?? null).toBeNull();
+    // The account says so, and the line above the task views names the list.
+    expect(statuses.at(-1)?.[0]).toBe("error");
+    const problems = await cache.listSyncProblems();
+    expect(problems.map((p) => [p.taskListId, p.taskListName])).toEqual([["la", "Arbeit"]]);
+
+    failA = false;
+    await worker.triggerImmediate();
+    expect((await cache.listTasks("a1", "la")).map((t) => t.uid)).toEqual(["t-la"]);
+    expect(await cache.listSyncProblems()).toEqual([]);
+    expect(statuses.at(-1)?.[0]).toBe("idle");
+  });
+
+  it("asks for the task lists even when a calendar's sign-in failed, then parks the account", async () => {
+    const target: IPimTarget = {
+      ...unusedWrites,
+      provider: "google",
+      listCalendars: async () => [{ id: "cal1", name: "Home", supportsEvents: true }],
+      pullEvents: async () => {
+        throw Object.assign(new Error("google api 401 (UNAUTHENTICATED)"), { status: 401 });
+      },
+      listTaskLists: async () => [{ id: "l1", name: "Aufgaben" }],
+      pullTasks: vi.fn(async () => ({ tasks: [{ uid: "t1", listId: "l1", title: "T", completed: true }] })),
+    };
+    const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW });
+    await worker.triggerImmediate();
+
+    expect(target.pullTasks).toHaveBeenCalledWith("l1");
+    expect((await cache.listTasks("a1", "l1")).map((t) => t.completed)).toEqual([true]);
+    // Still the account's failure: the sign-in is what parks it.
+    expect((await cache.getScopeState("a1", "account"))?.lastErrorKind).toBe("fatal");
+  });
+
   it("skips deselected calendars and disabled accounts", async () => {
     const target = fakeTarget([ev("e1", "cal1", "2026-08-02T10:00:00Z"), ev("e2", "cal2", "2026-08-03T10:00:00Z")]);
     const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW });

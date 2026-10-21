@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { consumePendingNew } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
-import { Banner, errorText, useTaskDuplicates } from "@plainva/ui";
+import { Banner, CalendarSyncNotice, errorText, syncProblemsFor, useTaskDuplicates } from "@plainva/ui";
+import type { PimSyncProblem } from "@plainva/core";
 import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, type TaskPriority } from "@plainva/ui";
 import { buildPlanner, isOpenState, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
@@ -279,6 +280,34 @@ export function TasksScreen({
       alive = false;
     };
   }, [vault, bump, tick]);
+
+  // Which accounts and task lists are not being synced, and why (B2, 19.10.):
+  // the same line the desktop's task view shows. Read again whenever a cycle
+  // or a reconcile finished, so it goes once the cause is gone.
+  const [syncProblems, setSyncProblems] = useState<PimSyncProblem[]>([]);
+  const [pimTick, setPimTick] = useState(0);
+  useEffect(() => {
+    const onChanged = () => setPimTick((x) => x + 1);
+    window.addEventListener("m-pim-changed", onChanged);
+    window.addEventListener("m-task-sync-done", onChanged);
+    return () => {
+      window.removeEventListener("m-pim-changed", onChanged);
+      window.removeEventListener("m-task-sync-done", onChanged);
+    };
+  }, []);
+  useEffect(() => {
+    let alive = true;
+    void (getPimCache()?.listSyncProblems() ?? Promise.resolve([]))
+      .then((problems) => {
+        if (alive) setSyncProblems(syncProblemsFor(problems, "tasks"));
+      })
+      .catch(() => {
+        if (alive) setSyncProblems([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [tick, pimTick]);
 
   // Writable calendars for "block time" — the SAME rule the calendar uses
   // (shared helper), so the two pickers can never disagree about which
@@ -722,7 +751,12 @@ export function TasksScreen({
     (row: TaskDbRow) => {
       void setTaskDone(row.path, !row.done)
         .then((result) => {
-          if (result.changed) syncSoon();
+          if (result.changed) {
+            syncSoon();
+            // A mirrored task reaches its provider list with the next cycle -
+            // asked for now, as the desktop does after every tick.
+            pimSyncNow();
+          }
           setTick((x) => x + 1);
           if (result.spawnedDue) toast.info(t("tasks.repeatSpawned", { date: result.spawnedDue }));
           if (result.spawnFailed) toast.error(t("tasks.repeatFailed"));
@@ -929,12 +963,22 @@ export function TasksScreen({
         subtitle={barSummary}
         title={t("tasks.title")}
         actions={
-          <IconButton label={t("tasks.refresh")} onClick={() => setTick((x) => x + 1)}>
+          <IconButton
+            label={t("tasks.refresh")}
+            onClick={() => {
+              // A re-query alone shows what the cache already had: a task
+              // ticked at the provider only arrives with a cycle (the desktop's
+              // refresh has asked for one since the Google Tasks report).
+              setTick((x) => x + 1);
+              pimSyncNow();
+            }}
+          >
             <RefreshCw size={ICON.head} />
           </IconButton>
         }
       />
       {ptrIndicator}
+      <CalendarSyncNotice problems={syncProblems} onRetry={pimSyncNow} />
 
       <TaskPlannerNav variant="segment" value={list} onChange={setList} counts={planner.counts} allCount={openCount} />
 

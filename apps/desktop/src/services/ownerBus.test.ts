@@ -222,8 +222,8 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
     worker: {
       start: () => {},
       stop: () => {},
-      triggerImmediate: async () => {
-        triggered.push("now");
+      triggerImmediate: async (opts?: { afterWrite?: boolean }) => {
+        triggered.push(opts?.afterWrite ? "after write" : "now");
       },
     },
     stop: () => {},
@@ -614,6 +614,9 @@ describe("calendar writes from another window", () => {
     // A poller per window would multiply provider traffic and write the same
     // cache tables from several sides.
     expect(triggered).toEqual(["now"]);
+    // A refresh after a write in that window keeps saying so (issue 119).
+    await aux.request("pim-refresh", { afterWrite: true });
+    expect(triggered).toEqual(["now", "after write"]);
     dispose();
   });
 });

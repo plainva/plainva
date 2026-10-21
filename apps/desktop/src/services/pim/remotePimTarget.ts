@@ -97,10 +97,12 @@ export function createClientPimRuntime(db: IDatabaseAdapter): PimRuntime {
     worker: {
       start: () => {},
       stop: () => {},
-      triggerImmediate: async () => {
+      triggerImmediate: async (opts = {}) => {
         const bus = await getWindowBus();
         if (!active) return;
-        await bus.request("pim-refresh", {});
+        // A write from this window is one the owner's running cycle cannot
+        // answer either (issue 119): the flag travels with the request.
+        await bus.request("pim-refresh", { afterWrite: opts.afterWrite === true });
       },
     },
     stop: () => { active = false; },

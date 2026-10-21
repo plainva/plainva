@@ -1,6 +1,6 @@
 # O app mobile
 
-Última atualização: 2026-10-20
+Última atualização: 2026-10-21
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -131,7 +131,7 @@ Tocar em um lembrete de evento abre o próprio evento — a visão do dia na dat
 
 **Quando o telefone vai ver.** Em segundo plano, nenhum relógio corre em um telefone: a sincronização periódica fica parada enquanto o aplicativo não está à frente. Por isso o Plainva consulta por conta própria assim que você **volta ao aplicativo** e sempre que abre **Calendários**, **Tarefas** ou as **Contas de calendário** — no máximo uma vez por minuto, para que ir e voltar com frequência não dispare uma sequência de sincronizações. A volta também **replaneja os lembretes**, mesmo que nada de novo tenha chegado: o relógio andou de qualquer forma. Se você não quiser esperar, continuam ali **Atualizar agora** e puxar a lista para baixo.
 
-**O que não está atualizado e o que não cabe.** Quando uma conta ou um calendário não é sincronizado, o telefone também avisa em uma linha acima do calendário — qual, desde quando e por quê — com **Tentar novamente**; os compromissos abaixo ficam como último estado conhecido. Na visualização **Mês**, um dia mostra no máximo três pontos; um número depois deles (por exemplo **+3**) diz quantas entradas a mais ele tem. Local de trabalho, tempo de foco e ausência aparecem na grade de horários como uma faixa discreta na faixa de dia inteiro, não como um compromisso.
+**O que não está atualizado e o que não cabe.** Quando uma conta ou um calendário não é sincronizado, o telefone também avisa em uma linha acima do calendário — qual, desde quando e por quê — com **Tentar novamente**; os compromissos abaixo ficam como último estado conhecido. Na visualização **Mês**, um dia mostra no máximo três pontos; um número depois deles (por exemplo **+3**) diz quantas entradas a mais ele tem. Local de trabalho, tempo de foco e ausência aparecem na grade de horários como uma faixa discreta na faixa de dia inteiro, não como um compromisso. A área **Tarefas** tem a mesma linha para as listas de tarefas, e atualizar ali consulta os provedores na hora, como no desktop.
 
 Gerencie as contas pelo ícone de engrenagem no calendário de eventos: conecte o **CalDAV** no dispositivo com uma senha de aplicativo (p. ex. Fastmail, Nextcloud, iCloud); Google e Microsoft seguem via login pelo navegador. Por conta, você pode mostrar ou ocultar calendários individuais.
 

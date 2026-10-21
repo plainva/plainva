@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat, Flag } from "lucide-react";
-import { isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, updateVaultText, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
-import { errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
+import { type PimSyncProblem, isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, updateVaultText, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
+import { CalendarSyncNotice, syncProblemsFor, errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -198,6 +198,38 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     setRefreshTick((x) => x + 1);
     if (pimRuntime) void pimRuntime.worker.triggerImmediate().catch(() => undefined);
   }, [pimRuntime]);
+
+  // Which accounts and task lists are not being synced, and why (B2, 19.10.):
+  // a list whose pull fails, or whose ticks cannot reach the notes, used to
+  // leave the old state on screen without a word. Read again after every
+  // cycle - the line has to go once the cause is gone.
+  const [syncProblems, setSyncProblems] = useState<PimSyncProblem[]>([]);
+  const [pimTick, setPimTick] = useState(0);
+  useEffect(() => {
+    const onCycle = (e: Event) => {
+      if ((e as CustomEvent<{ status?: string }>).detail?.status !== "syncing") setPimTick((x) => x + 1);
+    };
+    window.addEventListener("plainva-pim-status", onCycle);
+    return () => window.removeEventListener("plainva-pim-status", onCycle);
+  }, []);
+  useEffect(() => {
+    let alive = true;
+    if (!pimRuntime) {
+      setSyncProblems([]);
+      return;
+    }
+    void pimRuntime.cache
+      .listSyncProblems()
+      .then((problems) => {
+        if (alive) setSyncProblems(syncProblemsFor(problems, "tasks"));
+      })
+      .catch(() => {
+        if (alive) setSyncProblems([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [pimRuntime, refreshTick, pimTick]);
 
   useEffect(() => {
     let alive = true;
@@ -1027,6 +1059,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
           <RefreshCw size={ICON.ui} />
         </IconButton>
       </div>
+      <CalendarSyncNotice problems={syncProblems} onRetry={refreshAll} />
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: "0.5rem 0.9rem", borderBottom: "1px solid var(--border-color)" }}>
         {list === "all" && (

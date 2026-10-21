@@ -113,6 +113,14 @@ export async function createTaskDatabase(
  * order): the FIRST option is "open", the LAST is "done"; every listed option
  * value is a recognized status. Returns null when the database has no
  * status/select column with options.
+ *
+ * Two exceptions to "the last one is done" (finding B2, 19.10.): an option
+ * that IS a done word — the one Plainva writes in any of its languages, or a
+ * common synonym — is "done" wherever it stands, and a cancelled option at
+ * the end is never taken for it. A board of Open / In progress / Done /
+ * Cancelled used to receive "Cancelled" for every task ticked at the
+ * provider. A cancelled task still counts as closed (`closed`): read as open,
+ * it would un-complete the provider's task the next time anything synced.
  */
 export interface TaskStatusModel {
   key: string;
@@ -120,7 +128,43 @@ export interface TaskStatusModel {
   done: string;
   /** All recognized option values (an unlisted value is "unknown"). */
   options: string[];
+  /** Options that also count as done when read (cancelled ones); never written. */
+  closed?: string[];
 }
+
+/**
+ * The done option of every language Plainva writes (`tasks.dbStatusDone`) and
+ * the usual synonyms, compared case-insensitively. Kept here rather than read
+ * from the locales: this module is pure and serves both shells and the
+ * reconciler, whatever language the person reads.
+ */
+const DONE_WORDS = new Set([
+  "done", "completed", "complete", "finished", "closed", "resolved",
+  "erledigt", "fertig", "abgeschlossen",
+  "terminado", "terminada", "completado", "completada", "hecho",
+  "terminé", "terminée", "terminées", "terminés", "fait", "faite",
+  "fatto", "fatta", "completato", "completata", "concluso", "conclusa",
+  "完了", "済み",
+  "afgerond", "klaar", "voltooid", "gedaan",
+  "ukończone", "ukończona", "zrobione", "gotowe", "zakończone",
+  "concluído", "concluída", "feito", "feita",
+  "已完成", "完成",
+]);
+
+/** Cancelled-like options: closed, but never the one a tick writes. */
+const CANCELLED_WORDS = new Set([
+  "cancelled", "canceled", "abandoned", "dropped", "won't do", "wont do",
+  "abgebrochen", "verworfen", "storniert", "abgesagt", "entfällt",
+  "cancelado", "cancelada", "descartado", "descartada",
+  "annulé", "annulée", "abandonné", "abandonnée",
+  "annullato", "annullata", "abbandonato", "abbandonata",
+  "キャンセル", "中止",
+  "geannuleerd", "vervallen",
+  "anulowane", "anulowana", "porzucone",
+  "已取消", "取消",
+]);
+
+const statusWord = (value: string) => value.trim().toLocaleLowerCase();
 
 export function resolveTaskStatusModel(config: unknown): TaskStatusModel | null {
   const cols = (config as { columns?: Record<string, unknown> } | null)?.columns ?? {};
@@ -138,17 +182,25 @@ export function resolveTaskStatusModel(config: unknown): TaskStatusModel | null 
     .map((o) => (typeof o === "string" ? o : (o as { value?: unknown } | null)?.value))
     .filter((v): v is string => typeof v === "string" && v.length > 0);
   if (values.length === 0) return null;
-  return { key: statusKey, open: values[0], done: values[values.length - 1], options: values };
+  const cancelled = values.filter((v, i) => i > 0 && CANCELLED_WORDS.has(statusWord(v)));
+  // A done word wins wherever it stands (the last one, should there be two);
+  // otherwise the last option that is not a cancelled one; otherwise the last.
+  const done =
+    [...values].reverse().find((v) => DONE_WORDS.has(statusWord(v))) ??
+    [...values].reverse().find((v, i) => i < values.length - 1 && !cancelled.includes(v)) ??
+    values[values.length - 1];
+  const closed = cancelled.filter((v) => v !== done);
+  return { key: statusKey, open: values[0], done, options: values, ...(closed.length > 0 ? { closed } : {}) };
 }
 
-/** Classifies a status value: `true` = done, `false` = a recognized non-done
- * (open/intermediate) value, `null` = empty or unrecognized. `null` is the
- * important case: it must never be treated as an intentional "open" that could
- * un-complete a remote task. */
+/** Classifies a status value: `true` = done (or closed), `false` = a
+ * recognized non-done (open/intermediate) value, `null` = empty or
+ * unrecognized. `null` is the important case: it must never be treated as an
+ * intentional "open" that could un-complete a remote task. */
 export function classifyTaskStatus(value: string | null | undefined, model: TaskStatusModel): boolean | null {
   if (value == null || value === "") return null;
   const s = String(value);
-  if (s === model.done) return true;
+  if (s === model.done || model.closed?.includes(s)) return true;
   if (model.options.includes(s)) return false;
   return null;
 }
@@ -221,7 +273,7 @@ export function applyTaskCompletion(
       const current = readPath(out, [model.status.key]);
       if (done) {
         out = setPath(out, [model.status.key], model.status.done);
-      } else if (current != null && String(current) === model.status.done) {
+      } else if (current != null && classifyTaskStatus(String(current), model.status) === true) {
         out = setPath(out, [model.status.key], model.status.open);
       }
     }
@@ -299,7 +351,8 @@ export function taskDbRows(
 }
 
 /** Writes an explicit status option and keeps a checkbox column consistent
- * (picking the done option checks the box; any other option unchecks it). */
+ * (picking the done option — or a cancelled one, which counts as closed —
+ * checks the box; any other option unchecks it). */
 export function applyTaskStatusOption(
   content: string,
   model: TaskCompletionModel,
@@ -310,7 +363,7 @@ export function applyTaskStatusOption(
   let out = content;
   if (status) out = setPath(out, [status.key], option);
   if (model.kind === "checkbox" && status) {
-    out = setPath(out, [model.key], option === status.done);
+    out = setPath(out, [model.key], classifyTaskStatus(option, status) === true);
   }
   return out;
 }

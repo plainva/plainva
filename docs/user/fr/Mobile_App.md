@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-10-20
+Dernière mise à jour : 2026-10-21
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -131,7 +131,7 @@ Toucher un rappel d’événement ouvre l’événement lui-même — la vue du 
 
 **Quand le téléphone va voir.** En arrière-plan, aucune horloge ne tourne sur un téléphone : la synchronisation régulière est donc à l’arrêt tant que l’application est absente. Plainva va donc voir de lui-même dès que vous **revenez dans l’application** et dès que vous ouvrez **Calendriers**, **Tâches** ou les **Comptes de calendrier** — au plus une fois par minute, pour qu’un va-et-vient fréquent ne déclenche pas une chaîne de synchronisations. Le retour **replanifie aussi les rappels**, même si rien de nouveau n’est arrivé : l’horloge a avancé malgré tout. Si vous ne voulez pas attendre, **Actualiser maintenant** et le tirage de la liste vers le bas restent disponibles.
 
-**Ce qui n'est pas à jour et ce qui ne tient pas.** Quand un compte ou un calendrier n'est plus synchronisé, le téléphone le dit lui aussi dans une ligne au-dessus du calendrier — lequel, depuis quand et pourquoi — avec **Réessayer** ; les rendez-vous en dessous restent comme dernier état connu. Dans la vue **Mois**, un jour affiche au plus trois points ; un nombre derrière eux (par exemple **+3**) indique combien d'entrées il contient en plus. Le lieu de travail, le temps de concentration et l'absence figurent dans la grille horaire sous forme de bande discrète dans la bande « journée entière », non comme un rendez-vous.
+**Ce qui n'est pas à jour et ce qui ne tient pas.** Quand un compte ou un calendrier n'est plus synchronisé, le téléphone le dit lui aussi dans une ligne au-dessus du calendrier — lequel, depuis quand et pourquoi — avec **Réessayer** ; les rendez-vous en dessous restent comme dernier état connu. Dans la vue **Mois**, un jour affiche au plus trois points ; un nombre derrière eux (par exemple **+3**) indique combien d'entrées il contient en plus. Le lieu de travail, le temps de concentration et l'absence figurent dans la grille horaire sous forme de bande discrète dans la bande « journée entière », non comme un rendez-vous. La zone **Tâches** a la même ligne pour les listes de tâches, et son actualisation interroge aussitôt les fournisseurs, comme sur ordinateur.
 
 Gérez les comptes depuis l'icône en forme d'engrenage dans le calendrier des événements : connectez **CalDAV** sur l'appareil avec un mot de passe d'application (p. ex. Fastmail, Nextcloud, iCloud) ; Google et Microsoft suivent via une connexion par navigateur. Par compte, vous pouvez afficher ou masquer certains calendriers.
 

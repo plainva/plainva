@@ -5,6 +5,8 @@ import {
   pendingEventRow,
   PendingEventWrites,
   SETTLED_EVENT_WRITE_TTL_MS,
+  seriesDeleteSubject,
+  showWrittenEvents,
   unsettledEventWrites,
   writeEventOptimistically,
 } from "@plainva/ui";
@@ -111,6 +113,39 @@ describe("pending calendar writes (issue 119)", () => {
     store.settle(id, undefined, 0);
     store.reconcile([row("u1", { title: "New", description: "kept", location: "Room 5" })], 10);
     expect(store.snapshot()).toEqual([]);
+  });
+
+  it("knows a created series by its occurrences: no second copy on its first day (issue 119)", () => {
+    const store = new PendingEventWrites();
+    const id = store.begin({ kind: "create", row: pendingEventRow(3, row("x")) });
+    store.settle(id, [{ kind: "create", row: row("s1") }], 0);
+    // A day query lists the occurrences, never the series' own row.
+    const cached = [row("s1#20261020T090000", { seriesMaster: "s1" })];
+    expect(applyPendingEventWrites(cached, store.snapshot()).map((e) => e.uid)).toEqual(["s1#20261020T090000"]);
+    store.reconcile(cached, 10);
+    expect(store.snapshot()).toEqual([]);
+  });
+
+  it("shows what was written outside the optimistic path until the cache has it", () => {
+    const store = new PendingEventWrites();
+    showWrittenEvents(store, [{ kind: "create", row: row("b1") }, { kind: "update", ref: ref("u1"), patch: { title: "Linked" } }]);
+    // A reload from a cycle that started earlier: both stay.
+    expect(applyPendingEventWrites([row("u1")], store.snapshot()).map((e) => [e.uid, e.title])).toEqual([
+      ["u1", "Linked"],
+      ["b1", "b1"],
+    ]);
+    store.reconcile([row("u1", { title: "Linked" }), row("b1")], 10);
+    expect(store.snapshot()).toEqual([]);
+  });
+
+  it("deletes a series whose own row is not cached through its occurrence", () => {
+    const caldav = row("s1#20261020T090000", { seriesMaster: "s1", href: "https://dav/cal/s1.ics", etag: '"7"' });
+    expect(seriesDeleteSubject(caldav, null)).toMatchObject({ uid: "s1", href: "https://dav/cal/s1.ics", etag: '"7"', seriesMaster: undefined });
+    // Another provider's occurrence carries its own etag - it is not the series'.
+    expect(seriesDeleteSubject(row("g1_20261020", { seriesMaster: "g1", etag: '"o"' }), null)).toMatchObject({ uid: "g1", etag: undefined });
+    const master = row("s1", { recurrence: "RRULE:FREQ=WEEKLY" });
+    expect(seriesDeleteSubject(caldav, master)).toBe(master);
+    expect(seriesDeleteSubject(row("single"), null)).toBeNull();
   });
 
   it("tells its listeners about every change and keeps a stable snapshot in between", () => {

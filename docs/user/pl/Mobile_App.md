@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-10-20
+Stan na: 2026-10-21
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -131,7 +131,7 @@ Dotknięcie przypomnienia o wydarzeniu otwiera samo wydarzenie — widok dnia w 
 
 **Kiedy telefon sprawdza.** W tle na telefonie nie chodzi żaden zegar — regularna synchronizacja stoi więc tak długo, jak długo aplikacja jest odłożona. Dlatego Plainva sprawdza sama z siebie, gdy tylko **wracasz do aplikacji** i gdy otwierasz **Kalendarze**, **Zadania** albo **Konta kalendarza**; najwyżej raz na minutę, żeby częste przełączanie nie wyzwalało łańcucha synchronizacji. Powrót **planuje też na nowo przypomnienia**, nawet jeśli nic nowego nie doszło — zegar i tak szedł dalej. Jeśli nie chcesz czekać, nadal są **Odśwież teraz** i ściągnięcie listy w dół.
 
-**Co nie jest aktualne i co się nie mieści.** Gdy konto lub kalendarz nie jest synchronizowane, telefon także mówi to w wierszu nad kalendarzem — które, od kiedy i dlaczego — z przyciskiem **Spróbuj ponownie**; spotkania poniżej zostają jako ostatni znany stan. W widoku **Miesiąc** dzień pokazuje najwyżej trzy kropki; liczba za nimi (na przykład **+3**) mówi, ile wpisów ma ponad to. Miejsce pracy, czas skupienia i nieobecność widnieją w siatce godzin jako spokojny pasek w wierszu całodniowym, a nie jako spotkanie.
+**Co nie jest aktualne i co się nie mieści.** Gdy konto lub kalendarz nie jest synchronizowane, telefon także mówi to w wierszu nad kalendarzem — które, od kiedy i dlaczego — z przyciskiem **Spróbuj ponownie**; spotkania poniżej zostają jako ostatni znany stan. W widoku **Miesiąc** dzień pokazuje najwyżej trzy kropki; liczba za nimi (na przykład **+3**) mówi, ile wpisów ma ponad to. Miejsce pracy, czas skupienia i nieobecność widnieją w siatce godzin jako spokojny pasek w wierszu całodniowym, a nie jako spotkanie. Obszar **Zadania** ma ten sam wiersz dla list zadań, a jego odświeżanie od razu pyta dostawców, jak na komputerze.
 
 Kontami zarządzasz z poziomu ikony koła zębatego w kalendarzu wydarzeń: **CalDAV** łączysz bezpośrednio na urządzeniu za pomocą hasła aplikacji (np. Fastmail, Nextcloud, iCloud); Google i Microsoft łączysz przez logowanie w przeglądarce. Dla każdego konta możesz pokazywać lub ukrywać poszczególne kalendarze.
 

@@ -83,9 +83,15 @@ describe("remote PIM target", () => {
     runtime.worker.stop();
     await runtime.worker.triggerImmediate();
 
-    expect(request).toHaveBeenCalledWith("pim-refresh", {});
+    expect(request).toHaveBeenCalledWith("pim-refresh", { afterWrite: false });
     // start()/stop() are no-ops on purpose: a poller per window would multiply
     // provider traffic by the number of open windows.
     expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it("tells the owner when the refresh follows a write of this window (issue 119)", async () => {
+    const runtime = createClientPimRuntime({} as never);
+    await runtime.worker.triggerImmediate({ afterWrite: true });
+    expect(request).toHaveBeenCalledWith("pim-refresh", { afterWrite: true });
   });
 });

@@ -148,6 +148,13 @@ export interface PimSyncProblem {
   provider: PimProviderId;
   calendarId?: string;
   calendarName?: string;
+  /**
+   * A task list of the account, or `""` for the account's listing of its task
+   * lists (finding B2, 19.10.): the tasks side failed while the calendars may
+   * be fine, and the task views say so instead of showing old ticks as news.
+   */
+  taskListId?: string;
+  taskListName?: string;
   /** The last time this scope synced without an error; null = never. */
   since: number | null;
   /** The provider's or the store's own words. */
@@ -783,7 +790,10 @@ export class PimCacheRepository {
   /**
    * What the calendar is NOT showing fresh, for the line above it (K1): every
    * enabled account whose last attempt failed, and — for accounts that
-   * otherwise sync — every selected calendar whose own pull failed.
+   * otherwise sync — every selected calendar whose own pull failed. The task
+   * side the same way (B2): the account's listing of its task lists, every
+   * selected list whose pull failed (`tasks:`), and every list whose provider
+   * changes the reconciler could not carry into the notes (`tasknotes:`).
    *
    * An account-level failure always carries a verdict (`last_error_kind`); a
    * row without one is the summary the worker leaves when only single
@@ -801,12 +811,14 @@ export class PimCacheRepository {
     }>(
       `SELECT s.account_id, s.scope, s.last_sync_ts, s.last_error, s.last_error_kind, a.label, a.provider
        FROM pim_state s JOIN pim_accounts a ON a.id = s.account_id
-       WHERE a.enabled = 1 AND s.last_error IS NOT NULL AND (s.scope = 'account' OR s.scope LIKE 'events:%')
+       WHERE a.enabled = 1 AND s.last_error IS NOT NULL
+         AND (s.scope = 'account' OR s.scope = 'tasklists' OR s.scope LIKE 'events:%' OR s.scope LIKE 'tasks:%' OR s.scope LIKE 'tasknotes:%')
        ORDER BY a.label, s.scope`
     );
     if (rows.length === 0) return [];
     const failedAccounts = new Set(rows.filter((r) => r.scope === "account" && r.last_error_kind !== null).map((r) => r.account_id));
-    const calendars = rows.some((r) => r.scope !== "account") ? await this.listCalendars() : [];
+    const calendars = rows.some((r) => r.scope.startsWith("events:")) ? await this.listCalendars() : [];
+    const taskLists = rows.some((r) => r.scope.startsWith("tasks:") || r.scope.startsWith("tasknotes:")) ? await this.listTaskLists() : [];
     const out: PimSyncProblem[] = [];
     for (const r of rows) {
       const base = { accountId: r.account_id, accountLabel: r.label ?? "", provider: r.provider as PimProviderId, since: r.last_sync_ts, error: r.last_error };
@@ -814,8 +826,21 @@ export class PimCacheRepository {
         if (failedAccounts.has(r.account_id)) out.push({ ...base, signIn: r.last_error_kind === "fatal" && isSignInFailure(r.last_error) });
         continue;
       }
-      // The account's own line already says its calendars are stale.
+      // The account's own line already says its calendars and lists are stale.
       if (failedAccounts.has(r.account_id)) continue;
+      if (r.scope === "tasklists") {
+        out.push({ ...base, taskListId: "", signIn: false });
+        continue;
+      }
+      const listScope = r.scope.startsWith("tasks:") ? "tasks:" : r.scope.startsWith("tasknotes:") ? "tasknotes:" : null;
+      if (listScope) {
+        const listId = r.scope.slice(listScope.length);
+        const list = taskLists.find((l) => l.accountId === r.account_id && l.id === listId);
+        // A list that is switched off or gone is not on screen to be stale.
+        if (!list?.selected) continue;
+        out.push({ ...base, taskListId: listId, taskListName: list.name, signIn: false });
+        continue;
+      }
       const calId = r.scope.slice("events:".length);
       const cal = calendars.find((c) => c.accountId === r.account_id && c.id === calId);
       // A calendar that is switched off or gone is not on screen to be stale.

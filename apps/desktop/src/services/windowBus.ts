@@ -268,7 +268,7 @@ export interface RpcMap {
   "move-bookmark": { args: { key: string; beforeKey: string | null }; result: BookmarkEntry[] };
   "rename-bookmarks": { args: { from: string; to: string }; result: BookmarkEntry[] };
   /** Ask the owner's PIM worker for a cycle now (an aux view has no worker). */
-  "pim-refresh": { args: Record<string, never>; result: void };
+  "pim-refresh": { args: { afterWrite?: boolean }; result: void };
   /**
    * Show one of the owner-only surfaces (stage C2).
    *

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PimCycleInfo, PimSyncProblem } from "@plainva/core";
-import { describeSyncProblems, formatPimCycle, planAllDayRows, hiddenBeyondDots, syncProblemReason, syncProblemSince, withoutUrlPaths, SYNC_PROBLEM_LINES } from "@plainva/ui";
+import { describeSyncProblems, syncProblemsFor, TASK_NOTE_PROBLEM_PREFIX, formatPimCycle, planAllDayRows, hiddenBeyondDots, syncProblemReason, syncProblemSince, withoutUrlPaths, SYNC_PROBLEM_LINES } from "@plainva/ui";
 import en from "../../../packages/ui/src/locales/en.json";
 
 /**
@@ -71,6 +71,29 @@ describe("the line above the calendar", () => {
     expect(raw).toBe("google api 403 forbidden for https://www.googleapis.com/…");
     expect(raw).not.toContain("someone");
     expect(syncProblemReason(problem({ error: "x".repeat(400) }), t).length).toBeLessThan(170);
+  });
+});
+
+describe("the line above the task views (B2, 19.10.)", () => {
+  it("names a task list with its account and speaks of tasks, not of events", () => {
+    const notice = describeSyncProblems([problem({ taskListId: "l1", taskListName: "Einkauf", error: "google api 500" })], t, "en-GB", NOW)!;
+    expect(notice.lines[0]!.text).toBe("“Einkauf (Work (iCloud))” has not been synced since 10:42: google api 500. The tasks are the last known state.");
+  });
+
+  it("names the listing of the task lists by its account", () => {
+    const notice = describeSyncProblems([problem({ taskListId: "", since: null })], t, "en", NOW)!;
+    expect(notice.lines[0]!.text).toBe("“Task lists of Work (iCloud)” has not been synced yet: caldav propfind 503.");
+  });
+
+  it("says in the reader's words why a provider tick did not reach the note", () => {
+    const reason = syncProblemReason(problem({ taskListId: "l1", error: `${TASK_NOTE_PROBLEM_PREFIX}no-done-column` }), t);
+    expect(reason).toBe(en.pim.problemTaskNoDoneColumn);
+  });
+
+  it("gives each surface its own problems: calendars to the calendar, lists to the task views, accounts to both", () => {
+    const all = [problem(), problem({ calendarId: "c1", calendarName: "Team" }), problem({ taskListId: "l1", taskListName: "Einkauf" })];
+    expect(syncProblemsFor(all, "calendar")).toEqual([all[0], all[1]]);
+    expect(syncProblemsFor(all, "tasks")).toEqual([all[0], all[2]]);
   });
 });
 

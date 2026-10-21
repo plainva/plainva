@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-10-20
+Última actualización: 2026-10-21
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -131,7 +131,7 @@ Tocar un recordatorio de evento abre el propio evento: la vista de día en su fe
 
 **Cuándo mira el teléfono.** En segundo plano, en un teléfono no corre ningún reloj: la sincronización periódica está parada mientras la aplicación no está delante. Por eso Plainva consulta por su cuenta en cuanto **vuelves a la aplicación** y cada vez que abres **Calendarios**, **Tareas** o las **Cuentas de calendario**; como mucho una vez por minuto, para que ir y venir a menudo no desencadene una cadena de sincronizaciones. Al volver también se **replanifican los recordatorios**, aunque no haya llegado nada nuevo: el reloj ha seguido corriendo igualmente. Si no quieres esperar, siguen ahí **Actualizar ahora** y tirar de la lista hacia abajo.
 
-**Lo que no está al día y lo que no cabe.** Cuando una cuenta o un calendario no se sincroniza, el teléfono también lo dice en una línea sobre el calendario —cuál, desde cuándo y por qué— con **Reintentar**; las citas de debajo se quedan como último estado conocido. En la vista **Mes** un día muestra como máximo tres puntos; un número detrás (por ejemplo **+3**) dice cuántas entradas más tiene. El lugar de trabajo, el tiempo de concentración y la ausencia aparecen en la cuadrícula horaria como una banda discreta en la franja de todo el día, no como una cita.
+**Lo que no está al día y lo que no cabe.** Cuando una cuenta o un calendario no se sincroniza, el teléfono también lo dice en una línea sobre el calendario —cuál, desde cuándo y por qué— con **Reintentar**; las citas de debajo se quedan como último estado conocido. En la vista **Mes** un día muestra como máximo tres puntos; un número detrás (por ejemplo **+3**) dice cuántas entradas más tiene. El lugar de trabajo, el tiempo de concentración y la ausencia aparecen en la cuadrícula horaria como una banda discreta en la franja de todo el día, no como una cita. El área **Tareas** tiene la misma línea para las listas de tareas, y su botón de actualizar consulta enseguida a los proveedores, como en el escritorio.
 
 Gestiona las cuentas desde el icono de engranaje en el calendario de eventos: conecta **CalDAV** en el dispositivo con una contraseña de aplicación (p. ej. Fastmail, Nextcloud, iCloud); Google y Microsoft se conectan mediante inicio de sesión en el navegador. Por cuenta puedes mostrar u ocultar calendarios individuales.
 

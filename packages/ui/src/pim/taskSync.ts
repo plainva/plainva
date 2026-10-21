@@ -31,6 +31,7 @@ import { generatedStamp } from "../lib/okfProvenance";
 import { resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, type TaskCompletionModel } from "../lib/taskDatabase";
 import { findColumnKey } from "../lib/taskPromotion";
 import { taskSyncPaused, trackTaskSync } from "./taskSyncPause";
+import { TASK_NOTE_PROBLEM_PREFIX } from "./syncProblems";
 
 /**
  * Task <-> note reconciler (PIM stage 3): mirrors the SELECTED task lists of
@@ -162,6 +163,14 @@ export interface TaskSyncResult {
   deletedNotes: string[];
   errors: string[];
   /**
+   * Provider changes that could not be carried into their notes (finding B2,
+   * 19.10.): a tick at the provider for a database without a done column, a
+   * due date for one without a date column, properties that could not be
+   * written. They are NOT recorded as agreed - the next cycle tries again -
+   * and each list with such a change says so on its `tasknotes:` row.
+   */
+  notApplied: number;
+  /**
    * True when the reconcile did nothing because task notes are being renamed
    * in bulk (`withTaskSyncPaused`, E12). The runner asks to be called again
    * once the pause lifts (`afterTaskSyncResume`).
@@ -220,7 +229,7 @@ export function chooseAnchorToAdopt<T extends { path: string; ctime: number | nu
 
 export async function runTaskSync(opts: TaskSyncOptions): Promise<TaskSyncResult> {
   if (taskSyncPaused()) {
-    return { createdNotes: [], changedNotes: [], adoptedNotes: [], duplicateAnchors: 0, deferredCreates: 0, pushed: 0, conflicts: 0, deletedRemote: 0, deletedNotes: [], errors: [], paused: true };
+    return { createdNotes: [], changedNotes: [], adoptedNotes: [], duplicateAnchors: 0, deferredCreates: 0, pushed: 0, conflicts: 0, deletedRemote: 0, deletedNotes: [], errors: [], notApplied: 0, paused: true };
   }
   return trackTaskSync(reconcileAll(opts));
 }
@@ -237,6 +246,7 @@ async function reconcileAll(opts: TaskSyncOptions): Promise<TaskSyncResult> {
     deletedRemote: 0,
     deletedNotes: [],
     errors: [],
+    notApplied: 0,
   };
   if (!opts.taskDbPath) return result;
 
@@ -262,11 +272,14 @@ async function reconcileAll(opts: TaskSyncOptions): Promise<TaskSyncResult> {
       return target;
     };
     for (const list of lists) {
+      const notApplied: NotAppliedReason[] = [];
       try {
-        await reconcileList(opts, db, account, list.id, getTarget, result, (task) => creates.push({ account, listId: list.id, listName: list.name, task }));
+        await reconcileList(opts, db, account, list.id, getTarget, result, (task) => creates.push({ account, listId: list.id, listName: list.name, task }), notApplied);
       } catch (e) {
         result.errors.push(`${account.label}/${list.name}: ${e instanceof Error ? e.message : String(e)}`);
       }
+      result.notApplied += notApplied.length;
+      await reportNotApplied(opts.cache, account.id, list.id, notApplied);
     }
   }
   await createPendingNotes(opts, db, creates, result);
@@ -333,7 +346,9 @@ async function reconcileList(
   getTarget: () => Promise<IPimTarget | null>,
   result: TaskSyncResult,
   /** Queues a task for import; the notes are created after all lists, in a fixed order. */
-  queueCreate: (task: PimTask) => void
+  queueCreate: (task: PimTask) => void,
+  /** Collects why a provider change did not reach its note (see `notApplied`). */
+  notApplied: NotAppliedReason[] = []
 ): Promise<void> {
   const { adapter, cache } = opts;
   const remoteTasks = await cache.listTasks(account.id, listId);
@@ -531,6 +546,16 @@ async function reconcileList(
       }
     }
 
+    // Did every field that had to change reach the note? A value the note
+    // cannot hold - a tick for a database without a done column, a date for
+    // one without a date column, a property block that could not be written -
+    // used to be recorded as agreed all the same: the tick was gone for good,
+    // and nothing anywhere said so (finding B2, 19.10.). Such a field keeps its
+    // old base and the remote etag is forgotten, so the next cycle tries again;
+    // the list reports it until the database can take it.
+    const missing = missingFields(content, merged, localFields, db);
+    for (const field of missing) notApplied.push(notAppliedReason(field, db));
+
     // Push when the merge differs from the remote.
     let newEtag = rt.etag ?? null;
     if (!fieldsEqual(merged, remoteFields)) {
@@ -560,7 +585,9 @@ async function reconcileList(
       }
     }
 
-    await cache.upsertTaskState({ accountId: account.id, listId, uid: rt.uid, notePath, remoteEtag: newEtag, baseFields: merged });
+    const agreed: PimTaskFields = { ...merged };
+    for (const field of missing) (agreed as Record<keyof PimTaskFields, unknown>)[field] = base[field];
+    await cache.upsertTaskState({ accountId: account.id, listId, uid: rt.uid, notePath, remoteEtag: missing.length > 0 ? null : newEtag, baseFields: agreed });
   }
 
   // Remote deletions: drop the state, keep the note (it becomes a normal note) —
@@ -588,6 +615,51 @@ async function reconcileList(
     } catch (e) {
       result.errors.push(`${account.label}/${listId}: ${e instanceof Error ? e.message : String(e)}`);
     }
+  }
+}
+
+// ---- changes that did not reach the note ------------------------------------
+
+/** Why a provider change did not reach its note - the codes the task views translate. */
+export type NotAppliedReason = "no-done-column" | "no-due-column" | "not-written";
+
+/**
+ * The fields of `merged` that differ from what the note said before and that
+ * the note does not say now. The title is left out when the provider's is
+ * empty: an empty title is never written over a note's heading.
+ */
+function missingFields(text: string, merged: PimTaskFields, before: PimTaskFields, db: Pick<DbShape, "dueKey" | "completion">): Array<keyof PimTaskFields> {
+  // Read with the OPPOSITE of the wanted value as the fallback: a note that
+  // does not clearly say "done" (or "open") has not taken the change.
+  const now = readNoteFields(text, db, !merged.completed);
+  const out: Array<keyof PimTaskFields> = [];
+  if (merged.title && merged.title !== before.title && now.title !== merged.title) out.push("title");
+  if (merged.due !== before.due && now.due !== merged.due) out.push("due");
+  if (merged.completed !== before.completed && (!db.completion || now.completed !== merged.completed)) out.push("completed");
+  return out;
+}
+
+function notAppliedReason(field: keyof PimTaskFields, db: Pick<DbShape, "dueKey" | "completion">): NotAppliedReason {
+  if (field === "completed" && !db.completion) return "no-done-column";
+  if (field === "due" && !db.dueKey) return "no-due-column";
+  return "not-written";
+}
+
+/** One row per list: set while changes wait, cleared once they all went through. */
+async function reportNotApplied(cache: PimCacheRepository, accountId: string, listId: string, reasons: readonly NotAppliedReason[]): Promise<void> {
+  const scope = `tasknotes:${listId}`;
+  try {
+    if (reasons.length > 0) {
+      // The most telling reason first: a missing column is the person's to fix.
+      const reason = (["no-done-column", "no-due-column", "not-written"] as const).find((r) => reasons.includes(r))!;
+      await cache.recordScopeFailure(accountId, scope, { lastError: `${TASK_NOTE_PROBLEM_PREFIX}${reason}` });
+      return;
+    }
+    // Only a row that says something is cleared: a write every cycle for
+    // every list would be a write for nothing.
+    if ((await cache.getScopeState(accountId, scope))?.lastError) await cache.setScopeState(accountId, scope, { lastError: null });
+  } catch {
+    /* a report must never cost the reconcile */
   }
 }
 

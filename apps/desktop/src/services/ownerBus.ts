@@ -470,10 +470,10 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   );
 
   offs.push(
-    await bus.handle("pim-refresh", async () => {
+    await bus.handle("pim-refresh", async (args) => {
       // Only this window has a worker; an aux calendar asking for fresh data
       // must not start a second poller on the same cache tables.
-      await deps.pimRuntime?.worker.triggerImmediate();
+      await deps.pimRuntime?.worker.triggerImmediate({ afterWrite: args?.afterWrite === true });
     }, { vaultPath: deps.vaultPath }),
   );
 

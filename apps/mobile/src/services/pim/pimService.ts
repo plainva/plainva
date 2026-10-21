@@ -611,7 +611,7 @@ export async function createPimEvent(calendarKey: string, draft: PimEventDraft) 
     (written) => written.rows.map((row) => ({ kind: "create" as const, row })),
     id,
   );
-  pimSyncNow();
+  pimSyncNow({ afterWrite: true });
   return out;
 }
 
@@ -642,7 +642,7 @@ export async function updatePimEvent(
 ): Promise<FollowedWriteOutcome> {
   const move = moveToCalendarKey ? splitCalendarKey(moveToCalendarKey) : null;
   const out = await updateEventWithBlockers(followDeps(), event, draft, { moveTo: move, loaded });
-  if (out.kind !== "conflict") pimSyncNow();
+  if (out.kind !== "conflict") pimSyncNow({ afterWrite: true });
   return out;
 }
 
@@ -682,7 +682,7 @@ export async function detachPimBlocker(
 ): Promise<EventWriteOutcome> {
   const move = moveToCalendarKey ? splitCalendarKey(moveToCalendarKey) : null;
   const out = await detachBlockerAndUpdate(followDeps(), blocker, draft, { moveTo: move, source });
-  if (out.kind !== "conflict") pimSyncNow();
+  if (out.kind !== "conflict") pimSyncNow({ afterWrite: true });
   return out;
 }
 
@@ -769,7 +769,7 @@ export async function openMeetingNoteFor(
 /** Deletes an event and — where the user said so — the blockers that mirror it (K3). */
 export async function deletePimEvent(event: PimEventRow, blockers: readonly ResolvedBlocker[] = []): Promise<BlockFollowReport> {
   const report = await deleteEventWithBlockers(followDeps(), event, blockers);
-  pimSyncNow();
+  pimSyncNow({ afterWrite: true });
   return report;
 }
 
@@ -784,5 +784,5 @@ export async function respondToPimEvent(event: PimEventRow, response: "accepted"
   await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: event, patch: { selfResponse: response } }, () =>
     respond({ calendarId: event.calendarId, uid: event.uid, etag: event.etag, href: event.href }, response),
   );
-  pimSyncNow();
+  pimSyncNow({ afterWrite: true });
 }

@@ -147,6 +147,21 @@ export async function updateCalendarEvent(
   };
 }
 
+/**
+ * What "delete all events" of a series is written against (issue 119). The
+ * series' own row where the cache has it. Where it does not, the occurrence
+ * still names everything the provider needs: the series id (`seriesMaster`)
+ * and, for CalDAV, the object the series lives in (`href`) - with its etag,
+ * which the object shares with every occurrence of it. The other providers
+ * give an occurrence its own etag, so none is sent there. Until now a missing
+ * master row ended in "Saving to the provider failed." and nothing was deleted.
+ */
+export function seriesDeleteSubject(occurrence: PimEventRow, master: PimEventRow | null): PimEventRow | null {
+  if (master) return master;
+  if (!occurrence.seriesMaster) return null;
+  return { ...occurrence, uid: occurrence.seriesMaster, seriesMaster: undefined, etag: occurrence.href ? occurrence.etag : undefined };
+}
+
 export async function deleteCalendarEvent(
   targets: EventTargets,
   event: Pick<PimEventRow, "accountId" | "calendarId" | "uid" | "etag" | "href">,

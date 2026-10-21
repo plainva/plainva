@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -131,7 +131,7 @@ Tapping an event reminder opens the event itself — the day view on its day, th
 
 **When the phone looks.** A phone runs no clock in the background, so the regular sync stands still for as long as the app is away. Plainva therefore asks of its own accord as soon as you **come back to the app** and whenever you open **Calendars**, **Tasks** or the **Calendar accounts** — at most once a minute, so switching back and forth does not set off a chain of syncs. Coming back also **replans the reminders**, even when nothing new arrived: the clock moved on regardless. If you would rather not wait, **Refresh now** and pulling the list down are still there.
 
-**What is not up to date, and what does not fit.** When an account or a calendar is not being synced, the phone says so in a line above the calendar too — which one, since when and why — with **Try again**; the events below stay as the last known state. In the **Month** view a day shows at most three dots; a number behind them (such as **+3**) says how many more entries it holds. Working location, focus time and out of office sit in the time grid as a quiet band in the all-day strip, not as an appointment.
+**What is not up to date, and what does not fit.** When an account or a calendar is not being synced, the phone says so in a line above the calendar too — which one, since when and why — with **Try again**; the events below stay as the last known state. In the **Month** view a day shows at most three dots; a number behind them (such as **+3**) says how many more entries it holds. Working location, focus time and out of office sit in the time grid as a quiet band in the all-day strip, not as an appointment. The **Tasks** area has the same line for task lists, and its refresh asks the providers right away, as on the desktop.
 
 Manage accounts from the gear icon in the event calendar: connect **CalDAV** on the device with an app password (e.g. Fastmail, Nextcloud, iCloud); Google and Microsoft follow via browser sign-in. Per account you can show or hide individual calendars.
 
