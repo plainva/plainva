@@ -96,6 +96,14 @@
   /* The state box of a task row. Its own token: it is a glyph inside a button,
      not a native tick, and it is the one thing on the row a person aims at. */
   --taskbox-size: 18px;
+  /* A task box in the text of a note (the editor's `.cm-md-task`, both
+     shells, also the phone's reading view) and in a journal line. With a
+     pointer: the native box and the journal's 15px glyph, as before. Under a
+     finger they grow, and the box in the text gets a hit area of --touch-sm
+     around it that does not grow the line (wish 2026-10-19). */
+  --md-task-size: auto;
+  --md-task-hit: 0px;
+  --journal-taskbox-size: 15px;
   --switch-w: 34px;
   --switch-h: 18px;
   --switch-knob-size: 14px;
@@ -318,6 +326,9 @@
   --chip-x-size: 22px;
   --tick-size: 24px;
   --taskbox-size: 24px;
+  --md-task-size: 22px;
+  --md-task-hit: calc((var(--touch-sm) - var(--md-task-size)) / 2);
+  --journal-taskbox-size: 22px;
   --switch-w: 52px;
   --switch-h: 32px;
   --switch-knob-size: 28px;

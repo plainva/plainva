@@ -27,6 +27,7 @@ import { initDensity } from "./services/density";
 import { initTagColors } from "./services/tagColors";
 import { initSpellcheck } from "./services/spellcheck";
 import { initDefaultViewMode } from "./services/viewModeDefault";
+import { initNewNotesInNewTab } from "./services/newNoteTab";
 import { initAppFonts } from "./services/appFonts";
 import { initUiZoom } from "./services/uiZoom";
 import { initInputModality } from "./services/inputModality";
@@ -49,6 +50,7 @@ initTagColors();
 initSpellcheck();
 // Fill the sync cache for the default editor view mode (read/live/source).
 initDefaultViewMode();
+initNewNotesInNewTab();
 // Apply the persisted content font size/family (issue #5, a11y).
 initAppFonts();
 // Re-apply a persisted non-default UI zoom (issue #5 follow-up).

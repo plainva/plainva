@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-10-06
+Stan na: 2026-10-21
 
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
@@ -167,7 +167,7 @@ Nad listami znajduje się pole szybkiego dodawania; na telefonie **+ Nowe zadani
 
 `- [/]` (**W toku**) i `- [-]` (**Anulowane**) to również zadania. W edytorze, w trybie czytania i na każdej liście dostają własne pole; w toku liczy się jako otwarte, anulowane jako zamknięte. Kliknięcie nadal przełącza tylko między otwartym a ukończonym — kończy zadanie w toku i otwiera ponownie anulowane. **Ustaw stan** w menu wiersza ustawia te dwa stany; Plainva nigdy nie zapisuje ich samodzielnie.
 
-**Data zadania jest sposobem na jej zmianę.** Naciśnij datę zadania (w obrębie dnia: jego godzinę), a otworzy się wybór daty — na komputerze pod datą, na telefonie jako arkusz. **Zmień termin** w menu wiersza otwiera ten sam wybór; tak też zadanie bez daty ją dostaje. Wpis bazy zadań zachowuje swoją godzinę, pole wyboru dostaje lub zmienia swoją datę `📅`. Przy nagłówku **Zaległe** przycisk **Wszystkie na dziś** przenosi jednym ruchem wszystkie zaległe zadania na dziś. Jedno i drugie potwierdza komunikat z opcją **Cofnij**. W polu zapisu `[[` podpowiada notatki, a `#` tagi, tak jak w edytorze: `Enter` lub `Tab` przyjmuje zaznaczoną podpowiedź, `Esc` zamyka listę.
+**Data zadania jest sposobem na jej zmianę.** Naciśnij datę zadania (w obrębie dnia: jego godzinę), a otworzy się wybór daty — na komputerze pod datą, na telefonie jako arkusz. **Zmień termin** w menu wiersza otwiera ten sam wybór; tak też zadanie bez daty ją dostaje. Na telefonie **Nowe zadanie** i komórka daty bazy danych wybierają dzień z tego samego kalendarza, a nie z systemowego pokrętła daty. Pole wyboru w notatce — w edytorze, w widoku czytania i w dzienniku — ma na telefonie rozmiar dostosowany do palca. Wpis bazy zadań zachowuje swoją godzinę, pole wyboru dostaje lub zmienia swoją datę `📅`. Przy nagłówku **Zaległe** przycisk **Wszystkie na dziś** przenosi jednym ruchem wszystkie zaległe zadania na dziś. Jedno i drugie potwierdza komunikat z opcją **Cofnij**. W polu zapisu `[[` podpowiada notatki, a `#` tagi, tak jak w edytorze: `Enter` lub `Tab` przyjmuje zaznaczoną podpowiedź, `Esc` zamyka listę.
 
 Więcej sposobów: **Nowe zadanie** w menu zasobnika systemowego na komputerze (gdy Plainva działa dalej w tle), w Androidzie skrót w launcherze **Nowe zadanie** (przytrzymanie ikony aplikacji), oraz na telefonie **Utwórz jako zadanie**, gdy udostępnisz coś Plainvie — tekst i załączniki trafiają do notatki zadania. To, jak przypomina zadanie z godziną, opisano w [Kalendarz i zadania zewnętrzne](Calendar_and_Tasks.md).
 

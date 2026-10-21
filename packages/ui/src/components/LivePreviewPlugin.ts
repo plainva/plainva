@@ -175,17 +175,33 @@ class TaskWidget extends WidgetType {
     box.indeterminate = this.state === "progress";
     box.className = this.state ? `cm-md-task cm-md-task--${this.state}` : "cm-md-task";
     if (this.state) box.dataset.taskState = this.state;
-    box.addEventListener("mousedown", (e) => e.preventDefault());
-    box.addEventListener("click", (e) => {
-      e.preventDefault();
+    const toggle = () => {
       const raw = view.state.doc.toString(), line = view.state.doc.lineAt(this.pos);
       const task = scanTasks(raw).find(value => value.line === line.number - 1);
       if (!task) return;
       const result = setChecklistTaskDone(raw, task.ordinal, !this.checked);
       const change = minimalDocChange(raw, result.content);
       if (change) view.dispatch({ changes: change, userEvent: "input.task" });
+    };
+    // The box sits in a span that only widens where a finger taps it (the
+    // touch density's hit area, wish 2026-10-19). A tap on that padding
+    // toggles the task itself: a label would focus the box and take the
+    // focus - and the keyboard - away from the editor.
+    const hit = document.createElement("span");
+    hit.className = "cm-md-task-hit";
+    hit.addEventListener("mousedown", (e) => e.preventDefault());
+    hit.addEventListener("click", (e) => {
+      if (e.target === box) return;
+      e.preventDefault();
+      toggle();
     });
-    return box;
+    hit.appendChild(box);
+    box.addEventListener("mousedown", (e) => e.preventDefault());
+    box.addEventListener("click", (e) => {
+      e.preventDefault();
+      toggle();
+    });
+    return hit;
   }
   ignoreEvent() { return false; }
 }

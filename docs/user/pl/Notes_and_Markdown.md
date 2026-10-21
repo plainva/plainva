@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-10-20
+Stan na: 2026-10-21
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -54,7 +54,7 @@ Wpisz `/` na początku wiersza, aby otworzyć menu wstawiania. Jest ono podzielo
 
 ## Linki i linki zwrotne
 
-- **Linki wewnętrzne**: `[[Nazwa notatki]]` (link wiki) — przez menu slash lub `@` z wbudowanym wyszukiwaniem notatek. Klasyczne linki Markdown `[tekst](ścieżka.md)` również działają.
+- **Linki wewnętrzne**: `[[Nazwa notatki]]` (link wiki) — przez menu slash lub `@` z wbudowanym wyszukiwaniem notatek. Klasyczne linki Markdown `[tekst](ścieżka.md)` również działają. Link wiki jest widoczny jako jasne tło za tekstem, nieco pogrubiony; link internetowy pozostaje podkreślony, więc oba odróżnisz na pierwszy rzut oka.
 - **Jak link znajduje swoją notatkę**: link wiki wskazuje notatkę przez jej **nazwę pliku** — gdziekolwiek w vaulcie, bez rozróżniania wielkich i małych liter — albo przez jej ścieżkę, albo tylko jej końcówkę (`[[Klienci/List]]`). Jeśli właściwości notatki zawierają `title`, ten tytuł również do niej prowadzi; plik, który *nazywa się* tak jak link, zawsze ma pierwszeństwo. Gdy dwie notatki mają tę samą nazwę, wygrywa ta w tym samym folderze co notatka z linkiem, potem ta o krótszej ścieżce — a notatka o tej nazwie na najwyższym poziomie vaultu ma pierwszeństwo przed obiema. Aby wskazać dokładnie jedno miejsce, wpisz ścieżkę: `/Folder/Notatka` od najwyższego poziomu vaultu, `./Notatka` lub `../Folder/Notatka` od folderu bieżącej notatki. Odpowiedź jest taka sama na komputerze i na telefonie, w grafie, w linkach zwrotnych i w bazach danych. Gdy wybierasz notatkę po `[[` lub `@`, Plainva zapisuje jej nazwę pliku i zachowuje jako tekst linku tytuł, który brzmi inaczej (`[[List|List ofertowy]]`); jeśli dwie notatki mają tę nazwę, zapisuje ścieżkę.
 - **Linki do sekcji**: `[[Notatka#Nagłówek]]` otwiera notatkę przy tym nagłówku, `[[#Nagłówek]]` przeskakuje w bieżącej notatce, a `[tekst](#nagłówek)` w stylu GitHuba działa tak samo — rozwiązywany jest zarówno dosłowny tekst nagłówka, jak i slug (`cool-header`); `[[Notatka#^id]]` trafia do wiersza kończącego się na `^id`. Wpisanie `[[Notatka#` podpowiada nagłówki notatki. Nagłówek, którego już nie ma, zgłasza to komunikatem zamiast nic nie robić.
 - **Cele, które jeszcze nie istnieją**: link wiki do notatki, która nie została jeszcze utworzona, jest wyświetlany **przygaszony, z przerywanym podkreśleniem** (zarówno w Podglądzie na żywo, jak i w trybie czytania). **Kliknięcie go tworzy notatkę** i ją otwiera — w folderze bieżącej notatki (lub pod podaną ścieżką, jeśli link ją zawiera, np. `[[Folder/New note]]`). Aby najpierw zapytać, włącz **Ustawienia → Aplikacja → Edytor i notatki → Pytaj przed utworzeniem pustych linków**.

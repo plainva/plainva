@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Diamond, Link2, MapPin, Repeat, Square } from "lucide-react";
-import { Button, ICON, blockHeightPx, layoutDayEvents, layoutSpanningEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, nextLaneStartMin, planAllDayRows, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
+import { Button, ICON, blockHeightPx, layoutDayEvents, layoutSpanningEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, nextLaneStartMin, fillAllDayRoom, planAllDayRows, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
 import { eventStateClass, eventVisualState, partitionStatus, statusLabel } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "@plainva/ui";
@@ -246,15 +246,12 @@ export function DayTimeGrid(props: DayTimeGridProps) {
     const closed = planAllDayRows({ ...input, expanded: false });
     const shown = allDayOpen ? planAllDayRows({ ...input, expanded: true }) : closed;
     const days = allDayItems.map((d, i) => {
-      const room = shown.days[i]?.visibleItems ?? 0;
-      const afterStatus = Math.max(0, room - d.status.length);
-      const afterAppointments = Math.max(0, afterStatus - d.appointments.length);
-      const afterTasks = Math.max(0, afterAppointments - d.tasks.length);
+      const [status, appointments, tasks, overlay] = fillAllDayRoom([d.status, d.appointments, d.tasks, d.overlay], shown.days[i]?.visibleItems ?? 0);
       return {
-        status: d.status.slice(0, room),
-        appointments: d.appointments.slice(0, afterStatus),
-        tasks: d.tasks.slice(0, afterAppointments),
-        overlay: d.overlay.slice(0, afterTasks),
+        status,
+        appointments,
+        tasks,
+        overlay,
         hidden: shown.days[i]?.hidden ?? 0,
         // Open, the days that had a count offer the way back in its place.
         canClose: allDayOpen && (closed.days[i]?.hidden ?? 0) > 0,

@@ -458,12 +458,9 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
               return (
                 <a
                   href="#"
-                  className={unresolved ? 'is-unresolved' : undefined}
+                  className={unresolved ? 'pv-wiki-link pv-wiki-link--unresolved' : 'pv-wiki-link'}
                   data-tip={unresolved ? t('editor.unresolvedLinkTip', "Note doesn't exist yet — click to create") : undefined}
                   onClick={(e) => { e.preventDefault(); handleWikiLinkClick(target, e.ctrlKey || e.metaKey); }}
-                  style={unresolved
-                    ? { color: 'var(--wiki-link-unresolved-color, var(--text-muted))', textDecoration: 'underline dashed', cursor: 'pointer' }
-                    : { color: 'var(--accent-color)', textDecoration: 'underline', cursor: 'pointer' }}
                 >
                   {children}
                 </a>

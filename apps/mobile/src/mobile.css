@@ -2990,9 +2990,12 @@ textarea {
   color: var(--on-accent-container);
   font-size: var(--text-sm);
 }
-/* ISO week column (package I): the grid grows an extra narrow column. */
+/* ISO week column of the month (wish 2026-10-19): the grid grows an extra
+   narrow column when "Show week numbers" is on. */
 .m-cal-grid--weeks {
-  grid-template-columns: 24px repeat(7, 1fr);
+  /* minmax(0, …): a bar's title must not widen its columns - with the extra
+     column the week ran past the screen's edge. */
+  grid-template-columns: 20px repeat(7, minmax(0, 1fr));
 }
 .m-cal-week {
   align-self: center;

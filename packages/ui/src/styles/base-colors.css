@@ -42,6 +42,14 @@
   /* Wiki link whose target note doesn't exist yet (muted; theme-aware via
      --text-muted, so every theme inherits a sensible value). */
   --wiki-link-unresolved-color: var(--text-muted);
+  /* A wiki link wears a light tint of its color and a little more weight; its
+     line comes only under the pointer, so it reads apart from a web link
+     (wish 2026-10-19, wikiLinkStyle.ts). High contrast swaps the tint for the
+     line. */
+  --wiki-link-bg: color-mix(in srgb, var(--wiki-link-color) 13%, transparent);
+  --wiki-link-bg-hover: color-mix(in srgb, var(--wiki-link-color) 24%, transparent);
+  --wiki-link-weight: 500;
+  --wiki-link-decoration: none;
   --overlay-bg: rgba(15, 28, 27, 0.45);
 
   /* Editor-specific */

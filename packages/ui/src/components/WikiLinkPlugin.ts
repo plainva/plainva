@@ -7,6 +7,7 @@ import { getPlatformServices } from "../platform/services";
 import { findLinkAtOffset } from "../lib/linkParser";
 import { isWikiTargetResolved, type WikiTargetSet } from "../lib/wikiResolver";
 import { isEditorInteractive } from "./editorInteractive";
+import { WIKI_LINK_HOVER_STYLE, WIKI_LINK_STYLE, WIKI_LINK_UNRESOLVED_STYLE } from "./wikiLinkStyle";
 import i18n from "../i18n";
 
 // The lookup over the vault's files (`buildWikiTargetSet`), pushed in from the
@@ -290,7 +291,10 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean, host
           // Unresolved = a wiki link whose target note does not exist yet
           // (only wiki links carry the "not created yet" meaning).
           const unresolved = m.type === "wiki" && !isWikiTargetResolved(m.target, resolver, hostPath?.());
-          const linkClass = unresolved ? "cm-wiki-link cm-wiki-link--unresolved" : "cm-wiki-link";
+          // A wiki link wears the note-link look (wish 2026-10-19); a Markdown
+          // link and a bare address keep the web link's underline, as in the
+          // desktop's reading view. `.cm-wiki-link` stays the click target.
+          const linkClass = m.type !== "wiki" ? "cm-wiki-link" : unresolved ? "cm-wiki-link cm-wiki-link--note cm-wiki-link--unresolved" : "cm-wiki-link cm-wiki-link--note";
           const linkAttrs: Record<string, string> = { "data-link-target": m.target, "data-link-type": m.type };
           if (m.anchor) linkAttrs["data-link-anchor"] = m.anchor;
           if (unresolved) linkAttrs.title = i18n.t("editor.unresolvedLinkTip", "Note doesn't exist yet — click to create");
@@ -328,11 +332,16 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean, host
     }),
     wikiResolverField,
     EditorView.baseTheme({
+      // A Markdown link or a bare address: the web link's line.
       ".cm-wiki-link": {
         color: "var(--wiki-link-color, var(--accent-color))",
         textDecoration: "underline",
-        cursor: "pointer"
+        cursor: "pointer",
       },
+      // A wiki link: the look lives in wikiLinkStyle.ts, shared with
+      // table-cell links and the reading views.
+      ".cm-wiki-link.cm-wiki-link--note": WIKI_LINK_STYLE,
+      ".cm-wiki-link.cm-wiki-link--note:hover": WIKI_LINK_HOVER_STYLE,
       // lezer-markdown tags the inner `[target]` of `[[wiki]]` (and `[text](url)`)
       // as a Link, so the highlighter paints its own SOLID underline on the token
       // nested inside this mark. It stacked with this mark's underline — invisible
@@ -348,10 +357,7 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean, host
       // clickable — clicking creates the note (Obsidian parity). Kept visually
       // identical to the reading view's `underline dashed` (maintainer: the
       // live-preview link must look the same as in reading mode).
-      ".cm-wiki-link--unresolved": {
-        color: "var(--wiki-link-unresolved-color, var(--text-muted))",
-        textDecorationStyle: "dashed",
-      },
+      ".cm-wiki-link.cm-wiki-link--unresolved, .cm-wiki-link.cm-wiki-link--unresolved:hover": WIKI_LINK_UNRESOLVED_STYLE,
     }),
     EditorView.domEventHandlers({
       mousedown: (event, view) => {

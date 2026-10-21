@@ -49,6 +49,7 @@ import { getStoredUiZoom, setStoredUiZoom, DEFAULT_UI_ZOOM } from "../services/u
 import { getStoredDefaultViewMode, setStoredDefaultViewMode, DEFAULT_VIEW_MODE, type EditorViewMode } from "../services/viewModeDefault";
 import { getAskBeforeCreateLink, setAskBeforeCreateLink } from "../services/linkCreatePrompt";
 import { getStoredSpellcheck, setStoredSpellcheck, DEFAULT_SPELLCHECK } from "../services/spellcheck";
+import { DEFAULT_NEW_NOTES_IN_NEW_TAB, getStoredNewNotesInNewTab, setStoredNewNotesInNewTab } from "../services/newNoteTab";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { checkForAppUpdate, downloadAndInstallUpdate, getAutoUpdateCheck, setAutoUpdateCheck } from "../services/appUpdate";
 import { formatBuildLine, formatDiagnosticsExport } from "@plainva/ui";
@@ -134,6 +135,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   useEffect(() => { getAskBeforeCreateLink().then(setAskBeforeCreateLinkState).catch(() => {}); }, []);
   const [spellcheck, setSpellcheck] = useState(DEFAULT_SPELLCHECK);
   useEffect(() => { getStoredSpellcheck().then(setSpellcheck).catch(() => {}); }, []);
+  const [newNotesInNewTab, setNewNotesInNewTab] = useState(DEFAULT_NEW_NOTES_IN_NEW_TAB);
+  useEffect(() => { getStoredNewNotesInNewTab().then(setNewNotesInNewTab).catch(() => {}); }, []);
   const [uiZoom, setUiZoom] = useState<number>(DEFAULT_UI_ZOOM);
   useEffect(() => { getStoredUiZoom().then(setUiZoom).catch(() => {}); }, []);
   const [themePref, setThemePref] = useState<ThemePref>("system");
@@ -853,6 +856,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onAskBeforeCreateLink={(v) => { setAskBeforeCreateLinkState(v); void setAskBeforeCreateLink(v); }}
                       spellcheck={spellcheck}
                       onSpellcheck={(v) => { setSpellcheck(v); void setStoredSpellcheck(v); }}
+                      newNotesInNewTab={newNotesInNewTab}
+                      onNewNotesInNewTab={(v) => { setNewNotesInNewTab(v); void setStoredNewNotesInNewTab(v); }}
                     />
                   </SettingsPage>
                   <SettingsPage active={inAppWorld && appPage === "behavior"}>

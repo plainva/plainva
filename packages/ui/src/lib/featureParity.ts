@@ -540,23 +540,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-06",
   },
   {
-    id: "calendar-all-day-row-limit",
-    title: "The all-day row of the time grid: five rows, a count, and opening it",
-    area: "pim",
-    kind: "decision",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "On the desktop the all-day row is pinned above a time grid that fills the pane, " +
-      "so it grows to five rows, counts the rest per day and opens for all days on a " +
-      "click (DayTimeGrid.tsx). On the phone the row is not pinned: it scrolls away " +
-      "with the grid (PimCalendarScreen.tsx), so it shows every entry at once and has " +
-      "nothing to hide or to open - a limit there would add a tap without saving " +
-      "space. Status entries are bands in both rows, and the phone's month grid " +
-      "counts what lies beyond its dots (plan Befunde 2026-10-06, E8).",
-    verified: "2026-10-06",
-  },
-  {
     id: "device-pim-accounts",
     title: "The device's own calendars and reminder lists as a calendar account",
     area: "pim",
@@ -689,7 +672,7 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
   },
   {
     id: "editor-tabs",
-    title: "Tabs: closing one, reopening the last one closed",
+    title: "Tabs: closing one, reopening the last one closed, new notes in a new tab",
     area: "platform",
     kind: "decision",
     desktop: "yes",
@@ -699,8 +682,11 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "them on a navigation stack: going back pops it (see system-back), and the " +
       "bottom bar switches between the main screens rather than between open notes. " +
       "With no strip there is no tab to close and no closed tab to bring back, so " +
-      "the phone's palette has no close-tab and no reopen-tab.",
-    verified: "2026-09-24",
+      "the phone's palette has no close-tab and no reopen-tab. The desktop's choice " +
+      "to open new notes in a new tab (issue 135) is what the phone always does: a " +
+      "new note is pushed as a screen of its own, and the one before stays a " +
+      "'back' away.",
+    verified: "2026-10-21",
   },
   {
     id: "external-change-watcher",
@@ -909,6 +895,20 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "On iOS the app bar's arrow is THE way back, so it carries the full 44px " +
       "touch target. Both shells run through one pop path; only the trigger differs.",
     verified: "2026-09-03",
+  },
+  {
+    id: "window-bounds-restore",
+    title: "The main window comes back with its size, place and maximized state",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The phone has no window to size or place: the system shows the app full " +
+      "screen (or in the split the system offers on a tablet) and puts it back " +
+      "itself. On the desktop the main window keeps its last place across " +
+      "restarts (window_state.rs; issue 135, 2026-10-19).",
+    verified: "2026-10-21",
   },
   {
     id: "comment-card-actions-hover",

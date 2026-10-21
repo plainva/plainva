@@ -5,7 +5,7 @@ import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { writeFile as fsWriteFile, writeTextFile as fsWriteTextFile } from "@tauri-apps/plugin-fs";
 import type { FolderOverview, GraphEdgeKind, VaultGraph } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { EmptyState, ICON, MenuItem, MenuSurface } from "@plainva/ui";
+import { EmptyState, ICON, markFreshNote, MenuItem, MenuSurface } from "@plainva/ui";
 import { BasePeekModal } from "../BasePeekModal";
 import { appConfirm, appPrompt } from "../../services/appDialogs";
 import { requestCascadeDelete } from "../../services/cascadeDelete";
@@ -445,6 +445,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
         const folder = sourcePath.includes("/") ? sourcePath.substring(0, sourcePath.lastIndexOf("/")) : "";
         const noteType = vaultPath ? await getConfiguredNoteType(vaultPath) : "Note";
         const path = await createConnectedNote(vaultAdapter, queryService, { folder, title, sourcePath, noteType });
+        markFreshNote(path); // opens to be written in (wish 2026-10-19)
         onOpenPath(path, true);
       } catch {
         toast.error(t("graph.cleanupActionFailed", { defaultValue: "Aktion fehlgeschlagen." }));
@@ -460,6 +461,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
     try {
       const noteType = vaultPath ? await getConfiguredNoteType(vaultPath) : "Note";
       const path = await createConnectedNote(vaultAdapter, queryService, { folder: "", title, noteType });
+      markFreshNote(path);
       onOpenPath(path, true);
     } catch {
       toast.error(t("graph.cleanupActionFailed", { defaultValue: "Aktion fehlgeschlagen." }));

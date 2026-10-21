@@ -32,7 +32,7 @@ import {
   clearPendingTemplateCaret,
   consumePendingTemplateCaret,
   ensureDailyNote as ensureSharedDailyNote,
-  parkTemplateCaret,
+  markFreshNote, parkTemplateCaret,
   wikiTargetToPath,
 } from "@plainva/ui";
 import { configuredDailyNoteType, configuredNoteType } from "./services/newNote";
@@ -112,6 +112,8 @@ function creationOps(): CreationOps {
     reportCreated: (path: string) => void reported.push(path),
     // The one way to park a caret since 2026-10-09: with the note it counts in.
     parkTemplateCaret,
+    // A note just made opens to be written in (wish 2026-10-19).
+    markFreshNote,
     wikiTargetToPath,
   };
   return new Function(...Object.keys(scope), `${code}\nreturn vaultOps;`)(...Object.values(scope)) as CreationOps;

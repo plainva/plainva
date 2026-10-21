@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Check, ExternalLink, MessageSquare } from "lucide-react";
-import { asSingleLineValue, type CuratedOption, dateTimeEditorValue, GrowingField, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, Rating, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
+import { asSingleLineValue, Button, calendarDay, type CuratedOption, DateJumpPicker, dateTimeEditorValue, GrowingField, useShowWeekNumbers, useWeekStartDay, weekNumbersShown, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, Rating, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
 import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
 import { ChoiceMark, useChoiceBeat } from "../../components/ChoiceMark";
@@ -73,6 +73,13 @@ export function CellEditSheet({
     return input === "datetime" && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T00:00` : raw;
   });
   const [multi, setMulti] = useState<string[]>(() => toArray(value));
+  // A date comes from the app's calendar, as on the desktop (wish
+  // 2026-10-19): the day is picked there, a time beside it.
+  const weekStart = useWeekStartDay();
+  const [showWeeks] = useShowWeekNumbers();
+  const pickedDay = /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : null;
+  // A stored moment may separate day and time with a space (`2026-10-21 14:30`).
+  const pickedTime = input === "datetime" && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(text) ? text.slice(11, 16) : "00:00";
   const [free, setFree] = useState("");
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<Array<{ path: string; title: string }>>([]);
@@ -276,19 +283,43 @@ export function CellEditSheet({
           </div>
         )}
         {isDate && (
-          <div className="m-sheet-inputrow">
-            <TextInput
-              onChange={(e) => setText(e.target.value)}
-              type={input === "datetime" ? "datetime-local" : "date"}
-              value={text}
+          <>
+            <DateJumpPicker
+              value={pickedDay ?? calendarDay()}
+              weekStart={weekStart}
+              showWeekNumbers={weekNumbersShown(showWeeks, weekStart)}
+              size="sheet"
+              onPick={(day) => (input === "datetime" ? setText(`${day}T${pickedTime}`) : onCommit(day))}
+              onToday={() => (input === "datetime" ? setText(`${calendarDay()}T${pickedTime}`) : onCommit(calendarDay()))}
+              testId="cell-date"
             />
-            <IconButton
-              label={t("common.ok", { defaultValue: "OK" })}
-              onClick={() => onCommit(input === "datetime" && text.includes("T") ? dateTimeEditorValue(text.slice(0, 10), text.slice(11)) : text)}
-            >
-              <Check size={ICON.head} />
-            </IconButton>
-          </div>
+            {input === "datetime" && (
+              <div className="m-sheet-inputrow">
+                <TextInput
+                  aria-label={t("editor.time")}
+                  data-testid="cell-date-time"
+                  onChange={(e) => setText(`${pickedDay ?? calendarDay()}T${e.target.value || "00:00"}`)}
+                  type="time"
+                  value={pickedTime}
+                />
+                <IconButton
+                  label={t("common.ok", { defaultValue: "OK" })}
+                  // Nothing picked: OK keeps what the cell holds (empty stays empty,
+                  // a value that is no date stays as it is), as before.
+                  onClick={() => onCommit(pickedDay ? dateTimeEditorValue(pickedDay, pickedTime) : text)}
+                >
+                  <Check size={ICON.head} />
+                </IconButton>
+              </div>
+            )}
+            {text !== "" && (
+              <div className="m-btnrow">
+                <Button variant="ghost" data-testid="cell-date-clear" onClick={() => onCommit("")}>
+                  {t("common.remove")}
+                </Button>
+              </div>
+            )}
+          </>
         )}
 
         {!isSelect && !isMulti && !isRelation && !isDate && input !== "checkbox" && (

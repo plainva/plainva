@@ -1,3 +1,4 @@
+import { isFreshNote } from "@plainva/ui";
 import { getSettingsStore } from "./settingsStore";
 
 /**
@@ -54,11 +55,18 @@ export function rememberSessionViewMode(path: string | null | undefined, mode: E
   if (path) sessionModes.set(path, mode);
 }
 
-/** Mode a file opens in: the session's manual choice for it, else the default. */
+/**
+ * Mode a file opens in: the session's manual choice for it, else the default.
+ * A note just created on this device opens to be written in even when the
+ * default is "read" (wish 2026-10-19, `freshNote.ts` in the ui package; the
+ * phone's note screen asks the same mark): live preview then, since read mode
+ * has no caret. A default of source stays source.
+ */
 export function resolveViewModeForPath(path: string | null | undefined): EditorViewMode {
   if (path) {
     const remembered = sessionModes.get(path);
     if (remembered) return remembered;
+    if (cachedDefault === "read" && isFreshNote(path)) return "live";
   }
   return cachedDefault;
 }

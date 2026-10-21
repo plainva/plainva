@@ -58,7 +58,7 @@ import {
   type VerifiedProviderProfile,
   parseMicrosoftMe,
   resolveOrCreateMeetingNote,
-  parkTemplateCaret,
+  markFreshNote, parkTemplateCaret,
   splitCalendarKey,
   verifiedProviderIdentityKey,
   verifiedProviderIdentityOf,
@@ -775,6 +775,8 @@ export async function openMeetingNoteFor(
   if (!res) return null;
   // `{{cursor}}` of the template: the editor picks it up when the note opens.
   if (res.caret) parkTemplateCaret(res.path, res.caret.note, res.caret.offset);
+  // A meeting note just written opens to be written in (wish 2026-10-19).
+  if (res.created) markFreshNote(res.path);
   return { path: res.path, created: res.created };
 }
 

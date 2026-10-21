@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarCheck, CalendarRange, ChevronLeft, ChevronRight, Sun } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { buildMonthCells, DateJumpPicker, DateJumpPopover, DateJumpTrigger, ICON, isoWeeksForCells, MenuItem, MenuLabel, MenuSurface, startOfMonth, useWeekStartDay, weekdayShortNames } from "@plainva/ui";
+import { buildMonthCells, DateJumpPicker, DateJumpPopover, DateJumpTrigger, ICON, isoWeeksForCells, MenuItem, MenuLabel, MenuSurface, startOfMonth, useShowWeekNumbers, useWeekStartDay, WeekNumbersToggle, weekdayShortNames } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { calendarDay } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
@@ -41,9 +41,6 @@ interface CalendarWidgetProps {
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
-/** Widget-local pref, persisted like the right-panel open/order states. */
-const SHOW_WEEKS_KEY = "plainva-calendar-show-weeks";
-
 export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onOpenCalendarDay, onOpenNote, loadMarkedDates, activeDate, refreshToken, weekRow = false }) => {
   const { t, i18n } = useTranslation();
   const { pimRuntime, vaultPath, vaultAdapter, queryService, fileTreeVersion } = useVault();
@@ -51,7 +48,8 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
   const [viewDate, setViewDate] = useState<Date>(startOfMonth(today));
   const [marked, setMarked] = useState<Set<string>>(new Set());
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [showWeeks, setShowWeeks] = useState(() => localStorage.getItem(SHOW_WEEKS_KEY) === "true");
+  // One choice for every calendar on this device (wish 2026-10-19).
+  const [showWeeks] = useShowWeekNumbers();
   const weekStartDay = useWeekStartDay();
   const [menu, setMenu] = useState<{ dayKey: string; at: { x: number; y: number } } | null>(null);
   const [pimTick, setPimTick] = useState(0);
@@ -95,14 +93,6 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
   const goToday = () => { setViewDate(startOfMonth(today)); setPickerOpen(false); };
   const togglePicker = () => setPickerOpen((o) => !o);
   const closePicker = useCallback(() => setPickerOpen(false), []);
-  const toggleWeeks = () => {
-    setShowWeeks((v) => {
-      const next = !v;
-      localStorage.setItem(SHOW_WEEKS_KEY, String(next));
-      return next;
-    });
-  };
-
   // Mark days that already have a daily note (tiny sunrise under the number).
   useEffect(() => {
     if (!loadMarkedDates) { setMarked(new Set()); return; }
@@ -291,14 +281,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
             onPickMonth={(y, m) => { setViewDate(new Date(y, m, 1)); setPickerOpen(false); }}
             onClose={closePicker}
             testId="calendar-picker"
-            footer={
-              weekStartDay === 1 ? (
-                <label className="pv-sidecal-weeks">
-                  <input type="checkbox" className="pv-check" data-testid="calendar-show-weeks" checked={showWeeks} onChange={toggleWeeks} />
-                  {t("calendar.showWeeks")}
-                </label>
-              ) : undefined
-            }
+            footer={weekStartDay === 1 ? <WeekNumbersToggle weekStart={weekStartDay} /> : undefined}
           />
         </DateJumpPopover>
       </div>

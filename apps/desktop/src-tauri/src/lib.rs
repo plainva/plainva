@@ -22,6 +22,7 @@ mod tray;
 mod unzip;
 mod vault_walk;
 mod vault_watch;
+mod window_state;
 
 mod secure_store;
 mod session;
@@ -378,6 +379,7 @@ pub fn run() {
         .manage(vault_watch::VaultWatchers::default())
         .manage(vault_walk::VaultWalks::default())
         .manage(tray::TrayState::default())
+        .manage(window_state::WindowStateStore::default())
         .setup(|app| {
             // The isolated dev build (tauri.dev.conf.json, identifier
             // com.plainva.desktop.dev) and the Labs build of a feature branch
@@ -389,9 +391,12 @@ pub fn run() {
                     let _ = win.set_title(title);
                 }
             }
+            // The main window where it was at the last close (issue #135).
+            window_state::restore(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| {
+            window_state::track(window, event);
             // Only captured while a tray icon is actually registered — see
             // src/tray.rs. Without one, closing quits as it always has.
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {

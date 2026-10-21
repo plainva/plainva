@@ -57,7 +57,7 @@ import { activeDocument } from "./services/activeDocument";
 import { TagTree } from "./components/TagTree";
 import { appConfirm } from "./services/appDialogs";
 import { getConfiguredNoteType, buildNewNoteContent } from "./services/newNote";
-import { wikiTargetToPath } from "@plainva/ui";
+import { markFreshNote, wikiTargetToPath } from "@plainva/ui";
 import { getAskBeforeCreateLink } from "./services/linkCreatePrompt";
 import { toast } from "@plainva/ui";
 import { requestSaveFlush } from "./services/saveFlush";
@@ -81,6 +81,7 @@ import { detectMac } from "./components/WindowControls";
 import { useQuickCaptureSink } from "./hooks/useJournal";
 import { useDayBoundary } from "./hooks/useDayBoundary";
 import "./App.css";
+import { newNoteOpensInNewTab } from "./services/newNoteTab";
 
 /**
  * The recents service is loaded on demand, never at App's module init.
@@ -1002,7 +1003,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
           if (indexer) await applyIndexChanges(indexer, { added: [path] });
           triggerFileTreeUpdate();
           notifyFileOps([{ type: "create", path }]);
-          openInFocusedPane(path, !!d.newTab);
+          markFreshNote(path);
+          openInFocusedPane(path, newNoteOpensInNewTab(!!d.newTab));
         } catch (err: any) {
           toast.error(t("dialogs.createErrorMsg", { error: err?.message ?? String(err) }));
         }
@@ -1826,6 +1828,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                   const path = await createNewTemplate(vaultAdapter, vaultPath, t("database.newTemplateName", "Neue Vorlage"));
                   if (!path) return;
                   if (indexer) applyIndexChanges(indexer, { added: [path] }).then(() => triggerFileTreeUpdate()).catch(() => {});
+                  markFreshNote(path);
                   openInFocusedPane(path, true);
                 })
                 .catch((e) => console.error("[App] creating a template failed", e));

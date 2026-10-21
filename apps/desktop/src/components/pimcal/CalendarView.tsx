@@ -5,7 +5,7 @@ import { CalendarRange, CheckSquare, ChevronLeft, Diamond, ChevronRight, Link2, 
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { errorText, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
+import { errorText, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, markFreshNote, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
 import { PimConflictError, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
 import {
   blockLinkKey,
@@ -103,6 +103,23 @@ const AGENDA_DAYS = 60;
 /* draftToRow / sameEventRef live in @plainva/ui since S24 — both shells write
  * events the same way, so the optimistic row is the same row. */
 
+/** The month's week numbers, one per row in the grid's first column (wish 2026-10-19). */
+function MonthWeekColumn({ weeks }: { weeks: number[] }) {
+  return (
+    <>
+      {weeks.map((weekNo, row) => (
+        <div
+          key={`week-${row}`}
+          data-testid="calendar-week-number"
+          style={{ gridRow: row + 1, gridColumn: 1, textAlign: "end", padding: "var(--space-1) var(--space-1) 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)", fontVariantNumeric: "tabular-nums" }}
+        >
+          {weekNo}
+        </div>
+      ))}
+    </>
+  );
+}
+
 export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewProps) {
   const { t, i18n } = useTranslation();
   const { pimRuntime, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, queryService, fileTreeVersion } = useVault();
@@ -144,6 +161,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   }, [viewMode]);
   // App-wide first-day-of-week (settings; shared with the sidebar widget).
   const weekStartDay = useWeekStartDay();
+  // Week numbers: one choice for every calendar on the device, ISO weeks only
+  // on Monday rows (wish 2026-10-19).
+  const [showWeeksChoice] = useShowWeekNumbers();
+  const showWeeks = weekNumbersShown(showWeeksChoice, weekStartDay);
   // The date jump picker under the title (plan Kalender 2026-09-10, P2).
   const [jumpOpen, setJumpOpen] = useState(false);
   const titleRef = useRef<HTMLButtonElement>(null);
@@ -211,6 +232,11 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     const grid = buildMonthCells(viewDate, weekStartDay);
     return { cells: grid, gridDays: [] as Date[], rangeStartTs: grid[0].getTime(), rangeEndTs: grid[grid.length - 1].getTime() + DAY_MS };
   }, [viewMode, viewDate, selectedDate, weekStartDay]);
+  // The month's week column: a narrow first column, so cells and bars move
+  // one column right (their placement is explicit).
+  const monthWeeks = showWeeks && cells.length > 0 ? isoWeeksForCells(cells) : null;
+  const weekCol = monthWeeks ? 1 : 0;
+  const monthColumns = monthWeeks ? "24px repeat(7, minmax(0, 1fr))" : "repeat(7, 1fr)";
 
   // Sidebar calendar hand-off: "show this day in the calendar tab". A freshly
   // mounting tab consumes the parked day (the event fired before the listener
@@ -627,14 +653,17 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const periodTitle = useMemo(() => {
     if (viewMode === "agenda") return t("pim.viewAgenda", { defaultValue: "Agenda" });
     if (viewMode === "month") return monthTitle;
-    if (viewMode === "day") return dayTitle;
+    // A time grid names its week when week numbers are on; the month has its
+    // own column for them.
+    const week = showWeeks && gridDays.length > 0 ? ` · ${isoWeekLabel(gridDays, t("calendar.weekShort"))}` : "";
+    if (viewMode === "day") return `${dayTitle}${week}`;
     const first = gridDays[0];
     const last = gridDays[gridDays.length - 1];
     if (!first || !last) return monthTitle;
     const dayNum = new Intl.DateTimeFormat(i18n.language, { day: "numeric" });
     const dayMonth = new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "long" });
-    return `${dayNum.format(first)}.–${dayMonth.format(last)}`;
-  }, [viewMode, monthTitle, dayTitle, gridDays, i18n.language, t]);
+    return `${dayNum.format(first)}.–${dayMonth.format(last)}${week}`;
+  }, [viewMode, monthTitle, dayTitle, gridDays, i18n.language, t, showWeeks]);
 
   // Prev/next steps by the visible period (1 / 3 / 7 days, or one month).
   const navPeriod = useCallback(
@@ -1367,6 +1396,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         const res = await openMeetingNoteInVault(vaultPath, vaultAdapter, e);
         if (!res) return; // the template's questions were cancelled — nothing was written
         if (res.caret) parkTemplateCaret(res.path, res.caret.note, res.caret.offset);
+        // A meeting note just written opens to be written in (wish 2026-10-19).
+        if (res.created) markFreshNote(res.path);
         if (res.created) {
           if (indexer) await applyIndexChanges(indexer, { added: [res.path] }).catch(() => undefined);
           triggerFileTreeUpdate([res.path]);
@@ -1819,6 +1850,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
             onToday={() => { applyDay(calendarDay(new Date())); setJumpOpen(false); titleRef.current?.focus(); }}
             onClose={() => { setJumpOpen(false); titleRef.current?.focus(); }}
             autoFocus
+            showWeekNumbers={showWeeks}
+            footer={<WeekNumbersToggle weekStart={weekStartDay} />}
             testId="calendar-jump"
           />
         </DateJumpPopover>
@@ -1923,7 +1956,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         <>
         {/* Month grid */}
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", padding: "var(--space-2)" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, flexShrink: 0 }}>
+          <div style={{ display: "grid", gridTemplateColumns: monthColumns, gap: 2, flexShrink: 0 }}>
+            {showWeeks && (
+              <div style={{ textAlign: "end", fontSize: "var(--text-xs)", color: "var(--text-faint)", padding: "2px var(--space-1) 2px 0" }}>{t("calendar.weekShort")}</div>
+            )}
             {weekdayNames.map((w) => (
               <div key={w} style={{ textAlign: "center", fontSize: "var(--text-xs)", color: "var(--text-muted)", padding: "2px 0" }}>
                 {w}
@@ -1933,8 +1969,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           <div
             ref={monthGridRef}
             data-testid="calendar-grid"
-            style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gridAutoRows: "minmax(72px, 1fr)", gap: 2, flex: 1, minHeight: 0 }}
+            style={{ display: "grid", gridTemplateColumns: monthColumns, gridAutoRows: "minmax(72px, 1fr)", gap: 2, flex: 1, minHeight: 0 }}
           >
+            {monthWeeks !== null && <MonthWeekColumn weeks={monthWeeks} />}
             {cells.map((cell, cellIndex) => {
               const key = calendarDay(cell);
               // A spanning event is drawn ONCE as a bar across the row, so the
@@ -1995,7 +2032,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                     // would shuffle past every bar, and the day numbers would
                     // drift out from under their own dates.
                     gridRow: Math.floor(cellIndex / 7) + 1,
-                    gridColumn: (cellIndex % 7) + 1,
+                    gridColumn: (cellIndex % 7) + 1 + weekCol,
                     border: isSelected ? "1px solid var(--accent-color)" : "1px solid var(--border-color-light)",
                     borderRadius: "var(--radius-sm)",
                     background: isSelected ? "var(--bg-hover)" : "var(--bg-primary)",
@@ -2165,7 +2202,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                   onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); openEventContextMenu(bar.event, { x: ev.clientX, y: ev.clientY }); }}
                   style={{
                     gridRow: weekIndex + 1,
-                    gridColumn: `${bar.startCol + 1} / span ${bar.endCol - bar.startCol + 1}`,
+                    gridColumn: `${bar.startCol + 1 + weekCol} / span ${bar.endCol - bar.startCol + 1}`,
                     alignSelf: "start",
                     // Clear the day number, then stack by lane.
                     marginTop: 20 + bar.lane * MONTH_BAR_H,

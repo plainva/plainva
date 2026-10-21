@@ -1,5 +1,5 @@
 import type { IVaultAdapter } from "@plainva/core";
-import { buildNewNoteContent, wikiTargetToPath } from "@plainva/ui";
+import { buildNewNoteContent, markFreshNote, wikiTargetToPath } from "@plainva/ui";
 import { notifyFileOps } from "./indexMdAutoUpdate";
 
 /**
@@ -51,5 +51,7 @@ export async function createNoteFromLink(
   await deps.vaultAdapter.writeTextFile(path, buildNewNoteContent(await deps.noteType(), title));
   if (deps.index) await deps.index(path);
   notifyFileOps([{ type: "create", path }]);
+  // It opens next, to be written in (wish 2026-10-19).
+  markFreshNote(path);
   return { outcome: "created", path };
 }

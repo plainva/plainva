@@ -28,7 +28,7 @@ function renderInlineNodes(nodes: InlineNode[], keyPrefix = ""): React.ReactNode
       case "strike": return <del key={key}>{renderInlineNodes(n.children, `${key}.`)}</del>;
       case "strongEm": return <strong key={key}><em>{renderInlineNodes(n.children, `${key}.`)}</em></strong>;
       case "highlight": return <mark key={key} style={inlineMarkStyle}>{renderInlineNodes(n.children, `${key}.`)}</mark>;
-      case "wikiLink": return <span key={key} style={inlineLinkStyle}>{n.display}</span>;
+      case "wikiLink": return <span key={key} className="pv-wiki-link">{n.display}</span>;
       case "link": return <span key={key} style={inlineLinkStyle}>{n.label}</span>;
       case "url": return <span key={key} style={inlineLinkStyle}>{n.href}</span>;
       default: return null;

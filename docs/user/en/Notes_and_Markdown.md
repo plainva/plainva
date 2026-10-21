@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -54,7 +54,7 @@ Type `/` at the start of a line to open the insert menu. It is grouped into sect
 
 ## Links and backlinks
 
-- **Internal links**: `[[Note name]]` (wiki link) — via the slash menu or `@` with built-in note search. Classic Markdown links `[text](path.md)` work as well.
+- **Internal links**: `[[Note name]]` (wiki link) — via the slash menu or `@` with built-in note search. Classic Markdown links `[text](path.md)` work as well. A wiki link reads as a light tint behind its text, a little bolder; a web link stays underlined, so the two tell apart at a glance.
 - **How a link finds its note**: A wiki link names a note by its **file name** — anywhere in the vault, upper and lower case alike — or by its path, or just the end of it (`[[Clients/Letter]]`). If a note's properties carry a `title`, that title leads to the note as well; a file that is *called* like the link always comes first. Where two notes share a name, the one in the same folder as the linking note wins, then the one with the shorter path — and a note of that name at the top level of the vault comes before both. To name exactly one place, write a path: `/Folder/Note` from the top of the vault, `./Note` or `../Folder/Note` from the folder of the current note. The answer is the same on desktop and phone, in the graph, in the backlinks and in databases. Picking a note after `[[` or `@` writes its file name and keeps a title that reads differently as the link's text (`[[Letter|Offer letter]]`); where two notes share the name, it writes the path.
 - **Links to a section**: `[[Note#Heading]]` opens the note at that heading, `[[#Heading]]` jumps within the current note, and `[text](#heading)` in GitHub style works the same — both the literal heading text and the slug (`cool-header`) resolve; `[[Note#^id]]` reaches a line that ends in `^id`. Typing `[[Note#` offers the note's headings. A heading that no longer exists says so in a message instead of doing nothing.
 - **Targets that don't exist yet**: A wiki link to a note that hasn't been created yet is shown **muted with a dashed underline** (both in live preview and reading mode). **Clicking it creates the note** and opens it — placed in the current note's folder (or at the given path if the link contains one, e.g. `[[Folder/New note]]`). To be asked first, enable **Settings → App → Editor & Notes → Ask before creating empty links**.

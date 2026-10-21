@@ -79,6 +79,8 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
         />
           <Row title={t("mobile.readerAutoHide")} end={<Switch checked={settings.readerAutoHide} label={t("mobile.readerAutoHide")} onChange={(readerAutoHide) => update({ readerAutoHide })} />} />
         </RowList></GroupCard>
+        {/* A note just created opens to be written in either way (wish 2026-10-19). */}
+        <p className="m-hint">{t("mobile.defaultViewNewNotes")}</p>
 
         {/* Spell checking (plan Befunde 2026-10-06, E3): the same device switch
             as on the desktop. What checks is the keyboard and the system. */}

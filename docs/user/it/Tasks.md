@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-10-06
+Ultimo aggiornamento: 2026-10-21
 
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
@@ -167,7 +167,7 @@ Sopra gli elenchi si trova il campo di cattura; sul telefono, **+ Nuova attivit�
 
 `- [/]` (**In corso**) e `- [-]` (**Annullata**) sono anch'esse attività. Ricevono una propria casella nell'editor, in modalità lettura e in ogni elenco; in corso conta come aperta, annullata come chiusa. Un clic continua a spostarsi solo tra aperta e completata — completa un'attività in corso e riapre una annullata. **Imposta stato** nel menu della riga imposta i due stati; Plainva non li scrive mai da sola.
 
-**La data di un'attività è il modo per cambiarla.** Premi la data di un'attività (dentro un giorno, il suo orario) e si apre il selettore di data — sotto la data sul desktop, come foglio sul telefono. **Cambia scadenza** nel menu della riga apre lo stesso selettore; così riceve una data anche un'attività che non ne ha. Una voce del database delle attività conserva il suo orario, una casella riceve o cambia la sua data `📅`. Accanto al titolo **In ritardo**, **Tutte a oggi** sposta in un colpo tutte le attività in ritardo a oggi. Entrambe sono confermate da un avviso che offre **Annulla**. Nel campo di acquisizione `[[` suggerisce note e `#` tag, come nell'editor: `Invio` o `Tab` prende il suggerimento evidenziato, `Esc` chiude l'elenco.
+**La data di un'attività è il modo per cambiarla.** Premi la data di un'attività (dentro un giorno, il suo orario) e si apre il selettore di data — sotto la data sul desktop, come foglio sul telefono. **Cambia scadenza** nel menu della riga apre lo stesso selettore; così riceve una data anche un'attività che non ne ha. Sul telefono, **Nuova attività** e la cella data di un database scelgono il giorno dallo stesso calendario, non dalla rotella delle date del sistema. Una casella in una nota — nell'editor, nella vista di lettura e nel diario — ha sul telefono una dimensione pensata per il dito. Una voce del database delle attività conserva il suo orario, una casella riceve o cambia la sua data `📅`. Accanto al titolo **In ritardo**, **Tutte a oggi** sposta in un colpo tutte le attività in ritardo a oggi. Entrambe sono confermate da un avviso che offre **Annulla**. Nel campo di acquisizione `[[` suggerisce note e `#` tag, come nell'editor: `Invio` o `Tab` prende il suggerimento evidenziato, `Esc` chiude l'elenco.
 
 Altri modi per crearle: **Nuova attività** nel menu del vassoio di sistema sul desktop (quando Plainva continua a girare in background), su Android la scorciatoia del launcher **Nuova attività** (tocco prolungato sull'icona dell'app), e sul telefono **Crea come attività** quando condividi qualcosa con Plainva — il testo e gli allegati finiscono nella nota dell'attività. Come un'attività con orario te lo ricorda è descritto in [Calendario e attività esterne](Calendar_and_Tasks.md).
 

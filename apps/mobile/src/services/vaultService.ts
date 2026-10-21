@@ -1,4 +1,4 @@
-import { clearPinboardCache, dailyDayResolver, logDiagnostic, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
+import { clearPinboardCache, dailyDayResolver, logDiagnostic, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
 import {
   BackupVaultAdapter,
   ConflictAwareVaultAdapter,
@@ -1397,6 +1397,8 @@ export const vaultOps = {
     if (await v.files.exists(path)) return path;
     await this.save(v, path, buildNewNoteContent(configuredNoteType(), title));
     reportCreated(path);
+    // It opens next, to be written in (wish 2026-10-19).
+    markFreshNote(path);
     return path;
   },
 

@@ -1,4 +1,5 @@
 import { editorOffsetOf, editorTextOf, frontmatterSpan } from "@plainva/core";
+import { markFreshNote } from "./freshNote";
 
 /**
  * Where the caret goes in a note that was just created from a template
@@ -85,8 +86,13 @@ export function templateCaretInEditor(note: string, caret: number): number {
  * without the text it was counted in, so the conversion to the editor's text
  * (`templateCaretInEditor`) cannot be left out by one of the places that
  * create a note.
+ *
+ * Every such place is one that has just written a note for the user to open,
+ * so it is also where the note is marked fresh - it opens to be written in
+ * (`freshNote.ts`), with or without a cursor marker.
  */
 export function parkTemplateCaret(path: string, note: string, caret: number | null): void {
+  markFreshNote(path);
   if (caret === null) return;
   pending = { path, offset: templateCaretInEditor(note, caret) };
 }

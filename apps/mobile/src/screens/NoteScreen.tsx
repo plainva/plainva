@@ -46,7 +46,7 @@ import { configuredNoteType } from "../services/newNote";
 import { mPrompt } from "../services/mobileDialogs";
 import { confirmDeleteFile } from "../lib/deleteFile";
 import { clearDraft, clearDraftIf, readDraft, releaseLeftoverDraft, takeLeftoverDraft, type NoteDraft } from "../services/draftJournal";
-import { keepTextBeside, newestConflictCopy } from "@plainva/ui";
+import { forgetFreshNote, isFreshNote, keepTextBeside, newestConflictCopy } from "@plainva/ui";
 import { NoteConflictCard } from "../components/NoteConflictCard";
 import { ConflictCompareSheet } from "../components/ConflictCompareSheet";
 import { NoteContextSheet, type ContextTab } from "../components/NoteContextSheet";
@@ -177,7 +177,14 @@ export function NoteScreen({
   const [source, setSource] = useState(false);
   // Read-first (M4/E5): notes open rendered and read-only; the pencil FAB
   // flips into editing (and back), which also shows the keyboard toolbar.
-  const [editing, setEditing] = useState(getMobileSettings().defaultView === "edit");
+  // A note just created here opens to be written in, whatever the setting
+  // says (wish 2026-10-19, `freshNote.ts`; the desktop asks the same mark).
+  const [editing, setEditing] = useState(() => isFreshNote(path) || getMobileSettings().defaultView === "edit");
+  // Once the note is read rather than written - the user's choice, or a
+  // workspace that does not allow writing - it is a note like any other.
+  useEffect(() => {
+    if (!editing) forgetFreshNote(path);
+  }, [editing, path]);
   const [workspaceCapabilities, setWorkspaceCapabilities] = useState<WorkspaceCapability[] | null>(null);
   const [draft, setDraft] = useState<NoteDraft | null>(null);
   /** The draft on offer, for a load that finds the file turned into no text (it keeps the text beside it). */

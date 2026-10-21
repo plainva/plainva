@@ -280,9 +280,9 @@ function parseRange(text: string, depth: number): InlineNode[] {
 
 /** Clickable link element; swallows mousedown so host widgets (e.g. the
  *  table cell editor, which opens on mousedown) don't react to link clicks. */
-function makeLink(label: string, onActivate: (e: MouseEvent) => void): HTMLAnchorElement {
+function makeLink(label: string, onActivate: (e: MouseEvent) => void, wiki = false): HTMLAnchorElement {
   const a = document.createElement("a");
-  a.className = "cm-md-cell-link";
+  a.className = wiki ? "cm-md-cell-link pv-wiki-link" : "cm-md-cell-link";
   a.textContent = label;
   return wireActivation(a, onActivate);
 }
@@ -418,7 +418,7 @@ function appendInlineNodes(parent: Node, nodes: InlineNode[], handlers: InlineLi
         break;
       }
       case "wikiLink":
-        parent.appendChild(makeLink(n.display, (e) => handlers.onOpenNote?.(n.target, e.ctrlKey || e.metaKey, "wiki")));
+        parent.appendChild(makeLink(n.display, (e) => handlers.onOpenNote?.(n.target, e.ctrlKey || e.metaKey, "wiki"), true));
         break;
       case "link":
         if (n.external) parent.appendChild(makeLink(n.label, () => handlers.onOpenUrl?.(n.href)));

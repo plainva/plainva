@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-10-20
+Ultimo aggiornamento: 2026-10-21
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -54,7 +54,7 @@ Digita `/` all'inizio di una riga per aprire il menu di inserimento. È suddivis
 
 ## Link e backlink
 
-- **Link interni**: `[[Nome nota]]` (wiki-link) — tramite il menu slash o `@` con ricerca integrata delle note. Funzionano anche i classici link Markdown `[testo](percorso.md)`.
+- **Link interni**: `[[Nome nota]]` (wiki-link) — tramite il menu slash o `@` con ricerca integrata delle note. Funzionano anche i classici link Markdown `[testo](percorso.md)`. Un wiki-link appare con una tinta chiara dietro il testo, un po' più marcato; un link web resta sottolineato, così i due si distinguono a colpo d'occhio.
 - **Come un link trova la sua nota**: un wiki-link indica una nota con il suo **nome di file** — ovunque nel vault, senza distinguere maiuscole e minuscole — oppure con il suo percorso, o anche solo con la parte finale (`[[Clienti/Lettera]]`). Se le proprietà di una nota contengono un `title`, anche quel titolo porta alla nota; un file che *si chiama* come il link viene sempre prima. Quando due note hanno lo stesso nome, vince quella nella stessa cartella della nota che contiene il link, poi quella con il percorso più corto — e una nota con quel nome al livello più alto del vault viene prima di entrambe. Per indicare esattamente un posto, scrivi un percorso: `/Cartella/Nota` dal livello più alto del vault, `./Nota` o `../Cartella/Nota` dalla cartella della nota corrente. La risposta è la stessa sul desktop e sul telefono, nel grafo, nei backlink e nei database. Quando scegli una nota dopo `[[` o `@`, Plainva scrive il suo nome di file e mantiene come testo del link un titolo che si legge diversamente (`[[Lettera|Lettera di offerta]]`); se due note hanno quel nome, scrive il percorso.
 - **Link a una sezione**: `[[Nota#Titolo]]` apre la nota a quel titolo, `[[#Titolo]]` salta dentro la nota corrente, e `[testo](#titolo)` in stile GitHub fa lo stesso — si risolvono sia il testo letterale del titolo sia lo slug (`cool-header`); `[[Nota#^id]]` raggiunge una riga che termina con `^id`. Digitando `[[Nota#` vengono proposti i titoli della nota. Un titolo che non esiste più lo dice con un messaggio invece di non fare nulla.
 - **Destinazioni non ancora create**: un wiki-link a una nota che non esiste ancora viene mostrato **attenuato e con una sottolineatura tratteggiata** (sia in anteprima dal vivo sia in modalità lettura). Un **clic crea la nota** e la apre — viene collocata nella cartella della nota corrente (oppure nel percorso indicato, se il link ne contiene uno, ad es. `[[Cartella/Nuova nota]]`). Per essere avvisato prima, abilita **Impostazioni → App → Editor e note → Chiedi prima di creare link vuoti**.

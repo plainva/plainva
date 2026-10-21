@@ -1,6 +1,6 @@
 # Zgodność synchronizacji Plainva
 
-Stan na: 2026-09-30
+Stan na: 2026-10-21
 
 Jeśli usługa WebDAV, CalDAV lub S3 zwróci stronę logowania albo niepełną listę zasobów, Plainva zgłosi błąd synchronizacji. Nie potraktuje takiej odpowiedzi jako pustego folderu lub pustej listy kalendarzy i nie wywnioskuje z niej usunięć. Dotyczy to wersji komputerowej i mobilnej.
 
@@ -68,5 +68,6 @@ OneDrive, Dropbox i magazyn zgodny z S3 są bezpośrednio zintegrowane od 2026-0
 ## Świadomie nieplanowane
 
 - **iCloud jako integracja API:** Apple nie oferuje oficjalnego API dla iCloud Drive dla firm trzecich. Zamiast tego użyj lokalnego folderu iCloud (patrz wyżej).
+- **Syncthing jako wbudowany dostawca:** niepotrzebne — Plainva działa z każdym lokalnym folderem, który Syncthing, albo Synctrain na iPhonie i iPadzie, utrzymuje zsynchronizowany (patrz wyżej).
 - **Proton Drive / Mega:** brak oficjalnego lub tylko trudno integrowalne API (szyfrowanie E2E, SDK w C++). Pozostaje obserwowane.
 - **Lista obserwowana** (na życzenie): pCloud, Box, Filen, SFTP.

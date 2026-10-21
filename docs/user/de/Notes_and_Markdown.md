@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-10-20
+Stand: 2026-10-21
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -54,7 +54,7 @@ Tippe `/` am Zeilenanfang, um das Einfüge-Menü zu öffnen. Es ist in Sektionen
 
 ## Links und Backlinks
 
-- **Interne Links**: `[[Notizname]]` (Wiki-Link) — per Slash-Menü oder `@` mit eingebauter Notiz-Suche. Klassische Markdown-Links `[Text](Pfad.md)` funktionieren ebenso.
+- **Interne Links**: `[[Notizname]]` (Wiki-Link) — per Slash-Menü oder `@` mit eingebauter Notiz-Suche. Klassische Markdown-Links `[Text](Pfad.md)` funktionieren ebenso. Ein Wiki-Link erscheint mit einer hellen Tönung hinter dem Text, etwas fetter; ein Web-Link bleibt unterstrichen, so lassen sich beide auf einen Blick unterscheiden.
 - **Wie ein Link seine Notiz findet**: Ein Wiki-Link nennt eine Notiz bei ihrem **Dateinamen** — irgendwo im Vault, Groß- und Kleinschreibung spielt keine Rolle — oder bei ihrem Pfad, auch nur dessen Ende (`[[Kunden/Brief]]`). Trägt eine Notiz in ihren Eigenschaften einen `title`, führt auch dieser Titel zu ihr; eine Datei, die so *heißt* wie der Link, geht immer vor. Tragen zwei Notizen denselben Namen, gewinnt die im selben Ordner wie die verlinkende Notiz, dann die mit dem kürzeren Pfad — und eine Notiz dieses Namens auf der obersten Ebene des Vaults geht vor beiden. Um genau einen Ort zu nennen, schreibst Du einen Pfad: `/Ordner/Notiz` ab der obersten Ebene des Vaults, `./Notiz` oder `../Ordner/Notiz` ab dem Ordner der aktuellen Notiz. Die Antwort ist am Desktop und am Telefon dieselbe, im Graph, in den Backlinks und in Datenbanken. Wählst Du nach `[[` oder `@` eine Notiz aus, schreibt Plainva ihren Dateinamen und behält einen Titel, der anders lautet, als Linktext (`[[Brief|Angebotsbrief]]`); tragen zwei Notizen den Namen, schreibt es den Pfad.
 - **Links auf einen Abschnitt**: `[[Notiz#Überschrift]]` öffnet die Notiz an dieser Überschrift, `[[#Überschrift]]` springt innerhalb der aktuellen Notiz, und `[Text](#überschrift)` im GitHub-Stil tut dasselbe — der wörtliche Überschriftentext und der Slug (`cool-header`) werden beide aufgelöst; `[[Notiz#^id]]` erreicht eine Zeile, die auf `^id` endet. Beim Tippen von `[[Notiz#` werden die Überschriften der Notiz angeboten. Eine Überschrift, die es nicht mehr gibt, meldet sich mit einer Nachricht, statt nichts zu tun.
 - **Noch nicht angelegte Ziele**: Ein Wiki-Link auf eine Notiz, die es noch nicht gibt, wird **gedämpft und gestrichelt** dargestellt (in der Live-Vorschau wie im Lesemodus). Ein **Klick legt die Notiz an** und öffnet sie — sie liegt im Ordner der aktuellen Notiz (bzw. im angegebenen Pfad, wenn der Link einen enthält, z. B. `[[Ordner/Neue Notiz]]`). Möchtest Du vorher gefragt werden, aktiviere **Einstellungen → App → Editor & Notizen → Vor dem Anlegen leerer Links fragen**.

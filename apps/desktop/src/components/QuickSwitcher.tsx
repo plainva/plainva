@@ -11,6 +11,7 @@ import { buildNewNoteFromTemplate } from "../services/newNoteTemplate";
 import { parkTemplateCaret } from "@plainva/ui";
 import { toast } from "@plainva/ui";
 import { virtualTabMeta } from "./graph/virtualPaths";
+import { newNoteOpensInNewTab } from "../services/newNoteTab";
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
@@ -181,7 +182,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
       parkTemplateCaret(path, built.content, built.caret);
       if (indexer) await indexer.indexPath(path);
       triggerFileTreeUpdate([path]);
-      onOpenPath(path, newTab);
+      onOpenPath(path, newNoteOpensInNewTab(newTab));
       onClose();
     } catch (e) {
       console.error("Failed to create note from switcher", e);

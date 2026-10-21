@@ -12,6 +12,7 @@ import { getConfiguredNoteType } from "../services/newNote";
 import { routeOpenThroughOwner } from "../services/openRouting";
 import { requestRevealInTree, requestRevealTag } from "../services/revealRouting";
 import { getWindowBus } from "../services/windowBus";
+import { newNoteOpensInNewTab } from "../services/newNoteTab";
 
 /** What the editor's "send as mail" hands over — the floating composer's seed. */
 export interface MailDraftSeed {
@@ -122,7 +123,8 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
           if (result.outcome !== "created" && result.outcome !== "exists") return;
           const path = result.path;
           const { label, openInFocusedPane } = optsRef.current;
-          routeOpenThroughOwner(path, () => openInFocusedPane(path, !!d.newTab), { from: label });
+          const newTab = result.outcome === "created" ? newNoteOpensInNewTab(!!d.newTab) : !!d.newTab;
+          routeOpenThroughOwner(path, () => openInFocusedPane(path, newTab), { from: label });
         } catch (err) {
           toast.error(t("dialogs.createErrorMsg", { error: err instanceof Error ? err.message : String(err) }));
         }

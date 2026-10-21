@@ -124,7 +124,7 @@ const BUDGET: Record<string, Counts> = {
   "components/BaseViewer.tsx": {nakedButton:5,rawSpacing:6},
   "components/BookmarksList.tsx": {nakedButton:1,rawSpacing:2},
   // The month picker moved into the shared DateJumpPicker (plan Kalender 2026-09-10, P1).
-  "components/CalendarWidget.tsx": {nakedInput:1,nakedButton:5,rawSpacing:12},
+  "components/CalendarWidget.tsx": {nakedButton:5,rawSpacing:12},
   "components/CascadeDeleteModal.tsx": {nakedButton:1},
   "components/CodeBlock.tsx": {nakedButton:1,rawSpacing:3},
   "components/ColumnSchemaEditor.tsx": {nakedInput:7,nakedButton:2,rawSpacing:9},

@@ -1072,8 +1072,12 @@ describe("the week starts on the same day everywhere", () => {
     const screen = stripComments(readFileSync(join(SRC, "screens/PimCalendarScreen.tsx"), "utf8"));
     const grid = screen.slice(screen.indexOf('data-testid="pim-timegrid"'));
     expect(grid, "a day column with no date on it").toMatch(/weekday: "short", day: "numeric"/);
-    expect(grid, "no place for an all-day event").toMatch(/e\.allDay/);
+    expect(screen, "no place for an all-day event").toMatch(/e\.allDay/);
     expect(grid).toMatch(/data-testid="pim-allday-strip"/);
+    // Pinned with the header and held to the desktop's five rows (wish
+    // 2026-10-19): the shared plan, not a second rule.
+    expect(screen).toMatch(/planAllDayRows\(/);
+    expect(grid).toMatch(/data-testid="pim-timegrid-head"/);
   });
 
   it("offers the week and the month the desktop has", () => {

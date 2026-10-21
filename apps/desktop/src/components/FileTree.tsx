@@ -49,6 +49,7 @@ import {
 import { detectMac } from "./WindowControls";
 import { useTranslation } from "react-i18next";
 import { DEFAULT_FOLDER_SORT, type FolderSort, type SearchSort } from "@plainva/ui";
+import { newNoteOpensInNewTab } from "../services/newNoteTab";
 
 // The tree's multi-select toggle modifier is platform-aware (⌘ on macOS, Ctrl
 // elsewhere) — see clickSelectionMode. Detected once; it never changes at runtime.
@@ -787,7 +788,8 @@ export const FileTree: React.FC<{
         }
         await vaultAdapter.writeTextFile(newPath, built.content);
         parkTemplateCaret(newPath, built.content, built.caret);
-        onSelect(newPath, false);
+        // A tab of its own when the device asks for it (issue 135).
+        onSelect(newPath, newNoteOpensInNewTab());
       }
       setNewItemParams(null);
       // Empty folder: nothing to index — the tree refresh lists it. New file: index it.

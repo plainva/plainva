@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-10-20
+Laatst bijgewerkt: 2026-10-21
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -54,7 +54,7 @@ Typ `/` aan het begin van een regel om het invoegmenu te openen. Het is gegroepe
 
 ## Links en backlinks
 
-- **Interne links**: `[[Notitienaam]]` (wiki-link) — via het slash-menu of `@` met ingebouwde notitiezoekfunctie. Klassieke Markdown-links `[tekst](pad.md)` werken ook.
+- **Interne links**: `[[Notitienaam]]` (wiki-link) — via het slash-menu of `@` met ingebouwde notitiezoekfunctie. Klassieke Markdown-links `[tekst](pad.md)` werken ook. Een wiki-link verschijnt met een lichte tint achter de tekst, iets vetter; een weblink blijft onderstreept, zodat je de twee in één oogopslag onderscheidt.
 - **Hoe een link zijn notitie vindt**: Een wiki-link noemt een notitie bij haar **bestandsnaam** — waar dan ook in de vault, hoofdletters en kleine letters maken geen verschil — of bij haar pad, of alleen het einde daarvan (`[[Klanten/Brief]]`). Staat er in de eigenschappen van een notitie een `title`, dan leidt ook die titel naar de notitie; een bestand dat zo *heet* als de link gaat altijd voor. Hebben twee notities dezelfde naam, dan wint de notitie in dezelfde map als de notitie met de link, daarna die met het kortste pad — en een notitie met die naam op het hoogste niveau van de vault gaat voor beide. Wil je precies één plek noemen, schrijf dan een pad: `/Map/Notitie` vanaf het hoogste niveau van de vault, `./Notitie` of `../Map/Notitie` vanaf de map van de huidige notitie. Het antwoord is hetzelfde op de desktop en op de telefoon, in de graaf, in de backlinks en in databases. Kies je na `[[` of `@` een notitie, dan schrijft Plainva haar bestandsnaam en houdt een titel die anders luidt als linktekst (`[[Brief|Offertebrief]]`); hebben twee notities die naam, dan schrijft het het pad.
 - **Links naar een sectie**: `[[Notitie#Kop]]` opent de notitie bij die kop, `[[#Kop]]` springt binnen de huidige notitie, en `[tekst](#kop)` in GitHub-stijl doet hetzelfde — zowel de letterlijke koptekst als de slug (`cool-header`) worden opgelost; `[[Notitie#^id]]` bereikt een regel die eindigt op `^id`. Bij het typen van `[[Notitie#` worden de koppen van de notitie aangeboden. Een kop die niet meer bestaat zegt dat in een melding in plaats van niets te doen.
 - **Doelen die nog niet bestaan**: Een wiki-link naar een notitie die nog niet is aangemaakt, wordt **gedempt met een gestreepte onderstreping** weergegeven (zowel in het live-voorbeeld als in de leesmodus). **Erop klikken maakt de notitie aan** en opent hem — in de map van de huidige notitie (of op het opgegeven pad als de link er een bevat, bijv. `[[Map/Nieuwe notitie]]`). Om eerst te worden gevraagd, schakel je **Instellingen → App → Editor en notities → Vragen voordat lege links worden aangemaakt** in.

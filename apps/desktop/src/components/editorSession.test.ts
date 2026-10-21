@@ -504,6 +504,33 @@ describe("live preview decorations", () => {
     return el!.textContent ?? "";
   };
 
+  // Wish 2026-10-19: the box sits in a span whose padding is the touch
+  // density's hit area; a tap on it toggles the task, so does the box.
+  it("ticks a task through the box's hit area, and back through the box", () => {
+    const { session } = makeSession("live", "Intro\n\n- [ ] Buy stamps\n");
+    const hit = session.view.contentDOM.querySelector<HTMLElement>("span.cm-md-task-hit");
+    expect(hit).toBeTruthy();
+    expect(hit!.querySelector<HTMLInputElement>("input.cm-md-task")).toBeTruthy();
+    hit!.click();
+    expect(session.view.state.doc.toString()).toBe("Intro\n\n- [x] Buy stamps\n");
+    // The redrawn box, clicked itself: once, not twice through its span.
+    session.view.contentDOM.querySelector<HTMLInputElement>("input.cm-md-task")!.click();
+    expect(session.view.state.doc.toString()).toBe("Intro\n\n- [ ] Buy stamps\n");
+  });
+
+  // Wish 2026-10-19: only a wiki link wears the note-link tint; a Markdown
+  // link and a bare address keep the web link's line.
+  it("marks a wiki link as a note link and a web link not", () => {
+    const { session } = makeSession("live", "Intro\n\nSee [[Plan]] and [docs](https://example.org) or https://example.com\n");
+    const marks = [...session.view.contentDOM.querySelectorAll<HTMLElement>(".cm-wiki-link")];
+    const byType = (type: string) => marks.filter((m) => m.getAttribute("data-link-type") === type);
+    expect(byType("wiki").length).toBeGreaterThan(0);
+    expect(byType("wiki").every((m) => m.classList.contains("cm-wiki-link--note"))).toBe(true);
+    const web = [...byType("markdown"), ...byType("url")];
+    expect(web.length).toBeGreaterThan(0);
+    expect(web.some((m) => m.classList.contains("cm-wiki-link--note"))).toBe(false);
+  });
+
   it("hides the space after # so inactive headings align with body text", () => {
     const { session } = makeSession("live", "Intro\n\n# Kopf\n\nEnde");
     // Caret sits on "Intro" — the heading line is inactive.

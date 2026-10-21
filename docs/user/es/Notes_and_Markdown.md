@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-10-20
+Última actualización: 2026-10-21
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -54,7 +54,7 @@ Escribe `/` al principio de una línea para abrir el menú de inserción. Está 
 
 ## Enlaces y retroenlaces
 
-- **Enlaces internos**: `[[Nombre de la nota]]` (enlace interno) — mediante el menú de barra oblicua o `@` con búsqueda integrada de notas. Los enlaces clásicos de Markdown `[texto](ruta.md)` también funcionan.
+- **Enlaces internos**: `[[Nombre de la nota]]` (enlace interno) — mediante el menú de barra oblicua o `@` con búsqueda integrada de notas. Los enlaces clásicos de Markdown `[texto](ruta.md)` también funcionan. Un enlace interno se muestra con un tono claro detrás del texto y algo más en negrita; un enlace web sigue subrayado, así que se distinguen de un vistazo.
 - **Cómo encuentra un enlace su nota**: Un enlace interno nombra una nota por su **nombre de archivo** — en cualquier lugar del vault, sin distinguir mayúsculas de minúsculas — o por su ruta, o solo por el final de ella (`[[Clientes/Carta]]`). Si las propiedades de una nota llevan un `title`, ese título también conduce a ella; un archivo que *se llama* como el enlace siempre va primero. Cuando dos notas comparten nombre, gana la que está en la misma carpeta que la nota que enlaza, después la de ruta más corta — y una nota con ese nombre en el nivel superior del vault va antes que ambas. Para nombrar exactamente un lugar, escribe una ruta: `/Carpeta/Nota` desde el nivel superior del vault, `./Nota` o `../Carpeta/Nota` desde la carpeta de la nota actual. La respuesta es la misma en el escritorio y en el teléfono, en el grafo, en los retroenlaces y en las bases de datos. Al elegir una nota tras `[[` o `@`, Plainva escribe su nombre de archivo y conserva como texto del enlace un título que se lea distinto (`[[Carta|Carta de oferta]]`); si dos notas comparten el nombre, escribe la ruta.
 - **Enlaces a una sección**: `[[Nota#Encabezado]]` abre la nota en ese encabezado, `[[#Encabezado]]` salta dentro de la nota actual, y `[texto](#encabezado)` al estilo de GitHub hace lo mismo: se resuelven tanto el texto literal del encabezado como el slug (`cool-header`); `[[Nota#^id]]` llega a una línea que termina en `^id`. Al escribir `[[Nota#` se ofrecen los encabezados de la nota. Un encabezado que ya no existe lo dice en un mensaje en lugar de no hacer nada.
 - **Destinos que aún no existen**: un enlace interno a una nota que todavía no se ha creado se muestra **atenuado y con un subrayado discontinuo** (tanto en la vista previa en vivo como en el modo lectura). **Hacer clic en él crea la nota** y la abre — se coloca en la carpeta de la nota actual (o en la ruta indicada si el enlace la incluye, por ejemplo `[[Carpeta/Nueva nota]]`). Para que se te pregunte primero, activa **Configuración → App → Editor y notas → Preguntar antes de crear enlaces vacíos**.

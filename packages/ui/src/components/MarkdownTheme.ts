@@ -5,6 +5,7 @@ import { HEADING_SIZES } from "../lib/typography";
 import { Prec } from "@codemirror/state";
 import { CALLOUT_COLOR_KEYS, calloutLine, calloutTint } from "./callouts";
 import { INDENT_EM, MAX_LIST_GUIDES } from "./listIndent";
+import { WIKI_LINK_HOVER_STYLE, WIKI_LINK_STYLE } from "./wikiLinkStyle";
 
 // Callout line + tint colors (Obsidian > [!type]), generated from the single
 // source of truth in callouts.ts so editor and read view never drift.
@@ -226,6 +227,9 @@ export const editorTheme = EditorView.theme({
     textDecoration: "underline",
     cursor: "pointer",
   },
+  // A wiki link in a cell looks like one in the text (wikiLinkStyle.ts).
+  ".cm-md-cell-link.pv-wiki-link": WIKI_LINK_STYLE,
+  ".cm-md-cell-link.pv-wiki-link:hover": WIKI_LINK_HOVER_STYLE,
   // Inline cell editing (TS3): a native field opens in place on click. Since
   // issue 118 it is a textarea as tall as its text: it wraps like the cell it
   // replaces and its height is set from its content, so it has neither a
@@ -299,8 +303,23 @@ export const editorTheme = EditorView.theme({
     color: "var(--accent-color)",
   },
   ".cm-md-task": {
-    marginInlineEnd: "6px",
+    width: "var(--md-task-size)",
+    height: "var(--md-task-size)",
+    margin: "0",
     verticalAlign: "middle",
+    cursor: "pointer",
+  },
+  // The box's hit area (wish 2026-10-19): padding as large as the touch target
+  // asks, taken back by a negative margin, so a finger finds the box and the
+  // line keeps its height. Zero with a pointer. A tap on the padding toggles
+  // the task (LivePreviewPlugin's TaskWidget).
+  ".cm-md-task-hit": {
+    display: "inline-flex",
+    alignItems: "center",
+    verticalAlign: "middle",
+    padding: "var(--md-task-hit)",
+    margin: "calc(-1 * var(--md-task-hit))",
+    marginInlineEnd: "calc(6px - var(--md-task-hit))",
     cursor: "pointer",
   },
   // `[-]` cancelled: ticked like a closed task, but without the accent — it was
