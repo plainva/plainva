@@ -151,7 +151,7 @@ describe("runTaskSync", () => {
     const states = await cache.getTaskStates("a1", "l1");
     expect(states).toHaveLength(1);
     expect(states[0].notePath).toBe("Aufgaben/Steuern einreichen.md");
-    expect(states[0].baseFields).toEqual({ title: "Steuern einreichen", due: "2026-08-15", completed: false, dueHeld: true });
+    expect(states[0].baseFields).toEqual({ title: "Steuern einreichen", due: "2026-08-15", completed: false, dueHeldIn: "frist" });
   });
 
   it("a completed remote task prefills the DONE status option", async () => {
@@ -260,7 +260,7 @@ describe("runTaskSync", () => {
     );
     const st = (await cache.getTaskStates("a1", "l1"))[0];
     expect(st.remoteEtag).toBe('"e2"');
-    expect(st.baseFields).toEqual({ title: "T", due: "2026-08-20", completed: true, dueHeld: true });
+    expect(st.baseFields).toEqual({ title: "T", due: "2026-08-20", completed: true, dueHeldIn: "frist" });
   });
 
   it("merges field-wise when both sides changed — local wins its field, remote keeps its own", async () => {
@@ -296,7 +296,7 @@ describe("runTaskSync", () => {
     expect(res.conflicts).toBe(1);
     const st = (await cache.getTaskStates("a1", "l1"))[0];
     expect(st.remoteEtag).toBe('"e1"');
-    expect(st.baseFields).toEqual({ title: "T", due: null, completed: false, dueHeld: true });
+    expect(st.baseFields).toEqual({ title: "T", due: null, completed: false, dueHeldIn: "frist" });
   });
 
   it("a locally deleted note tombstones the state — remote untouched, never re-imported", async () => {
@@ -593,7 +593,7 @@ describe("runTaskSync adoption", () => {
     const states = await cache.getTaskStates("fresh-id", "l1");
     expect(states).toHaveLength(1);
     expect(states[0].notePath).toBe(notePath);
-    expect(states[0].baseFields).toEqual({ title: "Steuern einreichen", due: null, completed: false, dueHeld: true });
+    expect(states[0].baseFields).toEqual({ title: "Steuern einreichen", due: null, completed: false, dueHeldIn: "frist" });
   });
 
   it("takes the original note, not the copy that sorts before it", async () => {

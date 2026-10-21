@@ -317,6 +317,9 @@ async function createPendingNotes(opts: TaskSyncOptions, db: DbShape, creates: P
       if (!notePath) continue;
       known.add(notePath);
       result.createdNotes.push(notePath);
+      // The file may be one an interrupted run left behind: whether it holds
+      // the date is read from it, not assumed (B2).
+      const createdDue = db.dueKey ? await opts.adapter.readTextFile(notePath).then((text) => readNoteFields(text, db).due, () => null) : null;
       await opts.cache.upsertTaskState({
         accountId: account.id,
         listId,
@@ -324,7 +327,7 @@ async function createPendingNotes(opts: TaskSyncOptions, db: DbShape, creates: P
         notePath,
         remoteEtag: task.etag ?? null,
         // A note created without a date column cannot hold the due date (B2).
-        baseFields: { ...fieldsOfTask(task), ...(db.dueKey ? { dueHeld: true } : {}) },
+        baseFields: { ...fieldsOfTask(task), ...(db.dueKey && (createdDue !== null || task.due == null) ? { dueHeldIn: db.dueKey } : {}) },
       });
     } catch (e) {
       result.errors.push(`${account.label}/${listName}: ${e instanceof Error ? e.message : String(e)}`);
@@ -433,7 +436,7 @@ async function reconcileList(
           // against this task before, and claiming an older base would push
           // changes nobody made. A note without a due date is given the
           // provider's by the next cycle rather than read as cleared (B2).
-          baseFields: { ...remoteFields, ...(db.dueKey && (adoptedDue !== null || remoteFields.due === null) ? { dueHeld: true } : {}) },
+          baseFields: { ...remoteFields, ...(db.dueKey && (adoptedDue !== null || remoteFields.due === null) ? { dueHeldIn: db.dueKey } : {}) },
         });
         result.adoptedNotes.push(adopted);
         continue;
@@ -500,7 +503,7 @@ async function reconcileList(
     // base, so no spurious flip is ever pushed.
     // The note does not speak for the due date while the database has no date
     // column, or while it carries no due property and the date was agreed
-    // without the note holding it (`dueHeld`, B2).
+    // without the note holding it in this column (`dueHeldIn`, B2).
     const readLocal = (text: string): PimTaskFields => {
       const fields = readNoteFields(text, db, base.completed);
       return dueSilent(fields, base, db) ? { ...fields, due: base.due } : fields;
@@ -513,12 +516,13 @@ async function reconcileList(
     const localChanged = !fieldsEqual(localFields, base);
 
     if (!remoteChanged && !localChanged && !needsDueWrite) {
-      // A row from before `dueHeld` whose note holds the agreed date is marked
-      // once, on first sight: a date cleared later is then read as cleared.
-      const noteDue = db.dueKey && base.dueHeld !== true ? readNoteFields(content, db).due : null;
+      // A row from before `dueHeldIn`, or from before the column changed,
+      // whose note holds the agreed date is marked once, on first sight: a
+      // date cleared later is then read as cleared.
+      const noteDue = db.dueKey && base.dueHeldIn !== db.dueKey ? readNoteFields(content, db).due : null;
       const holds = noteDue !== null && dueEqual(noteDue, base.due);
       if (notePath !== st.notePath || holds) {
-        await cache.upsertTaskState({ ...st, notePath, ...(holds ? { baseFields: { ...base, dueHeld: true } } : {}) });
+        await cache.upsertTaskState({ ...st, notePath, ...(holds && db.dueKey ? { baseFields: { ...base, dueHeldIn: db.dueKey } } : {}) });
       }
       continue;
     }
@@ -623,7 +627,7 @@ async function reconcileList(
     for (const field of missing) (agreed as Record<keyof PimTaskFields, unknown>)[field] = base[field];
     // Whether the note now holds the agreed due date; until it does, a missing
     // due property is not read as a cleared one.
-    if (db.dueKey && dueEqual(readNoteFields(content, db).due, agreed.due)) agreed.dueHeld = true;
+    if (db.dueKey && dueEqual(readNoteFields(content, db).due, agreed.due)) agreed.dueHeldIn = db.dueKey;
     await cache.upsertTaskState({ accountId: account.id, listId, uid: rt.uid, notePath, remoteEtag: missing.length > 0 ? null : newEtag, baseFields: agreed });
   }
 
@@ -917,21 +921,22 @@ function dueOf(raw: string): string {
 }
 
 /**
+ * Whether a note says nothing about its due date (B2): the database has no
+ * date column, or the note carries no due property while the agreed date was
+ * not held by it in this column (`dueHeldIn`). A note that carries a date
+ * always speaks.
+ */
+function dueSilent(note: PimTaskFields, base: PimTaskFields, db: Pick<DbShape, "dueKey">): boolean {
+  return !db.dueKey || (note.due === null && base.dueHeldIn !== db.dueKey);
+}
+
+/**
  * Two due values mean the same (B2): by the minute where both carry a time,
  * by the day where one does not. Google, Microsoft and CalDAV keep days, a
  * note may keep a time; the phone's reminders keep a time. Compared by the
  * day alone, a reminder's time was taken for a change of the note's and sent
  * back without it - the time was lost at the provider.
  */
-/**
- * Whether a note says nothing about its due date (B2): the database has no
- * date column, or the note carries no due property while the agreed date was
- * not held by it (`dueHeld`). A note that carries a date always speaks.
- */
-function dueSilent(note: PimTaskFields, base: PimTaskFields, db: Pick<DbShape, "dueKey">): boolean {
-  return !db.dueKey || (note.due === null && base.dueHeld !== true);
-}
-
 export function dueEqual(a: string | null, b: string | null): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
@@ -976,9 +981,11 @@ export function applyFieldsToNote(content: string, merged: PimTaskFields, curren
     out = replaceFirstH1(out, merged.title);
   }
   try {
-    // By the rule it is read by: a time only one side carries is no change,
-    // so a time the person put into the note survives a provider's day.
-    if (db.dueKey && !dueEqual(merged.due, current.due)) {
+    // A day-only value of the same day leaves a time the note carries alone:
+    // a time the person put in survives a provider that knows days only.
+    // Anything else is written as it is, a provider's time included.
+    const keepsNoteTime = !!merged.due && !!current.due && merged.due.length === 10 && current.due.length > 10 && current.due.startsWith(merged.due);
+    if (db.dueKey && merged.due !== current.due && !keepsNoteTime) {
       out = merged.due ? upsertFrontmatterKeys(out, { [db.dueKey]: merged.due }) : deleteFrontmatterPath(out, [db.dueKey]);
     }
     if (db.completion && merged.completed !== current.completed) {

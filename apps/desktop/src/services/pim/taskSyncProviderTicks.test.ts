@@ -272,18 +272,43 @@ describe("a task ticked at the provider reaches its note (B2)", () => {
   it("sends a date cleared in a note whose agreement predates the marker, once that row was seen", async () => {
     const { api, vault, cycle } = setup(buildTaskDbFile("Aufgaben", LABELS).content);
     await cycle();
-    // The row as a build before this change wrote it: no `dueHeld`.
+    // The row as a build before this change wrote it: no `dueHeldIn`.
     const [state] = await cache.getTaskStates("a1", "l1");
-    const { dueHeld: _held, ...legacy } = state!.baseFields!;
+    const { dueHeldIn: _held, ...legacy } = state!.baseFields!;
     await cache.upsertTaskState({ ...state!, baseFields: legacy });
     await cycle(); // seen once: the note holds the date
-    expect((await cache.getTaskStates("a1", "l1"))[0]!.baseFields?.dueHeld).toBe(true);
+    expect((await cache.getTaskStates("a1", "l1"))[0]!.baseFields?.dueHeldIn).toBe("frist");
 
     const path = "Aufgaben/Steuern einreichen.md";
     vault.files.set(path, vault.files.get(path)!.replace(/frist: .*\n/, ""));
     await cycle();
     expect(readFrontmatterPath(vault.files.get(path)!, ["frist"]) ?? null).toBeNull();
     expect(api.writes.some((w) => w.includes('"due":null'))).toBe(true);
+  });
+
+  it("does not take a note an interrupted run left behind without a date for one that holds it", async () => {
+    const { api, vault, cycle } = setup(buildTaskDbFile("Aufgaben", LABELS).content);
+    // The note of this task is already there - anchored, without a date, and
+    // without a state row (an interrupted import).
+    const path = "Aufgaben/Steuern einreichen.md";
+    vault.files.set(path, "---\ntype: Task\nerledigt: false\nstatus: Offen\nplainva:\n  pim:\n    kind: task\n    uid: g1\n    list: l1\n    account: a1\n    provider: google\n---\n# Steuern einreichen\n");
+    await cycle();
+    await cycle();
+    // The provider's date arrives in the note; nothing was read as cleared.
+    expect(String(readFrontmatterPath(vault.files.get(path)!, ["frist"]))).toBe("2026-11-02");
+    expect(api.writes).toEqual([]);
+  });
+
+  it("does not read every note as cleared when the date column is renamed", async () => {
+    const { api, vault, cycle } = setup(buildTaskDbFile("Aufgaben", LABELS).content);
+    await cycle();
+    const path = "Aufgaben/Steuern einreichen.md";
+    expect(String(readFrontmatterPath(vault.files.get(path)!, ["frist"]))).toBe("2026-11-02");
+    // The column is called "termin" from now on; the notes do not carry it yet.
+    vault.files.set("Aufgaben.base", buildTaskDbFile("Aufgaben", { ...LABELS, dueKey: "termin" }).content);
+    await cycle();
+    expect(String(readFrontmatterPath(vault.files.get(path)!, ["termin"]))).toBe("2026-11-02");
+    expect(api.writes).toEqual([]);
   });
 
   it("keeps a due time the provider gives, and never sends it back without it", async () => {
