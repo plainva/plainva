@@ -159,20 +159,72 @@ views:
     expect(classifyTaskStatus("Archived", model)).toBe(true);
   });
 
-  it("without a done word, takes the last option that is not a cancelled one", () => {
+  it("without a done word keeps the old rule: the last option is done", () => {
     const config = parseBaseConfig(`properties:
   note.phase:
     plainva:
       input: select
       options:
         - value: Idee
-        - value: Fertig gestellt
+        - value: In progress
         - value: Cancelled
 views:
   - type: table
     name: T
 `);
-    expect(resolveTaskStatusModel(config)).toMatchObject({ open: "Idee", done: "Fertig gestellt", closed: ["Cancelled"] });
+    const model = resolveTaskStatusModel(config)!;
+    expect(model).toMatchObject({ open: "Idee", done: "Cancelled" });
+    // An option in between stays what it always was: open.
+    expect(classifyTaskStatus("In progress", model)).toBe(false);
+  });
+
+  it("leaves options between the done one and the last open, and keeps the others closed", () => {
+    const between = resolveTaskStatusModel(parseBaseConfig(`properties:
+  note.status:
+    plainva:
+      input: status
+      options:
+        - value: Open
+        - value: Done
+        - value: Waiting
+        - value: Cancelled
+views:
+  - type: table
+    name: T
+`))!;
+    expect(between.done).toBe("Done");
+    expect(classifyTaskStatus("Waiting", between)).toBe(false);
+    expect(classifyTaskStatus("Cancelled", between)).toBe(true);
+    // Two done words: the last is written, the other still reads as done.
+    const two = resolveTaskStatusModel(parseBaseConfig(`properties:
+  note.status:
+    plainva:
+      input: status
+      options:
+        - value: Open
+        - value: Done
+        - value: Completed
+views:
+  - type: table
+    name: T
+`))!;
+    expect(two.done).toBe("Completed");
+    expect(classifyTaskStatus("Done", two)).toBe(true);
+    // A done word as the FIRST option is the open one; the old rule decides.
+    const first = resolveTaskStatusModel(parseBaseConfig(`properties:
+  note.status:
+    plainva:
+      input: status
+      options:
+        - value: Done
+        - value: Todo
+        - value: In progress
+views:
+  - type: table
+    name: T
+`))!;
+    expect(first).toMatchObject({ open: "Done", done: "In progress" });
+    expect(classifyTaskStatus("Todo", first)).toBe(false);
   });
 
   it("returns null when the database has no status/select column", () => {

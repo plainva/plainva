@@ -724,7 +724,7 @@ export function vtodoCompleted(vtodo: InstanceType<typeof ICAL.Component>): bool
 
 function applyTaskDraft(vtodo: InstanceType<typeof ICAL.Component>, draft: PimTaskDraft): void {
   vtodo.updatePropertyWithValue("summary", draft.title);
-  if (draft.due) setTimeProperty(vtodo, "due", { ts: 0, date: draft.due }, true);
+  if (draft.due) setTimeProperty(vtodo, "due", { ts: 0, date: draft.due.slice(0, 10) }, true);
   else vtodo.removeAllProperties("due");
   if (draft.notes) vtodo.updatePropertyWithValue("description", draft.notes);
   else vtodo.removeAllProperties("description");

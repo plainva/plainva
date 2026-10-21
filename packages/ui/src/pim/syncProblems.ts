@@ -106,7 +106,8 @@ export function describeSyncProblems(
       : p.since === null
         ? t(tasks ? "pim.taskListNotSyncedYet" : "pim.notSyncedYet", { name, reason })
         : t(tasks ? "pim.taskListNotSyncedSince" : "pim.notSyncedSince", { name, since: syncProblemSince(p.since, locale, now), reason });
-    return { key: `${p.accountId}/${p.calendarId ?? ""}${tasks ? `/tasks/${p.taskListId}` : ""}`, text };
+    const scope = p.error.startsWith(TASK_NOTE_PROBLEM_PREFIX) ? "tasknotes" : "tasks";
+    return { key: `${p.accountId}/${p.calendarId ?? ""}${tasks ? `/${scope}/${p.taskListId}` : ""}`, text };
   });
   return { lines, more: Math.max(0, problems.length - SYNC_PROBLEM_LINES) };
 }

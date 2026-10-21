@@ -225,6 +225,57 @@ describe("a task ticked at the provider reaches its note (B2)", () => {
     expect(api.writes).toEqual([]);
   });
 
+  it("gives the notes their due date when a date column is added later, and pushes nothing", async () => {
+    const { api, vault, cycle } = setup(DB_WITHOUT_DUE);
+    await cycle();
+    const path = "Aufgaben/Steuern einreichen.md";
+    expect(readFrontmatterPath(vault.files.get(path)!, ["frist"]) ?? null).toBeNull();
+    // The person follows the hint and gives the database a date column.
+    vault.files.set("Aufgaben.base", buildTaskDbFile("Aufgaben", LABELS).content);
+    await cycle();
+    // The note holds the provider's date; nothing was read as "cleared".
+    expect(String(readFrontmatterPath(vault.files.get(path)!, ["frist"]))).toBe("2026-11-02");
+    expect(api.writes).toEqual([]);
+    await cycle();
+    expect(api.writes).toEqual([]);
+  });
+
+  it("keeps a due time the provider gives, and never sends it back without it", async () => {
+    // The phone's reminders hand over a time with the day.
+    await cache.replaceTaskLists("a1", [{ id: "l1", name: "Erinnerungen" }]);
+    await cache.setTaskListSelected("a1", "l1", true);
+    const updates: unknown[] = [];
+    const target = {
+      provider: "device",
+      updateTask: async (_ref: unknown, draft: unknown) => {
+        updates.push(draft);
+        return { etag: "v9" };
+      },
+    } as never;
+    const vault = fakeVault({ "Aufgaben.base": buildTaskDbFile("Aufgaben", LABELS).content });
+    const opts = (): TaskSyncOptions => ({
+      adapter: vault.adapter,
+      cache,
+      buildTarget: async () => target,
+      taskDbPath: "Aufgaben.base",
+      noteType: "Task",
+      allNotePaths: [...vault.files.keys()].filter((p) => p.endsWith(".md")),
+    });
+    await cache.replaceTasks("a1", "l1", [{ uid: "r1", listId: "l1", title: "Anruf", due: "2026-11-02T10:00", completed: false, etag: "v1" }]);
+    await runTaskSync(opts());
+    const path = "Aufgaben/Anruf.md";
+    expect(String(readFrontmatterPath(vault.files.get(path)!, ["frist"]))).toContain("2026-11-02T10:00");
+    await runTaskSync(opts());
+    expect(updates).toEqual([]);
+
+    // The time moves at the provider: the note follows, nothing goes back.
+    await cache.replaceTasks("a1", "l1", [{ uid: "r1", listId: "l1", title: "Anruf", due: "2026-11-02T11:30", completed: false, etag: "v2" }]);
+    await runTaskSync(opts());
+    expect(String(readFrontmatterPath(vault.files.get(path)!, ["frist"]))).toContain("2026-11-02T11:30");
+    await runTaskSync(opts());
+    expect(updates).toEqual([]);
+  });
+
   it("writes the done option, not a cancelled one standing after it, and never reopens a cancelled task", async () => {
     const { api, vault, cycle } = setup(DB_WITH_CANCELLED);
     await cycle();

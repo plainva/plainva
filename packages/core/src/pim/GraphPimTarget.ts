@@ -506,7 +506,7 @@ function graphTaskBody(draft: PimTaskDraft): Record<string, unknown> {
   return {
     title: draft.title,
     status: draft.completed ? "completed" : "notStarted",
-    dueDateTime: draft.due ? { dateTime: `${draft.due}T00:00:00`, timeZone: "UTC" } : null,
+    dueDateTime: draft.due ? { dateTime: `${draft.due.slice(0, 10)}T00:00:00`, timeZone: "UTC" } : null,
     ...(draft.notes !== undefined ? { body: { contentType: "text", content: draft.notes } } : {}),
   };
 }

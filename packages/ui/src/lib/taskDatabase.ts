@@ -121,7 +121,8 @@ export async function createTaskDatabase(
  * Cancelled used to receive "Cancelled" for every task ticked at the
  * provider. A cancelled task still counts as closed (`closed`): read as open,
  * it would un-complete the provider's task the next time anything synced. So
- * does every option after the done one - it was "done" under the old rule.
+ * does the last option, which was "done" under the old rule. Without a done
+ * word nothing changes: the last option is done.
  */
 export interface TaskStatusModel {
   key: string;
@@ -183,17 +184,18 @@ export function resolveTaskStatusModel(config: unknown): TaskStatusModel | null 
     .map((o) => (typeof o === "string" ? o : (o as { value?: unknown } | null)?.value))
     .filter((v): v is string => typeof v === "string" && v.length > 0);
   if (values.length === 0) return null;
-  const cancelled = values.filter((v, i) => i > 0 && CANCELLED_WORDS.has(statusWord(v)));
-  // A done word wins wherever it stands (the last one, should there be two);
-  // otherwise the last option that is not a cancelled one; otherwise the last.
-  const done =
-    [...values].reverse().find((v) => DONE_WORDS.has(statusWord(v))) ??
-    [...values].reverse().find((v, i) => i < values.length - 1 && !cancelled.includes(v)) ??
-    values[values.length - 1];
-  // Every option AFTER the done one stays closed: under the old rule the last
-  // option was done, and a task ticked then carries it. Read as open now, the
-  // next sync would reopen every such task at the provider.
-  const closed = values.filter((v, i) => v !== done && i > 0 && (cancelled.includes(v) || i > values.indexOf(done)));
+  const last = values[values.length - 1]!;
+  // A done word wins wherever it stands after the first option (the last one,
+  // should there be two). Without one the old rule holds: the last option.
+  const doneWords = values.filter((v, i) => i > 0 && DONE_WORDS.has(statusWord(v)));
+  const done = doneWords[doneWords.length - 1] ?? last;
+  // Closed, never written: every cancelled option, every other done word, and
+  // the last option - it was "done" under the old rule, and a task ticked then
+  // carries it; read as open, the next sync would reopen it at the provider.
+  // Options in between keep their meaning: open, as they always were.
+  const closed = values.filter(
+    (v, i) => i > 0 && v !== done && (CANCELLED_WORDS.has(statusWord(v)) || doneWords.includes(v) || v === last),
+  );
   return { key: statusKey, open: values[0], done, options: values, ...(closed.length > 0 ? { closed } : {}) };
 }
 
