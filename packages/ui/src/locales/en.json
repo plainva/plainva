@@ -2045,6 +2045,7 @@
     "resultAdopted": "Adopted {{file}} as index.md",
     "resultLinks": "{{links}} link(s) updated in {{files}} file(s)",
     "resultPrepLeftovers": "{{embeds}} embed(s) and {{unresolved}} unresolvable wikilinks left unchanged",
+    "resultPrepInLabels": "{{links}} wikilink(s) inside a link's text left unchanged",
     "nothingDone": "No actions selected.",
     "subfoldersHeading": "Subfolders",
     "updateAllAction": "Update all index.md files",

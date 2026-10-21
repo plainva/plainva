@@ -2061,6 +2061,7 @@
     "resultAdopted": "Przejęto {{file}} jako index.md",
     "resultLinks": "Zaktualizowano linki: {{links}} (pliki: {{files}})",
     "resultPrepLeftovers": "Bez zmian pozostały osadzenia: {{embeds}} i nierozwiązywalne wikilinki: {{unresolved}}",
+    "resultPrepInLabels": "Bez zmian pozostały wikilinki w tekście innego linku: {{links}}",
     "nothingDone": "Nie wybrano żadnych akcji.",
     "subfoldersHeading": "Podfoldery",
     "updateAllAction": "Zaktualizuj wszystkie pliki index.md",

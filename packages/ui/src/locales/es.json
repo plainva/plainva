@@ -2053,6 +2053,7 @@
     "resultAdopted": "{{file}} adoptado como index.md",
     "resultLinks": "{{links}} enlace(s) actualizados en {{files}} archivo(s)",
     "resultPrepLeftovers": "{{embeds}} incrustación(es) y {{unresolved}} wikilinks sin resolver quedaron sin cambios",
+    "resultPrepInLabels": "{{links}} wikilink(s) dentro del texto de otro enlace quedaron sin cambios",
     "nothingDone": "No se seleccionó ninguna acción.",
     "subfoldersHeading": "Subcarpetas",
     "updateAllAction": "Actualizar todos los archivos index.md",

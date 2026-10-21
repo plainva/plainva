@@ -437,3 +437,82 @@ renderer the reading view uses, with math), and each shell's own rename to
 and from such a name with a real index —
 `apps/desktop/src/renameLinkBytes.test.ts` and
 `apps/mobile/src/services/renameLinkBytes.test.ts`.
+
+## Addendum 2026-10-21 (an overview is prepared for the name it takes)
+
+Findings 2026-10-11 and 2026-10-12: adopting a note as the `index.md` of its
+folder with "prepare" left links behind that led nowhere, and the phone did
+not offer to prepare at all. The note was prepared first and renamed then;
+the rename's plan is read from the index, which still knew the note with its
+wiki links, so the note's links to itself kept naming its old file. A wiki
+link in the label of a Markdown link became a link inside a link, and the
+link around it was text afterwards. A link that reached the note by the
+`title` of its properties lost its way with the block. And where the folder
+had an `index.md` already, the note was prepared and the rename refused.
+
+1. **A note is prepared for the name it takes.** A link of the note to
+   itself is converted to that name, written from the note's own folder:
+   `./index.md` (`becomes` of `convertWikilinksToMarkdownLinks`). The
+   explicit path, because `index.md` is the one name a vault holds in every
+   folder, and readers have not agreed which one a bare `index.md` means. The
+   label is the one every converted link gets — what the wiki link showed,
+   "Map" for `[[Map]]` —: the note reads as it did. Renaming first and
+   converting then would have written "index" there.
+2. **A wiki link in the label of a link stays a wiki link.** In an inline
+   link's text and in a reference link's text (`[see [[Alpha]]](Beta.md)`,
+   `[see [[Alpha]]][ref]`) a Markdown link cannot take its place: links do
+   not nest. `readNoteLinks` says where a link stands (`inLabel`), and the
+   result counts such links on their own (`inLabels`), beside the embeds and
+   the links that lead to no listed note.
+3. **A link by the title names the file.** The properties block goes, and
+   its `title` with it. The links that reached the note only by that title —
+   what its backlinks hold beyond the rename's own plan — are let name the
+   file, like every link that named it (point 5), unless a wiki link cannot
+   carry that name (point 6). No alias is put in; a rename writes none.
+4. **Nothing is written where the name is taken.** An `index.md` in the
+   folder refuses the adoption before the note is touched. A link that could
+   not be followed is said, as after any rename (`linkUpdateFailed`).
+5. **A wiki link to a folder's overview names its folder.** A rename to a
+   folder's `index.md` writes a bare wiki link as `[[Projects/index]]`, as
+   ADR 0009 (point 6) says of an adoption; until now it stayed `[[index]]`
+   while no other file was called so. `index.md` is the name every folder's
+   overview has: a bare `[[index]]` meant whichever the rule found first, and
+   that changed with the next overview — in the desktop's manager in the
+   same run, before the index knew it. The vault's own `index.md` stays
+   `[[index]]`. (`planLinkUpdates` in `packages/ui/src/lib/renameNote.ts`.)
+   Not yet for a link written with the extension — `[[Map.md]]`,
+   `[x](Map.md)`: it still becomes a bare `index.md`, which the link rule
+   reads as the vault's own overview where there is one. The plan knows a
+   link by its target as written, not by its kind, and how a Markdown link is
+   read is decided with the rule for Markdown links.
+6. **A name a wiki link cannot carry is not written.** Between the brackets a
+   name ends at the first `#`, `^` or `|`, its blanks at either end are not
+   part of it, and the first `]]` ends the link: `[[C# Notes/index]]` names
+   `C`. Whether `[[name]]` reads back as one link to that name is asked of
+   the reader itself (`wikiLinkCanName` in `packages/core/src/linkRewrite.ts`)
+   — `[[Meeting [draft] notes]]` is such a link —, and in the properties of
+   the block's own reader, which takes no bracket at all. In a note's text a
+   backslash at the end of a name is none a link can carry: in front of an
+   alias it takes the bar for its own. The rewriter leaves such a link as it
+   is and counts it, so the rename says that a link could not be followed. So
+   it does with a link to the overview of such a folder: no wiki link without
+   the extension leads there for sure — a bare `[[index]]` follows whichever
+   overview the rule finds first (point 5; a link written with the extension
+   is still rewritten, as point 5 says).
+
+Both shells adopt through `adoptFileAsIndex` and say what was done in one
+line (`adoptionSummary`); the phone's question carries the same choice as the
+desktop's dialog, preset.
+
+Tests: `packages/core/test/okf-index.test.ts`,
+`packages/core/test/link-rewrite.test.ts` (also point 6),
+`packages/core/test/frontmatter-surgical.test.ts` (point 6),
+`apps/desktop/src/services/indexMd.test.ts` (also point 6),
+`apps/desktop/src/services/renameNote.test.ts` (points 5 and 6), and each
+shell's adoption over real files, a real index and the bytes read back, in a
+vault with `index.md` at its root and in another folder — each of its links
+leads where it led, the overview under its new name
+(`apps/desktop/src/renameLinkBytes.test.ts`,
+`apps/mobile/src/services/renameLinkBytes.test.ts`, over the notes in
+`packages/core/test/helpers/renameNotes.ts`); the phone's question in
+`apps/mobile/src/overviewsScreen.test.tsx` and `apps/mobile/src/confirmOption.test.tsx`.

@@ -56,11 +56,21 @@ export interface NoteLink {
   targetEnd: number;
   /** In a table cell, where a `|` has to be written `\|`. */
   inTable: boolean;
+  /**
+   * In the label of a link: `[see [[Note]]](other.md)`, `[see [[Note]]][ref]`.
+   * No Markdown link can take its place there — links do not nest, and the
+   * link around it would be text afterwards.
+   */
+  inLabel: boolean;
   /** A Markdown link whose destination stands in angle brackets: `[label](<a file.md>)`. */
   angle: boolean;
 }
 
-/** A link the parser reads whose place in the text could not be told. */
+/**
+ * A link that could not be rewritten where it stands: the parser reads it, but
+ * its place in the text could not be told — or, from `rewriteNoteLinks`, it is
+ * a wiki link and its new name is one a wiki link cannot carry.
+ */
 export interface UnplacedNoteLink {
   type: NoteLink["type"];
   target: string;
@@ -162,7 +172,7 @@ function destinationAt(text: string, from: number, limit: number): { start: numb
  * A wiki link or an embed: its node says where it stands, and the text between
  * its brackets where the file's name stands in it.
  */
-function wikiLinkOf(node: TreeNode, inTable: boolean, out: NoteLinks): void {
+function wikiLinkOf(node: TreeNode, inTable: boolean, inLabel: boolean, out: NoteLinks): void {
   const start = node.position?.start?.offset;
   const end = node.position?.end?.offset;
   if (typeof start !== "number" || typeof end !== "number" || typeof node.value !== "string") return;
@@ -186,11 +196,12 @@ function wikiLinkOf(node: TreeNode, inTable: boolean, out: NoteLinks): void {
     targetStart: innerStart + parts.targetStart,
     targetEnd: innerStart + parts.targetEnd,
     inTable,
+    inLabel,
     angle: false,
   });
 }
 
-function markdownLinkOf(text: string, node: TreeNode, inTable: boolean, out: NoteLinks): void {
+function markdownLinkOf(text: string, node: TreeNode, inTable: boolean, inLabel: boolean, out: NoteLinks): void {
   const start = node.position?.start?.offset;
   const end = node.position?.end?.offset;
   const url = node.url;
@@ -219,16 +230,24 @@ function markdownLinkOf(text: string, node: TreeNode, inTable: boolean, out: Not
     targetStart,
     targetEnd: from < to ? source.ends[to - 1] : targetStart,
     inTable,
+    inLabel,
     angle: destination.angle,
   });
 }
 
-/** Walks the tree for its links, in the order of the text. */
-function collect(text: string, node: TreeNode, inTable: boolean, out: NoteLinks): void {
-  if (node.type === "link") markdownLinkOf(text, node, inTable, out);
-  else if (node.type === "wikiLink") wikiLinkOf(node, inTable, out);
+/**
+ * Walks the tree for its links, in the order of the text.
+ *
+ * What a link shows is its children — the label of an inline link and of a
+ * link by reference (`[label][ref]`). A wiki link found below one of them
+ * stands in a label, however deep (finding 2026-10-12).
+ */
+function collect(text: string, node: TreeNode, inTable: boolean, inLabel: boolean, out: NoteLinks): void {
+  if (node.type === "link") markdownLinkOf(text, node, inTable, inLabel, out);
+  else if (node.type === "wikiLink") wikiLinkOf(node, inTable, inLabel, out);
   const cell = inTable || node.type === "tableCell";
-  for (const child of node.children ?? []) collect(text, child, cell, out);
+  const label = inLabel || node.type === "link" || node.type === "linkReference";
+  for (const child of node.children ?? []) collect(text, child, cell, label, out);
 }
 
 /**
@@ -242,9 +261,27 @@ function collect(text: string, node: TreeNode, inTable: boolean, out: NoteLinks)
  */
 export function readNoteLinks(content: string): NoteLinks {
   const out: NoteLinks = { links: [], unplaced: [] };
-  collect(content, parseMarkdownAst(content) as unknown as TreeNode, false, out);
+  collect(content, parseMarkdownAst(content) as unknown as TreeNode, false, false, out);
   out.links.sort((a, b) => a.start - b.start);
   return out;
+}
+
+/**
+ * Whether a wiki link can name this file as the name is written: `[[name]]`
+ * reads back as one link, all of it, to that very name (finding 2026-10-21).
+ * Between the brackets a name ends at the first `#`, `^` or `|`, its blanks at
+ * either end are not part of it, and the first `]]` ends the link —
+ * `[[C# Notes/index]]` names `C`. Asked of the reader itself, not of a list of
+ * characters: `[[Meeting [draft] notes]]` is a link to that name. A backslash
+ * at the end is no part of a name a link can carry: in front of an alias it
+ * takes the bar for its own — `[[name\|alias]]` names `name`, and in a table
+ * cell `\\|` ends the cell.
+ */
+export function wikiLinkCanName(target: string): boolean {
+  if (target === "" || target.endsWith("\\")) return false;
+  const written = `[[${target}]]`;
+  const { links } = readNoteLinks(written);
+  return links.length === 1 && links[0].type === "wikilink" && links[0].start === 0 && links[0].end === written.length && links[0].target === target;
 }
 
 const beyondAscii = (text: string): boolean => {
@@ -416,6 +453,8 @@ function withEdits(content: string, edits: readonly Edit[]): { text: string; mad
  *
  * A wiki link's new target is written as the name it is: what stands between
  * the brackets is a file's name and is read as it is written (`wikiLink.ts`).
+ * A name it cannot carry (`wikiLinkCanName`) is not written: that link stays
+ * as it is and is counted with `unplaced` — it still names the file it named.
  * A Markdown link's destination is written so that it reads as the new target
  * (`destinationChange`).
  *
@@ -427,8 +466,17 @@ export function rewriteNoteLinks(
   decide: (link: NoteLink) => NoteLinkChange | null | undefined
 ): { content: string; rewritten: number; unplaced: UnplacedNoteLink[] } {
   const { links, unplaced } = readNoteLinks(content);
+  const left = [...unplaced];
   const edits: Edit[] = [];
   const seen = new Map<string, string | null>();
+  const carried = new Map<string, boolean>();
+  const canName = (target: string): boolean => {
+    const known = carried.get(target);
+    if (known !== undefined) return known;
+    const answer = wikiLinkCanName(target);
+    carried.set(target, answer);
+    return answer;
+  };
   for (const link of links) {
     const change = decide(link);
     if (!change) continue;
@@ -436,12 +484,16 @@ export function rewriteNoteLinks(
       if (change.replacement !== content.slice(link.start, link.end)) edits.push({ from: link.start, to: link.end, text: change.replacement });
       continue;
     }
+    if (link.type !== "markdown-link" && !canName(change.target)) {
+      left.push({ type: link.type, target: link.target });
+      continue;
+    }
     const written = content.slice(link.targetStart, link.targetEnd);
     const part = link.type === "markdown-link" ? destinationChange(written, link, change.target, seen) : { start: 0, end: written.length, text: change.target };
     if (part.text !== written.slice(part.start, part.end)) edits.push({ from: link.targetStart + part.start, to: link.targetStart + part.end, text: part.text });
   }
   const { text, made } = withEdits(content, edits);
-  return { content: text, rewritten: made, unplaced };
+  return { content: text, rewritten: made, unplaced: left };
 }
 
 /**

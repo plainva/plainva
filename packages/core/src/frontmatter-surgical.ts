@@ -190,6 +190,14 @@ function splitWikiInner(inner: string): { base: string; anchor: string; alias: s
   return { base: trimmed, anchor: "", alias };
 }
 
+/**
+ * Whether a link in the properties can name this file as the name is written:
+ * the block reads a whole value as a link only without a bracket inside it
+ * (the index reads it so too, `ast-scanner.ts`), up to the first `#`, `^` or
+ * `|` (finding 2026-10-21).
+ */
+const propertiesCanName = (name: string): boolean => WHOLE_WIKILINK_RE.test(`[[${name}]]`) && splitWikiInner(name).base === name;
+
 /** A text as it stands between double quotes in YAML, for the two characters that need a backslash there. */
 const inDoubleQuotes = (text: string): string => text.replace(/[\\"]/g, "\\$&");
 /** A text as it stands between single quotes in YAML. */
@@ -267,9 +275,10 @@ function valueUnder(map: YAMLMap, key: string): unknown {
  *
  * Only the listed keys are inspected; missing keys and non-string items are
  * no-ops. `skipped` counts links that name one of the targets and could not
- * be rewritten in place — a link folded over two lines of a block scalar, or
- * one a key holds only by reference (`key: *a`) while the value it refers to
- * was not rewritten: they still name the old file. Malformed frontmatter
+ * be rewritten in place — a link folded over two lines of a block scalar, one
+ * whose new name a link here cannot carry (`propertiesCanName`), or one a key
+ * holds only by reference (`key: *a`) while the value it refers to was not
+ * rewritten: they still name the old file. Malformed frontmatter
  * throws FrontmatterSurgicalError (callers keep their body-side fix, see
  * renameNote).
  */
@@ -319,6 +328,11 @@ export function renameFrontmatterWikiLinks(
     if (!isScalar(node) || typeof node.value !== "string") return;
     const link = wanted(node, targets);
     if (!link || rewritten.has(node)) return;
+    // A name a link here cannot carry is not written: the link keeps the old one.
+    if (!propertiesCanName(link.next)) {
+      skipped++;
+      return;
+    }
     const range = node.range;
     const written = range ? span.yaml.slice(range[0], range[1]) : null;
     const edit = range && written !== null && node.value.startsWith(link.base, link.at) ? targetInScalar(written, node, node.value, link.at, link.base, link.next) : null;

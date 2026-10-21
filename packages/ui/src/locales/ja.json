@@ -2037,6 +2037,7 @@
     "resultAdopted": "{{file}}をindex.mdとして採用しました",
     "resultLinks": "{{files}}件のファイル内の{{links}}件のリンクを更新しました",
     "resultPrepLeftovers": "{{embeds}}件の埋め込みと{{unresolved}}件の解決できないWikiリンクは変更されずに残りました",
+    "resultPrepInLabels": "別のリンクの表示テキスト内にある{{links}}件のWikiリンクは変更されずに残りました",
     "nothingDone": "操作が選択されていません。",
     "subfoldersHeading": "サブフォルダー",
     "updateAllAction": "すべてのindex.mdを更新",

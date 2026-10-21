@@ -510,6 +510,16 @@ describe("renameFrontmatterWikiLinks", () => {
     expect(res.content).toBe(content);
   });
 
+  // Finding 2026-10-21: `[[C# Notizen/index]]` names `C`, and the block reads
+  // a whole value as a link only without a bracket inside it.
+  it("leaves a link whose new name a link in the properties cannot carry as it is, and counts it", () => {
+    const content = '---\nprojekt: "[[Alt]]"\nliste:\n  - "[[Alt|da]]"\n---\nText\n';
+    for (const newTarget of ["C# Notizen/index", "a|b", "x^y", "[Ablage]/index"]) {
+      const res = renameFrontmatterWikiLinks(content, ["projekt", "liste"].map((key) => ({ key, oldTarget: "Alt", newTarget })));
+      expect(res, newTarget).toEqual({ content, renamed: 0, skipped: 2 });
+    }
+  });
+
   it("is a no-op without frontmatter and throws on malformed frontmatter", () => {
     expect(renameFrontmatterWikiLinks("Nur Body [[Alt]]\n", [
       { key: "x", oldTarget: "Alt", newTarget: "Neu" },

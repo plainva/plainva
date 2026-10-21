@@ -2037,6 +2037,7 @@
     "resultAdopted": "已将{{file}}采用为index.md",
     "resultLinks": "已更新{{files}}个文件中的{{links}}个链接",
     "resultPrepLeftovers": "{{embeds}}个嵌入和{{unresolved}}个无法解析的Wiki链接保持不变",
+    "resultPrepInLabels": "位于其他链接显示文字内的{{links}}个Wiki链接保持不变",
     "nothingDone": "未选择任何操作。",
     "subfoldersHeading": "子文件夹",
     "updateAllAction": "更新所有index.md文件",

@@ -27,8 +27,8 @@ import { sweepPinboardRefs } from "../base/pinboardSweep";
  * index.md adoption — only change the file name, never the folder), so a raw
  * target keeps its qualification style: path-qualified raws stay qualified,
  * bare raws stay bare unless the new basename collides with another file in
- * the vault — then they become path-qualified to stay unambiguous (relevant
- * once several `index.md` files exist).
+ * the vault — then they become path-qualified to stay unambiguous — or the new
+ * name is a folder's `index.md`, which every folder may hold.
  *
  * Two halves, so a batch can keep what a rename WILL do in a journal and do it
  * again after an interruption (plan Befunde 2026-09-24, E12): `planLinkUpdates`
@@ -86,12 +86,17 @@ export interface LinkUpdatePlan {
  * oldPath. A failure here must not block the rename itself, but it MUST be
  * reported (`failed`): renaming without link updates silently breaks
  * vault-wide links.
+ *
+ * `bareTarget` is what a wiki link that named the file by its bare name is to
+ * name it by afterwards: `Atlas` for `Projects/Atlas.md`, `Projects/index`
+ * for a folder's overview. Where a wiki link cannot carry that name
+ * (`C# Notes/index`), the rewriter leaves the link and says so.
  */
 export async function planLinkUpdates(
   queryService: LinkUpdateQuery,
   oldPath: string,
   newPath: string
-): Promise<{ plan: LinkUpdatePlan; failed: boolean }> {
+): Promise<{ plan: LinkUpdatePlan; failed: boolean; bareTarget: string }> {
   let backlinks: { source_path: string; target_path: string; property_key?: string | null }[] = [];
   let allPaths: string[] = [];
   let failed = false;
@@ -104,14 +109,6 @@ export async function planLinkUpdates(
     failed = true;
   }
   const plan: LinkUpdatePlan = { oldPath, newPath, sources: [] };
-  // Only a link that names the FILE is rewritten. The backlinks also hold
-  // links that reach the note by the `title` of its properties (the link
-  // rule's last step): a rename leaves that title alone, so such a link keeps
-  // leading there — and `[[Angebotsbrief]]` must not turn into the new file
-  // name. A link names the file when the rule finds it without any title.
-  const byName = buildLinkTargetIndex([...new Set([...allPaths, oldPath])]);
-  backlinks = backlinks.filter((link) => resolveLinkTargetIndexed(link.source_path, link.target_path, byName) === oldPath);
-  if (backlinks.length === 0) return { plan, failed };
 
   const newBasename = newPath.split(/[/\\]/).pop()!;
   const isNote = newBasename.toLowerCase().endsWith(".md");
@@ -130,6 +127,27 @@ export async function planLinkUpdates(
       p !== newPath &&
       nameKey(p.split(/[/\\]/).pop() ?? "") === collisionKey
   );
+  // `index.md` is the name every folder's overview has (OKF). A bare
+  // `[[index]]` means whichever overview the rule finds first, and that
+  // changes as soon as another folder gets one — Plainva writes them folder by
+  // folder, in one run before the index knows them (finding 2026-10-21). A
+  // link to a folder's overview names its folder, as ADR 0009 (point 6) says
+  // of an adoption; the vault's own `index.md` is named by `index` alone.
+  // Where a wiki link cannot carry the folder's name (`C# Notes`), no name
+  // leads there for sure — not `index` either, which the index may not even
+  // know to be taken yet: the link rewriter leaves such a link as it is and
+  // says so (`wikiLinkCanName`).
+  const overviewOfFolder = isNote && nameKey(newBase) === "index" && /[/\\]/.test(newPath);
+  const bareTarget = baseCollision || overviewOfFolder ? newWikiQualified : newBase;
+
+  // Only a link that names the FILE is rewritten. The backlinks also hold
+  // links that reach the note by the `title` of its properties (the link
+  // rule's last step): a rename leaves that title alone, so such a link keeps
+  // leading there — and `[[Angebotsbrief]]` must not turn into the new file
+  // name. A link names the file when the rule finds it without any title.
+  const byName = buildLinkTargetIndex([...new Set([...allPaths, oldPath])]);
+  backlinks = backlinks.filter((link) => resolveLinkTargetIndexed(link.source_path, link.target_path, byName) === oldPath);
+  if (backlinks.length === 0) return { plan, failed, bareTarget };
 
   const newTargetFor = (raw: string): string => {
     // An explicit path (`./Brief`, `../Ablage/Brief.md`, `/Projekte/Brief`)
@@ -142,12 +160,17 @@ export async function planLinkUpdates(
       return place + (!isNote || raw.toLowerCase().endsWith(".md") ? newBasename : newBase);
     }
     if (raw.toLowerCase().endsWith(".md")) {
-      // Markdown-style link: keep the extension; same-directory rename keeps
-      // relative references valid via the plain new file name.
+      // Written with the extension — a Markdown link, or a wiki link written
+      // so: it keeps it. A reader that takes a Markdown link from the note's
+      // folder (GitHub, OKF) finds the file under the plain new name from its
+      // own folder. Plainva's link rule reads a bare `index.md` as the vault's
+      // own overview where there is one (finding 2026-10-21, not built here):
+      // the plan knows a link by its target, not by its kind, and how a
+      // Markdown link is read is decided with the rule for Markdown links.
       return raw.includes("/") ? newPath : `${newBase}.md`;
     }
     if (raw.includes("/")) return newWikiQualified;
-    return baseCollision ? newWikiQualified : newBase;
+    return bareTarget;
   };
 
   // Group raw targets per source file, split into body links and frontmatter
@@ -172,7 +195,7 @@ export async function planLinkUpdates(
     }
     plan.sources.push({ path, body: [...entry.bodyRaws].map((raw) => ({ raw, target: newTargetFor(raw) })), frontmatter });
   }
-  return { plan, failed };
+  return { plan, failed, bareTarget };
 }
 
 /**
@@ -180,7 +203,8 @@ export async function planLinkUpdates(
  *
  * `failed` also says that a link was found and could not be rewritten where
  * it stands (a character reference inside it, a link folded over two lines of
- * a block scalar): it still names the old file, and nothing was guessed.
+ * a block scalar, a new name the link cannot carry — `wikiLinkCanName`): it
+ * still names the old file, and nothing was guessed.
  */
 export async function applyLinkUpdates(
   adapter: TextUpdateFiles,

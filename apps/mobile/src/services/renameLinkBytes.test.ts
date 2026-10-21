@@ -7,11 +7,14 @@ import { join, resolve } from "node:path";
 import ts from "typescript";
 import {
   BackupVaultAdapter,
+  buildLinkTargetIndex,
   ConflictAwareVaultAdapter,
   QueueingVaultAdapter,
+  resolveLinkTargetIndexed,
   SyncQueue,
   SyncStateRepository,
   toPathIdentity,
+  VaultFileExistsError,
   VaultIndexer,
   VaultQueryService,
   type IDatabaseAdapter,
@@ -21,6 +24,7 @@ import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaul
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import {
   fill,
+  HUB_OVERVIEW,
   LINK_COUNT,
   LINKING_NOTES,
   MARKED,
@@ -185,18 +189,25 @@ describe("renaming a note on the phone to a name Markdown reads something into, 
 });
 
 /**
- * The phone adopts an overview note as it is — it offers no preparation
- * (parity catalog: `overview-prepare-on-adopt`). The notes that link to it
- * follow by the same rewrite as after any rename; and the shared preparation
- * is held to the same bytes through the phone's chain, for the day its screen
- * offers it.
+ * The phone's Overviews screen asks before it adopts a note, and the question
+ * carries the choice the desktop's dialog offers: prepare the note on the way,
+ * preset as it is there (finding 2026-10-11 — it used to adopt every note as
+ * it was and ask nothing). Either way the notes that link to the overview
+ * follow by the same rewrite as after any rename, through the chain the phone
+ * writes through, to the bytes the desktop writes.
  */
 describe("adopting a note as the overview of its folder on the phone", () => {
   const screen = readFileSync(resolve("src/screens/OverviewsScreen.tsx"), "utf8");
 
+  it("is asked for with the preparation as its choice, and done the way it was answered", () => {
+    // What the Overviews screen asks, and what it calls with the answer.
+    expect(screen).toMatch(/const answer = await mConfirmOption\(\{\s*title: t\("indexMd\.actionAdopt", \{ file: name \}\),\s*message: t\("indexMd\.renameHint"\),\s*checkbox: \{ label: t\("indexMd\.prepareOption"\), initial: true \},\s*\}\);\s*if \(!answer\.confirmed\) return;/);
+    expect(screen).toMatch(/await adoptFileAsIndex\(\{\s*adapter: vault\.files,\s*queryService: vault\.queryService!,\s*candidatePath: candidate\.path,\s*folder: row\.folder,\s*prepare: answer\.checked,\s*\}\);/);
+    // What was done is said in the desktop's words, and a link that could not be followed is not passed over.
+    expect(screen).toMatch(/if \(result\.linkUpdateFailed\) toast\.warning\(t\("dialogs\.renameLinksFailed"\)\);\s*return adoptionSummary\(t, name, result\);/);
+  });
+
   it("leaves the adopted note as it is and changes only the target of the links to it", async () => {
-    // What the Overviews screen calls.
-    expect(screen).toMatch(/await adoptFileAsIndex\(\{\s*adapter: vault\.files,\s*queryService: vault\.queryService!,\s*candidatePath: candidate\.path,\s*folder: row\.folder,\s*prepare: false,\s*\}\);/);
     await writeVault({ [OVERVIEW.path]: OVERVIEW.note, ...OVERVIEW.others, [OVERVIEW.linkingPath]: OVERVIEW.linking });
 
     const result = await adoptFileAsIndex({ adapter: vault.files, queryService: query, candidatePath: OVERVIEW.path, folder: OVERVIEW.folder, prepare: false });
@@ -214,5 +225,63 @@ describe("adopting a note as the overview of its folder on the phone", () => {
     expect(result).toMatchObject({ indexPath: OVERVIEW.indexPath, renamedLinks: 2, changedFiles: 1, preparation: OVERVIEW.preparation });
     await expectFile(OVERVIEW.indexPath, OVERVIEW.prepared);
     await expectFile(OVERVIEW.linkingPath, OVERVIEW.linkingAfter);
+  });
+});
+
+/**
+ * Adopting an overview leaves no link behind that leads nowhere (finding
+ * 2026-10-12) — the desktop's twin says what went wrong in each of the four
+ * ways. Here it runs through the phone's chain, over the same vault: an
+ * `index.md` at the root and in another folder, and an overview that is linked
+ * to by its name, by its title and by itself.
+ */
+describe("adopting an overview the vault is tied to, on the phone", () => {
+  /** Every link the index lists, as `note -> the file it leads to`. */
+  async function whereLinksLead(): Promise<string[]> {
+    const corpus = buildLinkTargetIndex(await query.linkTargets());
+    const rows = await db.query<{ source: string; target: string }>("SELECT f.path AS source, l.target_path AS target FROM links l JOIN files f ON f.id = l.source_id");
+    return rows.map((row) => `${row.source} -> ${resolveLinkTargetIndexed(row.source, row.target, corpus)}`).sort();
+  }
+  const withTheOverviewRenamed = (lines: string[]) => lines.map((line) => line.split(HUB_OVERVIEW.path).join(HUB_OVERVIEW.indexPath)).sort();
+
+  it.each([
+    ["as it is", false],
+    ["prepared", true],
+  ])("leaves every link of the vault leading where it led: %s", async (_how, prepare) => {
+    await writeVault(HUB_OVERVIEW.before());
+    const before = await whereLinksLead();
+    expect(before).toHaveLength(16);
+    expect(before.filter((line) => line.endsWith("-> null"))).toEqual([]);
+
+    const result = await adoptFileAsIndex({ adapter: vault.files, queryService: query, candidatePath: HUB_OVERVIEW.path, folder: HUB_OVERVIEW.folder, prepare });
+
+    expect(result).toMatchObject({ indexPath: HUB_OVERVIEW.indexPath, ...(prepare ? HUB_OVERVIEW.preparedReport : HUB_OVERVIEW.adoptedReport) });
+    if (!prepare) expect(result.preparation).toBeUndefined();
+    const after = prepare ? HUB_OVERVIEW.prepared() : HUB_OVERVIEW.adopted();
+    for (const [path, text] of Object.entries(after)) await expectFile(path, text);
+    // The screen reads the vault anew after an adoption; so does this.
+    await vault.indexer!.indexVaultFull();
+    expect(await whereLinksLead()).toEqual(withTheOverviewRenamed(before));
+
+    // What goes to the sync: the move, and each note that was written — no note that is as it was.
+    const operations = await queued();
+    expect(operations.some((op) => op.operation === "rename" && op.file_path === HUB_OVERVIEW.path && op.new_path === HUB_OVERVIEW.indexPath)).toBe(true);
+    const written = new Set(operations.filter((op) => op.operation === "write").map((op) => op.file_path));
+    const vaultBefore = HUB_OVERVIEW.before();
+    for (const [path, text] of Object.entries(after)) {
+      if (path === HUB_OVERVIEW.indexPath || path.startsWith(".plainva/")) continue;
+      expect(written.has(path), path).toBe(vaultBefore[path] !== text);
+    }
+  });
+
+  it("refuses before anything is written where the folder has an overview already", async () => {
+    const files = { ...HUB_OVERVIEW.before(), [HUB_OVERVIEW.indexPath]: "# Projects\n\nan overview that is there already\n" };
+    await writeVault(files);
+
+    await expect(adoptFileAsIndex({ adapter: vault.files, queryService: query, candidatePath: HUB_OVERVIEW.path, folder: HUB_OVERVIEW.folder, prepare: true })).rejects.toBeInstanceOf(VaultFileExistsError);
+
+    for (const [path, text] of Object.entries(files)) await expectFile(path, text);
+    expect(await raw.exists(".plainva/backups")).toBe(false);
+    expect(await queued()).toEqual([]);
   });
 });

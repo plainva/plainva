@@ -182,11 +182,88 @@ export const OVERVIEW = {
    */
   prepared: MARK + withLinks(MAP, AS_MARKDOWN_LINKS).slice(withLinks(MAP, AS_MARKDOWN_LINKS).indexOf("---\r\n", MARK.length + 3) + 5),
   /** What preparing it reports. */
-  preparation: { converted: 4, embeds: 1, unresolved: 1 },
+  preparation: { converted: 4, embeds: 1, unresolved: 1, inLabels: 0 },
   /** The other files of that vault. */
   others: { "Maps/Alpha.md": "# Alpha\n", "Maps/Beta Note.md": "# Beta\n", "Other/Gamma.md": "# Gamma\n\n## Intro\n" } as Readonly<Record<string, string>>,
   /** A note that links to the map, before and after the map became `index.md`. */
   linkingPath: "Start.md",
   linking: START,
-  linkingAfter: START.replace("[[Map]]", "[[index]]").replace("Maps/Map.md", "Maps/index.md"),
+  // A folder's overview is named by its folder: `index` is what every folder's overview is called.
+  linkingAfter: START.replace("[[Map]]", "[[Maps/index]]").replace("Maps/Map.md", "Maps/index.md"),
+};
+
+/**
+ * An overview adopted in a vault of the kind OKF makes — the root and another
+ * folder hold an `index.md` already — that is tied into it in every way a note
+ * can be (finding 2026-10-12): it links to itself by its name, with an anchor,
+ * by the `title` of its properties, in an embed and in the label of a link;
+ * other notes reach it by its name and by that title, in their text and in
+ * their properties.
+ *
+ * Every template holds `{I}` where a wiki link names the overview's file, and
+ * the overview's own holds `{A}` to `{D}` where a wiki link becomes a Markdown
+ * link when it is prepared. Whatever else a template holds has to be there
+ * afterwards, byte for byte.
+ */
+const HUB_NAME = "Map";
+const HUB_TITLE = "Projects Map";
+/** `index` is no name of one file in this vault: a wiki link says which one it means. */
+const HUB_ADOPTED = "Projects/index";
+
+const HUB_BLOCK = unix(["---", `title: ${HUB_TITLE}`, "type: MOC", "---", ""]);
+const HUB = unix([
+  "# Map",
+  "",
+  "* {A} is this note, {B} a part of it, and {C} its title",
+  "* ![[{I}#Part One]] stays an embed",
+  "* [see [[Alpha]] and [[{I}]] here](Beta.md) keeps the link around them",
+  "* {D}",
+  "",
+  "## Part One",
+  "",
+  "last line without a line end",
+]);
+const hubLinks = (name: string) => ({ "{A}": `[[${name}]]`, "{B}": `[[${name}#Part One|here]]`, "{C}": `[[${HUB_TITLE}]]`, "{D}": "[[Alpha]] and [[Other/Gamma]]" });
+/** The links of the overview to itself name it from its own folder; their labels say what the wiki links showed. */
+const HUB_AS_MARKDOWN_LINKS = { "{A}": "[Map](./index.md)", "{B}": "[here](./index.md#Part%20One)", "{C}": "[Projects Map](./index.md)", "{D}": "[Alpha](Alpha.md) and [Gamma](../Other/Gamma.md)" };
+const named = (template: string, name: string) => template.split("{I}").join(name);
+
+/** The notes that reach the overview: `{I}` by its name, `{T}` by the title of its properties. */
+const HUB_LINKING: Readonly<Record<string, string>> = {
+  "Start.md": unix(["See [[{I}]], [[{T}]] and [the map](Projects/{E}.md).", ""]),
+  "Projects/Alpha.md": windows(["# Alpha", "", "* up: [[{T}|the map]] and ![[{T}#Part One]]", ""]),
+  "Projects/Beta.md": unix(["---", 'up: "[[{T}]]"   # by its title', 'see: "[[{I}]]"', "---", "# Beta", ""]),
+};
+const HUB_OTHERS: Readonly<Record<string, string>> = { "index.md": "# Vault\n", "Other/index.md": "# Other\n", "Other/Gamma.md": "# Gamma\n" };
+/** A linking note while the overview's file is called `name`, its Markdown path ends in `file` and its title is reached as `title`. */
+const linking = (template: string, name: string, file: string, title: string) => named(template, name).split("{T}").join(title).split("{E}").join(file);
+const hubVault = (overview: Record<string, string>, name: string, file: string, title: string): Record<string, string> => {
+  const files: Record<string, string> = { ...HUB_OTHERS, ...overview };
+  for (const [path, template] of Object.entries(HUB_LINKING)) files[path] = linking(template, name, file, title);
+  return files;
+};
+
+export const HUB_OVERVIEW = {
+  path: "Projects/Map.md",
+  folder: "Projects",
+  indexPath: "Projects/index.md",
+  /** The note with a title in its properties that other notes link to it by. */
+  note: HUB_BLOCK + withLinks(named(HUB, HUB_NAME), hubLinks(HUB_NAME)),
+  /** Every file of the vault before the adoption. */
+  before: (): Record<string, string> => hubVault({ "Projects/Map.md": HUB_BLOCK + withLinks(named(HUB, HUB_NAME), hubLinks(HUB_NAME)) }, HUB_NAME, HUB_NAME, HUB_TITLE),
+  /**
+   * Adopted as it is: every link that named the file names the new one, in the
+   * note itself and in the others. A link by the title still leads there —
+   * the title is still in the block.
+   */
+  adopted: (): Record<string, string> => hubVault({ "Projects/index.md": HUB_BLOCK + withLinks(named(HUB, HUB_ADOPTED), hubLinks(HUB_ADOPTED)) }, HUB_ADOPTED, "index", HUB_TITLE),
+  adoptedReport: { renamedLinks: 7, changedFiles: 3, linkUpdateFailed: false },
+  /**
+   * Adopted and prepared: the block is gone, and the title with it — so the
+   * links that reached the note by its title name the file now. The note's
+   * own links to itself are Markdown links to `./index.md`; the embed and the
+   * wiki link in a label stay what they are and follow the file's name.
+   */
+  prepared: (): Record<string, string> => hubVault({ "Projects/index.md": withLinks(named(HUB, HUB_ADOPTED), HUB_AS_MARKDOWN_LINKS) }, HUB_ADOPTED, "index", HUB_ADOPTED),
+  preparedReport: { renamedLinks: 9, changedFiles: 4, linkUpdateFailed: false, preparation: { converted: 5, embeds: 1, unresolved: 0, inLabels: 2 } },
 };

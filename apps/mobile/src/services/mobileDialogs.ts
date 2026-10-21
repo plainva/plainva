@@ -51,7 +51,13 @@ export type MobileDialog =
       confirmLabel?: string;
       /** Names the safe branch where "Cancel" would hide what it does. */
       cancelLabel?: string;
-      resolve: (ok: boolean) => void;
+      /**
+       * One more decision that belongs to the same act, as on the prompt
+       * (S17) — see `mConfirmOption`. The host hands its state back with the
+       * answer.
+       */
+      checkbox?: { label: string; initial: boolean };
+      resolve: (ok: boolean, checked?: boolean) => void;
     })
   | (BaseRequest & {
       kind: "select";
@@ -154,6 +160,35 @@ export function mConfirm(opts: {
 }): Promise<boolean> {
   return new Promise((resolve) => {
     queue = [...queue, { kind: "confirm", id: nextId++, ...opts, resolve }];
+    emit();
+  });
+}
+
+/**
+ * A confirmation that carries one more decision (S17, as `mPrompt` does).
+ *
+ * Adopting a note as a folder's overview asks whether to prepare it on the
+ * way — the choice the desktop's dialog offers beside its list. A second
+ * sheet for it would be a second question about one act, and a switch on the
+ * screen behind would be decided before the question is asked.
+ *
+ * The option is a checkbox with its sentence beside it, not the prompt's
+ * switch row: a row's title is one line and is cut, and what this option does
+ * has to be read in full before it is confirmed. `checked` is the option's
+ * state when the sheet was confirmed; a cancelled sheet answers with the
+ * state it was opened with.
+ */
+export function mConfirmOption(opts: {
+  title: string;
+  message?: string;
+  danger?: boolean;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  checkbox: { label: string; initial: boolean };
+}): Promise<{ confirmed: boolean; checked: boolean }> {
+  return new Promise((resolve) => {
+    const answer = (ok: boolean, checked?: boolean) => resolve({ confirmed: ok, checked: checked ?? opts.checkbox.initial });
+    queue = [...queue, { kind: "confirm", id: nextId++, ...opts, resolve: answer }];
     emit();
   });
 }

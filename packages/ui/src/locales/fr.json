@@ -2053,6 +2053,7 @@
     "resultAdopted": "{{file}} adopté comme index.md",
     "resultLinks": "{{links}} lien(s) mis à jour dans {{files}} fichier(s)",
     "resultPrepLeftovers": "{{embeds}} intégration(s) et {{unresolved}} lien(s) wiki non résolvables laissés inchangés",
+    "resultPrepInLabels": "{{links}} lien(s) wiki dans le texte d'un autre lien laissés inchangés",
     "nothingDone": "Aucune action sélectionnée.",
     "subfoldersHeading": "Sous-dossiers",
     "updateAllAction": "Mettre à jour tous les index.md",

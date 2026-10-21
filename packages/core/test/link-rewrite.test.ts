@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { extractLinksAndTags } from "../src/ast-scanner.js";
-import { readNoteLinks, renameNoteLinks, rewriteNoteLinks } from "../src/linkRewrite.js";
+import { readNoteLinks, renameNoteLinks, rewriteNoteLinks, wikiLinkCanName } from "../src/linkRewrite.js";
 import { parseMarkdownAst } from "../src/markdown-parser.js";
 import { serializeMarkdownAst } from "../src/markdown-serializer.js";
 
@@ -225,6 +225,31 @@ describe("what is a link, and what only looks like one", () => {
     expect(rename(reference.content, { "Tom &amp; Jerry": "Old" })).toEqual({ content: "See [[Old|x]] here.\n", renamed: 1, unplaced: 0 });
   });
 
+  // Finding 2026-10-21: an overview named by its folder, `[[C# Notes/index]]`,
+  // names `C` — there is no way to write that folder's name in a wiki link.
+  it("leaves a wiki link as it is where its new name is one a wiki link cannot carry, and counts it", () => {
+    const note = "See [[Old]] and ![[Old#Part|x]], and [the map](Old.md).\n";
+    for (const name of ["C# Notes/index", "a|b", "x^y", "Old]", "a]]b", " New", "trail\\"]) {
+      expect(rename(note, { Old: name }), name).toEqual({ content: note, renamed: 0, unplaced: 2 });
+    }
+    // A bracket inside a name is no such name: the tokenizer reads the link to its first `]]`.
+    expect(rename(note, { Old: "Meeting [draft] notes" })).toEqual({ content: swapped(note, "[[Old", "[[Meeting [draft] notes"), renamed: 2, unplaced: 0 });
+    // A Markdown link carries such a name: its destination is written so that it reads as the name.
+    expect(rename(note, { Old: "C# Notes/index", "Old.md": "C# Notes/index.md" })).toEqual({
+      content: "See [[Old]] and ![[Old#Part|x]], and [the map](C%23%20Notes/index.md).\n",
+      renamed: 1,
+      unplaced: 2,
+    });
+  });
+
+  it("knows the names a wiki link can carry as they are written — by reading the link back", () => {
+    for (const name of ["Map", "Projects/index", "__init__", "*Draft*", "Tom &amp; Jerry", "Old (1)", "Ärger über Öl", "Meeting [draft] notes", "[Archive]/index", "a]b", "back\\slash"]) {
+      expect(wikiLinkCanName(name), name).toBe(true);
+    }
+    // A backslash at the end would take the bar of an alias for its own: `[[trail\|x]]` names `trail`.
+    for (const name of ["", "C# Notes/index", "a|b", "x^y", "Old]", "a]]b", " lead", "trail ", "two\nlines", "trail\\"]) expect(wikiLinkCanName(name), name).toBe(false);
+  });
+
   it("reads a character reference in a wiki link as the characters it is written with; in a destination it leaves the link unplaced", () => {
     // The link names "Old &amp; Co": what the line says, and where a click on
     // it leads. Until 2026-10-12 the index listed "Old & Co", and the link
@@ -419,6 +444,43 @@ describe("the links as they are read", () => {
       ["markdown-link", "Old.md", '[l](<Old.md> "t")', "Old.md"],
     ]);
     expect(read.links.map((link) => link.angle)).toEqual([false, false, true]);
+  });
+
+  // Finding 2026-10-12: a wiki link in a label was turned into a Markdown link
+  // by a caller that could not know where it stood, and the link around it was
+  // text afterwards. The reader says so now.
+  it("says which links stand in the label of another link", () => {
+    const note = [
+      "[[Plain]] and [see [[Inline]] and ![[Embedded]] here](Target.md)",
+      "",
+      "[by *reference [[Deep]]*][ref] and [[After]]",
+      "",
+      "| a |",
+      "|---|",
+      "| [in a cell [[Cell\\|c]]](<Target File.md>) [[Beside]] |",
+      "",
+      "[ref]: Target.md",
+      "",
+    ].join("\n");
+    const read = readNoteLinks(note);
+    expect(read.unplaced).toEqual([]);
+    expect(read.links.map((link) => [note.slice(link.start, link.end), link.inLabel])).toEqual([
+      ["[[Plain]]", false],
+      // The link that holds the label is none in a label itself.
+      ["[see [[Inline]] and ![[Embedded]] here](Target.md)", false],
+      ["[[Inline]]", true],
+      ["![[Embedded]]", true],
+      // A link by reference shows a label too, and the mark around a link does not take it out of it.
+      ["[[Deep]]", true],
+      ["[[After]]", false],
+      ["[in a cell [[Cell\\|c]]](<Target File.md>)", false],
+      ["[[Cell\\|c]]", true],
+      ["[[Beside]]", false],
+    ]);
+    // Where a link stands does not change what a rename does with it.
+    expect(rename(note, { Inline: "Renamed", "Target.md": "Other.md" }).content).toBe(
+      note.replace("[[Inline]]", "[[Renamed]]").replace("here](Target.md)", "here](Other.md)")
+    );
   });
 
   it("replaces a whole link where a caller asks for that, and nothing around it", () => {

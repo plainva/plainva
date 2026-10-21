@@ -2045,6 +2045,7 @@
     "resultAdopted": "{{file}} overgenomen als index.md",
     "resultLinks": "{{links}} link(s) bijgewerkt in {{files}} bestand(en)",
     "resultPrepLeftovers": "{{embeds}} insluiting(en) en {{unresolved}} niet-oplosbare wikilinks ongewijzigd gelaten",
+    "resultPrepInLabels": "{{links}} wikilink(s) in de tekst van een andere link ongewijzigd gelaten",
     "nothingDone": "Geen acties geselecteerd.",
     "subfoldersHeading": "Submappen",
     "updateAllAction": "Alle index.md-bestanden bijwerken",

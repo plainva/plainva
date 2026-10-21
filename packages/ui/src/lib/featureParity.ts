@@ -1250,22 +1250,4 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     mobileReason: "Android explicitly includes user-installed CAs in the platform network security configuration. iOS uses URLSession platform trust and may report an indeterminate trust failure without distinguishing a hostname failure. Both retain TLS and hostname validation; no per-host trust bypass is offered.",
     verified: "2026-09-14",
   },
-  {
-    id: "overview-prepare-on-adopt",
-    title: "Prepare a note for OKF while adopting it as a folder's overview",
-    area: "vault",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "Both shells adopt an existing overview note as a folder's index.md through " +
-      "the shared adoptFileAsIndex. The desktop's dialog offers to prepare the note " +
-      "on the way — take its properties block out and turn its wiki links into " +
-      "relative Markdown links. The phone's Overviews screen passes prepare: false " +
-      "and offers no such choice, so a note adopted there keeps its block and its " +
-      "wiki links, and has to be prepared on a desktop. Found on 2026-10-11 while " +
-      "the preparation was changed to convert each link where it stands; put off " +
-      "that day, listed in the maintainer's open-items plan.",
-    verified: "2026-10-11",
-  },
 ];

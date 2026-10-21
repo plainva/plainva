@@ -2408,6 +2408,11 @@ textarea {
   gap: var(--space-2);
   padding: 6px 8px 10px;
 }
+/* One more decision on a confirmation (`mConfirmOption`): a checkbox whose
+   sentence wraps, on the edge the sheet's title and buttons stand on. */
+.m-sheet-option {
+  padding: 0 var(--space-2);
+}
 .m-cell-commit {
   display: block;
   width: calc(100% - 16px);

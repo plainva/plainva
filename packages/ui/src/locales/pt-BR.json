@@ -2053,6 +2053,7 @@
     "resultAdopted": "{{file}} adotado como index.md",
     "resultLinks": "{{links}} link(s) atualizados em {{files}} arquivo(s)",
     "resultPrepLeftovers": "{{embeds}} incorporação(ões) e {{unresolved}} wikilinks não resolvíveis mantidos sem alteração",
+    "resultPrepInLabels": "{{links}} wikilink(s) dentro do texto de outro link mantidos sem alteração",
     "nothingDone": "Nenhuma ação selecionada.",
     "subfoldersHeading": "Subpastas",
     "updateAllAction": "Atualizar todos os arquivos index.md",

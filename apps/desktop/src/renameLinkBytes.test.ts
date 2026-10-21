@@ -2,13 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseMarkdownAst, VaultIndexer, VaultQueryService, type IDatabaseAdapter } from "@plainva/core";
+import { buildLinkTargetIndex, parseMarkdownAst, resolveLinkTargetIndexed, VaultFileExistsError, VaultIndexer, VaultQueryService, type IDatabaseAdapter } from "@plainva/core";
 import { applyLinkUpdates, planLinkUpdates } from "@plainva/ui";
 import { serializeMarkdownAst } from "../../../packages/core/src/markdown-serializer";
 import { LocalVaultAdapter } from "../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../packages/core/test/helpers/realSqlite";
 import {
   fill,
+  HUB_OVERVIEW,
   LINK_COUNT,
   LINKING_NOTES,
   MARK,
@@ -184,7 +185,64 @@ describe("adopting a note as the overview of its folder, prepared for it", () =>
     const plain = `${MARK}# Map\r\n\r\n* just *text*\r\n`;
     await writeVault({ [OVERVIEW.path]: plain });
     const result = await adoptFileAsIndex({ adapter: files, queryService: query, candidatePath: OVERVIEW.path, folder: OVERVIEW.folder, prepare: true });
-    expect(result.preparation).toEqual({ converted: 0, embeds: 0, unresolved: 0 });
+    expect(result.preparation).toEqual({ converted: 0, embeds: 0, unresolved: 0, inLabels: 0 });
     await expectFile(OVERVIEW.indexPath, plain);
+  });
+});
+
+/**
+ * Adopting an overview leaves no link behind that leads nowhere (finding
+ * 2026-10-12). Prepared, a note's links to itself named its old file: they
+ * were converted before the rename's plan was read, and the plan looked for
+ * wiki links the note no longer held. A wiki link in the label of a link came
+ * back as a link inside a link, and the link around it was text. A link that
+ * reached the note by the title of its properties lost its way with the
+ * properties block. And where the folder had an `index.md` already, the note
+ * was prepared before the rename was refused.
+ *
+ * The vault holds an `index.md` at its root and in another folder, as an OKF
+ * vault does; the phone runs over the same notes in its twin.
+ */
+describe("adopting an overview the vault is tied to — by its name, by its title, and by itself", () => {
+  /** Every link the index lists, as `note -> the file it leads to`. */
+  async function whereLinksLead(): Promise<string[]> {
+    const corpus = buildLinkTargetIndex(await query.linkTargets());
+    const rows = await db.query<{ source: string; target: string }>("SELECT f.path AS source, l.target_path AS target FROM links l JOIN files f ON f.id = l.source_id");
+    return rows.map((row) => `${row.source} -> ${resolveLinkTargetIndexed(row.source, row.target, corpus)}`).sort();
+  }
+  /** The same list once the overview is called `index.md`: nothing else may have changed in it. */
+  const withTheOverviewRenamed = (lines: string[]) => lines.map((line) => line.split(HUB_OVERVIEW.path).join(HUB_OVERVIEW.indexPath)).sort();
+
+  it.each([
+    ["as it is", false],
+    ["prepared", true],
+  ])("leaves every link of the vault leading where it led: %s", async (_how, prepare) => {
+    await writeVault(HUB_OVERVIEW.before());
+    const before = await whereLinksLead();
+    expect(before).toHaveLength(16);
+    expect(before.filter((line) => line.endsWith("-> null"))).toEqual([]);
+
+    const result = await adoptFileAsIndex({ adapter: files, queryService: query, candidatePath: HUB_OVERVIEW.path, folder: HUB_OVERVIEW.folder, prepare });
+
+    expect(result).toMatchObject({ indexPath: HUB_OVERVIEW.indexPath, ...(prepare ? HUB_OVERVIEW.preparedReport : HUB_OVERVIEW.adoptedReport) });
+    if (!prepare) expect(result.preparation).toBeUndefined();
+    expect(await files.exists(HUB_OVERVIEW.path)).toBe(false);
+    // Every note is the note it was but for these links, byte for byte.
+    for (const [path, text] of Object.entries(prepare ? HUB_OVERVIEW.prepared() : HUB_OVERVIEW.adopted())) await expectFile(path, text);
+    // And read anew, the index finds every link where it was: the links of the
+    // overview to itself, the one around a wiki link, the ones by its title.
+    await indexer.indexVaultFull();
+    expect(await whereLinksLead()).toEqual(withTheOverviewRenamed(before));
+  });
+
+  it("refuses before anything is written where the folder has an overview already", async () => {
+    const vault = { ...HUB_OVERVIEW.before(), [HUB_OVERVIEW.indexPath]: "# Projects\n\nan overview that is there already\n" };
+    await writeVault(vault);
+
+    await expect(adoptFileAsIndex({ adapter: files, queryService: query, candidatePath: HUB_OVERVIEW.path, folder: HUB_OVERVIEW.folder, prepare: true })).rejects.toBeInstanceOf(VaultFileExistsError);
+
+    // The note still has its properties and its wiki links, and no copy of it was put aside.
+    for (const [path, text] of Object.entries(vault)) await expectFile(path, text);
+    expect(await files.exists(".plainva/backups")).toBe(false);
   });
 });
