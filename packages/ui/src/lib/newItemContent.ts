@@ -1,6 +1,6 @@
 import { parseMarkdownAst, extractFrontmatter, upsertFrontmatterKeys } from "@plainva/core";
 import { applyTemplatePlaceholders } from "../base/templateFiles";
-import { withOkfDefaults } from "./newNoteContent";
+import { templateAsNewNote, withOkfDefaults } from "./newNoteContent";
 
 /**
  * How a freshly created note is assembled — shared by both shells (S23).
@@ -29,17 +29,22 @@ export function buildNewItemContent(opts: {
   prefills: Record<string, unknown>;
 }): string {
   // Without a template the item starts with an H1 so the caret target is
-  // visible (maintainer, 2026-07-04); a template fully defines the body.
+  // visible (maintainer, 2026-07-04); a template fully defines the body, and
+  // becomes a note in the one builder every note from a template passes.
   const base =
-    opts.templateText != null ? applyTemplatePlaceholders(opts.templateText, opts.title) : `# ${opts.title}\n`;
+    opts.templateText != null
+      ? templateAsNewNote({ text: applyTemplatePlaceholders(opts.templateText, opts.title), cursor: null }, opts.noteType).content
+      : `# ${opts.title}\n`;
   return finalizeItemContent(base, opts.noteType, opts.inheritTags, opts.prefills);
 }
 
 /**
  * OKF defaults, inherited tags and pre-fills on top of a body — the shared
- * tail of every "new item" builder. Exported for the pinboard entry
- * (`planPinboardEntry`), whose body is either empty or a template the shell
- * has already resolved with its questions.
+ * tail of every "new item" builder. Exported for the phone's database item and
+ * for the pinboard entry (`planPinboardEntry`). `base` is a text without a
+ * template (a heading, nothing) or the note `templateAsNewNote` made of one: a
+ * template's own text is never handed in as it was resolved, or the note
+ * would keep the keys that are meant for its template alone.
  */
 export function finalizeItemContent(
   base: string,

@@ -1,6 +1,6 @@
 # FAQ e Solução de Problemas
 
-Última revisão: 2026-10-20
+Última revisão: 2026-10-22
 
 Respostas para as perguntas mais comuns — da compatibilidade com o Obsidian a arquivos de conflito e backups.
 
@@ -42,9 +42,9 @@ O novo nome é gravado no frontmatter de **todas as notas correspondentes** (ap�
 
 Antes de qualquer alteração, o assistente faz backup do arquivo em `.plainva/backups/okf-conversion-<timestamp>/`. O relatório final indica a pasta exata; você pode copiar arquivos individuais de volta dali. Use também a **Pré-visualização (sem alterações)** antes de converter.
 
-### Uma nota diária antiga está faltando na visão Tarefas
+### Uma nota criada a partir de um modelo está faltando na visão Tarefas
 
-Notas diárias muito antigas podem ter herdado uma configuração do modelo delas que oculta suas tarefas. Pesquise no vault por `"tasks: false"` — **com** as aspas, ou você também encontrará notas em que as duas palavras aparecem apenas por coincidência. Nos resultados, a linha fica no frontmatter dentro de um bloco `plainva:`; exclua ali `tasks: false` (e `templateFor:`, se presente) e a nota volta a aparecer. Notas recém-criadas a partir de um modelo não herdam mais isso.
+Uma nota que você criou a partir de um modelo até a versão 0.8.5 — inclusive uma nota diária — pode ter herdado uma configuração do modelo dela que oculta suas tarefas. Pesquise no vault por `"tasks: false"` — **com** as aspas, ou você também encontrará notas em que as duas palavras aparecem apenas por coincidência. Nos resultados, a linha fica no frontmatter dentro de um bloco `plainva:`; exclua ali `tasks: false` (e `templateFor:`, se presente) e a nota volta a aparecer. Deixe a linha nos próprios modelos; é lá que ela deve ficar. Notas recém-criadas a partir de um modelo não herdam mais isso.
 
 ## Sincronização
 

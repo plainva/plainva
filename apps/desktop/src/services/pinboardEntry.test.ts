@@ -218,6 +218,33 @@ describe("planPinboardEntry: the draft exists before a word is typed", () => {
     expect(frontmatter(store.get(draft.path)!).status).toBe("entwurf");
     expect(draft.chips.map((c) => c.key)).not.toContain("status");
   });
+
+  // Finding 2026-10-11. The entry set the header on the template's text
+  // itself, and the keys that are meant for the template alone stayed in the
+  // draft: its checkboxes were hidden from the Tasks view, and it carried the
+  // template's database assignment. The template goes through the builder of
+  // every note from a template now (`templateAsNewNote`, newNote.test.ts).
+  it("the template's own keys do not come along: its task opt-out, its database assignment, a legacy okf_version", async () => {
+    const { files, store } = memoryFiles();
+    const text = `---\nokf_version: "0.1"\nthemen:\n  - vorlage\nplainva:\n  tasks: false\n  icon: 📌\n  templateFor:\n    - "[[Zettel.base]]"\n---\n# Liste\n\n- [ ] `;
+    const draft = await ready(files, { template: async () => ({ text: `${text}\nEnde\n`, caret: text.length }), activeLabels: ["einkauf"] });
+    const written = store.get(draft.path)!;
+    expect(written).toBe(draft.initial);
+    // What the board requires of its members stands beside what the template brings.
+    expect(frontmatter(written)).toEqual({ themen: ["vorlage"], plainva: { icon: "📌" }, type: "Note", status: "offen", prio: 2, tags: ["einkauf"] });
+    expect(written.endsWith("---\n# Liste\n\n- [ ] \nEnde\n")).toBe(true);
+    expect(written.slice(draft.caret!)).toBe("\nEnde\n");
+    // An untouched draft is told from a written one by this very text.
+    expect(pinboardDraftState(written, draft.initial, "")).toBe("untouched");
+  });
+
+  it("a template that is only what is meant for it leaves the entry empty — closing it takes the draft back", async () => {
+    const { files, store } = memoryFiles();
+    const draft = await ready(files, { template: async () => ({ text: "---\nplainva:\n  tasks: false\n---\n", caret: null }) });
+    expect(frontmatter(store.get(draft.path)!)).toEqual({ type: "Note", status: "offen", prio: 2 });
+    expect(pinboardDraftState(store.get(draft.path)!, draft.initial, "")).toBe("blank");
+    expect(await finalizePinboardEntry(files, { draft, title: "", intent: "close" })).toEqual({ outcome: "removed", path: null });
+  });
 });
 
 /**

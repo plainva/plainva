@@ -108,7 +108,7 @@ export function buildJournal(s: JournalStrings): VaultTemplateDefinition {
         type: DEFAULT_DAILY_NOTE_TYPE,
         // The empty task line is scaffolding, not work: without this the
         // template itself shows up in the Tasks view. Notes created FROM the
-        // template drop the key (applyTemplatePlaceholders strips it).
+        // template drop the key (`templateAsNewNote` takes it out).
         properties: { [k.date]: "{{date}}", plainva: { tasks: false } },
         body: s.template.body,
       },

@@ -8,6 +8,7 @@ import {
   parseTemplateForTargets,
   removeTemplateForAssignment,
   retargetTemplateForInFolder,
+  templateAsNewNote,
   templateMatchesBase,
   type ScopedTemplateItem,
   type ScopedTemplateListAdapter,
@@ -89,11 +90,19 @@ describe("groupTemplatesForBase (decisions E2 + D1)", () => {
   });
 });
 
-describe("applyTemplatePlaceholders strips plainva.templateFor (leak guard)", () => {
+// The guard stood against `applyTemplatePlaceholders`, which took the key out
+// itself — for the notes nobody is asked about, the only ones it fills. The
+// builder of the note takes it out now, for every note (finding 2026-10-11:
+// an item a person made on the phone, and a pinboard entry on both shells,
+// kept their template's assignment). The same templates, through the way a
+// database item without questions is built.
+describe("a note made from a template does not carry plainva.templateFor (leak guard)", () => {
+  const noteFrom = (raw: string, title: string) => templateAsNewNote({ text: applyTemplatePlaceholders(raw, title, now), cursor: null }, "Note").content;
+
   it("removes only templateFor; icon, other keys and the body survive byte-identically", () => {
     const raw =
       '---\ntype: Note\nstatus: Offen\nplainva:\n  icon: "🚀"\n  templateFor:\n    - "[[Tasks.base]]"\n---\n# {{title}}\n\nBody line\n';
-    const out = applyTemplatePlaceholders(raw, "My Task", now);
+    const out = noteFrom(raw, "My Task");
     expect(out).not.toContain("templateFor");
     expect(out).toContain('icon: "🚀"');
     expect(out).toContain("status: Offen");
@@ -102,18 +111,21 @@ describe("applyTemplatePlaceholders strips plainva.templateFor (leak guard)", ()
 
   it("removes an empty plainva namespace left behind by the strip", () => {
     const raw = '---\ntype: Note\nplainva:\n  templateFor: "[[Tasks.base]]"\n---\nBody\n';
-    const out = applyTemplatePlaceholders(raw, "X", now);
+    const out = noteFrom(raw, "X");
     expect(out).not.toContain("templateFor");
     expect(out).not.toContain("plainva:");
   });
 
   it("still strips plainva.tasks (existing behavior kept)", () => {
     const raw = '---\nplainva:\n  tasks: false\n  templateFor: "[[Tasks.base]]"\n---\nBody\n';
-    const out = applyTemplatePlaceholders(raw, "X", now);
+    const out = noteFrom(raw, "X");
     expect(out).not.toContain("tasks: false");
     expect(out).not.toContain("templateFor");
   });
 
+});
+
+describe("applyTemplatePlaceholders", () => {
   it("leaves templates without frontmatter or with malformed frontmatter as-is", () => {
     expect(applyTemplatePlaceholders("Hello {{title}}", "World", now)).toBe("Hello World");
     const malformed = "---\nplainva: [unclosed\n---\nBody {{title}}\n";

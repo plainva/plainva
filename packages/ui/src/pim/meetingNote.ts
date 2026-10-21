@@ -6,7 +6,7 @@ import {
   type PimEvent,
   type PimEventRow,
 } from "@plainva/core";
-import { buildNewNoteContent, withOkfDefaults } from "../lib/newNoteContent";
+import { buildNewNoteContent, templateAsNewNote } from "../lib/newNoteContent";
 import { templateCaretInNote } from "../lib/templateCaret";
 import { taskDbFileStem } from "../lib/taskDatabase";
 import {
@@ -16,7 +16,7 @@ import {
   type TypeTemplateRule,
 } from "../lib/folderTemplates";
 import { resolveTemplate, type TemplateContext, type TemplateEvent } from "../base/templateEngine";
-import { finalizeTemplate, withoutTemplateOnlyKeys } from "../base/templateFiles";
+import { finalizeTemplate } from "../base/templateFiles";
 import { noteStamp } from "../lib/dailyNoteCreate";
 import { shiftDayKey } from "./calendarForm";
 
@@ -259,12 +259,15 @@ export async function buildMeetingNoteFromTemplate(
     body = finalizeTemplate(resolveTemplate(raw, ctx, "headless").text).text;
   }
 
-  const content = withEventFields(withOkfDefaults(withoutTemplateOnlyKeys(body), noteType), event, dayKey);
+  // The template becomes a note in the builder every note from a template
+  // passes: without what is meant for the template alone, with the OKF
+  // defaults, and with `{{cursor}}` found in what it wrote.
+  const made = templateAsNewNote({ text: body, cursor }, noteType);
+  const content = withEventFields(made.content, event, dayKey);
   if (content === null) return { content: buildMeetingNoteContent(event, dayKey, noteType), cursor: null };
-  // Everything above rewrote the frontmatter only; `{{cursor}}` was measured
-  // in the template, and the shared rule finds it again behind what grew or
-  // went in front of the text.
-  return { content, cursor: cursor === null ? null : templateCaretInNote(body, content, cursor) };
+  // The event's fields rewrote the frontmatter only; the shared rule finds the
+  // caret again behind what grew in front of the text.
+  return { content, cursor: made.caret === null ? null : templateCaretInNote(made.content, content, made.caret) };
 }
 
 /** The content a new note gets: from its template, else the built-in one. */

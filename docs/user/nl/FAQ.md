@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-10-20
+Laatst bijgewerkt: 2026-10-22
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -42,9 +42,9 @@ De nieuwe naam wordt geschreven in de frontmatter van **elke overeenkomende noti
 
 Vóór elke wijziging maakt de wizard een back-up van het bestand naar `.plainva/backups/okf-conversion-<tijdstempel>/`. Het eindrapport noemt de precieze map; van daaruit kun je losse bestanden terugkopiëren. Gebruik daarnaast **Voorbeeld (geen wijzigingen)** voordat je converteert.
 
-### Een oude dagelijkse notitie ontbreekt in het Taken-overzicht
+### Een notitie uit een sjabloon ontbreekt in het Taken-overzicht
 
-Zeer oude dagelijkse notities kunnen een instelling van hun sjabloon hebben geërfd die hun taken verbergt. Zoek in de vault naar `"tasks: false"` — **met** de aanhalingstekens, anders vind je ook notities waarin beide woorden toevallig samen voorkomen. In de resultaten staat de regel in de frontmatter onder een `plainva:`-blok; verwijder daar `tasks: false` (en `templateFor:`, indien aanwezig) en de notitie verschijnt weer. Notities die nieuw uit een sjabloon zijn aangemaakt, erven dit niet meer.
+Een notitie die je tot en met versie 0.8.5 uit een sjabloon hebt aangemaakt — ook een dagelijkse notitie — kan van dat sjabloon een instelling hebben geërfd die haar taken verbergt. Zoek in de vault naar `"tasks: false"` — **met** de aanhalingstekens, anders vind je ook notities waarin beide woorden toevallig samen voorkomen. In de resultaten staat de regel in de frontmatter onder een `plainva:`-blok; verwijder daar `tasks: false` (en `templateFor:`, indien aanwezig) en de notitie verschijnt weer. Laat de regel in de sjablonen zelf staan; daar hoort hij. Notities die nieuw uit een sjabloon zijn aangemaakt, erven dit niet meer.
 
 ## Sync
 

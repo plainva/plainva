@@ -358,6 +358,34 @@ describe("meeting-note template: asked, cancelled, caret", () => {
     expect(res!.caret).toEqual({ note, offset: note.indexOf("## Notizen\n") + "## Notizen\n".length });
   });
 
+  it("takes over nothing that is meant for the template alone when a person is asked either, and is then the note that is made without questions", async () => {
+    // The meeting note took these keys out by itself, on both ways. It hands
+    // its template to the builder of every note now (`templateAsNewNote`,
+    // finding 2026-10-11) — the outcome is the one it was.
+    const template = `---\nokf_version: "0.1"\nplainva:\n  tasks: false\n  icon: 📅\n  templateFor:\n    - "[[Meetings.base]]"\n---\n## Notizen\n\n- [ ] {{cursor}}Protokoll verschicken\n`;
+    const create = async (asked: boolean) => {
+      const { adapter, files } = fakeAdapter({ "Templates/Meeting.md": template });
+      const res = await resolveOrCreateMeetingNote({
+        adapter,
+        event: timedEvent(),
+        dayKey: "2026-07-20",
+        folder: "Meetings",
+        noteType: "Meeting",
+        templates: settings({ template: "Meeting.md" }),
+        resolveTemplate: asked ? async (raw, ctx) => finalizeTemplate(resolveTemplate(raw, ctx, "interactive").text, {}) : undefined,
+      });
+      return { note: files.get(res!.path)!, caret: res!.caret };
+    };
+    const person = await create(true);
+    expect(readFrontmatterPath(person.note, ["plainva", "tasks"])).toBeUndefined();
+    expect(readFrontmatterPath(person.note, ["plainva", "templateFor"])).toBeUndefined();
+    expect(readFrontmatterPath(person.note, ["okf_version"])).toBeUndefined();
+    expect(readFrontmatterPath(person.note, ["plainva", "icon"])).toBe("📅");
+    expect(readFrontmatterPath(person.note, ["plainva", "pim", "uid"])).toBe("uid-abc");
+    expect(person.caret && person.note.slice(person.caret.offset)).toBe("Protokoll verschicken\n");
+    expect(person.note).toBe((await create(false)).note);
+  });
+
   it("keeps the caret's place for the editor when the template has Windows line ends or a byte order mark", async () => {
     // Built at run time: the mark is never typed into this file.
     const mark = String.fromCharCode(0xfeff);

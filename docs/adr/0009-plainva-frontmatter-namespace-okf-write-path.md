@@ -771,3 +771,55 @@ ways to a task note wrote a type of their own.
    types (finding 2026-10-21). It offers the vault's type for new notes now,
    as the desktop always did, and an emptied field means the default type, as
    there (`apps/mobile/src/screens/okfConversionOptions.test.tsx`).
+
+## Addendum 2026-10-22 (what a note takes over from its template)
+
+Finding 2026-10-11: point 3 of the decision — template frontmatter wins, only
+missing fields are added — was read as "everything the template carries".
+A template carries some keys that say something about the template itself,
+and a note a person made from it kept them.
+
+1. **Three keys stay with the template.** `plainva.tasks: false` keeps its
+   checkboxes out of the Tasks view — every template the app creates has it,
+   and so do the templates of the shipped vault structures —,
+   `plainva.templateFor` names the databases that offer it, and a legacy
+   template still has the per-note `okf_version` (addendum 2026-08-21,
+   point 2). A note made from the template takes none of the three over;
+   every other key is the note's, `plainva.icon` and `plainva.header_color`
+   included.
+2. **The builder takes them out, for every note.** `templateAsNewNote` in
+   `packages/ui/src/lib/newNoteContent.ts` removes them, and every note that
+   is made from a template is built with it, on both shells and whether or
+   not anybody is asked a question: a new note, the daily note, a database
+   item, a pinboard entry, a meeting note, a task that became a note. They
+   used to be taken out by `applyTemplatePlaceholders`, which only the paths
+   without questions run. A note a person made goes through the shell's
+   questions instead and kept all three: its tasks counted as hidden and
+   were missing from the Tasks view, and it carried its template's database
+   assignment. For the daily note a person opens this had held since v0.6.0
+   — the very release that moved the daily note onto that resolver to put an
+   end to it. The resolvers fill a template now and leave its properties as
+   they stand. Removing the keys changes their entries and nothing else of the
+   block (addendum 2026-10-13), one key at a time — an entry the writer cannot
+   take out where it stands stays, the other keys still go —, and the
+   template's text arrives byte for byte, which is what the caret is found by
+   (addendum 2026-10-09 on the write rule for new files, point 3).
+3. **No way around the builder.** The function that removes the keys is not
+   exported. `apps/desktop/src/sharedShellWiring.test.ts` lists every place
+   that hands a text to the header's writer (`withOkfDefaults`) or to
+   `finalizeItemContent`, with what it hands over, and every place that
+   fills a template (the engine's `resolveTemplate`,
+   `applyTemplatePlaceholders`, `applyTemplateInteractive`) with where the
+   filled text goes — so that a new way of making a note shows
+   up there before it can set the header on a template's text by itself, as
+   the pinboard entry did, or write a filled template that names its own
+   `type` without any header writer. The same test holds the four shared
+   modules that make a note from a template to the builder.
+4. **A daily template that leaves nothing of itself in the note** — an empty
+   file, or one that carries these keys only — gives the note the heading a
+   daily note without a template starts with, also when a person opens it.
+   The capture path wrote it all along; opened by a person, such a note was
+   the template's block and no heading.
+5. **Notes that exist keep the keys.** Nothing rewrites a note that exists;
+   the user guide's FAQ says how to find the notes made before and how to
+   take the keys out.

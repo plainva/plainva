@@ -20,7 +20,7 @@ import { applyTemplatePlaceholders } from "../base/templateFiles";
 import type { TemplateContext } from "../base/templateEngine";
 import { buildDailyNotePath } from "./dailyNotePath";
 import { DEFAULT_DAILY_NOTE_FORMAT } from "./dailyNotes";
-import { templateAsNewNote } from "./newNoteContent";
+import { templateAsNewNote, templateLeavesNothing } from "./newNoteContent";
 
 export interface DailyNoteCreateConfig {
   /** Vault-relative folder of the daily notes, "" for the root. */
@@ -117,8 +117,13 @@ export async function ensureDailyNote(
     }
   }
   // A blank daily note gets an H1 with the date, as every new note does; a
-  // template, when there is one, defines the whole body instead.
-  if (!body) body = `# ${title}\n`;
+  // template, when there is one, defines the whole body instead. A template
+  // that leaves nothing of itself in the note — an empty file, or one that
+  // carries only what is meant for the template alone — is none in that sense.
+  if (templateLeavesNothing(body)) {
+    body = `# ${title}\n`;
+    if (caret !== null) caret = 0;
+  }
 
   // OKF write rule: a template's own `type` wins, missing pieces are added.
   // `{{cursor}}` was measured in the template; the shared builder finds it

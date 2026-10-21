@@ -1,6 +1,6 @@
 import { scanTemplate, replaceTemplateTokens, type TemplateToken } from "./templateEngine";
 import { parse as parseYaml } from "yaml";
-import { deleteFrontmatterPath, noteBodyOf, setFrontmatterPath, updateVaultText, wikiTargetForFile, type TextUpdateFiles } from "@plainva/core";
+import { deleteFrontmatterPath, editorTextOf, noteBodyOf, setFrontmatterPath, updateVaultText, wikiTargetForFile, type TextUpdateFiles } from "@plainva/core";
 import { frontmatterBlockOf } from "../services/docMeta";
 import { resolveTemplate, type TemplateContext } from "./templateEngine";
 import { isFileNotFound } from "../lib/movedNote";
@@ -81,7 +81,14 @@ export function finalizeTemplate(text: string, answers: Record<string, string> =
 /** Placeholders for creating/seeding a note: date/time/title PLUS the
  * insert-time tokens resolved non-interactively ({{cursor}} stripped,
  * {{prompt}} blanked) so a "new note from template" never leaves a literal
- * token behind. Shared with the editor's template picker. */
+ * token behind. Shared with the editor's template picker.
+ *
+ * The answer is the template, filled — its properties as they stand. What a
+ * NOTE does not take over from them (`plainva.tasks`, `plainva.templateFor`,
+ * a legacy `okf_version`) is taken out where the note is built
+ * (`templateAsNewNote`), for this path and for the one that asks questions
+ * alike. It used to be taken out here, and so only for a note nobody was
+ * asked about (finding 2026-10-11). */
 export function applyTemplatePlaceholders(
   content: string,
   title: string,
@@ -89,28 +96,7 @@ export function applyTemplatePlaceholders(
   extra: Omit<Partial<TemplateContext>, "title" | "now"> = {}
 ): string {
   const resolved = resolveTemplate(content, { ...extra, title, now }, "headless");
-  return withoutTemplateOnlyKeys(finalizeTemplate(resolved.text).text);
-}
-
-/**
- * Template-only keys must not carry over into created notes:
- * `plainva.tasks: false` opts the TEMPLATE out of the Tasks view (a note
- * created from it is real content), `plainva.templateFor` scopes the
- * TEMPLATE to databases (a created entry is not a template), and an
- * `okf_version` a legacy template still carries is a bundle declaration that
- * belongs only in the root index.md (OKF v0.2, E1 — notes stop carrying it).
- * Other plainva keys (icon, header color) stay intentionally inheritable.
- * Malformed frontmatter → leave as-is.
- */
-export function withoutTemplateOnlyKeys(filled: string): string {
-  try {
-    return deleteFrontmatterPath(
-      deleteFrontmatterPath(deleteFrontmatterPath(filled, ["plainva", "tasks"]), TEMPLATE_FOR_PATH),
-      ["okf_version"]
-    );
-  } catch {
-    return filled;
-  }
+  return finalizeTemplate(resolved.text).text;
 }
 
 /** OKF reserved note names — folder infrastructure, never a fill-in template. */
@@ -399,9 +385,16 @@ export function groupTemplatesForBase<T extends ScopedTemplateItem>(
 
 /** Interpolated template BODY for an interactive insert: frontmatter stripped,
  * date/time/title filled, but {{cursor}}/{{prompt}} PRESERVED so the caller can
- * extractTemplatePrompts → ask the user → finalizeTemplate. */
+ * extractTemplatePrompts → ask the user → finalizeTemplate.
+ *
+ * The template is read as an editor holds it (`editorTextOf`): with `\n` line
+ * ends and without a byte order mark. What comes out goes INTO another text,
+ * and a mark is its file's first character, not text. Read as the file has
+ * it, the mark of a template without a properties block stood at the start of
+ * the body — and "insert template" in the mail composer of both shells put it
+ * into the message (finding 2026-10-11). */
 export function interpolateTemplateBody(raw: string, title: string, now: Date = new Date()): string {
-  return resolveTemplate(noteBodyOf(raw), { title, now }, "interactive").text;
+  return resolveTemplate(noteBodyOf(editorTextOf(raw)), { title, now }, "interactive").text;
 }
 
 /** Insert-into-note parts WITH caret placement (prompts already answered). */

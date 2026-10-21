@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { parse as parseYaml } from "yaml";
-import { frontmatterSpan, upsertFrontmatterKeys } from "@plainva/core";
+import { deleteFrontmatterPath, frontmatterSpan, readFrontmatterPath, upsertFrontmatterKeys } from "@plainva/core";
 
 const storeValues: Record<string, unknown> = {};
 vi.mock("@tauri-apps/plugin-store", () => {
@@ -163,6 +163,183 @@ describe("templateAsNewNote", () => {
   it("has no caret for a template without a cursor marker", () => {
     expect(templateAsNewNote(resolved("# Titel\n"), "Note").caret).toBeNull();
   });
+});
+
+/**
+ * What a note does not take over from its template (finding 2026-10-11): the
+ * keys that are meant for the template alone. `plainva.tasks: false` keeps a
+ * template's checkboxes out of the Tasks view, `plainva.templateFor` says
+ * which databases offer it, and a legacy template still carries `okf_version`.
+ *
+ * They were taken out by `applyTemplatePlaceholders`, which only the paths
+ * without questions run. A template a PERSON made a note from went through the
+ * shell's questions instead, and its note kept all three: its tasks counted as
+ * hidden. The builder takes them out now — the one call every note from a
+ * template is built with, on both shells. The paths themselves are driven in
+ * noteFromTemplate.test.ts, dailyNotes.test.ts and pinboardEntry.test.ts here,
+ * and on the phone in `apps/mobile/src/newNoteCreation.test.ts` and
+ * `apps/mobile/src/services/noteFromTemplate.test.ts`.
+ */
+describe("templateAsNewNote: what is meant for the template alone", () => {
+  // Built at run time: the mark is never typed into this file.
+  const MARK = String.fromCharCode(0xfeff);
+
+  /** A template as the engine hands it over: `|` marks where `{{cursor}}` stood. */
+  function resolved(marked: string): { text: string; cursor: number | null } {
+    const at = marked.indexOf("|");
+    return at < 0 ? { text: marked, cursor: null } : { text: marked.slice(0, at) + marked.slice(at + 1), cursor: at };
+  }
+
+  /** What stands behind the caret; "" is the end of the note. */
+  function behindCaret(note: { content: string; caret: number | null }): string {
+    if (note.caret === null) throw new Error("the template's caret was lost");
+    return note.content.slice(note.caret);
+  }
+
+  it("takes out the task opt-out, the database assignment and a legacy okf_version, and keeps every other key — `plainva` ones included", () => {
+    const note = templateAsNewNote(
+      resolved(`---\ntype: Projekt\nokf_version: "0.1"\nstatus: entwurf\nplainva:\n  tasks: false\n  icon: 🚀\n  header_color: "#2f6f6f"\n  templateFor:\n    - "[[Tasks.base]]"\n---\n# Titel\n\n- [ ] |Erste Aufgabe\n`),
+      "Note",
+    );
+    expect(note.content).toBe(`---\ntype: Projekt\nstatus: entwurf\nplainva:\n  icon: 🚀\n  header_color: "#2f6f6f"\n---\n# Titel\n\n- [ ] Erste Aufgabe\n`);
+    expect(behindCaret(note)).toBe("Erste Aufgabe\n");
+  });
+
+  it("makes of a template the app created the note a new note is", () => {
+    // What "create new template" writes: the header, the heading, the opt-out.
+    const fresh = templateAsNewNote(resolved("---\ntype: Note\nplainva:\n  tasks: false\n---\n# Titel\n|"), "Note");
+    expect(fresh.content).toBe("---\ntype: Note\n---\n# Titel\n");
+    expect(fresh.content).toBe(buildNewNoteContent("Note", "Titel"));
+    expect(behindCaret(fresh)).toBe("");
+  });
+
+  it("lets the `plainva` map go with its last key, and the block with its last entry — the header is then the note's own", () => {
+    const marker = templateAsNewNote(resolved("---\nplainva:\n  tasks: false\n---\n# Titel\n|Text\n"), "Note");
+    expect(marker.content).toBe("---\ntype: Note\n---\n# Titel\nText\n");
+    expect(behindCaret(marker)).toBe("Text\n");
+    const assigned = templateAsNewNote(resolved(`---\nplainva:\n  templateFor: "[[Tasks.base]]"\nstatus: offen\n---\n|Text\n`), "Note");
+    expect(assigned.content).toBe("---\nstatus: offen\ntype: Note\n---\nText\n");
+    const legacy = templateAsNewNote(resolved(`---\nokf_version: "0.1"\n---\n|Text\n`), "Note");
+    expect(legacy.content).toBe("---\ntype: Note\n---\nText\n");
+    // A text that opens with a rule stays text when the block above it goes.
+    const rule = templateAsNewNote(resolved("---\nplainva:\n  tasks: false\n---\n---\n|Text unter einer Linie\n"), "Note");
+    expect(rule.content).toBe("---\ntype: Note\n---\n---\nText unter einer Linie\n");
+    expect(behindCaret(rule)).toBe("Text unter einer Linie\n");
+  });
+
+  it("keeps Windows line ends and a byte order mark, and the caret's place", () => {
+    const crlf = templateAsNewNote(resolved("---\r\nstatus: entwurf\r\nplainva:\r\n  tasks: false\r\n---\r\n# Titel\r\n|Text\r\n"), "Note");
+    expect(crlf.content).toBe("---\r\nstatus: entwurf\r\ntype: Note\r\n---\r\n# Titel\r\nText\r\n");
+    expect(behindCaret(crlf)).toBe("Text\r\n");
+    const marked = templateAsNewNote(resolved(`${MARK}---\nplainva:\n  tasks: false\n  icon: x\n---\n# Titel\n|Text\n`), "Note");
+    expect(marked.content).toBe(`${MARK}---\nplainva:\n  icon: x\ntype: Note\n---\n# Titel\nText\n`);
+    expect(behindCaret(marked)).toBe("Text\n");
+    // Both at once, and the block goes: the header is set behind the mark, in the note's line ends.
+    const both = templateAsNewNote(resolved(`${MARK}---\r\nplainva:\r\n  tasks: false\r\n---\r\n# Titel\r\n|Text\r\n`), "Note");
+    expect(both.content).toBe(`${MARK}---\r\ntype: Note\r\n---\r\n# Titel\r\nText\r\n`);
+    expect(behindCaret(both)).toBe("Text\r\n");
+  });
+
+  it("puts a caret from the block at the start of the text, also where the line it stood in went", () => {
+    const stays = templateAsNewNote(resolved("---\nplainva:\n  tasks: false\nstatus: |\n---\n# Titel\n"), "Note");
+    expect(stays.content).toBe("---\nstatus: \ntype: Note\n---\n# Titel\n");
+    expect(behindCaret(stays)).toBe("# Titel\n");
+    const goes = templateAsNewNote(resolved("---\nplainva:\n  tasks: |false\n---\n# Titel\n"), "Note");
+    expect(goes.content).toBe("---\ntype: Note\n---\n# Titel\n");
+    expect(behindCaret(goes)).toBe("# Titel\n");
+    // A template that is only what is meant for it: the caret goes to the end.
+    const only = templateAsNewNote(resolved("---\nplainva:\n  tasks: false\n---\n|"), "Note");
+    expect(only.content).toBe("---\ntype: Note\n---\n\n");
+    expect(only.caret).toBe(only.content.length);
+  });
+
+  it("leaves a block it cannot read as it is, and a `plainva` that is no map", () => {
+    const broken = resolved("---\nplainva:\n  tasks: false\ntitle: [unclosed\n---\n|Body\n");
+    expect(templateAsNewNote(broken, "Note")).toEqual({ content: broken.text, caret: broken.cursor });
+    expect(templateAsNewNote(resolved("---\nplainva: yes\nstatus: offen\n---\n|Body\n"), "Note").content).toBe("---\nplainva: yes\nstatus: offen\ntype: Note\n---\nBody\n");
+  });
+
+  it("changes nothing for a template without those keys: nothing in its block is touched for their sake", () => {
+    // Not a blank, not a comment, not the order: the note is the template.
+    const own = resolved("---\ntype: Meeting\ntags: [a, b]   # eigene\nplainva:\n  icon: x\n---\n\n# Titel\n|Text\n");
+    expect(templateAsNewNote(own, "Note")).toEqual({ content: own.text, caret: own.cursor });
+  });
+
+  it("holds for every template: no such key is left, the text arrives byte for byte, the caret stands where the template says — and without the keys the note is the one it always was", () => {
+    let seed = 20261012;
+    const random = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    const pick = <T>(items: readonly T[]): T => items[Math.floor(random() * items.length)];
+    const entries = [
+      "status: entwurf",
+      "tags: [a, b]",
+      "tags:\n- a\n- b",
+      "type: Meeting",
+      "type:",
+      "# comment",
+      'note: "a: b"',
+      "plainva:\n  icon: x",
+      "plainva:\n  tasks: false",
+      "plainva:\n  tasks: false\n  icon: x",
+      'plainva:\n  templateFor:\n    - "[[A.base]]"',
+      'plainva:\n  tasks: false\n  templateFor: "[[A.base]]"',
+      'okf_version: "0.1"',
+      "broken: [unclosed",
+      "just text",
+      "plainva: yes",
+    ];
+    const lines = ["# Titel", "", "Text", "---", "- [ ] ", "a: b", "--- ", "  eingerückt"];
+    const templateOnly = [["plainva", "tasks"], ["plainva", "templateFor"], ["okf_version"]];
+    const textStart = (note: string) => frontmatterSpan(note)?.end ?? (note.startsWith(MARK) ? 1 : 0);
+    let withKeys = 0;
+    let withoutKeys = 0;
+    let blockGone = 0;
+    for (let i = 0; i < 2000; i++) {
+      const eol = random() < 0.3 ? "\r\n" : "\n";
+      const parts: string[] = [];
+      if (random() < 0.75) {
+        const block = Array.from({ length: Math.floor(random() * 4) }, () => pick(entries));
+        parts.push(random() < 0.1 ? "--- " : "---", ...block.join("\n").split("\n"), random() < 0.1 ? "---  " : "---");
+      }
+      for (let n = Math.floor(random() * 5); n > 0; n--) parts.push(pick(lines));
+      let template = parts.join(eol);
+      if (template && random() < 0.8) template += eol;
+      if (random() < 0.1) template = MARK + template;
+      const cursor = Math.floor(random() * (template.length + 1));
+      // `{{cursor}}` is text of a line; it never stands inside a line end.
+      if (template[cursor - 1] === "\r" && template[cursor] === "\n") continue;
+
+      const note = templateAsNewNote({ text: template, cursor }, "Note");
+      const at = JSON.stringify({ template, cursor, note });
+      // `readFrontmatterPath` answers undefined for a block that cannot be read, too.
+      const carried = templateOnly.some((path) => readFrontmatterPath(template, path) !== undefined);
+      for (const path of templateOnly) expect(readFrontmatterPath(note.content, path), at).toBeUndefined();
+      const text = template.slice(textStart(template));
+      if (text) {
+        expect(note.content.endsWith(text), at).toBe(true);
+        expect(note.content.slice(note.caret!), at).toBe(cursor >= textStart(template) ? template.slice(cursor) : text);
+      } else {
+        // A template without text: the caret is at the end, behind a line end the writer may have set.
+        expect(["", "\n", "\r\n"], at).toContain(note.content.slice(note.caret!));
+      }
+      if (carried) {
+        withKeys++;
+        if (frontmatterSpan(withoutType(note.content)) === null) blockGone++;
+      } else {
+        withoutKeys++;
+        // The builder before the keys were its business: the header on the template, nothing else.
+        expect(note.content, at).toBe(withOkfDefaults(template, "Note"));
+      }
+    }
+    expect(withKeys).toBeGreaterThan(250);
+    expect(withoutKeys).toBeGreaterThan(1200);
+    // Not a test of templates whose block always survives.
+    expect(blockGone).toBeGreaterThan(40);
+  });
+
+  /** The note without the `type` the builder set — to see whether anything of the template's block is left. */
+  function withoutType(note: string): string {
+    return readFrontmatterPath(note, ["type"]) === "Note" ? deleteFrontmatterPath(note, ["type"]) : note;
+  }
 });
 
 describe("templateCaretInNote", () => {

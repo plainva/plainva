@@ -624,9 +624,10 @@ const STRETCHES: Stretch[] = [
     says: [/catch \{\s*content = raw;\s*\}/],
   },
   {
-    file: "packages/ui/src/base/templateFiles.ts", at: "export function withoutTemplateOnlyKeys(", span: 500, calls: { [del]: 3 },
-    how: "a NEW note from a template: a template whose block cannot be read is taken as it stands — the note is made",
-    says: [/catch \{\s*return filled;\s*\}/],
+    // Moved here from templateFiles.ts with the one place that takes a template's own keys out (finding 2026-10-11).
+    file: "packages/ui/src/lib/newNoteContent.ts", at: "function withoutTemplateOnlyKeys(", span: 500, calls: { [del]: 1 },
+    how: "a NEW note from a template: an entry that cannot be taken out where it stands stays, the other keys go — the note is made",
+    says: [/\} catch \{\s*\}\s*\}\s*return text;/],
   },
   {
     file: "packages/ui/src/base/templateFiles.ts", at: "export async function retargetTemplateForInFolder(", span: 1900, calls: { [set]: 1 },

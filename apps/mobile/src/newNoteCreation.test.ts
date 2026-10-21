@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 interface FolderRule {
   folder: string;
@@ -391,5 +391,59 @@ describe("the vault's type for new notes reaches the notes the phone makes", () 
     // A template that names its type keeps it.
     await ops.createNoteFromTemplate(vault, "Eingang", "Protokoll", "---\ntype: Protokoll\n---\n## Agenda\n");
     expect(vault.text.get("Eingang/Protokoll.md")).toBe("---\ntype: Protokoll\n---\n## Agenda\n");
+  });
+});
+
+/**
+ * What a note takes over from its template (finding 2026-10-11). A template
+ * carries keys that are meant for itself alone: its opt-out of the task list
+ * (`plainva.tasks: false`, which every template the app creates has), its
+ * database assignment and a legacy `okf_version`. They stayed in every note the
+ * phone made with the template's questions asked — the capture button with a
+ * rule, a picked template, the daily note a person opens — and the tasks of
+ * such a note were missing from the task list. The shared builder takes them
+ * out now; the pinboard entry and the database item are in
+ * `services/noteFromTemplate.test.ts`.
+ */
+describe("a note the phone makes from a template takes over nothing that is meant for the template alone", () => {
+  const template = `---\ntype: Projekt\nokf_version: "0.1"\nplainva:\n  tasks: false\n  icon: 🚀\n  templateFor:\n    - "[[Projekte.base]]"\n---\n# {{title}}\n\n- [ ] {{cursor}}Erste Aufgabe\n`;
+
+  /** What stands behind the parked caret in the editor that opens the note. */
+  const behindCaret = (vault: MemoryVault, path: string): string => {
+    const parked = consumePendingTemplateCaret(path);
+    if (!parked) throw new Error(`no caret was parked for ${path}`);
+    return editorTextOf(vault.text.get(path)!).slice(parked.offset);
+  };
+
+  afterEach(() => {
+    settings.dailyTemplate = "";
+  });
+
+  it("the capture button, with the template a folder rule names", async () => {
+    settings.folderTemplates = [{ folder: "Projekte", template: "Projekt.md" }];
+    const vault = memoryVault({ "Vorlagen/Projekt.md": template });
+    const path = await capture(vault, "Projekte");
+    expect(vault.text.get(path!)).toBe("---\ntype: Projekt\nplainva:\n  icon: 🚀\n---\n# Notiz 1\n\n- [ ] Erste Aufgabe\n");
+    expect(behindCaret(vault, path!)).toBe("Erste Aufgabe\n");
+  });
+
+  it("a picked template", async () => {
+    const vault = memoryVault();
+    const path = await ops.createNoteFromTemplate(vault, "Eingang", "Alpha", template);
+    expect(vault.text.get(path!)).toBe("---\ntype: Projekt\nplainva:\n  icon: 🚀\n---\n# Alpha\n\n- [ ] Erste Aufgabe\n");
+    expect(behindCaret(vault, path!)).toBe("Erste Aufgabe\n");
+  });
+
+  it("the daily note a person opens is the note a journal capture creates on its way, byte for byte", async () => {
+    settings.dailyTemplate = "Tag.md";
+    const opened = memoryVault({ "Vorlagen/Tag.md": template });
+    const daily = await ops.ensureDailyNote(opened, new Date(2026, 9, 11));
+    expect(daily).toMatchObject({ path: "2026-10-11.md", created: true });
+    const note = opened.text.get("2026-10-11.md")!;
+    expect(note).toBe("---\ntype: Projekt\nplainva:\n  icon: 🚀\n---\n# 2026-10-11\n\n- [ ] Erste Aufgabe\n");
+    expect(behindCaret(opened, "2026-10-11.md")).toBe("Erste Aufgabe\n");
+    const captured = memoryVault({ "Vorlagen/Tag.md": template });
+    await ops.ensureDailyNote(captured, new Date(2026, 9, 11), "headless");
+    expect(captured.text.get("2026-10-11.md")).toBe(note);
   });
 });

@@ -1,6 +1,6 @@
 # FAQ & Fehlerbehebung
 
-Stand: 2026-10-20
+Stand: 2026-10-22
 
 Antworten auf die häufigsten Fragen — von Obsidian-Kompatibilität über Konfliktdateien bis zu Backups.
 
@@ -42,9 +42,9 @@ Der neue Name wird in das Frontmatter **aller passenden Notizen** geschrieben (n
 
 Vor jeder Änderung sichert der Wizard die Datei nach `.plainva/backups/okf-conversion-<zeitstempel>/`. Der Abschlussbericht nennt den genauen Ordner; von dort kannst Du einzelne Dateien zurückkopieren. Nutze außerdem die **Vorschau (ohne Änderungen)**, bevor Du konvertierst.
 
-### Eine alte Tagesnotiz fehlt in der Aufgabenübersicht
+### Eine Notiz aus einer Vorlage fehlt in der Aufgabenübersicht
 
-Sehr alte Tagesnotizen können eine Angabe aus ihrer Vorlage geerbt haben, die ihre Aufgaben ausblendet. Suche im Vault nach `"tasks: false"` — **mit** Anführungszeichen, sonst findest Du auch Notizen, in denen beide Wörter nur zufällig vorkommen. In den Treffern steht die Zeile im Frontmatter unter einem `plainva:`-Block; lösche dort `tasks: false` (und, falls vorhanden, `templateFor:`), dann erscheint die Notiz wieder. Neu aus einer Vorlage erstellte Notizen erben das nicht mehr.
+Eine Notiz, die Du bis Version 0.8.5 aus einer Vorlage erstellt hast — auch eine Tagesnotiz —, kann eine Angabe aus ihrer Vorlage geerbt haben, die ihre Aufgaben ausblendet. Suche im Vault nach `"tasks: false"` — **mit** Anführungszeichen, sonst findest Du auch Notizen, in denen beide Wörter nur zufällig vorkommen. In den Treffern steht die Zeile im Frontmatter unter einem `plainva:`-Block; lösche dort `tasks: false` (und, falls vorhanden, `templateFor:`), dann erscheint die Notiz wieder. Lass die Zeile in den Vorlagen selbst stehen, dort gehört sie hin. Neu aus einer Vorlage erstellte Notizen erben das nicht mehr.
 
 ## Sync
 

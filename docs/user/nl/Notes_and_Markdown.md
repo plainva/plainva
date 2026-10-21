@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-10-21
+Laatst bijgewerkt: 2026-10-22
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -127,7 +127,7 @@ Als een sjabloon iets vraagt, stelt Plainva **alle** vragen in één dialoogvens
 
 **Op de telefoon** werkt dezelfde engine: de plaatshouders worden ingevuld, de vragen van een sjabloon verschijnen samen in één blad (annuleren maakt niets aan), en de koppelingen map → sjabloon en notitietype → sjabloon gelden ook daar — een notitie in `Projekte/` begint dus op beide apparaten hetzelfde. De koppelingen kun je ook op de telefoon maken (**Instellingen → Inhoud en structuur**), en `{{weekday:…}}` volgt daar de instelling **Week begint op** onder **Instellingen → Weergave**; elk apparaat heeft zijn eigen instelling.
 
-**Instellingen die alleen voor het sjabloon gelden**: een sjabloon kan instellingen dragen die alleen op het sjabloon zelf slaan — dat zijn taken buiten het **Taken**-overzicht blijven, of bij welke databases het hoort. Een notitie die eruit ontstaat erft ze niet. Zeer oude dagelijkse notities kunnen ze nog dragen; de [FAQ](FAQ.md) legt uit hoe je ze vindt.
+**Instellingen die alleen voor het sjabloon gelden**: een sjabloon kan instellingen dragen die alleen op het sjabloon zelf slaan — dat zijn taken buiten het **Taken**-overzicht blijven, of bij welke databases het hoort. Een notitie die eruit ontstaat erft ze niet. Notities die je tot en met versie 0.8.5 uit een sjabloon hebt aangemaakt, kunnen ze nog dragen; de [FAQ](FAQ.md) legt uit hoe je ze vindt.
 
 **Sjablonen per map**: onder **Instellingen → Vault → Inhoud en structuur → Sjablonen** koppel je een map aan een sjabloon — elke nieuwe notitie die daar wordt aangemaakt, start dan vanuit dat sjabloon, zonder dat je iets hoeft te kiezen. De koppeling geldt ook voor submappen; komen er meerdere overeen, dan wint het langste pad (`Projecten/Klanten` wint van `Projecten`). Op dezelfde manier koppel je een sjabloon aan een **notitietype**; dat geldt wanneer geen enkele mapregel de notitie dekt — map wint van type. **Nieuwe notitie vanuit sjabloon …** (rechtsklik in de bestandsboom, het opdrachtenpalet of de snelkiezer) laat je er expliciet één kiezen — dat wint van elke koppeling. De koppelingen leven in de instellingen, niet in de notities, en reizen via de instellingensynchronisatie mee naar je andere apparaten.
 

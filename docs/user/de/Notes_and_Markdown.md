@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-10-21
+Stand: 2026-10-22
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -127,7 +127,7 @@ Fragt eine Vorlage etwas, stellt Plainva **alle** Fragen zusammen in einem Dialo
 
 **Auf dem Telefon** arbeitet dieselbe Engine: Die Platzhalter werden ersetzt, die Fragen einer Vorlage erscheinen zusammen in einem Blatt (ein Abbruch legt nichts an), und die Zuordnungen Ordner → Vorlage und Notiztyp → Vorlage greifen auch dort — eine Notiz in `Projekte/` beginnt also auf beiden Geräten gleich. Zuordnen kannst Du auch am Telefon (**Einstellungen → Inhalt & Struktur**), und `{{weekday:…}}` richtet sich dort nach **Wochenbeginn** unter **Einstellungen → Erscheinungsbild**; diese Einstellung gilt je Gerät.
 
-**Vorlagen-eigene Angaben**: Eine Vorlage kann Angaben tragen, die nur für sie selbst gelten — dass ihre Aufgaben nicht in der **Aufgaben**-Übersicht auftauchen, oder zu welchen Datenbanken sie gehört. Eine daraus erstellte Notiz erbt sie nicht. Sehr alte Tagesnotizen können sie noch tragen; wie Du sie findest, steht in den [Häufigen Fragen](FAQ.md).
+**Vorlagen-eigene Angaben**: Eine Vorlage kann Angaben tragen, die nur für sie selbst gelten — dass ihre Aufgaben nicht in der **Aufgaben**-Übersicht auftauchen, oder zu welchen Datenbanken sie gehört. Eine daraus erstellte Notiz erbt sie nicht. Notizen, die Du bis Version 0.8.5 aus einer Vorlage erstellt hast, können sie noch tragen; wie Du sie findest, steht in den [Häufigen Fragen](FAQ.md).
 
 **Vorlagen je Ordner**: Unter **Einstellungen → Vault → Inhalt & Struktur → Vorlagen** ordnest Du einem Ordner eine Vorlage zu — jede neue Notiz dort startet dann aus ihr, ohne dass Du etwas wählst. Die Zuordnung gilt auch für Unterordner; passen mehrere, gewinnt der längste Pfad (`Projekte/Kunden` schlägt `Projekte`). Genauso ordnest Du eine Vorlage einem **Notiztyp** zu; sie greift, wenn für den Ordner nichts hinterlegt ist — Ordner schlägt Typ. Über **Neue Notiz aus Vorlage …** (Rechtsklick im Dateibaum, Befehls-Palette oder Schnellöffner) wählst Du eine Vorlage ausdrücklich — das schlägt jede Zuordnung. Die Zuordnungen liegen in den Einstellungen, nicht in den Notizen, und reisen über die Einstellungs-Synchronisation auf Deine anderen Geräte.
 

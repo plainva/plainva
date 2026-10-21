@@ -6,6 +6,7 @@ import {
   extractTemplatePrompts,
   finalizeTemplate,
   interpolateTemplateBody,
+  templateAsNewNote,
 } from "@plainva/ui";
 
 describe("templateInsertText (shared insert-into-note contract)", () => {
@@ -37,22 +38,52 @@ describe("templateInsertText (shared insert-into-note contract)", () => {
     );
   });
 
-  it("applyTemplatePlaceholders strips a template's plainva.tasks opt-out (a derived note shows its tasks)", () => {
+  // These two cases stood here against `applyTemplatePlaceholders`, which took
+  // the template-only keys out itself — and so only for a note nobody was
+  // asked about (finding 2026-10-11). The builder of the note takes them out
+  // now, for every way a note is made (`templateAsNewNote`, newNote.test.ts);
+  // the same two templates go through it, as they do on the paths without
+  // questions.
+  const noteWithoutQuestions = (raw: string) => templateAsNewNote({ text: applyTemplatePlaceholders(raw, "Meeting", now), cursor: null }, "Note").content;
+
+  it("a note made from a template without questions loses the template's plainva.tasks opt-out (it shows its tasks)", () => {
     const raw = "---\ntype: Note\nplainva:\n  tasks: false\n---\n# {{title}}\n- [ ] do it";
-    const out = applyTemplatePlaceholders(raw, "Meeting", now);
+    const out = noteWithoutQuestions(raw);
     expect(out).not.toContain("tasks: false");
     expect(out).not.toContain("plainva");
     expect(out).toContain("type: Note");
     expect(out).toContain("# Meeting");
     expect(out).toContain("- [ ] do it");
+    // The placeholders alone fill the template and leave its properties as they stand.
+    expect(applyTemplatePlaceholders(raw, "Meeting", now)).toBe("---\ntype: Note\nplainva:\n  tasks: false\n---\n# Meeting\n- [ ] do it");
   });
 
-  it("applyTemplatePlaceholders strips a legacy per-note okf_version (OKF v0.2: root index.md only)", () => {
+  it("a note made from a template without questions loses a legacy per-note okf_version (OKF v0.2: root index.md only)", () => {
     const raw = '---\ntype: Note\nokf_version: "0.1"\n---\n# {{title}}\n';
-    const out = applyTemplatePlaceholders(raw, "Meeting", now);
+    const out = noteWithoutQuestions(raw);
     expect(out).not.toContain("okf_version");
     expect(out).toContain("type: Note");
     expect(out).toContain("# Meeting");
+  });
+
+  // Finding 2026-10-11. The body was read as the file has it. A byte order
+  // mark is in front of a properties block and goes with it — but without a
+  // block it was the first character of the body, and "insert template" in the
+  // mail composer of both shells put it into the message.
+  it("leaves a byte order mark the template opens with out of the text, with and without a properties block", () => {
+    // Built at run time: the mark is never typed into this file.
+    const mark = String.fromCharCode(0xfeff);
+    expect(templateInsertText(`${mark}Hallo {{title}}\n`, "X", now)).toBe("Hallo X\n");
+    expect(templateInsertText(`${mark}---\na: b\n---\nHallo {{title}}\n`, "X", now)).toBe("Hallo X\n");
+    // The caret is a place in the text that is handed on, so it does not count the mark.
+    expect(templateInsertParts(`${mark}{{cursor}}Hallo {{title}}\n`, "X", {}, now)).toEqual({ text: "Hallo X\n", cursor: 0 });
+    expect(interpolateTemplateBody(`${mark}{{title}} {{cursor}}{{prompt:Z}}`, "T", now)).toBe("T {{cursor}}{{prompt:Z}}");
+  });
+
+  it("hands the text on as an editor holds it: one line end for each line of a template written on Windows", () => {
+    expect(templateInsertText("Hallo {{title}}\r\nZeile 2\r\n", "X", now)).toBe("Hallo X\nZeile 2\n");
+    const mark = String.fromCharCode(0xfeff);
+    expect(templateInsertParts(`${mark}---\r\na: b\r\n---\r\nHallo {{title}}\r\n{{cursor}}Ende\r\n`, "X", {}, now)).toEqual({ text: "Hallo X\nEnde\n", cursor: 8 });
   });
 });
 

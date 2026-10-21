@@ -1,5 +1,6 @@
 import { deleteFrontmatterPath, frontmatterSpan, readFrontmatterPath, readTextShape, setFrontmatterPath, type TextChange, type TextFileUpdate } from "@plainva/core";
 import { finalizeItemContent } from "../lib/newItemContent";
+import { templateAsNewNote } from "../lib/newNoteContent";
 import { templateCaretInEditor, templateCaretInNote } from "../lib/templateCaret";
 import { resolveNewItemTarget } from "./baseRelations";
 import { viewPrefill } from "./newItemPrefill";
@@ -214,12 +215,16 @@ export async function planPinboardEntry(files: PinboardEntryFiles, opts: PlanPin
   }
   Object.assign(props, opts.extraPrefills ?? {});
 
-  const body = template?.text ?? "";
-  const initial = finalizeItemContent(body, opts.noteType, tags, props);
-  // `{{cursor}}` is measured in the template; the shared rule finds it in the
-  // note, from where the template's text starts there. The rule was written
-  // here first and is every new note's now (`templateCaretInNote`).
-  const caret = template && template.caret !== null ? templateCaretInNote(body, initial, template.caret) : null;
+  // The template becomes a note in the builder every note from a template
+  // passes — there it loses what is meant for the template alone. The entry
+  // used to set the header on the template's text itself, and kept its
+  // template's task opt-out and database assignment (finding 2026-10-11).
+  const made = template ? templateAsNewNote({ text: template.text, cursor: template.caret }, opts.noteType) : null;
+  const initial = finalizeItemContent(made?.content ?? "", opts.noteType, tags, props);
+  // `{{cursor}}` is found in the builder's note and asked on behind what the
+  // tags and the view's filters wrote into the block (`templateCaretInNote`,
+  // the rule that was written here first and is every new note's now).
+  const caret = made && made.caret !== null ? templateCaretInNote(made.content, initial, made.caret) : null;
 
   // Chips only for what actually landed — a template key wins over a filter,
   // and a chip for a value the note does not carry would lie.

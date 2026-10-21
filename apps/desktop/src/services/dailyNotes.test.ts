@@ -212,6 +212,60 @@ describe("resolveOrCreateDailyNote — OKF write rule", () => {
     expect(written[path!]).toContain("- [ ] Erste Aufgabe");
   });
 
+  // Finding 2026-10-11. The test above creates the note the way a capture
+  // does, without questions. The daily-note button runs the template through
+  // the shell's questions instead (`useDailyNoteAction`), and on that way the
+  // keys were never taken out: every daily note a person opened from such a
+  // template had its tasks hidden from the Tasks view.
+  it("does not inherit them when a person opens the note either — the way that asks the template's questions", async () => {
+    storeValues[templateFolderKey(VAULT)] = "Templates";
+    storeValues[dailyNoteTemplateKey(VAULT)] = "daily.md";
+    const template = `---\ntype: Daily Note\nokf_version: "0.1"\nplainva:\n  tasks: false\n  icon: 🌅\n  templateFor:\n    - "[[Tasks.base]]"\n---\n\n# {{title}}\n\n- [ ] {{cursor}}Erste Aufgabe\n`;
+    const asked = makeAdapter({ "Templates/daily.md": template });
+    clearPendingTemplateCaret();
+    const path = await resolveOrCreateDailyNote(date, {
+      vaultPath: VAULT,
+      adapter: asked.adapter,
+      onIndex: async () => {},
+      confirmCreate: false,
+      resolveTemplate: (raw, ctx) => applyTemplateInteractive(raw, ctx, "Fragen"),
+    });
+    const note = asked.written[path!];
+    const fm = frontmatterOf(note);
+    expect(fm.plainva ?? {}).not.toHaveProperty("tasks");
+    expect(fm.plainva ?? {}).not.toHaveProperty("templateFor");
+    expect(fm.okf_version).toBeUndefined();
+    // What is not meant for the template alone comes along, as it always did.
+    expect(fm).toEqual({ type: "Daily Note", plainva: { icon: "🌅" } });
+    expect(note).toContain("- [ ] Erste Aufgabe");
+    // The caret is found behind the block that lost three entries.
+    const parked = consumePendingTemplateCaret(path);
+    expect(parked && note.slice(parked.offset)).toBe("Erste Aufgabe\n");
+
+    // The same note, byte for byte, as the one a capture creates on its way.
+    const quiet = makeAdapter({ "Templates/daily.md": template });
+    const quietPath = await resolveOrCreateDailyNote(date, { vaultPath: VAULT, adapter: quiet.adapter, onIndex: async () => {}, confirmCreate: false });
+    expect(note).toBe(quiet.written[quietPath!]);
+  });
+
+  it("gives the heading of a blank daily note to a template that leaves nothing of itself, on both ways", async () => {
+    // A template that carries only what is meant for it — an empty note saved
+    // as a template — says nothing about the note. A capture already wrote the
+    // date as the heading then; opened by a person, the note was the
+    // template's block and no heading.
+    storeValues[templateFolderKey(VAULT)] = "Templates";
+    storeValues[dailyNoteTemplateKey(VAULT)] = "daily.md";
+    for (const resolveTemplate of [undefined, (raw: string, ctx: { title: string; now: Date; folder: string }) => applyTemplateInteractive(raw, ctx, "Fragen")]) {
+      const { adapter, written } = makeAdapter({ "Templates/daily.md": "---\nplainva:\n  tasks: false\n---\n" });
+      const path = await resolveOrCreateDailyNote(date, { vaultPath: VAULT, adapter, onIndex: async () => {}, confirmCreate: false, resolveTemplate });
+      expect(written[path!]).toBe("---\ntype: Daily Note\n---\n# 2024-03-05\n");
+    }
+    // A template with a property of its own is one, text or not: no heading is put under it.
+    const { adapter, written } = makeAdapter({ "Templates/daily.md": "---\nmood:\nplainva:\n  tasks: false\n---\n" });
+    const path = await resolveOrCreateDailyNote(date, { vaultPath: VAULT, adapter, onIndex: async () => {}, confirmCreate: false, resolveTemplate: (raw, ctx) => applyTemplateInteractive(raw, ctx, "Fragen") });
+    expect(written[path!]).toBe("---\nmood:\ntype: Daily Note\n---\n");
+  });
+
   it("never leaves {{cursor}} or {{prompt:…}} in the created note", async () => {
     storeValues[templateFolderKey(VAULT)] = "Templates";
     storeValues[dailyNoteTemplateKey(VAULT)] = "daily.md";
