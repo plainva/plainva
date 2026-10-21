@@ -3001,6 +3001,7 @@
     "taskListNotSyncedSince": "‘{{name}}’ is sinds {{since}} niet gesynchroniseerd: {{reason}} De taken zijn de laatst bekende stand.",
     "taskListNotSyncedYet": "‘{{name}}’ is nog niet gesynchroniseerd: {{reason}}",
     "taskListsOf": "Takenlijsten van {{account}}",
+    "taskNotesNotCarried": "Wijzigingen in ‘{{name}}’ bij de aanbieder bereiken hun notities niet: {{reason}}",
     "notSyncedMore": "+ {{n}} andere zijn ook niet actueel.",
     "problemSignIn": "De aanmelding wordt niet meer geaccepteerd.",
     "problemNoAnswer": "De server antwoordt niet.",

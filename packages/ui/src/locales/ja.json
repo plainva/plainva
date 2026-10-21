@@ -2972,6 +2972,7 @@
     "taskListNotSyncedSince": "「{{name}}」は {{since}} から同期されていません: {{reason}} タスクは最後に取得した状態です。",
     "taskListNotSyncedYet": "「{{name}}」はまだ同期されていません: {{reason}}",
     "taskListsOf": "{{account}} のタスクリスト",
+    "taskNotesNotCarried": "プロバイダーでの「{{name}}」の変更がノートに届きません: {{reason}}",
     "notSyncedMore": "ほかに {{n}} 件も最新ではありません。",
     "problemSignIn": "サインインが受け付けられなくなりました。",
     "problemNoAnswer": "サーバーが応答しません。",

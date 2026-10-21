@@ -3001,6 +3001,7 @@
     "taskListNotSyncedSince": "“{{name}}” has not been synced since {{since}}: {{reason}} The tasks are the last known state.",
     "taskListNotSyncedYet": "“{{name}}” has not been synced yet: {{reason}}",
     "taskListsOf": "Task lists of {{account}}",
+    "taskNotesNotCarried": "Changes to “{{name}}” at the provider do not reach their notes: {{reason}}",
     "notSyncedMore": "+ {{n}} more are not up to date either.",
     "problemSignIn": "The sign-in is no longer accepted.",
     "problemNoAnswer": "The server is not answering.",

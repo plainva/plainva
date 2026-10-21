@@ -85,9 +85,12 @@ describe("the line above the task views (B2, 19.10.)", () => {
     expect(notice.lines[0]!.text).toBe("“Task lists of Work (iCloud)” has not been synced yet: caldav propfind 503.");
   });
 
-  it("says in the reader's words why a provider tick did not reach the note", () => {
-    const reason = syncProblemReason(problem({ taskListId: "l1", error: `${TASK_NOTE_PROBLEM_PREFIX}no-done-column` }), t);
-    expect(reason).toBe(en.pim.problemTaskNoDoneColumn);
+  it("says in the reader's words why a provider tick did not reach the note - and not that the list is not synced", () => {
+    const failing = problem({ taskListId: "l1", taskListName: "Einkauf", since: null, error: `${TASK_NOTE_PROBLEM_PREFIX}no-done-column` });
+    expect(syncProblemReason(failing, t)).toBe(en.pim.problemTaskNoDoneColumn);
+    expect(describeSyncProblems([failing], t, "en", NOW)!.lines[0]!.text).toBe(
+      `Changes to “Einkauf (Work (iCloud))” at the provider do not reach their notes: ${en.pim.problemTaskNoDoneColumn}`,
+    );
   });
 
   it("gives each surface its own problems: calendars to the calendar, lists to the task views, accounts to both", () => {

@@ -273,13 +273,17 @@ async function reconcileAll(opts: TaskSyncOptions): Promise<TaskSyncResult> {
     };
     for (const list of lists) {
       const notApplied: NotAppliedReason[] = [];
+      let finished = false;
       try {
         await reconcileList(opts, db, account, list.id, getTarget, result, (task) => creates.push({ account, listId: list.id, listName: list.name, task }), notApplied);
+        finished = true;
       } catch (e) {
         result.errors.push(`${account.label}/${list.name}: ${e instanceof Error ? e.message : String(e)}`);
       }
       result.notApplied += notApplied.length;
-      await reportNotApplied(opts.cache, account.id, list.id, notApplied);
+      // A reconcile that stopped part-way has not looked at every task: it
+      // may add a reason, never clear one.
+      if (finished || notApplied.length > 0) await reportNotApplied(opts.cache, account.id, list.id, notApplied);
     }
   }
   await createPendingNotes(opts, db, creates, result);
@@ -489,7 +493,7 @@ async function reconcileList(
     // stale / foreign-database status un-complete the remote task (the "all
     // tasks undone at Google" failure). In that case completion follows the
     // base, so no spurious flip is ever pushed.
-    const localFields = readNoteFields(content, db, base.completed);
+    const localFields = readNoteFields(content, db, base.completed, base.due);
     const remoteChanged = st.remoteEtag != null ? st.remoteEtag !== (rt.etag ?? null) : !fieldsEqual(remoteFields, base);
     const localChanged = !fieldsEqual(localFields, base);
 
@@ -518,7 +522,7 @@ async function reconcileList(
       // no longer this task is left alone: only the bytes authorize a write.
       const mergedInto = (text: string): string | null => {
         if (text !== content && !taskNoteMatches(readTaskNoteIdentity(text), taskId(rt.uid))) return null;
-        const own = text === content ? localFields : readNoteFields(text, db, base.completed);
+        const own = text === content ? localFields : readNoteFields(text, db, base.completed, base.due);
         const fields = text === content ? merged : mergeFields(own);
         if (fieldsEqual(fields, own)) return null;
         let updated = upgradeAnchorIfStale(applyFieldsToNote(text, fields, own, db), account, listId, rt);
@@ -585,6 +589,11 @@ async function reconcileList(
       }
     }
 
+    // A field held back keeps the old base, so the provider's value is tried
+    // again every cycle - a write that changes nothing and one state row. A
+    // later local edit back TO that old base reads as "unchanged" and yields
+    // to the provider's value; it is the value the provider already holds
+    // that would be lost, never one the person made since.
     const agreed: PimTaskFields = { ...merged };
     for (const field of missing) (agreed as Record<keyof PimTaskFields, unknown>)[field] = base[field];
     await cache.upsertTaskState({ accountId: account.id, listId, uid: rt.uid, notePath, remoteEtag: missing.length > 0 ? null : newEtag, baseFields: agreed });
@@ -606,7 +615,7 @@ async function reconcileList(
       if (!taskNoteMatches(readTaskNoteIdentity(content), taskId(st.uid))) continue;
       const base = st.baseFields;
       if (!base) continue;
-      const local = readNoteFields(content, db, base.completed);
+      const local = readNoteFields(content, db, base.completed, base.due);
       const unchanged = local.title === base.title && local.due === base.due && local.completed === base.completed;
       if (!unchanged) continue;
       if (!await fileStillEquals(adapter, st.notePath, content)) continue;
@@ -634,7 +643,9 @@ function missingFields(text: string, merged: PimTaskFields, before: PimTaskField
   const now = readNoteFields(text, db, !merged.completed);
   const out: Array<keyof PimTaskFields> = [];
   if (merged.title && merged.title !== before.title && now.title !== merged.title) out.push("title");
-  if (merged.due !== before.due && now.due !== merged.due) out.push("due");
+  // By the day: the note is read by its day (`readNoteFields`), and a time the
+  // provider carries is written, not lost, by `applyFieldsToNote`.
+  if (merged.due !== before.due && (!db.dueKey || now.due !== (merged.due ? merged.due.slice(0, 10) : null))) out.push("due");
   if (merged.completed !== before.completed && (!db.completion || now.completed !== merged.completed)) out.push("completed");
   return out;
 }
@@ -879,10 +890,16 @@ export function fieldsEqual(a: PimTaskFields, b: PimTaskFields): boolean {
 export function readNoteFields(
   content: string,
   db: Pick<DbShape, "dueKey" | "completion">,
-  fallbackCompleted = false
+  fallbackCompleted = false,
+  /**
+   * The due date to assume when the database HAS no date column (B2): the
+   * note cannot say anything about it, and reading that as "no due date"
+   * pushed the provider's date away right after the import.
+   */
+  fallbackDue: string | null = null
 ): PimTaskFields {
   const dueRaw = db.dueKey ? readFrontmatterPath(content, [db.dueKey]) : undefined;
-  const due = dueRaw != null && String(dueRaw).trim() ? String(dueRaw).slice(0, 10) : null;
+  const due = !db.dueKey ? fallbackDue : dueRaw != null && String(dueRaw).trim() ? String(dueRaw).slice(0, 10) : null;
   let completed = fallbackCompleted;
   if (db.completion) {
     const model = db.completion;

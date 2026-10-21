@@ -2972,6 +2972,7 @@
     "taskListNotSyncedSince": "“{{name}}”自 {{since}} 起未同步：{{reason}} 任务是最后一次获取的状态。",
     "taskListNotSyncedYet": "“{{name}}”尚未同步：{{reason}}",
     "taskListsOf": "{{account}} 的任务列表",
+    "taskNotesNotCarried": "提供方对“{{name}}”的更改无法到达其笔记：{{reason}}",
     "notSyncedMore": "另有 {{n}} 项也不是最新的。",
     "problemSignIn": "登录已不再被接受。",
     "problemNoAnswer": "服务器没有响应。",

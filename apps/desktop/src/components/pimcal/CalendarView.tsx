@@ -1289,7 +1289,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       const instance = prompt.event;
       // "all" targets the MASTER row (cache keeps it despite the day-grid
       // filtering it out); an unresolvable master degrades to an error toast.
-      const subject = scope === "this" ? instance : seriesDeleteSubject(instance, await resolveSeriesMaster(instance));
+      const provider = accounts.find((a) => a.id === instance.accountId)?.provider;
+      const subject = scope === "this" ? instance : seriesDeleteSubject(instance, await resolveSeriesMaster(instance), provider);
       if (!subject) {
         toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
         return;
@@ -1297,7 +1298,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       // The scope dialog already confirmed the deletion.
       await deleteAsking(subject, true);
     },
-    [seriesPrompt, resolveSeriesMaster, deleteAsking, t]
+    [seriesPrompt, resolveSeriesMaster, deleteAsking, accounts, t]
   );
 
   /**

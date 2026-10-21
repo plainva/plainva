@@ -631,25 +631,38 @@ export class PimWorker {
     // without a word to the user (issue #34). Now the previously known lists
     // stay put and the reason is recorded, with its verdict and without
     // touching the stamp of the last listing that got through.
+    // The listing waits out its own pause like a list does: an account that
+    // offers no task lists at all (a Google sign-in without the Tasks scope)
+    // must not be asked - and turn the status red - every two minutes.
+    const now = this.clock();
+    const listingKey = `${account.id}\ntasklists`;
+    const listingWaits = askEveryone ? null : this.waitingOn(listingKey, now);
     let lists: PimTaskList[] | null = null;
-    try {
-      lists = await target.listTaskLists(collections);
-      await this.store(() => cache.setScopeState(account.id, "tasklists", { lastError: null }));
-    } catch (e) {
-      if (e instanceof PimCacheWriteError) throw e;
-      const msg = messageOf(e);
-      errors.push(msg);
-      if (isSignInFailure(e)) signInError = msg;
-      await cache.recordScopeFailure(account.id, "tasklists", { lastError: msg, lastErrorKind: classifySyncError(e) }).catch(() => {});
+    if (listingWaits !== null) {
+      errors.push(listingWaits);
+    } else {
+      try {
+        lists = await target.listTaskLists(collections);
+        await this.store(() => cache.setScopeState(account.id, "tasklists", { lastError: null }));
+        this.retries.delete(listingKey);
+      } catch (e) {
+        if (e instanceof PimCacheWriteError) throw e;
+        const msg = messageOf(e);
+        errors.push(msg);
+        if (isSignInFailure(e)) signInError = msg;
+        else this.noteFailure(listingKey, msg);
+        await cache.recordScopeFailure(account.id, "tasklists", { lastError: msg, lastErrorKind: classifySyncError(e) }).catch(() => {});
+      }
     }
     if (gen !== this.generation) return null;
+    // A sign-in that the listing already refused refuses every list too.
+    if (signInError) return { errors, signInError };
     if (lists) {
       const fresh = lists;
       await this.store(() => cache.replaceTaskLists(account.id, fresh));
     }
     // Even when the listing failed: the lists known from before are still
     // selected, and their tasks can still be asked for.
-    const now = this.clock();
     const listKey = (listId: string) => `${account.id}\ntasks\n${listId}`;
     for (const list of await cache.listTaskLists(account.id)) {
       if (gen !== this.generation) return null;

@@ -52,6 +52,22 @@ const LABELS = {
   statusOptions: ["Offen", "In Arbeit", "Erledigt"] as [string, string, string],
 };
 
+/** A database with only a status column: nothing in it can hold a due date. */
+const DB_WITHOUT_DUE = `properties:
+  note.status:
+    plainva:
+      input: status
+      options:
+        - value: Offen
+        - value: Erledigt
+views:
+  - type: table
+    name: Tabelle
+filters:
+  and:
+    - file.folder == "Aufgaben"
+`;
+
 /** A database with only a date column: nothing in it can say "done". */
 const DB_WITHOUT_DONE = `properties:
   note.frist:
@@ -102,10 +118,15 @@ function fakeVault(initial: Record<string, string>) {
 
 /** The Google Tasks API as the adapter sees it: one list, one task, its state settable. */
 function googleApi() {
-  const task = { id: "g1", title: "Steuern einreichen", status: "needsAction", etag: '"1"' };
+  const task: Record<string, string> = { id: "g1", title: "Steuern einreichen", status: "needsAction", etag: '"1"', due: "2026-11-02T00:00:00.000Z" };
+  const writes: string[] = [];
   const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
-  const fetchFn = async (input: RequestInfo | URL): Promise<Response> => {
+  const fetchFn = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = String(input);
+    if (init?.method && init.method !== "GET") {
+      writes.push(`${init.method} ${String(init.body ?? "")}`);
+      return json({ ...task, etag: '"w"' });
+    }
     if (url.includes("/calendar/v3/users/me/calendarList")) return json({ items: [] });
     if (url.includes("/users/@me/lists")) return json({ items: [{ id: "l1", title: "Meine Aufgaben" }] });
     if (url.includes("/lists/l1/tasks")) return json({ items: [{ ...task }] });
@@ -113,6 +134,7 @@ function googleApi() {
   };
   return {
     fetchFn,
+    writes,
     tick: () => {
       task.status = "completed";
       task.etag = '"2"';
@@ -192,6 +214,15 @@ describe("a task ticked at the provider reaches its note (B2)", () => {
     expect(readFrontmatterPath(vault.files.get(path)!, ["erledigt"])).toBe(true);
     expect(healed.notApplied).toBe(0);
     expect(await cache.listSyncProblems()).toEqual([]);
+  });
+
+  it("never pushes a due date away because the database has no column for it", async () => {
+    const { api, vault, cycle } = setup(DB_WITHOUT_DUE);
+    await cycle();
+    expect(vault.files.has("Aufgaben/Steuern einreichen.md")).toBe(true);
+    // Nothing changed anywhere: nothing goes to Google.
+    await cycle();
+    expect(api.writes).toEqual([]);
   });
 
   it("writes the done option, not a cancelled one standing after it, and never reopens a cancelled task", async () => {

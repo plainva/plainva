@@ -3030,6 +3030,7 @@
     "taskListNotSyncedSince": "« {{name}} » n'est plus synchronisé depuis {{since}} : {{reason}} Les tâches sont le dernier état connu.",
     "taskListNotSyncedYet": "« {{name}} » n'a pas encore été synchronisé : {{reason}}",
     "taskListsOf": "Listes de tâches de {{account}}",
+    "taskNotesNotCarried": "Les modifications de « {{name}} » chez le fournisseur n’atteignent pas leurs notes : {{reason}}",
     "notSyncedMore": "+ {{n}} autres ne sont pas à jour non plus.",
     "problemSignIn": "La connexion n'est plus acceptée.",
     "problemNoAnswer": "Le serveur ne répond pas.",

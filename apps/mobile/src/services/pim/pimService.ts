@@ -64,6 +64,7 @@ import {
   verifiedProviderIdentityOf,
   VERIFIED_PROVIDER_IDENTITY_KEY,
   writableCalendarsOf,
+  seriesDeleteSubject,
 } from "@plainva/ui";
 import {
   getPimStatus,
@@ -708,6 +709,17 @@ export async function pimSeriesMaster(event: PimEventRow): Promise<PimEventRow |
   } catch {
     return null;
   }
+}
+
+/**
+ * What "delete all events" of a series is written against (issue 119): the
+ * series' own row, or - where the cache lacks it - the occurrence, except on
+ * the device's own calendars, which cannot delete a series that way.
+ */
+export async function pimSeriesDeleteSubject(event: PimEventRow): Promise<PimEventRow | null> {
+  const master = await pimSeriesMaster(event);
+  const provider = runtime ? (await runtime.cache.listAccounts().catch(() => [])).find((a) => a.id === event.accountId)?.provider : undefined;
+  return seriesDeleteSubject(event, master, provider);
 }
 
 /**

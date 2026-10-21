@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { applyEventChanges, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, seriesDeleteSubject, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker } from "@plainva/ui";
+import { applyEventChanges, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker } from "@plainva/ui";
 import { parseRRule, uniqueBlockRefs, type PimBlockRef, type PimEventDraft, type PimEventRow } from "@plainva/core";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mActions, mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
@@ -11,6 +11,7 @@ import {
   listPimCalendars,
   openMeetingNoteFor,
   pimBlockersOf,
+  pimSeriesDeleteSubject,
   pimSeriesMaster,
   pimSourceOfBlocker,
   recordPimBlockers,
@@ -198,7 +199,7 @@ export function useEventEditor({
       });
       if (scope === null) return;
       if (scope === "all") {
-        const master = seriesDeleteSubject(e, await pimSeriesMaster(e));
+        const master = await pimSeriesDeleteSubject(e);
         if (!master) {
           toast.error(t("pim.eventWriteFailed"));
           return;

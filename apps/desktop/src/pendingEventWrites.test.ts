@@ -146,6 +146,9 @@ describe("pending calendar writes (issue 119)", () => {
     const master = row("s1", { recurrence: "RRULE:FREQ=WEEKLY" });
     expect(seriesDeleteSubject(caldav, master)).toBe(master);
     expect(seriesDeleteSubject(row("single"), null)).toBeNull();
+    // The device's calendar store addresses a series only through an
+    // occurrence: its series id would delete the first occurrence alone.
+    expect(seriesDeleteSubject(row("e1@1700000000000", { seriesMaster: "e1" }), null, "device")).toBeNull();
   });
 
   it("tells its listeners about every change and keeps a stable snapshot in between", () => {

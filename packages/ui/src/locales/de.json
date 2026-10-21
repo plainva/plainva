@@ -3001,6 +3001,7 @@
     "taskListNotSyncedSince": "„{{name}}“ wurde seit {{since}} nicht abgeglichen: {{reason}} Die Aufgaben sind der letzte Stand.",
     "taskListNotSyncedYet": "„{{name}}“ wurde noch nicht abgeglichen: {{reason}}",
     "taskListsOf": "Aufgabenlisten von {{account}}",
+    "taskNotesNotCarried": "Änderungen an „{{name}}“ beim Anbieter erreichen ihre Notizen nicht: {{reason}}",
     "notSyncedMore": "+ {{n}} weitere sind ebenfalls nicht aktuell.",
     "problemSignIn": "Die Anmeldung wird nicht mehr angenommen.",
     "problemNoAnswer": "Der Server antwortet nicht.",

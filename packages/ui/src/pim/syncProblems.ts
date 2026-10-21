@@ -100,8 +100,10 @@ export function describeSyncProblems(
     const reason = syncProblemReason(p, t);
     // A task list's line speaks of tasks: "the events below" would be wrong there.
     const tasks = p.taskListId !== undefined;
-    const text =
-      p.since === null
+    // A list that syncs but cannot write into its notes is not "not synced".
+    const text = p.error.startsWith(TASK_NOTE_PROBLEM_PREFIX)
+      ? t("pim.taskNotesNotCarried", { name, reason })
+      : p.since === null
         ? t(tasks ? "pim.taskListNotSyncedYet" : "pim.notSyncedYet", { name, reason })
         : t(tasks ? "pim.taskListNotSyncedSince" : "pim.notSyncedSince", { name, since: syncProblemSince(p.since, locale, now), reason });
     return { key: `${p.accountId}/${p.calendarId ?? ""}${tasks ? `/tasks/${p.taskListId}` : ""}`, text };

@@ -3059,6 +3059,7 @@
     "taskListNotSyncedSince": "„{{name}}” nie jest synchronizowane od {{since}}: {{reason}} Zadania to ostatni znany stan.",
     "taskListNotSyncedYet": "„{{name}}” nie zostało jeszcze zsynchronizowane: {{reason}}",
     "taskListsOf": "Listy zadań konta {{account}}",
+    "taskNotesNotCarried": "Zmiany w „{{name}}” u dostawcy nie docierają do ich notatek: {{reason}}",
     "notSyncedMore": "+ {{n}} – również nieaktualne.",
     "problemSignIn": "Logowanie nie jest już przyjmowane.",
     "problemNoAnswer": "Serwer nie odpowiada.",

@@ -247,6 +247,24 @@ describe("PimWorker", () => {
     expect((await cache.getScopeState("a1", "account"))?.lastErrorKind).toBe("fatal");
   });
 
+  it("asks no list once the listing itself was refused for the sign-in", async () => {
+    const target: IPimTarget = {
+      ...unusedWrites,
+      provider: "google",
+      listCalendars: async () => [],
+      pullEvents: async () => ({ events: [] }),
+      listTaskLists: async () => {
+        throw Object.assign(new Error("google api 401 (UNAUTHENTICATED)"), { status: 401 });
+      },
+      pullTasks: vi.fn(async () => ({ tasks: [] })),
+    };
+    await cache.replaceTaskLists("a1", [{ id: "l1", name: "Aufgaben" }]);
+    const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW });
+    await worker.triggerImmediate();
+    expect(target.pullTasks).not.toHaveBeenCalled();
+    expect((await cache.getScopeState("a1", "account"))?.lastErrorKind).toBe("fatal");
+  });
+
   it("skips deselected calendars and disabled accounts", async () => {
     const target = fakeTarget([ev("e1", "cal1", "2026-08-02T10:00:00Z"), ev("e2", "cal2", "2026-08-03T10:00:00Z")]);
     const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW });

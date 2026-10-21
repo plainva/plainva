@@ -120,7 +120,8 @@ export async function createTaskDatabase(
  * the end is never taken for it. A board of Open / In progress / Done /
  * Cancelled used to receive "Cancelled" for every task ticked at the
  * provider. A cancelled task still counts as closed (`closed`): read as open,
- * it would un-complete the provider's task the next time anything synced.
+ * it would un-complete the provider's task the next time anything synced. So
+ * does every option after the done one - it was "done" under the old rule.
  */
 export interface TaskStatusModel {
   key: string;
@@ -189,7 +190,10 @@ export function resolveTaskStatusModel(config: unknown): TaskStatusModel | null 
     [...values].reverse().find((v) => DONE_WORDS.has(statusWord(v))) ??
     [...values].reverse().find((v, i) => i < values.length - 1 && !cancelled.includes(v)) ??
     values[values.length - 1];
-  const closed = cancelled.filter((v) => v !== done);
+  // Every option AFTER the done one stays closed: under the old rule the last
+  // option was done, and a task ticked then carries it. Read as open now, the
+  // next sync would reopen every such task at the provider.
+  const closed = values.filter((v, i) => v !== done && i > 0 && (cancelled.includes(v) || i > values.indexOf(done)));
   return { key: statusKey, open: values[0], done, options: values, ...(closed.length > 0 ? { closed } : {}) };
 }
 

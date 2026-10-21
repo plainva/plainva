@@ -139,6 +139,26 @@ views:
     expect(classifyTaskStatus("Offen", model)).toBe(false);
   });
 
+  it("keeps an option after the done one closed: a task ticked under the old rule never reads as open", () => {
+    const config = parseBaseConfig(`properties:
+  note.status:
+    plainva:
+      input: status
+      options:
+        - value: Open
+        - value: Done
+        - value: Archived
+views:
+  - type: table
+    name: T
+`);
+    const model = resolveTaskStatusModel(config)!;
+    expect(model.done).toBe("Done");
+    // Under the old rule "Archived" was done; read as open, the next sync
+    // would reopen every such task at the provider.
+    expect(classifyTaskStatus("Archived", model)).toBe(true);
+  });
+
   it("without a done word, takes the last option that is not a cancelled one", () => {
     const config = parseBaseConfig(`properties:
   note.phase:
