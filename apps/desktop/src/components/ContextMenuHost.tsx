@@ -52,6 +52,10 @@ export function ContextMenuHost() {
       at={{ x: state.x, y: state.y }}
       minWidth={160}
       ariaLabel={t("contextMenu.label")}
+      // Over text that cannot be edited the menu is one entry, Copy, and the
+      // selection is what it is about. WebKit clears such a selection when the
+      // focus moves to a button: the menu leaves the focus where it is.
+      autoFocus={!!image || !!editable}
     >
       {image ? (
         <>

@@ -1,6 +1,6 @@
 # Keyboard Shortcuts
 
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-22
 
 Press `F1` (or **Command palette → Show keyboard shortcuts**) to open the shortcuts window at any time. It groups every shortcut and mouse gesture into areas you switch with the chips along the top, has a search box that spans all areas, and detects your platform automatically: it shows `Ctrl`/`Alt` on Windows and Linux and `⌘`/`⌥` on macOS. In the tables below, `Ctrl` therefore means `⌘` on macOS and `Alt` means `⌥`.
 
@@ -131,6 +131,7 @@ Mouse: **scroll** to zoom; **middle-mouse drag** or `Ctrl`+drag to pan (even ove
 - **Right-click** a selection or field for Plainva's own copy / cut / paste menu.
 - **Peek window:** drag the header to move, the corner grip to resize; `◀ ▶` is its own history. With several floating windows open — a peek, the event preview, a mail being written — the one you click comes to the front, and `Esc` closes the one in front.
 - **Calendar:** click the title in the calendar tab or the month name in the sidebar (or reach it with `Tab` and press `Enter`) for the date picker — the arrow keys move inside the grid, `PgUp/PgDn` page months, `Enter` jumps, `Esc` closes; click a day for its daily note.
+- **Menus:** a menu you open from a button or with a **right-click** puts the keyboard on its first entry — the arrow keys, `Home` and `End` move through it, `Enter` picks an entry, `Esc` closes it and returns the keyboard to where it was. Over a field you are typing in, and over text you can only read, the keyboard stays where it was.
 - **Image editor:** draw with the mouse (pen/arrow/rectangle/text/crop); zoom with the buttons.
 
 ## See also

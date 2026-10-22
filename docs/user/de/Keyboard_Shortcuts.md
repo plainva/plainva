@@ -1,6 +1,6 @@
 # Tastenkürzel
 
-Stand: 2026-10-09
+Stand: 2026-10-22
 
 Mit `F1` (oder **Befehlspalette → Tastenkombinationen anzeigen**) öffnest Du jederzeit das Tastenkürzel-Fenster. Es gruppiert alle Kürzel und Maus-Gesten in Bereiche, zwischen denen Du oben mit den Chips wechselst, hat ein Suchfeld über alle Bereiche und erkennt Deine Plattform automatisch: `Strg`/`Alt` unter Windows und Linux, `⌘`/`⌥` unter macOS. In den Tabellen unten steht `Strg` daher für `⌘` unter macOS und `Alt` für `⌥`.
 
@@ -131,6 +131,7 @@ Maus: **Mausrad** zoomt; **mittlere Maustaste + ziehen** oder `Strg`+ziehen vers
 - **Rechtsklick** auf eine Auswahl oder ein Feld öffnet Plainvas eigenes Kopieren-/Ausschneiden-/Einfügen-Menü.
 - **Peek-Fenster:** Kopf ziehen zum Verschieben, Eck-Griff zum Anpassen der Größe; `◀ ▶` ist ein eigener Verlauf. Sind mehrere freischwebende Fenster offen — ein Peek-Fenster, die Termin-Vorschau, eine Mail, die Du gerade schreibst —, kommt das angeklickte nach vorn, und `Esc` schließt das vorderste.
 - **Kalender:** Titel im Kalender-Tab oder Monatsnamen in der Seitenleiste anklicken (oder mit `Tab` erreichen und `Enter` drücken) für die Datumsauswahl — Pfeiltasten bewegen im Raster, `Bild↑/↓` blättern Monate, `Enter` springt, `Esc` schließt; einen Tag anklicken für seine Tagesnotiz.
+- **Menüs:** Ein Menü, das Du über einen Knopf oder per **Rechtsklick** öffnest, setzt die Tastatur auf seinen ersten Eintrag — die Pfeiltasten, `Pos1` und `Ende` bewegen darin, `Enter` wählt einen Eintrag, `Esc` schließt es und gibt die Tastatur dorthin zurück, wo sie vorher war. Über einem Feld, in dem Du gerade schreibst, und über Text, den Du nur lesen kannst, bleibt die Tastatur, wo sie war.
 - **Bild-Editor:** mit der Maus zeichnen (Stift/Pfeil/Rechteck/Text/Zuschneiden); Zoom über die Knöpfe.
 
 ## Siehe auch

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, createRef, type ReactElement } from "react";
+import { act, createRef, useState, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import "@plainva/ui/i18n";
 import { Button } from "@plainva/ui";
@@ -287,6 +287,512 @@ describe("MenuSurface / MenuItem", () => {
     );
     press("Escape");
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("puts the focus on the first entry once the menu is shown — a browser gives a hidden element none", () => {
+    // The menu is measured hidden and shown once it is placed. jsdom focuses a
+    // hidden element, a browser does not: the call used to come while the menu
+    // was still hidden, and in the app the focus never moved (Sammelplan
+    // § 3.99). So this looks at WHEN the call comes, not at where focus ends up.
+    const shown: string[] = [];
+    const focus = vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (this: HTMLElement) {
+      shown.push(this.closest<HTMLElement>(".pv-menu")?.style.visibility ?? "outside the menu");
+    });
+    try {
+      render(
+        <MenuSurface open onClose={() => {}} at={{ x: 10, y: 10 }}>
+          <MenuItem disabled onSelect={() => {}}>Gesperrt</MenuItem>
+          <MenuItem onSelect={() => {}}>Erster</MenuItem>
+        </MenuSurface>
+      );
+      const first = container.querySelectorAll<HTMLElement>(".pv-menu-item")[1];
+      expect(focus.mock.contexts).toEqual([first]);
+      expect(shown).toEqual(["visible"]);
+    } finally {
+      // A spy left in place makes every later focus() a no-op.
+      focus.mockRestore();
+    }
+  });
+
+  /** A button that opens a menu, the way every menu button does. */
+  function MenuButton({ onPick, onOpenerFocus, children }: { onPick?: () => void; onOpenerFocus?: () => void; children?: ReactElement }) {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <button data-testid="opener" onClick={() => setOpen(true)} onFocus={onOpenerFocus}>Mehr</button>
+        {children}
+        <MenuSurface open={open} onClose={() => setOpen(false)} at={{ x: 10, y: 10 }}>
+          <MenuItem onSelect={() => onPick?.()}>Eintrag</MenuItem>
+        </MenuSurface>
+      </>
+    );
+  }
+  const opener = () => container.querySelector<HTMLButtonElement>("[data-testid=opener]")!;
+  function openFromButton() {
+    act(() => opener().focus());
+    act(() => opener().click());
+    expect(document.activeElement).toBe(container.querySelector(".pv-menu-item"));
+  }
+  /** The hand-back comes after the event that closed the menu. */
+  async function handBack() {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+
+  it("hands the focus back to what opened it when Escape closes it", async () => {
+    render(<MenuButton />);
+    openFromButton();
+    press("Escape");
+    expect(container.querySelector(".pv-menu")).toBeNull();
+    await handBack();
+    expect(document.activeElement).toBe(opener());
+  });
+
+  it("hands the focus back where React hears it: the opener's own focus handlers run", async () => {
+    // A field that keeps a draft knows it has the focus through onFocus; a
+    // focus given during React's commit reaches no handler at all.
+    const onOpenerFocus = vi.fn();
+    render(<MenuButton onOpenerFocus={onOpenerFocus} />);
+    openFromButton();
+    expect(onOpenerFocus).toHaveBeenCalledTimes(1);
+    press("Escape");
+    await handBack();
+    expect(document.activeElement).toBe(opener());
+    expect(onOpenerFocus).toHaveBeenCalledTimes(2);
+  });
+
+  it("hands the focus back when an entry is picked that leaves it nowhere", async () => {
+    const onPick = vi.fn();
+    render(<MenuButton onPick={onPick} />);
+    openFromButton();
+    act(() => container.querySelector<HTMLButtonElement>(".pv-menu-item")!.click());
+    expect(onPick).toHaveBeenCalled();
+    expect(container.querySelector(".pv-menu")).toBeNull();
+    await handBack();
+    expect(document.activeElement).toBe(opener());
+  });
+
+  it("leaves the focus where a picked entry put it", async () => {
+    // "Rename" puts the caret into a field: the menu closing after it must not
+    // take the caret back to the button.
+    render(<MenuButton onPick={() => container.querySelector<HTMLInputElement>("[data-testid=field]")!.focus()}><input data-testid="field" /></MenuButton>);
+    openFromButton();
+    act(() => container.querySelector<HTMLButtonElement>(".pv-menu-item")!.click());
+    expect(container.querySelector(".pv-menu")).toBeNull();
+    await handBack();
+    expect(document.activeElement).toBe(container.querySelector("[data-testid=field]"));
+  });
+
+  it("hands the focus back when it is taken away whole, open — the way the app's context menu goes", async () => {
+    const menu = (shown: boolean) => (
+      <>
+        <button data-testid="opener">Mehr</button>
+        {shown && (
+          <MenuSurface open onClose={() => {}} at={{ x: 10, y: 10 }}>
+            <MenuItem onSelect={() => {}}>Eintrag</MenuItem>
+          </MenuSurface>
+        )}
+      </>
+    );
+    render(menu(false));
+    act(() => opener().focus());
+    render(menu(true));
+    expect(document.activeElement).toBe(container.querySelector(".pv-menu-item"));
+    render(menu(false));
+    await handBack();
+    expect(document.activeElement).toBe(opener());
+  });
+
+  it("with nothing focused when it opened — WebKit gives a clicked button no focus — hands the focus to what it hangs on", async () => {
+    const anchor = createRef<HTMLButtonElement>();
+    const view = (open: boolean) => (
+      <>
+        <button ref={anchor}>Mehr</button>
+        <MenuSurface open={open} onClose={() => {}} anchorRef={anchor}>
+          <MenuItem onSelect={() => {}}>Eintrag</MenuItem>
+        </MenuSurface>
+      </>
+    );
+    render(view(false));
+    expect(document.activeElement).toBe(document.body);
+    render(view(true));
+    expect(document.activeElement).toBe(container.querySelector(".pv-menu-item"));
+    render(view(false));
+    await handBack();
+    expect(document.activeElement).toBe(anchor.current);
+  });
+
+  it("hands the focus back to what opened the first menu when an entry of it opened a second one", async () => {
+    // The row menu of a task opens the menu of its state: closing that second
+    // menu returns to the row, not to nowhere.
+    function Chain() {
+      const [first, setFirst] = useState(false);
+      const [second, setSecond] = useState(false);
+      return (
+        <>
+          <button data-testid="opener" onClick={() => setFirst(true)}>Zeile</button>
+          <MenuSurface open={first} onClose={() => setFirst(false)} at={{ x: 10, y: 10 }}>
+            <MenuItem onSelect={() => setSecond(true)}>Status …</MenuItem>
+          </MenuSurface>
+          <MenuSurface open={second} onClose={() => setSecond(false)} at={{ x: 20, y: 20 }} ariaLabel="Status">
+            <MenuItem onSelect={() => {}}>Erledigt</MenuItem>
+          </MenuSurface>
+        </>
+      );
+    }
+    render(<Chain />);
+    openFromButton();
+    act(() => container.querySelector<HTMLButtonElement>(".pv-menu-item")!.click());
+    expect(document.activeElement?.textContent).toBe("Erledigt");
+    await handBack();
+    expect(document.activeElement?.textContent).toBe("Erledigt");
+    press("Escape");
+    await handBack();
+    expect(container.querySelector(".pv-menu")).toBeNull();
+    expect(document.activeElement).toBe(opener());
+  });
+
+  for (const type of ["text", "number"]) {
+    it(`leaves the keyboard in a ${type} field someone is typing in when it opens over it — losing the focus would end the field's edit`, async () => {
+      // A right-click into a field, the row menu of a cell being edited, the
+      // menu of a file being renamed: such a field commits or saves when it is
+      // left — and a number half typed ("-", "1e") reads as empty then.
+      const onBlur = vi.fn();
+      const view = (open: boolean) => (
+        <>
+          <input data-testid="field" type={type} onBlur={onBlur} />
+          <MenuSurface open={open} onClose={() => {}} at={{ x: 10, y: 10 }}>
+            <MenuItem onSelect={() => {}}>Einfügen</MenuItem>
+          </MenuSurface>
+        </>
+      );
+      render(view(false));
+      const field = container.querySelector<HTMLInputElement>("[data-testid=field]")!;
+      act(() => field.focus());
+      render(view(true));
+      expect(container.querySelector(".pv-menu")).not.toBeNull();
+      expect(document.activeElement).toBe(field);
+      expect(onBlur).not.toHaveBeenCalled();
+      render(view(false));
+      await handBack();
+      expect(document.activeElement).toBe(field);
+    });
+  }
+
+  it("takes a press on an entry without the focus over such a field: a pick with the mouse leaves the field its edit", async () => {
+    // The press used to blur the field before the pick ran — a rename took the
+    // half-typed name, Paste then went into a field that was leaving.
+    const onBlur = vi.fn();
+    const onPick = vi.fn();
+    function FieldWithMenu() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <input data-testid="field" onBlur={onBlur} onContextMenu={(e) => { e.preventDefault(); setOpen(true); }} />
+          <MenuSurface open={open} onClose={() => setOpen(false)} at={{ x: 10, y: 10 }}>
+            <MenuItem onSelect={onPick}>Einfügen</MenuItem>
+          </MenuSurface>
+        </>
+      );
+    }
+    render(<FieldWithMenu />);
+    const field = container.querySelector<HTMLInputElement>("[data-testid=field]")!;
+    act(() => field.focus());
+    act(() => void field.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true })));
+    const entry = container.querySelector<HTMLButtonElement>(".pv-menu-item")!;
+    expect(document.activeElement).toBe(field);
+    // The press: its mousedown is what would move the focus to the entry.
+    const down = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    act(() => void entry.dispatchEvent(down));
+    expect(down.defaultPrevented).toBe(true);
+    act(() => entry.click());
+    expect(onPick).toHaveBeenCalled();
+    expect(container.querySelector(".pv-menu")).toBeNull();
+    await handBack();
+    expect(document.activeElement).toBe(field);
+    expect(onBlur).not.toHaveBeenCalled();
+  });
+
+  it("takes the focus from a menu entry's press as usual when no field kept it", () => {
+    render(<MenuButton />);
+    openFromButton();
+    const down = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    act(() => void container.querySelector<HTMLButtonElement>(".pv-menu-item")!.dispatchEvent(down));
+    expect(down.defaultPrevented).toBe(false);
+  });
+
+  it("hands the focus back right after React's commit, before the next key is handled", async () => {
+    // A timer let keys typed in between go to <body>.
+    render(<MenuButton />);
+    openFromButton();
+    press("Escape");
+    await Promise.resolve();
+    expect(document.activeElement).toBe(opener());
+  });
+
+  it("passes over an entry that takes no focus and starts at the next", () => {
+    const view = (
+      <MenuSurface open onClose={() => {}} at={{ x: 10, y: 10 }}>
+        <MenuItem onSelect={() => {}}>Erster</MenuItem>
+        <MenuItem onSelect={() => {}}>Zweiter</MenuItem>
+      </MenuSurface>
+    );
+    // A style that hides an element keeps the focus from it in a browser;
+    // jsdom has no styles, so the first entry refuses it here by hand.
+    const focus = HTMLElement.prototype.focus;
+    const spy = vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (this: HTMLElement, options?: FocusOptions) {
+      if (this.textContent === "Erster") return;
+      focus.call(this, options);
+    });
+    try {
+      render(view);
+      expect(document.activeElement?.textContent).toBe("Zweiter");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("starts at the first entry when the menu's own field is hidden or read-only", () => {
+    render(
+      <MenuSurface open onClose={() => {}} at={{ x: 10, y: 10 }}>
+        <input hidden data-testid="hidden" />
+        <input readOnly defaultValue="fest" data-testid="readonly" />
+        <MenuItem onSelect={() => {}}>Erster</MenuItem>
+      </MenuSurface>
+    );
+    expect(document.activeElement?.textContent).toBe("Erster");
+  });
+
+  it("puts the caret into a field of its own first; Home and End stay the field's, the arrows step into the entries", () => {
+    // The labels of a pinboard card: a filter above the entries.
+    render(
+      <MenuSurface open onClose={() => {}} at={{ x: 10, y: 10 }}>
+        <input data-testid="filter" />
+        <MenuItem keepOpen onSelect={() => {}}>Rot</MenuItem>
+        <MenuItem keepOpen onSelect={() => {}}>Blau</MenuItem>
+      </MenuSurface>
+    );
+    const filter = container.querySelector<HTMLInputElement>("[data-testid=filter]")!;
+    const [red, blue] = Array.from(container.querySelectorAll<HTMLButtonElement>(".pv-menu-item"));
+    expect(document.activeElement).toBe(filter);
+    const key = (k: string) => {
+      const ev = new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true });
+      act(() => void (document.activeElement ?? document.body).dispatchEvent(ev));
+      return ev;
+    };
+    expect(key("Home").defaultPrevented).toBe(false);
+    expect(key("End").defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(filter);
+    key("ArrowUp");
+    expect(document.activeElement).toBe(blue);
+    act(() => filter.focus());
+    key("ArrowDown");
+    expect(document.activeElement).toBe(red);
+  });
+
+  it("leaves the arrow keys to a number field of its own, and starts at the first entry", () => {
+    render(
+      <MenuSurface open onClose={() => {}} at={{ x: 10, y: 10 }}>
+        <input type="number" data-testid="count" />
+        <MenuItem onSelect={() => {}}>Eintrag</MenuItem>
+      </MenuSurface>
+    );
+    expect(document.activeElement?.textContent).toBe("Eintrag");
+    const count = container.querySelector<HTMLInputElement>("[data-testid=count]")!;
+    act(() => count.focus());
+    const down = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
+    act(() => void count.dispatchEvent(down));
+    expect(down.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(count);
+  });
+
+  it("leaves Escape to an input method composing in the field it kept the keyboard in", () => {
+    function FieldWithMenu() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <input data-testid="field" onContextMenu={(e) => { e.preventDefault(); setOpen(true); }} />
+          <MenuSurface open={open} onClose={() => setOpen(false)} at={{ x: 10, y: 10 }}>
+            <MenuItem onSelect={() => {}}>Einfügen</MenuItem>
+          </MenuSurface>
+        </>
+      );
+    }
+    render(<FieldWithMenu />);
+    const field = container.querySelector<HTMLInputElement>("[data-testid=field]")!;
+    act(() => field.focus());
+    act(() => void field.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true })));
+    const composing = new KeyboardEvent("keydown", { key: "Escape", isComposing: true, bubbles: true, cancelable: true });
+    act(() => void field.dispatchEvent(composing));
+    expect(composing.defaultPrevented).toBe(false);
+    expect(container.querySelector(".pv-menu")).not.toBeNull();
+  });
+
+  it("does not let an Enter held down on the button that opened it pick the first entry", () => {
+    // The browser repeats a held key into whatever has the focus — now the
+    // first entry; a repeated Enter there must do nothing. (A cancelled keydown
+    // is what keeps a browser from activating the button; jsdom activates
+    // nothing on a key, so the pick itself is the E2E's to show.)
+    render(<MenuButton />);
+    openFromButton();
+    const first = container.querySelector<HTMLButtonElement>(".pv-menu-item")!;
+    const held = new KeyboardEvent("keydown", { key: "Enter", repeat: true, bubbles: true, cancelable: true });
+    act(() => void first.dispatchEvent(held));
+    expect(held.defaultPrevented).toBe(true);
+    const pressed = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    act(() => void first.dispatchEvent(pressed));
+    expect(pressed.defaultPrevented).toBe(false);
+    act(() => void window.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter" })));
+  });
+
+  it("swallows the repeats of the key that picked an entry until it is released — they would land on what gets the focus back", async () => {
+    // Enter on "Copy" over the editor: the editor gets the focus back, and a
+    // repeated Enter there replaced the selection with a line break.
+    const onPick = vi.fn();
+    render(<MenuButton onPick={onPick} />);
+    openFromButton();
+    const entry = container.querySelector<HTMLButtonElement>(".pv-menu-item")!;
+    act(() => void entry.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })));
+    act(() => entry.click());
+    expect(onPick).toHaveBeenCalled();
+    await handBack();
+    expect(document.activeElement).toBe(opener());
+    const seen = vi.fn();
+    document.addEventListener("keydown", seen);
+    try {
+      const repeat = () => {
+        const ev = new KeyboardEvent("keydown", { key: "Enter", repeat: true, bubbles: true, cancelable: true });
+        act(() => void opener().dispatchEvent(ev));
+        return ev;
+      };
+      expect(repeat().defaultPrevented).toBe(true);
+      expect(seen).not.toHaveBeenCalled();
+      act(() => void window.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter" })));
+      expect(repeat().defaultPrevented).toBe(false);
+      expect(seen).toHaveBeenCalledTimes(1);
+    } finally {
+      document.removeEventListener("keydown", seen);
+    }
+  });
+
+  it("lets go of a held key at its next fresh press — macOS sends no keyup for a key let go while ⌘ is held", () => {
+    render(<MenuButton />);
+    openFromButton();
+    press("Escape");
+    expect(container.querySelector(".pv-menu")).toBeNull();
+    const key = (repeat: boolean) => {
+      const ev = new KeyboardEvent("keydown", { key: "Escape", repeat, bubbles: true, cancelable: true });
+      act(() => void document.body.dispatchEvent(ev));
+      return ev;
+    };
+    expect(key(true).defaultPrevented).toBe(true);
+    key(false);
+    expect(key(true).defaultPrevented).toBe(false);
+  });
+
+  it("leaves the focus where a press beside it lands — or nowhere — instead of handing it back", async () => {
+    render(<MenuButton />);
+    openFromButton();
+    const send = (type: string) => act(() => void document.body.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true })));
+    send("pointerdown");
+    expect(container.querySelector(".pv-menu")).toBeNull();
+    send("mousedown");
+    send("pointerup");
+    await handBack();
+    expect(document.activeElement).not.toBe(opener());
+  });
+
+  it("hands the focus back when the press beside it moved none — a handle took it for a drag — once the press ends", async () => {
+    render(
+      <>
+        <MenuButton />
+        {/* The head of a floating window: it cancels the press, and a browser
+            then sends no mousedown — nothing takes the focus. */}
+        <div data-testid="handle" onPointerDown={(e) => e.preventDefault()} />
+      </>
+    );
+    openFromButton();
+    const handle = container.querySelector("[data-testid=handle]")!;
+    act(() => void handle.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, cancelable: true })));
+    expect(container.querySelector(".pv-menu")).toBeNull();
+    await handBack();
+    expect(document.activeElement).not.toBe(opener());
+    act(() => void window.dispatchEvent(new MouseEvent("pointerup", { bubbles: true })));
+    await handBack();
+    expect(document.activeElement).toBe(opener());
+  });
+
+  it("hands the focus back after a scroll that closed it has reached the page, not before", async () => {
+    // The editor, focused before it has seen the scroll, would put a scroll
+    // to its very top back.
+    render(<MenuButton />);
+    openFromButton();
+    // The menu hears scrolls from its first frame on.
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+    });
+    act(() => void document.body.dispatchEvent(new Event("scroll")));
+    expect(container.querySelector(".pv-menu")).toBeNull();
+    // Microtasks only — an async act() waits out a macrotask itself.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(document.activeElement).not.toBe(opener());
+    await handBack();
+    expect(document.activeElement).toBe(opener());
+  });
+
+  it("takes Escape before the field it left the keyboard in: one press closes the menu, the next is the field's", async () => {
+    // The field may give its edit up on Escape (a rename, a property value):
+    // with a menu in front of it, the first press is the menu's.
+    const fieldEscape = vi.fn();
+    function FieldWithMenu() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <input
+            data-testid="field"
+            onContextMenu={(e) => { e.preventDefault(); setOpen(true); }}
+            onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); fieldEscape(); } }}
+          />
+          <MenuSurface open={open} onClose={() => setOpen(false)} at={{ x: 10, y: 10 }}>
+            <MenuItem onSelect={() => {}}>Einfügen</MenuItem>
+          </MenuSurface>
+        </>
+      );
+    }
+    render(<FieldWithMenu />);
+    const field = container.querySelector<HTMLInputElement>("[data-testid=field]")!;
+    act(() => field.focus());
+    act(() => void field.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true })));
+    expect(container.querySelector(".pv-menu")).not.toBeNull();
+    const escape = () => act(() => void field.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+    escape();
+    expect(container.querySelector(".pv-menu")).toBeNull();
+    expect(fieldEscape).not.toHaveBeenCalled();
+    await handBack();
+    expect(document.activeElement).toBe(field);
+    escape();
+    expect(fieldEscape).toHaveBeenCalledTimes(1);
+  });
+
+  it("with autoFocus={false} leaves the focus in the field it completes, opening and closing", () => {
+    const view = (open: boolean) => (
+      <>
+        <input data-testid="field" />
+        <MenuSurface open={open} onClose={() => {}} at={{ x: 10, y: 10 }} autoFocus={false}>
+          <MenuItem onSelect={() => {}}>Vorschlag</MenuItem>
+        </MenuSurface>
+      </>
+    );
+    render(view(false));
+    const field = container.querySelector<HTMLInputElement>("[data-testid=field]")!;
+    act(() => field.focus());
+    render(view(true));
+    expect(container.querySelector(".pv-menu")).not.toBeNull();
+    expect(document.activeElement).toBe(field);
+    render(view(false));
+    expect(document.activeElement).toBe(field);
   });
 
   it("closes on a press outside, heard as pointerdown at the window — not on a press in the menu or on its anchor", () => {
