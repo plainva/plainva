@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
-import { DateJumpPicker, calendarDay, dateTimeEditorValue, dateValueHasTime, formatDateValue, parseLocalDate, useWeekStartDay } from "@plainva/ui";
+import { DateJumpPicker, calendarDay, dateTimeEditorValue, dateValueHasTime, formatDateValue, parseLocalDate, useOutsidePress, useWeekStartDay } from "@plainva/ui";
 
 interface Props {
   value: string;
@@ -68,18 +68,12 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
     };
   }, [isOpen]);
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-        onClose?.();
-      }
-    };
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen, onClose]);
+  // A press beside the picker closes it without a pick — a day with a time
+  // that was not confirmed is dropped — and says so (a table cell leaves its
+  // edit). Heard as every menu and popover hears it (Sammelplan § 3.100). The
+  // field is not beside the picker: its own click closes it. Counted as
+  // beside, the press closed the picker and the click opened it again.
+  useOutsidePress(isOpen, () => { setIsOpen(false); onClose?.(); }, popoverRef, anchorRef);
 
   const handleDayPick = (day: string) => {
     setSelectedDay(day);

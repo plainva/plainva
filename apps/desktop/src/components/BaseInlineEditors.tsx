@@ -1,18 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
-import { chipClass, ICON, optionSwatch, parseWikiLinkValue, wikiLinkTextFor, type CuratedOption } from "@plainva/ui";
+import { chipClass, ICON, optionSwatch, parseWikiLinkValue, useOutsidePress, wikiLinkTextFor, type CuratedOption } from "@plainva/ui";
 import { Select } from "./Select";
 
 type TFn = (key: string, opts?: any) => string;
 
+/**
+ * How a cell editor is left: Escape, or a press beside it — heard at the
+ * window, as every menu and popover hears it (`useOutsidePress`). Heard as a
+ * `mousedown` at the document, the press on a column's grip or on a floating
+ * window's head never arrived, and the editor stayed open (Sammelplan § 3.100).
+ * Leaving saves nothing: the editors commit with every change.
+ */
 function useDismiss(onClose: () => void) {
   const ref = useRef<HTMLDivElement>(null);
+  useOutsidePress(true, onClose, ref);
   useEffect(() => {
-    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+    return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
   return ref;
 }

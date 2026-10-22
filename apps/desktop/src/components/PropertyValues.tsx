@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from "react";
-import { asSingleLineValue, Button, GrowingField, IconButton, ICON, PropRow, Rating, tagColorAttrs, useFixedPopover, usePropertyValues, PropertyNameInput, type ValueSuggestionLoader, type PropertySuggestionSource } from "@plainva/ui";
+import { asSingleLineValue, Button, GrowingField, IconButton, ICON, PropRow, Rating, tagColorAttrs, useFixedPopover, useOutsidePress, usePropertyValues, PropertyNameInput, type ValueSuggestionLoader, type PropertySuggestionSource } from "@plainva/ui";
 import {
   Type, Hash, CheckSquare, Calendar, Clock, List, Tag, Link2, Mail, Phone, Globe,
   CircleDot, ListChecks, ChevronsUpDown, ChevronDown, X, Plus, Trash2, Search, ExternalLink, Lock, Sigma, Star, MessageSquare,
@@ -208,11 +208,8 @@ function RelationPicker(props: {
   const [cands, setCands] = useState<RelationCandidate[]>([]);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false); };
-    if (open) document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
+  // A press beside the chips and their list closes the list (Sammelplan § 3.100).
+  useOutsidePress(open, () => setOpen(false), wrapRef);
 
   useEffect(() => {
     let alive = true;
@@ -292,11 +289,7 @@ function TagPills({ value, onChange, suggestions, t }: { value: any; onChange: (
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false); };
-    if (open) document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
+  useOutsidePress(open, () => setOpen(false), wrapRef);
 
   const remove = (i: number) => onChange(items.filter((_, idx) => idx !== i));
   const addTag = (raw: string) => {
@@ -380,11 +373,9 @@ export function SelectChip(props: {
   const discovered = suggestions.values;
   const current = value == null ? "" : String(value);
 
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) { setOpen(false); onClose?.(); } };
-    if (open) document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open, onClose]);
+  // A press beside it closes the list and says so — a table cell then leaves
+  // its edit (Sammelplan § 3.100).
+  useOutsidePress(open, () => { setOpen(false); onClose?.(); }, wrapRef);
 
   const list: CuratedOption[] = usingCurated ? curated! : discovered.map((d) => ({ value: d.value }));
   const countOf = (v: string) => (usingCurated ? undefined : discovered.find((d) => d.value === v)?.count);
@@ -449,11 +440,7 @@ export function MultiSelectChips(props: {
   const suggestions = usePropertyValues(open && !usingCurated, propKey, getValueSuggestions);
   const discovered = suggestions.values;
 
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false); };
-    if (open) document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
+  useOutsidePress(open, () => setOpen(false), wrapRef);
 
   const list: CuratedOption[] = usingCurated ? curated! : discovered.map((d) => ({ value: d.value }));
   const countOf = (v: string) => (usingCurated ? undefined : discovered.find((d) => d.value === v)?.count);
@@ -554,11 +541,10 @@ const FRAMELESS_TYPES: ReadonlySet<PropertyType> = new Set<PropertyType>(["check
 
 export function TypeMenu<T extends MenuPropertyType = PropertyType>({ current, onPick, onClose, t, query, anchorClass, groups, anchorRef }: { current?: T; onPick: (t: T) => void; onClose: () => void; t: TFn; query?: string; anchorClass?: string; groups?: { labelKey: string; types: T[] }[]; anchorRef?: React.RefObject<HTMLElement | null> }) {
   const ref = useFixedPopover(!!anchorRef, anchorRef, { minWidth: 220 });
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [ref, onClose]);
+  // A press beside the menu closes it (Sammelplan § 3.100). The button it hangs
+  // on is not beside it: that button's own click closes the menu. Counted as
+  // beside, the press closed the menu and the click opened it again.
+  useOutsidePress(true, onClose, ref, anchorRef);
   const q = (query ?? "").trim().toLowerCase();
   const menuGroups = groups ?? (TYPE_GROUPS as unknown as { labelKey: string; types: T[] }[]);
   return (
@@ -728,11 +714,8 @@ export function AddPropertyPopover({ onAdd, onClose, t, anchorRef, source, colum
   const [name, setName] = useState("");
   const [query, setQuery] = useState("");
   const ref = useFixedPopover(!!anchorRef, anchorRef, { minWidth: 240 });
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [ref, onClose]);
+  // As the type menu: a press beside it closes it, its button toggles it.
+  useOutsidePress(true, onClose, ref, anchorRef);
 
   const q = query.trim().toLowerCase();
   // Name is optional: picking a type creates the property (with a default name if

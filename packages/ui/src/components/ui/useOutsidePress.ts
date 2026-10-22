@@ -24,6 +24,11 @@ import { useStableHandler } from "../../lib/useStableHandler";
  * the browser gives the tap to — which can be the row a finger landed a few
  * pixels beside — and a finger that goes on to scroll sends none. Its
  * `pointerdown` is the raw point, and comes before either is known.
+ *  - Except where the finger came down on a handle that takes the press for
+ *    itself: the handle cancels the `pointerdown`, and the browser then sends
+ *    no `mousedown` for that finger either. Such a press is heard once it has
+ *    passed every handler on its way — as a mouse's is, at the press — and
+ *    only then: a finger that scrolls cancels nothing (Sammelplan § 3.100).
  *
  * The listeners stay for as long as the surface is open, whatever its owner
  * renders in between: `onOutside` is usually a closure of that render, and a
@@ -47,16 +52,36 @@ export function useOutsidePress(
     const outside = (at: EventTarget | null) =>
       !(at instanceof Node && (inside?.current?.contains(at) || alsoInside?.current?.contains(at)));
     let finger = false;
+    let taken: number | undefined;
     const onPointerDown = (e: PointerEvent) => {
       finger = e.pointerType === "touch";
-      if (!finger && outside(e.target)) heard();
+      if (!finger) {
+        if (outside(e.target)) heard();
+        return;
+      }
+      if (!outside(e.target)) return;
+      // Whether a handle took the press is known when the event has passed
+      // every handler — the next task; long before the finger is lifted.
+      window.clearTimeout(taken);
+      taken = window.setTimeout(() => {
+        if (!e.defaultPrevented) return;
+        // No `mousedown` comes for it; should one come all the same, this
+        // press has been heard already.
+        finger = false;
+        heard();
+      }, 0);
     };
     const onMouseDown = (e: MouseEvent) => {
-      if (finger && outside(e.target)) heard();
+      if (!finger || !outside(e.target)) return;
+      // A browser that sends the `mousedown` all the same, before the check
+      // above has run, has the press heard here — once.
+      window.clearTimeout(taken);
+      heard();
     };
     window.addEventListener("pointerdown", onPointerDown, true);
     window.addEventListener("mousedown", onMouseDown, true);
     return () => {
+      window.clearTimeout(taken);
       window.removeEventListener("pointerdown", onPointerDown, true);
       window.removeEventListener("mousedown", onMouseDown, true);
     };

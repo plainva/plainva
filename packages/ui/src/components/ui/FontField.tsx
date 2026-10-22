@@ -4,6 +4,7 @@ import { Check, ChevronDown } from "lucide-react";
 import { ICON } from "../../lib/iconSizes";
 import { cx } from "./cx";
 import { useFixedPopover } from "./useFixedPopover";
+import { useOutsidePress } from "./useOutsidePress";
 import { sanitizeFontName } from "../../lib/contentFont";
 import { canvasFontMeasure, detectFontPlatform, FONT_CATALOG, isFontInstalled, type CatalogFont, type FontKind } from "../../lib/fontCatalog";
 import { filterFontCatalog } from "../../lib/appFonts";
@@ -64,14 +65,9 @@ export function FontField({ value, onChange, defaultLabel, defaultHint, ariaLabe
 
   const close = () => { setOpen(false); setQuery(""); setTyping(false); };
 
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node) && !popRef.current?.contains(e.target as Node)) close();
-    };
-    if (open) document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  // A press beside the field and its list closes the list — heard at the
+  // window, like every menu and popover (`useOutsidePress`, Sammelplan § 3.100).
+  useOutsidePress(open, close, popRef, wrapRef);
 
   const pick = (css: string) => { onChange(css); close(); };
   const kindLabel: Record<CatalogFont["kind"], string> = {

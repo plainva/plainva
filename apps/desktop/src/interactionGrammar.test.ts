@@ -307,6 +307,68 @@ describe("modal, menu and bar grammar (E5)", () => {
     expect(primitive, "the catcher's layer is the class's").not.toMatch(/zIndex|style=/);
   });
 
+  /**
+   * A listener for a press at the document or the window, in any spelling a
+   * file writes it: the element is the document, the window, or a document
+   * reached from an element (`doc`, `ownerDocument`).
+   */
+  const HEARS_A_PRESS = /\b(?:document|window|doc|ownerDocument)\s*\??\.\s*addEventListener\(\s*["'`](?:mousedown|pointerdown|touchstart)["'`]/;
+  /**
+   * What listens for a press at the document or the window, and why that is
+   * not a surface being left. The list only ever shrinks.
+   */
+  const listensForAnotherReason: Record<string, string> = {
+    [`${UI}/components/ui/useOutsidePress.ts`]: "the primitive itself",
+    [`${UI}/components/ui/Menu.tsx`]: "after a press beside it closed the menu: whether that press moved the focus — if not, the menu hands it back",
+    [`${UI}/components/ui/Tooltip.tsx`]: "any press hides a tooltip, the one on the element it explains as well",
+    [`${UI}/components/anchorRegion.ts`]: "marking a region of a picture is armed; a press elsewhere disarms it (an editor widget, not React)",
+    [`${UI}/components/completedTap.ts`]: "a tap counts once its finger is lifted; another pointer coming down cancels it",
+    [`${DESKTOP}/services/inputModality.ts`]: "which device is in use, for the focus ring",
+    [`${DESKTOP}/components/settings/QuickCaptureSettings.tsx`]: "the shortcut recorder: any press ends the recording, as Escape and the window losing the focus do — a mode, not a surface",
+  };
+
+  it("a surface hears the press beside it through useOutsidePress; nothing else listens for a press at the document or the window without a reason", () => {
+    // Twelve surfaces heard the press beside them by themselves, as a
+    // `mousedown` at the document — the select lists, the font field, the
+    // property popovers, a database's cell editors, the table size, the date
+    // field (Sammelplan § 3.100). A press on a handle that drags — a floating
+    // window's head, a column's grip — cancels its `pointerdown`, the browser
+    // then sends no `mousedown` at all, and they stayed open beside it; a
+    // handler that stopped the event on its way (a table cell of the editor)
+    // hid it too. `useOutsidePress` hears it at the window, capturing, as a
+    // `pointerdown` — and a finger once its tap is made out. Both shells and
+    // the shared package are read.
+    const listening: string[] = [];
+    for (const { rel, text } of sourceTexts([DESKTOP, MOBILE, UI], "shipped")) {
+      if (HEARS_A_PRESS.test(stripComments(text))) listening.push(rel);
+    }
+    expect(
+      listening.filter((rel) => !(rel in listensForAnotherReason)),
+      "hear the press beside a surface with useOutsidePress — or name here why the press is listened for",
+    ).toEqual([]);
+    for (const rel of Object.keys(listensForAnotherReason)) {
+      expect(listening, `${rel} no longer listens for a press — drop it from the list`).toContain(rel);
+    }
+  });
+
+  it("the press rule sees a listener in every spelling it takes, and nothing else", () => {
+    for (const heard of [
+      'document.addEventListener("mousedown", onDoc);',
+      "window.addEventListener('pointerdown', onDown, true);",
+      'doc.addEventListener("touchstart", onTouch, { passive: true });',
+      "el.ownerDocument.addEventListener(`mousedown`, onDown);",
+      'el.ownerDocument?.addEventListener("pointerdown", onDown, true);',
+      'document\n      .addEventListener("mousedown", onDown);',
+    ]) expect(heard, heard).toMatch(HEARS_A_PRESS);
+    for (const fine of [
+      'el.addEventListener("mousedown", (e) => e.preventDefault());',
+      'document.addEventListener("keydown", onKey);',
+      'window.addEventListener("pointerup", done, true);',
+      'document.removeEventListener("mousedown", onDoc);',
+      'window.addEventListener("click", suppress, { capture: true, once: true });',
+    ]) expect(fine, fine).not.toMatch(HEARS_A_PRESS);
+  });
+
   it("what opens menus and popovers is no size container", () => {
     // Menus and popovers are placed by the WINDOW (`position: fixed`). By the
     // first form of the specification `container-type` brought layout

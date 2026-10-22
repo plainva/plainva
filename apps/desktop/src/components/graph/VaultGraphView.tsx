@@ -5,7 +5,7 @@ import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { writeFile as fsWriteFile, writeTextFile as fsWriteTextFile } from "@tauri-apps/plugin-fs";
 import type { FolderOverview, GraphEdgeKind, VaultGraph } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { EmptyState, ICON, markFreshNote, MenuItem, MenuSurface } from "@plainva/ui";
+import { EmptyState, ICON, markFreshNote, MenuItem, MenuSurface, useOutsidePress } from "@plainva/ui";
 import { BasePeekModal } from "../BasePeekModal";
 import { appConfirm, appPrompt } from "../../services/appDialogs";
 import { requestCascadeDelete } from "../../services/cascadeDelete";
@@ -65,14 +65,12 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
   // Facet popover (P7.1): filters moved off the always-visible bar.
   const [showFilters, setShowFilters] = useState(false);
   const filterPopRef = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    if (!showFilters) return;
-    const onDown = (e: PointerEvent) => {
-      if (!filterPopRef.current?.contains(e.target as Node)) setShowFilters(false);
-    };
-    document.addEventListener("pointerdown", onDown);
-    return () => document.removeEventListener("pointerdown", onDown);
-  }, [showFilters]);
+  // A press beside the button and its popover closes the popover, heard as
+  // every menu and popover hears it (Sammelplan § 3.100): at the document,
+  // after the press had passed every handler on its way, a handler that
+  // stopped it hid it; and a finger closed the popover when it touched down to
+  // scroll.
+  useOutsidePress(showFilters, () => setShowFilters(false), filterPopRef);
   const [tagPaths, setTagPaths] = useState<Set<string> | null>(null);
   const [edgeKinds, setEdgeKinds] = useState<Set<GraphEdgeKind>>(new Set(DEFAULT_EDGE_KINDS));
   // Managed index.md/log.md are hidden by default (they link to everything);
