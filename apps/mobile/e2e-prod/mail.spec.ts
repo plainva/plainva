@@ -75,10 +75,10 @@ type MailboxSeed = Record<string, unknown> & { id: string };
  * `mailboxes` lets a test change the list that mailbox is stored in — its own
  * shape, or a second mailbox beside it.
  */
-async function bootMail(context: BrowserContext, page: Page, mailboxes?: (list: MailboxSeed[]) => MailboxSeed[]) {
+async function bootMail(context: BrowserContext, page: Page, mailboxes?: (list: MailboxSeed[]) => MailboxSeed[], fixture: Record<string, unknown> = {}) {
   const origin = new URL(test.info().project.use.baseURL ?? "http://localhost:4174").origin;
   await context.route((url) => url.origin !== origin, (route) => route.abort("blockedbyclient"));
-  const mail = await installMailFixture(context, { extra: EXTRA });
+  const mail = await installMailFixture(context, { extra: EXTRA, ...fixture });
   const sql = await installSqlBridge(context);
   // The mailbox, its account record and its sign-in — the fixture's own
   // shapes, so this spec cannot drift from what the screenshot tool boots.
@@ -462,6 +462,116 @@ test("mail search: the hits stay through a background reload and through opening
     await page.getByTestId("mail-search").fill("");
     await expect(rows).toHaveCount(3);
     expect(mail.lists).toBe(before);
+  } finally {
+    await sql.close();
+  }
+});
+
+/**
+ * The folder's list belongs to the folder it was asked about (finding
+ * 2026-10-11, the desktop's "All inboxes"; the phone had the same gap in its
+ * list). A list that answered late came in under the folder chosen after it,
+ * and its rows carry no folder of their own: a tap or a swipe acted in the
+ * next folder on numbers that name other messages there.
+ */
+test("a folder whose list is still on its way when another is chosen does not land under it", async ({ page, context }) => {
+  const delays: Record<string, number> = {};
+  const { mail, sql } = await bootMail(context, page, undefined, { listDelay: delays });
+  try {
+    const rows = page.locator("button.m-mailrow");
+    await openFolder(page, "Archiv");
+    await expect(rows).toHaveCount(2);
+    // The inbox takes its time now: chosen, and left again once it is asked for.
+    delays.inbox = 6000;
+    const asked = mail.listed.length;
+    const inboxAsked = page.waitForRequest((r) => /\/me\/mailFolders\/inbox\/messages\?/.test(r.url()) && !r.url().includes("flagStatus"), { timeout: 20000 });
+    // The list decides once the folder's count has come too, right after the list.
+    const inboxDone = page.waitForResponse((r) => r.url().includes("/me/mailFolders/inbox?") && r.url().includes("unreadItemCount"), { timeout: 30000 });
+    await openFolder(page, "Posteingang");
+    await inboxAsked;
+    // Back in Archiv, watched from the tap on: Archiv has been read before and
+    // is never called empty on the way back …
+    await page.evaluate(() => {
+      const w = window as Window & { __saidEmpty?: boolean };
+      w.__saidEmpty = false;
+      new MutationObserver(() => {
+        if (document.body.textContent?.includes("No messages in this folder")) w.__saidEmpty = true;
+      }).observe(document.body, { childList: true, subtree: true, characterData: true });
+    });
+    await openFolder(page, "Archiv");
+    await expect(rows).toHaveCount(2);
+    expect(mail.listed.slice(asked).includes("inbox"), "the inbox was still on its way").toBe(false);
+    // … and from here on, nothing of the inbox stands under it.
+    await page.evaluate(() => {
+      const w = window as Window & { __wrongRows?: boolean };
+      w.__wrongRows = false;
+      new MutationObserver(() => {
+        if ([...document.querySelectorAll("button.m-mailrow")].some((row) => row.textContent?.includes("Projektübersicht"))) w.__wrongRows = true;
+      }).observe(document.body, { childList: true, subtree: true, characterData: true });
+    });
+    // The inbox's list comes …
+    await inboxDone;
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null)))));
+    // … and nothing of it stood under Archiv, which was never called empty.
+    expect(await page.evaluate(() => (window as Window & { __wrongRows?: boolean }).__wrongRows)).toBe(false);
+    expect(await page.evaluate(() => (window as Window & { __saidEmpty?: boolean }).__saidEmpty)).toBe(false);
+    await expect(rows).toHaveCount(2);
+    await expect(page.locator(".m-mboxline-name")).toHaveText("Archiv");
+  } finally {
+    await sql.close();
+  }
+});
+
+test("the folder that is shown, chosen again, keeps its list", async ({ page, context }) => {
+  // It used to empty the list and read nothing again: "No messages in this
+  // folder" over a folder with mail in it, until something else reloaded it.
+  const { sql } = await bootMail(context, page);
+  try {
+    const rows = page.locator("button.m-mailrow");
+    await openFolder(page, "Posteingang");
+    await page.waitForTimeout(500);
+    await expect(rows).toHaveCount(3);
+    await expect(page.getByText("No messages in this folder")).toHaveCount(0);
+  } finally {
+    await sql.close();
+  }
+});
+
+test("a folder whose list is on its way is not called empty", async ({ page, context }) => {
+  // "No messages in this folder" is a claim about a list that has been read.
+  const delays: Record<string, number> = {};
+  const { sql } = await bootMail(context, page, undefined, { listDelay: delays });
+  try {
+    delays.archive = 2500;
+    await page.evaluate(() => {
+      const w = window as Window & { __saidEmpty?: boolean };
+      w.__saidEmpty = false;
+      new MutationObserver(() => {
+        if (document.body.textContent?.includes("No messages in this folder")) w.__saidEmpty = true;
+      }).observe(document.body, { childList: true, subtree: true, characterData: true });
+    });
+    await openFolder(page, "Archiv");
+    await expect(page.locator("button.m-mailrow")).toHaveCount(2, { timeout: 10000 });
+    expect(await page.evaluate(() => (window as Window & { __saidEmpty?: boolean }).__saidEmpty)).toBe(false);
+  } finally {
+    await sql.close();
+  }
+});
+
+test("a folder with no messages says so — again after another folder", async ({ page, context }) => {
+  // "No messages in this folder" waits for the list of the folder that is
+  // shown; once that list is in, it must come, every time.
+  const { sql } = await bootMail(context, page);
+  try {
+    const rows = page.locator("button.m-mailrow");
+    const empty = page.getByText("No messages in this folder");
+    await openFolder(page, "Entwürfe");
+    await expect(empty).toBeVisible();
+    await openFolder(page, "Archiv");
+    await expect(rows).toHaveCount(2);
+    await expect(empty).toHaveCount(0);
+    await openFolder(page, "Entwürfe");
+    await expect(empty).toBeVisible();
   } finally {
     await sql.close();
   }

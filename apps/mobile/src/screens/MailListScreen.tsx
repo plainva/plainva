@@ -32,6 +32,7 @@ import {
   listMailRules,
   parseUnifiedId,
   pickJunkFolder,
+  rowAddress,
   runRules,
   unifiedId,
   listMailboxesFor,
@@ -63,6 +64,9 @@ import { AppBar } from "../components/AppBar";
 import { ChoiceMark } from "../components/ChoiceMark";
 
 const PAGE = 30;
+
+/** A place in the mail, as one value: the account and the folder that are shown. */
+const placeOf = (accountId: string | null, mailbox: string | null): string => JSON.stringify([accountId ?? "", mailbox ?? ""]);
 
 /**
  * The mobile inbox (mail feinplan G1). Online-only by design in this stage:
@@ -161,6 +165,15 @@ export function MailListScreen({
   const [unseen, setUnseen] = useState(0);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  /** The merged list's own wait — it is not the folder's (`loading`). */
+  const [unifiedLoading, setUnifiedLoading] = useState(false);
+  /**
+   * Which place's list has been answered — with its messages, a cached copy
+   * or an error. Until the list of the place that is shown has come, the list
+   * says nothing about it: a folder still being read, or an account whose
+   * folders are still on their way, is not an empty folder.
+   */
+  const [listedFor, setListedFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState(false);
   /**
@@ -184,6 +197,14 @@ export function MailListScreen({
   const [searchRows, setSearchRows] = useState<MailEnvelope[] | null>(() => kept?.rows ?? null);
   const [searchBusy, setSearchBusy] = useState(false);
   const searchSeq = useRef(0);
+  /** The flagged list, like the search: only the newest question may answer. */
+  const flaggedSeq = useRef(0);
+  /**
+   * And the folder's own list. A folder left while its list was on its way
+   * got that list under the name of the next one — with numbers that name
+   * other messages there, which a tap or a swipe then acted on.
+   */
+  const listSeq = useRef(0);
   const searching = searchRows !== null;
   const [stale, setStale] = useState(false);
   // A refresh running while a cached page is already on screen: the banner then
@@ -309,7 +330,7 @@ export function MailListScreen({
    */
   const loadUnified = useCallback(async () => {
     if (!vault || accounts.length === 0) return;
-    setLoading(true);
+    setUnifiedLoading(true);
     const pages: MailEnvelope[][] = [];
     const failures: Array<{ label: string; message: string }> = [];
     for (const acct of accounts) {
@@ -327,7 +348,7 @@ export function MailListScreen({
     }
     setUnifiedRows(mergeInboxes(pages, PAGE));
     setUnifiedErrors(failures);
-    setLoading(false);
+    setUnifiedLoading(false);
   }, [vault, accounts, t, describeError]);
 
   useEffect(() => {
@@ -346,7 +367,12 @@ export function MailListScreen({
    * does not re-file mail that was moved by hand in between.
    */
   const seenByRules = useRef(new Set<string>());
-  const applyLocalRules = useCallback(async (messages: readonly MailEnvelope[], box: string, acct: MailAccountConfig) => {
+  // One handle on its newest version: the rules act with the folder list of
+  // the moment, and that list arriving is no reason to read the folder again.
+  // It was: the loader hung on this function, so every folder opened first was
+  // read twice — and since a list answers only for the newest question, its
+  // first answer was thrown away and the second waited for.
+  const applyLocalRules = useStableHandler(async (messages: readonly MailEnvelope[], box: string, acct: MailAccountConfig) => {
     if (!vault) return;
     const rules = await listMailRules(vault).catch(() => []);
     if (rules.length === 0) return;
@@ -381,7 +407,7 @@ export function MailListScreen({
     });
     if (result.removed.length > 0) setRows((prev) => prev.filter((m) => !result.removed.includes(m.id)));
     if (result.acted.length > 0) toast.info(t("rules.appliedN", { n: result.acted.length }));
-  }, [vault, folders, t]);
+  });
 
   const load = useCallback(async () => {
     // Reading the key here rather than only listing it as a dependency: the
@@ -391,6 +417,9 @@ export function MailListScreen({
     if (!accountsKey) return;
     const account = accountById(accountId);
     if (!vault || !account || !mailbox) return;
+    const seq = ++listSeq.current;
+    const current = () => seq === listSeq.current;
+    const place = placeOf(accountId, mailbox);
     setLoading(true);
     setError(null);
     // Cache FIRST, network second (report 2026-07-29 F4a) — the phone had the
@@ -398,6 +427,7 @@ export function MailListScreen({
     // opening a folder you had opened before still waited for the full
     // roundtrip. The banner keeps saying it is not confirmed.
     const warm = await cachedEnvelopes(vaultRef?.db, account.id, mailbox, PAGE);
+    if (!current()) return;
     if (warm.length > 0) {
       setRows(warm);
       setTotal(warm.length);
@@ -407,8 +437,10 @@ export function MailListScreen({
     }
     try {
       const page = await listEnvelopes(vault, account, mailbox, 0, PAGE);
+      if (!current()) return;
       setStale(false);
       setRows(page.messages);
+      setListedFor(place);
       setUnseen(page.unseen);
       setTotal(page.total);
       void cacheEnvelopes(vaultRef?.db, account.id, mailbox, page.messages);
@@ -426,13 +458,17 @@ export function MailListScreen({
       // screen. The banner still says the refresh failed — the cache is a
       // fallback, never a claim that this is current.
       const cached = await cachedEnvelopes(vaultRef?.db, account.id, mailbox, PAGE);
+      if (!current()) return;
       setRows(cached);
+      setListedFor(place);
       setTotal(cached.length);
       setError(cached.length > 0 ? null : describeError(e));
       setStale(cached.length > 0);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (current()) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [vault, accountId, accountsKey, mailbox, accountById, describeError, vaultRef, applyLocalRules]);
 
@@ -450,18 +486,22 @@ export function MailListScreen({
 
   const loadMore = async () => {
     if (!vault || !account || !mailbox || loading || rows.length >= total) return;
+    // The next page belongs to the list on screen: a folder chosen, or the
+    // list read anew, before it comes turns it away.
+    const seq = listSeq.current;
     setLoading(true);
     try {
       const page = await listEnvelopes(vault, account, mailbox, rows.length, PAGE);
+      if (seq !== listSeq.current) return;
       // De-duplicate: a message arriving during paging would otherwise appear
       // twice (the server counts from the top, our offset does not move with it).
       const seen = new Set(rows.map((r) => r.id));
       setRows([...rows, ...page.messages.filter((m) => !seen.has(m.id))]);
       setTotal(page.total);
     } catch (e) {
-      toast.error(describeError(e));
+      if (seq === listSeq.current) toast.error(describeError(e));
     } finally {
-      setLoading(false);
+      if (seq === listSeq.current) setLoading(false);
     }
   };
 
@@ -598,6 +638,18 @@ export function MailListScreen({
     () => (selection ? [...selection].map((id) => selectable.get(id)).filter((m): m is MailEnvelope => !!m) : []),
     [selection, selectable],
   );
+  /**
+   * Opens the message a row stands for, at ITS address — `rowAddress`, the
+   * rule the desktop reads too. A row of "All inboxes" names its own account,
+   * folder and uid, and so does a conversation row built from one: those were
+   * opened in the account that is open, with the whole address handed on as
+   * the uid, so nothing came (finding 2026-10-11).
+   */
+  const openRow = (m: MailEnvelope & { mailbox?: string }) => {
+    const at = rowAddress(m, { accountId: account?.id ?? "", mailbox: mailbox ?? "" });
+    if (at.accountId && at.mailbox) onOpenMessage(at.accountId, at.mailbox, at.uid, m.flagged, m.seen);
+  };
+
   /** Whole conversation on or off in one go — what picking a thread means. */
   const toggleMany = useCallback((ids: string[]) => {
     setSelection((prev) => {
@@ -643,7 +695,14 @@ export function MailListScreen({
    * used to ask `rows` while the merged list was on screen, so "all inboxes"
    * could claim the folder was empty with mail right there.
    */
-  const status = mailStatus({ error, unifiedErrors, stale, refreshing });
+  // In "all inboxes" the folder's error, its sign-in card and its offline
+  // banner belong to the folder behind the merged list, not to it — as on the
+  // desktop. A folder whose mailbox has lost its sign-in used to put that card
+  // where the other mailboxes' mail was.
+  const folderError = unified ? null : error;
+  // And the other way round: which mailbox the merged list could not reach is
+  // not a word about the folder shown after it.
+  const status = mailStatus({ error: folderError, unifiedErrors: unified ? unifiedErrors : [], stale: !unified && stale, refreshing });
 
   const view = mailListView({
     unified,
@@ -652,8 +711,8 @@ export function MailListScreen({
     searchRows,
     flaggedRows,
     total,
-    loading: loading || searchBusy,
-    error,
+    loading: (unified ? unifiedLoading : loading || listedFor !== placeOf(accountId, mailbox)) || searchBusy,
+    error: folderError,
     unreadOnly,
     isUnread: (m: MailEnvelope) => !m.seen,
     attachmentsOnly,
@@ -703,6 +762,35 @@ export function MailListScreen({
   const showThreads = !attachmentsOnly && threadMode && !answerShown && threads.length > 0;
 
   /**
+   * Ends the flagged list — and turns away its answer if it is still on its
+   * way. A folder, an account or "all inboxes" chosen in the meantime used to
+   * get it: the starred mail of the mailbox that was left, under the name of
+   * the one that is shown (the S21 symptom, by the late road).
+   */
+  const leaveFlagged = () => {
+    flaggedSeq.current++;
+    setFlaggedRows(null);
+    setFlaggedBusy(false);
+  };
+
+  /**
+   * Leaves the folder that is shown: its list still on its way is turned
+   * away, and what it said — its rows, its error, the offline banner — goes
+   * with it.
+   */
+  const leaveList = () => {
+    listSeq.current++;
+    setRows([]);
+    setListedFor(null);
+    setTotal(0);
+    setUnseen(0);
+    setLoading(false);
+    setRefreshing(false);
+    setStale(false);
+    setError(null);
+  };
+
+  /**
    * Flagged is a QUERY, not a filter: it replaces the list with everything the
    * server has marked in this mailbox, which is the only way a star further
    * down than the loaded page can be found. Switching it off restores the
@@ -713,17 +801,19 @@ export function MailListScreen({
    */
   const toggleFlagged = async () => {
     if (flaggedRows !== null) {
-      setFlaggedRows(null);
+      leaveFlagged();
       return;
     }
     if (!vault || !account || !mailbox) return;
+    const seq = ++flaggedSeq.current;
     setFlaggedBusy(true);
     try {
-      setFlaggedRows(await listFlaggedEnvelopes(vault, account, mailbox));
+      const starred = await listFlaggedEnvelopes(vault, account, mailbox);
+      if (seq === flaggedSeq.current) setFlaggedRows(starred);
     } catch (e) {
-      toast.error(describe(e, t));
+      if (seq === flaggedSeq.current) toast.error(describe(e, t));
     } finally {
-      setFlaggedBusy(false);
+      if (seq === flaggedSeq.current) setFlaggedBusy(false);
     }
   };
 
@@ -848,6 +938,9 @@ export function MailListScreen({
     const account = accountById(accountId);
     const items = junkItems(messages).filter((i) => i.mailbox);
     if (!vault || !account || items.length === 0) return;
+    // The junk folder below is the open mailbox's: a row of another mailbox
+    // (the merged list) is never reported into it.
+    if (messages.some((m) => { const own = parseUnifiedId(m.id); return !!own && own.accountId !== account.id; })) return;
     try {
       const out = await runJunkAction({
         vault,
@@ -877,30 +970,39 @@ export function MailListScreen({
   const swipeJunk = (m: MailEnvelope) =>
     reportJunk([m], (ids) => patchRows((prev) => prev.filter((r) => !ids.includes(r.id))));
 
-  /** Where a row's message lives: its own folder in the conversation view, the screen's otherwise. */
-  const originOf = (m: MailEnvelope) => ({
-    box: (parseUnifiedId(m.id)?.mailbox ?? mailbox) || "",
-    uid: parseUnifiedId(m.id)?.uid ?? m.id,
-  });
+  /**
+   * Where a row's message lives: its own folder in the conversation view, the
+   * screen's otherwise — and its own MAILBOX where the row carries one (a row
+   * of the merged list). Read and star act there; they went to the open
+   * mailbox with the row's folder and number, where that number names another
+   * message or none.
+   */
+  const originOf = (m: MailEnvelope) => {
+    const own = parseUnifiedId(m.id);
+    return {
+      account: accountById(own?.accountId ?? accountId),
+      box: (own?.mailbox ?? mailbox) || "",
+      uid: own?.uid ?? m.id,
+    };
+  };
 
   /** Read/unread for ONE row — the sheet's entry; the bar's version works on the selection. */
   const setOneSeen = async (m: MailEnvelope, seen: boolean) => {
-    const account = accountById(accountId);
-    const { box, uid } = originOf(m);
+    const { account, box, uid } = originOf(m);
     if (!vault || !account || !box) return;
     try {
       await setMessageSeen(vault, account, box, uid, seen);
       patchRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, seen } : r)));
       setSentRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, seen } : r)));
-      if (m.seen !== seen) setUnseen((n) => Math.max(0, seen ? n - 1 : n + 1));
+      // The count is the shown folder's; a row of the merged list is not in it.
+      if (m.seen !== seen && !unified) setUnseen((n) => Math.max(0, seen ? n - 1 : n + 1));
     } catch (e) {
       toast.error(describeError(e));
     }
   };
 
   const setOneFlagged = async (m: MailEnvelope, flagged: boolean) => {
-    const account = accountById(accountId);
-    const { box, uid } = originOf(m);
+    const { account, box, uid } = originOf(m);
     if (!vault || !account || !box) return;
     try {
       await setMessageFlagged(vault, account, box, uid, flagged);
@@ -913,8 +1015,10 @@ export function MailListScreen({
 
   const moveOne = async (m: MailEnvelope) => {
     const account = accountById(accountId);
-    const { box, uid } = originOf(m);
-    if (!vault || !account || !box) return;
+    const { account: own, box, uid } = originOf(m);
+    // The targets are the open mailbox's folders: a row of another mailbox is
+    // never moved into them.
+    if (!vault || !account || own?.id !== account.id || !box) return;
     // Where the mail goes (E20): the targets of the move. Its own folder stays
     // in the list as "here", unselectable, so the list reads complete.
     const target = await mTargets({
@@ -947,12 +1051,19 @@ export function MailListScreen({
       flagged: m.flagged,
       flag: () => void setOneFlagged(m, true),
       unflag: () => void setOneFlagged(m, false),
-      move: () => void moveOne(m),
+      // In "all inboxes" a row offers no move, spam or delete, as on the
+      // desktop: each needs a folder of the row's mailbox, and each mailbox has
+      // its own — they wait for the message to be opened (the handbook says
+      // so). Offered here, they acted in the OPEN mailbox, on the message with
+      // the row's number there. (Read and the star take the row's mailbox,
+      // `originOf`; the sheet that offers them does not open for a merged row
+      // yet — the catalog's mail-unified-row-read-star.)
+      move: unified ? undefined : () => void moveOne(m),
       snooze: () => void swipeSnooze(m),
       junkDirection: box && isJunkFolder(box, folders) ? "restore" : "report",
-      junk: () => void swipeJunk(m),
+      junk: unified ? undefined : () => void swipeJunk(m),
       inTrash: trash !== null && trash === box,
-      delete: () => void swipeDelete(m),
+      delete: unified ? undefined : () => void swipeDelete(m),
     });
   };
   const swipeFor = (m: MailEnvelope) =>
@@ -1049,9 +1160,12 @@ export function MailListScreen({
    */
   const swipeDelete = async (m: MailEnvelope) => {
     const account = accountById(accountId);
-    const box = (parseUnifiedId(m.id)?.mailbox ?? mailbox) || "";
-    const uid = parseUnifiedId(m.id)?.uid ?? m.id;
-    if (!vault || !account || !box) return;
+    const own = parseUnifiedId(m.id);
+    const box = (own?.mailbox ?? mailbox) || "";
+    const uid = own?.uid ?? m.id;
+    // The trash below is the open mailbox's: a row of another mailbox (the
+    // merged list) is never deleted with it.
+    if (!vault || !account || !box || (own && own.accountId !== account.id)) return;
     const trash = guessTrashMailbox(folders.map((f) => f.name), folders[0]?.delimiter);
     const inTrash = trash !== null && trash === box;
     if (!trash) {
@@ -1124,9 +1238,11 @@ export function MailListScreen({
     if (!(await mConfirm({ title: t("mail.deleteThreadConfirm", { n: messages.length }), message: messages[0].subject, danger: true }))) return;
     let done = 0;
     for (const m of messages) {
-      const box = (m.mailbox ?? parseUnifiedId(m.id)?.mailbox ?? mailbox) || "";
-      const uid = parseUnifiedId(m.id)?.uid ?? m.id;
-      if (!box) continue;
+      const own = parseUnifiedId(m.id);
+      const box = (m.mailbox ?? own?.mailbox ?? mailbox) || "";
+      const uid = own?.uid ?? m.id;
+      // Into the open mailbox's trash only what lives in that mailbox.
+      if (!box || (own && own.accountId !== account.id)) continue;
       try {
         if (box === trash) await deleteMessagePermanently(vault, account, box, uid);
         else await moveMessage(vault, account, box, uid, trash);
@@ -1162,7 +1278,9 @@ export function MailListScreen({
   };
 
   const ptrRef = useRef<HTMLDivElement>(null);
-  const ptrIndicator = usePullToRefresh(ptrRef, load);
+  // Pulled in "all inboxes", it is the merged list that is read again (as the
+  // desktop's refresh does), not the folder behind it.
+  const ptrIndicator = usePullToRefresh(ptrRef, unified ? loadUnified : load);
 
   // Every surface carries its own bar since S11 — large at a tab root, compact
   // when pushed. The shell owns no header any more.
@@ -1203,7 +1321,7 @@ export function MailListScreen({
           warning louder. */}
       <MailBulkReport items={bulkReport} busy={bulkRunning} onCancel={() => bulkAbort.current?.abort()} onDismiss={() => setBulkReport([])} />
       {attachmentsOnly && <Banner kind="info">{t("mail.attachmentsLoaded", { known: view.sourceRows.filter(m => m.hasAttachments !== undefined).length, loaded: view.sourceRows.length })}</Banner>}
-      {status && !error && (
+      {status && !folderError && (
         <Banner kind={status.kind === "info" ? "info" : status.kind} rounded>
           {status.raw ?? t(status.key, status.values)}
         </Banner>
@@ -1219,7 +1337,7 @@ export function MailListScreen({
           <span className="m-mboxline-name">
             {unified ? t("mail.allInboxes") : mailbox ? mailFolderLabel(mailbox, folders[0]?.delimiter) : "…"}
           </span>
-          {unseen > 0 && <span className="m-mboxline-badge">{unseen}</span>}
+          {!unified && unseen > 0 && <span className="m-mboxline-badge">{unseen}</span>}
           <span className="m-mboxline-acct">{mailAccountLabel(account?.label)}</span>
           <ChevronDown size={ICON.ui} />
         </button>
@@ -1303,7 +1421,7 @@ export function MailListScreen({
         />
       )}
 
-      {error ? (
+      {folderError ? (
         signInState !== "active" ? (
           /* "Try again" is the wrong offer for a mailbox that was never signed
              in here: repeating the request cannot produce a password. Same card
@@ -1314,7 +1432,7 @@ export function MailListScreen({
               providerLabel={account ? (account.kind === "gmail" ? "Gmail" : mailAccountKind(account) === "microsoft" ? "Microsoft" : account.host) : ""}
               oauth={account ? mailAccountKind(account) !== "imap" : false}
               state={signInState}
-              reason={error}
+              reason={folderError}
               onSignIn={onOpenAccounts}
             />
           </div>
@@ -1330,7 +1448,7 @@ export function MailListScreen({
             }
             icon={<Mail size={ICON.head} />}
           >
-            {error}
+            {folderError}
           </EmptyState>
         )
       ) : view.isEmpty ? (
@@ -1377,7 +1495,7 @@ export function MailListScreen({
                           onClick={() => {
                             if (!press.clicked()) return; // the long-press already acted
                             if (selection) { toggleMany([sid]); return; }
-                            if (account && latest.mailbox) onOpenMessage(account.id, latest.mailbox, latest.id, latest.flagged, latest.seen);
+                            openRow(latest);
                           }}
                           onPointerCancel={press.clear}
                           onPointerDown={() => press.start(sid)}
@@ -1409,7 +1527,7 @@ export function MailListScreen({
                     {/* A swipe here means the WHOLE conversation (E3b) — the
                         same thing a tap means while picking. */}
                     <SwipeRow
-                      actions={mailRowActions(t, { delete: () => void swipeDeleteThread(row.thread.messages) }).map((a) => ({
+                      actions={mailRowActions(t, { delete: unified ? undefined : () => void swipeDeleteThread(row.thread.messages) }).map((a) => ({
                         icon: <a.icon size={ICON.ui} />,
                         label: a.label,
                         danger: a.danger,
@@ -1467,7 +1585,7 @@ export function MailListScreen({
                             onClick={() => {
                               if (!press.clicked()) return; // the long-press already acted
                               if (selection) { toggleMany([mid]); return; }
-                              if (account && m.mailbox) onOpenMessage(account.id, m.mailbox, m.id, m.flagged, m.seen);
+                              openRow(m);
                             }}
                             onPointerCancel={press.clear}
                             onPointerDown={() => press.start(mid)}
@@ -1510,9 +1628,7 @@ export function MailListScreen({
                       return;
                     }
                     // In the merged list the id IS the address (P9.3b).
-                    const origin = parseUnifiedId(m.id);
-                    if (origin) onOpenMessage(origin.accountId, origin.mailbox, origin.uid, m.flagged, m.seen);
-                    else if (account && mailbox) onOpenMessage(account.id, mailbox, m.id, m.flagged, m.seen);
+                    openRow(m);
                   }}
                   onContextMenu={(e) => {
                     e.preventDefault();
@@ -1661,7 +1777,12 @@ export function MailListScreen({
                       // The filter names ONE mailbox, and this mode has no such
                       // thing — its own comment says so. It must not survive
                       // into a view where its answer cannot be true.
-                      setFlaggedRows(null);
+                      leaveFlagged();
+                      // Turned on, the merged list is read — until then it is
+                      // on its way, not empty. Chosen while it is on, it is
+                      // read again.
+                      if (unified) void loadUnified();
+                      else setUnifiedLoading(true);
                       setSheet(false);
                     }}
                   >
@@ -1679,13 +1800,19 @@ export function MailListScreen({
                     className={name === mailbox ? "m-row is-active" : "m-row"}
                     onClick={() => {
                       setUnified(false);
-                      if (name !== mailbox) leaveSearch();
-                      setMailbox(name);
-                      setRows([]);
-                      // S21: the flagged filter is a SERVER answer about one
-                      // mailbox. Left standing across a switch it showed the old
-                      // folder's starred mail under the new folder's name.
-                      setFlaggedRows(null);
+                      // The folder that is shown, chosen again (out of "all
+                      // inboxes", say): its list, its search and its filter
+                      // stand as they are. Emptying the list here left it empty,
+                      // for nothing reads the same folder again.
+                      if (name !== mailbox) {
+                        leaveSearch();
+                        leaveList();
+                        setMailbox(name);
+                        // S21: the flagged filter is a SERVER answer about one
+                        // mailbox. Left standing across a switch it showed the old
+                        // folder's starred mail under the new folder's name.
+                        leaveFlagged();
+                      }
                       setSheet(false);
                     }}
                   >
@@ -1705,11 +1832,16 @@ export function MailListScreen({
                         className={a.id === accountId ? "m-row is-active" : "m-row"}
                         onClick={() => {
                           setUnified(false);
-                          leaveSearch();
-                          setAccountId(a.id);
-                          setMailbox(null);
-                          setRows([]);
-                          setFlaggedRows(null);
+                          // The account that is shown, chosen again: nothing to
+                          // leave. Its folder used to be dropped, and nothing
+                          // asked for the same account's folders again.
+                          if (a.id !== accountId) {
+                            leaveSearch();
+                            leaveList();
+                            setAccountId(a.id);
+                            setMailbox(null);
+                            leaveFlagged();
+                          }
                           setSheet(false);
                         }}
                       >

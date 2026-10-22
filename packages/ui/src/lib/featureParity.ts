@@ -731,6 +731,54 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-13",
   },
   {
+    id: "mail-unified-row-read-star",
+    title: "Read and star on a row of All inboxes, from the list",
+    area: "pim",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "In All inboxes the desktop marks a row read or unread and stars it from " +
+      "its menu and the selection bar, in the row's own mailbox. The phone " +
+      "offers both for a row only in the row's sheet, and the sheet does not " +
+      "open there: the selection it is built on holds no row of the merged " +
+      "list, so a long press opens no sheet (MailListScreen.tsx, selectable). On " +
+      "the phone both are reached through the opened message, which acts in " +
+      "the row's mailbox. Moving, spam and deleting are offered on neither " +
+      "shell there - each mailbox has its own folders. Closing this means a " +
+      "selection that holds merged rows by their address, and a row change " +
+      "that reaches the merged list too (the phone's patchRows does not touch " +
+      "unifiedRows; the desktop updates its merged list). Written down on " +
+      "2026-10-22 while the swipe on such a row stopped offering spam and " +
+      "delete; put off that day, listed in the maintainer's open-items plan.",
+    verified: "2026-10-22",
+  },
+  {
+    id: "mail-unified-snooze",
+    title: "Snoozing a row of All inboxes",
+    area: "pim",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "Both shells offer snooze on a row of All inboxes and note it with the " +
+      "open mailbox and the folder behind the merged list, under the merged " +
+      "row's id - not with the row's own mailbox and folder. The desktop does " +
+      "not filter the merged list by snoozes (on purpose, like a search and " +
+      "the flagged list), and the rows of a folder carry plain ids, so a snooze " +
+      "given there hides the message nowhere, behind a notice that it is " +
+      "snoozed. Closing this means one rule for both shells: the note keyed by " +
+      "the row's origin (parseUnifiedId), or no snooze in the merged list. " +
+      "Written down on 2026-10-22; listed in the maintainer's open-items plan.",
+    mobile: "partial",
+    mobileReason:
+      "The phone keys the note the same way but filters the merged list by " +
+      "it: the row goes while the same mailbox and folder stand behind the " +
+      "list, comes back early once another folder was opened, is never snoozed " +
+      "in its own folder, and a conversation's rows are not filtered at all. " +
+      "Snooze is the only swipe such a row offers.",
+    verified: "2026-10-22",
+  },
+  {
     id: "note-copy-as-email",
     title: "Copying a note as formatted text for an email",
     area: "pim",

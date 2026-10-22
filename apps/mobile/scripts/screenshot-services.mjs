@@ -103,8 +103,17 @@ const DEFAULT_ATTACHMENTS = [{ id: "attachment-1", name: "Projektübersicht.txt"
  * token with that address, and `messages`, where given, is the inbox it sees
  * instead of the shared one. Graph answers `/me/...` for the account of the
  * token, whatever mailbox the app believes it is in; with one shared answer
- * for every token, two mailboxes could never be told apart here. */
-export async function installMailFixture(context, { extra = {}, attachments = DEFAULT_ATTACHMENTS, refuseSends = { times: 0, status: 413 }, signIns = {} } = {}) {
+ * for every token, two mailboxes could never be told apart here.
+ *
+ * The flagged list (`$filter=flag/flagStatus eq 'flagged'`) answers with the
+ * flagged messages of the folder, after `flaggedDelay` milliseconds where
+ * given; `observed.flaggedQueries` and `observed.flaggedAnswered` say when it
+ * was asked and answered. `listDelay` slows the list of a folder down, by
+ * folder id, read when the list is asked for (so a test can change it on the
+ * way); `observed.listed` names each folder whose list has been answered.
+ * `failList` makes the list of a folder fail, by folder id, with the given
+ * status; `failListFor` every list of one sign-in, by its refresh token. */
+export async function installMailFixture(context, { extra = {}, attachments = DEFAULT_ATTACHMENTS, refuseSends = { times: 0, status: 413 }, signIns = {}, flaggedDelay = 0, listDelay = {}, failList = {}, failListFor = {} } = {}) {
   const messages = structuredClone(MESSAGES);
   const files = attachments.map((file) => ({ ...file, failsLeft: file.failTimes ?? 0 }));
   const listed = (file) => ({ id: file.id, "@odata.type": file.type ?? FILE_ATTACHMENT, name: file.name, contentType: file.contentType, size: file.size ?? file.content?.length ?? 0 });
@@ -133,7 +142,7 @@ export async function installMailFixture(context, { extra = {}, attachments = DE
     })) : null,
   }]));
   const everything = () => [...messages, ...Object.values(others).flat(), ...[...accounts.values()].flatMap(a => a.inbox ?? [])];
-  const observed = { lists: 0, bodies: 0, searches: [], sent: [], sentWith: [], attachmentFetches: [], tokenRefreshes: 0, tokenRequests: [], requests: [], unexpected: [] };
+  const observed = { lists: 0, listed: [], bodies: 0, searches: [], flaggedQueries: [], flaggedAnswered: 0, sent: [], sentWith: [], attachmentFetches: [], tokenRefreshes: 0, tokenRequests: [], requests: [], unexpected: [] };
   await context.route("https://login.microsoftonline.com/**", async (route) => {
     if (!route.request().url().includes("/oauth2/v2.0/token")) return route.abort("blockedbyclient");
     observed.tokenRefreshes++;
@@ -169,7 +178,17 @@ export async function installMailFixture(context, { extra = {}, attachments = DE
           observed.searches.push({ folder: list[1], term });
           return route.fulfill({ json: { value: inFolder.filter(m => `${m.subject} ${m.bodyPreview}`.toLowerCase().includes(term)) } });
         }
+        if (/flagStatus eq 'flagged'/.test(url.searchParams.get("$filter") ?? "")) {
+          observed.flaggedQueries.push({ folder: list[1], authorization });
+          if (flaggedDelay) await new Promise((done) => setTimeout(done, flaggedDelay));
+          observed.flaggedAnswered++;
+          return route.fulfill({ json: { value: inFolder.filter(m => m.flag?.flagStatus === "flagged") } });
+        }
         observed.lists++;
+        const failing = failList[list[1]] ?? Object.entries(failListFor).find(([token]) => authorization === `Bearer ${fixtureAccessToken(token)}`)?.[1];
+        if (failing) return route.fulfill({ status: failing, json: { error: { code: "ServiceUnavailable", message: "The service is unavailable." } } });
+        if (listDelay[list[1]]) await new Promise((done) => setTimeout(done, listDelay[list[1]]));
+        observed.listed.push(list[1]);
         return route.fulfill({ json: { value: inFolder, "@odata.count": inFolder.length } });
       }
       if (path.endsWith("/messageRules")) return route.fulfill({ json: { value: [] } });
