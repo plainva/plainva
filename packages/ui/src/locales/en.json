@@ -1799,6 +1799,7 @@
     "changeType": "Change type",
     "deleteProperty": "Delete property",
     "noProperties": "No properties",
+    "unreadableBlock": "The block at the top of the note cannot be read as properties. Correct it in the note's text.",
     "value": "Value…",
     "selectValue": "Choose a value…",
     "clearValue": "Clear selection",
@@ -4833,7 +4834,6 @@
     "driveFolder": "The provider returned an invalid folder identifier. The operation was stopped.",
     "htmlDepth": "This HTML is too deeply nested. Simplify it or import a Markdown export.",
     "propertiesBlock": "The block at the top of the note cannot be read as properties. Correct it in the note's text and try again.",
-    "propertyValue": "The property \"{{key}}\" holds a value that cannot be read. Correct it in the note's text and try again.",
     "propertyNameTaken": "The note already has a property with the new name."
   },
   "audio": {

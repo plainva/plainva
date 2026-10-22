@@ -58,10 +58,11 @@ export async function removeRelationLinksToNoteShared(
   };
 
   // What the note holds is read with the reader of the writers below (finding
-  // 2026-10-12). The reader of the index stood here: its schema rejects a
-  // proper YAML map with a value it does not take — an empty `tags:` —, such
-  // a note came back as holding no property at all, and a link to a note that
-  // was being deleted stayed in it without a word.
+  // 2026-10-12). The reader of the index stood here: its schema rejected a
+  // proper YAML map with a value it did not take — an empty `tags:`, until
+  // 2026-10-22 (ADR 0009) —, such a note came back as holding no property at
+  // all, and a link to a note that was being deleted stayed in it without a
+  // word.
   const cleaned = (content: string): { removed: number; next: string | null } => {
     const stored = readFrontmatterPath(content, [propertyKey]);
     const values = currentValues(stored);

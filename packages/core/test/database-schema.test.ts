@@ -67,11 +67,11 @@ describe("Database Schema", () => {
     expect(reset).toContain(`LIKE '%.md'`);
     const stamp = db.queries.find(q => q.query.includes("INSERT OR REPLACE INTO meta"));
     expect(stamp).toBeDefined();
-    expect(stamp!.params).toEqual(["7"]);
+    expect(stamp!.params).toEqual(["8"]);
   });
 
   it("skips the reindex when the stored index format is current", async () => {
-    db.mockedOneResults.push({ value: "7" });
+    db.mockedOneResults.push({ value: "8" });
     await initializeSchema(db);
 
     const queries = db.queries.map(q => q.query);
@@ -92,11 +92,11 @@ describe("Database Schema", () => {
     const swap = queries.findIndex(q => q.includes("ALTER TABLE fts_notes_next RENAME TO fts_notes"));
     expect(copy).toBeGreaterThan(-1);
     expect(swap).toBeGreaterThan(copy);
-    // No note is re-read for the pair columns. What versions 6 and 7 queue is
-    // their own, and it is not "every note".
-    expect(queries.some(q => q.includes("UPDATE files SET mtime_local = 0") && q.includes("LIKE '%.md'"))).toBe(false);
+    // No note is re-read for the pair columns. What versions 6, 7 and 8 queue
+    // is their own, and it is not "every note".
+    expect(queries.some(q => /UPDATE files SET mtime_local = 0 WHERE path LIKE '%\.md'\s*$/.test(q))).toBe(false);
     const stamp = db.queries.find(q => q.query.includes("INSERT OR REPLACE INTO meta") && q.query.includes("index_format_version"));
-    expect(stamp!.params).toEqual(["7"]);
+    expect(stamp!.params).toEqual(["8"]);
   });
 
   // Version 7 (finding 2026-10-11): a Markdown link without an anchor of its
@@ -108,12 +108,16 @@ describe("Database Schema", () => {
 
     const queries = db.queries.map(q => q.query);
     const resets = queries.filter(q => q.includes("UPDATE files SET mtime_local = 0"));
-    expect(resets).toHaveLength(1);
+    // Version 7's notes, then version 8's: those that begin with a block the index holds no property for.
+    expect(resets).toHaveLength(2);
     expect(resets[0]).toContain("link_type = 'markdown-link' AND anchor IS NOT NULL");
+    expect(resets[1]).toContain("NOT EXISTS (SELECT 1 FROM properties WHERE properties.file_id = files.id)");
+    // Of those, the notes that begin with a block — after a byte order mark too.
+    expect(resets[1]).toContain("substr(content, 1, 3) = '---' OR substr(content, 1, 4) = char(65279) || '---'");
     // The full-text table has its shape since version 5: it is not copied again.
     expect(queries.some(q => q.includes("fts_notes_next"))).toBe(false);
     const stamp = db.queries.find(q => q.query.includes("INSERT OR REPLACE INTO meta") && q.query.includes("index_format_version"));
-    expect(stamp!.params).toEqual(["7"]);
+    expect(stamp!.params).toEqual(["8"]);
   });
 
   it("can execute insert and select on sync_state", async () => {

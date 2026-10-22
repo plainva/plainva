@@ -337,6 +337,18 @@ const STRETCHES: Stretch[] = [
     says: [COUNTED, SAID],
   },
 
+  // ── A property renamed in the desktop's panel ────────────────────────────
+  {
+    file: "apps/desktop/src/components/PropertiesSection.tsx", at: "function renamedEntry(", until: "interface Row {", calls: { renameFrontmatterKey: 1 },
+    how: "thrown on to the panel's one write, listed next — a rename that finds no entry of the name as well",
+    says: [/if \(next === content\) throw new FrontmatterSurgicalError\(/], never: THROWN_ON, passesOn: ["renamedEntry"],
+  },
+  {
+    file: "apps/desktop/src/components/PropertiesSection.tsx", at: "const commit = useCallback(", until: "const markReviewed = useCallback(", calls: { renamedEntry: 1 },
+    how: "the panel's one write, beside the set's (SITES): a message, the panel keeps what the note says, and the handler is told",
+    says: [SAID, /setRefusals\(/, /return false;/],
+  },
+
   // ── A note's icon and colour ─────────────────────────────────────────────
   {
     file: "packages/ui/src/lib/notePropertyEdit.ts", at: "export function editedNoteProperties(", calls: {},

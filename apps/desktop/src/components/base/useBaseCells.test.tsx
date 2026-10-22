@@ -123,7 +123,6 @@ describe("a database cell whose write is refused", () => {
   it.each([
     ["a YAML list", LIST, /cannot be read as properties/],
     ["YAML that cannot be parsed", UNPARSEABLE, /cannot be read as properties/],
-    ["a block the reader cannot take", EMPTY_TAGS, /"tags" holds a value that cannot be read/],
   ])("says so, shows the note's value again and leaves the note alone: %s", async (_label, note, reason) => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     files.set("n.md", note);
@@ -204,6 +203,20 @@ describe("a database cell whose write lands", () => {
     expect(row("n.md").done).toBe(true);
     expect(messages()).toEqual([]);
     expect(files.get("n.md")).toBe("---\nstatus: open\nowner: Anna\ndone: true\n---\nText\n");
+  });
+
+  it("writes a note whose block the reader used to refuse — an empty tags key —, the one property and not another byte", async () => {
+    // Refused with a message until 2026-10-22 (ADR 0009): the reader took
+    // the empty `tags:` for a block it could not read.
+    files.set("n.md", EMPTY_TAGS);
+    await render([{ "file.path": "n.md", "file.name": "n" }]);
+
+    await click("n.md");
+    await flush();
+
+    expect(row("n.md").done).toBe(true);
+    expect(messages()).toEqual([]);
+    expect(files.get("n.md")).toBe("---\ntags:\nstatus: open\nowner: Anna\ndone: true\n---\nText\n");
   });
 
   it("a later write that fails falls back to the value that did land", async () => {

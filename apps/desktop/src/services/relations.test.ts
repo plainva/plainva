@@ -119,11 +119,12 @@ describe("addRelationLink", () => {
  * What the note holds is read from the note (finding 2026-10-12).
  *
  * The values a link is added to came from the reader of the index, whose
- * schema rejects a proper YAML map with a value it does not take — an empty
- * `tags:`, a year among the tags. "Could not be read" then passed for "holds
- * no link", and adding one link replaced the list that was there.
+ * schema rejected a proper YAML map with a value it did not take — an empty
+ * `tags:`, a year among the tags (until 2026-10-22, ADR 0009). "Could not be
+ * read" then passed for "holds no link", and adding one link replaced the
+ * list that was there.
  */
-describe("addRelationLink: a note the index's reader does not take", () => {
+describe("addRelationLink: a note the index's reader did not take", () => {
   const EMPTY_TAGS = '---\ntags:\nrefs:\n  - "[[Eins]]"\n  - "[[Zwei]]"\n---\nText.\n';
 
   it("keeps the links the note holds when one is added", async () => {
@@ -201,11 +202,11 @@ describe("removeRelationLinksToNote", () => {
     expect(text).toContain("Body.");
   });
 
-  it("removes the link from a note the index's reader does not take", async () => {
-    // An empty `tags:` — a proper YAML map the reader's schema rejects. Read
-    // through that reader the note held no property at all, and a link to a
-    // note that was being deleted stayed in it without a word (finding
-    // 2026-10-12).
+  it("removes the link from a note the index's reader did not take", async () => {
+    // An empty `tags:` — a proper YAML map the reader's schema rejected until
+    // 2026-10-22. Read through that reader the note held no property at all,
+    // and a link to a note that was being deleted stayed in it without a word
+    // (finding 2026-10-12).
     const note = '---\ntags:\nrefs:\n  - "[[P1]]"\n  - "[[Bleibt]]"\n---\nBody.\n';
     const { store, adapter, queryService } = makeVault({ "Aufgaben/A1.md": note, "Projekte/P1.md": "x\n", "Notizen/Bleibt.md": "x\n" });
     const res = await removeRelationLinksToNote({ adapter, queryService, notePath: "Aufgaben/A1.md", propertyKey: "refs", targetNotePath: "Projekte/P1.md" });

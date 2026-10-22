@@ -1815,6 +1815,7 @@
     "changeType": "Zmień typ",
     "deleteProperty": "Usuń właściwość",
     "noProperties": "Brak właściwości",
+    "unreadableBlock": "Bloku na początku notatki nie da się odczytać jako właściwości. Popraw go w tekście notatki.",
     "value": "Wartość…",
     "selectValue": "Wybierz wartość…",
     "clearValue": "Wyczyść wybór",
@@ -4955,7 +4956,6 @@
     "driveFolder": "Dostawca zwrócił nieprawidłowy identyfikator folderu. Operacja została zatrzymana.",
     "htmlDepth": "Ten HTML ma zbyt wiele poziomów zagnieżdżenia. Uprość go lub zaimportuj eksport w formacie Markdown.",
     "propertiesBlock": "Bloku na początku notatki nie da się odczytać jako właściwości. Popraw go w tekście notatki i spróbuj ponownie.",
-    "propertyValue": "Właściwość „{{key}}” zawiera wartość, której nie da się odczytać. Popraw ją w tekście notatki i spróbuj ponownie.",
     "propertyNameTaken": "Notatka ma już właściwość o nowej nazwie."
   },
   "audio": {

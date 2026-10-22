@@ -158,6 +158,26 @@ describe("buildNewItemContent", () => {
     expect(content).toContain("# Projekte_13");
   });
 
+  it("lets template frontmatter win also where one of its values is not of its field's kind", () => {
+    // A placeholder under `aliases` (a map to YAML) or a `timestamp` that is a
+    // date made the reader refuse the template's whole block, the builder took
+    // that for no properties, and the pre-fill won over the template's value
+    // and the inherited tags over its own (ADR 0009, addendum 2026-10-22).
+    for (const odd of ["aliases:\n  - {{alias}}\n", "timestamp: 2026-06-22\n"]) {
+      const content = buildNewItemContent({
+        templateText: `---\ntype: Projekt\nstatus: entwurf\ntags: [vorlage]\n${odd}---\n\n# {{title}}\n`,
+        noteType: "Note",
+        title: "Projekte_13",
+        inheritTags: ["projekt"],
+        prefills: { status: "offen", prio: 1 },
+      });
+      const fm = frontmatterOf(content);
+      expect(fm.status, odd).toBe("entwurf");
+      expect(fm.prio, odd).toBe(1);
+      expect(fm.tags, odd).toEqual(["vorlage", "projekt"]);
+    }
+  });
+
   it("does not duplicate an already present tag", () => {
     const content = buildNewItemContent({
       templateText: "---\ntags: [projekt]\n---\n",

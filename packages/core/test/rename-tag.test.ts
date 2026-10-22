@@ -68,3 +68,55 @@ describe("renameTagInText", () => {
     expect(isValidTagName("two words")).toBe(false);
   });
 });
+
+/**
+ * A tag is renamed as the index reads it (ADR 0009, addendum 2026-10-22). The
+ * index lists a number among the tags (`- 2024`) as the tag `2024`, as it is
+ * written, and a text with commas directly under the key (`tags: a, b`) as its
+ * parts; a rename that compared whole texts passed both by, and the old tag
+ * stayed in the tree for that note.
+ */
+describe("renameTagInText finds a tag as the index reads it", () => {
+  it("renames a number among the tags, as it is written", () => {
+    expect(renameTagInText("---\ntags:\n  - 2024\n  - journal\n---\nbody", "2024", "year/2024")).toEqual({
+      changed: true,
+      content: "---\ntags:\n  - year/2024\n  - journal\n---\nbody",
+    });
+    expect(renameTagInText("---\ntags: [1.10, 1.1]\n---\nbody", "1.10", "v1.10").content).toBe("---\ntags: [v1.10, 1.1]\n---\nbody");
+    expect(renameTagInText("---\ntags: 2024\n---\nbody", "2024", "year").content).toBe("---\ntags: year\n---\nbody");
+    expect(contentHasTag("---\ntags: [2024]\n---\nx", "2024")).toBe(true);
+  });
+
+  it("renames a part of a text with commas where it stands in it, and its children", () => {
+    expect(renameTagInText("---\ntags: work, home\n---\nbody", "work", "job").content).toBe("---\ntags: job, home\n---\nbody");
+    expect(renameTagInText("---\ntags: home,  work/urgent ,x\n---\nbody", "work", "job").content).toBe("---\ntags: home,  job/urgent ,x\n---\nbody");
+    expect(renameTagInText("---\ntags: workflow, home\n---\nbody", "work", "job").changed).toBe(false);
+    expect(contentHasTag("---\ntags: a, work\n---\nx", "work")).toBe(true);
+  });
+
+  it("leaves an entry of a list whole, commas and all: the index reads it as one tag", () => {
+    expect(renameTagInText('---\ntags: ["work, home"]\n---\nbody', "work", "job").changed).toBe(false);
+  });
+
+  it("writes a text over several lines anew, on one line, and quotes a new name YAML would read as a number", () => {
+    expect(renameTagInText("---\ntags: work,\n  home\n---\nbody", "work", "job").content).toBe("---\ntags: job, home\n---\nbody");
+    expect(renameTagInText("---\ntags:\n  - 2024\n---\nbody", "2024", "2025").content).toBe('---\ntags:\n  - "2025"\n---\nbody');
+    expect(renameTagInText("---\ntags:\n  - journal\n---\nbody", "journal", "2024").content).toBe('---\ntags:\n  - "2024"\n---\nbody');
+  });
+
+  it("leaves the singular `tag` key as before: the index reads no tags from it, and a text there is compared whole", () => {
+    expect(renameTagInText("---\ntag: work, home\n---\nbody", "work", "job").changed).toBe(false);
+    expect(renameTagInText("---\ntag:\n  - 2024\n---\nbody", "2024", "year").changed).toBe(false);
+    expect(renameTagInText("---\ntag: work/a\n---\nbody", "work", "job").content).toBe("---\ntag: job/a\n---\nbody");
+  });
+
+  it("finds a tag another value of the block refers to, which cannot be renamed where it stands", () => {
+    // `other: *t` reads the same text: renamed in place, it would change as well, and the writer refuses that.
+    // The probe threw, and the search over the vault stopped at this note — for every other note too.
+    const anchored = "---\ntags: &t work, home\nother: *t\n---\nx";
+    expect(() => renameTagInText(anchored, "work", "job")).toThrow(/can be changed where it stands/);
+    expect(contentHasTag(anchored, "work")).toBe(true);
+    expect(contentHasTag(anchored, "play")).toBe(false);
+    expect(contentHasTag("---\ntags: [&y 2024]\nyear: *y\n---\nx", "2024")).toBe(true);
+  });
+});

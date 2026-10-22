@@ -17,12 +17,15 @@ import {
   toast,
   TRUST_LEVEL_I18N,
   trustLevelOf,
+  unreadablePropertiesBlock,
   useKeptResolution,
   writableProperties,
 } from "@plainva/ui";
 import {
   parseMarkdownAst,
   extractFrontmatter,
+  FrontmatterSurgicalError,
+  renameFrontmatterKey,
   updateFrontmatterString,
   ReadableFrontmatter,
   OKF_STATUS_VALUES,
@@ -68,6 +71,22 @@ const OKF_SYSTEM_KEYS = new Set(["type", "okf_version"]);
 /** OKF 0.2 lifecycle keys (plan P3a): pinned rows with a fixed meta — the
  * value stays editable, and clearing it removes the key. */
 const OKF_LIFECYCLE_KEYS = new Set(["status", "stale_after"]);
+
+/**
+ * A note's text with one entry renamed: its name changes and nothing else
+ * (`renameFrontmatterKey`), as in a database's rename of a column. The panel
+ * used to hand the writer a set with the new name, and the old key's READING
+ * went under it — the reader reads `title: 2024` as the text "2024" (ADR 0009,
+ * addendum 2026-10-22), and the note got `heading: "2024"`. A rename that
+ * finds no entry of the name — a key that is an alias, which the reader names
+ * after what it stands for — changes nothing: it is refused, as an entry the
+ * writers cannot change where it stands, and the panel says so.
+ */
+function renamedEntry(content: string, from: string, to: string): string {
+  const next = renameFrontmatterKey(content, from, to);
+  if (next === content) throw new FrontmatterSurgicalError(`Frontmatter is not a YAML map whose entry '${from}' can be renamed where it stands`);
+  return next;
+}
 
 // The OKF 0.2 provenance families (`generated`/`verified`/`sources`) render as
 // the read-only trust group, never as editable rows — the editor does not
@@ -209,12 +228,18 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   // The add popover belongs to the note it was opened on.
   useEffect(() => { setShowAdd(false); }, [governingKey]);
 
+  // A block that cannot be read as properties — YAML that does not parse, a
+  // list, a line of prose — is said as such: "No properties" stood there, the
+  // same mix-up of "could not be read" and "has none" the writers had (ADR
+  // 0009, addendum 2026-10-22). The phone's sheet asks the same question.
+  const [unreadable, setUnreadable] = useState(false);
   useEffect(() => {
-    if (doc.kind !== "markdown") { setProperties({}); return; }
+    if (doc.kind !== "markdown") { setProperties({}); setUnreadable(false); return; }
     try {
       const ast = parseMarkdownAst(doc.content);
       const fm = extractFrontmatter(ast);
       setProperties(fm.success && fm.data ? fm.data : {});
+      setUnreadable(unreadablePropertiesBlock(doc.content, fm));
     } catch { /* ignore parse errors while typing */ }
   }, [doc.content, doc.kind]);
 
@@ -241,10 +266,13 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   // the panel went on showing it (finding 2026-10-09). Now the panel keeps
   // what the note says and a message names the reason. What a handler does
   // beside the note (the type registry, a notice of success) follows a true.
-  const commit = useCallback((next: ReadableFrontmatter): boolean => {
+  //
+  // A rename hands its two names along (`renamedEntry`): handed over as a set,
+  // the old key's READING went under the new name.
+  const commit = useCallback((next: ReadableFrontmatter, rename?: readonly [string, string]): boolean => {
     try {
       writableProperties(doc.content);
-      const newContent = updateFrontmatterString(doc.content, next);
+      const newContent = rename ? renamedEntry(doc.content, rename[0], rename[1]) : updateFrontmatterString(doc.content, next);
       if (!channel.applyFrontmatter(newContent)) throw new Error(t("rightPanel.propertiesUnavailable"));
     } catch (e) {
       console.error("Failed to update properties", e);
@@ -307,7 +335,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
     if (oldKey === newKey || !newKey.trim() || properties[newKey] !== undefined) return;
     const next: ReadableFrontmatter = {};
     for (const [k, v] of Object.entries(properties)) next[k === oldKey ? newKey : k] = v;
-    if (!commit(next)) return;
+    if (!commit(next, [oldKey, newKey])) return;
     renamePropertyType(vaultPath, oldKey, newKey);
     setTypeReg(loadPropertyTypes(vaultPath));
   }, [commit, properties, vaultPath]);
@@ -511,7 +539,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   // rows at the end. Nothing here lays itself out.
   return (
     <div className="pv-props">
-      {rows.length === 0 ? <p className="pv-prow-hint">{t("properties.noProperties")}</p> : rows.map(renderRow)}
+      {rows.length === 0 ? <p className="pv-prow-hint">{t(unreadable ? "properties.unreadableBlock" : "properties.noProperties")}</p> : rows.map(renderRow)}
 
       <div data-testid="okf-trust-section">
         <PropGroupHead

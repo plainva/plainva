@@ -215,6 +215,9 @@ describe("index format 6 on an index of format 5", () => {
       }
     }
     await db.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES ('index_format_version', '5')`);
+    // Each note gets a property: the step of version 8 reads again a note that
+    // begins with a block and holds none, and this test is about the step of version 6.
+    await db.execute(`INSERT INTO properties (file_id, key, value, type) SELECT id, 'type', 'Note', 'string' FROM files`);
     expect(await rowsOf(db, "Private.md")).toEqual([]);
     expect(await rowsOf(db, "Reference.md")).toEqual(["wikilink Not a link", "wikilink Tom & Jerry"]);
     const mtimes = async () => new Map((await db.query<{ path: string; mtime_local: number }>(`SELECT path, mtime_local FROM files`)).map((row) => [row.path, Number(row.mtime_local)]));
@@ -222,7 +225,7 @@ describe("index format 6 on an index of format 5", () => {
 
     await initializeSchema(db);
 
-    expect((await db.queryOne<{ value: string }>(`SELECT value FROM meta WHERE key = 'index_format_version'`))?.value).toBe("7");
+    expect((await db.queryOne<{ value: string }>(`SELECT value FROM meta WHERE key = 'index_format_version'`))?.value).toBe("8");
     const after = await mtimes();
     const reread = [...after].filter(([path, mtime]) => mtime === 0 && before.get(path) !== 0).map(([path]) => path).sort();
     expect(reread).toEqual(["Private.md", "Reference.md"]);

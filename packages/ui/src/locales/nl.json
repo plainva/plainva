@@ -1799,6 +1799,7 @@
     "changeType": "Type wijzigen",
     "deleteProperty": "Eigenschap verwijderen",
     "noProperties": "Geen eigenschappen",
+    "unreadableBlock": "Het blok bovenaan de notitie kan niet als eigenschappen worden gelezen. Corrigeer het in de tekst van de notitie.",
     "value": "Waarde…",
     "selectValue": "Kies een waarde…",
     "clearValue": "Selectie wissen",
@@ -4833,7 +4834,6 @@
     "driveFolder": "De provider heeft een ongeldige mapidentificatie teruggestuurd. De bewerking is gestopt.",
     "htmlDepth": "Deze HTML is te diep genest. Vereenvoudig de structuur of importeer een Markdown-export.",
     "propertiesBlock": "Het blok bovenaan de notitie kan niet als eigenschappen worden gelezen. Corrigeer het in de tekst van de notitie en probeer het opnieuw.",
-    "propertyValue": "De eigenschap \"{{key}}\" bevat een waarde die niet kan worden gelezen. Corrigeer die in de tekst van de notitie en probeer het opnieuw.",
     "propertyNameTaken": "De notitie heeft al een eigenschap met de nieuwe naam."
   },
   "audio": {

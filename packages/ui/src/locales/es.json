@@ -1807,6 +1807,7 @@
     "changeType": "Cambiar tipo",
     "deleteProperty": "Eliminar propiedad",
     "noProperties": "Sin propiedades",
+    "unreadableBlock": "El bloque al principio de la nota no se puede leer como propiedades. Corrígelo en el texto de la nota.",
     "value": "Valor…",
     "selectValue": "Elige un valor…",
     "clearValue": "Quitar selección",
@@ -4894,7 +4895,6 @@
     "driveFolder": "El proveedor devolvió un identificador de carpeta no válido. La operación se ha detenido.",
     "htmlDepth": "Este HTML tiene demasiados niveles de anidación. Simplifícalo o importa una exportación en Markdown.",
     "propertiesBlock": "El bloque al principio de la nota no se puede leer como propiedades. Corrígelo en el texto de la nota e inténtalo de nuevo.",
-    "propertyValue": "La propiedad “{{key}}” contiene un valor que no se puede leer. Corrígelo en el texto de la nota e inténtalo de nuevo.",
     "propertyNameTaken": "La nota ya tiene una propiedad con el nuevo nombre."
   },
   "audio": {

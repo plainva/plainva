@@ -20,6 +20,23 @@ import { changeScalars, removeEntry, renameEntryKey, setEntries, setEntry } from
 export { FrontmatterSurgicalError, frontmatterSpan, noteBodyOf, noteWithoutProperties, type FrontmatterSpan } from "./frontmatter-block.js";
 
 /**
+ * Whether the property writers refuse the block at the top of a note: YAML
+ * that does not parse, or YAML that is no map — a list, a line of prose, a
+ * number (`parseBlockYaml`). The index's reader reads a block of prose or a
+ * number as one without properties (ADR 0009, addendum 2026-10-22); the
+ * properties panel and the phone's sheet ask here as well, and say what a
+ * write would say.
+ */
+export function propertiesBlockRefused(content: string): boolean {
+  try {
+    splitDocument(content);
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+/**
  * Sets the given top-level keys (nested plain objects/arrays allowed as
  * values), leaving every other key untouched. Creates a frontmatter block at
  * the top when none exists.
@@ -100,12 +117,47 @@ function isNode(value: unknown): value is { toJSON: () => unknown } {
 }
 
 /**
- * What becomes of one tag in the properties when `old` is renamed to `next`:
- * the tag itself and its children (`old/sub` -> `next/sub`). Handed the value
- * as the YAML reads it and the text it is written with; answers the value it
- * was handed where the tag is another one.
+ * What becomes of one entry of the tags when `old` is renamed to `next`: the
+ * tag itself and its children (`old/sub` -> `next/sub`). Handed the value as
+ * the YAML reads it, the text it is written with and whether it is an item of
+ * a list; answers the value it was handed where no tag in it is renamed.
+ *
+ * A tag is found by the text the index's reader reads it as
+ * (`metadata-extractor.ts`), or the index would list a tag the rename cannot
+ * find: a number among the tags (`- 2024`) is the tag `2024`, as it is
+ * written (`- 1.10` is `1.10`); a text with commas directly under the key
+ * (`tags: a, b`) is its parts, and a part is renamed where it stands in it.
+ * Such a text over several lines is written anew, on one line, and a new name
+ * YAML would read as a number (`2025`) stands between quotes: the index reads
+ * either as the same tags.
  */
-function renamedTag(value: unknown, _written: string | null, old: string, next: string): unknown {
+function renamedTag(value: unknown, written: string | null, inList: boolean, old: string, next: string): unknown {
+  const renamed = (tag: string): string | null => {
+    if (tag === old) return next;
+    return tag.startsWith(old + "/") ? next + tag.slice(old.length) : null;
+  };
+  if (typeof value === "string") {
+    if (inList) return renamed(value) ?? value;
+    let changed = false;
+    const parts = value.split(",").map((part) => {
+      const tag = part.trim();
+      const to = tag ? renamed(tag) : null;
+      if (to === null) return part;
+      changed = true;
+      const at = part.indexOf(tag);
+      return part.slice(0, at) + to + part.slice(at + tag.length);
+    });
+    return changed ? parts.join(",") : value;
+  }
+  if (value === null || value === undefined || typeof value === "object") return value;
+  return renamed(written || String(value)) ?? value;
+}
+
+/**
+ * The same under `tag`, which the index does not read as tags: a text that is
+ * the tag or one of its children, compared whole, as before 2026-10-22.
+ */
+function renamedTagText(value: unknown, old: string, next: string): unknown {
   if (typeof value !== "string") return value;
   if (value === old) return next;
   return value.startsWith(old + "/") ? next + value.slice(old.length) : value;
@@ -114,7 +166,8 @@ function renamedTag(value: unknown, _written: string | null, old: string, next: 
 /**
  * Renames a tag value inside the `tags`/`tag` frontmatter key — the exact tag and
  * its children (`old/sub` -> `new/sub`) — where it stands: the characters of the
- * tag change, in the quotes it has, and nothing else in the note does. Returns
+ * tag change, in the quotes it has, and nothing else in the note does (a text
+ * of several tags over several lines is written anew, see `renamedTag`). Returns
  * the content unchanged (and changed=false) when there is no parseable
  * frontmatter or no matching tag. The inline `#tag` rewrite in the body is the
  * caller's job.
@@ -133,7 +186,12 @@ export function renameFrontmatterTag(
   } catch {
     return { content, changed: false };
   }
-  const result = changeScalars(content, ["tags", "tag"], (value, written) => renamedTag(value, written, o, n), split);
+  const result = changeScalars(
+    content,
+    ["tags", "tag"],
+    (value, written, inList, key) => (key === "tags" ? renamedTag(value, written, inList, o, n) : renamedTagText(value, o, n)),
+    split
+  );
   return result.changed > 0 ? { content: result.content, changed: true } : { content, changed: false };
 }
 

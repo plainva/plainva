@@ -58,9 +58,19 @@ export function renameTagInText(
 }
 
 /** True when the note carries the tag (exact or a `tag/sub` child), in the body
- *  or the frontmatter — used to pick the candidate notes to rewrite. */
+ *  or the frontmatter — used to pick the candidate notes to rewrite.
+ *
+ *  A note whose tag cannot be renamed where it stands — one another value of
+ *  the block refers to (`tags: &t work, home` and `other: *t`) — carries it
+ *  too: the rename of that note fails and is counted. The probe threw, and the
+ *  search over the vault stopped at that note, for every other note as well. */
 export function contentHasTag(content: string, tag: string): boolean {
   const o = tag.replace(/^#/, "").trim();
   if (!o) return false;
-  return renameTagInText(content, o, o + SENTINEL).changed;
+  try {
+    return renameTagInText(content, o, o + SENTINEL).changed;
+  } catch {
+    // The writer refuses only an entry it was about to change: the tag is there.
+    return true;
+  }
 }

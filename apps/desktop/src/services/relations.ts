@@ -46,11 +46,12 @@ function linkBaseOf(value: unknown): string | null {
  * What the note holds under `key`, as a list — read with the reader of the
  * writer that will set the key (finding 2026-10-12).
  *
- * The values used to come from the reader of the index, whose schema rejects a
- * proper YAML map with a value it does not take (an empty `tags:`, a year
- * among the tags). "Could not be read" passed for "holds no link", and adding
- * ONE link replaced the list the note carried. A block the writer itself
- * cannot read answers no values here, and the write then refuses the note.
+ * The values used to come from the reader of the index, whose schema rejected a
+ * proper YAML map with a value it did not take (an empty `tags:`, a year
+ * among the tags; until 2026-10-22, ADR 0009). "Could not be read" passed for
+ * "holds no link", and adding ONE link replaced the list the note carried. A
+ * block the writer itself cannot read answers no values here, and the write
+ * then refuses the note.
  */
 function currentValues(content: string, key: string): unknown[] {
   const value = readFrontmatterPath(content, [key]);

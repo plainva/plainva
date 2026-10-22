@@ -395,6 +395,23 @@ describe("GraphService", () => {
       ]);
     });
 
+    it("takes no template placeholder for a name a note is mentioned by", async () => {
+      // A template's `- {{title}}` under `aliases` is read since 2026-10-22 (ADR 0009); as a phrase for the
+      // full-text index it is the word inside, and every note with `title` in it mentioned the template.
+      primeGraph(db, [{ path: "Templates/Meeting.md", title: "{{title}} – {{date}}" }, { path: "other.md" }], []);
+      db.mockedResults.push([{ path: "Templates/Meeting.md", value: '["{{title}}","Besprechung"]' }]); // aliases
+      db.mockedResults.push([{ path: "other.md" }]); // FTS "Besprechung"
+      db.mockedResults.push([]); // FTS "other"
+
+      const out = await service.findUnlinkedMentions({});
+
+      expect(out).toEqual([
+        { source: "other.md", target: "Templates/Meeting.md", reason: "mention", score: 1, term: "Besprechung" },
+      ]);
+      const phrases = db.queries.filter((q) => q.query.includes("MATCH ?")).map((q) => (q.params as any[])[0]);
+      expect(phrases).toEqual(['"Besprechung"', '"other"']);
+    });
+
     it("scopes to a focus note: mentions OF it and foreign titles INSIDE it (word boundaries)", async () => {
       primeGraph(
         db,
@@ -466,12 +483,12 @@ describe("Schema migration v3", () => {
       q.query.includes("INSERT OR REPLACE INTO meta (key, value) VALUES ('index_format_version', ?)")
     );
     expect(versionWrite).toBeDefined();
-    expect((versionWrite!.params as any[])[0]).toBe("7");
+    expect((versionWrite!.params as any[])[0]).toBe("8");
   });
 
   it("skips the migration when the stored version is current", async () => {
     const db = new MockDatabaseAdapter();
-    db.mockedOneResults.push({ value: "7" });
+    db.mockedOneResults.push({ value: "8" });
     await initializeSchema(db);
     expect(db.queries.some((q) => q.query.includes("SET mtime_local = 0"))).toBe(false);
     expect(db.queries.some((q) => q.query.includes("SET ctime = mtime_local"))).toBe(false);

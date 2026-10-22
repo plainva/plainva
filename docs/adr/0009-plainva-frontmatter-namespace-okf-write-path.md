@@ -329,6 +329,9 @@ up to it was read as YAML.
    change (a comma-separated `tags` comes back as a list, a flow list as a
    block list without its trailing comment). Both end where the property
    writers set one key surgically, like `setFrontmatterPath` does.
+   (Both have ended: the second with the addendum of 2026-10-13 — the
+   whole-set writer writes the difference —, the first with the addendum of
+   2026-10-22 — the reader takes every value, and this refusal is gone.)
 9. **A refused write is said, and nothing is shown that the note does not
    hold.** A database cell and the properties panel of the desktop showed the
    new value first and wrote afterwards; a refusal went to the console and
@@ -827,3 +830,157 @@ and a note a person made from it kept them.
 5. **Notes that exist keep the keys.** Nothing rewrites a note that exists;
    the user guide's FAQ says how to find the notes made before and how to
    take the keys out.
+
+## Addendum 2026-10-22 (a note's properties are read field by field)
+
+Finding 2026-10-09: the reader that hands a note's properties to the index,
+the desktop's properties panel and the phone's sheet (`extractFrontmatter` in
+`packages/core/src/metadata-extractor.ts`) checked the block against a schema
+and refused the WHOLE block when one value did not fit the form of its field:
+an empty `tags:` or `aliases:`, a number among them, `title`, `description` or
+`type` as a number, a list or empty, a `resource` that is no URL, a
+`timestamp` without a time zone, `.inf` under any key. The index then held no
+property of such a note, no tag from its block and the file name for its
+title; the panel showed "No properties", the phone's sheet no row and no word
+why, and every write was refused (point 8 of the addendum of 2026-10-09).
+Counted on 2026-10-22 in the local test vaults: 24 of 2,081 notes with a
+block, twelve paths in two copies of one vault — nine with
+`timestamp: 2026-06-22`, two templates with `- {{title}}` under `aliases` (a
+map to YAML), one with an empty `aliases:`. A new item made from such a
+template lost the template's tags to the inherited ones, and a pre-fill won
+against the template's own value (`finalizeItemContent`).
+
+1. **Every YAML map is read.** No value makes a block unreadable. The fields
+   Plainva gives a meaning have a reading; every other key holds what YAML
+   says. One sentence carries every case: a value that is not of its field's
+   kind is the text it is written with.
+
+   | Field | In the note | What the index, the panel and a cell get |
+   |---|---|---|
+   | `tags`, `aliases` | empty (`tags:`, `~`, `? tags`) | an empty list |
+   | | a text with commas | its parts, as before |
+   | | a number or a truth value, as an entry or as the value (`- 2024`, `tags: 2024`) | the text as written: the tag `2024`; `- 1.10` stays `1.10` |
+   | | a list or a map as an entry (`- {{title}}`) | the text as written, on one line: `{{title}}` |
+   | | an empty entry | no entry |
+   | `title`, `description`, `type`, `okf_version` | a number or a truth value (`title: 2024.10`) | the text as written |
+   | | empty | null: the key is there and says nothing — the title is the file name, the note is not OKF |
+   | | a list or a map (`title: [a, b]`) | the text as written |
+   | `resource`, `timestamp` | anything | what YAML says: an ordinary property |
+   | any key | a value the index cannot hold (`.inf`, `.nan`, `!!binary`, `!!set`, a reference to itself) | the text as written |
+
+   A number is read by its text because read as a number it changes: `1.10`
+   would be the tag `1.1` and fall together with another, `007` would be `7`,
+   `2024.10` would be `2024.1`. A quoted `"2024"` among the tags was a tag
+   before; whether it is quoted no longer decides. The other way was to leave
+   such a value out for its field. It hides what the note holds, and the next
+   change of that row would write over something nobody was shown. `resource`
+   and `timestamp` are read as what they say because nothing in Plainva takes
+   them as a URL or a moment: the trust signals read `timestamp` with
+   `timestampString` (`okf-trust.ts`), which takes a bare date. A key is named
+   as the YAML names it — a key that is an alias (`*k :`) by what it stands
+   for, the last of two keys of one name with that one's value.
+2. **What stays unread:** YAML that does not parse — a key twice included —,
+   a reference that leads nowhere (`title: *Draft*`), and a block that is a
+   list. A block that holds no entry reads as one without properties, and so
+   does one that holds only a text or a number (the writers refuse it), or a
+   set, an ordered map or a date at its top (`!!set`, `!!omap`,
+   `!!timestamp`), as before.
+3. **For every block the schema took, the answer is the same,** value for
+   value and in the same order: the fields with a meaning first, in the
+   schema's order — the order the panel has always shown —, then the note's
+   own; `__proto__` is no property, at no depth. One answer is not: a number
+   under `okf_version` is the text it is written with, `1.0` and not `1`. The
+   schema in `packages/core/src/metadata.ts` describes the answer now and
+   checks no note. The forms the spec gives its fields — `resource` a URL,
+   `timestamp` with a time zone, texts where texts are asked for — are
+   `okfFieldFormsSchema`, and with a non-empty `type`
+   `okfConceptFrontmatterSchema`: checks against the spec. The linter
+   (`lintMarkdownAst`, `okf-linter.ts`) checked them through the reader; it
+   checks them itself now, on the block as the YAML says it, and still calls
+   such a block invalid. `classifyOkfFile` reads the file itself and still
+   reports `type: 5` as a type that is no text, where the index reads the type
+   "5": the two answer different questions.
+4. **The index catches up: format 8.** A row cannot tell a note whose block
+   was refused from a note whose block holds nothing, so every note that
+   begins with a block — after a byte order mark too, found by its text in
+   `fts_notes` — and that the index holds no property for is read again by the
+   next full scan, and no other (`packages/core/src/db/Schema.ts`). No note is
+   written, and no sync state moves. A number under `okf_version` keeps its
+   old reading in the index until the note changes; nothing reads it there.
+5. **The refusal of a value is gone.** The reader refuses no value, so
+   neither does `writableProperties`: the sentence that named the property
+   (`inputRejected.propertyValue`) is removed from the ten locales. A block
+   after point 2 is refused as before, with the same sentence. The whole-set
+   writer is unchanged: since the addendum of 2026-10-13 it writes the
+   difference, and a reading that is not what the YAML says — `tags:` read as
+   an empty list, `title: 2024` as "2024" — is not written back. The property
+   writers keep handing it the whole set; with a reader that names every key
+   of every map, the set they hand back is the note's. One way through it did
+   write a reading: a rename handed over as a set, whose new key the writer
+   fills with what the old one was read as — `title: 2024` renamed in the
+   panel became `heading: "2024"`, a list under `description` one line of
+   text. The panel hands over the two names now (`renameFrontmatterKey`), as a
+   database's rename of a column does: the entry changes its name and not a
+   character of its value. `tags: a, b` renamed stays `a, b` under the new
+   name, a text there, where the set wrote a list of two lines (addendum of
+   2026-10-13). A rename that finds no entry of the name — a key that is an
+   alias, which the reader names after what it stands for — changes
+   nothing; it is refused and said, as an entry the writers cannot change
+   where it stands.
+6. **A block that cannot be read is said.** For a block after point 2 the
+   desktop's panel showed "No properties" and the phone's sheet nothing. Both
+   say now that the block at the top of the note cannot be read as properties
+   (`properties.unreadableBlock`) — and so they do for a block the reader
+   reads as one without properties and every write is refused for: a line of
+   prose or a number between the two rules, an ordered map or a date at its
+   top. Both ask one question (`unreadablePropertiesBlock`: the reader's
+   refusal, or the writers', `propertiesBlockRefused`).
+7. **A tag is renamed as it is read.** With point 1 the index lists a number
+   among the tags as a tag. The vault-wide rename (`renameFrontmatterTag`)
+   compared texts only and passed it by; and it passed by a tag inside a text
+   with commas directly under `tags` (`tags: a, b`), which the index has
+   listed as two tags all along. It finds an entry by the text the reader
+   reads now: a number as it is written, and a part of a text with commas,
+   renamed where it stands in it — such a text over several lines is written
+   anew, on one line, and a new name YAML would read as a number stands
+   between quotes (`- "2025"`). An entry of a list stays one text, commas and
+   all, as the index reads it. The singular `tag`, from which the index reads
+   no tags, is renamed as before: a text compared whole. A tag another value
+   of the block refers to (`tags: &t work, home` and `other: *t`) cannot be
+   renamed where it stands: the writer refuses that note, the rename counts it
+   among the notes it could not change, and goes on — the search for the notes
+   with the tag (`contentHasTag`) threw there and stopped the rename for every
+   note.
+8. **A placeholder is no name.** A template's `- {{title}}` under `aliases`
+   is read now. The search for unlinked mentions (`GraphService`) takes a
+   title or an alias with a placeholder in it for no name a note is mentioned
+   by: as a phrase for the full-text index it was the word inside, and every
+   note with `title` in it mentioned the template. A placeholder as the title
+   (`title: {{title}}`, read now as the text it is written with) is the
+   template's title in the index, as `title: "{{title}}"` was before, and a
+   link `[[{{title}}]]` finds the template by it; that is left as it is here.
+9. **More notes meet rules.** Databases and filters show notes they missed,
+   the tag tree and the graph as well, and template rules by `type` take
+   effect. So does a rule of a workspace slice (`tag equals …`,
+   `property equals …`, `packages/core/src/workspace/slices.ts`): a note whose
+   block was refused is shown to the slice's members with the next
+   reconciliation. The rule says so, and the tag stands in the note; it is new
+   all the same. Accepted by the maintainer (2026-10-19), for the release note.
+10. **Tests.** `packages/core/test/metadata-extractor.test.ts` holds every
+   form above, and the old schema as the measure for every block it took — on
+   the table of forms, on keys named another way and on generated blocks —,
+   and that the reader answers for every YAML map and names every key of it.
+   The index on a real database (`properties-read-per-field.test.ts`): each
+   form with its other properties, its tags and its title, and the step to
+   format 8. The shells' writers on such a note change the one property and
+   not another byte (`apps/desktop/src/lib/writeProperty.test.ts`, the cell
+   and the panel, the phone's `commitCellValue.test.ts`); a rename in the
+   panel changes the name alone, and one that finds no entry of the name is
+   refused and said (`PropertiesSection.refusedWrite.test.tsx`); the panel
+   and the phone's sheet say a block they cannot read, a line of prose and a
+   number among them (`NoteContextSheet.properties.test.tsx`); the tag rename
+   (`rename-tag.test.ts`, `renameTagVault.test.ts`); the linter
+   (`okf-linter.test.ts`); the mentions (`graph-service.test.ts`); the new
+   item from such a template (`newItemFlow.test.ts`).
+   `apps/desktop/src/yamlWriters.test.ts` knows the reader and holds that it
+   prints nothing; `silentPropertyWrites.test.ts` knows the panel's rename.

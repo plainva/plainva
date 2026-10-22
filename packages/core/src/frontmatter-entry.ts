@@ -1164,14 +1164,15 @@ export function renameEntryKey(content: string, from: string, to: string): strin
 /**
  * Changes scalars where they stand: under each of the given keys at the top of
  * the block, the value itself or the items of its list. `change` is handed the
- * value of one and the text it is written with, and answers its new value —
- * or the value it was handed, to leave it. Nothing else in the note moves;
+ * value of one, the text it is written with, whether it is an item of a list
+ * and the key it stands under, and answers its new value — or the value it was
+ * handed, to leave it. Nothing else in the note moves;
  * `changed` counts the scalars that were written.
  */
 export function changeScalars(
   content: string,
   keys: readonly string[],
-  change: (value: unknown, written: string | null) => unknown,
+  change: (value: unknown, written: string | null, inList: boolean, key: string) => unknown,
   /** The note's block, where the caller has read it already — with its source tokens. */
   split: SplitDocument = splitDocument(content, { sourceTokens: true })
 ): { content: string; changed: number } {
@@ -1190,10 +1191,10 @@ export function changeScalars(
   /** The entries that change, each with what it has to say. */
   const entries: Array<{ pair: Pair; key: string; data: unknown }> = [];
   let changed = 0;
-  const changedScalar = (node: unknown): unknown => {
+  const changedScalar = (node: unknown, inList: boolean, key: string): unknown => {
     const old = jsOf(place, node);
     if (!isScalar(node)) return old;
-    const next = dataOf(change(node.value, typeof node.source === "string" ? node.source : null));
+    const next = dataOf(change(node.value, typeof node.source === "string" ? node.source : null, inList, key));
     if (sameData(next, old)) return old;
     changed++;
     return next;
@@ -1202,7 +1203,7 @@ export function changeScalars(
     const pair = root.items.find((item) => isScalar(item.key) && item.key.value === key);
     if (!pair) continue;
     const before = changed;
-    const data = isSeq(pair.value) ? pair.value.items.map(changedScalar) : changedScalar(pair.value);
+    const data = isSeq(pair.value) ? pair.value.items.map((item) => changedScalar(item, true, key)) : changedScalar(pair.value, false, key);
     if (changed === before) continue;
     put(after, key, data);
     entries.push({ pair, key, data });

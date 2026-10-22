@@ -225,13 +225,16 @@ describe("index format 7", () => {
     // The index as version 6 left it: the link cut at the decoded `#`.
     await vault.db.execute("UPDATE links SET target_path = 'Draft', anchor = '#1.md' WHERE target_path = 'Draft #1.md'");
     await vault.db.execute("UPDATE meta SET value = '6' WHERE key = 'index_format_version'");
+    // Each note gets a property: the step of version 8 reads again a note that
+    // begins with a block and holds none, and this test is about the step of version 7.
+    await vault.db.execute("INSERT INTO properties (file_id, key, value, type) SELECT id, 'type', 'Note', 'string' FROM files");
     expect((await vault.query.getBacklinks("Draft.md")).map((b) => b.source_path)).toEqual(["Start.md"]);
 
     await initializeSchema(vault.db);
     const stale = (await vault.db.query<{ path: string }>("SELECT path FROM files WHERE mtime_local = 0 ORDER BY path")).map((row) => row.path);
     // A wiki link with an anchor is not what the step is about.
     expect(stale).toEqual(["Mit.md", "Start.md"]);
-    expect((await vault.db.query<{ value: string }>("SELECT value FROM meta WHERE key = 'index_format_version'"))[0].value).toBe("7");
+    expect((await vault.db.query<{ value: string }>("SELECT value FROM meta WHERE key = 'index_format_version'"))[0].value).toBe("8");
 
     await vault.indexer.indexVaultFull();
     expect(await targetsOf("Start.md")).toEqual(["Draft #1.md"]);

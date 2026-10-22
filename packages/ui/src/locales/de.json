@@ -1799,6 +1799,7 @@
     "changeType": "Typ ändern",
     "deleteProperty": "Eigenschaft löschen",
     "noProperties": "Keine Eigenschaften",
+    "unreadableBlock": "Der Block am Anfang der Notiz lässt sich nicht als Eigenschaften lesen. Korrigiere ihn im Text der Notiz.",
     "value": "Wert…",
     "selectValue": "Wert wählen…",
     "clearValue": "Auswahl entfernen",
@@ -4833,7 +4834,6 @@
     "driveFolder": "Der Anbieter hat eine ungültige Ordnerkennung zurückgegeben. Der Vorgang wurde abgebrochen.",
     "htmlDepth": "Dieses HTML ist zu tief verschachtelt. Vereinfache es oder importiere einen Markdown-Export.",
     "propertiesBlock": "Der Block am Anfang der Notiz lässt sich nicht als Eigenschaften lesen. Korrigiere ihn im Text der Notiz und versuche es erneut.",
-    "propertyValue": "Die Eigenschaft „{{key}}“ enthält einen Wert, der sich nicht lesen lässt. Korrigiere ihn im Text der Notiz und versuche es erneut.",
     "propertyNameTaken": "Die Notiz hat schon eine Eigenschaft mit dem neuen Namen."
   },
   "audio": {

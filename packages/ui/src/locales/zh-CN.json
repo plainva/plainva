@@ -1791,6 +1791,7 @@
     "changeType": "更改类型",
     "deleteProperty": "删除属性",
     "noProperties": "暂无属性",
+    "unreadableBlock": "笔记开头的区块无法作为属性读取。请在笔记文本中修正。",
     "value": "值…",
     "selectValue": "选择值…",
     "clearValue": "清除选择",
@@ -4772,7 +4773,6 @@
     "driveFolder": "提供商返回了无效的文件夹标识符。操作已停止。",
     "htmlDepth": "此HTML的嵌套层级过深。请简化结构，或导入Markdown格式的导出文件。",
     "propertiesBlock": "笔记开头的区块无法作为属性读取。请在笔记文本中修正后重试。",
-    "propertyValue": "属性“{{key}}”的值无法读取。请在笔记文本中修正后重试。",
     "propertyNameTaken": "笔记中已有使用新名称的属性。"
   },
   "audio": {

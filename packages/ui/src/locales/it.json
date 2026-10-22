@@ -1807,6 +1807,7 @@
     "changeType": "Cambia tipo",
     "deleteProperty": "Elimina proprietà",
     "noProperties": "Nessuna proprietà",
+    "unreadableBlock": "Il blocco all’inizio della nota non può essere letto come proprietà. Correggilo nel testo della nota.",
     "value": "Valore…",
     "selectValue": "Scegli un valore…",
     "clearValue": "Cancella selezione",
@@ -4894,7 +4895,6 @@
     "driveFolder": "Il provider ha restituito un identificatore di cartella non valido. L’operazione è stata interrotta.",
     "htmlDepth": "Questo HTML contiene troppi livelli di annidamento. Semplificalo o importa un’esportazione Markdown.",
     "propertiesBlock": "Il blocco all’inizio della nota non può essere letto come proprietà. Correggilo nel testo della nota e riprova.",
-    "propertyValue": "La proprietà \"{{key}}\" contiene un valore che non può essere letto. Correggilo nel testo della nota e riprova.",
     "propertyNameTaken": "La nota ha già una proprietà con il nuovo nome."
   },
   "audio": {

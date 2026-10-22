@@ -1,5 +1,13 @@
-import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, updateVaultText, FrontmatterSurgicalError, type TextUpdateFiles } from "@plainva/core";
-import { UNREADABLE_PROPERTY_VALUE } from "../lib/errorText";
+import {
+  parseMarkdownAst,
+  extractFrontmatter,
+  propertiesBlockRefused,
+  updateFrontmatterString,
+  updateVaultText,
+  FrontmatterSurgicalError,
+  type ExtractedFrontmatterResult,
+  type TextUpdateFiles,
+} from "@plainva/core";
 import { resolvePropertyWriteKey } from "./propertyModel";
 
 /**
@@ -40,26 +48,35 @@ export function isEmptyPropertyValue(value: unknown): boolean {
  *
  * The writers that go through `updateFrontmatterString` work on the WHOLE set:
  * they read the note's properties, change one and hand all of them back, and
- * what the new set no longer names is removed from the note. So "could not be
- * read" must never pass for "has none" (finding 2026-10-09). It did: a block
- * that is a proper YAML map but holds a value the reader's schema rejects — an
- * empty `tags:`, a year among the tags, a number as `title` — came back as no
- * properties at all, and writing one property removed every other one.
+ * a key the new set no longer names is removed from the note. So "could not
+ * be read" must never pass for "has none" (finding 2026-10-09): a block the
+ * reader cannot read is refused here, like a block that is no YAML map
+ * (ADR 0009) — and the refusal carries nothing of the note's text, because the
+ * YAML parser's own message quotes the line it failed on. `errorText` says
+ * both refusals in the user's language.
  *
- * Such a note is refused, like a block that is no YAML map (ADR 0009). The
- * refusal names the property the reader stumbled over and nothing of the
- * note's text: the YAML parser's own message quotes the line it failed on.
- * `errorText` says all three refusals in the user's language.
+ * The reader refuses no value any more (ADR 0009, addendum 2026-10-22): an
+ * empty `tags:` or a year among the tags made it refuse the whole block, and
+ * this function refused the write with the name of the property. What it still
+ * refuses is YAML that cannot be parsed, and a block that is a list.
  */
 export function writableProperties(text: string): Record<string, unknown> {
   const parsed = extractFrontmatter(parseMarkdownAst(text));
   if (parsed.success) return parsed.data ? { ...(parsed.data as Record<string, unknown>) } : {};
-  // The schema's refusal carries where it failed; the YAML parser's has no such list.
-  const issues = (parsed.error as unknown as { issues?: { path?: unknown[] }[] }).issues;
-  if (!Array.isArray(issues)) throw new FrontmatterSurgicalError("Frontmatter is not parseable YAML");
-  const key = issues[0]?.path?.[0];
-  if (typeof key !== "string") throw new FrontmatterSurgicalError("Frontmatter is not a YAML map");
-  throw new FrontmatterSurgicalError(`${UNREADABLE_PROPERTY_VALUE}${key}`);
+  if (parsed.error instanceof FrontmatterSurgicalError) throw parsed.error;
+  throw new FrontmatterSurgicalError("Frontmatter is not parseable YAML");
+}
+
+/**
+ * Whether the block at the top of a note cannot be read as properties — what
+ * the desktop's panel and the phone's sheet say instead of "No properties"
+ * (ADR 0009, addendum 2026-10-22). The reader refuses it (`read`: YAML that
+ * does not parse, a list, a reference that leads nowhere), or the writers do:
+ * a line of prose or a number between the two rules, which the reader reads
+ * as a block without properties and every write is refused for.
+ */
+export function unreadablePropertiesBlock(text: string, read: ExtractedFrontmatterResult): boolean {
+  return !read.success || propertiesBlockRefused(text);
 }
 
 export async function writeNoteProperty(

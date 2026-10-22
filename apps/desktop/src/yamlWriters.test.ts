@@ -73,6 +73,13 @@ const KNOWN = new Map<string, { takes: string[]; why: string }>([
   ],
   ["packages/core/src/okf-conversion.ts", { takes: ["parse", "parseDocument"], why: "asks whether a block holds anything; it prints nothing" }],
   [
+    "packages/core/src/metadata-extractor.ts",
+    {
+      takes: ["isAlias", "isMap", "isScalar", "isSeq", "parseDocument"],
+      why: "the index's reader: reads a block as a document, so that a value that is not of its field's kind is read as the text it is written with (ADR 0009, addendum 2026-10-22); it prints nothing (pinned below)",
+    },
+  ],
+  [
     "packages/core/src/metadata-updater.ts",
     { takes: ["stringify"], why: "YAML from a set of properties for the node of a parsed tree — no caller in either shell: a note is not written back from its tree (`markdownSerializerUse.test.ts`)" },
   ],
@@ -117,8 +124,8 @@ describe("a properties block that was read is not written back through the YAML 
     expect(block).toMatch(/export function parseBlockYaml\(yaml: string/);
     expect(block).not.toMatch(/\.toString\(/);
     expect(block).not.toMatch(/\bstringify\b/);
-    // Nor do the writers that are handed its document.
-    for (const rel of ["packages/core/src/frontmatter-surgical.ts", "packages/core/src/frontmatter-string-updater.ts"]) {
+    // Nor do the writers that are handed its document, nor the index's reader.
+    for (const rel of ["packages/core/src/frontmatter-surgical.ts", "packages/core/src/frontmatter-string-updater.ts", "packages/core/src/metadata-extractor.ts"]) {
       const text = code(sourceFile(rel));
       expect(text, rel).not.toMatch(/\.toString\(/);
       expect(text, rel).not.toMatch(/\bstringify\b/);

@@ -115,16 +115,11 @@ describe("commitCellValue: what counts as empty", () => {
 describe("commitCellValue: a block that cannot be written to", () => {
   /**
    * The error goes to the caller (who says so, see `silentFailures.test.ts`)
-   * and the note stays as it is. The third and fourth case are the ones that
-   * used to be written: a proper YAML map the reader's schema rejects came
-   * back as "no properties", and the rewrite then removed every key but the
-   * one being set.
+   * and the note stays as it is.
    */
   it.each([
     ["a YAML list", `---\n- a\n- list\n---\nText\n`],
     ["YAML that cannot be parsed", `---\ntitle: [unclosed\nowner: Anna\n---\nText\n`],
-    ["an empty tags key", `---\ntags:\nstatus: Offen\nowner: Anna\n---\nText\n`],
-    ["a year among the tags", `---\ntags:\n  - 2024\n  - journal\nowner: Anna\n---\nText\n`],
   ])("refuses %s and leaves the note byte for byte", async (_label, note) => {
     files.set(NOTE, note);
 
@@ -132,6 +127,28 @@ describe("commitCellValue: a block that cannot be written to", () => {
 
     expect(files.get(NOTE)).toBe(note);
     expect(synced).not.toHaveBeenCalled();
+  });
+});
+
+describe("commitCellValue: a value the reader's schema refused the whole block over", () => {
+  /**
+   * These used to be written as "no properties" — the rewrite removed every
+   * key but the one being set — and were refused from 2026-10-11 to
+   * 2026-10-22. The reader takes every value now (ADR 0009, addendum
+   * 2026-10-22): the one property changes, and not another byte of the note.
+   */
+  it.each([
+    ["an empty tags key", `---\ntags:\nstatus: Offen\nowner: Anna\n---\nText\n`],
+    ["a year among the tags", `---\ntags:\n  - 2024\n  - journal\nstatus: Offen\nowner: Anna\n---\nText\n`],
+    ["a timestamp that is a date", `---\ntype: Referenz\ntimestamp: 2026-06-22\nstatus: Offen\n---\nText\n`],
+    ["a text with commas, a bracket list and a number with a leading zero", `---\ntags: a, b\naliases: [x, y] # two names\nplz: 01067\nstatus: Offen\n---\nText\n`],
+  ])("writes %s: the one property changes, and not another byte", async (_label, note) => {
+    files.set(NOTE, note);
+
+    await commitCellValue(vault, NOTE, "status", "Erledigt");
+
+    expect(files.get(NOTE)).toBe(note.replace("status: Offen\n", "status: Erledigt\n"));
+    expect(synced).toHaveBeenCalledTimes(1);
   });
 });
 

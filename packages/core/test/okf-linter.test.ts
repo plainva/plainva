@@ -70,4 +70,15 @@ Some text here.
       expect.objectContaining({ ruleId: "okf-invalid-frontmatter", severity: "error" })
     );
   });
+
+  it("names a value outside the form the spec gives its field, which the reader reads all the same", () => {
+    // Until 2026-10-22 the reader's schema refused such a block and the linter said so through it;
+    // the reader takes every value now (ADR 0009), and the linter checks the forms itself.
+    for (const line of ["resource: not a url", "timestamp: 2026-06-22", "tags:", "title: 2024", "aliases:\n  - 2024"]) {
+      const messages = lintMarkdownAst(parseMarkdownAst(`---\ntype: Reference\n${line}\n---\n# Heading\n`));
+      expect(messages, line).toEqual([expect.objectContaining({ ruleId: "okf-invalid-frontmatter", severity: "error" })]);
+    }
+    const valid = "---\ntype: Reference\nresource: https://example.com\ntimestamp: 2026-06-22T10:00:00+02:00\ntags: a, b\n---\n# Heading\n";
+    expect(lintMarkdownAst(parseMarkdownAst(valid))).toEqual([]);
+  });
 });

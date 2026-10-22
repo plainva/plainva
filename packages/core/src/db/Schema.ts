@@ -658,7 +658,15 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
 // `Draft` with the anchor `#1.md`. A stored row cannot tell such a link from
 // one with a real anchor — both carry one —, so every note that holds a
 // Markdown link with an anchor is re-parsed, and no other.
-const INDEX_FORMAT_VERSION = 7;
+//
+// Version 8 reads a note's properties field by field (ADR 0009, addendum
+// 2026-10-22): one value outside its field's form — an empty `tags:`, a
+// `timestamp` that is a date — made the reader refuse the whole block, and the
+// index held no property, no tag from the block and no title of that note. A
+// row cannot tell such a note from one whose block holds nothing, so every
+// note that begins with a block and that the index holds no property for is
+// re-parsed, and no other.
+const INDEX_FORMAT_VERSION = 8;
 
 async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
   let stored: number;
@@ -680,9 +688,21 @@ async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
     // Version 7: the notes whose Markdown links may stand under a cut target.
     // The same reset as below, for those notes alone — the next full pass
     // re-parses them, and a file that has not changed fires no sync callback.
+    if (stored < 7) {
+      await db.execute(
+        `UPDATE files SET mtime_local = 0
+         WHERE id IN (SELECT source_id FROM links WHERE link_type = 'markdown-link' AND anchor IS NOT NULL)`
+      );
+    }
+    // Version 8: the notes that begin with a block (`---`, after a byte order
+    // mark too) and that the index holds no property for — those whose block
+    // the reader refused, among the ones whose block holds nothing. Their text
+    // is in `fts_notes`, read once for all of them.
     await db.execute(
       `UPDATE files SET mtime_local = 0
-       WHERE id IN (SELECT source_id FROM links WHERE link_type = 'markdown-link' AND anchor IS NOT NULL)`
+       WHERE path LIKE '%.md'
+         AND NOT EXISTS (SELECT 1 FROM properties WHERE properties.file_id = files.id)
+         AND path IN (SELECT path FROM fts_notes WHERE substr(content, 1, 3) = '---' OR substr(content, 1, 4) = char(65279) || '---')`
     );
   } else {
     // Below 4 every note is re-parsed, which fills the new columns as well.

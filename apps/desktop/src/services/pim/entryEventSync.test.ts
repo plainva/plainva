@@ -267,8 +267,10 @@ describe("runEntryEventSync — the anchors are changed in the text that carries
 
   it("a version whose properties cannot be written keeps its anchor where it was: the move is not forgotten there", async () => {
     const { deps: d } = deps({ event: movedTo("2026-08-20") });
-    // A value the property writer refuses (a number as the title): the date cannot go into this version.
-    const unwritable = NOTE.replace("type: Note\n", "type: Note\ntitle: 2026\n");
+    // A block the property writer refuses — a reference that leads nowhere: `title: *Draft*` is emphasis to a
+    // person and a reference to YAML (until 2026-10-22 a number as the title did it): the date cannot go into
+    // this version, while its anchors can still be read.
+    const unwritable = NOTE.replace("type: Note\n", "type: Note\ntitle: *Draft*\n");
     const texts = twoVersions(d, NOTE, unwritable);
     const res = await runEntryEventSync(d);
     expect(res.errors).toEqual([]);

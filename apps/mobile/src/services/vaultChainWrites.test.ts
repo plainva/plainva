@@ -333,8 +333,9 @@ describe("a property set across the selection of a database, on the phone", () =
   });
 
   it("goes on past a note it cannot write, and that note is left as it was: no version, no queue entry", async () => {
-    // An empty `tags:` is a block the reader refuses (finding 2026-10-09): written anyway, every other property was lost.
-    const refused = "---\ntags:\nstatus: open\n---\n# Delta\n";
+    // A block that is no YAML map, here a list, is refused (finding 2026-10-09: written anyway, every other
+    // property was lost). An empty `tags:` was refused too until 2026-10-22; the reader takes it now (ADR 0009).
+    const refused = "---\n- tags\n- status: open\n---\n# Delta\n";
     await syncedVault({ "Projects/Delta.md": refused });
     const result = await setAcrossSelection(NOTES, "status", "done");
     expect(result.failed.map((f) => f.path)).toEqual(["Projects/Delta.md"]);

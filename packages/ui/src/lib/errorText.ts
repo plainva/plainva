@@ -34,9 +34,10 @@ const INPUT_REJECTIONS = new Map([
 
 /**
  * A properties block the writers refuse (`FrontmatterSurgicalError` in
- * `@plainva/core`, `writableProperties` here): not parseable YAML, no YAML
- * map, a map with a value the reader cannot take — or, for a rename, a note
- * that already carries a property of the new name.
+ * `@plainva/core`, `writableProperties` here): not parseable YAML or no YAML
+ * map — or, for a rename, a note that already carries a property of the new
+ * name. (A single value the reader could not take was a refusal of its own
+ * until 2026-10-22; the reader takes every value now, ADR 0009.)
  *
  * Said in the user's language, and WITHOUT what follows the first sentence of
  * the YAML parser's message: that quotes the line it stumbled over — the
@@ -45,8 +46,6 @@ const INPUT_REJECTIONS = new Map([
  * plain string reads the same.
  */
 const UNREADABLE_PROPERTIES_BLOCK = ["Frontmatter is not parseable YAML", "Frontmatter is not a YAML map"];
-/** How the refusal of ONE unreadable value begins; the property's name follows. */
-export const UNREADABLE_PROPERTY_VALUE = "Frontmatter value cannot be read: ";
 /**
  * A rename onto a key the note already carries (`renameFrontmatterKey`): the
  * message begins and ends like this, with the two names between. They are not
@@ -55,13 +54,10 @@ export const UNREADABLE_PROPERTY_VALUE = "Frontmatter value cannot be read: ";
 const PROPERTY_NAME_TAKEN = ["Cannot rename '", "': target key already exists"] as const;
 
 function propertiesErrorText(message: string): string | null {
-  const said = (key: string, fallback: string, values?: Record<string, string>) => {
-    const translated = i18n.t(`inputRejected.${key}`, { ...values, defaultValue: fallback });
+  const said = (key: string, fallback: string) => {
+    const translated = i18n.t(`inputRejected.${key}`, { defaultValue: fallback });
     return typeof translated === "string" && translated.trim() ? translated : fallback;
   };
-  if (message.startsWith(UNREADABLE_PROPERTY_VALUE)) {
-    return said("propertyValue", message, { key: message.slice(UNREADABLE_PROPERTY_VALUE.length) });
-  }
   if (message.startsWith(PROPERTY_NAME_TAKEN[0]) && message.endsWith(PROPERTY_NAME_TAKEN[1])) {
     return said("propertyNameTaken", "The note already has a property with the new name.");
   }

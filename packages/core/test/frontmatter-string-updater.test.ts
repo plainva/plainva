@@ -213,7 +213,8 @@ This is a horizontal rule.
     });
 
     it("one key gone and one new with the same value: the entry is renamed where it stands", () => {
-      // The panel's rename. It used to remove the entry and put a new one at the end of the block.
+      // A rename handed over as a set (the panel's until 2026-10-22; it hands over the two names
+      // now, `PropertiesSection.tsx`). It used to remove the entry and put a new one at the end of the block.
       const renamed = Object.fromEntries(Object.entries(read()).map(([key, value]) => [key === "plz" ? "postcode" : key, value]));
       expect(updateFrontmatterString(NOTE, renamed)).toBe(NOTE.replace("plz: 01067", "postcode: 01067"));
       const status = Object.fromEntries(Object.entries(read()).map(([key, value]) => [key === "status" ? "state" : key, value]));

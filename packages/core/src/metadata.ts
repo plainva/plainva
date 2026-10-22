@@ -14,12 +14,10 @@ export const nonEmptyStringSchema = z
   .refine((value) => value.trim().length > 0, "Expected a non-empty string");
 
 /**
- * Tolerant read-side schema: files declaring a newer/unknown okf_version must
- * stay readable ("permissive consumption", OKF SPEC §9/§11). Validation against
- * a specific spec version is the job of the versioned linter, not of parsing.
- * A bare YAML number (`okf_version: 1`) is coerced to its string form — a
- * hand-written note must not silently lose ALL indexed properties/tags just
- * because the version was not quoted.
+ * `okf_version` in the strict OKF form below: files declaring a newer/unknown
+ * version stay valid ("permissive consumption", OKF SPEC §9/§11) — validation
+ * against a specific spec version is the job of the versioned linter. A bare
+ * YAML number (`okf_version: 1`) counts as its string form.
  */
 export const okfVersionReadSchema = z.preprocess(
   (value) => (typeof value === "number" && Number.isFinite(value) ? String(value) : value),
@@ -53,18 +51,11 @@ const stringOrArrayToArray = z.preprocess((val) => {
   return val;
 }, z.array(nonEmptyStringSchema).optional());
 
-const commonFrontmatterFields = {
-  title: z.string().optional(),
-  description: z.string().optional(),
-  resource: z.string().url().optional(),
-  tags: stringOrArrayToArray,
-  aliases: stringOrArrayToArray,
-  timestamp: z.string().datetime({ offset: true }).optional(),
-  okf_version: okfVersionReadSchema.optional(),
-  // OKF v0.2 trust-signal families: read tolerantly (any YAML shape) and
-  // form-checked afterwards by `parseOkfTrustSignals` (okf-trust.ts). A task
-  // database's `status: Offen` is an ordinary property and must never fail
-  // the parse — the spec forbids rejecting a document over a field's shape.
+// OKF v0.2 trust-signal families: any YAML shape, form-checked afterwards by
+// `parseOkfTrustSignals` (okf-trust.ts). A task database's `status: Offen` is
+// an ordinary property — the spec forbids rejecting a document over a
+// field's shape.
+const trustSignalFields = {
   generated: frontmatterValueSchema.optional(),
   verified: frontmatterValueSchema.optional(),
   sources: frontmatterValueSchema.optional(),
@@ -73,14 +64,63 @@ const commonFrontmatterFields = {
   status: frontmatterValueSchema.optional()
 };
 
+/** A field that holds one text, as the reader answers it: the text, or null where the key stands empty. */
+const readText = z.string().nullable().optional();
+/** A field that holds a list of texts, as the reader answers it: never an empty entry. */
+const readTexts = z.array(nonEmptyStringSchema).optional();
+
+/**
+ * What the index's reader answers for a properties block (`extractFrontmatter`
+ * in `metadata-extractor.ts`) — a description of its answer, not a filter.
+ *
+ * The reader reads every YAML map, field by field (ADR 0009, addendum
+ * 2026-10-22): until then a single value outside its field's form made this
+ * schema refuse the WHOLE block — an empty `tags:`, a year among the tags, a
+ * `timestamp` that is a date — and the index held no property of that note.
+ * The fields Plainva gives a meaning have their reading; every other key
+ * holds what YAML says. The keys are named in the order of this object first:
+ * the order the properties panel has always shown them in.
+ */
 export const readableFrontmatterSchema = z
   .object({
-    type: z.string().optional(),
-    ...commonFrontmatterFields
+    type: readText,
+    title: readText,
+    description: readText,
+    resource: frontmatterValueSchema.optional(),
+    tags: readTexts,
+    aliases: readTexts,
+    timestamp: frontmatterValueSchema.optional(),
+    okf_version: readText,
+    ...trustSignalFields
   })
   .catchall(frontmatterValueSchema);
 
-export const okfConceptFrontmatterSchema = readableFrontmatterSchema.extend({
+/** The fields of the answer that hold one text. */
+export const READ_TEXT_FIELDS = ["type", "title", "description", "okf_version"] as const;
+/** The fields of the answer that hold a list of texts. */
+export const READ_LIST_FIELDS = ["tags", "aliases"] as const;
+
+/**
+ * The forms the OKF spec gives the values of its fields, for a check against
+ * the spec (`okf-linter.ts`) — never for reading: a note outside them is read
+ * all the same (above). This was the reader's schema until 2026-10-22.
+ */
+export const okfFieldFormsSchema = z
+  .object({
+    type: z.string().optional(),
+    title: z.string().optional(),
+    description: z.string().optional(),
+    resource: z.string().url().optional(),
+    tags: stringOrArrayToArray,
+    aliases: stringOrArrayToArray,
+    timestamp: z.string().datetime({ offset: true }).optional(),
+    okf_version: okfVersionReadSchema.optional(),
+    ...trustSignalFields
+  })
+  .catchall(frontmatterValueSchema);
+
+/** The strict OKF form of a concept's frontmatter: the forms above, and a `type`. */
+export const okfConceptFrontmatterSchema = okfFieldFormsSchema.extend({
   type: nonEmptyStringSchema
 });
 
