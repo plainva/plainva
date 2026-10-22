@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-10-21
+Stan na: 2026-10-22
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -283,6 +283,8 @@ Od wersji 0.8.2 mobilny ekran nowości wskazuje wspólne wydanie Plainva, niezal
 Asystent mobilny od razu otwiera właściwe połączenie. Po zalogowaniu wybierasz kalendarze i listy zadań oraz widzisz wynik.
 
 Otwórz **Konta w chmurze**, wybierz istniejące konto i **Dodaj** przy brakującej usłudze. Istniejące usługi pozostają połączone. Gmail nadal używa własnego logowania poczty lub hasła aplikacji. Anulowanie asystenta nie odłącza ukończonych usług. Transfer mobilny zachowuje vault źródłowy i uwzględnia pasujący istniejący vault docelowy albo przygotowuje osobny kontener. Pliki kolidujące są porównywane osobno i obie zawartości zostają zachowane. Zaszyfrowane cele otwiera się przez istniejący proces parowania.
+
+Połączenie kończy się w vaulcie: w tym, w którym zostało rozpoczęte, albo — w przypadku połączenia plików — w nowym, który samo tworzy. Na koniec Plainva przełącza się tam automatycznie. Jeśli w tym momencie otwarte jest coś niezapisanego, co nie należy do połączenia — na przykład pisana właśnie wiadomość — Plainva nie przełącza vaultu: komunikat wskazuje vault, w którym czeka połączenie, i proponuje **Przełącz vault**; ten przycisk najpierw pyta **Odrzucić wpisane dane?**. Połączenie jest kontynuowane, gdy tylko vault zostanie otwarty — przyciskiem albo po samodzielnym przełączeniu vaultu; do tego czasu Plainva nie przełącza już vaultu automatycznie, nawet po zamknięciu komunikatu. Jeśli wcześniej zamkniesz aplikację, połączenie zostanie wznowione przy następnym uruchomieniu, czasem dopiero po ponownym logowaniu lub ponownym wyborze folderu; vault, który połączenie właśnie utworzyło, czeka wtedy w zarządzaniu vaultami. Usunięcie vaultu kończy połączenie.
 
 ### Więcej miejsca w nawigacji mobilnej
 

@@ -2507,6 +2507,7 @@
     "leaveCompose": "草稿将不会保存。",
     "leaveCredentials": "输入的登录凭据将丢失。",
     "leaveWizard": "设置将被取消，准备好的密钥也将被丢弃。",
+    "flowVaultOffer": "连接正在仓库“{{name}}”中等待。",
     "today": "今天",
     "yesterday": "昨天",
     "open": "打开",

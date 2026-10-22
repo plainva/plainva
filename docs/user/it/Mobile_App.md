@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-10-21
+Ultimo aggiornamento: 2026-10-22
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -283,6 +283,8 @@ Dalla versione 0.8.2, le novità su mobile indicano la versione condivisa di Pla
 L’assistente mobile apre subito il collegamento adatto. Dopo l’accesso, scegli calendari ed elenchi di attività e visualizza il risultato.
 
 Apri **Account cloud**, scegli l’account esistente e **Aggiungi** per il servizio mancante. I servizi esistenti restano collegati. Gmail conserva il proprio accesso email o la password per app. Annullare l’assistente non scollega i servizi completati. Il trasferimento mobile mantiene il vault di origine e considera un vault di destinazione corrispondente o prepara un contenitore separato. I file in collisione vengono confrontati singolarmente e si conservano entrambi i contenuti. Le destinazioni cifrate si aprono tramite il percorso di abbinamento esistente.
+
+Una connessione termina in un vault: quello in cui l’hai iniziata oppure, per una connessione ai file, quello nuovo che crea. Alla fine Plainva passa lì da solo. Se in quel momento è aperto qualcosa di non salvato che non fa parte della connessione — per esempio un messaggio che stai scrivendo —, Plainva non cambia vault: un avviso indica il vault in cui la connessione attende e propone **Cambia vault**; quel pulsante chiede prima **Scartare i dati inseriti?**. La connessione prosegue non appena il vault è aperto — con il pulsante, oppure quando cambi vault tu; fino ad allora Plainva non cambia più vault da solo, anche se chiudi l’avviso. Se chiudi Plainva prima, la connessione riprende al prossimo avvio, a volte solo dopo un nuovo accesso o una nuova scelta della cartella; un vault appena creato dalla connessione ti aspetta allora nella gestione dei vault. Se elimini il vault, la connessione termina.
 
 ### Più spazio nella navigazione mobile
 

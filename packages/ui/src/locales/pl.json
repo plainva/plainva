@@ -2546,6 +2546,7 @@
     "leaveCompose": "Szkic nie zostanie zapisany.",
     "leaveCredentials": "Wpisane dane logowania zostaną utracone.",
     "leaveWizard": "Konfiguracja zostanie anulowana, a przygotowany klucz zostanie odrzucony.",
+    "flowVaultOffer": "Połączenie czeka w vaulcie „{{name}}”.",
     "today": "Dzisiaj",
     "yesterday": "Wczoraj",
     "open": "Otwórz",

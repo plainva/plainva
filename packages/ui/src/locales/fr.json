@@ -2533,6 +2533,7 @@
     "leaveCompose": "Le brouillon ne sera pas enregistré.",
     "leaveCredentials": "Les identifiants saisis seront perdus.",
     "leaveWizard": "La configuration sera annulée et la clé préparée sera abandonnée.",
+    "flowVaultOffer": "La connexion attend dans le vault « {{name}} ».",
     "today": "Aujourd’hui",
     "yesterday": "Hier",
     "open": "Ouvrir",

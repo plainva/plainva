@@ -119,6 +119,31 @@ describe("a step that takes the surface on top off the screen", () => {
     expect(step).toHaveBeenCalledTimes(1);
   });
 
+  it("tells a step that was offered when the answer is Cancel, and only then", async () => {
+    // A notice's button is gone with the tap; "Cancel" has to bring the offer
+    // back (finding 2026-10-12, services/flowVault.ts).
+    const step = vi.fn();
+    const declined = vi.fn();
+    leaveThen(step, declined);
+    expect(step).toHaveBeenCalledTimes(1);
+    expect(declined, "nothing at stake, nothing declined").not.toHaveBeenCalled();
+
+    armLeaveGuard(GUARD);
+    leaveThen(step, declined);
+    await settle();
+    answer(false);
+    await settle();
+    expect(declined).toHaveBeenCalledTimes(1);
+    expect(step).toHaveBeenCalledTimes(1);
+
+    leaveThen(step, declined);
+    await settle();
+    answer(true);
+    await settle();
+    expect(step).toHaveBeenCalledTimes(2);
+    expect(declined).toHaveBeenCalledTimes(1);
+  });
+
   it("leaves the way back as it was: a confirmed leave there is the end of the question", async () => {
     // The back arrow, the bar and Android back always leave once the answer is
     // yes, and must not ask a second time on the way out.

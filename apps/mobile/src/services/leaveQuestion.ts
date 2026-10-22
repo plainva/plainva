@@ -56,13 +56,19 @@ export function askBeforeLeaving(): Promise<boolean> {
  * surface forward by its own decision (a wizard to its next page), and `done`
  * is its exit once the work is finished. Those must not ask about work the
  * surface itself is handing on.
+ *
+ * `declined` is for a step that was OFFERED and has to stay on offer when the
+ * answer is "Cancel" — a notice whose button went away with the tap
+ * (`flowVault.ts`). Nothing else needs to hear about a step that did not
+ * happen.
  */
-export function leaveThen(run: () => void): void {
+export function leaveThen(run: () => void, declined?: () => void): void {
   if (!activeLeaveGuard()) {
     run();
     return;
   }
   void ask(true).then((ok) => {
     if (ok) run();
+    else declined?.();
   });
 }

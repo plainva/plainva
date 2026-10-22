@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { InlineSuggestProvider, newEntries, requestNew, type NewHandlers } from "@plainva/ui";
+import { InlineSuggestProvider, newEntries, type NewHandlers } from "@plainva/ui";
 import { NavBar } from "./components/NavBar";
-import { tabTapped } from "./services/tabTap";
+import { newInTab, tabTapped } from "./services/tabTap";
 import { useTranslation } from "react-i18next";
 import { Cloud, FileText, Plus } from "lucide-react";
 import {
@@ -458,7 +458,7 @@ export default function App() {
   const runPendingIntents = (
     <PendingIntentRunner
       onCapture={() => leaveThen(capture)}
-      onNewTask={() => { requestNew("task"); void tabTapped("tasks", setNav); }}
+      onNewTask={() => void newInTab("task", "tasks", setNav)}
       onJournal={() => setJournalCapture({ text: "" })}
       onOpenCalendar={(focus) => leaveThen(() => setNav((n) => pushEntry(n, calendarEntry(focus))))}
       onOpenNote={(path) => leaveThen(() => openNote(path))}
@@ -627,8 +627,8 @@ export default function App() {
     journal: () => setJournalCapture({ text: "" }),
     folder: quickNewFolder,
     base: quickNewDatabase,
-    event: () => { requestNew("event"); void tabTapped("today", setNav); },
-    task: () => { requestNew("task"); void tabTapped("tasks", setNav); },
+    event: () => void newInTab("event", "today", setNav),
+    task: () => void newInTab("task", "tasks", setNav),
   };
   const commands = buildMobileCommands({
     newNote: capture,
@@ -767,7 +767,7 @@ export default function App() {
         <JournalCaptureSheet
           initialText={journalCapture.text}
           onClose={() => setJournalCapture(null)}
-          onSwitchToTask={(text) => { setJournalCapture(null); requestNew("task", text); void tabTapped("tasks", setNav); toast.info(t("journal.handoverTask")); }}
+          onSwitchToTask={(text) => void newInTab("task", "tasks", setNav, text).then((went) => { if (went) { setJournalCapture(null); toast.info(t("journal.handoverTask")); } })}
           vault={vault}
         />
       )}

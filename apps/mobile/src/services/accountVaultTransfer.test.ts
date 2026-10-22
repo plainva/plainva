@@ -70,6 +70,7 @@ vi.mock("@plainva/ui", async original => ({
 }));
 
 import { connectAccountFiles } from "./accountVaultTransfer";
+import { armLeaveGuard, resetLeaveGuard } from "./leaveGuard";
 import { clearConnectQueue, loadConnectQueue, startConnectQueue } from "./connectQueue";
 import { getMailPassword, listMailAccounts, saveMailAccount } from "@plainva/ui/mail";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
@@ -168,5 +169,41 @@ describe("the account-to-files transfer before vault activation", () => {
     }
     await expect(connect()).rejects.toThrow("transfer_ambiguous_destination");
     expect(state.switches).toEqual([]); expect(state.allocations).toBe(0);
+  });
+});
+
+/**
+ * The last step of the transfer is a vault switch the program makes (finding
+ * 2026-10-12). Review and copy take their time, and the person may be writing a
+ * message by the time they are done.
+ */
+describe("the transfer's own switch into the vault it copied into", () => {
+  afterEach(() => resetLeaveGuard());
+
+  it("is made with the connect form's own input still on screen: that input is what was connected", async () => {
+    armLeaveGuard({ id: "vault-connect", message: "The credentials you entered will be lost." });
+    await connect();
+    expect(state.switches).toHaveLength(1);
+    expect(state.events[state.events.length - 1]).toBe("activate");
+  });
+
+  it("is not made from under someone else's unsaved input: the run is left for its own way back", async () => {
+    armLeaveGuard({ id: "mail-compose", message: "The draft will not be saved." });
+
+    await connect();
+
+    // THE DEFECT: the copy outlived its form, and its last step switched vaults under the message.
+    expect(state.switches, "the vault was taken from under the message").toEqual([]);
+    // Everything else is done, exactly as an interrupted activation leaves it:
+    // the vault is registered and filled, and the run names it as its
+    // destination with its files connected — which is what `useConnectRun`
+    // picks up, and offers.
+    const run = (await loadConnectQueue())!;
+    const target = run.preparedVaultId!;
+    expect(state.entries.map(e => e.id)).toContain(target);
+    expect([...state.disks.get(target)!.values()].sort()).toEqual(["cloud notes", "local notes"]);
+    expect(run.context.vaultId).toBe(target);
+    expect(run.outcomes.files).toEqual({ state: "connected", bindingId: target });
+    expect(state.active).toBe("source");
   });
 });

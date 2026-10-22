@@ -1,6 +1,6 @@
 # O app mobile
 
-Última atualização: 2026-10-21
+Última atualização: 2026-10-22
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -283,6 +283,8 @@ A partir da versão 0.8.2, as novidades no celular identificam a versão compart
 O assistente móvel abre diretamente a conexão adequada. Após o login, escolha calendários e listas de tarefas e veja o resultado.
 
 Abra **Contas na nuvem**, escolha a conta existente e **Adicionar** no serviço que falta. Os serviços existentes continuam conectados. O Gmail mantém seu login de email ou senha de app. Cancelar o assistente não desconecta serviços concluídos. A transferência móvel mantém o vault de origem e considera um vault de destino correspondente ou prepara um contêiner separado. Os arquivos em colisão são comparados individualmente e os dois conteúdos são mantidos. Destinos criptografados são abertos pelo fluxo de pareamento existente.
+
+Uma conexão termina em um vault: aquele em que você a iniciou ou — no caso de uma conexão de arquivos — o novo que ela cria. No fim, o Plainva muda para lá por conta própria. Se nesse momento houver algo não salvo aberto que não faça parte da conexão — por exemplo, uma mensagem que você está escrevendo —, o Plainva não troca de vault: um aviso indica o vault em que a conexão está aguardando e oferece **Trocar de vault**; esse botão pergunta primeiro **Descartar o que foi inserido?**. A conexão continua assim que o vault estiver aberto — pelo botão ou quando você mesmo troca de vault; até lá, o Plainva não troca mais de vault por conta própria, mesmo que você feche o aviso. Se você fechar o Plainva antes disso, a conexão continua na próxima vez que você abrir o Plainva, talvez só depois de fazer login de novo ou de escolher a pasta outra vez; um vault que a conexão acabou de criar fica então à sua espera no gerenciamento de vaults. Se você excluir o vault, a conexão termina.
 
 ### Mais espaço na navegação móvel
 

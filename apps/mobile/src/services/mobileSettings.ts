@@ -401,14 +401,30 @@ export function getMobileSettings(): MobileSettings {
  * are written, and all three scaffold sites (first run, new vault, cloud vault)
  * go through here so a rule cannot apply in one of them and not in the others.
  */
-export async function applyTemplateSettings(ts: VaultTemplateDefinition["settings"]): Promise<void> {
-  if (!ts) return;
-  await updateMobileSettings({
+/** A template's settings, as the per-vault settings they are. */
+function templateVaultSettings(ts: NonNullable<VaultTemplateDefinition["settings"]>): Partial<VaultScopedSettings> {
+  return {
     ...(ts.dailyNotesFolder !== undefined ? { dailyFolder: ts.dailyNotesFolder } : {}),
     ...(ts.templateFolder !== undefined ? { templateFolder: ts.templateFolder } : {}),
     ...(ts.dailyNoteTemplate !== undefined ? { dailyTemplate: ts.dailyNoteTemplate } : {}),
     ...(ts.folderTemplates !== undefined ? { folderTemplates: ts.folderTemplates } : {}),
-  });
+  };
+}
+
+export async function applyTemplateSettings(ts: VaultTemplateDefinition["settings"]): Promise<void> {
+  if (!ts) return;
+  await updateMobileSettings(templateVaultSettings(ts));
+}
+
+/**
+ * A template's settings for a vault that need not be the active one — a vault
+ * just made, which may wait for the person before it is opened
+ * (`flowVault.ts`). Written into it now, they are there when it opens, and
+ * nothing is left to do in between that the app could lose.
+ */
+export async function applyTemplateSettingsTo(vaultId: string, ts: VaultTemplateDefinition["settings"]): Promise<void> {
+  if (!ts) return;
+  await applyVaultSettings(vaultId, templateVaultSettings(ts));
 }
 
 let settingsWrites: Promise<unknown> = Promise.resolve();

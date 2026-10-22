@@ -2520,6 +2520,7 @@
     "leaveCompose": "Der Entwurf wird nicht gespeichert.",
     "leaveCredentials": "Die eingegebenen Zugangsdaten gehen verloren.",
     "leaveWizard": "Die Einrichtung wird abgebrochen und der vorbereitete Schlüssel verworfen.",
+    "flowVaultOffer": "Die Verbindung wartet im Vault „{{name}}“.",
     "today": "Heute",
     "yesterday": "Gestern",
     "open": "Öffnen",

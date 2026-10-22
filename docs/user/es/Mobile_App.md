@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-10-21
+Última actualización: 2026-10-22
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -283,6 +283,8 @@ A partir de 0.8.2, las novedades móviles indican la versión compartida de Plai
 El asistente móvil abre directamente la conexión adecuada. Después de iniciar sesión, elige calendarios y listas de tareas y consulta el resultado.
 
 Abre **Cuentas en la nube**, elige la cuenta existente y pulsa **Añadir** en el servicio que falta. Los servicios existentes siguen conectados. Gmail conserva su acceso de correo o contraseña de aplicación. Cancelar el asistente no desconecta servicios completados. La transferencia móvil conserva el vault de origen y considera un destino existente que coincida o prepara un contenedor separado. Los archivos en colisión se comparan individualmente y se conservan ambos contenidos. Los destinos cifrados se abren mediante el emparejamiento existente.
+
+Una conexión termina en un vault: en el que la empezaste o, si es una conexión de archivos, en el nuevo que crea. Al final, Plainva cambia allí por sí solo. Si en ese momento hay abierto algo sin guardar que no forma parte de la conexión —por ejemplo, un mensaje que estás escribiendo—, Plainva no cambia: un aviso indica el vault en el que espera la conexión y ofrece **Cambiar de vault**; ese botón pregunta primero **¿Descartar los datos introducidos?**. La conexión continúa en cuanto el vault está abierto: con el botón o cuando cambias de vault tú mismo; hasta entonces, Plainva ya no cambia por sí solo, aunque cierres el aviso. Si cierras Plainva antes, la conexión sigue en el próximo inicio, quizá solo después de volver a iniciar sesión o de elegir de nuevo la carpeta; un vault que la conexión acaba de crear te espera entonces en la gestión de vaults. Si eliminas el vault, la conexión termina.
 
 ### Más espacio en la navegación móvil
 

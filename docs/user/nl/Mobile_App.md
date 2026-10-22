@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-10-21
+Laatst bijgewerkt: 2026-10-22
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -283,6 +283,8 @@ Vanaf 0.8.2 noemen de mobiele releasehoogtepunten de gezamenlijke Plainva-releas
 De mobiele assistent opent direct de juiste verbinding. Na het aanmelden kies je agenda’s en takenlijsten en zie je het resultaat.
 
 Open **Cloudaccounts**, kies het bestaande account en **Toevoegen** bij de ontbrekende dienst. Bestaande diensten blijven verbonden. Gmail houdt zijn eigen e-mailaanmelding of app-wachtwoord. Stoppen met de assistent verbreekt voltooide verbindingen niet. Een mobiele bestandsoverdracht behoudt de bronkluis en gebruikt een passende bestaande doelkluis of bereidt een aparte container voor. Botsende bestanden worden apart vergeleken en beide inhouden blijven behouden. Versleutelde bestemmingen worden via de bestaande koppeling geopend.
+
+Een verbinding eindigt in een vault: die waarin je ermee bent begonnen of — bij een bestandsverbinding — de nieuwe die de verbinding aanmaakt. Aan het eind wisselt Plainva daar vanzelf naartoe. Staat er op dat moment iets niet-opgeslagens open dat niet bij de verbinding hoort — bijvoorbeeld een bericht dat je aan het schrijven bent —, dan wisselt Plainva niet: een melding noemt de vault waarin de verbinding wacht en biedt **Van vault wisselen** aan; die knop vraagt eerst **Invoer verwerpen?**. De verbinding gaat verder zodra de vault open is — via de knop, of wanneer je zelf van vault wisselt; tot dan wisselt Plainva niet meer vanzelf, ook niet als je de melding sluit. Sluit je Plainva eerder af, dan gaat de verbinding bij de volgende start verder, mogelijk pas nadat je je opnieuw hebt aangemeld of de map opnieuw hebt gekozen; een vault die de verbinding net heeft aangemaakt, staat dan in het vaultbeheer. Verwijder je de vault, dan eindigt de verbinding.
 
 ### Meer ruimte in de mobiele navigatie
 

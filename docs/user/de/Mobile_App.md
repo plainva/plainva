@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-10-21
+Stand: 2026-10-22
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -283,6 +283,8 @@ Ab Release 0.8.2 nennen die mobilen Neuerungen den gemeinsamen Plainva-Release, 
 Der mobile Assistent öffnet sofort die passende Verbindung. Nach der Anmeldung wählst Du Kalender und Aufgabenlisten und siehst das Ergebnis.
 
 Öffne **Cloud-Konten**, wähle das vorhandene Konto und beim fehlenden Dienst **Hinzufügen**. Die vorhandenen Dienste bleiben bestehen. Gmail verwendet weiterhin seinen eigenen Mailzugang bzw. ein App-Passwort. Ein abgebrochener Assistent trennt keine bereits verbundenen Dienste. Bei der mobilen Dateiübernahme bleibt der Quell-Vault bestehen; ein vorhandener passender Ziel-Vault wird berücksichtigt, andernfalls entsteht ein eigener Container. Kollidierende Dateien werden einzeln verglichen und beide Inhalte behalten. Verschlüsselte Ziele werden über die bestehende Kopplung geöffnet.
+
+Eine Verbindung endet in einem Vault: in dem, in dem Du sie begonnen hast, oder — bei einer Datei-Verbindung — in dem neuen, den sie anlegt. Plainva wechselt am Ende von selbst dorthin. Steht in diesem Moment etwas Ungespeichertes offen, das nicht zur Verbindung gehört — etwa eine Nachricht, die Du gerade schreibst —, wechselt Plainva nicht: Ein Hinweis nennt den Vault, in dem die Verbindung wartet, und bietet **Vault wechseln** an; dieser Knopf fragt zuerst **Eingaben verwerfen?**. Die Verbindung geht weiter, sobald der Vault geöffnet ist — über den Knopf oder wenn Du selbst den Vault wechselst; bis dahin wechselt Plainva nicht mehr von selbst, auch wenn Du den Hinweis schließt. Beendest Du Plainva vorher, geht es beim nächsten Start weiter, unter Umständen erst nach einer erneuten Anmeldung oder Ordnerwahl; einen Vault, den die Verbindung eben angelegt hat, findest Du dann in der Vault-Verwaltung. Löschst Du den Vault, endet die Verbindung.
 
 ### Mehr Platz in der mobilen Navigation
 

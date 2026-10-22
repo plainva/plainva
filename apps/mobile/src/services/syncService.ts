@@ -36,9 +36,10 @@ import { createContentRefResolver, mobileSyncUploader } from "../adapters/syncUp
 import { fileBrokerTokenProvider, fileGrantProbe } from "./accountBroker";
 import { rotateLegacyFileGrant } from "./accountGrantMigration";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
-import { applyTemplateSettings, getMobileSettings } from "./mobileSettings";
+import { applyTemplateSettingsTo, getMobileSettings } from "./mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
-import { getMobileVault, switchVault, type MobileVault } from "./vaultService";
+import { getMobileVault, type MobileVault } from "./vaultService";
+import { enterMadeVault } from "./flowVault";
 import { mobileSyncDeviceId, prepareMobileSettingsSync } from "./mobileSettingsSync";
 import { notifyPulledFiles } from "./pulledFiles";
 import { loadMobilePublicationRuntime } from "./mobileWorkspaceSecurity";
@@ -306,7 +307,9 @@ export async function connectProvider(v: MobileVault, p: MobileSyncProvider, sel
   const id = newVaultId();
   await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
   await addVault({ id, name: providerVaultName(p), provider: p.provider });
-  await switchVault(id);
+  // Offered instead of taken while something else's unsaved input is on screen
+  // (`flowVault.ts`): the vault is connected either way.
+  await enterMadeVault(id);
 }
 
 /**
@@ -341,8 +344,11 @@ export async function createProviderVault(
   });
   await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
   await addVault({ id, name: providerVaultName(p), provider: p.provider });
-  await switchVault(id);
-  await applyTemplateSettings(opts.template?.settings);
+  // The template's settings are the new vault's own: written into it now, they
+  // are there whether it opens at once or waits at its offer (`flowVault.ts`)
+  // — and an app that ends in between loses nothing.
+  await applyTemplateSettingsTo(id, opts.template?.settings);
+  await enterMadeVault(id);
 }
 
 /**

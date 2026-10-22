@@ -2520,6 +2520,7 @@
     "leaveCompose": "Het concept wordt niet opgeslagen.",
     "leaveCredentials": "De ingevoerde inloggegevens gaan verloren.",
     "leaveWizard": "Het instellen wordt geannuleerd en de voorbereide sleutel wordt verworpen.",
+    "flowVaultOffer": "De verbinding wacht in de vault ‘{{name}}’.",
     "today": "Vandaag",
     "yesterday": "Gisteren",
     "open": "Openen",

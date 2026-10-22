@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-10-21
+Dernière mise à jour : 2026-10-22
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -283,6 +283,8 @@ Tout le reste sur les commentaires et les suggestions — où vivent les fichier
 L’assistant mobile ouvre directement la connexion adaptée. Après la connexion, choisis les calendriers et listes de tâches et consulte le résultat.
 
 Ouvre **Comptes cloud**, choisis le compte existant et **Ajouter** pour le service manquant. Les services existants restent connectés. Gmail conserve sa connexion de messagerie ou son mot de passe d’application. Annuler l’assistant ne déconnecte pas les services terminés. Le transfert mobile conserve le vault source et tient compte d’un vault cible correspondant ou prépare un conteneur séparé. Les fichiers en collision sont comparés individuellement et les deux contenus sont conservés. Les destinations chiffrées s’ouvrent par le parcours de jumelage existant.
+
+Une connexion se termine dans un vault : celui dans lequel vous l’avez commencée ou — pour une connexion de fichiers — le nouveau qu’elle crée. À la fin, Plainva y passe de lui-même. Si quelque chose de non enregistré qui ne fait pas partie de la connexion est ouvert à ce moment — par exemple un message que vous êtes en train d’écrire —, Plainva ne change pas de vault : un avis indique le vault dans lequel la connexion attend et propose **Changer de vault** ; ce bouton demande d’abord **Abandonner la saisie ?**. La connexion se poursuit dès que le vault est ouvert — par ce bouton, ou lorsque vous changez de vault vous-même ; jusque-là, Plainva ne change plus de vault de lui-même, même si vous fermez l’avis. Si vous quittez Plainva avant, elle reprend au prochain démarrage, parfois seulement après une nouvelle connexion au compte ou un nouveau choix du dossier ; un vault que la connexion vient de créer vous attend alors dans la gestion des vaults. Si vous supprimez le vault, la connexion prend fin.
 
 ### Plus d’espace dans la navigation mobile
 

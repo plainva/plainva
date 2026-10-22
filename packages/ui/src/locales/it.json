@@ -2533,6 +2533,7 @@
     "leaveCompose": "La bozza non verrà salvata.",
     "leaveCredentials": "Le credenziali inserite andranno perse.",
     "leaveWizard": "La configurazione verrà annullata e la chiave preparata verrà scartata.",
+    "flowVaultOffer": "La connessione attende nel vault «{{name}}».",
     "today": "Oggi",
     "yesterday": "Ieri",
     "open": "Apri",

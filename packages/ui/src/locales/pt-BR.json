@@ -2533,6 +2533,7 @@
     "leaveCompose": "O rascunho não será salvo.",
     "leaveCredentials": "As credenciais inseridas serão perdidas.",
     "leaveWizard": "A configuração será cancelada e a chave preparada será descartada.",
+    "flowVaultOffer": "A conexão está aguardando no vault “{{name}}”.",
     "today": "Hoje",
     "yesterday": "Ontem",
     "open": "Abrir",

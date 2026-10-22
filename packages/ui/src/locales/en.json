@@ -2520,6 +2520,7 @@
     "leaveCompose": "The draft will not be saved.",
     "leaveCredentials": "The credentials you entered will be lost.",
     "leaveWizard": "Setup is cancelled and the prepared key discarded.",
+    "flowVaultOffer": "The connection is waiting in the vault “{{name}}”.",
     "today": "Today",
     "yesterday": "Yesterday",
     "open": "Open",

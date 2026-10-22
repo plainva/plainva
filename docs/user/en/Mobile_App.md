@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -283,6 +283,8 @@ From release 0.8.2, the mobile release highlights identify the shared Plainva re
 The mobile assistant opens the appropriate connection immediately. After signing in, choose calendars and task lists and see the result.
 
 Open **Cloud accounts**, choose the existing account and select **Add** for the missing service. Existing services remain connected. Gmail continues to use its own mail login or app password. Cancelling the assistant does not disconnect completed services. A mobile file transfer keeps the source vault; it considers an existing matching destination vault or prepares a separate container. Colliding files are reviewed individually and both contents are kept. Encrypted destinations are opened through the existing pairing flow.
+
+A connection ends in a vault: the one you began it in or — for a file connection — the new one it creates. Plainva switches there by itself at the end. If something unsaved that is not part of the connection is open at that moment — a message you are writing, say — Plainva does not switch: a notice names the vault the connection is waiting in and offers **Switch Vault**; that button asks **Discard your input?** first. The connection continues as soon as the vault is open — through the button, or when you switch vaults yourself; until then, Plainva no longer switches by itself, even if you close the notice. If you quit Plainva before that, it carries on at the next start, possibly only after you sign in again or choose the folder again; a vault the connection has just created is then waiting in the vault management. If you delete the vault, the connection ends.
 
 ### More room in mobile navigation
 

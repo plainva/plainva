@@ -1337,8 +1337,33 @@ describe("what the shell puts over a surface asks first", () => {
       expect(prop(runner, name), `${name} navigates over whatever is on top`).toMatch(/=>\s*leaveThen\(/);
     }
     // These two ask already, or open a sheet that covers nothing.
-    expect(prop(runner, "onNewTask")).toMatch(/tabTapped\(/);
+    expect(prop(runner, "onNewTask")).toMatch(/=>\s*void newInTab\("task", "tasks", setNav\)/);
     expect(prop(runner, "onJournal")).toMatch(/setJournalCapture\(/);
+  });
+
+  it("a new task or event from elsewhere: the request is parked only once the step is agreed to", () => {
+    // "New task" and "New event" open their area and leave a request for the
+    // screen that mounts there. Parked a line BEFORE the bar step asked, the
+    // request outlived a "Cancel" and opened the capture sheet on the next
+    // visit to the area (finding 2026-10-12). The shell parks nothing itself
+    // any more: all four ways go through `newInTab`, which asks first.
+    expect(app, "the shell parks a request itself").not.toMatch(/requestNew\(/);
+    expect(app.match(/newInTab\(/g), "the intent, the two catalog entries and the journal sheet").toHaveLength(4);
+    expect(app).toMatch(/event: \(\) => void newInTab\("event", "today", setNav\),/);
+    expect(app).toMatch(/task: \(\) => void newInTab\("task", "tasks", setNav\),/);
+    // The journal sheet keeps what was typed until the task capture has it:
+    // it closes, and says so, only after the step was taken.
+    const journal = prop(tag("JournalCaptureSheet"), "onSwitchToTask");
+    expect(journal).toMatch(/newInTab\("task", "tasks", setNav, text\)\.then\(\(went\) => \{ if \(went\) \{ setJournalCapture\(null\);/);
+    expect(journal.indexOf("newInTab(")).toBeLessThan(journal.indexOf("setJournalCapture(null)"));
+
+    const tap = stripComments(readFileSync(join(SRC, "services/tabTap.ts"), "utf8"));
+    const ask = tap.indexOf("askBeforeLeaving(");
+    const agreed = tap.indexOf("agreed?.()");
+    expect(ask, "the leave question is gone").toBeGreaterThan(-1);
+    expect(agreed, "what the step brings along runs before the question").toBeGreaterThan(ask);
+    expect(agreed).toBeLessThan(tap.indexOf("tapTab("));
+    expect(tap).toMatch(/return tabTapped\(tab, setNav, \(\) => requestNew\(item, text\)\);/);
   });
 
   it("a notice's button, a remark's notification and a file revealed from a sheet", () => {
@@ -1364,6 +1389,111 @@ describe("what the shell puts over a surface asks first", () => {
     const nav = stripComments(readFileSync(join(SRC, "services/navActions.ts"), "utf8"));
     expect(nav).not.toMatch(/leaveThen/);
     expect(nav).toMatch(/push: \(entry\) => setNav\(\(s\) => pushEntry\(s, entry\)\)/);
+  });
+});
+
+/**
+ * Who may switch the vault (finding 2026-10-12).
+ *
+ * `switchVault` drops every stack, and it cannot ask: every connect flow ends
+ * through it, with the guard of its own form still armed. So the question has
+ * to be put by whoever CALLS it. A tap on a vault is the top screen's own
+ * step. A connection is not: a sign-in that returns, a folder pick and an
+ * interrupted connect run went BACK to a vault by themselves, and every file
+ * connection ends by opening the vault it has just made — whatever was on
+ * screen by then. They come to `services/flowVault.ts` for their vault now,
+ * which offers the switch while someone else's unsaved input is on screen.
+ * What that does is behaviour (services/flowVault.test.ts,
+ * services/flowVaultReturn.test.ts, hooks/useConnectRun.test.tsx,
+ * services/accountVaultTransfer.test.ts); pinned here is who goes which way,
+ * so that another flow cannot quietly take the direct one.
+ */
+describe("a vault switch the program starts is offered, not taken", () => {
+  const read = (file: string) => stripComments(readFileSync(join(SRC, file), "utf8"));
+
+  it("the flows that go back to their vault ask for it", () => {
+    for (const file of ["services/oauthService.ts", "services/pim/pimOAuth.ts", "hooks/useConnectRun.ts"]) {
+      const src = read(file);
+      expect(src, `${file} switches the vault itself`).not.toMatch(/switchVault/);
+      expect(src, `${file} asks for its vault`).toMatch(/await enterFlowVault\(/);
+    }
+  });
+
+  it("a file connection ends in the vault it made the same way", () => {
+    const sync = read("services/syncService.ts");
+    expect(sync, "the connect service switches the vault itself").not.toMatch(/switchVault/);
+    // An existing folder connected, and a new vault created in the cloud — whose
+    // template settings are written into it before it is opened or offered, so
+    // nothing of it waits in memory for the person.
+    expect(sync).toMatch(/await addVault\(\{ id, name: providerVaultName\(p\), provider: p\.provider \}\);\s*await enterMadeVault\(id\);/);
+    expect(sync).toMatch(/await applyTemplateSettingsTo\(id, opts\.template\?\.settings\);\s*await enterMadeVault\(id\);/);
+    expect(sync.match(/enterMadeVault\(/g)).toHaveLength(2);
+  });
+
+  it("every direct switch is the person's own step, or is made where it is decided", () => {
+    const direct = walk(SRC)
+      .filter((file) => /\bswitchVault\(/.test(stripComments(readFileSync(file, "utf8"))))
+      .map((file) => relative(SRC, file).replace(/\\/g, "/"))
+      .sort();
+    expect(direct).toEqual([
+      // "Use this vault" on a vault's page.
+      "VaultDetailScreen.tsx",
+      // The import wizard's "Done": the vault it has just made.
+      "screens/ImportWizardScreen.tsx",
+      // A tap on a row of the vault list.
+      "screens/VaultsScreen.tsx",
+      // The files step of a run: the vault it copied into. Marked and decided, see below.
+      "services/accountVaultTransfer.ts",
+      // The one place a flow's way to its vault is decided.
+      "services/flowVault.ts",
+      // The switch itself; a vault made in a chain of dialogs, and the one left behind by a delete.
+      "services/vaultService.ts",
+    ]);
+  });
+
+  it("and so is every indirect one: who makes, deletes or reloads a vault", () => {
+    // Each of these ends in a switch, or drops every stack like one. A flow
+    // that called them would take the vault past `flowVault.ts`.
+    const callers = (fn: string) =>
+      walk(SRC)
+        .filter((file) => new RegExp(`\\b${fn}\\(`).test(stripComments(readFileSync(file, "utf8"))))
+        .map((file) => relative(SRC, file).replace(/\\/g, "/"))
+        .sort();
+    // "Create a vault" in the vault list.
+    expect(callers("createLocalVault")).toEqual(["App.tsx", "services/vaultService.ts"]);
+    // A picked folder, inside the dialogs that pick it.
+    expect(callers("createExternalVault")).toEqual(["services/vaultService.ts"]);
+    // "Delete" on a vault's page.
+    expect(callers("deleteVault")).toEqual(["VaultDetailScreen.tsx", "services/vaultService.ts"]);
+    // A button of the screen on top (retry, the security steps, the rebuilt index).
+    expect(callers("reloadActiveMobileVault")).toEqual([
+      "AddVaultScreen.tsx",
+      "VaultDetailScreen.tsx",
+      "screens/SearchScreen.tsx",
+      "screens/SecurityAreaScreen.tsx",
+      "screens/SecurityWizardScreen.tsx",
+      "screens/base/BaseScreen.tsx",
+      "services/vaultService.ts",
+    ]);
+  });
+
+  it("knows the connect form by the guard that form arms", () => {
+    // The id is the form's (`leaveGuardCoverage.test.ts` pins it there); the
+    // two have to agree, or every connection would offer its vault over its
+    // own form.
+    const id = /export const CONNECT_FORM_GUARD = "([^"]+)";/.exec(read("services/flowVault.ts"))?.[1];
+    expect(id, "flowVault.ts names no connect form").toBeTruthy();
+    expect(read("AddVaultScreen.tsx")).toMatch(new RegExp(`useLeaveGuard\\(\\s*"${id}",`));
+  });
+
+  it("the files step marks the stretch in which it activates its vault, and does not switch under someone else's input", () => {
+    // Between the committed result and the switch the run looks interrupted to
+    // `useConnectRun`. Unmarked, that hook would offer a switch that is about
+    // to happen — over the flow's own form. And the copy can outlive that
+    // form: then the run is left as it is, and the hook's way back offers it.
+    const transfer = read("services/accountVaultTransfer.ts");
+    expect(transfer).toMatch(/await whileEntering\(id, async \(\) => \{\s*await finishConnectVault\(context, id, accountId\);\s*if \(!foreignInputOnScreen\(CONNECT_FORM_GUARD\)\) await switchVault\(id\);\s*\}\);/);
+    expect(transfer.match(/switchVault\(/g), "one switch, the guarded one").toHaveLength(1);
   });
 });
 

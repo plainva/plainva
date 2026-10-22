@@ -2533,6 +2533,7 @@
     "leaveCompose": "El borrador no se guardará.",
     "leaveCredentials": "Las credenciales introducidas se perderán.",
     "leaveWizard": "La configuración se cancelará y la clave preparada se descartará.",
+    "flowVaultOffer": "La conexión espera en el vault «{{name}}».",
     "today": "Hoy",
     "yesterday": "Ayer",
     "open": "Abrir",

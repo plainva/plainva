@@ -19,7 +19,8 @@ import type { CloudAccountRecord, CloudServiceId, StoredAccountToken } from "@pl
 import type { ServiceConnectionContext } from "@plainva/ui";
 import { getActiveVaultEntry } from "../vaultRegistry";
 import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConnectOutcome } from "../connectQueue";
-import { getMobileVault, switchVault } from "../vaultService";
+import { getMobileVault } from "../vaultService";
+import { enterFlowVault, releaseFlowVault, waitsAtOffer } from "../flowVault";
 import { APP_ID, APP_URL } from "../appScheme";
 
 /** Stored beside the PKCE verifier, never inferred from the current screen. */
@@ -137,8 +138,22 @@ export async function hasReceivedPimOAuthResult(context: ServiceConnectionContex
   return !!saved && (saved.flow.purpose === "gmail" ? "mail" : saved.flow.purpose ?? "calendar") === service && saved.flow.serviceContext?.runId === context.runId && saved.flow.serviceContext?.vaultId === context.vaultId;
 }
 
+/** A received grant is accepted for this long after its consent was begun. */
+const receivedInTime = (flow: PendingPimFlow) => Date.now() - flow.createdAt >= 0 && Date.now() - flow.createdAt < PENDING_TTL_MS;
+/** One received grant waits at a time (`RESULT_KEY` is one slot), so one sign-in can wait for its vault. */
+const SIGN_IN_FLOW = "sign-in";
+
 /** Replays a received grant after a storage error or process restart. */
-export async function resumePimOAuthResult(): Promise<void> {
+export function resumePimOAuthResult(): Promise<void> {
+  return applyReceived();
+}
+
+/**
+ * `offered` names the grant whose vault was offered instead of taken
+ * (`flowVault.ts`) and has now become the active one: this call is that grant
+ * going on, and it is for no other.
+ */
+async function applyReceived(offered?: string): Promise<void> {
   if (applyingResult) return;
   applyingResult = true;
   let saved: ReceivedPimFlow | null = null;
@@ -148,8 +163,17 @@ export async function resumePimOAuthResult(): Promise<void> {
     const { flow, refreshToken, accessToken, grantedScope, nativeGoogle, providerIdentity } = saved;
     const purpose = flow.purpose ?? "calendar";
     const context = flow.serviceContext;
-    if (Date.now() - flow.createdAt < 0 || Date.now() - flow.createdAt >= PENDING_TTL_MS) {
+    const waited = offered !== undefined && flow.state === offered;
+    // A later sign-in has taken this one's place meanwhile; it goes its own way.
+    if (offered !== undefined && !waited) return;
+    // The ten minutes bound a replay after a storage error or a restart. A
+    // grant that was held back for the sake of the person's own screen has not
+    // been waiting on anything of ours: it holds until its vault is open or a
+    // later sign-in takes its place — also through a replay while it waits.
+    const heldBack = waited || (!!context && waitsAtOffer(context.vaultId, SIGN_IN_FLOW));
+    if (!heldBack && !receivedInTime(flow)) {
       await getPlatformServices().credentials.removeSecret(RESULT_KEY);
+      releaseFlowVault(SIGN_IN_FLOW);
       await recordConnectOutcome(context, (purpose === "mail" || purpose === "gmail") ? "mail" : "calendar", { state: "needsConsent" });
       return;
     }
@@ -157,12 +181,29 @@ export async function resumePimOAuthResult(): Promise<void> {
       const run = await loadConnectQueue();
       if (!run || !outcomeBelongsToRun(run, context, (purpose === "mail" || purpose === "gmail") ? "mail" : "calendar")) {
         await getPlatformServices().credentials.removeSecret(RESULT_KEY);
+        releaseFlowVault(SIGN_IN_FLOW);
         return;
       }
     }
-    if (context && (await getActiveVaultEntry()).id !== context.vaultId) {
-      await switchVault(context.vaultId);
-      if (purpose === "calendar") { const { startPim } = await import("./pimService"); await startPim(await getMobileVault()); }
+    if (context) {
+      // The sign-in belongs to the vault it was begun in. With another one on
+      // screen by now it goes back there — offered rather than taken while
+      // something unsaved is on screen there (`flowVault.ts`). The grant stays
+      // where it is, in protected storage, until its vault is the active one.
+      const here = (await getActiveVaultEntry()).id === context.vaultId;
+      const state = flow.state;
+      if (!here && !(await enterFlowVault(context.vaultId, SIGN_IN_FLOW, {
+        resume: () => applyReceived(state),
+        waits: async () => (await getPlatformServices().credentials.readSecret<ReceivedPimFlow>(RESULT_KEY))?.flow.state === state,
+        // Its vault was deleted: the grant has nowhere to go.
+        gone: async () => {
+          const credentials = getPlatformServices().credentials;
+          if ((await credentials.readSecret<ReceivedPimFlow>(RESULT_KEY))?.flow.state === state) await credentials.removeSecret(RESULT_KEY);
+        },
+      }))) return;
+      // The vault was just made the active one for this grant, here or on its
+      // offer: its calendar runtime is started rather than waited for.
+      if ((waited || !here) && purpose === "calendar") { const { startPim } = await import("./pimService"); await startPim(await getMobileVault()); }
     }
     const handler = purposeHandlers.get(purpose);
     if ((purpose === "account" || purpose === "gmail") && !handler) throw new Error("Account sign-in handler is not ready");
@@ -332,13 +373,17 @@ async function beginPimOAuthFlow(
   if (provider === "google" && playServices) {
     const flow = pending;
     try {
-      if (await getPlatformServices().credentials.readSecret(RESULT_KEY)) throw new Error("storageFailed: a previous sign-in must finish first");
+      // A grant that waits at its vault's offer is not in flight: like a sign-in
+      // through the browser, this one takes its place (`flowVault.ts`).
+      const held = await getPlatformServices().credentials.readSecret<ReceivedPimFlow>(RESULT_KEY);
+      if (held && !(held.flow.serviceContext && waitsAtOffer(held.flow.serviceContext.vaultId, SIGN_IN_FLOW))) throw new Error("storageFailed: a previous sign-in must finish first");
       const result = await authorizeNativeGoogle(scope, true, opts.accountContext?.expectedToken ?? undefined);
       const received: ReceivedPimFlow = { flow, refreshToken: "", accessToken: result.accessToken, grantedScope: result.scope,
         nativeGoogle: { email: result.profile.label! }, providerIdentity: result.profile.identity };
       const credentials = getPlatformServices().credentials;
       await credentials.writeSecret(RESULT_KEY, received);
       if (!sameStoredValue(await credentials.readSecret(RESULT_KEY), received)) throw new Error("Google sign-in could not be confirmed in secure storage");
+      releaseFlowVault(SIGN_IN_FLOW);
       pending = null;
       await persistPending(null);
       await resumePimOAuthResult();
@@ -423,6 +468,10 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
     const received: ReceivedPimFlow = { flow, refreshToken, accessToken, grantedScope };
     await getPlatformServices().credentials.writeSecret(RESULT_KEY, received);
     if (!sameStoredValue(await getPlatformServices().credentials.readSecret(RESULT_KEY), received)) throw new ServiceConnectionError("storageFailed");
+    // One slot: a grant that still waited for its vault is written over now,
+    // and the notice that offered that vault goes with it — not before: a
+    // write that failed has left that grant, and its offer, where they were.
+    releaseFlowVault(SIGN_IN_FLOW);
     await resumePimOAuthResult();
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
