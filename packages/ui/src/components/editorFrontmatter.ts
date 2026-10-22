@@ -37,12 +37,13 @@ import type { Text } from "@codemirror/state";
  * one and the same text the two read the same lines, so the answer here is
  * the definition's for the text the editor holds.
  *
- * That text is the file's without its shape: `\r\n` arrives as `\n`, and the
- * save puts the file's own line ends back around it (`openEditorText`). The
- * file has the same lines, so the block is where the definition finds it in
- * the file — also in a file from a classic Mac, whose `\r` the editor splits
- * at itself. The one exception is `\r\r\n`: the editor is handed `\r\n` and
- * holds one line break where the file has two. It is the same block, with an
+ * That text is the file's without its shape: every line end arrives as `\n`,
+ * and the save puts the file's own line ends back around it (`openEditorText`).
+ * The file has the same lines, so the block is where the definition finds it
+ * in the file — also in a file from a classic Mac, whose `\r` is a line end
+ * for both. The one exception is `\r\r\n`, what a file from Windows has after
+ * a second conversion: an editor has always held ONE line break for it, and
+ * the Markdown parser reads two in the file. It is the same block, with an
  * empty line behind each of its lines in the file.
  */
 

@@ -695,6 +695,8 @@
     "vanishedRestore": "Guardar aquí de nuevo",
     "notTextTitle": "Este archivo no es texto",
     "notTextBody": "Su extensión dice texto, su contenido no. Plainva no lo muestra, porque guardarlo lo dañaría.",
+    "lineEndsConverted": "«{{name}}» tenía finales de línea solo CR, como los archivos antiguos de Mac. Plainva lo guardó con {{eol}}.",
+    "lineEndsConvertedSeveral": "Varios archivos ({{files}}) tenían finales de línea solo CR, como los archivos antiguos de Mac. Plainva los guardó con LF o CRLF.",
     "value": "Valor",
     "slashCheckbox": "Casilla de verificación",
     "slashBulletList": "Lista de viñetas",

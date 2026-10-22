@@ -5,6 +5,7 @@ import { WORKSPACE_FORKS_FOLDER, isPlainvaInternalPath, parseBackupFileName } fr
 import { NotTextFileError, isHashWithoutMark, isMarkerTakenWithoutMark, readExactText, readLocalText } from "./localText.js";
 import { withPathMutation } from "./pathMutation.js";
 import { ConflictSessions, conflictDiagnostic, conflictSessionKey, type ConflictBytesResolution, type ConflictEditSession, type ConflictResolution, type ConflictSessionGate, type ConflictWriter, type EditorWriteResult } from "./conflictSession.js";
+import { hasUnkeptLineEnds, readTextShape, withKeptLineEnds, type TextFileShape } from "../textFileShape.js";
 
 export class ConflictError extends Error {
   public conflictPath?: string;
@@ -125,8 +126,44 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     private readonly syncRepo: Pick<SyncStateRepository, "getSyncState" | "getBaseText" | "updateLocalHash" | "updateLocalHashAndUnsyncedBaseText" | "getConflictSession" | "listConflictSessions" | "saveConflictSession" | "removeConflictSession" | "recordConflictDiagnostic" | "listConflictDiagnostics">,
     private readonly onAutoMerge?: (path: string, mergedText: string) => void,
     private readonly mutationScope: object = syncRepo,
-    private readonly adapterKind = "local"
+    private readonly adapterKind = "local",
+    /**
+     * Told when a write through here turned line ends a file's shape does not
+     * keep — a carriage return of its own — into `eol` (`textFileShape.ts`).
+     * Every write of the app to a file the user sees passes this adapter — an
+     * editor's save, a whole text (`writeTextFile`) and a change of a place
+     * (`updateTextFile`) alike —, so this is the one place that turns them for
+     * all of them (`keptLineEnds`) and says it; the shell tells the user. What
+     * the app writes to its own files under `.plainva` is not the user's to be
+     * told about, and a conflict's working copy is a draft: neither says
+     * anything, and neither is turned here.
+     */
+    private readonly onLineEndsConverted?: (path: string, eol: TextFileShape["eol"]) => void
   ) { this.sessions = new ConflictSessions(inner, syncRepo, mutationScope); }
+
+  /**
+   * What a write leaves on disk where `before` lies. A carriage return of its
+   * own is read and not kept (ADR 0003, addendum 2026-10-09, paragraph of
+   * 2026-10-22): the first write that changes a file which has such line ends
+   * leaves all of it with its shape's — also where the writer changed one place
+   * and left every other line as it was, a property or a task's box. A text
+   * that differs from such a file only in those line ends is no change, and the
+   * file stays as it lies there. A new file (`before` null) and a text written
+   * over a file without such line ends are written as they are handed in: a
+   * version put back, an undo, a copy adopted give back the bytes they hold.
+   */
+  private keptLineEnds(before: string | null, after: string): string {
+    if (before === null || !hasUnkeptLineEnds(before)) return after;
+    if (after === before || after === withKeptLineEnds(before)) return before;
+    return withKeptLineEnds(after);
+  }
+
+  /** Says so when `after` took the place of a file whose line ends its shape does not keep, and has none of them left. */
+  private lineEndsWritten(path: string, before: string | null, after: string): void {
+    if (!this.onLineEndsConverted || before === null || !hasUnkeptLineEnds(before) || hasUnkeptLineEnds(after)) return;
+    // A notice must never be what fails a write that is already on disk.
+    try { this.onLineEndsConverted(path, readTextShape(after).shape.eol); } catch (error) { console.warn("[ConflictAware] the line end notice failed", error); }
+  }
 
   /**
    * The open conflict of a file, asked by its name or by its working copy's —
@@ -278,7 +315,10 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
       if (baseText !== null) {
         // This request carries the actual editor ancestry; merging it again
         // through a possibly older sync marker can fabricate a conflict.
+        candidate = this.keptLineEnds(disk, candidate);
         await this.inner.writeTextFile(path, candidate);
+        // Said as soon as the file holds it: a step below that fails leaves the file turned all the same.
+        this.lineEndsWritten(path, disk, candidate);
         const stored = await this.inner.readTextFile(path);
         if (!containsTextChanges(disk ?? "", candidate, stored)) throw new Error("The saved note could not be confirmed");
         const hash = await sha256Hash(stored);
@@ -500,16 +540,21 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
 
   private async applyLocked(path: string, gate: ConflictSessionGate, state: TextFileState, next: TextFileChange): Promise<TextFileUpdate> {
     const session = gate.session;
-    const changed = next.text !== null && next.text !== state.text;
-    const text = changed ? next.text! : state.text;
     if (session && this.namesWorkingCopy(path, gate)) {
+      const changed = next.text !== null && next.text !== state.text;
+      const text = changed ? next.text! : state.text;
       // The draft is what was read: the session's journal takes the new text as it takes an editor's.
       if (changed) await this.sessions.writeLocked(session, text, state.text);
       return { before: state.text, text, changed, conflict: { workingCopyPath: session.workingCopyPath, changed } };
     }
+    // The file, in its shape's line ends where the change left a carriage
+    // return of its own (`keptLineEnds`) — a change that only turned those is none.
+    const text = next.text === null ? state.text : this.keptLineEnds(state.text, next.text);
+    const changed = text !== state.text;
     if (changed) {
       // An ordinary write, as `writeTextFileLocked` makes one for a file nobody else touched.
       await this.inner.writeTextFile(path, text);
+      this.lineEndsWritten(path, state.text, text);
       const hash = await sha256Hash(text);
       // Remembered BEFORE the hash lands in sync_state: an indexer pass that
       // reads the file in between asks `wasWrittenByUs` and stays quiet.
@@ -579,9 +624,11 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
       try {
         const diskBytes = await this.inner.readBinaryFile(path);
         if ((await sha256BytesHex(diskBytes)) === syncState.local_sha256) {
-          await this.inner.writeTextFile(path, localContent);
-          const healedHash = await sha256Hash(localContent);
-          await this.syncRepo.updateLocalHashAndUnsyncedBaseText(path, healedHash, localContent);
+          const healed = this.keptLineEnds(currentDiskContent, localContent);
+          await this.inner.writeTextFile(path, healed);
+          this.lineEndsWritten(path, currentDiskContent, healed);
+          const healedHash = await sha256Hash(healed);
+          await this.syncRepo.updateLocalHashAndUnsyncedBaseText(path, healedHash, healed);
           this.rememberWrite(path, healedHash);
           return;
         }
@@ -612,8 +659,10 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
       }
       
       // Auto-merge successful, save the merged content and update our expected local hash.
-      await this.inner.writeTextFile(path, mergeResult.mergedText);
-      const mergedHash = await sha256Hash(mergeResult.mergedText);
+      const merged = this.keptLineEnds(currentDiskContent, mergeResult.mergedText);
+      await this.inner.writeTextFile(path, merged);
+      this.lineEndsWritten(path, currentDiskContent, merged);
+      const mergedHash = await sha256Hash(merged);
       // The merged text is this device's new local text, not a version the
       // remote has seen. On a row a sync recorded a base for, that base stays
       // (finding 2026-10-11): stored in its place, the merged text made the
@@ -626,18 +675,20 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
       // there before a write, not what was written) and this write ends as a
       // conflict copy instead of a merge. A writer that hands in the text it
       // started from — `writeEditorText` — is not asked that price.
-      await this.syncRepo.updateLocalHashAndUnsyncedBaseText(path, mergedHash, mergeResult.mergedText);
+      await this.syncRepo.updateLocalHashAndUnsyncedBaseText(path, mergedHash, merged);
       this.rememberWrite(path, mergedHash);
       // Notify listeners (e.g. the editor) so the in-memory view adopts the merged
       // content. Otherwise a subsequent save would overwrite the merge with stale,
       // pre-merge content and silently drop the external changes.
-      this.onAutoMerge?.(path, mergeResult.mergedText);
+      this.onAutoMerge?.(path, merged);
     } else {
       // Normal write (no conflict). Update only the local marker; never advance the
       // merge base here, otherwise an unsynced local edit becomes the base and the
       // next pull would see "local == base" and drop the edit in favour of remote.
-      await this.inner.writeTextFile(path, localContent);
-      const writtenHash = await sha256Hash(localContent);
+      const written = this.keptLineEnds(currentDiskContent, localContent);
+      await this.inner.writeTextFile(path, written);
+      this.lineEndsWritten(path, currentDiskContent, written);
+      const writtenHash = await sha256Hash(written);
       // Remembered BEFORE the hash lands in sync_state: an indexer pass that
       // reads the file in between asks `wasWrittenByUs` and stays quiet.
       this.rememberWrite(path, writtenHash);

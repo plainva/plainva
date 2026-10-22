@@ -91,12 +91,16 @@ interface Phone {
 
 let root: string, raw: LocalVaultAdapter, db: IDatabaseAdapter, backup: BackupVaultAdapter, vault: MobileVault, phone: Phone;
 let conflicts: string[], events: EventTarget;
+/** What the chain told the shell about line ends it turned: the file, and the line end it has now. */
+let turned: Array<[string, string]>;
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), "plainva-phone-text-"));
   raw = new LocalVaultAdapter(root); await raw.initialize();
   db = await realSqlite();
   backup = new BackupVaultAdapter(raw);
-  const files = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(backup, new SyncQueue(db)), new SyncStateRepository(db));
+  turned = [];
+  const files = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(backup, new SyncQueue(db)), new SyncStateRepository(db),
+    undefined, undefined, "local", (path, eol) => { turned.push([path, eol]); });
   vault = { vaultId: "vault-a", adapter: raw, files, backup, db, indexer: null, reindexPaths: async () => {} } as unknown as MobileVault;
   conflicts = []; events = new EventTarget();
   const deps = {
@@ -512,6 +516,71 @@ describe("the phone and a vault in the app's own storage", () => {
     expect(conflicts).toEqual([]);
     expect(await vault.files.listConflictSessions!()).toEqual([]);
     expect([...stored.keys()].filter((path) => path.includes(".CONFLICT"))).toEqual([]);
+  });
+});
+
+/**
+ * A carriage return of its own as a line end — every line of a file from a
+ * classic Mac (2026-10-12). The editor always split there; the text the phone
+ * kept beside it did not, so the two differed for such a file as they had for
+ * a note from Windows. It is read as lines everywhere now, and the first save
+ * that changes it leaves it with the line end its shape has. The top of the
+ * chain says so, and the phone hands that to the shared notice.
+ */
+describe("the phone and a file whose lines end in a carriage return of its own", () => {
+  it("hands the screen, the editor and the saver ONE text for it", async () => {
+    await raw.writeTextFile("Old Mac.txt", "one\rtwo\rthree\r");
+    const file = await open("Old Mac.txt");
+    expect(file.doc).toBe("one\ntwo\nthree\n");
+    expect(file.text).toBe(file.doc);
+    expect(phone.getLastPersistedText(vault, "Old Mac.txt")).toBe(file.text);
+  });
+
+  it("writes nothing while nothing changed, and saves the first edit with \\n — said once", async () => {
+    const classic = "one\rtwo\rthree\r";
+    await raw.writeTextFile("Old Mac.txt", classic);
+    const file = await open("Old Mac.txt");
+    // The text the file already has, reported as an edit: the file stays as it lies there.
+    file.type(file.doc);
+    await phone.noteSaver.flushAll();
+    expect(await bytes("Old Mac.txt")).toBe(classic);
+    expect(turned).toEqual([]);
+
+    file.type("one\ntwo!\nthree\n");
+    await phone.noteSaver.flushAll();
+    expect(await bytes("Old Mac.txt")).toBe("one\ntwo!\nthree\n");
+    expect(turned).toEqual([["Old Mac.txt", "\n"]]);
+    expect(phone.getLastPersistedText(vault, "Old Mac.txt")).toBe("one\ntwo!\nthree\n");
+    // The next save meets a file with "\n": an ordinary save, and nothing more to say.
+    file.type("one\ntwo!!\nthree\n");
+    await phone.noteSaver.flushAll();
+    expect(await bytes("Old Mac.txt")).toBe("one\ntwo!!\nthree\n");
+    expect(turned).toHaveLength(1);
+    expect(conflicts).toEqual([]);
+  });
+
+  it("adopts a version from elsewhere quietly, and leaves the file its carriage returns", async () => {
+    await raw.writeTextFile("Old Mac.txt", "one\rtwo\r");
+    const file = await open("Old Mac.txt");
+    // Another program rewrote it, in the line ends it has. Nobody typed here.
+    await raw.writeTextFile("Old Mac.txt", "one\rtwo\rthree from elsewhere\r");
+    await file.changedOnDisk();
+    expect(file.text).toBe("one\ntwo\nthree from elsewhere\n");
+    expect(await vault.files.getConflictSession!("Old Mac.txt")).toBeNull();
+    expect(conflicts).toEqual([]);
+    expect(await bytes("Old Mac.txt")).toBe("one\rtwo\rthree from elsewhere\r");
+    expect(turned).toEqual([]);
+  });
+
+  it("merges a change made elsewhere into the save, line by line", async () => {
+    await raw.writeTextFile("Old Mac.txt", "a\rb\rc\rd\r");
+    const file = await open("Old Mac.txt");
+    await raw.writeTextFile("Old Mac.txt", "a\rb\rc\rd from elsewhere\r");
+    file.type("a!\nb\nc\nd\n");
+    await phone.noteSaver.flushAll();
+    expect(await bytes("Old Mac.txt")).toBe("a!\nb\nc\nd from elsewhere\n");
+    expect(conflicts).toEqual([]);
+    expect(turned).toEqual([["Old Mac.txt", "\n"]]);
   });
 });
 

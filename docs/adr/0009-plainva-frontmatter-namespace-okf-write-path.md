@@ -293,8 +293,8 @@ up to it was read as YAML.
      for the text it holds. That text has `\n` between its lines; the file's
      own line ends are part of its shape and are put back around it when it
      is saved (`openEditorText`, since 2026-10-09). The file has the same
-     lines as that text — but for `\r\r\n`, of which the editor is handed
-     `\r\n`: one line break where the file has two.
+     lines as that text — but for `\r\r\n`, which an editor has always held
+     as one line break where the file has two.
    - **Cost.** The answer is kept per document: a transaction that changes
      nothing asks for free, and an edit costs one pass that ends at the
      closing fence. Only a note that opens with `---` and never closes is
@@ -374,10 +374,14 @@ up to it was read as YAML.
       `\r\n`. No writer sets a `\r` alone. In a note from a classic Mac the
       block is written with `\n`, in a `\r\r\n` note with `\r\n`, and the
       text keeps its line ends, byte for byte.
-    - **Not decided here:** what a save from the editor leaves of such a
-      file. A file's shape knows two line ends, so the editor reads a `\r`
-      alone as a line break and writes `\n`: a file from a classic Mac does
-      not keep the line ends it came with.
+    - **What becomes of the rest of such a file** was left open here and is
+      decided in ADR 0003 (addendum 2026-10-09, paragraph of 2026-10-22): a
+      `\r` alone is read as a line end everywhere, and the first write
+      through the chain that changes the file leaves all of it with the line
+      end its shape has, said to the user once. A property set by the
+      writers of this point is such a write: the writer changes its entry and
+      leaves every other line as it was, and the top of the chain turns the
+      rest.
 11. **The callers of the surgical helpers say it too, and a rename across
     notes asks first** (added 2026-10-21). Point 9 covered `writeNoteProperty`
     and what it is built on. `setFrontmatterPath` and its siblings have more

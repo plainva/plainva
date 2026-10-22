@@ -695,6 +695,8 @@
     "vanishedRestore": "Enregistrer ici à nouveau",
     "notTextTitle": "Ce fichier n'est pas du texte",
     "notTextBody": "Son extension annonce du texte, son contenu non. Plainva ne l'affiche pas, car l'enregistrer l'endommagerait.",
+    "lineEndsConverted": "« {{name}} » avait des fins de ligne CR seules, comme les anciens fichiers Mac. Plainva l'a enregistré avec {{eol}}.",
+    "lineEndsConvertedSeveral": "Plusieurs fichiers ({{files}}) avaient des fins de ligne CR seules, comme les anciens fichiers Mac. Plainva les a enregistrés avec LF ou CRLF.",
     "value": "Valeur",
     "slashCheckbox": "Case à cocher",
     "slashBulletList": "Liste à puces",

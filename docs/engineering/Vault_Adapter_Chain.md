@@ -21,6 +21,8 @@ The index reads through the top of it and asks it whether a changed file is the 
 
 The top of the chain is what the app is handed: `vaultAdapter` from `useVault()` on the desktop, `vault.files` on the phone.
 
+It is also where one thing is done and said for every writer at once — an editor's save, a whole text and a change of a place alike: line endings a file's shape does not keep — a carriage return of its own, as old Mac files have — are turned into `\n` or `\r\n` by the first write that changes the file, also where the writer left every line but its own as it was, and the shell is told (`onLineEndsConverted`; ADR 0003, addendum 2026-10-09, paragraph of 2026-10-22). The top link has read the file it writes over, so no writer has to remember either, and both shells hand it the same notice (`sayLineEndsConverted`); the desktop's central window hands it on to the auxiliary windows. What the app writes to its own files under `.plainva` and the working copy of a conflict are left as they are, and say nothing; a write below the chain converts in silence, or not at all.
+
 ## The rule
 
 **What the user sees — a note, a database, an attachment, a folder — is written through the top of the chain.**

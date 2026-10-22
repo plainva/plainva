@@ -18,7 +18,7 @@ import { settlePendingWrites } from "../services/pendingWrites";
 import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown";
 import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
-import { createIndexNotices, createLimiter, formatListingReport, formatTaskSync, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
+import { createIndexNotices, createLimiter, formatListingReport, formatTaskSync, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
@@ -875,7 +875,17 @@ export const VaultProvider: React.FC<{
           window.dispatchEvent(new CustomEvent("plainva-auto-merged", { detail: { path: mergedPath, mergedText } }));
         },
         workspaceStateStore ?? syncRepo,
-        "external-folder"
+        "external-folder",
+        // A write turned line ends the file's shape does not keep (a carriage
+        // return of its own) — every line of the file, unasked: said here for
+        // every writer of the app at once, in this window and in the auxiliary
+        // windows on this vault, whose saves come through this chain as well.
+        (convertedPath, lineEnd) => {
+          sayLineEndsConverted(convertedPath, lineEnd);
+          void getWindowBus()
+            .then((bus) => bus.broadcast("line-ends-converted", { path: convertedPath, eol: lineEnd }, path))
+            .catch(() => { /* no bus (browser/test): a single window has said it */ });
+        }
       );
 
       // Read this vault's sync credentials once: decides whether locally-detected changes
@@ -1820,6 +1830,11 @@ export const VaultProvider: React.FC<{
           await bus.onBroadcast("note-saved", ({ path }) => {
             window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path } }));
           }),
+        );
+        // The owner's chain turned a file's line ends — perhaps for a save from
+        // this very window: said here as well, where this window's user looks.
+        offs.push(
+          await bus.onBroadcast("line-ends-converted", ({ path, eol }) => sayLineEndsConverted(path, eol)),
         );
         // There is one sync worker, in the owner. This window has no way to
         // observe it, so without the mirror its status bar would say "local"

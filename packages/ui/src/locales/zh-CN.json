@@ -691,6 +691,8 @@
     "vanishedRestore": "在此处重新保存",
     "notTextTitle": "此文件不是文本",
     "notTextBody": "扩展名说它是文本，内容却不是。Plainva 不会显示它，因为保存会损坏该文件。",
+    "lineEndsConverted": "“{{name}}”的换行符只有 CR，与旧版 Mac 文件相同。Plainva 已用 {{eol}} 保存它。",
+    "lineEndsConvertedSeveral": "多个文件（{{files}} 个）的换行符只有 CR，与旧版 Mac 文件相同。Plainva 已用 LF 或 CRLF 保存它们。",
     "value": "值",
     "slashCheckbox": "复选框",
     "slashBulletList": "无序列表",

@@ -97,7 +97,7 @@ import {
 import { Capacitor } from "@capacitor/core";
 import i18n from "@plainva/ui/i18n";
 import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName } from "@plainva/ui";
-import { applyTextShape, DEFAULT_TEXT_SHAPE, editorTextOf, keepTextBeside, openEditorText, type KeptText, type TextFileShape } from "@plainva/ui";
+import { applyTextShape, DEFAULT_TEXT_SHAPE, editorTextOf, keepTextBeside, openEditorText, sayLineEndsConverted, type KeptText, type TextFileShape } from "@plainva/ui";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
 
@@ -648,7 +648,10 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     syncRepo = new SyncStateRepository(db, adapter, await mobileSyncDeviceId());
     const conflictAware = new ConflictAwareVaultAdapter(queueing, syncRepo, (path, mergedText) => {
       window.dispatchEvent(new CustomEvent("m-auto-merged", { detail: { path, mergedText } }));
-    }, workspaceState ?? syncRepo, isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud");
+    }, workspaceState ?? syncRepo, isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud",
+      // A write turned line ends the file's shape does not keep (a carriage
+      // return of its own): said here for every writer of the app at once.
+      (path, lineEnd) => sayLineEndsConverted(path, lineEnd));
     files = conflictAware;
 
     // What a full scan left out, or why it failed, said once on screen (issue 125).
@@ -746,7 +749,8 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       minSnapshotIntervalSeconds: settings.backupIntervalSeconds, maxBackupsPerFile: settings.backupMaxPerFile, maxAgeDays: settings.backupMaxAgeDays },
       onBackupError: reportSnapshotFailure, snapshotRecursiveDeletes: true });
     files = new ConflictAwareVaultAdapter(backup, new ConflictFileStore(adapter, await mobileSyncDeviceId()), undefined, adapter,
-      isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud");
+      isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud",
+      (path, lineEnd) => sayLineEndsConverted(path, lineEnd));
     queue = null;
     syncRepo = null;
     indexer = null;

@@ -222,4 +222,37 @@ describe("a merge and the shape of the file", () => {
     expect(containsTextChanges(before, "one!\r\ntwo\r\nthree\r\n", "one!\r\ntwo\nthree\r\nfour\r\n")).toBe(true);
     expect(containsTextChanges(before, "one!\r\ntwo\r\nthree\r\n", "one\r\ntwo\nthree\r\nfour\r\n")).toBe(false);
   });
+
+  it("merges a file from a classic Mac line by line, where it was one long line", () => {
+    // Every line of the ancestor ends in a carriage return of its own. Two
+    // devices each changed one line and saved through their editors, which
+    // write "\n". For the merge the ancestor was ONE line both had rewritten:
+    // a conflict over the whole file (measured 2026-10-11).
+    const base = "# Title\r\r- [ ] one\r- [x] two\r\rText.\r";
+    const yours = "# Title\n\n- [ ] one, changed here\n- [x] two\n\nText.\n";
+    const theirs = "# Title\n\n- [ ] one\n- [x] two\n\nText, changed there.\n";
+    const merged = "# Title\n\n- [ ] one, changed here\n- [x] two\n\nText, changed there.\n";
+    expect(mergeText(base, yours, theirs)).toEqual({ mergedText: merged, hasConflicts: false });
+    expect(mergeEditorText(base, yours, theirs)).toEqual({ mergedText: merged, hasConflicts: false });
+    // One side still has the file as it was: the other's change is the result, in the "\n" it was saved with.
+    expect(mergeText(base, base, theirs)).toEqual({ mergedText: theirs, hasConflicts: false });
+    expect(mergeText(base, yours, base)).toEqual({ mergedText: yours, hasConflicts: false });
+  });
+
+  it("hands a file from a classic Mac back byte for byte where nothing was changed", () => {
+    // Reading its lines is no reason to write it: a merge that has nothing new
+    // to say gives the file back with every carriage return where it was.
+    const classic = "one\rtwo\rthree\r";
+    expect(mergeText(classic, classic, classic)).toEqual({ mergedText: classic, hasConflicts: false });
+    // A change that both sides made alike, still in the old line ends, is that side's file.
+    const changed = "one\rtwo!\rthree\r";
+    expect(mergeText(classic, changed, classic)).toEqual({ mergedText: changed, hasConflicts: false });
+    expect(mergeText(classic, classic, changed)).toEqual({ mergedText: changed, hasConflicts: false });
+    // Both changed it, in the old line ends: the lines merge, and the result has "\n" — the shape knows no other.
+    expect(mergeText(classic, "one!\rtwo\rthree\r", "one\rtwo\rthree!\r"))
+      .toEqual({ mergedText: "one!\ntwo\nthree!\n", hasConflicts: false });
+    // The read-back of a save is compared in the editor's text as well.
+    expect(containsTextChanges(classic, "one\ntwo!\nthree\n", "one\ntwo!\nthree\n")).toBe(true);
+    expect(containsTextChanges(classic, "one\ntwo!\nthree\n", "one\rtwo\rthree\r")).toBe(false);
+  });
 });

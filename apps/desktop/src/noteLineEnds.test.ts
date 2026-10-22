@@ -115,6 +115,18 @@ describe("a line added to a note ends the way the note's lines end", () => {
     expect(appendTaskLine(uneven, "  ")).toBe(uneven);
   });
 
+  it("a checkbox added on a card to a note from a classic Mac lands in its list, and the note has \\n from then on", () => {
+    // Every line ends in a carriage return of its own (2026-10-12). Read with
+    // its "\r" still in it, the note was one line: the new box went to the end
+    // of the note, behind the text, with "\n" — and the rest stayed one line.
+    const classic = ["# Card", "", "- [x] one", "- [ ] two", "", "text", ""].join("\r");
+    expect(appendTaskLine(classic, "three")).toBe("# Card\n\n- [x] one\n- [ ] two\n- [ ] three\n\ntext\n");
+    // Without a checkbox yet: at the end, on a line of its own.
+    expect(appendTaskLine("text\rmore\r", "first")).toBe("text\nmore\n- [ ] first\n");
+    // Nothing to add: every carriage return stays where it was.
+    expect(appendTaskLine(classic, "  ")).toBe(classic);
+  });
+
   it("a checkbox that became a task leaves its line as it was, link in place", () => {
     const note = `${MARK}- [ ] call the workshop\r\n- [ ] second\r\n\r\ntext\r\n`;
     // It used to come back "- [[Call]]\n- [ ] second\r\n…": the replaced line had lost its "\r".

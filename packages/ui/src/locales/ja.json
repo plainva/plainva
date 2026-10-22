@@ -691,6 +691,8 @@
     "vanishedRestore": "ここに保存し直す",
     "notTextTitle": "このファイルはテキストではありません",
     "notTextBody": "拡張子はテキストと言っていますが、中身は違います。保存するとファイルが壊れるため、Plainva は表示しません。",
+    "lineEndsConverted": "「{{name}}」の改行は、古い Mac のファイルと同じ CR だけでした。Plainva は {{eol}} で保存しました。",
+    "lineEndsConvertedSeveral": "複数のファイル（{{files}} 件）の改行は、古い Mac のファイルと同じ CR だけでした。Plainva は LF または CRLF で保存しました。",
     "value": "値",
     "slashCheckbox": "チェックボックス",
     "slashBulletList": "箇条書きリスト",

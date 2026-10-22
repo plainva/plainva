@@ -693,6 +693,8 @@
     "vanishedRestore": "Hier opnieuw opslaan",
     "notTextTitle": "Dit bestand is geen tekst",
     "notTextBody": "De extensie zegt tekst, de inhoud niet. Plainva toont het niet, omdat opslaan het bestand zou beschadigen.",
+    "lineEndsConverted": "“{{name}}” had regeleinden met alleen CR, zoals oude Mac-bestanden. Plainva heeft het opgeslagen met {{eol}}.",
+    "lineEndsConvertedSeveral": "Meerdere bestanden ({{files}}) hadden regeleinden met alleen CR, zoals oude Mac-bestanden. Plainva heeft ze opgeslagen met LF of CRLF.",
     "value": "Waarde",
     "slashCheckbox": "Selectievakje",
     "slashBulletList": "Opsomming",

@@ -224,6 +224,70 @@ separate question (maintainer, 2026-10-19). Tests:
 bytes read), `apps/mobile/src/services/notTextFiles.test.ts`,
 `apps/desktop/e2e/not-text.spec.ts`, `apps/mobile/e2e-prod/not-text.spec.ts`.
 
+**2026-10-22 — a carriage return of its own is read, and not kept.** Decided
+by the maintainer on 2026-10-12, as the one exception to point 1. A shape has
+two line endings, `\n` and `\r\n`. A `\r` alone — every line ending of a file
+from a classic Mac, or a stray one elsewhere — is a third way to end a line
+that an editor has always read (CodeMirror splits there) and that nothing
+could put back.
+
+- **It is read everywhere.** The text an editor holds has `\n` in its place,
+  and `editorTextOf` gives exactly that text. It did not: the `\r` stayed in
+  it, and for such a file the "one text" of point 2 was two. Measured on a
+  file from a classic Mac: a merge of two devices' changes ended in a conflict
+  over the whole file, and a line added by a writer beside the editor landed
+  at the end of the file instead of in its list; a comment operation was
+  handed a text other than the one the editor held.
+- **It is not kept.** The first write through the chain that changes a file
+  which has such line endings leaves it with the line ending its shape has —
+  `\n` where it has no other, the majority of point 6 otherwise. That is every
+  line of the file, whoever writes: an editor's save, a writer beside it, and
+  a writer that changed one place and left every other line as it was (a
+  property, a task's box, a line of the journal, a link a rename rewrites)
+  alike — the top of the chain turns what such a writer left (`keptLineEnds`,
+  `withKeptLineEnds`). Nobody asked for that, so the user is told, once per
+  file, by a notice. A write that changes nothing still gives the file back
+  byte for byte, and so does a merge that has nothing new to say; a text that
+  differs from the file only in such line endings is no change either (an
+  overview of a folder, refreshed with the same lines). A new file, and a text
+  written over a file without such line endings — a version put back, an undo,
+  a copy taken over —, is written as it is handed in, byte for byte. Keeping
+  the `\r` as a third line ending was the alternative: the shape module with a
+  new merge rule, and some twenty-five readers that split a raw file at `\n`
+  and would see such a file as one line for as long as it lives — for a kind
+  of file nobody has yet seen in a vault. It can still be built on top of
+  this.
+- **`\r\r\n` is one line ending**, as it has always been for an editor: it is
+  what a file from Windows has after its line endings were converted twice,
+  and such a file comes back with the `\r\n` it was meant to have. (The
+  Markdown parser reads two line endings there, and so do the index and the
+  definition of the properties block on the file as it lies on disk — ADR
+  0009, addendum 2026-10-09, point 10.)
+- **Where it is said.** At the top of the adapter chain
+  (`ConflictAwareVaultAdapter`, `onLineEndsConverted`): every write of the app
+  to a file the user sees passes there — an editor's save, a whole text
+  (`writeTextFile`) and a change of a place through the chain's one entry
+  (`updateTextFile`, ADR 0031) alike, on both shells —, and each has read the
+  file it writes over. Both shells hand it the one notice
+  (`sayLineEndsConverted` in the UI package), which gathers a burst of writes
+  into one message. On the desktop the chain lives in the central window,
+  which hands the notice on to the auxiliary windows on the vault over the
+  window bus (`line-ends-converted`): a save from such a window is said there
+  too. Over a file that has such line endings, a version put back or a copy
+  that takes the file's place is a write like any other: turned, and said.
+  Nothing is said, and nothing is turned, where nobody is to be told: what the
+  app writes to its own files under `.plainva`, the working copy of a conflict
+  (a draft), and the resolution of a conflict, which writes the text the
+  person chose below the chain. The sync writes below the chain and says
+  nothing either: a file it pulls was converted, and said, on the device that
+  changed it, and a merge the sync makes itself is silent.
+- **Not changed:** what reads a raw file line by line outside this text — the
+  task scan of the index among them — still sees a file with `\r` alone as one
+  line until that first write. Promoting a task to a note counts its
+  checkboxes the way that scan does (`replaceCheckboxWithLink`): the ordinal
+  the scan hands out names the same line there, and what such a line holds
+  behind a carriage return of its own stays in the note.
+
 Tests: `packages/core/test/text-file-shape.test.ts`,
 `packages/core/test/conflict-resolver.test.ts`,
 `packages/core/test/sync/text-shape-sync.test.ts` (two devices, bytes on both
@@ -245,6 +309,11 @@ taken through every change the journal makes, on each shell's own way and
 with the bytes read back — `apps/desktop/src/journalByteOrderMark.test.ts`,
 `apps/mobile/src/services/journalByteOrderMark.test.ts` —, and through the
 reading view: `apps/desktop/src/lib/readerByteOrderMark.test.tsx`.
+For the carriage return of its own, beside the first two and the phone's two:
+`apps/desktop/src/openTarget.test.ts` (the text against CodeMirror),
+`apps/desktop/src/lineEndNotice.test.ts` (with the hand-over to an auxiliary
+window), `apps/desktop/src/services/taskPromotion.test.ts` (the count of the
+scan), and `apps/desktop/e2e/editor-stability.spec.ts`.
 
 ## Addendum 2026-10-12 (a note is never written back from its parsed tree)
 

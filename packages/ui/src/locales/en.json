@@ -693,6 +693,8 @@
     "vanishedRestore": "Save here again",
     "notTextTitle": "This file is not text",
     "notTextBody": "Its extension says text, its content does not. Plainva will not display it, because saving it would damage the file.",
+    "lineEndsConverted": "“{{name}}” had bare CR line endings, as old Mac files do. Plainva saved it with {{eol}}.",
+    "lineEndsConvertedSeveral": "Several files ({{files}}) had bare CR line endings, as old Mac files do. Plainva saved them with LF or CRLF.",
     "value": "Value",
     "slashCheckbox": "Checkbox",
     "slashBulletList": "Bullet List",

@@ -695,6 +695,8 @@
     "vanishedRestore": "Salva di nuovo qui",
     "notTextTitle": "Questo file non è testo",
     "notTextBody": "L'estensione dice testo, il contenuto no. Plainva non lo mostra, perché salvarlo lo danneggerebbe.",
+    "lineEndsConverted": "«{{name}}» aveva terminazioni di riga solo CR, come i vecchi file Mac. Plainva lo ha salvato con {{eol}}.",
+    "lineEndsConvertedSeveral": "Diversi file ({{files}}) avevano terminazioni di riga solo CR, come i vecchi file Mac. Plainva li ha salvati con LF o CRLF.",
     "value": "Valore",
     "slashCheckbox": "Casella di controllo",
     "slashBulletList": "Elenco puntato",

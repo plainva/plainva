@@ -697,6 +697,8 @@
     "vanishedRestore": "Zapisz tutaj ponownie",
     "notTextTitle": "Ten plik nie jest tekstem",
     "notTextBody": "Rozszerzenie mówi, że to tekst, a zawartość nie. Plainva go nie wyświetla, ponieważ zapisanie uszkodziłoby plik.",
+    "lineEndsConverted": "Plik „{{name}}” miał zakończenia linii z samym CR, jak stare pliki z Maca. Plainva zapisała go z {{eol}}.",
+    "lineEndsConvertedSeveral": "Kilka plików ({{files}}) miało zakończenia linii z samym CR, jak stare pliki z Maca. Plainva zapisała je z LF lub CRLF.",
     "value": "Wartość",
     "slashCheckbox": "Pole wyboru",
     "slashBulletList": "Lista punktowana",

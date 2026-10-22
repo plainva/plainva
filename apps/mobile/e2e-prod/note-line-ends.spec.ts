@@ -67,6 +67,38 @@ test("an edit of a note with \\r\\n and a mark changes the edited line, and noth
   expect(await conflictCopies(page)).toEqual([]);
 });
 
+/**
+ * The one kind of line end that is read and not kept (maintainer, 2026-10-12):
+ * a carriage return of its own, every line end of a file from a classic Mac.
+ * The first edit leaves the note with `\n`, and the phone says so.
+ */
+test("a note from a classic Mac shows its lines; the first edit leaves it with \\n and says so", async ({ page }) => {
+  const classic = ["---", "type: Note", "---", "# From a classic Mac", "", "First paragraph.", "", "Last line.", ""].join("\r");
+  await vaultWith(page, { "From a classic Mac.md": classic });
+  await page.getByText("From a classic Mac", { exact: true }).first().click();
+  const editor = page.locator(".cm-content").first();
+  await expect(editor).toContainText("First paragraph.", { timeout: 20_000 });
+  // Lines of their own, not one long one.
+  await expect(editor.locator(".cm-line", { hasText: "Last line." })).toHaveText("Last line.");
+
+  // Opening and looking writes nothing: the file still has its carriage returns.
+  expect(await readVaultFile(page, "From a classic Mac.md")).toBe(classic);
+
+  await page.getByTestId("note-edit").click();
+  const writing = page.locator('.cm-content[contenteditable="true"]').first();
+  await writing.click();
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type("One more line.");
+  await expect.poll(() => readVaultFile(page, "From a classic Mac.md"), { timeout: 15_000 }).toContain("One more line.");
+
+  // Every line end is "\n" now, and the notice names the file and the line end.
+  expect(await readVaultFile(page, "From a classic Mac.md")).toBe("---\ntype: Note\n---\n# From a classic Mac\n\nFirst paragraph.\n\nLast line.\nOne more line.");
+  const notice = page.locator(".pv-toast--info").filter({ hasText: "From a classic Mac.md" });
+  await expect(notice).toHaveCount(1);
+  await expect(notice).toContainText("LF");
+  expect(await conflictCopies(page)).toEqual([]);
+});
+
 test("a note that arrived with \\n is saved with \\n", async ({ page }) => {
   const unix = "---\ntype: Note\n---\n# From here\n\nFirst paragraph.\n";
   await vaultWith(page, { "From here.md": unix });

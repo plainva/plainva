@@ -850,6 +850,8 @@
     "vanishedRestore": "Hier erneut speichern",
     "notTextTitle": "Diese Datei ist kein Text",
     "notTextBody": "Ihre Endung sagt Text, ihr Inhalt nicht. Plainva zeigt sie nicht an, weil ein Speichern sie beschädigen würde.",
+    "lineEndsConverted": "„{{name}}“ hatte reine CR-Zeilenenden, wie alte Mac-Dateien. Plainva hat die Datei mit {{eol}} gespeichert.",
+    "lineEndsConvertedSeveral": "Mehrere Dateien ({{files}}) hatten reine CR-Zeilenenden, wie alte Mac-Dateien. Plainva hat sie mit LF oder CRLF gespeichert.",
     "split": "Editor teilen",
     "splitVertical": "Vertikal teilen (nebeneinander)",
     "splitHorizontal": "Horizontal teilen (übereinander)",

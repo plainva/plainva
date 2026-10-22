@@ -381,6 +381,37 @@ test('typing + save cycle far below the init-parse window keeps the view still',
   await expect(nestedLine).toHaveCSS('padding-left', '60px');
 });
 
+test('a file from a classic Mac shows its lines; the first save turns its line ends and says so once', async ({ page }) => {
+  // Every line ends in a carriage return of its own. The editor has always
+  // split there; the save wrote "\n" over every line end without a word.
+  const source = ['# Classic', '', 'First line', 'Second line', ''].join('\r');
+  await page.addInitScript(raw => { (window as any).mockFs['/test-vault/Classic.md'] = raw; }, source);
+  await page.goto('/');
+  await page.getByText('Classic', { exact: true }).click();
+  const editor = page.locator('.cm-content').first();
+  // Two lines, not one long one.
+  await expect(editor.locator('.cm-line', { hasText: 'First line' })).toHaveText('First line');
+  await expect(editor.locator('.cm-line', { hasText: 'Second line' })).toHaveText('Second line');
+  const saved = () => page.evaluate(() => (window as any).mockFs['/test-vault/Classic.md'] as string);
+  expect(await saved()).toBe(source);
+
+  await editor.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('Third line');
+  await expect.poll(saved).toBe('# Classic\n\nFirst line\nSecond line\nThird line');
+  // One notice: the file's name and the line end it has now.
+  const notice = page.locator('.pv-toast--info', { hasText: 'Classic.md' });
+  await expect(notice).toHaveCount(1);
+  await expect(notice).toContainText('LF');
+
+  // The next save meets a file with "\n": nothing is turned, nothing is said
+  // again. (The first notice may have gone by now; a second one must not come.)
+  await page.keyboard.type('!');
+  await expect.poll(saved).toBe('# Classic\n\nFirst line\nSecond line\nThird line!');
+  await page.waitForTimeout(900);
+  expect(await page.locator('.pv-toast--info', { hasText: 'Classic.md' }).count()).toBeLessThanOrEqual(1);
+});
+
 test('an identical external update is a complete no-op', async ({ page }) => {
   await openBigAndArm(page);
 

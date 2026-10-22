@@ -1,4 +1,4 @@
-import { applyTextShape, readTextShape, scanTasks, trimEndChars, updateVaultText, wikiTargetForPath, type TextUpdateFiles } from "@plainva/core";
+import { scanTasks, trimEndChars, updateVaultText, wikiTargetForPath, type TextUpdateFiles } from "@plainva/core";
 import { TASK_LINE_RE, FENCE_RE } from "./taskToggle";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
@@ -79,9 +79,16 @@ export interface CheckboxReplaceResult {
  * aware, in lock-step with `scanTasks`/`toggleTaskAtIndex`. The alias is
  * appended only when it differs from the link target.
  *
- * The lines are counted the way an editor holds the note and the result leaves
- * in the note's own shape: the replaced line used to lose its `\r`, one line
- * of the other kind in a note that lies there with `\r\n` (finding 2026-10-09).
+ * The lines are the ones `scanTasks` counts — the file's, split at `\n` — so
+ * the ordinal it hands out names the same checkbox here. Counted in the text
+ * an editor holds, a carriage return of its own between two checkboxes made
+ * two lines of one, and the link replaced the checkbox after the one that was
+ * promoted (finding 2026-10-22). The replaced line keeps what ends it: it
+ * used to lose its `\r`, one line of the other kind in a note that lies there
+ * with `\r\n` (finding 2026-10-09). And what such a line holds behind a
+ * carriage return of its own — the next lines of a file from a classic Mac —
+ * stays in the note: only the checkbox is replaced. The chain that writes the
+ * note turns those line ends (`ConflictAwareVaultAdapter`).
  */
 export function replaceCheckboxWithLink(
   content: string,
@@ -89,8 +96,7 @@ export function replaceCheckboxWithLink(
   linkTarget: string,
   alias?: string
 ): CheckboxReplaceResult {
-  const { text, shape } = readTextShape(content);
-  const lines = text.split("\n");
+  const lines = content.split("\n");
   let inFence = false;
   let seen = 0;
   for (let i = 0; i < lines.length; i++) {
@@ -106,8 +112,13 @@ export function replaceCheckboxWithLink(
       // blockquote markers + bullet + spacing), drop the "[x] text" rest.
       const prefix = lines[i].slice(0, m[1].length - 1);
       const link = alias && alias !== linkTarget ? `[[${linkTarget}|${alias}]]` : `[[${linkTarget}]]`;
-      lines[i] = `${prefix}${link}`;
-      return { content: applyTextShape(lines.join("\n"), shape), changed: true };
+      // What follows the checkbox's own line on the same `\n`-line: from the
+      // first carriage return of its own behind the box, or the `\r` of a
+      // `\r\n`. One in front of the box is part of the prefix and stays there.
+      const inner = lines[i].slice(m[1].length).search(/\r(?!$)/);
+      const rest = inner >= 0 ? lines[i].slice(m[1].length + inner) : lines[i].endsWith("\r") ? "\r" : "";
+      lines[i] = `${prefix}${link}${rest}`;
+      return { content: lines.join("\n"), changed: true };
     }
     seen++;
   }

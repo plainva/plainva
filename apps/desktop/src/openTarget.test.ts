@@ -190,6 +190,31 @@ describe("resolveOpenAction", () => {
     expect(raw.indexOf("three") - editorTextOf(raw).indexOf("three")).toBe(2);
   });
 
+  /**
+   * A carriage return of its own (2026-10-12). CodeMirror splits a document
+   * there as well, so a file from a classic Mac always showed its lines — but
+   * `editorTextOf` kept the "\r", and for such a file it was NOT the string an
+   * editor holds: a merge, a writer beside the editor and a comment operation
+   * read one long line. Now it is that string, and the proof that nothing
+   * changes in the editor is the old text itself: what CodeMirror made of the
+   * text it used to be handed is exactly what it is handed today.
+   */
+  it("holds what CodeMirror always held for a file with carriage returns of their own", () => {
+    const MARK = String.fromCharCode(0xfeff);
+    const handedBefore = (file: string) => (file.startsWith(MARK) ? file.slice(1) : file).replace(/\r\n/g, "\n");
+    for (const file of ["one\rtwo\rthree\r", `${MARK}one\rtwo`, "one\r\rtwo", "one\ntwo\rthree\r\nfour", "one\r\r\ntwo\r\r\n", "one\r\r\r\ntwo", "one\n\rtwo"]) {
+      const held = editorTextOf(file);
+      expect(held.includes("\r"), JSON.stringify(file)).toBe(false);
+      expect(EditorState.create({ doc: held }).doc.toString(), JSON.stringify(file)).toBe(held);
+      expect(EditorState.create({ doc: handedBefore(file) }).doc.toString(), JSON.stringify(file)).toBe(held);
+    }
+    // The opener of both shells hands out that text, and the shape the save
+    // puts back: "\n" for a file that has no other line end, the "\r\n" a
+    // twice-converted file from Windows was meant to have.
+    expect(openEditorText("Old Mac.txt", "one\rtwo\r")).toEqual({ text: "one\ntwo\n", shape: { eol: "\n", bom: false } });
+    expect(openEditorText("Twice.md", "one\r\r\ntwo\r\r\n")).toEqual({ text: "one\ntwo\n", shape: { eol: "\r\n", bom: false } });
+  });
+
   it("never hands a virtual tab to the operating system", () => {
     // These are not files. `plainva://graph` reaching openPath would ask the OS
     // to open a path that does not exist.

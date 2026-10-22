@@ -695,6 +695,8 @@
     "vanishedRestore": "Salvar aqui de novo",
     "notTextTitle": "Este arquivo não é texto",
     "notTextBody": "A extensão diz texto, o conteúdo não. O Plainva não o exibe, porque salvá-lo o danificaria.",
+    "lineEndsConverted": "“{{name}}” tinha quebras de linha só com CR, como os arquivos antigos de Mac. O Plainva o salvou com {{eol}}.",
+    "lineEndsConvertedSeveral": "Vários arquivos ({{files}}) tinham quebras de linha só com CR, como os arquivos antigos de Mac. O Plainva os salvou com LF ou CRLF.",
     "value": "Valor",
     "slashCheckbox": "Caixa de seleção",
     "slashBulletList": "Lista com marcadores",

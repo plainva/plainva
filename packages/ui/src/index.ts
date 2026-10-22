@@ -113,6 +113,7 @@ export * from "./lib/orderedAreas";
 export * from "./lib/openTarget";
 export * from "./lib/linkOpen";
 export * from "./lib/textFileShape";
+export * from "./lib/lineEndNotice";
 export * from "./services/barLayout";
 export * from "./services/commandRegistry";
 export * from "./services/inlineBase";

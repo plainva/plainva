@@ -47,11 +47,28 @@
  *
  * Note that this is not an encoding guess: we only remember what we found.
  *
+ * One kind of line end is read and not kept: a carriage return of its own —
+ * every line end of a file from a classic Mac, or a stray one elsewhere. An
+ * editor has always split a text there (CodeMirror does); the text it holds
+ * for such a file has `\n` in that place, and so has `editorTextOf`, or a
+ * merge, a writer beside the editor and a comment operation would see one long
+ * line where the editor sees many. A shape has no third line end to put back,
+ * so the first write that changes such a file leaves it in the shape's — `\n`
+ * for a file that has nothing else (maintainer, 2026-10-12). A write that
+ * changes nothing still gives the file back byte for byte. `hasUnkeptLineEnds`
+ * says whether a file has such line ends; the top of the adapter chain turns
+ * them for every writer that changes such a file (`withKeptLineEnds`), also
+ * for one that changed a place of it and left the rest as it was, and tells
+ * the shell, so that the user is told.
+ *
  * Pure, and in the core rather than beside the editors: the merges and the
  * sync need the same functions as the shells that open a file.
  */
 export interface TextFileShape {
-  /** The line ending the file used. Mixed endings collapse to the majority. */
+  /**
+   * The line ending the file used. Mixed endings collapse to the majority. A
+   * carriage return of its own is none of the two: it is read, and not kept.
+   */
   eol: "\n" | "\r\n";
   /** Whether the file started with a UTF-8 byte order mark. */
   bom: boolean;
@@ -83,13 +100,50 @@ function lineEndOf(raw: string): TextFileShape["eol"] | null {
 }
 
 /**
+ * A line end as an editor reads it, where it carries a `\r`: `\r\n`, a `\r` of
+ * its own — and `\r\r\n`, which is ONE. That last one is what a file from
+ * Windows has after its line ends were converted twice, and it is what an
+ * editor has always made of it: the `\r\n` was folded first, and the `\r` left
+ * in front of the new `\n` was one line break with it for CodeMirror. Read as
+ * two, the editor would show an empty line behind every line of such a file
+ * and a save would write them. Every match is at most three characters long.
+ */
+const LINE_END_WITH_RETURN = /\r(?:\r?\n)?/g;
+
+/** A `\r` that no `\n` follows: a line end no shape puts back. */
+const LONE_CARRIAGE_RETURN = /\r(?!\n)/;
+
+/**
+ * Whether a file has line ends its shape does not keep: a carriage return of
+ * its own. The first write that changes the file's text turns them into the
+ * shape's line end.
+ */
+export function hasUnkeptLineEnds(raw: string): boolean {
+  return raw.includes("\r") && LONE_CARRIAGE_RETURN.test(raw);
+}
+
+/**
+ * The file with every line end its shape's: a carriage return of its own
+ * turned into `\n` or `\r\n`, the mark kept. A file without such line ends
+ * comes back as it is. What the top of the adapter chain writes in the place
+ * of a text that still has them (`ConflictAwareVaultAdapter`).
+ */
+export function withKeptLineEnds(raw: string): string {
+  if (!hasUnkeptLineEnds(raw)) return raw;
+  const { text, shape } = readTextShape(raw);
+  return applyTextShape(text, shape);
+}
+
+/**
  * Splits a freshly read file into the text an editor works with and the shape
- * the file had. The editor always holds LF internally.
+ * the file had. The editor always holds LF internally: every line end it reads
+ * — `\n`, `\r\n`, a `\r` of its own — is `\n` in its text.
  */
 export function readTextShape(raw: string): { text: string; shape: TextFileShape } {
   const bom = hasMark(raw);
   const body = bom ? raw.slice(1) : raw;
-  return { text: body.replace(/\r\n/g, "\n"), shape: { eol: lineEndOf(body) ?? "\n", bom } };
+  const text = body.includes("\r") ? body.replace(LINE_END_WITH_RETURN, "\n") : body;
+  return { text, shape: { eol: lineEndOf(body) ?? "\n", bom } };
 }
 
 /** Puts a shape back around an editor's LF text. */
@@ -113,14 +167,24 @@ export function editorTextOf(raw: string): string {
  * caret a template leaves in a new note did (finding 2026-10-09).
  *
  * The answer is the length of what an editor holds for everything in front of
- * the place, so it is `editorTextOf`'s rule and no second one. A place between
- * the two characters of a `\r\n` is the end of that line. Places outside the
- * text count as its start and its end.
+ * the place, by `editorTextOf`'s rule and no second one: the line ends are
+ * found with the pattern that reads them. A place between the characters of
+ * one line end — `\r\n`, or `\r\r\n` — is the end of that line. Places outside
+ * the text count as its start and its end.
  */
 export function editorOffsetOf(raw: string, offset: number): number {
-  const at = Math.min(Math.max(offset, 0), raw.length);
-  const inLineEnd = raw.charCodeAt(at - 1) === 13 && raw.charCodeAt(at) === 10;
-  return editorTextOf(raw.slice(0, inLineEnd ? at - 1 : at)).length;
+  const mark = hasMark(raw) ? 1 : 0;
+  const wanted = Number(offset);
+  const at = Math.min(Math.max(Number.isNaN(wanted) ? 0 : wanted, mark), raw.length);
+  // Every line end in front of the place is one character for an editor.
+  let shorter = mark;
+  const lineEnds = new RegExp(LINE_END_WITH_RETURN);
+  lineEnds.lastIndex = mark;
+  for (let found = lineEnds.exec(raw); found !== null && found.index < at; found = lineEnds.exec(raw)) {
+    if (found.index + found[0].length > at) return found.index - shorter;
+    shorter += found[0].length - 1;
+  }
+  return at - shorter;
 }
 
 /**

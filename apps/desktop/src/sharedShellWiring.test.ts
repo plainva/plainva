@@ -41,6 +41,11 @@ const contracts = [
   // phone's sheet used to show the thrown message as it came.
   ["publicationErrorText", "components/security/SecuritySharingPage.tsx", "components/PublishSliceSheet.tsx"],
   ["publicationStatusText", "components/security/SecuritySharingPage.tsx", "screens/SecurityAreaScreen.tsx"],
+  // A file whose line ends its shape does not keep — a carriage return of its
+  // own — is converted by the first write that changes it (2026-10-12). Both
+  // shells hand the one notice to the top of their adapter chain, where every
+  // write of the app passes; a shell that stops doing so converts in silence.
+  ["sayLineEndsConverted", "contexts/VaultContext.tsx", "services/vaultService.ts"],
 ] as const;
 
 /**

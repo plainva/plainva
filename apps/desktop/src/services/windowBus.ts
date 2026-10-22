@@ -87,6 +87,13 @@ export interface BroadcastMap {
   };
   /** Calendar/task data changed (PIM worker cycle finished). */
   "pim-changed": Record<string, never>;
+  /**
+   * The owner's chain turned a file's line ends — a carriage return of its own
+   * — into `eol` (ADR 0003, paragraph of 2026-10-22). A save from an auxiliary
+   * window goes through that chain too, and the window has a toast host of its
+   * own: a client says it there (`sayLineEndsConverted`).
+   */
+  "line-ends-converted": { path: string; eol: "\n" | "\r\n" };
   /** A setting the other windows must re-apply (theme, density, font, zoom). */
   "settings-changed": { domain: string };
   /**
@@ -444,6 +451,7 @@ export const BROADCAST_SCOPE: Record<BroadcastChannel, "vault" | "app"> = {
   "workspace-security-changed": "vault",
   "sync-status": "vault",
   "pim-changed": "vault",
+  "line-ends-converted": "vault",
   // App- or window-scoped: appearance is one setting for the process, and the
   // three window channels address a window by label, not a vault by path.
   "settings-changed": "app",
