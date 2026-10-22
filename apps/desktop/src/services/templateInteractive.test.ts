@@ -9,7 +9,7 @@ vi.mock("@tauri-apps/plugin-store", () => {
 });
 vi.mock("@tauri-apps/plugin-dialog", () => ({ ask: vi.fn(async () => true), open: vi.fn() }));
 
-const ctx = { title: "Meine Notiz", now: new Date(2026, 6, 29, 14, 37) };
+const ctx = { title: "Meine Notiz", now: new Date(2026, 6, 29, 14, 37), vaultPath: null };
 
 /** Answers the dialog the pipeline opens, as the user would. */
 function answerNextDialog(answer: Record<string, string> | null): Promise<AnswersRequest> {
@@ -92,7 +92,7 @@ describe("the background paths stay dialog-free", () => {
     for (const file of files) {
       const source = await fs.readFile(new URL(file, import.meta.url), "utf8");
       expect(source, `${file} must not use the interactive template pipeline`).not.toMatch(
-        /applyTemplateInteractive|appTemplateAnswers/
+        /applyTemplateInteractive|appTemplateAnswers|runTemplateInteractive|withPersonContext/
       );
     }
   });

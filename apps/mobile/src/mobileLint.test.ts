@@ -1054,8 +1054,12 @@ describe("the week starts on the same day everywhere", () => {
     expect(screen).toMatch(/const weekStart = useWeekStartDay\(\)/);
     expect(stripComments(readFileSync(join(SRC, "screens/base/BaseScreen.tsx"), "utf8"))).toMatch(/const weekStart = useWeekStartDay\(\)/);
     // The template engine had the same gap: `{{weekday:…}}` fell back to Monday.
+    // The phone's pipeline is the shared one, which reads the setting for every
+    // template — asked or not (Sammelplan § 3.97).
     const tpl = stripComments(readFileSync(join(SRC, "services/templateInteractive.ts"), "utf8"));
-    expect(tpl).toMatch(/weekStart = weekStartDayOf\(/);
+    expect(tpl).toMatch(/runTemplateInteractive\(/);
+    const shared = stripComments(readFileSync(join(SRC, "../../../packages/ui/src/lib/templateContext.ts"), "utf8"));
+    expect(shared).toMatch(/weekStart = weekStartDayOf\(await getWeekStartSetting\(\)\)/);
   });
 
   it("names the day a column stands for, and shows what lasts all of it", () => {

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { parse as parseYaml } from "yaml";
 import { editorTextOf } from "@plainva/core";
-import { buildDailyNotePath, clearPendingTemplateCaret, consumePendingTemplateCaret } from "@plainva/ui";
-import { listExistingDailyNotes, makeDailyPathProvider, noteStamp, resolveOrCreateDailyNote } from "./dailyNotes";
+import { buildDailyNotePath, clearPendingTemplateCaret, consumePendingTemplateCaret, dailyPathFrom, type TemplateContext } from "@plainva/ui";
+import { listExistingDailyNotes, noteStamp, resolveOrCreateDailyNote, templateVaultOf } from "./dailyNotes";
 import { applyTemplateInteractive } from "./templateInteractive";
 import {
   dailyNotesFolderKey,
@@ -228,7 +228,7 @@ describe("resolveOrCreateDailyNote — OKF write rule", () => {
       adapter: asked.adapter,
       onIndex: async () => {},
       confirmCreate: false,
-      resolveTemplate: (raw, ctx) => applyTemplateInteractive(raw, ctx, "Fragen"),
+      resolveTemplate: (raw, ctx) => applyTemplateInteractive(raw, { ...ctx, vaultPath: VAULT }, "Fragen"),
     });
     const note = asked.written[path!];
     const fm = frontmatterOf(note);
@@ -255,14 +255,14 @@ describe("resolveOrCreateDailyNote — OKF write rule", () => {
     // template's block and no heading.
     storeValues[templateFolderKey(VAULT)] = "Templates";
     storeValues[dailyNoteTemplateKey(VAULT)] = "daily.md";
-    for (const resolveTemplate of [undefined, (raw: string, ctx: { title: string; now: Date; folder: string }) => applyTemplateInteractive(raw, ctx, "Fragen")]) {
+    for (const resolveTemplate of [undefined, (raw: string, ctx: TemplateContext) => applyTemplateInteractive(raw, { ...ctx, vaultPath: VAULT }, "Fragen")]) {
       const { adapter, written } = makeAdapter({ "Templates/daily.md": "---\nplainva:\n  tasks: false\n---\n" });
       const path = await resolveOrCreateDailyNote(date, { vaultPath: VAULT, adapter, onIndex: async () => {}, confirmCreate: false, resolveTemplate });
       expect(written[path!]).toBe("---\ntype: Daily Note\n---\n# 2024-03-05\n");
     }
     // A template with a property of its own is one, text or not: no heading is put under it.
     const { adapter, written } = makeAdapter({ "Templates/daily.md": "---\nmood:\nplainva:\n  tasks: false\n---\n" });
-    const path = await resolveOrCreateDailyNote(date, { vaultPath: VAULT, adapter, onIndex: async () => {}, confirmCreate: false, resolveTemplate: (raw, ctx) => applyTemplateInteractive(raw, ctx, "Fragen") });
+    const path = await resolveOrCreateDailyNote(date, { vaultPath: VAULT, adapter, onIndex: async () => {}, confirmCreate: false, resolveTemplate: (raw, ctx) => applyTemplateInteractive(raw, { ...ctx, vaultPath: VAULT }, "Fragen") });
     expect(written[path!]).toBe("---\nmood:\ntype: Daily Note\n---\n");
   });
 
@@ -349,7 +349,7 @@ describe("resolveOrCreateDailyNote — OKF write rule", () => {
         confirmCreate: false,
         // A person opens the note: the template runs through the interactive
         // pipeline, as `useDailyNoteAction` wires it.
-        resolveTemplate: (raw, ctx) => applyTemplateInteractive(raw, ctx, "Fragen"),
+        resolveTemplate: (raw, ctx) => applyTemplateInteractive(raw, { ...ctx, vaultPath: VAULT }, "Fragen"),
       });
       const note = written[path!];
       // The note keeps what the template has …
@@ -363,15 +363,25 @@ describe("resolveOrCreateDailyNote — OKF write rule", () => {
   });
 });
 
-describe("makeDailyPathProvider", () => {
+// What `{{vault}}` and `{{daily±N}}` read in a template of this vault: the
+// vault's name and its daily-note settings, through the shared `dailyPathFrom`
+// (Sammelplan § 3.97 — the pipeline takes them from here for every way).
+describe("templateVaultOf", () => {
   beforeEach(() => {
     for (const k of Object.keys(storeValues)) delete storeValues[k];
+  });
+
+  const pathsOf = async (vaultPath: string, now: Date) => dailyPathFrom(now, await templateVaultOf(vaultPath));
+
+  it("names the vault by its folder", async () => {
+    expect((await templateVaultOf("C:\\Notizen\\Arbeit")).name).toBe("Arbeit");
+    expect((await templateVaultOf("/home/kim/Vault/")).name).toBe("Vault");
   });
 
   it("resolves the daily note that many days from the reference instant", async () => {
     storeValues[dailyNotesFolderKey("/v")] = "Tagebuch";
     storeValues[dailyNotesFormatKey("/v")] = "YYYY-MM-DD";
-    const path = await makeDailyPathProvider("/v", new Date(2026, 6, 29));
+    const path = await pathsOf("/v", new Date(2026, 6, 29));
     // The PATH, without brackets: the engine builds the link, so that
     // `{{daily+1:Label}}` can put an alias into it.
     expect(path(0)).toBe("Tagebuch/2026-07-29");
@@ -383,13 +393,13 @@ describe("makeDailyPathProvider", () => {
   });
 
   it("carries the folder, and omits it only when there is none", async () => {
-    const path = await makeDailyPathProvider("/v", new Date(2026, 6, 29));
+    const path = await pathsOf("/v", new Date(2026, 6, 29));
     expect(path(0)).toBe("2026-07-29");
   });
 
   it("follows the configured date format", async () => {
     storeValues[dailyNotesFormatKey("/v")] = "DD.MM.YYYY";
-    const path = await makeDailyPathProvider("/v", new Date(2026, 6, 29));
+    const path = await pathsOf("/v", new Date(2026, 6, 29));
     expect(path(0)).toBe("29.07.2026");
   });
 });

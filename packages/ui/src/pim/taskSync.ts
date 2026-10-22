@@ -27,6 +27,7 @@ import { resolveNewItemTarget } from "../base/baseRelations";
 import { anchorMatchesTask, buildTaskAnchor, taskAnchorIdentity } from "./providerTask";
 import { isFileNotFound } from "../lib/movedNote";
 import { buildNewItemContent } from "../lib/newItemContent";
+import { withVaultContext, type TemplateVault } from "../lib/templateContext";
 import { generatedStamp } from "../lib/okfProvenance";
 import { resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, type TaskCompletionModel } from "../lib/taskDatabase";
 import { findColumnKey } from "../lib/taskPromotion";
@@ -85,6 +86,8 @@ export interface TaskSyncOptions {
   taskDbPath: string | null;
   /** Configured OKF `type` for created notes. */
   noteType: string;
+  /** The vault, for `{{vault}}` and `{{daily±N}}` in the task database's template (Sammelplan § 3.97). */
+  templateVault?: TemplateVault | null;
   /** Every vault note path (collision-free naming + move-detection scope). */
   allNotePaths: string[];
   /**
@@ -756,7 +759,9 @@ async function createTaskNote(opts: TaskSyncOptions, db: DbShape, account: PimAc
       prefills[db.completion.status.key] = task.completed ? db.completion.status.done : db.completion.status.open;
     }
   }
-  let content = buildNewItemContent({ templateText, noteType: opts.noteType, title: task.title || "Task", inheritTags: db.inheritTags, prefills });
+  const title = task.title || "Task";
+  const templateContext = await withVaultContext({ title, now: new Date(), folder: notePath.split("/").slice(0, -1).join("/") }, opts.templateVault ?? null);
+  let content = buildNewItemContent({ templateText, noteType: opts.noteType, title, inheritTags: db.inheritTags, prefills, templateContext });
   try {
     // setFrontmatterPath, not upsertFrontmatterKeys: the latter replaces the
     // whole `plainva` map, so a template that gives its tasks an icon would

@@ -383,6 +383,9 @@ test.beforeEach(async ({ page }) => {
         // command falls through to `null` and every start looks like an update.
         if (cmd === 'plugin:app|version') return '9.9.9';
         if (cmd === 'plugin:store|get') {
+          // A test sets a setting of its own before the app starts (`addInitScript`).
+          const own = (window as any).__storeOverrides;
+          if (own && Object.prototype.hasOwnProperty.call(own, args.key)) return [own[args.key], true];
           if (args.key === 'lastVaultPath') return ['/test-vault', true];
           if (args.key === 'recentVaults') return [['/test-vault'], true];
           // The splash is the default entry since 2026-07-04 — the suite keeps
@@ -2286,6 +2289,50 @@ test('Base "Neu": opened as a tab from the peek window, a new entry goes on wher
   await expect(tab).toBeFocused();
   await page.keyboard.type('!');
   await expect.poll(() => cursorEntry(page)).toContain('# Cockpit_4 für den Kunden!\n');
+});
+
+// What a database's template is resolved WITH (Sammelplan § 3.97). The view
+// gave "+ Entry" and the pinboard's New entry the vault's name and nothing
+// else: `{{daily}}` stayed text, `{{weekday:…}}` counted from Monday whatever
+// "Week starts on" says, and "+ Entry" filled the answered text a second time,
+// so a placeholder written as text (`\{{date}}`) became a date. Sunday,
+// 2026-10-11, with the week starting on Sunday: its Monday is the 12th.
+const CONTEXT_TEMPLATE = '---\ntype: Projekt\n---\n\n# {{title}}\n\nTag: {{daily}} · Montag: {{weekday:monday}} · Platzhalter: \\{{date}}\n';
+const CONTEXT_FILLED = 'Tag: [[2026-10-11]] · Montag: 2026-10-12 · Platzhalter: {{date}}\n';
+async function onSundayWeekStartingSunday(page: Page) {
+  await page.clock.setFixedTime(new Date(2026, 9, 11, 9, 30));
+  await page.addInitScript(() => { (window as any).__storeOverrides = { calendarWeekStart: 'sunday' }; });
+}
+
+test('Base "Neu": a template gets the daily note and the week start, and is filled once (Sammelplan 3.97)', async ({ page }) => {
+  await onSundayWeekStartingSunday(page);
+  await page.goto('/');
+  await page.evaluate((template) => { (window as any).mockFs['/test-vault/Templates/Projektvorlage.md'] = template; }, CONTEXT_TEMPLATE);
+  await openBase(page, 'Cockpit');
+  await expect(page.locator('table').getByText('Alpha')).toBeVisible();
+  await page.getByRole('button', { name: /Vorlagen und Ablage-Ordner|Templates and storage folder/ }).click();
+  await page.getByRole('button', { name: /Alle Vorlagen anzeigen|Show all templates/ }).click();
+  await page.getByRole('button', { name: 'Projektvorlage', exact: true }).click();
+  await expect(page.locator('.pv-peek-card .pv-peek-title')).toContainText('Cockpit_4');
+  await expect.poll(() => cursorEntry(page)).toContain(CONTEXT_FILLED);
+});
+
+test('pinboard: New entry from the board\'s template gets the daily note and the week start (Sammelplan 3.97)', async ({ page }) => {
+  await onSundayWeekStartingSunday(page);
+  await page.goto('/');
+  await page.evaluate((template) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Templates/Zettelvorlage.md'] = template;
+    // The board's default template, where "Set as default" keeps it: in its first view.
+    fs['/test-vault/Pinnwand.base'] = String(fs['/test-vault/Pinnwand.base']).replace('      render: pinboard', '      render: pinboard\n      newItemTemplate: Templates/Zettelvorlage.md');
+  }, CONTEXT_TEMPLATE);
+  await openBase(page, 'Pinnwand');
+  await expect(page.locator('[data-pinboard-card]')).toHaveCount(3);
+  await page.getByTestId('base-new-entry').click();
+  await expect(page.getByTestId('pinboard-entry')).toBeVisible();
+  await expect.poll(() => zettelDrafts(page)).toHaveLength(1);
+  const [draft] = await zettelDrafts(page);
+  await expect.poll(() => page.evaluate((p) => String((window as any).mockFs[p]), draft)).toContain(CONTEXT_FILLED);
 });
 
 test('Base "Neu": a new entry whose peek window was closed opens later without a caret from the moment it was created', async ({ page }) => {

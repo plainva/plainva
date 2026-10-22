@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import {
   Button,
   CommittedTextInput,
@@ -100,8 +100,9 @@ export function TemplateRules({
               </Button>
             </SettingField>
           ))}
+          {/* The label carries its plus ("＋ Folder template"), as on the
+              desktop's button; a Plus icon beside it showed two. */}
           <Row
-            icon={<Plus size={ICON.ui} />}
             onClick={() => setFolderRules([...settings.folderTemplates, { folder: "", template: "" }])}
             title={t("settings.addFolderTemplate")}
           />
@@ -150,7 +151,6 @@ export function TemplateRules({
             </SettingField>
           ))}
           <Row
-            icon={<Plus size={ICON.ui} />}
             onClick={() => setTypeRules([...settings.typeTemplates, { type: "", template: "" }])}
             title={t("settings.addTypeTemplate")}
           />

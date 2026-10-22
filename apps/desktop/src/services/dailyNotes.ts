@@ -1,4 +1,4 @@
-import { ensureDailyNote, noteStamp, parkTemplateCaret, type DailyNoteCreateConfig, type DailyNoteFiles } from "@plainva/ui";
+import { ensureDailyNote, noteStamp, parkTemplateCaret, type DailyNoteCreateConfig, type DailyNoteFiles, type TemplateContext, type TemplateVault } from "@plainva/ui";
 import { getSettingsStore } from "./settingsStore";
 import { appConfirm } from "./appDialogs";
 import {
@@ -75,39 +75,36 @@ export interface DailyNoteOptions {
    * cancels. Injected so this service stays UI-free; without it the template
    * is applied headless (the background behaviour). Plan Vorlagen-Engine, P3.
    */
-  resolveTemplate?: (raw: string, ctx: { title: string; now: Date; folder: string }) =>
+  resolveTemplate?: (raw: string, ctx: TemplateContext) =>
     Promise<{ text: string; cursor: number | null } | null>;
 }
 
 export { noteStamp };
 
 /**
- * Resolver for `{{daily+1}}` / `{{daily-1}}` (plan Vorlagen-Engine, E6): the
- * PATH of the daily note that many days from the reference instant. The
- * template engine wraps it into the wiki link, so `{{daily+1:tomorrow}}` can
- * give that link a label.
+ * What this vault hands every template (Sammelplan § 3.97): its name for
+ * `{{vault}}`, and the folder and format of its daily notes, which
+ * `{{daily±N}}` points into (plan Vorlagen-Engine, E6). The pipeline with
+ * questions takes it from the vault's path; a way nobody is asked on is handed
+ * it by its caller. The shared `dailyPathFrom` builds the paths — with the
+ * folder when there is one: a bare `2026-07-30` would be ambiguous the moment
+ * any other note has that name, and a daily note's name is a date.
  *
- * The settings are read ONCE and handed back as a plain function, because the
- * template engine resolves tokens synchronously — and a template may well name
- * several days.
- *
- * The path carries the folder when there is one. A bare `2026-07-30` would be
- * ambiguous the moment any other note in the vault has that name, and a daily
- * note's name is a date — exactly the kind that repeats.
+ * Never throws: the task sync asks for it on every cycle, and a store that
+ * cannot be read must not stop a cycle over a template's daily links.
  */
-export async function makeDailyPathProvider(
-  vaultPath: string,
-  now: Date
-): Promise<(offset: number) => string> {
-  const store = await getSettingsStore();
-  const folder = (await store.get<string>(dailyNotesFolderKey(vaultPath))) || "";
-  const rawFormat = (await store.get<string>(dailyNotesFormatKey(vaultPath))) || "YYYY-MM-DD";
-  return (offset: number) => {
-    const when = new Date(now);
-    when.setDate(when.getDate() + offset);
-    const { fullPath } = buildDailyNotePath(when, rawFormat, folder);
-    return fullPath.replace(/\.md$/i, "");
-  };
+export async function templateVaultOf(vaultPath: string): Promise<TemplateVault> {
+  const name = vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "";
+  try {
+    const store = await getSettingsStore();
+    return {
+      name,
+      dailyFolder: (await store.get<string>(dailyNotesFolderKey(vaultPath))) || "",
+      dailyFormat: (await store.get<string>(dailyNotesFormatKey(vaultPath))) || "",
+    };
+  } catch {
+    return { name, dailyFolder: "", dailyFormat: "" };
+  }
 }
 
 /** The vault's daily-note settings, in the shape the shared building block takes. */
@@ -157,6 +154,9 @@ export async function resolveOrCreateDailyNote(date: Date, opts: DailyNoteOption
       ? (path) => appConfirm({ title: confirmTitle ?? "Daily note", message: confirmMessage ? confirmMessage(path) : `Create ${path}?`, kind: "info" })
       : undefined,
     resolveTemplate: opts.resolveTemplate,
+    // `{{vault}}` on the way without questions too; the pipeline with them
+    // takes it from the vault path itself.
+    templateContext: { vaultName: (await templateVaultOf(vaultPath)).name },
   });
   if (!ensured) return null;
   if (!ensured.created) return ensured.path;

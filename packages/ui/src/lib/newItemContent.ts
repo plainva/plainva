@@ -1,4 +1,5 @@
 import { parseMarkdownAst, extractFrontmatter, upsertFrontmatterKeys } from "@plainva/core";
+import type { TemplateContext } from "../base/templateEngine";
 import { applyTemplatePlaceholders } from "../base/templateFiles";
 import { templateAsNewNote, withOkfDefaults } from "./newNoteContent";
 
@@ -27,13 +28,20 @@ export function buildNewItemContent(opts: {
   title: string;
   inheritTags: string[];
   prefills: Record<string, unknown>;
+  /**
+   * What the template is resolved with beyond title and time: the note's
+   * folder, the vault's pieces and the week start — `withVaultContext`, which
+   * the callers in the background run (Sammelplan § 3.97). Without it
+   * `{{folder}}` and `{{vault}}` came out empty and `{{daily}}` stayed text.
+   */
+  templateContext?: Omit<Partial<TemplateContext>, "title" | "now">;
 }): string {
   // Without a template the item starts with an H1 so the caret target is
   // visible (maintainer, 2026-07-04); a template fully defines the body, and
   // becomes a note in the one builder every note from a template passes.
   const base =
     opts.templateText != null
-      ? templateAsNewNote({ text: applyTemplatePlaceholders(opts.templateText, opts.title), cursor: null }, opts.noteType).content
+      ? templateAsNewNote({ text: applyTemplatePlaceholders(opts.templateText, opts.title, new Date(), opts.templateContext), cursor: null }, opts.noteType).content
       : `# ${opts.title}\n`;
   return finalizeItemContent(base, opts.noteType, opts.inheritTags, opts.prefills);
 }

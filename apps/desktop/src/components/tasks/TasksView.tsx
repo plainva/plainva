@@ -8,6 +8,7 @@ import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath, resolveTaskCompletionModel, applyTaskStatusOption, taskDbDueKey, taskDbRows, type TaskCompletionModel } from "../../services/taskDatabase";
 import { createTaskInDatabase, promoteTask } from "../../services/taskPromotion";
+import { templateVaultOf } from "../../services/dailyNotes";
 import { providerListLabel, sendTaskToProviderList } from "../../services/pim/taskToProvider";
 import { toggleTaskDone, writeTaskNote } from "../../services/taskCompletion";
 import { canRepeat, consumePendingNew, describeRule, isMirroredNamespace, isRecurringAtProviderNamespace, repeatFromNamespace, RowActionList, taskRowActions, writeRepeatRule, type RepeatRule, type TaskRowCaps } from "@plainva/ui";
@@ -441,6 +442,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
           task,
           dbPath: db,
           noteType: await getConfiguredNoteType(vaultPath),
+          templateVault: await templateVaultOf(vaultPath),
           allNotePaths,
           fallbackTitle: t("tasks.promoteFallbackTitle", { defaultValue: "Aufgabe" }),
         });
@@ -503,6 +505,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
           dbPath: taskDb,
           title: result.title,
           noteType: await getConfiguredNoteType(vaultPath),
+          templateVault: await templateVaultOf(vaultPath),
           ...(result.due ? { dueDate: result.due, dueMinutes: result.minutes } : {}),
           tags: result.tags,
           priority: result.priority,

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { errorText, toast, useStableHandler } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
-import { makeDailyPathProvider, resolveOrCreateDailyNote } from "../services/dailyNotes";
+import { resolveOrCreateDailyNote } from "../services/dailyNotes";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { applyTemplateInteractive, pokeTemplateCaret } from "../services/templateInteractive";
 
@@ -19,11 +19,10 @@ export function useDailyNoteAction(onOpenPath: (path: string) => void) {
         onIndex: async () => { await indexer?.indexVaultFull("daily note"); },
         confirmCreate: false,
         onCreated: (createdPath) => notifyFileOps([{ type: "create", path: createdPath }]),
-        resolveTemplate: async (raw, ctx) => applyTemplateInteractive(raw, {
-          ...ctx,
-          vaultName: vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "",
-          dailyPath: await makeDailyPathProvider(vaultPath, ctx.now),
-        }, t("templatePicker.answersTitle")),
+        // The note's own pieces (its day, the daily links from it) come with
+        // `ctx`; the pipeline adds the vault's name, the week start and what
+        // a person brings.
+        resolveTemplate: (raw, ctx) => applyTemplateInteractive(raw, { ...ctx, vaultPath }, t("templatePicker.answersTitle")),
       });
       if (path) {
         triggerFileTreeUpdate();

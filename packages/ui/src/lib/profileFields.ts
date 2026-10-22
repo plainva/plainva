@@ -228,8 +228,8 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   // away is not offered.
   { logical: "textFileExtensions", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: "own" },
   // The phone carries these itself (like bookmarks): they are `json`, and its
-  // importer only understands the scalar kinds. It has no settings surface to
-  // AUTHOR rules yet — but it applies them, which is the point (P6).
+  // importer only understands the scalar kinds. It applies them (P6) and edits
+  // them in its vault settings (`TemplateRules`).
   { logical: "folderTemplates", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: "own" },
   { logical: "typeTemplates", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: "own" },
   { logical: "extendedDatabases", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: null,

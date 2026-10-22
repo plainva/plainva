@@ -14,8 +14,7 @@ import {
   templateFolderKey,
 } from "../../contexts/VaultContext";
 import { getTemplateRules } from "../newNoteTemplate";
-import { applyTemplateInteractive, withShellContext } from "../templateInteractive";
-import { makeDailyPathProvider } from "../dailyNotes";
+import { applyTemplateInteractive } from "../templateInteractive";
 
 /** The OKF type of a meeting note — also what a type rule matches against. */
 export const MEETING_NOTE_TYPE = "Meeting";
@@ -52,17 +51,14 @@ export async function openMeetingNoteInVault(
       typeRules: rules.types,
       templateFolder: (await store.get<string>(templateFolderKey(vaultPath))) || "Templates",
     },
-    resolveTemplate: async (raw, ctx) =>
+    // The pipeline adds the vault's pieces. `{{daily}}` in a meeting note is the
+    // daily note of the MEETING's day: the note's `now` is that day.
+    resolveTemplate: (raw, ctx) =>
       applyTemplateInteractive(
         raw,
-        await withShellContext(raw, ctx),
+        { ...ctx, vaultPath },
         i18n.t("templatePicker.answersTitle", { defaultValue: "Angaben für die Vorlage" })
       ),
-    templateContext: {
-      vaultName: vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "",
-      // `{{daily}}` in a meeting note is the daily note of the MEETING's day.
-      dailyPath: await makeDailyPathProvider(vaultPath, new Date(`${dayKey}T12:00:00`)),
-    },
     now,
   });
 }

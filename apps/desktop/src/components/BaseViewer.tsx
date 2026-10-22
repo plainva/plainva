@@ -24,7 +24,6 @@ import {
 } from "@plainva/ui";
 import {
   baseStemOf,
-  buildNewItemContent,
   collectPrefillValues,
   getTemplateFolder,
   listTemplatesScoped,
@@ -33,7 +32,7 @@ import {
 } from "../services/newItemFlow";
 import { planPinboardEntry, pinboardDraftLedger, pinboardLabelProperty, viewPrefill, type PinboardDraft, type PinboardEntryFiles, type PinboardEntryResult } from "@plainva/ui";
 import { desktopDraftFiles } from "../services/pinboardDrafts";
-import { addTemplateForAssignment, parkTemplateCaret, removeTemplateForAssignment, templateCaretInNote } from "@plainva/ui";
+import { addTemplateForAssignment, finalizeItemContent, parkTemplateCaret, removeTemplateForAssignment, templateAsNewNote, templateCaretInNote } from "@plainva/ui";
 import { getConfiguredNoteType } from "../services/newNote";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { resolveGoverningBase } from "../services/baseSchema";
@@ -1109,33 +1108,27 @@ export function BaseViewer({
       // A template with questions asks them once, here, before the file is
       // written (plan Vorlagen-Engine P3 / decision E3). A template WITHOUT
       // questions never opens a dialog — "+ entry" stays a single click.
-      let caretInBody: number | null = null;
+      const noteType = await getConfiguredNoteType(vaultPath);
+      let made: { content: string; caret: number | null } | null = null;
       if (templateText !== null) {
         const answered = await applyTemplateInteractive(
           templateText,
-          {
-            title: name,
-            now: new Date(),
-            folder: path.split("/").slice(0, -1).join("/"),
-            vaultName: vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "",
-          },
+          { title: name, now: new Date(), folder: path.split("/").slice(0, -1).join("/"), vaultPath },
           t("database.templateAnswersTitle", { defaultValue: "Angaben für die Vorlage" })
         );
         if (!answered) return; // cancelled → no entry is created at all
-        templateText = answered.text;
-        caretInBody = answered.cursor;
+        // The answered template becomes a note in the builder every note from
+        // a template passes, as on the phone — and it is filled once. It went
+        // through the filler of the ways without questions a second time,
+        // which turned a `\{{date}}` that was meant as text into a date
+        // (Sammelplan § 3.97).
+        made = templateAsNewNote(answered, noteType);
       }
-      const content = buildNewItemContent({
-        templateText,
-        noteType: await getConfiguredNoteType(vaultPath),
-        title: name,
-        inheritTags: tags,
-        prefills,
-      });
+      const content = finalizeItemContent(made?.content ?? `# ${name}\n`, noteType, tags, prefills);
       await vaultAdapter.writeTextFile(path, content);
-      // `{{cursor}}` is measured in the template; the written file carries the
-      // OKF header and the view's prefills in front of the template's text.
-      parkTemplateCaret(path, content, templateText === null || caretInBody === null ? null : templateCaretInNote(templateText, content, caretInBody));
+      // `{{cursor}}` is measured in the builder's note; the written file carries
+      // the view's prefills in its header in front of the template's text.
+      parkTemplateCaret(path, content, made === null || made.caret === null ? null : templateCaretInNote(made.content, content, made.caret));
       await linkHostTo(path);
       // Reindex the new note (and the host note if its relation was written) —
       // no full-vault scan per new entry (Issue #9).
@@ -1233,7 +1226,7 @@ export function BaseViewer({
               }
               const answered = await applyTemplateInteractive(
                 raw,
-                { title, now: new Date(), folder, vaultName: vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "" },
+                { title, now: new Date(), folder, vaultPath },
                 t("database.templateAnswersTitle", { defaultValue: "Angaben für die Vorlage" }),
               );
               return answered ? { text: answered.text, caret: answered.cursor } : null;

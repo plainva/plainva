@@ -31,7 +31,6 @@ import { noteAccountRemovedLocally } from "../mobileSettingsSync";
 import {
   accountToAdoptInto,
   adoptAccountInto,
-  buildDailyNotePath,
   calendarPickerOptions,
   createCalendarEvent,
   applyPendingEventWrites,
@@ -760,16 +759,10 @@ export async function openMeetingNoteFor(
       typeRules: settings.typeTemplates,
       templateFolder: settings.templateFolder || "Templates",
     },
+    // The pipeline adds the vault's pieces. `{{daily}}` in a meeting note is
+    // the daily note of the MEETING's day: the note's `now` is that day.
     resolveTemplate: (raw, ctx) => applyTemplateInteractive(raw, ctx),
-    templateContext: {
-      vaultName: (await getActiveVaultEntry()).name || "Plainva",
-      // `{{daily}}` in a meeting note is the daily note of the MEETING's day.
-      dailyPath: (offset) => {
-        const d = new Date(`${dayKey}T12:00:00`);
-        d.setDate(d.getDate() + offset);
-        return buildDailyNotePath(d, settings.dailyFormat, settings.dailyFolder).fullPath.replace(/\.md$/i, "");
-      },
-    },
+    templateContext: { vaultName: (await getActiveVaultEntry()).name || "Plainva" },
     now,
   });
   if (!res) return null;

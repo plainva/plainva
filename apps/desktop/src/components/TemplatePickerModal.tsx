@@ -6,8 +6,7 @@ import { ICON, templateInsertInEditor, useFocusTrap } from "@plainva/ui";
 import { noteBodyOf } from "@plainva/core";
 import { getTemplateFolder, listTemplates } from "../services/newItemFlow";
 import { activeDocument } from "../services/activeDocument";
-import { applyTemplateInteractive, withShellContext } from "../services/templateInteractive";
-import { makeDailyPathProvider } from "../services/dailyNotes";
+import { applyTemplateInteractive } from "../services/templateInteractive";
 
 interface TemplatePickerModalProps {
   isOpen: boolean;
@@ -83,17 +82,9 @@ export function TemplatePickerModal({ isOpen, onClose, onPick, title }: Template
       const title = activePath ? (activePath.split("/").pop() ?? "").replace(/\.md$/i, "") : "";
       const folder = activePath ? activePath.split("/").slice(0, -1).join("/") : "";
       const body = noteBodyOf(raw);
-      const now = new Date();
       const result = await applyTemplateInteractive(
         body,
-        await withShellContext(body, {
-          title,
-          now,
-          folder,
-          dailyPath: vaultPath ? await makeDailyPathProvider(vaultPath, now) : undefined,
-          vaultName: (vaultPath ?? "").split(/[/\\]/).filter(Boolean).pop() ?? "",
-          hostPath: activePath ?? undefined,
-        }),
+        { title, now: new Date(), folder, hostPath: activePath ?? undefined, vaultPath: vaultPath ?? null },
         t("templatePicker.answersTitle", { defaultValue: "Angaben für die Vorlage" })
       );
       if (!result) return; // cancelled → nothing is inserted

@@ -53,6 +53,7 @@ import { createClientPimRuntime } from "../services/pim/remotePimTarget";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
 import { getSettingsStore } from "../services/settingsStore";
+import { templateVaultOf } from "../services/dailyNotes";
 import { appDataDir } from "@tauri-apps/api/path";
 import { readFile, writeFile, exists as fsExists, mkdir } from "@tauri-apps/plugin-fs";
 import { indexDbFileName } from "../services/indexDbPath";
@@ -1119,6 +1120,7 @@ export const VaultProvider: React.FC<{
               buildTarget: pimRuntime.buildTarget,
               taskDbPath,
               noteType,
+              templateVault: await templateVaultOf(path),
               allNotePaths,
               // OKF 0.2 provenance (plan P3b): a mirrored task names its producer.
               generatedBy: await plainvaProducer("task-sync"),

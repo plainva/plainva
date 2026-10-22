@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, ChipField, FloatingWindow, ICON, IconButton, Select, TextInput, toast } from "@plainva/ui";
+import { Banner, Button, ChipField, FloatingWindow, ICON, IconButton, Select, TextInput, templateBodyOf, toast } from "@plainva/ui";
 import { AlertTriangle, Ban, FileText, Paperclip, RefreshCw, RotateCw, SquareArrowOutUpRight, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { listMailAccounts, mailSendRoute, type MailAccountConfig } from "@plainva/ui/mail";
@@ -8,8 +8,7 @@ import { listMailboxesFor } from "@plainva/ui/mail";
 import { resolveDraftsMailbox, bytesToBase64, guessAttachmentMime, mailFolderLabel, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature, type MailAttachment } from "@plainva/ui/mail";
 import { ComposeEditor } from "./ComposeEditor";
 import { TemplatePickerModal } from "../TemplatePickerModal";
-import { applyTemplateInteractive, withShellContext } from "../../services/templateInteractive";
-import { templateInsertText } from "@plainva/ui";
+import { applyTemplateInteractive } from "../../services/templateInteractive";
 import { submitDraft, submitSend } from "../../services/mail/sendQueue";
 import type { ComposeSnapshot } from "../../services/mail/composeHandoff";
 import { holdComposeDraft } from "../../services/mail/composeHost";
@@ -387,10 +386,13 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   /**
    * Puts a template into the message body.
    *
-   * `templateInsertText` strips the template's OWN frontmatter — a mail body has
-   * no frontmatter, and pasting one in would send YAML to the recipient. The
-   * engine runs INTERACTIVE, so a template with questions asks them once in the
-   * collected dialog instead of leaving `{{prompt:…}}` in the text.
+   * The template's OWN frontmatter stays out — a mail body has none, and
+   * pasting one in would send YAML to the recipient — and its text is read as
+   * an editor holds it: no byte order mark in the message. The text runs through
+   * the pipeline with questions ONCE, so a template's questions are asked in
+   * the collected dialog. It was filled once before that without them: every
+   * question became nothing, its default too, and the clipboard and the week
+   * start never reached it (Sammelplan § 3.97).
    */
   const applyTemplate = useCallback(
     async (templatePath: string) => {
@@ -399,16 +401,18 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       try {
         const raw = await vaultAdapter.readTextFile(templatePath);
         const title = subject || (templatePath.split(/[/\\]/).pop() ?? "").replace(/\.md$/i, "");
-        const body0 = templateInsertText(raw, title);
-        const ctx = await withShellContext(body0, { title, now: new Date(), folder: "" });
-        const out = await applyTemplateInteractive(body0, ctx, t("mail.insertTemplate"));
+        const out = await applyTemplateInteractive(
+          templateBodyOf(raw),
+          { title, now: new Date(), folder: "", vaultPath: vaultPath ?? null },
+          t("mail.insertTemplate")
+        );
         if (!out) return; // cancelled → nothing is written
         setBody((prev) => (prev ? `${prev}\n\n${out.text}` : out.text));
       } catch {
         toast.error(t("mail.templateFailed"));
       }
     },
-    [vaultAdapter, subject, t]
+    [vaultAdapter, vaultPath, subject, t]
   );
 
   const pickFile = useCallback(async () => {

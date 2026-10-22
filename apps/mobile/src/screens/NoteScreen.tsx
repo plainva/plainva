@@ -1,6 +1,7 @@
 import { getConflict, noteConflict, subscribeConflicts } from "../services/conflictState";
 import { useReaderChrome } from "../hooks/useReaderChrome";
 import { listMobilePublicationFeedback } from "../services/mobileComments";
+import { phoneTemplateVault } from "../services/templateVault";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -1058,6 +1059,7 @@ export function NoteScreen({
       dbPath,
       title,
       noteType: configuredNoteType(),
+      templateVault: await phoneTemplateVault(),
       trailer: commentTaskTrailer({
         body: comment.body,
         quote: (comment.anchor as WorkspaceCommentAnchor | null)?.quote ?? null,

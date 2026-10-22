@@ -3,6 +3,7 @@ import { TASK_LINE_RE, FENCE_RE } from "./taskToggle";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
 import { buildNewItemContent } from "./newItemContent";
+import { withVaultContext, type TemplateVault } from "./templateContext";
 import { taskDbFileStem } from "./taskDatabase";
 import { priorityValue, resolveTaskPriorityModel } from "./taskPriority";
 import { writeRepeatRule, type RepeatRule } from "./taskRecurrence";
@@ -161,6 +162,8 @@ export interface PromoteTaskOptions {
   allNotePaths: string[];
   /** Localized fallback title when the task text is only tags/date. */
   fallbackTitle: string;
+  /** The vault, for `{{vault}}` and `{{daily±N}}` in the database's template (Sammelplan § 3.97). */
+  templateVault?: TemplateVault | null;
 }
 
 export type PromoteTaskResult =
@@ -246,7 +249,8 @@ export async function promoteTask(opts: PromoteTaskOptions): Promise<PromoteTask
   prefills.source = `[[${wikiTargetForPath(sourcePath, allNotePaths)}]]`;
 
   const inheritTags = [...new Set([...(target.inheritTags ?? []), ...task.tags])];
-  const content = buildNewItemContent({ templateText, noteType, title, inheritTags, prefills });
+  const templateContext = await withVaultContext({ title, now: new Date(), folder: trimEndChars(target.folder, "/") }, opts.templateVault ?? null);
+  const content = buildNewItemContent({ templateText, noteType, title, inheritTags, prefills, templateContext });
   await adapter.writeTextFile(notePath, content);
 
   // Replace the checkbox with a link to the new note (alias = cleaned title so
@@ -297,6 +301,8 @@ export interface CreateTaskOptions {
   priority?: TaskPriority;
   /** Plainva's own recurrence (`plainva.repeat`). */
   repeat?: RepeatRule | null;
+  /** The vault, for `{{vault}}` and `{{daily±N}}` in the database's template (Sammelplan § 3.97). */
+  templateVault?: TemplateVault | null;
 }
 
 /**
@@ -368,6 +374,7 @@ export async function prepareTaskNote(
     title,
     inheritTags: [...new Set([...(target.inheritTags ?? []), ...(opts.tags ?? [])])],
     prefills,
+    templateContext: await withVaultContext({ title, now: new Date(), folder: trimEndChars(target.folder, "/") }, opts.templateVault ?? null),
   });
   const withTrailer = opts.trailer ? (built.trimEnd() + "\n") + opts.trailer : built;
   const content = opts.repeat ? writeRepeatRule(withTrailer, opts.repeat) : withTrailer;

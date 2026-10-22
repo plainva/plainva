@@ -4,6 +4,7 @@ import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
 import { getSettingsStore } from "../services/settingsStore";
+import { templateVaultOf } from "../services/dailyNotes";
 import { attachmentFolderKey, commentAnchorsKey, commentColumnKey, commentInlineKey, taskDatabaseKey, useVault } from "../contexts/VaultContext";
 import { useTranslation } from "react-i18next";
 import { CustomDatePicker } from "./DatePicker";
@@ -2861,6 +2862,7 @@ export const Editor: React.FC<{
       title,
       // The vault's type, as the task view writes it; it was a fixed `Task` (finding 2026-10-21).
       noteType: await getConfiguredNoteType(vaultPath),
+      templateVault: await templateVaultOf(vaultPath),
       trailer: commentTaskTrailer({
         body: comment.body,
         quote: (comment.anchor as WorkspaceCommentAnchor | null)?.quote ?? null,

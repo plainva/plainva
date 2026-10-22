@@ -45,6 +45,7 @@ import {
 /** No hold — hoisted so the effect below does not allocate on every render. */
 const EMPTY_HOLD: ReadonlySet<string> = new Set();
 import { mConfirm } from "../services/mobileDialogs";
+import { phoneTemplateVault } from "../services/templateVault";
 import { LONG_PRESS_MS } from "../lib/useLongPress";
 import { haptics } from "../services/haptics";
 import { runJunkAction } from "./mail/junkAction";
@@ -498,6 +499,7 @@ export function MailMessageScreen({
           dbPath,
           title: message.subject.trim() || t("mail.noSubject"),
           noteType: configuredNoteType(),
+          templateVault: await phoneTemplateVault(),
           dueDate: mailDayKey(message),
           trailer: message.from ? `\n${t("mail.fromLabel")}: ${message.from}\n` : undefined,
         });

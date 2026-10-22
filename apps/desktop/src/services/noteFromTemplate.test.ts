@@ -10,12 +10,13 @@ vi.mock("@tauri-apps/plugin-store", () => {
 vi.mock("@tauri-apps/plugin-dialog", () => ({ ask: vi.fn(async () => true), open: vi.fn() }));
 
 import {
-  buildNewItemContent,
   clearPendingTemplateCaret,
+  finalizeItemContent,
   consumePendingTemplateCaret,
   parkTemplateCaret,
   pinboardEntryCaret,
   planPinboardEntry,
+  templateAsNewNote,
   templateCaretInNote,
   type PinboardEntryFiles,
 } from "@plainva/ui";
@@ -149,7 +150,7 @@ describe("a pinboard entry, planned the way the database view plans it", () => {
       now: NOW,
       // `openPinboardEntry` in BaseViewer.tsx: the template's questions first, then text and caret.
       template: async ({ title, folder }) => {
-        const answered = await applyTemplateInteractive(TEMPLATE, { title, now: NOW, folder, vaultName: "Vault" }, "Fragen");
+        const answered = await applyTemplateInteractive(TEMPLATE, { title, now: NOW, folder, vaultPath: VAULT }, "Fragen");
         return answered ? { text: answered.text, caret: answered.cursor } : null;
       },
     });
@@ -165,11 +166,13 @@ describe("a pinboard entry, planned the way the database view plans it", () => {
 
 describe("a database item, built the way the database view builds it", () => {
   it("was without the template-only keys before, and is", async () => {
-    // `doCreateItem` in BaseViewer.tsx hands the answered template to the
-    // builder of the paths without questions, which took the keys out all along.
-    const answered = await applyTemplateInteractive(TEMPLATE, { title: "Projekte_1", now: NOW, folder: "Projekte", vaultName: "Vault" }, "Fragen");
-    const content = buildNewItemContent({ templateText: answered!.text, noteType: "Note", title: "Projekte_1", inheritTags: ["projekt"], prefills: { status: "offen" } });
+    // The steps `doCreateItem` in BaseViewer.tsx takes: the answered template
+    // becomes a note in the builder, once, and the view's prefills go on top —
+    // as on the phone. The view itself is driven in e2e/base.spec.ts.
+    const answered = await applyTemplateInteractive(TEMPLATE, { title: "Projekte_1", now: NOW, folder: "Projekte", vaultPath: VAULT }, "Fragen");
+    const made = templateAsNewNote(answered!, "Note");
+    const content = finalizeItemContent(made.content, "Note", ["projekt"], { status: "offen" });
     expect(frontmatterOf(content)).toEqual({ type: "Projekt", plainva: { icon: "🚀" }, status: "offen", tags: ["projekt"] });
-    expect(content.slice(templateCaretInNote(answered!.text, content, answered!.cursor!))).toBe("Erste Aufgabe\n");
+    expect(content.slice(templateCaretInNote(made.content, content, made.caret!))).toBe("Erste Aufgabe\n");
   });
 });

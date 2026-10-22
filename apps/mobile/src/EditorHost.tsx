@@ -31,7 +31,7 @@ import {
   Image as ImageIcon,
   Paperclip,
 } from "lucide-react";
-import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { selectNoteFragment, planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, noteBodyOf, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
@@ -1217,19 +1217,15 @@ export function EditorHost({
       // it is stripped. Every question is asked in ONE sheet (plan
       // Vorlagen-Engine P6) — the old loop asked one prompt per placeholder,
       // and cancelling the third left the first two answered with no way back.
+      // The vault's pieces (`{{vault}}`, `{{daily±N}}`, the week start) and
+      // the clipboard are added by the pipeline.
       const body = noteBodyOf(raw);
-      const ms = getMobileSettings();
       const answered = await applyTemplateInteractive(body, {
         title: stem,
         now: new Date(),
         folder: path.split("/").slice(0, -1).join("/"),
         vaultName: (await getActiveVaultEntry()).name || "Plainva",
         hostPath: path,
-        dailyPath: (offset) => {
-          const d = new Date();
-          d.setDate(d.getDate() + offset);
-          return buildDailyNotePath(d, ms.dailyFormat, ms.dailyFolder).fullPath.replace(/\.md$/i, "");
-        },
       });
       if (!answered) return; // cancelled → nothing is inserted
       // What the editor takes: the text as it holds one, and the caret as a

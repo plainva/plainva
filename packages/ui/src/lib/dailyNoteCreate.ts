@@ -14,6 +14,12 @@
  *   - without: a quick capture creates the note on the way (decision E4) — the
  *     questions resolve to nothing and `{{cursor}}` is removed. A capture that
  *     wants a dialog answered first is not a quick capture.
+ *
+ * Both ways hand the template the same pieces, on both shells (Sammelplan
+ * § 3.97): `{{daily±N}}` counted from the day the note is FOR, by the rule its
+ * own path is built by, and the week start as the device is set. The phone's
+ * daily note had no `{{daily±N}}` at all, and a capture's counted
+ * `{{weekday:…}}` from Monday on both shells.
  */
 import { trimEndChars } from "@plainva/core";
 import { applyTemplatePlaceholders } from "../base/templateFiles";
@@ -21,6 +27,7 @@ import type { TemplateContext } from "../base/templateEngine";
 import { buildDailyNotePath } from "./dailyNotePath";
 import { DEFAULT_DAILY_NOTE_FORMAT } from "./dailyNotes";
 import { templateAsNewNote, templateLeavesNothing } from "./newNoteContent";
+import { dailyPathFrom, withVaultContext } from "./templateContext";
 
 export interface DailyNoteCreateConfig {
   /** Vault-relative folder of the daily notes, "" for the root. */
@@ -47,9 +54,13 @@ export interface EnsureDailyNoteOptions {
   now?: Date;
   /** Asked before a missing note is created; `false` creates nothing. */
   confirmCreate?: (path: string) => Promise<boolean>;
-  /** Asks the template's questions; `null` = cancelled, nothing is created. Omitted = headless. */
-  resolveTemplate?: (raw: string, ctx: { title: string; now: Date; folder: string }) => Promise<{ text: string; cursor: number | null } | null>;
-  /** More context for the headless run (vault name, `{{daily+1}}`). */
+  /**
+   * Asks the template's questions; `null` = cancelled, nothing is created.
+   * Omitted = headless. `ctx` carries the daily note's own pieces — its day,
+   * `{{daily±N}}` from that day — and the shell's pipeline adds its own.
+   */
+  resolveTemplate?: (raw: string, ctx: TemplateContext) => Promise<{ text: string; cursor: number | null } | null>;
+  /** More context for both runs (the vault's name). A piece set here wins. */
   templateContext?: Omit<Partial<TemplateContext>, "title" | "now">;
 }
 
@@ -107,13 +118,21 @@ export async function ensureDailyNote(
   if (templatePath && (await files.exists(templatePath))) {
     const raw = await files.readTextFile(templatePath);
     const stamp = noteStamp(date, options.now);
+    const ctx: TemplateContext = {
+      folder,
+      dailyPath: dailyPathFrom(stamp, { dailyFolder: config.folder, dailyFormat: config.format }),
+      ...options.templateContext,
+      title,
+      now: stamp,
+    };
     if (options.resolveTemplate) {
-      const answered = await options.resolveTemplate(raw, { title, now: stamp, folder });
+      const answered = await options.resolveTemplate(raw, ctx);
       if (!answered) return null;
       body = answered.text;
       caret = answered.cursor;
     } else {
-      body = applyTemplatePlaceholders(raw, title, stamp, { folder, ...options.templateContext });
+      // Nobody is asked, so no shell adds anything: the week start comes here.
+      body = applyTemplatePlaceholders(raw, title, stamp, await withVaultContext(ctx, null));
     }
   }
   // A blank daily note gets an H1 with the date, as every new note does; a

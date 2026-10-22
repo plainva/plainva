@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import { AlertTriangle, Ban, FileText, Mail, Paperclip, RefreshCw, RotateCw, Send, X } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, IconButton, TextInput, toast, listTemplates, templateInsertText } from "@plainva/ui";
-import { applyTemplateInteractive, withShellContext } from "../services/templateInteractive";
+import { Banner, Button, EmptyState, ICON, IconButton, TextInput, toast, listTemplates, templateBodyOf } from "@plainva/ui";
+import { applyTemplateInteractive } from "../services/templateInteractive";
 import { getMobileSettings } from "../services/mobileSettings";
 import { getMobileVault } from "../services/vaultService";
 import { UndoSendQueue, secondsLeft, mailErrorText, mailAccountCanSend } from "@plainva/ui/mail";
@@ -206,9 +206,9 @@ export function MailComposeScreen({ draft, onBack, onDone, onOpenAccounts, vault
   /**
    * A template into the message body (S22).
    *
-   * `templateInsertText` strips the template's own frontmatter — a mail body has
-   * none, and sending YAML to the recipient is not what "insert template" means.
-   * The engine runs INTERACTIVE, so a template with questions asks them in the
+   * The template's own frontmatter stays out — a mail body has none, and
+   * sending YAML to the recipient is not what "insert template" means. The
+   * engine runs INTERACTIVE, so a template with questions asks them in the
    * one collected sheet rather than leaving `{{prompt:…}}` in the text.
    */
   const insertTemplate = async () => {
@@ -233,9 +233,12 @@ export function MailComposeScreen({ draft, onBack, onDone, onOpenAccounts, vault
       // a mail (finding 2026-10-11).
       const raw = await vault.files.readTextFile(picked);
       const title = subject || (picked.split("/").pop() ?? "").replace(/\.md$/i, "");
-      const body0 = templateInsertText(raw, title);
-      const ctx = await withShellContext(body0, { title, now: new Date(), folder: "" });
-      const out = await applyTemplateInteractive(body0, ctx);
+      // The template's own properties stay out, and its text is read as an
+      // editor holds it: no byte order mark in the message. It goes through
+      // the pipeline with questions ONCE, so its questions are asked. It was
+      // filled once before that without them: every question became nothing,
+      // its default too (Sammelplan § 3.97).
+      const out = await applyTemplateInteractive(templateBodyOf(raw), { title, now: new Date(), folder: "" });
       if (!out) return;
       setBody((prev) => (prev ? `${prev}\n\n${out.text}` : out.text));
     } catch {

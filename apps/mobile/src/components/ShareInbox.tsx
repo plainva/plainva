@@ -5,6 +5,7 @@ import { CheckSquare, FileText, Folder, NotebookPen, Paperclip } from "lucide-re
 import { getActiveVaultEntry, getVaultEntry } from "../services/vaultRegistry";
 import { getMobileSettings } from "../services/mobileSettings";
 import { configuredNoteType } from "../services/newNote";
+import { phoneTemplateVault } from "../services/templateVault";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "../services/mobileWorkspaceSecurity";
 import { listPendingShares, shareTarget, validateShare, type PendingShare, type ShareTargetPort } from "../services/shareTarget";
 import { importSharedContent } from "../services/shareImport";
@@ -99,7 +100,7 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
         ...(intoJournal ? { toJournal: async () => planSharedJournalEntry() } : {}),
         ...(makesTask ? {
           asTask: async ({ title, body }) => {
-            const prepared = await prepareTaskNote({ adapter: taskAdapter, dbPath: taskDb, title, noteType: configuredNoteType(), trailer: body ? "\n" + body + "\n" : undefined });
+            const prepared = await prepareTaskNote({ adapter: taskAdapter, dbPath: taskDb, title, noteType: configuredNoteType(), templateVault: await phoneTemplateVault(), trailer: body ? "\n" + body + "\n" : undefined });
             if (!prepared.ok) throw new Error("SHARE_TASK_UNAVAILABLE");
             taskTitle = title;
             return { folder: prepared.folder, text: prepared.content };

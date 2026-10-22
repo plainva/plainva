@@ -224,6 +224,7 @@ export * from "./lib/peekHistory";
 export * from "./lib/safeUrl";
 export * from "./lib/searchJump";
 export * from "./lib/templateCaret";
+export * from "./lib/templateContext";
 export * from "./lib/freshNote";
 export * from "./lib/searchSnippet";
 export * from "./lib/settingsCatalog";

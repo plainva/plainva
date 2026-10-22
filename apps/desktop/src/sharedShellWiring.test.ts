@@ -85,9 +85,8 @@ const caretParkers = {
  */
 const noteContentCallers: Record<string, Record<string, string>> = {
   resolveTemplate: {
-    "apps/desktop/src/services/templateInteractive.ts": "the desktop's pipeline with questions: where its answers go is listed under applyTemplateInteractive",
-    "apps/mobile/src/services/templateInteractive.ts": "the phone's pipeline with questions: where its answers go is listed under applyTemplateInteractive",
-    "packages/ui/src/base/templateFiles.ts": "applyTemplatePlaceholders, and the text of a template inserted into a mail, without its properties",
+    "packages/ui/src/lib/templateContext.ts": "runTemplateInteractive, the pipeline with questions of both shells: where its answers go is listed under applyTemplateInteractive",
+    "packages/ui/src/base/templateFiles.ts": "applyTemplatePlaceholders, the filler of the ways nobody is asked on",
     "packages/ui/src/pim/meetingNote.ts": "a meeting note nobody is asked about: to the builder",
   },
   applyTemplatePlaceholders: {
@@ -95,7 +94,7 @@ const noteContentCallers: Record<string, Record<string, string>> = {
     "packages/ui/src/lib/newItemContent.ts": "buildNewItemContent: to the builder",
   },
   applyTemplateInteractive: {
-    "apps/desktop/src/components/BaseViewer.tsx": "a database item (through buildNewItemContent) and a pinboard entry (through planPinboardEntry): to the builder",
+    "apps/desktop/src/components/BaseViewer.tsx": "a database item and a pinboard entry (through planPinboardEntry): to the builder",
     "apps/desktop/src/components/TemplatePickerModal.tsx": "the text of a template inserted into an open note, without its properties",
     "apps/desktop/src/components/mail/MailDraftModal.tsx": "the text of a template inserted into a mail, without its properties",
     "apps/desktop/src/hooks/useDailyNoteAction.ts": "the daily note a person opens (through ensureDailyNote): to the builder",
@@ -113,7 +112,15 @@ const noteContentCallers: Record<string, Record<string, string>> = {
     "apps/mobile/src/services/templateInteractive.ts": "the heading of a note no template applies to",
     "apps/mobile/src/services/shareImport.ts": "a text shared into the app, which is no template",
   },
+  // The builder of an entry made in the background. It takes the template's
+  // context from its caller, and its only callers run `withVaultContext`
+  // (checked below); a shell that called it would bring no vault.
+  buildNewItemContent: {
+    "packages/ui/src/lib/taskPromotion.ts": "a promoted checkbox and a task created in the database, with the vault's pieces: to the builder",
+    "packages/ui/src/pim/taskSync.ts": "a task imported from its provider, with the vault's pieces: to the builder",
+  },
   finalizeItemContent: {
+    "apps/desktop/src/components/BaseViewer.tsx": "a heading, or the note the builder made of the answered template — as the phone's database item",
     "packages/ui/src/lib/newItemContent.ts": "a heading, or the note the builder made of the filled template",
     "packages/ui/src/base/pinboardEntry.ts": "nothing, or the note the builder made of the answered template",
     "apps/mobile/src/services/baseOps.ts": "the note the phone's builder made, with or without a template",
@@ -253,6 +260,78 @@ describe("the desktop's editor takes a new note's caret through the one rule", (
     expect(peek).toMatch(/handCaretOver\(\);\s*onMaximize\(current\)/);
     expect(peek).toMatch(/handCaretOver\(\);\s*onOpenSplit\(current\)/);
   });
+});
+
+/**
+ * What a template is resolved WITH comes from one place (Sammelplan § 3.97):
+ * the shared `templateContext.ts`. Each caller used to fill the context
+ * itself, and callers forgot — three ways of the desktop never got the week
+ * start or the clipboard, two never got `{{daily}}`, the phone's daily note
+ * never got `{{daily}}`, and an entry made in the background got its title and
+ * nothing else.
+ *
+ * The pipeline with questions is the shared one, and each shell only hands it
+ * its vault, its selection, its clipboard and its dialog. The builders of the
+ * background take the vault's pieces from `withVaultContext`, and every shell
+ * call of them names the vault — the option is optional for the tests' sake,
+ * so this is what stops a call that forgets it.
+ */
+describe("every template is resolved with the context of the one place", () => {
+  const read = (rel: string) => readFileSync(fileURLToPath(new URL(`../../../${rel}`, import.meta.url)), "utf8");
+
+  it("each shell's pipeline with questions is the shared one", () => {
+    for (const rel of ["apps/desktop/src/services/templateInteractive.ts", "apps/mobile/src/services/templateInteractive.ts"]) {
+      const source = read(rel);
+      expect(usesFeature(source, "runTemplateInteractive", ts.ScriptKind.TS), `${rel} resolves templates without the shared pipeline`).toBe(true);
+      // No context of its own beside it: the shared module adds every piece.
+      expect(source, rel).not.toMatch(/\bwithShellContext\b|\bweekStartDayOf\b|\bbuildDailyNotePath\b/);
+    }
+  });
+
+  it("the shared builders of the ways nobody is asked on fill the vault's pieces, each of them", () => {
+    // Calls of withVaultContext per file: one per builder that fills a template.
+    const calls = (source: string) => {
+      const tree = ts.createSourceFile("builder.ts", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+      let n = 0;
+      const visit = (node: ts.Node) => {
+        if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "withVaultContext") n++;
+        ts.forEachChild(node, visit);
+      };
+      visit(tree);
+      return n;
+    };
+    const builders = { "packages/ui/src/lib/dailyNoteCreate.ts": 1, "packages/ui/src/lib/taskPromotion.ts": 2, "packages/ui/src/pim/taskSync.ts": 1 };
+    for (const [rel, count] of Object.entries(builders)) {
+      expect(calls(read(rel)), `${rel} fills a template without the vault's pieces`).toBe(count);
+    }
+  });
+
+  /** Every call of `name` in the shells' shipped files, with the options object it is handed. */
+  function callsOf(name: string): { rel: string; options: string }[] {
+    const found: { rel: string; options: string }[] = [];
+    for (const { rel, text } of shippedSources()) {
+      if (!rel.startsWith("apps/") || !text.includes(name)) continue;
+      const tree = ts.createSourceFile(rel, text, ts.ScriptTarget.Latest, true, rel.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+      const visit = (node: ts.Node) => {
+        if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === name) {
+          found.push({ rel, options: node.arguments[0]?.getText(tree) ?? "" });
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(tree);
+    }
+    return found;
+  }
+
+  for (const name of ["runTaskSync", "promoteTask", "createTaskInDatabase", "prepareTaskNote"]) {
+    it(`every shell call of ${name} names the vault`, () => {
+      const calls = callsOf(name);
+      expect(calls.length, `no shell calls ${name} — re-point this guard`).toBeGreaterThan(0);
+      // Named, and with something: `templateVault: null` would be a call that names nothing.
+      const without = calls.filter((call) => !/\btemplateVault\s*:\s*(?!null\b|undefined\b)\S/.test(call.options)).map((call) => call.rel);
+      expect(without, `${name}: hand over templateVault, or the database's template gets no {{vault}} and no {{daily}}`).toEqual([]);
+    });
+  }
 });
 
 describe("wiring guard counterexamples", () => {

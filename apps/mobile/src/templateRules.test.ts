@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 const settings = {
   templateFolder: "Vorlagen",
+  // Where `{{daily±N}}` points — every template is resolved with it (Sammelplan § 3.97).
+  dailyFolder: "",
+  dailyFormat: "YYYY-MM-DD",
   folderTemplates: [{ folder: "Projekte", template: "Projekt.md" }],
   typeTemplates: [{ type: "Meeting", template: "Besprechung" }],
 };
@@ -23,8 +26,9 @@ import {
 /**
  * Folder and type template rules on the phone (plan Vorlagen-Engine P6).
  *
- * The rules are authored on the desktop and travel through the settings
- * profile; the phone only applies them. The failure this guards against is
+ * The rules travel through the settings profile and are authored on either
+ * device — on the phone in its vault settings (`TemplateRules`) since
+ * a69cc7ec. The failure this guards against is
  * quiet: a rule that reaches the phone but is never applied looks exactly like
  * "no rule", and the same vault then behaves differently depending on which
  * device is at hand. So these tests pin the two things that could break —

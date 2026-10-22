@@ -383,38 +383,20 @@ export function groupTemplatesForBase<T extends ScopedTemplateItem>(
   return { forBase, others };
 }
 
-/** Interpolated template BODY for an interactive insert: frontmatter stripped,
- * date/time/title filled, but {{cursor}}/{{prompt}} PRESERVED so the caller can
- * extractTemplatePrompts → ask the user → finalizeTemplate.
- *
- * The template is read as an editor holds it (`editorTextOf`): with `\n` line
- * ends and without a byte order mark. What comes out goes INTO another text,
- * and a mark is its file's first character, not text. Read as the file has
- * it, the mark of a template without a properties block stood at the start of
- * the body — and "insert template" in the mail composer of both shells put it
- * into the message (finding 2026-10-11). */
-export function interpolateTemplateBody(raw: string, title: string, now: Date = new Date()): string {
-  return resolveTemplate(noteBodyOf(editorTextOf(raw)), { title, now }, "interactive").text;
-}
-
-/** Insert-into-note parts WITH caret placement (prompts already answered). */
-export function templateInsertParts(
-  raw: string,
-  title: string,
-  answers: Record<string, string> = {},
-  now: Date = new Date()
-): FinalizedTemplate {
-  return finalizeTemplate(interpolateTemplateBody(raw, title, now), answers);
-}
-
 /**
- * Text a template contributes when inserted INTO an existing note (slash
- * command "insert template"): the template's own frontmatter would be inert
- * garbage mid-document, so it is stripped; placeholders interpolate against the
- * hosting note's title, and {{cursor}}/{{prompt}} are resolved (stripped/blank)
- * so they never leak. Callers wanting caret/prompt handling use
- * templateInsertParts + extractTemplatePrompts.
+ * The text a template contributes when it goes INTO another text — the body of
+ * a mail (the composers of both shells): its own properties block stays out,
+ * since a mail body has none and the recipient would get YAML, and it is read
+ * as an editor holds it — `\n` line ends, no byte order mark. A mark is its
+ * file's first character, not text; read as the file has it, the mark of a
+ * template without a properties block stood at the start of the body, and
+ * "insert template" put it into the message (finding 2026-10-11).
+ *
+ * The placeholders stay: the pipeline with questions fills them, ONCE. The
+ * composers filled the text here first, without the shell's context and
+ * without asking — every question became nothing, its default too — and then
+ * ran the pipeline on what was left (Sammelplan § 3.97).
  */
-export function templateInsertText(raw: string, title: string, now: Date = new Date()): string {
-  return templateInsertParts(raw, title, {}, now).text;
+export function templateBodyOf(raw: string): string {
+  return noteBodyOf(editorTextOf(raw));
 }

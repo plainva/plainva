@@ -22,6 +22,7 @@ import {
 import { applyMailBulk, MailBulkReport, type MailBulkReportItem, type MailBulkAction } from "@plainva/ui/mail";
 import { flatMailRows, mailListKeyAction, stepMailRow, stepMailRowInto, threadNavId, threadedMailRows, type MailNavStep } from "@plainva/ui/mail";
 import { getSettingsStore } from "../../services/settingsStore";
+import { templateVaultOf } from "../../services/dailyNotes";
 import { activeDocument } from "../../services/activeDocument";
 import { MAIL_TAB_PATH } from "../graph/virtualPaths";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -1831,6 +1832,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         dbPath,
         title,
         noteType: await getConfiguredNoteType(vaultPath),
+        templateVault: await templateVaultOf(vaultPath),
         dueDate: mailDayKey(message),
         trailer: message.from ? `\n${t("mail.fromLabel", { defaultValue: "Von" })}: ${message.from}\n` : undefined,
       });

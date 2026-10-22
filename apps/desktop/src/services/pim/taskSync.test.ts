@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
+import { parseBaseConfig, serializeBaseConfig, setPlatformServices } from "@plainva/ui";
 import { DatabaseSync } from "node:sqlite";
 import {
   PimCacheRepository,
@@ -929,5 +930,57 @@ describe("runTaskSync and the deletion journal (feedback round 2026-09-01, P1)",
 
     expect(vault.files.has("Aufgaben/T.md")).toBe(true);
     expect(res.deletedNotes).toEqual([]);
+  });
+});
+
+/**
+ * A task imported into a database that names a template (Sammelplan § 3.97,
+ * Nr. 8): the template was resolved with the title and the time alone —
+ * `{{folder}}` and `{{vault}}` came out empty, `{{daily}}` stayed text and the
+ * week counted from Monday. The shells hand the sync their vault now.
+ */
+describe("runTaskSync and the database's template", () => {
+  let db: NodeSqliteAdapter;
+  let cache: PimCacheRepository;
+
+  beforeEach(async () => {
+    db = new NodeSqliteAdapter();
+    await initializeSchema(db);
+    cache = new PimCacheRepository(db);
+    await cache.upsertAccount({ id: "t1", provider: "caldav", label: "Test", config: {}, enabled: true });
+    await cache.replaceTaskLists("t1", [{ id: "l1", name: "Aufgaben" }]);
+    await cache.setTaskListSelected("t1", "l1", true);
+    // Sunday, 2026-10-11, with the week starting on Sunday: its Monday is the 12th.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 11, 9, 30));
+    setPlatformServices({
+      loadSettings: async () => ({ get: async (key: string) => (key === "calendarWeekStart" ? "sunday" : null) }),
+      credentials: {},
+      openExternal: async () => {},
+    } as never);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    setPlatformServices(null as never);
+  });
+
+  it("an imported task resolves it with the note's folder, the vault's pieces and the week start", async () => {
+    await cache.replaceTasks("t1", "l1", [rt({ uid: "u1", title: "Steuern", etag: '"e1"' })]);
+    const vault = fakeVault({
+      // A database's template is kept in its first view.
+      "Aufgaben.base": serializeBaseConfig({ ...parseBaseConfig(TASK_DB), newItemTemplate: "Vorlagen/Aufgabe.md" }),
+      "Vorlagen/Aufgabe.md": "Ordner: [{{folder}}] · Vault: [{{vault}}] · Tag: {{daily}} · Montag: {{weekday:monday}}\n",
+    });
+    const res = await runTaskSync({
+      adapter: vault.adapter,
+      cache,
+      buildTarget: async () => null,
+      taskDbPath: "Aufgaben.base",
+      noteType: "Task",
+      allNotePaths: [],
+      templateVault: { name: "Vault", dailyFolder: "Journal", dailyFormat: "YYYY-MM-DD" },
+    });
+    expect(res.createdNotes).toEqual(["Aufgaben/Steuern.md"]);
+    expect(vault.files.get("Aufgaben/Steuern.md")).toContain("Ordner: [Aufgaben] · Vault: [Vault] · Tag: [[Journal/2026-10-11]] · Montag: 2026-10-12\n");
   });
 });
