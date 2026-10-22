@@ -2292,6 +2292,7 @@
     "edgeRemoveLinksMsg": "从“{{source}}”到“{{target}}”的所有文本链接将被替换为其显示文本。",
     "edgeRemoveRelationMsg": "“{{source}}”中的“{{property}}”将失去指向“{{target}}”的条目。",
     "edgeRemoved": "已移除 {{n}} 个链接。",
+    "edgeNothingRemoved": "未找到从“{{source}}”到“{{target}}”的文本链接——绘制图谱后，笔记可能已被更改。",
     "edgeMore": "还有 {{n}} 个",
     "legendRelation": "关联",
     "legendLink": "链接",

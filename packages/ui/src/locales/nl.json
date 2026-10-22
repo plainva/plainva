@@ -2305,6 +2305,7 @@
     "edgeRemoveLinksMsg": "Elke tekstkoppeling van ‘{{source}}’ naar ‘{{target}}’ wordt vervangen door de weergavetekst.",
     "edgeRemoveRelationMsg": "‘{{property}}’ in ‘{{source}}’ verliest de vermelding naar ‘{{target}}’.",
     "edgeRemoved": "{{n}} koppeling(en) verwijderd.",
+    "edgeNothingRemoved": "Geen tekstkoppeling van ‘{{source}}’ naar ‘{{target}}’ gevonden — de notitie is misschien veranderd sinds de graaf is getekend.",
     "edgeMore": "+{{n}} meer",
     "legendRelation": "Relatie",
     "legendLink": "Koppeling",

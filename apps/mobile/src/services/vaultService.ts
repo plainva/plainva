@@ -35,7 +35,7 @@ import {
   formatQueueEntryReport,
   scanChangedNothing,
 } from "@plainva/core";
-import { isInternalPath, linkTargetName, resolveLinkTarget, updateVaultText, WORKSPACE_FORKS_FOLDER, type TextChange, type TextFileUpdate, type TextUpdateFiles } from "@plainva/core";
+import { isInternalPath, linkTargetName, resolveLinkTarget, updateVaultText, WORKSPACE_FORKS_FOLDER, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
 import { copyFileContent, isNotTextFileError, NotTextFileError, type EditorWriteResult } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -72,7 +72,6 @@ import {
 import { getMobileSettings, reloadMobileSettingsForActiveVault } from "./mobileSettings";
 import { configuredDailyNoteType, configuredNoteType } from "./newNote";
 import { buildNewNoteFromTemplate, buildNewNoteFromTemplateText, applyTemplateInteractive } from "./templateInteractive";
-import { relativeLinkCandidates } from "../lib/relativeLink";
 import {
   buildNewNoteContent,
   ensureDailyNote as ensureSharedDailyNote, type EnsuredDailyNote,
@@ -1394,6 +1393,16 @@ export const vaultOps = {
   async createNoteFromWikiTarget(v: MobileVault, target: string, hostPath?: string): Promise<string | null> {
     const { path, title } = wikiTargetToPath(target, hostPath);
     if (!title) return null;
+    return this.createNoteAt(v, path, title);
+  },
+
+  /**
+   * The note at `path`, created with `title` where it does not exist yet — the
+   * place a link's rule chose (`planLinkOpen`): a Markdown link's name keeps
+   * every character there, which the wiki rule's reading of its target would
+   * cut at a `#` (`Draft #1`, review 2026-10-22).
+   */
+  async createNoteAt(v: MobileVault, path: string, title: string): Promise<string | null> {
     if (await v.files.exists(path)) return path;
     await this.save(v, path, buildNewNoteContent(configuredNoteType(), title));
     reportCreated(path);
@@ -1436,6 +1445,32 @@ export const vaultOps = {
   },
 
   /**
+   * Where a MARKDOWN link in the note at `hostPath` leads — the phone's side
+   * of the Markdown rule (`resolveMarkdownLinkIndexed` in the core): the file,
+   * the folder with the `index.md` in it, or null. `target` is what
+   * `markdownLinkTarget` reads from the link's URL.
+   *
+   * The phone used to try the note's folder and the vault's root on disk and
+   * stop there (2026-07-15): `[Letter](Letter.md)` for a note in a third
+   * folder led nowhere, and the tap went on to create a second `Letter.md`
+   * beside the linking note, where the desktop's editor opened the real one
+   * (finding 2026-10-12). A path that climbed out of the vault was folded back
+   * into it, and a folder was handed on as if it were a note. The index
+   * answers now, as it does on the desktop; where it knows nothing — it
+   * follows a save by one pass, and the web build has none — the same rule
+   * reads the files on disk.
+   */
+  async resolveMarkdownLink(v: MobileVault, target: string, hostPath?: string): Promise<MarkdownLinkAnswer> {
+    if (!target.trim()) return null;
+    const viaIndex = v.queryService ? await v.queryService.resolveMarkdownLink(target, hostPath).catch(() => null) : null;
+    if (viaIndex) return viaIndex;
+    // The app's own folders are no link targets — the index never holds them,
+    // and the listing must not hand them in.
+    const listed = (await v.files.listDir("", true)).filter((e) => !e.isDirectory && !isInternalPath(e.path)).map((e) => e.path);
+    return resolveMarkdownLinkIndexed(hostPath ?? "", target, buildLinkTargetIndex(listed));
+  },
+
+  /**
    * Where a link in the note at `hostPath` leads — the phone's side of the ONE
    * link rule (`LinkResolver.ts` in the core); null where it leads nowhere and
    * a tap offers to create the note.
@@ -1445,25 +1480,24 @@ export const vaultOps = {
    * for a note's title. `[[Brief]]` opened a note here that the desktop
    * offered to create a second time, and a link written with a title did the
    * reverse (finding 2026-10-08). Both ask `resolveNotePath` now.
+   *
+   * `kind` says how the link is written. A wiki link names a note and is the
+   * wiki rule's alone. A Markdown link — `target` being its URL — is read by
+   * the Markdown rule (`resolveMarkdownLink`); for a folder the answer is the
+   * `index.md` in it. A caller that cannot say how the link was written gets
+   * what it always got: a name without a folder and without `.md` or `.base`
+   * goes by the wiki rule; any other target is read like a Markdown link,
+   * from the note's folder first, then by the wiki rule.
    */
   async resolveWikiTarget(v: MobileVault, target: string, hostPath?: string, kind?: "wiki" | "markdown"): Promise<string | null> {
     if (!target.trim()) return null;
-    // A Markdown link names a PATH (incl. generated index.md links): read from
-    // the host folder, then from the vault root (maintainer, 2026-07-15). A
-    // caller that cannot say how the link was written is served the same way,
-    // as it always was. A wiki link — `kind` "wiki" — names a NOTE and is the
-    // rule's alone, so it leads where the desktop and the graph say.
-    if (kind !== "wiki") {
-      const places = relativeLinkCandidates(target, hostPath);
-      for (const c of places) {
-        if (await v.files.exists(c)) return c;
-      }
-      // A Markdown link that names a path leads nowhere where that path leads
-      // nowhere — as it did before the rule, and as the desktop reads it. The
-      // rule would go on to "a file anywhere that ends so", which is a wiki
-      // link's reading: `[x](Ablage/Plan.md)` must not open `Archiv/Ablage/Plan.md`.
-      // A bare name (`[x](Brief)`) has no places and is the rule's, as before.
-      if (kind === "markdown" && places.length > 0) return null;
+    // Without a kind the text may carry a wiki link's alias: the name ends at the bar.
+    const named = markdownLinkTarget(kind === undefined ? target.split("|")[0] : target).target;
+    const asMarkdown = kind === "markdown" || (kind === undefined && (named.includes("/") || /\.(md|base)$/i.test(named)));
+    if (asMarkdown) {
+      const answer = await this.resolveMarkdownLink(v, named, hostPath);
+      if (answer !== null) return answer.kind === "file" ? answer.path : answer.index;
+      if (kind === "markdown") return null;
     }
     const viaIndex = v.queryService ? await v.queryService.resolveNotePath(target, hostPath).catch(() => null) : null;
     if (viaIndex) return viaIndex;

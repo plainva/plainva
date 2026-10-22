@@ -32,6 +32,13 @@ keeps the class closed.
      its line ends settles that for every `[[` behind it on the line, so a run
      of brackets is read once (`linear-link-scans.test.ts`). The index, the
      link rewriter and the reading view take wiki links from its nodes;
+   - `packages/core/src/linkEncoding.ts` — what a Markdown link's destination
+     names: `markdownDestinationUrl` takes angle brackets, a title and
+     escapes off for the surfaces that scan a line instead of parsing it (the
+     editor's link drawing, a table cell, a journal entry), reading the title
+     from the end in one pass; `markdownLinkTarget` splits at the first written
+     `#` and decodes — the one reading of the index, a click, a rename and the
+     graph (ADR 0027, addendum 2026-10-12);
    - `packages/core/src/linkRewrite.ts` — where the links of a note stand in
      its text (`readNoteLinks`), and their rewrite in that place
      (`rewriteNoteLinks`, `renameNoteLinks`): a rename and the preparation of

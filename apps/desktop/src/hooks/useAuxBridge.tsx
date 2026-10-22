@@ -102,7 +102,7 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
 
     // --- local: the note behind an unresolved wiki link ---------------------
     const onCreateNote = (e: Event) => {
-      const d = (e as CustomEvent).detail as { target?: string; hostPath?: string; newTab?: boolean } | undefined;
+      const d = (e as CustomEvent).detail as { target?: string; hostPath?: string; newTab?: boolean; path?: string; title?: string } | undefined;
       const { vaultAdapter: adapter, vaultPath: vault } = vaultRef.current;
       if (!d?.target || !adapter) return;
       void (async () => {
@@ -119,7 +119,7 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
               }),
             // No indexer here: the write travelled the bus, and the owner
             // indexes what it writes (ownerBus "write").
-          });
+          }, d.path && d.title ? { path: d.path, title: d.title } : undefined);
           if (result.outcome !== "created" && result.outcome !== "exists") return;
           const path = result.path;
           const { label, openInFocusedPane } = optsRef.current;

@@ -67,11 +67,11 @@ describe("Database Schema", () => {
     expect(reset).toContain(`LIKE '%.md'`);
     const stamp = db.queries.find(q => q.query.includes("INSERT OR REPLACE INTO meta"));
     expect(stamp).toBeDefined();
-    expect(stamp!.params).toEqual(["6"]);
+    expect(stamp!.params).toEqual(["7"]);
   });
 
   it("skips the reindex when the stored index format is current", async () => {
-    db.mockedOneResults.push({ value: "6" });
+    db.mockedOneResults.push({ value: "7" });
     await initializeSchema(db);
 
     const queries = db.queries.map(q => q.query);
@@ -92,9 +92,28 @@ describe("Database Schema", () => {
     const swap = queries.findIndex(q => q.includes("ALTER TABLE fts_notes_next RENAME TO fts_notes"));
     expect(copy).toBeGreaterThan(-1);
     expect(swap).toBeGreaterThan(copy);
-    expect(queries.some(q => q.includes("UPDATE files SET mtime_local = 0"))).toBe(false);
+    // No note is re-read for the pair columns. What versions 6 and 7 queue is
+    // their own, and it is not "every note".
+    expect(queries.some(q => q.includes("UPDATE files SET mtime_local = 0") && q.includes("LIKE '%.md'"))).toBe(false);
     const stamp = db.queries.find(q => q.query.includes("INSERT OR REPLACE INTO meta") && q.query.includes("index_format_version"));
-    expect(stamp!.params).toEqual(["6"]);
+    expect(stamp!.params).toEqual(["7"]);
+  });
+
+  // Version 7 (finding 2026-10-11): a Markdown link without an anchor of its
+  // own was cut at the first `#` or `^` of its decoded target. The notes that
+  // hold a Markdown link with an anchor are re-read, and no other.
+  it("re-reads only the notes with an anchored Markdown link for a version-6 index", async () => {
+    db.mockedOneResults.push({ value: "6" });
+    await initializeSchema(db);
+
+    const queries = db.queries.map(q => q.query);
+    const resets = queries.filter(q => q.includes("UPDATE files SET mtime_local = 0"));
+    expect(resets).toHaveLength(1);
+    expect(resets[0]).toContain("link_type = 'markdown-link' AND anchor IS NOT NULL");
+    // The full-text table has its shape since version 5: it is not copied again.
+    expect(queries.some(q => q.includes("fts_notes_next"))).toBe(false);
+    const stamp = db.queries.find(q => q.query.includes("INSERT OR REPLACE INTO meta") && q.query.includes("index_format_version"));
+    expect(stamp!.params).toEqual(["7"]);
   });
 
   it("can execute insert and select on sync_state", async () => {

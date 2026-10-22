@@ -22,8 +22,9 @@ import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
-import { applyTextShape, editorTextOf, inShapeOf, isVaultPathLink, keepTextBeside, newestConflictCopy, openEditorText, planRelativeLinkOpen, resolveOpenAction, resolveRelativeTarget, type KeptText, type LinkKind } from "@plainva/ui";
-import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, jumpToLineTop, selectAndCenter, requestAnchorJump, resolveAnchor, splitLinkAnchor } from "@plainva/ui";
+import { applyTextShape, editorTextOf, inShapeOf, keepTextBeside, newestConflictCopy, openEditorText, resolveOpenAction, type KeptText, type LinkKind } from "@plainva/ui";
+import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, jumpToLineTop, selectAndCenter, resolveAnchor } from "@plainva/ui";
+import { openLink } from "../services/openLink";
 import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext } from "@plainva/ui";
 import { answerEditorPathProbe } from "@plainva/ui";
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
@@ -1543,59 +1544,20 @@ export const Editor: React.FC<{
     return () => window.removeEventListener("plainva-editor-block-format-conflict", onConflict);
   }, [t]);
 
-  // Resolve a clicked in-app link and open it. Shared by the wiki-link plugin
-  // and the rendered table-cell links (tableLinkHandlers).
+  // Open a clicked in-app link. Shared by the wiki-link plugin, the rendered
+  // table-cell links (tableLinkHandlers) and the comments beside the note.
   //
-  // `kind` matters (issue #61). A WIKI target is a name the index resolves, and
-  // a miss there is an invitation to create the note (Obsidian parity,
-  // 2026-07-18). A relative MARKDOWN target is a path on disk: it gets resolved
-  // against this note's folder, and a miss is a missing file — never a new note
-  // called `../_resources/x.mp3.md`.
+  // `kind` says how the link is written (issue #61). What follows from it is
+  // the desktop's one opener's to say (`services/openLink`): a wiki link names
+  // a note, and where none answers the note is offered; a Markdown link is
+  // read from this note's folder first, and a path that leads nowhere is a
+  // missing file — never a new note called `../_resources/x.mp3.md`.
   const openWikiTarget = async (linkText: string, newTab: boolean, kind?: LinkKind, anchor?: string | null) => {
-    if (!onOpenPath || !queryService) return;
-
-    // The anchor (issue #92) either arrives separately (the wiki-link plugin
-    // splits it) or still sits in the text (a table cell, a markdown href).
-    const split = splitLinkAnchor(linkText);
-    const anchorPart = anchor ?? split.anchor;
-    // `[[#Heading]]`, `[text](#heading)`: a place in THIS note.
-    if (!split.target && anchorPart) {
-      applyAnchor(anchorPart);
-      return;
-    }
-
-    if (kind === "markdown" && activePath && isVaultPathLink(linkText)) {
-      const target = resolveRelativeTarget(activePath, linkText);
-      if (target) {
-        // Same rule the reading view uses — one function, two renderers.
-        const outcome = vaultAdapter
-          ? await planRelativeLinkOpen(target, (p) => vaultAdapter.exists(p))
-          : { action: "notFound" as const, path: target.path };
-        if (outcome.action === "open") {
-          onOpenPath(outcome.path, newTab);
-          if (target.anchor) requestAnchorJump(outcome.path, target.anchor);
-        }
-        else if (outcome.action === "revealFolder") window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: outcome.path } }));
-        else toast.warning(t("dialogs.linkNotFoundMsg", { target: outcome.path }));
-        return;
-      }
-    }
-
-    const searchTarget = split.target;
-
-    // Where the link leads is the link rule's answer (`resolveNotePath`) — the
-    // one the reading view, the graph and the phone give for the same text.
-    const resolved = await queryService.resolveNotePath(searchTarget, activePath ?? undefined);
-    if (resolved) {
-      onOpenPath(resolved, newTab);
-      // Parked under the path: the pane that shows the note — this one after
-      // the switch, or a fresh tab — takes it once the text is in.
-      if (anchorPart) requestAnchorJump(resolved, anchorPart);
-    } else {
-      // Target note doesn't exist yet — create it (Obsidian parity, maintainer
-      // 2026-07-18). App owns the write/index/open (+ optional confirm).
-      window.dispatchEvent(new CustomEvent("plainva-create-note-from-link", { detail: { target: searchTarget, hostPath: activePath, newTab } }));
-    }
+    if (!onOpenPath) return;
+    await openLink(
+      { text: linkText, kind: kind === "markdown" ? "markdown" : "wiki", sourcePath: activePath ?? undefined, anchor },
+      { queryService, vaultAdapter, onOpenPath, newTab, onSameNoteAnchor: applyAnchor, t },
+    );
   };
 
   // Block handle menu + drag reorder (#7).
@@ -2870,7 +2832,8 @@ export const Editor: React.FC<{
    */
   // Stable so the callbacks below do not re-create on every render: the wiki
   // opener itself is a plain function of the component.
-  const openNoteFromComment = useStableHandler((target: string) => { void openWikiTarget(target, false); });
+  // A link in a comment says how it is written, like one in the note.
+  const openNoteFromComment = useStableHandler((target: string, kind?: "wiki" | "markdown") => { void openWikiTarget(target, false, kind ?? "wiki"); });
   const promoteCommentToTask = useCallback(async (comment: WorkspaceCommentRecord) => {
     if (!activePath || !vaultAdapter || !vaultPath) return;
     const store = await getSettingsStore();

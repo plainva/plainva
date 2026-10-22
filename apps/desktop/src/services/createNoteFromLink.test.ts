@@ -73,4 +73,14 @@ describe("createNoteFromLink", () => {
     expect(await createNoteFromLink("", undefined, deps(files, log))).toEqual({ outcome: "no-title" });
     expect(log).toEqual([]);
   });
+
+  // The opener names the place its rule will find the note (review 2026-10-22):
+  // read as a wiki target, `Draft #1.md` was cut at the `#` and `Draft.md` was made.
+  it("creates the note at the place the opener names, with every character of its name", async () => {
+    const files = new Set<string>();
+    const log: string[] = [];
+    const result = await createNoteFromLink("Draft #1.md", "Projekte/Plan.md", deps(files, log), { path: "Projekte/Draft #1.md", title: "Draft #1" });
+    expect(result).toEqual({ outcome: "created", path: "Projekte/Draft #1.md" });
+    expect(files.has("Projekte/Draft.md")).toBe(false);
+  });
 });

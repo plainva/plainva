@@ -31,7 +31,7 @@ import {
   Image as ImageIcon,
   Paperclip,
 } from "lucide-react";
-import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, isVaultPathLink, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { selectNoteFragment, planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, noteBodyOf, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
@@ -54,7 +54,8 @@ import { getConflict, noteConflict, subscribeConflicts } from "./services/confli
 import { ConflictCompareSheet } from "./components/ConflictCompareSheet";
 import { NoteConflictCard } from "./components/NoteConflictCard";
 import { syncSoon } from "./services/syncService";
-import { mActions, mConfirm } from "./services/mobileDialogs";
+import { mActions } from "./services/mobileDialogs";
+import { openLink } from "./services/openLink";
 import { applyTemplateInteractive } from "./services/templateInteractive";
 import { setEditorSelectionReader } from "./services/editorSelection";
 import { getMobileSettings } from "./services/mobileSettings";
@@ -343,45 +344,13 @@ export function EditorHost({
       onOpenPath: (p) => onOpenNote(p),
       onOpenTag: (tag) => onOpenTag?.(tag),
       openWikiTarget: (rawTarget, _newTab, kind, anchorArg) => {
-        // The anchor (issue #92) either arrives split off (the wiki-link
-        // plugin) or still sits in the text; `[[#Heading]]` is a place HERE.
-        const split = splitLinkAnchor(rawTarget);
-        const anchor = anchorArg ?? split.anchor;
-        const target = split.target;
-        if (!target) {
-          if (anchor) jumpAnchor(anchor);
-          return;
-        }
-        void vaultOps.resolveWikiTarget(vault, target, path, kind === "wiki" || kind === "markdown" ? kind : undefined).then(async (resolved) => {
-          if (resolved) {
-            // Parked under the path: the host that mounts for the note takes it.
-            if (anchor) requestAnchorJump(resolved, anchor);
-            onOpenNote(resolved);
-            return;
-          }
-          // A relative markdown link is a PATH, and a path that resolves to
-          // nothing is a missing file — not an invitation to create a note
-          // named after it (issue #61: `../_resources/x.mp3` gained a `.md` on
-          // the desktop and hit the vault guard). Creating stays reserved for
-          // unresolved WIKI links.
-          if (kind === "markdown" && isVaultPathLink(target)) {
-            toast.warning(i18n.t("dialogs.linkNotFoundMsg", { target }));
-            return;
-          }
-          // Target note doesn't exist yet — create it (Obsidian parity,
-          // maintainer 2026-07-18), then open. Since S39 the phone honours the
-          // same "ask first" setting as the desktop; default off, so the
-          // established behaviour is unchanged for anyone who never sets it.
-          if (getMobileSettings().askBeforeCreateLink) {
-            const ok = await mConfirm({
-              title: t("settings.askBeforeCreateLink"),
-              message: target,
-            });
-            if (!ok) return;
-          }
-          const created = await vaultOps.createNoteFromWikiTarget(vault, target, path);
-          if (created) onOpenNote(created);
-        });
+        // What a tap on a link does is the phone's one opener's to say
+        // (`services/openLink`): open, show a folder, offer the note, or say
+        // that nothing is there. `[[#Heading]]` is a place HERE.
+        void openLink(
+          { text: rawTarget, kind: kind === "markdown" ? "markdown" : "wiki", sourcePath: path, anchor: anchorArg },
+          { vault, onOpenNote, onSameNoteAnchor: jumpAnchor },
+        );
       },
       openExternalUrl: (url) => {
         // Route external URLs (table-cell / embed links) through platform

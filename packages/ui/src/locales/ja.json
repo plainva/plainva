@@ -2292,6 +2292,7 @@
     "edgeRemoveLinksMsg": "「{{source}}」から「{{target}}」へのテキストリンクはすべて表示テキストに置き換えられます。",
     "edgeRemoveRelationMsg": "「{{source}}」の「{{property}}」から「{{target}}」への項目が削除されます。",
     "edgeRemoved": "{{n}} 件のリンクを削除しました。",
+    "edgeNothingRemoved": "「{{source}}」から「{{target}}」へのテキストリンクは見つかりませんでした。グラフを描いた後でノートが変更された可能性があります。",
     "edgeMore": "ほか {{n}} 件",
     "legendRelation": "リレーション",
     "legendLink": "リンク",

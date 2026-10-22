@@ -1,6 +1,6 @@
 import { foldPathNormalization } from "../sync/pathIdentity.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
-import { buildLinkTargetIndex, resolveLinkTargetIndexed, type LinkCorpusFile } from "./LinkResolver.js";
+import { buildLinkTargetIndex, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, type LinkCorpusFile } from "./LinkResolver.js";
 import { isReservedOkfName } from "../okf-conversion.js";
 import { ftsExactTerm } from "./ftsQuery.js";
 import { isSpacelessChar, wordBoundedPattern } from "./spacelessText.js";
@@ -52,8 +52,21 @@ export interface BrokenLinkInfo {
   sourcePath: string;
   /** The raw link target text as written in the note. */
   targetRaw: string;
+  /** The target without its anchor — what the link rule was asked (`links.target_path`). */
+  target: string;
+  /**
+   * How the link is written. Whoever creates the missing note or shows the
+   * link has to know: a Markdown link is read from the linking note's folder,
+   * and it may name a file that is no note at all.
+   */
+  kind: "wikilink" | "embed" | "markdown-link";
   lineNumber: number | null;
   propertyKey: string | null;
+}
+
+/** `links.link_type` as one of the three ways a link is written; anything else is a wiki link. */
+function linkKindOf(linkType: unknown): BrokenLinkInfo["kind"] {
+  return linkType === "markdown-link" || linkType === "embed" ? linkType : "wikilink";
 }
 
 export interface VaultGraph {
@@ -249,11 +262,26 @@ export class GraphService {
       const lineRaw = (row as any).line_number;
       const lineNumber = lineRaw == null ? null : Number(lineRaw);
       const propertyKey = ((row as any).property_key ?? null) as string | null;
-      const resolved = resolveLinkTargetIndexed(source, targetPath, corpusIndex);
+      // By the way the link was written: a Markdown link is read from the
+      // linking note's folder first (`resolveMarkdownLinkIndexed`), everything
+      // else by the wiki rule. Resolved by the wiki rule alone, a Markdown
+      // link was an edge to the note of that name at the vault's ROOT while a
+      // click opened the one beside the linking note.
+      const written: BrokenLinkInfo["kind"] = propertyKey ? "wikilink" : linkKindOf((row as any).link_type);
+      let resolved: string | null;
+      if (written === "markdown-link") {
+        const answer = resolveMarkdownLinkIndexed(source, targetPath, corpusIndex);
+        // A folder that is there and holds no `index.md` is a place to show,
+        // not a note: neither an edge nor a broken link.
+        if (answer !== null && answer.kind === "folder" && answer.index === null) continue;
+        resolved = answer === null ? null : answer.kind === "file" ? answer.path : answer.index;
+      } else resolved = resolveLinkTargetIndexed(source, targetPath, corpusIndex);
       if (!resolved) {
         broken.push({
           sourcePath: source,
           targetRaw: String((row as any).target_raw ?? (row as any).target_path ?? ""),
+          target: targetPath,
+          kind: written,
           lineNumber,
           propertyKey,
         });

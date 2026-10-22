@@ -484,7 +484,10 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
       try {
         const n = await removeLinksTo(vaultAdapter, queryService, source, target);
         if (n > 0) toast.success(t("graph.edgeRemoved", { defaultValue: "{{n}} Link(s) entfernt.", n }));
-        else toast.warning(t("graph.cleanupMentionGone", { defaultValue: "Fundstelle existiert nicht mehr — Liste neu scannen." }));
+        // The text no longer holds such a link (the note changed since the
+        // graph was drawn). Until 2026-10-22 this said the clean-up's "rescan
+        // the list" - and every edge drawn from a Markdown link got it.
+        else toast.warning(t("graph.edgeNothingRemoved", { defaultValue: "Kein Text-Link von „{{source}}“ auf „{{target}}“ gefunden — die Notiz hat sich vielleicht geändert, seit der Graph gezeichnet wurde.", source: titleOf(source), target: titleOf(target) }));
       } catch {
         toast.error(t("graph.cleanupActionFailed", { defaultValue: "Aktion fehlgeschlagen." }));
       }

@@ -9,6 +9,11 @@ import { test, expect } from '@playwright/test';
  * no PIM); the SQL mock answers every note query with ALL rows. A wiki link
  * is resolved from them by the link rule in JavaScript (ADR 0027), so their
  * order no longer decides which note a click finds.
+ *
+ * A Markdown link has a rule of its own (ADR 0027, addendum 2026-10-12): read
+ * from the linking note's folder first, then like the wiki link of the same
+ * text; a target that ends in `/` names a folder. `Start.md` carries such
+ * links in running text and in a table cell.
  */
 
 test.beforeEach(async ({ page }) => {
@@ -19,6 +24,12 @@ test.beforeEach(async ({ page }) => {
       '/test-vault/.plainva': { isDir: true },
       '/test-vault/Other.md': '# Other\n\nIntro line.\n\nFiller line 1.\n\nFiller line 2.\n\nFiller line 3.\n\nFiller line 4.\n\nFiller line 5.\n\nFiller line 6.\n\nFiller line 7.\n\nFiller line 8.\n\nFiller line 9.\n\nFiller line 10.\n\nFiller line 11.\n\nFiller line 12.\n\nFiller line 13.\n\nFiller line 14.\n\nFiller line 15.\n\nFiller line 16.\n\nFiller line 17.\n\nFiller line 18.\n\nFiller line 19.\n\nFiller line 20.\n\nFiller line 21.\n\nFiller line 22.\n\nFiller line 23.\n\nFiller line 24.\n\nFiller line 25.\n\nFiller line 26.\n\nFiller line 27.\n\nFiller line 28.\n\nFiller line 29.\n\nFiller line 30.\n\nFiller line 31.\n\nFiller line 32.\n\nFiller line 33.\n\nFiller line 34.\n\nFiller line 35.\n\nFiller line 36.\n\nFiller line 37.\n\nFiller line 38.\n\nFiller line 39.\n\nFiller line 40.\n\nFiller line 41.\n\nFiller line 42.\n\nFiller line 43.\n\nFiller line 44.\n\nFiller line 45.\n\nFiller line 46.\n\nFiller line 47.\n\nFiller line 48.\n\nFiller line 49.\n\nFiller line 50.\n\nFiller line 51.\n\nFiller line 52.\n\nFiller line 53.\n\nFiller line 54.\n\nFiller line 55.\n\nFiller line 56.\n\nFiller line 57.\n\nFiller line 58.\n\nFiller line 59.\n\nFiller line 60.\n\nFiller line 61.\n\nFiller line 62.\n\nFiller line 63.\n\nFiller line 64.\n\nFiller line 65.\n\nFiller line 66.\n\nFiller line 67.\n\nFiller line 68.\n\nFiller line 69.\n\nFiller line 70.\n\nFiller line 71.\n\nFiller line 72.\n\nFiller line 73.\n\nFiller line 74.\n\nFiller line 75.\n\nFiller line 76.\n\nFiller line 77.\n\nFiller line 78.\n\nFiller line 79.\n\nFiller line 80.\n\n## Cool Header\n\nTarget text here.\n\nLine with block ^b1\n',
       '/test-vault/A.md': '# A\n\nLinks: [[#Second]] · [[Other#Cool Header]] · [GitHub](#second) · [rel](Other.md#cool-header) · [[Other#^b1]] · [[#Nowhere]]\n\nFiller line 1.\n\nFiller line 2.\n\nFiller line 3.\n\nFiller line 4.\n\nFiller line 5.\n\nFiller line 6.\n\nFiller line 7.\n\nFiller line 8.\n\nFiller line 9.\n\nFiller line 10.\n\nFiller line 11.\n\nFiller line 12.\n\nFiller line 13.\n\nFiller line 14.\n\nFiller line 15.\n\nFiller line 16.\n\nFiller line 17.\n\nFiller line 18.\n\nFiller line 19.\n\nFiller line 20.\n\nFiller line 21.\n\nFiller line 22.\n\nFiller line 23.\n\nFiller line 24.\n\nFiller line 25.\n\nFiller line 26.\n\nFiller line 27.\n\nFiller line 28.\n\nFiller line 29.\n\nFiller line 30.\n\nFiller line 31.\n\nFiller line 32.\n\nFiller line 33.\n\nFiller line 34.\n\nFiller line 35.\n\nFiller line 36.\n\nFiller line 37.\n\nFiller line 38.\n\nFiller line 39.\n\nFiller line 40.\n\nFiller line 41.\n\nFiller line 42.\n\nFiller line 43.\n\nFiller line 44.\n\nFiller line 45.\n\nFiller line 46.\n\nFiller line 47.\n\nFiller line 48.\n\nFiller line 49.\n\nFiller line 50.\n\nFiller line 51.\n\nFiller line 52.\n\nFiller line 53.\n\nFiller line 54.\n\nFiller line 55.\n\nFiller line 56.\n\nFiller line 57.\n\nFiller line 58.\n\nFiller line 59.\n\nFiller line 60.\n\nFiller line 61.\n\nFiller line 62.\n\nFiller line 63.\n\nFiller line 64.\n\nFiller line 65.\n\nFiller line 66.\n\nFiller line 67.\n\nFiller line 68.\n\nFiller line 69.\n\nFiller line 70.\n\nFiller line 71.\n\nFiller line 72.\n\nFiller line 73.\n\nFiller line 74.\n\nFiller line 75.\n\nFiller line 76.\n\nFiller line 77.\n\nFiller line 78.\n\nFiller line 79.\n\nFiller line 80.\n\n## Second\n\nSecond section text.\n',
+      '/test-vault/Start.md': '# Start\n\nFolder: [Ablage](Ablage/) · Name: [Brief](Brief)\n\n| Linked |\n| --- |\n| [Mein Brief](Mein%20Brief.md) |\n',
+      '/test-vault/Archiv': { isDir: true },
+      '/test-vault/Archiv/Brief.md': '# Brief\n\nThe letter from the archive.\n',
+      '/test-vault/Archiv/Mein Brief.md': '# Mein Brief\n\nMy letter, filed away.\n',
+      '/test-vault/Ablage': { isDir: true },
+      '/test-vault/Ablage/index.md': '# Ablage\n\nThe overview of the filing folder.\n',
     };
     const fs = (window as any).mockFs;
     const noteRows = () =>
@@ -179,4 +190,39 @@ test('reading view: a GitHub-style fragment link scrolls to the heading, a relat
   // the reading view when the session remembers it — and lands on the heading
   // either way.
   await expect(page.locator('.cm-line:has-text("Cool Header"), .markdown-reader #cool-header').first()).toBeInViewport({ timeout: 10000 });
+});
+
+async function openStart(page: any) {
+  await page.goto('/');
+  await expect(page.getByText('Start', { exact: true }).first()).toBeVisible({ timeout: 20000 });
+  await page.getByText('Start', { exact: true }).first().click();
+  await expect(page.locator('.cm-md-table').first()).toBeVisible({ timeout: 20000 });
+}
+
+/** The note shown now, in whichever mode it opened. */
+const shownText = (page: any, text: string) => page.locator(`.cm-line:has-text("${text}"), .markdown-reader :text("${text}")`).first();
+
+test('live preview: a Markdown link in a table cell is read as one, and a folder link opens the folder\'s overview', async ({ page }) => {
+  await openStart(page);
+  // `Mein%20Brief.md` names the note "Mein Brief" in another folder. The cell
+  // handed the link on as a wiki link until 2026-10-22, and the undecoded
+  // name created a note `Mein%20Brief.md` instead.
+  await page.locator('.cm-md-table a.cm-md-cell-link', { hasText: 'Mein Brief' }).first().click();
+  await expect(shownText(page, 'My letter, filed away')).toBeVisible({ timeout: 10000 });
+
+  await page.getByText('Start', { exact: true }).first().click();
+  await expect(page.locator('.cm-md-table').first()).toBeVisible({ timeout: 20000 });
+  await page.locator('.cm-wiki-link[data-link-type="markdown"]', { hasText: 'Ablage' }).first().click();
+  await expect(shownText(page, 'The overview of the filing folder')).toBeVisible({ timeout: 10000 });
+});
+
+test('reading view: a Markdown link to a bare name opens the note of that name in another folder', async ({ page }) => {
+  await openStart(page);
+  await page.locator('[data-tip="Lesemodus"], [data-tip="Read Mode"]').first().click();
+  const reader = page.locator('.markdown-reader').first();
+  await expect(reader.getByRole('link', { name: 'Brief', exact: true })).toBeVisible({ timeout: 10000 });
+  // The reading view read a Markdown link from the note's folder alone until
+  // 2026-10-22 and said "not found" for `[Brief](Brief)`.
+  await reader.getByRole('link', { name: 'Brief', exact: true }).click();
+  await expect(shownText(page, 'The letter from the archive')).toBeVisible({ timeout: 10000 });
 });

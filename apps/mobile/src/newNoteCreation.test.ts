@@ -66,6 +66,7 @@ interface CreationOps {
   createNote(...args: unknown[]): Promise<string | null>;
   createNoteFromTemplate(v: MemoryVault, folder: string, title: string, templateRaw: string): Promise<string | null>;
   createNoteFromWikiTarget(v: MemoryVault, target: string, hostPath?: string): Promise<string | null>;
+  createNoteAt(v: MemoryVault, path: string, title: string): Promise<string | null>;
   ensureDailyNote(v: MemoryVault, date: Date, mode?: "interactive" | "headless"): Promise<{ path: string; created: boolean } | null>;
 }
 
@@ -78,7 +79,8 @@ const transpile = (code: string) =>
 
 function creationOps(): CreationOps {
   const file = ts.createSourceFile("vaultService.ts", readFileSync("src/services/vaultService.ts", "utf8"), ts.ScriptTarget.Latest, true);
-  const wanted = ["createNote", "createNoteFromTemplate", "createNoteFromWikiTarget", "ensureDailyNote"];
+  // `createNoteAt` is where a link's note is made: `createNoteFromWikiTarget` hands it the place.
+  const wanted = ["createNote", "createNoteAt", "createNoteFromTemplate", "createNoteFromWikiTarget", "ensureDailyNote"];
   const methods = new Map<string, string>();
   const ofVaultOps = (node: ts.MethodDeclaration) =>
     ts.isObjectLiteralExpression(node.parent) && ts.isVariableDeclaration(node.parent.parent) && node.parent.parent.name.getText(file) === "vaultOps";

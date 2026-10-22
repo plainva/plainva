@@ -102,7 +102,8 @@ file's name.
 5. **A rename does not rewrite a link that names the note by its title.** The
    title stays when the file's name changes, so the link keeps leading there.
 
-6. **A Markdown link stays a path.** `[text](Folder/Note.md)` is read from the
+6. *(Replaced by the addendum of 2026-10-12 below: a Markdown link has one
+   rule of its own.)* **A Markdown link stays a path.** `[text](Folder/Note.md)` is read from the
    linking note's folder as before; the rule above is for wiki links, embeds
    and relation values. On the phone `resolveWikiTarget` tells the two apart
    by how the link was written (`kind`), no longer by the shape of the target,
@@ -174,10 +175,144 @@ file's name.
   edge, and a deterministic order is something a person can learn — "the note
   beside this one, then the shortest path".
 
+## Addendum 2026-10-12: a Markdown link has one rule too (replaces decision 6)
+
+### Context
+
+Decision 6 left a Markdown link "a path" — and with that left it to every
+surface to say what a path is. A recording of all of them over one set of
+small vaults (2026-10-12, the cases are
+`packages/core/test/helpers/markdownLinkCases.ts`) showed eight places that
+open `[text](target)`, and hardly two that read it alike:
+
+- The desktop's **reading view** read every target from the linking note's
+  folder and demanded the exact file name. Its **editor** did so for a target
+  with a slash, and sent a bare name through the wiki rule *without decoding
+  it*: `[My letter](My%20letter.md)` — the form Plainva's own folder listing
+  writes — created a note `My%20letter.md` beside the real one.
+- The **phone** tried the note's folder and the vault's root on disk, filled in
+  `.md` and `.base`, and stopped there: `[Letter](Letter.md)` for a note in a
+  third folder led nowhere, and the tap went on to create a second
+  `Letter.md`. A path that climbed out of the vault was folded back into it; a
+  folder was handed to the note opener as if it were a note.
+- A **table cell** lost the way the link was written on its way to the shell
+  and was taken for a wiki link: a link to a missing picture created a note
+  `shot.png.md`, a link to a folder a note called `.md`. The desktop's
+  **journal** and a **database cell** handed the raw text of a link that led
+  nowhere to the opener as a path; the phone's journal and comments did
+  nothing at all.
+- The **graph and the backlinks** resolved every Markdown link by the wiki
+  rule. With a note `Letter.md` at the root and one beside a listing, the
+  listing's entry was an edge to the note at the root. A **rename** asks the
+  backlinks: renaming the note at the root rewrote the entry of the listing —
+  a correct link then named another note —, and renaming the note beside the
+  listing left the entry standing.
+
+Editor, reading view, phone and graph agreed in 9 of 30 recorded cases.
+
+### Decision
+
+1. **One rule, in the core, and one sentence:** a Markdown link is read from
+   the folder of the linking note first; where nothing lies there, it leads
+   where the wiki link of the same text leads. `resolveMarkdownLinkIndexed`
+   (`packages/core/src/vault/LinkResolver.ts`) tries a target in this order:
+
+   1. An explicit path — `/Folder/File`, `./File`, `../Folder/File` — and
+      nothing else for such a target (step 1 of the wiki rule).
+   2. The path read from the linking note's folder: the file spelled exactly
+      so, the note there (`.md`), the file in another spelling.
+   3. The wiki rule on the same target, from its step 2 on: the vault path as
+      written, the end of a path, a file that is no note, a note's `title`.
+
+   Step 2 is how every Markdown reader reads a relative link, how the OKF
+   specification reads it, and how Plainva writes one (folder listings,
+   "prepare" on adopting an overview). Step 3 is there because a Markdown link
+   is not a path in Obsidian either: its help gives
+   `[Three laws of motion](Three%20laws%20of%20motion)` as the Markdown form of
+   an internal link — a name —, its "absolute path in vault" format writes the
+   path from the root without a leading slash, and both of Plainva's editors
+   followed a bare name before this rule.
+
+2. **A target that ends in a slash names a folder** (`Folder/`, `../`, `.`):
+   tried as an explicit path, then from the linking note's folder, then from
+   the root. The answer is the folder and the `index.md` in it. Only the slash
+   makes a target a folder: `[x](Projects)` stays the name of a note, and
+   Plainva writes `Name/index.md` for a subfolder.
+
+3. **One reading of the target.** `markdownLinkTarget` (`linkEncoding.ts`)
+   reads what a URL names for the index, a click and a rename: the first
+   *written* `#` is the anchor marker, and a `#` or `^` that belongs to a file's
+   name stays in the name. The index's reader cut a decoded target once more,
+   so `Draft%20%231.md` was listed as a link to `Draft`. **Index format 7**
+   re-reads the notes that hold a Markdown link with an anchor — a stored row
+   cannot tell the two apart — and no other. A surface that scans a line
+   instead of parsing it (the editor's link drawing, a table cell, a journal
+   entry) takes angle brackets and a title off first (`markdownDestinationUrl`).
+
+4. **One decision for a click, one opener per shell.** `planLinkOpen`
+   (`packages/ui/src/lib/linkOpen.ts`) says what follows from the answer —
+   open, show the folder, offer the note, "not found", a place in this note,
+   a target for the system —, and `services/openLink.ts` of each shell runs it
+   for every surface: editor, reading view, table cell, journal, database cell
+   and comment. A link that leads nowhere offers the note where it is an
+   invitation — a wiki link, or a Markdown link whose target is a bare note
+   name — and says "not found" where it names a place (issue 61, now on every
+   surface). The index answers first; only where it knows nothing is the disk
+   asked, about the places the target names as paths (`markdownLinkPlaces`), so
+   a file the index has not taken in yet is opened instead of reported missing.
+
+5. **A link row is resolved by the way it is written** (`resolveLinkRow`,
+   from `links.link_type`): the graph, the backlinks, a rename and "remove text
+   links" give the answer a click gives. A wiki link and a Markdown link of one
+   text may lead to two files, so the plan of a rename names the kind of each
+   link, and a Markdown link's rewrite changes only the name at the end of its
+   path — checked against the rule over the vault as it will be, with the path
+   from the linking note's folder as the fallback. The clean-up creates the
+   note of a broken Markdown link where the rule looks first, and offers none
+   for a picture, a PDF or a folder.
+
+6. **A database needs its extension in a Markdown link as in a wiki link.**
+   The phone's `.base` fill-in is gone: `[x](Data/Tasks)` names a note.
+
+### Consequences
+
+- A Markdown link leads to one file in the editor and the reading view of the
+  desktop, on the phone, in the graph and in the backlinks.
+- Where a file lies at the path from the linking note's folder and another at
+  the same path from the vault's root, the first is the answer. That changes
+  the desktop's editor for a bare name (it took the one at the root) and the
+  graph, and it is the one place the rule departs from the wiki rule on
+  purpose: the entry of a listing must not lead to a foreign note once a note
+  of that name lies at the root.
+- No click creates `My%20letter.md`, `shot.png.md` or `.md` any more.
+- The phone opens the `index.md` of a linked folder or the folder's screen;
+  the graph no longer lists a folder link as broken.
+- "Remove text links" removes wiki links, embeds and Markdown links of a
+  note's text through `rewriteNoteLinks` and leaves its properties and its
+  code alone (it replaced a relation in the properties by a word).
+- Two asymmetries this change touches stay, as gaps in the parity catalog:
+  the phone's graph has no actions on an edge, and a link in the free text of
+  a database cell is text on the phone.
+
+### Alternatives
+
+- **A path and nothing else** (the note's folder, then the root). Rejected:
+  it breaks `[x](Letter)` and `[x](Letter.md)` for a note in another folder,
+  which both editors opened and the graph drew, and it reads none of the links
+  Obsidian writes in its default format with wiki links switched off.
+- **The wiki rule alone, as the graph had it.** Rejected: step 2 of the wiki
+  rule (the vault path as written) comes before the note beside the linking
+  one, so a listing's entry would lead to the root.
+- **Bare names by the wiki rule, targets with a folder as paths** (what the
+  desktop's editor did). Rejected: two rules to learn, and the graph would lose
+  edges it draws today.
+
 ## Links
 
 - Finding: workspace open-items plan § 3.51 (2026-10-08); plan
   `Gesamtplan_Wiki_Link_Aufloesung_2026-10-09`.
+- Addendum: open-items plan § 3.67, § 3.73 no. 1 and § 3.75; plan
+  `Gesamtplan_Markdown_Links_2026-10-12`.
 - ADR 0016 (path identity is NFC).
 - Numbers 0017 to 0026 are taken by the AI-harness branch and arrive on
   `main` with it; this ADR took the next free one.

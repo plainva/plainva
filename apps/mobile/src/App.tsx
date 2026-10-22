@@ -34,6 +34,7 @@ import { useConnectRun } from "./hooks/useConnectRun";
 import { useConnectionRun } from "./hooks/useConnectionRun";
 import { resumePimOAuthResult } from "./services/pim/pimOAuth";
 import { useDeepLinkNav } from "./hooks/useDeepLinkNav";
+import { useFolderLinkNav } from "./hooks/useFolderLinkNav";
 import { useSoftKeyboard } from "./hooks/useSoftKeyboard";
 import { cancelConnect, finishConnect, listPendingConnectFolders as oauthListFolders, createPendingConnectFolder as oauthCreateFolder, restorePendingConnect } from "./services/oauthService";
 import { routeAppUrl } from "./services/appUrlRoutes";
@@ -388,6 +389,7 @@ export default function App() {
 
   useConnectRun(setNav);
   useDeepLinkNav(setNav);
+  useFolderLinkNav(setNav, barVaultRef);
 
   // Whether a tablet stands two columns, and whether the navigator is folded
   // away. Above the early return with the rest: it holds state and a

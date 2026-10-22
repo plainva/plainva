@@ -51,10 +51,10 @@ describe("parseInlineMarkdown", () => {
 
   it("parses markdown links and classifies external vs vault-relative", () => {
     expect(parseInlineMarkdown("[x](https://a.example)")).toEqual([
-      { kind: "link", href: "https://a.example", label: "x", external: true },
+      { kind: "link", href: "https://a.example", written: "https://a.example", label: "x", external: true },
     ]);
     expect(parseInlineMarkdown("[Notiz](Ordner/Notiz.md)")).toEqual([
-      { kind: "link", href: "Ordner/Notiz.md", label: "Notiz", external: false },
+      { kind: "link", href: "Ordner/Notiz.md", written: "Ordner/Notiz.md", label: "Notiz", external: false },
     ]);
   });
 

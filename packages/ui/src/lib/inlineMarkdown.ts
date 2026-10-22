@@ -1,4 +1,4 @@
-import { bracketLinkMatcher, findInlineTags, nextWhere, readHtmlCheckbox, trimEndChars, wikiLinkMatcher } from "@plainva/core";
+import { bracketLinkMatcher, findInlineTags, markdownDestinationUrl, nextWhere, readHtmlCheckbox, trimEndChars, wikiLinkMatcher } from "@plainva/core";
 import { tagSegments } from "../base/propertyModel";
 import { splitLinkAnchor } from "./linkAnchor";
 import { tagColorAttrs } from "./tagColor";
@@ -21,7 +21,8 @@ export type InlineNode =
   | { kind: "code"; text: string }
   | { kind: "strong" | "em" | "strongEm" | "strike" | "highlight"; children: InlineNode[] }
   | { kind: "wikiLink"; target: string; display: string; anchor?: string }
-  | { kind: "link"; href: string; label: string; external: boolean }
+  /** `href` is the URL the link names; `written` its destination as it stands in the line - what a click hands on. */
+  | { kind: "link"; href: string; written: string; label: string; external: boolean }
   | { kind: "url"; href: string };
 
 export interface InlineLinkHandlers {
@@ -239,9 +240,13 @@ function parseRange(text: string, depth: number): InlineNode[] {
     } else if (/^!?\[/.test(tok)) {
       const lm = /^!?\[([^\]\n]*?)\]\(([^)\n]+?)\)$/.exec(tok);
       if (lm) {
-        const href = lm[2].trim().split(/\s+/)[0]; // strip optional "title"
+        // The URL without angle brackets and title - what the parser reads
+        // for the same link. Cutting at the first blank made `<My letter.md>`
+        // a link to `<My`.
+        const written = lm[2].trim();
+        const href = markdownDestinationUrl(written);
         const label = lm[1].trim() || href;
-        out.push({ kind: "link", href, label, external: /^https?:\/\//i.test(href) });
+        out.push({ kind: "link", href, written, label, external: /^https?:\/\//i.test(href) });
       } else {
         pushText(out, tok);
       }
@@ -422,7 +427,7 @@ function appendInlineNodes(parent: Node, nodes: InlineNode[], handlers: InlineLi
         break;
       case "link":
         if (n.external) parent.appendChild(makeLink(n.label, () => handlers.onOpenUrl?.(n.href)));
-        else parent.appendChild(makeLink(n.label, (e) => handlers.onOpenNote?.(n.href, e.ctrlKey || e.metaKey, "markdown")));
+        else parent.appendChild(makeLink(n.label, (e) => handlers.onOpenNote?.(n.written, e.ctrlKey || e.metaKey, "markdown")));
         break;
       case "url":
         parent.appendChild(makeLink(n.href, () => handlers.onOpenUrl?.(n.href)));

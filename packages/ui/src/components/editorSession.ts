@@ -587,9 +587,11 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     editorCompletion({ getQueryService: () => deps.current.queryService, readNote: (path) => deps.current.readNote?.(path) ?? Promise.resolve(null), hostPath: () => deps.current.hostPath }),
     // Rendered table cells share the note-link semantics of the wiki link plugin.
     tableLinkHandlers.of({
-      // A wiki link in a cell says so: the shells follow it by the link rule
-      // alone. A Markdown link is handed on as before, without a kind.
-      onOpenNote: (target, newTab, kind) => (kind === "wiki" ? deps.current.openWikiTarget(target, newTab, "wiki") : deps.current.openWikiTarget(target, newTab)),
+      // A link in a cell says how it is written, like one in running text.
+      // Until 2026-10-22 a Markdown link was handed on without its kind and
+      // the shell took it for a wiki link: a link to a missing picture created
+      // a note `shot.png.md`, a link to a folder a note called `.md`.
+      onOpenNote: (target, newTab, kind) => deps.current.openWikiTarget(target, newTab, kind === "wiki" ? "wiki" : "markdown"),
       onOpenUrl: (url) => deps.current.openExternalUrl(url),
       onOpenTag: (tag) => deps.current.onOpenTag?.(tag),
     }),

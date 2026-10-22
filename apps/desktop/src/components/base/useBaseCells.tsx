@@ -4,6 +4,7 @@ import { CheckSquare, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { upsertFrontmatterKeys, wikiTargetChooser, wikiTargetForPath, trimEndChars } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
+import { openLink } from "../../services/openLink";
 import { Button, chipClass, errorText, inferType, propertyFolder, Rating, propertyIndexTypes, usePropertyValues, formatDateValue, groupOptions, ICON, inlineOptionsFrom, optionSwatch, parseWikiLinkValue, splitMultiValue, toast, writeNoteProperty, toIsoDateTime, type CuratedOption, type DateDisplayFormat } from "@plainva/ui";
 import { PlainInput, SelectChip } from "../PropertyValues";
 import { InlineMultiSelect, InlineRelationEditor, type RelationSearchResult } from "../BaseInlineEditors";
@@ -119,6 +120,17 @@ export function useBaseCells({
       console.warn("[BaseViewer] resolving a cell link failed", target, e);
     }
     onOpenNote?.(path, ev);
+  };
+
+  // A link in the free text of a cell is opened as one in the editor is
+  // (`services/openLink`), read from the row's note. Until 2026-10-22 it went
+  // through the wiki rule whatever way it was written, and where that found
+  // nothing the opener was handed `target + ".md"`: `img/shot.png.md`.
+  const openTextLink = (text: string, kind: "wiki" | "markdown", ev?: React.MouseEvent, fromPath?: string) => {
+    void openLink(
+      { text, kind, sourcePath: fromPath },
+      { queryService, vaultAdapter, onOpenPath: (path) => onOpenNote?.(path, ev), newTab: !!(ev?.ctrlKey || ev?.metaKey), t },
+    );
   };
 
   const [editingCell, setEditingCell] = useState<{path: string, col: string} | null>(null);
@@ -520,9 +532,9 @@ export function useBaseCells({
             if (/^https?:\/\//.test(seg.target)) {
               return <a key={i} href={safeHref(seg.target)} target="_blank" rel="noopener noreferrer" style={linkStyle} onClick={(e) => e.stopPropagation()}>{label}</a>;
             }
-            return <span key={i} style={linkStyle} onClick={(e) => { e.stopPropagation(); openNoteLink(decodeURIComponent(seg.target), e, rowPath); }}>{label}</span>;
+            return <span key={i} style={linkStyle} onClick={(e) => { e.stopPropagation(); openTextLink(seg.target, "markdown", e, rowPath); }}>{label}</span>;
           }
-          return <span key={i} style={linkStyle} onClick={(e) => { e.stopPropagation(); openNoteLink(seg.target, e, rowPath); }}>{seg.display}</span>;
+          return <span key={i} style={linkStyle} onClick={(e) => { e.stopPropagation(); openTextLink(seg.target, "wiki", e, rowPath); }}>{seg.display}</span>;
         })}
       </span>
     );

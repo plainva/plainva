@@ -61,7 +61,7 @@ export interface WorkspaceCommentsColumnProps {
   /** The head's close button (K3) - the toolbar button reopens the column. */
   onClose?(): void;
   /** A `[[wiki link]]` in a remark - the reply "task created" carries one (K4). */
-  onOpenNote?(target: string): void;
+  onOpenNote?(target: string, kind?: "wiki" | "markdown"): void;
   onOpenUrl?(url: string): void;
   /** Deletes a remark (K7). Offered to its author, and to a moderator on everything. */
   onDelete?(comment: WorkspaceCommentRecord): void;
@@ -562,7 +562,7 @@ function CommentBody({
   author: string;
   names: ReadonlyMap<string, string>;
   locale: string;
-  onOpenNote?: (target: string) => void;
+  onOpenNote?: (target: string, kind?: "wiki" | "markdown") => void;
   onOpenUrl?: (url: string) => void;
 }) {
   return (

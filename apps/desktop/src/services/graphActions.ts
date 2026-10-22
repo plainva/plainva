@@ -9,6 +9,8 @@ export {
   appendWikiLink,
   removeLinksTo,
   createConnectedNote,
+  brokenLinkLabel,
+  brokenLinkNotePath,
   createBrokenLinkTarget,
   frontmatterBodyOffset,
   findFirstUnlinkedOccurrence,

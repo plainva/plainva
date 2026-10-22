@@ -311,6 +311,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-20",
   },
   {
+    id: "base-cell-text-links",
+    title: "Follow a link in the free text of a database cell",
+    area: "database",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "A cell of the desktop's database views draws a wiki link, a Markdown link " +
+      "and a bare URL inside free text as links (renderInlineString in " +
+      "useBaseCells) and opens them through the desktop's opener. The phone shows " +
+      "the same text as text (cellText in BaseScreen): a tap on a cell opens its " +
+      "edit sheet, and nothing there follows a link. Relation chips open on both " +
+      "shells. Found on 2026-10-12 while the opener for a link became one per " +
+      "shell; listed in the maintainer's open-items plan.",
+    verified: "2026-10-22",
+  },
+  {
     id: "base-date-type-converts-values",
     title: "Switching a date column between \"Date only\" and \"Date & time\" converts the stored values",
     area: "database",
@@ -493,28 +510,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-21",
   },
   {
-    id: "markdown-path-links",
-    title: "Follow a Markdown link that names a path",
-    area: "editor",
-    kind: "gap",
-    desktop: "partial",
-    desktopReason:
-      "A Markdown link `[text](path)` is read from the note's folder only (from the " +
-      "vault root with a leading slash) and has to name the file exactly " +
-      "(planRelativeLinkOpen). The phone also tries the vault root and adds `.md` or " +
-      "`.base` where the extension is missing (relativeLinkCandidates), so a link " +
-      "the phone opens can say \"not found\" on the desktop. Found on 2026-10-09 " +
-      "while the rule for WIKI links became one for both shells (ADR 0027); a " +
-      "Markdown link still has two. Listed in the maintainer's open-items plan.",
-    mobile: "partial",
-    mobileReason:
-      "A Markdown link to a FOLDER has no rule of its own on the phone: the desktop " +
-      "opens the folder's index.md or reveals the folder in the tree, the phone " +
-      "looks for a file of that path. Same finding and the same open item as the " +
-      "desktop side of this entry.",
-    verified: "2026-10-09",
-  },
-  {
     id: "print-note",
     title: "Print a note or save it as PDF",
     area: "editor",
@@ -590,6 +585,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "to put it inside a word - so the pill opens while the note is being read, which is " +
       "how the phone treats every link in a note.",
     verified: "2026-09-19",
+  },
+  {
+    id: "graph-edge-actions",
+    title: "Remove the links or the relation behind an edge of the graph",
+    area: "graph",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop's menu of an edge opens either note and removes what the edge " +
+      "stands for: the links in the text between the two notes (removeLinksTo) or " +
+      "the relation a property holds (removeRelationLink). The phone's sheet for " +
+      "an edge opens the two notes and offers nothing else (edgeActions in " +
+      "GraphScreen). Found on 2026-10-12 while removing text links was rebuilt to " +
+      "know a Markdown link and to leave properties and code alone; listed in the " +
+      "maintainer's open-items plan.",
+    verified: "2026-10-22",
   },
   {
     id: "blockers-follow-their-event",

@@ -2318,6 +2318,7 @@
     "edgeRemoveLinksMsg": "Cada enlace de texto de «{{source}}» a «{{target}}» se reemplazará por su texto visible.",
     "edgeRemoveRelationMsg": "«{{property}}» en «{{source}}» pierde su entrada hacia «{{target}}».",
     "edgeRemoved": "{{n}} enlace(s) quitado(s).",
+    "edgeNothingRemoved": "No se encontró ningún enlace de texto de «{{source}}» a «{{target}}»: puede que la nota haya cambiado desde que se dibujó el grafo.",
     "edgeMore": "+{{n}} más",
     "legendRelation": "Relación",
     "legendLink": "Enlace",

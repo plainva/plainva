@@ -123,7 +123,7 @@ describe("GraphService", () => {
     const g = await service.loadGraph();
     expect(g.edges.length).toBe(0);
     expect(g.broken).toEqual([
-      { sourcePath: "a.md", targetRaw: "Missing Note", lineNumber: 7, propertyKey: null },
+      { sourcePath: "a.md", targetRaw: "Missing Note", target: "missing", kind: "wikilink", lineNumber: 7, propertyKey: null },
     ]);
   });
 
@@ -466,12 +466,12 @@ describe("Schema migration v3", () => {
       q.query.includes("INSERT OR REPLACE INTO meta (key, value) VALUES ('index_format_version', ?)")
     );
     expect(versionWrite).toBeDefined();
-    expect((versionWrite!.params as any[])[0]).toBe("6");
+    expect((versionWrite!.params as any[])[0]).toBe("7");
   });
 
   it("skips the migration when the stored version is current", async () => {
     const db = new MockDatabaseAdapter();
-    db.mockedOneResults.push({ value: "6" });
+    db.mockedOneResults.push({ value: "7" });
     await initializeSchema(db);
     expect(db.queries.some((q) => q.query.includes("SET mtime_local = 0"))).toBe(false);
     expect(db.queries.some((q) => q.query.includes("SET ctime = mtime_local"))).toBe(false);

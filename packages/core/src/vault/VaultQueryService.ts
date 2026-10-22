@@ -18,7 +18,7 @@ import { findMatchesInText, type FindReplaceOptions, type TextMatch } from "./fi
 import { contentHasTag } from "./renameTag.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
 import { likeAnySpelling } from "../db/likeEscape.js";
-import { buildLinkTargetIndex, linkTargetName, resolveLinkTargetIndexed, type LinkTargetIndex } from "./LinkResolver.js";
+import { buildLinkTargetIndex, linkTargetName, resolveLinkRow, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, type LinkTargetIndex, type MarkdownLinkAnswer } from "./LinkResolver.js";
 import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
 import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from "./searchOccurrences.js";
 import { hasSpacelessText } from "./spacelessText.js";
@@ -626,6 +626,19 @@ export class VaultQueryService {
   }
 
   /**
+   * Where a MARKDOWN link leads — `[text](target)`, `target` being what
+   * `markdownLinkTarget` reads from its URL: the file, or the folder with the
+   * `index.md` in it, or null. By the Markdown rule (`resolveMarkdownLinkIndexed`:
+   * read from the folder of the note at `sourcePath` first, then where the wiki
+   * link of the same text leads) over the same corpus `resolveNotePath` reads,
+   * so a click, the graph and the backlinks give one answer.
+   */
+  async resolveMarkdownLink(target: string, sourcePath?: string): Promise<MarkdownLinkAnswer> {
+    if (!target.trim()) return null;
+    return resolveMarkdownLinkIndexed(sourcePath ?? "", target, await this.linkLookup());
+  }
+
+  /**
    * The lookup over `linkTargets()` for one answer. Callers that ask in one
    * turn share a read — a note full of embeds asks once, not once per embed.
    * The read begins only after they have all asked, and whoever asks once it
@@ -696,6 +709,10 @@ export class VaultQueryService {
     }
     const ownTitle = isNote ? files.find((f) => f.path === targetPath)?.title : null;
     if (typeof ownTitle === "string" && ownTitle.trim()) for (const spelling of likeAnySpelling(ownTitle.trim())) patterns.add(spelling);
+    // A Markdown link that names a FOLDER leads to the `index.md` in it: its
+    // target ends in a slash or in a dot segment (`Folder/`, `../`, `..`), not
+    // in the file's name.
+    if (/^index\.md$/i.test(fileName)) for (const tail of ["%/", ".", "..", "%/.", "%/.."]) patterns.add(tail);
     const sql = `
       SELECT f.path as source_path, f.title as source_title, f.mtime_local as source_mtime,
         l.target_path, l.link_type, l.anchor, l.line_number, l.property_key
@@ -713,7 +730,11 @@ export class VaultQueryService {
     const corpus = buildLinkTargetIndex(files);
 
     for (const link of candidateLinks) {
-      const resolvedPath = resolveLinkTargetIndexed(link.source_path, link.target_path, corpus);
+      // By the way the link was written (`link_type`): a Markdown link is read
+      // from the linking note's folder first. Resolved by the wiki rule alone,
+      // the entry `[Letter](Letter.md)` of a listing was a backlink of the note
+      // `Letter.md` at the vault's ROOT instead of the one beside the listing.
+      const resolvedPath = resolveLinkRow(link.source_path, link.target_path, link.link_type, corpus);
       if (resolvedPath === targetPath) {
         resolvedLinks.push(link);
       }

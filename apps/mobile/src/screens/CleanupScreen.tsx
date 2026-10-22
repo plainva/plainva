@@ -5,6 +5,8 @@ import { GraphService, type BrokenLinkInfo, type GraphNodeInfo, type GraphSugges
 import {
   applyMentionLink,
   Button,
+  brokenLinkLabel,
+  brokenLinkNotePath,
   createBrokenLinkTarget,
   EmptyState,
   getGraphState,
@@ -220,13 +222,16 @@ export function CleanupScreen({
                   <Link2 size={ICON.head} />
                 </span>
                 <span className="m-row-txt">
-                  {`[[${b.targetRaw}]]`}
+                  {brokenLinkLabel(b)}
                   <small>{titleOf(b.sourcePath)}</small>
                 </span>
               </button>
-              <IconButton label={t("graph.createTarget", { defaultValue: "Ziel anlegen" })} onClick={() => void createTarget(b)}>
-                <Plus size={ICON.ui} />
-              </IconButton>
+              {/* A link to a picture, a PDF or a folder names no note: there is none to create. */}
+              {brokenLinkNotePath(b) && (
+                <IconButton label={t("graph.createTarget", { defaultValue: "Ziel anlegen" })} onClick={() => void createTarget(b)}>
+                  <Plus size={ICON.ui} />
+                </IconButton>
+              )}
             </div>
           ))
         ))}

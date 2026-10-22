@@ -651,7 +651,14 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
 // name it is written as (finding 2026-10-11). Only the notes whose links the
 // two readings may list differently are read again by the next full scan
 // (`wikiLinkReadingMigration.ts`).
-const INDEX_FORMAT_VERSION = 6;
+//
+// Version 7 reads the target of a Markdown link anew (finding 2026-10-11): a
+// link without an anchor of its own was cut at the first `#` or `^` of its
+// DECODED target, so `Draft%20%231.md` stood in the link table as a link to
+// `Draft` with the anchor `#1.md`. A stored row cannot tell such a link from
+// one with a real anchor — both carry one —, so every note that holds a
+// Markdown link with an anchor is re-parsed, and no other.
+const INDEX_FORMAT_VERSION = 7;
 
 async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
   let stored: number;
@@ -666,10 +673,17 @@ async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
   }
   if (stored >= INDEX_FORMAT_VERSION) return;
 
-  await upgradeFullTextTable(db);
+  if (stored < 5) await upgradeFullTextTable(db);
   if (stored >= 4) {
     if (stored < 5) await fillSegmentedColumns(db);
-    await markNotesForWikiLinkReading(db);
+    if (stored < 6) await markNotesForWikiLinkReading(db);
+    // Version 7: the notes whose Markdown links may stand under a cut target.
+    // The same reset as below, for those notes alone — the next full pass
+    // re-parses them, and a file that has not changed fires no sync callback.
+    await db.execute(
+      `UPDATE files SET mtime_local = 0
+       WHERE id IN (SELECT source_id FROM links WHERE link_type = 'markdown-link' AND anchor IS NOT NULL)`
+    );
   } else {
     // Below 4 every note is re-parsed, which fills the new columns as well.
     // Backfill BEFORE the mtime reset — ctime derives from mtime_local.

@@ -247,17 +247,11 @@ function choose(candidates: readonly LinkIndexEntry[], sourceFolder: string, wri
   return [...pool].sort((a, b) => a.path.length - b.path.length || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))[0].path;
 }
 
-export function resolveLinkTargetIndexed(
-  sourcePath: string,
-  linkTarget: string,
-  index: LinkTargetIndex
-): string | null {
-  if (!linkTarget) return null;
-  const query = linkTarget.normalize("NFC").trim();
-  if (!query) return null;
-  const source = sourcePath.normalize("NFC");
-  const sourceFolder = folderOf(source);
-
+/**
+ * The questions both link rules ask of one lookup, read from the folder of
+ * one linking note.
+ */
+function pathReader(index: LinkTargetIndex, sourceFolder: string) {
   /** The files at one vault path, in any spelling. */
   const spelled = (path: string): readonly LinkIndexEntry[] => index.byPath.get(nameKey(path)) ?? [];
   /**
@@ -277,6 +271,30 @@ export function resolveLinkTargetIndexed(
    * must not stand in front of the note `License.md` for `[[License]]`.
    */
   const inOtherSpelling = (path: string): string | null => (NOTE_EXTENSION.test(path) ? null : choose(spelled(path), sourceFolder, path, null));
+  /**
+   * The end of a path. Only the files of that NAME can end so; of those, the
+   * ones whose path ends with the whole target.
+   */
+  const atEnd = (target: string): string | null => {
+    const key = nameKey(target);
+    const tail = `/${key}`;
+    const candidates = (index.byName.get(nameKey(lastSegment(target))) ?? []).filter((file) => file.key === key || file.key.endsWith(tail));
+    return choose(candidates, sourceFolder, target, sourceFolder ? `${sourceFolder}/${target}` : target);
+  };
+  return { atPath, inOtherSpelling, atEnd };
+}
+
+export function resolveLinkTargetIndexed(
+  sourcePath: string,
+  linkTarget: string,
+  index: LinkTargetIndex
+): string | null {
+  if (!linkTarget) return null;
+  const query = linkTarget.normalize("NFC").trim();
+  if (!query) return null;
+  const source = sourcePath.normalize("NFC");
+  const sourceFolder = folderOf(source);
+  const { atPath, inOtherSpelling, atEnd } = pathReader(index, sourceFolder);
 
   // 1. An explicit path names one place.
   const named = explicitLinkPath(source, query);
@@ -286,14 +304,7 @@ export function resolveLinkTargetIndexed(
   const exact = atPath(query);
   if (exact !== null) return exact;
 
-  // 3. and 4. The end of a path. Only the files of that NAME can end so; of
-  // those, the ones whose path ends with the whole target.
-  const atEnd = (target: string): string | null => {
-    const key = nameKey(target);
-    const tail = `/${key}`;
-    const candidates = (index.byName.get(nameKey(lastSegment(target))) ?? []).filter((file) => file.key === key || file.key.endsWith(tail));
-    return choose(candidates, sourceFolder, target, sourceFolder ? `${sourceFolder}/${target}` : target);
-  };
+  // 3. and 4. The end of a path.
   const namesNote = NOTE_EXTENSION.test(query);
   const asNote = atEnd(namesNote ? query : `${query}.md`);
   if (asNote !== null) return asNote;
@@ -352,4 +363,172 @@ export function linkTargetName(raw: string): string {
   const caret = withoutAlias.indexOf("^");
   const at = hash === -1 ? caret : caret === -1 ? hash : Math.min(hash, caret);
   return (at === -1 ? withoutAlias : withoutAlias.slice(0, at)).trim();
+}
+
+/**
+ * Where a MARKDOWN link leads — `[text](target)` (finding 2026-10-09, ADR 0027
+ * addendum).
+ *
+ * Eight surfaces opened such a link, and hardly two of them read it alike. The
+ * desktop's reading view read it from the linking note's folder and nothing
+ * else; the desktop's editor did so for a target with a slash and sent a bare
+ * name through the wiki rule WITHOUT decoding it, so `[My letter](My%20letter.md)`
+ * — the form Plainva's own listings write — created a note `My%20letter.md`
+ * beside the real one; the phone tried the note's folder and the vault's root
+ * and created a second note where the file lay in a third folder; the graph
+ * and the backlinks resolved every Markdown link by the wiki rule, so a rename
+ * rewrote the entry of a listing that named ANOTHER note.
+ *
+ * One rule now, and one sentence: a Markdown link is read from the folder of
+ * the linking note first; where nothing lies there, it leads where the wiki
+ * link of the same text leads.
+ *
+ *   1. An explicit path — `/Folder/File` from the vault's root, `./File` and
+ *      `../Folder/File` from the linking note's folder — and nothing else.
+ *   2. The path read from the linking note's folder: the file spelled exactly
+ *      so, the note there (`.md`), the file in another spelling. That is how
+ *      every Markdown reader reads a relative link, how the OKF specification
+ *      reads it, and how Plainva writes one (index listings, "prepare").
+ *   3. The wiki rule on the same target (`resolveLinkTargetIndexed`): the
+ *      vault path as written — Obsidian's "absolute path in vault" has no
+ *      leading slash —, the end of a path, a file that is no note, a title.
+ *      Obsidian's own Markdown form names a note by its NAME
+ *      (`[Three laws of motion](Three%20laws%20of%20motion)`), and both
+ *      editors followed such links before this rule.
+ *
+ * A target that ends in a slash names a FOLDER (`Folder/`, `../`): tried as an
+ * explicit path, then from the linking note's folder, then from the root. The
+ * answer is the folder and the `index.md` in it, where it has one.
+ *
+ * The answer is always the ORIGINAL stored path, never the spelling written.
+ */
+export type MarkdownLinkAnswer =
+  | { kind: "file"; path: string }
+  /** `path` "" is the vault's root; `index` is the folder's `index.md`, or null. */
+  | { kind: "folder"; path: string; index: string | null }
+  | null;
+
+/** `relative` read from `folder` as a FOLDER: "" is the vault's root, null where it climbs out of the vault. */
+function folderFrom(folder: string, relative: string): string | null {
+  const parts = folder ? folder.split("/") : [];
+  for (const part of relative.split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") {
+      if (parts.length === 0) return null;
+      parts.pop();
+    } else parts.push(part);
+  }
+  return parts.join("/");
+}
+
+/**
+ * Every folder a file of the lookup lies in or below — the name as people
+ * read it to the path as stored. Built on the first question about a folder
+ * and kept with the lookup: most links name a file and never ask.
+ */
+const folderLookups = new WeakMap<LinkTargetIndex, Map<string, string>>();
+function foldersOf(index: LinkTargetIndex): Map<string, string> {
+  let known = folderLookups.get(index);
+  if (known) return known;
+  known = new Map();
+  const seen = new Set<string>();
+  for (const bucket of index.byPath.values()) {
+    for (const file of bucket) {
+      // Up from the file's own folder, as far as a folder is new.
+      for (let folder = folderOf(file.path); folder !== "" && !seen.has(folder); folder = folderOf(folder)) {
+        seen.add(folder);
+        const key = nameKey(folder);
+        if (!known.has(key)) known.set(key, folder);
+      }
+    }
+  }
+  folderLookups.set(index, known);
+  return known;
+}
+
+/** The folder at `path` ("" = the root, which is always there), or null where no file lies in or below it. */
+function folderAt(index: LinkTargetIndex, path: string): MarkdownLinkAnswer {
+  const stored = path === "" ? "" : foldersOf(index).get(nameKey(path));
+  if (stored === undefined) return null;
+  const listing = path === "" ? "index.md" : `${path}/index.md`;
+  return { kind: "folder", path: stored, index: choose(index.byPath.get(nameKey(listing)) ?? [], "", listing, null) };
+}
+
+export function resolveMarkdownLinkIndexed(sourcePath: string, linkTarget: string, index: LinkTargetIndex): MarkdownLinkAnswer {
+  if (!linkTarget) return null;
+  const query = linkTarget.normalize("NFC").trim();
+  if (!query) return null;
+  const source = sourcePath.normalize("NFC");
+  const sourceFolder = folderOf(source);
+  const fromRoot = query.startsWith("/");
+  const last = query.slice(query.lastIndexOf("/") + 1);
+
+  // A folder: `Folder/`, `../`, `.`.
+  if (last === "" || last === "." || last === "..") {
+    const explicit = fromRoot || query.startsWith("./") || query.startsWith("../") || query === "." || query === "..";
+    const places = explicit ? [folderFrom(fromRoot ? "" : sourceFolder, query)] : [folderFrom(sourceFolder, query), folderFrom("", query)];
+    for (const place of places) {
+      const folder = place === null ? null : folderAt(index, place);
+      if (folder !== null) return folder;
+    }
+    return null;
+  }
+
+  const { atPath, inOtherSpelling } = pathReader(index, sourceFolder);
+  const fileAt = (path: string | null): string | null => (path === null ? null : (atPath(path) ?? inOtherSpelling(path)));
+  const file = (path: string | null): MarkdownLinkAnswer => (path === null ? null : { kind: "file", path });
+
+  // 1. An explicit path names one place.
+  const named = explicitLinkPath(source, query);
+  if (named !== undefined) return file(fileAt(named));
+
+  // 2. Read from the linking note's folder.
+  const near = fileAt(fromFolder(sourceFolder, query));
+  if (near !== null) return file(near);
+
+  // 3. Where the wiki link of the same text leads.
+  return file(resolveLinkTargetIndexed(source, query, index));
+}
+
+/**
+ * Where a link ROW of the index leads (`links.target_path`, `links.link_type`):
+ * a wiki link, an embed and a relation by the wiki rule, a Markdown link by
+ * its own — for a folder the `index.md` in it. The graph, the backlinks and a
+ * rename ask this, so a link is an edge to the file a click on it opens.
+ */
+export function resolveLinkRow(sourcePath: string, targetPath: string, linkType: string | null | undefined, index: LinkTargetIndex): string | null {
+  if (linkType !== "markdown-link") return resolveLinkTargetIndexed(sourcePath, targetPath, index);
+  const answer = resolveMarkdownLinkIndexed(sourcePath, targetPath, index);
+  return answer === null ? null : answer.kind === "file" ? answer.path : answer.index;
+}
+
+/**
+ * The places a Markdown link's target names as PATHS, in the rule's order —
+ * for asking the disk about a file the index has not taken in yet. A file
+ * comes with the note of that path (`.md`) behind it; a folder as it is.
+ * Nothing here is a name: "a file anywhere that ends so" is the index's to say.
+ */
+export function markdownLinkPlaces(sourcePath: string, linkTarget: string): { kind: "file" | "folder"; path: string }[] {
+  const query = linkTarget.normalize("NFC").trim();
+  if (!query) return [];
+  const sourceFolder = folderOf(sourcePath.normalize("NFC"));
+  const fromRoot = query.startsWith("/");
+  const explicit = fromRoot || query.startsWith("./") || query.startsWith("../") || query === "." || query === "..";
+  const last = query.slice(query.lastIndexOf("/") + 1);
+  const isFolder = last === "" || last === "." || last === "..";
+  const read = isFolder ? folderFrom : fromFolder;
+  const bases = explicit ? [read(fromRoot ? "" : sourceFolder, query)] : [read(sourceFolder, query), read("", query)];
+  const places: { kind: "file" | "folder"; path: string }[] = [];
+  const add = (kind: "file" | "folder", path: string) => {
+    if (!places.some((place) => place.kind === kind && place.path === path)) places.push({ kind, path });
+  };
+  for (const base of bases) {
+    if (base === null) continue;
+    if (isFolder) add("folder", base);
+    else {
+      add("file", base);
+      if (!NOTE_EXTENSION.test(base)) add("file", `${base}.md`);
+    }
+  }
+  return places;
 }

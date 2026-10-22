@@ -1,6 +1,6 @@
 # Graph
 
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-22
 
 Plainva's graph is a working tool, not a poster: it shows you where you are, what is connected, what is missing — and you can act on it directly. There is ONE graph engine with three faces.
 
@@ -38,7 +38,7 @@ Working on the map:
 
 ## Cleaning up
 
-The **Clean up** button opens a worklist with three tabs: **Orphans** (notes without connections), **Broken links** (targets that do not exist — **Create note** creates them) and **Mentions** (**Scan vault** finds places where a note is named but not linked; **Link** turns the occurrence into a wiki link). The map's footer shows the orphan count — clicking it opens the panel.
+The **Clean up** button opens a worklist with three tabs: **Orphans** (notes without connections), **Broken links** (targets that do not exist — **Create note** creates the note where its link will find it; a link to a picture, a PDF or a folder has no note to create) and **Mentions** (**Scan vault** finds places where a note is named but not linked; **Link** turns the occurrence into a wiki link). The map's footer shows the orphan count — clicking it opens the panel.
 
 In scripts written without spaces, a title counts as mentioned wherever it appears in the text — there are no word boundaries — and two characters such as 会議 are enough.
 

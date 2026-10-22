@@ -82,7 +82,9 @@ describe("where the two writers that went through it are wired", () => {
   it("a rename rewrites the links of a note where they stand, in its text and in its properties", () => {
     const rename = sourceFile("packages/ui/src/lib/renameNote.ts");
     const apply = rename.slice(rename.indexOf("export async function applyLinkUpdates"), rename.indexOf("export async function renameFileWithLinkUpdates"));
-    expect(apply).toMatch(/renameNoteLinks\(text, new Map\(source\.body\.map\(/);
+    // Each link by the way it is written (`renamePlannedLinks`), and still where it stands.
+    expect(apply).toMatch(/renamePlannedLinks\(text, source\.body\)/);
+    expect(rename).toMatch(/const result = rewriteNoteLinks\(text, \(link\) => \{/);
     expect(apply).toMatch(/renameFrontmatterWikiLinks\(text, source\.frontmatter\)/);
     // A link that could not be rewritten where it stands is said, not passed over.
     expect(apply).toMatch(/left \+= res\.unplaced;/);

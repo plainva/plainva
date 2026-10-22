@@ -1,6 +1,6 @@
 # Graph
 
-Stand: 2026-09-30
+Stand: 2026-10-22
 
 Plainvas Graph ist kein Poster, sondern ein Arbeitswerkzeug: Er zeigt Dir, wo Du bist, was zusammenhängt, was fehlt — und Du kannst direkt darin arbeiten. Es gibt EINE Graph-Engine mit drei Erscheinungsformen.
 
@@ -38,7 +38,7 @@ Arbeiten auf der Karte:
 
 ## Aufräumen
 
-Der Knopf **Aufräumen** öffnet eine Arbeitsliste mit drei Reitern: **Waisen** (Notizen ohne Verbindungen), **Kaputte Links** (Ziele, die es nicht gibt — **Notiz erstellen** legt sie an) und **Erwähnungen** (**Vault scannen** findet Stellen, an denen eine Notiz beim Namen genannt, aber nicht verlinkt ist; **Verlinken** macht aus der Fundstelle einen Wiki-Link). Die Fußzeile der Karte zeigt die Waisen-Zahl — ein Klick darauf öffnet das Panel.
+Der Knopf **Aufräumen** öffnet eine Arbeitsliste mit drei Reitern: **Waisen** (Notizen ohne Verbindungen), **Kaputte Links** (Ziele, die es nicht gibt — **Notiz erstellen** legt die Notiz dort an, wo ihr Link sie findet; für einen Link auf ein Bild, ein PDF oder einen Ordner gibt es keine Notiz anzulegen) und **Erwähnungen** (**Vault scannen** findet Stellen, an denen eine Notiz beim Namen genannt, aber nicht verlinkt ist; **Verlinken** macht aus der Fundstelle einen Wiki-Link). Die Fußzeile der Karte zeigt die Waisen-Zahl — ein Klick darauf öffnet das Panel.
 
 In Schriften ohne Leerzeichen gilt ein Titel überall im Text als erwähnt – dort gibt es keine Wortgrenzen –, und schon zwei Zeichen wie 会議 reichen.
 

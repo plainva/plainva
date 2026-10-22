@@ -1,4 +1,4 @@
-import { decodeMarkdownLinkTarget, encodeMarkdownLinkPath } from "./linkEncoding.js";
+import { decodeMarkdownLinkTarget, encodeMarkdownLinkPath, markdownLinkTarget } from "./linkEncoding.js";
 import { parseMarkdownAst } from "./markdown-parser.js";
 import { wikiLinkInner, wikiLinkParts } from "./wikiLink.js";
 
@@ -128,12 +128,14 @@ function unescaped(text: string, from: number, to: number): Unescaped {
  * The file a Markdown link's destination names: what stands in front of the
  * first `#` — the anchor marker of a destination —, decoded and trimmed. A
  * `#` that belongs to a file's name arrives encoded (`%23`) and is part of the
- * name. `from` and `to` are where that part stands in `url`, blanks aside.
+ * name. The target is `markdownLinkTarget`'s to read, the one reading the
+ * index, a click and the graph share. `from` and `to` are where that part
+ * stands in `url`, blanks aside.
  */
 function markdownTarget(url: string): { target: string; from: number; to: number } {
   const hash = url.indexOf("#");
   const path = hash < 0 ? url : url.slice(0, hash);
-  return { target: decodeMarkdownLinkTarget(path).trim(), from: path.length - path.trimStart().length, to: path.trimEnd().length };
+  return { target: markdownLinkTarget(url).target, from: path.length - path.trimStart().length, to: path.trimEnd().length };
 }
 
 /**

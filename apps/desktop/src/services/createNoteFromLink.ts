@@ -38,8 +38,10 @@ export async function createNoteFromLink(
   target: string,
   hostPath: string | undefined,
   deps: CreateNoteFromLinkDeps,
+  /** Where the link's rule will find the note, where the opener said so (`services/openLink`). */
+  place?: { path: string; title: string },
 ): Promise<CreateNoteFromLinkResult> {
-  const { path, title } = wikiTargetToPath(target, hostPath);
+  const { path, title } = place ?? wikiTargetToPath(target, hostPath);
   if (!title) return { outcome: "no-title" };
   if (await deps.vaultAdapter.exists(path)) return { outcome: "exists", path };
   if (await deps.askFirst()) {

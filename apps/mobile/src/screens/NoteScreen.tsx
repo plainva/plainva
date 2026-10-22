@@ -42,6 +42,7 @@ import { resolveGoverningBaseOf } from "../services/baseOps";
 import { forgetKeptText, getLastPersistedText, keepTextShape, noteSaver, NotTextFileError, rememberPersistedText, reportMoveFailure, vaultOps, vaultTextFiles, type MobileVault } from "../services/vaultService";
 import { shareVaultFile } from "../services/shareFile";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
+import { openLink } from "../services/openLink";
 import { configuredNoteType } from "../services/newNote";
 import { mPrompt } from "../services/mobileDialogs";
 import { confirmDeleteFile } from "../lib/deleteFile";
@@ -1583,8 +1584,9 @@ export function NoteScreen({
           onDiscardPending={commentHasOutbox ? outboxId => { void mobileCommentStore(vault).discard(outboxId).catch(error => toast.error(errorText(error))); } : undefined}
           onRevealAnchor={revealAnchor}
           onOpenNote={(target: string, kind?: "wiki" | "markdown") => {
-            // The same resolution the editor's wiki links take (K4).
-            void vaultOps.resolveWikiTarget(vault, target, path, kind).then((resolved) => { if (resolved) onOpenNote(resolved); });
+            // The phone's one opener, as for a link in the note itself (K4):
+            // a link that leads nowhere says so instead of doing nothing.
+            void openLink({ text: target, kind: kind ?? "wiki", sourcePath: path }, { vault, onOpenNote });
           }}
           onOpenUrl={(url) => { void getPlatformServices().openExternal(url); }}
         />

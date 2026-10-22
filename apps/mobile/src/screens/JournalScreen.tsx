@@ -19,6 +19,7 @@ import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { journalFailureText, journalFiles, journalHeading, onJournalWrite } from "../services/journalService";
 import { syncSoon } from "../services/syncService";
 import { getMobileSettings } from "../services/mobileSettings";
+import { openLink } from "../services/openLink";
 import { vaultOps, vaultTextFiles, type MobileVault } from "../services/vaultService";
 
 /**
@@ -115,7 +116,7 @@ export function JournalScreen({
   const links = useMemo(() => ({
     // Read from the day's note the entry stands in, as the editor reads it there.
     onOpenNote: (target: string, _newTab: boolean, kind?: "wiki" | "markdown", fromPath?: string) => {
-      void vaultOps.resolveWikiTarget(vault, target, fromPath, kind).then((path) => { if (path) onOpenNote(path); }).catch(() => undefined);
+      void openLink({ text: target, kind: kind ?? "wiki", sourcePath: fromPath }, { vault, onOpenNote }).catch(() => undefined);
     },
     onOpenUrl: (url: string) => { void Browser.open({ url }).catch(() => undefined); },
     onOpenTag: (tag: string) => setFilter((f) => ({ ...f, tag })),

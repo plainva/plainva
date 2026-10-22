@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
-import { isInternalPath, linkTargetName, resolveLinkTarget, VaultIndexer, VaultQueryService } from "@plainva/core";
-import { relativeLinkCandidates } from "@plainva/ui";
+import { buildLinkTargetIndex, isInternalPath, linkTargetName, markdownLinkTarget, resolveLinkTarget, resolveMarkdownLinkIndexed, VaultIndexer, VaultQueryService } from "@plainva/core";
 import { LINK_CASES, type LinkCase } from "../../../../packages/core/test/helpers/linkCases";
 import { MemoryVaultAdapter } from "../../../../packages/core/test/helpers/memoryVault";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
@@ -26,21 +25,23 @@ import type { MobileVault } from "./vaultService";
 
 const source = readFileSync(resolve("src/services/vaultService.ts"), "utf8");
 const file = ts.createSourceFile("vaultService.ts", source, ts.ScriptTarget.Latest, true);
-let method = "";
+// `resolveWikiTarget` hands a link that is no wiki link to `resolveMarkdownLink`.
+const methods: string[] = [];
 function visit(node: ts.Node) {
-  if (ts.isMethodDeclaration(node) && node.name.getText(file) === "resolveWikiTarget") method = node.getText(file);
+  if (ts.isMethodDeclaration(node) && ["resolveMarkdownLink", "resolveWikiTarget"].includes(node.name.getText(file))) methods.push(node.getText(file));
   ts.forEachChild(node, visit);
 }
 visit(file);
-if (!method) throw new Error("vaultOps.resolveWikiTarget is missing from vaultService.ts");
-const compiled = ts.transpileModule(`const vaultOps = {${method}};`, {
+if (methods.length !== 2) throw new Error("vaultOps.resolveWikiTarget or vaultOps.resolveMarkdownLink is missing from vaultService.ts");
+const compiled = ts.transpileModule(`const vaultOps = {${methods.join(",\n")}};`, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
 }).outputText;
 
 type Resolve = (v: MobileVault, target: string, hostPath?: string, kind?: "wiki" | "markdown") => Promise<string | null>;
 /** Everything the method reaches for outside itself — the shared pieces, nothing of the phone's own. */
-const deps = { relativeLinkCandidates, resolveLinkTarget, linkTargetName, isInternalPath };
-const resolveWikiTarget: Resolve = (new Function(...Object.keys(deps), `${compiled}\nreturn vaultOps;`)(...Object.values(deps)) as { resolveWikiTarget: Resolve }).resolveWikiTarget;
+const deps = { buildLinkTargetIndex, isInternalPath, linkTargetName, markdownLinkTarget, resolveLinkTarget, resolveMarkdownLinkIndexed };
+const vaultOps = new Function(...Object.keys(deps), `${compiled}\nreturn vaultOps;`)(...Object.values(deps)) as { resolveWikiTarget: Resolve };
+const resolveWikiTarget: Resolve = (...args) => vaultOps.resolveWikiTarget(...args);
 
 /** A vault as the phone holds it: the files, and the index the shared indexer built over them. */
 async function phoneVault(files: Record<string, string>, opts: { index?: boolean } = {}) {
@@ -97,23 +98,25 @@ describe("what the phone adds around the rule", () => {
     await db.close();
   });
 
-  it("a Markdown link whose path leads nowhere leads nowhere — also where a file elsewhere ends alike", async () => {
-    // "A file anywhere in the vault that ends so" is a wiki link's reading. The
-    // rule must not lend it to a Markdown link: the desktop reads such a link
-    // as a path and says "not found", and so did the phone before the rule.
+  it("a Markdown link is read from the note first, and then leads where the wiki link of the same text leads", async () => {
+    // Until 2026-10-22 the phone stopped at the note's folder and the vault's
+    // root: a Markdown link to a file elsewhere led nowhere here — and the tap
+    // went on to create a second note —, while the desktop's editor opened it
+    // and the graph drew the edge. The cases every surface answers are in
+    // `markdownLinkOneRule.test.ts`.
     const { vault, db } = await phoneVault({
       "Projekte/Plan.md": "[the plan](Ablage/Plan.md), [a shot](img/shot.png), [the letter](Brief.md), [[Ablage/Plan]] and [the letter](Brief)\n",
       "Archiv/Ablage/Plan.md": "An old plan.\n",
       "Archiv/img/shot.png": "PNG\n",
       "Archiv/Brief.md": "An old letter.\n",
     });
-    expect(await resolveWikiTarget(vault, "Ablage/Plan.md", "Projekte/Plan.md", "markdown")).toBeNull();
-    expect(await resolveWikiTarget(vault, "img/shot.png", "Projekte/Plan.md", "markdown")).toBeNull();
-    expect(await resolveWikiTarget(vault, "Brief.md", "Projekte/Plan.md", "markdown")).toBeNull();
-    // The wiki link of the same text is a name, and finds the file by the end of its path.
+    expect(await resolveWikiTarget(vault, "Ablage/Plan.md", "Projekte/Plan.md", "markdown")).toBe("Archiv/Ablage/Plan.md");
+    expect(await resolveWikiTarget(vault, "img/shot.png", "Projekte/Plan.md", "markdown")).toBe("Archiv/img/shot.png");
+    expect(await resolveWikiTarget(vault, "Brief.md", "Projekte/Plan.md", "markdown")).toBe("Archiv/Brief.md");
     expect(await resolveWikiTarget(vault, "Ablage/Plan", "Projekte/Plan.md", "wiki")).toBe("Archiv/Ablage/Plan.md");
-    // A bare name in a Markdown link has no path to read: it is found by name, as it always was.
     expect(await resolveWikiTarget(vault, "Brief", "Projekte/Plan.md", "markdown")).toBe("Archiv/Brief.md");
+    // An explicit path names one place: nothing else is tried for it.
+    expect(await resolveWikiTarget(vault, "./Brief.md", "Projekte/Plan.md", "markdown")).toBeNull();
     await db.close();
   });
 

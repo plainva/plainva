@@ -472,8 +472,12 @@ describe("editorSession", () => {
     const { session, deps } = makeSession();
     const late = vi.fn();
     deps.current = { ...baseDeps(), openWikiTarget: late };
-    session.view.state.facet(tableLinkHandlers).onOpenNote?.("Ziel", true);
-    expect(late).toHaveBeenCalledWith("Ziel", true);
+    // A link in a rendered table cell reaches the shell with the way it is
+    // written, like one in running text (finding 2026-10-12).
+    session.view.state.facet(tableLinkHandlers).onOpenNote?.("Ziel", true, "wiki");
+    expect(late).toHaveBeenLastCalledWith("Ziel", true, "wiki");
+    session.view.state.facet(tableLinkHandlers).onOpenNote?.("Ordner/Ziel.md", false, "markdown");
+    expect(late).toHaveBeenLastCalledWith("Ordner/Ziel.md", false, "markdown");
   });
 
   it("shows line numbers only in source mode and toggles via setMode", () => {

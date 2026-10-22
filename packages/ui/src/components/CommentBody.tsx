@@ -56,7 +56,7 @@ function renderNodes(nodes: InlineNode[], keyPrefix: string, handlers: Pick<Comm
             key={key}
             href={node.href}
             className="pv-comment-card__link"
-            onClick={(event) => { stop(event); if (node.external) handlers.onOpenUrl?.(node.href); else handlers.onOpenNote?.(node.href, "markdown"); }}
+            onClick={(event) => { stop(event); if (node.external) handlers.onOpenUrl?.(node.href); else handlers.onOpenNote?.(node.written, "markdown"); }}
           >
             {node.label}
           </a>

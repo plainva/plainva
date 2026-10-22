@@ -1,8 +1,8 @@
 import {
   buildLinkTargetIndex,
   explicitLinkPath,
-  resolveLinkTargetIndexed,
-  renameNoteLinks,
+  resolveLinkRow,
+  rewriteNoteLinks,
   renameFrontmatterWikiLinks,
   updateVaultText,
   type FrontmatterLinkRename,
@@ -19,9 +19,18 @@ import { sweepPinboardRefs } from "../base/pinboardSweep";
  *
  * A note that links to the renamed one changes in the part of each link that
  * names the file, and in nothing else — byte for byte (finding 2026-10-09).
- * The links are rewritten where they stand (`renameNoteLinks`, and
+ * The links are rewritten where they stand (`rewriteNoteLinks`, and
  * `renameFrontmatterWikiLinks` for a link in the properties); the note is
  * never written back from a parsed tree, which reformatted all of it.
+ *
+ * A link is rewritten when it LEADS to the renamed file — by the rule of the
+ * way it is written (finding 2026-10-12). A wiki link and a Markdown link of
+ * one text may lead to two files: `[[Letter.md]]` in `Projects/Plan.md` is the
+ * note at the vault's root, `[x](Letter.md)` the one beside the plan. Until
+ * then the backlinks resolved both by the wiki rule and the rewrite changed
+ * every link of that text: renaming the note at the root rewrote the entry of
+ * a listing that named the note beside it, and renaming THAT note left the
+ * entry standing.
  *
  * Assumes a same-directory rename (both call sites — file-tree rename and
  * index.md adoption — only change the file name, never the folder), so a raw
@@ -70,15 +79,41 @@ export type LinkUpdateQuery = Pick<VaultQueryService, "getBacklinks" | "db">;
  * The link rewrites one rename implies — plain data (a journal can hold it).
  * Per referencing file: the raw body targets with their new target, and the
  * frontmatter relation links by key.
+ *
+ * `kind` says which links of that text are meant: wiki links and embeds, or
+ * Markdown links. A plan written before 2026-10-22 carries none, and means
+ * every link of the text.
  */
 export interface LinkUpdatePlan {
   oldPath: string;
   newPath: string;
   sources: Array<{
     path: string;
-    body: Array<{ raw: string; target: string }>;
+    body: Array<{ raw: string; target: string; kind?: "wiki" | "markdown" }>;
     frontmatter: FrontmatterLinkRename[];
   }>;
+}
+
+/** The way a link row of the index is written, as a plan names it. */
+const planKind = (linkType: string | null | undefined): "wiki" | "markdown" => (linkType === "markdown-link" ? "markdown" : "wiki");
+
+/** A Markdown link's target that names a folder: it ends in `/`, `.` or `..`. */
+function namesFolder(target: string): boolean {
+  const trimmed = target.trim();
+  const last = trimmed.slice(trimmed.lastIndexOf("/") + 1);
+  return last === "" || last === "." || last === "..";
+}
+
+/** The folder a vault path lies in; "" for the vault's root. */
+const folderOfPath = (path: string): string => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
+
+/** `toPath` as a path read from `fromFolder`: `Note.md`, `Sub/Note.md`, `../Other/Note.md`. */
+function pathFromFolder(fromFolder: string, toPath: string): string {
+  const from = fromFolder ? fromFolder.split("/") : [];
+  const to = toPath.split("/");
+  let common = 0;
+  while (common < from.length && common < to.length - 1 && from[common] === to[common]) common++;
+  return [...Array<string>(from.length - common).fill(".."), ...to.slice(common)].join("/");
 }
 
 /**
@@ -97,12 +132,13 @@ export async function planLinkUpdates(
   oldPath: string,
   newPath: string
 ): Promise<{ plan: LinkUpdatePlan; failed: boolean; bareTarget: string }> {
-  let backlinks: { source_path: string; target_path: string; property_key?: string | null }[] = [];
+  let backlinks: { source_path: string; target_path: string; link_type?: string | null; property_key?: string | null }[] = [];
   let allPaths: string[] = [];
   let failed = false;
   try {
     backlinks = await queryService.getBacklinks(oldPath);
-    const rows = await queryService.db.query<{ path: string }>(`SELECT path FROM files`);
+    // A file queued for deletion is no link target (`linkTargets` asks the same).
+    const rows = await queryService.db.query<{ path: string }>(`SELECT path FROM files WHERE is_deleted IS NULL OR is_deleted = 0`);
     allPaths = rows.map((r) => r.path);
   } catch (e) {
     console.warn("[renameNote] collecting backlinks failed — renaming without link updates", e);
@@ -145,9 +181,36 @@ export async function planLinkUpdates(
   // rule's last step): a rename leaves that title alone, so such a link keeps
   // leading there — and `[[Angebotsbrief]]` must not turn into the new file
   // name. A link names the file when the rule finds it without any title.
+  // A Markdown link is asked the rule for Markdown links (ADR 0027, addendum
+  // 2026-10-12): from its note's folder first.
   const byName = buildLinkTargetIndex([...new Set([...allPaths, oldPath])]);
-  backlinks = backlinks.filter((link) => resolveLinkTargetIndexed(link.source_path, link.target_path, byName) === oldPath);
+  backlinks = backlinks.filter((link) => resolveLinkRow(link.source_path, link.target_path, link.property_key ? null : link.link_type, byName) === oldPath);
   if (backlinks.length === 0) return { plan, failed, bareTarget };
+  // The vault as it will be, for the question a Markdown link's new target
+  // has to answer: does it still lead to the renamed file?
+  const afterRename = buildLinkTargetIndex([...new Set([...allPaths.filter((p) => p !== oldPath), newPath])]);
+
+  /**
+   * A Markdown link names a path, and a rename leaves the file in its folder:
+   * only the name at the end of the path changes, however the link reached the
+   * file — from its note's folder, from the root or by its name. The vault
+   * path that stood here until 2026-10-22 turned `Ablage/Brief.md`, written
+   * in `Projekte/Plan.md`, into `Projekte/Ablage/Neu.md`, which reads
+   * `Projekte/Projekte/…` from the note. Where the new name leads elsewhere —
+   * a file of that name lies nearer —, the path from the linking note's
+   * folder is written: the rule reads that one first.
+   */
+  const newMarkdownTargetFor = (raw: string, source: string): string => {
+    const place = raw.slice(0, raw.lastIndexOf("/") + 1);
+    const renamed = place + (!isNote || raw.toLowerCase().endsWith(".md") ? newBasename : newBase);
+    // `index.md` is the name of every folder's overview, and a bare one is read
+    // from the linking note's folder first: it finds THAT folder's overview as
+    // soon as there is one - also one written in the same run, which the index
+    // does not know yet (review 2026-10-22). The path names this one for sure.
+    const overview = isNote && nameKey(newBase) === "index" && !renamed.includes("/");
+    if (!overview && resolveLinkRow(source, renamed, "markdown-link", afterRename) === newPath) return renamed;
+    return pathFromFolder(folderOfPath(source), newPath);
+  };
 
   const newTargetFor = (raw: string): string => {
     // An explicit path (`./Brief`, `../Ablage/Brief.md`, `/Projekte/Brief`)
@@ -176,16 +239,23 @@ export async function planLinkUpdates(
   // Group raw targets per source file, split into body links and frontmatter
   // relation links (links.property_key names the affected key). The renamed
   // file's own links keep working (self-references resolve within the new file).
-  const bySource = new Map<string, { bodyRaws: Set<string>; fmRenames: Map<string, Set<string>> }>();
+  const bySource = new Map<string, { body: Map<string, { raw: string; kind?: "wiki" | "markdown" }>; fmRenames: Map<string, Set<string>> }>();
   for (const link of backlinks) {
+    // A row without its kind (a caller that does not read it) means every
+    // link of that text, as a plan written before the kinds does.
+    const kind = link.link_type ? planKind(link.link_type) : undefined;
+    // A Markdown link to a FOLDER (`Ablage/`, `..`) reached the folder's
+    // index.md, and names the folder: a rename of that note leaves it a
+    // folder link (review 2026-10-22: `Ablage/` became a link to the file).
+    if (!link.property_key && kind === "markdown" && namesFolder(link.target_path)) continue;
     const source = link.source_path === oldPath ? newPath : link.source_path;
-    if (!bySource.has(source)) bySource.set(source, { bodyRaws: new Set(), fmRenames: new Map() });
+    if (!bySource.has(source)) bySource.set(source, { body: new Map(), fmRenames: new Map() });
     const entry = bySource.get(source)!;
     if (link.property_key) {
       if (!entry.fmRenames.has(link.property_key)) entry.fmRenames.set(link.property_key, new Set());
       entry.fmRenames.get(link.property_key)!.add(link.target_path);
     } else {
-      entry.bodyRaws.add(link.target_path);
+      entry.body.set(`${kind ?? ""}\n${link.target_path}`, { raw: link.target_path, kind });
     }
   }
   for (const [path, entry] of bySource) {
@@ -193,9 +263,28 @@ export async function planLinkUpdates(
     for (const [key, raws] of entry.fmRenames) {
       for (const raw of raws) frontmatter.push({ key, oldTarget: raw, newTarget: newTargetFor(raw) });
     }
-    plan.sources.push({ path, body: [...entry.bodyRaws].map((raw) => ({ raw, target: newTargetFor(raw) })), frontmatter });
+    const body = [...entry.body.values()].map(({ raw, kind }) => ({ raw, target: kind === "markdown" ? newMarkdownTargetFor(raw, path) : newTargetFor(raw), kind }));
+    plan.sources.push({ path, body, frontmatter });
   }
   return { plan, failed, bareTarget };
+}
+
+/**
+ * The links of a note a plan names, rewritten where they stand: each by the
+ * way it is written, so a wiki link and a Markdown link of one text are two
+ * entries. `unplaced` counts the links the plan names that could not be
+ * rewritten — they still name the old file.
+ */
+function renamePlannedLinks(text: string, body: LinkUpdatePlan["sources"][number]["body"]): { content: string; renamed: number; unplaced: number } {
+  const planned = new Map<string, string>();
+  for (const { raw, target, kind } of body) planned.set(`${kind ?? ""}\n${raw}`, target);
+  const newTarget = (link: { type: string; target: string }): string | undefined =>
+    link.target === "" ? undefined : (planned.get(`${planKind(link.type)}\n${link.target}`) ?? planned.get(`\n${link.target}`));
+  const result = rewriteNoteLinks(text, (link) => {
+    const target = newTarget(link);
+    return target === undefined ? null : { target };
+  });
+  return { content: result.content, renamed: result.rewritten, unplaced: result.unplaced.filter((link) => newTarget(link) !== undefined).length };
 }
 
 /**
@@ -221,7 +310,7 @@ export async function applyLinkUpdates(
 
       let bodyCount = 0;
       if (source.body.length > 0) {
-        const res = renameNoteLinks(text, new Map(source.body.map(({ raw, target }) => [raw, target])));
+        const res = renamePlannedLinks(text, source.body);
         text = res.content;
         bodyCount = res.renamed;
         left += res.unplaced;

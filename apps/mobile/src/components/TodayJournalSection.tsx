@@ -9,6 +9,7 @@ import { SwipeRow } from "./SwipeRow";
 import { useLongPress } from "../lib/useLongPress";
 import { journalFailureText, journalFiles, journalHeading, onJournalWrite } from "../services/journalService";
 import { getMobileSettings } from "../services/mobileSettings";
+import { openLink } from "../services/openLink";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 
 /**
@@ -55,7 +56,7 @@ export function TodayJournalSection({ vault, bump, dayKey, onOpenNote, onOpenJou
   const links = useMemo(() => ({
     // Read from the day's note the entry stands in, as the editor reads it there.
     onOpenNote: (target: string, _newTab: boolean, kind?: "wiki" | "markdown", fromPath?: string) => {
-      void vaultOps.resolveWikiTarget(vault, target, fromPath, kind).then((resolved) => { if (resolved) onOpenNote(resolved); }).catch(() => undefined);
+      void openLink({ text: target, kind: kind ?? "wiki", sourcePath: fromPath }, { vault, onOpenNote }).catch(() => undefined);
     },
     onOpenUrl: (url: string) => { void Browser.open({ url }).catch(() => undefined); },
     onOpenTag: onOpenJournal,

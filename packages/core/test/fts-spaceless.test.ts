@@ -122,7 +122,7 @@ describe("index format 5 on an existing index", () => {
     await versionFour(db, ROWS);
     await initializeSchema(db);
     expect(await columns(db)).toEqual(["content", "title", "path", "seg_content", "seg_title"]);
-    expect(await version(db)).toBe("6");
+    expect(await version(db)).toBe("7");
     const rows = await db.query<{ path: string; content: string; seg_content: string | null; seg_title: string | null }>(`SELECT path, content, seg_content, seg_title FROM fts_notes ORDER BY path`);
     expect(rows.map((row) => [row.path, row.content])).toEqual([["en.md", "An English note."], ["ja.md", "今日は会議の議事録を書いた。"]]);
     expect(rows[0].seg_content ?? "").toBe("");
@@ -144,7 +144,7 @@ describe("index format 5 on an existing index", () => {
     expect(await columns(db)).toContain("seg_content");
     expect((await db.query<{ path: string }>(`SELECT path FROM fts_notes ORDER BY path`)).map((row) => row.path)).toEqual(["en.md", "ja.md"]);
     expect(await db.queryOne(`SELECT name FROM sqlite_master WHERE name = 'fts_notes_next'`)).toBeNull();
-    expect(await version(db)).toBe("6");
+    expect(await version(db)).toBe("7");
   });
 
   it("does nothing on the next start", async () => {

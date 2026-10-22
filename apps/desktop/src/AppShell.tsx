@@ -981,10 +981,12 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // open. Default: create immediately; the per-user "ask first" setting confirms.
   useEffect(() => {
     const onCreate = (e: Event) => {
-      const d = (e as CustomEvent).detail as { target: string; hostPath?: string; newTab?: boolean };
+      const d = (e as CustomEvent).detail as { target: string; hostPath?: string; newTab?: boolean; path?: string; title?: string };
       if (!d?.target || !vaultAdapter) return;
       void (async () => {
-        const { path, title } = wikiTargetToPath(d.target, d.hostPath);
+        // The opener names the place where its rule will find the note; the
+        // wiki rule's reading of the target is for a sender that does not.
+        const { path, title } = d.path && d.title ? { path: d.path, title: d.title } : wikiTargetToPath(d.target, d.hostPath);
         if (!title) return;
         try {
           if (await vaultAdapter.exists(path)) { openInFocusedPane(path, !!d.newTab); return; }

@@ -5,7 +5,7 @@ import type { BrokenLinkInfo, GraphNodeInfo, GraphSuggestion } from "@plainva/co
 import { useVault } from "../../contexts/VaultContext";
 import { requestCascadeDelete } from "../../services/cascadeDelete";
 import { ICON, toast } from "@plainva/ui";
-import { applyMentionLink, createBrokenLinkTarget } from "../../services/graphActions";
+import { applyMentionLink, brokenLinkLabel, brokenLinkNotePath, createBrokenLinkTarget } from "../../services/graphActions";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { getGraphState, suggestionKey } from "../../services/graphState";
 
@@ -217,12 +217,15 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
                   style={{ flex: 1, minWidth: 0 }}
                   onClick={() => onOpenPath(b.sourcePath)}
                 >
-                  <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>[[{b.targetRaw}]]</span>
+                  <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{brokenLinkLabel(b)}</span>
                   <span style={{ display: "block", color: "var(--text-faint)", fontSize: "var(--text-xs)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.sourcePath}</span>
                 </button>
-                <button className="pv-btn pv-btn--ghost pv-btn--sm" style={actionStyle} onClick={() => void createBrokenTarget(b)}>
-                  {t("graph.cleanupCreateNote", { defaultValue: "Notiz erstellen" })}
-                </button>
+                {/* A link to a picture, a PDF or a folder names no note: there is none to create. */}
+                {brokenLinkNotePath(b) && (
+                  <button className="pv-btn pv-btn--ghost pv-btn--sm" style={actionStyle} onClick={() => void createBrokenTarget(b)}>
+                    {t("graph.cleanupCreateNote", { defaultValue: "Notiz erstellen" })}
+                  </button>
+                )}
               </div>
             ))
           ))}

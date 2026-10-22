@@ -1,4 +1,4 @@
-import { decodeMarkdownLinkTarget } from "./linkEncoding.js";
+import { decodeMarkdownLinkTarget, markdownLinkTarget } from "./linkEncoding.js";
 import { MarkdownAst } from "./markdown-ast.js";
 import { extractFrontmatter } from "./metadata-extractor.js";
 import { PLAINVA_NAMESPACE_KEY } from "./metadata.js";
@@ -62,20 +62,21 @@ export function extractLinksAndTags(ast: MarkdownAst): ExtractedData {
       // Split the RAW destination at the anchor marker, then decode each
       // part: a "#" that belongs to the file name arrives encoded ("%23",
       // link-encoding 2026-09-04) and must not be read as the anchor marker,
-      // which it would be once the whole string were decoded first.
+      // which it would be once the whole string were decoded first. The
+      // target itself is `markdownLinkTarget`'s to read — the one reading a
+      // click and a rename share. Until 2026-10-22 a URL without a marker of
+      // its own was cut once more AFTER decoding, at the first `#` or `^`:
+      // `Draft%20%231.md` was listed as a link to `Draft`.
       const rawUrl = node.url;
       const markerIdx = rawUrl.indexOf("#");
       const decodedPath = decodeMarkdownLinkTarget(markerIdx >= 0 ? rawUrl.slice(0, markerIdx) : rawUrl);
       const decodedAnchor = markerIdx >= 0 ? decodeMarkdownLinkTarget(rawUrl.slice(markerIdx)) : "";
-      const decodedUrl = decodedPath + decodedAnchor;
-      const parsed = markerIdx >= 0
-        ? { target: decodedPath.trim(), anchor: decodedAnchor.trim() }
-        : parseLinkTarget(decodedPath);
+      const { target, anchor } = markdownLinkTarget(rawUrl);
       result.links.push({
         type: "markdown-link",
-        target: parsed.target,
-        rawTarget: decodedUrl,
-        anchor: parsed.anchor,
+        target,
+        rawTarget: decodedPath + decodedAnchor,
+        anchor: anchor ?? undefined,
         alias: getChildrenText(node) || undefined,
         line: node.position?.start?.line,
       });
