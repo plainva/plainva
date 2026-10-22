@@ -4,7 +4,11 @@ import { editorTextOf, upsertFrontmatterKeys } from "@plainva/core";
 import {
   clearPendingTemplateCaret,
   consumePendingTemplateCaret,
+  handTemplateCaretOver,
+  markFreshNote,
   parkTemplateCaret,
+  resetFreshNotesForTests,
+  takeTemplateCaret,
   templateAsNewNote,
   templateCaretInEditor,
   templateCaretInNote,
@@ -210,5 +214,123 @@ describe("the parked caret", () => {
     parkTemplateCaret("Notes/B.md", "# B\r\nText", 5);
     expect(consumePendingTemplateCaret(PATH)).toBeNull();
     expect(consumePendingTemplateCaret("Notes/B.md")).toEqual({ path: "Notes/B.md", offset: 4 });
+  });
+});
+
+/**
+ * Who is handed the parked caret (finding 2026-10-12).
+ *
+ * The desktop opens a new database entry in the peek window, and the editor in
+ * that window is never the active pane. Only the active pane asked the store,
+ * so the caret of such an entry was not applied where the entry opened. It
+ * stayed parked, and the tab that showed the entry later took it: a place
+ * counted when the note was written, whatever had been typed in the window
+ * since. `takeTemplateCaret` is the one question the desktop's editor asks —
+ * base.spec.ts drives the window and the tab behind it.
+ */
+describe("takeTemplateCaret: the editor that is handed the parked caret", () => {
+  beforeEach(() => clearPendingTemplateCaret());
+
+  /** A database entry as it is written, and where its template put the caret. */
+  const entry = templateAsNewNote(resolved("---\nstatus: entwurf\n---\n# Eintrag\n\nZiel: | (bis Freitag)\n"), "Note");
+  const BEHIND = " (bis Freitag)\n";
+
+  it("hands a preview window the caret of the note it shows, and leaves none for the tab that opens the note later", () => {
+    parkTemplateCaret(PATH, entry.content, entry.caret);
+    const taken = takeTemplateCaret(PATH, "preview");
+    expect(taken).toEqual({ path: PATH, offset: entry.caret, focus: false });
+    expect(editorTextOf(entry.content).slice(taken!.offset)).toBe(BEHIND);
+    expect(takeTemplateCaret(PATH, "pane")).toBeNull();
+    expect(consumePendingTemplateCaret(PATH)).toBeNull();
+  });
+
+  it("gives the text the keyboard in the pane the person works in, and leaves the keyboard alone in a preview", () => {
+    parkTemplateCaret(PATH, entry.content, entry.caret);
+    expect(takeTemplateCaret(PATH, "pane")).toEqual({ path: PATH, offset: entry.caret, focus: true });
+    parkTemplateCaret(PATH, entry.content, entry.caret);
+    expect(takeTemplateCaret(PATH, "preview")?.focus).toBe(false);
+  });
+
+  it("hands over the place in the text an editor holds, for a template with Windows line ends and a byte order mark too", () => {
+    const windows = templateAsNewNote(resolved(`${MARK}---\r\nstatus: entwurf\r\n---\r\n# Eintrag\r\n\r\nZiel: | (bis Freitag)\r\n`), "Note");
+    parkTemplateCaret(PATH, windows.content, windows.caret);
+    const taken = takeTemplateCaret(PATH, "preview");
+    expect(taken!.offset).not.toBe(windows.caret);
+    expect(editorTextOf(windows.content).slice(taken!.offset)).toBe(BEHIND);
+  });
+
+  it("leaves the caret parked when an editor that is neither asks — a second pane the person is not working in", () => {
+    parkTemplateCaret(PATH, entry.content, entry.caret);
+    expect(takeTemplateCaret(PATH, null)).toBeNull();
+    expect(takeTemplateCaret(PATH, "pane")).toEqual({ path: PATH, offset: entry.caret, focus: true });
+  });
+
+  it("takes only the caret of the note the surface shows: a preview of another note leaves it for its own", () => {
+    parkTemplateCaret(PATH, entry.content, entry.caret);
+    expect(takeTemplateCaret("Notes/B.md", "preview")).toBeNull();
+    expect(takeTemplateCaret(null, "preview")).toBeNull();
+    expect(takeTemplateCaret(PATH, "preview")).toEqual({ path: PATH, offset: entry.caret, focus: false });
+  });
+
+  it("has nothing to hand over for an entry without a template or without a cursor marker", () => {
+    expect(takeTemplateCaret(PATH, "preview")).toBeNull();
+    const plain = templateAsNewNote(resolved("# Eintrag\n\nZiel:\n"), "Note");
+    expect(plain.caret).toBeNull();
+    parkTemplateCaret(PATH, plain.content, plain.caret);
+    expect(takeTemplateCaret(PATH, "preview")).toBeNull();
+    expect(takeTemplateCaret(PATH, "pane")).toBeNull();
+  });
+});
+
+/**
+ * The peek window took the caret, so a tab opened from it found none — where it
+ * used to find the place parked when the note was written. Opened as a tab or in
+ * the split, a note made in this session takes along the place the window's editor
+ * holds by then (`handTemplateCaretOver`, called by the window — base.spec.ts
+ * drives it).
+ */
+describe("handTemplateCaretOver: a window hands its note on with the caret it holds", () => {
+  beforeEach(() => {
+    clearPendingTemplateCaret();
+    resetFreshNotesForTests();
+  });
+
+  /** The note as the window's editor holds it: the properties block, then the text. */
+  const DOC = "---\ntype: Note\nzweck: Angebot\n---\n# Eintrag für den Kunden\n\nZiel: Angebot schreiben (bis Freitag)\n";
+
+  it("parks the place for a note made in this session, and the pane it opens in takes it with the keyboard", () => {
+    markFreshNote(PATH);
+    const at = DOC.indexOf(" (bis Freitag)");
+    handTemplateCaretOver(PATH, DOC, { head: at });
+    expect(takeTemplateCaret(PATH, "pane")).toEqual({ path: PATH, offset: at, focus: true });
+  });
+
+  it("is the place the window holds by then, not the one parked when the note was written", () => {
+    const entry = templateAsNewNote(resolved("---\nzweck: Angebot\n---\n# Eintrag\n\nZiel: | (bis Freitag)\n"), "Note");
+    parkTemplateCaret(PATH, entry.content, entry.caret);
+    const taken = takeTemplateCaret(PATH, "preview");
+    expect(taken).not.toBeNull();
+    // The heading grows in the window, and the caret is where the writing stopped.
+    const doc = editorTextOf(entry.content).replace("# Eintrag\n", "# Eintrag für den Kunden\n");
+    const head = doc.indexOf("# Eintrag für den Kunden") + "# Eintrag für den Kunden".length;
+    handTemplateCaretOver(PATH, doc, { head });
+    const handed = takeTemplateCaret(PATH, "pane");
+    expect(doc.slice(handed!.offset)).toBe("\n\nZiel:  (bis Freitag)\n");
+    // Counted when the note was written, the place now stands in the heading.
+    expect(doc.slice(taken!.offset)).toMatch(/^ Kunden\n/);
+  });
+
+  it("hands nothing on for a note that was there before: it opens in a tab as it always has", () => {
+    handTemplateCaretOver(PATH, DOC, { head: DOC.indexOf(" (bis Freitag)") });
+    expect(takeTemplateCaret(PATH, "pane")).toBeNull();
+  });
+
+  it("hands nothing on while the caret is still in the properties block, where nobody has placed one", () => {
+    markFreshNote(PATH);
+    handTemplateCaretOver(PATH, DOC, { head: 0 });
+    handTemplateCaretOver(PATH, DOC, { head: DOC.indexOf("zweck") });
+    expect(takeTemplateCaret(PATH, "pane")).toBeNull();
+    handTemplateCaretOver(PATH, DOC, { head: DOC.indexOf("# Eintrag") });
+    expect(takeTemplateCaret(PATH, "pane")?.offset).toBe(DOC.indexOf("# Eintrag"));
   });
 });

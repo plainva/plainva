@@ -2205,6 +2205,100 @@ test('Base "Neu" templates: create with a template once and set it as default', 
   await expect(page.getByRole('button', { name: /Alle Vorlagen anzeigen|Show all templates/ })).toHaveCount(0);
 });
 
+// The caret a template leaves in a new entry (`{{cursor}}`, finding
+// 2026-10-12). "Entry" opens the note in the peek window, whose editor is
+// never the active pane — and only the active pane asked for the caret. It was
+// not applied in the window, stayed parked, and the tab that showed the entry
+// later took it: a place counted when the note was written. `zweck` is a key
+// no database of this vault knows, so it is a plain text property.
+const CURSOR_TEMPLATE = '---\ntype: Projekt\nzweck: Angebot\n---\n\n# {{title}}\n\nZiel: {{cursor}} (bis Freitag)\n\n- [ ] erste Aufgabe\n';
+const cursorEntry = (page: Page) => page.evaluate(() => String((window as any).mockFs['/test-vault/Projekte/Cockpit_4.md']));
+async function newEntryFromCursorTemplate(page: Page) {
+  await page.goto('/');
+  await page.evaluate((template) => { (window as any).mockFs['/test-vault/Templates/Projektvorlage.md'] = template; }, CURSOR_TEMPLATE);
+  await openBase(page, 'Cockpit');
+  await expect(page.locator('table').getByText('Alpha')).toBeVisible();
+  await page.getByRole('button', { name: /Vorlagen und Ablage-Ordner|Templates and storage folder/ }).click();
+  await page.getByRole('button', { name: /Alle Vorlagen anzeigen|Show all templates/ }).click();
+  await page.getByRole('button', { name: 'Projektvorlage', exact: true }).click();
+  const peek = page.locator('.pv-peek-card');
+  await expect(peek.locator('.pv-peek-title')).toContainText('Cockpit_4');
+  await expect(peek.locator('.cm-content')).toContainText('(bis Freitag)', { timeout: 15000 });
+  return peek;
+}
+/** An editor takes a parked caret in the effect that follows its load: two frames on, whatever it was handed has been applied. */
+const twoFrames = (page: Page) => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(null)))));
+
+test('Base "Neu": the caret of a template is placed in the peek window, the keyboard stays where it was, and the place holds while a property is filled in', async ({ page }) => {
+  const peek = await newEntryFromCursorTemplate(page);
+  const text = peek.locator('.cm-content');
+
+  // Placed: the line the caret is on is the one the template names …
+  await expect(peek.locator('.cm-activeLine')).toHaveText(/^Ziel:\s+\(bis Freitag\)$/);
+  // … and opening the window did not take the keyboard into the text.
+  await expect(text).not.toBeFocused();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ animations: 'disabled', path: test.info().outputPath('peek-template-caret.png') });
+
+  // What the window opens for comes first: a property is filled in. The block
+  // in front of the text grows, and the place is the editor's — it moves along.
+  await peek.locator('.pv-peek-actions').getByRole('button', { name: /Eigenschaften|Properties/ }).click();
+  const zweck = peek.locator('.pv-peek-side .pv-property-text textarea');
+  await expect(zweck).toHaveValue('Angebot');
+  await zweck.fill('Angebot für die Erweiterung, bis zur Freigabe durch das Team');
+  await zweck.press('Enter');
+  await expect.poll(() => cursorEntry(page)).toContain('zweck: Angebot für die Erweiterung, bis zur Freigabe durch das Team\n');
+
+  // The text gets the keyboard without a place being chosen — what Tab does —
+  // and writing starts where the template says.
+  await text.focus();
+  await expect(text).toBeFocused();
+  await page.keyboard.type('Angebot schreiben');
+  await expect(peek.locator('.cm-activeLine')).toHaveText(/^Ziel: Angebot schreiben \(bis Freitag\)$/);
+  await expect.poll(() => cursorEntry(page)).toContain('\nZiel: Angebot schreiben (bis Freitag)\n');
+});
+
+test('Base "Neu": opened as a tab from the peek window, a new entry goes on where the window\'s caret is — not at the place of the moment it was created', async ({ page }) => {
+  const peek = await newEntryFromCursorTemplate(page);
+
+  // The heading grows in the window: a place counted when the note was
+  // written now points into it, fifteen characters in front of the template's.
+  await peek.locator('.cm-line', { hasText: 'Cockpit_4' }).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' für den Kunden');
+  await expect.poll(() => cursorEntry(page)).toContain('# Cockpit_4 für den Kunden\n');
+
+  await peek.locator('.pv-peek-actions').getByRole('button', { name: /Als Tab öffnen|Open as tab/ }).click();
+  await expect(page.locator('.pv-peek-card')).toHaveCount(0);
+  const tab = page.locator('main .cm-content').first();
+  await expect(tab).toContainText('(bis Freitag)', { timeout: 15000 });
+  await twoFrames(page);
+
+  // The tab takes the place the window's caret had, with the keyboard: the
+  // writing goes on at the end of the heading.
+  await expect(tab).toBeFocused();
+  await page.keyboard.type('!');
+  await expect.poll(() => cursorEntry(page)).toContain('# Cockpit_4 für den Kunden!\n');
+});
+
+test('Base "Neu": a new entry whose peek window was closed opens later without a caret from the moment it was created', async ({ page }) => {
+  const peek = await newEntryFromCursorTemplate(page);
+  // The window's editor has loaded the entry and had its turn at the caret.
+  await twoFrames(page);
+  await peek.locator('.pv-peek-actions').getByRole('button', { name: /Schließen|Close/ }).click();
+  await expect(page.locator('.pv-peek-card')).toHaveCount(0);
+
+  // Later the entry is opened from the file tree, like any note.
+  await openTreeNote(page, 'Projekte', 'Cockpit_4');
+  const tab = page.locator('main .cm-content').first();
+  await expect(tab).toContainText('(bis Freitag)', { timeout: 15000 });
+  await twoFrames(page);
+
+  // Nothing was left for it: the text has not taken the keyboard, and the
+  // caret is not on the template's line.
+  await expect(tab).not.toBeFocused();
+  await expect(page.locator('main .cm-activeLine').filter({ hasText: 'Ziel:' })).toHaveCount(0);
+});
+
 test('Template-database assignment: quick-assign regroups the menu, entries never inherit templateFor, new templates auto-assign', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Cockpit');

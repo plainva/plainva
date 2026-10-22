@@ -160,7 +160,7 @@ describe("a new note's caret is parked through the shared function", () => {
   it("is the only way into the store: the module keeps no setter for a bare number", () => {
     const source = readFileSync(fileURLToPath(new URL("../../../packages/ui/src/lib/templateCaret.ts", import.meta.url)), "utf8");
     const exported = [...source.matchAll(/^export function (\w+)/gm)].map((match) => match[1]).sort();
-    expect(exported).toEqual(["clearPendingTemplateCaret", "consumePendingTemplateCaret", "parkTemplateCaret", "templateCaretInEditor", "templateCaretInNote", "templateInsertInEditor"]);
+    expect(exported).toEqual(["clearPendingTemplateCaret", "consumePendingTemplateCaret", "handTemplateCaretOver", "parkTemplateCaret", "takeTemplateCaret", "templateCaretInEditor", "templateCaretInNote", "templateInsertInEditor"]);
     // One place writes the store, and it converts what it is given.
     expect(source.match(/\bpending = \{/g)).toHaveLength(1);
     expect(source).toMatch(/pending = \{ path, offset: templateCaretInEditor\(note, caret\) \}/);
@@ -204,6 +204,49 @@ describe("a note takes over nothing that is meant for its template alone", () =>
     expect(usesFeature("export function withOkfDefaults(content: string) { return content; }", "withOkfDefaults", ts.ScriptKind.TS)).toBe(false);
     // A generic arrow function is TypeScript in a `.ts` file and the start of an element in a `.tsx` one.
     expect(usesFeature("const pick = <T>(items: T[]): T => items[0];\nconst note = withOkfDefaults(pick(texts), type);", "withOkfDefaults", ts.ScriptKind.TS)).toBe(true);
+  });
+});
+
+/**
+ * Where a new note opens, its editor takes the caret (finding 2026-10-12). The
+ * desktop's editor is mounted as a pane and as the peek window a database
+ * opens its new entry in, and it asked the store only as the active pane: the
+ * entry's caret waited for whatever tab showed the note later. Who is handed
+ * the caret is one rule now (`takeTemplateCaret`), and the editor asks nothing
+ * else — a second question beside it is how one surface fell out.
+ */
+describe("the desktop's editor takes a new note's caret through the one rule", () => {
+  const source = (file: string) => readFileSync(fileURLToPath(new URL(`./${file}`, import.meta.url)), "utf8");
+
+  it("components/Editor.tsx asks takeTemplateCaret, and not the store beside it", () => {
+    const editor = source("components/Editor.tsx");
+    expect(usesFeature(editor, "takeTemplateCaret")).toBe(true);
+    expect(usesFeature(editor, "consumePendingTemplateCaret")).toBe(false);
+    // Both kinds of surface are named where the editor asks: the pane and the preview.
+    expect(editor).toMatch(/isActivePane\s*\?\s*"pane"\s*:\s*peek\s*\?\s*"preview"\s*:\s*null/);
+  });
+
+  it("the peek window mounts that editor as a preview — never as a pane, which would take the keyboard and the pokes meant for a tab", () => {
+    const tree = ts.createSourceFile("BasePeekModal.tsx", source("components/BasePeekModal.tsx"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const editors: string[][] = [];
+    const visit = (node: ts.Node) => {
+      if (ts.isJsxSelfClosingElement(node) && ts.isIdentifier(node.tagName) && node.tagName.text === "LazyEditor") {
+        // Each attribute as written: `peek`, `isActivePane={false}`.
+        editors.push(node.attributes.properties.map((attribute) => attribute.getText().replace(/\s+/g, "")));
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(tree);
+    expect(editors).toHaveLength(1);
+    expect(editors[0]).toEqual(expect.arrayContaining(["peek", "isActivePane={false}", "activePath={current}"]));
+  });
+
+  it("the peek window hands a new note's caret on when it opens the note as a tab or in the split", () => {
+    const peek = source("components/BasePeekModal.tsx");
+    expect(usesFeature(peek, "handTemplateCaretOver")).toBe(true);
+    // Before each of the two doors, in the same handler.
+    expect(peek).toMatch(/handCaretOver\(\);\s*onMaximize\(current\)/);
+    expect(peek).toMatch(/handCaretOver\(\);\s*onOpenSplit\(current\)/);
   });
 });
 

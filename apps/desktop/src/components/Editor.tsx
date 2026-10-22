@@ -68,7 +68,7 @@ import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, Select
 import { BlockMenu } from "./BlockMenu";
 import { applyBlockAction, performBlockMove, type BlockAction } from "@plainva/ui";
 import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
-import { consumePendingSearchJump, consumePendingTemplateCaret, resolveSearchJump, findSourceTextRange, type SearchJump, findTextRange, selectAndRevealRange } from "@plainva/ui";
+import { consumePendingSearchJump, takeTemplateCaret, resolveSearchJump, findSourceTextRange, type SearchJump, findTextRange, selectAndRevealRange } from "@plainva/ui";
 import { setHtmlCheckboxChecked, toggleTaskAtIndex } from "@plainva/ui";
 import { decideDirtyExternalUpdate } from "@plainva/ui";
 import { setWikiResolver, type WikiTargetSet } from "@plainva/ui";
@@ -1933,8 +1933,12 @@ export const Editor: React.FC<{
   // Vorlagen-Engine, P3). Same two consumers and the same retry loop as the
   // search jump above — the pane is usually mounted only AFTER the file was
   // written. Read mode has no caret, so the jump simply does not apply there.
+  //
+  // Who is handed the caret, and whether the text gets the keyboard with it,
+  // is one rule (`takeTemplateCaret`): the pane the person works in, and a
+  // window for the note it shows — placed there, without the keyboard.
   const caretRafRef = useRef(0);
-  const startTemplateCaret = (caret: { path: string; offset: number }) => {
+  const startTemplateCaret = (caret: { path: string; offset: number; focus: boolean }) => {
     cancelAnimationFrame(caretRafRef.current);
     const tick = (attemptsLeft: number) => {
       if (attemptsLeft <= 0) return;
@@ -1948,25 +1952,32 @@ export const Editor: React.FC<{
       // may have changed between that write and this load.
       const pos = Math.min(Math.max(caret.offset, 0), view.state.doc.length);
       selectAndCenter(view, pos);
-      view.focus();
+      if (caret.focus) view.focus();
     };
     tick(120);
   };
+  // The poke names a note a pane is about to show. The peek window does not
+  // listen: it would take the caret of a note that is opening in a tab.
   useEffect(() => {
     if (!isActivePane) return;
     const onCaret = (e: Event) => {
       const detail = (e as CustomEvent).detail as { path?: string } | undefined;
-      const caret = consumePendingTemplateCaret(detail?.path ?? null);
+      const caret = takeTemplateCaret(detail?.path ?? null, "pane");
       if (caret) startTemplateCaret(caret);
     };
     window.addEventListener('plainva-template-caret', onCaret);
     return () => window.removeEventListener('plainva-template-caret', onCaret);
   }, [isActivePane]);
+  // The note this editor shows, once it is loaded. A window's editor asks here
+  // too, and it is never the active pane: the peek window, where a database
+  // opens the entry it has just made, and the pinboard's entry window (nothing
+  // is parked for its draft on this shell; it places its caret from the draft).
+  const caretSurface = isActivePane ? "pane" : peek ? "preview" : null;
   useEffect(() => {
-    if (!isActivePane || isLoading || !activePath) return;
-    const caret = consumePendingTemplateCaret(activePath);
+    if (!caretSurface || isLoading || !activePath) return;
+    const caret = takeTemplateCaret(activePath, caretSurface);
     if (caret) startTemplateCaret(caret);
-  }, [isActivePane, isLoading, activePath]);
+  }, [caretSurface, isLoading, activePath]);
   useEffect(() => () => cancelAnimationFrame(caretRafRef.current), []);
 
   // A new path starts without a remembered identity; a reload of the same path

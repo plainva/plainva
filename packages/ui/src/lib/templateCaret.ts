@@ -1,5 +1,5 @@
 import { editorOffsetOf, editorTextOf, frontmatterSpan } from "@plainva/core";
-import { markFreshNote } from "./freshNote";
+import { isFreshNote, markFreshNote } from "./freshNote";
 
 /**
  * Where the caret goes in a note that was just created from a template
@@ -10,7 +10,11 @@ import { markFreshNote } from "./freshNote";
  * (lazy Editor, first file open). The creating code parks the place here and
  * pokes mounted editors with `plainva-template-caret`; whichever consumer sees
  * that path first takes it — one shot, so a second note never inherits a
- * stale caret.
+ * stale caret. Every surface a new note opens in is such a consumer, the
+ * desktop's peek window too (`takeTemplateCaret`): a surface that does not
+ * ask leaves the caret to whatever shows the note later. A window that hands
+ * its note on to another surface hands the caret on with it, as the place it
+ * holds by then (`handTemplateCaretOver`).
  *
  * Two texts are involved, and a place is a place in one of them. The builders
  * count in the FILE as it is written (`templateCaretInNote`). What is parked,
@@ -130,6 +134,70 @@ export function consumePendingTemplateCaret(path: string | null): { path: string
   const caret = pending;
   pending = null;
   return caret;
+}
+
+/**
+ * Where an editor sits when it asks for the caret of the note it shows.
+ *
+ * `"pane"` is the pane the person works in: the note opened there. `"preview"`
+ * is a window that shows a note beside the work — the desktop's peek window,
+ * where a database opens the entry it has just made, and the pinboard's entry
+ * window (whose caret comes from its draft; nothing is parked for it on the
+ * desktop).
+ */
+export type TemplateCaretSurface = "pane" | "preview";
+
+/**
+ * Hands the caret parked for `path` to the editor of `surface`, and says
+ * whether the text gets the keyboard with it. The one question an editor of
+ * the desktop asks the store; `null` is an editor that is neither — a second
+ * pane the person is not working in —, and it leaves the caret for the one the
+ * note opens in.
+ *
+ * A preview takes the caret of its note like a pane does (finding 2026-10-12).
+ * It used not to ask at all: only the active pane did, and a new database
+ * entry opens in the peek window. The caret stayed parked and went to the tab
+ * that showed the entry later — a place counted when the note was written,
+ * whatever had been typed in the window since.
+ *
+ * In a preview the caret is PLACED and the keyboard stays where it is. The
+ * window opens beside the work so that title and properties can be filled in
+ * first. The place is the selection of the window's editor from then on, so it
+ * moves with what is written in the window — a property in front of the text,
+ * a word above it: the text is written from there once it gets the keyboard
+ * without a place being chosen, and a click chooses its own. The place lasts
+ * as long as that editor: a rename and a step through the window's history
+ * show the note in a new one. The phone opens a new entry as a note screen
+ * that is written in at once, with the keyboard at the caret (`EditorHost`,
+ * `freshNote.ts`) - the difference is in the parity catalog
+ * (`base-new-entry-template-caret`).
+ */
+export function takeTemplateCaret(
+  path: string | null,
+  surface: TemplateCaretSurface | null,
+): { path: string; offset: number; focus: boolean } | null {
+  if (surface === null) return null;
+  const caret = consumePendingTemplateCaret(path);
+  return caret ? { ...caret, focus: surface === "pane" } : null;
+}
+
+/**
+ * A window hands its note on to another surface — the desktop's peek window
+ * opens it as a tab or in the split — and the caret goes along: parked for
+ * that note as the place the window's editor holds by then (`doc`, the text it
+ * holds, and its selection), for the surface the note opens in next.
+ *
+ * Only for a note made on this device in this session (`freshNote.ts`), with
+ * or without a template. A template's caret was taken by the window
+ * (`takeTemplateCaret`), and a tab opened from the window used to find it
+ * parked still — at the place of the moment the note was written. Now the tab
+ * continues where the window is. A note that was there before opens in a tab
+ * as it always has, and a caret still in the properties block — nobody has
+ * placed one — is not handed on.
+ */
+export function handTemplateCaretOver(path: string, doc: string, selection: { head: number }): void {
+  if (!isFreshNote(path) || selection.head <= 0 || selection.head < textStartOf(doc)) return;
+  parkTemplateCaret(path, doc, selection.head);
 }
 
 /** Drops a parked caret — used when the creation it belonged to was abandoned. */

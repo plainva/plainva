@@ -364,6 +364,27 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-21",
   },
   {
+    id: "base-new-entry-template-caret",
+    title: "A new database entry opens with the keyboard where its template's cursor stands",
+    area: "database",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "Both shells place the caret a template leaves in a new entry ({{cursor}}). On the " +
+      "phone \"Entry\" opens the note as a screen, and a note just made opens to be written " +
+      "in: the keyboard is at that place at once. On the desktop the entry opens in the peek " +
+      "window beside the database, so that title and properties can be filled in first. Its " +
+      "editor holds the place while properties and text are written, and the keyboard stays " +
+      "where it was: entered with the keyboard, the text is written from the template's place, " +
+      "a click chooses its own; renaming the entry in the window shows it in a new editor, " +
+      "and the place is gone. Meant to close by the window taking the keyboard when the " +
+      "template has a cursor; put off on 2026-10-22, when the window learned to take the " +
+      "caret, until the maintainer decides that behaviour, listed in the maintainer's " +
+      "open-items plan.",
+    mobile: "yes",
+    verified: "2026-10-22",
+  },
+  {
     id: "base-peek-depth",
     title: "Peek preview of a database entry",
     area: "database",

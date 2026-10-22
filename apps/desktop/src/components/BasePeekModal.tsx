@@ -1,8 +1,9 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { EditorView } from "@codemirror/view";
 import { ArrowLeft, ArrowRight, Columns2, ExternalLink, Maximize2, MoreVertical, PanelRight, X } from "lucide-react";
 import { createDocChannel } from "../services/activeDocument";
-import { FloatingWindow, ICON, MenuSurface, MenuItem, MenuLabel, MenuSeparator, opensExternally, peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush, resolveOpenAction, type PeekHistory } from "@plainva/ui";
+import { FloatingWindow, handTemplateCaretOver, ICON, MenuSurface, MenuItem, MenuLabel, MenuSeparator, opensExternally, peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush, resolveOpenAction, type PeekHistory } from "@plainva/ui";
 import { PropertiesSection } from "./PropertiesSection";
 import { clampPeekSideWidth, readPeekSideWidth, useSidebarStep, writePeekSideWidth } from "../lib/sidebarStep";
 import { openAttachmentExternally } from "../services/openAttachment";
@@ -122,6 +123,18 @@ export function BasePeekModal({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
 
+  // A note made in this session leaves the window for a tab or the split with
+  // the caret the window's editor holds - its template's place, or wherever the
+  // writing went on - and the editor there takes it (`handTemplateCaretOver`).
+  // The phone has no such window: a new entry opens as its note screen. The
+  // editor's root, not its text: `findFromDOM` looks for the text inside what
+  // it is given, and an editor nested in the text would answer first.
+  const handCaretOver = () => {
+    const root = bodyRef.current?.querySelector<HTMLElement>(".pv-peek-main .cm-editor");
+    const view = root ? EditorView.findFromDOM(root) : null;
+    if (view) handTemplateCaretOver(current, view.state.doc.toString(), view.state.selection.main);
+  };
+
   const title = current.split(/[/\\]/).pop()?.replace(/\.(md|base)$/i, "") || current;
   const propsLabel = t("rightPanel.properties", { defaultValue: "Eigenschaften" });
 
@@ -171,7 +184,7 @@ export function BasePeekModal({
               <button
                 type="button"
                 className="pv-peek-btn"
-                onClick={() => onOpenSplit(current)}
+                onClick={() => { handCaretOver(); onOpenSplit(current); }}
                 aria-label={t("database.openInSplit", "Im Split öffnen")}
                 data-tip={t("database.openInSplit", "Im Split öffnen")}
               >
@@ -193,7 +206,7 @@ export function BasePeekModal({
             <button
               type="button"
               className="pv-peek-btn"
-              onClick={() => onMaximize(current)}
+              onClick={() => { handCaretOver(); onMaximize(current); }}
               aria-label={t("database.maximize", "Als Tab öffnen")}
               data-tip={t("database.maximize", "Als Tab öffnen")}
             >
