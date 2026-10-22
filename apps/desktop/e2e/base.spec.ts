@@ -2249,9 +2249,17 @@ test('Base "Neu": the caret of a template is placed in the peek window, the keyb
   await expect.poll(() => cursorEntry(page)).toContain('zweck: Angebot für die Erweiterung, bis zur Freigabe durch das Team\n');
 
   // The text gets the keyboard without a place being chosen — what Tab does —
-  // and writing starts where the template says.
+  // and writing starts where the template says. CodeMirror puts its place into
+  // the page once it has seen the focus, an event later; keys typed before that
+  // go where the browser put the caret (in CI the first ones did, 22.10.). A
+  // person does not type within that moment — the test waits for it.
   await text.focus();
   await expect(text).toBeFocused();
+  await expect.poll(() => page.evaluate(() => {
+    const node = document.getSelection()?.focusNode;
+    const element = node instanceof Element ? node : node?.parentElement;
+    return !!element?.closest('.pv-peek-card .cm-activeLine');
+  })).toBe(true);
   await page.keyboard.type('Angebot schreiben');
   await expect(peek.locator('.cm-activeLine')).toHaveText(/^Ziel: Angebot schreiben \(bis Freitag\)$/);
   await expect.poll(() => cursorEntry(page)).toContain('\nZiel: Angebot schreiben (bis Freitag)\n');
