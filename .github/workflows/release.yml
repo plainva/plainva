@@ -77,8 +77,10 @@ jobs:
         platform: ${{ inputs.rebuild_windows_tag && fromJSON('["windows-latest"]') || fromJSON('["macos-latest", "ubuntu-22.04", "windows-latest"]') }}
     runs-on: ${{ matrix.platform }}
     # Guard against a hung notarization: notarytool --wait can block for hours,
-    # so cap the job — a stuck macOS build fails in ~1h instead of the 6h ceiling.
-    timeout-minutes: 60
+    # so cap the job — a stuck build fails in 2h instead of the 6h ceiling. One
+    # hour was too short for Windows: for 0.8.6 its pre-flight tests alone took
+    # 53 minutes, and the job was cancelled before the app was built.
+    timeout-minutes: 120
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
