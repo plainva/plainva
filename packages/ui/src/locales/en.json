@@ -3666,7 +3666,15 @@
     "passwordPending": "Not yet confirmed",
     "passwordRecheck": "Verify password again",
     "passwordVerificationFailed": "A service did not confirm the password. No further credentials were changed.",
-    "passwordMissing": "A required credential is missing. Reconnect the affected service."
+    "passwordMissing": "A required credential is missing. Reconnect the affected service.",
+    "wrongAccount": "You signed in as {{actual}}, but this account is {{expected}}. Nothing was changed.",
+    "nothingGranted": "None of the services was allowed. Your existing sign-ins were kept.",
+    "notGranted": "Not allowed – left unticked at sign-in. Sign in again and tick the service.",
+    "needsAppPassword": "Gmail needs an app password here. Open the account and turn on Mail.",
+    "joinedExisting": "This account was already connected: its services are now with {{account}}.",
+    "gmailPasswordGroup": "Gmail with an app password",
+    "gmailPasswordHint": "This access cannot allow Gmail as well, so Plainva connects {{account}} with an app password – at the same account.",
+    "appPassword": "App password"
   },
   "comments": {
     "workspaceLocked": "This workspace is locked on this device. Open the security settings to unlock it and read or write remarks.",
@@ -4947,5 +4955,35 @@
     "newJournal": "Journal",
     "redeemed_one": "{{count}} task ticked off from the widget",
     "redeemed_other": "{{count}} tasks ticked off from the widget"
+  },
+  "accountAccess": {
+    "lineLabel": "This device's access",
+    "plainva": "Plainva access",
+    "plainvaDesc": "Plainva's own access. You enter nothing.",
+    "plainvaMissing": "Not included in this build.",
+    "own": "Own access",
+    "ownLine": "Own access ({{id}})",
+    "change": "Change",
+    "deviceOnly": "Applies to this device, not to the whole account. Other devices keep their access.",
+    "signInAgainHint": "Signing in again uses this device's access.",
+    "title": {
+      "google": "This device's Google access",
+      "microsoft": "This device's Microsoft access"
+    },
+    "ownDesc": {
+      "google": "A client from your own Google project.",
+      "microsoft": "An app registration from your own Microsoft account."
+    },
+    "ownType": {
+      "desktop": "Type “Desktop app”: create it in the Google Cloud Console under “Credentials”; client ID and client secret come from there.",
+      "ios": "Type “iOS” with the bundle ID com.plainva.app: create it in the Google Cloud Console under “Credentials”. An iOS client has no secret; it works on the iPhone and on Android phones.",
+      "microsoft": "The application (client) ID of your app registration."
+    },
+    "problem": {
+      "noPlainvaClient": "This build includes no Plainva access for Google. Enter your own access under “Change”.",
+      "ownClientMissing": "The own access needs a client ID.",
+      "ownClientInvalid": "This client ID does not have the expected form.",
+      "ownSecretMissing": "The own access needs a client secret."
+    }
   }
 }

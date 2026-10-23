@@ -3629,7 +3629,15 @@
     "passwordPending": "未確認",
     "passwordRecheck": "パスワードを再確認",
     "passwordVerificationFailed": "サービスがパスワードを確認できませんでした。それ以降の認証情報は変更されていません。",
-    "passwordMissing": "必要な認証情報がありません。対象のサービスに再接続してください。"
+    "passwordMissing": "必要な認証情報がありません。対象のサービスに再接続してください。",
+    "wrongAccount": "{{actual}} でログインしましたが、このアカウントは {{expected}} です。何も変更していません。",
+    "nothingGranted": "どのサービスも許可されませんでした。これまでのログイン情報はそのまま残っています。",
+    "notGranted": "許可されていません。ログイン時にチェックされていませんでした。もう一度ログインして、サービスにチェックを入れてください。",
+    "needsAppPassword": "Gmailにはここではアプリパスワードが必要です。アカウントを開いて、メールをオンにしてください。",
+    "joinedExisting": "このアカウントはすでに接続されていました。サービスは {{account}} にまとまりました。",
+    "gmailPasswordGroup": "アプリパスワードによる Gmail",
+    "gmailPasswordHint": "このアクセスでは Gmail を同時に許可できないため、Plainva は {{account}} をアプリパスワードで接続します（同じアカウントです）。",
+    "appPassword": "アプリパスワード"
   },
   "comments": {
     "workspaceLocked": "このデバイスではワークスペースがロックされています。セキュリティ設定を開いてロックを解除すると、コメントの読み書きができます。",
@@ -4884,5 +4892,35 @@
     "newTask": "タスク",
     "newJournal": "ジャーナル",
     "redeemed_other": "ウィジェットから {{count}} 件を完了にしました"
+  },
+  "accountAccess": {
+    "lineLabel": "この端末のアクセス",
+    "plainva": "Plainvaのアクセス",
+    "plainvaDesc": "Plainva 自身のアクセスです。入力は不要です。",
+    "plainvaMissing": "このビルドには含まれていません。",
+    "own": "独自のアクセス",
+    "ownLine": "独自のアクセス（{{id}}）",
+    "change": "変更",
+    "deviceOnly": "この端末にのみ適用され、アカウント全体には適用されません。ほかの端末は、それぞれのアクセスのままです。",
+    "signInAgainHint": "再度ログインすると、この端末のアクセスが使われます。",
+    "title": {
+      "google": "この端末の Google アクセス",
+      "microsoft": "この端末の Microsoft アクセス"
+    },
+    "ownDesc": {
+      "google": "ご自身の Google プロジェクトのクライアントです。",
+      "microsoft": "ご自身の Microsoft アカウントでのアプリの登録です。"
+    },
+    "ownType": {
+      "desktop": "種類は「デスクトップ アプリ」です。Google Cloud Console の「認証情報」で作成し、クライアントIDとクライアントシークレットをそこから取得します。",
+      "ios": "種類は「iOS」で、バンドルIDは com.plainva.app です。Google Cloud Console の「認証情報」で作成します。iOS クライアントにはシークレットがなく、iPhone と Android スマートフォンで使えます。",
+      "microsoft": "アプリの登録の「アプリケーション (クライアント) ID」です。"
+    },
+    "problem": {
+      "noPlainvaClient": "このビルドには Google 用の Plainva アクセスが含まれていません。「変更」から独自のアクセスを入力してください。",
+      "ownClientMissing": "独自のアクセスにはクライアントIDが必要です。",
+      "ownClientInvalid": "このクライアントIDの形式が正しくありません。",
+      "ownSecretMissing": "独自のアクセスにはクライアントシークレットが必要です。"
+    }
   }
 }

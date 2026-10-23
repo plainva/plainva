@@ -33,6 +33,8 @@ export async function authorizeOneDrive(opts: {
   scope?: string;
   /** Ephemeral proof for an account reconnect; never persisted with credentials. */
   includeAccessToken?: boolean;
+  /** The account Microsoft preselects (signing a card in again). */
+  loginHint?: string;
 }): Promise<{ clientId: string; refreshToken: string; grantedScope?: string; accessToken?: string }> {
   const { clientId } = opts;
 
@@ -41,7 +43,7 @@ export async function authorizeOneDrive(opts: {
 
   const { codeVerifier, codeChallenge } = await generatePkcePair();
   const state = generateCodeVerifier();
-  const authUrl = buildOneDriveAuthUrl({ clientId, redirectUri, codeChallenge, state, scope: opts.scope });
+  const authUrl = buildOneDriveAuthUrl({ clientId, redirectUri, codeChallenge, state, scope: opts.scope, loginHint: opts.loginHint });
 
   await openUrl(authUrl);
   const redirect = await invoke<{ code: string; state: string | null }>("oauth_loopback_wait", {

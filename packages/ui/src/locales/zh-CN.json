@@ -3629,7 +3629,15 @@
     "passwordPending": "尚未确认",
     "passwordRecheck": "重新验证密码",
     "passwordVerificationFailed": "某项服务未能确认密码。未更改后续凭据。",
-    "passwordMissing": "缺少必要的凭据。请重新连接相关服务。"
+    "passwordMissing": "缺少必要的凭据。请重新连接相关服务。",
+    "wrongAccount": "你登录的是 {{actual}}，但此账户是 {{expected}}。未做任何更改。",
+    "nothingGranted": "没有允许任何服务。已保留你原有的登录信息。",
+    "notGranted": "未允许——登录时未勾选。请重新登录并勾选该服务。",
+    "needsAppPassword": "Gmail 在此需要应用专用密码。请打开该账户并开启邮件。",
+    "joinedExisting": "此账户已连接过：其服务现在归入 {{account}}。",
+    "gmailPasswordGroup": "使用应用专用密码的 Gmail",
+    "gmailPasswordHint": "此访问方式无法同时授权 Gmail，因此 Plainva 通过应用专用密码连接 {{account}}——仍是同一个账户。",
+    "appPassword": "应用专用密码"
   },
   "comments": {
     "workspaceLocked": "此工作区在这台设备上已锁定。打开安全设置以解锁工作区，然后即可阅读或撰写批注。",
@@ -4884,5 +4892,35 @@
     "newTask": "任务",
     "newJournal": "日志",
     "redeemed_other": "已从小组件完成 {{count}} 项"
+  },
+  "accountAccess": {
+    "lineLabel": "此设备的访问方式",
+    "plainva": "Plainva 访问",
+    "plainvaDesc": "Plainva 自带的访问方式，无需你输入任何内容。",
+    "plainvaMissing": "此版本未包含。",
+    "own": "自有访问",
+    "ownLine": "自有访问（{{id}}）",
+    "change": "更改",
+    "deviceOnly": "仅适用于此设备，不适用于整个账户。其他设备保留各自的访问方式。",
+    "signInAgainHint": "重新登录将使用此设备的访问方式。",
+    "title": {
+      "google": "此设备的 Google 访问",
+      "microsoft": "此设备的 Microsoft 访问"
+    },
+    "ownDesc": {
+      "google": "来自你自己 Google 项目的客户端。",
+      "microsoft": "来自你自己 Microsoft 账户的应用注册。"
+    },
+    "ownType": {
+      "desktop": "类型选“桌面应用”：在 Google Cloud Console 的“凭据”中创建；客户端ID和客户端密钥从那里获取。",
+      "ios": "类型选“iOS”，Bundle ID 为 com.plainva.app：在 Google Cloud Console 的“凭据”中创建。iOS 客户端没有密钥；它适用于 iPhone 和 Android 手机。",
+      "microsoft": "应用注册中的应用程序（客户端）ID。"
+    },
+    "problem": {
+      "noPlainvaClient": "此版本不包含 Google 的 Plainva 访问方式。请在“更改”中填写你自己的访问方式。",
+      "ownClientMissing": "自有访问缺少客户端ID。",
+      "ownClientInvalid": "此客户端ID的格式不符合要求。",
+      "ownSecretMissing": "自有访问缺少客户端密钥。"
+    }
   }
 }

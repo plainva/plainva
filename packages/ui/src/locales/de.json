@@ -3666,7 +3666,15 @@
     "passwordPending": "Noch nicht bestätigt",
     "passwordRecheck": "Passwort erneut prüfen",
     "passwordVerificationFailed": "Ein Dienst hat das Passwort nicht bestätigt. Es wurden keine weiteren Zugänge geändert.",
-    "passwordMissing": "Ein benötigter Zugang fehlt. Verbinde den betroffenen Dienst erneut."
+    "passwordMissing": "Ein benötigter Zugang fehlt. Verbinde den betroffenen Dienst erneut.",
+    "wrongAccount": "Du hast Dich mit {{actual}} angemeldet, dieses Konto ist {{expected}}. Es wurde nichts geändert.",
+    "nothingGranted": "Es wurde keiner der Dienste freigegeben. Deine bisherigen Zugänge bleiben erhalten.",
+    "notGranted": "Nicht freigegeben – beim Anmelden nicht angehakt. Melde Dich erneut an und hake den Dienst an.",
+    "needsAppPassword": "Gmail braucht hier ein App-Passwort. Öffne das Konto und schalte E-Mail ein.",
+    "joinedExisting": "Dieses Konto war schon verbunden: Die Dienste stehen jetzt bei {{account}}.",
+    "gmailPasswordGroup": "Gmail mit App-Passwort",
+    "gmailPasswordHint": "Dieser Zugang kann Gmail nicht mit freigeben. Plainva verbindet {{account}} deshalb über ein App-Passwort – am selben Konto.",
+    "appPassword": "App-Passwort"
   },
   "comments": {
     "workspaceLocked": "Dieser Workspace ist auf diesem Gerät gesperrt. Öffne die Sicherheitseinstellungen, um ihn zu entsperren und Anmerkungen zu lesen oder zu schreiben.",
@@ -4947,5 +4955,35 @@
     "newJournal": "Journal",
     "redeemed_one": "{{count}} Aufgabe aus dem Widget abgehakt",
     "redeemed_other": "{{count}} Aufgaben aus dem Widget abgehakt"
+  },
+  "accountAccess": {
+    "lineLabel": "Zugang dieses Geräts",
+    "plainva": "Plainva-Zugang",
+    "plainvaDesc": "Plainvas eigener Zugang. Du gibst nichts ein.",
+    "plainvaMissing": "In diesem Build nicht enthalten.",
+    "own": "Eigener Zugang",
+    "ownLine": "Eigener Zugang ({{id}})",
+    "change": "Ändern",
+    "deviceOnly": "Gilt für dieses Gerät, nicht für das ganze Konto. Andere Geräte behalten ihren Zugang.",
+    "signInAgainHint": "Erneut anmelden nimmt den Zugang dieses Geräts.",
+    "title": {
+      "google": "Google-Zugang dieses Geräts",
+      "microsoft": "Microsoft-Zugang dieses Geräts"
+    },
+    "ownDesc": {
+      "google": "Ein Client aus Deinem eigenen Google-Projekt.",
+      "microsoft": "Eine App-Registrierung aus Deinem eigenen Microsoft-Konto."
+    },
+    "ownType": {
+      "desktop": "Typ „Desktop-App“: in der Google Cloud Console unter „Anmeldedaten“ anlegen; Client-ID und Client-Secret von dort.",
+      "ios": "Typ „iOS“ mit der Bundle-ID com.plainva.app: in der Google Cloud Console unter „Anmeldedaten“ anlegen. Ein iOS-Client hat kein Secret; er gilt am iPhone und am Android-Telefon.",
+      "microsoft": "Die Anwendungs-ID (Client-ID) Deiner App-Registrierung."
+    },
+    "problem": {
+      "noPlainvaClient": "Dieser Build enthält keinen Plainva-Zugang für Google. Trag unter „Ändern“ Deinen eigenen Zugang ein.",
+      "ownClientMissing": "Für den eigenen Zugang fehlt die Client-ID.",
+      "ownClientInvalid": "Diese Client-ID hat nicht die erwartete Form.",
+      "ownSecretMissing": "Für den eigenen Zugang fehlt das Client-Secret."
+    }
   }
 }

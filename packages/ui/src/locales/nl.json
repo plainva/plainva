@@ -3666,7 +3666,15 @@
     "passwordPending": "Nog niet bevestigd",
     "passwordRecheck": "Wachtwoord opnieuw controleren",
     "passwordVerificationFailed": "Een dienst heeft het wachtwoord niet bevestigd. Er zijn geen verdere inloggegevens gewijzigd.",
-    "passwordMissing": "Benodigde inloggegevens ontbreken. Verbind de betrokken dienst opnieuw."
+    "passwordMissing": "Benodigde inloggegevens ontbreken. Verbind de betrokken dienst opnieuw.",
+    "wrongAccount": "Je hebt je aangemeld als {{actual}}, maar dit account is {{expected}}. Er is niets gewijzigd.",
+    "nothingGranted": "Geen van de diensten is toegestaan. Je bestaande aanmeldingen zijn behouden.",
+    "notGranted": "Niet toegestaan – bij het aanmelden niet aangevinkt. Meld je opnieuw aan en vink de dienst aan.",
+    "needsAppPassword": "Gmail heeft hier een app-wachtwoord nodig. Open het account en zet E-mail aan.",
+    "joinedExisting": "Dit account was al verbonden: de diensten staan nu bij {{account}}.",
+    "gmailPasswordGroup": "Gmail met app-wachtwoord",
+    "gmailPasswordHint": "Deze toegang kan Gmail niet ook toestaan, daarom verbindt Plainva {{account}} met een app-wachtwoord – op hetzelfde account.",
+    "appPassword": "App-wachtwoord"
   },
   "comments": {
     "workspaceLocked": "Deze werkruimte is vergrendeld op dit apparaat. Open de beveiligingsinstellingen om deze te ontgrendelen en opmerkingen te lezen of te schrijven.",
@@ -4947,5 +4955,35 @@
     "newJournal": "Journaal",
     "redeemed_one": "{{count}} taak afgevinkt vanaf de widget",
     "redeemed_other": "{{count}} taken afgevinkt vanaf de widget"
+  },
+  "accountAccess": {
+    "lineLabel": "Toegang van dit apparaat",
+    "plainva": "Plainva-toegang",
+    "plainvaDesc": "De eigen toegang van Plainva. Je hoeft niets in te voeren.",
+    "plainvaMissing": "Niet opgenomen in deze build.",
+    "own": "Eigen toegang",
+    "ownLine": "Eigen toegang ({{id}})",
+    "change": "Wijzigen",
+    "deviceOnly": "Geldt voor dit apparaat, niet voor het hele account. Andere apparaten behouden hun toegang.",
+    "signInAgainHint": "Opnieuw aanmelden gebruikt de toegang van dit apparaat.",
+    "title": {
+      "google": "Google-toegang van dit apparaat",
+      "microsoft": "Microsoft-toegang van dit apparaat"
+    },
+    "ownDesc": {
+      "google": "Een client uit je eigen Google-project.",
+      "microsoft": "Een app-registratie uit je eigen Microsoft-account."
+    },
+    "ownType": {
+      "desktop": "Type “Desktop-app”: maak het aan in de Google Cloud Console onder “Inloggegevens”; de client-ID en het client secret haal je daar.",
+      "ios": "Type “iOS” met de bundle-ID com.plainva.app: maak het aan in de Google Cloud Console onder “Inloggegevens”. Een iOS-client heeft geen secret; hij werkt op de iPhone en op Android-telefoons.",
+      "microsoft": "De toepassings-ID (client) van je app-registratie."
+    },
+    "problem": {
+      "noPlainvaClient": "Deze build bevat geen Plainva-toegang voor Google. Voer je eigen toegang in onder “Wijzigen”.",
+      "ownClientMissing": "Voor de eigen toegang ontbreekt de client-ID.",
+      "ownClientInvalid": "Deze client-ID heeft niet de verwachte vorm.",
+      "ownSecretMissing": "Voor de eigen toegang ontbreekt het client secret."
+    }
   }
 }

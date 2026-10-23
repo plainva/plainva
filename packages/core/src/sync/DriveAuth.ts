@@ -88,6 +88,8 @@ export function buildAuthUrl(opts: {
    * a second service is ticked later (cloud accounts stage B).
    */
   includeGrantedScopes?: boolean;
+  /** The account to preselect: signing a card in again names its address. */
+  loginHint?: string;
 }): string {
   const params = new URLSearchParams({
     client_id: opts.clientId,
@@ -100,6 +102,7 @@ export function buildAuthUrl(opts: {
     prompt: "consent",
   });
   if (opts.includeGrantedScopes) params.set("include_granted_scopes", "true");
+  if (opts.loginHint) params.set("login_hint", opts.loginHint);
   if (opts.state) params.set("state", opts.state);
   return `${DRIVE_AUTH_ENDPOINT}?${params.toString()}`;
 }

@@ -28,6 +28,13 @@ import {
   type CloudServiceId,
   type MailPreset,
   type ProviderAuthMode,
+  OAuthAccessEditor,
+  accessProblemKey,
+  plainvaGoogleClient,
+  SignInNothingGrantedError,
+  SignInWrongAccountError,
+  type AccessResolution,
+  type StoredOAuthAccess,
 } from "@plainva/ui";
 import { Select } from "../Select";
 import {
@@ -42,6 +49,8 @@ import {
   type ServiceRunStatus,
 } from "../../services/cloudAccountsActions";
 import type { PimRuntime } from "../../services/pim/pimRuntime";
+import { AccessUnavailableError, readDeviceAccess, saveDeviceAccess, deviceAccess, signInCloudAccount } from "../../services/accountSignIn";
+import { loadCloudAccounts } from "../../services/cloudAccounts";
 import { SyncFolderPickerModal } from "../SyncFolderPickerModal";
 import { AccountMark, SERVICE_ICONS, familyLabel, serviceLabel } from "./cloudAccountsShared";
 
@@ -110,7 +119,6 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
   const [svc, setSvc] = useState<Record<CloudServiceId, boolean>>({ files: false, calendar: false, mail: false });
   const [byoOpen, setByoOpen] = useState(false);
   const [byoId, setByoId] = useState("");
-  const [googleSecret, setGoogleSecret] = useState("");
   const [wd, setWd] = useState({ base: "", user: "", pass: "", advanced: false, filesUrl: "", caldavUrl: "" });
   const [s3, setS3] = useState({ endpoint: "", region: "", bucket: "", accessKeyId: "", secretKey: "", prefix: "", pathStyle: true });
   const [imap, setImap] = useState({ email: "", presetId: "custom", host: "", port: "993", smtpHost: "", smtpPort: "587", pass: "" });
@@ -132,8 +140,34 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
    * back; the question is not repeated.
    */
   const folderAskedRef = useRef(false);
+  /** Read when the calendar step needs it: a runtime captured before a reload is a stopped one. */
+  const runtimeRef = useRef(runtime);
+  useEffect(() => { runtimeRef.current = runtime; }, [runtime]);
+  /** This device's access for Google/Microsoft (E3); null while it loads. */
+  const [access, setAccess] = useState<AccessResolution | null>(null);
+  const [storedAccess, setStoredAccess] = useState<StoredOAuthAccess | null>(null);
+  const [editAccess, setEditAccess] = useState(false);
+  /** Set when the sign-in found the account already connected in this vault. */
+  const [joinedAccount, setJoinedAccount] = useState<string | null>(null);
 
   const family = tile?.family ?? null;
+  /** Google and Microsoft sign in through the one account sign-in. */
+  const accountFamily = family === "google" || family === "microsoft" ? family : null;
+  useEffect(() => {
+    if (!accountFamily) return;
+    let alive = true;
+    void (async () => {
+      const stored = await readDeviceAccess(accountFamily, vaultPath);
+      const resolved = await deviceAccess(accountFamily, vaultPath);
+      if (!alive) return;
+      setStoredAccess(stored);
+      setAccess(resolved);
+      if (!resolved.ok) setEditAccess(true);
+    })();
+    return () => { alive = false; };
+  }, [accountFamily, vaultPath]);
+  /** Gmail outside the consent: the access cannot carry mail, so it asks for an app password (E5). */
+  const gmailNeedsPassword = family === "google" && svc.mail && !!access?.ok && !access.access.mail;
   const suiteDef = family ? suiteProvider(family) : null;
   const available = family ? FAMILY_SERVICES[family] : [];
   const filesTakenBy = records.find((r) => r.services.files);
@@ -215,8 +249,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
       family: family!,
       flavor: tile?.flavor,
       services,
-      byoClientId: byoOpen || family === "google" ? byoId.trim() || undefined : undefined,
-      googleClientSecret: family === "google" ? googleSecret : undefined,
+      byoClientId: byoOpen ? byoId.trim() || undefined : undefined,
       webdav: family === "webdav" ? { filesUrl: endpoints.files, caldavUrl: endpoints.caldav, user: wd.user.trim(), pass: wd.pass } : suiteDav,
       s3:
         family === "s3"
@@ -245,10 +278,63 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
     };
   };
 
+  const signInText = (err: unknown): string => {
+    if (err instanceof SignInWrongAccountError) return t("cloudAccounts.wrongAccount", { expected: err.expected, actual: err.actual });
+    if (err instanceof SignInNothingGrantedError) return t("cloudAccounts.nothingGranted");
+    if (err instanceof AccessUnavailableError) return t(accessProblemKey(err.problem));
+    return oauthErrorText(err);
+  };
+
+  /**
+   * Google and Microsoft: ONE consent for every ticked service, then each
+   * service says its own result - a service the provider left unticked says
+   * so instead of the run stopping at the first one (finding 2026-10-23).
+   */
+  const runSignIn = async (todo: CloudServiceId[]) => {
+    setRunning(true);
+    setStatus((prev) => ({ ...prev, ...Object.fromEntries(todo.map((s) => [s, { state: "pending" } as ServiceRunStatus])) }));
+    try {
+      const outcome = await signInCloudAccount(vaultPath, () => runtimeRef.current, {
+        family: accountFamily!,
+        ...(boundIdRef.current ? { cardId: boundIdRef.current } : {}),
+        add: todo,
+        ...(gmailNeedsPassword && todo.includes("mail") ? { mailPassword: { email: imap.email.trim(), pass: imap.pass } } : {}),
+      });
+      boundIdRef.current = outcome.record.id;
+      if (outcome.completed?.joinedExistingCard) setJoinedAccount(outcome.record.label);
+      const next: Partial<Record<CloudServiceId, ServiceRunStatus>> = {};
+      for (const row of outcome.rows) {
+        next[row.service] = row.state === "active"
+          ? { state: "ok" }
+          : row.state === "notGranted"
+            ? { state: "error", reason: "permissions", detail: t("cloudAccounts.notGranted") }
+            : row.state === "needsPassword"
+              ? { state: "error", detail: t("cloudAccounts.needsAppPassword") }
+              : { state: "error", detail: row.detail };
+      }
+      setStatus((prev) => ({ ...prev, ...next }));
+      const services = outcome.record.services;
+      setResult({ filesProvider: services.files?.provider, pimAccountId: services.calendar?.pimAccountId, mailAccountId: services.mail?.mailAccountId, accountId: outcome.record.id });
+      setBound(await loadCloudAccounts(vaultPath));
+      if (services.files && services.files.provider !== "webdav") setRootFolder(await getSyncRootFolder(vaultPath, services.files.provider));
+      const calendarId = services.calendar?.pimAccountId;
+      if (next.calendar?.state === "ok" && calendarId && runtimeRef.current) {
+        const cals = await runtimeRef.current.cache.listCalendars(calendarId);
+        setStatus((prev) => ({ ...prev, calendar: { state: "ok", detail: t("cloudAccounts.calendarsFound", { count: cals.length }) } }));
+      }
+    } catch (err) {
+      const detail = signInText(err);
+      setStatus((prev) => ({ ...prev, ...Object.fromEntries(todo.map((s) => [s, { state: "error", detail } as ServiceRunStatus])) }));
+    } finally {
+      setRunning(false);
+    }
+  };
+
   const run = async () => {
     // Retry semantics: only services that are not OK yet run (again).
     const todo = selected.filter((s) => status[s]?.state !== "ok");
     if (todo.length === 0) return;
+    if (accountFamily) return runSignIn(todo);
     setRunning(true);
     const merged: ConnectResult = { ...result };
     try {
@@ -391,7 +477,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
                         {t("cloudAccounts.filesTaken", { account: filesTakenBy!.label || familyLabel(filesTakenBy!.family, filesTakenBy!.flavor) })}
                       </span>
                     )}
-                    {service === "mail" && family === "google" && <span className="pv-svcchip pv-svcchip--off">{t("cloudAccounts.appPasswordBadge")}</span>}
+                    {service === "mail" && family === "google" && access?.ok && !access.access.mail && <span className="pv-svcchip pv-svcchip--off">{t("cloudAccounts.appPasswordBadge")}</span>}
                   </div>
                   <div className="pv-svcline-desc">
                     {takenByOther
@@ -417,7 +503,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
               </div>
             );
           })}
-          {family === "google" && svc.mail && <SettingCardNote>{t("cloudAccounts.gmailHint")} <Button size="sm" variant="ghost" data-testid="gmail-app-password-link" onClick={() => void getPlatformServices().openExternal(presetById("gmail")!.appPasswordUrl!)}>{t("cloudAccounts.gmailAppPasswordLink")}</Button></SettingCardNote>}
+          {gmailNeedsPassword && <SettingCardNote>{t("cloudAccounts.gmailHint")} <Button size="sm" variant="ghost" data-testid="gmail-app-password-link" onClick={() => void getPlatformServices().openExternal(presetById("gmail")!.appPasswordUrl!)}>{t("cloudAccounts.gmailAppPasswordLink")}</Button></SettingCardNote>}
           {family === "apple" && <SettingCardNote>{t("cloudAccounts.appleNoFiles")}</SettingCardNote>}
           <SettingCardNote>{t("cloudAccounts.servicesHint")}</SettingCardNote>
         </SettingCard>
@@ -436,14 +522,11 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
   /* ---------- step 3: sign in / connect ---------- */
   const endpoints = !wd.advanced ? nextcloudEndpoints(wd.base, wd.user) : null;
   const oauthFamily = family === "microsoft" || family === "dropbox";
-  const needsImapForm = family === "imap" || (family === "google" && svc.mail);
+  const needsImapForm = family === "imap" || gmailNeedsPassword;
   const activePreset = needsImapForm && family !== "google" ? presetById(imap.presetId) : null;
-  // Google needs the BYO OAuth client only for Drive/Calendar scopes — a
-  // mail-only selection connects via IMAP app password (finding #2).
-  const googleNeedsByo = family === "google" && (svc.files || svc.calendar);
   const connectDisabled =
     running ||
-    (googleNeedsByo && (!byoId.trim() || !googleSecret.trim())) ||
+    (!!accountFamily && (!access?.ok || editAccess)) ||
     (family === "webdav" && (wd.advanced ? !(svc.files ? wd.filesUrl.trim() : true) || !(svc.calendar ? wd.caldavUrl.trim() : true) : !wd.base.trim()) ) ||
     (family === "webdav" && (!wd.user.trim() || !wd.pass)) ||
     (family === "s3" && (!s3.endpoint.trim() || !s3.bucket.trim() || !s3.accessKeyId.trim() || !s3.secretKey)) ||
@@ -462,16 +545,31 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
     <div>
       {steps}
       {/* family-specific inputs */}
-      {googleNeedsByo && (
+      {accountFamily && access && !editAccess && (
         <SettingCard>
-          <SettingRow label={t("settings.clientId")} wide>
-            <TextInput value={byoId} onChange={(e) => setByoId(e.target.value)} data-testid="cloudacct-google-id" />
+          <SettingRow
+            label={t("accountAccess.lineLabel")}
+            desc={access.ok ? (access.access.source === "plainva" ? t("accountAccess.plainva") : t("accountAccess.ownLine", { id: access.access.clientId })) : t(accessProblemKey(access.problem))}
+          >
+            <Button variant="secondary" size="sm" data-testid="cloudacct-access-change" onClick={() => setEditAccess(true)}>{t("accountAccess.change")}</Button>
           </SettingRow>
-          <SettingRow label={t("settings.clientSecret")} wide>
-            <TextInput type="password" value={googleSecret} onChange={(e) => setGoogleSecret(e.target.value)} />
-          </SettingRow>
-          <SettingCardNote>{t("pim.googleByoHint")}</SettingCardNote>
         </SettingCard>
+      )}
+      {accountFamily && access && editAccess && (
+        <OAuthAccessEditor
+          family={accountFamily}
+          platform="desktop"
+          value={storedAccess}
+          plainvaAvailable={accountFamily === "microsoft" || !!plainvaGoogleClient(import.meta.env as unknown as Record<string, unknown>, "desktop")}
+          onSave={async (next) => {
+            await saveDeviceAccess(accountFamily, next);
+            setStoredAccess(next);
+            const resolved = await deviceAccess(accountFamily, vaultPath);
+            setAccess(resolved);
+            setEditAccess(!resolved.ok);
+          }}
+          onCancel={access.ok ? () => setEditAccess(false) : undefined}
+        />
       )}
       {family === "webdav" && (
         <SettingCard>
@@ -735,6 +833,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
             </SettingRow>
           )}
           {allDone && svc.calendar && <SettingCardNote>{t("cloudAccounts.calendarNext")}</SettingCardNote>}
+          {joinedAccount && <SettingCardNote><span data-testid="cloudacct-joined">{t("cloudAccounts.joinedExisting", { account: joinedAccount })}</span></SettingCardNote>}
         </SettingCard>
       )}
 
@@ -760,7 +859,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
                   ? family === "microsoft"
                     ? t("cloudAccounts.signInMicrosoft")
                     : t("cloudAccounts.signInDropbox")
-                  : family === "google" && (svc.files || svc.calendar)
+                  : family === "google" && (svc.files || svc.calendar || (svc.mail && !gmailNeedsPassword))
                     ? t("cloudAccounts.signInGoogle")
                     : t("pim.connect")}
           </Button>
@@ -772,7 +871,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
         )}
       </div>
 
-      {oauthFamily && !allDone && (
+      {family === "dropbox" && !allDone && (
         <SettingCardNote>
           <button type="button" className="pv-linkbtn" onClick={() => setByoOpen((v) => !v)}>
             {t("settings.useOwnAppId")}

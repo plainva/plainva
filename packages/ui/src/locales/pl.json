@@ -3740,7 +3740,15 @@
     "passwordPending": "Jeszcze niepotwierdzone",
     "passwordRecheck": "Zweryfikuj hasło ponownie",
     "passwordVerificationFailed": "Usługa nie potwierdziła hasła. Nie zmieniono kolejnych danych logowania.",
-    "passwordMissing": "Brakuje wymaganych danych logowania. Połącz ponownie daną usługę."
+    "passwordMissing": "Brakuje wymaganych danych logowania. Połącz ponownie daną usługę.",
+    "wrongAccount": "Zalogowano jako {{actual}}, a to konto to {{expected}}. Nic nie zostało zmienione.",
+    "nothingGranted": "Nie zezwolono na żadną z usług. Dotychczasowy dostęp został zachowany.",
+    "notGranted": "Brak zgody – przy logowaniu pole nie było zaznaczone. Zaloguj się ponownie i zaznacz usługę.",
+    "needsAppPassword": "Gmail wymaga tutaj hasła aplikacji. Otwórz konto i włącz E-mail.",
+    "joinedExisting": "To konto było już połączone: jego usługi są teraz przy koncie {{account}}.",
+    "gmailPasswordGroup": "Gmail z hasłem aplikacji",
+    "gmailPasswordHint": "Ten dostęp nie może dodatkowo obejmować Gmaila, dlatego Plainva łączy {{account}} za pomocą hasła aplikacji – na tym samym koncie.",
+    "appPassword": "Hasło aplikacji"
   },
   "comments": {
     "workspaceLocked": "Ten obszar roboczy jest zablokowany na tym urządzeniu. Otwórz ustawienia zabezpieczeń, aby go odblokować i czytać lub pisać uwagi.",
@@ -5073,5 +5081,35 @@
     "redeemed_many": "Odhaczono {{count}} zadań z widgetu",
     "redeemed_one": "Odhaczono {{count}} zadanie z widgetu",
     "redeemed_other": "Odhaczono {{count}} zadania z widgetu"
+  },
+  "accountAccess": {
+    "lineLabel": "Dostęp tego urządzenia",
+    "plainva": "Dostęp Plainva",
+    "plainvaDesc": "Własny dostęp Plainva. Nie musisz niczego wpisywać.",
+    "plainvaMissing": "Nie wchodzi w skład tej kompilacji.",
+    "own": "Własny dostęp",
+    "ownLine": "Własny dostęp ({{id}})",
+    "change": "Zmień",
+    "deviceOnly": "Dotyczy tego urządzenia, a nie całego konta. Inne urządzenia zachowują swój dostęp.",
+    "signInAgainHint": "Ponowne zalogowanie używa dostępu tego urządzenia.",
+    "title": {
+      "google": "Dostęp Google tego urządzenia",
+      "microsoft": "Dostęp Microsoft tego urządzenia"
+    },
+    "ownDesc": {
+      "google": "Klient z Twojego własnego projektu Google.",
+      "microsoft": "Rejestracja aplikacji z Twojego własnego konta Microsoft."
+    },
+    "ownType": {
+      "desktop": "Typ „Aplikacja komputerowa”: utwórz go w Google Cloud Console w sekcji „Dane logowania”; Client ID i Client Secret pochodzą stamtąd.",
+      "ios": "Typ „iOS” z identyfikatorem pakietu com.plainva.app: utwórz go w Google Cloud Console w sekcji „Dane logowania”. Klient iOS nie ma sekretu; działa na iPhonie i na telefonach z Androidem.",
+      "microsoft": "Identyfikator aplikacji (klienta) z Twojej rejestracji aplikacji."
+    },
+    "problem": {
+      "noPlainvaClient": "Ta kompilacja nie zawiera dostępu Plainva dla Google. Wpisz własny dostęp w „Zmień”.",
+      "ownClientMissing": "Własny dostęp wymaga Client ID.",
+      "ownClientInvalid": "Ten Client ID nie ma oczekiwanej postaci.",
+      "ownSecretMissing": "Własny dostęp wymaga Client Secret."
+    }
   }
 }

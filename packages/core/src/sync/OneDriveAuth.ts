@@ -41,6 +41,8 @@ export function buildOneDriveAuthUrl(opts: {
   codeChallenge: string;
   scope?: string;
   state?: string;
+  /** The account to preselect: signing a card in again names its address. */
+  loginHint?: string;
 }): string {
   const params = new URLSearchParams({
     client_id: opts.clientId,
@@ -53,6 +55,7 @@ export function buildOneDriveAuthUrl(opts: {
     prompt: "select_account",
   });
   if (opts.state) params.set("state", opts.state);
+  if (opts.loginHint) params.set("login_hint", opts.loginHint);
   return `${ONEDRIVE_AUTH_ENDPOINT}?${params.toString()}`;
 }
 

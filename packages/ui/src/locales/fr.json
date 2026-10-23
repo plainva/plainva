@@ -3703,7 +3703,15 @@
     "passwordPending": "Pas encore confirmé",
     "passwordRecheck": "Vérifier à nouveau le mot de passe",
     "passwordVerificationFailed": "Un service n’a pas confirmé le mot de passe. Aucun autre identifiant n’a été modifié.",
-    "passwordMissing": "Un identifiant requis est manquant. Reconnecte le service concerné."
+    "passwordMissing": "Un identifiant requis est manquant. Reconnecte le service concerné.",
+    "wrongAccount": "Vous vous êtes connecté avec {{actual}}, mais ce compte est {{expected}}. Rien n’a été modifié.",
+    "nothingGranted": "Aucun des services n’a été autorisé. Vos accès existants ont été conservés.",
+    "notGranted": "Non autorisé : case non cochée lors de la connexion. Reconnectez-vous et cochez le service.",
+    "needsAppPassword": "Gmail nécessite ici un mot de passe d’application. Ouvrez le compte et activez E-mail.",
+    "joinedExisting": "Ce compte était déjà connecté : ses services sont maintenant regroupés sous {{account}}.",
+    "gmailPasswordGroup": "Gmail avec mot de passe d’application",
+    "gmailPasswordHint": "Cet accès ne peut pas autoriser Gmail en plus ; Plainva connecte donc {{account}} avec un mot de passe d’application, sur le même compte.",
+    "appPassword": "Mot de passe d’application"
   },
   "comments": {
     "workspaceLocked": "Cet espace de travail est verrouillé sur cet appareil. Ouvre les paramètres de sécurité pour le déverrouiller et lire ou écrire des remarques.",
@@ -5010,5 +5018,35 @@
     "redeemed_many": "{{count}} de tâches cochées depuis le widget",
     "redeemed_one": "{{count}} tâche cochée depuis le widget",
     "redeemed_other": "{{count}} tâches cochées depuis le widget"
+  },
+  "accountAccess": {
+    "lineLabel": "Accès de cet appareil",
+    "plainva": "Accès Plainva",
+    "plainvaDesc": "L’accès propre à Plainva. Vous n’avez rien à saisir.",
+    "plainvaMissing": "Non inclus dans cette version.",
+    "own": "Accès personnel",
+    "ownLine": "Accès personnel ({{id}})",
+    "change": "Modifier",
+    "deviceOnly": "Valable pour cet appareil, pas pour tout le compte. Les autres appareils gardent leur accès.",
+    "signInAgainHint": "Se reconnecter utilise l’accès de cet appareil.",
+    "title": {
+      "google": "Accès Google de cet appareil",
+      "microsoft": "Accès Microsoft de cet appareil"
+    },
+    "ownDesc": {
+      "google": "Un client de votre propre projet Google.",
+      "microsoft": "Un enregistrement d’application de votre propre compte Microsoft."
+    },
+    "ownType": {
+      "desktop": "Type « Application de bureau » : à créer dans la Google Cloud Console, sous « Identifiants » ; l’ID client et le secret client s’y trouvent.",
+      "ios": "Type « iOS » avec l’ID de bundle com.plainva.app : à créer dans la Google Cloud Console, sous « Identifiants ». Un client iOS n’a pas de secret ; il fonctionne sur l’iPhone et sur les téléphones Android.",
+      "microsoft": "L’ID d’application (client) de votre enregistrement d’application."
+    },
+    "problem": {
+      "noPlainvaClient": "Cette version n’inclut pas d’accès Plainva pour Google. Saisissez votre propre accès sous « Modifier ».",
+      "ownClientMissing": "L’accès personnel nécessite un ID client.",
+      "ownClientInvalid": "Cet ID client n’a pas la forme attendue.",
+      "ownSecretMissing": "L’accès personnel nécessite un secret client."
+    }
   }
 }
