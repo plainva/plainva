@@ -293,7 +293,13 @@ export function listIndentPlugin(options: ListIndentOptions = {}): Extension {
         // Our own decoration transaction never requests another measurement.
         // External geometry/font changes invalidate metrics; the unindented
         // probe and dead band make their result independent of our padding.
-        if (!remeasured && (u.docChanged || u.viewportChanged || u.geometryChanged || treeMoved)) {
+        // In live mode the caret's line shows its raw marker (`- [ ] `) and the
+        // others their bullet or box: a caret that moves to another line
+        // changes what two lines render without changing the document. A task
+        // typed anew kept the width measured while it was raw and sat 4 px left
+        // of the boxes around it once the caret left (Sammelplan 3.146).
+        const caretMoved = hideWs && u.selectionSet;
+        if (!remeasured && (u.docChanged || u.viewportChanged || u.geometryChanged || treeMoved || caretMoved)) {
           if (u.geometryChanged) this.prefixes.invalidate();
           u.view.requestMeasure(this.measure);
         }

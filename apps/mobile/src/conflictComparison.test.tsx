@@ -82,16 +82,22 @@ const TABLE_COPY = Uint8Array.from([...TABLE, 0x32, 0x3b, 0x57, 0x65, 0x69, 0xdf
 const table = "Projects/Data.csv", tableCopy = "Projects/Data.CONFLICT-2026-10-11T08-00-00-000Z.csv";
 
 /**
- * Waits, inside `act`, until `check` holds. The byte-wise exits hash both
- * files (`crypto.subtle`), which resolves after `act` has flushed its own
- * work: a test that looked at once saw nothing done yet, and what was still
- * running reached into the next test.
+ * Waits until `check` holds. The byte-wise exits hash both files
+ * (`crypto.subtle`), which resolves after `act` has flushed its own work: a
+ * test that looked at once saw nothing done yet, and what was still running
+ * reached into the next test.
+ *
+ * Each try lets React commit first, in an `act` of its own, and looks outside
+ * it. The wait used to run inside one `act`: React holds back what the sheet
+ * renders until such a scope ends, so an answer that came while the test was
+ * already waiting - a slow hash on a loaded CI runner - was never seen, however
+ * long it waited (Sammelplan 3.148; a hash delayed by 300 ms fails every case).
  */
 async function until(check: () => void) {
-  // `vi.waitFor` gives up after one second by default; hashing two files under
-  // a loaded CI runner took longer three times (Sammelplan 3.148). The wait
-  // still ends the moment the check holds.
-  await act(async () => { await vi.waitFor(check, { timeout: 10_000, interval: 20 }); });
+  await vi.waitFor(async () => {
+    await act(async () => { await Promise.resolve(); });
+    check();
+  }, { timeout: 10_000, interval: 20 });
 }
 /** The sheet has seen the bytes of both files: its exits are there. */
 async function renderSeen() {
