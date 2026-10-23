@@ -73,7 +73,7 @@ Eine Aufgabenzeile zeigt ihren Titel über die volle Breite; Status, Fälligkeit
 
 **Heute** ist die Tagesfläche. Der Streifen oben wählt einen Tag — er läuft **in beide Richtungen**, zwei Wochen zurück und zwei Wochen voraus, ein Punkt markiert jeden Tag, an dem schon eine Tagesnotiz liegt. Darunter steht die **Tagesnotiz** des gewählten Tages (mit Vorlage und Ordner, zum Öffnen oder Anlegen), dann **Termine und Fälligkeiten** dieses Tages und zuletzt, was Du an dem Tag bearbeitet hast.
 
-Die mittlere Sektion führt zusammen, was sonst auf zwei Flächen liegt: ganztägige Termine zuerst, danach die zeitgebundenen in Uhrzeit-Reihenfolge, zum Schluss die Aufgaben, die an dem Tag fällig sind. Ein Tipp auf eine Aufgabe öffnet ihre Notiz. Ohne verbundenen Kalender und ohne Aufgaben-Datenbank fehlt die Sektion einfach.
+Die mittlere Sektion führt zusammen, was sonst auf zwei Flächen liegt: ganztägige Termine zuerst, danach die zeitgebundenen in Uhrzeit-Reihenfolge, zum Schluss unter **Fällig** die Aufgaben, die an dem Tag fällig sind — Einträge Deiner [Standard-Aufgabendatenbank](Tasks.md) und Kästchen in Notizen mit einem `📅`-Datum gleichermaßen, dieselben Aufgaben, die die **Heute**-Liste der Aufgabenansicht zeigt. Am heutigen Tag steht Überfälliges zuerst, sein Datum in der Warnfarbe. Das Kästchen vor einer Aufgabe hakt sie gleich dort ab — ein Kästchen in der Zeile seiner Notiz, mit dem Erledigt-Datum; ein Tipp auf die Aufgabe öffnet sie, ein Kästchen an seiner Zeile, ein Tipp auf ihr Datum öffnet das Datumsblatt. Beide Sektionen bleiben stehen, wenn der Tag leer ist, und sagen es.
 
 Direkt unter der Tagesnotiz steht **Journal**: die Einträge des gewählten Tages, ein Feld, das genau in diesen Tag schreibt, und **Alle Tage**, das den Journal-Bildschirm mit dem Strom aller Tage öffnet. **＋** bietet **Journal-Eintrag** von überall an — siehe [Journal](Journal.md).
 
@@ -308,7 +308,7 @@ Der Aufgaben-Bildschirm öffnet sich auf **Heute**; das Segment über der Liste 
 
 Android bietet zwei Widgets, **Heute** und **Schnellerfassung**; auf dem iPhone kommen zwei für den Sperrbildschirm dazu, ein Zähler und die nächste Aufgabe. Halte eine freie Stelle des Startbildschirms gedrückt und wähle Plainva.
 
-**Heute** zeigt Überfälliges als Zahl, darunter die Termine und Aufgaben des Tages in derselben Reihenfolge wie in der App. Ein Tipp auf eine Zeile öffnet die Notiz, einer auf den Kopf den Heute-Bildschirm, das **+** das Erfassungsblatt. **Schnellerfassung** zeigt gar keinen Inhalt: ein Knopf für **Aufgabe**, einer für **Journal**.
+**Heute** zeigt Überfälliges als Zahl, darunter die Termine und Aufgaben des Tages in derselben Reihenfolge wie in der App — Aufgaben aus der Aufgabendatenbank und Kästchen in Notizen mit einem `📅`-Datum gleichermaßen. Ein Tipp auf eine Zeile öffnet die Notiz, einer auf den Kopf den Heute-Bildschirm, das **+** das Erfassungsblatt. **Schnellerfassung** zeigt gar keinen Inhalt: ein Knopf für **Aufgabe**, einer für **Journal**.
 
 Ein Widget rechnet nichts selbst. Bei geschlossener App läuft nichts von Plainva, also zeigt es, was die App bei ihrem letzten Lauf hingelegt hat — deshalb kennt es eine ganze Woche im Voraus und blättert um Mitternacht weiter, ohne dass Du etwas öffnest. Ist der Stand von einem früheren Tag, sagt der Kopf, wann er geschrieben wurde.
 

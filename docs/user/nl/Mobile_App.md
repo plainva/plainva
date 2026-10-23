@@ -73,7 +73,7 @@ Een taakregel toont de titel over de volle breedte; status, vervaldatum, herhali
 
 **Vandaag** is het dagoppervlak. De strip bovenaan kiest een dag — hij loopt **in beide richtingen**, twee weken terug en twee weken vooruit, en een stip markeert elke dag die al een dagnotitie heeft. Daaronder staat de **dagnotitie** van de gekozen dag (met sjabloon en map, om te openen of aan te maken), daarna de **afspraken en einddatums** van die dag, en ten slotte wat je die dag hebt bewerkt.
 
-Het middelste gedeelte brengt samen wat anders op twee onderdelen zou staan: eerst de hele-dag-afspraken, dan de afspraken met een tijdstip in chronologische volgorde, en ten slotte de taken die die dag vervallen. Tikken op een taak opent de bijbehorende notitie. Zonder gekoppelde agenda en zonder takendatabase ontbreekt de sectie gewoon.
+Het middelste gedeelte brengt samen wat anders op twee onderdelen zou staan: eerst de hele-dag-afspraken, dan de afspraken met een tijdstip in chronologische volgorde, en ten slotte, onder **Te doen**, de taken die die dag vervallen — items uit je [standaard takendatabase](Tasks.md) en vinkvakjes in notities met een `📅`-datum evengoed, dezelfde taken die de lijst **Vandaag** van de Taken-weergave toont. Op vandaag staat wat achterstallig is vooraan, met de datum in de waarschuwingskleur. Het vakje vóór een taak vinkt haar daar meteen af — bij een vakje in een notitie in de regel zelf, met de afrondingsdatum; tikken op de taak opent haar, bij een vakje op zijn regel, en tikken op de datum opent het datumblad. Beide secties blijven staan als de dag leeg is en zeggen dat ook.
 
 Direct onder de dagnotitie staat **Journaal**: de items van de gekozen dag, een veld dat precies in die dag schrijft, en **Alle dagen**, dat het journaalscherm met de stroom van alle dagen opent. **＋** biedt **Journaalitem** aan vanaf overal — zie [Journaal](Journal.md).
 
@@ -308,7 +308,7 @@ Het takenscherm opent op **Vandaag**; het segment boven de lijst wisselt tussen 
 
 Android biedt twee widgets, **Vandaag** en **Snel vastleggen**; op de iPhone komen er twee voor het toegangsscherm bij, een teller en de volgende taak. Houd een lege plek op het startscherm ingedrukt en kies Plainva.
 
-**Vandaag** toont achterstand als getal en daaronder de afspraken en taken van de dag in dezelfde volgorde als de app. Een tik op een regel opent de notitie, een tik op de kop het Vandaag-scherm en de **+** het invoerblad. **Snel vastleggen** toont helemaal geen inhoud: een knop **Taak** en een knop **Journaal**.
+**Vandaag** toont achterstand als getal en daaronder de afspraken en taken van de dag in dezelfde volgorde als de app — taken uit de takendatabase en vakjes in notities met een `📅`-datum evengoed. Een tik op een regel opent de notitie, een tik op de kop het Vandaag-scherm en de **+** het invoerblad. **Snel vastleggen** toont helemaal geen inhoud: een knop **Taak** en een knop **Journaal**.
 
 Een widget rekent zelf niets uit. Met de app dicht draait er niets van Plainva, dus toont hij wat de app bij de laatste keer heeft opgeschreven — daarom kent hij een hele week vooruit en slaat hij om middernacht de bladzijde om zonder dat je iets opent. Zodra wat hij toont van een eerdere dag is, zegt de kop wanneer het geschreven is.
 

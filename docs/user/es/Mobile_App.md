@@ -73,7 +73,7 @@ Una fila de tarea muestra su título a todo lo ancho; el estado, la fecha límit
 
 **Hoy** es la superficie del día. La franja de arriba selecciona un día — se extiende **en ambas direcciones**, dos semanas hacia atrás y dos hacia delante, y un punto marca cada día que ya tiene una nota diaria. Debajo está la **nota diaria** del día seleccionado (con su plantilla y su carpeta, para abrirla o crearla), luego las **citas y vencimientos** de ese día, y por último lo que editaste ese día.
 
-La sección central reúne lo que de otro modo estaría en dos áreas distintas: primero los eventos de todo el día, luego los que tienen hora, en orden cronológico, y por último las tareas que vencen ese día. Tocar una tarea abre su nota. Sin un calendario conectado y sin una base de datos de tareas, la sección simplemente no aparece.
+La sección central reúne lo que de otro modo estaría en dos áreas distintas: primero los eventos de todo el día, luego los que tienen hora, en orden cronológico, y por último, bajo **Vence**, las tareas que vencen ese día — entradas de tu [base de datos de tareas predeterminada](Tasks.md) y casillas en notas con una fecha `📅` por igual, las mismas tareas que muestra la lista **Hoy** de la vista Tareas. En el día de hoy, lo atrasado va primero, con su fecha en el color de aviso. La casilla delante de una tarea la marca allí mismo — una casilla en la línea de su nota, con la fecha de finalización; tocar la tarea la abre, una casilla en su línea, y tocar su fecha abre la hoja de fecha. Ambas secciones se mantienen cuando el día está vacío y lo indican.
 
 Justo debajo de la nota diaria está **Diario**: las entradas del día seleccionado, un campo que escribe exactamente en ese día, y **Todos los días**, que abre la pantalla del diario con el flujo de todos los días. **＋** ofrece **Entrada de diario** desde cualquier lugar — ver [Diario](Journal.md).
 
@@ -308,7 +308,7 @@ La pantalla de tareas se abre en **Hoy**; el segmento encima de la lista alterna
 
 Android ofrece dos widgets, **Hoy** y **Captura rápida**; en el iPhone hay dos más para la pantalla de bloqueo, un contador y la próxima tarea. Mantén pulsado un hueco libre de la pantalla de inicio y elige Plainva.
 
-**Hoy** muestra lo atrasado como un número y debajo las citas y tareas del día en el mismo orden que la app. Un toque en una fila abre la nota, uno en la cabecera abre la pantalla Hoy y el **+** abre la hoja de captura. **Captura rápida** no muestra contenido alguno: un botón para **Tarea** y otro para **Diario**.
+**Hoy** muestra lo atrasado como un número y debajo las citas y tareas del día en el mismo orden que la app — tanto tareas de la base de datos de tareas como casillas en notas con una fecha `📅`. Un toque en una fila abre la nota, uno en la cabecera abre la pantalla Hoy y el **+** abre la hoja de captura. **Captura rápida** no muestra contenido alguno: un botón para **Tarea** y otro para **Diario**.
 
 Un widget no calcula nada por sí mismo. Con la app cerrada no se ejecuta nada de Plainva, así que muestra lo que la app dejó escrito la última vez — por eso conoce una semana entera por adelantado y pasa de día a medianoche sin que abras nada. Cuando lo que muestra es de un día anterior, la cabecera dice cuándo se escribió.
 

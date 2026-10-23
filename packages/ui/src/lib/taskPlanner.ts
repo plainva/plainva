@@ -29,6 +29,17 @@ export type TaskPriority = 0 | 1 | 2 | 3;
 /** How a checkbox or a database row stands. `progress` counts as open, `cancelled` as closed. */
 export type TaskState = "open" | "progress" | "done" | "cancelled";
 
+/**
+ * Where a checkbox stands in its note: enough to find the line again in the
+ * note as it lies there later (`resolveTaskOrdinal`) — its ordinal, its text,
+ * and the Tasks-plugin id when it carries one.
+ */
+export interface PlannerTaskLine {
+  ordinal: number;
+  text: string;
+  taskId?: string;
+}
+
 export interface PlannerRow {
   /** Stable within one load: source, path and (for a checkbox) its ordinal. */
   id: string;
@@ -36,6 +47,8 @@ export interface PlannerRow {
   path: string;
   /** Checkbox ordinal inside the note; absent for a database row. */
   ordinal?: number;
+  /** For a checkbox: the line it was read from, for a write that finds it again. */
+  line?: PlannerTaskLine;
   /** What the row says: the database title, or the checkbox text without its metadata. */
   title: string;
   /** For a checkbox: the note it lives in. */
@@ -96,7 +109,7 @@ export function addDaysToKey(dayKey: string, days: number): string {
  * without a time after every row that has one — "at 14:00" is more specific
  * than "today", and the specific thing is what gets missed.
  */
-export function comparePlannerRows(a: PlannerRow, b: PlannerRow): number {
+export function comparePlannerRows(a: Pick<PlannerRow, "priority" | "dueMinutes" | "title" | "id">, b: Pick<PlannerRow, "priority" | "dueMinutes" | "title" | "id">): number {
   const pa = a.priority === 0 ? 9 : a.priority;
   const pb = b.priority === 0 ? 9 : b.priority;
   if (pa !== pb) return pa - pb;

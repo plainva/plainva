@@ -25,6 +25,7 @@ import { currentWindowParams } from "./services/windowContext";
 import { initTheme } from "./services/theme";
 import { initDensity } from "./services/density";
 import { initTagColors } from "./services/tagColors";
+import { initLinkStyle } from "./services/linkStyle";
 import { initSpellcheck } from "./services/spellcheck";
 import { initDefaultViewMode } from "./services/viewModeDefault";
 import { initNewNotesInNewTab } from "./services/newNoteTab";
@@ -46,6 +47,8 @@ initTheme();
 // Apply the persisted UI density (comfortable/compact chrome metrics).
 initDensity();
 initTagColors();
+// How links look on this device (Appearance -> Links).
+initLinkStyle();
 // The device's spell-checking switch (off until the store says otherwise).
 initSpellcheck();
 // Fill the sync cache for the default editor view mode (read/live/source).

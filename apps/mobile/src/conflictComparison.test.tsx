@@ -88,7 +88,10 @@ const table = "Projects/Data.csv", tableCopy = "Projects/Data.CONFLICT-2026-10-1
  * running reached into the next test.
  */
 async function until(check: () => void) {
-  await act(async () => { await vi.waitFor(check); });
+  // `vi.waitFor` gives up after one second by default; hashing two files under
+  // a loaded CI runner took longer three times (Sammelplan 3.148). The wait
+  // still ends the moment the check holds.
+  await act(async () => { await vi.waitFor(check, { timeout: 10_000, interval: 20 }); });
 }
 /** The sheet has seen the bytes of both files: its exits are there. */
 async function renderSeen() {

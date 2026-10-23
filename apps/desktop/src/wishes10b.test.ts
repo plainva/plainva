@@ -45,7 +45,7 @@ function cssBlock(css: string, selector: string): Record<string, string> {
 }
 const asCss = (style: Record<string, string>) => Object.fromEntries(Object.entries(style).map(([k, v]) => [kebab(k), v]));
 
-describe("wish 1: a wiki link is a tint, a web link a line", () => {
+describe("links: one look per device choice (wish 1, then the maintainer's setting of 2026-10-23)", () => {
   const ui = source("packages/ui/src/styles/ui.css");
 
   it("draws the reading views' link with the editor's values", () => {
@@ -56,15 +56,19 @@ describe("wish 1: a wiki link is a tint, a web link a line", () => {
     expect(cssBlock(ui, ".pv-wiki-link--unresolved,\n.pv-wiki-link--unresolved:hover")).toEqual(asCss(WIKI_LINK_UNRESOLVED_STYLE));
   });
 
-  it("has no line of its own at rest, and gets one under the pointer", () => {
+  it("is underlined by default, as up to 0.8.5, and the tint is one choice of four", () => {
     expect(WIKI_LINK_STYLE.textDecoration).toBe("var(--wiki-link-decoration)");
     expect(WIKI_LINK_HOVER_STYLE.textDecoration).toBe("underline");
     expect(WIKI_LINK_UNRESOLVED_STYLE.textDecoration).toBe("underline dashed");
     const colors = source("packages/ui/src/styles/base-colors.css");
-    for (const token of ["--wiki-link-bg:", "--wiki-link-bg-hover:", "--wiki-link-weight:", "--wiki-link-decoration: none;"]) {
+    for (const token of ["--wiki-link-bg: transparent;", "--wiki-link-weight: inherit;", "--wiki-link-decoration: underline;", "--web-link-decoration: underline;"]) {
       expect(colors).toContain(token);
     }
-    // High contrast keeps the solid line instead of a faint tint.
+    // Each choice only moves tokens, and never in high contrast.
+    for (const choice of ['[data-link-note="tint"]', '[data-link-note="color"]', '[data-link-note="subtle"]', '[data-link-web="color"]']) {
+      expect(ui).toContain(`html:not([data-theme-name="high-contrast"])${choice} {`);
+    }
+    expect(cssBlock(ui, 'html:not([data-theme-name="high-contrast"])[data-link-note="tint"]')["--wiki-link-decoration"]).toBe("none");
     const hc = source("packages/ui/src/themes/high-contrast.css");
     expect(hc).toContain("--wiki-link-bg: transparent;");
     expect(hc).toContain("--wiki-link-decoration: underline;");

@@ -174,8 +174,9 @@ describe("a write that fails is said for what it is", () => {
   it("a tick from a notification or in the calendar says why it did not land", () => {
     const text = strip(read("services", "reminderActions.ts"));
     expect(from(text, "export async function runReminderIntent(", 900)).toMatch(/toast\.error\(i18n\.t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);/);
-    const calendar = from(strip(read("screens", "PimCalendarScreen.tsx")), "const toggleTask = useCallback(", 1200);
-    expect(calendar).toMatch(/\.catch\(\(e\) => toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\)\)/);
+    const calendar = from(strip(read("screens", "PimCalendarScreen.tsx")), "const toggleTask = useCallback(", 1400);
+    // A database entry's tick gets the sentence of a property write; a checkbox in a note says its reason.
+    expect(calendar).toMatch(/\.catch\(\(e\) => \{\s*if \(row\.source === "database"\) toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);\s*else toast\.error\(errorText\(e\)\);/);
     expect(calendar).not.toMatch(/e instanceof Error \? e\.message/);
   });
 

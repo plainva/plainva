@@ -8,7 +8,7 @@ function hasOrderedWords(text: string, first: string, second: string): boolean {
 
 import { normalizeVerifiedProviderIdentity, verifiedProviderIdentityKey, type VerifiedProviderIdentity } from "./accountProfile";
 import type { CloudAccountRecord, CloudServiceId } from "./cloudAccounts";
-import { sameOAuthClient, tokenCoversService, type StoredAccountToken } from "./tokenBroker";
+import { hasStoredAccountGrant, sameOAuthClient, tokenCoversService, type StoredAccountToken } from "./tokenBroker";
 import { AccountGrantMissingPermissionsError } from "./accountLoginGrant";
 import { connectionFailureCode } from "@plainva/core";
 import { googleAuthorizationMessage } from "./googleAuthorization";
@@ -118,7 +118,8 @@ export async function createServiceGrantProbe(
     const identity = normalizeVerifiedProviderIdentity(record?.verifiedProviderIdentity);
     if (opts.expectedIdentity && (!identity || verifiedProviderIdentityKey(identity) !== verifiedProviderIdentityKey(opts.expectedIdentity))) throw new ServiceConnectionError("accountChanged");
     const token = await ports.token();
-    if (!token?.refreshToken || !sameOAuthClient(token, opts) || !tokenCoversService(token, opts.service, opts.family)) throw new ServiceConnectionError("needsConsent");
+    // A system-sheet grant (Android) holds no refresh token and is still a grant.
+    if (!hasStoredAccountGrant(token) || !sameOAuthClient(token, opts) || !tokenCoversService(token, opts.service, opts.family)) throw new ServiceConnectionError("needsConsent");
   };
   await resolve();
   return { getAccessToken: async (force = false) => { await resolve(); return ports.accessToken(force); } };

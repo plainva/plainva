@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { CalendarRange, CheckSquare, ChevronLeft, Diamond, ChevronRight, Link2, ListChecks, MapPin, Plus, RefreshCw, Repeat, Square, Users } from "lucide-react";
+import { CalendarRange, ChevronLeft, Diamond, ChevronRight, Link2, ListChecks, MapPin, Plus, RefreshCw, Repeat, Users } from "lucide-react";
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
@@ -29,14 +29,13 @@ import { useVault, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { listExistingDailyNotes } from "../../services/dailyNotes";
 import { useDailyNoteAction } from "../../hooks/useDailyNoteAction";
-import { getTaskDatabasePath } from "../../services/taskDatabase";
 import { loadCalendarOverlays, saveCalendarOverlays } from "../../services/pim/calendarOverlays";
-import { loadTaskOverlay, type DueTask } from "../../services/pim/taskOverlay";
-import { toggleTaskDone } from "../../services/taskCompletion";
+import { compareDueTasks, loadTaskOverlay, type DueTask } from "../../services/pim/taskOverlay";
+import { tickNoteTask, toggleTaskDone } from "../../services/taskCompletion";
 import type { TaskCompletionModel } from "../../services/taskDatabase";
 import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "../../services/pim/calendarNav";
 import { usePageWheel } from "./pageWheel";
-import { calendarDay, consumePendingNew, parkTemplateCaret } from "@plainva/ui";
+import { calendarDay, consumePendingNew, checkboxJumpTerm, parkTemplateCaret, setPendingSearchJump, TaskStateIcon } from "@plainva/ui";
 import { isAuthorizationFailure, runCalendarBlocks } from "../../services/pim/blockCalendars";
 import { eventStateClass, eventStateLabelKey, eventVisualState } from "@plainva/ui";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -179,9 +178,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   // Accounts and calendars that are not being synced — the line above the grid.
   const [syncProblems, setSyncProblems] = useState<PimSyncProblem[]>([]);
   const [tick, setTick] = useState(0);
-  // Optional: overlay the standard task database's due-dated tasks (device-local
-  // view preference, like the graph pins). Only offered when a task DB exists.
-  const [hasTaskDb, setHasTaskDb] = useState(false);
+  // Optional: overlay the due-dated tasks (device-local view preference, like
+  // the graph pins) — the task database's entries and the checkboxes in notes.
+  // Always offered: it used to need a task database, and every vault can hold
+  // checkboxes with a due date (TestFlight 136).
   const [taskError, setTaskError] = useState<string | null>(null);
   const [showTasks, setShowTasks] = useState(() => {
     try {
@@ -321,23 +321,6 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     };
   }, [pimRuntime, rangeStartTs, rangeEndTs, tick]);
 
-  // Does a standard task database exist? (Only then is the toggle offered.)
-  useEffect(() => {
-    let alive = true;
-    if (!vaultPath) {
-      setHasTaskDb(false);
-      return;
-    }
-    getTaskDatabasePath(vaultPath)
-      .then((p) => {
-        if (alive) setHasTaskDb(!!p);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [vaultPath]);
-
   useEffect(() => {
     try {
       localStorage.setItem(SHOW_TASKS_KEY, showTasks ? "1" : "0");
@@ -347,7 +330,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   }, [showTasks]);
 
   // Task overlay: due-dated rows of the standard task database, classified with
-  // the SAME shared status model the reconciler uses (so "done" is consistent).
+  // the SAME shared status model the reconciler uses (so "done" is consistent),
+  // and the checkboxes in notes with a `📅`, chosen by the shared rule.
   useEffect(() => {
     let alive = true;
     if (!showTasks || !vaultPath || !queryService || !vaultAdapter) {
@@ -356,12 +340,12 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     }
     void (async () => {
       try {
-        const out = await loadTaskOverlay({ vaultPath, vaultAdapter, queryService });
+        const out = await loadTaskOverlay({ vaultPath, vaultAdapter, queryService }, { notes: true });
         if (alive) {
           setTasks(out.tasks);
           setTaskCompletion(out.completion);
           setTaskDueKey(out.dueKey);
-          setTaskError(null);
+          setTaskError(out.error !== undefined ? errorText(out.error) : null);
         }
       } catch (err) {
         // S18: the tasks simply vanished from the grid. A calendar missing its
@@ -498,14 +482,31 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
    * occurrence of a repeating task. A second implementation would drift, and a
    * drift can un-complete a remote task.
    */
+  /** A task opens where it lives: a database entry as its note, a checkbox at its line. */
+  const openTask = useCallback(
+    (task: CalTask) => {
+      if (task.source === "note" && task.line) setPendingSearchJump({ path: task.path, term: checkboxJumpTerm(task.line.text) });
+      onOpenPath(task.path, false);
+    },
+    [onOpenPath]
+  );
+
   const toggleTaskFromCalendar = useCallback(
     (task: CalTask) => {
-      if (!vaultAdapter || !taskCompletion) return;
+      if (!vaultAdapter) return;
+      if (task.source === "database" && !taskCompletion) return;
       const done = !task.done;
       // Optimistic: the row answers immediately, the reload confirms it.
-      setTasks((prev) => prev.map((x) => (x.path === task.path ? { ...x, done } : x)));
+      setTasks((prev) => prev.map((x) => (x.id === task.id ? { ...x, done, state: done ? "done" : "open" } : x)));
       void (async () => {
         try {
+          // A checkbox is ticked in its note's line — the editor's and the task
+          // overview's mutation, through the same step of the chain.
+          if (task.source === "note") {
+            if (task.line) await tickNoteTask({ vaultAdapter, indexer, triggerFileTreeUpdate, onChanged: () => setTick((x) => x + 1) }, task.path, task.line, done);
+            return;
+          }
+          if (!taskCompletion) return;
           const result = await toggleTaskDone(
             {
               vaultAdapter,
@@ -526,10 +527,12 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           }
         } catch (e) {
           console.error("[CalendarView] toggling a task failed", task.path, e);
-          setTasks((prev) => prev.map((x) => (x.path === task.path ? { ...x, done: task.done } : x)));
-          // The tick writes the note's completion property: the sentence of a
-          // property write, with its reason (finding 2026-10-12).
-          toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+          setTasks((prev) => prev.map((x) => (x.id === task.id ? { ...x, done: task.done, state: task.state } : x)));
+          // A database tick writes the note's completion property: the
+          // sentence of a property write, with its reason (finding
+          // 2026-10-12). A checkbox says its reason.
+          if (task.source === "database") toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+          else toast.error(errorText(e));
         }
       })();
     },
@@ -559,6 +562,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       if (arr) arr.push(task);
       else m.set(task.due, [task]);
     }
+    for (const list of m.values()) list.sort(compareDueTasks);
     return m;
   }, [tasks]);
 
@@ -1668,10 +1672,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
    * renders as a plain indicator rather than a control that does nothing.
    */
   const renderTaskCheckbox = (task: CalTask, size: number, dense = false) => {
-    const icon = task.done
-      ? <CheckSquare size={size} style={{ color: "var(--accent-color)" }} />
-      : <Square size={size} style={{ color: task.due < todayKey ? "var(--warning-text)" : "var(--text-muted)" }} />;
-    if (!taskCompletion) return <span style={{ display: "grid", placeItems: "center" }}>{icon}</span>;
+    // The box as it stands — in progress and cancelled too, as on the phone.
+    const icon = (
+      <span style={{ display: "grid", placeItems: "center", color: task.done ? "var(--accent-color)" : task.due < todayKey ? "var(--warning-text)" : "var(--text-muted)" }}>
+        <TaskStateIcon state={task.state} size={size} />
+      </span>
+    );
+    if (task.source === "database" && !taskCompletion) return <span style={{ display: "grid", placeItems: "center" }}>{icon}</span>;
     return (
       <button
         type="button"
@@ -1716,15 +1723,15 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     // made the month cell's contents unclickable (issue #34, wave 2).
     return (
       <div
-        key={task.path}
+        key={task.id}
         role="button"
         tabIndex={0}
-        onClick={() => onOpenPath(task.path, false)}
+        onClick={() => openTask(task)}
         onKeyDown={(ev) => {
           if (ev.target !== ev.currentTarget) return;
           if (ev.key === "Enter" || ev.key === " ") {
             ev.preventDefault();
-            onOpenPath(task.path, false);
+            openTask(task);
           }
         }}
         data-testid="calendar-task"
@@ -1783,7 +1790,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       canEditEvent={canEditEvent}
       onEventClick={requestPreview}
       onEventContextMenu={openEventContextMenu}
-      onOpenTask={(p) => onOpenPath(p, false)}
+      onOpenTask={openTask}
       renderTaskCheckbox={renderTaskCheckbox}
       taskTone={taskTone}
       onCreateSlot={onCreateSlot}
@@ -1893,16 +1900,14 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
             {t("pim.syncError", { defaultValue: "Sync-Fehler" })}
           </span>
         ) : null}
-        {hasTaskDb && (
-          <IconButton
-            label={t("pim.showTasks", { defaultValue: "Aufgaben anzeigen" })}
-            onClick={() => setShowTasks((v) => !v)}
-            aria-pressed={showTasks}
-            data-testid="calendar-toggle-tasks"
-          >
-            <ListChecks size={ICON.ui} style={{ color: showTasks ? "var(--accent-color)" : undefined }} />
-          </IconButton>
-        )}
+        <IconButton
+          label={t("pim.showTasks", { defaultValue: "Aufgaben anzeigen" })}
+          onClick={() => setShowTasks((v) => !v)}
+          aria-pressed={showTasks}
+          data-testid="calendar-toggle-tasks"
+        >
+          <ListChecks size={ICON.ui} style={{ color: showTasks ? "var(--accent-color)" : undefined }} />
+        </IconButton>
         {viewMode !== "month" && viewMode !== "agenda" && calendarOptions.length > 0 && (
           <IconButton label={t("pim.newEvent", { defaultValue: "Neuer Termin" })} onClick={() => setEditState({ mode: "create" })} data-testid="calendar-new-event-top">
             <Plus size={ICON.ui} />
@@ -2109,17 +2114,17 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                     const tone = taskTone(task);
                     return (
                       <div
-                        key={`task-${task.path}`}
+                        key={`task-${task.id}`}
                         role="button"
                         tabIndex={0}
                         data-testid="calendar-month-task"
-                        onClick={(ev) => { ev.stopPropagation(); onOpenPath(task.path, false); }}
+                        onClick={(ev) => { ev.stopPropagation(); openTask(task); }}
                         onKeyDown={(ev) => {
                           if (ev.target !== ev.currentTarget) return;
                           if (ev.key === "Enter" || ev.key === " ") {
                             ev.preventDefault();
                             ev.stopPropagation();
-                            onOpenPath(task.path, false);
+                            openTask(task);
                           }
                         }}
                         style={{

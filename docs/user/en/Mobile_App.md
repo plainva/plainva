@@ -73,7 +73,7 @@ A task row gives its title the full width; status, due date, repeat and tags sit
 
 **Today** is the day surface. The strip at the top selects a day — it runs **in both directions**, two weeks back and two weeks ahead, and a dot marks every day that already has a daily note. Below it sits the **daily note** for the selected day (with its template and folder, to open or create), then that day's **appointments and due dates**, and finally what you edited on that day.
 
-The middle section brings together what otherwise lives on two surfaces: all-day events first, then the timed ones in clock order, and last the tasks due that day. Tapping a task opens its note. Without a connected calendar and without a task database the section is simply not there.
+The middle section brings together what otherwise lives on two surfaces: all-day events first, then the timed ones in clock order, and last under **Due** the tasks due that day — entries of your [standard task database](Tasks.md) and checkboxes in notes with a `📅` date alike, the same tasks the **Today** list of the Tasks view shows. On today, what is overdue comes first, its date in the warning color. The box in front of a task ticks it off right there — a checkbox in its note's line, with the completion date; tapping the task opens it, a checkbox at its line, and tapping its date opens the date sheet. Both sections stay when the day is empty and say so.
 
 Right under the daily note sits **Journal**: the entries of the selected day, a field that writes into exactly that day, and **All days**, which opens the journal screen with the stream of all days. **＋** offers **Journal entry** from anywhere — see [Journal](Journal.md).
 
@@ -308,7 +308,7 @@ The tasks screen opens on **Today**; the segment above the list switches between
 
 Android offers two widgets, **Today** and **Quick capture**; on the iPhone there are two more for the lock screen, a counter and the next task. Press and hold an empty spot on the home screen and pick Plainva.
 
-**Today** shows what is overdue as a number, then the appointments and tasks of the day in the order the app would list them. A tap on a row opens the note, a tap on the head opens the Today screen, and the **+** opens the capture sheet. **Quick capture** shows no content at all: one button for **Task**, one for **Journal**.
+**Today** shows what is overdue as a number, then the appointments and tasks of the day in the order the app would list them — tasks from the task database and checkboxes in notes with a `📅` date alike. A tap on a row opens the note, a tap on the head opens the Today screen, and the **+** opens the capture sheet. **Quick capture** shows no content at all: one button for **Task**, one for **Journal**.
 
 A widget works nothing out for itself. Nothing of Plainva runs while the app is closed, so the widget draws what the app wrote down the last time it ran — that is also why it knows a whole week in advance and turns the page at midnight without you opening anything. Once what it shows is from an earlier day, the head says when it was written.
 

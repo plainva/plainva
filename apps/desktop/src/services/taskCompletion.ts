@@ -1,13 +1,15 @@
-import { deleteFrontmatterPath, readFrontmatterPath, setFrontmatterPath, updateVaultText, type TextFileUpdate, type TextUpdateFiles } from "@plainva/core";
+import { deleteFrontmatterPath, readFrontmatterPath, setFrontmatterPath, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles } from "@plainva/core";
 import {
   applyTaskCompletion,
   canRepeat,
   calendarDay,
   nextDueDate,
+  noteTaskTick,
   readRepeatRule,
   readRepeatCompletionDay,
   writeNextOccurrenceNote,
   withTaskCompletion,
+  type PlannerTaskLine,
   type TaskCompletionModel,
 } from "@plainva/ui";
 import { applyIndexChanges } from "./fileActions";
@@ -63,13 +65,13 @@ export interface TaskToggleResult {
  * mutation gets the note as it lies there at that moment — and, where the
  * note has an open conflict, a second time with the person's own version — so
  * it keeps nothing on the way; what it did is read from the result's
- * `before`. A mutation that changes nothing writes nothing. Throws on a
- * failed read/write — the caller reports it.
+ * `before`. A mutation that changes nothing — or answers null — writes
+ * nothing. Throws on a failed read/write — the caller reports it.
  */
 export async function writeTaskNote(
   deps: TaskWriteDeps,
   path: string,
-  mutate: (raw: string) => string
+  mutate: TextChange
 ): Promise<TextFileUpdate> {
   const update = await updateVaultText(deps.vaultAdapter, path, mutate);
   if (update.changed) {
@@ -79,6 +81,19 @@ export async function writeTaskNote(
   deps.onChanged?.();
   if (deps.pimRuntime) void deps.pimRuntime.worker.triggerImmediate().catch(() => undefined);
   return update;
+}
+
+/**
+ * Ticks a checkbox in a note — the box a day surface shows for a line with a
+ * Tasks-plugin `📅` (TestFlight 136). The line is found again in the note as
+ * it lies there when it is written (`noteTaskTick`), through the same step of
+ * the chain and the same index and tree updates as a database entry; the
+ * completion date and a recurrence are the mutation the editor and the task
+ * overview make. No provider is nudged: a checkbox is not a provider's task.
+ * Answers whether the note changed.
+ */
+export async function tickNoteTask(deps: TaskWriteDeps, path: string, line: PlannerTaskLine, done: boolean): Promise<boolean> {
+  return (await writeTaskNote({ ...deps, pimRuntime: null }, path, noteTaskTick(line, done))).changed;
 }
 
 /**

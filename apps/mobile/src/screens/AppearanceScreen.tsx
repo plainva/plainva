@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil } from "lucide-react";
+import { LinkStylePreview, NOTE_LINK_STYLES, WEB_LINK_STYLES, readNoteLinkStyle, readWebLinkStyle } from "@plainva/ui";
 import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, placeStampEnabled, PlainvaLogo, Row, RowList, SectionLabel, Segmented, setPlaceStampEnabled, setWeekStartSetting, Switch, type FontChoice, type FontSlot, type WeekStartSetting, CUSTOM_THEME_ID, themesWithCustom, IconButton } from "@plainva/ui";
 import { FontSlotSheet } from "../components/FontSlotSheet";
 import { HailingSheet } from "../components/HailingSheet";
@@ -69,6 +70,13 @@ const FONT_SLOT_ROWS = [
   ["content", "settings.fontContent", "contentFontFamily", "contentFontCustom"],
   ["code", "settings.fontCode", "codeFontFamily", "codeFontCustom"],
 ] as const;
+
+const LINK_STYLE_LABEL: Record<string, string> = {
+  underline: "settings.linkStyleUnderline",
+  tint: "settings.linkStyleTint",
+  color: "settings.linkStyleColor",
+  subtle: "settings.linkStyleSubtle",
+};
 
 const MOTIONS: Array<[MotionPref, string]> = [
     ["system", t("mobile.motionSystem")],
@@ -241,6 +249,43 @@ const MOTIONS: Array<[MotionPref, string]> = [
           </RowList>
         </GroupCard>
         <p className="m-hint">{t("settings.tagColorsDesc")}</p>
+
+        {/* Appearance -> Links (maintainer, 2026-10-23): the same two choices as
+            on the desktop, with the sentence that shows them as notes draw them. */}
+        {/* Rows with a choice sheet, like the font slots: four words do not fit a
+            segmented bar at phone width. */}
+        <SectionLabel>{t("settings.linksSection")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              title={t("settings.noteLinkStyle")}
+              end={<><span className="m-prop-val">{t(LINK_STYLE_LABEL[readNoteLinkStyle(settings.noteLinkStyle)])}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              onClick={() => {
+                void mSelect({
+                  title: t("settings.noteLinkStyle"),
+                  message: t("settings.noteLinkStyleDesc"),
+                  options: NOTE_LINK_STYLES.map((style) => ({ value: style, label: t(LINK_STYLE_LABEL[style]) })),
+                  value: readNoteLinkStyle(settings.noteLinkStyle),
+                }).then((v) => { if (v !== null) update({ noteLinkStyle: readNoteLinkStyle(v) }); });
+              }}
+              data-testid="note-link-style"
+            />
+            <Row
+              title={t("settings.webLinkStyle")}
+              end={<><span className="m-prop-val">{t(LINK_STYLE_LABEL[readWebLinkStyle(settings.webLinkStyle)])}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              onClick={() => {
+                void mSelect({
+                  title: t("settings.webLinkStyle"),
+                  message: t("settings.webLinkStyleDesc"),
+                  options: WEB_LINK_STYLES.map((style) => ({ value: style, label: t(LINK_STYLE_LABEL[style]) })),
+                  value: readWebLinkStyle(settings.webLinkStyle),
+                }).then((v) => { if (v !== null) update({ webLinkStyle: readWebLinkStyle(v) }); });
+              }}
+              data-testid="web-link-style"
+            />
+          </RowList>
+          <LinkStylePreview className="m-link-preview" />
+        </GroupCard>
 
         {/* May the journal capture offer the place button (plan
             Journal-Erweiterungen, E6)? Device-local and OFF by default: one's

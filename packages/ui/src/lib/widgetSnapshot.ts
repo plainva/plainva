@@ -87,6 +87,14 @@ export interface WidgetRowRef {
   path: string;
   /** Checkbox ordinal inside the note; absent for a database row. */
   ordinal?: number;
+  /**
+   * For a checkbox: the line's text and Tasks-plugin id, so a tick made on the
+   * home screen finds the line again in the note as it lies there when the app
+   * redeems it (`noteTaskTick`) — an ordinal alone would tick a neighbour once
+   * a line above it is gone.
+   */
+  text?: string;
+  taskId?: string;
 }
 
 /** What the builder answers: the file, and the paths that stay behind. */
@@ -207,7 +215,9 @@ export function buildWidgetSnapshot(input: WidgetSnapshotInput): WidgetSnapshotR
         minutes: task.dueMinutes,
         priority: task.priority,
       },
-      ref: task.ordinal === undefined ? { path: task.path } : { path: task.path, ordinal: task.ordinal },
+      ref: task.ordinal === undefined
+        ? { path: task.path }
+        : { path: task.path, ordinal: task.ordinal, ...(task.line ? { text: task.line.text, ...(task.line.taskId ? { taskId: task.line.taskId } : {}) } : {}) },
     });
   }
   if (input.showEvents !== false) {

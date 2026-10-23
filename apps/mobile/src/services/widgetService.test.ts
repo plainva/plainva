@@ -62,20 +62,31 @@ let events: { title: string; allDay: boolean; start: { ts: number; date?: string
 vi.mock("./pim/pimService", () => ({ listPimEvents: vi.fn(async () => events) }));
 
 vi.mock("./vaultRegistry", () => ({ getActiveVaultEntry: vi.fn(async () => ({ id: "v1", name: "Notizen" })) }));
+/** What the note behind a checkbox row holds, and what a tick wrote into it. */
+let noteText = "";
+const noteWrites: { path: string; text: string }[] = [];
 vi.mock("./vaultService", () => ({
   getMobileVault: vi.fn(async () => ({ queryService: { queryDatabaseFiles: vi.fn(async () => []) } })),
-  vaultOps: { read: vi.fn(async () => "") },
+  vaultOps: {
+    read: vi.fn(async () => ""),
+    update: vi.fn(async (_vault: unknown, path: string, change: (fresh: string) => string | null) => {
+      const next = change(noteText);
+      if (next !== null) {
+        noteWrites.push({ path, text: next });
+        noteText = next;
+      }
+      return { before: noteText, text: next ?? noteText, changed: next !== null, conflict: null };
+    }),
+  },
 }));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (key: string) => key } }));
 
 let tasks: unknown[] = [];
+// Which tasks a day surface reads is `loadPhoneDueTasks`'s answer and has its
+// own tests; here the rows are the fixture.
+vi.mock("./dueTasks", () => ({ loadPhoneDueTasks: vi.fn(async () => ({ rows: tasks, dueKey: null, database: true })) }));
 vi.mock("@plainva/ui", async (original) => ({
-  // The database helpers have their own tests; here the rows are the fixture.
   ...(await original<Record<string, unknown>>()),
-  parseBaseConfig: vi.fn(() => ({})),
-  resolveTaskCompletionModel: vi.fn(() => ({})),
-  taskDbRows: vi.fn(() => []),
-  plannerRowsFromDb: vi.fn(() => tasks),
   toast: { info: (message: string) => void toasts.push(message) },
 }));
 
@@ -105,6 +116,8 @@ beforeEach(() => {
   ticked.length = 0;
   toasts.length = 0;
   tickResult = { changed: true };
+  noteText = "";
+  noteWrites.length = 0;
   settings = { taskDatabase: "Tasks.base", widgetShowTitles: true, widgetShowEvents: true };
 });
 
@@ -339,6 +352,56 @@ describe("a tick made on the home screen", () => {
 
     expect(ticked).toHaveLength(1);
     expect(clearedIds.sort()).toEqual([1, 2]);
+  });
+
+  it("ticks a checkbox from a note through the note's line, found again in the note as it lies there", async () => {
+    // TestFlight 136: the widget read the task database alone. A checkbox row
+    // carries its line in the app's own storage — never in the widget's file.
+    const line = { ordinal: 1, text: "Drucker einrichten 📅 2026-09-23" };
+    const at = await place({ id: "note:Haushalt.md#1", source: "note", path: "Haushalt.md", ordinal: 1, line, title: "Drucker einrichten", due: "2026-09-23" });
+    expect(written[written.length - 1]).not.toContain("📅");
+    expect(written[written.length - 1]).not.toContain("Haushalt.md");
+    // A line was added above it since: the ordinal alone would tick the wrong box.
+    noteText = "# Haushalt\n\n- [ ] Neu oben\n- [ ] Brot kaufen\n- [ ] Drucker einrichten 📅 2026-09-23\n";
+    queue = [{ id: 1, index: 0, snapshotAt: at, at }];
+
+    expect(await redeemWidgetActions()).toBe(0);
+    // The ordinal now names "Brot kaufen": nothing is written rather than the neighbour.
+    expect(noteWrites).toEqual([]);
+
+    noteText = "# Haushalt\n\n- [ ] Brot kaufen\n- [ ] Drucker einrichten 📅 2026-09-23\n";
+    const again = await place({ id: "note:Haushalt.md#1", source: "note", path: "Haushalt.md", ordinal: 1, line, title: "Drucker einrichten", due: "2026-09-23" });
+    queue = [{ id: 2, index: 0, snapshotAt: again, at: again }];
+    expect(await redeemWidgetActions()).toBe(1);
+    expect(noteWrites).toHaveLength(1);
+    expect(noteWrites[0].path).toBe("Haushalt.md");
+    expect(noteWrites[0].text).toMatch(/^- \[ \] Brot kaufen$/m);
+    expect(noteWrites[0].text).toMatch(/^- \[x\] Drucker einrichten 📅 2026-09-23 ✅ 2026-09-23$/m);
+    // The database path was never asked.
+    expect(ticked).toEqual([]);
+  });
+
+  it("redeems two ticks in one note from the bottom up, so a repeating task's successor does not cost the other one", async () => {
+    // The successor of a repeating checkbox is written ABOVE it: redeemed top
+    // down, the box below would sit one ordinal further and be dropped.
+    noteText = "- [ ] Blumen gießen 🔁 every week 📅 2026-09-23\n- [ ] Miete zahlen 📅 2026-09-23\n";
+    const plants = { ordinal: 0, text: "Blumen gießen 🔁 every week 📅 2026-09-23" };
+    const rent = { ordinal: 1, text: "Miete zahlen 📅 2026-09-23" };
+    const at = await place(
+      { id: "note:Haushalt.md#0", source: "note", path: "Haushalt.md", ordinal: 0, line: plants, title: "Blumen gießen", due: "2026-09-23" },
+      { id: "note:Haushalt.md#1", source: "note", path: "Haushalt.md", ordinal: 1, line: rent, title: "Miete zahlen", due: "2026-09-23" },
+    );
+    const index = (title: string) => last().rows.findIndex((row) => row.title === title);
+    queue = [
+      { id: 1, index: index("Blumen gießen"), snapshotAt: at, at },
+      { id: 2, index: index("Miete zahlen"), snapshotAt: at, at: at + 1 },
+    ];
+
+    expect(await redeemWidgetActions()).toBe(2);
+    expect(noteText).toMatch(/^- \[x\] Miete zahlen 📅 2026-09-23 ✅ 2026-09-23$/m);
+    expect(noteText).toMatch(/^- \[x\] Blumen gießen .*✅ 2026-09-23$/m);
+    // The successor stands open above the finished one.
+    expect(noteText).toMatch(/^- \[ \] Blumen gießen /m);
   });
 
   it("never ticks off an appointment", async () => {
