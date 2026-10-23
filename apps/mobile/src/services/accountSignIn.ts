@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import {
+  adoptFilesSignIn,
   bindSignedInAccount,
   completeSignIn,
   getPlatformServices,
@@ -17,8 +18,10 @@ import {
   type AccessResolution,
   type CloudAccountRecord,
   type CloudServiceId,
+  type OAuthAccess,
   type OAuthFamily,
   type StoredOAuthAccess,
+  unionScope,
 } from "@plainva/ui";
 import { forgetGraphMailRuntime, legacyMailSecretKey, listMailAccounts, mailSecretKey } from "@plainva/ui/mail";
 import i18n from "@plainva/ui/i18n";
@@ -29,6 +32,8 @@ import { getPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 import { restartPimAccountAfterLogin } from "./pim/pimService";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
 import { switchProviderToAccountBroker } from "./syncService";
+import type { MobileSyncProvider } from "./syncSlot";
+import { authorizeNativeGoogle } from "./googleNativeAuthorization";
 import { accountCredentialStore } from "./accountCredentialStore";
 import { startConnectQueue } from "./connectQueue";
 import { announceAccountLogin } from "./accountLogin";
@@ -212,4 +217,46 @@ export function registerSignInHandler(): void {
       await startConnectQueue(family, next, { vaultId, cloudAccountId: completed.cardId, expectedIdentity: completed.identity });
     }
   });
+}
+
+/**
+ * "Add vault" from a cloud (account sign-in plan K4b): the consent ran with
+ * this device's access before the vault existed, the vault was made after the
+ * folder pick. This makes that sign-in a card with its identity - before the
+ * vault is entered, so its first sync already renews through the card. A
+ * sign-in through Android's system sheet holds no refresh token; it is renewed
+ * silently here instead.
+ */
+export async function adoptAddedVaultSignIn(vaultId: string, access: OAuthAccess, provider: MobileSyncProvider): Promise<void> {
+  if (provider.provider !== "drive" && provider.provider !== "onedrive") return;
+  const family: OAuthFamily = provider.provider === "drive" ? "google" : "microsoft";
+  const files = provider.provider;
+  let grant: { refreshToken: string } | { consent: { refreshToken: string; accessToken: string; grantedScope: string; nativeGoogle: { email: string } } };
+  if (provider.provider === "drive" && provider.creds.nativeGoogle) {
+    const renewed = await authorizeNativeGoogle(unionScope("google", ["files"]), false);
+    grant = { consent: { refreshToken: "", accessToken: renewed.accessToken, grantedScope: renewed.scope, nativeGoogle: { email: renewed.profile.label! } } };
+  } else {
+    grant = { refreshToken: provider.creds.refreshToken };
+  }
+  const finished = await adoptFilesSignIn({ vaultId, family, access, grant }, {
+    fetch: webdavFetch,
+    loadCards: () => loadCloudAccounts(vaultId),
+    saveGrant: (cardId, token) => saveAccountToken(vaultId, cardId, token),
+    newCardId: () => crypto.randomUUID(),
+    saveCards: (records) => saveCloudAccounts(vaultId, records),
+    setPending: () => undefined,
+    bindFiles: async (cardId) => {
+      // The card is written after the binding; the slot only needs to know its id and provider.
+      const record: CloudAccountRecord = { id: cardId, family, label: "", services: { files: { provider: files } } };
+      await switchProviderToAccountBroker(vaultId, record, access.clientId, { clientSecret: access.clientSecret });
+      return { provider: files };
+    },
+    bindCalendar: () => Promise.reject(new Error("not part of a vault sign-in")),
+    bindMail: () => Promise.reject(new Error("not part of a vault sign-in")),
+    // The vault is entered next; that starts its worker.
+    afterBinding: async () => undefined,
+    describeFailure: (error) => (error instanceof Error ? error.message : String(error)),
+  });
+  const row = finished.rows.find((entry) => entry.service === "files");
+  if (row?.state !== "active") throw new Error(row?.detail ?? i18n.t("cloudAccounts.notGranted"));
 }

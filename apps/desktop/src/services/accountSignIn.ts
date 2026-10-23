@@ -1,6 +1,7 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import {
+  adoptFilesSignIn,
   bindSignedInAccount,
   completeSignIn,
   needsConsent,
@@ -198,6 +199,33 @@ export async function signInCloudAccount(vaultPath: string, getRuntime: () => Pi
     describeFailure: (error) => oauthErrorText(error),
   });
   return { ...finished, prepared, completed };
+}
+
+/**
+ * "Open an online vault" (account sign-in plan K4b): the consent ran with this
+ * device's access before the vault existed, the files slot was written with
+ * the picked folder. This makes the sign-in the card's, with its identity,
+ * like every other sign-in - before the vault opens, so the first sync already
+ * renews through the card.
+ */
+export async function adoptOnlineVaultSignIn(vaultPath: string, family: OAuthFamily, access: AccessResolution & { ok: true }, refreshToken: string): Promise<CloudAccountRecord> {
+  const finished = await adoptFilesSignIn({ vaultId: vaultPath, family, access: access.access, grant: { refreshToken } }, {
+    fetch: httpFetch,
+    loadCards: () => loadCloudAccounts(vaultPath),
+    saveGrant: (cardId, token) => saveAccountToken(vaultPath, cardId, token),
+    newCardId: () => crypto.randomUUID(),
+    saveCards: (records) => saveCloudAccounts(vaultPath, records),
+    setPending: (cardId, fam) => setPendingBrokerAccount(cardId ? { vaultPath, accountId: cardId, family: fam } : null),
+    bindFiles: (cardId, completed) => bindFiles(vaultPath, cardId, completed, access.access.clientSecret),
+    bindCalendar: () => Promise.reject(new Error("not part of an online vault sign-in")),
+    bindMail: () => Promise.reject(new Error("not part of an online vault sign-in")),
+    // The caller opens the vault next; that is its one load.
+    afterBinding: async () => undefined,
+    describeFailure: (error) => oauthErrorText(error),
+  });
+  const files = finished.rows.find((row) => row.service === "files");
+  if (files?.state !== "active") throw new Error(files?.detail ?? "files were not granted");
+  return finished.record;
 }
 
 async function bindFiles(vaultPath: string, cardId: string, completed: CompletedSignIn, clientSecret: string | undefined): Promise<{ provider: "drive" | "onedrive" }> {

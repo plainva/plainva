@@ -9,6 +9,8 @@ import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { usePageSwipe } from "../lib/usePageSwipe";
 import { reauthorizeCalendarAccount } from "../services/pim/pimReauth";
+import { AccountAccessSheet } from "../components/AccountAccessSheet";
+import type { OAuthFamily } from "@plainva/ui";
 import { toastConnectionFailure } from "../services/connectionToast";
 import {
   subscribePimStatus,
@@ -131,6 +133,8 @@ export function PimCalendarScreen({
    * sign-in expired" — the second used to be invisible: the row said "aktiv",
    * the calendar stayed empty, and the reason sat unread in the cache (§2.9).
    */
+  /** This phone has no usable access for the account's provider: the sheet asks, then the sign-in runs. */
+  const [accessFor, setAccessFor] = useState<OAuthFamily | null>(null);
   const [needsSignIn, setNeedsSignIn] = useState<{ id: string; label: string; provider: string; state: DeviceSignInState; reason?: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const ptrRef = useRef<HTMLDivElement>(null);
@@ -177,14 +181,11 @@ export function PimCalendarScreen({
     if (!needsSignIn) return;
     const out = await reauthorizeCalendarAccount(needsSignIn);
     if (out.kind === "needsForm") {
-      toast.info(
-        out.reason === "caldav"
-          ? t("pim.reconnectCaldavHint")
-          : t("pim.googleClientIdRequired"),
-      );
+      toast.info(t("pim.reconnectCaldavHint"));
       onOpenSettings?.();
       return;
     }
+    if (out.kind === "needsAccess") { setAccessFor(out.family); return; }
     if (out.kind === "failed") toastConnectionFailure(out.error);
   }, [needsSignIn, onOpenSettings, t]);
 
@@ -1151,6 +1152,13 @@ export function PimCalendarScreen({
       </div>
 
       {editor.element}
+      {accessFor && (
+        <AccountAccessSheet
+          family={accessFor}
+          onCancel={() => setAccessFor(null)}
+          onSaved={() => { setAccessFor(null); void renewSignIn(); }}
+        />
+      )}
     </div>
   );
 }

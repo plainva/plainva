@@ -295,7 +295,13 @@ function providerVaultName(p: MobileSyncProvider): string {
  * the remote content into the new vault. Files from other vaults are
  * never enqueued (isolation requirement, maintainer 2026-07-10).
  */
-export async function connectProvider(v: MobileVault, p: MobileSyncProvider, selectedContext?: ServiceConnectionContext): Promise<void> {
+export async function connectProvider(
+  v: MobileVault,
+  p: MobileSyncProvider,
+  selectedContext?: ServiceConnectionContext,
+  /** Runs once the slot exists and before the vault is listed (account sign-in plan K4b); a failure leaves no vault. */
+  adopt?: (vaultId: string) => Promise<void>,
+): Promise<void> {
   if (!syncPossible(v)) throw new Error("sync requires the native SQLite queue");
   const { connectionContextFor } = await import("./connectQueue");
   const context = selectedContext ?? await connectionContextFor("files");
@@ -306,6 +312,7 @@ export async function connectProvider(v: MobileVault, p: MobileSyncProvider, sel
   }
   const id = newVaultId();
   await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
+  await adoptOrForget(id, adopt);
   await addVault({ id, name: providerVaultName(p), provider: p.provider });
   // Offered instead of taken while something else's unsaved input is on screen
   // (`flowVault.ts`): the vault is connected either way.
@@ -324,6 +331,7 @@ export async function createProviderVault(
   v: MobileVault,
   p: MobileSyncProvider,
   opts: { template: VaultTemplateDefinition | null; vaultName: string; subfoldersHeading: string },
+  adopt?: (vaultId: string) => Promise<void>,
 ): Promise<void> {
   if (!syncPossible(v)) throw new Error("sync requires the native SQLite queue");
   if (p.provider === "webdav") await allowHttpOrigin(p.creds.url);
@@ -343,12 +351,24 @@ export async function createProviderVault(
     subfoldersHeading: opts.subfoldersHeading,
   });
   await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
+  await adoptOrForget(id, adopt);
   await addVault({ id, name: providerVaultName(p), provider: p.provider });
   // The template's settings are the new vault's own: written into it now, they
   // are there whether it opens at once or waits at its offer (`flowVault.ts`)
   // — and an app that ends in between loses nothing.
   await applyTemplateSettingsTo(id, opts.template?.settings);
   await enterMadeVault(id);
+}
+
+/** Hands a new vault's sign-in to its card; on failure the slot goes and no vault is listed. */
+async function adoptOrForget(vaultId: string, adopt?: (vaultId: string) => Promise<void>): Promise<void> {
+  if (!adopt) return;
+  try {
+    await adopt(vaultId);
+  } catch (error) {
+    await getPlatformServices().credentials.removeSecret(credKeyFor(vaultId)).catch(() => undefined);
+    throw error;
+  }
 }
 
 /**

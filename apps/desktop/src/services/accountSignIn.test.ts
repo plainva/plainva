@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  adoptFilesSignIn,
   bindSignedInAccount,
   completeSignIn,
   grantedServices,
@@ -302,5 +303,67 @@ describe("binding after the sign-in (E2: write everything, then reload once)", (
     expect(b.events).toContain("reload:false");
     expect(b.stored()).toHaveLength(1);
     expect(done.record.services.calendar).toEqual({ pimAccountId: "pim-old" });
+  });
+});
+
+describe("a sign-in made before its vault existed becomes a card (plan K4b)", () => {
+  // "Open an online vault" and the phone's "Add vault" ask for the consent,
+  // browse the cloud folder and make the vault only then. The sign-in used to
+  // end in the files slot with no identity and no card.
+  function adoptPorts(provider: FakeOAuthProvider, initial: CloudAccountRecord[] = []) {
+    const state = { cards: initial, bound: [] as string[] };
+    let id = 0;
+    return {
+      state,
+      ports: {
+        fetch: provider.fetch,
+        loadCards: async () => state.cards,
+        saveGrant: async () => undefined,
+        newCardId: () => `card-${++id}`,
+        saveCards: async (records: CloudAccountRecord[]) => { state.cards = records; },
+        setPending: () => undefined,
+        bindFiles: async (cardId: string) => { state.bound.push(cardId); return { provider: "drive" as const }; },
+        bindCalendar: () => Promise.reject(new Error("no calendar here")),
+        bindMail: () => Promise.reject(new Error("no mail here")),
+        afterBinding: async () => undefined,
+        describeFailure: (error: unknown) => String(error),
+      },
+    };
+  }
+
+  it("renews the grant once, reads the identity and writes a card that carries the files", async () => {
+    const provider = google();
+    const consent = consentWith(provider, unionScope("google", ["files"]));
+    const { state, ports } = adoptPorts(provider);
+    const finished = await adoptFilesSignIn({ vaultId: "new-vault", family: "google", access: OWN_DESKTOP, grant: { refreshToken: consent.refreshToken } }, ports);
+    expect(finished.record).toMatchObject({
+      family: "google", label: ALICE.email, verifiedProviderIdentity: { issuer: "google", subject: ALICE.subject }, services: { files: { provider: "drive" } },
+    });
+    expect(finished.rows).toEqual([{ service: "files", state: "active" }]);
+    expect(state.bound).toEqual([finished.record.id]);
+    expect(state.cards).toHaveLength(1);
+    expect(provider.log.filter((entry) => entry.kind === "refresh")).toHaveLength(1);
+  });
+
+  it("joins the card the vault already has for the same account", async () => {
+    const provider = google();
+    const consent = consentWith(provider, unionScope("google", ["files"]));
+    const { state, ports } = adoptPorts(provider, [card({ id: "card-a", services: {} })]);
+    const finished = await adoptFilesSignIn({ vaultId: "v", family: "google", access: OWN_DESKTOP, grant: { refreshToken: consent.refreshToken } }, ports);
+    expect(finished.completed.joinedExistingCard).toBe(true);
+    expect(state.cards.map((entry) => entry.id)).toEqual(["card-a"]);
+    expect(state.cards[0].services.files).toEqual({ provider: "drive" });
+  });
+
+  it("takes a consent the shell renewed itself - Android's system sheet holds no refresh token", async () => {
+    const provider = google();
+    const consent = consentWith(provider, unionScope("google", ["files"]));
+    const { state, ports } = adoptPorts(provider);
+    await adoptFilesSignIn({
+      vaultId: "v", family: "google", access: OWN_DESKTOP,
+      grant: { consent: { refreshToken: "", accessToken: consent.accessToken, grantedScope: consent.grantedScope, nativeGoogle: { email: ALICE.email } } },
+    }, ports);
+    expect(state.cards[0]).toMatchObject({ verifiedProviderIdentity: { subject: ALICE.subject }, services: { files: { provider: "drive" } } });
+    expect(provider.log.filter((entry) => entry.kind === "refresh")).toHaveLength(0);
   });
 });

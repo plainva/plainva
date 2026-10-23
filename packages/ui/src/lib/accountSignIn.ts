@@ -1,4 +1,4 @@
-import type { FetchFn } from "@plainva/core";
+import { refreshDriveAccessToken, refreshOneDriveAccessToken, type FetchFn } from "@plainva/core";
 import { accountServices, type CloudAccountRecord, type CloudServiceId } from "./cloudAccounts";
 import { oauthScopeFor, oauthScopesCover, type OAuthFamily } from "./oauthScopes";
 import type { OAuthAccess } from "./oauthAccess";
@@ -407,4 +407,58 @@ export async function bindSignedInAccount(prepared: PreparedSignIn, completed: C
   } finally {
     ports.setPending(null, family);
   }
+}
+
+/**
+ * A files sign-in that ran before its vault existed, turned into a card like
+ * any other (account sign-in plan K4b).
+ *
+ * "Open an online vault" on the desktop and "Add vault" from a cloud on the
+ * phone ask for the consent first, browse the cloud folder with it and create
+ * the vault only after the folder is picked - there is no vault to hold a card
+ * while the browser is open. Until now that sign-in ended in the files slot,
+ * with no identity and no card; the next refresh derived a card without one,
+ * and "Sign in again" there had nothing to compare the account with.
+ *
+ * The consent was given with this device's access for `unionScope(family,
+ * ["files"])`. Here the grant is renewed once - which also says what it covers
+ * and yields an access token for the identity, however long the folder pick
+ * took - and then goes through the same `completeSignIn` and
+ * `bindSignedInAccount` as every other sign-in. The shell's `bindFiles` finds
+ * the files slot already written with the picked folder and points it at the
+ * card.
+ */
+export interface PreVaultSignIn {
+  vaultId: string;
+  family: OAuthFamily;
+  access: OAuthAccess;
+  /**
+   * What the consent left: a refresh token to renew, or - for Android's
+   * system sheet, which keeps the renewal itself - a consent the shell has
+   * just renewed silently.
+   */
+  grant: { refreshToken: string } | { consent: SignInConsent };
+}
+
+export async function adoptFilesSignIn(
+  input: PreVaultSignIn,
+  ports: CompleteSignInPorts & BindSignInPorts,
+): Promise<FinishedSignIn & { completed: CompletedSignIn }> {
+  const prepared = prepareSignIn({ vaultId: input.vaultId, family: input.family, add: ["files"], access: input.access });
+  const completed = await completeSignIn(prepared, "consent" in input.grant ? input.grant.consent : await renewPreVaultGrant(input, input.grant.refreshToken, prepared.scope, ports.fetch), ports);
+  const finished = await bindSignedInAccount(prepared, completed, ports);
+  return { ...finished, completed };
+}
+
+async function renewPreVaultGrant(input: PreVaultSignIn, refreshToken: string, scope: string, fetchFn: FetchFn): Promise<SignInConsent> {
+  const { clientId, clientSecret } = input.access;
+  const renewed = input.family === "google"
+    ? await refreshDriveAccessToken({ clientId, clientSecret: clientSecret ?? "", refreshToken }, fetchFn)
+    : await refreshOneDriveAccessToken({ clientId, refreshToken, scope }, fetchFn);
+  return {
+    // Microsoft rotates the refresh token; the card keeps the newest.
+    refreshToken: renewed.refreshToken || refreshToken,
+    accessToken: renewed.accessToken,
+    ...(renewed.scope !== undefined ? { grantedScope: renewed.scope } : {}),
+  };
 }

@@ -15,12 +15,12 @@ import { getPlatformServices, getVaultTemplates, PLAINVA_DROPBOX_APP_KEY, PLAINV
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../adapters/webdavHttp";
 import { connectProvider, createProviderVault, createProviderFolder, listProviderFolders, getStoredProvider, reauthorizeVault, type MobileSyncProvider } from "./syncService";
-import { beginMobileSignIn } from "./accountSignIn";
+import { adoptAddedVaultSignIn, beginMobileSignIn } from "./accountSignIn";
 import { fileGrantProbe, getAccountToken, tokenCoversService } from "./accountBroker";
 import { loadCloudAccounts } from "./cloudAccountsStore";
 import { getMobileVault } from "./vaultService";
 import { enterFlowVault, releaseFlowVault } from "./flowVault";
-import type { ServiceConnectionContext } from "@plainva/ui";
+import type { OAuthAccess, ServiceConnectionContext } from "@plainva/ui";
 import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConnectOutcome } from "./connectQueue";
 import { getActiveVaultEntry } from "./vaultRegistry";
 import { APP_ID, APP_URL } from "./appScheme";
@@ -84,6 +84,12 @@ export interface OAuthExtras {
    * slot and restarts its worker — no folder pick, no new vault.
    */
   reconnectVaultId?: string;
+  /**
+   * This device's access the consent ran with, for a vault that does not exist
+   * yet (account sign-in plan K4b): once the vault is made, the sign-in becomes
+   * a card with its identity.
+   */
+  access?: OAuthAccess;
 }
 
 interface PendingFlow {
@@ -147,6 +153,8 @@ async function loadPending(): Promise<PendingFlow | null> {
 let pendingConnect: MobileSyncProvider | null = null;
 /** Create-mode companion of pendingConnect (restored from the persisted flow). */
 let pendingCreateTemplateId: string | null = null;
+/** The access a pre-vault consent ran with (K4b); the card is made from it once the vault exists. */
+let pendingAccess: OAuthAccess | undefined;
 let pendingServiceContext: ServiceConnectionContext | undefined;
 const FOLDER_KEY = "oauth_pending_folder";
 /**
@@ -155,7 +163,7 @@ const FOLDER_KEY = "oauth_pending_folder";
  * (`flowVault.ts`).
  */
 const FILE_FLOW = "file-connection";
-interface PendingFolder { provider: MobileSyncProvider; createTemplateId: string | null; context?: ServiceConnectionContext; createdAt: number }
+interface PendingFolder { provider: MobileSyncProvider; createTemplateId: string | null; context?: ServiceConnectionContext; access?: OAuthAccess; createdAt: number }
 export function getPendingConnectContext(): ServiceConnectionContext | undefined { return pendingServiceContext; }
 
 /** Folder browsing can rotate a refresh token; persist that exact provider. */
@@ -179,7 +187,7 @@ export async function beginStoredFilesConnection(context: ServiceConnectionConte
   if (!token?.clientId || !tokenCoversService(token, "files", record.family)) return false;
   try { await (await fileGrantProbe(context.vaultId, record.id, record.family, token)).getAccessToken(); } catch { return false; }
   pendingConnect = record.family === "google" ? { provider: "drive", creds: { clientId: token.clientId, clientSecret: token.clientSecret, refreshToken: "" } } : { provider: "onedrive", creds: { clientId: token.clientId, refreshToken: "" } };
-  pendingCreateTemplateId = null; pendingServiceContext = context;
+  pendingCreateTemplateId = null; pendingServiceContext = context; pendingAccess = undefined;
   releaseFlowVault(FILE_FLOW);
   const saved: PendingFolder = { provider: pendingConnect, createTemplateId: null, context, createdAt: Date.now() };
   await getPlatformServices().credentials.writeSecret(FOLDER_KEY, saved);
@@ -195,7 +203,7 @@ export async function restorePendingConnect(): Promise<void> {
     const run = await loadConnectQueue();
     if (!run || !outcomeBelongsToRun(run, saved.context, "files")) { await getPlatformServices().credentials.removeSecret(FOLDER_KEY); return; }
   }
-  pendingConnect = saved.provider; pendingCreateTemplateId = saved.createTemplateId; pendingServiceContext = saved.context;
+  pendingConnect = saved.provider; pendingCreateTemplateId = saved.createTemplateId; pendingServiceContext = saved.context; pendingAccess = saved.access;
   releaseFlowVault(FILE_FLOW);
   window.dispatchEvent(new CustomEvent("plainva-oauth-choose-folder"));
 }
@@ -223,6 +231,7 @@ export async function createPendingConnectFolder(path: string): Promise<void> {
 export async function finishConnect(rootFolder: string): Promise<void> {
   const p = pendingConnect;
   const createTemplateId = pendingCreateTemplateId;
+  const access = pendingAccess;
   if (!p) return;
   const context = pendingServiceContext;
   if (context?.runId) {
@@ -260,7 +269,7 @@ export async function finishConnect(rootFolder: string): Promise<void> {
   pendingConnect = withFolder;
   await persistPendingConnect(withFolder);
   if (createTemplateId === null) {
-    await connectProvider(await getMobileVault(), withFolder, context);
+    await connectProvider(await getMobileVault(), withFolder, context, adoptFor(access, withFolder, context));
     const run = await loadConnectQueue();
     if (!context?.runId || run?.outcomes.files?.state === "connected") cancelConnect();
     return;
@@ -272,8 +281,14 @@ export async function finishConnect(rootFolder: string): Promise<void> {
     template,
     vaultName: folder?.split("/").pop() || "Plainva",
     subfoldersHeading: i18n.t("indexMd.subfoldersHeading"),
-  });
+  }, adoptFor(access, withFolder, context));
   cancelConnect();
+}
+
+/** A new vault's Google or Microsoft sign-in becomes a card (K4b); a run inside a card already has one. */
+function adoptFor(access: OAuthAccess | undefined, provider: MobileSyncProvider, context?: ServiceConnectionContext): ((vaultId: string) => Promise<void>) | undefined {
+  if (!access || context?.runId || (provider.provider !== "drive" && provider.provider !== "onedrive")) return undefined;
+  return (vaultId) => adoptAddedVaultSignIn(vaultId, access, provider);
 }
 
 /** The user backed out of the folder pick — discard the token, create no vault. */
@@ -281,6 +296,7 @@ export function cancelConnect(): void {
   pendingConnect = null;
   pendingCreateTemplateId = null;
   pendingServiceContext = undefined;
+  pendingAccess = undefined;
   releaseFlowVault(FILE_FLOW);
   void withAccountCredentialLock(FOLDER_KEY, async () => {
     if (!pendingConnect) await getPlatformServices().credentials.removeSecret(FOLDER_KEY);
@@ -516,11 +532,12 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
 }
 
 async function offerFolderPicker(provider: MobileSyncProvider, extras: OAuthExtras): Promise<void> {
-  const folderState: PendingFolder = { provider, createTemplateId: extras.createTemplateId ?? null, context: extras.serviceContext, createdAt: Date.now() };
+  const folderState: PendingFolder = { provider, createTemplateId: extras.createTemplateId ?? null, context: extras.serviceContext, ...(extras.access ? { access: extras.access } : {}), createdAt: Date.now() };
   await getPlatformServices().credentials.writeSecret(FOLDER_KEY, folderState);
   if (!sameStoredValue(await getPlatformServices().credentials.readSecret(FOLDER_KEY), folderState)) throw new ServiceConnectionError("storageFailed");
   pendingConnect = provider;
   pendingCreateTemplateId = folderState.createTemplateId;
+  pendingAccess = folderState.access;
   pendingServiceContext = folderState.context;
   releaseFlowVault(FILE_FLOW);
   window.dispatchEvent(new CustomEvent("plainva-oauth-choose-folder"));

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, Check, Cloud, FolderOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -22,7 +22,20 @@ import {
 } from "../services/syncTargets";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
-import { foldMachineText, ICON, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID } from "@plainva/ui";
+import {
+  Button,
+  OAuthAccessEditor,
+  accessProblemKey,
+  foldMachineText,
+  ICON,
+  PLAINVA_DROPBOX_APP_KEY,
+  plainvaGoogleClient,
+  unionScope,
+  type AccessResolution,
+  type OAuthFamily,
+  type StoredOAuthAccess,
+} from "@plainva/ui";
+import { adoptOnlineVaultSignIn, deviceAccess, readDeviceAccess, saveDeviceAccess } from "../services/accountSignIn";
 import {
   scaffoldVaultTemplate,
   applyVaultTemplateSettings,
@@ -80,9 +93,25 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
   const [webdavUrl, setWebdavUrl] = useState("");
   const [webdavUser, setWebdavUser] = useState("");
   const [webdavPass, setWebdavPass] = useState("");
-  const [driveClientId, setDriveClientId] = useState("");
-  const [driveClientSecret, setDriveClientSecret] = useState("");
-  const [oneDriveClientId, setOneDriveClientId] = useState("");
+  // Google Drive and OneDrive sign in with this device's access, like every
+  // other sign-in (account sign-in plan K4b) - no fields of their own.
+  const accessFamily: OAuthFamily | null = provider === "drive" ? "google" : provider === "onedrive" ? "microsoft" : null;
+  const [access, setAccess] = useState<AccessResolution | null>(null);
+  const [storedAccess, setStoredAccess] = useState<StoredOAuthAccess | null>(null);
+  const [editAccess, setEditAccess] = useState(false);
+  useEffect(() => {
+    if (!accessFamily) return;
+    let alive = true;
+    void (async () => {
+      const stored = await readDeviceAccess(accessFamily);
+      const resolved = await deviceAccess(accessFamily);
+      if (!alive) return;
+      setStoredAccess(stored);
+      setAccess(resolved);
+      if (!resolved.ok) setEditAccess(true);
+    })();
+    return () => { alive = false; };
+  }, [accessFamily]);
   const [dropboxAppKey, setDropboxAppKey] = useState("");
   const [s3Endpoint, setS3Endpoint] = useState("");
   const [s3Bucket, setS3Bucket] = useState("");
@@ -105,8 +134,7 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
 
   const canConnect = (() => {
     if (provider === "webdav") return !!webdavUrl.trim() && !!webdavUser.trim() && !!webdavPass;
-    if (provider === "drive") return !!driveClientId && !!driveClientSecret;
-    if (provider === "onedrive") return !!(oneDriveClientId || PLAINVA_ONEDRIVE_CLIENT_ID);
+    if (provider === "drive" || provider === "onedrive") return !!access?.ok && !editAccess;
     if (provider === "dropbox") return !!(dropboxAppKey || PLAINVA_DROPBOX_APP_KEY);
     return !!s3Endpoint && !!s3Bucket && !!s3AccessKeyId && !!s3SecretKey;
   })();
@@ -125,11 +153,14 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
         await buildWebDavTarget(creds).listFolders("");
         credsRef.current = { provider, ...creds };
       } else if (provider === "drive") {
-        const creds = await authorizeDrive({ clientId: driveClientId.trim(), clientSecret: driveClientSecret.trim() });
-        credsRef.current = { provider, ...creds };
+        if (!access?.ok) return;
+        // The identity scopes ride along: the card is written from this consent.
+        const creds = await authorizeDrive({ clientId: access.access.clientId, clientSecret: access.access.clientSecret ?? "", scope: unionScope("google", ["files"]) });
+        credsRef.current = { provider, clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: creds.refreshToken };
       } else if (provider === "onedrive") {
-        const creds = await authorizeOneDrive({ clientId: (oneDriveClientId || PLAINVA_ONEDRIVE_CLIENT_ID).trim() });
-        credsRef.current = { provider, ...creds };
+        if (!access?.ok) return;
+        const creds = await authorizeOneDrive({ clientId: access.access.clientId, scope: unionScope("microsoft", ["files"]) });
+        credsRef.current = { provider, clientId: creds.clientId, refreshToken: creds.refreshToken };
       } else if (provider === "dropbox") {
         const creds = await authorizeDropbox({ appKey: (dropboxAppKey || PLAINVA_DROPBOX_APP_KEY).trim() });
         credsRef.current = { provider, ...creds };
@@ -231,6 +262,17 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
       } else {
         await credentialManager.saveS3Credentials(localDir, { ...c.s3, prefix: folder });
       }
+      // Google and Microsoft: the sign-in becomes the card's, with its identity,
+      // before the vault opens (K4b). Nothing half-bound stays behind.
+      if ((c.provider === "drive" || c.provider === "onedrive") && accessFamily && access?.ok) {
+        try {
+          await adoptOnlineVaultSignIn(localDir, accessFamily, access, c.refreshToken);
+        } catch (error) {
+          if (c.provider === "drive") await credentialManager.clearDriveCredentials(localDir);
+          else await credentialManager.clearOneDriveCredentials(localDir);
+          throw new Error(oauthErrorText(error), { cause: error });
+        }
+      }
       window.dispatchEvent(new CustomEvent("plainva-credentials-saved", { detail: { isNewConnection: true } }));
       // Register the connection as a cloud account (files service) so the new
       // vault gates/greets correctly without visiting the settings first.
@@ -284,20 +326,33 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
                 </Field>
               </>
             )}
-            {provider === "drive" && (
-              <>
-                <Field label={t("settings.clientId")}>
-                  <input autoComplete="off" value={driveClientId} onChange={(e) => setDriveClientId(e.target.value)} placeholder="xxxxxxxx.apps.googleusercontent.com" className="pv-field" />
-                </Field>
-                <Field label={t("settings.clientSecret")}>
-                  <input type="password" autoComplete="new-password" value={driveClientSecret} onChange={(e) => setDriveClientSecret(e.target.value)} className="pv-field" />
-                </Field>
-              </>
-            )}
-            {provider === "onedrive" && !PLAINVA_ONEDRIVE_CLIENT_ID && (
-              <Field label={t("settings.clientId")}>
-                <input autoComplete="off" value={oneDriveClientId} onChange={(e) => setOneDriveClientId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" className="pv-field" />
+            {accessFamily && access && !editAccess && (
+              <Field label={t("accountAccess.lineLabel")}>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }} data-testid="online-access">
+                  <span style={{ flex: 1 }}>
+                    {access.ok ? (access.access.source === "plainva" ? t("accountAccess.plainva") : t("accountAccess.ownLine", { id: access.access.clientId })) : t(accessProblemKey(access.problem))}
+                  </span>
+                  <Button variant="secondary" size="sm" onClick={() => setEditAccess(true)} data-testid="online-access-change">
+                    {t("accountAccess.change")}
+                  </Button>
+                </div>
               </Field>
+            )}
+            {accessFamily && access && editAccess && (
+              <OAuthAccessEditor
+                family={accessFamily}
+                platform="desktop"
+                value={storedAccess}
+                plainvaAvailable={accessFamily === "microsoft" || !!plainvaGoogleClient(import.meta.env as unknown as Record<string, unknown>, "desktop")}
+                onSave={async (next) => {
+                  await saveDeviceAccess(accessFamily, next);
+                  setStoredAccess(next);
+                  const resolved = await deviceAccess(accessFamily);
+                  setAccess(resolved);
+                  setEditAccess(!resolved.ok);
+                }}
+                onCancel={access.ok ? () => setEditAccess(false) : undefined}
+              />
             )}
             {provider === "dropbox" && !PLAINVA_DROPBOX_APP_KEY && (
               <Field label={t("settings.appKey")}>
