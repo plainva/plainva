@@ -37,6 +37,7 @@ import { authorizeNativeGoogle } from "./googleNativeAuthorization";
 import { accountCredentialStore } from "./accountCredentialStore";
 import { startConnectQueue } from "./connectQueue";
 import { announceAccountLogin } from "./accountLogin";
+import { markSignInAnnounced } from "./signInNotice";
 
 /**
  * The phone's side of the one account sign-in (account sign-in plan K4).
@@ -145,8 +146,15 @@ export function registerSignInHandler(): void {
       const text = error instanceof SignInNothingGrantedError ? i18n.t("cloudAccounts.notGranted")
         : error instanceof SignInWrongAccountError ? i18n.t("cloudAccounts.wrongAccount", { expected: error.expected, actual: error.actual })
           : error instanceof Error ? error.message : String(error);
+      // Said once, at the card, and the redirect handler stays quiet. What
+      // the provider left unticked belongs to the rows of those services; any
+      // other refusal (another account, say) is the card's, in its banner,
+      // while the rows keep their state - nothing changed.
       if (prepared.intent.cardId) {
-        announceAccountLogin({ vaultId, accountId: prepared.intent.cardId, services: Object.fromEntries(prepared.requested.map((s) => [s, text])), message: text });
+        announceAccountLogin(error instanceof SignInNothingGrantedError
+          ? { vaultId, accountId: prepared.intent.cardId, services: Object.fromEntries(prepared.requested.map((s) => [s, text])) }
+          : { vaultId, accountId: prepared.intent.cardId, services: {}, message: text });
+        throw markSignInAnnounced(error);
       }
       throw error;
     };

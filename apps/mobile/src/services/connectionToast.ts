@@ -1,5 +1,6 @@
 import { isGoogleAuthorizationCancelled, serviceConnectionMessage, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
+import { wasSignInAnnounced } from "./signInNotice";
 
 /**
  * The toast of a sign-in that did not complete — one rule for every place that
@@ -11,6 +12,8 @@ import i18n from "@plainva/ui/i18n";
  * (lib/serviceConnection.ts), which names the cause.
  */
 export function toastConnectionFailure(error: unknown): void {
+  // The card already says it (`signInNotice`).
+  if (wasSignInAnnounced(error)) return;
   if (isGoogleAuthorizationCancelled(error)) {
     toast.info(i18n.t("settings.oauthCancelled"));
     return;

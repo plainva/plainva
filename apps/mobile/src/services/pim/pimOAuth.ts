@@ -1,6 +1,7 @@
 import { sameStoredValue } from "@plainva/core";
 import { Browser } from "@capacitor/browser";
 import { authorizeNativeGoogle, googleSignInFlow, hasGooglePlayServices } from "../googleNativeAuthorization";
+import { wasSignInAnnounced } from "../signInNotice";
 import {
   buildAuthUrl,
   buildOneDriveAuthUrl,
@@ -495,7 +496,7 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     await recordConnectOutcome(flow.serviceContext, (flow.purpose === "mail" || flow.purpose === "gmail") ? "mail" : "calendar", { state: /wrongAccount|needsConsent|invalid_grant|accountChanged/.test(message) ? "needsConsent" : "failed", message }).catch(() => {});
-    toast.error(serviceConnectionMessage(e, i18n.t));
+    if (!wasSignInAnnounced(e)) toast.error(serviceConnectionMessage(e, i18n.t));
   }
   return true;
 }
