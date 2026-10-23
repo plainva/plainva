@@ -12,7 +12,8 @@
     "./styles/ui.css": "./src/styles/ui.css",
     "./themes/index.css": "./src/themes/index.css",
     "./styles/base-colors.css": "./src/styles/base-colors.css",
-    "./mail": "./src/mail/index.ts"
+    "./mail": "./src/mail/index.ts",
+    "./testing": "./src/testing/index.ts"
   },
   "description": "Shell-independent UI layer shared by the Plainva app shells: pure helpers, view-models and React primitives.",
   "license": "AGPL-3.0-only",
