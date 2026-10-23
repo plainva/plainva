@@ -17,6 +17,7 @@ import type { JournalCheckResult } from "@plainva/core";
 import { BackgroundSettings } from "./BackgroundSettings";
 import { QuickCaptureSettings } from "./QuickCaptureSettings";
 import { WindowSettings } from "./WindowSettings";
+import { LinkStyleSettings } from "./LinkStyleSettings";
 import { Select } from "../Select";
 import { getThemeDef, isModePinned, type ThemePref } from "../../services/theme";
 import { pinnedModeHintKey } from "@plainva/ui";
@@ -239,6 +240,7 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
         <SettingRow label={t("settings.tagColors")} desc={t("settings.tagColorsDesc")}>
           <Switch checked={p.tagColors} label={t("settings.tagColors")} onChange={p.onTagColors} />
         </SettingRow>
+        <LinkStyleSettings />
         <SettingRow
           label={t("settings.uiZoom", { defaultValue: "Oberflächen-Zoom" })}
           desc={t("settings.uiZoomDesc", { defaultValue: "Skaliert die gesamte Oberfläche. Auch per Strg/Cmd + Plus/Minus; 0 setzt zurück." })}

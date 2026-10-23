@@ -669,7 +669,18 @@
     "customThemeSyncLocal": "Dein Design bleibt auf diesem Gerät. Zum Einschalten einen entsperrten Vault öffnen.",
     "customThemeSyncFailed": "Der Design-Abgleich konnte nicht vollständig gespeichert oder geladen werden. Prüfe die Verbindung und entsperre den Vault; öffne diese Seite anschließend erneut.",
     "customThemeSyncConflict": "Zwei Geräte haben das Design gleichzeitig geändert. Alle Varianten bleiben erhalten, bis Du eine auswählst oder das Design bearbeitest.",
-    "customThemeSyncChoose": "Variante {{number}} übernehmen"
+    "customThemeSyncChoose": "Variante {{number}} übernehmen",
+    "linksSection": "Links",
+    "noteLinkStyle": "Links zu Notizen",
+    "noteLinkStyleDesc": "Wiki-Links und Markdown-Links auf eine Notiz.",
+    "webLinkStyle": "Links ins Web",
+    "webLinkStyleDesc": "Adressen im Internet.",
+    "linkStyleUnderline": "Unterstrichen",
+    "linkStyleTint": "Getönt",
+    "linkStyleColor": "Nur Farbe",
+    "linkStyleSubtle": "Dezent",
+    "linkPreview": "Vorschau der Links",
+    "linkPreviewSentence": "Die Notizen zum <note>Projekt Atlas</note> verweisen auf <web>example.org/angebot</web>; die Notiz <missing>Lieferanten 2027</missing> gibt es noch nicht."
   },
   "editor": {
     "completionHeadings": "Überschriften",

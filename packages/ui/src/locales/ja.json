@@ -667,7 +667,18 @@
     "customThemeSyncLocal": "デザインはこのデバイスに保存されます。同期を有効にするにはロック解除済みの保管庫を開いてください。",
     "customThemeSyncFailed": "デザインの同期を完全に保存または読み込めませんでした。接続を確認し、保管庫のロックを解除してから、このページを開き直してください。",
     "customThemeSyncConflict": "二つのデバイスが同時にデザインを変更しました。いずれかを選ぶかデザインを編集するまで、すべての候補が保存されます。",
-    "customThemeSyncChoose": "候補 {{number}} を使用"
+    "customThemeSyncChoose": "候補 {{number}} を使用",
+    "linksSection": "リンク",
+    "noteLinkStyle": "ノートへのリンク",
+    "noteLinkStyleDesc": "ノートへの Wiki リンクと Markdown リンク。",
+    "webLinkStyle": "Web へのリンク",
+    "webLinkStyleDesc": "インターネット上のアドレス。",
+    "linkStyleUnderline": "下線",
+    "linkStyleTint": "背景色",
+    "linkStyleColor": "色のみ",
+    "linkStyleSubtle": "控えめ",
+    "linkPreview": "リンクのプレビュー",
+    "linkPreviewSentence": "<note>プロジェクト Atlas</note> のノートは <web>example.org/offer</web> を参照しています。ノート <missing>仕入先 2027</missing> はまだありません。"
   },
   "editor": {
     "completionHeadings": "見出し",

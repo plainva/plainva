@@ -7,6 +7,7 @@ import { getPlatformServices } from "../platform/services";
 import { findLinkAtOffset } from "../lib/linkParser";
 import { isWikiTargetResolved, type WikiTargetSet } from "../lib/wikiResolver";
 import { isEditorInteractive } from "./editorInteractive";
+import { isNoteLinkTarget } from "../lib/linkStyle";
 import { WIKI_LINK_HOVER_STYLE, WIKI_LINK_STYLE, WIKI_LINK_UNRESOLVED_STYLE } from "./wikiLinkStyle";
 import i18n from "../i18n";
 
@@ -291,10 +292,12 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean, host
           // Unresolved = a wiki link whose target note does not exist yet
           // (only wiki links carry the "not created yet" meaning).
           const unresolved = m.type === "wiki" && !isWikiTargetResolved(m.target, resolver, hostPath?.());
-          // A wiki link wears the note-link look (wish 2026-10-19); a Markdown
-          // link and a bare address keep the web link's underline, as in the
-          // desktop's reading view. `.cm-wiki-link` stays the click target.
-          const linkClass = m.type !== "wiki" ? "cm-wiki-link" : unresolved ? "cm-wiki-link cm-wiki-link--note cm-wiki-link--unresolved" : "cm-wiki-link cm-wiki-link--note";
+          // A link to a note - a wiki link, or a Markdown link into the vault -
+          // wears the note-link look; a bare address and a Markdown link with a
+          // scheme wear the web link's (linkStyle.ts). `.cm-wiki-link` stays
+          // the click target.
+          const toNote = m.type === "wiki" || (m.type === "markdown" && isNoteLinkTarget(m.target));
+          const linkClass = !toNote ? "cm-wiki-link" : unresolved ? "cm-wiki-link cm-wiki-link--note cm-wiki-link--unresolved" : "cm-wiki-link cm-wiki-link--note";
           const linkAttrs: Record<string, string> = { "data-link-target": m.target, "data-link-type": m.type };
           if (m.anchor) linkAttrs["data-link-anchor"] = m.anchor;
           if (unresolved) linkAttrs.title = i18n.t("editor.unresolvedLinkTip", "Note doesn't exist yet — click to create");
@@ -332,11 +335,14 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean, host
     }),
     wikiResolverField,
     EditorView.baseTheme({
-      // A Markdown link or a bare address: the web link's line.
+      // A link out of the vault: the web link's look (Appearance -> Links).
       ".cm-wiki-link": {
         color: "var(--wiki-link-color, var(--accent-color))",
-        textDecoration: "underline",
+        textDecoration: "var(--web-link-decoration)",
         cursor: "pointer",
+      },
+      ".cm-wiki-link:hover": {
+        textDecoration: "underline",
       },
       // A wiki link: the look lives in wikiLinkStyle.ts, shared with
       // table-cell links and the reading views.
@@ -350,8 +356,13 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean, host
       // underline; drop the nested token's so exactly one line renders. Scoped to
       // `.cm-wiki-link`, so the compose editor (no wiki plugin) keeps its links
       // underlined.
+      // The nested token also takes the mark's colour: a highlighter rule painted
+      // the text of a link in the body colour, so an underlined link read as body
+      // text with a coloured line (seen 2026-10-23 while building Appearance ->
+      // Links). The mark decides colour and line for everything inside it.
       ".cm-wiki-link *": {
         textDecoration: "none",
+        color: "inherit",
       },
       // Unresolved (note doesn't exist yet): muted + dashed underline, still
       // clickable — clicking creates the note (Obsidian parity). Kept visually

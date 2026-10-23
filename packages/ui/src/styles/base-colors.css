@@ -42,14 +42,16 @@
   /* Wiki link whose target note doesn't exist yet (muted; theme-aware via
      --text-muted, so every theme inherits a sensible value). */
   --wiki-link-unresolved-color: var(--text-muted);
-  /* A wiki link wears a light tint of its color and a little more weight; its
-     line comes only under the pointer, so it reads apart from a web link
-     (wish 2026-10-19, wikiLinkStyle.ts). High contrast swaps the tint for the
-     line. */
-  --wiki-link-bg: color-mix(in srgb, var(--wiki-link-color) 13%, transparent);
-  --wiki-link-bg-hover: color-mix(in srgb, var(--wiki-link-color) 24%, transparent);
-  --wiki-link-weight: 500;
-  --wiki-link-decoration: none;
+  /* How a link to a note and a link to the web look is a device setting
+     (linkStyle.ts; ui.css maps `html[data-link-note]` / `[data-link-web]` onto
+     these tokens). The default is the look every version up to 0.8.5 had:
+     coloured and underlined (maintainer, 2026-10-23). */
+  --wiki-link-text: var(--wiki-link-color);
+  --wiki-link-bg: transparent;
+  --wiki-link-bg-hover: transparent;
+  --wiki-link-weight: inherit;
+  --wiki-link-decoration: underline;
+  --web-link-decoration: underline;
   --overlay-bg: rgba(15, 28, 27, 0.45);
 
   /* Editor-specific */

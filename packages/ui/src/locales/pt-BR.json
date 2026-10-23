@@ -671,7 +671,18 @@
     "customThemeSyncLocal": "Seu design fica neste dispositivo. Abra um cofre desbloqueado para ativar a sincronização.",
     "customThemeSyncFailed": "Não foi possível salvar ou carregar completamente a sincronização do design. Verifique a conexão, desbloqueie o cofre e abra esta página novamente.",
     "customThemeSyncConflict": "Dois dispositivos alteraram o design ao mesmo tempo. Todas as variantes são mantidas até você escolher uma ou editar o design.",
-    "customThemeSyncChoose": "Usar variante {{number}}"
+    "customThemeSyncChoose": "Usar variante {{number}}",
+    "linksSection": "Links",
+    "noteLinkStyle": "Links para notas",
+    "noteLinkStyleDesc": "Links wiki e links Markdown para uma nota.",
+    "webLinkStyle": "Links para a web",
+    "webLinkStyleDesc": "Endereços na internet.",
+    "linkStyleUnderline": "Sublinhado",
+    "linkStyleTint": "Com fundo",
+    "linkStyleColor": "Só cor",
+    "linkStyleSubtle": "Discreto",
+    "linkPreview": "Prévia dos links",
+    "linkPreviewSentence": "As notas do <note>Projeto Atlas</note> apontam para <web>example.org/oferta</web>; a nota <missing>Fornecedores 2027</missing> ainda não existe."
   },
   "editor": {
     "completionHeadings": "Títulos",

@@ -1,12 +1,11 @@
 /**
- * How a wiki link looks, in one place (wish from TestFlight, 2026-10-19).
+ * How a link to a note looks, in one place.
  *
- * Accent color plus an underline was all a wiki link had; Petrol sits close
- * to the body text in lightness, so mostly the line carried it - and a web
- * link has the same line. A wiki link now wears a light tint of its color and
- * a little more weight, and gets its line only under the pointer; a web link
- * keeps its underline, so the two tell apart at a glance. A link to a note
- * that doesn't exist yet stays muted and dashed, without the tint.
+ * The look is a device setting (linkStyle.ts, maintainer 2026-10-23):
+ * underlined (the default, as up to 0.8.5), tinted (the tester's wish of
+ * 2026-10-19), colour only, or subtle. The setting only moves tokens; these
+ * values read them. A link to a note that doesn't exist yet stays muted and
+ * dashed whatever the setting says.
  *
  * The values are tokens (`--wiki-link-*`, base-colors.css), so a theme can
  * change them. Every surface that draws a wiki link uses these: the editor's
@@ -17,7 +16,7 @@
  * mode; `wishes10b.test.ts` (desktop) holds ui.css to these values.
  */
 export const WIKI_LINK_STYLE = {
-  color: "var(--wiki-link-color, var(--accent-color))",
+  color: "var(--wiki-link-text, var(--wiki-link-color, var(--accent-color)))",
   backgroundColor: "var(--wiki-link-bg)",
   borderRadius: "var(--radius-xs)",
   // No padding: a mark the editor splits (a search hit, a comment inside
