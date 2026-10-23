@@ -3944,3 +3944,33 @@ test('Images: reader and live preview open the image viewer with keyboard and co
   await picture.click({ button: 'right' }); await page.getByRole('menuitem', { name: 'Open image', exact: true }).click();
   await expect(page.getByTestId('image-viewer')).toBeVisible();
 });
+
+test('List indent: a task typed anew keeps its box where the tasks around it have theirs, once the caret leaves it', async ({ page }) => {
+  // Sammelplan 3.146: Enter at the end of a task, a few words, the caret out
+  // of the line - and the new box sat about 4 px left of the boxes above and
+  // below. The hanging indent had been measured while the caret showed the raw
+  // `- [ ] ` and was never measured again once the box took its place.
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Aufgaben.md'] = '# Aufgaben\n\n- [ ] eins\n- [ ] drei\n';
+  });
+  await page.goto('/');
+  await expect(page.getByText('Aufgaben', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByText('Aufgaben', { exact: true }).click();
+  const content = page.locator('.cm-content');
+  await expect(content.getByText('eins')).toBeVisible();
+  await expect(content.locator('input.cm-md-task')).toHaveCount(2);
+
+  await content.getByText('eins').click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('zwei');
+  // The caret leaves the list (onto the heading), so every task shows its box.
+  await content.getByText('Aufgaben', { exact: true }).click();
+  await expect(content.locator('input.cm-md-task')).toHaveCount(3);
+  await page.waitForTimeout(300);
+
+  const lefts = await content.locator('input.cm-md-task').evaluateAll((boxes) => boxes.map((box) => box.getBoundingClientRect().left));
+  expect(lefts).toHaveLength(3);
+  expect(Math.abs(lefts[1] - lefts[0]), 'the new box against the one above').toBeLessThan(1);
+  expect(Math.abs(lefts[1] - lefts[2]), 'the new box against the one below').toBeLessThan(1);
+});
