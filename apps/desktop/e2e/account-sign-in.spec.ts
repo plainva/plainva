@@ -33,7 +33,7 @@ interface Harness {
   choice: FakeConsentChoice;
 }
 
-async function wire(page: Page, seed: { cards?: unknown[]; keychain?: Record<string, string> } = {}): Promise<Harness> {
+async function wire(page: Page, seed: { cards?: unknown[]; keychain?: Record<string, string>; splash?: boolean; pickDir?: string } = {}): Promise<Harness> {
   const harness: Harness = {
     provider: new FakeOAuthProvider({ family: 'google', accounts: [ANNA, BERT], clients: [CLIENT] }),
     choice: {},
@@ -63,12 +63,14 @@ async function wire(page: Page, seed: { cards?: unknown[]; keychain?: Record<str
     return { status: response.status, body: await response.text() };
   });
 
-  await page.addInitScript((seedIn: { cards: unknown[]; keychain: Record<string, string>; client: typeof CLIENT }) => {
+  await page.addInitScript((seedIn: { cards: unknown[]; keychain: Record<string, string>; client: typeof CLIENT; splash: boolean; pickDir: string | null }) => {
     const fs: Record<string, any> = {
       '/test-vault': { isDir: true },
       '/test-vault/.plainva': { isDir: true },
       '/test-vault/Todo.md': '# Todo\nSome note content.',
     };
+    // The local folder the person picks for an online vault, empty.
+    if (seedIn.pickDir) fs[seedIn.pickDir] = { isDir: true };
     const noteRows = () =>
       Object.keys(fs)
         .filter((p) => !fs[p].isDir && p.startsWith('/test-vault/') && !p.includes('/.plainva/'))
@@ -80,7 +82,7 @@ async function wire(page: Page, seed: { cards?: unknown[]; keychain?: Record<str
     const settings = new Map<string, unknown>([
       ['lastVaultPath', '/test-vault'],
       ['recentVaults', ['/test-vault']],
-      ['autoOpenLastVault', true],
+      ['autoOpenLastVault', !seedIn.splash],
       ['whatsNewSeenVersion', '9.9.9'],
       [`okfPromptDismissed_${vaultKey}`, true],
       [`backupZipEnabled_${vaultKey}`, false],
@@ -174,6 +176,7 @@ async function wire(page: Page, seed: { cards?: unknown[]; keychain?: Record<str
         }
         if (cmd === 'plugin:http|fetch_cancel' || cmd === 'plugin:http|fetch_cancel_body') return null;
 
+        if (cmd === 'plugin:dialog|open') return seedIn.pickDir;
         if (cmd === 'plugin:dialog|ask' || cmd === 'plugin:dialog|confirm') return true;
         if (cmd === 'plugin:dialog|message') return String(args?.buttons) === 'OkCancel' ? 'Ok' : 'Yes';
         if (cmd === 'plugin:sql|load') return args.db;
@@ -255,7 +258,7 @@ async function wire(page: Page, seed: { cards?: unknown[]; keychain?: Record<str
         return null;
       },
     };
-  }, { cards: seed.cards ?? [], keychain: seed.keychain ?? {}, client: CLIENT });
+  }, { cards: seed.cards ?? [], keychain: seed.keychain ?? {}, client: CLIENT, splash: !!seed.splash, pickDir: seed.pickDir ?? null });
   return harness;
 }
 
@@ -344,4 +347,40 @@ test('signing a card in again with another account changes nothing and names bot
   // Nothing changed: the card, its services and Anna's grant are as before.
   expect(await cards(page)).toEqual([card]);
   expect(JSON.parse((await grantOf(page, 'card-anna')) ?? 'null')).toEqual(JSON.parse(grant));
+});
+
+test("opening an online vault signs in with this device's access and gives the new vault its account", async ({ page }) => {
+  // "Open Vault -> Online vault -> Google Drive" asked for a client id in
+  // fields of its own and left the sign-in in the files slot with no identity
+  // and no card (account sign-in plan K4b).
+  const harness = await wire(page, { splash: true, pickDir: '/new-vault' });
+  await page.goto('/');
+  await page.getByRole('button', { name: /^(Vault öffnen|Open Vault)$/ }).click();
+  await page.getByRole('button', { name: /Online-Vault|Online vault/ }).click();
+  await page.getByRole('button', { name: /Google Drive/ }).click();
+
+  // No client fields: the device's access, here the own client.
+  await expect(page.getByTestId('online-access')).toContainText(CLIENT.clientId);
+  await expect(page.getByPlaceholder('xxxxxxxx.apps.googleusercontent.com')).toHaveCount(0);
+
+  harness.choice = { account: ANNA.email };
+  await page.getByRole('button', { name: /^(Verbinden|Connect)$/ }).click();
+  // The cloud folder picker opens with the fresh sign-in; the root is fine.
+  await page.getByRole('dialog').getByRole('button', { name: /^(Abbrechen|Cancel)$/ }).click();
+  await page.getByRole('button', { name: /Lokalen Ordner wählen|Choose local folder and open/ }).click();
+
+  // One consent, for files and the identity.
+  const consents = harness.provider.log.filter((entry) => entry.kind === 'consent');
+  expect(consents).toHaveLength(1);
+  expect(String(consents[0].detail.scope)).toContain('https://www.googleapis.com/auth/drive');
+  expect(String(consents[0].detail.scope)).toContain('openid');
+
+  // The new vault has its card: Anna's identity, the files service, the grant on the card.
+  const newVaultKey = Buffer.from('/new-vault').toString('base64');
+  const newCards = () => page.evaluate((key) => ((window as any).__settings.get(`cloudAccounts_${key}`) ?? []) as any[], newVaultKey);
+  await expect.poll(async () => (await newCards()).length, { timeout: 15_000 }).toBe(1);
+  const [card] = await newCards();
+  expect(card).toMatchObject({ family: 'google', label: ANNA.email, verifiedProviderIdentity: { issuer: 'google', subject: ANNA.subject }, services: { files: { provider: 'drive' } } });
+  const grant = JSON.parse((await grantOf(page, card.id)) ?? 'null');
+  expect(grant).toMatchObject({ clientId: CLIENT.clientId, providerIdentity: { issuer: 'google', subject: ANNA.subject } });
 });
