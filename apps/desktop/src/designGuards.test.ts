@@ -420,6 +420,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-evtdesc": "event description text (plan Befunde 24.09., E25): running text on --text-muted and link chips on --border-color/--bg-primary/--accent-color, all tokens both themes already override",
   "pv-linktarget": "text run (plan Befunde 06.10., M1): the destination of a mail link on --text-muted with its host on --text-main, or the colour of the warning surface around it - tokens both themes already override",
   "pv-maillink": "a link inside a plain-text mail body: --accent-color and an underline, nothing else to theme",
+  "pv-web-link": "a link out of the vault in the reading view: --accent-color and the --web-link-decoration token (Appearance -> Links), nothing else to theme",
   "pv-evtjoin": "layout only — aligns the Join button; the button is a .pv-btn, which both themes restyle",
   "pv-pinentry": "layout only — the pinboard entry window's title field, editor host and line of inherited chips inside .pv-modal; the modal, the field tokens, the Chip primitive and the editor carry every theme",
 };

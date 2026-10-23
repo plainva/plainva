@@ -673,7 +673,18 @@
     "customThemeSyncLocal": "Twój wygląd pozostaje na tym urządzeniu. Otwórz odblokowany sejf, aby włączyć synchronizację.",
     "customThemeSyncFailed": "Nie udało się w pełni zapisać lub wczytać synchronizacji wyglądu. Sprawdź połączenie, odblokuj sejf i ponownie otwórz tę stronę.",
     "customThemeSyncConflict": "Dwa urządzenia zmieniły wygląd jednocześnie. Wszystkie warianty pozostaną zachowane, dopóki nie wybierzesz jednego lub nie zmienisz wyglądu.",
-    "customThemeSyncChoose": "Użyj wariantu {{number}}"
+    "customThemeSyncChoose": "Użyj wariantu {{number}}",
+    "linksSection": "Linki",
+    "noteLinkStyle": "Linki do notatek",
+    "noteLinkStyleDesc": "Linki wiki i linki Markdown do notatki.",
+    "webLinkStyle": "Linki do sieci",
+    "webLinkStyleDesc": "Adresy w internecie.",
+    "linkStyleUnderline": "Podkreślone",
+    "linkStyleTint": "Z tłem",
+    "linkStyleColor": "Tylko kolor",
+    "linkStyleSubtle": "Dyskretne",
+    "linkPreview": "Podgląd linków",
+    "linkPreviewSentence": "Notatki o <note>Projekcie Atlas</note> odsyłają do <web>example.org/oferta</web>; notatka <missing>Dostawcy 2027</missing> jeszcze nie istnieje."
   },
   "editor": {
     "completionHeadings": "Nagłówki",

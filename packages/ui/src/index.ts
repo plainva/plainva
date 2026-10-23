@@ -189,6 +189,8 @@ export * from "./lib/noteCardModel";
 export * from "./lib/noteCardTint";
 export * from "./lib/notePropertyEdit";
 export * from "./lib/tagColor";
+export * from "./lib/linkStyle";
+export * from "./components/LinkStylePreview";
 export * from "./lib/commentJump";
 export * from "./lib/commentOverviewFocus";
 export * from "./lib/commentOverviewFocus";

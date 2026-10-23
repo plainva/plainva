@@ -669,7 +669,18 @@
     "customThemeSyncLocal": "Je ontwerp blijft op dit apparaat. Open een ontgrendelde kluis om synchronisatie in te schakelen.",
     "customThemeSyncFailed": "De ontwerpsynchronisatie kon niet volledig worden opgeslagen of geladen. Controleer de verbinding, ontgrendel de kluis en open deze pagina opnieuw.",
     "customThemeSyncConflict": "Twee apparaten hebben het ontwerp tegelijk gewijzigd. Alle varianten blijven bewaard totdat je er een kiest of het ontwerp bewerkt.",
-    "customThemeSyncChoose": "Variant {{number}} gebruiken"
+    "customThemeSyncChoose": "Variant {{number}} gebruiken",
+    "linksSection": "Links",
+    "noteLinkStyle": "Links naar notities",
+    "noteLinkStyleDesc": "Wikilinks en Markdown-links naar een notitie.",
+    "webLinkStyle": "Links naar het web",
+    "webLinkStyleDesc": "Adressen op internet.",
+    "linkStyleUnderline": "Onderstreept",
+    "linkStyleTint": "Getint",
+    "linkStyleColor": "Alleen kleur",
+    "linkStyleSubtle": "Subtiel",
+    "linkPreview": "Voorbeeld van de links",
+    "linkPreviewSentence": "De notities over <note>Project Atlas</note> verwijzen naar <web>example.org/offerte</web>; de notitie <missing>Leveranciers 2027</missing> bestaat nog niet."
   },
   "editor": {
     "completionHeadings": "Koppen",

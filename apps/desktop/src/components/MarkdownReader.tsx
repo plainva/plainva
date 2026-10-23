@@ -453,7 +453,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
                     e.preventDefault();
                     openUrl(href).catch(console.error);
                   }}
-                  style={{ color: 'var(--accent-color)', textDecoration: 'underline', cursor: 'pointer' }}
+                  className="pv-web-link"
                 >
                   {children}
                 </a>
@@ -466,7 +466,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
                 <a
                   href="#"
                   onClick={(e) => { e.preventDefault(); if (sourcePath) requestAnchorJump(sourcePath, href); }}
-                  style={{ color: 'var(--accent-color)', textDecoration: 'underline', cursor: 'pointer' }}
+                  className="pv-wiki-link"
                 >
                   {children}
                 </a>
@@ -499,13 +499,13 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
                 <a
                   href="#"
                   onClick={(e) => { e.preventDefault(); openReaderLink(href, 'markdown', e.ctrlKey || e.metaKey); }}
-                  style={{ color: 'var(--accent-color)', textDecoration: 'underline', cursor: 'pointer' }}
+                  className="pv-wiki-link"
                 >
                   {children}
                 </a>
               );
             }
-            return <a href={href} style={{ color: 'var(--accent-color)' }} {...props}>{children}</a>;
+            return <a href={href} className="pv-web-link" {...props}>{children}</a>;
           },
           img: ({ node, src, alt, ...props }) => {
             // What applyReadAnchors left on the picture (C28), if anything.

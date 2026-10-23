@@ -669,7 +669,18 @@
     "customThemeSyncLocal": "Your design stays on this device. Open an unlocked vault to enable sync.",
     "customThemeSyncFailed": "Design sync could not be fully saved or loaded. Check the connection, unlock the vault and reopen this page.",
     "customThemeSyncConflict": "Two devices changed the design at the same time. All variants are kept until you choose one or edit the design.",
-    "customThemeSyncChoose": "Use variant {{number}}"
+    "customThemeSyncChoose": "Use variant {{number}}",
+    "linksSection": "Links",
+    "noteLinkStyle": "Links to notes",
+    "noteLinkStyleDesc": "Wiki links and Markdown links to a note.",
+    "webLinkStyle": "Links to the web",
+    "webLinkStyleDesc": "Addresses on the internet.",
+    "linkStyleUnderline": "Underlined",
+    "linkStyleTint": "Tinted",
+    "linkStyleColor": "Colour only",
+    "linkStyleSubtle": "Subtle",
+    "linkPreview": "Link preview",
+    "linkPreviewSentence": "The notes on <note>Project Atlas</note> point to <web>example.org/offer</web>; the note <missing>Suppliers 2027</missing> does not exist yet."
   },
   "editor": {
     "completionHeadings": "Headings",

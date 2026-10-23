@@ -38,6 +38,7 @@ export async function installAppearanceSync(): Promise<void> {
       import("./theme").then(({ applyStoredTheme }) => applyStoredTheme()),
       import("./density").then(({ initDensity }) => initDensity()),
       import("./tagColors").then(({ initTagColors }) => initTagColors()),
+      import("./linkStyle").then(({ initLinkStyle }) => initLinkStyle()),
       import("./spellcheck").then(({ initSpellcheck }) => initSpellcheck()),
       import("./appFonts").then(({ initAppFonts }) => initAppFonts()),
       import("./uiZoom").then(({ initUiZoom }) => initUiZoom()),

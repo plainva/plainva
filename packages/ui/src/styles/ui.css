@@ -1750,11 +1750,11 @@ button.pv-chip:hover { background: var(--state-hover); }
 .pv-chip-plain { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
 .pv-chip-tag { background: var(--chip-tag-bg); color: var(--chip-tag-fg); border-color: transparent; }
 .pv-tag-parent { color: var(--chip-tag-parent-fg); }
-/* A wiki link outside the editor - the desktop's reading view, card previews,
-   cells (wish 2026-10-19). The same values as the editor's `.cm-wiki-link`
+/* A link to a note outside the editor - the desktop's reading view, card
+   previews, cells. The same values as the editor's `.cm-wiki-link--note`
    (wikiLinkStyle.ts; wishes10b.test.ts holds the two together). */
 .pv-wiki-link {
-  color: var(--wiki-link-color, var(--accent-color));
+  color: var(--wiki-link-text, var(--wiki-link-color, var(--accent-color)));
   background-color: var(--wiki-link-bg);
   border-radius: var(--radius-xs);
   padding: 0;
@@ -1777,6 +1777,37 @@ button.pv-chip:hover { background: var(--state-hover); }
   padding: 0;
   font-weight: inherit;
   text-decoration: underline dashed;
+}
+/* A link out of the vault in the desktop's reading view: the web link's look
+   (Appearance -> Links, linkStyle.ts); the line comes under the pointer when
+   the device chose colour only. */
+.pv-web-link {
+  color: var(--accent-color);
+  text-decoration: var(--web-link-decoration);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.pv-web-link:hover {
+  text-decoration: underline;
+}
+/* The link look a device chose (Appearance -> Links, linkStyle.ts). The default
+   - underlined - is the absence of the attribute; high contrast keeps it for
+   every choice. A link to a note that does not exist yet keeps its own look. */
+html:not([data-theme-name="high-contrast"])[data-link-note="tint"] {
+  --wiki-link-bg: color-mix(in srgb, var(--wiki-link-color) 13%, transparent);
+  --wiki-link-bg-hover: color-mix(in srgb, var(--wiki-link-color) 24%, transparent);
+  --wiki-link-weight: 500;
+  --wiki-link-decoration: none;
+}
+html:not([data-theme-name="high-contrast"])[data-link-note="color"] {
+  --wiki-link-decoration: none;
+}
+html:not([data-theme-name="high-contrast"])[data-link-note="subtle"] {
+  --wiki-link-text: var(--text-main);
+  --wiki-link-decoration: underline dotted color-mix(in srgb, var(--wiki-link-color) 70%, transparent);
+}
+html:not([data-theme-name="high-contrast"])[data-link-web="color"] {
+  --web-link-decoration: none;
 }
 /* A tag in running text (finding 2026-09-19): the editor's mark and the reader's
    span are this one class, so a tag looks the same where it is written and where

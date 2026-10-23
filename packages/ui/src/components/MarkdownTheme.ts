@@ -224,8 +224,11 @@ export const editorTheme = EditorView.theme({
   // mobile table links had no cursor:pointer/underline and looked unclickable).
   ".cm-md-cell-link": {
     color: "var(--wiki-link-color, var(--accent-color))",
-    textDecoration: "underline",
+    textDecoration: "var(--web-link-decoration)",
     cursor: "pointer",
+  },
+  ".cm-md-cell-link:hover": {
+    textDecoration: "underline",
   },
   // A wiki link in a cell looks like one in the text (wikiLinkStyle.ts).
   ".cm-md-cell-link.pv-wiki-link": WIKI_LINK_STYLE,
@@ -474,7 +477,7 @@ export const markdownHighlightStyle = HighlightStyle.define([
   { tag: t.strong, fontWeight: "bold", color: "var(--text-main)" },
   { tag: t.emphasis, fontStyle: "italic", color: "var(--text-main)" },
   { tag: t.strikethrough, textDecoration: "line-through", color: "var(--text-muted)" },
-  { tag: t.link, color: "var(--accent-color)", textDecoration: "underline" },
+  { tag: t.link, color: "var(--accent-color)", textDecoration: "var(--web-link-decoration)" },
   { tag: t.url, color: "var(--accent-color)" },
   // A NAMED class instead of a generated one: inside a callout card the quote
   // look has to step aside (finding 2026-09-19), and a rule can only address a

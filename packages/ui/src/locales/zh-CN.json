@@ -667,7 +667,18 @@
     "customThemeSyncLocal": "你的设计保留在此设备上。打开已解锁的保险库即可启用同步。",
     "customThemeSyncFailed": "无法完整保存或加载设计同步。请检查连接、解锁保险库，然后重新打开此页面。",
     "customThemeSyncConflict": "两台设备同时更改了设计。所有版本都会保留，直到你选择一个版本或编辑设计。",
-    "customThemeSyncChoose": "采用版本 {{number}}"
+    "customThemeSyncChoose": "采用版本 {{number}}",
+    "linksSection": "链接",
+    "noteLinkStyle": "指向笔记的链接",
+    "noteLinkStyleDesc": "指向笔记的 Wiki 链接和 Markdown 链接。",
+    "webLinkStyle": "指向网页的链接",
+    "webLinkStyleDesc": "互联网上的地址。",
+    "linkStyleUnderline": "下划线",
+    "linkStyleTint": "底色",
+    "linkStyleColor": "仅颜色",
+    "linkStyleSubtle": "低调",
+    "linkPreview": "链接预览",
+    "linkPreviewSentence": "<note>Atlas 项目</note>的笔记指向 <web>example.org/offer</web>；笔记 <missing>2027 供应商</missing>还不存在。"
   },
   "editor": {
     "completionHeadings": "标题",

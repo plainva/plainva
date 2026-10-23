@@ -427,7 +427,8 @@ function appendInlineNodes(parent: Node, nodes: InlineNode[], handlers: InlineLi
         break;
       case "link":
         if (n.external) parent.appendChild(makeLink(n.label, () => handlers.onOpenUrl?.(n.href)));
-        else parent.appendChild(makeLink(n.label, (e) => handlers.onOpenNote?.(n.written, e.ctrlKey || e.metaKey, "markdown")));
+        // A Markdown link into the vault is a link to a note (linkStyle.ts).
+        else parent.appendChild(makeLink(n.label, (e) => handlers.onOpenNote?.(n.written, e.ctrlKey || e.metaKey, "markdown"), true));
         break;
       case "url":
         parent.appendChild(makeLink(n.href, () => handlers.onOpenUrl?.(n.href)));

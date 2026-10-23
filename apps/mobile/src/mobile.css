@@ -885,6 +885,16 @@ textarea {
    (sheets, wizards, forms): they are block flow and would collapse without it.
    Inside `.m-settings` the page carries the rhythm and the margin is cancelled
    there — see the rule next to `.m-settings`. */
+/* Appearance -> Links: the sentence that shows the device's link look as a
+   note draws it (LinkStylePreview, linkStyle.ts). */
+.m-link-preview {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-content);
+  font-size: var(--content-font-size, 16px);
+  line-height: 1.6;
+  color: var(--text-main);
+}
 .m-hint {
   margin: 0 0 var(--space-1);
   font-size: var(--text-sm, 0.85rem);
