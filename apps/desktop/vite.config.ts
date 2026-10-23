@@ -119,6 +119,10 @@ export default defineConfig(async () => ({
     // and fails as "timed out", a different one on every run (2026-09-10:
     // three hook runs, three different sets). 20 s still catches a hang.
     testTimeout: 20_000,
+    // Setup and teardown hooks get their own, longer cap: some build a real
+    // SQLite file or a vault on disk, and the Windows release runner took more
+    // than the 10 s default for that (release 0.8.6, Sammelplan 3.149).
+    hookTimeout: 60_000,
     // A loaded machine (the app, a browser, another agent's suite beside this
     // one) turns worker contention into hook timeouts; PLAINVA_TEST_WORKERS=<n>
     // caps the workers for such a run and changes nothing when it is unset.
