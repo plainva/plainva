@@ -2435,7 +2435,7 @@ describe("the cloud accounts screen", () => {
     // the button.
     expect(screen).toMatch(/DeviceSignInBadge/);
     expect(screen).toMatch(/cloudacct-signin-again/);
-    expect(screen).toMatch(/beginAccountLogin/);
+    expect(screen).toMatch(/beginMobileSignIn/);
   });
 
   it("leads into the account, not into the list of a service", () => {
@@ -3437,9 +3437,9 @@ describe("desktop rules the phone had never been given (finding 2026-08-19)", ()
   it("clears the mailbox token when one sign-in takes over the account", () => {
     // Otherwise the mail token is exactly the second copy that keeps
     // refreshing on the side — the arrangement stage B exists to end.
-    const login = read("src/services/accountLogin.ts");
-    expect(login).toMatch(/forgetGraphMailRuntime\(vaultId, id\)/);
-    expect(login).toMatch(/replaceProtectedSlot\(accountCredentialStore, \[mailSecretKey\(vaultId, id\), legacyMailSecretKey\(vaultId, id\)\], previous, \{ \.\.\.previous, refreshToken: "" \}\)/);
+    const login = read("src/services/accountSignIn.ts");
+    expect(login).toMatch(/forgetGraphMailRuntime\(vaultId, existing\)/);
+    expect(login).toMatch(/replaceProtectedSlot\(accountCredentialStore, \[mailSecretKey\(vaultId, existing\), legacyMailSecretKey\(vaultId, existing\)\], previous \?\? null, \{ \.\.\.previous, refreshToken: "" \}\)/);
   });
 
   it("says whether restoring a mass deletion worked", () => {

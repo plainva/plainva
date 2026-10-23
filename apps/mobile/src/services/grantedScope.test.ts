@@ -64,11 +64,12 @@ describe("account tokens are written from the grant", () => {
     expect(source).not.toContain("saveAccountToken(");
   });
 
-  it("the account-login handler does the same", () => {
-    const source = read("accountLogin.ts");
-    expect(source).toContain("reviewAccountGrant(family, services,");
-    expect(source).toContain("grantedScope)");
-    expect(source).toContain("completeAccountGrant({");
-    expect(source).toContain("save: (token) => saveAccountToken(vaultId, record.id, token, expectedToken)");
+  it("the one sign-in does the same (account sign-in plan K4)", () => {
+    // completeSignIn keeps what the provider SAYS it granted (grantedServices);
+    // the handler hands the answer through untouched and saves that grant.
+    const source = read("accountSignIn.ts");
+    expect(source).toContain("...(grantedScope !== undefined ? { grantedScope } : {})");
+    expect(source).toContain("const completed = await completeSignIn(prepared, {");
+    expect(source).toContain("saveGrant: (cardId, token) => saveAccountToken(vaultId, cardId, token)");
   });
 });

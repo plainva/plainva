@@ -15,7 +15,7 @@ import { getPlatformServices, getVaultTemplates, PLAINVA_DROPBOX_APP_KEY, PLAINV
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../adapters/webdavHttp";
 import { connectProvider, createProviderVault, createProviderFolder, listProviderFolders, getStoredProvider, reauthorizeVault, type MobileSyncProvider } from "./syncService";
-import { beginAccountLogin } from "./accountLogin";
+import { beginMobileSignIn } from "./accountSignIn";
 import { fileGrantProbe, getAccountToken, tokenCoversService } from "./accountBroker";
 import { loadCloudAccounts } from "./cloudAccountsStore";
 import { getMobileVault } from "./vaultService";
@@ -303,8 +303,10 @@ export async function reconnectVault(vaultId: string): Promise<void> {
   if (stored.provider === "drive" || stored.provider === "onedrive") {
     const family = stored.provider === "drive" ? "google" : "microsoft";
     const records = (await loadCloudAccounts(vaultId)).filter((r) => r.family === family && r.services.files?.provider === stored.provider);
-    if (records.length === 1 && await getAccountToken(vaultId, records[0].id)) {
-      await beginAccountLogin(vaultId, records[0], stored.creds);
+    // The vault's files belong to one account card: signing that card in again
+    // is the one sign-in for everything it carries (account sign-in plan E2).
+    if (records.length === 1) {
+      await beginMobileSignIn(vaultId, { family, cardId: records[0].id, add: [] });
       return;
     }
   }

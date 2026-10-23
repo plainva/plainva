@@ -72,7 +72,6 @@ export * from "./lib/googlePublicClient";
 export * from "./lib/oauthAccess";
 export * from "./lib/accountSignIn";
 export * from "./lib/googleAuthorization";
-export * from "./components/accounts/GmailSignInButton";
 export * from "./components/accounts/OAuthAccessEditor";
 export * from "./lib/tokenRefreshCoordinator";
 export * from "./lib/whatsNew";

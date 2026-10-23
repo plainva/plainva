@@ -3,7 +3,6 @@ import { assertConnectionIdentity, classifyAuthError, parseMicrosoftMe, toast, t
 import i18n from "@plainva/ui/i18n";
 import {
   forgetGraphMailRuntime,
-  GRAPH_MAIL_SCOPES,
   getMailRefreshToken,
   listMailAccounts,
   removeMailAccount,
@@ -11,13 +10,12 @@ import {
 } from "@plainva/ui/mail";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 import type { MobileVault } from "../vaultService";
-import { beginPimOAuth, setOAuthPurposeHandler } from "../pim/pimOAuth";
+import { setOAuthPurposeHandler } from "../pim/pimOAuth";
 import { webdavFetch } from "../../adapters/webdavHttp";
 import { loadCloudAccounts } from "../cloudAccountsStore";
 import { bindMailToConnection } from "../cloudAccountConnections";
 import { connectionContextFor, recordConnectOutcome } from "../connectQueue";
 import { getAccountBroker, getAccountToken } from "../accountBroker";
-import { registerGmailOAuth } from "./gmailAuth";
 
 /**
  * The mobile mail runtime (mail feinplan G1). Unlike the PIM runtime there is
@@ -61,7 +59,6 @@ export async function removeMobileMailAccount(accountId: string): Promise<void> 
  */
 export function startMobileMail(vault: MobileVault): void {
   vaultId = vault.vaultId;
-  registerGmailOAuth();
   setOAuthPurposeHandler("mail", async ({ provider, clientId, refreshToken, accessToken, serviceContext }) => {
     if (provider !== "microsoft") throw new Error("only Microsoft mail is available on mobile");
     const boundVault = serviceContext?.vaultId;
@@ -134,11 +131,8 @@ export async function connectMicrosoftMail(clientId?: string): Promise<void> {
       }
     }
   }
-  await beginPimOAuth("microsoft", {
-    clientId: clientId ?? "",
-    label: "Microsoft",
-    purpose: "mail",
-    scope: GRAPH_MAIL_SCOPES,
-    serviceContext: context,
-  });
+  // No grant of the card covers mail yet: the one sign-in asks for everything
+  // the card carries plus mail (account sign-in plan E2).
+  const { beginMobileSignIn } = await import("../accountSignIn");
+  await beginMobileSignIn(context.vaultId, { family: "microsoft", ...(context.cloudAccountId ? { cardId: context.cloudAccountId } : {}), add: ["mail"] });
 }

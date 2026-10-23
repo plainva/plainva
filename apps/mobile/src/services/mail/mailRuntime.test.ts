@@ -3,7 +3,6 @@ import { oauthScopeFor, setPlatformServices } from "@plainva/ui";
 import { listMailAccounts, setMailPlatform, mailSecretKey } from "@plainva/ui/mail";
 import type { MailTransport } from "@plainva/ui/mail";
 import { connectMicrosoftMail, listMobileMailAccounts, startMobileMail, stopMobileMail } from "./mailRuntime";
-import { handlePimOAuthRedirect } from "../pim/pimOAuth";
 import { clearConnectQueue, startConnectQueue } from "../connectQueue";
 import { accountSecretKey, forgetAccountBroker } from "../accountBroker";
 import { refreshOneDriveAccessToken } from "@plainva/core";
@@ -29,7 +28,7 @@ vi.mock("@capacitor/browser", () => ({
 const { addPimAccount } = vi.hoisted(() => ({ addPimAccount: vi.fn() }));
 vi.mock("../pim/pimService", () => ({ addPimAccount }));
 vi.mock("../vaultService", () => ({ getMobileVault: async () => ({ vaultId: "v1" }), switchVault: vi.fn() }));
-vi.mock("../vaultRegistry", () => ({ getActiveVaultEntry: async () => ({ id: "v1" }) }));
+vi.mock("../vaultRegistry", () => ({ getActiveVaultEntry: async () => ({ id: "v1" }), LOCAL_VAULT_ID: "local" }));
 vi.mock("../../adapters/webdavHttp", () => ({ webdavFetch: async () => new Response(JSON.stringify({ id: "subject", mail: "someone@contoso.com" })) }));
 
 vi.mock("@plainva/core", async (importOriginal) => ({
@@ -121,14 +120,17 @@ describe("mobile mail runtime", () => {
     expect(secrets.get(accountSecretKey("v1", "shared"))).toMatchObject({ refreshToken: "existing-grant" });
   });
 
-  it("requests only mail again for an expired grant while keeping the file sign-in", async () => {
+  it("asks the one sign-in for everything the card carries plus mail when its grant expired", async () => {
+    // The card signs in once for all its services (account sign-in plan E2):
+    // asking for mail alone would hand back a grant that no longer covers files.
     await prepareSharedMail();
     vi.mocked(refreshOneDriveAccessToken).mockRejectedValueOnce(new Error("invalid_grant"));
     await connectMicrosoftMail();
     expect(opened).toHaveLength(1);
-    const scope = new URL(opened[0]).searchParams.get("scope");
-    expect(scope).toContain("Mail.ReadWrite");
-    expect(scope).not.toContain("Files.ReadWrite");
+    const url = new URL(opened[0]);
+    expect(url.searchParams.get("scope")).toContain("Mail.ReadWrite");
+    expect(url.searchParams.get("scope")).toContain("Files.ReadWrite");
+    expect(url.searchParams.get("login_hint")).toBe("someone@contoso.com");
     expect(secrets.get(accountSecretKey("v1", "shared"))).toMatchObject({ refreshToken: "existing-grant" });
     expect(await listMobileMailAccounts()).toHaveLength(0);
   });
@@ -141,28 +143,13 @@ describe("mobile mail runtime", () => {
     expect(await listMobileMailAccounts()).toHaveLength(0);
   });
 
-  it("turns a Microsoft consent started for mail into a mail account, not a calendar account", async () => {
+  it("asks the one sign-in for a Microsoft mailbox that no card covers yet", async () => {
     startMobileMail({ vaultId: "v1" } as never);
     await connectMicrosoftMail();
-
-    // The consent asks for the MAIL scopes, not the calendar ones.
     expect(opened).toHaveLength(1);
-    const authUrl = new URL(opened[0]);
-    expect(authUrl.searchParams.get("scope")).toContain("Mail.ReadWrite");
-    const state = authUrl.searchParams.get("state")!;
-
-    const consumed = await handlePimOAuthRedirect(`com.plainva.app://oauth?code=abc&state=${state}`);
-    expect(consumed).toBe(true);
-
-    const accounts = await listMobileMailAccounts();
-    expect(accounts).toHaveLength(1);
-    expect(accounts[0].kind).toBe("microsoft");
-    // Named after the mailbox it can actually read — not the placeholder.
-    expect(accounts[0].label).toBe("someone@contoso.com");
-    expect(accounts[0].user).toBe("someone@contoso.com");
-    // The refresh token landed in the slot the shared code reads.
-    expect(secrets.get(mailSecretKey("v1", accounts[0].id))).toEqual({ refreshToken: "refresh-1" });
-    // …and no calendar account was created by the same redirect.
+    expect(new URL(opened[0]).searchParams.get("scope")).toContain("Mail.ReadWrite");
+    // The transaction carries the prepared sign-in through a cold start.
+    expect(secrets.get("pim_oauth_pending_tx")).toMatchObject({ purpose: "signin", signIn: { requested: ["mail"] } });
     expect(addPimAccount).not.toHaveBeenCalled();
   });
 

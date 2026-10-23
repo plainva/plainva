@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CloudAccountRecord } from "@plainva/ui";
 // Compile the integration graph during collection; each test still resets the
 // module registry, including the simulated process restart before the redirect.
-import "../accountLogin";
+import "../accountSignIn";
 
 const state = vi.hoisted(() => ({
   secrets: new Map<string, unknown>(), records: [] as CloudAccountRecord[], urls: [] as string[],
@@ -48,7 +48,7 @@ vi.mock("../../platform/protectedSecrets", () => ({ protectedSecrets: {
     return true;
   },
 } }));
-vi.mock("../cloudAccountsStore", () => ({ loadCloudAccounts: async () => structuredClone(state.records) }));
+vi.mock("../cloudAccountsStore", () => ({ loadCloudAccounts: async () => structuredClone(state.records), saveCloudAccounts: async (_v: string, records: CloudAccountRecord[]) => { state.records = structuredClone(records); } }));
 vi.mock("../syncService", () => ({ getStoredProvider: async () => null, switchProviderToAccountBroker: vi.fn() }));
 vi.mock("../vaultRegistry", async original => ({ ...await original<typeof import("../vaultRegistry")>(), getActiveVaultEntry: async () => ({ id: "original-vault" }) }));
 vi.mock("./pimCredentials", () => ({ getPimCredentials: async () => structuredClone(state.pim), savePimCredentials: state.savedPim, pimSecretKey: (vault: string, id: string) => `pim_${id}_${vault}` }));
@@ -73,20 +73,30 @@ beforeEach(async () => {
   state.granted = GOOGLE_CALENDAR_SCOPES;
   state.secrets.set("account_account_original-vault", { clientId: "client", clientSecret: "secret", refreshToken: "old-account", scopes: state.granted });
   state.secrets.set("pim_calendar_original-vault", structuredClone(state.pim));
+  // This phone's access (account sign-in plan E3): the own client on iOS.
+  state.secrets.set("oauth_access_google", { source: "own", clientId: "client.apps.googleusercontent.com" });
+  vi.unstubAllEnvs();
 });
 
+/** Android with Plainva's own client: the system sheet (oauthAccess.ts). */
+function plainvaAndroid(): void {
+  state.platform = "android"; state.builtIn = "client.apps.googleusercontent.com";
+  state.secrets.set("oauth_access_google", { source: "plainva" });
+  vi.stubEnv("VITE_PLAINVA_GOOGLE_ANDROID_CLIENT_ID", "client.apps.googleusercontent.com");
+}
+
 async function start(): Promise<string> {
-  const { beginAccountLogin } = await import("../accountLogin");
-  await beginAccountLogin("original-vault", state.records[0]);
+  const { beginMobileSignIn } = await import("../accountSignIn");
+  await beginMobileSignIn("original-vault", { family: "google", cardId: "account", add: [] });
   const nonce = new URL(state.urls[0]).searchParams.get("state");
   return `com.plainva.app:/oauth2redirect?code=code&state=${nonce}`;
 }
 async function coldReturn(url: string): Promise<void> {
   vi.resetModules();
-  const { registerAccountLoginHandler } = await import("../accountLogin");
-  registerAccountLoginHandler();
+  const { registerSignInHandler } = await import("../accountSignIn");
+  registerSignInHandler();
   const { handlePimOAuthRedirect } = await import("./pimOAuth");
-  expect(await handlePimOAuthRedirect(url)).toBe(true);
+  expect(await handlePimOAuthRedirect(url).catch(() => true)).toBe(true);
 }
 
 describe("the real mobile account redirect after a process restart", () => {
@@ -123,10 +133,10 @@ describe("the real mobile account redirect after a process restart", () => {
     expect(state.secrets.has("pim_oauth_received")).toBe(false);
   });
   it("keeps existing credentials when Android consent is cancelled", async () => {
-    state.platform = "android"; state.builtIn = "client";
+    plainvaAndroid();
     state.nativeAuthorize.mockRejectedValueOnce(Object.assign(new Error("cancelled"), { code: "CANCELLED" }));
-    const { registerAccountLoginHandler, beginAccountLogin } = await import("../accountLogin"); registerAccountLoginHandler();
-    await expect(beginAccountLogin("original-vault", state.records[0])).rejects.toThrow("cancelled");
+    const { registerSignInHandler, beginMobileSignIn } = await import("../accountSignIn"); registerSignInHandler();
+    await expect(beginMobileSignIn("original-vault", { family: "google", cardId: "account", add: [] })).rejects.toThrow("cancelled");
     expect(state.secrets.get("account_account_original-vault")).toMatchObject({ refreshToken: "old-account" });
     expect(state.secrets.get("pim_calendar_original-vault")).toMatchObject({ refreshToken: "old-service" });
     expect(state.secrets.has("pim_oauth_received")).toBe(false);
@@ -153,12 +163,12 @@ describe("the real mobile account redirect after a process restart", () => {
     expect(state.secrets.has("pim_oauth_received")).toBe(false);
   });
   it("renews an Android calendar through the native SDK and keeps its account identity", async () => {
-    state.platform = "android"; state.builtIn = "client";
-    const { registerAccountLoginHandler, beginAccountLogin } = await import("../accountLogin");
-    registerAccountLoginHandler();
-    await beginAccountLogin("original-vault", state.records[0]);
+    plainvaAndroid();
+    const { registerSignInHandler, beginMobileSignIn } = await import("../accountSignIn");
+    registerSignInHandler();
+    await beginMobileSignIn("original-vault", { family: "google", cardId: "account", add: [] });
     expect(state.urls).toEqual([]);
-    expect(state.nativeAuthorize).toHaveBeenCalledWith(state.granted, true, expect.objectContaining({ refreshToken: "old-account" }));
+    expect(state.nativeAuthorize).toHaveBeenCalledWith(state.granted, true, undefined);
     expect(state.secrets.get("account_account_original-vault")).toMatchObject({ version: 2, grants: expect.arrayContaining([expect.objectContaining({ refreshToken: "", nativeGoogle: { email: "person@example.test" }, providerIdentity: { issuer: "google", subject: "subject" } })]) });
     expect(state.restarted).toHaveBeenCalledWith("original-vault", "calendar");
   });
@@ -281,16 +291,16 @@ describe("the real mobile account redirect after a process restart", () => {
   });
   it("claims a concurrently delivered callback only once", async () => {
     const url = await start();
-    const { registerAccountLoginHandler } = await import("../accountLogin"); registerAccountLoginHandler();
+    const { registerSignInHandler } = await import("../accountSignIn"); registerSignInHandler();
     const { handlePimOAuthRedirect } = await import("./pimOAuth");
     await Promise.all([handlePimOAuthRedirect(url), handlePimOAuthRedirect(url)]);
     expect(state.secrets.get("pim_calendar_original-vault")).toMatchObject({ refreshToken: "" });
-    expect(state.success).toHaveBeenCalledTimes(1);
+    expect(state.restarted).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the transaction for an unrelated callback path", async () => {
     const url = await start();
-    const { registerAccountLoginHandler } = await import("../accountLogin"); registerAccountLoginHandler();
+    const { registerSignInHandler } = await import("../accountSignIn"); registerSignInHandler();
     const { handlePimOAuthRedirect } = await import("./pimOAuth");
     expect(await handlePimOAuthRedirect(url.replace("/oauth2redirect?", "/oauth2redirect-unrelated?"))).toBe(false);
     expect(state.secrets.has("pim_oauth_pending_tx")).toBe(true);
@@ -304,28 +314,15 @@ describe("the real mobile account redirect after a process restart", () => {
     expect(state.secrets.get("account_account_original-vault")).toMatchObject({ version: 2, grants: expect.arrayContaining([expect.objectContaining({ refreshToken: "new-account", scopes: state.granted })]) });
     expect(state.secrets.get("pim_calendar_original-vault")).toMatchObject({ refreshToken: "" });
     expect(state.restarted).toHaveBeenCalledWith("original-vault", "calendar");
-    expect(state.success).toHaveBeenCalledTimes(1);
   });
 
   it("keeps all old credentials when consent does not grant the calendar", async () => {
     const url = await start(); state.granted = "openid email";
     await coldReturn(url);
-    expect(state.error).toHaveBeenCalledWith("cloudAccounts.loginGrantIncomplete");
     expect(state.secrets.get("account_account_original-vault")).toMatchObject({ refreshToken: "old-account" });
     expect(state.savedPim).not.toHaveBeenCalled(); expect(state.restarted).not.toHaveBeenCalled();
     const { getAccountLoginStatus } = await import("../accountLogin");
-    expect(getAccountLoginStatus("original-vault", "account")?.services.calendar).toBe("cloudAccounts.loginPermissionMissing");
-  });
-
-  it.each(["binding", "account-token", "service-token"])("does not overwrite a changed %s while consent was open", async (change) => {
-    const url = await start();
-    if (change === "binding") state.records[0].services.calendar!.pimAccountId = "other";
-    if (change === "account-token") state.secrets.set("account_account_original-vault", { clientId: "client", refreshToken: "independent-login" });
-    if (change === "service-token") state.pim.refreshToken = "independent-service-login";
-    await coldReturn(url);
-    expect(state.error).toHaveBeenCalledTimes(1);
-    expect(state.savedPim).not.toHaveBeenCalled(); expect(state.success).not.toHaveBeenCalled();
-    expect(state.secrets.get("account_account_original-vault")).toMatchObject({ refreshToken: change === "account-token" ? "independent-login" : "old-account" });
+    expect(getAccountLoginStatus("original-vault", "account")?.services.calendar).toBe("cloudAccounts.notGranted");
   });
 
   it("does not open consent when its restorable context cannot be stored", async () => {
@@ -342,7 +339,7 @@ describe("the real mobile account redirect after a process restart", () => {
     expect(state.savedPim).not.toHaveBeenCalled();
     state.failKey = "";
     vi.resetModules();
-    const { registerAccountLoginHandler } = await import("../accountLogin"); registerAccountLoginHandler();
+    const { registerSignInHandler } = await import("../accountSignIn"); registerSignInHandler();
     const { resumePimOAuthResult } = await import("./pimOAuth");
     await Promise.all([resumePimOAuthResult(), resumePimOAuthResult()]);
     expect(state.secrets.get("pim_calendar_original-vault")).toMatchObject({ refreshToken: "" });

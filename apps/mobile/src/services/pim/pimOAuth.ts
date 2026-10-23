@@ -15,7 +15,7 @@ import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../../adapters/webdavHttp";
 import { addPimAccount, reauthorizePimAccount } from "./pimService";
 import { getPimCredentials, type PimStoredCredentials } from "./pimCredentials";
-import type { CloudAccountRecord, CloudServiceId, StoredAccountToken } from "@plainva/ui";
+import type { CloudAccountRecord, CloudServiceId, PreparedSignIn, StoredAccountToken } from "@plainva/ui";
 import type { ServiceConnectionContext } from "@plainva/ui";
 import { getActiveVaultEntry } from "../vaultRegistry";
 import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConnectOutcome } from "../connectQueue";
@@ -71,7 +71,12 @@ export type PimOAuthProvider = "google" | "microsoft";
  * account slot instead of one copy per service. The desktop has offered it
  * since stage B; the phone only ever signed in per service (Sammelplan C5).
  */
-export type PimOAuthPurpose = "calendar" | "mail" | "gmail" | "account";
+/**
+ * `signin` is the one account sign-in (account sign-in plan K4): connecting an
+ * account, adding a service and signing in again, carried through the browser
+ * and a cold start as a prepared request (`PreparedSignIn`).
+ */
+export type PimOAuthPurpose = "calendar" | "mail" | "gmail" | "account" | "signin";
 
 /** Resolves the token result of a completed flow; mail registers its own. */
 export type OAuthPurposeHandler = (result: {
@@ -92,6 +97,7 @@ export type OAuthPurposeHandler = (result: {
   requestedScope?: string;
   accountContext?: AccountOAuthContext;
   serviceContext?: ServiceConnectionContext;
+  signIn?: PreparedSignIn;
 }) => Promise<void>;
 
 const purposeHandlers = new Map<string, OAuthPurposeHandler>();
@@ -121,6 +127,7 @@ interface PendingPimFlow {
   accountId?: string;
   accountContext?: AccountOAuthContext;
   serviceContext?: ServiceConnectionContext;
+  signIn?: PreparedSignIn;
   createdAt: number;
 }
 
@@ -206,9 +213,9 @@ async function applyReceived(offered?: string): Promise<void> {
       if ((waited || !here) && purpose === "calendar") { const { startPim } = await import("./pimService"); await startPim(await getMobileVault()); }
     }
     const handler = purposeHandlers.get(purpose);
-    if ((purpose === "account" || purpose === "gmail") && !handler) throw new Error("Account sign-in handler is not ready");
+    if ((purpose === "account" || purpose === "gmail" || purpose === "signin") && !handler) throw new Error("Account sign-in handler is not ready");
     if (handler) {
-      await handler({ provider: flow.provider, clientId: flow.clientId, clientSecret: nativeGoogle ? undefined : flow.clientSecret, refreshToken, accessToken, label: flow.label, grantedScope, requestedScope: flow.scope, accountContext: flow.accountContext, serviceContext: context, ...(nativeGoogle ? { nativeGoogle, providerIdentity } : {}) });
+      await handler({ provider: flow.provider, clientId: flow.clientId, clientSecret: nativeGoogle ? undefined : flow.clientSecret, refreshToken, accessToken, label: flow.label, grantedScope, requestedScope: flow.scope, accountContext: flow.accountContext, serviceContext: context, ...(flow.signIn ? { signIn: flow.signIn } : {}), ...(nativeGoogle ? { nativeGoogle, providerIdentity } : {}) });
     } else {
       const creds: PimStoredCredentials = flow.provider === "microsoft"
         ? { kind: "microsoft", clientId: flow.clientId, refreshToken }
@@ -220,7 +227,7 @@ async function applyReceived(offered?: string): Promise<void> {
     }
     const current = await getPlatformServices().credentials.readSecret<ReceivedPimFlow>(RESULT_KEY);
     if (current?.flow.state === flow.state) await getPlatformServices().credentials.removeSecret(RESULT_KEY);
-    if (purpose !== "account") toast.success(i18n.t("pim.accountAdded"));
+    if (purpose !== "account" && purpose !== "signin") toast.success(i18n.t("pim.accountAdded"));
     window.dispatchEvent(new CustomEvent("m-pim-changed"));
   } catch (error) {
     if (saved) {
@@ -273,14 +280,24 @@ async function loadPending(): Promise<PendingPimFlow | null> {
   return null;
 }
 
-type PimOAuthOptions = { clientId: string; clientSecret?: string; label?: string; purpose?: PimOAuthPurpose; scope?: string; accountId?: string; accountContext?: AccountOAuthContext; serviceContext?: ServiceConnectionContext };
+type PimOAuthOptions = { clientId: string; clientSecret?: string; label?: string; purpose?: PimOAuthPurpose; scope?: string; accountId?: string; accountContext?: AccountOAuthContext; serviceContext?: ServiceConnectionContext; signIn?: PreparedSignIn };
+
+/** The vault a sign-in belongs to: the account flows carry their own. */
+async function contextOf(opts: PimOAuthOptions, purpose: PimOAuthPurpose): Promise<ServiceConnectionContext | undefined> {
+  if (purpose === "account") return undefined;
+  if (purpose === "signin") return { vaultId: opts.signIn!.intent.vaultId };
+  return opts.serviceContext ?? await connectionContextFor(purpose === "gmail" ? "mail" : purpose) ?? { vaultId: (await getActiveVaultEntry()).id };
+}
 
 /** Native Google consent and its durable completion form one operation, shared
  * with Drive, so another screen cannot replace an unacknowledged result. */
 export async function beginPimOAuth(provider: PimOAuthProvider, opts: PimOAuthOptions): Promise<void> {
-  if (provider === "google" && await signsInThroughPlayServices(opts)) {
+  // The one sign-in knows its flow from this device's access: the system sheet
+  // only with Plainva's own client on Android (oauthAccess.ts).
+  const native = opts.signIn ? opts.signIn.intent.access.flow === "system" : await signsInThroughPlayServices(opts);
+  if (provider === "google" && native) {
     const purpose = opts.purpose ?? "calendar";
-    const context = purpose === "account" ? undefined : opts.serviceContext ?? await connectionContextFor(purpose === "gmail" ? "mail" : purpose) ?? { vaultId: (await getActiveVaultEntry()).id };
+    const context = await contextOf(opts, purpose);
     const captured = structuredClone({ ...opts, serviceContext: context });
     return withAccountCredentialLock("native-google-consent", async () => {
       const saved = await getPlatformServices().credentials.readSecret<ReceivedPimFlow>(RESULT_KEY);
@@ -342,7 +359,7 @@ async function beginPimOAuthFlow(
   const state = randomState();
   const clientId = provider === "microsoft" ? opts.clientId.trim() || PLAINVA_ONEDRIVE_CLIENT_ID : opts.clientId.trim();
   const purpose = opts.purpose ?? "calendar";
-  const serviceContext = purpose === "account" ? undefined : opts.serviceContext ?? await connectionContextFor(purpose === "gmail" ? "mail" : purpose) ?? { vaultId: (await getActiveVaultEntry()).id };
+  const serviceContext = await contextOf(opts, purpose);
   const scope = opts.scope ?? (provider === "microsoft" ? GRAPH_CALENDAR_SCOPES : GOOGLE_CALENDAR_SCOPES);
   pending = {
     provider,
@@ -356,12 +373,14 @@ async function beginPimOAuthFlow(
     accountId: opts.accountId,
     accountContext: opts.accountContext ? structuredClone(opts.accountContext) : undefined,
     serviceContext,
+    ...(opts.signIn ? { signIn: structuredClone(opts.signIn) } : {}),
     createdAt: Date.now(),
   };
   // An account reconnect must restore its target after a cold start. Do not
   // open a consent whose durable context could not be stored.
   {
     if (purpose === "account" && !pending.accountContext) { pending = null; throw new Error("Missing account sign-in context"); }
+    if (purpose === "signin" && !pending.signIn) { pending = null; throw new Error("Missing account sign-in context"); }
     const flow = pending;
     try { await withAccountCredentialLock(PENDING_KEY, async () => {
       const creds = getPlatformServices().credentials;
@@ -402,8 +421,8 @@ async function beginPimOAuthFlow(
   }
   const url =
     provider === "microsoft"
-      ? buildOneDriveAuthUrl({ clientId, redirectUri: MS_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope })
-      : buildAuthUrl({ clientId, redirectUri: GOOGLE_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope });
+      ? buildOneDriveAuthUrl({ clientId, redirectUri: MS_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope, loginHint: opts.signIn?.loginHint })
+      : buildAuthUrl({ clientId, redirectUri: GOOGLE_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope, loginHint: opts.signIn?.loginHint });
   await Browser.open({ url });
 }
 

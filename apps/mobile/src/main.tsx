@@ -20,7 +20,7 @@ import { registerMobileMailPlatform } from "./services/mail/mobileMailPlatform";
 import { registerMailSignIn } from "./services/mail/mailSignIn";
 import { applyMobileSlashSupport } from "./services/slashSupport";
 import App from "./App";
-import { registerAccountLoginHandler } from "./services/accountLogin";
+import { registerSignInHandler } from "./services/accountSignIn";
 
 // A black screen on a real device (TestFlight) gives no clue why the app
 // failed to mount. This overlay renders any boot/runtime error straight into
@@ -121,10 +121,8 @@ applyMobileSlashSupport();
 // than a line here (`mailSignIn.ts`, finding 2026-10-12).
 registerMailSignIn();
 
-// The union consent ("one login for all services") completes through the same
-// single OAuth redirect handler as calendar and mail; registering its purpose
-// here is what makes the phone able to OFFER it (Sammelplan C5).
-registerAccountLoginHandler();
+// The one account sign-in (account sign-in plan K4): its consent may come back after a cold start.
+registerSignInHandler();
 
 async function boot(): Promise<void> {
   // Never let an init failure blank the screen: log and render anyway, so an

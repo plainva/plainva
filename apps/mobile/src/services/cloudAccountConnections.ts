@@ -24,6 +24,20 @@ export async function startAccountService(card: AccountCard, service: CloudServi
     } };
     await saveCloudAccounts(vault.id, [...records, record]);
   }
+  // Google and Microsoft: the one sign-in asks for everything the card carries
+  // plus this service; its result starts the run for the service (plan E2).
+  // Gmail without a mail-enabled access is the exception: its app password is
+  // asked for on the mail screen, bound to this card (E5).
+  if (card.family === "google" || card.family === "microsoft") {
+    // Loaded when asked: the sign-in pulls the sync and calendar services in.
+    const { beginMobileSignIn, deviceAccess } = await import("./accountSignIn");
+    const access = await deviceAccess(card.family, vault.id);
+    const mailByPassword = card.family === "google" && service === "mail" && access.ok && !access.access.mail;
+    if (!mailByPassword) {
+      await beginMobileSignIn(vault.id, { family: card.family, cardId: record.id, add: [service] });
+      return null;
+    }
+  }
   return startConnectQueue(card.family, [service], { vaultId: vault.id, cloudAccountId: record.id, expectedIdentity: record.verifiedProviderIdentity });
 }
 

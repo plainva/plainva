@@ -406,11 +406,27 @@ export async function reauthorizeVault(vaultId: string, fresh: MobileSyncProvide
  * left behind here would keep refreshing on the side, which is exactly the
  * arrangement that let one service go stale while another stayed alive.
  */
-export async function switchProviderToAccountBroker(vaultId: string, record: CloudAccountRecord, clientId: string): Promise<void> {
-  const existing = await getStoredProvider(vaultId);
+export async function switchProviderToAccountBroker(
+  vaultId: string,
+  record: CloudAccountRecord,
+  clientId: string,
+  /**
+   * The one sign-in (account sign-in plan K4) may have used another access of
+   * this device than the slot names: the slot then takes the new client, so it
+   * names the sign-in that serves it instead of refusing as "changed".
+   */
+  adopt?: { clientSecret?: string },
+): Promise<void> {
+  const stored = await getStoredProvider(vaultId);
   if (!record.services.files) return;
-  if (!existing || existing.provider !== record.services.files.provider
-    || (existing.provider !== "drive" && existing.provider !== "onedrive") || existing.creds.clientId !== clientId) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+  if (!stored || stored.provider !== record.services.files.provider
+    || (stored.provider !== "drive" && stored.provider !== "onedrive") || (!adopt && stored.creds.clientId !== clientId)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+  const existing: MobileSyncProvider = adopt && stored.creds.clientId !== clientId
+    ? (stored.provider === "drive"
+      ? { provider: "drive", creds: { ...stored.creds, clientId, clientSecret: adopt.clientSecret ?? "", refreshToken: "", nativeGoogle: undefined } }
+      : { provider: "onedrive", creds: { ...stored.creds, clientId, refreshToken: "" } })
+    : stored;
+  if (existing !== stored) await getPlatformServices().credentials.writeSecret(credKeyFor(vaultId), existing);
   const probe = await fileGrantProbe(vaultId, record.id, existing.provider === "drive" ? "google" : "microsoft", existing.creds);
   await probe.getAccessToken();
   if ((await getActiveVaultEntry()).id === vaultId) await stopSyncAndDrain();
