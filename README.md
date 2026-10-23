@@ -48,6 +48,7 @@ Plainva has no code-plugin sandbox — the vault *is* the interface. Every file 
 - **Windows** — the `.msi` installer (or the `.exe`), code-signed as of 0.6.3. A fresh certificate has no SmartScreen reputation yet, so a warning may still appear on first launch: click **More info → Run anyway**.
 - **macOS** — the universal `.dmg` (Apple Silicon + Intel), signed and notarized: a normal double-click works.
 - **Linux** — the `.deb` (Debian/Ubuntu) or `.rpm` (Fedora/openSUSE) for your package manager; the `.AppImage` (`chmod +x Plainva*.AppImage`, then run) is the fallback for distributions without a package. On a very new system the AppImage can clash with the host's graphics libraries — the packages never do; see [Getting Started](docs/user/en/Getting_Started.md#system-requirements).
+- **Nix** — the repository carries a flake. `nix run github:plainva/plainva` builds the desktop app from source and starts it; `nix run github:plainva/plainva#plainva-bin` starts the binary from the release page instead of compiling. Both are Linux/x86_64; see [nix/README.md](nix/README.md).
 
 ### Mobile (beta)
 
@@ -103,6 +104,14 @@ pnpm --filter desktop tauri dev     # run the desktop app
 pnpm test && pnpm lint && pnpm typecheck   # checks
 pnpm --filter desktop test:e2e      # Playwright E2E (Vite dev server)
 pnpm --filter desktop smoke:prod    # production-build smoke (vite build + preview + boot check)
+```
+
+With Nix, the flake provides the toolchain and the native libraries, so nothing has to be installed by hand:
+
+```bash
+nix develop     # shell with Node.js, pnpm, Rust and the Tauri prerequisites
+nix build       # the desktop app, built from this checkout
+nix run         # build it and start it
 ```
 
 When a Playwright test fails or needs a retry in CI, the run uploads the traces as the artifact `playwright-checks-<attempt>` (or `playwright-webkit-<attempt>`), kept for seven days; open one with `npx playwright show-trace <trace.zip>`.
