@@ -120,12 +120,23 @@ async function chooseMailbox(page: Page, address: string) {
 async function settled(page: Page, mail: Observed): Promise<GraphRequest[]> {
   let seen = -1;
   for (;;) {
-    const requests = mail.requests as GraphRequest[];
+    const requests = mailboxRequests(mail);
     if (requests.length === seen) return [...requests];
     seen = requests.length;
     await page.waitForTimeout(400);
   }
 }
+
+/**
+ * A bare `GET /me` is not a mailbox request: it is the identity check with
+ * which a mailbox's own sign-in moves onto its account card when the vault
+ * opens (account sign-in plan K2) - for each card with the sign-in of that
+ * card's account. It runs at start, beside whatever mailbox is open, so it is
+ * checked on its own (`identityChecks`) and not counted to a mailbox.
+ */
+const isIdentityCheck = (request: GraphRequest) => request.method === "GET" && request.path === "/me";
+const mailboxRequests = (mail: Observed) => (mail.requests as GraphRequest[]).filter((request) => !isIdentityCheck(request));
+const identityChecks = (mail: Observed) => (mail.requests as GraphRequest[]).filter(isIdentityCheck);
 
 function expectAllWith(requests: GraphRequest[], bearer: string) {
   expect(requests.length).toBeGreaterThan(0);
@@ -185,6 +196,9 @@ test("two connected Microsoft accounts: each mailbox lists, opens and sends with
   const { mail, sql } = await bootTwoMailboxes(context, page, { cards: "both" });
   try {
     await eachMailboxIsItsOwnAccount(page, mail, process.env.PLAINVA_EVIDENCE ? testInfo.outputPath("second-mailbox-own-mail.png") : null);
+    // The second mailbox's own sign-in moved to its card, confirmed with that
+    // account's own sign-in - never with the first one's.
+    expect(identityChecks(mail).map((request) => request.authorization)).toContain(SECOND_BEARER);
   } finally {
     await sql.close();
   }
