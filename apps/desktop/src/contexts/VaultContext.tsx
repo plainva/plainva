@@ -11,6 +11,7 @@ import { credentialManager } from "../services/CredentialManager";
 import { rotateLegacyFileGrant } from "../services/accountGrantMigration";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { fileBrokerTokenProvider } from "../services/accountBroker";
+import { migrateVaultGrants } from "../services/accountGrantMigration";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
@@ -1188,6 +1189,11 @@ export const VaultProvider: React.FC<{
         onRestored: (paths) => indexQueue.enqueue(paths, { source: "tasks" }),
       });
 
+      // A calendar or mailbox that still signs in on its own hands that sign-in
+      // to its card before the calendar starts (account sign-in plan K2).
+      await perfMeasure("vault open: account grants", () => migrateVaultGrants(path)).catch((e) =>
+        console.error("[VaultContext] moving sign-ins to their accounts failed", e),
+      );
       const pimRuntime = createPimRuntime({ db: dbAdapter, vaultPath: path, onCycleEnd: () => void runTaskSyncNow() });
       try {
         if ((await pimRuntime.cache.listAccounts()).length > 0) pimRuntime.worker.start();

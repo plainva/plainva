@@ -1,5 +1,5 @@
 import { refreshDriveAccessToken, refreshOneDriveAccessToken } from "@plainva/core";
-import { createLegacyGrantSource, legacyOAuthToken, migrateAccountGrant, rotateLegacyGrant, PLAINVA_ONEDRIVE_CLIENT_ID, withAccountCredentialLock, type CloudAccountRecord, type CloudServiceId, type StoredAccountToken } from "@plainva/ui";
+import { createLegacyGrantSource, legacyOAuthToken, logDiagnostic, migrateAccountGrant, migrateVaultAccountGrants, rotateLegacyGrant, vaultGrantMigrationDiagnostic, PLAINVA_ONEDRIVE_CLIENT_ID, withAccountCredentialLock, type CloudAccountRecord, type CloudServiceId, type StoredAccountToken, type VaultGrantMigration } from "@plainva/ui";
 import { legacyMailSecretKey, listMailAccounts, mailAccountKind, mailSecretKey, type MailAccountConfig } from "@plainva/ui/mail";
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "./authFetch";
@@ -53,4 +53,29 @@ export async function migrateLegacyAccountGrant(vaultPath: string, record: Cloud
       return refreshOneDriveAccessToken({ clientId: token.clientId, refreshToken: token.refreshToken, scope }, microsoftAuthFetch);
     },
   }));
+}
+
+/**
+ * The vault-wide pass of account sign-in plan K2 (`migrateVaultAccountGrants`):
+ * every calendar and mailbox of a Google or Microsoft card hands a sign-in of
+ * its own to the card before the services start. Bounded: a slow provider
+ * never holds the vault back - what is still running finishes on its own,
+ * and the next open finds it done or tries again.
+ */
+export async function migrateVaultGrants(vaultPath: string, timeoutMs = 8000): Promise<VaultGrantMigration[] | null> {
+  const pass = migrateVaultAccountGrants({
+    cards: () => loadCloudAccounts(vaultPath),
+    migrate: (record, service) => migrateLegacyAccountGrant(vaultPath, record, service),
+  }).then((results) => {
+    const line = vaultGrantMigrationDiagnostic(results);
+    if (line) logDiagnostic("accounts", line);
+    return results;
+  });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), timeoutMs); });
+  try {
+    return await Promise.race([pass, late]);
+  } finally {
+    clearTimeout(timer);
+  }
 }

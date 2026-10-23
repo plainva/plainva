@@ -123,6 +123,10 @@ async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<
  * DB (web dev server). */
 export async function startPim(vault: MobileVault): Promise<void> {
   wirePendingEventWrites();
+  // A calendar or mailbox that still signs in on its own hands that sign-in
+  // to its card before the calendar starts (account sign-in plan K2).
+  const { migrateVaultGrants } = await import("../accountGrantMigration");
+  await migrateVaultGrants(vault.vaultId).catch((e) => console.error("[pim] moving sign-ins to their accounts failed", e));
   return startPimRuntime(vault, {
     buildTarget: buildTargetFor,
     accountAuthRevision: async (vaultId, account) =>

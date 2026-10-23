@@ -123,3 +123,63 @@ export async function migrateAccountGrant(ports: {
   await ports.writeSource("", source.snapshot);
   return "migrated";
 }
+
+/** What the pass over a vault did for one service of one card. */
+export interface VaultGrantMigration {
+  cardId: string;
+  family: "google" | "microsoft";
+  service: CloudServiceId;
+  outcome: "migrated" | "absent" | "failed";
+  /** For "failed": the sentence of the error (never a token or an address). */
+  detail?: string;
+}
+
+/**
+ * Moves every legacy service sign-in of a vault onto its card, once, when the
+ * vault opens (account sign-in plan K2).
+ *
+ * The broker already adopts a service's own refresh token whenever that
+ * service asks it for a token (`migrateAccountGrant`). Some never ask: a
+ * Google calendar that still holds a token of its own signs in without the
+ * broker, so its sign-in stayed in the calendar slot for good - the second
+ * place a sign-in can go stale, which the plan set out to remove. This pass
+ * asks for every service the card carries before the shell starts the
+ * services; a service without a legacy token is "absent" at the cost of one
+ * read, so the pass runs on every open instead of keeping a marker.
+ *
+ * It never loses a sign-in: the migration copies the grant to the card,
+ * confirms identity and permissions with the provider, and blanks the
+ * service's slot only after that (`migrateAccountGrant`). A service whose
+ * migration fails keeps its own token and works as before; the failure is one
+ * line for the diagnostics and the next open tries again. The files service is
+ * left out on purpose: the shells adopt it where they build the sync target,
+ * before any upload, and a pass running beside a live target would race its
+ * token rotation.
+ */
+export async function migrateVaultAccountGrants(ports: {
+  cards(): Promise<CloudAccountRecord[]>;
+  migrate(record: CloudAccountRecord, service: CloudServiceId): Promise<"absent" | "migrated">;
+  services?: readonly CloudServiceId[];
+}): Promise<VaultGrantMigration[]> {
+  const services = ports.services ?? (["calendar", "mail"] as const);
+  const results: VaultGrantMigration[] = [];
+  for (const record of await ports.cards()) {
+    if (record.family !== "google" && record.family !== "microsoft") continue;
+    for (const service of services) {
+      if (!record.services[service]) continue;
+      try {
+        results.push({ cardId: record.id, family: record.family, service, outcome: await ports.migrate(record, service) });
+      } catch (error) {
+        results.push({ cardId: record.id, family: record.family, service, outcome: "failed", detail: error instanceof Error ? error.message : String(error) });
+      }
+    }
+  }
+  return results;
+}
+
+/** One diagnostics line for a pass that changed or failed something; null when every service was already the card's. */
+export function vaultGrantMigrationDiagnostic(results: readonly VaultGrantMigration[]): string | null {
+  const telling = results.filter((r) => r.outcome !== "absent");
+  if (!telling.length) return null;
+  return `account grants moved to cards: ${telling.map((r) => `${r.family} ${r.service}=${r.outcome}`).join(" ")}`;
+}
