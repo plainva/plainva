@@ -4,6 +4,7 @@ import {
   executeAccountRepair,
   executeGuidedAccountRepair,
   getPlatformServices,
+  hasStoredAccountGrant,
   normalizeAccountMap,
   recoverAccountRepair,
   recoverAccountRepairCleanup,
@@ -66,7 +67,8 @@ export function mobileAccountRepairPorts(vaultId: string, accountMapKey: string)
       const bindings = new Set<string>();
       for (const account of await loadCloudAccounts(vaultId)) {
         const token = await getAccountToken(vaultId, account.id).catch(() => null);
-        if (hasText(token?.refreshToken)) {
+        // A system-sheet grant (Android) holds no refresh token and is still a grant.
+        if (hasStoredAccountGrant(token)) {
           bindings.add(accountRepairBindingKey("account", account.id));
         }
         const calendarId = account.services.calendar?.pimAccountId;
@@ -75,6 +77,7 @@ export function mobileAccountRepairPorts(vaultId: string, accountMapKey: string)
           if (
             (credentials?.kind === "caldav" && hasText(credentials.pass))
             || (credentials?.kind !== "caldav" && hasText(credentials?.refreshToken))
+            || (credentials?.kind === "google" && hasText(credentials.nativeGoogle?.email))
           ) {
             bindings.add(accountRepairBindingKey("pim", calendarId));
           }

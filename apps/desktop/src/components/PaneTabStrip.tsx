@@ -79,7 +79,7 @@ export function PaneTabStrip({ paneIndex, tabs, pinnedTabs, activeIndex, onSelec
             }}
           >
             {pinnedTabs?.[i] && (
-              <span aria-hidden="true" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", color: "var(--accent-color)" }}>
+              <span aria-hidden="true" className="pv-tab-pin">
                 <Pin size={ICON.meta} />
               </span>
             )}

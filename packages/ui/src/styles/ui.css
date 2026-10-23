@@ -667,6 +667,15 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
    at narrow widths that has to wrap rather than clip. */
 .pv-appbar--wrap { flex-wrap: wrap; }
 
+/* Pin of a pinned tab: accent like the unsaved dot; the themes whose tab bar
+   is the accent colour repaint both (Win95's navy bar, LCARS's filled pill). */
+.pv-tab-pin {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent-color);
+}
+
 /* Unsaved-changes dot in tab strips (P6/L2). */
 .pv-tab-dirty {
   width: 7px;

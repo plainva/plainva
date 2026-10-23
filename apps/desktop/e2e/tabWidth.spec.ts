@@ -105,6 +105,8 @@ for (const theme of THEMES) test(`${theme?.name ?? 'default theme'}: a tab with 
   await tab(page, 'index').click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Pin tab' }).click();
   await expect(tab(page, 'index').locator('svg.lucide-pin')).toBeVisible();
+  // Win95's tab bar is the accent colour: an accent pin was there but unseen (Sammelplan 3.147).
+  if (theme?.name === 'win95') await expect(tab(page, 'index').locator('.pv-tab-pin')).toHaveCSS('color', 'rgb(255, 255, 255)');
 
   for (const name of ['AGENTS', 'index', 'Board']) {
     const seen = await fit(tab(page, name));

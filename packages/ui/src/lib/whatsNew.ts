@@ -86,8 +86,8 @@ export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
     version: "0.8.6",
     releaseDate: "2026-10-23",
     highlights: [
-      { icon: "tasks" },
       { icon: "wand" },
+      { icon: "tasks" },
       { icon: "layout" },
       { icon: "link" },
       { icon: "database" },
