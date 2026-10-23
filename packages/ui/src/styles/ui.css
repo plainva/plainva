@@ -683,6 +683,23 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 .tabstrip [role="tab"][aria-selected="true"] {
   box-shadow: inset 0 -2px 0 0 var(--accent-color);
 }
+/* A tab is as wide as what it holds, up to its most (inline, TAB_MAX_WIDTH):
+   one grid column each, sized minmax(0, max-content). While the strip has room
+   every tab takes its own width; once it is full the room is shared EQUALLY,
+   so short names stay whole and long ones are cut first. Equal-share flex
+   items stretched "index" to the width of a long name (finding 2026-10-23).
+   Which tabs are in the window at all is `useTabWindow`'s business. */
+.tabstrip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, max-content);
+  justify-content: start;
+  align-items: stretch;
+  /* Foreground colours as an indirection (see below). */
+  --tab-fg: var(--text-main);
+  --tab-fg-muted: var(--text-muted);
+}
+.tabstrip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* The tabs that do not fit, behind one button at the end of the strip.
    The strips used to scroll sideways instead (finding 2026-09-22). */
 .tabstrip-more { flex: none; gap: var(--space-1); align-self: center; margin: 0 var(--space-1); }
@@ -691,7 +708,6 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 /* Tab foreground colors as an indirection: the title-bar strip runs on the
    titlebar palette, pane strips on the document palette — same rules, one
    hover system (CSS :hover, no JS style mutation; design sweep 2026-07-19). */
-.tabstrip { --tab-fg: var(--text-main); --tab-fg-muted: var(--text-muted); }
 .tabstrip--titlebar { --tab-fg: var(--titlebar-fg); --tab-fg-muted: var(--titlebar-fg-muted); }
 .tabstrip [role="tab"] { color: var(--tab-fg-muted); }
 .tabstrip [role="tab"]:hover,
@@ -707,6 +723,15 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   flex-shrink: 0;
 }
 .pv-tab-close:hover { opacity: 1; background: var(--state-hover); }
+/* An unsaved tab shows its dot in the ✕'s slot, at full strength; under the
+   pointer or the keyboard focus the ✕ takes the slot back. A dot beside the ✕
+   widened the tab on the first keystroke and narrowed it on save (2026-10-23). */
+.pv-tab-close[data-dirty] > svg { display: none; }
+.tabstrip [role="tab"]:not(:hover):not(:focus-visible) .pv-tab-close[data-dirty] { opacity: 1; }
+.tabstrip [role="tab"]:hover .pv-tab-close[data-dirty] > svg,
+.tabstrip [role="tab"]:focus-visible .pv-tab-close[data-dirty] > svg { display: block; }
+.tabstrip [role="tab"]:hover .pv-tab-close[data-dirty] > .pv-tab-dirty,
+.tabstrip [role="tab"]:focus-visible .pv-tab-close[data-dirty] > .pv-tab-dirty { display: none; }
 
 /* Title-bar chrome buttons (sidebar toggles, theme toggle, window controls). */
 .pv-titlebar-btn {

@@ -1,7 +1,7 @@
-import { useRef } from "react";
+import { useState } from "react";
 import { Pin, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { tabLabel, useTabDnd, useElementWidth, tabWindowOf, dropIndicatorShadow, TAB_MIN_WIDTH } from "./tabStrip";
+import { tabLabel, useTabDnd, useTabWindow, dropIndicatorShadow, TAB_MAX_WIDTH } from "./tabStrip";
 import { virtualTabMeta } from "./graph/virtualPaths";
 import { TabOverflowButton } from "./TabOverflowButton";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
@@ -31,8 +31,8 @@ export function PaneTabStrip({ paneIndex, tabs, pinnedTabs, activeIndex, onSelec
   const { t } = useTranslation();
   const dnd = useTabDnd(paneIndex, onMoveTab, onSplitWithTab);
   // Which tabs fit, and what goes behind the overflow button (E13).
-  const stripRef = useRef<HTMLDivElement>(null);
-  const tabWindow = tabWindowOf(tabs.length, activeIndex, useElementWidth(stripRef));
+  const [strip, setStrip] = useState<HTMLDivElement | null>(null);
+  const tabWindow = useTabWindow(strip, null, tabs, activeIndex, pinnedTabs);
   const shownTabs = tabs
     .map((path, i) => ({ path, i }))
     .slice(tabWindow.start, tabWindow.start + tabWindow.count);
@@ -43,9 +43,9 @@ export function PaneTabStrip({ paneIndex, tabs, pinnedTabs, activeIndex, onSelec
       data-pv-tabstrip={paneIndex}
       role="tablist"
       aria-label={t("titlebar.openTabs", { defaultValue: "Geöffnete Dateien" })}
-      ref={stripRef}
+      ref={setStrip}
       className="tabstrip"
-      style={{ display: "flex", alignItems: "stretch", height: 34, flexShrink: 0, overflow: "hidden", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)" }}
+      style={{ height: 34, flexShrink: 0, overflow: "hidden", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)" }}
     >
       {shownTabs.map(({ path, i }) => {
         const active = i === activeIndex;
@@ -68,9 +68,8 @@ export function PaneTabStrip({ paneIndex, tabs, pinnedTabs, activeIndex, onSelec
             data-tip={virtual ? undefined : path}
             style={{
               display: "inline-flex", alignItems: "center", gap: 7, padding: "0 9px 0 12px", height: "100%",
-              // Shrink before anything overflows (finding 2026-09-22).
-              flex: "1 1 0", minWidth: TAB_MIN_WIDTH,
-              maxWidth: 220, whiteSpace: "nowrap", cursor: "pointer", fontSize: "var(--text-ui)",
+              // As wide as what it holds, up to a most (`useTabWindow`).
+              maxWidth: TAB_MAX_WIDTH, whiteSpace: "nowrap", cursor: "pointer", fontSize: "var(--text-ui)",
               borderRight: "1px solid var(--border-color-light)",
               // Only the transient drag indicator is inline; the active-tab
               // underline is a stylesheet rule so themes can restyle it.
@@ -93,15 +92,20 @@ export function PaneTabStrip({ paneIndex, tabs, pinnedTabs, activeIndex, onSelec
                 <DocIcon icon={docIcons.get(path)!.icon} color={docIcons.get(path)!.color} size={ICON.ui} />
               </span>
             ) : null}
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{virtual ? t(virtual.labelKey, { defaultValue: virtual.defaultLabel }) : tabLabel(path)}</span>
-            {dirtyPaths.has(path) && <span className="pv-tab-dirty" aria-hidden="true" />}
+            <span className="tabstrip-label">{virtual ? t(virtual.labelKey, { defaultValue: virtual.defaultLabel }) : tabLabel(path)}</span>
+            {/* The unsaved dot sits in the slot of the ✕ and gives way to it under
+                the pointer: a dot of its own would widen the tab on the first
+                keystroke and narrow it on save, and every tab after it would
+                move twice (finding 2026-10-23). */}
             <span
               aria-hidden="true"
               data-tip={t("titlebar.closeTab", { defaultValue: "Tab schließen" })}
               onClick={(e) => { e.stopPropagation(); onClose(i); }}
               className="pv-tab-close"
+              data-dirty={dirtyPaths.has(path) || undefined}
             >
               <X size={ICON.meta} />
+              {dirtyPaths.has(path) && <span className="pv-tab-dirty" />}
             </span>
           </div>
         );
