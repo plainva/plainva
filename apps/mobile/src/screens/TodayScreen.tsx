@@ -1,11 +1,12 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { consumePendingNew } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
-import { CalendarClock, CalendarDays, CheckSquare, FileText, ListTodo, Square, Trash2 } from "lucide-react";
-import { errorText, formatPickedDay, taskDbDueKey, toast, type TaskDueChange } from "@plainva/ui";
+import { CalendarClock, CalendarDays, FileText, ListTodo, Trash2 } from "lucide-react";
+import { errorText, formatPickedDay, noteDisplayName, setPendingSearchJump, TaskCheckButton, toast, useTodayKey, type PlannerRow, type TaskDueChange } from "@plainva/ui";
 import { TaskDueSheet } from "../components/TaskDueSheet";
 import { announceTaskDue, moveTaskDueOnPhone } from "../services/taskDueAction";
-import { type AgendaTask, buildDayAgenda, minutesToHHMM, buildDayStrip, Button, Chip, dailyNotePathFor, dayWindow, DocIcon, existingDailyNoteDays, GroupCard, ICON, journalToday, parseBaseConfig, resolveTaskCompletionModel, RowList, Row, SectionLabel, taskDbRows, useJournalDayKey } from "@plainva/ui";
+import { loadPhoneDueTasks, taskJumpTerm, tickPhoneDueTask, type PhoneDueTasks } from "../services/dueTasks";
+import { buildDayAgenda, minutesToHHMM, buildDayStrip, Button, Chip, dailyNotePathFor, dayWindow, DocIcon, existingDailyNoteDays, GroupCard, ICON, isOpenState, journalToday, RowList, Row, SectionLabel, useJournalDayKey } from "@plainva/ui";
 import { isoOf } from "../lib/dates";
 import { listShownPimEvents } from "../services/pim/pimService";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -13,11 +14,14 @@ import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useLongPress } from "../lib/useLongPress";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { confirmDeleteFile } from "../lib/deleteFile";
-import { vaultOps, type MobileVault } from "../services/vaultService";
+import type { MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
 import { useEventEditor } from "../components/useEventEditor";
 import type { PimEventRow } from "@plainva/core";
 import { TodayJournalSection } from "../components/TodayJournalSection";
+
+/** Before the first read, and after one that failed. */
+const NO_DUE_TASKS: PhoneDueTasks = { rows: [], dueKey: null, database: false, databaseTickable: false };
 
 /**
  * Today tab as a day view (R3.5; M3E mockup 6): the strip SELECTS a day
@@ -65,16 +69,24 @@ export function TodayScreen({
   // 01:30 with a 04:00 boundary they are still yesterday's. The calendar tab
   // and every due date keep asking the calendar.
   const todayIso = useJournalDayKey();
+  // What is late is asked of the CALENDAR: a due date is a calendar date. On
+  // the diary's today, the due section leads with it (`dueTasksForDay`).
+  const calendarToday = useTodayKey();
   const [selectedIso, setSelectedIso] = useState(todayIso);
   const [dailyExists, setDailyExists] = useState(false);
   const [dailyDays, setDailyDays] = useState<Set<string>>(new Set());
   const [edited, setEdited] = useState<Array<{ path: string; title: string; mtime_local: number }>>([]);
-  const [agenda, setAgenda] = useState<ReturnType<typeof buildDayAgenda>>([]);
+  const [dayEventItems, setDayEventItems] = useState<Parameters<typeof buildDayAgenda>[1]>([]);
+  // The tasks of the vault, both sources — loaded once per change, not per
+  // selected day: a tap on the strip only chooses among them (`buildDayAgenda`).
+  // Kept with the vault they were read in: after a switch the old vault's rows
+  // are not offered for a tick in the new one while the fresh read runs.
+  const [dueRead, setDueRead] = useState<{ vault: string; tasks: PhoneDueTasks } | null>(null);
+  const dueTasks = dueRead && dueRead.vault === vault.vaultId ? dueRead.tasks : NO_DUE_TASKS;
   // A task's date on this screen is the way to change it (plan Befunde
   // 2026-10-06, W2), as in the tasks screen: the same sheet, the same write,
   // the same notice with Undo. The task then leaves the day it was listed under.
-  const [taskDueKey, setTaskDueKey] = useState<string | null>(null);
-  const [dueTarget, setDueTarget] = useState<{ path: string; value: string | null } | null>(null);
+  const [dueTarget, setDueTarget] = useState<PlannerRow | null>(null);
   const [dueTick, setDueTick] = useState(0);
   const moveDue = (changes: readonly TaskDueChange[], day: string | null) => {
     void moveTaskDueOnPhone(vault, taskDueKey, changes)
@@ -106,9 +118,35 @@ export function TodayScreen({
   // The same editor the calendar uses (N1.3) — an appointment opens the same
   // way from either surface, including the series question and the RSVPs.
   const editor = useEventEditor({ bump, onOpenNote });
+  const taskDueKey = dueTasks.dueKey;
+  const agenda = useMemo(
+    () => buildDayAgenda(selectedIso, dayEventItems, dueTasks.rows, { today: calendarToday, diaryToday: todayIso }),
+    [selectedIso, dayEventItems, dueTasks.rows, calendarToday, todayIso],
+  );
   const dayEvents = agenda.filter((i) => i.kind === "event");
   const dayTasks = agenda.filter((i) => i.kind === "task");
-  const taskDbConfigured = settings.taskDatabase.trim().length > 0;
+  /** A database task's day moves through its date column; a checkbox's through its `📅`. */
+  const canMoveDue = (row: PlannerRow) => (row.source === "database" ? taskDueKey !== null : row.line !== undefined);
+  /** A task opens where it lives: a checkbox at its line, a database entry as its note. */
+  const openTask = (row: PlannerRow) => {
+    const term = taskJumpTerm(row);
+    if (term) setPendingSearchJump({ path: row.path, term });
+    onOpenNote(row.path);
+  };
+  const tick = (row: PlannerRow) => {
+    void tickPhoneDueTask(vault, row)
+      .then((result) => {
+        setDueTick((x) => x + 1);
+        if (result.spawnedDue) toast.info(t("tasks.repeatSpawned", { date: result.spawnedDue }));
+        if (result.spawnFailed) toast.error(t("tasks.repeatFailed"));
+      })
+      // A database tick writes the note's completion property — the sentence a
+      // property write gets, as on the task screen; a checkbox says its reason.
+      .catch((e) => {
+        if (row.source === "database") toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+        else toast.error(errorText(e));
+      });
+  };
   /**
    * Where a new appointment starts when it is created from a day rather than
    * from a tapped slot: 09:00 on the SELECTED day, not "now" — on any day but
@@ -176,9 +214,9 @@ export function TodayScreen({
     };
   }, [vault, selectedIso, dailyPath, bump]);
 
-  // The day's appointments and what is due on it. Both are best-effort: a vault
-  // without a calendar account or without a task database simply contributes
-  // nothing, and neither may keep the daily note from rendering.
+  // The day's appointments. Best-effort: a vault without a calendar account
+  // simply contributes nothing, and it may not keep the daily note from
+  // rendering.
   useEffect(() => {
     let stale = false;
     void (async () => {
@@ -197,32 +235,32 @@ export function TodayScreen({
       }));
       for (const [i, e] of rows.entries()) rowByUid.set(events[i]!.uid, e);
 
-      let due: AgendaTask[] = [];
-      let dueKey: string | null = null;
-      const db = getMobileSettings().taskDatabase.trim();
-      if (db && vault.queryService) {
-        try {
-          const config = parseBaseConfig(await vaultOps.read(vault, db));
-          const raw = (await vault.queryService.queryDatabaseFiles(config)) as Record<string, unknown>[];
-          const completion = resolveTaskCompletionModel(config);
-          // No filtering here: `buildDayAgenda` is the one place that decides
-          // what a day shows (due on this day, unfinished unless asked).
-          due = taskDbRows(raw, config, completion);
-          dueKey = taskDbDueKey(config);
-        } catch {
-          due = [];
-        }
-      }
       if (!stale) {
-        setTaskDueKey(dueKey);
-        setAgenda(buildDayAgenda(selectedIso, events, due));
+        setDayEventItems(events);
         setEventRows(rowByUid);
       }
     })();
     return () => {
       stale = true;
     };
-  }, [vault, selectedIso, bump, dueTick, i18nInstance.language]);
+  }, [selectedIso, bump, i18nInstance.language]);
+
+  // What is due: both sources — the task database and the checkboxes in notes
+  // — the way the planner's Today list reads them (TestFlight, build 136: a
+  // checkbox due today was on the planner and missing here). No filtering
+  // here: `buildDayAgenda` is the one place that decides what a day shows
+  // (due on this day, on today what is late, unfinished).
+  useEffect(() => {
+    let stale = false;
+    void loadPhoneDueTasks(vault)
+      .catch(() => NO_DUE_TASKS)
+      .then((tasks) => {
+        if (!stale) setDueRead({ vault: vault.vaultId, tasks });
+      });
+    return () => {
+      stale = true;
+    };
+  }, [vault, bump, dueTick]);
 
   const weekday = new Intl.DateTimeFormat(i18nInstance.language, { weekday: "short" });
   const longDate = new Intl.DateTimeFormat(i18nInstance.language, { day: "numeric", month: "long", year: "numeric" });
@@ -287,9 +325,9 @@ export function TodayScreen({
 
           Both sections stay when they are empty and offer something, rather
           than the whole block disappearing: a day with nothing on it is an
-          answer, and vanishing is not one. The task section is the exception
-          — without a configured task database it has no meaning at all, and
-          an empty state would be about a setting rather than about the day. */}
+          answer, and vanishing is not one. The task section used to stand only
+          with a task database set; since it reads the checkboxes in notes as
+          well, every vault has tasks it can answer for. */}
       <SectionLabel end={dayEvents.length > 0 ? dayEvents.length : undefined}>
         {t("mobile.todayEvents")}
       </SectionLabel>
@@ -328,63 +366,69 @@ export function TodayScreen({
         </GroupCard>
       )}
 
-      {taskDbConfigured && (
-        <>
-          <SectionLabel end={dayTasks.length > 0 ? dayTasks.length : undefined}>
-            {t("mobile.todayDue")}
-          </SectionLabel>
-          {/* This card answers for the SELECTED day and for the task database
-              only; the planner's "Today" adds what is overdue and the checkboxes
-              in notes. A row, because it leads somewhere. */}
-          {onOpenTasks && (
-            <GroupCard>
-              <RowList>
-                <Row data-testid="today-open-planner" icon={<ListTodo size={ICON.head} />} title={t("tasks.plannerOpenToday")} onClick={onOpenTasks} />
-              </RowList>
-            </GroupCard>
-          )}
-          {dayTasks.length === 0 ? (
-            <GroupCard className="m-daycard-empty">
-              <p className="m-hint">{t("mobile.todayNoDue")}</p>
-            </GroupCard>
-          ) : (
-            <GroupCard>
-              <RowList>
-                {dayTasks.map((item) => (
-                  <Row
-                    icon={
-                      item.task.done ? (
-                        <CheckSquare className="m-accent" size={ICON.head} />
-                      ) : (
-                        <Square size={ICON.head} />
-                      )
-                    }
-                    key={item.task.path}
-                    onClick={() => onOpenNote(item.task.path)}
-                    // The date is a control of its own (W2): a tap on it opens
-                    // the date sheet, a tap beside it still opens the task.
-                    controls
-                    data-testid="today-task-row"
-                    subtitle={
+      <SectionLabel end={dayTasks.length > 0 ? dayTasks.length : undefined}>
+        {t("mobile.todayDue")}
+      </SectionLabel>
+      {/* This card answers for the SELECTED day, from both sources, and on
+          today with what is late; the planner's lists go further (upcoming,
+          inbox, done). A row, because it leads somewhere. */}
+      {onOpenTasks && (
+        <GroupCard>
+          <RowList>
+            <Row data-testid="today-open-planner" icon={<ListTodo size={ICON.head} />} title={t("tasks.plannerOpenToday")} onClick={onOpenTasks} />
+          </RowList>
+        </GroupCard>
+      )}
+      {dayTasks.length === 0 ? (
+        <GroupCard className="m-daycard-empty">
+          <p className="m-hint">{t("mobile.todayNoDue")}</p>
+        </GroupCard>
+      ) : (
+        <GroupCard>
+          <RowList>
+            {dayTasks.map((item) => {
+              const row = item.task;
+              const closed = !isOpenState(row.state);
+              const [dy, dm, dd] = (row.due ?? selectedIso).split("-").map(Number);
+              const move = canMoveDue(row) ? () => setDueTarget(row) : undefined;
+              return (
+                <Row
+                  // The box ticks the task where it is stored (the task
+                  // screen's write); the row opens it.
+                  icon={<TaskCheckButton state={row.state} label={closed ? t("tasks.open") : t("tasks.done")} onToggle={() => tick(row)} disabled={row.source === "database" && !dueTasks.databaseTickable} testId="today-task-toggle" />}
+                  key={row.id}
+                  onClick={() => openTask(row)}
+                  // The date is a control of its own (W2): a tap on it opens
+                  // the date sheet, a tap beside it still opens the task.
+                  controls
+                  data-testid="today-task-row"
+                  data-source={row.source}
+                  data-overdue={item.overdue ? "true" : undefined}
+                  subtitle={
+                    <>
                       <Chip
                         size="sm"
-                        icon={taskDueKey ? <CalendarClock size={ICON.meta} /> : undefined}
+                        tone={item.overdue ? "warning" : undefined}
+                        icon={move ? <CalendarClock size={ICON.meta} /> : undefined}
                         testId="today-task-due"
-                        onClick={taskDueKey ? () => setDueTarget({ path: item.task.path, value: item.task.due ?? null }) : undefined}
+                        onClick={move}
                       >
-                        {item.task.dueMinutes === undefined
-                          ? t("pim.dueOn", { date: longDate.format(selectedDate) })
-                          : t("pim.dueAt", { defaultValue: "fällig {{time}}", time: minutesToHHMM(item.task.dueMinutes) })}
+                        {/* Its own day: late, or — before the day boundary — the calendar's today. */}
+                        {row.due !== selectedIso || row.dueMinutes === null
+                          ? t("pim.dueOn", { date: longDate.format(new Date(dy, dm - 1, dd)) })
+                          : t("pim.dueAt", { defaultValue: "fällig {{time}}", time: minutesToHHMM(row.dueMinutes) })}
                       </Chip>
-                    }
-                    title={item.task.title}
-                    wrap
-                  />
-                ))}
-              </RowList>
-            </GroupCard>
-          )}
-        </>
+                      {/* A checkbox says which note it lives in, as in the planner. */}
+                      {row.source === "note" && <Chip size="sm" tone="muted">{noteDisplayName(row.noteTitle ?? row.path)}</Chip>}
+                    </>
+                  }
+                  title={row.source === "database" ? noteDisplayName(row.title) : row.title}
+                  wrap
+                />
+              );
+            })}
+          </RowList>
+        </GroupCard>
       )}
 
       {/* No counter here, unlike the two above: those answer "how much is on
@@ -428,12 +472,16 @@ export function TodayScreen({
       )}
       {dueTarget && (
         <TaskDueSheet
-          value={dueTarget.value}
+          value={dueTarget.due}
           onClose={() => setDueTarget(null)}
           onPick={(day) => {
             const target = dueTarget;
             setDueTarget(null);
-            if (day !== target.value) moveDue([{ source: "database", path: target.path, day }], day);
+            if (day === target.due) return;
+            // Each source the way it stores its day: the date column of a
+            // database entry, the `📅` of a checkbox line (`applyTaskDueChanges`).
+            if (target.source === "database") moveDue([{ source: "database", path: target.path, day }], day);
+            else if (target.line) moveDue([{ source: "note", path: target.path, task: target.line, day }], day);
           }}
         />
       )}

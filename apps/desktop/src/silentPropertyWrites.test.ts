@@ -519,7 +519,7 @@ const STRETCHES: Stretch[] = [
   },
   {
     file: "apps/desktop/src/components/pimcal/CalendarView.tsx", at: "const toggleTaskFromCalendar = useCallback(", span: 1900, calls: { toggleTaskDone: 1 },
-    how: "a message with the reason, and the row goes back to what the note says", says: [SAID, /done: task\.done \} : x\)\)\);/, /tasks\.repeatFailed/],
+    how: "a message with the reason, and the row goes back to what the note says", says: [SAID, /done: task\.done, state: task\.state \} : x\)\)\);/, /tasks\.repeatFailed/],
   },
   {
     file: "apps/mobile/src/services/taskCompletionAction.ts", at: "async function setTaskDoneLocked(", span: 2600, calls: { [set]: 3, writeNextOccurrenceNote: 1 },
@@ -532,16 +532,27 @@ const STRETCHES: Stretch[] = [
     says: [/\.catch\(\(e\) => toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\)\)/, /tasks\.repeatFailed/],
   },
   {
-    file: "apps/mobile/src/screens/PimCalendarScreen.tsx", at: "const toggleTask = useCallback(", span: 1200, calls: { setTaskDone: 1 },
+    // One tick for both kinds of task on the phone's day surfaces (TestFlight
+    // 136): a database entry through setTaskDone, a checkbox through its note.
+    file: "apps/mobile/src/services/dueTasks.ts", at: "export async function tickPhoneDueTask(", span: 1400, calls: { setTaskDone: 1 },
+    how: "thrown on to the caller of tickPhoneDueTask", never: THROWN_ON, passesOn: ["tickPhoneDueTask"],
+  },
+  {
+    file: "apps/mobile/src/screens/PimCalendarScreen.tsx", at: "const toggleTask = useCallback(", span: 1400, calls: { tickPhoneDueTask: 1 },
     how: "a tick in the phone's calendar: a message with the reason as errorText reads it; a successor that failed has its own sentence",
-    says: [/\.catch\(\(e\) => toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\)\)/, /tasks\.repeatFailed/],
+    says: [/\.catch\(\(e\) => \{\s*if \(row\.source === "database"\) toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);\s*else toast\.error\(errorText\(e\)\);/, /tasks\.repeatFailed/],
+  },
+  {
+    file: "apps/mobile/src/screens/TodayScreen.tsx", at: "const tick = (row: PlannerRow) => {", span: 900, calls: { tickPhoneDueTask: 1 },
+    how: "a tick on the Today screen: a message with the reason as errorText reads it; a successor that failed has its own sentence",
+    says: [/\.catch\(\(e\) => \{\s*if \(row\.source === "database"\) toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);\s*else toast\.error\(errorText\(e\)\);/, /tasks\.repeatFailed/],
   },
   {
     file: "apps/mobile/src/services/reminderActions.ts", at: "export async function runReminderIntent(", span: 1200, calls: { setTaskDone: 1 },
     how: "a tick from a notification: a message with the reason", says: [SAID_SHARED],
   },
   {
-    file: "apps/mobile/src/services/widgetService.ts", at: "export async function redeemWidgetActions(", span: 1400, calls: { setTaskDone: 1 },
+    file: "apps/mobile/src/services/widgetService.ts", at: "export async function redeemWidgetActions(", span: 3200, calls: { setTaskDone: 1 },
     // Decided there, not forgotten: a tick made on the home screen is redeemed
     // when the app comes back, and a dialogue about a tap someone made
     // yesterday helps nobody. The task is still open in the next snapshot.

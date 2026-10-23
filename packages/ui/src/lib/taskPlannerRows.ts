@@ -52,6 +52,7 @@ export function plannerRowsFromTasks(tasks: readonly TaskRecord[]): PlannerRow[]
     source: "note",
     path: task.path,
     ordinal: task.ordinal,
+    line: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) },
     title: taskDisplayText(task.text) || task.text,
     noteTitle: task.title,
     state: task.state ?? (task.done ? "done" : "open"),

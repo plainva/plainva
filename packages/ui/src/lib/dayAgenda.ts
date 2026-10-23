@@ -16,15 +16,18 @@
  *    meeting and read as if it were happening at midnight.
  *  - Timed events follow in clock order, because that is the order they will
  *    happen in.
- *  - Due tasks come last. Among themselves, the ones that carry a TIME come
- *    first in clock order, the rest by title. Until S6 a task could not carry
- *    one, and inventing a position (start of day, end of day) would have put it
- *    somewhere in the timeline the user never chose — but a `datetime` column
- *    means the user DID choose, and ignoring that is the same mistake mirrored.
+ *  - Due tasks come last: on today what is late first, oldest first, then
+ *    what is due on the day, in the planner's order (priority, then a chosen
+ *    time, then the name). Which tasks those are is `dueTasksForDay`'s
+ *    answer — both sources, the database and the checkboxes in notes — so the
+ *    Today screen cannot disagree with the planner's Today list again
+ *    (TestFlight, build 136).
  *
  * Ties keep a stable order by title so the list does not reshuffle between two
  * reads of the same day.
  */
+import { dueTasksForDay } from "./dueTasks";
+import type { PlannerRow } from "./taskPlanner";
 
 export interface AgendaEvent {
   uid: string;
@@ -37,19 +40,22 @@ export interface AgendaEvent {
   location?: string;
 }
 
-export interface AgendaTask {
-  path: string;
-  title: string;
-  done: boolean;
-  /** ISO day, `YYYY-MM-DD`. */
-  due: string | null;
-  /** Minutes into that day, when the due column carried a time (S6). */
-  dueMinutes?: number;
-}
+/** A task on a day: the planner's row — a database entry or a checkbox in a note. */
+export type AgendaTask = PlannerRow;
 
 export type AgendaItem =
   | { kind: "event"; event: AgendaEvent }
-  | { kind: "task"; task: AgendaTask };
+  /** `overdue`: due before today and listed on today because it is late. */
+  | { kind: "task"; task: AgendaTask; overdue: boolean };
+
+export interface DayAgendaOptions {
+  /** Lists the day's finished tasks too. */
+  includeDone?: boolean;
+  /** Today on the calendar. Without it no day counts as today and nothing as late. */
+  today?: string;
+  /** Today in the diary, for a surface that selects days by it (`dueTasksForDay`). */
+  diaryToday?: string;
+}
 
 /** Epoch-ms window of one local ISO day — the range a cache query needs. */
 export function dayWindow(iso: string): { start: number; end: number } {
@@ -62,14 +68,14 @@ export function dayWindow(iso: string): { start: number; end: number } {
  * Merges events and due tasks into the one ordered list a day surface shows.
  *
  * Events are filtered by the caller's window (the cache query already does
- * that); tasks are filtered here on their ISO due day, because a task list is
+ * that); tasks are chosen here by `dueTasksForDay`, because a task list is
  * never day-scoped at the source.
  */
 export function buildDayAgenda(
   iso: string,
   events: readonly AgendaEvent[],
   tasks: readonly AgendaTask[],
-  opts: { includeDone?: boolean } = {},
+  opts: DayAgendaOptions = {},
 ): AgendaItem[] {
   const byTitle = (a: string, b: string) => a.localeCompare(b);
 
@@ -81,27 +87,21 @@ export function buildDayAgenda(
     .filter((e) => !e.allDay)
     .sort((a, b) => a.startMs - b.startMs || byTitle(a.title, b.title));
 
-  const due = tasks
-    .filter((tk) => tk.due === iso)
-    // A task finished today still belongs to today's record, but it is not
-    // something to do — the caller decides, and the default is the actionable
-    // list, because that is what a day surface is for.
-    .filter((tk) => (opts.includeDone ? true : !tk.done))
-    // A chosen time is an order; the absence of one is not. So timed tasks lead,
-    // in clock order, and the day-granular rest keeps its stable title order.
-    .sort((a, b) => {
-      const at = a.dueMinutes;
-      const bt = b.dueMinutes;
-      if (at !== undefined && bt !== undefined) return at - bt || byTitle(a.title, b.title);
-      if (at !== undefined) return -1;
-      if (bt !== undefined) return 1;
-      return byTitle(a.title, b.title);
-    });
+  // A task finished today still belongs to today's record, but it is not
+  // something to do — the caller decides, and the default is the actionable
+  // list, because that is what a day surface is for.
+  const { overdue, due } = dueTasksForDay(tasks, iso, {
+    // Without a today, no day is today: a sentinel no day key equals.
+    today: opts.today ?? "",
+    diaryToday: opts.diaryToday,
+    includeDone: opts.includeDone,
+  });
 
   return [
     ...allDay.map((event) => ({ kind: "event" as const, event })),
     ...timed.map((event) => ({ kind: "event" as const, event })),
-    ...due.map((task) => ({ kind: "task" as const, task })),
+    ...overdue.map((task) => ({ kind: "task" as const, task, overdue: true })),
+    ...due.map((task) => ({ kind: "task" as const, task, overdue: false })),
   ];
 }
 

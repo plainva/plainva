@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-10-22
+Dernière mise à jour : 2026-10-23
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -73,7 +73,7 @@ Une ligne de tâche affiche son titre sur toute la largeur ; le statut, l'éché
 
 **Aujourd'hui** est la surface du jour. Le bandeau en haut sélectionne un jour — il s'étend **dans les deux sens**, deux semaines en arrière et deux semaines à venir, et un point marque chaque jour qui a déjà une note quotidienne. En dessous se trouve la **note quotidienne** du jour sélectionné (avec son modèle et son dossier, à ouvrir ou à créer), puis les **rendez-vous et échéances** de ce jour, et enfin ce que vous avez modifié ce jour-là.
 
-La section du milieu réunit ce qui se trouve autrement sur deux zones distinctes : d'abord les événements sur toute la journée, puis ceux à heure fixe dans l'ordre chronologique, et enfin les tâches dues ce jour-là. Toucher une tâche ouvre sa note. Sans calendrier connecté et sans base de tâches, la section est simplement absente.
+La section du milieu réunit ce qui se trouve autrement sur deux zones distinctes : d'abord les événements sur toute la journée, puis ceux à heure fixe dans l'ordre chronologique, et enfin, sous **À échéance**, les tâches dues ce jour-là — les entrées de votre [base de tâches par défaut](Tasks.md) comme les cases à cocher des notes avec une date `📅`, les mêmes tâches que la liste **Aujourd'hui** de la vue Tâches. Le jour même, ce qui est en retard vient en premier, sa date dans la couleur d'alerte. La case devant une tâche la coche sur place — une case à cocher, dans la ligne de sa note, avec la date d'achèvement ; toucher la tâche l'ouvre, une case à cocher à sa ligne, et toucher sa date ouvre la feuille de date. Les deux sections restent quand la journée est vide et le disent.
 
 Juste sous la note quotidienne se trouve **Journal** : les entrées du jour sélectionné, un champ qui écrit exactement dans ce jour, et **Tous les jours**, qui ouvre l'écran du journal avec le flux de tous les jours. **＋** propose **Entrée de journal** depuis n'importe où — voir [Journal](Journal.md).
 
@@ -308,7 +308,7 @@ L'écran des tâches s'ouvre sur **Aujourd'hui** ; le segment au-dessus de la li
 
 Android propose deux widgets, **Aujourd’hui** et **Saisie rapide** ; sur l’iPhone s’y ajoutent deux widgets d’écran verrouillé, un compteur et la prochaine tâche. Appuyez longuement sur un espace libre de l’écran d’accueil et choisissez Plainva.
 
-**Aujourd’hui** affiche le retard sous forme de nombre, puis les rendez-vous et les tâches du jour dans l’ordre de l’application. Un appui sur une ligne ouvre la note, un appui sur l’en-tête ouvre l’écran Aujourd’hui, et le **+** ouvre la feuille de saisie. **Saisie rapide** n’affiche aucun contenu : un bouton **Tâche**, un bouton **Journal**.
+**Aujourd’hui** affiche le retard sous forme de nombre, puis les rendez-vous et les tâches du jour dans l’ordre de l’application — aussi bien les tâches de la base de tâches que les cases à cocher des notes avec une date `📅`. Un appui sur une ligne ouvre la note, un appui sur l’en-tête ouvre l’écran Aujourd’hui, et le **+** ouvre la feuille de saisie. **Saisie rapide** n’affiche aucun contenu : un bouton **Tâche**, un bouton **Journal**.
 
 Un widget ne calcule rien lui-même. Rien de Plainva ne tourne quand l’application est fermée : le widget montre ce que l’application a écrit lors de son dernier passage — d’où la semaine d’avance, et le changement de jour à minuit sans que vous ouvriez quoi que ce soit. Dès que l’affichage date d’un jour antérieur, l’en-tête indique quand il a été écrit.
 

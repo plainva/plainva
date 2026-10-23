@@ -1,6 +1,6 @@
 # O app mobile
 
-Última atualização: 2026-10-22
+Última atualização: 2026-10-23
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -73,7 +73,7 @@ Uma linha de tarefa mostra o título em toda a largura; status, vencimento, repe
 
 **Hoje** é a superfície do dia. A faixa no topo seleciona um dia — ela vai **nas duas direções**, duas semanas para trás e duas semanas para a frente, e um ponto marca cada dia que já tem uma nota diária. Abaixo dela fica a **nota diária** do dia selecionado (com seu modelo e sua pasta, para abrir ou criar), depois os **compromissos e vencimentos** daquele dia, e por fim o que você editou naquele dia.
 
-A seção do meio reúne o que normalmente fica em duas áreas separadas: primeiro os eventos de dia inteiro, depois os com horário, em ordem cronológica, e por último as tarefas que vencem naquele dia. Tocar em uma tarefa abre a nota dela. Sem um calendário conectado e sem um banco de tarefas, a seção simplesmente não aparece.
+A seção do meio reúne o que normalmente fica em duas áreas separadas: primeiro os eventos de dia inteiro, depois os com horário, em ordem cronológica, e por último, em **Vence**, as tarefas que vencem naquele dia — itens do seu [banco de tarefas padrão](Tasks.md) e caixas de seleção em notas com uma data `📅` por igual, as mesmas tarefas que a lista **Hoje** da visualização de Tarefas mostra. No dia de hoje, o que está atrasado vem primeiro, com a data na cor de aviso. A caixa na frente de uma tarefa a marca ali mesmo — uma caixa de seleção, na linha da nota dela, com a data de conclusão; tocar na tarefa a abre, uma caixa de seleção na sua linha, e tocar na data dela abre a folha de data. As duas seções permanecem quando o dia está vazio e dizem isso.
 
 Logo abaixo da nota diária fica o **Diário**: as entradas do dia selecionado, um campo que escreve exatamente nesse dia, e **Todos os dias**, que abre a tela do diário com o fluxo de todos os dias. **＋** oferece **Entrada de diário** de qualquer lugar — veja [Diário](Journal.md).
 
@@ -308,7 +308,7 @@ A tela de tarefas abre em **Hoje**; o segmento acima da lista alterna entre **Ho
 
 O Android oferece dois widgets, **Hoje** e **Captura rápida**; no iPhone somam-se dois para a tela de bloqueio, um contador e a próxima tarefa. Mantenha pressionado um espaço livre da tela inicial e escolha o Plainva.
 
-**Hoje** mostra o atraso como um número e abaixo os compromissos e as tarefas do dia na mesma ordem do aplicativo. Um toque em uma linha abre a nota, um toque no cabeçalho abre a tela Hoje e o **+** abre a folha de captura. **Captura rápida** não mostra conteúdo algum: um botão **Tarefa** e outro **Diário**.
+**Hoje** mostra o atraso como um número e abaixo os compromissos e as tarefas do dia na mesma ordem do aplicativo — tanto tarefas do banco de tarefas quanto caixas de seleção em notas com uma data `📅`. Um toque em uma linha abre a nota, um toque no cabeçalho abre a tela Hoje e o **+** abre a folha de captura. **Captura rápida** não mostra conteúdo algum: um botão **Tarefa** e outro **Diário**.
 
 Um widget não calcula nada sozinho. Com o aplicativo fechado nada do Plainva roda, então ele mostra o que o aplicativo anotou na última execução — por isso conhece uma semana inteira adiante e vira o dia à meia-noite sem que você abra nada. Assim que o que ele mostra é de um dia anterior, o cabeçalho diz quando foi escrito.
 

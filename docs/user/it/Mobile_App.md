@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-10-22
+Ultimo aggiornamento: 2026-10-23
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -73,7 +73,7 @@ Una riga di attività mostra il titolo su tutta la larghezza; stato, scadenza, r
 
 **Oggi** è la superficie del giorno. La striscia in alto seleziona un giorno — si estende **in entrambe le direzioni**, due settimane indietro e due settimane avanti, e un punto contrassegna ogni giorno che ha già una nota giornaliera. Sotto si trova la **nota giornaliera** del giorno selezionato (con il suo modello e la sua cartella, da aprire o creare), poi gli **appuntamenti e scadenze** di quel giorno, e infine ciò che hai modificato in quel giorno.
 
-La sezione centrale riunisce ciò che altrimenti si trova su due aree distinte: prima gli eventi per l'intera giornata, poi quelli con un orario preciso in ordine cronologico, e infine le attività in scadenza quel giorno. Toccare un'attività apre la sua nota. Senza un calendario collegato e senza un database attività, la sezione semplicemente non c'è.
+La sezione centrale riunisce ciò che altrimenti si trova su due aree distinte: prima gli eventi per l'intera giornata, poi quelli con un orario preciso in ordine cronologico, e infine, sotto **In scadenza**, le attività in scadenza quel giorno — voci del tuo [database attività predefinito](Tasks.md) e caselle nelle note con una data `📅` allo stesso modo, le stesse attività che mostra l'elenco **Oggi** della vista Attività. Nel giorno di oggi gli arretrati vengono per primi, con la data nel colore di avviso. La casella davanti a un'attività la spunta proprio lì — una casella nella riga della sua nota, con la data di completamento; toccare l'attività la apre, una casella alla sua riga, e toccare la sua data apre il foglio della data. Entrambe le sezioni restano quando la giornata è vuota e lo dicono.
 
 Proprio sotto la nota giornaliera si trova **Diario**: le voci del giorno selezionato, un campo che scrive esattamente in quel giorno, e **Tutti i giorni**, che apre la schermata del diario con il flusso di tutti i giorni. **＋** offre **Voce di diario** da qualsiasi punto — vedi [Diario](Journal.md).
 
@@ -308,7 +308,7 @@ La schermata delle attività si apre su **Oggi**; il segmento sopra l'elenco pas
 
 Android offre due widget, **Oggi** e **Acquisizione rapida**; sull’iPhone se ne aggiungono due per la schermata di blocco, un contatore e la prossima attività. Tieni premuto uno spazio libero della schermata home e scegli Plainva.
 
-**Oggi** mostra gli arretrati come numero e sotto gli appuntamenti e le attività del giorno nello stesso ordine dell’app. Un tocco su una riga apre la nota, uno sull’intestazione apre la schermata Oggi e il **+** apre il foglio di acquisizione. **Acquisizione rapida** non mostra alcun contenuto: un pulsante **Attività** e uno **Diario**.
+**Oggi** mostra gli arretrati come numero e sotto gli appuntamenti e le attività del giorno nello stesso ordine dell’app — sia le attività del database attività sia le caselle nelle note con una data `📅`. Un tocco su una riga apre la nota, uno sull’intestazione apre la schermata Oggi e il **+** apre il foglio di acquisizione. **Acquisizione rapida** non mostra alcun contenuto: un pulsante **Attività** e uno **Diario**.
 
 Un widget non calcola nulla da sé. Ad app chiusa non gira nulla di Plainva, quindi mostra ciò che l’app ha scritto durante l’ultima esecuzione — per questo conosce un’intera settimana in anticipo e cambia giorno a mezzanotte senza che tu apra nulla. Quando ciò che mostra è di un giorno precedente, l’intestazione dice quando è stato scritto.
 

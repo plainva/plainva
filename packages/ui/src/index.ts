@@ -400,6 +400,7 @@ export * from "./services/taskSyncReport";
 export * from "./lib/keptList";
 export * from "./lib/taskPlanner";
 export * from "./lib/taskPlannerRows";
+export * from "./lib/dueTasks";
 export * from "./lib/taskCapture";
 export * from "./lib/taskPriority";
 export * from "./lib/taskPriorityWrite";

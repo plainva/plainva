@@ -10,7 +10,7 @@ import { CalendarClock, CalendarPlus, Database, FileText, RefreshCw, Repeat, Tab
 import { formatPickedDay, overdueToDayChanges, TaskCheckButton, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
 import { TaskDueSheet } from "../components/TaskDueSheet";
 import { announceTaskDue, moveTaskDueOnPhone } from "../services/taskDueAction";
-import { applyTaskStatusOption, Button, canRepeat, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, isRecurringAtProviderNamespace, calendarDay, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, taskRowActions, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
+import { applyTaskStatusOption, Button, canRepeat, checkboxJumpTerm, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, isRecurringAtProviderNamespace, calendarDay, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, taskRowActions, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
 import {
   isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setTasksPriority, type ChecklistMutationResult, type TaskBoxState,
   setFrontmatterPath,
@@ -887,7 +887,9 @@ export function TasksScreen({
   const open = (task: TaskRecord) => {
     // Opens the note AND jumps to the line — the same parking store the search
     // results use, because the editor is not mounted yet at this point.
-    setPendingSearchJump({ path: task.path, term: taskLabel(task.text).slice(0, 40) });
+    // The raw line: the label drops tags and Tasks fields from the middle of
+    // the text, and what is left need not stand in the note.
+    setPendingSearchJump({ path: task.path, term: checkboxJumpTerm(task.text) });
     onOpenNote(task.path);
   };
 

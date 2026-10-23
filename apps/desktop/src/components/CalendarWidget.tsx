@@ -3,10 +3,10 @@ import { CalendarCheck, CalendarRange, ChevronLeft, ChevronRight, Sun } from "lu
 import { useTranslation } from "react-i18next";
 import { buildMonthCells, DateJumpPicker, DateJumpPopover, DateJumpTrigger, ICON, isoWeeksForCells, MenuItem, MenuLabel, MenuSurface, startOfMonth, useShowWeekNumbers, useWeekStartDay, WeekNumbersToggle, weekdayShortNames } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
-import { calendarDay } from "@plainva/ui";
+import { calendarDay, checkboxJumpTerm, setPendingSearchJump } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import { bucketEventsByDay, formatTimeRange } from "../services/pim/calendarModel";
-import { loadDueTasks, type DueTask } from "../services/pim/taskOverlay";
+import { compareDueTasks, loadDueTasks, type DueTask } from "../services/pim/taskOverlay";
 
 /**
  * Sidebar calendar. Since the PIM calendar exists this widget is a day
@@ -55,7 +55,10 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
   const [pimTick, setPimTick] = useState(0);
   const [events, setEvents] = useState<PimEventRow[]>([]);
   const [calColors, setCalColors] = useState<Map<string, string>>(new Map());
-  const [tasks, setTasks] = useState<DueTask[]>([]);
+  // What was read, for the vault it was read in: kept while the menu is shut,
+  // so the next opening shows it at once and the fresh read follows.
+  const [taskRead, setTaskRead] = useState<{ vault: string; tasks: DueTask[] } | null>(null);
+  const tasks = useMemo(() => (taskRead && taskRead.vault === vaultPath ? taskRead.tasks : []), [taskRead, vaultPath]);
   const navRef = useRef<HTMLDivElement | null>(null);
   const lang = i18n.language || "en";
 
@@ -139,24 +142,27 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
     };
   }, [pimRuntime, cells, pimTick]);
 
-  // Due tasks of the standard task database (same loader as the calendar tab).
+  // Due tasks — the task database and the checkboxes in notes — through the
+  // calendar tab's loader, so both calendars answer "what is due on this day"
+  // the same way (TestFlight 136). Read while the day menu is open, the one
+  // place this widget shows them: reading the checkboxes scans every note's
+  // indexed text, and the sidebar calendar stands open beside every edit — a
+  // scan per save is what made typing slow (issue 122).
+  const menuOpen = menu !== null;
   useEffect(() => {
     let alive = true;
-    if (!vaultPath || !vaultAdapter || !queryService) {
-      setTasks([]);
-      return;
-    }
-    void loadDueTasks({ vaultPath, vaultAdapter, queryService })
+    if (!menuOpen || !vaultPath || !vaultAdapter || !queryService) return;
+    void loadDueTasks({ vaultPath, vaultAdapter, queryService }, { notes: true })
       .then((out) => {
-        if (alive) setTasks(out);
+        if (alive) setTaskRead({ vault: vaultPath, tasks: out });
       })
       .catch(() => {
-        if (alive) setTasks([]);
+        if (alive) setTaskRead({ vault: vaultPath, tasks: [] });
       });
     return () => {
       alive = false;
     };
-  }, [vaultPath, vaultAdapter, queryService, fileTreeVersion, pimTick]);
+  }, [menuOpen, vaultPath, vaultAdapter, queryService, fileTreeVersion, pimTick]);
 
   const eventsByDay = useMemo(() => bucketEventsByDay(events), [events]);
   const tasksByDay = useMemo(() => {
@@ -166,6 +172,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
       if (arr) arr.push(task);
       else m.set(task.due, [task]);
     }
+    for (const list of m.values()) list.sort(compareDueTasks);
     return m;
   }, [tasks]);
 
@@ -357,9 +364,11 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
           {menuTasks.length > 0 && <MenuLabel>{t("pim.calendarTasks", { defaultValue: "Aufgaben" })}</MenuLabel>}
           {menuTasks.map((task) => (
             <MenuItem
-              key={task.path}
+              key={task.id}
               onSelect={() => {
                 setMenu(null);
+                // A checkbox opens at its line, as in the task overview.
+                if (task.source === "note" && task.line) setPendingSearchJump({ path: task.path, term: checkboxJumpTerm(task.line.text) });
                 onOpenNote?.(task.path);
               }}
             >

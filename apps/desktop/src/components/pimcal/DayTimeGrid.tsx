@@ -61,7 +61,8 @@ export interface DayTimeGridProps {
   onEventClick: (e: PimEventRow) => void;
   /** Right-click an event block → quick-action context menu. */
   onEventContextMenu?: (e: PimEventRow, at: { x: number; y: number }) => void;
-  onOpenTask?: (path: string) => void;
+  /** Opens a task where it lives — a database entry as its note, a checkbox at its line. */
+  onOpenTask?: (task: DueTask) => void;
   /** Shared tick-off control from CalendarView — passed in rather than rebuilt
    * so all three calendar surfaces offer the identical gesture (issue #34). */
   renderTaskCheckbox?: (task: DueTask, size: number, dense?: boolean) => React.ReactNode;
@@ -474,15 +475,15 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                 // inside is itself a button (nesting them is invalid HTML).
                 return (
                   <div
-                    key={`task-${task.path}`}
+                    key={`task-${task.id}`}
                     role="button"
                     tabIndex={0}
-                    onClick={() => onOpenTask?.(task.path)}
+                    onClick={() => onOpenTask?.(task)}
                     onKeyDown={(ev) => {
                       if (ev.target !== ev.currentTarget) return;
                       if (ev.key === "Enter" || ev.key === " ") {
                         ev.preventDefault();
-                        onOpenTask?.(task.path);
+                        onOpenTask?.(task);
                       }
                     }}
                     data-testid="calendar-task"
@@ -782,7 +783,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   const tone = taskTone?.(task) ?? { color: task.done ? "var(--text-muted)" : "var(--text-main)", opacity: 1 };
                   return (
                     <div
-                      key={`timed-task-${task.path}`}
+                      key={`timed-task-${task.id}`}
                       role="button"
                       tabIndex={0}
                       data-testid="calendar-timed-task"
@@ -792,12 +793,12 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                       // off silently does nothing. The event blocks stop it for
                       // the same reason.
                       onPointerDown={(ev) => ev.stopPropagation()}
-                      onClick={() => onOpenTask?.(task.path)}
+                      onClick={() => onOpenTask?.(task)}
                       onKeyDown={(ev) => {
                         if (ev.target !== ev.currentTarget) return;
                         if (ev.key === "Enter" || ev.key === " ") {
                           ev.preventDefault();
-                          onOpenTask?.(task.path);
+                          onOpenTask?.(task);
                         }
                       }}
                       style={{

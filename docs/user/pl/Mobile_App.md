@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-10-22
+Stan na: 2026-10-23
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -73,7 +73,7 @@ Wiersz zadania pokazuje tytuł na całą szerokość; status, termin, powtarzani
 
 **Dzisiaj** to powierzchnia dnia. Pasek na górze wybiera dzień — biegnie **w obu kierunkach**, dwa tygodnie wstecz i dwa tygodnie do przodu, a kropka oznacza każdy dzień, który ma już notatkę dzienną. Poniżej znajduje się **notatka dzienna** wybranego dnia (z jej szablonem i folderem, do otwarcia lub utworzenia), następnie **terminy i zadania** tego dnia, a na końcu to, co edytowałeś tego dnia.
 
-Środkowa sekcja łączy to, co inaczej znajdowałoby się w dwóch obszarach: najpierw wydarzenia całodniowe, potem te z konkretną godziną w porządku chronologicznym, a na końcu zadania z terminem tego dnia. Dotknięcie zadania otwiera jego notatkę. Bez podłączonego kalendarza i bez bazy zadań ta sekcja po prostu nie istnieje.
+Środkowa sekcja łączy to, co inaczej znajdowałoby się w dwóch obszarach: najpierw wydarzenia całodniowe, potem te z konkretną godziną w porządku chronologicznym, a na końcu, pod **Termin**, zadania z terminem tego dnia — wpisy Twojej [domyślnej bazy zadań](Tasks.md) i pola wyboru w notatkach z datą `📅` na równi, te same zadania, które pokazuje lista **Dziś** widoku Zadania. W dniu dzisiejszym na początku stoją zaległości, a ich data jest w kolorze ostrzegawczym. Pole przed zadaniem odhacza je od razu na miejscu — pole wyboru w wierszu swojej notatki, z datą ukończenia; dotknięcie zadania je otwiera, pole wyboru w jego wierszu, a dotknięcie jego daty otwiera arkusz daty. Obie sekcje zostają, gdy dzień jest pusty, i mówią o tym.
 
 Tuż pod notatką dzienną znajduje się **Dziennik**: wpisy wybranego dnia, pole, które zapisuje dokładnie w tym dniu, oraz **Wszystkie dni**, które otwiera ekran dziennika ze strumieniem wszystkich dni. **＋** oferuje **Wpis dziennika** z dowolnego miejsca — zobacz [Dziennik](Journal.md).
 
@@ -308,7 +308,7 @@ Ekran zadań otwiera się na **Dziś**; segment nad listą przełącza między *
 
 Android ma dwa widgety, **Dziś** i **Szybki zapis**; na iPhonie dochodzą dwa na ekran blokady, licznik i następne zadanie. Przytrzymaj wolne miejsce na ekranie głównym i wybierz Plainvę.
 
-**Dziś** pokazuje zaległości jako liczbę, a pod nimi wydarzenia i zadania dnia w tej samej kolejności co aplikacja. Dotknięcie wiersza otwiera notatkę, dotknięcie nagłówka ekran Dziś, a **+** arkusz zapisu. **Szybki zapis** nie pokazuje żadnej treści: jeden przycisk **Zadanie**, drugi **Dziennik**.
+**Dziś** pokazuje zaległości jako liczbę, a pod nimi wydarzenia i zadania dnia w tej samej kolejności co aplikacja — zarówno zadania z bazy zadań, jak i pola wyboru w notatkach z datą `📅`. Dotknięcie wiersza otwiera notatkę, dotknięcie nagłówka ekran Dziś, a **+** arkusz zapisu. **Szybki zapis** nie pokazuje żadnej treści: jeden przycisk **Zadanie**, drugi **Dziennik**.
 
 Widget niczego sam nie wylicza. Przy zamkniętej aplikacji nic z Plainvy nie działa, więc pokazuje to, co aplikacja zapisała przy ostatnim uruchomieniu — dlatego zna cały tydzień naprzód i o północy przechodzi na kolejny dzień bez otwierania czegokolwiek. Gdy to, co pokazuje, pochodzi z wcześniejszego dnia, nagłówek mówi, kiedy zostało zapisane.
 

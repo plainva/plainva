@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronLeft, ChevronRight, Diamond, Link2, ListChecks, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { haptics } from "../services/haptics";
-import { chunkWeeks, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge, fillAllDayRoom, planAllDayRows, CalendarSyncNotice, hiddenBeyondDots, syncProblemsFor, parseBaseConfig, resolveTaskCompletionModel, taskDbRows, TaskStateIcon, errorText, type TaskDbRow } from "@plainva/ui";
+import { chunkWeeks, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge, fillAllDayRoom, planAllDayRows, CalendarSyncNotice, hiddenBeyondDots, syncProblemsFor, dueRowsByDay, isOpenState, setPendingSearchJump, TaskStateIcon, errorText, type PlannerRow } from "@plainva/ui";
 import type { PimEventRow, PimSyncProblem } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -27,8 +27,7 @@ import { DeviceSignInCard } from "../components/DeviceSignInRow";
 import { AppBar } from "../components/AppBar";
 import { getMobileVault } from "../services/vaultService";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
-import { setTaskDone } from "../services/taskCompletionAction";
-import { syncSoon } from "../services/syncService";
+import { loadPhoneDueTasks, taskJumpTerm, tickPhoneDueTask } from "../services/dueTasks";
 import type { CalendarFocus } from "../services/calendarFocus";
 
 /**
@@ -153,10 +152,12 @@ export function PimCalendarScreen({
   const [ovCands, setOvCands] = useState<OverlayCandidate[]>([]);
   const [ovKeys, setOvKeys] = useState<string[]>([]);
   const [ovEntries, setOvEntries] = useState<OverlayEntry[]>([]);
-  // The task database's due entries, when "Show tasks" is on (TestFlight 125).
+  // The due tasks, when "Show tasks" is on (TestFlight 125) — the task
+  // database's entries and the checkboxes in notes (TestFlight 136).
   const [showTasks, setShowTasks] = useState(storedShowTasks);
-  const [taskDbSet, setTaskDbSet] = useState(() => getMobileSettings().taskDatabase.trim() !== "");
-  const [dueTasks, setDueTasks] = useState<TaskDbRow[]>([]);
+  const [dueTasks, setDueTasks] = useState<PlannerRow[]>([]);
+  // Without a completion model a database entry's tick writes nothing: its box is no control.
+  const [dbTickable, setDbTickable] = useState(false);
   const [tasksTick, setTasksTick] = useState(0);
   // The date jump sheet under the app bar's period (plan Kalender 2026-09-10,
   // P3): the same picker the desktop opens under its title.
@@ -319,12 +320,10 @@ export function PimCalendarScreen({
     }
   }, [showTasks]);
 
-  // Due tasks of the task database: the same shared projection the task screen
-  // reads (`taskDbRows`), so "done" means here what it means there.
+  // Due tasks from both sources, loaded the way the Today screen loads them
+  // (`loadPhoneDueTasks`), so "due" and "done" mean here what they mean there.
   useEffect(() => {
-    const db = getMobileSettings().taskDatabase.trim();
-    setTaskDbSet(db !== "");
-    if (!showTasks || !db) {
+    if (!showTasks) {
       setDueTasks([]);
       return;
     }
@@ -332,11 +331,11 @@ export function PimCalendarScreen({
     void (async () => {
       try {
         const vault = await getMobileVault();
-        const qs = vault.queryService;
-        if (!qs) return;
-        const config = parseBaseConfig(await vault.files.readTextFile(db));
-        const rows = taskDbRows((await qs.queryDatabaseFiles(config)) as Record<string, unknown>[], config, resolveTaskCompletionModel(config));
-        if (alive) setDueTasks(rows.filter((row) => row.due));
+        const { rows, databaseTickable } = await loadPhoneDueTasks(vault);
+        if (alive) {
+          setDueTasks(rows);
+          setDbTickable(databaseTickable);
+        }
       } catch {
         if (alive) setDueTasks([]);
       }
@@ -351,40 +350,36 @@ export function PimCalendarScreen({
     return () => window.removeEventListener("m-task-sync-done", onChanged);
   }, []);
 
-  /** Ticks a task off where it stands - the task screen's own path. */
+  /** Ticks a task off where it stands - each source the way the task screen writes it. */
   const toggleTask = useCallback(
-    (row: TaskDbRow) => {
-      void setTaskDone(row.path, !row.done)
+    (row: PlannerRow) => {
+      void getMobileVault()
+        .then((vault) => tickPhoneDueTask(vault, row))
         .then((result) => {
-          if (result.changed) {
-            syncSoon();
-            // A task mirrored from a provider list goes there with the next
-            // cycle - asked for now, not in two minutes.
-            pimSyncNow();
-          }
           setTasksTick((x) => x + 1);
           if (result.spawnedDue) toast.info(t("tasks.repeatSpawned", { date: result.spawnedDue }));
           if (result.spawnFailed) toast.error(t("tasks.repeatFailed"));
         })
-        // The tick writes the note's completion property: the sentence a
-        // property write gets, with the reason as `errorText` reads it, as on
-        // the task screen (finding 2026-10-12) — the bare message of a block
-        // that is no YAML quotes the note's own line.
-        .catch((e) => toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) })));
+        // A database tick writes the note's completion property: the sentence
+        // a property write gets, with the reason as `errorText` reads it, as
+        // on the task screen (finding 2026-10-12) — the bare message of a
+        // block that is no YAML quotes the note's own line. A checkbox says
+        // its reason.
+        .catch((e) => {
+          if (row.source === "database") toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+          else toast.error(errorText(e));
+        });
     },
     [t]
   );
 
-  const tasksByDay = useMemo(() => {
-    const map = new Map<string, TaskDbRow[]>();
-    for (const row of dueTasks) {
-      if (!row.due) continue;
-      const list = map.get(row.due) ?? [];
-      list.push(row);
-      map.set(row.due, list);
-    }
-    return map;
-  }, [dueTasks]);
+  const tasksByDay = useMemo(() => dueRowsByDay(dueTasks), [dueTasks]);
+  /** A task opens where it lives: a checkbox at its line, a database entry as its note. */
+  const openTaskRow = (row: PlannerRow) => {
+    const term = taskJumpTerm(row);
+    if (term) setPendingSearchJump({ path: row.path, term });
+    onOpenNote?.(row.path);
+  };
 
   /** Entries by day, so the day lists can merge them with the appointments. */
   const ovByDay = useMemo(() => {
@@ -437,25 +432,27 @@ export function PimCalendarScreen({
   /** Database entries and tasks of a day, as keys - what the month's hollow dots count. */
   const notesOf = (key: string): string[] => [
     ...(ovByDay.get(key) ?? []).map((entry) => `ov-${entry.basePath}-${entry.path}`),
-    ...(tasksByDay.get(key) ?? []).map((row) => `task-${row.path}`),
+    ...(tasksByDay.get(key) ?? []).map((row) => `task-${row.id}`),
   ];
   /** The entries and tasks of a day that carry no time: the all-day strip's. */
   const allDayNotesOf = (key: string) => ({
     overlay: (ovByDay.get(key) ?? []).filter((entry) => entry.minutes === undefined),
-    tasks: (tasksByDay.get(key) ?? []).filter((row) => row.dueMinutes === undefined),
+    tasks: (tasksByDay.get(key) ?? []).filter((row) => row.dueMinutes === null),
   });
   // Compact: a task in a day column is one line high; the shared icon says
   // done or open exactly as the task screen does.
-  const taskBox = (row: TaskDbRow) => (
+  const taskBox = (row: PlannerRow) => (
     <button
       type="button"
       className="m-cal-note-box"
-      aria-label={t(row.done ? "tasks.open" : "tasks.done")}
+      aria-label={t(isOpenState(row.state) ? "tasks.done" : "tasks.open")}
       data-testid="pim-task-toggle"
-      data-state={row.done ? "done" : "open"}
+      data-state={row.state}
+      data-source={row.source}
+      disabled={row.source === "database" && !dbTickable}
       onClick={() => toggleTask(row)}
     >
-      <TaskStateIcon state={row.done ? "done" : "open"} size={ICON.meta} />
+      <TaskStateIcon state={row.state} size={ICON.meta} />
     </button>
   );
   /** The one-word state ("Abgesagt", "Offen", "Vielleicht") for an agenda row;
@@ -689,35 +686,33 @@ export function PimCalendarScreen({
 
       {/* The "show" row (S18b): a scrolling chip row instead of the desktop's
           bar. The chips carry a diamond in BOTH states — it is what says
-          "notes", and switching one on must not take that away. */}
-      {(ovCands.length > 0 || taskDbSet) && (
-        <ScrollEdge axis="x" className="m-chiprow" data-testid="pim-overlay-row">
-          {taskDbSet && (
+          "notes", and switching one on must not take that away.
+          "Show tasks" is always there: it used to need a task database, and
+          every vault can hold checkboxes with a due date (TestFlight 136). */}
+      <ScrollEdge axis="x" className="m-chiprow" data-testid="pim-overlay-row">
+        <Chip
+          icon={<ListChecks size={ICON.meta} />}
+          selected={showTasks}
+          onClick={() => setShowTasks((v) => !v)}
+          testId="pim-show-tasks"
+        >
+          {t("pim.showTasks")}
+        </Chip>
+        {ovCands.map((c) => {
+          const key = overlayKey(c);
+          return (
             <Chip
-              icon={<ListChecks size={ICON.meta} />}
-              selected={showTasks}
-              onClick={() => setShowTasks((v) => !v)}
-              testId="pim-show-tasks"
+              key={key}
+              icon={<Diamond size={ICON.meta} />}
+              selected={ovKeys.includes(key)}
+              onClick={() => toggleOverlay(key)}
+              testId={`pim-overlay-${key}`}
             >
-              {t("pim.showTasks")}
+              {c.label}
             </Chip>
-          )}
-          {ovCands.map((c) => {
-            const key = overlayKey(c);
-            return (
-              <Chip
-                key={key}
-                icon={<Diamond size={ICON.meta} />}
-                selected={ovKeys.includes(key)}
-                onClick={() => toggleOverlay(key)}
-                testId={`pim-overlay-${key}`}
-              >
-                {c.label}
-              </Chip>
-            );
-          })}
-        </ScrollEdge>
-      )}
+          );
+        })}
+      </ScrollEdge>
 
       {/* Who is not being synced, since when and why (K1) — only above an
           actual calendar: without accounts, or with none that signs in, the
@@ -912,13 +907,13 @@ export function PimCalendarScreen({
                   </button>
                 ))}
                 {(tasksByDay.get(key) ?? []).map((row) => (
-                  <div key={`task-${row.path}`} className="m-row m-overlay-entry" data-testid="pim-task">
+                  <div key={`task-${row.id}`} className="m-row m-overlay-entry" data-testid="pim-task">
                     {taskBox(row)}
-                    <button type="button" className={`m-cal-note-title${row.done ? " is-done" : ""}`} onClick={() => onOpenNote?.(row.path)}>
+                    <button type="button" className={`m-cal-note-title${isOpenState(row.state) ? "" : " is-done"}`} onClick={() => openTaskRow(row)}>
                       {row.title}
                     </button>
                     <span style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)", flexShrink: 0 }}>
-                      {row.dueMinutes !== undefined ? minutesToHHMM(row.dueMinutes) : t("pim.allDay", { defaultValue: "Ganztägig" })}
+                      {row.dueMinutes !== null ? minutesToHHMM(row.dueMinutes) : t("pim.allDay", { defaultValue: "Ganztägig" })}
                     </span>
                   </div>
                 ))}
@@ -1009,9 +1004,9 @@ export function PimCalendarScreen({
                     </button>
                   ))}
                   {allDayDays[dayIndex].tasks.map((row) => (
-                    <div key={`task-${row.path}`} className="m-overlay-entry m-cal-note m-cal-note--task" data-testid="pim-task">
+                    <div key={`task-${row.id}`} className="m-overlay-entry m-cal-note m-cal-note--task" data-testid="pim-task">
                       {taskBox(row)}
-                      <button type="button" className={`m-cal-note-title${row.done ? " is-done" : ""}`} onClick={() => onOpenNote?.(row.path)}>
+                      <button type="button" className={`m-cal-note-title${isOpenState(row.state) ? "" : " is-done"}`} onClick={() => openTaskRow(row)}>
                         {row.title}
                       </button>
                     </div>
@@ -1126,15 +1121,15 @@ export function PimCalendarScreen({
                       <span className="m-cal-note-title">{entry.title}</span>
                     </button>
                   ))}
-                  {(tasksByDay.get(key) ?? []).filter((row) => row.dueMinutes !== undefined).map((row) => (
+                  {(tasksByDay.get(key) ?? []).filter((row) => row.dueMinutes !== null).map((row) => (
                     <div
-                      key={`timed-task-${row.path}`}
+                      key={`timed-task-${row.id}`}
                       className="m-overlay-entry m-cal-note m-cal-note--timed m-cal-note--task"
                       data-testid="pim-task"
                       style={{ top: minutesToPx(row.dueMinutes ?? 0, PX_PER_HOUR) }}
                     >
                       {taskBox(row)}
-                      <button type="button" className={`m-cal-note-title${row.done ? " is-done" : ""}`} onClick={() => onOpenNote?.(row.path)}>
+                      <button type="button" className={`m-cal-note-title${isOpenState(row.state) ? "" : " is-done"}`} onClick={() => openTaskRow(row)}>
                         {row.title}
                       </button>
                     </div>
