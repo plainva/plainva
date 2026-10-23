@@ -5012,18 +5012,18 @@
     "redeemed_other": "{{count}} tareas marcadas desde el widget"
   },
   "accountAccess": {
-    "lineLabel": "Acceso de este dispositivo",
-    "plainva": "Acceso de Plainva",
-    "plainvaDesc": "El acceso propio de Plainva. No tienes que introducir nada.",
+    "lineLabel": "Inicio de sesión en este dispositivo",
+    "plainva": "Inicio de sesión estándar",
+    "plainvaDesc": "El inicio de sesión que trae la app. No tienes que introducir nada.",
     "plainvaMissing": "No incluido en esta compilación.",
-    "own": "Acceso propio",
-    "ownLine": "Acceso propio ({{id}})",
+    "own": "ID de cliente propio",
+    "ownLine": "ID de cliente propio ({{id}})",
     "change": "Cambiar",
-    "deviceOnly": "Se aplica a este dispositivo, no a toda la cuenta. Los demás dispositivos conservan su acceso.",
-    "signInAgainHint": "Al iniciar sesión de nuevo se usa el acceso de este dispositivo.",
+    "deviceOnly": "Se aplica a este dispositivo, no a toda la cuenta. Los demás dispositivos conservan su ajuste.",
+    "signInAgainHint": "Al iniciar sesión de nuevo se usa el ajuste de este dispositivo.",
     "title": {
-      "google": "Acceso de Google de este dispositivo",
-      "microsoft": "Acceso de Microsoft de este dispositivo"
+      "google": "Inicio de sesión de Google en este dispositivo",
+      "microsoft": "Inicio de sesión de Microsoft en este dispositivo"
     },
     "ownDesc": {
       "google": "Un cliente de tu propio proyecto de Google.",
@@ -5035,10 +5035,10 @@
       "microsoft": "El ID de aplicación (cliente) de tu registro de aplicación."
     },
     "problem": {
-      "noPlainvaClient": "Esta compilación no incluye un acceso de Plainva para Google. Introduce tu propio acceso en «Cambiar».",
-      "ownClientMissing": "Al acceso propio le falta el Client ID.",
+      "noPlainvaClient": "Esta compilación no incluye un inicio de sesión estándar para Google. Introduce tu propio ID de cliente en «Cambiar».",
+      "ownClientMissing": "Falta el ID de cliente.",
       "ownClientInvalid": "Este Client ID no tiene la forma esperada.",
-      "ownSecretMissing": "Al acceso propio le falta el Client Secret."
+      "ownSecretMissing": "Falta el secreto de cliente de tu ID de cliente propio."
     }
   }
 }

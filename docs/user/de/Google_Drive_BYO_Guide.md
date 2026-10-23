@@ -2,7 +2,7 @@
 
 Stand: 2026-10-23
 
-Plainva meldet sich mit dem **Zugang dieses Geräts** bei Google an. Enthält Dein Build den **Plainva-Zugang** für Google, trägst Du nichts ein und brauchst diese Seite nicht. Andernfalls — oder wenn Du lieber ein eigenes Projekt nutzt — verwendest Du eigene Google API Zugangsdaten ("Credentials"): Dieser **Bring Your Own Credentials (BYO)** Ansatz bietet eine sichere Methode, um Deine privaten Dateien zu synchronisieren.
+Plainva meldet sich mit der **Anmeldung auf diesem Gerät** bei Google an. Enthält Dein Build die **Standard-Anmeldung** für Google, trägst Du nichts ein und brauchst diese Seite nicht. Andernfalls — oder wenn Du lieber ein eigenes Projekt nutzt — verwendest Du eigene Google API Zugangsdaten ("Credentials"): Dieser **Bring Your Own Credentials (BYO)** Ansatz bietet eine sichere Methode, um Deine privaten Dateien zu synchronisieren.
 
 Du richtest Dir hierbei quasi ein eigenes "Entwicklerprojekt" bei Google ein, das ausschließlich Dir gehört und auf das nur Du Zugriff hast.
 
@@ -53,20 +53,20 @@ Der Status **In Produktion** beseitigt die feste Ablaufzeit des Testmodus. Er ga
 
 ### 5. In Plainva eintragen
 1. Öffne **Einstellungen → Dein Vault → Cloud-Konten**.
-2. Für ein neues Konto wähle **Konto verbinden…** → die Kachel **Google** und hake die Dienste an; bei einem Konto, das Du schon hast, öffne es und wähle **Ändern** bei **Zugang dieses Geräts**.
-3. Wähle **Eigener Zugang** und trage die kopierte **Client ID** und das **Client Secret** ein — am Telefon nur die **Client ID** des iOS-Clients; er hat kein Secret. Dann **Speichern**.
+2. Für ein neues Konto wähle **Konto verbinden…** → die Kachel **Google** und hake die Dienste an; bei einem Konto, das Du schon hast, öffne es und wähle **Ändern** bei **Anmeldung auf diesem Gerät**.
+3. Wähle **Eigene Client-ID** und trage die kopierte **Client ID** und das **Client Secret** ein — am Telefon nur die **Client ID** des iOS-Clients; er hat kein Secret. Dann **Speichern**.
 4. Klicke auf **Bei Google anmelden…** (bei einem Konto, das Du schon hast: **Erneut anmelden**).
 5. Es öffnet sich ein Browserfenster von Google. Melde Dich mit dem Account an, den Du unter "Testnutzer" eingetragen hast.
 6. Google zeigt ggf. eine Warnung an, dass die App nicht verifiziert ist. Klicke auf **Erweitert** und dann auf **Weiter zu Plainva (unsicher)**.
 7. Bestätige die angeforderten Berechtigungen — eine Zustimmung deckt alle angehakten Dienste ab.
-8. Der eigene Zugang gilt nur für dieses Gerät; andere Geräte behalten ihren. Trag ihn auf jedem Gerät ein, das Dein Projekt nutzen soll.
+8. Die eigene Client-ID gilt nur für dieses Gerät; andere Geräte behalten ihre Einstellung. Trag sie auf jedem Gerät ein, das Dein Projekt nutzen soll.
 
 Dein Vault wird nun sicher über Deine eigenen Credentials mit Google Drive synchronisiert.
 
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-Die Desktop-Anleitung oben benötigt einen Desktop-Client mit Client-ID und zugehörigem Client-Secret. Am Telefon, unter Android wie unter iOS, meldet sich Plainva im Browser bei Google an: Lege in Deinem Google-Projekt einen OAuth-Client vom Typ **iOS** an, auch für Android, mit der Bundle-ID `com.plainva.app`. Plainva kehrt über `com.plainva.app:/oauth2redirect` zurück; ein Client-Secret gibt es nicht. Trage die Client-ID am Telefon unter **Zugang dieses Geräts** → **Eigener Zugang** ein. Lege keinen Client vom Typ Android an: Google lässt Paketname und Zertifikatfingerabdruck des Play-Builds weltweit in genau einem Projekt zu und lehnt jedes weitere ab („der Android-Paketname und der Fingerabdruck werden bereits verwendet“). Ein Android-Client, der für Plainva 0.8.3 oder 0.8.4 eingerichtet wurde, funktioniert für eine neue Anmeldung nicht; bereits angemeldete Konten laufen weiter. Ein Desktop-Client ersetzt die mobile Registrierung nicht. Für Kalender aktiviere zusätzlich die Google Calendar API und die Google Tasks API.
+Die Desktop-Anleitung oben benötigt einen Desktop-Client mit Client-ID und zugehörigem Client-Secret. Am Telefon, unter Android wie unter iOS, meldet sich Plainva im Browser bei Google an: Lege in Deinem Google-Projekt einen OAuth-Client vom Typ **iOS** an, auch für Android, mit der Bundle-ID `com.plainva.app`. Plainva kehrt über `com.plainva.app:/oauth2redirect` zurück; ein Client-Secret gibt es nicht. Trage die Client-ID am Telefon unter **Anmeldung auf diesem Gerät** → **Eigene Client-ID** ein. Lege keinen Client vom Typ Android an: Google lässt Paketname und Zertifikatfingerabdruck des Play-Builds weltweit in genau einem Projekt zu und lehnt jedes weitere ab („der Android-Paketname und der Fingerabdruck werden bereits verwendet“). Ein Android-Client, der für Plainva 0.8.3 oder 0.8.4 eingerichtet wurde, funktioniert für eine neue Anmeldung nicht; bereits angemeldete Konten laufen weiter. Ein Desktop-Client ersetzt die mobile Registrierung nicht. Für Kalender aktiviere zusätzlich die Google Calendar API und die Google Tasks API.
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 

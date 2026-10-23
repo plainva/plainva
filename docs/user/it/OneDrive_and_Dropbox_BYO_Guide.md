@@ -2,7 +2,7 @@
 
 Ultimo aggiornamento: 2026-10-23
 
-**Normalmente non hai bisogno di questa pagina:** Plainva fornisce già un proprio ID app per OneDrive **e** Dropbox — scegli il provider, fai clic su **Connetti** e accedi. Ti serve una registrazione app **personale** (gratuita) solo in due casi: quando una restrizione aziendale blocca l'accesso incluso, oppure quando vuoi mettere deliberatamente la connessione sotto il tuo controllo. Per **OneDrive** lo inserisci in **Accesso di questo dispositivo** → **Cambia** → **Accesso personale** — nella pagina dell'account o nella procedura, sul desktop come sul telefono, solo per questo dispositivo. Per **Dropbox** il campo resta dov'era: sul **desktop** **Usa il tuo ID applicazione** presso l'account, sul **telefono** nel modulo di connessione, subito sotto il provider. In entrambi i casi inserisci un unico valore pubblico:
+**Normalmente non hai bisogno di questa pagina:** Plainva fornisce già un proprio ID app per OneDrive **e** Dropbox — scegli il provider, fai clic su **Connetti** e accedi. Ti serve una registrazione app **personale** (gratuita) solo in due casi: quando una restrizione aziendale blocca l'accesso incluso, oppure quando vuoi mettere deliberatamente la connessione sotto il tuo controllo. Per **OneDrive** lo inserisci in **Accesso su questo dispositivo** → **Cambia** → **ID client personale** — nella pagina dell'account o nella procedura, sul desktop come sul telefono, solo per questo dispositivo. Per **Dropbox** il campo resta dov'era: sul **desktop** **Usa il tuo ID applicazione** presso l'account, sul **telefono** nel modulo di connessione, subito sotto il provider. In entrambi i casi inserisci un unico valore pubblico:
 
 - **OneDrive** → un **ID client** (formato `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → una **App Key** (una breve stringa)
@@ -57,7 +57,7 @@ Nella **Panoramica** dell'app, copia il valore **"ID applicazione (client)"** �
 ### Inseriscilo in Plainva
 
 1. **Impostazioni → il tuo vault → Account cloud**: apri l'account Microsoft, oppure avvia **Collega account…** con la scheda **Microsoft**.
-2. In **Accesso di questo dispositivo** scegli **Cambia**, poi **Accesso personale**.
+2. In **Accesso su questo dispositivo** scegli **Cambia**, poi **ID client personale**.
 3. Incolla l'ID applicazione copiato nel campo **ID client** e **Salva**.
 4. **Riconnetti** (nella procedura: **Accedi con Microsoft…**) → accedi nel browser e conferma l'accesso. Il browser ti dirà poi che puoi chiudere la finestra.
 

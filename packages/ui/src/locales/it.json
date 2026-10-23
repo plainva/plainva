@@ -5012,18 +5012,18 @@
     "redeemed_other": "{{count}} attività completate dal widget"
   },
   "accountAccess": {
-    "lineLabel": "Accesso di questo dispositivo",
-    "plainva": "Accesso Plainva",
-    "plainvaDesc": "L’accesso di Plainva stesso. Non devi inserire nulla.",
+    "lineLabel": "Accesso su questo dispositivo",
+    "plainva": "Accesso standard",
+    "plainvaDesc": "L’accesso incluso nell’app. Non devi inserire nulla.",
     "plainvaMissing": "Non incluso in questa build.",
-    "own": "Accesso personale",
-    "ownLine": "Accesso personale ({{id}})",
+    "own": "ID client personale",
+    "ownLine": "ID client personale ({{id}})",
     "change": "Cambia",
-    "deviceOnly": "Vale per questo dispositivo, non per l’intero account. Gli altri dispositivi mantengono il proprio accesso.",
-    "signInAgainHint": "Accedendo di nuovo si usa l’accesso di questo dispositivo.",
+    "deviceOnly": "Vale per questo dispositivo, non per l’intero account. Gli altri dispositivi mantengono la propria impostazione.",
+    "signInAgainHint": "Accedendo di nuovo si usa l’impostazione di questo dispositivo.",
     "title": {
-      "google": "Accesso Google di questo dispositivo",
-      "microsoft": "Accesso Microsoft di questo dispositivo"
+      "google": "Accesso Google su questo dispositivo",
+      "microsoft": "Accesso Microsoft su questo dispositivo"
     },
     "ownDesc": {
       "google": "Un client del tuo progetto Google.",
@@ -5035,10 +5035,10 @@
       "microsoft": "L’ID applicazione (client) della tua registrazione dell’app."
     },
     "problem": {
-      "noPlainvaClient": "Questa build non include un accesso Plainva per Google. Inserisci il tuo accesso in “Cambia”.",
-      "ownClientMissing": "All’accesso personale manca l’ID client.",
+      "noPlainvaClient": "Questa build non include un accesso standard per Google. Inserisci il tuo ID client in “Cambia”.",
+      "ownClientMissing": "Manca l’ID client.",
       "ownClientInvalid": "Questo ID client non ha la forma prevista.",
-      "ownSecretMissing": "All’accesso personale manca il secret client."
+      "ownSecretMissing": "Manca il client secret del tuo ID client personale."
     }
   }
 }

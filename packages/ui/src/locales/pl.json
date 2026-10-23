@@ -5075,18 +5075,18 @@
     "redeemed_other": "Odhaczono {{count}} zadania z widgetu"
   },
   "accountAccess": {
-    "lineLabel": "Dostęp tego urządzenia",
-    "plainva": "Dostęp Plainva",
-    "plainvaDesc": "Własny dostęp Plainva. Nie musisz niczego wpisywać.",
+    "lineLabel": "Logowanie na tym urządzeniu",
+    "plainva": "Logowanie standardowe",
+    "plainvaDesc": "Logowanie dostarczane z aplikacją. Nie musisz niczego wpisywać.",
     "plainvaMissing": "Nie wchodzi w skład tej kompilacji.",
-    "own": "Własny dostęp",
-    "ownLine": "Własny dostęp ({{id}})",
+    "own": "Własny identyfikator klienta",
+    "ownLine": "Własny identyfikator klienta ({{id}})",
     "change": "Zmień",
-    "deviceOnly": "Dotyczy tego urządzenia, a nie całego konta. Inne urządzenia zachowują swój dostęp.",
-    "signInAgainHint": "Ponowne zalogowanie używa dostępu tego urządzenia.",
+    "deviceOnly": "Dotyczy tego urządzenia, a nie całego konta. Inne urządzenia zachowują swoje ustawienie.",
+    "signInAgainHint": "Ponowne zalogowanie używa ustawienia tego urządzenia.",
     "title": {
-      "google": "Dostęp Google tego urządzenia",
-      "microsoft": "Dostęp Microsoft tego urządzenia"
+      "google": "Logowanie Google na tym urządzeniu",
+      "microsoft": "Logowanie Microsoft na tym urządzeniu"
     },
     "ownDesc": {
       "google": "Klient z Twojego własnego projektu Google.",
@@ -5098,10 +5098,10 @@
       "microsoft": "Identyfikator aplikacji (klienta) z Twojej rejestracji aplikacji."
     },
     "problem": {
-      "noPlainvaClient": "Ta kompilacja nie zawiera dostępu Plainva dla Google. Wpisz własny dostęp w „Zmień”.",
-      "ownClientMissing": "Własny dostęp wymaga Client ID.",
+      "noPlainvaClient": "Ta kompilacja nie zawiera logowania standardowego dla Google. Wpisz własny identyfikator klienta w „Zmień”.",
+      "ownClientMissing": "Brakuje identyfikatora klienta.",
       "ownClientInvalid": "Ten Client ID nie ma oczekiwanej postaci.",
-      "ownSecretMissing": "Własny dostęp wymaga Client Secret."
+      "ownSecretMissing": "Brakuje sekretu klienta dla własnego identyfikatora klienta."
     }
   }
 }

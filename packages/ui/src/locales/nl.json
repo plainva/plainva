@@ -4949,18 +4949,18 @@
     "redeemed_other": "{{count}} taken afgevinkt vanaf de widget"
   },
   "accountAccess": {
-    "lineLabel": "Toegang van dit apparaat",
-    "plainva": "Plainva-toegang",
-    "plainvaDesc": "De eigen toegang van Plainva. Je hoeft niets in te voeren.",
+    "lineLabel": "Aanmelding op dit apparaat",
+    "plainva": "Standaardaanmelding",
+    "plainvaDesc": "De aanmelding die bij de app hoort. Je hoeft niets in te voeren.",
     "plainvaMissing": "Niet opgenomen in deze build.",
-    "own": "Eigen toegang",
-    "ownLine": "Eigen toegang ({{id}})",
+    "own": "Eigen client-ID",
+    "ownLine": "Eigen client-ID ({{id}})",
     "change": "Wijzigen",
-    "deviceOnly": "Geldt voor dit apparaat, niet voor het hele account. Andere apparaten behouden hun toegang.",
-    "signInAgainHint": "Opnieuw aanmelden gebruikt de toegang van dit apparaat.",
+    "deviceOnly": "Geldt voor dit apparaat, niet voor het hele account. Andere apparaten behouden hun instelling.",
+    "signInAgainHint": "Opnieuw aanmelden gebruikt de instelling van dit apparaat.",
     "title": {
-      "google": "Google-toegang van dit apparaat",
-      "microsoft": "Microsoft-toegang van dit apparaat"
+      "google": "Google-aanmelding op dit apparaat",
+      "microsoft": "Microsoft-aanmelding op dit apparaat"
     },
     "ownDesc": {
       "google": "Een client uit je eigen Google-project.",
@@ -4972,10 +4972,10 @@
       "microsoft": "De toepassings-ID (client) van je app-registratie."
     },
     "problem": {
-      "noPlainvaClient": "Deze build bevat geen Plainva-toegang voor Google. Voer je eigen toegang in onder “Wijzigen”.",
-      "ownClientMissing": "Voor de eigen toegang ontbreekt de client-ID.",
+      "noPlainvaClient": "Deze build bevat geen standaardaanmelding voor Google. Voer je eigen client-ID in onder “Wijzigen”.",
+      "ownClientMissing": "De client-ID ontbreekt.",
       "ownClientInvalid": "Deze client-ID heeft niet de verwachte vorm.",
-      "ownSecretMissing": "Voor de eigen toegang ontbreekt het client secret."
+      "ownSecretMissing": "Het clientgeheim van je eigen client-ID ontbreekt."
     }
   }
 }

@@ -2,7 +2,7 @@
 
 Última revisão: 2026-10-23
 
-**Normalmente você não precisa desta página:** o Plainva já vem com seu próprio ID de app para OneDrive **e** Dropbox — você escolhe o provedor, clica em **Conectar** e faz login. Você só precisa de um registro de app **próprio** (gratuito) em dois casos: quando uma restrição corporativa bloqueia o acesso que acompanha o app, ou quando você quer colocar a conexão deliberadamente sob seu próprio controle. Para o **OneDrive**, você o informa em **Acesso deste dispositivo** → **Alterar** → **Acesso próprio** — na página da conta ou no assistente, tanto no desktop quanto no celular, só para este dispositivo. Para o **Dropbox**, o campo continua onde estava: no **desktop**, **Usar seu próprio ID de aplicativo** na conta; no **telefone**, no formulário de conexão, logo abaixo do provedor. De qualquer forma, você informa um único valor público:
+**Normalmente você não precisa desta página:** o Plainva já vem com seu próprio ID de app para OneDrive **e** Dropbox — você escolhe o provedor, clica em **Conectar** e faz login. Você só precisa de um registro de app **próprio** (gratuito) em dois casos: quando uma restrição corporativa bloqueia o login que acompanha o app, ou quando você quer colocar a conexão deliberadamente sob seu próprio controle. Para o **OneDrive**, você o informa em **Login neste dispositivo** → **Alterar** → **ID de cliente próprio** — na página da conta ou no assistente, tanto no desktop quanto no celular, só para este dispositivo. Para o **Dropbox**, o campo continua onde estava: no **desktop**, **Usar seu próprio ID de aplicativo** na conta; no **telefone**, no formulário de conexão, logo abaixo do provedor. De qualquer forma, você informa um único valor público:
 
 - **OneDrive** → um **Client ID** (formato `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → uma **App Key** (uma string curta)
@@ -57,7 +57,7 @@ Na **Visão geral** do app, copie o valor **"ID do aplicativo (cliente)"** — e
 ### Informe no Plainva
 
 1. **Configurações → seu vault → Contas na nuvem**: abra a conta Microsoft ou inicie **Conectar conta…** com o bloco **Microsoft**.
-2. Em **Acesso deste dispositivo**, escolha **Alterar** e depois **Acesso próprio**.
+2. Em **Login neste dispositivo**, escolha **Alterar** e depois **ID de cliente próprio**.
 3. Cole o ID do aplicativo copiado no campo **Client ID** e **Salvar**.
 4. **Entrar novamente** (no assistente: **Entrar com a Microsoft…**) → faça login no navegador e confirme o acesso. O navegador então avisa que você pode fechar a janela.
 

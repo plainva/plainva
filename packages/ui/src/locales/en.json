@@ -4949,18 +4949,18 @@
     "redeemed_other": "{{count}} tasks ticked off from the widget"
   },
   "accountAccess": {
-    "lineLabel": "This device's access",
-    "plainva": "Plainva access",
-    "plainvaDesc": "Plainva's own access. You enter nothing.",
+    "lineLabel": "Sign-in on this device",
+    "plainva": "Standard sign-in",
+    "plainvaDesc": "The sign-in that comes with the app. You enter nothing.",
     "plainvaMissing": "Not included in this build.",
-    "own": "Own access",
-    "ownLine": "Own access ({{id}})",
+    "own": "Own client ID",
+    "ownLine": "Own client ID ({{id}})",
     "change": "Change",
-    "deviceOnly": "Applies to this device, not to the whole account. Other devices keep their access.",
-    "signInAgainHint": "Signing in again uses this device's access.",
+    "deviceOnly": "Applies to this device, not to the whole account. Other devices keep their setting.",
+    "signInAgainHint": "Signing in again uses this device's setting.",
     "title": {
-      "google": "This device's Google access",
-      "microsoft": "This device's Microsoft access"
+      "google": "Google sign-in on this device",
+      "microsoft": "Microsoft sign-in on this device"
     },
     "ownDesc": {
       "google": "A client from your own Google project.",
@@ -4972,10 +4972,10 @@
       "microsoft": "The application (client) ID of your app registration."
     },
     "problem": {
-      "noPlainvaClient": "This build includes no Plainva access for Google. Enter your own access under “Change”.",
-      "ownClientMissing": "The own access needs a client ID.",
+      "noPlainvaClient": "This build includes no standard sign-in for Google. Enter your own client ID under “Change”.",
+      "ownClientMissing": "The client ID is missing.",
       "ownClientInvalid": "This client ID does not have the expected form.",
-      "ownSecretMissing": "The own access needs a client secret."
+      "ownSecretMissing": "The client secret for your own client ID is missing."
     }
   }
 }

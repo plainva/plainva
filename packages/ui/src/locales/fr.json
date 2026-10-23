@@ -5012,18 +5012,18 @@
     "redeemed_other": "{{count}} tâches cochées depuis le widget"
   },
   "accountAccess": {
-    "lineLabel": "Accès de cet appareil",
-    "plainva": "Accès Plainva",
-    "plainvaDesc": "L’accès propre à Plainva. Vous n’avez rien à saisir.",
+    "lineLabel": "Connexion sur cet appareil",
+    "plainva": "Connexion standard",
+    "plainvaDesc": "La connexion fournie avec l’app. Vous n’avez rien à saisir.",
     "plainvaMissing": "Non inclus dans cette version.",
-    "own": "Accès personnel",
-    "ownLine": "Accès personnel ({{id}})",
+    "own": "ID client personnel",
+    "ownLine": "ID client personnel ({{id}})",
     "change": "Modifier",
-    "deviceOnly": "Valable pour cet appareil, pas pour tout le compte. Les autres appareils gardent leur accès.",
-    "signInAgainHint": "Se reconnecter utilise l’accès de cet appareil.",
+    "deviceOnly": "Valable pour cet appareil, pas pour tout le compte. Les autres appareils gardent leur réglage.",
+    "signInAgainHint": "Se reconnecter utilise le réglage de cet appareil.",
     "title": {
-      "google": "Accès Google de cet appareil",
-      "microsoft": "Accès Microsoft de cet appareil"
+      "google": "Connexion Google sur cet appareil",
+      "microsoft": "Connexion Microsoft sur cet appareil"
     },
     "ownDesc": {
       "google": "Un client de votre propre projet Google.",
@@ -5035,10 +5035,10 @@
       "microsoft": "L’ID d’application (client) de votre enregistrement d’application."
     },
     "problem": {
-      "noPlainvaClient": "Cette version n’inclut pas d’accès Plainva pour Google. Saisissez votre propre accès sous « Modifier ».",
-      "ownClientMissing": "L’accès personnel nécessite un ID client.",
+      "noPlainvaClient": "Cette version n’inclut pas de connexion standard pour Google. Saisissez votre propre ID client sous « Modifier ».",
+      "ownClientMissing": "L’ID client manque.",
       "ownClientInvalid": "Cet ID client n’a pas la forme attendue.",
-      "ownSecretMissing": "L’accès personnel nécessite un secret client."
+      "ownSecretMissing": "Le secret client de votre ID client personnel manque."
     }
   }
 }

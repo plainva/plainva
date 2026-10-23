@@ -4886,18 +4886,18 @@
     "redeemed_other": "已从小组件完成 {{count}} 项"
   },
   "accountAccess": {
-    "lineLabel": "此设备的访问方式",
-    "plainva": "Plainva 访问",
-    "plainvaDesc": "Plainva 自带的访问方式，无需你输入任何内容。",
+    "lineLabel": "此设备的登录方式",
+    "plainva": "标准登录",
+    "plainvaDesc": "应用自带的登录方式，无需你输入任何内容。",
     "plainvaMissing": "此版本未包含。",
-    "own": "自有访问",
-    "ownLine": "自有访问（{{id}}）",
+    "own": "自有客户端 ID",
+    "ownLine": "自有客户端 ID（{{id}}）",
     "change": "更改",
-    "deviceOnly": "仅适用于此设备，不适用于整个账户。其他设备保留各自的访问方式。",
-    "signInAgainHint": "重新登录将使用此设备的访问方式。",
+    "deviceOnly": "仅适用于此设备，不适用于整个账户。其他设备保留各自的设置。",
+    "signInAgainHint": "重新登录将使用此设备的设置。",
     "title": {
-      "google": "此设备的 Google 访问",
-      "microsoft": "此设备的 Microsoft 访问"
+      "google": "此设备的 Google 登录",
+      "microsoft": "此设备的 Microsoft 登录"
     },
     "ownDesc": {
       "google": "来自你自己 Google 项目的客户端。",
@@ -4909,10 +4909,10 @@
       "microsoft": "应用注册中的应用程序（客户端）ID。"
     },
     "problem": {
-      "noPlainvaClient": "此版本不包含 Google 的 Plainva 访问方式。请在“更改”中填写你自己的访问方式。",
-      "ownClientMissing": "自有访问缺少客户端ID。",
+      "noPlainvaClient": "此版本不包含 Google 的标准登录。请在“更改”中填写你自己的客户端 ID。",
+      "ownClientMissing": "缺少客户端 ID。",
       "ownClientInvalid": "此客户端ID的格式不符合要求。",
-      "ownSecretMissing": "自有访问缺少客户端密钥。"
+      "ownSecretMissing": "缺少你自有客户端 ID 的客户端密钥。"
     }
   }
 }

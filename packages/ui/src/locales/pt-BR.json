@@ -5012,18 +5012,18 @@
     "redeemed_other": "{{count}} tarefas marcadas pelo widget"
   },
   "accountAccess": {
-    "lineLabel": "Acesso deste dispositivo",
-    "plainva": "Acesso do Plainva",
-    "plainvaDesc": "O acesso próprio do Plainva. Você não precisa digitar nada.",
+    "lineLabel": "Login neste dispositivo",
+    "plainva": "Login padrão",
+    "plainvaDesc": "O login que vem com o app. Você não precisa digitar nada.",
     "plainvaMissing": "Não incluído nesta versão.",
-    "own": "Acesso próprio",
-    "ownLine": "Acesso próprio ({{id}})",
+    "own": "ID de cliente próprio",
+    "ownLine": "ID de cliente próprio ({{id}})",
     "change": "Alterar",
-    "deviceOnly": "Vale para este dispositivo, não para a conta inteira. Os outros dispositivos mantêm o acesso deles.",
-    "signInAgainHint": "Entrar novamente usa o acesso deste dispositivo.",
+    "deviceOnly": "Vale para este dispositivo, não para a conta inteira. Os outros dispositivos mantêm a configuração deles.",
+    "signInAgainHint": "Entrar novamente usa a configuração deste dispositivo.",
     "title": {
-      "google": "Acesso do Google deste dispositivo",
-      "microsoft": "Acesso da Microsoft deste dispositivo"
+      "google": "Login do Google neste dispositivo",
+      "microsoft": "Login da Microsoft neste dispositivo"
     },
     "ownDesc": {
       "google": "Um cliente do seu próprio projeto do Google.",
@@ -5035,10 +5035,10 @@
       "microsoft": "O ID do aplicativo (cliente) do seu registro de aplicativo."
     },
     "problem": {
-      "noPlainvaClient": "Esta versão não inclui um acesso do Plainva para o Google. Informe seu próprio acesso em “Alterar”.",
-      "ownClientMissing": "O acesso próprio precisa de um Client ID.",
+      "noPlainvaClient": "Esta versão não inclui um login padrão para o Google. Informe seu próprio ID de cliente em “Alterar”.",
+      "ownClientMissing": "Falta o ID de cliente.",
       "ownClientInvalid": "Este Client ID não tem o formato esperado.",
-      "ownSecretMissing": "O acesso próprio precisa de um Client Secret."
+      "ownSecretMissing": "Falta a chave secreta do seu ID de cliente próprio."
     }
   }
 }

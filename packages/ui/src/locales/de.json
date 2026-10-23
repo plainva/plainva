@@ -4949,18 +4949,18 @@
     "redeemed_other": "{{count}} Aufgaben aus dem Widget abgehakt"
   },
   "accountAccess": {
-    "lineLabel": "Zugang dieses Geräts",
-    "plainva": "Plainva-Zugang",
-    "plainvaDesc": "Plainvas eigener Zugang. Du gibst nichts ein.",
+    "lineLabel": "Anmeldung auf diesem Gerät",
+    "plainva": "Standard-Anmeldung",
+    "plainvaDesc": "Die Anmeldung, die die App mitbringt. Du gibst nichts ein.",
     "plainvaMissing": "In diesem Build nicht enthalten.",
-    "own": "Eigener Zugang",
-    "ownLine": "Eigener Zugang ({{id}})",
+    "own": "Eigene Client-ID",
+    "ownLine": "Eigene Client-ID ({{id}})",
     "change": "Ändern",
-    "deviceOnly": "Gilt für dieses Gerät, nicht für das ganze Konto. Andere Geräte behalten ihren Zugang.",
-    "signInAgainHint": "Erneut anmelden nimmt den Zugang dieses Geräts.",
+    "deviceOnly": "Gilt für dieses Gerät, nicht für das ganze Konto. Andere Geräte behalten ihre Einstellung.",
+    "signInAgainHint": "Erneut anmelden nutzt die Einstellung dieses Geräts.",
     "title": {
-      "google": "Google-Zugang dieses Geräts",
-      "microsoft": "Microsoft-Zugang dieses Geräts"
+      "google": "Google-Anmeldung auf diesem Gerät",
+      "microsoft": "Microsoft-Anmeldung auf diesem Gerät"
     },
     "ownDesc": {
       "google": "Ein Client aus Deinem eigenen Google-Projekt.",
@@ -4972,10 +4972,10 @@
       "microsoft": "Die Anwendungs-ID (Client-ID) Deiner App-Registrierung."
     },
     "problem": {
-      "noPlainvaClient": "Dieser Build enthält keinen Plainva-Zugang für Google. Trag unter „Ändern“ Deinen eigenen Zugang ein.",
-      "ownClientMissing": "Für den eigenen Zugang fehlt die Client-ID.",
+      "noPlainvaClient": "Dieser Build enthält keine Standard-Anmeldung für Google. Trag unter „Ändern“ eine eigene Client-ID ein.",
+      "ownClientMissing": "Es fehlt die Client-ID.",
       "ownClientInvalid": "Diese Client-ID hat nicht die erwartete Form.",
-      "ownSecretMissing": "Für den eigenen Zugang fehlt das Client-Secret."
+      "ownSecretMissing": "Zur eigenen Client-ID fehlt das Client-Secret."
     }
   }
 }

@@ -2,7 +2,7 @@
 
 Dernière mise à jour : 2026-10-23
 
-**Vous n'avez normalement pas besoin de cette page :** Plainva fournit son propre ID d'application pour OneDrive **et** Dropbox — vous choisissez le fournisseur, cliquez sur **Se connecter** et vous vous connectez. Vous n'avez besoin de votre **propre** inscription d'application (gratuite) que dans deux cas : lorsqu'une restriction d'entreprise bloque l'accès fourni, ou lorsque vous souhaitez délibérément placer la connexion sous votre propre contrôle. Pour **OneDrive**, vous le saisissez sous **Accès de cet appareil** → **Modifier** → **Accès personnel** — sur la page du compte ou dans l'assistant, sur le bureau comme sur le téléphone, pour cet appareil uniquement. Pour **Dropbox**, le champ reste où il était : sur **le bureau** **Utiliser votre propre ID d'application** au niveau du compte, sur **le téléphone** dans le formulaire de connexion, juste sous le fournisseur. Dans les deux cas, saisissez une seule valeur publique :
+**Vous n'avez normalement pas besoin de cette page :** Plainva fournit son propre ID d'application pour OneDrive **et** Dropbox — vous choisissez le fournisseur, cliquez sur **Se connecter** et vous vous connectez. Vous n'avez besoin de votre **propre** inscription d'application (gratuite) que dans deux cas : lorsqu'une restriction d'entreprise bloque la connexion fournie, ou lorsque vous souhaitez délibérément placer la connexion sous votre propre contrôle. Pour **OneDrive**, vous le saisissez sous **Connexion sur cet appareil** → **Modifier** → **ID client personnel** — sur la page du compte ou dans l'assistant, sur le bureau comme sur le téléphone, pour cet appareil uniquement. Pour **Dropbox**, le champ reste où il était : sur **le bureau** **Utiliser votre propre ID d'application** au niveau du compte, sur **le téléphone** dans le formulaire de connexion, juste sous le fournisseur. Dans les deux cas, saisissez une seule valeur publique :
 
 - **OneDrive** → un **ID client** (format `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → une **Clé d'application** (une courte chaîne de caractères)
@@ -57,7 +57,7 @@ Sur la page **Vue d'ensemble** de l'application, copiez la valeur **« ID d'appl
 ### Le saisir dans Plainva
 
 1. **Paramètres → votre vault → Comptes cloud** : ouvrez le compte Microsoft, ou lancez **Connecter un compte…** avec la tuile **Microsoft**.
-2. Sous **Accès de cet appareil**, choisissez **Modifier**, puis **Accès personnel**.
+2. Sous **Connexion sur cet appareil**, choisissez **Modifier**, puis **ID client personnel**.
 3. Collez l'ID d'application copié dans le champ **ID client** et **Enregistrer**.
 4. **Se reconnecter** (dans l'assistant : **Se connecter avec Microsoft…**) → connectez-vous dans le navigateur et confirmez l'accès. Le navigateur vous indique ensuite que vous pouvez fermer la fenêtre.
 

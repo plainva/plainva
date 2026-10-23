@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-23
 
-Plainva signs in to Google with **This device's access**. When your build includes **Plainva access** for Google, you enter nothing and need none of this page. Otherwise — or if you prefer a project of your own — you use your own Google API credentials: this **Bring Your Own Credentials (BYO)** approach offers a safe way to sync your private files.
+Plainva signs in to Google with **Sign-in on this device**. When your build includes the **Standard sign-in** for Google, you enter nothing and need none of this page. Otherwise — or if you prefer a project of your own — you use your own Google API credentials: this **Bring Your Own Credentials (BYO)** approach offers a safe way to sync your private files.
 
 You essentially set up your own little "developer project" at Google that belongs to you alone and that only you can access.
 
@@ -53,20 +53,20 @@ For Plainva to use your credentials, a consent screen ("OAuth Consent Screen") m
 
 ### 5. Enter them in Plainva
 1. Open **Settings → your vault → Cloud accounts**.
-2. For a new account choose **Connect account…** → the **Google** tile and tick the services; for an account you already have, open it and choose **Change** at **This device's access**.
-3. Choose **Own access** and paste the copied **Client ID** and **Client Secret** — on the phone only the **Client ID** of the iOS client; it has no secret. Then **Save**.
+2. For a new account choose **Connect account…** → the **Google** tile and tick the services; for an account you already have, open it and choose **Change** at **Sign-in on this device**.
+3. Choose **Own client ID** and paste the copied **Client ID** and **Client Secret** — on the phone only the **Client ID** of the iOS client; it has no secret. Then **Save**.
 4. Click **Sign in with Google…** (for an account you already have: **Sign in again**).
 5. A Google browser window opens. Sign in with the account you added under "Test users".
 6. Google may warn that the app is unverified. Click **Advanced** and then **Continue to Plainva (unsafe)**.
 7. Confirm the requested permissions — one consent covers every service you ticked.
-8. The own access applies to this device only; other devices keep theirs. Enter it on every device that should use your project.
+8. The own client ID applies to this device only; other devices keep their setting. Enter it on every device that should use your project.
 
 Your vault now syncs safely with Google Drive through your own credentials.
 
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-The desktop instructions above require a Desktop client ID and its matching client secret. On the phone, Android and iOS alike, Plainva signs in to Google in the browser: create an OAuth client of type **iOS** in your Google project, also for Android, with the bundle ID `com.plainva.app`. Plainva returns through `com.plainva.app:/oauth2redirect`; there is no client secret. Enter the client ID on the phone under **This device's access** → **Own access**. Do not create a client of type Android: Google accepts the package name and certificate fingerprint of the Play build in one single project worldwide and refuses every other one (“the Android package name and fingerprint are already in use”). An Android client that was set up for Plainva 0.8.3 or 0.8.4 does not work for a new sign-in; accounts that are already signed in keep working. A desktop client cannot replace the mobile registration. For calendars, also enable Google Calendar API and Google Tasks API.
+The desktop instructions above require a Desktop client ID and its matching client secret. On the phone, Android and iOS alike, Plainva signs in to Google in the browser: create an OAuth client of type **iOS** in your Google project, also for Android, with the bundle ID `com.plainva.app`. Plainva returns through `com.plainva.app:/oauth2redirect`; there is no client secret. Enter the client ID on the phone under **Sign-in on this device** → **Own client ID**. Do not create a client of type Android: Google accepts the package name and certificate fingerprint of the Play build in one single project worldwide and refuses every other one (“the Android package name and fingerprint are already in use”). An Android client that was set up for Plainva 0.8.3 or 0.8.4 does not work for a new sign-in; accounts that are already signed in keep working. A desktop client cannot replace the mobile registration. For calendars, also enable Google Calendar API and Google Tasks API.
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 

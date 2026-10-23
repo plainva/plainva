@@ -2,7 +2,7 @@
 
 更新日期：2026-10-23
 
-Plainva通过**此设备的访问方式**登录Google。如果你的版本为Google包含了**Plainva 访问**，你无需输入任何内容，也不需要这一页。否则——或者你更愿意用自己的项目——就使用你自己的Google API凭据：这种**自备凭据（BYO）** 方式为同步你的私人文件提供了一种安全的途径。
+Plainva通过**此设备的登录方式**登录Google。如果你的版本为Google包含了**标准登录**，你无需输入任何内容，也不需要这一页。否则——或者你更愿意用自己的项目——就使用你自己的Google API凭据：这种**自备凭据（BYO）** 方式为同步你的私人文件提供了一种安全的途径。
 
 你实际上是在Google那边为自己搭建了一个只属于你自己、也只有你能访问的小型"开发者项目"。
 
@@ -53,20 +53,20 @@ Plainva通过**此设备的访问方式**登录Google。如果你的版本为Goo
 
 ### 5. 在Plainva中填入
 1. 打开**设置 → 仓库 → 云账户**。
-2. 新账户：选择**连接账户…** → **Google**图块并勾选服务；已有的账户：打开它，在**此设备的访问方式**处选择**更改**。
-3. 选择**自有访问**，粘贴复制好的**客户端ID**和**客户端密钥**——手机上只填iOS客户端的**客户端ID**，它没有密钥。然后点击**保存**。
+2. 新账户：选择**连接账户…** → **Google**图块并勾选服务；已有的账户：打开它，在**此设备的登录方式**处选择**更改**。
+3. 选择**自有客户端 ID**，粘贴复制好的**客户端ID**和**客户端密钥**——手机上只填iOS客户端的**客户端ID**，它没有密钥。然后点击**保存**。
 4. 点击**使用 Google 登录…**（已有的账户：**重新登录**）。
 5. 会打开一个Google浏览器窗口。使用你在"测试用户"中添加的账户登录。
 6. Google可能会提示该应用未经验证。点击**高级**，然后点击**继续前往Plainva（不安全）**。
 7. 确认所请求的权限——一次同意涵盖你勾选的每项服务。
-8. 自有访问只适用于此设备；其他设备保留各自的访问方式。请在每台要使用你的项目的设备上填写它。
+8. 自有客户端 ID 只适用于此设备；其他设备保留各自的设置。请在每台要使用你的项目的设备上填写它。
 
 现在，你的仓库已经通过你自己的凭据安全地与Google Drive同步了。
 
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-上面的桌面端步骤需要桌面客户端的客户端 ID 及其对应的密钥。在手机上，无论 Android 还是 iOS，Plainva 都在浏览器中登录 Google：请在你的 Google 项目中创建一个 **iOS** 类型的 OAuth 客户端(Android 也是如此)，软件包 ID 填写 `com.plainva.app`。Plainva 通过 `com.plainva.app:/oauth2redirect` 返回；没有客户端密钥。请在手机上把客户端 ID 填入**此设备的访问方式** → **自有访问**。不要创建 Android 类型的客户端：Google 在全球只允许一个项目登记 Play 版本的软件包名称和证书指纹，其他项目一律被拒绝(“Android 软件包名称和指纹已被使用”)。为 Plainva 0.8.3 或 0.8.4 配置的 Android 客户端无法用于新的登录；已登录的账号继续可用。桌面客户端不能替代移动端注册。使用日历时，还需启用 Google Calendar API 和 Google Tasks API。
+上面的桌面端步骤需要桌面客户端的客户端 ID 及其对应的密钥。在手机上，无论 Android 还是 iOS，Plainva 都在浏览器中登录 Google：请在你的 Google 项目中创建一个 **iOS** 类型的 OAuth 客户端(Android 也是如此)，软件包 ID 填写 `com.plainva.app`。Plainva 通过 `com.plainva.app:/oauth2redirect` 返回；没有客户端密钥。请在手机上把客户端 ID 填入**此设备的登录方式** → **自有客户端 ID**。不要创建 Android 类型的客户端：Google 在全球只允许一个项目登记 Play 版本的软件包名称和证书指纹，其他项目一律被拒绝(“Android 软件包名称和指纹已被使用”)。为 Plainva 0.8.3 或 0.8.4 配置的 Android 客户端无法用于新的登录；已登录的账号继续可用。桌面客户端不能替代移动端注册。使用日历时，还需启用 Google Calendar API 和 Google Tasks API。
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 

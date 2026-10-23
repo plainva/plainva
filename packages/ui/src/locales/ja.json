@@ -4886,18 +4886,18 @@
     "redeemed_other": "ウィジェットから {{count}} 件を完了にしました"
   },
   "accountAccess": {
-    "lineLabel": "この端末のアクセス",
-    "plainva": "Plainvaのアクセス",
-    "plainvaDesc": "Plainva 自身のアクセスです。入力は不要です。",
+    "lineLabel": "この端末のログイン",
+    "plainva": "標準のログイン",
+    "plainvaDesc": "アプリに含まれているログインです。入力は不要です。",
     "plainvaMissing": "このビルドには含まれていません。",
-    "own": "独自のアクセス",
-    "ownLine": "独自のアクセス（{{id}}）",
+    "own": "独自のクライアント ID",
+    "ownLine": "独自のクライアント ID（{{id}}）",
     "change": "変更",
-    "deviceOnly": "この端末にのみ適用され、アカウント全体には適用されません。ほかの端末は、それぞれのアクセスのままです。",
-    "signInAgainHint": "再度ログインすると、この端末のアクセスが使われます。",
+    "deviceOnly": "この端末にのみ適用され、アカウント全体には適用されません。ほかの端末は、それぞれの設定のままです。",
+    "signInAgainHint": "再度ログインすると、この端末の設定が使われます。",
     "title": {
-      "google": "この端末の Google アクセス",
-      "microsoft": "この端末の Microsoft アクセス"
+      "google": "この端末の Google ログイン",
+      "microsoft": "この端末の Microsoft ログイン"
     },
     "ownDesc": {
       "google": "ご自身の Google プロジェクトのクライアントです。",
@@ -4909,10 +4909,10 @@
       "microsoft": "アプリの登録の「アプリケーション (クライアント) ID」です。"
     },
     "problem": {
-      "noPlainvaClient": "このビルドには Google 用の Plainva アクセスが含まれていません。「変更」から独自のアクセスを入力してください。",
-      "ownClientMissing": "独自のアクセスにはクライアントIDが必要です。",
+      "noPlainvaClient": "このビルドには Google 用の標準のログインが含まれていません。「変更」から独自のクライアント ID を入力してください。",
+      "ownClientMissing": "クライアント ID がありません。",
       "ownClientInvalid": "このクライアントIDの形式が正しくありません。",
-      "ownSecretMissing": "独自のアクセスにはクライアントシークレットが必要です。"
+      "ownSecretMissing": "独自のクライアント ID のクライアントシークレットがありません。"
     }
   }
 }
