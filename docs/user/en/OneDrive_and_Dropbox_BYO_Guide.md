@@ -1,8 +1,8 @@
 # Setting up OneDrive & Dropbox (your own app registration)
 
-Last reviewed: 2026-08-12
+Last reviewed: 2026-10-23
 
-**You normally don't need this page:** Plainva ships its own app ID for OneDrive **and** Dropbox — you pick the provider, click **Connect** and sign in. You need your **own** (free) app registration in two cases only: when a corporate restriction blocks the bundled access, or when you deliberately want the connection under your own control. On the **desktop** you reveal the fields in the sync settings via **Use your own app ID**; on the **phone** the field sits in the connect form, right under the provider. Either way you enter a single public value:
+**You normally don't need this page:** Plainva ships its own app ID for OneDrive **and** Dropbox — you pick the provider, click **Connect** and sign in. You need your **own** (free) app registration in two cases only: when a corporate restriction blocks the bundled access, or when you deliberately want the connection under your own control. For **OneDrive** you enter it under **This device's access** → **Change** → **Own access** — on the account page or in the wizard, on the desktop and on the phone alike, for this device only. For **Dropbox** the field stays where it was: on the **desktop** **Use your own app ID** at the account, on the **phone** in the connect form, right under the provider. Either way you enter a single public value:
 
 - **OneDrive** → a **Client ID** (format `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → an **App Key** (a short string)
@@ -56,10 +56,10 @@ On the app's **Overview**, copy the **"Application (client) ID"** — that is yo
 
 ### Enter it in Plainva
 
-1. **Settings → Vault → Sync**.
-2. Set the **Sync Provider** to **OneDrive**.
-3. Paste the copied Application ID into the **Client ID** field; optionally set the **OneDrive Folder (Name)** (default `Plainva`).
-4. **Connect to Microsoft** → sign in in the browser and confirm access. The browser then tells you that you can close the window.
+1. **Settings → your vault → Cloud accounts**: open the Microsoft account, or start **Connect account…** with the **Microsoft** tile.
+2. At **This device's access** choose **Change**, then **Own access**.
+3. Paste the copied Application ID into the **Client ID** field and **Save**.
+4. **Sign in again** (in the wizard: **Sign in with Microsoft…**) → sign in in the browser and confirm access. The browser then tells you that you can close the window.
 
 ---
 

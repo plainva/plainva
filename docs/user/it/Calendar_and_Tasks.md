@@ -1,6 +1,6 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-10-21
+Ultimo aggiornamento: 2026-10-23
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
@@ -13,8 +13,8 @@ Apri **Impostazioni → Vault → Account cloud → Collega account…**, scegli
 - **Nextcloud / CalDAV**: indirizzo del server, nome utente e una **Password per app** (in Nextcloud: Impostazioni → Sicurezza → Dispositivi e sessioni). Nessuna registrazione, nessuna chiave — per Nextcloud, Plainva deduce l'indirizzo CalDAV direttamente dall'indirizzo del server (per altri server CalDAV usa la scheda **WebDAV / CalDAV** oppure **Avanzate: imposta gli endpoint singolarmente**).
 - **Apple iCloud, Yahoo, AOL, Zoho, Fastmail, mailbox.org, Yandex, Mail.ru**: schede dedicate con gli indirizzi calendario già precompilati — bastano l'indirizzo e-mail più una **Password per app**, senza campo server (per Apple la password per app è obbligatoria; l'assistente collega la guida del provider). Nota: lo stesso Yahoo segnala che il suo servizio CalDAV non è affidabile — se dà problemi, non dipende da Plainva.
 - **Su questo dispositivo** (solo telefono): i calendari che il tuo dispositivo conosce già — iCloud, Exchange, Google tramite gli account di sistema, calendari locali — come **un** account senza accesso. Un tocco chiede il permesso di sistema (accesso completo, perché Plainva crea anche eventi); su iOS si aggiungono gli **elenchi di promemoria** come elenchi attività, Android non ha un archivio attività di sistema. C'è al massimo un account del dispositivo per telefono, non viaggia con la sincronizzazione delle impostazioni, e lo stesso calendario può essere collegato anche tramite un account cloud — Plainva non unisce i due.
-- **Google**: necessita di un proprio ID client OAuth (lo stesso modello BYO della sincronizzazione con Google Drive — vedi la [guida a Drive](Google_Drive_BYO_Guide.md)). Nel tuo progetto Google Cloud, abilita inoltre le *Google Calendar API* e *Google Tasks API* e aggiungi i loro ambiti alla schermata di consenso. Il browser si apre per il consenso; il collegamento verifica l'account prima che venga salvato qualcosa.
-- **Microsoft**: basta cliccare su **Accedi con Microsoft…** e confermare nel browser — non serve alcuna configurazione. Un account Microsoft può portare anche **File** (OneDrive) ed **E-mail** nello stesso passaggio.
+- **Google**: accede con **Accesso di questo dispositivo** — l'**Accesso Plainva** se la tua build lo include, altrimenti un tuo progetto Google (lo stesso modello BYO della sincronizzazione con Google Drive — vedi la [guida a Drive](Google_Drive_BYO_Guide.md)). Nel tuo progetto Google Cloud, abilita inoltre le *Google Calendar API* e *Google Tasks API* e aggiungi i loro ambiti alla schermata di consenso. Il browser si apre per il consenso — un solo consenso per ogni servizio che hai spuntato; il collegamento verifica l'account prima che venga salvato qualcosa.
+- **Microsoft**: basta cliccare su **Accedi con Microsoft…** e confermare nel browser — non serve alcuna configurazione. Un account Microsoft può portare anche **File** (OneDrive) ed **E-mail** nello stesso passaggio, con un solo consenso.
 
 L'assistente mostra uno stato per servizio ("collegato — n calendari trovati"). Gestisci quindi i **calendari** (quelli spuntati compaiono nella scheda del calendario) e gli **elenchi attività** (deliberatamente non spuntati per impostazione predefinita — spuntandone uno avvia la sincronizzazione delle attività descritta di seguito) nell'area **Calendario**; lì si trovano anche la **Cartella riunioni** (dove vengono create le note delle riunioni) e il **Calendario predefinito**. Le password e i token sono memorizzati nel portachiavi del sistema operativo.
 
@@ -146,11 +146,11 @@ Da quel momento i due restano collegati, secondo tre regole fisse:
 <!-- accounts-tasks-2026-09-11 -->
 ## Configurazione con passaggi chiari
 
-Aggiungi file, calendario o email all’account appropriato. Plainva verifica l’accesso scelto e richiede le autorizzazioni mancanti.
+Aggiungi file, calendario o email all’account che deve portarli. Per Google e Microsoft è un unico consenso per tutto ciò che l’account porta più il nuovo servizio.
 
 L’assistente mobile apre subito il collegamento adatto. Dopo l’accesso, scegli calendari ed elenchi di attività e visualizza il risultato.
 
-Apri **Account cloud**, scegli l’account esistente e **Aggiungi** per il servizio mancante. I servizi esistenti restano collegati. Gmail conserva il proprio accesso email o la password per app. Annullare l’assistente non scollega i servizi completati. Il trasferimento mobile mantiene il vault di origine e considera un vault di destinazione corrispondente o prepara un contenitore separato. I file in collisione vengono confrontati singolarmente e si conservano entrambi i contenuti. Le destinazioni cifrate si aprono tramite il percorso di abbinamento esistente.
+Apri **Account cloud**, scegli l’account esistente e attiva il servizio mancante (sul telefono: **Aggiungi**). I servizi esistenti restano collegati, e un servizio che fallisce non blocca gli altri. Gmail si unisce all’accesso Google quando l’accesso di questo dispositivo consente la posta; altrimenti Plainva chiede una password per app sullo stesso account. Annullare l’assistente non scollega i servizi completati. Il trasferimento mobile mantiene il vault di origine e considera un vault di destinazione corrispondente o prepara un contenitore separato. I file in collisione vengono confrontati singolarmente e si conservano entrambi i contenuti. Le destinazioni cifrate si aprono tramite il percorso di abbinamento esistente.
 
 [Google — La tua registrazione dell’app](Google_Drive_BYO_Guide.md)
 

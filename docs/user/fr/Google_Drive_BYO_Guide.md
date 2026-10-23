@@ -1,8 +1,8 @@
 # Configurer la synchronisation Google Drive (avec vos propres identifiants)
 
-Dernière mise à jour : 2026-10-09
+Dernière mise à jour : 2026-10-23
 
-Pour synchroniser un vault local avec votre Google Drive dans Plainva, vous pouvez utiliser vos propres identifiants API Google. Comme Plainva n'a pas (encore) subi la vérification CASA centrale de Google, cette approche **Bring Your Own Credentials (BYO)** offre un moyen sûr de synchroniser vos fichiers privés.
+Plainva se connecte à Google avec **Accès de cet appareil**. Lorsque votre version inclut l'**Accès Plainva** pour Google, vous ne saisissez rien et cette page ne vous est pas nécessaire. Sinon — ou si vous préférez un projet qui vous appartient —, vous utilisez vos propres identifiants API Google : cette approche **Bring Your Own Credentials (BYO)** offre un moyen sûr de synchroniser vos fichiers privés.
 
 Vous mettez en place ici, en quelque sorte, votre propre petit « projet de développeur » chez Google, qui vous appartient exclusivement et auquel vous seul avez accès.
 
@@ -46,33 +46,33 @@ Pour que Plainva puisse utiliser vos identifiants, un écran de consentement («
 ### 4. Créer des identifiants (Client ID & Secret)
 1. Ouvrez **Credentials** dans le menu de gauche.
 2. Cliquez sur **Create Credentials** en haut et choisissez **OAuth client ID**.
-3. Comme « Application type », choisissez **Desktop app** (ou « Other UI »).
+3. Comme « Application type », choisissez **Desktop app** pour Plainva sur un ordinateur. Pour le téléphone (Android et iPhone), créez plutôt un client de type **iOS** — voir la fin de cette page.
 4. Nom : p. ex. « Plainva Desktop Client ».
 5. Cliquez sur **Create**.
 6. Une fenêtre pop-up affiche votre **Client ID** et votre **Client Secret**.
 
 ### 5. Les saisir dans Plainva
-1. Ouvrez Plainva et accédez aux paramètres du vault (icône d'engrenage pour le vault concerné).
-2. Ouvrez la section **Synchronisation**.
-3. Choisissez **Google Drive** comme fournisseur.
-4. Collez l'**ID client** et le **Secret client** copiés dans les champs correspondants.
-5. Cliquez sur **Se connecter à Google**.
-6. Une fenêtre de navigateur Google s'ouvre. Connectez-vous avec le compte que vous avez ajouté sous « Test users ».
-7. Google peut avertir que l'application n'est pas vérifiée. Cliquez sur **Advanced** puis sur **Continue to Plainva (unsafe)**.
-8. Confirmez les autorisations demandées.
+1. Ouvrez **Paramètres → votre vault → Comptes cloud**.
+2. Pour un nouveau compte, choisissez **Connecter un compte…** → la tuile **Google** et cochez les services ; pour un compte que vous avez déjà, ouvrez-le et choisissez **Modifier** sous **Accès de cet appareil**.
+3. Choisissez **Accès personnel** et collez l'**ID client** et le **Secret client** copiés — sur le téléphone uniquement l'**ID client** du client iOS ; il n'a pas de secret. Puis **Enregistrer**.
+4. Cliquez sur **Se connecter avec Google…** (pour un compte que vous avez déjà : **Se reconnecter**).
+5. Une fenêtre de navigateur Google s'ouvre. Connectez-vous avec le compte que vous avez ajouté sous « Test users ».
+6. Google peut avertir que l'application n'est pas vérifiée. Cliquez sur **Advanced** puis sur **Continue to Plainva (unsafe)**.
+7. Confirmez les autorisations demandées — un seul consentement couvre tous les services que vous avez cochés.
+8. L'accès personnel ne vaut que pour cet appareil ; les autres appareils gardent le leur. Saisissez-le sur chaque appareil qui doit utiliser votre projet.
 
 Votre vault se synchronise désormais en toute sécurité avec Google Drive via vos propres identifiants.
 
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-Les instructions pour ordinateur ci-dessus nécessitent un client de bureau avec son ID client et son secret. Sur le téléphone, sous Android comme sous iOS, Plainva se connecte à Google dans le navigateur : crée dans ton projet Google un client OAuth de type **iOS**, y compris pour Android, avec l’ID de bundle `com.plainva.app`. Plainva revient par `com.plainva.app:/oauth2redirect` ; il n’y a pas de secret client. Saisis l’ID client dans le formulaire Google de Plainva. Ne crée pas de client de type Android : Google n’accepte le nom de package et l’empreinte du certificat de la version Play que dans un seul projet au monde et refuse tous les autres (« le nom de package Android et l’empreinte sont déjà utilisés »). Un client Android configuré pour Plainva 0.8.3 ou 0.8.4 ne fonctionne pas pour une nouvelle connexion ; les comptes déjà connectés continuent de fonctionner. Un client de bureau ne remplace pas l’enregistrement mobile. Pour les agendas, active aussi Google Calendar API et Google Tasks API.
+Les instructions pour ordinateur ci-dessus nécessitent un client de bureau avec son ID client et son secret. Sur le téléphone, sous Android comme sous iOS, Plainva se connecte à Google dans le navigateur : crée dans ton projet Google un client OAuth de type **iOS**, y compris pour Android, avec l’ID de bundle `com.plainva.app`. Plainva revient par `com.plainva.app:/oauth2redirect` ; il n’y a pas de secret client. Saisis l’ID client sur le téléphone sous **Accès de cet appareil** → **Accès personnel**. Ne crée pas de client de type Android : Google n’accepte le nom de package et l’empreinte du certificat de la version Play que dans un seul projet au monde et refuse tous les autres (« le nom de package Android et l’empreinte sont déjà utilisés »). Un client Android configuré pour Plainva 0.8.3 ou 0.8.4 ne fonctionne pas pour une nouvelle connexion ; les comptes déjà connectés continuent de fonctionner. Un client de bureau ne remplace pas l’enregistrement mobile. Pour les agendas, active aussi Google Calendar API et Google Tasks API.
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 
 
 
-Ajoute des fichiers, un calendrier ou une messagerie au compte concerné. Plainva vérifie la connexion choisie et demande les autorisations manquantes.
+Ajoute des fichiers, un calendrier ou une messagerie directement au compte qui doit les porter. Pour Google et Microsoft, cela représente un seul consentement pour tout ce que le compte porte plus le nouveau service.
 
 L’inscription Google ne correspond pas au retour sur cet appareil. Vérifie le type de client et la configuration mobile dans le guide Google.
 

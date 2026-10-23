@@ -3704,7 +3704,14 @@
     "joinedExisting": "Ce compte était déjà connecté : ses services sont maintenant regroupés sous {{account}}.",
     "gmailPasswordGroup": "Gmail avec mot de passe d’application",
     "gmailPasswordHint": "Cet accès ne peut pas autoriser Gmail en plus ; Plainva connecte donc {{account}} avec un mot de passe d’application, sur le même compte.",
-    "appPassword": "Mot de passe d’application"
+    "appPassword": "Mot de passe d’application",
+    "checkConnection": "Vérifier la connexion",
+    "checkRunning": "Vérification …",
+    "checkOk": "Fonctionne",
+    "checkExpired": "Connexion expirée – reconnectez-vous",
+    "checkNotGranted": "Non autorisé – reconnectez-vous et cochez le service",
+    "checkFailed": "Ne fonctionne pas",
+    "checkNoted": "Consigné dans le diagnostic."
   },
   "comments": {
     "workspaceLocked": "Cet espace de travail est verrouillé sur cet appareil. Ouvre les paramètres de sécurité pour le déverrouiller et lire ou écrire des remarques.",

@@ -1,6 +1,6 @@
 # Kalender & externe Aufgaben
 
-Stand: 2026-10-21
+Stand: 2026-10-23
 
 Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalender + Tasks) und **Microsoft** (Outlook-Kalender + To Do) — und in beide Richtungen damit arbeiten. Deine Notizen bleiben das Zentrum: Termine werden zu Meeting-Notizen, und externe Aufgabenlisten spiegeln sich als normale Notizen in Deine [Standard-Aufgabendatenbank](Tasks.md).
 
@@ -13,8 +13,8 @@ Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **Cal
 - **Nextcloud / CalDAV**: Server-Adresse, Benutzername und ein **App-Passwort** (in Nextcloud: Einstellungen → Sicherheit → Geräte & Sitzungen). Keine Registrierung, keine Keys — bei Nextcloud leitet Plainva die CalDAV-Adresse aus der Server-Adresse selbst ab (für andere CalDAV-Server nimmst Du die Kachel **WebDAV / CalDAV** bzw. **Erweitert: Endpunkte einzeln festlegen**).
 - **Apple iCloud, Yahoo, AOL, Zoho, Fastmail, mailbox.org, Yandex, Mail.ru**: eigene Kacheln mit hinterlegten Kalender-Adressen — E-Mail-Adresse plus **App-Passwort** genügen, ohne Server-Feld (bei Apple ist das App-Passwort Pflicht; der Assistent verlinkt die Anleitung des Anbieters). Hinweis: Yahoos CalDAV-Dienst gilt laut Yahoo selbst als wackelig — wenn er zickt, liegt es nicht an Plainva.
 - **Auf diesem Gerät** (nur Telefon): die Kalender, die Dein Gerät schon kennt — iCloud, Exchange, Google über die Systemkonten, lokale Kalender — als **ein** Konto ohne Anmeldung. Ein Tipp fragt die Systemberechtigung (voller Zugriff, weil Plainva auch anlegt); auf iOS kommen die **Erinnerungslisten** als Aufgabenlisten dazu, Android hat keinen System-Aufgabenspeicher. Es gibt höchstens ein Gerätekonto je Telefon, es reist nicht über die Einstellungs-Synchronisation, und derselbe Kalender kann daneben über ein Cloud-Konto verbunden sein — Plainva führt beide nicht zusammen.
-- **Google**: braucht Deine eigene OAuth-Client-ID (dasselbe BYO-Modell wie beim Google-Drive-Sync — siehe die [Drive-Anleitung](Google_Drive_BYO_Guide.md)). Aktiviere in Deinem Google-Cloud-Projekt zusätzlich die *Google Calendar API* und die *Google Tasks API* und ergänze ihre Scopes im Consent-Screen. Der Browser öffnet sich zur Zustimmung; beim Verbinden wird das Konto geprüft, bevor irgendetwas gespeichert wird.
-- **Microsoft**: einfach **Bei Microsoft anmelden…** klicken und im Browser bestätigen — keine Einrichtung nötig. Ein Microsoft-Konto kann im selben Durchgang auch **Dateien** (OneDrive) und **E-Mail** tragen.
+- **Google**: meldet sich mit dem **Zugang dieses Geräts** an — dem **Plainva-Zugang**, wenn Dein Build ihn enthält, sonst mit Deinem eigenen Google-Projekt (dasselbe BYO-Modell wie beim Google-Drive-Sync — siehe die [Drive-Anleitung](Google_Drive_BYO_Guide.md)). Aktiviere in Deinem eigenen Google-Cloud-Projekt zusätzlich die *Google Calendar API* und die *Google Tasks API* und ergänze ihre Scopes im Consent-Screen. Der Browser öffnet sich zur Zustimmung — eine Zustimmung für alle angehakten Dienste; beim Verbinden wird das Konto geprüft, bevor irgendetwas gespeichert wird.
+- **Microsoft**: einfach **Bei Microsoft anmelden…** klicken und im Browser bestätigen — keine Einrichtung nötig. Ein Microsoft-Konto kann im selben Durchgang auch **Dateien** (OneDrive) und **E-Mail** tragen, mit einer Zustimmung.
 
 Der Assistent zeigt je Dienst den Status („Verbunden — n Kalender gefunden"). Die **Kalender**-Auswahl (angehakte erscheinen im Kalender-Tab) und die **Aufgabenlisten** (bewusst standardmäßig abgewählt — ein Häkchen startet den unten beschriebenen Aufgaben-Sync) verwaltest Du danach im Bereich **Kalender**; dort sitzen auch der **Meeting-Ordner** (wo Meeting-Notizen entstehen) und der **Standardkalender**. Passwörter und Tokens liegen im Schlüsselbund Deines Betriebssystems.
 
@@ -146,11 +146,11 @@ Das ist etwas anderes als **Zeit blocken** bei einer Aufgabe: dort reservierst D
 <!-- accounts-tasks-2026-09-11 -->
 ## Einrichtung mit klaren Schritten
 
-Füge Dateien, Kalender oder E-Mail direkt beim passenden Konto hinzu. Plainva prüft die gewählte Anmeldung und fragt fehlende Rechte gezielt an.
+Füge Dateien, Kalender oder E-Mail direkt bei dem Konto hinzu, das sie tragen soll. Bei Google und Microsoft ist das eine Zustimmung für alles, was das Konto trägt, und den neuen Dienst.
 
 Der mobile Assistent öffnet sofort die passende Verbindung. Nach der Anmeldung wählst Du Kalender und Aufgabenlisten und siehst das Ergebnis.
 
-Öffne **Cloud-Konten**, wähle das vorhandene Konto und beim fehlenden Dienst **Hinzufügen**. Die vorhandenen Dienste bleiben bestehen. Gmail verwendet weiterhin seinen eigenen Mailzugang bzw. ein App-Passwort. Ein abgebrochener Assistent trennt keine bereits verbundenen Dienste. Bei der mobilen Dateiübernahme bleibt der Quell-Vault bestehen; ein vorhandener passender Ziel-Vault wird berücksichtigt, andernfalls entsteht ein eigener Container. Kollidierende Dateien werden einzeln verglichen und beide Inhalte behalten. Verschlüsselte Ziele werden über die bestehende Kopplung geöffnet.
+Öffne **Cloud-Konten**, wähle das vorhandene Konto und schalte den fehlenden Dienst ein (am Telefon: **Hinzufügen**). Die vorhandenen Dienste bleiben bestehen, und ein Dienst, der scheitert, hält die anderen nicht auf. Gmail kommt mit in die Google-Anmeldung, wenn der Zugang dieses Geräts Mail erlaubt; sonst fragt Plainva am selben Konto nach einem App-Passwort. Ein abgebrochener Assistent trennt keine bereits verbundenen Dienste. Bei der mobilen Dateiübernahme bleibt der Quell-Vault bestehen; ein vorhandener passender Ziel-Vault wird berücksichtigt, andernfalls entsteht ein eigener Container. Kollidierende Dateien werden einzeln verglichen und beide Inhalte behalten. Verschlüsselte Ziele werden über die bestehende Kopplung geöffnet.
 
 [Google — Eigene App-Registrierung](Google_Drive_BYO_Guide.md)
 

@@ -1,8 +1,8 @@
 # OneDrive & Dropbox instellen (eigen app-registratie)
 
-Laatst bijgewerkt: 2026-08-12
+Laatst bijgewerkt: 2026-10-23
 
-**Normaal gesproken heb je deze pagina niet nodig:** Plainva levert voor OneDrive **en** Dropbox een eigen app-ID mee — je kiest de provider, klikt op **Verbinden** en meldt je aan. Een **eigen** (gratis) app-registratie heb je alleen in twee gevallen nodig: als een bedrijfsbeperking de meegeleverde toegang blokkeert, of als je de verbinding bewust onder je eigen controle wilt houden. Op de **desktop** blend je de velden in de sync-instellingen in via **Eigen app-ID gebruiken**; op de **telefoon** staat het veld direct in het verbindingsformulier, vlak onder de provider. Hoe dan ook voer je precies één publieke waarde in:
+**Normaal gesproken heb je deze pagina niet nodig:** Plainva levert voor OneDrive **en** Dropbox een eigen app-ID mee — je kiest de provider, klikt op **Verbinden** en meldt je aan. Een **eigen** (gratis) app-registratie heb je alleen in twee gevallen nodig: als een bedrijfsbeperking de meegeleverde toegang blokkeert, of als je de verbinding bewust onder je eigen controle wilt houden. Voor **OneDrive** voer je haar in onder **Toegang van dit apparaat** → **Wijzigen** → **Eigen toegang** — op de accountpagina of in de wizard, op de desktop en op de telefoon, alleen voor dit apparaat. Voor **Dropbox** blijft het veld waar het was: op de **desktop** **Eigen app-ID gebruiken** bij het account, op de **telefoon** in het verbindingsformulier, vlak onder de provider. Hoe dan ook voer je precies één publieke waarde in:
 
 - **OneDrive** → een **Client-ID** (formaat `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → een **App-key** (korte tekenreeks)
@@ -56,10 +56,10 @@ Kopieer op het **Overzicht** van de app de waarde **"Toepassings-ID (client)"** 
 
 ### In Plainva invoeren
 
-1. **Instellingen → Vault → Synchronisatie**.
-2. Zet de **Sync-provider** op **OneDrive**.
-3. Plak de gekopieerde toepassings-ID in het veld **Client-ID**; stel optioneel de **OneDrive-map (naam)** in (standaard `Plainva`).
-4. **Verbinden met Microsoft** → meld je aan in de browser en bevestig de toegang. De browser meldt daarna dat je het venster kunt sluiten.
+1. **Instellingen → Vault → Cloudaccounts**: open het Microsoft-account, of start **Account verbinden…** met de tegel **Microsoft**.
+2. Kies bij **Toegang van dit apparaat** **Wijzigen** en daarna **Eigen toegang**.
+3. Plak de gekopieerde toepassings-ID in het veld **Client-ID** en kies **Opslaan**.
+4. **Opnieuw verbinden** (in de wizard: **Aanmelden met Microsoft…**) → meld je aan in de browser en bevestig de toegang. De browser meldt daarna dat je het venster kunt sluiten.
 
 ---
 

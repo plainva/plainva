@@ -3667,7 +3667,14 @@
     "joinedExisting": "This account was already connected: its services are now with {{account}}.",
     "gmailPasswordGroup": "Gmail with an app password",
     "gmailPasswordHint": "This access cannot allow Gmail as well, so Plainva connects {{account}} with an app password – at the same account.",
-    "appPassword": "App password"
+    "appPassword": "App password",
+    "checkConnection": "Check connection",
+    "checkRunning": "Checking …",
+    "checkOk": "Works",
+    "checkExpired": "Sign-in expired – sign in again",
+    "checkNotGranted": "Not allowed – sign in again and tick the service",
+    "checkFailed": "Does not work",
+    "checkNoted": "Noted in the diagnostics."
   },
   "comments": {
     "workspaceLocked": "This workspace is locked on this device. Open the security settings to unlock it and read or write remarks.",

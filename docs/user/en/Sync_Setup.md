@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-10-21
+Last updated: 2026-10-23
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -56,31 +56,35 @@ A new calendar connection remains bound to the vault where you started it. If yo
 
 ## Google Drive
 
-Google Drive currently runs with your own credentials ("Bring Your Own"): you create a free Google Cloud project once, owned by you alone. The step-by-step guide: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
+Google Drive signs in with **This device's access**. By default that is **Plainva access**: when your build includes it, you enter nothing. If it does not, Plainva says so and asks for your **Own access** — a client from a free Google Cloud project of your own, owned by you alone ("Bring Your Own"). The step-by-step guide: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Short version: in **Cloud accounts** → **Connect account…** pick the **Google** tile, tick the **Files** service, enter the **Client ID** and **Client Secret** from your Google project, then **Sign in with Google…** — the sign-in opens in your browser. Once connected, pick the **Cloud folder** via **Choose folder…** straight from your Drive (subfolders included, default "Plainva"). Note: while your Google project sits in **testing** mode, the sign-in expires after **7 days** — for good, because Google lets the refresh token expire too in that mode, so Plainva cannot renew it in the background. Sync then tells you the sign-in has expired, and **Sign in again** in the account details restores it — one round trip for **all** services of that account. **In production** removes the fixed expiry of testing mode. It does not guarantee a permanent sign-in: Google can still expire or revoke access. Publishing and verification requirements depend on the use and requested permissions. [Google: refresh token expiration](https://developers.google.com/identity/protocols/oauth2#expiration).
+Short version: in **Cloud accounts** → **Connect account…** pick the **Google** tile, tick the **Files** service, then **Sign in with Google…** — the sign-in opens in your browser. With your own access you enter it in the wizard first: on the desktop the **Client ID** and **Client Secret** of a client of type "Desktop app", on the phone only the **Client ID** of a client of type "iOS". Once connected, pick the **Cloud folder** via **Choose folder…** straight from your Drive (subfolders included, default "Plainva"). Note: while your own Google project sits in **testing** mode, the sign-in expires after **7 days** — for good, because Google lets the refresh token expire too in that mode, so Plainva cannot renew it in the background. Sync then tells you the sign-in has expired, and **Sign in again** in the account details restores it — one round trip for **all** services of that account. **In production** removes the fixed expiry of testing mode. It does not guarantee a permanent sign-in: Google can still expire or revoke access. Publishing and verification requirements depend on the use and requested permissions. [Google: refresh token expiration](https://developers.google.com/identity/protocols/oauth2#expiration).
 
-If you tick **Files** and **Calendar** together while connecting, Google asks for your consent only **once** — requesting exactly the permissions of the services you picked. Adding another service later brings a second, incremental consent.
+If you tick **Files** and **Calendar & tasks** together while connecting, Google asks for your consent only **once** — requesting exactly the permissions of the services you picked. Adding another service later asks once more, for everything the account carries plus the new service.
 
 ## OneDrive
 
-Plainva ships its own app registration — you **no longer need your own ID**:
+Plainva ships its own access for Microsoft (**Plainva access**) — you **need no ID of your own**:
 
 1. In **Cloud accounts** → **Connect account…** pick the **Microsoft** tile and tick the **Files** service (OneDrive) — on request together with **Calendar & tasks** and **Email** (one Microsoft account can carry all three services).
 2. **Sign in with Microsoft…** and confirm the sign-in in the browser. Done — Plainva creates the folder (default "Plainva") and syncs its entire content, including externally added files.
 3. Optional: once connected, pick the **Cloud folder** via **Choose folder…** straight from your OneDrive (subfolders included).
 
-Optional: via **Use your own app ID** you can instead supply a self-registered client ID (e.g. for corporate restrictions). Detailed guide: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
+Optional: under **This device's access** → **Change** → **Own access** you can instead enter the application (client) ID of an app registration of your own (e.g. for corporate restrictions) — for this device only. Detailed guide: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
-When you connect several services of one account together — say **Files** and **Calendar** — the provider asks for your consent only **once**, and Plainva keeps a single sign-in for the whole account. This holds for **Microsoft** (files, calendar, mail) as well as **Google** (files and calendar; a Gmail mailbox stays out of it, because it runs over IMAP with an app password and needs no consent).
+**One sign-in for every service.** For **Microsoft** and **Google**, connecting an account, switching on another service at it and **Sign in again** are the same step: the provider asks for your consent **once**, for everything the account carries plus what you add, and Plainva keeps a single sign-in for the whole account. Afterwards each service shows its own result — active, or **Not allowed – left unticked at sign-in. Sign in again and tick the service.** if you took its tick off on the provider's consent screen; signing in again and ticking it fixes that. A service that fails does not hold up the others. If you connect an account the vault already has, Plainva adds the services to that account instead of creating a second one, and says so. **Sign in again** with a different account than the one shown is refused, and nothing changes.
 
 The wizard carries the provider you picked **through every step**: steps 2 and 3 open the matching form right away (the Google calendar form instead of a provider chooser, Gmail instead of a generic IMAP form) and never ask again who you wanted to connect. What one step collected is already there in the next — for Nextcloud, Plainva derives the CalDAV address from the server address of step 1, and a suite password is typed once instead of three times. Those details live in memory for the length of the run only; they are stored nowhere and are gone once the run ends — including when you end it with **Leave wizard**.
 
-Accounts that still sign in per service are marked **Old sign-in** in the account list and offer **One login for all services** — in the list and in the account details, on the desktop as well as in the [mobile app](Mobile_App.md). One round trip, and afterwards every service shares the same sign-in. That is more than convenience: separate sign-ins could drift apart, leaving one service running while another one of the same account had quietly expired. For such accounts **Sign in again** now renews the whole account instead of a single service. The offer also stays when a shared sign-in already exists but does not cover every service of the account — because you left a tick off on the consent screen, say; Google cannot widen a consent it has already granted.
+Accounts that still keep one sign-in per service from an earlier version are marked **Old sign-in** in the account list. **Sign in again** covers every service of the account — on the desktop as well as in the [mobile app](Mobile_App.md): one round trip, and afterwards every service shares the same sign-in. That is more than convenience: separate sign-ins could drift apart, leaving one service running while another one of the same account had quietly expired.
 
-Signing in to Google again preserves your Gmail mailbox’s app password. The browser sign-in renews only the account’s OAuth services; your IMAP mailbox does not need a new password for this. Outlook keeps stored sign-ins and running connections separate for each vault, even when the same account profile exists in several vaults. This applies on desktop and mobile.
+**Gmail at the Google account.** When this device's access allows mail, Gmail is part of the same consent and the mailbox is bound to the Google account. When it does not — **Plainva access** without Google's approval for mail — switching on **Email** at the Google account asks for an **App password** right there, under **Gmail with an app password**: at the same account, never as a second one. Signing in to Google again keeps such an app password. Outlook keeps stored sign-ins and running connections separate for each vault, even when the same account profile exists in several vaults. This applies on desktop and mobile.
 
 Files, calendar and Outlook mail each need their own permissions. Working file sync therefore does not mean that the calendar or mailbox is also authorized. Plainva checks the permissions for each service; if a permission is missing, sign in again and grant the required access. Equivalent Google permission names are recognized.
+
+**This device's access.** Which access a device signs in to Google or Microsoft with is set per device, not for the whole account — other devices keep theirs. You see and change it on the account page (desktop: **Settings → your vault → Cloud accounts** → the account → **This device's access** → **Change**; phone: the account in **Cloud accounts** → the row **This device's access**) and in the wizard. **Plainva access** is the default whenever your build includes it; then you enter nothing. **Own access** takes, for Google on the desktop, the **Client ID** and **Client Secret** of a client of type "Desktop app"; on the phone (Android and iPhone) the **Client ID** of a client of type "iOS" with the bundle ID `com.plainva.app`, without a secret; for Microsoft the application (client) ID of your app registration. If your build has no Plainva access for Google, Plainva says so and asks for your own. Signing in again uses this device's access.
+
+**Check connection.** Every account page offers **Check connection** — a dialog on the desktop, a sheet on the phone. Each service reads something small and shows **Works**, **Sign-in expired – sign in again**, **Not allowed – sign in again and tick the service** or the error, with **Sign in again** where that helps. The result is noted in the diagnostics.
 
 ## Dropbox
 
@@ -189,9 +193,9 @@ Timeouts also cover receiving file contents from WebDAV, Dropbox, OneDrive, S3 a
 <!-- accounts-tasks-2026-09-11 -->
 ## Extend existing accounts
 
-Add files, calendar or email directly to the appropriate account. Plainva checks the selected sign-in and requests any missing permissions.
+Add files, calendar or email directly to the account that should carry them. For Google and Microsoft that is one consent for everything the account carries plus the new service.
 
-Open **Cloud accounts**, choose the existing account and select **Add** for the missing service. Existing services remain connected. Gmail continues to use its own mail login or app password. Cancelling the assistant does not disconnect completed services. A mobile file transfer keeps the source vault; it considers an existing matching destination vault or prepares a separate container. Colliding files are reviewed individually and both contents are kept. Encrypted destinations are opened through the existing pairing flow.
+Open **Cloud accounts**, choose the existing account and switch the missing service on (on the phone: **Add**). Existing services remain connected, and a service that fails does not stop the others. Gmail joins the Google sign-in when this device's access allows mail; otherwise Plainva asks for an app password at the same account. Cancelling the assistant does not disconnect completed services. A mobile file transfer keeps the source vault; it considers an existing matching destination vault or prepares a separate container. Colliding files are reviewed individually and both contents are kept. Encrypted destinations are opened through the existing pairing flow.
 
 When adding files on mobile, Plainva shows the source, destination and collisions before transfer. Existing contents and services are preserved; an interrupted transfer can be retried.
 
@@ -214,6 +218,6 @@ On a device that still holds the complete verified history, choose Sync now. Pla
 Unencrypted remark files from other devices remain on the server. Only their originating device can finish the conversion. Plainva does not delete another device's files.
 
 <!-- account-grants-destination-2026-09-14 -->
-Existing sign-ins are adopted only after verifying identity, the permissions actually granted, and secure storage. An account can retain separate grants; adding a service keeps the working sign-ins of other services. Microsoft mail can reuse a suitable files or calendar sign-in. Another device needs its own sign-in.
+A sign-in is adopted only after verifying identity, the permissions actually granted, and secure storage. Adding a service signs the account in once for all its services; if none of them is allowed, the working sign-ins stay as they were. Another device needs its own sign-in.
 
 In Sync settings, the Google Drive picker shows the current destination and a preview of the selected folder. Open folders with the same name and compare their files and modification dates. “Use this destination” stores the unique folder ID. If that folder later becomes unavailable, Plainva reports the error and creates no replacement. Other folders are not moved or deleted.

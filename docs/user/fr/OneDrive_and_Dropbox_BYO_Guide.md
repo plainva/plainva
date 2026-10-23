@@ -1,8 +1,8 @@
 # Configurer OneDrive & Dropbox (votre propre inscription d'application)
 
-Dernière mise à jour : 2026-08-12
+Dernière mise à jour : 2026-10-23
 
-**Vous n'avez normalement pas besoin de cette page :** Plainva fournit son propre ID d'application pour OneDrive **et** Dropbox — vous choisissez le fournisseur, cliquez sur **Se connecter** et vous vous connectez. Vous n'avez besoin de votre **propre** inscription d'application (gratuite) que dans deux cas : lorsqu'une restriction d'entreprise bloque l'accès fourni, ou lorsque vous souhaitez délibérément placer la connexion sous votre propre contrôle. Sur **le bureau**, vous affichez les champs dans les paramètres de synchronisation via **Utiliser votre propre ID d'application** ; sur **le téléphone**, le champ se trouve directement dans le formulaire de connexion, juste sous le fournisseur. Dans les deux cas, saisissez une seule valeur publique :
+**Vous n'avez normalement pas besoin de cette page :** Plainva fournit son propre ID d'application pour OneDrive **et** Dropbox — vous choisissez le fournisseur, cliquez sur **Se connecter** et vous vous connectez. Vous n'avez besoin de votre **propre** inscription d'application (gratuite) que dans deux cas : lorsqu'une restriction d'entreprise bloque l'accès fourni, ou lorsque vous souhaitez délibérément placer la connexion sous votre propre contrôle. Pour **OneDrive**, vous le saisissez sous **Accès de cet appareil** → **Modifier** → **Accès personnel** — sur la page du compte ou dans l'assistant, sur le bureau comme sur le téléphone, pour cet appareil uniquement. Pour **Dropbox**, le champ reste où il était : sur **le bureau** **Utiliser votre propre ID d'application** au niveau du compte, sur **le téléphone** dans le formulaire de connexion, juste sous le fournisseur. Dans les deux cas, saisissez une seule valeur publique :
 
 - **OneDrive** → un **ID client** (format `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → une **Clé d'application** (une courte chaîne de caractères)
@@ -56,10 +56,10 @@ Sur la page **Vue d'ensemble** de l'application, copiez la valeur **« ID d'appl
 
 ### Le saisir dans Plainva
 
-1. **Paramètres → Vault → Synchronisation**.
-2. Réglez le **Fournisseur de synchronisation** sur **OneDrive**.
-3. Collez l'ID d'application copié dans le champ **ID client** ; définissez éventuellement le **Dossier OneDrive (nom)** (par défaut `Plainva`).
-4. **Se connecter à Microsoft** → connectez-vous dans le navigateur et confirmez l'accès. Le navigateur vous indique ensuite que vous pouvez fermer la fenêtre.
+1. **Paramètres → votre vault → Comptes cloud** : ouvrez le compte Microsoft, ou lancez **Connecter un compte…** avec la tuile **Microsoft**.
+2. Sous **Accès de cet appareil**, choisissez **Modifier**, puis **Accès personnel**.
+3. Collez l'ID d'application copié dans le champ **ID client** et **Enregistrer**.
+4. **Se reconnecter** (dans l'assistant : **Se connecter avec Microsoft…**) → connectez-vous dans le navigateur et confirmez l'accès. Le navigateur vous indique ensuite que vous pouvez fermer la fenêtre.
 
 ---
 

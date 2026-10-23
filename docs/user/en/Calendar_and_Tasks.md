@@ -1,6 +1,6 @@
 # Calendar & external tasks
 
-Last reviewed: 2026-10-21
+Last reviewed: 2026-10-23
 
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
@@ -13,8 +13,8 @@ Open **Settings → your vault → Cloud accounts → Connect account…**, pick
 - **Nextcloud / CalDAV**: server address, user name and an **app password** (in Nextcloud: Settings → Security → Devices & sessions). No registration, no keys — for Nextcloud, Plainva derives the CalDAV address from the server address itself (for other CalDAV servers use the **WebDAV / CalDAV** tile or **Advanced: set endpoints individually**).
 - **Apple iCloud, Yahoo, AOL, Zoho, Fastmail, mailbox.org, Yandex, Mail.ru**: dedicated tiles with the calendar addresses already filled in — email address plus an **app password** is enough, no server field (for Apple the app password is mandatory; the assistant links the provider's guide). Note: Yahoo itself flags its CalDAV service as unreliable — if it acts up, it is not Plainva.
 - **On this device** (phone only): the calendars your device already knows — iCloud, Exchange, Google through the system accounts, local calendars — as **one** account with no login. A tap asks for the system permission (full access, because Plainva creates events too); on iOS the **reminder lists** join as task lists, Android has no system task store. There is at most one device account per phone, it does not travel through the settings sync, and the same calendar may also be connected through a cloud account — Plainva does not merge the two.
-- **Google**: needs your own OAuth client ID (the same BYO model as the Google Drive sync — see the [Drive guide](Google_Drive_BYO_Guide.md)). In your Google Cloud project, additionally enable the *Google Calendar API* and *Google Tasks API* and add their scopes to the consent screen. The browser opens for consent; connecting validates the account before anything is saved.
-- **Microsoft**: just click **Sign in with Microsoft…** and confirm in the browser — no setup needed. One Microsoft account can also carry **Files** (OneDrive) and **Email** in the same pass.
+- **Google**: signs in with **This device's access** — **Plainva access** when your build includes it, otherwise your own Google project (the same BYO model as the Google Drive sync — see the [Drive guide](Google_Drive_BYO_Guide.md)). In your own Google Cloud project, additionally enable the *Google Calendar API* and *Google Tasks API* and add their scopes to the consent screen. The browser opens for consent — one consent for every service you ticked; connecting validates the account before anything is saved.
+- **Microsoft**: just click **Sign in with Microsoft…** and confirm in the browser — no setup needed. One Microsoft account can also carry **Files** (OneDrive) and **Email** in the same pass, with one consent.
 
 The assistant shows a per-service status ("connected — n calendars found"). You then manage the **calendars** (checked ones appear in the calendar tab) and the **task lists** (deliberately unchecked by default — ticking one starts the task sync described below) in the **Calendar** area; the **Meetings folder** (where meeting notes are created) and the **Default calendar** live there too. Passwords and tokens live in your operating system's keychain.
 
@@ -146,11 +146,11 @@ This is a different thing from **blocking time** on a task: there you reserve ti
 <!-- accounts-tasks-2026-09-11 -->
 ## Setup with clear steps
 
-Add files, calendar or email directly to the appropriate account. Plainva checks the selected sign-in and requests any missing permissions.
+Add files, calendar or email directly to the account that should carry them. For Google and Microsoft that is one consent for everything the account carries plus the new service.
 
 The mobile assistant opens the appropriate connection immediately. After signing in, choose calendars and task lists and see the result.
 
-Open **Cloud accounts**, choose the existing account and select **Add** for the missing service. Existing services remain connected. Gmail continues to use its own mail login or app password. Cancelling the assistant does not disconnect completed services. A mobile file transfer keeps the source vault; it considers an existing matching destination vault or prepares a separate container. Colliding files are reviewed individually and both contents are kept. Encrypted destinations are opened through the existing pairing flow.
+Open **Cloud accounts**, choose the existing account and switch the missing service on (on the phone: **Add**). Existing services remain connected, and a service that fails does not stop the others. Gmail joins the Google sign-in when this device's access allows mail; otherwise Plainva asks for an app password at the same account. Cancelling the assistant does not disconnect completed services. A mobile file transfer keeps the source vault; it considers an existing matching destination vault or prepares a separate container. Colliding files are reviewed individually and both contents are kept. Encrypted destinations are opened through the existing pairing flow.
 
 [Google — Your own app registration](Google_Drive_BYO_Guide.md)
 

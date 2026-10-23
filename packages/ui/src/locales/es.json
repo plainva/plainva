@@ -3704,7 +3704,14 @@
     "joinedExisting": "Esta cuenta ya estaba conectada: sus servicios ahora están en {{account}}.",
     "gmailPasswordGroup": "Gmail con contraseña de aplicación",
     "gmailPasswordHint": "Este acceso no puede permitir también Gmail, así que Plainva conecta {{account}} con una contraseña de aplicación, en la misma cuenta.",
-    "appPassword": "Contraseña de aplicación"
+    "appPassword": "Contraseña de aplicación",
+    "checkConnection": "Comprobar conexión",
+    "checkRunning": "Comprobando …",
+    "checkOk": "Funciona",
+    "checkExpired": "Inicio de sesión caducado: vuelve a iniciar sesión",
+    "checkNotGranted": "No permitido: vuelve a iniciar sesión y marca el servicio",
+    "checkFailed": "No funciona",
+    "checkNoted": "Anotado en el diagnóstico."
   },
   "comments": {
     "workspaceLocked": "Este espacio de trabajo está bloqueado en este dispositivo. Abre los ajustes de seguridad para desbloquearlo y leer o escribir anotaciones.",

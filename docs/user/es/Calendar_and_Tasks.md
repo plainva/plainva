@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-10-21
+Última actualización: 2026-10-23
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -13,8 +13,8 @@ Abre **Ajustes → tu vault → Cuentas en la nube → Conectar cuenta…**, eli
 - **Nextcloud / CalDAV**: dirección del servidor, nombre de usuario y una **contraseña de aplicación** (en Nextcloud: Ajustes → Seguridad → Dispositivos y sesiones). Sin registro, sin claves — para Nextcloud, Plainva deriva la dirección CalDAV de la propia dirección del servidor (para otros servidores CalDAV usa la ficha **WebDAV / CalDAV** o **Avanzado: definir los endpoints individualmente**).
 - **Apple iCloud, Yahoo, AOL, Zoho, Fastmail, mailbox.org, Yandex, Mail.ru**: fichas dedicadas con las direcciones de calendario ya rellenadas — basta con la dirección de correo más una **contraseña de aplicación**, sin campo de servidor (en Apple la contraseña de aplicación es obligatoria; el asistente enlaza la guía del proveedor). Nota: el propio Yahoo señala que su servicio CalDAV no es fiable — si se comporta de forma extraña, no es culpa de Plainva.
 - **En este dispositivo** (solo teléfono): los calendarios que tu dispositivo ya conoce — iCloud, Exchange, Google a través de las cuentas del sistema, calendarios locales — como **una** cuenta sin inicio de sesión. Un toque pide el permiso del sistema (acceso completo, porque Plainva también crea eventos); en iOS se suman las **listas de recordatorios** como listas de tareas, Android no tiene almacén de tareas del sistema. Hay como máximo una cuenta del dispositivo por teléfono, no viaja con la sincronización de ajustes, y el mismo calendario puede estar conectado además mediante una cuenta en la nube — Plainva no fusiona ambos.
-- **Google**: necesita tu propio ID de cliente OAuth (el mismo modelo BYO que la sincronización con Google Drive — ver la [guía de Drive](Google_Drive_BYO_Guide.md)). En tu proyecto de Google Cloud, activa además la *Google Calendar API* y la *Google Tasks API* y añade sus ámbitos a la pantalla de consentimiento. El navegador se abre para pedir consentimiento; al conectar se valida la cuenta antes de guardar nada.
-- **Microsoft**: solo haz clic en **Iniciar sesión con Microsoft…** y confirma en el navegador — no hace falta ninguna configuración. Una cuenta de Microsoft también puede llevar **Archivos** (OneDrive) y **Correo** en el mismo proceso.
+- **Google**: inicia sesión con el **Acceso de este dispositivo** — el **Acceso de Plainva** si tu compilación lo incluye; si no, tu propio proyecto de Google (el mismo modelo BYO que la sincronización con Google Drive — ver la [guía de Drive](Google_Drive_BYO_Guide.md)). En tu propio proyecto de Google Cloud, activa además la *Google Calendar API* y la *Google Tasks API* y añade sus ámbitos a la pantalla de consentimiento. El navegador se abre para pedir consentimiento — un único consentimiento para todos los servicios que marcaste; al conectar se valida la cuenta antes de guardar nada.
+- **Microsoft**: solo haz clic en **Iniciar sesión con Microsoft…** y confirma en el navegador — no hace falta ninguna configuración. Una cuenta de Microsoft también puede llevar **Archivos** (OneDrive) y **Correo** en el mismo proceso, con un único consentimiento.
 
 El asistente muestra un estado por servicio ("conectado — n calendarios encontrados"). Después gestionas los **calendarios** (los marcados aparecen en la pestaña de calendario) y las **listas de tareas** (deliberadamente sin marcar por defecto — marcar una inicia la sincronización de tareas descrita más abajo) en la zona **Calendario**; ahí también están la **Carpeta de reuniones** (dónde se crean las notas de reunión) y el **Calendario predeterminado**. Las contraseñas y los tokens viven en el llavero de tu sistema operativo.
 
@@ -146,11 +146,11 @@ Esto es distinto de **bloquear tiempo** en una tarea: allí reservas tiempo para
 <!-- accounts-tasks-2026-09-11 -->
 ## Configuración con pasos claros
 
-Añade archivos, calendario o correo a la cuenta correspondiente. Plainva comprueba el acceso elegido y solicita los permisos que faltan.
+Añade archivos, calendario o correo directamente a la cuenta que deba llevarlos. En Google y Microsoft eso es un único consentimiento para todo lo que lleva la cuenta más el nuevo servicio.
 
 El asistente móvil abre directamente la conexión adecuada. Después de iniciar sesión, elige calendarios y listas de tareas y consulta el resultado.
 
-Abre **Cuentas en la nube**, elige la cuenta existente y pulsa **Añadir** en el servicio que falta. Los servicios existentes siguen conectados. Gmail conserva su acceso de correo o contraseña de aplicación. Cancelar el asistente no desconecta servicios completados. La transferencia móvil conserva el vault de origen y considera un destino existente que coincida o prepara un contenedor separado. Los archivos en colisión se comparan individualmente y se conservan ambos contenidos. Los destinos cifrados se abren mediante el emparejamiento existente.
+Abre **Cuentas en la nube**, elige la cuenta existente y activa el servicio que falta (en el teléfono: **Añadir**). Los servicios existentes siguen conectados, y un servicio que falla no detiene a los demás. Gmail se une al inicio de sesión de Google cuando el acceso de este dispositivo permite el correo; si no, Plainva pide una contraseña de aplicación en la misma cuenta. Cancelar el asistente no desconecta servicios completados. La transferencia móvil conserva el vault de origen y considera un destino existente que coincida o prepara un contenedor separado. Los archivos en colisión se comparan individualmente y se conservan ambos contenidos. Los destinos cifrados se abren mediante el emparejamiento existente.
 
 [Google — Tu propio registro de aplicación](Google_Drive_BYO_Guide.md)
 

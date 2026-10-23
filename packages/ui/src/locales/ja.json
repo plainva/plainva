@@ -3630,7 +3630,14 @@
     "joinedExisting": "このアカウントはすでに接続されていました。サービスは {{account}} にまとまりました。",
     "gmailPasswordGroup": "アプリパスワードによる Gmail",
     "gmailPasswordHint": "このアクセスでは Gmail を同時に許可できないため、Plainva は {{account}} をアプリパスワードで接続します（同じアカウントです）。",
-    "appPassword": "アプリパスワード"
+    "appPassword": "アプリパスワード",
+    "checkConnection": "接続を確認",
+    "checkRunning": "確認中 …",
+    "checkOk": "正常",
+    "checkExpired": "ログインの有効期限切れ – もう一度ログインしてください",
+    "checkNotGranted": "許可されていません – もう一度ログインしてサービスにチェックを入れてください",
+    "checkFailed": "動作していません",
+    "checkNoted": "診断に記録しました。"
   },
   "comments": {
     "workspaceLocked": "このデバイスではワークスペースがロックされています。セキュリティ設定を開いてロックを解除すると、コメントの読み書きができます。",

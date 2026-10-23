@@ -178,6 +178,8 @@ import i18n from "@plainva/ui/i18n";
 import { fileBrokerTokenProvider } from "./accountBroker";
 import { buildDriveTarget, buildOneDriveTarget } from "./syncTargets";
 import {
+  announceCredentials,
+  holdCredentialsAnnouncements,
   bindConnectResult,
   listSyncFoldersFromSlots,
   passwordServicesOf,
@@ -433,5 +435,48 @@ describe("shared sign-in repair offer", () => {
     accountTokens.set(record.id, { ...token, scopes: token.scopes + " " + oauthScopeFor("google", "calendar") });
     expect(await canUnifyAccountLogin("vault", record)).toBe(false);
     expect(await canUnifyAccountLogin("vault", { ...record, services: { calendar: record.services.calendar, mail: record.services.mail } })).toBe(false);
+  });
+});
+
+describe("held credential announcements", () => {
+  // The wizard and an account's detail show a sign-in's result service by
+  // service; the vault reload that new sync credentials trigger used to put
+  // the settings back on the account list before the result was ever seen
+  // (finding 2026-10-23). While such a surface is open the announcement waits.
+  const heard: boolean[] = [];
+  const listener = (event: Event) => heard.push(!!(event as CustomEvent<{ isNewConnection: boolean }>).detail.isNewConnection);
+  beforeEach(() => {
+    heard.length = 0;
+    // The unit environment has no window; an event target stands in for it.
+    const target = new EventTarget();
+    target.addEventListener("plainva-credentials-saved", listener);
+    vi.stubGlobal("window", target);
+    return () => vi.unstubAllGlobals();
+  });
+
+  it("sends at once without a hold", () => {
+    announceCredentials(false);
+    expect(heard).toEqual([false]);
+  });
+
+  it("sends once, when the last hold is released, and remembers a new connection", () => {
+    const outer = holdCredentialsAnnouncements();
+    const inner = holdCredentialsAnnouncements();
+    announceCredentials(true);
+    announceCredentials(false);
+    expect(heard).toEqual([]);
+    inner();
+    expect(heard).toEqual([]);
+    outer();
+    expect(heard).toEqual([true]);
+    // A release called twice (an effect cleanup run again) changes nothing.
+    outer();
+    announceCredentials(false);
+    expect(heard).toEqual([true, false]);
+  });
+
+  it("sends nothing on release when nothing was announced", () => {
+    holdCredentialsAnnouncements()();
+    expect(heard).toEqual([]);
   });
 });

@@ -3741,7 +3741,14 @@
     "joinedExisting": "To konto było już połączone: jego usługi są teraz przy koncie {{account}}.",
     "gmailPasswordGroup": "Gmail z hasłem aplikacji",
     "gmailPasswordHint": "Ten dostęp nie może dodatkowo obejmować Gmaila, dlatego Plainva łączy {{account}} za pomocą hasła aplikacji – na tym samym koncie.",
-    "appPassword": "Hasło aplikacji"
+    "appPassword": "Hasło aplikacji",
+    "checkConnection": "Sprawdź połączenie",
+    "checkRunning": "Sprawdzanie …",
+    "checkOk": "Działa",
+    "checkExpired": "Logowanie wygasło – zaloguj się ponownie",
+    "checkNotGranted": "Brak zgody – zaloguj się ponownie i zaznacz usługę",
+    "checkFailed": "Nie działa",
+    "checkNoted": "Zapisano w diagnostyce."
   },
   "comments": {
     "workspaceLocked": "Ten obszar roboczy jest zablokowany na tym urządzeniu. Otwórz ustawienia zabezpieczeń, aby go odblokować i czytać lub pisać uwagi.",

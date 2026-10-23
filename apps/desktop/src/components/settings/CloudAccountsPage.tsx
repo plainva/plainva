@@ -57,6 +57,7 @@ import {
   canUnifyAccountLogin,
   passwordServicesOf,
   runConnectSequence,
+  holdCredentialsAnnouncements,
   type ConnectRequest,
   type ServiceRunStatus,
 } from "../../services/cloudAccountsActions";
@@ -68,6 +69,7 @@ import { getSettingsStore } from "../../services/settingsStore";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { CloudAccountsWizard } from "./CloudAccountsWizard";
+import { AccountCheckModal } from "./AccountCheckModal";
 import { AccessUnavailableError, deviceAccess, readDeviceAccess, saveDeviceAccess, signInCloudAccount } from "../../services/accountSignIn";
 import { oauthErrorText } from "../../services/oauthLoopback";
 import { listMailAccounts } from "@plainva/ui/mail";
@@ -104,6 +106,11 @@ export const CloudAccountsPage: React.FC<{
   // the user already picked — land in the wizard on that tile, not on the list.
   const [mode, setMode] = useState<Mode>(initialProvider ? { kind: "wizard" } : { kind: "list" });
   const [reconStatus, setReconStatus] = useState<Partial<Record<CloudServiceId, ServiceRunStatus>>>({});
+  // The wizard and an account's detail show what a sign-in did, service by
+  // service; the vault reload that new sync credentials need waits until they
+  // are left (it would put the settings back on this list).
+  const showsResults = mode.kind !== "list";
+  useEffect(() => (showsResults ? holdCredentialsAnnouncements() : undefined), [showsResults]);
   const [busy, setBusy] = useState(false);
   /** Which other card the user declares to be the same account (E3 fallback). */
   const [mergeSource, setMergeSource] = useState("");
@@ -115,6 +122,8 @@ export const CloudAccountsPage: React.FC<{
   /** This device's access per family, shown on the account page (E3). */
   const [accessInfo, setAccessInfo] = useState<{ family: "google" | "microsoft"; stored: StoredOAuthAccess | null; resolved: AccessResolution } | null>(null);
   const [editAccess, setEditAccess] = useState(false);
+  /** The card whose connection is being checked (plan E6). */
+  const [checking, setChecking] = useState<string | null>(null);
   /** Whether the open card has a service a consent can renew (an app-password-only Gmail card has none). */
   const [renewable, setRenewable] = useState(true);
   const backfilled = useRef(false);
@@ -573,6 +582,9 @@ export const CloudAccountsPage: React.FC<{
               {t("cloudAccounts.reconnect")}
             </Button>
           )}
+          <Button variant="secondary" disabled={busy} onClick={() => setChecking(detail.id)} data-testid="cloudacct-check-open">
+            {t("cloudAccounts.checkConnection")}
+          </Button>
           <Button variant="danger-soft" icon={<Trash2 size={ICON.meta} />} disabled={busy} onClick={() => void remove(detail)} data-testid="cloudacct-remove">
             {t("cloudAccounts.removeAccount")}
           </Button>
@@ -708,6 +720,16 @@ export const CloudAccountsPage: React.FC<{
         </SettingCard>
 
         {passwordServices.length > 0 && <AccountPasswordChangePanel ports={desktopPasswordChangePorts(selectedVault, detail, runtime)} />}
+
+        {checking === detail.id && (
+          <AccountCheckModal
+            vaultPath={selectedVault}
+            record={detail}
+            runtime={runtime}
+            onSignInAgain={() => void reconnect(detail)}
+            onClose={() => setChecking(null)}
+          />
+        )}
 
         {gmailPasswordFor === detail.id && (
           <SettingCard label={t("cloudAccounts.gmailPasswordGroup")}>

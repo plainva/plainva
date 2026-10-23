@@ -168,6 +168,14 @@ export async function connectDevicePimAccount(label: string): Promise<{ ok: true
   return { ok: true };
 }
 
+/** "Check connection" (account sign-in plan E6): reads the account's calendars with what this phone holds; throws when that fails. */
+export async function checkPimAccount(vaultId: string, accountId: string): Promise<void> {
+  const row = (await listPimAccounts()).find((entry) => entry.id === accountId);
+  const target = row ? await buildTargetFor(vaultId, row) : null;
+  if (!target) throw new Error("not connected");
+  await target.listCalendars();
+}
+
 export async function listPimAccounts(): Promise<PimAccountRow[]> {
   return (await runtime?.cache.listAccounts()) ?? [];
 }

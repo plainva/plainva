@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-10-21
+Laatst bijgewerkt: 2026-10-23
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -13,8 +13,8 @@ Open **Instellingen → Vault → Cloudaccounts → Account verbinden…**, kies
 - **Nextcloud / CalDAV**: serveradres, gebruikersnaam en een **app-wachtwoord** (in Nextcloud: Instellingen → Beveiliging → Apparaten & sessies). Geen registratie, geen keys — voor Nextcloud leidt Plainva het CalDAV-adres zelf af uit het serveradres (voor andere CalDAV-servers gebruik je de tegel **WebDAV / CalDAV** of **Geavanceerd: endpoints afzonderlijk instellen**).
 - **Apple iCloud, Yahoo, AOL, Zoho, Fastmail, mailbox.org, Yandex, Mail.ru**: eigen tegels met de agenda-adressen al ingevuld — een e-mailadres plus een **app-wachtwoord** volstaat, zonder serverveld (bij Apple is het app-wachtwoord verplicht; de assistent linkt naar de handleiding van de provider). Let op: Yahoo geeft zelf aan dat zijn CalDAV-dienst onbetrouwbaar is — als die vreemd doet, ligt het niet aan Plainva.
 - **Op dit apparaat** (alleen telefoon): de agenda's die je apparaat al kent — iCloud, Exchange, Google via de systeemaccounts, lokale agenda's — als **één** account zonder aanmelding. Een tik vraagt de systeemtoestemming (volledige toegang, omdat Plainva ook afspraken aanmaakt); op iOS komen de **herinneringslijsten** als takenlijsten erbij, Android heeft geen systeemopslag voor taken. Er is hoogstens één apparaataccount per telefoon, het reist niet mee met de instellingensynchronisatie, en dezelfde agenda kan daarnaast via een cloudaccount verbonden zijn — Plainva voegt de twee niet samen.
-- **Google**: heeft je eigen OAuth-client-ID nodig (hetzelfde BYO-model als bij de Google Drive-sync — zie de [Drive-handleiding](Google_Drive_BYO_Guide.md)). Schakel in je Google Cloud-project bovendien de *Google Calendar API* en *Google Tasks API* in en voeg hun scopes toe aan het toestemmingsscherm. De browser opent voor toestemming; bij het verbinden wordt het account gevalideerd voordat er iets wordt opgeslagen.
-- **Microsoft**: klik gewoon op **Aanmelden met Microsoft…** en bevestig in de browser — geen instelling nodig. Eén Microsoft-account kan in dezelfde stap ook **Bestanden** (OneDrive) en **E-mail** dragen.
+- **Google**: meldt zich aan met **Toegang van dit apparaat** — **Plainva-toegang** wanneer je build die bevat, anders je eigen Google-project (hetzelfde BYO-model als bij de Google Drive-sync — zie de [Drive-handleiding](Google_Drive_BYO_Guide.md)). Schakel in je eigen Google Cloud-project bovendien de *Google Calendar API* en *Google Tasks API* in en voeg hun scopes toe aan het toestemmingsscherm. De browser opent voor toestemming — één toestemming voor elke dienst die je hebt aangevinkt; bij het verbinden wordt het account gevalideerd voordat er iets wordt opgeslagen.
+- **Microsoft**: klik gewoon op **Aanmelden met Microsoft…** en bevestig in de browser — geen instelling nodig. Eén Microsoft-account kan in dezelfde stap ook **Bestanden** (OneDrive) en **E-mail** dragen, met één toestemming.
 
 De assistent toont per dienst een status ("verbonden — n agenda's gevonden"). Je beheert daarna de **agenda's** (aangevinkte verschijnen in het agenda-tabblad) en de **takenlijsten** (bewust standaard niet aangevinkt — een vinkje start de hieronder beschreven takensynchronisatie) in het gebied **Agenda**; daar staan ook de **Vergadermap** (waar vergadernotities worden aangemaakt) en de **Standaardagenda**. Wachtwoorden en tokens komen terecht in de sleutelhanger van het besturingssysteem.
 
@@ -146,11 +146,11 @@ Dit is iets anders dan **tijd blokkeren** bij een taak: daar reserveer je tijd v
 <!-- accounts-tasks-2026-09-11 -->
 ## Instellen in duidelijke stappen
 
-Voeg bestanden, agenda of e-mail direct toe aan het juiste account. Plainva controleert de gekozen aanmelding en vraagt ontbrekende rechten aan.
+Voeg bestanden, agenda of e-mail direct toe aan het account dat ze moet dragen. Bij Google en Microsoft is dat één toestemming voor alles wat het account draagt plus de nieuwe dienst.
 
 De mobiele assistent opent direct de juiste verbinding. Na het aanmelden kies je agenda’s en takenlijsten en zie je het resultaat.
 
-Open **Cloudaccounts**, kies het bestaande account en **Toevoegen** bij de ontbrekende dienst. Bestaande diensten blijven verbonden. Gmail houdt zijn eigen e-mailaanmelding of app-wachtwoord. Stoppen met de assistent verbreekt voltooide verbindingen niet. Een mobiele bestandsoverdracht behoudt de bronkluis en gebruikt een passende bestaande doelkluis of bereidt een aparte container voor. Botsende bestanden worden apart vergeleken en beide inhouden blijven behouden. Versleutelde bestemmingen worden via de bestaande koppeling geopend.
+Open **Cloudaccounts**, kies het bestaande account en schakel de ontbrekende dienst in (op de telefoon: **Toevoegen**). Bestaande diensten blijven verbonden en een dienst die mislukt, houdt de andere niet tegen. Gmail sluit aan bij de Google-aanmelding wanneer de toegang van dit apparaat e-mail toestaat; anders vraagt Plainva bij hetzelfde account om een app-wachtwoord. Stoppen met de assistent verbreekt voltooide verbindingen niet. Een mobiele bestandsoverdracht behoudt de bronkluis en gebruikt een passende bestaande doelkluis of bereidt een aparte container voor. Botsende bestanden worden apart vergeleken en beide inhouden blijven behouden. Versleutelde bestemmingen worden via de bestaande koppeling geopend.
 
 [Google — Eigen app-registratie](Google_Drive_BYO_Guide.md)
 

@@ -3667,7 +3667,14 @@
     "joinedExisting": "Dit account was al verbonden: de diensten staan nu bij {{account}}.",
     "gmailPasswordGroup": "Gmail met app-wachtwoord",
     "gmailPasswordHint": "Deze toegang kan Gmail niet ook toestaan, daarom verbindt Plainva {{account}} met een app-wachtwoord – op hetzelfde account.",
-    "appPassword": "App-wachtwoord"
+    "appPassword": "App-wachtwoord",
+    "checkConnection": "Verbinding controleren",
+    "checkRunning": "Bezig met controleren …",
+    "checkOk": "Werkt",
+    "checkExpired": "Aanmelding verlopen – meld je opnieuw aan",
+    "checkNotGranted": "Niet toegestaan – meld je opnieuw aan en vink de dienst aan",
+    "checkFailed": "Werkt niet",
+    "checkNoted": "Vastgelegd in de diagnose."
   },
   "comments": {
     "workspaceLocked": "Deze werkruimte is vergrendeld op dit apparaat. Open de beveiligingsinstellingen om deze te ontgrendelen en opmerkingen te lezen of te schrijven.",

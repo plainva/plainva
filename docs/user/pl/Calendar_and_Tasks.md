@@ -1,6 +1,6 @@
 # Kalendarz i zewnętrzne zadania
 
-Stan na: 2026-10-21
+Stan na: 2026-10-23
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
@@ -13,8 +13,8 @@ Otwórz **Ustawienia → Twój vault → Konta w chmurze → Połącz konto…**
 - **Nextcloud / CalDAV**: adres serwera, nazwa użytkownika i **hasło aplikacji** (w Nextcloud: Ustawienia → Bezpieczeństwo → Urządzenia i sesje). Bez rejestracji, bez kluczy — w przypadku Nextcloud Plainva samodzielnie wyprowadza adres CalDAV z adresu serwera (dla innych serwerów CalDAV wybierz kafelek **WebDAV / CalDAV** lub **Zaawansowane: ustaw punkty końcowe osobno**).
 - **Apple iCloud, Yahoo, AOL, Zoho, Fastmail, mailbox.org, Yandex, Mail.ru**: dedykowane kafelki z już wypełnionymi adresami kalendarza — wystarczy adres e-mail plus **hasło aplikacji**, bez pola serwera (w przypadku Apple hasło aplikacji jest obowiązkowe; asystent linkuje instrukcję dostawcy). Uwaga: sam Yahoo zaznacza, że jego usługa CalDAV jest niestabilna — jeśli grymasi, nie jest to wina Plainva.
 - **Na tym urządzeniu** (tylko telefon): kalendarze, które Twoje urządzenie już zna — iCloud, Exchange, Google przez konta systemowe, kalendarze lokalne — jako **jedno** konto bez logowania. Dotknięcie prosi o uprawnienie systemowe (pełny dostęp, bo Plainva także tworzy wydarzenia); na iOS dochodzą **listy przypomnień** jako listy zadań, Android nie ma systemowego magazynu zadań. Na telefon przypada najwyżej jedno konto urządzenia, nie podróżuje ono z synchronizacją ustawień, a ten sam kalendarz może być równolegle połączony przez konto w chmurze — Plainva nie łączy obu.
-- **Google**: wymaga własnego identyfikatora klienta OAuth (ten sam model BYO co przy synchronizacji Google Drive — patrz [przewodnik Google Drive](Google_Drive_BYO_Guide.md)). W swoim projekcie Google Cloud dodatkowo włącz *Google Calendar API* i *Google Tasks API* oraz dodaj ich zakresy do ekranu zgody. Przeglądarka otwiera się w celu wyrażenia zgody; łączenie weryfikuje konto, zanim cokolwiek zostanie zapisane.
-- **Microsoft**: wystarczy kliknąć **Zaloguj się przez Microsoft…** i potwierdzić w przeglądarce — konfiguracja nie jest potrzebna. Jedno konto Microsoft może w tym samym przebiegu obsługiwać też **Pliki** (OneDrive) i **E-mail**.
+- **Google**: loguje się przez **Dostęp tego urządzenia** — przez **Dostęp Plainva**, jeśli Twoja kompilacja go zawiera, a w przeciwnym razie przez własny projekt Google (ten sam model BYO co przy synchronizacji Google Drive — patrz [przewodnik Google Drive](Google_Drive_BYO_Guide.md)). W swoim własnym projekcie Google Cloud dodatkowo włącz *Google Calendar API* i *Google Tasks API* oraz dodaj ich zakresy do ekranu zgody. Przeglądarka otwiera się w celu wyrażenia zgody — jednej zgody dla wszystkich zaznaczonych usług; łączenie weryfikuje konto, zanim cokolwiek zostanie zapisane.
+- **Microsoft**: wystarczy kliknąć **Zaloguj się przez Microsoft…** i potwierdzić w przeglądarce — konfiguracja nie jest potrzebna. Jedno konto Microsoft może w tym samym przebiegu, z jedną zgodą, obsługiwać też **Pliki** (OneDrive) i **E-mail**.
 
 Asystent pokazuje status dla każdej usługi („Połączono — znaleziono n kalendarzy”). Wybór **kalendarzy** (zaznaczone pojawiają się w karcie kalendarza) i **list zadań** (celowo domyślnie odznaczone — zaznaczenie jednej uruchamia opisaną niżej synchronizację zadań) zarządzasz później w obszarze **Kalendarz**; tam znajduje się też **Folder spotkań** (gdzie powstają notatki ze spotkań) i **Domyślny kalendarz**. Hasła i tokeny są przechowywane w pęku kluczy Twojego systemu operacyjnego.
 
@@ -146,11 +146,11 @@ To coś innego niż **blokowanie czasu** przy zadaniu: tam rezerwujesz czas na c
 <!-- accounts-tasks-2026-09-11 -->
 ## Konfiguracja w jasnych krokach
 
-Dodawaj pliki, kalendarz lub pocztę do właściwego konta. Plainva sprawdza wybrane logowanie i prosi o brakujące uprawnienia.
+Dodawaj pliki, kalendarz lub pocztę bezpośrednio do konta, które ma je obsługiwać. W przypadku Google i Microsoft to jedna zgoda dla wszystkiego, co konto obsługuje, plus nowa usługa.
 
 Asystent mobilny od razu otwiera właściwe połączenie. Po zalogowaniu wybierasz kalendarze i listy zadań oraz widzisz wynik.
 
-Otwórz **Konta w chmurze**, wybierz istniejące konto i **Dodaj** przy brakującej usłudze. Istniejące usługi pozostają połączone. Gmail nadal używa własnego logowania poczty lub hasła aplikacji. Anulowanie asystenta nie odłącza ukończonych usług. Transfer mobilny zachowuje vault źródłowy i uwzględnia pasujący istniejący vault docelowy albo przygotowuje osobny kontener. Pliki kolidujące są porównywane osobno i obie zawartości zostają zachowane. Zaszyfrowane cele otwiera się przez istniejący proces parowania.
+Otwórz **Konta w chmurze**, wybierz istniejące konto i włącz brakującą usługę (na telefonie: **Dodaj**). Istniejące usługi pozostają połączone, a usługa, której się nie powiedzie, nie zatrzymuje pozostałych. Gmail dołącza do logowania Google, gdy dostęp tego urządzenia dopuszcza pocztę; w przeciwnym razie Plainva prosi o hasło aplikacji na tym samym koncie. Anulowanie asystenta nie odłącza ukończonych usług. Transfer mobilny zachowuje vault źródłowy i uwzględnia pasujący istniejący vault docelowy albo przygotowuje osobny kontener. Pliki kolidujące są porównywane osobno i obie zawartości zostają zachowane. Zaszyfrowane cele otwiera się przez istniejący proces parowania.
 
 [Google — Własna rejestracja aplikacji](Google_Drive_BYO_Guide.md)
 

@@ -3704,7 +3704,14 @@
     "joinedExisting": "Questo account era già collegato: i suoi servizi ora sono in {{account}}.",
     "gmailPasswordGroup": "Gmail con password per app",
     "gmailPasswordHint": "Questo accesso non può autorizzare anche Gmail, quindi Plainva collega {{account}} con una password per app, sullo stesso account.",
-    "appPassword": "Password per app"
+    "appPassword": "Password per app",
+    "checkConnection": "Verifica connessione",
+    "checkRunning": "Verifica in corso …",
+    "checkOk": "Funziona",
+    "checkExpired": "Accesso scaduto: accedi di nuovo",
+    "checkNotGranted": "Non consentito: accedi di nuovo e spunta il servizio",
+    "checkFailed": "Non funziona",
+    "checkNoted": "Registrato nella diagnostica."
   },
   "comments": {
     "workspaceLocked": "Questo spazio di lavoro è bloccato su questo dispositivo. Apri le impostazioni di sicurezza per sbloccarlo e leggere o scrivere annotazioni.",

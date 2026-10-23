@@ -3667,7 +3667,14 @@
     "joinedExisting": "Dieses Konto war schon verbunden: Die Dienste stehen jetzt bei {{account}}.",
     "gmailPasswordGroup": "Gmail mit App-Passwort",
     "gmailPasswordHint": "Dieser Zugang kann Gmail nicht mit freigeben. Plainva verbindet {{account}} deshalb über ein App-Passwort – am selben Konto.",
-    "appPassword": "App-Passwort"
+    "appPassword": "App-Passwort",
+    "checkConnection": "Verbindung prüfen",
+    "checkRunning": "Wird geprüft …",
+    "checkOk": "Geht",
+    "checkExpired": "Anmeldung abgelaufen – erneut anmelden",
+    "checkNotGranted": "Nicht freigegeben – erneut anmelden und den Dienst anhaken",
+    "checkFailed": "Geht nicht",
+    "checkNoted": "In der Diagnose festgehalten."
   },
   "comments": {
     "workspaceLocked": "Dieser Workspace ist auf diesem Gerät gesperrt. Öffne die Sicherheitseinstellungen, um ihn zu entsperren und Anmerkungen zu lesen oder zu schreiben.",

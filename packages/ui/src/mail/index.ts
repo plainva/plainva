@@ -19,6 +19,7 @@ export * from "./useOrphanedMailAccounts";
 export * from "./gmailAccount";
 export * from "./mailClient";
 export * from "./graphMail";
+export * from "./checkMailbox";
 export * from "./mailOut";
 export * from "./junk";
 export * from "./remoteImages";

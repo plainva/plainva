@@ -1,8 +1,8 @@
 # OneDrive & Dropbox einrichten (eigene App-Registrierung)
 
-Stand: 2026-08-12
+Stand: 2026-10-23
 
-**Normalerweise brauchst Du diese Seite nicht:** Für OneDrive **und** Dropbox bringt Plainva eine eigene App-ID mit — Du wählst den Anbieter, klickst **Verbinden** und meldest Dich an. Eine **eigene** (kostenlose) App-Registrierung brauchst Du nur in zwei Fällen: wenn eine Firmen-Sperre den mitgelieferten Zugang blockiert, oder wenn Du die Verbindung bewusst unter Deine eigene Kontrolle stellen willst. Am **Desktop** blendest Du die Felder in den Sync-Einstellungen über **Eigene App-ID verwenden** ein; am **Telefon** steht das Feld direkt im Verbinden-Formular unter dem Anbieter. Trag dort genau einen öffentlichen Wert ein:
+**Normalerweise brauchst Du diese Seite nicht:** Für OneDrive **und** Dropbox bringt Plainva eine eigene App-ID mit — Du wählst den Anbieter, klickst **Verbinden** und meldest Dich an. Eine **eigene** (kostenlose) App-Registrierung brauchst Du nur in zwei Fällen: wenn eine Firmen-Sperre den mitgelieferten Zugang blockiert, oder wenn Du die Verbindung bewusst unter Deine eigene Kontrolle stellen willst. Für **OneDrive** trägst Du sie unter **Zugang dieses Geräts** → **Ändern** → **Eigener Zugang** ein — auf der Konto-Seite oder im Assistenten, am Rechner wie am Telefon, nur für dieses Gerät. Für **Dropbox** bleibt das Feld, wo es war: am **Desktop** **Eigene App-ID verwenden** beim Konto, am **Telefon** im Verbinden-Formular direkt unter dem Anbieter. Trag dort genau einen öffentlichen Wert ein:
 
 - **OneDrive** → eine **Client-ID** (Format `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → einen **App-Key** (kurze Zeichenkette)
@@ -56,10 +56,10 @@ Auf der **Übersicht** der App den Wert **„Anwendungs-(Client-)ID"** kopieren 
 
 ### In Plainva eintragen
 
-1. **Einstellungen → Vault → Synchronisation**.
-2. **Sync Provider** auf **OneDrive** stellen.
-3. Ins Feld **Client ID** die kopierte Anwendungs-ID einfügen; optional **OneDrive-Ordner (Name)** (Standard `Plainva`).
-4. **Mit Microsoft verbinden** → im Browser anmelden und Zugriff bestätigen. Der Browser meldet danach, dass Du das Fenster schließen kannst.
+1. **Einstellungen → Dein Vault → Cloud-Konten**: das Microsoft-Konto öffnen oder **Konto verbinden…** mit der Kachel **Microsoft** starten.
+2. Bei **Zugang dieses Geräts** **Ändern** wählen, dann **Eigener Zugang**.
+3. Ins Feld **Client ID** die kopierte Anwendungs-ID einfügen und **Speichern**.
+4. **Erneut anmelden** (im Assistenten: **Bei Microsoft anmelden…**) → im Browser anmelden und Zugriff bestätigen. Der Browser meldet danach, dass Du das Fenster schließen kannst.
 
 ---
 

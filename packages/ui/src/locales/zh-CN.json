@@ -3630,7 +3630,14 @@
     "joinedExisting": "此账户已连接过：其服务现在归入 {{account}}。",
     "gmailPasswordGroup": "使用应用专用密码的 Gmail",
     "gmailPasswordHint": "此访问方式无法同时授权 Gmail，因此 Plainva 通过应用专用密码连接 {{account}}——仍是同一个账户。",
-    "appPassword": "应用专用密码"
+    "appPassword": "应用专用密码",
+    "checkConnection": "检查连接",
+    "checkRunning": "正在检查 …",
+    "checkOk": "正常",
+    "checkExpired": "登录已过期 – 请重新登录",
+    "checkNotGranted": "未授权 – 请重新登录并勾选该服务",
+    "checkFailed": "无法使用",
+    "checkNoted": "已记录到诊断信息。"
   },
   "comments": {
     "workspaceLocked": "此工作区在这台设备上已锁定。打开安全设置以解锁工作区，然后即可阅读或撰写批注。",
