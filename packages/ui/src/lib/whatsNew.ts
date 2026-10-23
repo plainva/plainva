@@ -83,6 +83,21 @@ export { getWhatsNewBlogUrl } from "./releaseBlog.mjs";
 
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
   {
+    version: "0.8.6",
+    releaseDate: "2026-10-23",
+    highlights: [
+      { icon: "tasks" },
+      { icon: "wand" },
+      { icon: "layout" },
+      { icon: "link" },
+      { icon: "database" },
+      { icon: "shield" },
+      { icon: "mail" },
+    ],
+    blogUrl: "https://plainva.com/blog/plainva-0-8-6",
+    blogLanguages: ["de", "en", "es", "fr", "it", "ja", "nl", "pl", "pt-BR", "zh-CN"],
+  },
+  {
     version: "0.8.5",
     releaseDate: "2026-10-13",
     highlights: [
