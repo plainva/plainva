@@ -1,6 +1,6 @@
 # Tarefas
 
-Última revisão: 2026-10-21
+Última revisão: 2026-10-24
 
 A visualização de Tarefas reúne todas as caixas de seleção do seu vault em um só lugar: todos os itens de lista `- [ ]` e `- [x]` de todas as suas notas, agrupados pela nota a que pertencem. É a visualização "o que ainda preciso fazer?" sobre Markdown puro — sem plugin, sem arquivo especial.
 
@@ -168,6 +168,8 @@ Acima das listas fica o campo de captura; no telefone, **+ Nova tarefa** e o bot
 `- [/]` (**Em andamento**) e `- [-]` (**Cancelada**) também são tarefas. Elas ganham uma caixa própria no editor, no modo de leitura e em cada lista; em andamento conta como aberta, cancelada como fechada. Um clique continua alternando só entre aberta e concluída — ele conclui uma tarefa em andamento e reabre uma cancelada. **Definir estado** no menu da linha define os dois estados; o Plainva nunca os escreve por conta própria.
 
 **A data de uma tarefa é o caminho para alterá-la.** Toque na data de uma tarefa (dentro de um dia, no horário dela) e o seletor de data se abre — abaixo da data no desktop, como folha no celular. **Alterar vencimento** no menu da linha abre o mesmo seletor; é assim também que uma tarefa sem data ganha uma. No celular, **Nova tarefa** e a célula de data de um banco de dados escolhem o dia no mesmo calendário, não na roda de datas do sistema. Uma caixa de seleção em uma nota — no editor, na visualização de leitura e no diário — tem no celular um tamanho pensado para o dedo. Uma entrada do banco de dados de tarefas mantém o horário, uma caixa de seleção ganha ou muda a data `📅`. Ao lado do título **Atrasadas**, **Todas para hoje** move de uma vez todas as tarefas atrasadas para hoje. As duas ações são confirmadas por um aviso que oferece **Desfazer**. No campo de captura, `[[` sugere notas e `#` tags, como no editor: `Enter` ou `Tab` aceita a sugestão destacada, `Esc` fecha a lista.
+
+**Escolhas rápidas e um horário.** Acima do calendário o seletor oferece **Hoje**, **Amanhã**, **Este fim de semana**, **Próxima semana** e **Sem data**, cada uma com o dia da semana. Este fim de semana é o próximo sábado — hoje, se for sábado ou domingo; a próxima semana é o primeiro dia da semana seguinte, conforme **Início da semana**. Embaixo, **Horário** tem um interruptor: desligado, a tarefa vence o dia todo; ligado, você escolhe o horário ao lado. Uma escolha rápida ou um dia mantêm um horário já definido; para mudar só o horário, toque em **Concluído**. Um item do banco de tarefas guarda o horário no valor de vencimento (`2026-10-26T10:00`). Uma caixa de seleção numa nota leva só um dia — o `📅` do plugin Tasks não tem horário —, então o seletor avisa isso ali em vez de oferecer o interruptor. Se a coluna de vencimento do banco mostra só dias, o Plainva oferece uma vez **Mudar para data e hora**.
 
 Mais formas de entrada: **Nova tarefa** no menu da bandeja no computador (quando o Plainva continua rodando em segundo plano), no Android o atalho do launcher **Nova tarefa** (toque e segure o ícone do aplicativo), e no telefone **Criar como tarefa** quando você compartilha algo com o Plainva — o texto e os anexos terminam na nota da tarefa. Como uma tarefa com horário te avisa está descrito em [Calendário e tarefas externas](Calendar_and_Tasks.md).
 

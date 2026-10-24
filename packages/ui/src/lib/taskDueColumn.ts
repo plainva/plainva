@@ -1,4 +1,7 @@
 import { updateVaultText, type TextUpdateFiles } from "@plainva/core";
+import i18n from "i18next";
+import { toast } from "../services/toastStore";
+import { errorText } from "./errorText";
 import { parseBaseConfig, serializeBaseConfig } from "../base/baseFormat";
 import { taskDbDueKey } from "./taskDatabase";
 
@@ -64,4 +67,36 @@ export async function convertDueColumnToDateTime(adapter: TextUpdateFiles, dbPat
   });
   // The key is the database's own answer, as it lay there; the working copy of an open conflict is retyped by its own.
   return dayOnlyDueColumn(parseBaseConfig(update.before));
+}
+
+/**
+ * The offer itself, as a notice with one action (E9): what both shells show
+ * once a task with a time lands in a database whose due column holds a day
+ * only — after a quick capture, and after "Change due date" set a time
+ * (wishes 2026-10-24, E2). `convert` retypes the column the shell's way
+ * (`convertDueColumnToDateTime` on its adapter); `converted` is the shell's
+ * follow-up (index, sync) once the column changed.
+ */
+export async function offerDueTimeColumn(opts: {
+  readTextFile: (path: string) => Promise<string>;
+  vault: string;
+  dbPath: string;
+  convert: () => Promise<string | null>;
+  converted?: (key: string) => Promise<void> | void;
+}): Promise<void> {
+  const dayOnly = await shouldOfferDueTimeColumn(opts.readTextFile, opts.vault, opts.dbPath);
+  if (!dayOnly) return;
+  toast.info(i18n.t("tasks.dueTimeOffer", { name: dayOnly }), {
+    label: i18n.t("tasks.dueTimeOfferAction"),
+    run: () => {
+      void opts
+        .convert()
+        .then(async (key) => {
+          if (!key) return;
+          await opts.converted?.(key);
+          toast.info(i18n.t("tasks.dueTimeConverted", { name: key }));
+        })
+        .catch((e) => toast.error(errorText(e)));
+    },
+  });
 }

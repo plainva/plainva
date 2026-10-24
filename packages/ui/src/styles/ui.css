@@ -4235,6 +4235,32 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-datejump--sheet .pv-datejump-day { height: var(--touch-sm); font-size: var(--text-md); }
 .pv-datejump--sheet .pv-datejump-month { padding: var(--space-2) 2px; font-size: var(--text-md); }
 .pv-datejump--sheet .pv-datejump-wd, .pv-datejump--sheet .pv-datejump-wk { font-size: var(--text-sm); }
+/* The due picker (wishes 2026-10-24, E2): quick choices on top, the grid,
+   the time row at the foot. Layout on the date-jump family; the switch, the
+   field and the button are primitives the themes restyle. */
+.pv-datejump-due { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); min-width: 0; }
+.pv-datejump-quick { display: grid; gap: 1px; padding-bottom: var(--space-1); border-bottom: 1px solid var(--border-color-light); }
+.pv-datejump-qitem { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-width: 0; min-height: var(--control-md); padding: var(--space-1) var(--space-2); border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-main); font-family: var(--font-ui); font-size: var(--text-sm); text-align: left; cursor: pointer; }
+.pv-datejump-qitem:hover { background: var(--state-hover); }
+.pv-datejump-qitem:focus-visible { outline: 2px solid var(--accent-color); outline-offset: -2px; }
+.pv-datejump-qitem[aria-pressed="true"] { background: var(--accent-container); color: var(--on-accent-container); font-weight: 500; }
+.pv-datejump-qitem > svg { flex-shrink: 0; }
+.pv-datejump-qitem--today > svg { color: var(--success-text); }
+.pv-datejump-qitem--tomorrow > svg { color: var(--warning-text); }
+.pv-datejump-qitem--weekend > svg { color: var(--info-text); }
+.pv-datejump-qitem--nextWeek > svg { color: var(--accent-color); }
+.pv-datejump-qitem--none > svg { color: var(--text-faint); }
+.pv-datejump-qlabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-datejump-qday { margin-left: auto; flex-shrink: 0; font-size: var(--text-xs); color: var(--text-faint); }
+.pv-datejump-qitem[aria-pressed="true"] .pv-datejump-qday { color: inherit; }
+.pv-datejump-time { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); min-height: var(--control-md); padding-top: var(--space-2); border-top: 1px solid var(--border-color-light); font-size: var(--text-sm); color: var(--text-main); min-width: 0; }
+.pv-datejump-time > svg { flex-shrink: 0; color: var(--text-muted); }
+.pv-datejump-tlabel { margin-right: auto; }
+.pv-datejump-tfield { width: auto; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.pv-datejump-tnote { flex: 1 1 100%; }
+.pv-datejump-due--sheet .pv-datejump-qitem { min-height: var(--touch-sm); font-size: var(--text-md); }
+.pv-datejump-due--sheet .pv-datejump-qday { font-size: var(--text-sm); }
+.pv-datejump-due--sheet .pv-datejump-time { min-height: var(--touch-sm); font-size: var(--text-md); }
 /* The desktop hull: the popover contract, widened for a seven-column grid. */
 .pv-datejump-pop { width: 300px; max-width: none; max-height: none; padding: var(--space-3); }
 /* The title that opens it: the period label with a chevron; the accent pair

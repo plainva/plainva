@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { consumePendingNew } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarClock, CalendarDays, FileText, ListTodo, Trash2 } from "lucide-react";
-import { errorText, formatPickedDay, noteDisplayName, setPendingSearchJump, TaskCheckButton, toast, useTodayKey, type PlannerRow, type TaskDueChange } from "@plainva/ui";
+import { dueTimeOf, errorText, noteDisplayName, setPendingSearchJump, TaskCheckButton, taskDueMovedText, toast, useTodayKey, type DuePick, type PlannerRow, type TaskDueChange } from "@plainva/ui";
 import { TaskDueSheet } from "../components/TaskDueSheet";
 import { announceTaskDue, moveTaskDueOnPhone } from "../services/taskDueAction";
 import { loadPhoneDueTasks, taskJumpTerm, tickPhoneDueTask, type PhoneDueTasks } from "../services/dueTasks";
@@ -88,15 +88,15 @@ export function TodayScreen({
   // the same notice with Undo. The task then leaves the day it was listed under.
   const [dueTarget, setDueTarget] = useState<PlannerRow | null>(null);
   const [dueTick, setDueTick] = useState(0);
-  const moveDue = (changes: readonly TaskDueChange[], day: string | null) => {
+  const moveDue = (changes: readonly TaskDueChange[], pick: DuePick | null) => {
     void moveTaskDueOnPhone(vault, taskDueKey, changes)
       .then((outcome) => {
         setDueTick((x) => x + 1);
         // An undo is confirmed by the row coming back; it needs no second notice.
-        if (day === null) return;
+        if (pick === null) return;
         announceTaskDue(
           outcome,
-          { moved: t("tasks.dueMoved", { date: formatPickedDay(day, i18nInstance.language) }), skipped: (count) => t("tasks.dueSkipped", { count }), undo: t("common.undo") },
+          { moved: taskDueMovedText(pick), skipped: (count) => t("tasks.dueSkipped", { count }), undo: t("common.undo") },
           (back) => moveDue(back, null),
         );
       })
@@ -473,15 +473,17 @@ export function TodayScreen({
       {dueTarget && (
         <TaskDueSheet
           value={dueTarget.due}
+          time={dueTimeOf(dueTarget.dueMinutes)}
+          timeAllowed={dueTarget.source === "database"}
           onClose={() => setDueTarget(null)}
-          onPick={(day) => {
+          onPick={(pick) => {
             const target = dueTarget;
             setDueTarget(null);
-            if (day === target.due) return;
+            if (pick.day === target.due && (target.source !== "database" || pick.time === dueTimeOf(target.dueMinutes))) return;
             // Each source the way it stores its day: the date column of a
-            // database entry, the `📅` of a checkbox line (`applyTaskDueChanges`).
-            if (target.source === "database") moveDue([{ source: "database", path: target.path, day }], day);
-            else if (target.line) moveDue([{ source: "note", path: target.path, task: target.line, day }], day);
+            // database entry (with its time), the `📅` of a checkbox line (`applyTaskDueChanges`).
+            if (target.source === "database") moveDue([{ source: "database", path: target.path, day: pick.day, time: pick.time }], pick);
+            else if (target.line) moveDue([{ source: "note", path: target.path, task: target.line, day: pick.day }], pick);
           }}
         />
       )}

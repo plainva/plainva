@@ -411,6 +411,7 @@ export * from "./lib/taskPriority";
 export * from "./lib/taskPriorityWrite";
 export * from "./lib/taskDueColumn";
 export * from "./lib/taskDueWrite";
+export * from "./lib/dueQuickChoices";
 export * from "./lib/taskDuplicatesSeen";
 export * from "./pim/taskDuplicates";
 export * from "./components/TaskDuplicatesList";

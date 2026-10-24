@@ -820,6 +820,53 @@ test("the Today screen: a tap on a task's date opens the same date sheet, and th
   }
 });
 
+test("change due date with quick choices and a time: Next week at 10:00 lands in the file, a checkbox is told it holds a day only (wishes 2026-10-24, E2)", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const errors = collectErrors(page);
+  const sql = await installSqlBridge(context);
+  const tax = (frist: string) => taskNote("Steuer abgeben", { status: "Offen", frist });
+  try {
+    await start(page, context, sql, [
+      ["Aufgaben.base", TASK_BASE],
+      ["Aufgaben/Steuer abgeben.md", tax("2026-09-25")],
+      ["Haushalt.md", CHORES],
+    ]);
+    await openTasks(page);
+    await page.getByTestId("tasks-list-all").click();
+    const dbRow = page.getByTestId("task-db-row").filter({ hasText: "Steuer abgeben" });
+    await dbRow.getByTestId("task-db-due").click();
+    const sheet = page.getByTestId("task-due-sheet");
+    await expect(sheet).toBeVisible();
+    // Sunday 20 September: the weekend is today, next week starts on Monday (the default week start).
+    await expect(sheet.getByTestId("task-due-quick").locator(".pv-datejump-qlabel")).toHaveText(["Today", "Tomorrow", "This weekend", "Next week", "No date"]);
+    await expect(sheet.getByTestId("task-due-quick-weekend")).toContainText("Sun");
+    await expect(sheet.getByTestId("task-due-quick-nextWeek")).toContainText("Mon");
+    // The time row: off, the task is due all day; on, a time field.
+    await expect(sheet.getByTestId("task-due-time")).toHaveCount(0);
+    await sheet.getByTestId("task-due-time-switch").click();
+    await sheet.getByTestId("task-due-time").fill("10:00");
+    await sheet.getByTestId("task-due-quick-nextWeek").click();
+    await expect(sheet).toHaveCount(0);
+    await expect.poll(() => readFile(page, "Aufgaben/Steuer abgeben.md")).toBe(tax("2026-09-21T10:00"));
+    // The notice names day and time, and Undo puts the value back as it stood.
+    const moved = page.locator(".pv-toast").filter({ hasText: /New due date: Mon, 09\/21, 10:00\sAM/ });
+    await moved.locator(".pv-toast-action").click();
+    await expect.poll(() => readFile(page, "Aufgaben/Steuer abgeben.md")).toBe(tax("2026-09-25"));
+
+    // A checkbox's 📅 holds a day only: the sheet says so instead of offering the switch.
+    const noteRow = page.getByTestId("task-row").filter({ hasText: "Drucker einrichten" });
+    await noteRow.getByTestId("task-due").click();
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByTestId("task-due-time-switch")).toHaveCount(0);
+    await expect(sheet.getByTestId("task-due-timerow")).toContainText("A checkbox in a note carries a day only");
+    await sheet.getByTestId("task-due-quick-none").click();
+    await expect.poll(() => readFile(page, "Haushalt.md")).toBe(CHORES.replace(" 📅 2026-09-19", ""));
+    expect(errors).toEqual([]);
+  } finally {
+    sql.close();
+  }
+});
+
 /** A genuine touch drag through CDP, so the compositor arbitrates it as for a finger (swipe-gesture.spec.ts). */
 async function touchDrag(page: Page, x: number, y: number, dx: number, steps = 14) {
   const cdp = await page.context().newCDPSession(page);

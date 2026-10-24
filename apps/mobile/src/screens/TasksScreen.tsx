@@ -7,7 +7,7 @@ import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn
 import { buildPlanner, isOpenState, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarClock, CalendarPlus, Database, FileText, RefreshCw, Repeat, Table, Eye, EyeOff} from "lucide-react";
-import { formatPickedDay, overdueToDayChanges, TaskCheckButton, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
+import { dueTimeOf, overdueToDayChanges, TaskCheckButton, taskDueMovedText, type DuePick, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
 import { TaskDueSheet } from "../components/TaskDueSheet";
 import { announceTaskDue, moveTaskDueOnPhone } from "../services/taskDueAction";
 import { applyTaskStatusOption, Button, canRepeat, checkboxJumpTerm, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, isRecurringAtProviderNamespace, calendarDay, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, taskRowActions, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
@@ -148,7 +148,7 @@ export function TasksScreen({
   /** The capture sheet's other kind (plan Journal, J4): the app's journal sheet takes the typed text. */
   onCaptureJournal?: (text: string) => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   // The list stays on screen while it reloads (finding 2026-09-20, the
   // desktop's twin in TasksView): the rows remember which query service they
   // came from, only another vault blanks the view, and a failed reload keeps
@@ -719,9 +719,11 @@ export function TasksScreen({
    * picker in a sheet; the row's sheet offers the same picker, which is also how
    * a task without a date gets one. "All to today" at the Overdue heading moves
    * the whole section. Every move answers with a toast that carries Undo — the
-   * same write, pointed back at the days that were there.
+   * same write, pointed back at the days that were there. The picker offers
+   * quick choices and a time (wishes 2026-10-24, E2); a time only where the
+   * task can hold one — a database entry, not a checkbox's `📅`.
    */
-  const [dueTarget, setDueTarget] = useState<{ value: string | null; change: (day: string) => TaskDueChange } | null>(null);
+  const [dueTarget, setDueTarget] = useState<{ value: string | null; time: string | null; timeAllowed: boolean; change: (pick: DuePick) => TaskDueChange } | null>(null);
   const applyDue = useCallback(
     async (changes: readonly TaskDueChange[]): Promise<TaskDueOutcome | null> => {
       if (changes.length === 0) return null;
@@ -752,17 +754,17 @@ export function TasksScreen({
     if (!outcome) return;
     announceTaskDue(outcome, { moved: announce(outcome), skipped: (count) => t("tasks.dueSkipped", { count }), undo: t("common.undo") }, (back) => void applyDue(back));
   };
-  const pickDue = (day: string) => {
+  const pickDue = (pick: DuePick) => {
     const target = dueTarget;
     setDueTarget(null);
-    if (!target || day === target.value) return;
-    void moveDue([target.change(day)], () => t("tasks.dueMoved", { date: formatPickedDay(day, i18n.language) }));
+    if (!target || (pick.day === target.value && (!target.timeAllowed || pick.time === target.time))) return;
+    void moveDue([target.change(pick)], () => taskDueMovedText(pick));
   };
-  const dbDueChange = (path: string) => (day: string): TaskDueChange => ({ source: "database", path, day });
-  const noteDueChange = (task: TaskRecord) => (day: string): TaskDueChange => ({ source: "note", path: task.path, task: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) }, day });
+  const dbDueChange = (path: string) => (pick: DuePick): TaskDueChange => ({ source: "database", path, day: pick.day, time: pick.time });
+  const noteDueChange = (task: TaskRecord) => (pick: DuePick): TaskDueChange => ({ source: "note", path: task.path, task: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) }, day: pick.day });
   /** Opens the date sheet for a database entry — or not at all when its database has no date column. */
-  const dueOfDb = (row: TaskDbRow) => (dbDueKey ? () => setDueTarget({ value: row.due ?? null, change: dbDueChange(row.path) }) : undefined);
-  const dueOfNote = (task: TaskRecord) => () => setDueTarget({ value: task.due ?? null, change: noteDueChange(task) });
+  const dueOfDb = (row: TaskDbRow) => (dbDueKey ? () => setDueTarget({ value: row.due ?? null, time: dueTimeOf(row.dueMinutes), timeAllowed: true, change: dbDueChange(row.path) }) : undefined);
+  const dueOfNote = (task: TaskRecord) => () => setDueTarget({ value: task.due ?? null, time: null, timeAllowed: false, change: noteDueChange(task) });
 
   /**
    * Writes the NEXT occurrence of a repeating task: a copy of the note, open
@@ -1452,7 +1454,7 @@ export function TasksScreen({
         />
       )}
 
-      {dueTarget && <TaskDueSheet value={dueTarget.value} onPick={pickDue} onClose={() => setDueTarget(null)} />}
+      {dueTarget && <TaskDueSheet value={dueTarget.value} time={dueTarget.time} timeAllowed={dueTarget.timeAllowed} onPick={pickDue} onClose={() => setDueTarget(null)} />}
 
       <TaskDuplicatesSheet
         dupes={dupes}

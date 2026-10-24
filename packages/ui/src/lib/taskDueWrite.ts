@@ -1,5 +1,8 @@
 import { deleteFrontmatterPath, readFrontmatterPath, readTasksMetadata, resolveTaskOrdinal, setChecklistTaskDue, setFrontmatterPath, setTasksField, type TextChange } from "@plainva/core";
 import i18n from "i18next";
+import { parseDueValue } from "../pim/dueTime";
+import { formatPickedDay } from "./dueLabel";
+import { DUE_TIME, type DuePick } from "./dueQuickChoices";
 import { errorText } from "./errorText";
 import { isFileNotFound } from "./movedNote";
 import { isOpenState, type PlannerRow } from "./taskPlanner";
@@ -10,9 +13,11 @@ import { isOpenState, type PlannerRow } from "./taskPlanner";
  * today" moves a whole section at once.
  *
  * Both task sources are written the way they are stored. A database entry
- * keeps its due value in the database's date column; only the DAY changes
- * there, so a task due at 14:00 stays due at 14:00. A checkbox carries the
- * Tasks plugin's `📅` field on its line.
+ * keeps its due value in the database's date column; a move changes the DAY
+ * there, so a task due at 14:00 stays due at 14:00 — unless the change names a
+ * time of day too (wishes 2026-10-24, E2: "Change due date" with a time). A
+ * checkbox carries the Tasks plugin's `📅` field on its line, which holds a
+ * day and nothing else: a checkbox has no time to set.
  *
  * Every write answers with what it would take to put things back — the same
  * kind of change, pointing at the day that was there — so "Undo" is this
@@ -27,9 +32,19 @@ export interface TaskDueLineRef {
   taskId?: string;
 }
 
-/** `day: null` takes the date away. */
+/**
+ * `day: null` takes the date away.
+ *
+ * A database entry may name a time of day as well (`time`, 24-hour `HH:MM`):
+ * absent — the time that is written stays as it is (a plain move, "All to
+ * today"); `null` — the task is due all day, a time written there goes; a
+ * time — it is written in the value's own spelling (`T` or a space, seconds and
+ * a zone after it stay), or as `YYYY-MM-DDTHH:MM` where there was none, the
+ * form a captured task gets. `exact` is what Undo carries: the whole value as
+ * it stood, written back verbatim.
+ */
 export type TaskDueChange =
-  | { source: "database"; path: string; day: string | null }
+  | { source: "database"; path: string; day: string | null; time?: string | null; exact?: string }
   | { source: "note"; path: string; task: TaskDueLineRef; day: string | null };
 
 /**
@@ -82,6 +97,21 @@ export function withDueDay(raw: unknown, day: string): string {
   return head ? day + text.slice(head[1].length) : day;
 }
 
+/**
+ * A stored due value with another day and, where `time` says so, another
+ * time of day (see `TaskDueChange`). `time: null` makes the task all-day; a
+ * value the reader already takes as all-day — a bare day, or a tool's stamp
+ * of midnight — keeps what follows its day, so nothing is reformatted that
+ * did not change.
+ */
+export function withDueDayAndTime(raw: unknown, day: string, time: string | null | undefined): string {
+  if (time === undefined) return withDueDay(raw, day);
+  const text = raw == null ? "" : String(raw).trim();
+  if (time === null) return parseDueValue(text)?.minutes === undefined ? withDueDay(text, day) : day;
+  const clock = /^\d{4}-\d{2}-\d{2}([T ])\d{2}:\d{2}/.exec(text);
+  return clock ? day + clock[1] + time + text.slice(clock[0].length) : `${day}T${time}`;
+}
+
 function storedDay(raw: unknown): string | null {
   const head = DAY_PREFIX.exec(raw == null ? "" : String(raw).trim());
   return head ? head[1] : null;
@@ -101,6 +131,10 @@ export async function applyTaskDueChanges(deps: TaskDueDeps, changes: readonly T
       out.skipped += 1;
       continue;
     }
+    if (change.source === "database" && ((change.time != null && !DUE_TIME.test(change.time)) || (change.exact !== undefined && (change.day === null || storedDay(change.exact) !== change.day)))) {
+      out.skipped += 1;
+      continue;
+    }
     if (change.source === "note") {
       const list = byNote.get(change.path);
       if (list) list.push(change);
@@ -113,23 +147,25 @@ export async function applyTaskDueChanges(deps: TaskDueDeps, changes: readonly T
       continue;
     }
     try {
-      const day = change.day;
-      const moved = (raw: string): { previous: string | null; empty: boolean; written: boolean; next: string } => {
+      const { day, time, exact } = change;
+      const moved = (raw: string): { previous: string | null; stored: string; empty: boolean; written: boolean; next: string } => {
         const current = readFrontmatterPath(raw, [key]);
         const previous = storedDay(current);
-        const empty = current == null || String(current).trim() === "";
-        if (day === null) return empty ? { previous, empty, written: false, next: raw } : { previous, empty, written: true, next: deleteFrontmatterPath(raw, [key]) };
-        const next = withDueDay(current, day);
-        if (!empty && String(current).trim() === next) return { previous, empty, written: false, next: raw };
-        return { previous, empty, written: true, next: setFrontmatterPath(raw, [key], next) };
+        const stored = current == null ? "" : String(current).trim();
+        const empty = stored === "";
+        if (day === null) return empty ? { previous, stored, empty, written: false, next: raw } : { previous, stored, empty, written: true, next: deleteFrontmatterPath(raw, [key]) };
+        const next = exact ?? withDueDayAndTime(current, day, time);
+        if (!empty && stored === next) return { previous, stored, empty, written: false, next: raw };
+        return { previous, stored, empty, written: true, next: setFrontmatterPath(raw, [key], next) };
       };
       // What moved is read from the note as it was changed, not from inside the change.
       const seen = moved((await deps.writeDbNote(change.path, (raw) => moved(raw).next)).before);
       if (!seen.written) continue;
       out.moved += 1;
-      // Back to the day that was there, or to no date at all. A value that was
-      // there but was not a date cannot be brought back, so nothing is offered.
-      if (seen.previous) out.undo.push({ source: "database", path: change.path, day: seen.previous });
+      // Back to the value that was there — day and time as written — or to no
+      // date at all. A value that was there but was not a date cannot be
+      // brought back, so nothing is offered.
+      if (seen.previous) out.undo.push({ source: "database", path: change.path, day: seen.previous, exact: seen.stored });
       else if (seen.empty) out.undo.push({ source: "database", path: change.path, day: null });
     } catch (e) {
       // A note that is gone since it was listed is left alone; one that is
@@ -180,6 +216,22 @@ export async function applyTaskDueChanges(deps: TaskDueDeps, changes: readonly T
     }
   }
   return out;
+}
+
+/**
+ * The notice after a pick in the due picker, the same in both shells: the new
+ * day with its time — "New due date: Mon, 10/26, 10:00" — or that the date is
+ * gone.
+ */
+export function taskDueMovedText(pick: DuePick): string {
+  if (pick.day === null) return i18n.t("tasks.dueRemoved");
+  const lang = i18n.language || "en";
+  let date = formatPickedDay(pick.day, lang);
+  if (pick.time !== null && DUE_TIME.test(pick.time)) {
+    const [h, m] = pick.time.split(":").map(Number);
+    date += ", " + new Intl.DateTimeFormat(lang, { timeStyle: "short" }).format(new Date(2000, 0, 1, h, m));
+  }
+  return i18n.t("tasks.dueMoved", { date });
 }
 
 /**

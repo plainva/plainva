@@ -7,6 +7,7 @@ import { ICON } from "../lib/iconSizes";
 import { captureVocabularyFrom, parseTaskCapture, type CaptureBrick, type CaptureResult, type CaptureVocabulary } from "../lib/taskCapture";
 import { describeRule } from "../lib/taskRecurrence";
 import { CARET_KEYS, useInlineSuggest } from "./InlineSuggest";
+import { useWeekStartDay } from "./ui/useWeekStartDay";
 
 /**
  * The capture field of the tasks view (plan Aufgaben-Oberfläche, B2), shared by
@@ -76,7 +77,9 @@ export function TaskCaptureField({ value, onChange, todayKey, onSubmit, onCancel
   const fieldRef = useRef<HTMLInputElement>(null);
   const suggest = useInlineSuggest({ value, onChange: (next) => { setNeedsTitle(false); onChange(next); }, fieldRef });
   const hintId = useId();
-  const result = useMemo(() => parseTaskCapture(value, vocab, todayKey, disabled), [value, vocab, todayKey, disabled]);
+  // The week start reaches the parser as it reaches the due picker, so "next week" is one day in both.
+  const weekStart = useWeekStartDay();
+  const result = useMemo(() => parseTaskCapture(value, vocab, todayKey, disabled, weekStart), [value, vocab, todayKey, disabled, weekStart]);
 
   const label = (brick: CaptureBrick): string => {
     if (brick.kind === "date" && result.due) {
