@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -20,7 +20,7 @@ It is an early build: keep a backup of your vault, and tell me what breaks.
 - **A folder row counts everything below it**, not just the notes lying directly in it — a folder holding nothing but subfolders no longer reads “0 notes” beside a chevron that leads to hundreds.
 - **A folder screen only says “empty” when it knows.** While it is still reading, it shows **Reading the folder …**. If the folder cannot be read, **Folder could not be read** says the files are not lost — only the view stayed empty —, names the reason and offers **Try again now**. **This folder is empty** appears only when there really is nothing in it, with **New note** right there.
 - **＋** floats as a round button above the bar and opens quick create in two groups: note, "From template…", daily note, journal entry, folder, database — and below them event and task, which are created in the calendar and the task list. The desktop's **New** menu offers the same entries in the same order.
-- **Holding a row opens what that row can do** — a note, a folder, a database, a task all answer the same way, and *Select several* is the first entry in that sheet. Swiping a row left performs its two most frequent actions directly; the sheet and the swipe offer the same things in the same order.
+- **Holding a row opens what that row can do** — a note, a folder, a database, a task all answer the same way, and *Select several* is the first entry in that sheet. Swiping a row left performs its most frequent actions directly, three at most, in the sheet's order; everything else is in the sheet.
 - **The header:** the same everywhere — back on the left (a work surface has none), title and one line of context in the middle, search and ⋮ on the right. It lifts off the content as you scroll, and the navigation bar draws back to its icons; scrolling up opens it again.
 - **A ⋮ always means the same thing:** actions on the object that is open. App settings do not live behind it.
 - **Settings:** at the very bottom of **Notes**, where the desktop keeps them too. They open the area list first (like the left side of the desktop settings) — a tap opens that page. **Active vault** on top leads to the vault management: switch vaults (check mark = active), **Create a vault** and **Connect a cloud vault**. The list shows **the same areas as the desktop** — including **Startup & behavior** (show the welcome and the highlights again), **Bars & areas** (the navigation bar) and **Maintenance** (vault statistics, rebuild the index, restore deleted files). Only **Updates** is missing: the app does not update itself, Google Play and TestFlight do that. **Maintenance** also carries the **import from other apps** — on the phone it always writes into a subfolder of the open vault, shows what it would create before it starts, can be stopped while it runs and leaves a report behind.

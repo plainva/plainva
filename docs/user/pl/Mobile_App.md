@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-10-23
+Stan na: 2026-10-24
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -20,7 +20,7 @@ To wczesna wersja: miej kopię zapasową swojego sejfu i daj znać, co nie dzia�
 - **Wiersz folderu liczy wszystko, co znajduje się poniżej**, nie tylko notatki leżące bezpośrednio w nim — folder pełen podfolderów nie pokazuje już „0 notatek” obok strzałki prowadzącej do setek.
 - **Ekran folderu mówi „pusty” tylko wtedy, gdy to wie.** Dopóki jeszcze czyta, pokazuje **Odczytywanie folderu …**. Jeśli folderu nie da się odczytać, **Nie udało się odczytać folderu** mówi, że pliki nie zniknęły — pusty pozostał tylko widok —, podaje powód i proponuje **Spróbuj ponownie teraz**. **Ten folder jest pusty** pojawia się tylko wtedy, gdy naprawdę nic w nim nie ma, a obok od razu jest **Nowa notatka**.
 - **＋** unosi się jako okrągły przycisk nad paskiem i otwiera szybkie tworzenie w dwóch grupach: notatka, „Z szablonu…”, notatka dzienna, wpis dziennika, folder, baza danych — a poniżej wydarzenie i zadanie, tworzone w kalendarzu i na liście zadań. Menu **Nowy** na komputerze oferuje te same pozycje w tej samej kolejności.
-- **Przytrzymanie wiersza pokazuje, co ten wiersz potrafi** — notatka, folder, baza danych i zadanie odpowiadają tak samo, a **Zaznacz kilka** jest pierwszą pozycją tego arkusza. Przesunięcie w lewo wykonuje od razu dwie najczęstsze akcje; arkusz i gest oferują to samo w tej samej kolejności.
+- **Przytrzymanie wiersza pokazuje, co ten wiersz potrafi** — notatka, folder, baza danych i zadanie odpowiadają tak samo, a **Zaznacz kilka** jest pierwszą pozycją tego arkusza. Przesunięcie w lewo wykonuje od razu najczęstsze akcje, najwyżej trzy, w kolejności arkusza; wszystko inne jest w arkuszu.
 - **Nagłówek:** wszędzie taki sam — po lewej Wstecz (na powierzchni roboczej brak), pośrodku tytuł i jedna linia kontekstu, po prawej wyszukiwanie i ⋮. Podczas przewijania odrywa się od treści, a pasek nawigacji zwija się do samych ikon; gdy przewiniesz w górę, otwiera się on ponownie.
 - **Przycisk ⋮ zawsze oznacza to samo:** działania na otwartym obiekcie. Ustawienia aplikacji nie kryją się za nim.
 - **Ustawienia:** na samym dole **Notatek**, tak samo jak na komputerze. Otwierają najpierw listę obszarów (jak lewa strona ustawień na komputerze) — dotknięcie otwiera daną stronę. Na górze **Aktywny vault** prowadzi do zarządzania vaultami: przełączanie vaultów (znacznik = aktywny), **Utwórz vault** i **Połącz sejf w chmurze**. Lista pokazuje **te same obszary co na komputerze** — w tym **Uruchamianie i zachowanie** (ponowne wyświetlenie powitania i nowości), **Paski i obszary** (pasek nawigacji) oraz **Konserwacja** (Statystyki vaulta, przebudowa indeksu, przywracanie usuniętych plików). Brakuje tylko **Aktualizacje**: aplikacja nie aktualizuje się sama, robią to Google Play i TestFlight. **Konserwacja** zawiera także **import z innych aplikacji** — w telefonie zapisuje zawsze do podfolderu otwartego vaulta, pokazuje wcześniej, co utworzy, można go przerwać w trakcie i na koniec zostawia raport.

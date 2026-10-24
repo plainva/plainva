@@ -819,3 +819,56 @@ test("the Today screen: a tap on a task's date opens the same date sheet, and th
     sql.close();
   }
 });
+
+/** A genuine touch drag through CDP, so the compositor arbitrates it as for a finger (swipe-gesture.spec.ts). */
+async function touchDrag(page: Page, x: number, y: number, dx: number, steps = 14) {
+  const cdp = await page.context().newCDPSession(page);
+  const point = (px: number) => ({ x: px, y, radiusX: 12, radiusY: 12, force: 1 });
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point(x)] });
+  for (let i = 1; i <= steps; i++) {
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [point(x + (dx * i) / steps)] });
+    await page.waitForTimeout(16);
+  }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await cdp.detach();
+}
+
+test("a swiped task row keeps itself in sight: three actions at most, and a tap on what is left closes it (TestFlight, build 139)", async ({ page, context }) => {
+  // The task list put every action of a task into its swipe strip — six for a
+  // checkbox in a note, 396 px on a phone a little wider than that. The strip
+  // pushed the row off the screen, and nothing was left to tap or swipe back.
+  test.setTimeout(90_000);
+  const errors = collectErrors(page);
+  const sql = await installSqlBridge(context);
+  try {
+    await start(page, context, sql, [
+      ["Aufgaben.base", TASK_BASE],
+      ["Aufgaben/Zahnarzt anrufen.md", taskNote("Zahnarzt anrufen", { status: "Offen", frist: "2026-09-20", priority: "High" })],
+      ["Haushalt.md", HOUSEHOLD],
+    ]);
+    await openTasks(page);
+    const today = page.getByTestId("task-planner-section-today");
+    for (const title of ["Drucker einrichten", "Zahnarzt anrufen"]) {
+      // `has` looks inside each swipe row, so the row is named from there, not from the section.
+      const swipe = today.locator(".m-swipe").filter({ has: page.locator(".pv-grouprow-title", { hasText: new RegExp(`^${escapeRe(title)}$`) }) });
+      const front = swipe.locator(".m-swipe-front");
+      const box = (await front.boundingBox())!;
+      await touchDrag(page, box.x + box.width - 30, box.y + box.height / 2, -box.width);
+      await page.waitForTimeout(400);
+      const buttons = swipe.locator(".m-swipe-btn");
+      await expect(buttons.first(), `${title}: the strip did not open`).toBeVisible();
+      expect(await buttons.count(), `${title}: more than three slots`).toBeLessThanOrEqual(3);
+      // At least a third of the row stays on the screen to read and to tap.
+      const moved = (await front.boundingBox())!;
+      expect(moved.x + moved.width, `${title}: the row went off the screen`).toBeGreaterThan(box.width / 3);
+      // The strip holds the row's swipe actions only; the rest stays in its sheet.
+      await expect(swipe.locator(".m-swipe-act")).not.toContainText("Change due date");
+      // A tap on what is left of the row closes it again.
+      await page.mouse.click(moved.x + moved.width - 20, moved.y + moved.height / 2);
+      await expect(swipe.locator(".m-swipe-act")).toHaveCount(0);
+    }
+    expect(errors).toEqual([]);
+  } finally {
+    sql.close();
+  }
+});

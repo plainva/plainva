@@ -538,10 +538,12 @@ export function TasksScreen({
   /**
    * What a task row can do, once (S22/S23).
    *
-   * The sheet and the swipe are the same list: the swipe drops "open", because
-   * that is what a tap already does, and keeps the rest in the same order. Two
-   * definitions of "what this row can do" is exactly how a gesture and a menu
-   * come to disagree.
+   * The sheet shows the whole list (plus "open"); the swipe shows the part of
+   * the same list marked `swipe` — done, to the database, block time — like
+   * every other list in the app. Until 24.10. the swipe took the whole list:
+   * with six actions the strip was wider than the row and pushed it off the
+   * screen, leaving nothing to swipe back (TestFlight, build 139). Both still
+   * come from one definition, so a gesture and the menu cannot disagree.
    */
   const rowActions = (a: {
     done: boolean;
@@ -556,6 +558,10 @@ export function TasksScreen({
     // The list itself lives in @plainva/ui since the Design-Runde (E2): the
     // desktop's context menu reads the same one.
     taskRowActions(t, a).map((s) => ({ icon: <s.icon size={ICON.head} />, label: s.label, danger: s.danger, onClick: s.run }));
+  const swipeActions = (a: Parameters<typeof rowActions>[0]) =>
+    taskRowActions(t, a)
+      .filter((s) => s.swipe)
+      .map((s) => ({ icon: <s.icon size={ICON.head} />, label: s.label, danger: s.danger, onClick: s.run }));
 
   const [taskSheet, setTaskSheet] = useState<
     | { title: string; open: () => void; done: boolean; toggle: () => void; promote?: () => void; repeat?: () => void; block?: () => void; due?: () => void; priority?: () => void; state?: () => void }
@@ -1084,7 +1090,7 @@ export function TasksScreen({
                one list of actions per row, whichever list it is shown in. */
             wrapRow={(row, element) => {
               const acts = plannerActs(row);
-              return acts ? <SwipeRow actions={rowActions(acts)}>{element}</SwipeRow> : element;
+              return acts ? <SwipeRow actions={swipeActions(acts)}>{element}</SwipeRow> : element;
             }}
             rowProps={(row) => ({
               onPointerDown: (e: ReactPointerEvent) => {
@@ -1131,7 +1137,7 @@ export function TasksScreen({
                     priority: () => void pickPriority({ kind: "db", path: row.path, rank: row.priority ?? 0 }),
                   };
                   return (
-                  <SwipeRow actions={rowActions(acts)} key={row.path}>
+                  <SwipeRow actions={swipeActions(acts)} key={row.path}>
                   <Row
                     wrap
                     controls
@@ -1326,7 +1332,7 @@ export function TasksScreen({
                   return (
                   /* S23: the swipe the sammelplan asked to hold back until the
                      sheet existed. Same actions, same order, one definition. */
-                  <SwipeRow actions={rowActions(acts)} key={`${task.path}:${task.ordinal}`}>
+                  <SwipeRow actions={swipeActions(acts)} key={`${task.path}:${task.ordinal}`}>
                   <Row
                     wrap
                     controls

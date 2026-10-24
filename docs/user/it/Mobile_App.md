@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-10-23
+Ultimo aggiornamento: 2026-10-24
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -20,7 +20,7 @@ L’app mobile è in **test aperto** su Google Play. Su **Android** si entra dir
 - **Una riga di cartella conta tutto ciò che sta sotto**, non solo le note che vi si trovano direttamente: una cartella piena di sottocartelle non dice più «0 note» accanto a una freccia che porta a centinaia.
 - **Una cartella dice «vuota» solo quando lo sa.** Mentre sta ancora leggendo mostra **Lettura della cartella …**. Se la cartella non si può leggere, **Cartella non leggibile** spiega che i file non sono persi — solo la vista è rimasta vuota —, indica il motivo e offre **Riprova ora**. **Questa cartella è vuota** compare solo quando dentro non c’è davvero nulla, con **Nuova nota** subito a portata di mano.
 - **＋** fluttua come un pulsante rotondo sopra la barra e apre la creazione rapida in due gruppi: nota, "Da modello…", nota giornaliera, voce di diario, cartella, database — e sotto evento e attività, creati nel calendario e nell'elenco attività. Il menu **Nuovo** del desktop offre le stesse voci nello stesso ordine.
-- **Tenere premuta una riga mostra ciò che quella riga sa fare**: nota, cartella, database e attività rispondono allo stesso modo, e **Seleziona più elementi** è la prima voce di quel foglio. Scorrere verso sinistra esegue direttamente le due azioni più frequenti; foglio e scorrimento offrono le stesse cose nello stesso ordine.
+- **Tenere premuta una riga mostra ciò che quella riga sa fare**: nota, cartella, database e attività rispondono allo stesso modo, e **Seleziona più elementi** è la prima voce di quel foglio. Scorrere verso sinistra esegue direttamente le azioni più frequenti, al massimo tre, nell’ordine del foglio; tutto il resto è nel foglio.
 - **Intestazione:** la stessa ovunque — a sinistra Indietro (assente su una superficie di lavoro), al centro il titolo e una riga di contesto, a destra la ricerca e ⋮. Scorrendo, si stacca dal contenuto e la barra di navigazione si ritira sulle sue icone; risalendo, si riapre.
 - **Un ⋮ significa sempre la stessa cosa:** azioni sull'oggetto attualmente aperto. Le impostazioni dell'app non si trovano dietro di esso.
 - **Impostazioni:** in fondo a **Note**, proprio come sul desktop. Aprono prima l'elenco delle aree (come il lato sinistro delle impostazioni desktop) — un tocco apre quella pagina. In cima, **Vault attivo** porta alla gestione dei vault: cambiare vault (segno di spunta = attivo), **Crea un vault** e **Collega un vault cloud**. L’elenco mostra **le stesse aree del desktop** — tra cui **Avvio e comportamento** (mostrare di nuovo il benvenuto e le novità), **Barre e aree** (la barra di navigazione) e **Manutenzione** (Statistiche del vault, ricostruire l’indice, ripristinare i file eliminati). Manca solo **Aggiornamenti**: l’app non si aggiorna da sola, se ne occupano Google Play e TestFlight. **Manutenzione** contiene anche l’**importazione da altre app**: sul telefono scrive sempre in una sottocartella del vault aperto, mostra prima che cosa creerebbe, può essere interrotta durante l’esecuzione e lascia un resoconto.

@@ -1,6 +1,6 @@
 # O app mobile
 
-Última atualização: 2026-10-23
+Última atualização: 2026-10-24
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -20,7 +20,7 @@ O app mobile está em **teste aberto** no Google Play. No **Android** você entr
 - **Uma linha de pasta conta tudo o que está abaixo dela**, não apenas as notas que ficam diretamente nela — uma pasta cheia de subpastas não diz mais “0 notas” ao lado de uma seta que leva a centenas.
 - **Uma pasta só diz “vazia” quando sabe.** Enquanto ainda está lendo, mostra **Lendo a pasta …**. Se a pasta não puder ser lida, **Não foi possível ler a pasta** diz que os arquivos não se perderam — apenas a visão ficou vazia —, informa o motivo e oferece **Tentar novamente agora**. **Esta pasta está vazia** só aparece quando realmente não há nada nela, com **Nova nota** logo ali.
 - **＋** flutua como um botão redondo acima da barra e abre a criação rápida em dois grupos: nota, "A partir de modelo…", nota diária, entrada de diário, pasta, banco de dados — e abaixo evento e tarefa, criados no calendário e na lista de tarefas. O menu **Novo** do desktop oferece as mesmas entradas na mesma ordem.
-- **Manter uma linha pressionada mostra o que essa linha faz** — nota, pasta, banco de dados e tarefa respondem da mesma forma, e **Selecionar vários** é a primeira entrada dessa folha. Deslizar para a esquerda executa diretamente as duas ações mais frequentes; a folha e o gesto oferecem as mesmas coisas na mesma ordem.
+- **Manter uma linha pressionada mostra o que essa linha faz** — nota, pasta, banco de dados e tarefa respondem da mesma forma, e **Selecionar vários** é a primeira entrada dessa folha. Deslizar para a esquerda executa diretamente as ações mais frequentes, no máximo três, na ordem da folha; todo o resto está na folha.
 - **Cabeçalho:** o mesmo em toda parte — à esquerda Voltar (ausente numa superfície de trabalho), no centro o título e uma linha de contexto, à direita a busca e ⋮. Ao rolar, ele se descola do conteúdo e a barra de navegação se recolhe aos ícones; ao rolar para cima, ela se abre de novo.
 - **Um ⋮ sempre significa a mesma coisa:** ações sobre o objeto que está aberto. As configurações do app não ficam atrás dele.
 - **Configurações:** bem no fim de **Notas**, assim como no desktop. Abrem primeiro a lista de seções (como o lado esquerdo das configurações do desktop) — um toque abre a respectiva página. No topo, **Vault ativo** leva ao gerenciamento de vaults: trocar de vault (marca de seleção = ativo), **Criar um vault** e **Conectar um cofre na nuvem**. A lista mostra **as mesmas áreas do computador** — incluindo **Inicialização e comportamento** (mostrar novamente as boas-vindas e as novidades), **Barras e áreas** (a barra de navegação) e **Manutenção** (Estatísticas do vault, reconstruir o índice, restaurar arquivos excluídos). Só falta **Atualizações**: o app não se atualiza sozinho, quem faz isso são a Google Play e o TestFlight. **Manutenção** traz também a **importação de outros apps** — no telefone ela sempre escreve numa subpasta do vault aberto, mostra antes o que criaria, pode ser interrompida durante a execução e deixa um relatório.

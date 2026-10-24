@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-10-23
+Laatst bijgewerkt: 2026-10-24
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -20,7 +20,7 @@ Het is een vroege build: houd een back-up van je vault en laat me weten wat er m
 - **Een mapregel telt alles eronder**, niet alleen de notities die er rechtstreeks in liggen — een map met alleen submappen zegt niet langer ‘0 notities’ naast een pijl die naar honderden leidt.
 - **Een map zegt pas ‘leeg’ als hij het zeker weet.** Zolang hij nog leest, staat er **Map wordt gelezen …**. Kan de map niet gelezen worden, dan zegt **Map kon niet gelezen worden** dat de bestanden niet weg zijn — alleen de weergave bleef leeg —, noemt de reden en biedt **Nu opnieuw proberen**. **Deze map is leeg** verschijnt alleen als er echt niets in staat, met **Nieuwe notitie** meteen erbij.
 - **＋** zweeft als ronde knop boven de balk en opent snel aanmaken in twee groepen: notitie, "Vanuit sjabloon…", dagnotitie, journaalitem, map, database — en daaronder afspraak en taak, die in de agenda en de takenlijst worden aangemaakt. Het **Nieuw**-menu op de desktop biedt dezelfde items in dezelfde volgorde.
-- **Een rij ingedrukt houden laat zien wat die rij kan** — notitie, map, database en taak antwoorden hetzelfde, en **Meerdere selecteren** is de eerste regel in dat blad. Naar links vegen voert de twee meest gebruikte acties direct uit; blad en veegbeweging bieden hetzelfde in dezelfde volgorde.
+- **Een rij ingedrukt houden laat zien wat die rij kan** — notitie, map, database en taak antwoorden hetzelfde, en **Meerdere selecteren** is de eerste regel in dat blad. Naar links vegen voert de meest gebruikte acties direct uit, hooguit drie, in de volgorde van het blad; al het andere staat in het blad.
 - **Kopbalk:** overal dezelfde — links Terug (ontbreekt op een werkoppervlak), in het midden de titel en één regel context, rechts zoeken en ⋮. Tijdens het scrollen komt hij los van de inhoud en trekt de navigatiebalk zich terug tot de iconen; scroll je weer omhoog, dan gaat hij opnieuw open.
 - **Een ⋮ betekent altijd hetzelfde:** acties op het object dat open staat. App-instellingen zitten daar niet achter.
 - **Instellingen:** helemaal onderaan **Notities**, net als op de desktop. Ze openen eerst de onderdelenlijst (zoals de linkerkant van de desktopinstellingen) — een tik opent die pagina. Bovenaan leidt **Actieve vault** naar het vaultbeheer: van vault wisselen (vinkje = actief), **Een vault maken** en **Cloudkluis verbinden**. De lijst toont **dezelfde gebieden als op de desktop** — waaronder **Opstarten en gedrag** (welkom en nieuwtjes opnieuw tonen), **Balken en gebieden** (de navigatiebalk) en **Onderhoud** (Vault-statistieken, index opnieuw opbouwen, verwijderde bestanden herstellen). Alleen **Updates** ontbreekt: de app werkt zichzelf niet bij, dat doen Google Play en TestFlight. **Onderhoud** bevat ook het **importeren uit andere apps** — op de telefoon schrijft dat altijd in een submap van de geopende vault, laat vooraf zien wat het zou aanmaken, kan tijdens het draaien worden gestopt en laat een rapport achter.
