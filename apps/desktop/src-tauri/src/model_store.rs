@@ -274,9 +274,24 @@ fn process_memory() -> Result<ProcessMemory, String> {
 
 async fn hash_file(path: PathBuf) -> Result<(Sha256, u64), String> {
     tauri::async_runtime::spawn_blocking(move || -> Result<(Sha256, u64), String> {
+        use std::io::Read as _;
         let mut hasher = Sha256::new();
         let mut file = std::fs::File::open(&path).map_err(|e| e.to_string())?;
-        let length = std::io::copy(&mut file, &mut hasher).map_err(|e| e.to_string())?;
+        // sha2 0.11 is no `io::Write` any more, so `io::copy` cannot feed it: the file goes in chunk by chunk,
+        // and an interrupted read is asked again, as `io::copy` did.
+        let mut chunk = vec![0u8; 64 * 1024];
+        let mut length = 0u64;
+        loop {
+            match file.read(&mut chunk) {
+                Ok(0) => break,
+                Ok(read) => {
+                    hasher.update(&chunk[..read]);
+                    length += read as u64;
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(e) => return Err(e.to_string()),
+            }
+        }
         Ok((hasher, length))
     })
     .await
