@@ -12,6 +12,7 @@ import { BaseScreen } from "./screens/base/BaseScreen";
 import { PinboardEntryScreen } from "./screens/base/PinboardEntryScreen";
 import { serializePinboardEntryRef } from "./screens/base/pinboardEntryRef";
 import { BookmarksScreen } from "./BookmarksScreen";
+import { RecentScreen } from "./screens/RecentScreen";
 import { BrowseScreen } from "./screens/BrowseScreen";
 import { NavigatorScreen } from "./screens/NavigatorScreen";
 import { AddVaultScreen } from "./AddVaultScreen";
@@ -202,7 +203,8 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       vault={c.vault}
     />
   ),
-  bookmarks: (_e, c) => <BookmarksScreen bump={c.bump} onBack={c.pop} onOpenFolder={(path) => c.push({ kind: "folder", path })} onOpenNote={c.openNote} vault={c.vault} />,
+  bookmarks: (_e, c) => <BookmarksScreen bump={c.bump} onBack={c.pop} onOpenBase={c.openBase} onOpenFolder={(path) => c.push({ kind: "folder", path })} onOpenNote={c.openNote} vault={c.vault} />,
+  recent: (_e, c) => <RecentScreen bump={c.bump} onBack={c.pop} onOpenBase={c.openBase} onOpenFolder={(path) => c.push({ kind: "folder", path })} onOpenNote={c.openNote} vault={c.vault} />,
   settings: (_e, c) => (
     <SettingsScreen
       onBack={c.pop}
@@ -512,7 +514,8 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
       onOpenNote={c.openNote}
       onMenu={() => c.push({ kind: "settings", path: "" })}
       onOpenTag={(tag) => c.push({ kind: "tags", path: tag })}
-      onArrangeBookmarks={() => c.push({ kind: "bookmarks", path: "" })}
+      onOpenRecent={() => c.push({ kind: "recent", path: "" })}
+      onOpenBookmarks={() => c.push({ kind: "bookmarks", path: "" })}
       vault={c.vault}
       vaultName={c.vaultName}
     />

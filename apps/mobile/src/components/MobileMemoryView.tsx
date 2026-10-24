@@ -145,7 +145,7 @@ export function MobileMemoryView({
             title={t("ai.memory.use")}
             subtitle={t(memory.on ? "ai.memory.useDesc" : "ai.memory.off")}
             wrap
-            end={<Switch checked={memory.on} label={t("ai.memory.use")} onChange={(on) => void session.switchMemory(on)} data-testid="ai-memory-switch" />}
+            end={<Switch checked={memory.on} label={t("ai.memory.use")} onChange={(on) => void session.switchMemory(on)} testId="ai-memory-switch" />}
           />
         </RowList>
       </GroupCard>

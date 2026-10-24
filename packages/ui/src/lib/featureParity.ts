@@ -1234,6 +1234,24 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-04",
   },
   {
+    id: "recent-list-by-day",
+    title: "The recently opened notes as a list under day headings, with the time of each open",
+    area: "platform",
+    kind: "decision",
+    desktop: "partial",
+    desktopReason:
+      "Both shells show the whole list of recently opened notes, newest first, and " +
+      "a row there does what it does in the file list (plan Rückmeldungen " +
+      "2026-10-24, E8). The phone reaches it as a pushed screen behind the home " +
+      "screen's Recent heading, with room for Today/Yesterday/date headings and " +
+      "the folder and time of each open. The desktop keeps it as the pinned " +
+      "Recently opened section of the sidebar, one tree-height row per entry " +
+      "beside the file tree, scrolling inside its own box: a peek list, not a " +
+      "screen, so it carries no day headings and no second line.",
+    mobile: "yes",
+    verified: "2026-10-24",
+  },
+  {
     id: "share-target",
     title: "Receive text, links and files with durable staging and destination review",
     area: "platform",

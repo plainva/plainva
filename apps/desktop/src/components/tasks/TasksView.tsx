@@ -33,7 +33,7 @@ import { formatDueLabel } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
 import { buildPlanner, isOpenState, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
-import { applyTaskDueChanges, DateJumpPicker, DateJumpPopover, formatPickedDay, overdueToDayChanges, TaskCheckButton, taskDueFailureText, useWeekStartDay, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
+import { applyTaskDueChanges, DateJumpPopover, DuePicker, dueTimeOf, offerDueTimeColumn, overdueToDayChanges, TaskCheckButton, taskDueFailureText, taskDueMovedText, useWeekStartDay, type DuePick, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
 import { TimeBlockModal } from "../pimcal/TimeBlockModal";
 
 const inlineLinkStyle: React.CSSProperties = { color: "var(--accent-color)" };
@@ -117,7 +117,7 @@ function DueLabel({ due }: { due: string }) {
 }
 
 export function TasksView({ onOpenPath, onRenamed }: Props) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { queryService, vaultAdapter, vaultPath, fileTreeVersion, indexer, triggerFileTreeUpdate, pimRuntime } = useVault();
   // The list stays on screen while it reloads (finding 2026-09-20): `loading`
   // used to be raised on EVERY index change and the list drew nothing while it
@@ -138,7 +138,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   // Standard task database (PIM plan 1a): its entries render as an own section
   // above the checkbox groups, and every checkbox row can be promoted into it.
   const [taskDb, setTaskDb] = useState<string | null>(null);
-  const [dbRows, setDbRows] = useState<{ path: string; title: string; status: string | null; done: boolean; due: string | null; priority?: TaskPriority; repeat: RepeatRule | null; mirrored: boolean; providerRepeats: boolean }[] | null>(null);
+  const [dbRows, setDbRows] = useState<{ path: string; title: string; status: string | null; done: boolean; due: string | null; dueMinutes?: number; priority?: TaskPriority; repeat: RepeatRule | null; mirrored: boolean; providerRepeats: boolean }[] | null>(null);
   const [dbCompletion, setDbCompletion] = useState<TaskCompletionModel | null>(null);
   /** Date column of the task database — the generated occurrence writes its
    * next due date there. */
@@ -921,14 +921,19 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
    * which is also how a task without a date gets one. "All to today" at the
    * Overdue heading moves the whole section. Every move answers with a toast
    * that carries Undo — the same write, pointed back at the days that were
-   * there. The phone's twin is the due sheet in TasksScreen.
+   * there. The phone's twin is the due sheet in TasksScreen. The picker offers
+   * quick choices and a time (wishes 2026-10-24, E2); a time only where the
+   * task can hold one — a database entry, not a checkbox's `📅`.
    */
   const weekStart = useWeekStartDay();
   const [dueTarget, setDueTarget] = useState<{
     anchorRef: { current: HTMLElement | null };
     /** The day the task carries now; null for a task without one. */
     value: string | null;
-    change: (day: string) => TaskDueChange;
+    /** The time it carries now (`HH:MM`); null when it is due all day. */
+    time: string | null;
+    timeAllowed: boolean;
+    change: (pick: DuePick) => TaskDueChange;
   } | null>(null);
   const applyDue = useCallback(
     async (changes: readonly TaskDueChange[]): Promise<TaskDueOutcome | null> => {
@@ -990,14 +995,29 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     const undo = outcome.undo;
     toast.success(announce(outcome), undo.length > 0 ? { label: t("common.undo"), run: () => void applyDue(undo) } : undefined);
   };
-  const pickDue = (day: string) => {
+  const pickDue = (pick: DuePick) => {
     const target = dueTarget;
     setDueTarget(null);
-    if (!target || day === target.value) return;
-    void moveDue([target.change(day)], () => t("tasks.dueMoved", { date: formatPickedDay(day, i18n.language) }));
+    if (!target || (pick.day === target.value && (!target.timeAllowed || pick.time === target.time))) return;
+    const change = target.change(pick);
+    void moveDue([change], () => taskDueMovedText(pick)).then(() => {
+      // A time set on a database whose due column shows a day only: the same
+      // one-time offer a quick capture makes (E9). The phone makes it in taskDueAction.
+      if (change.source !== "database" || typeof change.time !== "string" || !taskDb || !vaultAdapter || !vaultPath) return;
+      const db = taskDb;
+      void offerDueTimeColumn({
+        readTextFile: (path) => vaultAdapter.readTextFile(path),
+        vault: vaultPath,
+        dbPath: db,
+        convert: () => convertDueColumnToDateTime(vaultAdapter, db),
+        converted: async () => {
+          if (indexer) await applyIndexChanges(indexer, { added: [db] }).catch(() => undefined);
+        },
+      }).catch(() => undefined);
+    });
   };
-  const dbDueChange = (path: string) => (day: string): TaskDueChange => ({ source: "database", path, day });
-  const noteDueChange = (task: TaskRecord) => (day: string): TaskDueChange => ({ source: "note", path: task.path, task: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) }, day });
+  const dbDueChange = (path: string) => (pick: DuePick): TaskDueChange => ({ source: "database", path, day: pick.day, time: pick.time });
+  const noteDueChange = (task: TaskRecord) => (pick: DuePick): TaskDueChange => ({ source: "note", path: task.path, task: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) }, day: pick.day });
   /** The element a menu was opened on — the picker of a menu entry hangs there. */
   const anchorAt = (at: { x: number; y: number }) => ({ current: (document.elementFromPoint(at.x, at.y) as HTMLElement | null) ?? document.body });
 
@@ -1007,7 +1027,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     repeat: r.mirrored ? undefined : () => setRepeatTarget({ path: r.path, title: noteDisplayName(r.title), rule: r.repeat, due: r.due ?? null }),
     block: calendarOptions.length > 0 ? () => setBlockTarget({ title: noteDisplayName(r.title), due: r.due, notePath: r.path, linkPath: r.path }) : undefined,
     // Only a database with a date column can carry a due day.
-    due: dbDueKey ? () => setDueTarget({ anchorRef: anchorAt(at), value: r.due ?? null, change: dbDueChange(r.path) }) : undefined,
+    due: dbDueKey ? () => setDueTarget({ anchorRef: anchorAt(at), value: r.due ?? null, time: dueTimeOf(r.dueMinutes), timeAllowed: true, change: dbDueChange(r.path) }) : undefined,
     priority: () => setPriorityMenu({ at, target: { kind: "db", path: r.path } }),
   });
   const noteRowCaps = (task: TaskRecord, at: { x: number; y: number }): TaskRowCaps => ({
@@ -1018,7 +1038,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       calendarOptions.length > 0
         ? () => setBlockTarget({ title: stripTaskMeta(task.text) || task.text, due: task.due ?? null, linkPath: task.path })
         : undefined,
-    due: () => setDueTarget({ anchorRef: anchorAt(at), value: task.due ?? null, change: noteDueChange(task) }),
+    due: () => setDueTarget({ anchorRef: anchorAt(at), value: task.due ?? null, time: null, timeAllowed: false, change: noteDueChange(task) }),
     priority: () => setPriorityMenu({ at, target: { kind: "note", task } }),
     state: () => setStateMenu({ at, task }),
   });
@@ -1051,7 +1071,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   };
   const onPlannerDue = (row: PlannerRow, anchor: HTMLElement) => {
     const change = plannerDueChange(row);
-    if (change) setDueTarget({ anchorRef: { current: anchor }, value: row.due ?? null, change });
+    if (change) setDueTarget({ anchorRef: { current: anchor }, value: row.due ?? null, time: row.source === "database" ? dueTimeOf(row.dueMinutes) : null, timeAllowed: row.source === "database", change });
   };
   const overdueToToday = () => {
     const overdue = planner.sections("today").find((section) => section.kind === "overdue")?.rows ?? [];
@@ -1241,7 +1261,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
                           testId="task-db-due"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setDueTarget({ anchorRef: { current: e.currentTarget }, value: r.due ?? null, change: dbDueChange(r.path) });
+                            setDueTarget({ anchorRef: { current: e.currentTarget }, value: r.due ?? null, time: dueTimeOf(r.dueMinutes), timeAllowed: true, change: dbDueChange(r.path) });
                           }}
                         >
                           <DueLabel due={r.due} />
@@ -1408,7 +1428,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
                           testId="task-due"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setDueTarget({ anchorRef: { current: e.currentTarget }, value: task.due ?? null, change: noteDueChange(task) });
+                            setDueTarget({ anchorRef: { current: e.currentTarget }, value: task.due ?? null, time: null, timeAllowed: false, change: noteDueChange(task) });
                           }}
                         >
                           <DueLabel due={task.due} />
@@ -1476,14 +1496,16 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
 
       <DateJumpPopover open={dueTarget !== null} anchorRef={dueTarget?.anchorRef ?? NO_ANCHOR} onClose={() => setDueTarget(null)} ariaLabel={t("tasks.dueChange")} testId="task-due-picker">
         {dueTarget && (
-          <DateJumpPicker
-            value={dueTarget.value ?? todayKey}
+          <DuePicker
+            day={dueTarget.value}
+            time={dueTarget.time}
+            timeAllowed={dueTarget.timeAllowed}
+            todayKey={todayKey}
             weekStart={weekStart}
             onPick={pickDue}
-            onToday={() => pickDue(todayKey)}
             onClose={() => setDueTarget(null)}
             autoFocus
-            testId="task-due-grid"
+            testId="task-due"
           />
         )}
       </DateJumpPopover>

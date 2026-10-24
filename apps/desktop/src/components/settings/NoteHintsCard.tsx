@@ -15,7 +15,7 @@ export function NoteHintsCard({ session }: { session: AiSession }) {
   return (
     <SettingCard label={t("rightPanel.hints")}>
       <SettingRow label={t("ai.hints.show")} desc={t("ai.hints.showDesc")}>
-        <Switch checked={settings.noteHints} label={t("ai.hints.show")} onChange={(on) => void session.updateSettings((s) => ({ ...s, noteHints: on }))} data-testid="hints-show" />
+        <Switch checked={settings.noteHints} label={t("ai.hints.show")} onChange={(on) => void session.updateSettings((s) => ({ ...s, noteHints: on }))} testId="hints-show" />
       </SettingRow>
       {hints.available && hints.prefs.vaultPaused && (
         <SettingRow label={t("ai.hints.vaultPausedRow")}>

@@ -1,6 +1,6 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-10-23
+Ultimo aggiornamento: 2026-10-24
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
@@ -105,7 +105,7 @@ Un promemoria ora dice **cosa** sta annunciando: "Appuntamento · 09:30" oppure 
 
 La notifica in sé non porta pulsanti: il computer non lo consente. L'azione si trova nell'avviso dentro l'app: **Mostra nel calendario** per un appuntamento, **Apri attività** per un'attività. La finestra non si porta mai in primo piano da sola.
 
-Sul telefono rientrano anche gli **elenchi di promemoria** del dispositivo (iOS) non appena l'account del dispositivo **Su questo dispositivo** è collegato: ogni elenco è un elenco attività come un elenco Nextcloud, con le stesse regole — importazione nel database attività, spunta in entrambe le direzioni, eliminazione tramite il registro delle eliminazioni.
+Sul telefono rientrano anche gli **elenchi di promemoria** del dispositivo (iOS) non appena l'account del dispositivo **Su questo dispositivo** è collegato: ogni elenco è un elenco attività come un elenco Nextcloud, con le stesse regole — importazione nel database attività, spunta in entrambe le direzioni, eliminazione tramite il registro delle eliminazioni. Un promemoria ricorrente mantiene il suo orario: spuntato — qui o in Promemoria — la sua nota passa alla data successiva e riporta **Si ripete presso il provider**; l'occorrenza completata che Promemoria conserva come voce a sé non diventa una seconda nota.
 
 ### Restare in esecuzione sullo sfondo
 

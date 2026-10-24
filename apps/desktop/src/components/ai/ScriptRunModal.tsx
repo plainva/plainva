@@ -121,7 +121,7 @@ export function ScriptRunModal({ id, onClose, onOpenNote }: { id: string; onClos
               )}
               {p.type === "boolean" ? (
                 <div>
-                  <Switch checked={values[p.name] === true} label={p.name} disabled={running.busy} onChange={(on) => set(p.name, on)} data-testid={`ai-script-field-${p.name}`} />
+                  <Switch checked={values[p.name] === true} label={p.name} disabled={running.busy} onChange={(on) => set(p.name, on)} testId={`ai-script-field-${p.name}`} />
                 </div>
               ) : p.options ? (
                 <Select value={String(values[p.name] ?? "")} options={p.options.map((option) => ({ value: option, label: option }))} ariaLabel={p.name} disabled={running.busy} onChange={(next) => set(p.name, next)} data-testid={`ai-script-field-${p.name}`} />

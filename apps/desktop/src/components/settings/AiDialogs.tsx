@@ -260,7 +260,7 @@ export function AiModelDialog({ session, state, profile, onClose }: { session: A
             </p>
             <span className="pv-ai-notewithaction">
               <span className="pv-modal-label">{t("ai.settings.modelTools")}</span>
-              <Switch checked={tools} label={t("ai.settings.modelTools")} onChange={setTools} data-testid="ai-model-tools" />
+              <Switch checked={tools} label={t("ai.settings.modelTools")} onChange={setTools} testId="ai-model-tools" />
             </span>
             <p className="pv-ai-tilehint">{t("ai.settings.modelToolsDesc")}</p>
             <p className="pv-ai-tilehint">{t("ai.settings.modelFactsHint")}</p>

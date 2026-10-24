@@ -44,5 +44,6 @@ export { GroupCard, Row, RowList, SectionLabel, SettingField } from "./GroupedRo
 export { PropRow, PropGroupHead, PropActionRow, PropLine, type PropRowProps } from "./PropRow";
 export { cx } from "./cx";
 export { DateJumpPicker, DateJumpTrigger, DateJumpPopover, type DateJumpPickerProps } from "./DateJumpPicker";
+export { DuePicker, type DuePickerProps } from "./DuePicker";
 export { useShowWeekNumbers, getShowWeekNumbers, setShowWeekNumbers, weekNumbersShown, SHOW_WEEK_NUMBERS_KEY } from "./useShowWeekNumbers";
 export { WeekNumbersToggle } from "./WeekNumbersToggle";

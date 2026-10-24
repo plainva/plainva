@@ -1,6 +1,6 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-10-23
+Dernière mise à jour : 2026-10-24
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
@@ -105,7 +105,7 @@ Un rappel indique désormais **ce qu**'il annonce : « Rendez-vous · 09:30 » o
 
 La notification elle-même ne porte aucun bouton — l'ordinateur ne le permet pas. L'action se trouve dans le message affiché dans l'application : **Afficher dans l'agenda** pour un rendez-vous, **Ouvrir la tâche** pour une tâche. La fenêtre ne s'impose jamais au premier plan.
 
-Sur le téléphone, cela inclut les **listes de rappels** de l'appareil (iOS) dès que le compte de l'appareil **Sur cet appareil** est connecté : chaque liste est une liste de tâches comme une liste Nextcloud, avec les mêmes règles — import dans la base de tâches, cochage dans les deux sens, suppression via le journal des suppressions.
+Sur le téléphone, cela inclut les **listes de rappels** de l'appareil (iOS) dès que le compte de l'appareil **Sur cet appareil** est connecté : chaque liste est une liste de tâches comme une liste Nextcloud, avec les mêmes règles — import dans la base de tâches, cochage dans les deux sens, suppression via le journal des suppressions. Un rappel récurrent garde son heure : une fois coché — ici ou dans Rappels — sa note passe à la date suivante et porte **Se répète chez le fournisseur** ; l'occurrence terminée que Rappels conserve comme entrée distincte ne devient pas une seconde note.
 
 ### Continuer en arrière-plan
 

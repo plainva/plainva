@@ -1,7 +1,7 @@
 import { PimConflictError } from "./types.js";
 import type {
   IPimTarget, PimCalendar, PimEvent, PimEventDraft, PimEventRef, PimTask, PimTaskDraft, PimTaskList, PimTaskRef,
-  PimWriteResult, PullEventsResult, PullTasksResult,
+  PimTaskUpdateResult, PimWriteResult, PullEventsResult, PullTasksResult,
 } from "./types.js";
 import { recurrenceToRRule } from "./recurrence.js";
 
@@ -91,8 +91,17 @@ export interface DeviceReminderRecord {
   due?: string;
   completed: boolean;
   version: string;
+  /** `hasRecurrenceRules`: the reminder repeats. */
+  recurring?: boolean;
 }
 
+/**
+ * What a reminder write carries. A field left out is no instruction - with one
+ * exception that is the PIM contract for every provider: a missing `due` means
+ * "no due date". Left-out `notes` keep the reminder's notes; an empty string
+ * clears them. The plugin's `apply` follows exactly this (finding 2026-10-24:
+ * it used to clear the notes on every write that did not carry them).
+ */
 export interface DeviceReminderDraft {
   title: string;
   notes?: string;
@@ -174,7 +183,26 @@ function toDeviceDraft(d: PimEventDraft): DeviceEventDraft {
 }
 
 function toPimTask(r: DeviceReminderRecord): PimTask {
-  return { uid: r.id, listId: r.listId, title: r.title, notes: r.notes, due: r.due, completed: r.completed, etag: r.version };
+  return {
+    uid: r.id,
+    listId: r.listId,
+    title: r.title,
+    notes: r.notes,
+    due: r.due,
+    completed: r.completed,
+    etag: r.version,
+    ...(r.recurring !== undefined ? { recurring: r.recurring } : {}),
+  };
+}
+
+/** The reminder draft: only what the task draft carries (see `DeviceReminderDraft`). */
+function toReminderDraft(d: PimTaskDraft): DeviceReminderDraft {
+  return {
+    title: d.title,
+    completed: d.completed,
+    ...(d.due !== undefined ? { due: d.due } : {}),
+    ...(d.notes !== undefined ? { notes: d.notes } : {}),
+  };
 }
 
 export class DevicePimTarget implements IPimTarget {
@@ -248,18 +276,22 @@ export class DevicePimTarget implements IPimTarget {
 
   async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {
     this.needReminders();
-    const r = await this.port.createReminder(listId, draft);
+    const r = await this.port.createReminder(listId, toReminderDraft(draft));
     return { uid: r.id, etag: r.version };
   }
 
-  async updateTask(ref: PimTaskRef, draft: PimTaskDraft): Promise<{ etag?: string }> {
+  async updateTask(ref: PimTaskRef, draft: PimTaskDraft): Promise<PimTaskUpdateResult> {
     this.needReminders();
     if (ref.etag) {
       const current = await this.port.reminder(ref.uid);
       if (current && current.version !== ref.etag) throw new PimConflictError();
     }
-    const r = await this.port.updateReminder(ref.uid, draft);
-    return { etag: r.version };
+    const r = await this.port.updateReminder(ref.uid, toReminderDraft(draft));
+    // The reminder as the device holds it after the save. For a recurring
+    // reminder that was just completed this is already the NEXT occurrence,
+    // open again under the same id - the caller must not take its own draft
+    // for the new state (finding 2026-10-24).
+    return { etag: r.version, task: toPimTask(r) };
   }
 
   async deleteTask(ref: PimTaskRef): Promise<void> {

@@ -297,7 +297,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
             <Row
               end={<Switch
                 checked={placeStamp}
-                data-testid="place-stamp-switch"
+                testId="place-stamp-switch"
                 label={t("settings.placeStamp")}
                 onChange={(next) => { setPlaceStamp(next); setPlaceStampEnabled(next); }}
               />}

@@ -7,15 +7,15 @@ export interface SwitchProps {
   label: string;
   disabled?: boolean;
   className?: string;
-  /** Lands on the button, so a test can name the switch it means. */
-  "data-testid"?: string;
+  /** Lands on the button as `data-testid`, so a test can name the switch it means — as every primitive spells it. */
+  testId?: string;
 }
 
 /**
  * Toggle switch (plan Designsprache P2) — componentizes the existing
  * .pv-switch classes (App.css) with proper switch semantics.
  */
-export function Switch({ checked, onChange, label, disabled, className, "data-testid": testId }: SwitchProps) {
+export function Switch({ checked, onChange, label, disabled, className, testId }: SwitchProps) {
   return (
     <button
       type="button"
@@ -23,8 +23,8 @@ export function Switch({ checked, onChange, label, disabled, className, "data-te
       aria-checked={checked}
       aria-label={label}
       disabled={disabled}
-      data-testid={testId}
       className={cx("pv-switch", checked && "pv-switch-on", className)}
+      data-testid={testId}
       onClick={() => onChange(!checked)}
     >
       <span className="pv-switch-knob" />

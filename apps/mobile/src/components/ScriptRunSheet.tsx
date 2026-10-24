@@ -85,7 +85,7 @@ export function ScriptRunSheet({ id, onClose, onOpenNote }: { id: string; onClos
             return (
               <GroupCard key={p.name}>
                 <RowList>
-                  <Row controls title={p.name} subtitle={hint} wrap end={<Switch checked={values[p.name] === true} label={p.name} disabled={running.busy} onChange={(on) => set(p.name, on)} data-testid={`ai-script-field-${p.name}`} />} />
+                  <Row controls title={p.name} subtitle={hint} wrap end={<Switch checked={values[p.name] === true} label={p.name} disabled={running.busy} onChange={(on) => set(p.name, on)} testId={`ai-script-field-${p.name}`} />} />
                 </RowList>
               </GroupCard>
             );

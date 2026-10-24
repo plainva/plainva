@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-10-21
+Laatst bijgewerkt: 2026-10-24
 
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
@@ -23,7 +23,7 @@ De weergave toont dezelfde twee secties als op de desktop: bovenaan de **Takenda
 
 Welke database je vault als takendatabase gebruikt, stel je mobiel in onder **Instellingen** → **Inhoud en structuur**. De instelling reist mee via de [instellingensynchronisatie](Sync_Setup.md), dus je hoeft hem maar één keer te kiezen, op het apparaat van je keuze.
 
-De vier filters van de desktopbalk verschijnen op de telefoon als chips boven de lijst: **Map**, **Tag**, **Met einddatum** en **Verborgen tonen**. Chips in plaats van keuzelijsten, omdat een filterbalk boven een toch al smalle lijst meer ruimte kost dan hij oplevert — één tik opent de keuze, een tweede wist hem weer.
+De vier filters van de desktopbalk verschijnen op de telefoon als chips boven de lijst: **Map**, **Tag**, **Met vervaldatum** en **Verborgen tonen**. Chips in plaats van keuzelijsten, omdat een filterbalk boven een toch al smalle lijst meer ruimte kost dan hij oplevert — één tik opent de keuze, een tweede wist hem weer.
 
 ## De lijst lezen
 
@@ -37,7 +37,7 @@ De balk bovenaan beperkt de lijst:
 - **Taken filteren…** — vrije tekst; komt overeen met de taaktekst.
 - **Alle mappen** — alleen taken in de gekozen map (en de submappen daarvan).
 - **Alle tags** — alleen taken met een gekozen inline-`#tag`.
-- **Met einddatum** — alleen taken met een `📅`-datum.
+- **Met vervaldatum** — alleen taken met een `📅`-datum.
 
 Tags en vervaldatums worden rechtstreeks uit de taakregel gelezen — bijvoorbeeld `- [ ] Factuur betalen #finance 📅 2026-08-01`.
 
@@ -168,6 +168,8 @@ Boven de lijsten staat het invoerveld; op de telefoon openen **+ Nieuwe taak** e
 `- [/]` (**Bezig**) en `- [-]` (**Geannuleerd**) zijn ook taken. Ze krijgen een eigen vakje in de editor, in de leesmodus en in elke lijst; bezig telt als open, geannuleerd als afgerond. Een klik wisselt nog steeds alleen tussen open en klaar — hij rondt een taak die bezig is af en heropent een geannuleerde. **Status instellen** in het rijmenu zet de twee statussen; Plainva schrijft ze nooit uit zichzelf.
 
 **De datum van een taak is de manier om hem te wijzigen.** Druk op de datum van een taak (binnen een dag: op het tijdstip) en de datumkiezer opent — op de desktop onder de datum, op de telefoon als blad. **Vervaldatum wijzigen** in het menu van de rij opent dezelfde kiezer; zo krijgt ook een taak zonder datum er een. Op de telefoon kiezen **Nieuwe taak** en de datumcel van een database hun dag uit dezelfde agenda, niet uit het datumwiel van het systeem. Een selectievakje in een notitie — in de editor, de leesweergave en het journaal — is op de telefoon op een vinger afgestemd. Een item van de takendatabase houdt zijn tijdstip, een selectievakje krijgt of wijzigt zijn `📅`-datum. Bij de kop **Te laat** verplaatst **Alles naar vandaag** alle te late taken in één keer naar vandaag. Beide worden bevestigd met een melding die **Ongedaan maken** aanbiedt. In het invoerveld stelt `[[` notities voor en `#` tags, net als in de editor: `Enter` of `Tab` neemt het gemarkeerde voorstel over, `Esc` sluit de lijst.
+
+**Snelkeuzes en een tijd.** Boven de kalender staan **Vandaag**, **Morgen**, **Dit weekend**, **Volgende week** en **Geen datum**, elk met de weekdag. Dit weekend is de komende zaterdag — vandaag, als het zaterdag of zondag is; volgende week is de eerste dag van de volgende week, zoals ingesteld bij **Week begint op**. Onderaan heeft **Tijd** een schakelaar: uit, dan vervalt de taak de hele dag; aan, dan kies je ernaast de tijd. Een snelkeuze of een dag houdt een al ingestelde tijd; om alleen de tijd te wijzigen, druk je op **Klaar**. Een item van de takendatabase bewaart de tijd in zijn vervaldatum (`2026-10-26T10:00`). Een vinkje in een notitie draagt alleen een dag — de `📅` van de Tasks-plug-in kent geen tijd —, dus de kiezer zegt dat daar in plaats van de schakelaar aan te bieden. Toont de vervaldatumkolom van de database alleen dagen, dan biedt Plainva één keer **Omzetten naar datum & tijd** aan.
 
 Meer manieren om een taak toe te voegen: **Nieuwe taak** in het systeemvakmenu op de desktop (wanneer Plainva op de achtergrond actief blijft), op Android de launcher-snelkoppeling **Nieuwe taak** (app-icoon ingedrukt houden), en op de telefoon **Als taak aanmaken** wanneer je iets met Plainva deelt — de tekst en de bijlagen komen terecht in de notitie van de taak. Hoe een taak met een tijdstip je eraan herinnert, staat beschreven onder [Agenda & externe taken](Calendar_and_Tasks.md). Op een iPhone of iPad nemen ook Siri en Opdrachten een taak aan (**Taak toevoegen**); Plainva maakt die aan zodra je de app de volgende keer opent — zie [De mobiele app](Mobile_App.md).
 

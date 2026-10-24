@@ -44,7 +44,7 @@ describe("one action list per row kind (E2)", () => {
   const consumers: Array<[string, string, string]> = [
     // row kind, desktop consumer, mobile consumer
     ["mailRowActions", "components/mail/MailView.tsx", "screens/MailListScreen.tsx"],
-    ["fileRowActions", "components/FileContextMenu.tsx", "screens/BrowseScreen.tsx"],
+    ["fileRowActions", "components/FileContextMenu.tsx", "lib/useFileRowSheet.tsx"],
     ["taskRowActions", "components/tasks/TasksView.tsx", "screens/TasksScreen.tsx"],
   ];
 
@@ -81,10 +81,16 @@ describe("one action list per row kind (E2)", () => {
   });
 
   it("the phone's swipes are subsets of the same list", () => {
-    const browse = stripComments(read(MOBILE, "screens/BrowseScreen.tsx"));
-    expect(browse).toMatch(/rowActionsFor\(n, "note"\)\.filter\(\(a\) => a\.swipe\)/);
-    expect(browse).toMatch(/pickRowActions\(rowActionsFor\(target, "folder"\), \["rename", "delete"\]\)/);
-    expect(browse).not.toMatch(/<SwipeRow\s+actions=\{\[/);
+    // One swipe definition for every list of vault rows (plan Rückmeldungen
+    // 2026-10-24, E8): the file list, Recent and Bookmarks all call `swipeFor`.
+    const rows = stripComments(read(MOBILE, "lib/useFileRowSheet.tsx"));
+    expect(rows).toMatch(/rowActionsFor\(target, kind\)\.filter\(\(a\) => a\.swipe\)/);
+    expect(rows).toMatch(/pickRowActions\(rowActionsFor\(target, "folder"\), \["rename", "delete"\]\)/);
+    for (const rel of ["screens/BrowseScreen.tsx", "screens/RecentScreen.tsx", "BookmarksScreen.tsx"]) {
+      const src = stripComments(read(MOBILE, rel));
+      expect(src, rel).not.toMatch(/<SwipeRow\s+actions=\{\[/);
+      expect(src, rel).toContain("swipeFor(");
+    }
     const tasks = stripComments(read(MOBILE, "screens/TasksScreen.tsx"));
     expect(tasks).toMatch(/taskRowActions\(t, a\)\.map/);
   });

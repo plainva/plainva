@@ -22,7 +22,11 @@ const read = (...p: string[]) => readFileSync(join(SRC, ...p), "utf8");
 const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 describe("holding a row means the same on every kind of row", () => {
-  const browse = strip(read("screens", "BrowseScreen.tsx"));
+  // The row grammar of vault rows lives in one hook since the home screen's
+  // full lists reuse it (plan Rückmeldungen 2026-10-24, E8); the file list
+  // owns only the selection it names.
+  const browse = strip(read("lib", "useFileRowSheet.tsx"));
+  const list = strip(read("screens", "BrowseScreen.tsx"));
 
   it("a note row opens its sheet, like a folder and a database already did", () => {
     expect(browse, "the note press must open the sheet").toMatch(
@@ -41,7 +45,10 @@ describe("holding a row means the same on every kind of row", () => {
     expect(first, "and it must come before opening the row").toBeLessThan(open);
     expect(sheet).toMatch(/mobile\.selectMany/);
     expect(sheet, "it must actually start the selection").toMatch(
-      /sheet-select-many[\s\S]{0,400}?setSelected\(/,
+      /sheet-select-many[\s\S]{0,400}?onSelectMany\(/,
+    );
+    expect(list, "the file list hands its selection to the sheet").toMatch(
+      /onSelectMany: \(path\) => setSelected\(/,
     );
   });
 
@@ -87,7 +94,8 @@ describe("a task row can be held too", () => {
     // the hold and the swipe are handed in, so Today and Inbox do not become
     // the one place where a row can only be tapped.
     expect(tasks).toMatch(/rowProps=\{\(row\) => \(\{\s*onPointerDown: \(e: ReactPointerEvent\) => \{[\s\S]{0,160}startRowPress\(e, \(\) => setTaskSheet\(acts\)\)/);
-    expect(tasks).toMatch(/wrapRow=\{\(row, element\) => \{[\s\S]{0,160}<SwipeRow actions=\{rowActions\(acts\)\}>/);
+    // The swipe takes the `swipe` part of the sheet's list (24.10.), not all of it.
+    expect(tasks).toMatch(/wrapRow=\{\(row, element\) => \{[\s\S]{0,160}<SwipeRow actions=\{swipeActions\(acts\)\}>/);
   });
 });
 

@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-10-23
+Última actualización: 2026-10-24
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -105,7 +105,7 @@ Un recordatorio ahora dice **qué** está anunciando: «Cita · 09:30» o «Tare
 
 La notificación en sí no lleva botón: el ordenador no lo permite. La acción está en el aviso dentro de la aplicación: **Mostrar en el calendario** para una cita, **Abrir tarea** para una tarea. La ventana nunca se pone en primer plano por sí sola.
 
-En el teléfono se incluyen las **listas de recordatorios** del dispositivo (iOS) en cuanto la cuenta del dispositivo **En este dispositivo** está conectada: cada lista es una lista de tareas como una lista de Nextcloud, con las mismas reglas — importación a la base de datos de tareas, marcar en ambas direcciones, eliminación mediante el diario de eliminaciones.
+En el teléfono se incluyen las **listas de recordatorios** del dispositivo (iOS) en cuanto la cuenta del dispositivo **En este dispositivo** está conectada: cada lista es una lista de tareas como una lista de Nextcloud, con las mismas reglas — importación a la base de datos de tareas, marcar en ambas direcciones, eliminación mediante el diario de eliminaciones. Un recordatorio que se repite conserva su hora: al marcarlo — aquí o en Recordatorios — su nota pasa a la siguiente fecha y lleva **Se repite en el proveedor**; la repetición completada que Recordatorios guarda como entrada propia no se convierte en una segunda nota.
 
 ### Seguir en segundo plano
 

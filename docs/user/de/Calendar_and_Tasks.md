@@ -1,6 +1,6 @@
 # Kalender & externe Aufgaben
 
-Stand: 2026-10-23
+Stand: 2026-10-24
 
 Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalender + Tasks) und **Microsoft** (Outlook-Kalender + To Do) — und in beide Richtungen damit arbeiten. Deine Notizen bleiben das Zentrum: Termine werden zu Meeting-Notizen, und externe Aufgabenlisten spiegeln sich als normale Notizen in Deine [Standard-Aufgabendatenbank](Tasks.md).
 
@@ -105,7 +105,7 @@ Eine Erinnerung sagt jetzt, **was** sie ankündigt: „Termin · 09:30“ bzw. �
 
 Die Benachrichtigung selbst trägt keinen Knopf — das gibt der Rechner nicht her. Die Aktion liegt stattdessen im Hinweis in der App: bei einem Termin **Im Kalender zeigen**, bei einer Aufgabe **Aufgabe öffnen**. Das Fenster drängt sich dabei nie in den Vordergrund.
 
-Am Telefon zählen dazu die **Erinnerungslisten** des Geräts (iOS), sobald das Gerätekonto **Auf diesem Gerät** verbunden ist: jede Liste ist eine Aufgabenliste wie eine Nextcloud-Liste, mit denselben Regeln — Import in die Aufgabendatenbank, Abhaken in beide Richtungen, Löschen über das Lösch-Journal.
+Am Telefon zählen dazu die **Erinnerungslisten** des Geräts (iOS), sobald das Gerätekonto **Auf diesem Gerät** verbunden ist: jede Liste ist eine Aufgabenliste wie eine Nextcloud-Liste, mit denselben Regeln — Import in die Aufgabendatenbank, Abhaken in beide Richtungen, Löschen über das Lösch-Journal. Eine wiederkehrende Erinnerung behält ihre Uhrzeit: abgehakt — hier oder in Erinnerungen — rückt ihre Notiz auf den nächsten Termin und trägt **Wiederholt sich beim Anbieter**; das erledigte Vorkommen, das Erinnerungen als eigenen Eintrag behält, wird keine zweite Notiz.
 
 ### Im Hintergrund weiterlaufen
 

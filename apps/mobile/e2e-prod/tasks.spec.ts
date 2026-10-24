@@ -819,3 +819,103 @@ test("the Today screen: a tap on a task's date opens the same date sheet, and th
     sql.close();
   }
 });
+
+test("change due date with quick choices and a time: Next week at 10:00 lands in the file, a checkbox is told it holds a day only (wishes 2026-10-24, E2)", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const errors = collectErrors(page);
+  const sql = await installSqlBridge(context);
+  const tax = (frist: string) => taskNote("Steuer abgeben", { status: "Offen", frist });
+  try {
+    await start(page, context, sql, [
+      ["Aufgaben.base", TASK_BASE],
+      ["Aufgaben/Steuer abgeben.md", tax("2026-09-25")],
+      ["Haushalt.md", CHORES],
+    ]);
+    await openTasks(page);
+    await page.getByTestId("tasks-list-all").click();
+    const dbRow = page.getByTestId("task-db-row").filter({ hasText: "Steuer abgeben" });
+    await dbRow.getByTestId("task-db-due").click();
+    const sheet = page.getByTestId("task-due-sheet");
+    await expect(sheet).toBeVisible();
+    // Sunday 20 September: the weekend is today, next week starts on Monday (the default week start).
+    await expect(sheet.getByTestId("task-due-quick").locator(".pv-datejump-qlabel")).toHaveText(["Today", "Tomorrow", "This weekend", "Next week", "No date"]);
+    await expect(sheet.getByTestId("task-due-quick-weekend")).toContainText("Sun");
+    await expect(sheet.getByTestId("task-due-quick-nextWeek")).toContainText("Mon");
+    // The time row: off, the task is due all day; on, a time field.
+    await expect(sheet.getByTestId("task-due-time")).toHaveCount(0);
+    await sheet.getByTestId("task-due-time-switch").click();
+    await sheet.getByTestId("task-due-time").fill("10:00");
+    await sheet.getByTestId("task-due-quick-nextWeek").click();
+    await expect(sheet).toHaveCount(0);
+    await expect.poll(() => readFile(page, "Aufgaben/Steuer abgeben.md")).toBe(tax("2026-09-21T10:00"));
+    // The notice names day and time, and Undo puts the value back as it stood.
+    const moved = page.locator(".pv-toast").filter({ hasText: /New due date: Mon, 09\/21, 10:00\sAM/ });
+    await moved.locator(".pv-toast-action").click();
+    await expect.poll(() => readFile(page, "Aufgaben/Steuer abgeben.md")).toBe(tax("2026-09-25"));
+
+    // A checkbox's 📅 holds a day only: the sheet says so instead of offering the switch.
+    const noteRow = page.getByTestId("task-row").filter({ hasText: "Drucker einrichten" });
+    await noteRow.getByTestId("task-due").click();
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByTestId("task-due-time-switch")).toHaveCount(0);
+    await expect(sheet.getByTestId("task-due-timerow")).toContainText("A checkbox in a note carries a day only");
+    await sheet.getByTestId("task-due-quick-none").click();
+    await expect.poll(() => readFile(page, "Haushalt.md")).toBe(CHORES.replace(" 📅 2026-09-19", ""));
+    expect(errors).toEqual([]);
+  } finally {
+    sql.close();
+  }
+});
+
+/** A genuine touch drag through CDP, so the compositor arbitrates it as for a finger (swipe-gesture.spec.ts). */
+async function touchDrag(page: Page, x: number, y: number, dx: number, steps = 14) {
+  const cdp = await page.context().newCDPSession(page);
+  const point = (px: number) => ({ x: px, y, radiusX: 12, radiusY: 12, force: 1 });
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point(x)] });
+  for (let i = 1; i <= steps; i++) {
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [point(x + (dx * i) / steps)] });
+    await page.waitForTimeout(16);
+  }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await cdp.detach();
+}
+
+test("a swiped task row keeps itself in sight: three actions at most, and a tap on what is left closes it (TestFlight, build 139)", async ({ page, context }) => {
+  // The task list put every action of a task into its swipe strip — six for a
+  // checkbox in a note, 396 px on a phone a little wider than that. The strip
+  // pushed the row off the screen, and nothing was left to tap or swipe back.
+  test.setTimeout(90_000);
+  const errors = collectErrors(page);
+  const sql = await installSqlBridge(context);
+  try {
+    await start(page, context, sql, [
+      ["Aufgaben.base", TASK_BASE],
+      ["Aufgaben/Zahnarzt anrufen.md", taskNote("Zahnarzt anrufen", { status: "Offen", frist: "2026-09-20", priority: "High" })],
+      ["Haushalt.md", HOUSEHOLD],
+    ]);
+    await openTasks(page);
+    const today = page.getByTestId("task-planner-section-today");
+    for (const title of ["Drucker einrichten", "Zahnarzt anrufen"]) {
+      // `has` looks inside each swipe row, so the row is named from there, not from the section.
+      const swipe = today.locator(".m-swipe").filter({ has: page.locator(".pv-grouprow-title", { hasText: new RegExp(`^${escapeRe(title)}$`) }) });
+      const front = swipe.locator(".m-swipe-front");
+      const box = (await front.boundingBox())!;
+      await touchDrag(page, box.x + box.width - 30, box.y + box.height / 2, -box.width);
+      await page.waitForTimeout(400);
+      const buttons = swipe.locator(".m-swipe-btn");
+      await expect(buttons.first(), `${title}: the strip did not open`).toBeVisible();
+      expect(await buttons.count(), `${title}: more than three slots`).toBeLessThanOrEqual(3);
+      // At least a third of the row stays on the screen to read and to tap.
+      const moved = (await front.boundingBox())!;
+      expect(moved.x + moved.width, `${title}: the row went off the screen`).toBeGreaterThan(box.width / 3);
+      // The strip holds the row's swipe actions only; the rest stays in its sheet.
+      await expect(swipe.locator(".m-swipe-act")).not.toContainText("Change due date");
+      // A tap on what is left of the row closes it again.
+      await page.mouse.click(moved.x + moved.width - 20, moved.y + moved.height / 2);
+      await expect(swipe.locator(".m-swipe-act")).toHaveCount(0);
+    }
+    expect(errors).toEqual([]);
+  } finally {
+    sql.close();
+  }
+});

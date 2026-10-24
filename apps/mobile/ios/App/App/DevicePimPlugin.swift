@@ -305,6 +305,10 @@ public class DevicePimPlugin: CAPPlugin, CAPBridgedPlugin {
             "title": r.title ?? "",
             "completed": r.isCompleted,
             "version": version(r),
+            // Completing a recurring reminder keeps this identifier, moved on to
+            // the next occurrence, and splits the finished one off under a new
+            // identifier. The core needs to know which reminders repeat.
+            "recurring": r.hasRecurrenceRules,
         ]
         if let notes = r.notes, !notes.isEmpty { o["notes"] = notes }
         if let due = dueString(r.dueDateComponents) { o["due"] = due }
@@ -338,12 +342,15 @@ public class DevicePimPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    /** Writes only what the draft carries (`DeviceReminderDraft`): left-out
+     *  notes stay as they are - every write from the task sync used to erase
+     *  them (finding 2026-10-24). A left-out due date is the one exception and
+     *  means "no due date", as for every provider. */
     private func apply(_ draft: JSObject, to r: EKReminder) {
-        r.title = draft["title"] as? String ?? ""
-        r.notes = draft["notes"] as? String
+        if let title = draft["title"] as? String { r.title = title } else if r.title == nil { r.title = "" }
+        if let notes = draft["notes"] as? String { r.notes = notes.isEmpty ? nil : notes }
         r.dueDateComponents = dueComponents(draft["due"] as? String)
-        let completed = draft["completed"] as? Bool ?? false
-        r.isCompleted = completed
+        if let completed = draft["completed"] as? Bool { r.isCompleted = completed }
     }
 
     @objc func createReminder(_ call: CAPPluginCall) {

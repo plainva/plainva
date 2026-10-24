@@ -1,7 +1,8 @@
-import { applyTaskDueChanges, taskDueFailureText, toast, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
+import { applyTaskDueChanges, convertDueColumnToDateTime, offerDueTimeColumn, taskDueFailureText, toast, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
+import { getMobileSettings } from "./mobileSettings";
 import { pimSyncNow } from "./pim/pimService";
 import { syncSoon } from "./syncService";
-import { vaultOps, type MobileVault } from "./vaultService";
+import { vaultOps, vaultTextFiles, type MobileVault } from "./vaultService";
 
 /**
  * Moving a task's due day on the phone (plan Befunde 2026-10-06, W2/W3). The
@@ -25,6 +26,19 @@ export async function moveTaskDueOnPhone(vault: MobileVault, dueKey: string | nu
   if (outcome.moved > 0) {
     syncSoon();
     if (changes.some((change) => change.source === "database")) pimSyncNow();
+    // A time set on a database whose due column shows a day only: the same
+    // one-time offer to retype the column a quick capture makes (E9; wishes
+    // 2026-10-24, E2). The desktop makes it in TasksView.
+    const db = getMobileSettings().taskDatabase.trim();
+    if (db && changes.some((change) => change.source === "database" && typeof change.time === "string")) {
+      void offerDueTimeColumn({
+        readTextFile: (path) => vaultOps.read(vault, path),
+        vault: vault.vaultId,
+        dbPath: db,
+        convert: () => convertDueColumnToDateTime(vaultTextFiles(vault), db),
+        converted: () => syncSoon(),
+      }).catch(() => undefined);
+    }
   }
   return outcome;
 }

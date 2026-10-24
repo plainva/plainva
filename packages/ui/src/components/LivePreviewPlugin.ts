@@ -436,6 +436,15 @@ class TableWidget extends WidgetType {
         openCellEditor(cell, kind, rowIndex, colIndex);
       });
       cell.addEventListener("contextmenu", (e) => {
+        // A cell being edited keeps the system's own text menu (GitHub issue
+        // 118, Android): holding a word selects it, a tap on a selection offers
+        // copy and paste, and a right-click on the desktop offers spelling.
+        // The table menu here took that over and, by taking the focus, closed
+        // the field. It stays the menu of a cell that is not being edited.
+        if (e.target instanceof Element && e.target.closest("textarea.cm-md-table-input")) {
+          e.stopPropagation();
+          return;
+        }
         e.preventDefault();
         e.stopPropagation();
         window.dispatchEvent(new CustomEvent("plainva-open-table-menu", {

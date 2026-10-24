@@ -190,7 +190,7 @@ export function MemoryView({
       </div>
       <SettingCard>
         <SettingRow label={t("ai.memory.use")} desc={t(memory.on ? "ai.memory.useDesc" : "ai.memory.off")}>
-          <Switch checked={memory.on} label={t("ai.memory.use")} onChange={(on) => void session.switchMemory(on)} data-testid="ai-memory-switch" />
+          <Switch checked={memory.on} label={t("ai.memory.use")} onChange={(on) => void session.switchMemory(on)} testId="ai-memory-switch" />
         </SettingRow>
       </SettingCard>
       {waiting > 0 && (

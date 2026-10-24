@@ -75,6 +75,17 @@ describe("a row with an action can be swiped", () => {
     }
   });
 
+  it("covers the rows of the home screen's full lists (E8, 2026-10-24)", () => {
+    // "Recent" and "Bookmarks" open lists of the file list's own rows: the
+    // swipe there is the one `swipeFor` of the shared row hook.
+    for (const file of ["screens/RecentScreen.tsx", "BookmarksScreen.tsx"]) {
+      const src = read(file);
+      const at = src.indexOf("<SwipeRow");
+      expect(at, `${file}: the rows are not swipeable`).toBeGreaterThan(-1);
+      expect(src.slice(at, at + 300), `${file}: the swipe is not the shared row grammar`).toContain("swipeFor(target, kind)");
+    }
+  });
+
   it("covers both kinds of task row (S23)", () => {
     // Held back on purpose until S22 gave the row a sheet: a swipe without one
     // would have been a second definition of what the row can do rather than a
@@ -88,14 +99,51 @@ describe("a row with an action can be swiped", () => {
       const end = src.indexOf(to, start);
       expect(start, `${name}: list gone`).toBeGreaterThan(-1);
       expect(src.slice(start, end), `the ${name} row is not swipeable`).toContain("<SwipeRow");
+      // The swipe takes the `swipe` part of the sheet's list. Until 24.10. it
+      // took the whole list — six slots, wider than the row, which pushed the
+      // row off the screen with nothing left to swipe back (TestFlight, build 139).
       expect(
         src.slice(start, end),
-        `the ${name} row must swipe what its sheet offers, not its own list`,
-      ).toContain("rowActions(acts)");
+        `the ${name} row must swipe the swipe part of its sheet's list`,
+      ).toContain("swipeActions(acts)");
+      expect(src.slice(start, end), `the ${name} row swipes its whole sheet`).not.toContain(
+        "<SwipeRow actions={rowActions(",
+      );
     }
-    // One definition: the sheet is the same list plus "open", which the tap
-    // already does and therefore has no slot.
+    // One definition: both lists come from `taskRowActions`, the swipe keeps
+    // what is marked `swipe`, the sheet is the whole list plus "open".
+    const swipeDef = src.slice(src.indexOf("const swipeActions"), src.indexOf("const swipeActions") + 300);
+    expect(swipeDef).toContain("taskRowActions(t, a)");
+    expect(swipeDef).toMatch(/\.filter\(\(s\) => s\.swipe\)/);
     expect(src).toMatch(/\.\.\.rowActions\(taskSheet\)\.map/);
+  });
+
+  it("hands every swipe row a swipe list, never a whole sheet", () => {
+    // A row's sheet may grow; its swipe strip may not. Every caller passes a
+    // list that is filtered for `swipe`, picked by name, or built for the swipe.
+    // The conversation row builds its list for the swipe alone: the only
+    // capability it hands over is deleting the whole conversation.
+    const allowed = /^(swipeActions|swipeFor)\(|\.filter\(\(a\) => a\.swipe\)|pickRowActions\(|^mailRowActions\(t, \{ delete: [^,}]*\}\)/;
+    let seen = 0;
+    // The home screen's full lists (E8, 2026-10-24) swipe their rows like the file list.
+    for (const file of ["screens/TasksScreen.tsx", "screens/BrowseScreen.tsx", "screens/JournalScreen.tsx", "screens/MailListScreen.tsx", "screens/RecentScreen.tsx", "BookmarksScreen.tsx"]) {
+      const src = read(file);
+      for (let at = src.indexOf("<SwipeRow"); at >= 0; at = src.indexOf("<SwipeRow", at + 1)) {
+        const open = src.indexOf("actions={", at) + "actions={".length;
+        // The expression runs to the brace that closes `actions={`.
+        let depth = 1;
+        let i = open;
+        while (depth > 0 && i < src.length) {
+          if (src[i] === "{") depth++;
+          else if (src[i] === "}") depth--;
+          i++;
+        }
+        const expr = src.slice(open, i - 1).trim();
+        seen++;
+        expect(expr, `${file}: a swipe row takes an unfiltered list: ${expr.slice(0, 80)}`).toMatch(allowed);
+      }
+    }
+    expect(seen, "the swipe rows were not found").toBeGreaterThanOrEqual(12);
   });
 
   it("keeps the destructive action last and within three slots", () => {

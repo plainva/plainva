@@ -89,7 +89,7 @@ function AiSettingsBody({ session }: { session: AiSession }) {
 
       <SettingCard label={t("ai.settings.betaTitle")}>
         <SettingRow label={t("ai.settings.betaSwitch")} desc={t("ai.settings.betaDesc")}>
-          <Switch checked={settings.enabled} label={t("ai.settings.betaSwitch")} onChange={(on) => void session.updateSettings((s) => ({ ...s, enabled: on }))} data-testid="ai-beta-switch" />
+          <Switch checked={settings.enabled} label={t("ai.settings.betaSwitch")} onChange={(on) => void session.updateSettings((s) => ({ ...s, enabled: on }))} testId="ai-beta-switch" />
         </SettingRow>
         <SettingRow label={t("ai.settings.feedback")} desc={t("ai.settings.feedbackDesc")}>
           <Button size="sm" variant="secondary" icon={<ExternalLink size={ICON.ui} />} onClick={() => void getPlatformServices().openExternal(AI_FEEDBACK_URL)} data-testid="ai-feedback">
@@ -173,7 +173,7 @@ function AiSettingsBody({ session }: { session: AiSession }) {
             checked={settings.confirmEveryRequest}
             label={t("ai.settings.confirmEvery")}
             onChange={(on) => void session.updateSettings((s) => ({ ...s, confirmEveryRequest: on }))}
-            data-testid="ai-confirm-every"
+            testId="ai-confirm-every"
           />
         </SettingRow>
       </SettingCard>

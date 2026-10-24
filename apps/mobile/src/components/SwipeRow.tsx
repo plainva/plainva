@@ -14,6 +14,23 @@ export interface SwipeAction {
 const SLOT = 66;
 
 /**
+ * At most three slots stay behind a row. Four of them leave nothing of a phone
+ * row to read, and six pushed the row off the screen entirely: in the task
+ * list (TestFlight, 24.10.) the strip covered the whole row, so there was
+ * nothing left to tap or swipe back. Callers pass a row's `swipe` actions; the
+ * rest of what the row can do lives in its sheet. A longer list is cut here so
+ * no caller can bury its row again — the destructive action keeps its place last.
+ */
+export const MAX_SWIPE_SLOTS = 3;
+
+export function swipeSlots(actions: SwipeAction[]): SwipeAction[] {
+  if (actions.length <= MAX_SWIPE_SLOTS) return actions;
+  const danger = actions.filter((a) => a.danger).slice(-1);
+  const rest = actions.filter((a) => !a.danger).slice(0, MAX_SWIPE_SLOTS - danger.length);
+  return [...rest, ...danger];
+}
+
+/**
  * A list row with actions behind it (S12, mockup "Ordner mit Wischaktion").
  *
  * The seven interaction rules give each gesture exactly one meaning: tapping
@@ -30,7 +47,8 @@ const SLOT = 66;
  * the list scrolls as usual. That order matters on a phone: a row that steals
  * vertical movement makes the whole screen feel stuck.
  */
-export function SwipeRow({ actions, children }: { actions: SwipeAction[]; children: ReactNode }) {
+export function SwipeRow({ actions: given, children }: { actions: SwipeAction[]; children: ReactNode }) {
+  const actions = swipeSlots(given);
   const width = SLOT * actions.length;
   const [open, setOpen] = useState(false);
   const [dx, setDx] = useState<number | null>(null);

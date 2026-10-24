@@ -75,7 +75,7 @@ export function McpSettingsCard({ session, enabled, resting = false }: { session
           checked={enabled}
           label={t("ai.mcp.switch")}
           onChange={(on) => void session.updateSettings((s) => ({ ...s, mcpEnabled: on }))}
-          data-testid="mcp-switch"
+          testId="mcp-switch"
         />
       </SettingRow>
       {enabled && (
@@ -114,7 +114,7 @@ export function McpSettingsCard({ session, enabled, resting = false }: { session
                 {/* Stage 2: proposing changes is its own grant, per app and vault — and only where the app reads at all. */}
                 {client.folders.length > 0 && (
                   <SettingRow label={t("ai.mcp.writesRow", { client: client.name })} desc={t(client.writes ? "ai.mcp.writesOn" : "ai.mcp.writesOff", { client: client.name })}>
-                    <Switch checked={client.writes} label={t("ai.mcp.writesRow", { client: client.name })} onChange={(on) => setWrites(client.id, client.name, on)} data-testid="mcp-writes-switch" />
+                    <Switch checked={client.writes} label={t("ai.mcp.writesRow", { client: client.name })} onChange={(on) => setWrites(client.id, client.name, on)} testId="mcp-writes-switch" />
                   </SettingRow>
                 )}
               </Fragment>

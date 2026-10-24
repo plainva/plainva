@@ -1,6 +1,6 @@
 # Referência do Formato de Arquivo
 
-Última revisão: 2026-10-22
+Última revisão: 2026-10-24
 
 Esta página é o contrato exato, tal como gravado em disco, para **todo arquivo em um vault do Plainva**. Ela é escrita para que uma ferramenta — outro programa, script ou assistente de IA — possa ler e editar arquivos do vault diretamente, com segurança, sem passar pela interface do Plainva. Se você só usa o app, nunca precisa desta página; as [demais páginas do guia](README.md) cobrem o uso normal.
 
@@ -161,7 +161,7 @@ plainva:
     account: 3f9c21ab
 ```
 
-**O que descreve a origem.** Para uma tarefa, o que conta é `uid` e `list` — um `uid` é único em UM provedor, não entre dois. `provider` (`google`, `microsoft`, `caldav`) e `identity` (a identidade verificada da conta, quando o provedor oferece uma) restringem ainda mais, e ambos sobrevivem a uma reconexão. `account` é o id LOCAL da conta: o Plainva ainda o grava para que versões mais antigas consigam ler a âncora, mas não o compara mais — ele é gerado novamente a cada conexão, e é exatamente por isso que uma conta reconectada costumava importar suas tarefas uma segunda vez. Se você mesmo escrever âncoras, defina `uid` e `list`; `provider`/`identity` são recomendados, `account` não é necessário. O Plainva acrescenta `recurring: true` a uma âncora de tarefa assim que vê o provedor trazer a tarefa de volta (concluída e depois reaberta com o mesmo `uid` e uma data posterior). A chave é puramente informativa, nunca é comparada e pode ser removida.
+**O que descreve a origem.** Para uma tarefa, o que conta é `uid` e `list` — um `uid` é único em UM provedor, não entre dois. `provider` (`google`, `microsoft`, `caldav`) e `identity` (a identidade verificada da conta, quando o provedor oferece uma) restringem ainda mais, e ambos sobrevivem a uma reconexão. `account` é o id LOCAL da conta: o Plainva ainda o grava para que versões mais antigas consigam ler a âncora, mas não o compara mais — ele é gerado novamente a cada conexão, e é exatamente por isso que uma conta reconectada costumava importar suas tarefas uma segunda vez. Se você mesmo escrever âncoras, defina `uid` e `list`; `provider`/`identity` são recomendados, `account` não é necessário. O Plainva acrescenta `recurring: true` a uma âncora de tarefa assim que vê o provedor trazer a tarefa de volta (concluída e depois reaberta com o mesmo `uid` e uma data posterior — ou, quando o próprio provedor indica que a tarefa se repete, como faz um lembrete no iPhone, simplesmente aberta com o mesmo `uid` e uma data posterior). A chave é puramente informativa, nunca é comparada e pode ser removida.
 
 **O nome do arquivo não faz parte da identidade.** Uma tarefa espelhada tem o nome do seu título (`<título>.md`, com o mesmo título `<título> 2.md` e assim por diante); a associação é feita apenas pela âncora. Ferramentas podem renomear e mover o arquivo desde que a âncora permaneça. Nomes no formato `<título> — <16 ou 64 dígitos hexadecimais>.md` vêm das versões do Plainva de 12 a 24 de setembro de 2026: os dígitos são o início de um SHA-256 sobre provedor, identidade, lista e `uid`. A visualização de tarefas oferece uma vez renomeá-los pelo título — só quando os dígitos correspondem à âncora no mesmo arquivo.
 

@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
@@ -168,6 +168,8 @@ Above the lists sits the capture field; on the phone **+ New task** and the **�
 `- [/]` (**In progress**) and `- [-]` (**Cancelled**) are tasks too. They get a box of their own in the editor, in reading mode and in every list; in progress counts as open, cancelled as closed. A click still only moves between open and done — it completes a task in progress and reopens a cancelled one. **Set state** in the row menu sets the two states; Plainva never writes them on its own.
 
 **A task's date is the way to change it.** Press the date on a task (inside a day, its time) and the date picker opens — under the date on the desktop, as a sheet on the phone. **Change due date** in the row's menu opens the same picker; that is also how a task without a date gets one. On the phone, **New task** and the date cell of a database pick their day from the same calendar, not from the system's date wheel. A checkbox in a note — in the editor, the reading view and the journal — is sized for a finger on the phone. An entry of the task database keeps its time of day, a checkbox gets or changes its `📅` date. At the **Overdue** heading, **All to today** moves every overdue task to today in one step. Both are confirmed by a notice that offers **Undo**. In the capture field, `[[` suggests notes and `#` suggests tags, as in the editor: `Enter` or `Tab` takes the highlighted suggestion, `Esc` closes the list.
+
+**Quick choices and a time.** Above the calendar the picker lists **Today**, **Tomorrow**, **This weekend**, **Next week** and **No date**, each with its weekday. This weekend is the coming Saturday — today, if it is Saturday or Sunday; next week is the first day of next week as set under **Week starts on**. At the bottom, **Time** has a switch: off, the task is due all day; on, you pick the time beside it. A quick choice or a day keeps a time that is already set; to change only the time, press **Done**. An entry of the task database stores the time in its due value (`2026-10-26T10:00`). A checkbox in a note keeps a day only — the `📅` of the Tasks plugin has no time — so the picker says so there instead of offering the switch. If the database's due column shows days only, Plainva offers once to **Switch to date & time**.
 
 More ways in: **New task** in the tray menu on the desktop (when Plainva keeps running in the background), on Android the launcher shortcut **New task** (press and hold the app icon), and on the phone **Create as a task** when you share something to Plainva — the text and the attachments end up in the task's note. How a task with a time reminds you is described under [Calendar & external tasks](Calendar_and_Tasks.md). On an iPhone or iPad, Siri and Shortcuts take a task as well (**Add Task**); Plainva creates it the next time you open it — see [The mobile app](Mobile_App.md).
 

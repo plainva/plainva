@@ -242,7 +242,7 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
       {engine?.kind === "ready" && settings && (
         <>
           <SettingRow label={t("ai.related.show")} desc={t("ai.related.showDesc")}>
-            <Switch checked={settings.relatedNotes} label={t("ai.related.show")} onChange={(on) => void session.updateSettings((s) => ({ ...s, relatedNotes: on }))} data-testid="related-show" />
+            <Switch checked={settings.relatedNotes} label={t("ai.related.show")} onChange={(on) => void session.updateSettings((s) => ({ ...s, relatedNotes: on }))} testId="related-show" />
           </SettingRow>
           {state?.related.vaultPaused && (
             <SettingRow label={t("ai.related.vaultPausedRow")}>

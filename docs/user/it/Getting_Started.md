@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-10-23
+Ultimo aggiornamento: 2026-10-24
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -209,7 +209,7 @@ In una finestra separata o in una seconda finestra completa, fai clic destro sul
 
 ## Segnalibri di cartelle
 
-Aggiungi un segnalibro dal menu contestuale di un file o una cartella. I segnalibri di cartelle hanno un’icona dedicata: su mobile aprono la cartella, sul desktop la espandono nell’albero. Rinomine e spostamenti in Plainva aggiornano anche i segnalibri di sottocartelle e file. Le destinazioni mancanti restano indicate; rimuovi esplicitamente questi segnalibri. Per cambiare l'ordine, trascina un segnalibro al suo posto nella barra laterale — oppure premi `Alt+↑` / `Alt+↓` sulla riga attiva; sul telefono **Ordina segnalibri** accanto al titolo **Segnalibri** apre l'elenco, dove trascini la maniglia in fondo a una riga.
+Aggiungi un segnalibro dal menu contestuale di un file o una cartella. I segnalibri di cartelle hanno un’icona dedicata: su mobile aprono la cartella, sul desktop la espandono nell’albero. Rinomine e spostamenti in Plainva aggiornano anche i segnalibri di sottocartelle e file. Le destinazioni mancanti restano indicate; rimuovi esplicitamente questi segnalibri. Per cambiare l'ordine, trascina un segnalibro al suo posto nella barra laterale — oppure premi `Alt+↑` / `Alt+↓` sulla riga attiva; sul telefono il titolo **Segnalibri** apre l'elenco, dove trascini la maniglia in fondo a una riga.
 
 All’apertura di un vault, Plainva importa automaticamente i segnalibri di file e cartelle da Obsidian, gruppi compresi. Tipo e percorso evitano duplicati. Il file di Obsidian resta invariato. I profili trasportano le cartelle separatamente; un vecchio profilo senza questo campo conserva i segnalibri di cartelle esistenti.
 

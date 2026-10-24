@@ -22,7 +22,7 @@ export function GistsCard({ session }: { session: AiSession }) {
   return (
     <SettingCard label={t("ai.gists.title")}>
       <SettingRow label={t("ai.gists.show")} desc={t("ai.gists.showDesc")}>
-        <Switch checked={settings.gists} label={t("ai.gists.show")} onChange={(on) => void session.updateSettings((s) => ({ ...s, gists: on }))} data-testid="gists-show" />
+        <Switch checked={settings.gists} label={t("ai.gists.show")} onChange={(on) => void session.updateSettings((s) => ({ ...s, gists: on }))} testId="gists-show" />
       </SettingRow>
       {state?.kind === "on" && line && (
         <SettingRow label={line}>
@@ -41,7 +41,7 @@ export function GistsCard({ session }: { session: AiSession }) {
           checked={settings.transcriptSummary}
           label={t("ai.transcribe.summary")}
           onChange={(on) => void session.updateSettings((s) => ({ ...s, transcriptSummary: on }))}
-          data-testid="transcript-summary"
+          testId="transcript-summary"
         />
       </SettingRow>
     </SettingCard>

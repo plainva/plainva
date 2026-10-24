@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import i18n from "@plainva/ui/i18n";
 import { scanTasks, VaultFileNotFoundError } from "@plainva/core";
 import {
-  applyTaskDueChanges, buildPlanner, formatPickedDay, overdueToDayChanges, plannerRowsFromDb, plannerRowsFromTasks, taskDueFailureText, withDueDay,
+  applyTaskDueChanges, buildPlanner, formatPickedDay, overdueToDayChanges, plannerRowsFromDb, plannerRowsFromTasks, taskDueFailureText, taskDueMovedText, withDueDay, withDueDayAndTime,
   type PlannerRow, type TaskDueChange, type TaskDueDeps,
 } from "@plainva/ui";
 
@@ -61,7 +61,8 @@ describe("applyTaskDueChanges", () => {
     const outcome = await applyTaskDueChanges(deps, [{ source: "database", path: "Tasks/Offer.md", day: "2026-10-06" }]);
     expect(outcome).toMatchObject({ moved: 1, skipped: 0 });
     expect(store.get("Tasks/Offer.md")).toBe(DB_NOTE.replace("2026-10-01T14:00", "2026-10-06T14:00"));
-    expect(outcome.undo).toEqual([{ source: "database", path: "Tasks/Offer.md", day: "2026-10-01" }]);
+    // Undo writes back the whole value as it stood — day and clock.
+    expect(outcome.undo).toEqual([{ source: "database", path: "Tasks/Offer.md", day: "2026-10-01", exact: "2026-10-01T14:00" }]);
   });
 
   it("moves a checkbox by its 📅 field and nothing else on the line", async () => {
@@ -252,6 +253,102 @@ describe("all overdue to today", () => {
   it("drops a checkbox row whose line is not known any more instead of guessing", () => {
     const overdue = buildPlanner(rows, "2026-10-06").sections("today").find((section) => section.kind === "overdue")!.rows;
     expect(overdueToDayChanges(overdue, "2026-10-06", () => undefined).map((change) => change.source)).toEqual(["database"]);
+  });
+});
+
+/**
+ * "Change due date" with a time (wishes 2026-10-24, E2). A database entry
+ * holds its time in the due value and gets it written in the value's own
+ * spelling; a checkbox's `📅` holds a day only, so a time never reaches it.
+ */
+describe("withDueDayAndTime", () => {
+  it("without a word about the time, behaves like a plain move", () => {
+    expect(withDueDayAndTime("2026-10-01T14:00", "2026-10-06", undefined)).toBe("2026-10-06T14:00");
+    expect(withDueDayAndTime("2026-10-01", "2026-10-06", undefined)).toBe("2026-10-06");
+  });
+
+  it("writes a time as YYYY-MM-DDTHH:MM where there was none", () => {
+    expect(withDueDayAndTime("2026-10-01", "2026-10-26", "10:00")).toBe("2026-10-26T10:00");
+    expect(withDueDayAndTime(undefined, "2026-10-26", "10:00")).toBe("2026-10-26T10:00");
+    expect(withDueDayAndTime("soon", "2026-10-26", "10:00")).toBe("2026-10-26T10:00");
+  });
+
+  it("changes a written time in its own spelling: the separator, seconds and a zone stay", () => {
+    expect(withDueDayAndTime("2026-10-01T14:00", "2026-10-26", "10:00")).toBe("2026-10-26T10:00");
+    expect(withDueDayAndTime("2026-10-01 14:00", "2026-10-26", "09:30")).toBe("2026-10-26 09:30");
+    expect(withDueDayAndTime("2026-10-01T14:00:00+02:00", "2026-10-26", "10:00")).toBe("2026-10-26T10:00:00+02:00");
+  });
+
+  it("all day drops a time — and keeps what the reader already takes as all-day", () => {
+    expect(withDueDayAndTime("2026-10-01T14:00", "2026-10-26", null)).toBe("2026-10-26");
+    expect(withDueDayAndTime("2026-10-01 14:00:00Z", "2026-10-26", null)).toBe("2026-10-26");
+    // A bare day, and a tool's stamp of midnight, are all-day already: nothing is reformatted.
+    expect(withDueDayAndTime("2026-10-01", "2026-10-26", null)).toBe("2026-10-26");
+    expect(withDueDayAndTime("2026-10-01T00:00", "2026-10-26", null)).toBe("2026-10-26T00:00");
+  });
+});
+
+describe("applyTaskDueChanges with a time of day", () => {
+  it("writes day and time into a database entry, and undo brings back the value as it stood", async () => {
+    const { deps, store } = vault({ "Tasks/Offer.md": DB_NOTE, "Tasks/Report.md": DAY_NOTE });
+    const outcome = await applyTaskDueChanges(deps, [
+      { source: "database", path: "Tasks/Offer.md", day: "2026-10-26", time: "10:00" },
+      { source: "database", path: "Tasks/Report.md", day: "2026-10-26", time: "10:00" },
+    ]);
+    expect(outcome).toMatchObject({ moved: 2, skipped: 0 });
+    expect(store.get("Tasks/Offer.md")).toBe(DB_NOTE.replace("due: 2026-10-01T14:00", "due: 2026-10-26T10:00"));
+    expect(store.get("Tasks/Report.md")).toBe(DAY_NOTE.replace("due: 2026-09-28", "due: 2026-10-26T10:00"));
+    const back = await applyTaskDueChanges(deps, outcome.undo);
+    expect(back).toMatchObject({ moved: 2, skipped: 0 });
+    expect(store.get("Tasks/Offer.md")).toBe(DB_NOTE);
+    expect(store.get("Tasks/Report.md")).toBe(DAY_NOTE);
+  });
+
+  it("makes a timed entry all-day on request, and leaves an unchanged pick unwritten", async () => {
+    const { deps, store, writes } = vault({ "Tasks/Offer.md": DB_NOTE });
+    const same = await applyTaskDueChanges(deps, [{ source: "database", path: "Tasks/Offer.md", day: "2026-10-01", time: "14:00" }]);
+    expect(same).toMatchObject({ moved: 0, skipped: 0, undo: [] });
+    expect(writes).toEqual([]);
+    const outcome = await applyTaskDueChanges(deps, [{ source: "database", path: "Tasks/Offer.md", day: "2026-10-01", time: null }]);
+    expect(outcome.moved).toBe(1);
+    expect(store.get("Tasks/Offer.md")).toBe(DB_NOTE.replace("due: 2026-10-01T14:00", "due: 2026-10-01"));
+  });
+
+  it("taking the date away from a timed entry and undoing it brings back the time too", async () => {
+    // Undo used to carry the day only, and the 14:00 was gone for good.
+    const { deps, store } = vault({ "Tasks/Offer.md": DB_NOTE });
+    const outcome = await applyTaskDueChanges(deps, [{ source: "database", path: "Tasks/Offer.md", day: null }]);
+    expect(store.get("Tasks/Offer.md")).not.toContain("due:");
+    await applyTaskDueChanges(deps, outcome.undo);
+    expect(store.get("Tasks/Offer.md")).toBe(DB_NOTE);
+  });
+
+  it("skips a time that is not a time of day, and an undo value that does not match its day", async () => {
+    const { deps, store } = vault({ "Tasks/Offer.md": DB_NOTE });
+    const outcome = await applyTaskDueChanges(deps, [
+      { source: "database", path: "Tasks/Offer.md", day: "2026-10-26", time: "25:00" },
+      { source: "database", path: "Tasks/Offer.md", day: "2026-10-26", exact: "2026-10-27T10:00" },
+    ]);
+    expect(outcome).toMatchObject({ moved: 0, skipped: 2 });
+    expect(store.get("Tasks/Offer.md")).toBe(DB_NOTE);
+  });
+
+  it("never writes a time onto a checkbox: its 📅 holds the day", async () => {
+    const { deps, store } = vault({ "Shopping.md": LIST });
+    // A checkbox change has no time field; a stray one from a caller is not read.
+    const change = { ...line("Shopping.md", LIST, 0), day: "2026-10-26", time: "10:00" } as TaskDueChange;
+    const outcome = await applyTaskDueChanges(deps, [change]);
+    expect(outcome.moved).toBe(1);
+    expect(store.get("Shopping.md")).toBe(LIST.replace("Milk 📅 2026-10-02", "Milk 📅 2026-10-26"));
+  });
+
+  it("names the day and the time in the notice, or that the date is gone", async () => {
+    await i18n.changeLanguage("en");
+    expect(taskDueMovedText({ day: "2026-10-26", time: null })).toMatch(/^New due date: Mon, 10\/26(\/2026)?$/);
+    expect(taskDueMovedText({ day: "2026-10-26", time: "10:00" })).toMatch(/^New due date: Mon, 10\/26(\/2026)?, 10:00\sAM$/);
+    expect(taskDueMovedText({ day: null, time: null })).toBe("Due date removed");
+    await i18n.changeLanguage("de");
+    expect(taskDueMovedText({ day: "2026-10-26", time: "10:00" })).toMatch(/^Neue Fälligkeit: Mo\., 26\.10\.(2026)?, 10:00$/);
   });
 });
 

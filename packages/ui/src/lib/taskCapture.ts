@@ -1,5 +1,7 @@
 import { findInlineTags, trimChars } from "@plainva/core";
 import { addDaysToKey, type TaskPriority } from "./taskPlanner";
+import type { WeekStartDay } from "./calendarGrid";
+import { dueQuickDay } from "./dueQuickChoices";
 import type { RepeatRule } from "./taskRecurrence";
 
 /**
@@ -135,12 +137,16 @@ const longestFirst = (words: readonly string[]) => [...words].filter(Boolean).so
 /**
  * Reads one capture line. `disabled` holds the ids of bricks the person switched
  * off; they are reported (inactive) and their text stays in the title.
+ * `weekStart` is the week-start setting: "next week" is the first day of the
+ * next week, the same day the due picker's "Next week" names (wishes
+ * 2026-10-24) — today, tomorrow and next week come from `dueQuickDay`.
  */
 export function parseTaskCapture(
   input: string,
   vocab: CaptureVocabulary,
   todayKey: string,
-  disabled: ReadonlySet<string> = new Set()
+  disabled: ReadonlySet<string> = new Set(),
+  weekStart: WeekStartDay = 1
 ): CaptureResult {
   const result: CaptureResult = { title: "", due: null, minutes: null, priority: 0, tags: [], repeat: null, bricks: [] };
   const edge = vocab.edgeOnly === true;
@@ -244,9 +250,9 @@ export function parseTaskCapture(
     for (const word of longestFirst(words)) for (const hit of findPhrase(input, word, edge)) dateOnce(hit.from, hit.to, due(hit.n));
   };
   wordDate(vocab.dayAfterTomorrow, () => addDaysToKey(todayKey, 2));
-  wordDate(vocab.tomorrow, () => addDaysToKey(todayKey, 1));
-  wordDate(vocab.today, () => todayKey);
-  wordDate(vocab.nextWeek, () => addDaysToKey(todayKey, 7 - weekdayOfKey(todayKey)));
+  wordDate(vocab.tomorrow, () => dueQuickDay("tomorrow", todayKey, weekStart));
+  wordDate(vocab.today, () => dueQuickDay("today", todayKey, weekStart));
+  wordDate(vocab.nextWeek, () => dueQuickDay("nextWeek", todayKey, weekStart));
   wordDate(vocab.inDays, (n) => (n ? addDaysToKey(todayKey, n) : null));
   wordDate(vocab.inWeeks, (n) => (n ? addDaysToKey(todayKey, n * 7) : null));
   vocab.weekdays.forEach((names, weekday) => {

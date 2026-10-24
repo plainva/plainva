@@ -25,7 +25,7 @@ export function AiModeCard({ session, state, onSetUp }: { session: AiSession; st
         ) : null}
       </SettingRow>
       <SettingRow label={t("ai.mode.switch")} desc={t("ai.mode.switchDesc")}>
-        <Switch checked={facts.localOnly} label={t("ai.mode.switch")} onChange={(on) => void session.updateSettings((s) => ({ ...s, localOnly: on }))} data-testid="ai-local-only" />
+        <Switch checked={facts.localOnly} label={t("ai.mode.switch")} onChange={(on) => void session.updateSettings((s) => ({ ...s, localOnly: on }))} testId="ai-local-only" />
       </SettingRow>
       {facts.localOnly ? (
         <>

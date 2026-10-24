@@ -61,6 +61,7 @@ const SITES: Record<string, Site[]> = {
       1,
       "a new note with a text that was made whole (a draft of the assistant, an answer kept as a note): `writeCapturedNote` asks for a name no file has and writes there once — it never writes a file that is there",
     ],
+    ['reads and writes ".plainva/recents.json" in forgetRecent', 1, `${OWN_FILE} — "Remove from list" in the Recent list drops one entry`],
     ['reads and writes ".plainva/recents.json" in pushRecent', 1, `${OWN_FILE} — the notes opened last on this device`],
     ["reads and writes path in write", 1, EDITOR_WITHOUT_CHAIN],
   ],

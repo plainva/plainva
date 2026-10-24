@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-10-22
+Stan na: 2026-10-24
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -161,7 +161,7 @@ plainva:
     account: 3f9c21ab
 ```
 
-**Co opisuje pochodzenie.** Dla zadania liczą się `uid` i `list` — `uid` jest unikalne u JEDNEGO dostawcy, nie u dwóch naraz. `provider` (`google`, `microsoft`, `caldav`) i `identity` (zweryfikowana tożsamość konta, jeśli dostawca ją udostępnia) zawężają to dalej, i oba przetrwają ponowne połączenie. `account` to LOKALNY identyfikator konta: Plainva nadal go zapisuje, aby starsze wersje mogły odczytać kotwicę, ale już go nie porównuje — jest on nadawany na nowo przy każdym połączeniu, i to właśnie dlatego ponownie połączone konto importowało kiedyś swoje zadania po raz drugi. Jeśli sam zapisujesz kotwice, ustaw `uid` i `list`; `provider`/`identity` są zalecane, `account` nie jest potrzebny. `recurring: true` Plainva dopisuje do kotwicy zadania, gdy zobaczy, że dostawca przywraca zadanie (ukończone, a potem ponownie otwarte pod tym samym `uid` z późniejszą datą). Klucz ma charakter czysto informacyjny, nigdy nie jest porównywany i można go usunąć.
+**Co opisuje pochodzenie.** Dla zadania liczą się `uid` i `list` — `uid` jest unikalne u JEDNEGO dostawcy, nie u dwóch naraz. `provider` (`google`, `microsoft`, `caldav`) i `identity` (zweryfikowana tożsamość konta, jeśli dostawca ją udostępnia) zawężają to dalej, i oba przetrwają ponowne połączenie. `account` to LOKALNY identyfikator konta: Plainva nadal go zapisuje, aby starsze wersje mogły odczytać kotwicę, ale już go nie porównuje — jest on nadawany na nowo przy każdym połączeniu, i to właśnie dlatego ponownie połączone konto importowało kiedyś swoje zadania po raz drugi. Jeśli sam zapisujesz kotwice, ustaw `uid` i `list`; `provider`/`identity` są zalecane, `account` nie jest potrzebny. `recurring: true` Plainva dopisuje do kotwicy zadania, gdy zobaczy, że dostawca przywraca zadanie (ukończone, a potem ponownie otwarte pod tym samym `uid` z późniejszą datą — albo, gdy sam dostawca podaje, że zadanie się powtarza, jak przypomnienie na iPhonie, po prostu otwarte pod tym samym `uid` z późniejszą datą). Klucz ma charakter czysto informacyjny, nigdy nie jest porównywany i można go usunąć.
 
 **Nazwa pliku nie jest częścią tożsamości.** Odzwierciedlone zadanie nosi nazwę swojego tytułu (`<tytuł>.md`, przy tym samym tytule `<tytuł> 2.md` itd.); przypisanie odbywa się wyłącznie przez kotwicę. Narzędzia mogą zmieniać nazwę pliku i go przenosić, dopóki kotwica pozostaje. Nazwy w postaci `<tytuł> — <16 lub 64 znaki szesnastkowe>.md` pochodzą z wersji Plainva z 12–24 września 2026: znaki to początek skrótu SHA-256 z dostawcy, tożsamości, listy i `uid`. Widok zadań jednorazowo proponuje zmianę ich nazw na tytuły — tylko gdy znaki pasują do kotwicy w tym samym pliku.
 

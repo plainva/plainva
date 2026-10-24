@@ -12,6 +12,15 @@ updates:
       # docs/engineering/Dependency_Updates.md). Majors still arrive here.
       - dependency-name: "@tauri-apps/*"
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      # The native smoke drives the app through @wdio/tauri-service, and its 1.x
+      # line requires webdriverio 9 (peer ^9) and pins the wdio 9 packages itself.
+      # Dependabot offered webdriverio 10 one package per pull request (#129–#131,
+      # #133), which would put two wdio majors side by side. Move all wdio packages
+      # together once tauri-service supports 10.
+      - dependency-name: "webdriverio"
+        versions: [">=10"]
+      - dependency-name: "@wdio/*"
+        versions: [">=10"]
     schedule:
       interval: weekly
     open-pull-requests-limit: 5

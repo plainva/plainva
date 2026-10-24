@@ -1,23 +1,30 @@
 import { useTranslation } from "react-i18next";
-import { DateJumpPicker, useTodayKey, useWeekStartDay } from "@plainva/ui";
+import { DuePicker, useTodayKey, useWeekStartDay, type DuePick } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 
 /**
  * The date sheet behind a task's date (plan Befunde 2026-10-06, W2): a tap on
  * the date of a task — in the planner, in "All", on the Today screen — opens
- * the shared date picker here. The desktop's twin is a `DateJumpPopover` under
- * the date. The sheet only asks for a day; what a pick writes is the caller's
+ * the shared due picker here (wishes 2026-10-24, E2: quick choices, the month
+ * grid and a time). The desktop's twin is the same `DuePicker` in a
+ * `DateJumpPopover` under the date. What a pick writes is the caller's
  * (`applyTaskDueChanges`), so every surface answers with the same notice and
  * the same Undo.
  */
 export function TaskDueSheet({
   value,
+  time,
+  timeAllowed,
   onPick,
   onClose,
 }: {
-  /** The day the task carries now; null for a task without one (the picker then stands on today). */
+  /** The day the task carries now; null for a task without one (the grid then stands on today). */
   value: string | null;
-  onPick: (dayKey: string) => void;
+  /** The time it carries now (`HH:MM`); null when it is due all day. */
+  time: string | null;
+  /** False where the task keeps a day only (a checkbox in a note). */
+  timeAllowed: boolean;
+  onPick: (pick: DuePick) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -28,14 +35,16 @@ export function TaskDueSheet({
       <div className="pv-sheet m-sheet" data-testid="task-due-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("tasks.dueChange")}</p>
-        <DateJumpPicker
-          value={value ?? todayKey}
+        <DuePicker
+          day={value}
+          time={time}
+          timeAllowed={timeAllowed}
+          todayKey={todayKey}
           weekStart={weekStart}
           onPick={onPick}
-          onToday={() => onPick(todayKey)}
           onClose={onClose}
           size="sheet"
-          testId="task-due-grid"
+          testId="task-due"
         />
       </div>
     </div>

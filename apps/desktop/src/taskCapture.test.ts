@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { captureVocabularyFrom, parseTaskCapture, weekdayOfKey, type CaptureVocabulary } from "@plainva/ui";
+import { captureVocabularyFrom, dueQuickDay, parseTaskCapture, weekdayOfKey, type CaptureVocabulary } from "@plainva/ui";
 
 /**
  * Plan Aufgaben-Oberfläche, B2: one sentence in, one task out — in all ten
@@ -247,4 +247,39 @@ describe("parseTaskCapture — twelve sentences per language", () => {
       for (const [sentence, want] of sentences) check(lang, sentence, want);
     });
   }
+});
+
+/**
+ * Wishes 2026-10-24, E2: a typed "next week" (and today, tomorrow) names the
+ * same day as the due picker's quick choice — one definition, `dueQuickDay`,
+ * for every week start and on a Saturday or Sunday too. The capture used to
+ * say Monday whatever the week-start setting was.
+ */
+describe("parseTaskCapture — the words the due picker's quick choices share", () => {
+  const LANGS = ["de", "en", "es", "fr", "it", "ja", "nl", "pl", "pt-BR", "zh-CN"];
+  // Wednesday, Saturday, Sunday; and the turn of a year.
+  const DAYS = ["2026-10-21", "2026-10-24", "2026-10-25", "2026-12-31"];
+  const STARTS = [0, 1, 6] as const;
+  for (const lang of LANGS) {
+    it(`${lang}: today, tomorrow and next week match the quick choices for every week start`, () => {
+      const words = vocab(lang);
+      for (const today of DAYS) {
+        for (const weekStart of STARTS) {
+          for (const [id, list] of [["today", words.today], ["tomorrow", words.tomorrow], ["nextWeek", words.nextWeek]] as const) {
+            expect(list.length, `${lang}: no word for ${id}`).toBeGreaterThan(0);
+            const got = parseTaskCapture(`Report ${list[0]}`, words, today, new Set(), weekStart).due;
+            expect({ lang, today, weekStart, id, due: got }).toEqual({ lang, today, weekStart, id, due: dueQuickDay(id, today, weekStart) });
+          }
+        }
+      }
+    });
+  }
+
+  it("next week follows the week start: Monday, Sunday or Saturday first", () => {
+    const en = vocab("en");
+    // Saturday 24 October 2026.
+    expect(parseTaskCapture("Report next week", en, "2026-10-24", new Set(), 1).due).toBe("2026-10-26");
+    expect(parseTaskCapture("Report next week", en, "2026-10-24", new Set(), 0).due).toBe("2026-10-25");
+    expect(parseTaskCapture("Report next week", en, "2026-10-24", new Set(), 6).due).toBe("2026-10-31");
+  });
 });

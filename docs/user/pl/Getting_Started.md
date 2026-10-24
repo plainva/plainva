@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-10-23
+Stan na: 2026-10-24
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -209,7 +209,7 @@ W osobnym lub drugim pełnym oknie kliknij kartę prawym przyciskiem i wybierz *
 
 ## Zakładki folderów
 
-Dodaj zakładkę z menu kontekstowego pliku lub folderu. Zakładki folderów mają ikonę folderu: na telefonie otwierają folder, a na komputerze rozwijają go w drzewie. Zmiany nazw i przenoszenie w Plainva aktualizują też zakładki podfolderów i plików. Brakujące cele pozostają oznaczone; usuń te zakładki świadomie. Aby zmienić kolejność, przeciągnij zakładkę na jej miejsce w pasku bocznym — albo naciśnij `Alt+↑` / `Alt+↓` na wierszu z fokusem; na telefonie **Uporządkuj zakładki** obok nagłówka **Zakładki** otwiera listę, na której przeciągasz uchwyt na końcu wiersza.
+Dodaj zakładkę z menu kontekstowego pliku lub folderu. Zakładki folderów mają ikonę folderu: na telefonie otwierają folder, a na komputerze rozwijają go w drzewie. Zmiany nazw i przenoszenie w Plainva aktualizują też zakładki podfolderów i plików. Brakujące cele pozostają oznaczone; usuń te zakładki świadomie. Aby zmienić kolejność, przeciągnij zakładkę na jej miejsce w pasku bocznym — albo naciśnij `Alt+↑` / `Alt+↓` na wierszu z fokusem; na telefonie nagłówek **Zakładki** otwiera listę, na której przeciągasz uchwyt na końcu wiersza.
 
 Przy otwarciu sejfu Plainva automatycznie importuje zakładki plików i folderów z Obsidian, także z grup. Typ i ścieżka zapobiegają duplikatom. Plik Obsidian pozostaje bez zmian. Profile ustawień przenoszą foldery osobno; starszy profil bez tego pola zachowuje istniejące zakładki folderów.
 

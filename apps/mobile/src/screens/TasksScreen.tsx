@@ -7,7 +7,7 @@ import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn
 import { buildPlanner, isOpenState, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarClock, CalendarPlus, Database, FileText, RefreshCw, Repeat, Table, Eye, EyeOff} from "lucide-react";
-import { formatPickedDay, overdueToDayChanges, TaskCheckButton, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
+import { dueTimeOf, overdueToDayChanges, TaskCheckButton, taskDueMovedText, type DuePick, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
 import { TaskDueSheet } from "../components/TaskDueSheet";
 import { announceTaskDue, moveTaskDueOnPhone } from "../services/taskDueAction";
 import { applyTaskStatusOption, Button, canRepeat, checkboxJumpTerm, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, isRecurringAtProviderNamespace, calendarDay, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, taskRowActions, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
@@ -148,7 +148,7 @@ export function TasksScreen({
   /** The capture sheet's other kind (plan Journal, J4): the app's journal sheet takes the typed text. */
   onCaptureJournal?: (text: string) => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   // The list stays on screen while it reloads (finding 2026-09-20, the
   // desktop's twin in TasksView): the rows remember which query service they
   // came from, only another vault blanks the view, and a failed reload keeps
@@ -538,10 +538,12 @@ export function TasksScreen({
   /**
    * What a task row can do, once (S22/S23).
    *
-   * The sheet and the swipe are the same list: the swipe drops "open", because
-   * that is what a tap already does, and keeps the rest in the same order. Two
-   * definitions of "what this row can do" is exactly how a gesture and a menu
-   * come to disagree.
+   * The sheet shows the whole list (plus "open"); the swipe shows the part of
+   * the same list marked `swipe` — done, to the database, block time — like
+   * every other list in the app. Until 24.10. the swipe took the whole list:
+   * with six actions the strip was wider than the row and pushed it off the
+   * screen, leaving nothing to swipe back (TestFlight, build 139). Both still
+   * come from one definition, so a gesture and the menu cannot disagree.
    */
   const rowActions = (a: {
     done: boolean;
@@ -556,6 +558,10 @@ export function TasksScreen({
     // The list itself lives in @plainva/ui since the Design-Runde (E2): the
     // desktop's context menu reads the same one.
     taskRowActions(t, a).map((s) => ({ icon: <s.icon size={ICON.head} />, label: s.label, danger: s.danger, onClick: s.run }));
+  const swipeActions = (a: Parameters<typeof rowActions>[0]) =>
+    taskRowActions(t, a)
+      .filter((s) => s.swipe)
+      .map((s) => ({ icon: <s.icon size={ICON.head} />, label: s.label, danger: s.danger, onClick: s.run }));
 
   const [taskSheet, setTaskSheet] = useState<
     | { title: string; open: () => void; done: boolean; toggle: () => void; promote?: () => void; repeat?: () => void; block?: () => void; due?: () => void; priority?: () => void; state?: () => void }
@@ -713,9 +719,11 @@ export function TasksScreen({
    * picker in a sheet; the row's sheet offers the same picker, which is also how
    * a task without a date gets one. "All to today" at the Overdue heading moves
    * the whole section. Every move answers with a toast that carries Undo — the
-   * same write, pointed back at the days that were there.
+   * same write, pointed back at the days that were there. The picker offers
+   * quick choices and a time (wishes 2026-10-24, E2); a time only where the
+   * task can hold one — a database entry, not a checkbox's `📅`.
    */
-  const [dueTarget, setDueTarget] = useState<{ value: string | null; change: (day: string) => TaskDueChange } | null>(null);
+  const [dueTarget, setDueTarget] = useState<{ value: string | null; time: string | null; timeAllowed: boolean; change: (pick: DuePick) => TaskDueChange } | null>(null);
   const applyDue = useCallback(
     async (changes: readonly TaskDueChange[]): Promise<TaskDueOutcome | null> => {
       if (changes.length === 0) return null;
@@ -746,17 +754,17 @@ export function TasksScreen({
     if (!outcome) return;
     announceTaskDue(outcome, { moved: announce(outcome), skipped: (count) => t("tasks.dueSkipped", { count }), undo: t("common.undo") }, (back) => void applyDue(back));
   };
-  const pickDue = (day: string) => {
+  const pickDue = (pick: DuePick) => {
     const target = dueTarget;
     setDueTarget(null);
-    if (!target || day === target.value) return;
-    void moveDue([target.change(day)], () => t("tasks.dueMoved", { date: formatPickedDay(day, i18n.language) }));
+    if (!target || (pick.day === target.value && (!target.timeAllowed || pick.time === target.time))) return;
+    void moveDue([target.change(pick)], () => taskDueMovedText(pick));
   };
-  const dbDueChange = (path: string) => (day: string): TaskDueChange => ({ source: "database", path, day });
-  const noteDueChange = (task: TaskRecord) => (day: string): TaskDueChange => ({ source: "note", path: task.path, task: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) }, day });
+  const dbDueChange = (path: string) => (pick: DuePick): TaskDueChange => ({ source: "database", path, day: pick.day, time: pick.time });
+  const noteDueChange = (task: TaskRecord) => (pick: DuePick): TaskDueChange => ({ source: "note", path: task.path, task: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) }, day: pick.day });
   /** Opens the date sheet for a database entry — or not at all when its database has no date column. */
-  const dueOfDb = (row: TaskDbRow) => (dbDueKey ? () => setDueTarget({ value: row.due ?? null, change: dbDueChange(row.path) }) : undefined);
-  const dueOfNote = (task: TaskRecord) => () => setDueTarget({ value: task.due ?? null, change: noteDueChange(task) });
+  const dueOfDb = (row: TaskDbRow) => (dbDueKey ? () => setDueTarget({ value: row.due ?? null, time: dueTimeOf(row.dueMinutes), timeAllowed: true, change: dbDueChange(row.path) }) : undefined);
+  const dueOfNote = (task: TaskRecord) => () => setDueTarget({ value: task.due ?? null, time: null, timeAllowed: false, change: noteDueChange(task) });
 
   /**
    * Writes the NEXT occurrence of a repeating task: a copy of the note, open
@@ -1084,7 +1092,7 @@ export function TasksScreen({
                one list of actions per row, whichever list it is shown in. */
             wrapRow={(row, element) => {
               const acts = plannerActs(row);
-              return acts ? <SwipeRow actions={rowActions(acts)}>{element}</SwipeRow> : element;
+              return acts ? <SwipeRow actions={swipeActions(acts)}>{element}</SwipeRow> : element;
             }}
             rowProps={(row) => ({
               onPointerDown: (e: ReactPointerEvent) => {
@@ -1131,7 +1139,7 @@ export function TasksScreen({
                     priority: () => void pickPriority({ kind: "db", path: row.path, rank: row.priority ?? 0 }),
                   };
                   return (
-                  <SwipeRow actions={rowActions(acts)} key={row.path}>
+                  <SwipeRow actions={swipeActions(acts)} key={row.path}>
                   <Row
                     wrap
                     controls
@@ -1326,7 +1334,7 @@ export function TasksScreen({
                   return (
                   /* S23: the swipe the sammelplan asked to hold back until the
                      sheet existed. Same actions, same order, one definition. */
-                  <SwipeRow actions={rowActions(acts)} key={`${task.path}:${task.ordinal}`}>
+                  <SwipeRow actions={swipeActions(acts)} key={`${task.path}:${task.ordinal}`}>
                   <Row
                     wrap
                     controls
@@ -1446,7 +1454,7 @@ export function TasksScreen({
         />
       )}
 
-      {dueTarget && <TaskDueSheet value={dueTarget.value} onPick={pickDue} onClose={() => setDueTarget(null)} />}
+      {dueTarget && <TaskDueSheet value={dueTarget.value} time={dueTarget.time} timeAllowed={dueTarget.timeAllowed} onPick={pickDue} onClose={() => setDueTarget(null)} />}
 
       <TaskDuplicatesSheet
         dupes={dupes}

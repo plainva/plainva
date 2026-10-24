@@ -726,8 +726,11 @@ function applyTaskDraft(vtodo: InstanceType<typeof ICAL.Component>, draft: PimTa
   vtodo.updatePropertyWithValue("summary", draft.title);
   if (draft.due) setTimeProperty(vtodo, "due", { ts: 0, date: draft.due.slice(0, 10) }, true);
   else vtodo.removeAllProperties("due");
+  // Notes left out of the draft are no instruction: the task sync never sends
+  // them, and reading "absent" as "empty" erased the description of every
+  // task it ticked. Only an empty string clears it.
   if (draft.notes) vtodo.updatePropertyWithValue("description", draft.notes);
-  else vtodo.removeAllProperties("description");
+  else if (draft.notes !== undefined) vtodo.removeAllProperties("description");
   if (draft.completed) {
     vtodo.updatePropertyWithValue("status", "COMPLETED");
     vtodo.updatePropertyWithValue("completed", ICAL.Time.fromJSDate(new Date(), true));

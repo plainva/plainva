@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-10-22
+Laatst bijgewerkt: 2026-10-24
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -161,7 +161,7 @@ plainva:
     account: 3f9c21ab
 ```
 
-**Wat de herkomst beschrijft.** Voor een taak tellen `uid` en `list` — een `uid` is uniek bij ÉÉN provider, niet over twee heen. `provider` (`google`, `microsoft`, `caldav`) en `identity` (de geverifieerde account-identiteit, waar de provider die aanbiedt) bakenen het verder af, en beide overleven een herverbinding. `account` is de LOKALE account-id: Plainva schrijft hem nog steeds zodat oudere versies het anker kunnen lezen, maar vergelijkt hem niet meer — hij wordt bij elke verbinding opnieuw geslagen, en dat is precies waarom een opnieuw verbonden account zijn taken vroeger een tweede keer importeerde. Schrijf je zelf ankers, zet dan `uid` en `list`; `provider`/`identity` worden aanbevolen, `account` is niet nodig. `recurring: true` voegt Plainva aan een taakanker toe zodra het heeft gezien dat de aanbieder de taak laat terugkomen (afgerond, daarna onder dezelfde `uid` weer open met een latere datum). De sleutel is puur informatief, wordt nooit vergeleken en mag worden verwijderd.
+**Wat de herkomst beschrijft.** Voor een taak tellen `uid` en `list` — een `uid` is uniek bij ÉÉN provider, niet over twee heen. `provider` (`google`, `microsoft`, `caldav`) en `identity` (de geverifieerde account-identiteit, waar de provider die aanbiedt) bakenen het verder af, en beide overleven een herverbinding. `account` is de LOKALE account-id: Plainva schrijft hem nog steeds zodat oudere versies het anker kunnen lezen, maar vergelijkt hem niet meer — hij wordt bij elke verbinding opnieuw geslagen, en dat is precies waarom een opnieuw verbonden account zijn taken vroeger een tweede keer importeerde. Schrijf je zelf ankers, zet dan `uid` en `list`; `provider`/`identity` worden aanbevolen, `account` is niet nodig. `recurring: true` voegt Plainva aan een taakanker toe zodra het heeft gezien dat de aanbieder de taak laat terugkomen (afgerond, daarna onder dezelfde `uid` weer open met een latere datum — of, waar de aanbieder zelf zegt dat de taak zich herhaalt, zoals een herinnering op de iPhone, gewoon open onder dezelfde `uid` met een latere datum). De sleutel is puur informatief, wordt nooit vergeleken en mag worden verwijderd.
 
 **De bestandsnaam hoort niet bij de identiteit.** Een gespiegelde taak heet zoals haar titel (`<titel>.md`, bij dezelfde titel `<titel> 2.md` enzovoort); gekoppeld wordt uitsluitend via het anker. Tools mogen het bestand hernoemen en verplaatsen zolang het anker blijft. Namen van de vorm `<titel> — <16 of 64 hextekens>.md` stammen uit de Plainva-versies van 12 tot 24 september 2026: de tekens zijn het begin van een SHA-256 over aanbieder, identiteit, lijst en `uid`. De takenweergave biedt eenmalig aan ze naar hun titel te hernoemen — alleen als de tekens bij het anker in hetzelfde bestand passen.
 

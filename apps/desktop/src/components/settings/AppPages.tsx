@@ -235,7 +235,7 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
           </div>
         </SettingRow>
         <SettingRow label={t("settings.placeStamp")} desc={t("settings.placeStampDesc")}>
-          <Switch checked={p.placeStamp} label={t("settings.placeStamp")} onChange={p.onPlaceStamp} data-testid="place-stamp-switch" />
+          <Switch checked={p.placeStamp} label={t("settings.placeStamp")} onChange={p.onPlaceStamp} testId="place-stamp-switch" />
         </SettingRow>
         <SettingRow label={t("settings.tagColors")} desc={t("settings.tagColorsDesc")}>
           <Switch checked={p.tagColors} label={t("settings.tagColors")} onChange={p.onTagColors} />

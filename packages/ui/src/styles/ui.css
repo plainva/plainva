@@ -2091,6 +2091,34 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
   color: var(--accent-color);
 }
 
+/* A heading that LEADS to the whole list it heads (plan Rückmeldungen
+   2026-10-24, E8): the home screen's "Recent" and "Bookmarks" bands show a
+   few entries sideways; the heading opens all of them. It stays the heading —
+   same caps, same size — and says it is a way somewhere with the accent and a
+   chevron, the mark every row that leads somewhere carries. */
+.pv-grouplabel-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: var(--accent-color);
+  cursor: pointer;
+}
+.pv-grouplabel-link:hover { text-decoration: underline; }
+/* Under a finger the hit area grows past the text without moving the heading:
+   the label keeps its rhythm, the target reaches the touch size. */
+[data-density="touch"] .pv-grouplabel-link::after {
+  content: "";
+  position: absolute;
+  inset: calc(var(--space-3) * -1) calc(var(--space-2) * -1);
+}
+
 .pv-grouprows {
   display: flex;
   flex-direction: column;
@@ -2099,9 +2127,13 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
    itself. A row is not always the direct child — a swipeable row lives inside
    its gesture container — and a rule on the row would then draw after the last
    one and miss the one before it. Separating children needs no :last-child
-   exception at all. */
+   exception at all.
+   It draws on --border-color, the card's own outline colour (plan Rückmeldungen
+   2026-10-24, E4): on --border-color-light it all but vanished against the
+   card's fill, and a tester could not tell where one task ended. LCARS and
+   Win95 keep their own divider (themes/lcars.css, themes/win95.css). */
 .pv-grouprows > * + * {
-  border-top: 1px solid var(--border-color-light);
+  border-top: 1px solid var(--border-color);
 }
 
 .pv-grouprow {
@@ -4257,6 +4289,32 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-datejump--sheet .pv-datejump-day { height: var(--touch-sm); font-size: var(--text-md); }
 .pv-datejump--sheet .pv-datejump-month { padding: var(--space-2) 2px; font-size: var(--text-md); }
 .pv-datejump--sheet .pv-datejump-wd, .pv-datejump--sheet .pv-datejump-wk { font-size: var(--text-sm); }
+/* The due picker (wishes 2026-10-24, E2): quick choices on top, the grid,
+   the time row at the foot. Layout on the date-jump family; the switch, the
+   field and the button are primitives the themes restyle. */
+.pv-datejump-due { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); min-width: 0; }
+.pv-datejump-quick { display: grid; gap: 1px; padding-bottom: var(--space-1); border-bottom: 1px solid var(--border-color-light); }
+.pv-datejump-qitem { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-width: 0; min-height: var(--control-md); padding: var(--space-1) var(--space-2); border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-main); font-family: var(--font-ui); font-size: var(--text-sm); text-align: left; cursor: pointer; }
+.pv-datejump-qitem:hover { background: var(--state-hover); }
+.pv-datejump-qitem:focus-visible { outline: 2px solid var(--accent-color); outline-offset: -2px; }
+.pv-datejump-qitem[aria-pressed="true"] { background: var(--accent-container); color: var(--on-accent-container); font-weight: 500; }
+.pv-datejump-qitem > svg { flex-shrink: 0; }
+.pv-datejump-qitem--today > svg { color: var(--success-text); }
+.pv-datejump-qitem--tomorrow > svg { color: var(--warning-text); }
+.pv-datejump-qitem--weekend > svg { color: var(--info-text); }
+.pv-datejump-qitem--nextWeek > svg { color: var(--accent-color); }
+.pv-datejump-qitem--none > svg { color: var(--text-faint); }
+.pv-datejump-qlabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-datejump-qday { margin-left: auto; flex-shrink: 0; font-size: var(--text-xs); color: var(--text-faint); }
+.pv-datejump-qitem[aria-pressed="true"] .pv-datejump-qday { color: inherit; }
+.pv-datejump-time { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); min-height: var(--control-md); padding-top: var(--space-2); border-top: 1px solid var(--border-color-light); font-size: var(--text-sm); color: var(--text-main); min-width: 0; }
+.pv-datejump-time > svg { flex-shrink: 0; color: var(--text-muted); }
+.pv-datejump-tlabel { margin-right: auto; }
+.pv-datejump-tfield { width: auto; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.pv-datejump-tnote { flex: 1 1 100%; }
+.pv-datejump-due--sheet .pv-datejump-qitem { min-height: var(--touch-sm); font-size: var(--text-md); }
+.pv-datejump-due--sheet .pv-datejump-qday { font-size: var(--text-sm); }
+.pv-datejump-due--sheet .pv-datejump-time { min-height: var(--touch-sm); font-size: var(--text-md); }
 /* The desktop hull: the popover contract, widened for a seven-column grid. */
 .pv-datejump-pop { width: 300px; max-width: none; max-height: none; padding: var(--space-3); }
 /* The title that opens it: the period label with a chevron; the accent pair

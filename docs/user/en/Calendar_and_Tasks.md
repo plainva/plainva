@@ -1,6 +1,6 @@
 # Calendar & external tasks
 
-Last reviewed: 2026-10-23
+Last reviewed: 2026-10-24
 
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
@@ -105,7 +105,7 @@ A reminder now says **what** it is announcing: “Appointment · 09:30” or “
 
 The notification itself carries no button — the desktop does not offer one. The action lives in the in-app message instead: **Show in calendar** for an appointment, **Open task** for a task. The window never pushes itself to the front while doing so.
 
-On the phone this includes the device's **reminder lists** (iOS) once the device account **On this device** is connected: each list is a task list like a Nextcloud list, with the same rules — import into the task database, checking off in both directions, deletion through the deletion journal.
+On the phone this includes the device's **reminder lists** (iOS) once the device account **On this device** is connected: each list is a task list like a Nextcloud list, with the same rules — import into the task database, checking off in both directions, deletion through the deletion journal. A repeating reminder keeps its time: ticked off — here or in Reminders — its note moves on to the next date and carries **Repeats at the provider**; the finished occurrence that Reminders keeps as an entry of its own does not become a second note.
 
 ### Keeping it running in the background
 

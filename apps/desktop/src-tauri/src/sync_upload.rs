@@ -201,6 +201,17 @@ pub async fn sync_upload_file(
     .map_err(|e| format!("upload task failed: {e}"))?
 }
 
+/// Lower-case hex of a digest. sha2 0.11 returns a fixed array that no longer
+/// formats with `{:x}`, so the digest is spelled out byte by byte.
+fn to_hex(bytes: &[u8]) -> String {
+    use std::fmt::Write as _;
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        let _ = write!(out, "{byte:02x}");
+    }
+    out
+}
+
 fn digest_blocking(path: PathBuf) -> Result<FileDigest, String> {
     let file = File::open(&path).map_err(|e| format!("open failed: {e}"))?;
     let mut reader = BufReader::new(file);
@@ -218,7 +229,7 @@ fn digest_blocking(path: PathBuf) -> Result<FileDigest, String> {
         size += read as u64;
     }
     Ok(FileDigest {
-        sha256: format!("{:x}", hasher.finalize()),
+        sha256: to_hex(&hasher.finalize()),
         size,
     })
 }
@@ -299,7 +310,9 @@ mod sync_upload_tests {
         write(&root, "big.bin", &bytes);
 
         let digest = digest_blocking(root.join("big.bin")).unwrap();
-        let expected = format!("{:x}", Sha256::digest(&bytes));
+        // Fixed reference value, independent of the code under test.
+        let expected = to_hex(&Sha256::digest(&bytes));
+        assert_eq!(to_hex(&Sha256::digest(b"abc")), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
         assert_eq!(digest.sha256, expected);
         assert_eq!(digest.size, bytes.len() as u64);
         let _ = fs::remove_dir_all(&root);
