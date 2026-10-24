@@ -1,6 +1,6 @@
 # File Format Reference
 
-Ultimo aggiornamento: 2026-10-22
+Ultimo aggiornamento: 2026-10-24
 
 Questa pagina è il contratto esatto, così come sta su disco, per **ogni file in un vault Plainva**. È scritta in modo che uno strumento — un altro programma, uno script o un assistente IA — possa leggere e modificare in sicurezza i file del vault direttamente, senza passare dall'interfaccia di Plainva. Se usi solo l'app, non ti serve mai questa pagina; le [altre pagine della guida](README.md) coprono l'uso normale.
 
@@ -160,7 +160,7 @@ plainva:
     account: 3f9c21ab
 ```
 
-**Cosa descrive l'origine.** Per un'attività, contano `uid` e `list` — un `uid` è univoco presso UN provider, non tra due. `provider` (`google`, `microsoft`, `caldav`) e `identity` (l'identità verificata dell'account, dove il provider ne offre una) la restringono ulteriormente, ed entrambi sopravvivono a una riconnessione. `account` è l'id LOCALE dell'account: Plainva lo scrive ancora così che le versioni più vecchie possano leggere l'àncora, ma non lo confronta più — viene coniato di nuovo a ogni connessione, ed è proprio per questo che un account riconnesso importava le sue attività una seconda volta. Se scrivi tu stesso le àncore, imposta `uid` e `list`; `provider`/`identity` sono consigliati, `account` non serve. Plainva aggiunge `recurring: true` a un'àncora di attività non appena ha visto il provider ripresentare l'attività (completata, poi riaperta con lo stesso `uid` e una data successiva). La chiave è puramente informativa, non viene mai confrontata e si può rimuovere.
+**Cosa descrive l'origine.** Per un'attività, contano `uid` e `list` — un `uid` è univoco presso UN provider, non tra due. `provider` (`google`, `microsoft`, `caldav`) e `identity` (l'identità verificata dell'account, dove il provider ne offre una) la restringono ulteriormente, ed entrambi sopravvivono a una riconnessione. `account` è l'id LOCALE dell'account: Plainva lo scrive ancora così che le versioni più vecchie possano leggere l'àncora, ma non lo confronta più — viene coniato di nuovo a ogni connessione, ed è proprio per questo che un account riconnesso importava le sue attività una seconda volta. Se scrivi tu stesso le àncore, imposta `uid` e `list`; `provider`/`identity` sono consigliati, `account` non serve. Plainva aggiunge `recurring: true` a un'àncora di attività non appena ha visto il provider ripresentare l'attività (completata, poi riaperta con lo stesso `uid` e una data successiva — oppure, quando è il provider stesso a dire che l'attività si ripete, come fa un promemoria sull'iPhone, semplicemente aperta con lo stesso `uid` e una data successiva). La chiave è puramente informativa, non viene mai confrontata e si può rimuovere.
 
 **Il nome del file non fa parte dell'identità.** Un'attività rispecchiata si chiama come il suo titolo (`<titolo>.md`, a parità di titolo `<titolo> 2.md` e così via); l'associazione avviene solo tramite l'ancora. Gli strumenti possono rinominare e spostare il file finché l'ancora resta. I nomi nella forma `<titolo> — <16 o 64 cifre esadecimali>.md` provengono dalle versioni di Plainva dal 12 al 24 settembre 2026: le cifre sono l'inizio di uno SHA-256 su provider, identità, lista e `uid`. La vista delle attività propone una volta di rinominarli in base al titolo, solo se le cifre corrispondono all'ancora dello stesso file.
 

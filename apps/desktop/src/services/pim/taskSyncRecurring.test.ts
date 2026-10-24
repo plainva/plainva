@@ -1,7 +1,18 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
-import { PimCacheRepository, initializeSchema, readFrontmatterPath, type IDatabaseAdapter, type IPimTarget, type PimTask } from "@plainva/core";
+import {
+  DevicePimTarget,
+  PimCacheRepository,
+  initializeSchema,
+  readFrontmatterPath,
+  type DevicePimPort,
+  type DeviceReminderDraft,
+  type DeviceReminderRecord,
+  type IDatabaseAdapter,
+  type IPimTarget,
+  type PimTask,
+} from "@plainva/core";
 import { isRecurringAtProviderNamespace, providerReopened } from "@plainva/ui";
 import { runTaskSync, type TaskSyncAdapter, type TaskSyncOptions } from "./taskSync";
 
@@ -212,8 +223,212 @@ describe("a task the provider repeats", () => {
   });
 });
 
+/**
+ * Finding 2026-10-24 (TestFlight build 139, Apple Reminders through "On this
+ * device"): a recurring reminder with a time, ticked in Plainva. Reminders moved
+ * on to the next occurrence and kept the time; Plainva kept the note done and
+ * added a second, done note "Probe 2".
+ *
+ * EventKit does not repeat the way Google does. Completing a recurring
+ * reminder keeps the SAME identifier - advanced to the next date and open
+ * again, inside the very write that completed it - and splits a NEW identifier
+ * off that holds the finished occurrence, completed, with the old date. The
+ * fake port below does exactly that, behind the real `DevicePimTarget`.
+ */
+class EventKitPort implements DevicePimPort {
+  readonly supportsReminders = true;
+  rows: DeviceReminderRecord[] = [];
+  drafts: DeviceReminderDraft[] = [];
+  private seq = 1;
+
+  async listCollections() {
+    return [{ id: "l1", title: "Erinnerungen", writable: true, kind: "reminder" as const }];
+  }
+  async events() {
+    return [];
+  }
+  async event() {
+    return null;
+  }
+  async createEvent(): Promise<never> {
+    throw new Error("not under test");
+  }
+  async updateEvent(): Promise<never> {
+    throw new Error("not under test");
+  }
+  async deleteEvent() {}
+  async reminders(listId: string) {
+    return this.rows.filter((r) => r.listId === listId).map((r) => ({ ...r }));
+  }
+  async reminder(id: string) {
+    const r = this.rows.find((x) => x.id === id);
+    return r ? { ...r } : null;
+  }
+  async createReminder(): Promise<never> {
+    throw new Error("not under test");
+  }
+  async updateReminder(id: string, draft: DeviceReminderDraft) {
+    this.drafts.push(draft);
+    const r = this.rows.find((x) => x.id === id);
+    if (!r) throw new Error("reminder not found");
+    r.title = draft.title;
+    r.due = draft.due;
+    r.completed = draft.completed;
+    if (draft.notes !== undefined) r.notes = draft.notes;
+    r.version = `v${++this.seq}`;
+    // `save` of a completed recurring reminder: the series moves on in the same write.
+    if (r.completed && r.recurring) this.moveOn(r);
+    return { ...r };
+  }
+  async deleteReminder(id: string) {
+    this.rows = this.rows.filter((r) => r.id !== id);
+  }
+
+  /** The person ticks the reminder in Apple Reminders. */
+  tickInReminders(id: string): void {
+    const r = this.rows.find((x) => x.id === id)!;
+    r.completed = true;
+    this.moveOn(r);
+  }
+
+  private moveOn(r: DeviceReminderRecord): void {
+    this.rows.push({ ...r, id: `split-${++this.seq}`, recurring: false, completed: true, version: `v${++this.seq}` });
+    r.completed = false;
+    r.due = nextDay(r.due!);
+    r.version = `v${++this.seq}`;
+  }
+}
+
+/** "2026-10-24T09:00" -> "2026-10-25T09:00": the next daily occurrence, same time. */
+function nextDay(due: string): string {
+  const [y, m, d] = due.slice(0, 10).split("-").map(Number) as [number, number, number];
+  const next = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+  return next + due.slice(10);
+}
+
+describe("a reminder EventKit repeats", () => {
+  let cache: PimCacheRepository;
+  const DB = TASK_DB.replace("input: date", "input: datetime");
+
+  beforeEach(async () => {
+    const db = new NodeSqliteAdapter();
+    await initializeSchema(db);
+    cache = new PimCacheRepository(db);
+    await cache.upsertAccount({ id: "a1", provider: "device", label: "Auf diesem Gerät", config: {}, enabled: true });
+    await cache.replaceTaskLists("a1", [{ id: "l1", name: "Erinnerungen" }]);
+    await cache.setTaskListSelected("a1", "l1", true);
+  });
+
+  const opts = (vault: ReturnType<typeof fakeVault>, target: IPimTarget | null): TaskSyncOptions => ({
+    adapter: vault.adapter,
+    cache,
+    buildTarget: async () => target,
+    taskDbPath: "Aufgaben.base",
+    noteType: "Task",
+    allNotePaths: [...vault.files.keys()].filter((p) => p.endsWith(".md")),
+  });
+
+  /** One worker cycle: the pull into the cache, then the reconcile. */
+  async function cycle(vault: ReturnType<typeof fakeVault>, target: DevicePimTarget) {
+    await cache.replaceTasks("a1", "l1", (await target.pullTasks("l1")).tasks);
+    return runTaskSync(opts(vault, target));
+  }
+
+  async function setup() {
+    const port = new EventKitPort();
+    port.rows = [{ id: "probe", listId: "l1", title: "Probe", due: "2026-10-24T09:00", completed: false, version: "v1", recurring: true }];
+    const target = new DevicePimTarget(port);
+    const vault = fakeVault({ "Aufgaben.base": DB });
+    const first = await cycle(vault, target);
+    expect(first.createdNotes).toEqual(["Aufgaben/Probe.md"]);
+    return { port, target, vault, path: "Aufgaben/Probe.md" };
+  }
+
+  const taskNotes = (vault: ReturnType<typeof fakeVault>) => [...vault.files.keys()].filter((p) => p.startsWith("Aufgaben/")).sort();
+
+  it("ticked HERE: the write already moves the same reminder on; the next pull, same etag, reopens the note with the new date and time and marks it", async () => {
+    const { port, target, vault, path } = await setup();
+    vault.files.set(path, vault.files.get(path)!.replace("status: Offen", "status: Erledigt"));
+    const pushed = await cycle(vault, target);
+    expect(pushed.pushed).toBe(1);
+    expect(port.drafts).toHaveLength(1);
+    // The write answered with the reminder as it is now - open, next day.
+    const after = port.rows.find((r) => r.id === "probe")!;
+    expect(after).toMatchObject({ completed: false, due: "2026-10-25T09:00" });
+
+    // Nothing changed at the device since the write: the pull carries the very
+    // version the write returned.
+    const res = await cycle(vault, target);
+    expect((await cache.listTasks("a1", "l1")).find((t) => t.uid === "probe")!.etag).toBe(after.version);
+    const note = vault.files.get(path)!;
+    expect(res.changedNotes).toEqual([path]);
+    expect(readFrontmatterPath(note, ["status"])).toBe("Offen");
+    expect(String(readFrontmatterPath(note, ["frist"]))).toContain("2026-10-25T09:00");
+    expect(readFrontmatterPath(note, ["plainva", "pim", "recurring"])).toBe(true);
+    expect(port.drafts).toHaveLength(1); // only the tick itself went out
+  });
+
+  it("ticked HERE: the finished occurrence split off under a new id makes no note, and stays quiet", async () => {
+    const { port, target, vault, path } = await setup();
+    vault.files.set(path, vault.files.get(path)!.replace("status: Offen", "status: Erledigt"));
+    await cycle(vault, target);
+    expect(port.rows).toHaveLength(2);
+    const second = await cycle(vault, target);
+    expect(second.createdNotes).toEqual([]);
+    const third = await cycle(vault, target);
+    expect(third.createdNotes).toEqual([]);
+    expect(third.changedNotes).toEqual([]);
+    expect(third.pushed).toBe(0);
+    expect(taskNotes(vault)).toEqual([path]);
+    expect(port.drafts).toHaveLength(1);
+  });
+
+  it("ticked in Reminders: the same id moves on while the note is open -> the note takes the new date and the mark, the copy makes no note", async () => {
+    const { port, target, vault, path } = await setup();
+    port.tickInReminders("probe");
+    const res = await cycle(vault, target);
+    const note = vault.files.get(path)!;
+    expect(res.createdNotes).toEqual([]);
+    expect(res.changedNotes).toEqual([path]);
+    expect(readFrontmatterPath(note, ["status"])).toBe("Offen");
+    expect(String(readFrontmatterPath(note, ["frist"]))).toContain("2026-10-25T09:00");
+    expect(readFrontmatterPath(note, ["plainva", "pim", "recurring"])).toBe(true);
+
+    const again = await cycle(vault, target);
+    expect(again.createdNotes).toEqual([]);
+    expect(again.changedNotes).toEqual([]);
+    expect(taskNotes(vault)).toEqual([path]);
+    expect(port.drafts).toEqual([]);
+  });
+
+  it("ticked twice in Reminders between two cycles: neither finished occurrence becomes a note", async () => {
+    const { port, target, vault, path } = await setup();
+    port.tickInReminders("probe");
+    port.tickInReminders("probe");
+    const res = await cycle(vault, target);
+    expect(res.createdNotes).toEqual([]);
+    expect(String(readFrontmatterPath(vault.files.get(path)!, ["frist"]))).toContain("2026-10-26T09:00");
+    expect(taskNotes(vault)).toEqual([path]);
+  });
+
+  it("a finished reminder of the same title that is no occurrence of the series is still imported", async () => {
+    const { port, target, vault } = await setup();
+    // Done before the series' last agreed date, and the series has not moved.
+    port.rows.push({ id: "older", listId: "l1", title: "Probe", due: "2026-10-20T09:00", completed: true, version: "v7" });
+    const res = await cycle(vault, target);
+    expect(res.createdNotes).toEqual(["Aufgaben/Probe 2.md"]);
+    expect(readFrontmatterPath(vault.files.get("Aufgaben/Probe 2.md")!, ["status"])).toBe("Erledigt");
+  });
+});
+
 describe("providerReopened", () => {
   const f = (completed: boolean, due: string | null) => ({ title: "T", due, completed });
+  it("a provider that says the task repeats: a later date is the next round, even when the note never saw it done", () => {
+    expect(providerReopened(f(false, "2026-10-24T09:00"), { ...f(false, "2026-10-25T09:00"), recurring: true })).toBe(true);
+    expect(providerReopened(f(false, "2026-10-24T09:00"), { ...f(false, "2026-10-24T10:00"), recurring: true })).toBe(false);
+    expect(providerReopened(f(false, "2026-10-24"), { ...f(true, "2026-10-25"), recurring: true })).toBe(false);
+    expect(providerReopened(f(false, null), { ...f(false, "2026-10-25"), recurring: true })).toBe(false);
+  });
   it("needs done -> open AND a later date", () => {
     expect(providerReopened(f(true, "2026-09-19"), f(false, "2026-09-20"))).toBe(true);
     expect(providerReopened(f(true, "2026-09-19T00:00:00.000Z"), f(false, "2026-09-26T00:00:00.000Z"))).toBe(true);

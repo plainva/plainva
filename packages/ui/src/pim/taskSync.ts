@@ -367,6 +367,19 @@ async function reconcileList(
   const stateByUid = new Map(states.map((s) => [s.uid, s]));
   const remoteUids = new Set(remoteTasks.map((t) => t.uid));
 
+  // The tasks this list already mirrors, by title: what a finished occurrence
+  // a provider split off under a new id is recognised against (see
+  // `isSplitOffOccurrence`). Read from the state as it was when the reconcile
+  // began - a row updated further down still names the occurrence it agreed on.
+  const trackedByTitle = new Map<string, Array<{ remote: PimTask; base: PimTaskFields }>>();
+  for (const t of remoteTasks) {
+    const s = stateByUid.get(t.uid);
+    if (!s || s.notePath === null || !s.baseFields || !t.title) continue;
+    const list = trackedByTitle.get(t.title) ?? [];
+    list.push({ remote: t, base: s.baseFields });
+    trackedByTitle.set(t.title, list);
+  }
+
   const identity = taskAnchorIdentity(account);
   const taskId = (uid: string) => ({
     uid,
@@ -442,6 +455,14 @@ async function reconcileList(
           baseFields: { ...remoteFields, ...(db.dueKey && (adoptedDue !== null || remoteFields.due === null) ? { dueHeldIn: db.dueKey } : {}) },
         });
         result.adoptedNotes.push(adopted);
+        continue;
+      }
+      if ((trackedByTitle.get(rt.title) ?? []).some((t) => isSplitOffOccurrence(rt, t.remote, t.base))) {
+        // The finished occurrence of a task this list already mirrors, split
+        // off under an id of its own (finding 2026-10-24: Apple Reminders).
+        // Its note would be a second, done copy of the same task ("Probe 2").
+        // A tombstone keeps it out for good; the provider copy is untouched.
+        await cache.upsertTaskState({ accountId: account.id, listId, uid: rt.uid, notePath: null, remoteEtag: rt.etag ?? null, baseFields: remoteFields });
         continue;
       }
       if (opts.mayCreateNotes === false) {
@@ -563,7 +584,10 @@ async function reconcileList(
         // ticked this yesterday and it is open again" otherwise reads as a sync
         // fault. Rides along with the write that reopens the note; never a
         // write of its own.
-        if (providerReopened(base, remoteFields) && own.completed === base.completed) updated = markRecurringAtProvider(updated);
+        // A provider that says the task repeats (the phone's reminders) needs
+        // no done state in between: ticked over there, the same id simply
+        // moves on to its next date while the note is still open.
+        if (providerReopened(base, { ...remoteFields, recurring: rt.recurring }) && own.completed === base.completed) updated = markRecurringAtProvider(updated);
         return updated;
       };
       try {
@@ -608,6 +632,13 @@ async function reconcileList(
           { title: merged.title, due: merged.due ?? undefined, completed: merged.completed }
         );
         newEtag = res.etag ?? null;
+        // The provider changed the task in the very write (finding 2026-10-24:
+        // EventKit moves a completed recurring reminder on to its next
+        // occurrence inside the save). Its etag then stands for a state this
+        // reconcile never saw; recorded as agreed, the next pull would carry
+        // the same etag and the change would never reach the note. Without the
+        // etag the next cycle compares the fields and merges.
+        if (res.task && !fieldsEqual(fieldsOfTask(res.task), merged)) newEtag = null;
         result.pushed++;
       } catch (e) {
         if (e instanceof PimConflictError) {
@@ -852,9 +883,41 @@ async function adoptAnchoredNote(
  * A recurring provider task coming round again: completed when both sides last
  * agreed, open now, and due LATER than before. The later date is what tells a
  * repetition from somebody simply un-ticking the task at the provider.
+ *
+ * A provider that SAYS the task repeats (`recurring`, the phone's reminders)
+ * needs no done state at the last agreement: ticked there, the same id moves on
+ * to its next date in one step, and the note never saw it done.
  */
-export function providerReopened(base: PimTaskFields, remote: PimTaskFields): boolean {
-  return base.completed && !remote.completed && !!base.due && !!remote.due && remote.due.slice(0, 10) > base.due.slice(0, 10);
+export function providerReopened(base: PimTaskFields, remote: PimTaskFields & { recurring?: boolean }): boolean {
+  if (remote.completed || !base.due || !remote.due || remote.due.slice(0, 10) <= base.due.slice(0, 10)) return false;
+  return base.completed || remote.recurring === true;
+}
+
+/**
+ * The finished occurrence of a repeating task that a provider split off under
+ * an id of its own (finding 2026-10-24). Apple Reminders does this: completing
+ * a recurring reminder keeps its identifier - moved on to the next date and
+ * open - and files the finished occurrence as a NEW, completed reminder with
+ * the old date. Imported, that copy became a second, done note of the same
+ * task.
+ *
+ * Narrow on purpose, and provider-neutral: a completed task seen for the first
+ * time, with the title of a task this list already mirrors (`sibling`, with
+ * the base `siblingBase` last agreed for it), whose date the sibling has moved
+ * past, and which is the very occurrence last agreed on - or, where the
+ * provider says the sibling repeats, any occurrence between that one and the
+ * current date (ticked twice between two cycles). A finished task of the same
+ * title from before the last agreement, or one beside a series that has not
+ * moved on, is still imported as before.
+ */
+export function isSplitOffOccurrence(copy: PimTask, sibling: PimTask, siblingBase: PimTaskFields): boolean {
+  if (!copy.completed || copy.uid === sibling.uid || !copy.title || copy.title !== sibling.title) return false;
+  if (!copy.due || !sibling.due || !siblingBase.due) return false;
+  const day = (d: string) => d.slice(0, 10);
+  // The series has moved past this occurrence.
+  if (day(sibling.due) <= day(copy.due)) return false;
+  if (dueEqual(copy.due, siblingBase.due)) return true;
+  return sibling.recurring === true && day(copy.due) >= day(siblingBase.due);
 }
 
 function markRecurringAtProvider(content: string): string {

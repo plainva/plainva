@@ -375,6 +375,24 @@ describe("CalDavPimTarget writes", () => {
     expect(puts[1]).not.toContain("DUE;");
   });
 
+  it("a task draft without notes leaves the DESCRIPTION alone; empty notes remove it", async () => {
+    // The task sync never sends notes: every tick from Plainva used to erase
+    // the description of the task at the server.
+    const existing = ["BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VTODO", "UID:t-2", "SUMMARY:Buy milk", "DESCRIPTION:Oat\\, two litres", "END:VTODO", "END:VCALENDAR"].join("\r\n");
+    const puts: string[] = [];
+    const fetchFn: FetchFn = vi.fn(async (_input, init) => {
+      if (!init?.method || init.method === "GET") return new Response(puts.at(-1) ?? existing, { status: 200 });
+      puts.push(String(init.body));
+      return new Response(null, { status: 204 });
+    });
+    const t = new CalDavPimTarget(creds, fetchFn);
+    const ref = { listId: "l", uid: "t-2", href: "https://dav.example.org/t-2.ics" };
+    await t.updateTask(ref, { title: "Buy milk", completed: true });
+    expect(puts[0]).toContain("DESCRIPTION:Oat\\, two litres");
+    await t.updateTask(ref, { title: "Buy milk", notes: "", completed: true });
+    expect(puts[1]).not.toContain("DESCRIPTION");
+  });
+
   it("update of a series INSTANCE writes a RECURRENCE-ID override and leaves the master alone", async () => {
     const existing = [
       "BEGIN:VCALENDAR",

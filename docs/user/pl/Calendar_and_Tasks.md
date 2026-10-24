@@ -1,6 +1,6 @@
 # Kalendarz i zewnętrzne zadania
 
-Stan na: 2026-10-23
+Stan na: 2026-10-24
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
@@ -105,7 +105,7 @@ Przypomnienie mówi teraz, **co** zapowiada: „Termin · 09:30” albo „Zadan
 
 Samo powiadomienie nie ma przycisku — komputer tego nie udostępnia. Działanie znajduje się w komunikacie w aplikacji: **Pokaż w kalendarzu** przy spotkaniu, **Otwórz zadanie** przy zadaniu. Okno nigdy nie wysuwa się przy tym na wierzch.
 
-Na telefonie należą do nich **listy przypomnień** urządzenia (iOS), gdy tylko konto urządzenia **Na tym urządzeniu** jest połączone: każda lista jest listą zadań jak lista Nextcloud, z tymi samymi zasadami — import do bazy zadań, odhaczanie w obie strony, usuwanie przez dziennik usunięć.
+Na telefonie należą do nich **listy przypomnień** urządzenia (iOS), gdy tylko konto urządzenia **Na tym urządzeniu** jest połączone: każda lista jest listą zadań jak lista Nextcloud, z tymi samymi zasadami — import do bazy zadań, odhaczanie w obie strony, usuwanie przez dziennik usunięć. Powtarzające się przypomnienie zachowuje swoją godzinę: po odhaczeniu — tutaj lub w Przypomnieniach — jego notatka przechodzi na następny termin i nosi oznaczenie **Powtarza się u dostawcy**; ukończone wystąpienie, które Przypomnienia zachowują jako osobny wpis, nie staje się drugą notatką.
 
 ### Działanie w tle
 

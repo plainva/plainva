@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-10-22
+Last reviewed: 2026-10-24
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -160,7 +160,7 @@ plainva:
     account: 3f9c21ab
 ```
 
-**What describes the origin.** For a task, `uid` and `list` are what count — a `uid` is unique at ONE provider, not across two. `provider` (`google`, `microsoft`, `caldav`) and `identity` (the verified account identity, where the provider offers one) narrow it further, and both survive a reconnect. `account` is the LOCAL account id: Plainva still writes it so older versions can read the anchor, but no longer compares it — it is minted fresh on every connect, which is precisely why a reconnected account used to import its tasks a second time. If you write anchors yourself, set `uid` and `list`; `provider`/`identity` are recommended, `account` is not needed. `recurring: true` is added to a task anchor once Plainva has seen the provider bring the task round again (done, then open again under the same `uid` with a later date). The key is purely informational, is never compared, and may be removed.
+**What describes the origin.** For a task, `uid` and `list` are what count — a `uid` is unique at ONE provider, not across two. `provider` (`google`, `microsoft`, `caldav`) and `identity` (the verified account identity, where the provider offers one) narrow it further, and both survive a reconnect. `account` is the LOCAL account id: Plainva still writes it so older versions can read the anchor, but no longer compares it — it is minted fresh on every connect, which is precisely why a reconnected account used to import its tasks a second time. If you write anchors yourself, set `uid` and `list`; `provider`/`identity` are recommended, `account` is not needed. `recurring: true` is added to a task anchor once Plainva has seen the provider bring the task round again (done, then open again under the same `uid` with a later date — or, where the provider itself says the task repeats, as a reminder on the iPhone does, simply open under the same `uid` with a later date). The key is purely informational, is never compared, and may be removed.
 
 **The file name is not part of the identity.** A mirrored task is named after its title (`<title>.md`, with the same title `<title> 2.md` and so on); matching goes by the anchor alone. Tools may rename and move the file as long as the anchor stays. Names of the form `<title> — <16 or 64 hex digits>.md` come from the Plainva versions of 12–24 September 2026: the digits are the start of a SHA-256 over provider, identity, list and `uid`. The tasks view offers once to rename them after their titles — only when the digits match the anchor in the same file.
 

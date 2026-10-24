@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-10-23
+Laatst bijgewerkt: 2026-10-24
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -105,7 +105,7 @@ Een herinnering zegt nu **wat** ze aankondigt: "Afspraak · 09:30" of "Taak · v
 
 De melding zelf draagt geen knop — dat biedt de computer niet. De actie zit in het bericht in de app: **In de agenda tonen** bij een afspraak, **Taak openen** bij een taak. Het venster dringt zich daarbij nooit naar voren.
 
-Op de telefoon horen daar de **herinneringslijsten** van het apparaat (iOS) bij zodra het apparaataccount **Op dit apparaat** verbonden is: elke lijst is een takenlijst zoals een Nextcloud-lijst, met dezelfde regels — import in de takendatabase, afvinken in beide richtingen, verwijderen via het verwijderjournaal.
+Op de telefoon horen daar de **herinneringslijsten** van het apparaat (iOS) bij zodra het apparaataccount **Op dit apparaat** verbonden is: elke lijst is een takenlijst zoals een Nextcloud-lijst, met dezelfde regels — import in de takendatabase, afvinken in beide richtingen, verwijderen via het verwijderjournaal. Een terugkerende herinnering houdt haar tijd: afgevinkt — hier of in Herinneringen — schuift haar notitie door naar de volgende datum en draagt **Herhaalt zich bij de aanbieder**; de afgeronde keer die Herinneringen als eigen item bewaart, wordt geen tweede notitie.
 
 ### Op de achtergrond doorlopen
 

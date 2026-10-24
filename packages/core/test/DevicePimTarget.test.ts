@@ -20,6 +20,7 @@ class FakePort implements DevicePimPort {
   reminderRows: DeviceReminderRecord[] = [];
   seq = 0;
   writes: string[] = [];
+  reminderDrafts: DeviceReminderDraft[] = [];
 
   constructor(supportsReminders = true) {
     this.supportsReminders = supportsReminders;
@@ -66,6 +67,7 @@ class FakePort implements DevicePimPort {
     return rec;
   }
   async updateReminder(id: string, draft: DeviceReminderDraft) {
+    this.reminderDrafts.push(draft);
     const rec = await this.reminder(id);
     if (!rec) throw new Error("gone");
     Object.assign(rec, draft, { version: `m${++this.seq}` });
@@ -186,6 +188,44 @@ describe("DevicePimTarget", () => {
     expect(ok.etag).toBe("m2");
     await t.deleteTask({ listId: "list-1", uid: "r1" });
     expect(port.reminderRows).toEqual([]);
+  });
+
+  it("a reminder says whether it repeats", async () => {
+    const port = new FakePort();
+    port.reminderRows = [
+      { id: "r1", listId: "list-1", title: "Probe", due: "2026-10-24T09:00", completed: false, version: "m1", recurring: true },
+      { id: "r2", listId: "list-1", title: "Milch", completed: false, version: "m2", recurring: false },
+    ];
+    const { tasks } = await target(port).pullTasks("list-1");
+    expect(tasks.map((t) => [t.uid, t.recurring])).toEqual([["r1", true], ["r2", false]]);
+  });
+
+  it("an update answers with the task as the device holds it after the write", async () => {
+    // EventKit moves a completed recurring reminder on inside the save itself:
+    // the answer is the next occurrence, not what was sent.
+    const port = new FakePort();
+    port.reminderRows = [{ id: "r1", listId: "list-1", title: "Probe", due: "2026-10-24T09:00", completed: false, version: "m1", recurring: true }];
+    port.updateReminder = async (id, draft) => {
+      port.reminderDrafts.push(draft);
+      const rec = port.reminderRows.find((r) => r.id === id)!;
+      Object.assign(rec, { completed: false, due: "2026-10-25T09:00", version: "m2" });
+      return { ...rec };
+    };
+    const res = await target(port).updateTask({ listId: "list-1", uid: "r1", etag: "m1" }, { title: "Probe", due: "2026-10-24T09:00", completed: true });
+    expect(res.etag).toBe("m2");
+    expect(res.task).toMatchObject({ uid: "r1", listId: "list-1", title: "Probe", due: "2026-10-25T09:00", completed: false, etag: "m2", recurring: true });
+  });
+
+  it("a draft without notes leaves the reminder's notes alone; an empty one clears them", async () => {
+    const port = new FakePort();
+    port.reminderRows = [{ id: "r1", listId: "list-1", title: "Milch", notes: "2 Liter, Hafer", completed: false, version: "m1" }];
+    const t = target(port);
+    // What the task sync sends: no notes - and a due that is not there.
+    await t.updateTask({ listId: "list-1", uid: "r1", etag: "m1" }, { title: "Milch", due: undefined, notes: undefined, completed: true });
+    expect("notes" in port.reminderDrafts[0]!).toBe(false);
+    expect(port.reminderRows[0]!.notes).toBe("2 Liter, Hafer");
+    await t.updateTask({ listId: "list-1", uid: "r1" }, { title: "Milch", notes: "", completed: true });
+    expect(port.reminderDrafts[1]!.notes).toBe("");
   });
 
   it("without a reminder store (Android) there are no task lists, and writing one says so", async () => {

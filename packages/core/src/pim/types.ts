@@ -180,6 +180,13 @@ export interface PimTask {
   updatedTs?: number;
   /** CalDAV VTODO object href. */
   href?: string;
+  /**
+   * The provider says this task repeats (the phone's reminders:
+   * `hasRecurrenceRules`). Undefined where the provider does not say - Google,
+   * Microsoft and CalDAV leave it out, and a repetition there is only seen
+   * when the same task comes round again with a later date.
+   */
+  recurring?: boolean;
 }
 
 /** Injectable token supply: the shell owns refresh + rotation persistence;
@@ -297,8 +304,27 @@ export interface PimTaskDraft {
   title: string;
   /** ISO date (YYYY-MM-DD), day-granular like PimTask.due. */
   due?: string;
+  /**
+   * Left out, the provider keeps the task's notes as they are; an empty
+   * string clears them. The task sync never sends notes - a provider that read
+   * "absent" as "empty" erased the notes of every task Plainva ticked.
+   */
   notes?: string;
   completed: boolean;
+}
+
+/**
+ * What a task update reports back.
+ *
+ * `task` is the task as the provider holds it right after the write, where
+ * the provider answers with it. It need not be what was sent: the phone's
+ * reminders move a completed recurring reminder on to its next occurrence
+ * inside the very save that completed it (finding 2026-10-24). A provider that
+ * does not answer with the task leaves it out.
+ */
+export interface PimTaskUpdateResult {
+  etag?: string;
+  task?: PimTask;
 }
 
 export interface PimTaskRef {
@@ -394,7 +420,7 @@ export interface IPimTarget {
   createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult>;
   /** Updates a task (title/due/completed/notes). Etag-guarded where the
    * provider supports it (CalDAV, Graph); Google Tasks is last-write-wins. */
-  updateTask(ref: PimTaskRef, draft: PimTaskDraft): Promise<{ etag?: string }>;
+  updateTask(ref: PimTaskRef, draft: PimTaskDraft): Promise<PimTaskUpdateResult>;
   /**
    * Deletes a task at the provider.
    *

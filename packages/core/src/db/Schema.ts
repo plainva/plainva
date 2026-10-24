@@ -352,6 +352,7 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       etag       TEXT,
       updated_ts INTEGER,
       href       TEXT,
+      recurring  INTEGER,
       PRIMARY KEY (account_id, list_id, uid)
     );`,
     `CREATE TABLE IF NOT EXISTS pim_state (
@@ -591,6 +592,15 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
   }
   // Finding the blockers of an event is a lookup by this column (K3).
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_pim_events_block_of ON pim_events(block_of);`);
+
+  try {
+    // Whether the provider says a task repeats (finding 2026-10-24: the
+    // phone's reminders). Cache-only and fully rebuildable; the next pull
+    // fills it.
+    await db.execute(`ALTER TABLE pim_tasks ADD COLUMN recurring INTEGER;`);
+  } catch {
+    // Column might already exist
+  }
 
   // What every provider carries but Plainva threw away (2026-08-09, S9):
   // reminders, busy/free, the online-meeting link and categories. All four are

@@ -1,6 +1,6 @@
 # Calendário & tarefas externas
 
-Última revisão: 2026-10-23
+Última revisão: 2026-10-24
 
 O Plainva pode conectar suas contas de calendário e tarefas já existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Tarefas) e **Microsoft** (calendário do Outlook + To Do) — e trabalhar com elas em ambas as direções. Suas notas continuam sendo o centro: eventos podem virar notas de reunião, e listas de tarefas externas se espelham no seu [banco de tarefas padrão](Tasks.md) como notas comuns.
 
@@ -105,7 +105,7 @@ Um lembrete agora diz **o que** está anunciando: "Compromisso · 09:30" ou "Tar
 
 A notificação em si não traz botão — o computador não oferece isso. A ação fica no aviso dentro do aplicativo: **Mostrar no calendário** para um compromisso, **Abrir tarefa** para uma tarefa. A janela nunca se impõe ao primeiro plano.
 
-No celular isso inclui as **listas de lembretes** do dispositivo (iOS) assim que a conta do dispositivo **Neste dispositivo** está conectada: cada lista é uma lista de tarefas como uma lista do Nextcloud, com as mesmas regras — importação para o banco de tarefas, marcação nos dois sentidos, exclusão pelo diário de exclusões.
+No celular isso inclui as **listas de lembretes** do dispositivo (iOS) assim que a conta do dispositivo **Neste dispositivo** está conectada: cada lista é uma lista de tarefas como uma lista do Nextcloud, com as mesmas regras — importação para o banco de tarefas, marcação nos dois sentidos, exclusão pelo diário de exclusões. Um lembrete que se repete mantém seu horário: marcado — aqui ou no Lembretes — sua nota passa para a próxima data e traz **Repete-se no provedor**; a ocorrência concluída que o Lembretes guarda como item próprio não vira uma segunda nota.
 
 ### Continuar em segundo plano
 

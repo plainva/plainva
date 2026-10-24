@@ -611,12 +611,12 @@ export class PimCacheRepository {
     for (const group of chunk(tasks, CHUNK)) {
       const values: unknown[] = [];
       for (const t of group) {
-        values.push(accountId, listId, t.uid, t.title, t.notes ?? null, t.due ?? null, t.completed ? 1 : 0, t.etag ?? null, t.updatedTs ?? null, t.href ?? null);
+        values.push(accountId, listId, t.uid, t.title, t.notes ?? null, t.due ?? null, t.completed ? 1 : 0, t.etag ?? null, t.updatedTs ?? null, t.href ?? null, t.recurring === undefined ? null : t.recurring ? 1 : 0);
       }
       statements.push({
         sql:
-          `INSERT INTO pim_tasks (account_id, list_id, uid, title, notes, due, completed, etag, updated_ts, href) VALUES ` +
-          group.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", "),
+          `INSERT INTO pim_tasks (account_id, list_id, uid, title, notes, due, completed, etag, updated_ts, href, recurring) VALUES ` +
+          group.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", "),
         params: values,
       });
     }
@@ -625,7 +625,7 @@ export class PimCacheRepository {
 
   async listTasks(accountId: string, listId: string): Promise<PimTask[]> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT uid, title, notes, due, completed, etag, updated_ts, href FROM pim_tasks WHERE account_id = ? AND list_id = ? ORDER BY title`,
+      `SELECT uid, title, notes, due, completed, etag, updated_ts, href, recurring FROM pim_tasks WHERE account_id = ? AND list_id = ? ORDER BY title`,
       [accountId, listId]
     );
     return rows.map((r) => ({
@@ -638,6 +638,7 @@ export class PimCacheRepository {
       etag: r.etag ? String(r.etag) : undefined,
       updatedTs: r.updated_ts != null ? Number(r.updated_ts) : undefined,
       href: r.href ? String(r.href) : undefined,
+      ...(r.recurring != null ? { recurring: Number(r.recurring) !== 0 } : {}),
     }));
   }
 
