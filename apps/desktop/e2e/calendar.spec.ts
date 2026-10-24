@@ -1783,11 +1783,14 @@ test('AI drafts an e-mail and an appointment: both wait as drafts, open in the c
   await expect(page.getByTestId('draft-error')).toHaveCount(0);
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-pim-composer-desktop.png') });
   await expect(mailCard).toHaveCount(1);
-  // While it is open with this mail, a second one is not opened over it. (The floating composer lies over the
-  // card here; a reader would have moved it aside — the button is pressed where it is.)
+  // Asked for again while it is open with this mail, it opens again in its place: a composer nobody wrote in gives
+  // way, as it does for every request to write a mail, and a changed one would be asked about first
+  // (services/mail/composeHost.ts). (The floating composer lies over the card here; a reader would have moved it
+  // aside — the button is pressed where it is.)
   await mailCard.getByTestId('ai-draft-create').evaluate((button) => (button as HTMLElement).click());
-  await expect(page.locator('.pv-toast').filter({ hasText: /is already open with an e-mail/ })).toBeVisible();
   await expect(page.getByTestId('draft-form')).toHaveCount(1);
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Re: Shooting day');
+  await expect(page.locator('.pv-overlay--dialog')).toHaveCount(0);
   await page.locator('.pv-mail-winfoot').getByRole('button', { name: /Cancel|Abbrechen/ }).click();
   await expect(page.getByTestId('draft-form')).toHaveCount(0);
   await expect(mailCard).toHaveCount(1);
