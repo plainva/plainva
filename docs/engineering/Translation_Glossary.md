@@ -269,6 +269,21 @@ language uses for "knowledge upkeep" where it has one — and it **looks through
 | zh-CN | 整理 | 不再显示 | 比较 | 记忆维护 | 让AI通读记忆 |
 | ja | 整理 | 今後は表示しない | 比較 | 記憶の手入れ | 記憶に目を通してもらう |
 
+Hints at the open note (`ai.hints.*`, `rightPanel.hints`, AI harness P8-3): the same kind of **hint** as tidying up, at the open note. The section's word is the language's plain word for a hint, chosen against the word of the suggestion mode, which writes in the note: es and pt-BR say **aviso**, because *sugerencia*/*sugestão* is the suggestion mode's; fr says **suggestion** and it **suggerimento**, as the related notes do, because there the suggestion mode is *proposition*/*proposta*. A step names what the user gets — **As a task**, **Create note**, **Create meeting note** — with the calendar's and the clean-up view's own words; **Don't show again** is the tidying up's.
+
+| Language | Hints (section) | Show hints at the open note | Create note | As a task | Create meeting note |
+|---|---|---|---|---|---|
+| en | Hints | Show hints at the open note | Create note | As a task | Create meeting note |
+| de | Hinweise | Hinweise zur offenen Notiz zeigen | Notiz anlegen | Als Aufgabe | Meeting-Notiz anlegen |
+| fr | Suggestions | Afficher les suggestions pour la note ouverte | Créer la note | Comme tâche | Créer la note de réunion |
+| es | Avisos | Mostrar avisos sobre la nota abierta | Crear nota | Como tarea | Crear nota de reunión |
+| pt-BR | Avisos | Mostrar avisos sobre a nota aberta | Criar nota | Como tarefa | Criar nota de reunião |
+| it | Suggerimenti | Mostra suggerimenti per la nota aperta | Crea nota | Come attività | Crea nota della riunione |
+| nl | Hints | Hints bij de open notitie tonen | Notitie maken | Als taak | Vergadernotitie maken |
+| pl | Podpowiedzi | Pokazuj podpowiedzi do otwartej notatki | Utwórz notatkę | Jako zadanie | Utwórz notatkę ze spotkania |
+| zh-CN | 提示 | 为打开的笔记显示提示 | 创建笔记 | 作为任务 | 创建会议笔记 |
+| ja | ヒント | 開いているノートのヒントを表示 | ノートを作成 | タスクとして | 会議ノートを作成 |
+
 Fully local (`ai.mode.*`, AI harness P7-1): the **mode** is a line that says what holds, so its states are named like states — **Cloud**, **Hybrid** — and take the language's own word where it has one; "Hybrid" is not left in English where the
 language declines it. The one switch is **Fully local**: the way the language names a setting that is on or off — not "offline mode" (sync and mail go on), not "private mode" (it says nothing about the vault), not "local only" as a
 noun. What the switch leaves alone **rests**: it stays set up and receives nothing — never "disabled", "blocked" or "removed", which would say that the user has to set it up again. A model's **context window** is the field's own term

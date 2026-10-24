@@ -57,7 +57,7 @@ const contracts = [
  * put it one character too far right for every `\r\n` above it.
  */
 const caretParkers = {
-  desktop: ["components/FileTree.tsx", "components/QuickSwitcher.tsx", "components/BaseViewer.tsx", "components/pimcal/CalendarView.tsx", "services/dailyNotes.ts"],
+  desktop: ["components/FileTree.tsx", "components/QuickSwitcher.tsx", "components/BaseViewer.tsx", "services/pim/meetingNoteOpen.ts", "services/dailyNotes.ts"],
   mobile: ["services/vaultService.ts", "services/baseOps.ts", "services/pim/pimService.ts"],
 } as const;
 

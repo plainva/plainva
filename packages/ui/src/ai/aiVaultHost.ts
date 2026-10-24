@@ -45,6 +45,8 @@ import { createAiVaultStores, type AiFileStore, type InstructionApprovalStore } 
 import { createMcpVaultStore } from "./mcpStores";
 import { createWriteDraftStore, type DraftCreator } from "./aiWrites";
 import type { FolderLogHost } from "./folderLogRun";
+import type { NoteHintsHost } from "./noteHintsHost";
+import { createNoteHintsStore } from "./noteHintsStore";
 import type { WriteRun } from "./writeTools";
 import { CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, unmarkSnippet, withoutBrokenLinks, type ToolScope, type VaultToolDeps } from "./vaultTools";
 
@@ -187,6 +189,8 @@ export interface AiVaultHostInput {
   instructionVersions?: InstructionVersions;
   /** A folder's log (plan KI-Harness P8-2): which notes changed, a note's text before, and the change of the log file; absent where the shell keeps none. */
   log?: FolderLogHost;
+  /** Calm hints at the open note (plan KI-Harness P8-3): the shell's index, calendar and steps; absent where it offers none. */
+  hints?: NoteHintsHost;
   /** What an external agent's session reaches of this vault (plan P4.6); absent where the shell hosts no agents. */
   agents?: { access: AcpVaultAccess; activeNote(): string | null };
 }
@@ -451,6 +455,8 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...(memory ? { memory } : {}),
     // A folder's log (plan P8-2): the shell's index, the vault's version history and the chain's one entry for a change.
     ...(input.log ? { log: input.log } : {}),
+    // Calm hints at the open note (plan P8-3): the shell's steps; what is hidden and paused beside the vault's other AI data.
+    ...(input.hints ? { hints: input.hints, hintPrefs: createNoteHintsStore(input.files, input.vaultKey) } : {}),
     tools(
       recipient: EgressRecipient,
       scope?: ToolScope,

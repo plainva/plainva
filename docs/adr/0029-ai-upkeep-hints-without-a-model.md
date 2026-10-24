@@ -64,6 +64,25 @@ Three facts shape everything.
 - **Memory care without drafting tools, answering in words only.** Rejected: the user would retype what the model found. A draft is the form this app has for what an assistant wants to exist.
 - **Counting every run for "a way gone by hand", also those with a skill or with the internet.** Rejected: a run with a skill is no handwork, and for a run that read strangers' text the step offered could not deliver what the hint promises.
 
+## Addendum 2026-10-24 (hints at the open note)
+
+Plan KI-Harness P8-3 brings the same kind of hint to the open note: what the device notices by itself in the note's text, said without a model, each ending in one step the user takes. The decisions above hold for it; these are its own.
+
+10. **Three things, from the note's text, the index and the calendar.** A link of the note that leads nowhere, asked of the index by the rule a click on it follows — a link to a file that is no note (a picture, a recording, a PDF, a database) is no note to create and no hint; a line that begins with `TODO` and is no task yet, outside the properties block and outside a fenced block; and in today's daily note an appointment of tomorrow that no note is anchored to (`plainva.pim`). At most three, one of each kind first, round by round. A mention of another note without a link is the context graph's offer and a note close in meaning the related notes': neither is said a second time.
+
+11. **Each step is the app's own way, on the click.** "Create note" creates the note where the link will find it, as a click on the link does. "As a task" turns exactly that line into `- [ ] …` where it stands, through the chain's one entry for a change, keeping the note's line ends and its byte order mark — and only while the line still reads as it did when the hint was found; otherwise nothing is changed, and the hint says so. "Create meeting note" does what the calendar does, template and its questions included; questions that were cancelled wrote nothing and are no failure. No step is taken by itself, and none is offered that the app does not take elsewhere already.
+
+12. **A change the assistant writes into a note reaches its editor.** The chain counts the app's own write as its own, so no watcher tells an open editor of it. The assistant's host tells it — for the step of a hint, a rule kept on this device and a folder's log, in both shells —, the way the journal tells it on the desktop; the editor adopts the change as it adopts one made outside.
+
+13. **Off is off, and what rests is this device's.** The hints follow the AI's switch and their own (`noteHints`, on once the AI is on). What is hidden, the notes paused and a paused vault are kept in the app's data per vault (decision 7), and the settings bring each back. A hidden hint returns when its link or its line reads differently.
+
+Consequences of the addendum:
+
+- On the desktop the hints are a section of the right sidebar after Related, which disappears where nothing stands out and stays for a paused note; on the phone a tab of the note's sheet after Related, which says why it is empty.
+- Which files are no notes is a list of endings in the shared host. A note whose name holds a dot (`[[Plan.v2]]`) is a note.
+- Tomorrow's appointments come from the calendar's own store; a calendar that was not synced since yesterday names what it knew then.
+- Nothing of it has run on a device.
+
 ## Links
 
 - ADR 0019, ADR 0020 (decisions 4 and 5), ADR 0032 (decisions 12 to 14), ADR 0028 (decisions 1, 6, 13 and 18).

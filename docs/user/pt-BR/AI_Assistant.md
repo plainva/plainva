@@ -140,6 +140,12 @@ Uma rotina também pode manter o registro de uma pasta. Escolha **Mantém o regi
 
 Um registro não diz nada que as regras próprias de uma nota retenham. O `log.md` não tem regras próprias; para ele valem as regras da pasta em que está. Uma nota com regras mais restritivas do que essas fica totalmente de fora do registro — ela não é mencionada, e nenhum modelo a recebe para escrevê-lo. O que foi removido de uma nota nunca é mostrado a um modelo nem anotado: uma linha que você excluiu continua excluída. Uma pasta que suas regras mantêm longe de um provedor precisa de um modelo neste dispositivo para o registro dela. Mantenha o registro de uma pasta em um único dispositivo — caso contrário, dois dispositivos escrevem a mesma entrada.
 
+## Avisos
+
+Ao lado da nota aberta, o Plainva mostra até três coisas que detecta por conta própria — no desktop, na seção **Avisos** da barra lateral direita, depois de **Relacionadas**; no celular, na aba **Avisos** da folha da nota. Um link na nota que não leva a lugar nenhum: **Criar nota** cria a nota onde o link a encontra, como faria um clique no link. Uma linha que começa com TODO e ainda não é uma tarefa: **Como tarefa** transforma exatamente essa linha em uma tarefa (`- [ ] …`), no mesmo lugar, e não muda mais nada na nota. E, na nota diária de hoje, um compromisso de amanhã que ainda não tem nenhuma nota vinculada: **Criar nota de reunião** faz o que o calendário faz. Nada acontece sem o seu clique, nenhum modelo é consultado e nada sai deste dispositivo. Uma menção a outra nota sem link é oferecida pelo grafo de contexto, e as notas relacionadas, pela seção **Relacionadas** — nenhuma das duas volta a aparecer aqui.
+
+**Por que este aviso?** diz a regra em uma frase e leva até a linha; **Não mostrar mais** oculta exatamente este aviso neste dispositivo — se a linha mudar, ele pode voltar a aparecer. **Pausar para esta nota** e **Pausar neste vault** ficam no menu da seção; no celular, abaixo da lista. **Mostrar avisos sobre a nota aberta**, em **Configurações → IA e automação**, desativa os avisos neste dispositivo; ali você também retoma um vault pausado ou notas pausadas e traz de volta os avisos ocultos.
+
 ## Memória
 
 O que a IA deve saber sobre você sem que você precise repetir — o que você faz, como prefere as respostas — fica guardado na memória do vault: dois arquivos que você pode ler e editar. O que está em **Sempre incluído** entra em toda nova conversa, o resto é consultado quando uma pergunta precisa, e nada entra na memória sem o seu sim. Veja [Memória](AI_Memory.md).

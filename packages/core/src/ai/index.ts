@@ -39,3 +39,4 @@ export * from "./learn/index.js";
 export * from "./upkeep/index.js";
 export * from "./routines.js";
 export * from "./folderLog.js";
+export * from "./noteHints.js";

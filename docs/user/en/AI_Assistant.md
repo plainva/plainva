@@ -140,6 +140,12 @@ A routine can also keep a folder's log. Choose **Keeps a folder's log** in the f
 
 A log says nothing that a note's own rules keep back. `log.md` has no rules of its own; the rules of its folder hold for it. A note that carries stricter rules than that is left out of the log entirely — it is not named, and no model is shown it for the log. What was removed from a note is never shown to a model and never written down: a line you deleted stays deleted. A folder your rules keep from a provider needs a model on this device for its log. Keep a folder's log on one device only — otherwise two devices write the same entry.
 
+## Hints
+
+Beside the open note, Plainva shows up to three things it notices by itself — on the desktop in the section **Hints** of the right sidebar, after **Related**; on the phone in the tab **Hints** of the note's sheet. A link of the note that leads nowhere: **Create note** creates the note where the link will find it, as a click on the link would. A line that begins with TODO and is no task yet: **As a task** turns exactly this line into a task where it stands (`- [ ] …`) and changes nothing else in the note. And in today's daily note, an appointment of tomorrow that no note is connected to: **Create meeting note** does what the calendar does. Nothing happens without your click, no model is asked, and nothing leaves this device. A mention of another note without a link is offered by the context graph, related notes by **Related** — neither appears here a second time.
+
+**Why this hint?** says the rule in one sentence and leads to the line; **Don't show again** hides exactly this hint on this device — if the line changes, it can come back. **Pause for this note** and **Pause in this vault** are in the section's menu, on the phone under the list. **Show hints at the open note** under **Settings → AI & automation** switches the hints off on this device; there you also resume a paused vault or paused notes and bring back hidden hints.
+
 ## Memory
 
 What the AI should know about you without being told again — what you do, how you like your answers — is kept in the vault's memory: two files you can read and edit. What stands under **Always included** goes into every new conversation, the rest is looked up when a question needs it, and nothing gets into it without your yes. See [Memory](AI_Memory.md).

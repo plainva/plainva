@@ -40,6 +40,7 @@ import { getConfiguredNoteType } from "../../services/newNote";
 import { requestSaveFlush } from "../../services/saveFlush";
 import { getTaskDatabasePath } from "../../services/taskDatabase";
 import { providerListLabel, sendTaskToProviderList } from "../../services/pim/taskToProvider";
+import { openMeetingNoteInVault } from "../../services/pim/meetingNoteOpen";
 import { AI_MEMORY_EVENT, AI_OPEN_EVENT, AI_SKILLS_EVENT, AI_WAITING_EVENT, createDesktopVaultHost, getDesktopAiSession, requestWaitingView, type DesktopWriteHost } from "../../services/ai/desktopAi";
 import { configureMcp, listenForMcpCalls, vaultName } from "../../services/ai/mcpBridge";
 import { mcpPlans } from "../../services/ai/mcpPlans";
@@ -126,6 +127,15 @@ export function useDesktopAi(input: DesktopAiInput) {
       if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => undefined);
       triggerFileTreeUpdate([path]);
       notifyFileOps([{ type: "create", path }]);
+    };
+  });
+  // A note the assistant changed where it lies (a rule kept on this device, a folder's log, a TODO line made a task):
+  // the index first — the views read it —, then an open editor of it adopts the change, as the journal tells it.
+  const changed = useRef<(path: string) => Promise<void>>(async () => undefined);
+  useLayoutEffect(() => {
+    changed.current = async (path) => {
+      if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => undefined);
+      window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path, vaultPath: latest.current.vaultPath } }));
     };
   });
   const pim = useRef(pimRuntime);
@@ -267,11 +277,22 @@ export function useDesktopAi(input: DesktopAiInput) {
       },
       openPaths: () => latest.current.layout.panes.flatMap((pane) => pane.tabs.map((tab) => tab.history[tab.historyIndex]).filter((p): p is string => Boolean(p))),
       events: async (from, to) => situationEvents((await pim.current?.cache.listEvents(from.getTime(), to.getTime())) ?? []),
+      // Calm hints at the open note (plan P8-3): tomorrow's appointments as the calendar keeps them, and the
+      // calendar's own way to their meeting note — template and anchor included, the caret parked, the new note in
+      // the index and the tree. Null: the template's questions were cancelled, nothing was written.
+      eventRows: async (from, to) => (await pim.current?.cache.listEvents(from.getTime(), to.getTime())) ?? [],
+      async openMeetingNote(event) {
+        const res = await openMeetingNoteInVault(vaultPath, vaultAdapter, event);
+        if (!res) return null;
+        if (res.created) await created.current(res.path);
+        return res.path;
+      },
       commands,
       db: () => db.current,
       commentOperations: () => comments.current,
       backup: () => backup.current,
       noteCreated: (path) => created.current(path),
+      noteChanged: (path) => changed.current(path),
       semantic: () => latest.current.embeddings ?? null,
       gists: () => latest.current.gists ?? null,
       writes: {

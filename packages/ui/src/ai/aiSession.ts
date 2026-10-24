@@ -298,6 +298,10 @@ import {
   routineSkillFits,
   routineSkillHash,
   routineTools,
+  noteHints,
+  todoLines,
+  type NoteHint,
+  type PimEventRow,
   type Routine,
   type RoutineDraft,
   type RoutineNeed,
@@ -305,6 +309,9 @@ import {
 } from "@plainva/core";
 import { skillView } from "./aiSkills";
 import { logEntryText, logMaterial, type FolderLogHost, type LogMaterial } from "./folderLogRun";
+import type { NoteHintsHost } from "./noteHintsHost";
+import { EMPTY_NOTE_HINTS_PREFS, type NoteHintsPrefs, type NoteHintsStore } from "./noteHintsStore";
+import type { BrokenLinkToCreate } from "../services/graphActions";
 import { AiRoutines, type AiRoutinesState, type RoutineStore } from "./routineSession";
 import { AiAcp, type AcpDrafts, type AcpVaultSide, type AiAcpHost, type AiAcpState } from "./acpSession";
 import { AiMcp, type AiMcpHost, type AiMcpState, type McpPromptReview, type McpPromptStart } from "./mcpSession";
@@ -488,6 +495,13 @@ export interface AiVaultHost {
    * where this shell keeps none.
    */
   log?: FolderLogHost;
+  /**
+   * Calm hints at the open note (plan KI-Harness P8-3): the shell's index,
+   * calendar and steps. Absent where this shell offers none.
+   */
+  hints?: NoteHintsHost;
+  /** What is hidden and paused of those hints, in the app's data for this vault on this device. */
+  hintPrefs?: NoteHintsStore;
   /**
    * The vault's own instructions — skills in `.agent/skills/` and a root
    * `AGENTS.md` — and their approvals on this device (plan KI-Harness P3);
@@ -893,6 +907,8 @@ export interface AiState {
   upkeep: AiUpkeepState;
   /** The routines of this vault on this device (plan P8): the list, the one that runs right now, and the note a run left. */
   routines: AiRoutinesState;
+  /** Calm hints at the open note (plan P8-3): what is hidden and paused on this device; `version` makes the views ask again. */
+  hints: AiNoteHintsState;
 }
 
 /**
@@ -1133,6 +1149,27 @@ export type RoutinePreviewOutcome = { kind: "preview"; preview: RoutinePreview }
 export type RoutineSaved = "saved" | "full" | "failed";
 /** A run of a routine, or why none began. */
 export type RoutineRunOutcome = { kind: "ran"; run: RoutineRun } | { kind: "refused"; reason: "off" | "busy" | "gone" | "not-due" };
+
+/** One hint at the open note as the views show it (plan KI-Harness P8-3), with what its step needs. */
+export interface NoteHintItem extends NoteHint {
+  /** A link that leads nowhere: what creating its note needs. */
+  link?: BrokenLinkToCreate;
+  /** A TODO line as it stood when the hint was found: the step changes it only while it still stands so. */
+  raw?: string;
+  /** Tomorrow's appointment without a note. */
+  event?: PimEventRow;
+}
+/** `off`: the AI or the hints are off on this device, or the shell offers none. */
+export type NoteHintsAnswer = { kind: "off" } | { kind: "vaultPaused" } | { kind: "paused" } | { kind: "hints"; items: NoteHintItem[] };
+/** How a hint's step ended: done where it stands, a note to open, the line no longer that line, the template's questions cancelled (nothing written), or failed. */
+export type NoteHintOutcome = { kind: "done" } | { kind: "opened"; path: string } | { kind: "gone" } | { kind: "cancelled" } | { kind: "failed" };
+/** The hints' bookkeeping on this device for the open vault; `version` moves with every change, so the views ask again. */
+export interface AiNoteHintsState {
+  available: boolean;
+  prefs: NoteHintsPrefs;
+  version: number;
+}
+export const EMPTY_NOTE_HINTS_STATE: AiNoteHintsState = { available: false, prefs: EMPTY_NOTE_HINTS_PREFS, version: 0 };
 /** How one run of a routine ended, with the conversation it left in the history. */
 /** `coveredAt`: for a folder's log, the instant its changes were read — the next entry looks from there. */
 type RoutineEnd = Omit<RoutineRun, "scheduledFor" | "at"> & { conversationId?: string; coveredAt?: string };
@@ -1274,6 +1311,7 @@ export class AiSession {
       learnLog: false,
       upkeep: EMPTY_UPKEEP_STATE,
       routines: this.routines.state,
+      hints: EMPTY_NOTE_HINTS_STATE,
     };
   }
 
@@ -1547,6 +1585,8 @@ export class AiSession {
       learning: null,
       learnLog: false,
       upkeep: EMPTY_UPKEEP_STATE,
+      // Another vault's hidden and paused hints are not this one's: none until its own are read.
+      hints: { available: Boolean(vault?.hints && vault.hintPrefs), prefs: EMPTY_NOTE_HINTS_PREFS, version: this.state.hints.version + 1 },
     });
     this.upkeepPlan = null;
     this.fillAbort?.abort();
@@ -1566,6 +1606,7 @@ export class AiSession {
     void this.loadWebSettings(vault);
     void this.loadDrafts(vault);
     void this.refreshMemory();
+    void this.loadHintPrefs(vault);
     const summaries: ConversationSummary[] = await vault.conversations.list().catch(() => []);
     const old = expiredConversations(summaries, this.state.settings.historyDays, this.host.now());
     for (const id of old) await vault.conversations.remove(id).catch(() => undefined);
@@ -3721,6 +3762,109 @@ export class AiSession {
       return { outcome: "failed", failure: "note", ...left };
     }
     return { outcome: "answered", note: path, noteTitle: path, coveredAt: new Date(material.asOf).toISOString(), ...left };
+  }
+
+  // ------------------------------------------------------------ calm hints at the open note
+
+  /** This vault's hidden and paused hints, read from this device's data. */
+  private async loadHintPrefs(vault: AiVaultHost): Promise<void> {
+    const prefs = vault.hintPrefs ? await vault.hintPrefs.load().catch(() => EMPTY_NOTE_HINTS_PREFS) : EMPTY_NOTE_HINTS_PREFS;
+    if (this.vault !== vault) return;
+    this.set({ hints: { ...this.state.hints, prefs, version: this.state.hints.version + 1 } });
+  }
+
+  /** One change of what is hidden and paused: from what this device keeps now, written back, and every view asks again. */
+  private async changeHintPrefs(change: (prefs: NoteHintsPrefs) => NoteHintsPrefs): Promise<void> {
+    const vault = this.vault;
+    const store = vault?.hintPrefs;
+    if (!vault || !store) return;
+    const prefs = change(await store.load().catch(() => this.state.hints.prefs));
+    await store.save(prefs).catch(() => undefined);
+    if (this.vault === vault) this.set({ hints: { ...this.state.hints, prefs, version: this.state.hints.version + 1 } });
+  }
+
+  /**
+   * The calm hints at a note (plan KI-Harness P8-3, mockup chapter 25): what
+   * this device notices by itself in the note's text as it stands now — a
+   * link that leads nowhere, a line that begins with TODO — and, in today's
+   * daily note, tomorrow's appointments no note is anchored to. No model is
+   * asked and nothing leaves the device. At most three, none that was hidden.
+   */
+  async noteHints(path: string, content: string): Promise<NoteHintsAnswer> {
+    const vault = this.vault;
+    const host = vault?.hints;
+    if (!this.state.settings.enabled || !this.state.settings.noteHints || !vault || !host || !vault.hintPrefs) return { kind: "off" };
+    const prefs = this.state.hints.prefs;
+    if (prefs.vaultPaused) return { kind: "vaultPaused" };
+    if (prefs.pausedNotes.includes(path)) return { kind: "paused" };
+    const todos = todoLines(content);
+    const [links, today] = await Promise.all([host.brokenLinks(path, content).catch(() => []), host.isTodaysDailyNote(path).catch(() => false)]);
+    const meetings = today ? await host.meetingsTomorrow().catch((): PimEventRow[] => []) : [];
+    const hints = noteHints({
+      path,
+      links: links.map((link) => ({ label: link.label, line: link.line })),
+      todos: todos.map((todo) => ({ line: todo.line, rest: todo.todo.rest })),
+      meetings: meetings.map((event) => ({ uid: event.uid, title: event.title })),
+      dismissed: new Set(prefs.dismissed),
+    });
+    const items = hints.map((hint): NoteHintItem => {
+      if (hint.kind === "link") return { ...hint, link: links.find((link) => link.label === hint.subject)?.link };
+      if (hint.kind === "todo") return { ...hint, raw: todos.find((todo) => todo.line === hint.line)?.raw };
+      return { ...hint, event: meetings.find((event) => event.title === hint.subject && hint.key.endsWith(`\n${event.uid}`)) };
+    });
+    return { kind: "hints", items };
+  }
+
+  /** The one step of a hint — the app's own way, on the user's click. Every view asks again afterwards. */
+  async actOnNoteHint(path: string, item: NoteHintItem): Promise<NoteHintOutcome> {
+    const host = this.vault?.hints;
+    if (!host) return { kind: "failed" };
+    try {
+      if (item.kind === "link" && item.link) {
+        const made = await host.createLinkTarget(item.link);
+        return made ? { kind: "opened", path: made } : { kind: "failed" };
+      }
+      if (item.kind === "todo" && item.raw !== undefined && item.line !== null) {
+        return (await host.todoAsTask(path, item.line, item.raw)) ? { kind: "done" } : { kind: "gone" };
+      }
+      if (item.kind === "meeting" && item.event) {
+        // Null is the template's questions cancelled: nothing was written, and nothing went wrong.
+        const note = await host.createMeetingNote(item.event);
+        return note ? { kind: "opened", path: note } : { kind: "cancelled" };
+      }
+      return { kind: "failed" };
+    } catch {
+      return { kind: "failed" };
+    } finally {
+      this.set({ hints: { ...this.state.hints, version: this.state.hints.version + 1 } });
+    }
+  }
+
+  /** "Don't show again": exactly this hint, on this device. */
+  dismissNoteHint(key: string): Promise<void> {
+    return this.changeHintPrefs((prefs) => ({ ...prefs, dismissed: [...prefs.dismissed.filter((other) => other !== key), key] }));
+  }
+
+  pauseNoteHints(path: string): Promise<void> {
+    return this.changeHintPrefs((prefs) => ({ ...prefs, pausedNotes: [...prefs.pausedNotes.filter((other) => other !== path), path] }));
+  }
+
+  resumeNoteHints(path: string): Promise<void> {
+    return this.changeHintPrefs((prefs) => ({ ...prefs, pausedNotes: prefs.pausedNotes.filter((other) => other !== path) }));
+  }
+
+  setNoteHintsVaultPaused(paused: boolean): Promise<void> {
+    return this.changeHintPrefs((prefs) => ({ ...prefs, vaultPaused: paused }));
+  }
+
+  /** Every hint that was hidden comes back. */
+  restoreNoteHints(): Promise<void> {
+    return this.changeHintPrefs((prefs) => ({ ...prefs, dismissed: [] }));
+  }
+
+  /** Every paused note shows its hints again. */
+  resumeAllNoteHints(): Promise<void> {
+    return this.changeHintPrefs((prefs) => ({ ...prefs, pausedNotes: [] }));
   }
 
   /**

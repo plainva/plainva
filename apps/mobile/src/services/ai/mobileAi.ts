@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import i18n from "@plainva/ui/i18n";
-import { MCP_OAUTH_CLIENT_DOCUMENT } from "@plainva/core";
+import { MCP_OAUTH_CLIENT_DOCUMENT, withTodoAsTask } from "@plainva/core";
 import {
   aiDefaultSettings,
   aiNavigationCommands,
@@ -11,16 +11,20 @@ import {
   adapterInstructionIO,
   adapterInstructionVersions,
   adapterInstructionWriter,
+  brokenLinksIn,
   createAiVaultHost,
+  createBrokenLinkTarget,
   createMcpDeviceStore,
   createVaultPolicy,
   createWorkerSandbox,
   dailyNotePathFor,
   databaseTaskRows,
+  eventStartDayKey,
   flushPendingSave,
   folderLogHost,
   getPlatformServices,
   journalToday,
+  meetingsWithoutNote,
   noteDisplayName,
   parseRecentsFile,
   plannerRowsFromTasks,
@@ -62,6 +66,7 @@ import { useMobileEmbeddings } from "./mobileEmbeddings";
 import { useMobileGists } from "./mobileGists";
 import { mobileDraftCreator, mobileProposals, mobileWriteDeps, type MobileDraftNavigation } from "./mobileAiWrites";
 import { mobileScriptKeys } from "./mobileScriptKeys";
+import { syncSoon } from "../syncService";
 
 /**
  * The phone's AI session (plan KI-Harness P1a). The same store as on the
@@ -378,6 +383,12 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
     // a note reads. A vault without one keeps no versions; the way back is then the copy the approval holds while the
     // new version is watched — and a folder's log shows a changed note's beginning instead of what it gained.
     const versions = vault.backup ? adapterInstructionVersions(vault.adapter, () => vault.backup) : null;
+    /**
+     * A note the assistant changed where it lies — a rule kept on this device, a folder's log, a TODO line made a
+     * task: an open editor of it adopts the change. The chain counts the write as the app's own, so nothing else
+     * tells the editor (the desktop tells its editor the same way).
+     */
+    const changedHere = (path: string) => window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path, vaultId: vault.vaultId } }));
     const host = createAiVaultHost({
       files: mobileAiFiles,
       vaultKey: aiVaultKey(vault.vaultId),
@@ -398,9 +409,46 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
             return made;
           }
           const update = await vaultOps.update(vault, path, (text) => change(text));
+          if (update.changed) changedHere(path);
           return update.changed ? update.text : null;
         },
       }),
+      // Calm hints at the open note (plan KI-Harness P8-3), as on the desktop: each step the way the phone already
+      // takes it — the note a broken link names as the clean-up view creates it, a TODO line changed where it stands
+      // through the chain's one entry, the meeting note the calendar's way (template, anchor, caret).
+      hints: {
+        brokenLinks: (path, content) => brokenLinksIn(query, path, content),
+        async isTodaysDailyNote(path) {
+          const settings = getMobileSettings();
+          return dailyNotePathFor(journalToday(new Date()), { folder: settings.dailyFolder, format: settings.dailyFormat }) === path;
+        },
+        async meetingsTomorrow() {
+          const now = new Date();
+          const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+          const to = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
+          const rows = await import("../pim/pimService")
+            .then(({ listPimEvents }) => listPimEvents(from.getTime(), to.getTime()))
+            .catch(() => []);
+          return meetingsWithoutNote(rows, () => query.getTaskAnchors());
+        },
+        async createLinkTarget(link) {
+          const made = await createBrokenLinkTarget(vault.files, query, link, configuredNoteType());
+          if (made) syncSoon();
+          return made;
+        },
+        async todoAsTask(path, line, raw) {
+          // The editor's pending keystrokes land first: the line is changed in the text as it is.
+          await flushPendingSave(path);
+          const update = await vaultOps.update(vault, path, (text) => withTodoAsTask(text, line, raw));
+          if (update.changed) changedHere(path);
+          return update.changed;
+        },
+        async createMeetingNote(event) {
+          // The meeting's first day as both shells name it (eventStartDayKey); null: the template's questions were cancelled.
+          const { openMeetingNoteFor } = await import("../pim/pimService");
+          return (await openMeetingNoteFor(event, eventStartDayKey(event)))?.path ?? null;
+        },
+      },
       policy: vaultPolicy,
       activeNote: async () => (sheetNote ? note(sheetNote) : null),
       readNote: note,
@@ -423,7 +471,8 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         // The editor's pending keystrokes land first; the save is the conflict-aware chain, synced like any edit.
         await flushPendingSave(path);
         // Through the chain's one entry for a change, as a rule of a note from a plan is written (Sammelplan 3.87).
-        await vaultOps.update(vault, path, (text) => withCloudDenied(text));
+        const update = await vaultOps.update(vault, path, (text) => withCloudDenied(text));
+        if (update.changed) changedHere(path);
       },
       // The phone's situation: the note the sheet opened over (one editor at a
       // time, no tabs), due tasks, the next appointments, today's daily note.

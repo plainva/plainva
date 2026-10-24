@@ -32,6 +32,7 @@ import { AiModeCard } from "./AiModeCard";
 import { ExternalAgentsCard } from "./ExternalAgentsCard";
 import { McpSettingsCard } from "./McpSettingsCard";
 import { SemanticSearchCard } from "./SemanticSearchCard";
+import { NoteHintsCard } from "./NoteHintsCard";
 import { GistsCard } from "./GistsCard";
 
 /**
@@ -178,6 +179,8 @@ function AiSettingsBody({ session }: { session: AiSession }) {
       </SettingCard>
 
       {settings.enabled && <SemanticSearchCard session={session} onChooseModel={() => setModelFor(AI_EMBEDDING_PROFILE)} />}
+      {/* Calm hints at the open note (plan KI-Harness P8-3): no model, so they need no card of their own above. */}
+      {settings.enabled && <NoteHintsCard session={session} />}
       {settings.enabled && <GistsCard session={session} />}
       {settings.enabled && <McpSettingsCard session={session} enabled={settings.mcpEnabled} resting={settings.localOnly} />}
       {/* External agents (plan KI-Harness P4.6): which programs of other makers this computer may start in a vault. */}

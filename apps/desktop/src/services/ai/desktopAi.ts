@@ -2,8 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, remove } from "@tauri-apps/plugin-fs";
 import i18n from "@plainva/ui/i18n";
-import { acpToolbox, AI_POLICY_DIMENSIONS, MCP_OAUTH_CLIENT_DOCUMENT, updateVaultText } from "@plainva/core";
-import type { AiAppSettings, CommentOperationService, IDatabaseAdapter, IVaultAdapter, VaultQueryService, WorkspaceCommentRecord } from "@plainva/core";
+import { acpToolbox, AI_POLICY_DIMENSIONS, MCP_OAUTH_CLIENT_DOCUMENT, updateVaultText, withTodoAsTask } from "@plainva/core";
+import type { AiAppSettings, CommentOperationService, IDatabaseAdapter, IVaultAdapter, PimEventRow, VaultQueryService, WorkspaceCommentRecord } from "@plainva/core";
 import type { EventSeed, LocalEmbeddings, LocalGists } from "@plainva/ui";
 import {
   aiDefaultSettings,
@@ -18,6 +18,9 @@ import {
   adapterInstructionIO,
   adapterInstructionVersions,
   adapterInstructionWriter,
+  brokenLinksIn,
+  createBrokenLinkTarget,
+  meetingsWithoutNote,
   createAcpDeviceStore,
   createAiVaultHost,
   createMcpDeviceStore,
@@ -261,6 +264,10 @@ export interface DesktopVaultInput {
   openPaths: () => string[];
   /** Appointments between two instants (the PIM cache); empty without one. */
   events: (from: Date, to: Date) => Promise<SituationEventInput[]>;
+  /** The same appointments as the calendar keeps them, for the calm hints at the open note (plan P8-3); absent, none. */
+  eventRows?: (from: Date, to: Date) => Promise<PimEventRow[]>;
+  /** The calendar's way to an appointment's meeting note — template and anchor included; answers the note's path. */
+  openMeetingNote?: (event: PimEventRow) => Promise<string | null>;
   /** Navigation the assistant may trigger: views and notes, nothing that changes data. */
   commands: () => AiNavigationCommand[];
   /** The vault's index database, where the mail client keeps its offline copy; null while there is none. */
@@ -271,6 +278,12 @@ export interface DesktopVaultInput {
   backup?: () => { ensureSnapshot(path: string): Promise<void> } | null;
   /** Makes a note the assistant's "Keep as a note" wrote known to the index and the file tree (plan P4-6). */
   noteCreated?: (path: string) => Promise<void>;
+  /**
+   * A note the assistant changed where it lies — a rule kept on this device, a folder's log, a TODO line made a
+   * task: the index learns it, and an open editor of it adopts the change. The chain counts the write as the
+   * app's own, so no watcher tells the editor (the journal tells it the same way).
+   */
+  noteChanged?: (path: string) => Promise<void>;
   /** The vault's search by meaning, for the context package (plan P2b); null while there is none. */
   semantic?: () => LocalEmbeddings | null;
   /** The vault's gists by the model on this computer, for the context package (plan P2b-3); null while there are none. */
@@ -444,6 +457,11 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
     }
   };
   const versions = adapterInstructionVersions(input.adapter, () => input.backup?.() ?? null);
+  /** Today's daily note of this vault, by its settings; null where it cannot be told. */
+  const todaysDailyNote = async (): Promise<string | null> => {
+    const config = await readDailyNoteConfig(input.vaultPath).catch(() => null);
+    return config ? buildDailyNotePath(journalToday(new Date()), config.format, config.folder).fullPath : null;
+  };
   const host = createAiVaultHost({
     files: desktopAiFiles,
     vaultKey: aiVaultKey(input.vaultPath),
@@ -467,9 +485,37 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
           return made;
         }
         const update = await updateVaultText(input.adapter, path, (text) => change(text));
+        if (update.changed) await input.noteChanged?.(path);
         return update.changed ? update.text : null;
       },
     }),
+    // Calm hints at the open note (plan KI-Harness P8-3): each step the way the app already takes it — the note a
+    // broken link names as a click creates it, a TODO line changed where it stands through the chain's one entry,
+    // the meeting note the calendar's way.
+    hints: {
+      brokenLinks: (path, content) => brokenLinksIn(input.query, path, content),
+      isTodaysDailyNote: async (path) => (await todaysDailyNote()) === path,
+      async meetingsTomorrow() {
+        if (!input.eventRows) return [];
+        const now = new Date();
+        const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+        const to = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
+        return meetingsWithoutNote(await input.eventRows(from, to), () => input.query.getTaskAnchors());
+      },
+      async createLinkTarget(link) {
+        const made = await createBrokenLinkTarget(input.adapter, input.query, link, await getConfiguredNoteType(input.vaultPath));
+        if (made) await input.noteCreated?.(made);
+        return made;
+      },
+      async todoAsTask(path, line, raw) {
+        // The editor's pending keystrokes land first: the line is changed in the text as it is.
+        await flushPendingSave(path);
+        const update = await updateVaultText(input.adapter, path, (text) => withTodoAsTask(text, line, raw));
+        if (update.changed) await input.noteChanged?.(path);
+        return update.changed;
+      },
+      createMeetingNote: async (event) => (input.openMeetingNote ? input.openMeetingNote(event) : null),
+    },
     policy,
     async activeNote() {
       const path = input.activePath();
@@ -575,7 +621,8 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       // The editor's pending keystrokes land first, so the rule is written into the live text.
       await flushPendingSave(path);
       // Through the chain's one entry for a change, as a rule of a note from a plan is written (Sammelplan 3.87).
-      await updateVaultText(input.adapter, path, (text) => withCloudDenied(text));
+      const update = await updateVaultText(input.adapter, path, (text) => withCloudDenied(text));
+      if (update.changed) await input.noteChanged?.(path);
     },
     async situation() {
       const now = new Date();

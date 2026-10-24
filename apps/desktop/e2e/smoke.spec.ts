@@ -7511,3 +7511,108 @@ test('AI routines: a log of the whole vault — set up without a skill, run now:
   await expect(row.getByTestId('settings-ai-routine-status')).toContainText(/Last today .+ — entry in log\.md/);
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-routine-log-ran-desktop.png'), animations: 'disabled' });
 });
+
+// --- Calm hints at the open note (plan KI-Harness P8-3, mockup chapter 25) ------
+// What the device notices by itself, without a model: a link that leads
+// nowhere, a TODO line that is no task yet. Each hint has the one step the app
+// already knows, done on the click — and a step that changes the open note
+// reaches its editor, although the chain counts the write as the app's own.
+test('AI hints: beside the open note a link that leads nowhere and two TODO lines, each one step on a click; hidden, brought back, paused, switched off — and nothing sent', async ({ page }) => {
+  await page.addInitScript(() => {
+    // The AI is on for this device; no model is set up — the hints need none.
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true } };
+    (window as any).mockFs['/test-vault/Plan.md'] = '# Plan\n\nSee [[Kickoff]] and [[Welcome]].\nTODO: call Tom\nTODO send the offer\n';
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(String(args.request.endpointId));
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+  const tree = page.getByTestId('file-tree');
+  await expect(tree.getByText('Plan', { exact: true })).toBeVisible({ timeout: 15000 });
+  await tree.getByText('Plan', { exact: true }).click();
+  await expect(page.locator('.cm-content')).toContainText('TODO: call Tom');
+  const plan = () => page.evaluate(() => (window as any).mockFs['/test-vault/Plan.md'] as string);
+
+  // 1. The section after "Related", with its count; its menu is named for what it holds, not twice "Hints".
+  const header = page.getByRole('button', { name: /^Hints\s*\d*$/ });
+  await expect(header).toBeVisible();
+  await expect(header).toContainText('3');
+  await header.click();
+  const list = page.getByTestId('hints-list');
+  const rows = list.getByTestId('hints-row');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0)).toContainText('[[Kickoff]] leads nowhere');
+  await expect(rows.nth(0)).toContainText('Line 3');
+  await expect(rows.nth(1)).toContainText('“call Tom”');
+  await expect(rows.nth(1)).toContainText('Line 4 begins with TODO');
+  await expect(rows.nth(2)).toContainText('“send the offer”');
+  await expect(page.getByTestId('hints-menu')).toHaveAttribute('aria-label', 'Hints at the open note');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-hints-section-desktop.png'), animations: 'disabled' });
+
+  // 2. Why: the rule in a sentence, on this device and without a model. "Don't show again" hides exactly this one.
+  await rows.nth(2).getByTestId('hints-why').click();
+  const why = rows.nth(2).getByTestId('hints-why-panel');
+  await expect(why).toContainText('Line 5 begins with “TODO” and is no task yet.');
+  await expect(why).toContainText('noticed on this device · no model');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-hints-why-desktop.png'), animations: 'disabled' });
+  await why.getByTestId('hints-dismiss').click();
+  await expect(rows).toHaveCount(2);
+
+  // 3. "As a task": exactly that line, where it stands — and the open editor shows it.
+  await rows.nth(1).getByTestId('hints-act').click();
+  await expect.poll(plan).toBe('# Plan\n\nSee [[Kickoff]] and [[Welcome]].\n- [ ] call Tom\nTODO send the offer\n');
+  await expect(page.locator('.cm-content')).not.toContainText('TODO: call Tom');
+  await expect(page.locator('.cm-content')).toContainText('call Tom');
+  await expect(rows).toHaveCount(1);
+
+  // 4. "Create note": where the link finds it, as a click on the link would — and it opens.
+  await rows.nth(0).getByTestId('hints-act').click();
+  await expect.poll(() => page.evaluate(() => typeof (window as any).mockFs['/test-vault/Kickoff.md'])).toBe('string');
+  await expect(tree.getByText('Kickoff', { exact: true })).toBeVisible();
+  await tree.getByText('Plan', { exact: true }).click();
+  await expect(page.locator('.cm-content')).toContainText('send the offer');
+  // Nothing stands out any more: the section disappears.
+  await expect(header).toHaveCount(0);
+
+  // 5. The settings: the hidden hint is counted there, and comes back.
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).first().click();
+  const show = dialog.getByTestId('hints-show');
+  await show.scrollIntoViewIfNeeded();
+  await expect(show).toHaveAttribute('aria-checked', 'true');
+  await expect(dialog).toContainText('1 hint hidden');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-hints-settings-desktop.png'), animations: 'disabled' });
+  await dialog.getByTestId('hints-settings-restore').click();
+  await expect(dialog.getByTestId('hints-settings-restore')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(header).toBeVisible();
+  await expect(rows).toHaveCount(1);
+  await expect(rows.nth(0)).toContainText('“send the offer”');
+
+  // 6. Paused for this note, from the section's menu: the section says so and has the way back.
+  await page.getByTestId('hints-menu').click();
+  await page.getByTestId('hints-pause-note').click();
+  await expect(page.getByTestId('hints-state')).toContainText('Paused for this note.');
+  await page.getByTestId('hints-resume-note').click();
+  await expect(rows).toHaveCount(1);
+
+  // 7. Switched off on this device: the section is gone.
+  await page.keyboard.press('Control+,');
+  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).first().click();
+  await dialog.getByTestId('hints-show').scrollIntoViewIfNeeded();
+  await dialog.getByTestId('hints-show').click();
+  await expect(dialog.getByTestId('hints-show')).toHaveAttribute('aria-checked', 'false');
+  await page.keyboard.press('Escape');
+  await expect(header).toHaveCount(0);
+
+  // No model was asked, by anything of it.
+  expect(await page.evaluate(() => (window as any).__aiRequests)).toEqual([]);
+});

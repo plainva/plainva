@@ -277,6 +277,12 @@ export interface AiAppSettings {
    */
   relatedNotes: boolean;
   /**
+   * Calm hints at the open note (plan P8-3): what this device notices by
+   * itself — a link that leads nowhere, a line with TODO, tomorrow's
+   * appointment without a note. No model, nothing is sent.
+   */
+  noteHints: boolean;
+  /**
    * Gists for the AI's context (plan P2b-3), written by the model of the
    * profile "Local" only when it runs on this computer; off until chosen.
    */
@@ -319,6 +325,7 @@ export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
   semanticModel: null,
   searchMode: DEFAULT_SEARCH_MODE,
   relatedNotes: true,
+  noteHints: true,
   gists: false,
   transcriptSummary: false,
   systemFind: false,
@@ -380,6 +387,7 @@ export function readAiAppSettings(raw: unknown, defaults: AiAppSettings = DEFAUL
       typeof value.semanticModel === "string" && (value.semanticModel === SEMANTIC_BY_PROVIDER || embeddingModel(value.semanticModel)) ? value.semanticModel : defaults.semanticModel,
     searchMode: isSearchMode(value.searchMode) ? value.searchMode : defaults.searchMode,
     relatedNotes: typeof value.relatedNotes === "boolean" ? value.relatedNotes : defaults.relatedNotes,
+    noteHints: typeof value.noteHints === "boolean" ? value.noteHints : defaults.noteHints,
     gists: typeof value.gists === "boolean" ? value.gists : defaults.gists,
     transcriptSummary: typeof value.transcriptSummary === "boolean" ? value.transcriptSummary : defaults.transcriptSummary,
     systemFind: typeof value.systemFind === "boolean" ? value.systemFind : defaults.systemFind,

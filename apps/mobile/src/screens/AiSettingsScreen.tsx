@@ -27,6 +27,7 @@ import {
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { MobileSemanticSection } from "../components/MobileSemanticSection";
+import { MobileNoteHintsSection } from "../components/MobileNoteHintsSection";
 import { MobileGistsSection } from "../components/MobileGistsSection";
 import { MobileSystemAssistantSection } from "../components/MobileSystemAssistantSection";
 import { getMobileAiSession } from "../services/ai/mobileAi";
@@ -358,6 +359,8 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
         <p className="m-hint">{t("ai.settings.embeddingHint")}</p>
 
         {settings.enabled && <MobileSemanticSection session={session} onChooseModel={() => void chooseModel(AI_EMBEDDING_PROFILE)} />}
+        {/* Calm hints at the open note (plan KI-Harness P8-3): no model, beside the related notes as on the desktop. */}
+        {settings.enabled && <MobileNoteHintsSection session={session} />}
         {settings.enabled && <MobileGistsSection session={session} />}
         {settings.enabled && <MobileSystemAssistantSection session={session} />}
 

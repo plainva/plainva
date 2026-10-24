@@ -21,9 +21,12 @@ import {
   backlinkContexts,
   contextChain,
   groupBacklinks,
+  NoteHintsActions,
+  NoteHintsList,
   RelatedNotesActions,
   RelatedNotesList,
   setPendingSearchJump,
+  useNoteHints,
   useRelatedNotes,
   type BacklinkContext,
   BACKLINK_SORT_KEYS,
@@ -49,12 +52,12 @@ import { RowActionSheet } from "./RowActionSheet";
 import { useLongPress } from "../lib/useLongPress";
 import { NoteDatabasesSection } from "./NoteDatabasesSection";
 import { NoteAiSegment } from "./NoteAiSegment";
-import { useMobileAiEnabled } from "../services/ai/mobileAi";
+import { getMobileAiSession, useMobileAiEnabled } from "../services/ai/mobileAi";
 import { SortSheet } from "./SortSheet";
 import { ContextGraph } from "./ContextGraph";
 import { VersionsPanel } from "./VersionsPanel";
 
-export type ContextTab = "props" | "backlinks" | "related" | "outline" | "databases" | "graph" | "history" | "ai";
+export type ContextTab = "props" | "backlinks" | "related" | "hints" | "outline" | "databases" | "graph" | "history" | "ai";
 
 /** OKF system fields stay read-only everywhere (desktop parity). */
 const LOCKED = new Set(["type", "okf_version"]);
@@ -103,6 +106,7 @@ export function NoteContextSheet({
   commentCounts,
   onCommentProperty,
   docked = false,
+  noteText,
 }: {
   vault: MobileVault;
   path: string;
@@ -128,6 +132,9 @@ export function NoteContextSheet({
   onCommentProperty?: (key: string) => void;
   /** Third column instead of a sheet: no backdrop, no grip, no dismiss. */
   docked?: boolean;
+  /** The note's text as its editor holds it (the note screen's document): the hints follow what is typed beside a
+   * docked panel. Absent, the file's text as the sheet read it. */
+  noteText?: string | null;
 }) {
   const { t, i18n } = useTranslation();
   const [tab, setTab] = useState<ContextTab>(initialTab);
@@ -135,6 +142,10 @@ export function NoteContextSheet({
   const aiOn = useMobileAiEnabled();
   // Related notes (plan KI-Harness P2b-4): the desktop section's counterpart, a tab while the AI is on.
   const related = useRelatedNotes(aiOn ? path : null);
+  // Calm hints at the open note (plan KI-Harness P8-3): the desktop section's counterpart, a tab while the AI is on.
+  const [fileText, setFileText] = useState<string | null>(null);
+  const hintSession = aiOn ? getMobileAiSession() : null;
+  const hints = useNoteHints(hintSession, aiOn ? path : null, noteText ?? fileText);
   const [props, setProps] = useState<Array<[string, unknown]>>([]);
   // A block that cannot be read as properties is said as such — the desktop's
   // panel asks the same question and says the same sentence (ADR 0009,
@@ -192,7 +203,10 @@ export function NoteContextSheet({
       // (maintainer: the added property stayed invisible). Backlinks still
       // need the index — they span other notes.
       const text = await vaultOps.read(vault, path).catch(() => "");
-      if (!stale) setHeadings(parseHeadings(text));
+      if (!stale) {
+        setHeadings(parseHeadings(text));
+        setFileText(text);
+      }
       const fm = extractFrontmatter(parseMarkdownAst(text));
       const raw = (fm.success && fm.data ? fm.data : {}) as Record<string, unknown>;
       const rows = (Object.entries(raw) as Array<[string, unknown]>).filter(([k]) => !isHiddenProp(k));
@@ -356,6 +370,7 @@ export function NoteContextSheet({
               { value: "props", label: t("rightPanel.properties") },
               { value: "backlinks", label: t("rightPanel.backlinks") },
               ...(aiOn ? [{ value: "related", label: t("rightPanel.related") }] : []),
+              ...(aiOn ? [{ value: "hints", label: t("rightPanel.hints") }] : []),
               { value: "outline", label: t("rightPanel.outline") },
               { value: "databases", label: t("rightPanel.databases") },
               { value: "graph", label: t("rightPanel.graph") },
@@ -623,6 +638,26 @@ export function NoteContextSheet({
                 }}
               />
               <RelatedNotesActions path={path} answer={related} />
+            </>
+          )}
+
+          {tab === "hints" && hintSession && (
+            <>
+              <NoteHintsList
+                session={hintSession}
+                path={path}
+                answer={hints}
+                showStates
+                onOpenNote={(target) => {
+                  onClose();
+                  onOpenNote(target);
+                }}
+                onJump={(jump) => {
+                  onClose();
+                  onJumpToLine(jump.line);
+                }}
+              />
+              <NoteHintsActions session={hintSession} path={path} answer={hints} />
             </>
           )}
 

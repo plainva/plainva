@@ -5,7 +5,7 @@ import { CalendarRange, ChevronLeft, Diamond, ChevronRight, Link2, ListChecks, M
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { errorText, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, markFreshNote, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
+import { errorText, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
 import { PimConflictError, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
 import {
   blockLinkKey,
@@ -34,7 +34,7 @@ import { compareDueTasks, loadTaskOverlay, type DueTask } from "../../services/p
 import { tickNoteTask, toggleTaskDone } from "../../services/taskCompletion";
 import type { TaskCompletionModel } from "../../services/taskDatabase";
 import { usePageWheel } from "./pageWheel";
-import { calendarDay, consumePendingNew, checkboxJumpTerm, parkTemplateCaret, setPendingSearchJump, TaskStateIcon, CALENDAR_GOTO_EVENT, consumeEventSeed, consumePendingCalendarDay, eventFormFromSeed } from "@plainva/ui";
+import { calendarDay, consumePendingNew, checkboxJumpTerm, setPendingSearchJump, TaskStateIcon, CALENDAR_GOTO_EVENT, consumeEventSeed, consumePendingCalendarDay, eventFormFromSeed } from "@plainva/ui";
 import { isAuthorizationFailure, runCalendarBlocks } from "../../services/pim/blockCalendars";
 import { eventStateClass, eventStateLabelKey, eventVisualState } from "@plainva/ui";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -1422,10 +1422,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         // Folder, template and rules are read by the vault-bound service; the
         // note itself comes from the builder the phone shares (E24).
         const res = await openMeetingNoteInVault(vaultPath, vaultAdapter, e);
-        if (!res) return; // the template's questions were cancelled — nothing was written
-        if (res.caret) parkTemplateCaret(res.path, res.caret.note, res.caret.offset);
-        // A meeting note just written opens to be written in (wish 2026-10-19).
-        if (res.created) markFreshNote(res.path);
+        // Cancelled questions wrote nothing; the caret and the mark of a new note are set where it was made.
+        if (!res) return;
         if (res.created) {
           if (indexer) await applyIndexChanges(indexer, { added: [res.path] }).catch(() => undefined);
           triggerFileTreeUpdate([res.path]);

@@ -1841,6 +1841,7 @@ export function NoteScreen({
             window.dispatchEvent(new CustomEvent("m-editor-goto-line", { detail: { vaultId: vault.vaultId, path, line } }))
           }
           onOpenNote={onOpenNote}
+          noteText={doc}
           onRestored={readAgain}
           path={path}
           vault={vault}
@@ -1870,6 +1871,7 @@ export function NoteScreen({
           window.dispatchEvent(new CustomEvent("m-editor-goto-line", { detail: { vaultId: vault.vaultId, path, line } }))
         }
         onOpenNote={onOpenNote}
+        noteText={doc}
         onRestored={readAgain}
         path={path}
         vault={vault}
