@@ -1,22 +1,24 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { seedExampleNote, waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
 
 /**
  * Routines on the phone (AI harness P8-1), in the production bundle: the
  * section of the vault's AI settings, the sheet that sets one up in two steps
  * — the form, then what holds for a run nobody watches —, a run started by
  * hand that reads, asks nothing and leaves a note, and the line in the
- * conversation that says its result is ready.
+ * conversation that says its result is ready. And a folder's log (P8-2): set
+ * up without a skill, it shows the model what changed in one request without
+ * a tool, and the app writes the entry into `log.md`.
  *
  * The model is the native `AiNet` plugin, which a browser does not have. This
  * test stands in for it at the seam Capacitor offers, as a server under the
- * phone's own address: it keeps every request with the tools it offered, and
- * answers from a script.
+ * phone's own address: it keeps every request with the tools it offered and
+ * what it said, and answers from a script.
  */
 
 interface Seam {
-  requests: { endpoint: string; tools: string[] }[];
+  requests: { endpoint: string; tools: string[]; said: string }[];
 }
 type SeamGlobals = typeof globalThis & { __seam: Seam };
 
@@ -54,13 +56,13 @@ async function installSeam(context: BrowserContext, script: string[]): Promise<v
           if (method === "hasKey") return { present: false };
           return {};
         },
-        nativeCallback(_plugin: string, _method: string, options: { endpointId: string; method: string; body?: { tools?: { name?: string; function?: { name?: string } }[] } }, callback: (chunk: unknown) => void) {
+        nativeCallback(_plugin: string, _method: string, options: { endpointId: string; method: string; body?: { tools?: { name?: string; function?: { name?: string } }[]; messages?: unknown } }, callback: (chunk: unknown) => void) {
           const send = (chunks: unknown[]) => queueMicrotask(() => chunks.forEach((chunk) => callback(chunk)));
           if (options.method === "GET") {
             send([{ type: "open", status: 200 }, { type: "data", text: JSON.stringify({ data: [{ id: model }] }) }, { type: "done" }]);
             return Promise.resolve("ai");
           }
-          seam.requests.push({ endpoint: options.endpointId, tools: (options.body?.tools ?? []).map((tool) => String(tool.function?.name ?? tool.name ?? "")) });
+          seam.requests.push({ endpoint: options.endpointId, tools: (options.body?.tools ?? []).map((tool) => String(tool.function?.name ?? tool.name ?? "")), said: JSON.stringify(options.body?.messages ?? []) });
           const text = script.shift();
           send(text === undefined ? [{ type: "failed", code: "network", message: "offline" }] : [{ type: "open", status: 200 }, { type: "data", text }, { type: "done" }]);
           return Promise.resolve("ai");
@@ -178,6 +180,82 @@ test("AI routines: the phone sets one up in two steps, confirmed for a run nobod
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-routine-ready-mobile.png") });
     await conversation.getByTestId("ai-routine-open").click();
     await expect(page.getByText(BRIEF, { exact: false }).first()).toBeVisible();
+  } finally {
+    sql.close();
+  }
+});
+
+test("AI routines: a log of the whole vault on the phone — set up without a skill, run now: one request without a tool, and the app writes the entry into log.md", async ({ page, context }) => {
+  test.setTimeout(150_000);
+  const sql = await installSqlBridge(context);
+  // One sentence for every number the request can carry: whichever place the example note takes, it gets one.
+  const answer = Array.from({ length: 20 }, (_, index) => `[${index + 1}] A note was written.`).join("\n") + "\n## Not a heading of the log";
+  await installSeam(context, [says(answer)]);
+  const seam = () => page.evaluate(() => (globalThis as SeamGlobals).__seam);
+  const log = () =>
+    page.evaluate(async () => {
+      const fs = (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem;
+      return fs
+        .readFile({ path: "vault/log.md", directory: "DATA", encoding: "utf8" })
+        .then((file) => String(file.data))
+        .catch(() => null);
+    });
+  try {
+    await openApp(page);
+    // A note made now: the index knows it as changed since the log's first look, a day before it was set up.
+    await seedExampleNote(page);
+
+    await page.getByTestId("nav-settings").first().click();
+    await page.getByTestId("settings-area-aiVault").click();
+    const settings = page.getByTestId("settings-ai-vault");
+    const add = settings.getByTestId("settings-ai-routine-add");
+    await add.scrollIntoViewIfNeeded();
+    await add.click();
+
+    // 1. The sheet: "What it does" — a folder's log. The skill and its sentence give way to the folder.
+    const form = page.getByTestId("ai-routine-form");
+    await expect(form).toBeVisible();
+    await form.getByTestId("ai-routine-kind-log").click();
+    await expect(form.getByTestId("ai-routine-skill")).toHaveCount(0);
+    await expect(form.getByTestId("ai-routine-changed")).toHaveCount(0);
+    await expect(form.getByTestId("ai-routine-folder")).toContainText("The whole vault");
+    for (const day of [0, 1, 2, 3, 4, 5, 6]) await expect(form.getByTestId(`ai-routine-day-${day}`)).toHaveAttribute("aria-pressed", "true");
+    await expect(form.getByTestId("ai-routine-time")).toHaveValue("18:00");
+    await form.getByTestId("ai-routine-name").fill("Vault log");
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-routine-log-form-mobile.png") });
+    await form.getByTestId("ai-routine-next").scrollIntoViewIfNeeded();
+    await form.getByTestId("ai-routine-next").click();
+
+    // 2. What holds for it — and nothing was sent to put it together.
+    const confirm = page.getByTestId("ai-routine-confirm");
+    await expect(confirm).toBeVisible();
+    await expect(confirm).toContainText("It reads what changed");
+    await expect(confirm.getByTestId("ai-routine-budget")).toHaveText("One request per run, with at most 4,000 tokens of output.");
+    await expect(confirm.getByTestId("ai-routine-who")).toHaveText(`${SERVER} · ${MODEL} — a model on this device. Nothing leaves it.`);
+    await expect(confirm.getByTestId("ai-routine-result")).toContainText("“log.md”");
+    expect((await seam()).requests).toEqual([]);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-routine-log-confirm-mobile.png") });
+    await confirm.getByTestId("ai-routine-save").scrollIntoViewIfNeeded();
+    await confirm.getByTestId("ai-routine-save").click();
+    await expect(confirm).toHaveCount(0);
+
+    // 3. Its row names the file it keeps; "Run now" sends one request without a tool, and the entry is the app's.
+    const row = settings.getByTestId("settings-ai-routine").filter({ hasText: "Vault log" });
+    await expect(row).toContainText(`“log.md” · ${SERVER} · ${MODEL}`);
+    await row.click();
+    await page.locator(".m-sheet").filter({ has: page.locator(".m-sheet-title", { hasText: "Vault log" }) }).getByText("Run now", { exact: true }).click();
+    await expect.poll(log).not.toBeNull();
+    const { requests } = await seam();
+    expect(requests).toHaveLength(1);
+    expect(requests[0]!.endpoint).toBe("custom-1");
+    expect(requests[0]!.tools).toEqual([]);
+    expect(requests[0]!.said).toContain("A sentence to review.");
+    const text = (await log())!;
+    expect(text).toMatch(/^# Log of this vault\n\n## \d{4}-\d{2}-\d{2}\n\n/);
+    expect(text).toMatch(/\* \*\*(New|Updated)\*\*: \[Example\]\(Example\.md\) — A note was written\.\n/);
+    expect(text).not.toContain("Not a heading of the log");
+    await expect(row.getByTestId("settings-ai-routine-status")).toContainText(/Last today .+ — entry in log\.md/);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-routine-log-ran-mobile.png") });
   } finally {
     sql.close();
   }

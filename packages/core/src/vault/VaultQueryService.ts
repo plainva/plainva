@@ -197,6 +197,9 @@ function epochMs(value: unknown): number {
   return n > 0 && n < 100_000_000_000 ? n * 1000 : n;
 }
 
+/** The same in SQL: a row's file time as milliseconds, for a comparison and an order the unit of an old row does not upset. */
+const MTIME_MS = "(CASE WHEN mtime_local > 0 AND mtime_local < 100000000000 THEN mtime_local * 1000 ELSE mtime_local END)";
+
 export class VaultQueryService {
   /** Sentinels wrapping matches in `snippet`/`titleHighlighted` (see ftsQuery.ts).
    *  Exposed here so UI code can consume them without a package-root export. */
@@ -422,6 +425,33 @@ export class VaultQueryService {
       [limit],
     );
     return rows.map((row) => ({ path: row.path, title: row.title, mtime: epochMs(row.mtime_local) }));
+  }
+
+  /**
+   * The notes in a folder and below it whose file changed after `since`
+   * (epoch milliseconds), newest first, at most `limit` — each with the
+   * instant its file was made on this device, where the index knows it
+   * (`files.ctime`, index v3). A sync counts as a change, and a note another
+   * device made arrives here as made now. `""` is the whole vault. The log of
+   * a folder (plan KI-Harness P8-2) asks this; it sorts out what it may name.
+   *
+   * The time is compared as milliseconds, whatever unit an older row kept it
+   * in; the folder by both spellings of its letters, a wildcard in its name
+   * taken literally.
+   */
+  async getNotesChangedIn(folder: string, since: number, limit = 100): Promise<{ path: string; title: string; mtime: number; created: number | null }[]> {
+    const conditions = ["path LIKE '%.md'", "(is_deleted IS NULL OR is_deleted = 0)", `${MTIME_MS} > ?`];
+    const params: unknown[] = [since];
+    if (folder) {
+      const variants = [...new Set([folder.normalize("NFC"), folder.normalize("NFD")])];
+      conditions.push(`(${variants.map(() => "path LIKE ? ESCAPE '\\'").join(" OR ")})`);
+      params.push(...variants.map((variant) => `${escapeLikePrefix(variant)}/%`));
+    }
+    const rows = await this.db.query<{ path: string; title: string; mtime_local: number; ctime: number | null }>(
+      `SELECT path, title, mtime_local, ctime FROM files WHERE ${conditions.join(" AND ")} ORDER BY ${MTIME_MS} DESC LIMIT ?`,
+      [...params, Math.max(1, Math.min(500, Math.floor(limit) || 100))],
+    );
+    return rows.map((row) => ({ path: row.path, title: row.title, mtime: epochMs(row.mtime_local), created: row.ctime == null ? null : epochMs(row.ctime) }));
   }
 
   /**

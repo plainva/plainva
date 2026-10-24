@@ -136,6 +136,10 @@ Routines run on this device while Plainva is open: shortly after you open the va
 
 While a routine runs, a line in the conversation says so, with **Stop**, and a message of your own waits until it is done. The switch in its row pauses a routine; its menu runs it at once (**Run now**), edits it or removes it. The notes it wrote stay.
 
+A routine can also keep a folder's log. Choose **Keeps a folder's log** in the form and the **Folder** — or **The whole vault**. At its time Plainva looks up on this device which notes in that folder, or below it, are new or were edited since the last entry, and shows a model, of each of them, the lines it gained or its beginning — at most twenty notes per run, in one request, without any tool. The model writes one sentence per note. The entry itself is written by Plainva: under the day's date at the top of the folder's `log.md`, one line per note with **New** or **Updated**, the link to the note and the model's sentence. That is the `log.md` of the Open Knowledge Format; Plainva creates the file where it is missing and leaves everything else in it as it was. When nothing changed, no model is asked and nothing is written.
+
+A log says nothing that a note's own rules keep back. `log.md` has no rules of its own; the rules of its folder hold for it. A note that carries stricter rules than that is left out of the log entirely — it is not named, and no model is shown it for the log. What was removed from a note is never shown to a model and never written down: a line you deleted stays deleted. A folder your rules keep from a provider needs a model on this device for its log. Keep a folder's log on one device only — otherwise two devices write the same entry.
+
 ## Memory
 
 What the AI should know about you without being told again — what you do, how you like your answers — is kept in the vault's memory: two files you can read and edit. What stands under **Always included** goes into every new conversation, the rest is looked up when a question needs it, and nothing gets into it without your yes. See [Memory](AI_Memory.md).

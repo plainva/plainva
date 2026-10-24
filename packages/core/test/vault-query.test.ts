@@ -138,6 +138,33 @@ describe("VaultQueryService", () => {
     expect(db.queries[0].query).toContain("LIKE '%.md'");
   });
 
+  it("lists the notes of a folder that changed after an instant, in milliseconds, with when each was made (plan P8-2)", async () => {
+    db.mockedResults.push([
+      { path: "Projects/Plan.md", title: "Plan", mtime_local: 1_758_000_000_000, ctime: 1_757_000_000 },
+      { path: "Projects/New.md", title: "New", mtime_local: 1_758_000_100_000, ctime: null },
+    ]);
+    expect(await queryService.getNotesChangedIn("Projects", 1_757_500_000_000, 50)).toEqual([
+      { path: "Projects/Plan.md", title: "Plan", mtime: 1_758_000_000_000, created: 1_757_000_000_000 },
+      { path: "Projects/New.md", title: "New", mtime: 1_758_000_100_000, created: null },
+    ]);
+    const { query, params } = db.queries[0];
+    expect(query).toContain("LIKE '%.md'");
+    // An older row keeps seconds: the comparison and the order read every row as milliseconds.
+    expect(query).toContain("CASE WHEN mtime_local > 0 AND mtime_local < 100000000000 THEN mtime_local * 1000 ELSE mtime_local END) > ?");
+    expect(query).toContain("ORDER BY (CASE WHEN");
+    expect(params).toEqual([1_757_500_000_000, "Projects/%", 50]);
+  });
+
+  it("asks for a folder's notes by both spellings of its letters, a wildcard taken literally, and for the whole vault without a folder", async () => {
+    db.mockedResults.push([], []);
+    await queryService.getNotesChangedIn("Café_1", 0, 5);
+    expect(db.queries[0].query).toContain("(path LIKE ? ESCAPE '\\' OR path LIKE ? ESCAPE '\\')");
+    expect(db.queries[0].params).toEqual([0, `${"Café\\_1".normalize("NFC")}/%`, `${"Café\\_1".normalize("NFD")}/%`, 5]);
+    await queryService.getNotesChangedIn("", 0);
+    expect(db.queries[1].query).not.toContain("ESCAPE");
+    expect(db.queries[1].params).toEqual([0, 100]);
+  });
+
   it("finds backlinks", async () => {
     // 1st query: the files a link can lead to
     db.mockedResults.push([{ path: "hello.md" }, { path: "world.md" }]);

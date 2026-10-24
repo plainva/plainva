@@ -10,9 +10,40 @@ import type { AiSession, RoutinePreview, RoutinePreviewRefusal, RoutineSaved } f
  * the second step, with what a run would send now.
  */
 
+/** What a routine does, as the form's first choice shows it. */
+export type RoutineKind = "skill" | "log";
+
+/** The days and the time a new routine of each kind starts with: a skill on the working days at seven; a folder's log every day at six in the evening — the day's changes in one entry. */
+const KIND_DEFAULTS: Record<RoutineKind, { days: readonly RoutineDay[]; time: string }> = {
+  skill: { days: [1, 2, 3, 4, 5], time: "07:00" },
+  log: { days: [0, 1, 2, 3, 4, 5, 6], time: "18:00" },
+};
+
 /** What a new routine starts with: the working days, at seven. */
 export function newRoutineDraft(skill: string, choice: ModelChoice | null): RoutineDraft {
-  return { name: "", skill, request: "", days: [1, 2, 3, 4, 5], time: "07:00", missed: "catch-up", onlyWhenChanged: false, choice };
+  return { name: "", skill, request: "", days: [...KIND_DEFAULTS.skill.days], time: KIND_DEFAULTS.skill.time, missed: "catch-up", onlyWhenChanged: false, choice };
+}
+
+/** What a new folder's log starts with (plan P8-2): every day at six in the evening. */
+export function newLogDraft(choice: ModelChoice | null, folder = ""): RoutineDraft {
+  return { name: "", skill: "", request: "", days: [...KIND_DEFAULTS.log.days], time: KIND_DEFAULTS.log.time, missed: "catch-up", onlyWhenChanged: true, choice, log: { folder } };
+}
+
+/**
+ * The change that makes a form a skill's routine or a folder's log — what the
+ * choice "What it does" sets, the same on both shells. A log asks no model
+ * while nothing changed, so it looks before every run; a skill's routine
+ * gets back the skill it had, or the first one there is. Days and time that
+ * are still the other kind's defaults become this kind's; once the user set
+ * them, they stay.
+ */
+export function routineKindPatch(draft: RoutineDraft, kind: RoutineKind, firstSkill: string): Partial<RoutineDraft> {
+  const current: RoutineKind = draft.log ? "log" : "skill";
+  if (kind === current) return {};
+  const other = KIND_DEFAULTS[current];
+  const untouched = draft.time === other.time && draft.days.length === other.days.length && other.days.every((day) => draft.days.includes(day));
+  const schedule = untouched ? { days: [...KIND_DEFAULTS[kind].days], time: KIND_DEFAULTS[kind].time } : {};
+  return kind === "log" ? { log: { folder: "" }, onlyWhenChanged: true, ...schedule } : { log: null, skill: draft.skill || firstSkill, ...schedule };
 }
 
 export interface RoutineFormModel {

@@ -1141,7 +1141,8 @@
         "unchanged": "Laatste keer {{when}} — er was niets gewijzigd, dus er is geen model gevraagd",
         "failed": "Laatste keer {{when}} — geen notitie: {{reason}}",
         "stopped": "Laatste keer {{when}} — gestopt",
-        "needed": "Laatste keer {{when}} — niet uitgevoerd: ze had je nodig"
+        "needed": "Laatste keer {{when}} — niet uitgevoerd: ze had je nodig",
+        "logged": "Laatste keer {{when}} — vermelding in {{file}}"
       },
       "reason": {
         "budget": "de uitvoering heeft het budget van een routine bereikt",
@@ -1160,7 +1161,8 @@
         "scope": "Heeft je nodig: ze zou nu meer verzenden dan je hebt bevestigd. Er is niets verzonden.",
         "confirm": "Ligt stil: dit apparaat vraagt vóór elk verzoek, en als een routine draait, is er niemand die antwoordt.",
         "model": "Heeft je nodig: de provider van haar model is op dit apparaat niet meer ingesteld.",
-        "local": "Ligt stil zolang “Volledig lokaal” aan staat: haar model staat niet op dit apparaat."
+        "local": "Ligt stil zolang “Volledig lokaal” aan staat: haar model staat niet op dit apparaat.",
+        "rules": "Ligt stil: je regels houden deze map weg van haar model. Kies daarvoor een model op dit apparaat, of wijzig de regels."
       },
       "review": "Bekijken",
       "active": "{{name}} draait",
@@ -1222,7 +1224,8 @@
         "skill": "Deze vaardigheid kan hier geen routine zijn: ze is op dit apparaat niet actief, of ze beperkt zich niet meer tot lezen.",
         "model": "De provider van dit model is op dit apparaat niet ingesteld.",
         "local": "Zolang “Volledig lokaal” aan staat, antwoordt alleen een model op dit apparaat. Kies er een, of zet “Volledig lokaal” uit.",
-        "failed": "Wat een uitvoering zou verzenden, kon niet worden samengesteld. Probeer het opnieuw."
+        "failed": "Wat een uitvoering zou verzenden, kon niet worden samengesteld. Probeer het opnieuw.",
+        "rules": "Je regels houden deze map weg van dit model. Het logboek van deze map heeft een model op dit apparaat nodig."
       },
       "running": "De routine “{{name}}” draait. Ze leest alleen; haar resultaat wordt een notitie. Dit gesprek wacht intussen.",
       "ready": "“{{name}}” staat klaar.",
@@ -1236,8 +1239,23 @@
         "fileTitleVault": "Logboek van deze vault",
         "entryNew": "Nieuw",
         "entryChanged": "Gewijzigd",
-        "entryMore": "Overige gewijzigde notities: {{count}}."
-      }
+        "entryMore": "Overige gewijzigde notities: {{count}}.",
+        "folder": "Map",
+        "folderDesc": "Als notities in deze map of in een onderliggende map nieuw of bewerkt zijn, krijgt de log.md van de map een vermelding onder de datum van de dag — één regel per notitie. Houd het logboek van een map alleen op één apparaat bij.",
+        "wholeVault": "De hele vault",
+        "namePlaceholder": "Bijvoorbeeld: Projectlogboek",
+        "running": "De routine “{{name}}” draait. Ze leest wat er in haar map is gewijzigd; haar resultaat wordt een vermelding in het logboek van die map. Dit gesprek wacht intussen.",
+        "confirmReads": "Ze leest wat er is gewijzigd",
+        "confirmReadsDesc": "Van elke notitie in deze map die sinds de laatste vermelding nieuw of bewerkt is: de regels die erbij zijn gekomen, of het begin ervan — hoogstens {{notes}} notities per uitvoering. Ze heeft geen hulpmiddelen: niets anders uit de vault, geen internet.",
+        "confirmBudget": "Eén verzoek per uitvoering, met hoogstens {{tokens}} tokens aan antwoord.",
+        "confirmWhoAway": "{{provider}} · {{model}}. Je bevestigt wat een uitvoering meeneemt: naar dit model gaat wat er sinds de laatste vermelding in de notities van deze map is bijgekomen — nooit meer dan de hierboven genoemde {{notes}} notities, en geen enkele die je regels van dit model weghouden. Welke notities dat zijn, wordt bij elke uitvoering opnieuw bepaald. Zou een uitvoering gevoelige tekst meenemen van een soort die je niet hebt bevestigd, dan stopt ze en meldt ze dat.",
+        "confirmResult": "Een vermelding onder de datum van de dag bovenaan “{{file}}”: één regel per notitie — de link door Plainva geschreven, één zin van het model. Plainva maakt het bestand aan als het ontbreekt en verandert er verder niets aan.",
+        "confirmLeft": "Wat ze weglaat",
+        "confirmLeftDesc": "Notities met eigen regels die strenger zijn dan die van deze map: het logboek noemt ze niet, en geen enkel model krijgt ze daarvoor te zien. Wat uit een notitie is verwijderd, wordt nooit getoond en nooit opgeschreven."
+      },
+      "kind": "Wat ze doet",
+      "kindSkill": "Voert een vaardigheid uit",
+      "kindLog": "Houdt het logboek van een map bij"
     },
     "memory": {
       "segment": "Geheugen",

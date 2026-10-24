@@ -28,26 +28,45 @@ export function AiRoutineConfirm({ draft, preview, weekStart = 1, touch, onOpenN
   const schedule = routineScheduleText(t, { days: routineDays(draft.days), time: draft.time }, i18n.language, weekStart);
   const who = { provider: preview.provider, model: preview.model };
   const note = { folder: preview.folder, title: preview.noteTitle };
+  // A folder's log (plan P8-2) reads what changed, in one request without a tool, and leaves an entry in its file.
+  const log = preview.log;
   return (
     <>
       <dl className="pv-skill-facts" data-testid="ai-routine-facts">
-        <dt>{t("ai.routines.confirm.reads")}</dt>
-        <dd>
-          {t("ai.routines.confirm.readsDesc")}
-          {preview.noMail && (
-            <span className="pv-ai-overview-hint" data-testid="ai-routine-nomail">
-              {t("ai.routines.confirm.noMail")}
-            </span>
-          )}
-        </dd>
-        <dt>{t("ai.routines.confirm.budget")}</dt>
-        <dd data-testid="ai-routine-budget">
-          {t("ai.routines.confirm.budgetDesc", { steps: number.format(preview.limits.maxSteps), calls: number.format(preview.limits.maxToolCalls), tokens: number.format(preview.limits.maxOutputTokens) })}
-        </dd>
-        <dt>{t("ai.routines.confirm.who")}</dt>
-        <dd data-testid="ai-routine-who">{preview.here ? t("ai.routines.confirm.whoHere", who) : t("ai.routines.confirm.whoAway", who)}</dd>
-        <dt>{t("ai.routines.confirm.result")}</dt>
-        <dd data-testid="ai-routine-result">{preview.folder ? t("ai.routines.confirm.resultDesc", note) : t("ai.routines.confirm.resultTop", note)}</dd>
+        {log ? (
+          <>
+            <dt>{t("ai.routines.log.confirmReads")}</dt>
+            <dd>{t("ai.routines.log.confirmReadsDesc", { notes: number.format(log.max) })}</dd>
+            <dt>{t("ai.routines.confirm.budget")}</dt>
+            <dd data-testid="ai-routine-budget">{t("ai.routines.log.confirmBudget", { tokens: number.format(preview.limits.maxOutputTokens) })}</dd>
+            <dt>{t("ai.routines.confirm.who")}</dt>
+            <dd data-testid="ai-routine-who">{preview.here ? t("ai.routines.confirm.whoHere", who) : t("ai.routines.log.confirmWhoAway", { ...who, notes: number.format(log.max) })}</dd>
+            <dt>{t("ai.routines.confirm.result")}</dt>
+            <dd data-testid="ai-routine-result">{t("ai.routines.log.confirmResult", { file: log.file })}</dd>
+            <dt>{t("ai.routines.log.confirmLeft")}</dt>
+            <dd>{t("ai.routines.log.confirmLeftDesc")}</dd>
+          </>
+        ) : (
+          <>
+            <dt>{t("ai.routines.confirm.reads")}</dt>
+            <dd>
+              {t("ai.routines.confirm.readsDesc")}
+              {preview.noMail && (
+                <span className="pv-ai-overview-hint" data-testid="ai-routine-nomail">
+                  {t("ai.routines.confirm.noMail")}
+                </span>
+              )}
+            </dd>
+            <dt>{t("ai.routines.confirm.budget")}</dt>
+            <dd data-testid="ai-routine-budget">
+              {t("ai.routines.confirm.budgetDesc", { steps: number.format(preview.limits.maxSteps), calls: number.format(preview.limits.maxToolCalls), tokens: number.format(preview.limits.maxOutputTokens) })}
+            </dd>
+            <dt>{t("ai.routines.confirm.who")}</dt>
+            <dd data-testid="ai-routine-who">{preview.here ? t("ai.routines.confirm.whoHere", who) : t("ai.routines.confirm.whoAway", who)}</dd>
+            <dt>{t("ai.routines.confirm.result")}</dt>
+            <dd data-testid="ai-routine-result">{preview.folder ? t("ai.routines.confirm.resultDesc", note) : t("ai.routines.confirm.resultTop", note)}</dd>
+          </>
+        )}
         <dt>{t("ai.routines.confirm.needs")}</dt>
         <dd>{t("ai.routines.confirm.needsDesc")}</dd>
         <dt>{t("ai.routines.confirm.when")}</dt>

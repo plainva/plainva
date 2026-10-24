@@ -26,6 +26,7 @@ import {
   databaseTaskRows,
   entryPlaceOf,
   flushPendingSave,
+  folderLogHost,
   getPlatformServices,
   journalToday,
   noteDisplayName,
@@ -442,12 +443,33 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       return null;
     }
   };
+  const versions = adapterInstructionVersions(input.adapter, () => input.backup?.() ?? null);
   const host = createAiVaultHost({
     files: desktopAiFiles,
     vaultKey: aiVaultKey(input.vaultPath),
     instructionIO: adapterInstructionIO(input.adapter),
     instructionWriter: adapterInstructionWriter(input.adapter),
-    instructionVersions: adapterInstructionVersions(input.adapter, () => input.backup?.() ?? null),
+    instructionVersions: versions,
+    // A folder's log (plan KI-Harness P8-2): what changed, from this vault's index; a note's text before, from its
+    // version history; and the log file changed where it lies — a new one written like a note the app makes, one
+    // that is there through the chain's one entry for a change, so an entry another device wrote meanwhile stays.
+    log: folderLogHost({
+      changedIn: (folder, since, limit) => input.query.getNotesChangedIn(folder, since, limit),
+      versions,
+      async update(path, change) {
+        // An open log's pending keystrokes land first: the entry goes into the text as it is.
+        await flushPendingSave(path);
+        if (!(await input.adapter.exists(path))) {
+          const made = change(null);
+          if (made === null) return null;
+          await input.adapter.writeTextFile(path, made);
+          await input.noteCreated?.(path);
+          return made;
+        }
+        const update = await updateVaultText(input.adapter, path, (text) => change(text));
+        return update.changed ? update.text : null;
+      },
+    }),
     policy,
     async activeNote() {
       const path = input.activePath();

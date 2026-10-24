@@ -1,5 +1,5 @@
 import { DEFAULT_AI_APP_SETTINGS, type AiAppSettings, type AiEgress, type EgressChunk, type HttpRequestSpec, type InstructionIO, type ModelChoice, type RoutineDraft } from "@plainva/core";
-import { AI_POLICY_FILE, AiSession, createAiVaultHost, createVaultPolicy, writeCapturedNote } from "@plainva/ui";
+import { AI_POLICY_FILE, AiSession, createAiVaultHost, createVaultPolicy, folderLogHost, writeCapturedNote } from "@plainva/ui";
 import { CLOUD, LOCAL } from "./mcpSessionHarness";
 import { memoryFiles } from "./mcpTestHost";
 
@@ -27,6 +27,11 @@ export function routineVault(files: Record<string, string> = {}, options: Routin
   const disk = new Map(Object.entries(files));
   /** When each note last changed on disk, as the index would know it (epoch milliseconds). */
   const changed = new Map<string, number>();
+  /** When each note was made on this device, as the index knows it (`files.ctime`; epoch milliseconds). */
+  const made = new Map<string, number>();
+  /** The vault's version history: per note its snapshots, oldest first — each the text before the write it was taken for. */
+  const versions = new Map<string, { at: number; text: string }[]>();
+  let clock = () => Date.now();
   /** The notes "Keep as a note" wrote, in order. */
   const kept: string[] = [];
   const dirs = new Set<string>();
@@ -72,13 +77,14 @@ export function routineVault(files: Record<string, string> = {}, options: Routin
     return [...disk.keys()].find((path) => title(path).toLowerCase() === wanted || path.toLowerCase() === wanted || path.toLowerCase() === `${wanted}.md`) ?? null;
   };
   const policy = createVaultPolicy({
-    readFile: async (path) => (path === AI_POLICY_FILE ? (options.policy ?? null) : read(path)),
+    // The rules file as it lies in the vault now — a test may change it —, read again once the test's clock moved on.
+    readFile: async (path) => (path === AI_POLICY_FILE ? (disk.get(AI_POLICY_FILE) ?? options.policy ?? null) : read(path)),
     resolveLink,
     fileNames: async () => [...disk.keys()].map((path) => ({ path, title: title(path) })),
     encrypted: () => options.shared === true,
+    now: () => clock(),
   });
   const appData = memoryFiles();
-  let clock = () => Date.now();
   const host = createAiVaultHost({
     files: appData,
     vaultKey: "vault-routines",
@@ -145,6 +151,23 @@ export function routineVault(files: Record<string, string> = {}, options: Routin
         }),
     instructionIO: io,
     instructionWriter: writer,
+    // A folder's log (plan P8-2): the index's changes, the version history and the chain's entry for a change — as both shells wire it.
+    log: folderLogHost({
+      changedIn: async (folder, since, limit) =>
+        [...changed]
+          .filter(([path, mtime]) => disk.has(path) && path.endsWith(".md") && mtime > since && (!folder || path.startsWith(`${folder}/`)))
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, limit)
+          .map(([path, mtime]) => ({ path, title: title(path), mtime, created: made.get(path) ?? null })),
+      versions: {
+        list: async (path) => [...(versions.get(path) ?? [])].reverse().map((version) => ({ id: `${path}\n${version.at}`, at: version.at, size: version.text.length })),
+        read: async (id) => {
+          const cut = id.lastIndexOf("\n");
+          return versions.get(id.slice(0, cut))?.find((version) => version.at === Number(id.slice(cut + 1)))?.text ?? null;
+        },
+      },
+      update: (path, change) => writer.update(path, change),
+    }),
   });
   return {
     host,
@@ -157,6 +180,19 @@ export function routineVault(files: Record<string, string> = {}, options: Routin
     touch(path: string, text: string, at?: number) {
       disk.set(path, text);
       changed.set(path, at ?? clock());
+    },
+    /** A note is made at a moment: the index knows it as new from then on. */
+    make(path: string, text: string, at: number) {
+      disk.set(path, text);
+      changed.set(path, at);
+      made.set(path, at);
+    },
+    /** A note is edited at a moment, as the vault's chain writes it: the text it had is kept as a version first. */
+    edit(path: string, text: string, at: number) {
+      const before = disk.get(path);
+      if (before !== undefined) versions.set(path, [...(versions.get(path) ?? []), { at, text: before }]);
+      disk.set(path, text);
+      changed.set(path, at);
     },
     /** The harness' clock, set by the session. */
     useClock(now: () => number) {
@@ -179,6 +215,14 @@ export interface RoutineSessionOptions {
   /** Called as each request is on its way, with how many were sent so far (this one included): where a test presses STOP. */
   onSend?(count: number): void;
 }
+
+/** The words a folder's log writes itself, in English, so that a test reads the file as a person would. */
+const LOG_WORDS: Readonly<Record<string, string>> = {
+  "ai.routines.log.ask": "Write the entry for this folder's log.",
+  "ai.routines.log.fileTitleVault": "Log of this vault",
+  "ai.routines.log.entryNew": "New",
+  "ai.routines.log.entryChanged": "Updated",
+};
 
 /** October 2026: the 5th is a Monday, the 9th a Friday. Built from calendar parts, so a test says the same in every time zone. */
 export const at = (day: number, hours: number, minutes = 0) => new Date(2026, 9, day, hours, minutes);
@@ -220,7 +264,14 @@ export async function routineSession(script: EgressChunk[][], vault: RoutineVaul
     today: () => "2026-10-09",
     now: () => now,
     newId: () => `id-${String(++ids).padStart(4, "0")}`,
-    label: (key, vars) => (key === "ai.routines.conversation" ? `Routine: ${vars?.name}` : key.startsWith("ai.skills.") && key.endsWith(".prompt") ? "What matters today?" : key),
+    label: (key, vars) =>
+      key === "ai.routines.conversation"
+        ? `Routine: ${vars?.name}`
+        : key === "ai.routines.log.fileTitle"
+          ? `Log of “${vars?.folder}”`
+          : key === "ai.routines.log.entryMore"
+            ? `More notes that changed: ${vars?.count}.`
+            : (LOG_WORDS[key] ?? (key.startsWith("ai.skills.") && key.endsWith(".prompt") ? "What matters today?" : key)),
   });
   /** Every send overview the session showed: a routine shows none. */
   const overviews: unknown[] = [];

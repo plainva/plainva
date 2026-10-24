@@ -692,7 +692,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
               </Button>
             }
           >
-            <span data-testid="ai-routine-running">{t("ai.routines.running", { name: routine.name })}</span>
+            <span data-testid="ai-routine-running">{routine.log ? t("ai.routines.log.running", { name: routine.name }) : t("ai.routines.running", { name: routine.name })}</span>
           </Banner>
         )}
         {/* The note a routine left while the app was open: said once, with the way to it. */}

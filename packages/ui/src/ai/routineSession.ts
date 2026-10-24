@@ -32,8 +32,8 @@ export interface AiRoutinesState {
   /** Whether this vault keeps routines on this device at all. */
   available: boolean;
   list: Routine[];
-  /** The routine that runs right now. */
-  running: { id: string; name: string } | null;
+  /** The routine that runs right now; `log` where it keeps a folder's log (plan P8-2). */
+  running: { id: string; name: string; log?: boolean } | null;
   ready: RoutineReady | null;
 }
 

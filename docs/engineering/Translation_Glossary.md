@@ -319,6 +319,21 @@ Routines (`ai.routines.*`, AI harness P8-1): a **routine** is a skill at a time 
 | zh-CN | 例程 | 新建例程 | 立即运行 | 补运行一次 | 跳过 | 仅在有内容更改时 | 查看 | 已暂停 |
 | ja | ルーティン | 新しいルーティン | 今すぐ実行 | 遅れて1回だけ実行 | スキップ | 変更があったときだけ | 内容を見る | 一時停止中 |
 
+A folder's **log** (`ai.routines.log.*`, AI harness P8-2) is the `log.md` of the Open Knowledge Format that a routine keeps: never the word for the journal or the daily note (French says "registre": "journal" is the journal's), and `log.md` and "Open Knowledge Format" stay as they are. The routine's form asks **what it does** — it **runs a skill** or **keeps a folder's log**; the folder may be **the whole vault**. Each line of an entry begins with a one-word label, **New** or **Updated**, written for a note (the grammatical gender of the language's word for note where it has one). "More notes that changed: {{count}}." has no plural forms and is worded to read for any number.
+
+| Language | What it does | Runs a skill | Keeps a folder's log | The whole vault | New | Updated |
+|---|---|---|---|---|---|---|
+| en | What it does | Runs a skill | Keeps a folder's log | The whole vault | New | Updated |
+| de | Was sie tut | Führt einen Skill aus | Führt das Log eines Ordners | Der ganze Vault | Neu | Geändert |
+| fr | Ce qu'elle fait | Lance une compétence | Tient le registre d'un dossier | Tout le vault | Nouvelle | Modifiée |
+| es | Qué hace | Ejecuta una habilidad | Lleva el registro de una carpeta | Todo el vault | Nueva | Actualizada |
+| pt-BR | O que ela faz | Executa uma habilidade | Mantém o registro de uma pasta | O vault inteiro | Nova | Atualizada |
+| it | Cosa fa | Esegue una competenza | Tiene il registro di una cartella | L'intero vault | Nuova | Modificata |
+| nl | Wat ze doet | Voert een vaardigheid uit | Houdt het logboek van een map bij | De hele vault | Nieuw | Gewijzigd |
+| pl | Co robi | Uruchamia umiejętność | Prowadzi log folderu | Cały vault | Nowa | Zmieniona |
+| zh-CN | 它做什么 | 运行技能 | 维护文件夹的更改记录 | 整个仓库 | 新增 | 更新 |
+| ja | 何をするか | スキルを実行する | フォルダーのログをつける | 保管庫全体 | 新規 | 更新 |
+
 ## Daily note and journal (zh-CN)
 
 The daily note (one note per day, named by the vault's date format) and the

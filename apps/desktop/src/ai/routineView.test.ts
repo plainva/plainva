@@ -5,7 +5,11 @@ import {
   AiRoutines,
   APP_SKILL_SOURCES,
   routineClock,
+  newLogDraft,
+  newRoutineDraft,
   routineDayName,
+  routineKindPatch,
+  routineLogFolders,
   routineModelOptions,
   routineNeed,
   routineRows,
@@ -169,6 +173,39 @@ describe("the list as both shells show it", () => {
     // A need that is over is history: the row says when it did not run, and when it runs next.
     const was = { ...cloud, last: { scheduledFor: "2026-10-09T07:00", at: at(9, 7, 1).toISOString(), outcome: "needs-you" as const, need: "local" as const } };
     expect(row([was])).toMatchObject({ need: null, status: "ai.routines.last.needed(when=today 07:01) · ai.routines.next(when=Mon 07:00)" });
+  });
+
+  it("says of a folder's log which file it keeps and that its last run left an entry there — and asks no skill of it (plan P8-2)", () => {
+    const log = routine({ name: "Project log", skill: "", skillHash: "", onlyWhenChanged: true, schedule: { days: [0, 1, 2, 3, 4, 5, 6], time: "18:00" }, log: { folder: "Projects" } });
+    const kept = row([{ ...log, last: { scheduledFor: "2026-10-08T18:00", at: at(8, 18, 1).toISOString(), outcome: "answered", note: "Projects/log.md", noteTitle: "Projects/log.md" } }]);
+    expect(kept).toMatchObject({ need: null, line: "ai.routines.line(schedule=ai.routines.schedule(days=ai.routines.everyDay,time=18:00),skill=Projects/log.md,provider=Ollama,model=granite3.3:8b)" });
+    expect(kept.status).toBe("ai.routines.last.logged(when=yesterday 18:01,file=Projects/log.md) · ai.routines.next(when=today 18:00)");
+    // The vault's own log lies at its top.
+    expect(row([{ ...log, log: { folder: "" } }]).line).toContain("skill=log.md");
+    // A log names no skill, so none can be missing; what the rules said at its last run stays until it is confirmed again.
+    expect(routineNeed(log, [], SETTINGS)).toBeNull();
+    const keptOut = { ...log, last: { scheduledFor: "2026-10-09T18:00", at: at(9, 18, 1).toISOString(), outcome: "needs-you" as const, need: "rules" as const } };
+    expect(row([keptOut], {}, at(9, 19))).toMatchObject({ need: "rules", status: "ai.routines.needs.rules" });
+  });
+
+  it("switches what a routine does: the form's defaults follow the choice until the days or the time were set", () => {
+    const choice = { providerId: "ollama", model: "granite3.3:8b" };
+    const skill = newRoutineDraft("plainva:daily-orientation", choice);
+    const toLog = routineKindPatch(skill, "log", "plainva:daily-orientation");
+    expect(toLog).toEqual({ log: { folder: "" }, onlyWhenChanged: true, days: [0, 1, 2, 3, 4, 5, 6], time: "18:00" });
+    const log = { ...skill, ...toLog };
+    expect(routineKindPatch(log, "log", "x")).toEqual({});
+    // Back to a skill: its skill again, and the working days at seven.
+    expect(routineKindPatch(log, "skill", "plainva:weekly-review")).toEqual({ log: null, skill: "plainva:daily-orientation", days: [1, 2, 3, 4, 5], time: "07:00" });
+    // A log made without a skill gets the first one there is; days and time the user set stay.
+    const set = { ...newLogDraft(choice), time: "21:30" };
+    expect(routineKindPatch(set, "skill", "plainva:weekly-review")).toEqual({ log: null, skill: "plainva:weekly-review" });
+  });
+
+  it("offers the folders a log can keep: each once, sorted, no hidden root — and the one a routine names already", () => {
+    expect(routineLogFolders(["Projects", "Archive/2025", ".agent", ".plainva/sync", "Projects", "a/../b", "Zettel"])).toEqual(["Archive/2025", "Projects", "Zettel"]);
+    expect(routineLogFolders(["Projects"], "Gone/Folder")).toEqual(["Gone/Folder", "Projects"]);
+    expect(routineLogFolders([], null)).toEqual([]);
   });
 });
 

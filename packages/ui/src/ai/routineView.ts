@@ -2,6 +2,8 @@ import {
   AI_PROFILE_IDS,
   choiceOnDevice,
   dueMoment,
+  folderLogPath,
+  logFolder,
   nextMoment,
   providerById,
   routineMinutes,
@@ -119,6 +121,23 @@ export function routineSkillOptions(t: Translate, entries: readonly InstructionE
     });
 }
 
+/**
+ * The folders a routine can keep the log of (plan P8-2), as the vault's index
+ * knows them: each once, sorted, none of the hidden roots — and the one a
+ * routine names already, where the index no longer has it, so that what was
+ * set up stays what is shown. The vault itself (`""`) is the form's own
+ * first choice and is not in this list.
+ */
+export function routineLogFolders(folders: readonly string[], current: string | null = null): string[] {
+  const kept = new Set<string>();
+  for (const folder of folders) {
+    const valid = logFolder(folder);
+    if (valid) kept.add(valid);
+  }
+  if (current) kept.add(current);
+  return [...kept].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }) || (a < b ? -1 : a > b ? 1 : 0));
+}
+
 /** A model a routine can be given: one of the profiles of this device. */
 export interface RoutineModelOption {
   /** `providerId/model` — what the select holds. */
@@ -168,8 +187,9 @@ export interface RoutineRow {
  * reads, or changed since the routine was confirmed; the model's provider
  * is gone or has no key here; the device is fully local and the model is not
  * on it; the device asks before every request and the model is not on it.
- * What only a run can find — more would go than was confirmed — is what the
- * last run says, until the routine is confirmed again.
+ * What only a run can find — more would go than was confirmed, or the rules
+ * keep a folder's log from its model — is what the last run says, until the
+ * routine is confirmed again. A folder's log names no skill, so it needs none.
  */
 export function routineNeed(
   routine: Routine,
@@ -177,14 +197,17 @@ export function routineNeed(
   settings: Pick<AiAppSettings, "custom" | "localOnly" | "confirmEveryRequest">,
   keys: Readonly<Record<string, boolean>> | null = null,
 ): RoutineNeed | null {
-  const entry = entries.find((candidate) => candidate.source.id === routine.skill);
-  if (!entry || entry.status !== "active" || !entry.source.skill || !routineSkillFits(entry.source.skill) || routineSkillHash(entry.source) !== routine.skillHash) return "skill";
+  if (!routine.log) {
+    const entry = entries.find((candidate) => candidate.source.id === routine.skill);
+    if (!entry || entry.status !== "active" || !entry.source.skill || !routineSkillFits(entry.source.skill) || routineSkillHash(entry.source) !== routine.skillHash) return "skill";
+  }
   const provider = providerById(routine.choice.providerId, settings.custom);
   if (!provider || (keys !== null && provider.endpoint.needsKey && !keys[provider.id])) return "model";
   const here = choiceOnDevice(settings, routine.choice);
   if (settings.localOnly && !here) return "local";
   if (settings.confirmEveryRequest && !here) return "confirm";
-  return routine.last?.outcome === "needs-you" && routine.last.need === "scope" ? "scope" : null;
+  const found = routine.last?.outcome === "needs-you" ? routine.last.need : undefined;
+  return found === "scope" || found === "rules" ? found : null;
 }
 
 function lastText(t: Translate, routine: Routine, now: Date, locale: string): string {
@@ -193,7 +216,8 @@ function lastText(t: Translate, routine: Routine, now: Date, locale: string): st
   const when = routineWhen(new Date(last.at), now, locale);
   switch (last.outcome) {
     case "answered":
-      return t("ai.routines.last.answered", { when, note: last.noteTitle ?? "" });
+      // A folder's log leaves an entry in its file, not a note of its own.
+      return routine.log ? t("ai.routines.last.logged", { when, file: last.noteTitle ?? folderLogPath(routine.log.folder) }) : t("ai.routines.last.answered", { when, note: last.noteTitle ?? "" });
     case "unchanged":
       return t("ai.routines.last.unchanged", { when });
     case "stopped":
@@ -220,8 +244,9 @@ export function routineRows(
   weekStart = 1,
 ): RoutineRow[] {
   return input.list.map((routine) => {
-    const entry = input.entries.find((candidate) => candidate.source.id === routine.skill);
-    const skill = entry ? skillView(t, entry).title : t("ai.routines.skillGone");
+    const entry = routine.log ? undefined : input.entries.find((candidate) => candidate.source.id === routine.skill);
+    // What it does: its skill — or, for a folder's log, the file it keeps.
+    const skill = routine.log ? folderLogPath(routine.log.folder) : entry ? skillView(t, entry).title : t("ai.routines.skillGone");
     const provider = providerById(routine.choice.providerId, input.settings.custom)?.label ?? routine.choice.providerId;
     const need = routineNeed(routine, input.entries, input.settings, input.keys ?? null);
     const running = input.running?.id === routine.id;

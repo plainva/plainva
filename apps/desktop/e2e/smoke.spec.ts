@@ -107,6 +107,17 @@ test.beforeEach(async ({ page }) => {
            // JavaScript — the rows come from the path/title/mode branch below,
            // so a link to a file of the mock vault opens it and any other
            // offers to create the note.
+           // A folder's log (VaultQueryService.getNotesChangedIn, AI harness P8-2): the notes of the mock vault with
+           // the times a test gave them, changed after the instant asked, newest first — of one folder, or of all.
+           if (q.includes('SELECT path, title, mtime_local, ctime FROM files')) {
+             const values = (args.values ?? []) as unknown[];
+             const since = Number(values[0]);
+             const prefixes = values.slice(1, -1).map((value) => String(value).replace(/\\/g, '').replace(/%$/, ''));
+             return Object.entries((window as any).mockFileTimes as Record<string, { mtime_local: number; ctime?: number }>)
+               .filter(([path, times]) => /\.md$/i.test(path) && fs[`/test-vault/${path}`] !== undefined && times.mtime_local > since && (prefixes.length === 0 || prefixes.some((prefix) => path.startsWith(prefix))))
+               .sort((a, b) => b[1].mtime_local - a[1].mtime_local)
+               .map(([path, times]) => ({ path, title: path.split('/').pop()!.replace(/\.md$/i, ''), mtime_local: times.mtime_local, ctime: times.ctime ?? null }));
+           }
            // Conflict lookup of the sync-error dialog (P3.11): LIKE over paths.
            if (q.includes('WHERE path LIKE')) {
              const pattern = String(args.values?.[0] ?? '');
@@ -7399,4 +7410,104 @@ test('AI routines: one is set up in two steps and confirmed for a run nobody wat
   await companion.getByTestId('ai-routine-open').click();
   await expect(companion.getByTestId('ai-routine-ready')).toHaveCount(0);
   await expect(page.locator('.cm-content').first()).toContainText(BRIEF);
+});
+
+// A folder's log (AI harness P8-2): a routine that keeps the `log.md` of a
+// folder — here of the whole vault. The device finds what changed; the model
+// on this computer is shown it in ONE request without a tool and finds one
+// sentence per note; the app writes the entry. The index is the mock's: two
+// notes with times of the last minute, one made then and one edited.
+test('AI routines: a log of the whole vault — set up without a skill, run now: one request without a tool, and the app writes the entry into log.md', async ({ page }) => {
+  const chunk = (data: unknown) => `data: ${JSON.stringify(data)}\n\n`;
+  const localSays = (text: string) =>
+    `${chunk({ choices: [{ delta: { content: text } }] })}${chunk({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 300, completion_tokens: 40 } })}data: [DONE]\n\n`;
+  const ANSWER = '[1] A kick-off for Monday was planned.\n[2] The budget was agreed.\n## Not a heading of the log\nSee [elsewhere](https://example.org).';
+  await page.addInitScript(({ local }) => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['ollama'], profiles: { local: { providerId: 'ollama', model: 'granite3.3:8b' } } } };
+    (window as any).mockFs['/test-vault/Kick-off.md'] = '# Kick-off\n\nMonday at ten, with Tom.\n';
+    (window as any).mockFs['/test-vault/Budget.md'] = '# Budget\n\n12,000 € — agreed.\n';
+    const minuteAgo = Date.now() - 60_000;
+    (window as any).mockFileTimes = {
+      'Kick-off.md': { mtime_local: minuteAgo, ctime: minuteAgo },
+      'Budget.md': { mtime_local: minuteAgo - 1000, ctime: 1_700_000_000_000 },
+    };
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return false;
+      if (cmd === 'ai_http') {
+        const body = args.request.body;
+        const tools = (Array.isArray(body.tools) ? body.tools : []).map((tool: any) => String(tool?.function?.name ?? tool?.name ?? ''));
+        (window as any).__aiRequests.push({ endpoint: String(args.request.endpointId), tools, said: JSON.stringify(body.messages ?? []) });
+        const text = local.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { local: [localSays(ANSWER)] });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as Array<{ endpoint: string; tools: string[]; said: string }>);
+  const log = () => page.evaluate(() => ((window as any).mockFs['/test-vault/log.md'] as string | undefined) ?? null);
+
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+  const settings = dialog.getByTestId('settings-ai-vault');
+  const add = settings.getByTestId('settings-ai-routine-add');
+  await add.scrollIntoViewIfNeeded();
+  await add.click();
+
+  // 1. The form: "What it does" — a folder's log instead of a skill. The skill and its sentence give way to the folder,
+  //    "the whole vault" first; a log always looks first whether anything changed, so that choice is gone too.
+  const form = page.getByTestId('ai-routine-form');
+  await expect(form).toBeVisible();
+  await form.getByTestId('ai-routine-kind-log').click();
+  await expect(form.getByTestId('ai-routine-skill')).toHaveCount(0);
+  await expect(form.getByTestId('ai-routine-request')).toHaveCount(0);
+  await expect(form.getByTestId('ai-routine-changed')).toHaveCount(0);
+  await expect(form.getByTestId('ai-routine-folder')).toContainText('The whole vault');
+  // A log starts every day at six in the evening — the defaults follow the choice until the days or the time were set.
+  for (const day of [0, 1, 2, 3, 4, 5, 6]) await expect(form.getByTestId(`ai-routine-day-${day}`)).toHaveAttribute('aria-pressed', 'true');
+  await expect(form.getByTestId('ai-routine-time')).toHaveValue('18:00');
+  await expect(form).toContainText('its log.md gets an entry under the day');
+  await form.getByTestId('ai-routine-name').fill('Vault log');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-routine-log-form-desktop.png'), animations: 'disabled' });
+  await form.getByTestId('ai-routine-next').click();
+
+  // 2. What holds for it: it reads what changed, one request, the entry it leaves, what it leaves out. Nothing was sent.
+  const confirm = page.getByTestId('ai-routine-confirm');
+  await expect(confirm).toBeVisible();
+  await expect(confirm).toContainText('It reads what changed');
+  await expect(confirm.getByTestId('ai-routine-budget')).toHaveText('One request per run, with at most 4,000 tokens of output.');
+  await expect(confirm.getByTestId('ai-routine-who')).toHaveText('Ollama · granite3.3:8b — a model on this device. Nothing leaves it.');
+  await expect(confirm.getByTestId('ai-routine-result')).toContainText("An entry under the day's date at the top of “log.md”");
+  await expect(confirm).toContainText('What it leaves out');
+  expect(await requests()).toEqual([]);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-routine-log-confirm-desktop.png'), animations: 'disabled' });
+  await confirm.getByTestId('ai-routine-save').click();
+  await expect(confirm).toHaveCount(0);
+
+  // 3. Its row names the file it keeps.
+  const row = settings.getByTestId('settings-ai-routine').filter({ hasText: 'Vault log' });
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText('“log.md” · Ollama · granite3.3:8b');
+
+  // 4. Run now: one request, no tool; the notes as material; and the entry is the app's — the model's extra lines are gone.
+  await row.getByTestId('settings-ai-routine-more').click();
+  await page.getByTestId('settings-ai-routine-run').click();
+  await expect.poll(log).not.toBeNull();
+  const sent = await requests();
+  expect(sent).toHaveLength(1);
+  expect(sent[0].endpoint).toBe('ollama');
+  expect(sent[0].tools).toEqual([]);
+  expect(sent[0].said).toContain('Monday at ten, with Tom.');
+  const text = (await log())!;
+  expect(text).toMatch(/^# Log of this vault\n\n## \d{4}-\d{2}-\d{2}\n\n\* \*\*New\*\*: \[Kick-off\]\(Kick-off\.md\) — A kick-off for Monday was planned\.\n\* \*\*Updated\*\*: \[Budget\]\(Budget\.md\) — The budget was agreed\.\n$/);
+  await expect(row.getByTestId('settings-ai-routine-status')).toContainText(/Last today .+ — entry in log\.md/);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-routine-log-ran-desktop.png'), animations: 'disabled' });
 });

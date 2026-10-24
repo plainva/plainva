@@ -18,6 +18,7 @@ import {
   dailyNotePathFor,
   databaseTaskRows,
   flushPendingSave,
+  folderLogHost,
   getPlatformServices,
   journalToday,
   noteDisplayName,
@@ -373,15 +374,33 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         .then(situationEvents)
         .catch(() => []);
     const moodKey = async () => getMobileSettings().journalMoodProperty.trim() || null;
+    // A skill's version before a suggestion rewrites it, and the way back (plan P6-2): the store the versions panel of
+    // a note reads. A vault without one keeps no versions; the way back is then the copy the approval holds while the
+    // new version is watched — and a folder's log shows a changed note's beginning instead of what it gained.
+    const versions = vault.backup ? adapterInstructionVersions(vault.adapter, () => vault.backup) : null;
     const host = createAiVaultHost({
       files: mobileAiFiles,
       vaultKey: aiVaultKey(vault.vaultId),
       instructionIO: adapterInstructionIO(vault.files),
       instructionWriter: adapterInstructionWriter(vault.files),
-      // A skill's version before a suggestion rewrites it, and the way back (plan P6-2): the store the versions panel of
-      // a note reads. A vault without one keeps no versions; the way back is then the copy the approval holds while
-      // the new version is watched.
-      ...(vault.backup ? { instructionVersions: adapterInstructionVersions(vault.adapter, () => vault.backup) } : {}),
+      ...(versions ? { instructionVersions: versions } : {}),
+      // A folder's log (plan KI-Harness P8-2), as on the desktop: what changed, from this vault's index; a note's
+      // text before, from its version history; the log file written as the phone writes a file it makes, or changed
+      // through the chain's one entry — so an entry another device wrote meanwhile stays, and the index follows.
+      log: folderLogHost({
+        changedIn: (folder, since, limit) => query.getNotesChangedIn(folder, since, limit),
+        versions,
+        async update(path, change) {
+          if (!(await vault.files.exists(path))) {
+            const made = change(null);
+            if (made === null) return null;
+            await vaultOps.save(vault, path, made);
+            return made;
+          }
+          const update = await vaultOps.update(vault, path, (text) => change(text));
+          return update.changed ? update.text : null;
+        },
+      }),
       policy: vaultPolicy,
       activeNote: async () => (sheetNote ? note(sheetNote) : null),
       readNote: note,

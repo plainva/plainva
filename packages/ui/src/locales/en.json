@@ -1141,7 +1141,8 @@
         "unchanged": "Last {{when}} — nothing had changed, so no model was asked",
         "failed": "Last {{when}} — no note: {{reason}}",
         "stopped": "Last {{when}} — stopped",
-        "needed": "Last {{when}} — did not run: it needed you"
+        "needed": "Last {{when}} — did not run: it needed you",
+        "logged": "Last {{when}} — entry in {{file}}"
       },
       "reason": {
         "budget": "the run reached the budget of a routine",
@@ -1160,7 +1161,8 @@
         "scope": "Needs you: it would now send more than you confirmed. Nothing was sent.",
         "confirm": "Rests: this device asks before every request, and nobody is there to answer when a routine runs.",
         "model": "Needs you: the provider of its model is no longer set up on this device.",
-        "local": "Rests while “Fully local” is on: its model is not on this device."
+        "local": "Rests while “Fully local” is on: its model is not on this device.",
+        "rules": "Rests: your rules keep this folder from its model. Choose a model on this device for it, or change the rules."
       },
       "review": "Look at it",
       "active": "{{name}} runs",
@@ -1222,7 +1224,8 @@
         "skill": "This skill cannot be a routine here: it is not active on this device, or it no longer only reads.",
         "model": "The provider of this model is not set up on this device.",
         "local": "While “Fully local” is on, only a model on this device answers. Choose one, or switch “Fully local” off.",
-        "failed": "What a run would send could not be put together. Try again."
+        "failed": "What a run would send could not be put together. Try again.",
+        "rules": "Your rules keep this folder from this model. Its log needs a model on this device."
       },
       "running": "The routine “{{name}}” is running. It only reads; its result becomes a note. This conversation waits meanwhile.",
       "ready": "“{{name}}” is ready.",
@@ -1236,8 +1239,23 @@
         "fileTitleVault": "Log of this vault",
         "entryNew": "New",
         "entryChanged": "Updated",
-        "entryMore": "More notes that changed: {{count}}."
-      }
+        "entryMore": "More notes that changed: {{count}}.",
+        "folder": "Folder",
+        "folderDesc": "When notes in this folder or below it are new or were edited, its log.md gets an entry under the day's date — one line per note. Keep a folder's log on one device only.",
+        "wholeVault": "The whole vault",
+        "namePlaceholder": "For example: Project log",
+        "running": "The routine “{{name}}” is running. It reads what changed in its folder; its result becomes an entry in that folder's log. This conversation waits meanwhile.",
+        "confirmReads": "It reads what changed",
+        "confirmReadsDesc": "Of each note in this folder that is new or was edited since the last entry: the lines it gained, or its beginning — at most {{notes}} notes per run. It has no tools: nothing else of the vault, no internet.",
+        "confirmBudget": "One request per run, with at most {{tokens}} tokens of output.",
+        "confirmWhoAway": "{{provider}} · {{model}}. You confirm what a run brings along: to this model, what the notes of this folder gained since the last entry — never more than the {{notes}} notes named above, and none that your rules keep from this model. Which notes they are is decided anew at every run. If a run would bring along a kind of sensitive text you have not confirmed, it stops and says so.",
+        "confirmResult": "An entry under the day's date at the top of “{{file}}”: one line per note — its link written by Plainva, one sentence by the model. Plainva creates the file where it is missing and changes nothing else in it.",
+        "confirmLeft": "What it leaves out",
+        "confirmLeftDesc": "Notes with rules of their own that are stricter than this folder's: the log does not name them, and no model is shown them for it. What was removed from a note is never shown and never written down."
+      },
+      "kind": "What it does",
+      "kindSkill": "Runs a skill",
+      "kindLog": "Keeps a folder's log"
     },
     "memory": {
       "segment": "Memory",

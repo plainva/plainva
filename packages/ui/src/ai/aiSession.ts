@@ -3517,7 +3517,7 @@ export class AiSession {
       const started = this.host.now();
       const moment = how === "hand" ? started : dueMoment(routine, started);
       if (!moment) return refused("not-due");
-      this.routines.setRunning({ id: routine.id, name: routine.name });
+      this.routines.setRunning({ id: routine.id, name: routine.name, ...(routine.log ? { log: true } : {}) });
       const ended = await this.routineRun(vault, routine).catch((): RoutineEnd => ({ outcome: "failed", failure: "other" }));
       const { conversationId, coveredAt, ...result } = ended;
       const at = this.host.now().toISOString();

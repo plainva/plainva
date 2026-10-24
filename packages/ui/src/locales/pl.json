@@ -1215,7 +1215,8 @@
         "unchanged": "Ostatni raz {{when}} — nic się nie zmieniło, więc nie pytano żadnego modelu",
         "failed": "Ostatni raz {{when}} — brak notatki: {{reason}}",
         "stopped": "Ostatni raz {{when}} — zatrzymano",
-        "needed": "Ostatni raz {{when}} — nie uruchomiła się: czekała na Ciebie"
+        "needed": "Ostatni raz {{when}} — nie uruchomiła się: czekała na Ciebie",
+        "logged": "Ostatni raz {{when}} — wpis w {{file}}"
       },
       "reason": {
         "budget": "uruchomienie osiągnęło budżet rutyny",
@@ -1234,7 +1235,8 @@
         "scope": "Czeka na Ciebie: wysłałaby teraz więcej, niż obejmuje Twoje potwierdzenie. Nic nie zostało wysłane.",
         "confirm": "Wstrzymana: to urządzenie pyta przed każdym zapytaniem, a gdy rutyna się uruchamia, nie ma nikogo, kto by odpowiedział.",
         "model": "Czeka na Ciebie: dostawca jej modelu nie jest już skonfigurowany na tym urządzeniu.",
-        "local": "Wstrzymana, dopóki „W pełni lokalnie” jest włączone: jej model nie działa na tym urządzeniu."
+        "local": "Wstrzymana, dopóki „W pełni lokalnie” jest włączone: jej model nie działa na tym urządzeniu.",
+        "rules": "Wstrzymana: Twoje reguły trzymają ten folder z dala od jej modelu. Wybierz dla niej model na tym urządzeniu albo zmień reguły."
       },
       "review": "Przejrzyj",
       "active": "{{name}} działa",
@@ -1296,7 +1298,8 @@
         "skill": "Ta umiejętność nie może tu być rutyną: nie jest aktywna na tym urządzeniu albo już nie tylko czyta.",
         "model": "Dostawca tego modelu nie jest skonfigurowany na tym urządzeniu.",
         "local": "Dopóki „W pełni lokalnie” jest włączone, odpowiada tylko model na tym urządzeniu. Wybierz taki model albo wyłącz „W pełni lokalnie”.",
-        "failed": "Nie udało się przygotować tego, co wysłałoby uruchomienie. Spróbuj ponownie."
+        "failed": "Nie udało się przygotować tego, co wysłałoby uruchomienie. Spróbuj ponownie.",
+        "rules": "Twoje reguły trzymają ten folder z dala od tego modelu. Log tego folderu wymaga modelu na tym urządzeniu."
       },
       "running": "Rutyna „{{name}}” właśnie działa. Tylko czyta; jej wynik staje się notatką. Ta rozmowa w tym czasie czeka.",
       "ready": "Rutyna „{{name}}” jest gotowa.",
@@ -1310,8 +1313,23 @@
         "fileTitleVault": "Log tego vaultu",
         "entryNew": "Nowa",
         "entryChanged": "Zmieniona",
-        "entryMore": "Więcej zmienionych notatek: {{count}}."
-      }
+        "entryMore": "Więcej zmienionych notatek: {{count}}.",
+        "folder": "Folder",
+        "folderDesc": "Gdy w tym folderze lub w jego podfolderach pojawią się nowe notatki albo zostaną zmienione już istniejące, jego log.md dostaje wpis pod bieżącą datą — jeden wiersz na notatkę. Prowadź log folderu tylko na jednym urządzeniu.",
+        "wholeVault": "Cały vault",
+        "namePlaceholder": "Na przykład: Log projektu",
+        "running": "Rutyna „{{name}}” właśnie działa. Czyta, co zmieniło się w jej folderze; jej wynik staje się wpisem w logu tego folderu. Ta rozmowa w tym czasie czeka.",
+        "confirmReads": "Czyta, co się zmieniło",
+        "confirmReadsDesc": "Z każdej notatki w tym folderze, która od ostatniego wpisu jest nowa albo została zmieniona: wiersze, które do niej doszły, albo jej początek — do {{notes}} notatek na uruchomienie. Nie ma żadnych narzędzi: nic innego z vaultu, żadnego internetu.",
+        "confirmBudget": "Jedno zapytanie na uruchomienie, do {{tokens}} tokenów odpowiedzi.",
+        "confirmWhoAway": "{{provider}} · {{model}}. Potwierdzasz, co uruchomienie zabiera ze sobą do tego modelu: to, co w notatkach tego folderu doszło od ostatniego wpisu — nigdy z więcej niż {{notes}} notatek wymienionych wyżej i z żadnej, którą Twoje reguły trzymają z dala od tego modelu. Które to notatki, rozstrzyga się na nowo przy każdym uruchomieniu. Jeśli uruchomienie miałoby zabrać ze sobą rodzaj wrażliwego tekstu, którego nie obejmuje Twoje potwierdzenie, zatrzymuje się i mówi o tym.",
+        "confirmResult": "Wpis pod bieżącą datą na górze pliku „{{file}}”: jeden wiersz na notatkę — jej link zapisuje Plainva, jedno zdanie pisze model. Plainva tworzy plik tam, gdzie go brakuje, i niczego więcej w nim nie zmienia.",
+        "confirmLeft": "Co pomija",
+        "confirmLeftDesc": "Notatki z własnymi regułami, surowszymi niż reguły tego folderu: log ich nie wymienia i żadnemu modelowi nie są one w tym celu pokazywane. To, co usunięto z notatki, nigdy nie jest pokazywane ani zapisywane."
+      },
+      "kind": "Co robi",
+      "kindSkill": "Uruchamia umiejętność",
+      "kindLog": "Prowadzi log folderu"
     },
     "memory": {
       "segment": "Pamięć",

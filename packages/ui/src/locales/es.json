@@ -1178,7 +1178,8 @@
         "unchanged": "Última vez {{when}} — no había cambiado nada, así que no se consultó a ningún modelo",
         "failed": "Última vez {{when}} — sin nota: {{reason}}",
         "stopped": "Última vez {{when}} — detenida",
-        "needed": "Última vez {{when}} — no se ejecutó: te necesitaba"
+        "needed": "Última vez {{when}} — no se ejecutó: te necesitaba",
+        "logged": "Última vez {{when}} — entrada en {{file}}"
       },
       "reason": {
         "budget": "la ejecución agotó el presupuesto de una rutina",
@@ -1197,7 +1198,8 @@
         "scope": "Te necesita: ahora enviaría más de lo que confirmaste. No se envió nada.",
         "confirm": "En reposo: este dispositivo pregunta antes de cada solicitud, y cuando se ejecuta una rutina no hay nadie que responda.",
         "model": "Te necesita: el proveedor de su modelo ya no está configurado en este dispositivo.",
-        "local": "En reposo mientras «Totalmente local» esté activado: su modelo no está en este dispositivo."
+        "local": "En reposo mientras «Totalmente local» esté activado: su modelo no está en este dispositivo.",
+        "rules": "En reposo: tus reglas mantienen esta carpeta lejos de su modelo. Elige un modelo en este dispositivo para esta rutina o cambia las reglas."
       },
       "review": "Revisar",
       "active": "{{name}} se ejecuta",
@@ -1259,7 +1261,8 @@
         "skill": "Esta habilidad no puede ser una rutina aquí: no está activa en este dispositivo o ya no se limita a leer.",
         "model": "El proveedor de este modelo no está configurado en este dispositivo.",
         "local": "Mientras «Totalmente local» esté activado, solo responde un modelo en este dispositivo. Elige uno o desactiva «Totalmente local».",
-        "failed": "No se pudo preparar lo que enviaría una ejecución. Inténtalo de nuevo."
+        "failed": "No se pudo preparar lo que enviaría una ejecución. Inténtalo de nuevo.",
+        "rules": "Tus reglas mantienen esta carpeta lejos de este modelo. Su registro necesita un modelo en este dispositivo."
       },
       "running": "La rutina «{{name}}» se está ejecutando. Solo lee; su resultado será una nota. Mientras tanto, esta conversación espera.",
       "ready": "El resultado de «{{name}}» está listo.",
@@ -1273,8 +1276,23 @@
         "fileTitleVault": "Registro de este vault",
         "entryNew": "Nueva",
         "entryChanged": "Actualizada",
-        "entryMore": "Otras notas con cambios: {{count}}."
-      }
+        "entryMore": "Otras notas con cambios: {{count}}.",
+        "folder": "Carpeta",
+        "folderDesc": "Cuando hay notas nuevas o editadas en esta carpeta o en sus subcarpetas, se añade una entrada a su log.md bajo la fecha del día — una línea por nota. Lleva el registro de una carpeta en un solo dispositivo.",
+        "wholeVault": "Todo el vault",
+        "namePlaceholder": "Por ejemplo: Registro del proyecto",
+        "running": "La rutina «{{name}}» se está ejecutando. Lee lo que ha cambiado en su carpeta; su resultado será una entrada en el registro de esa carpeta. Mientras tanto, esta conversación espera.",
+        "confirmReads": "Lee lo que ha cambiado",
+        "confirmReadsDesc": "De cada nota de esta carpeta que es nueva o se ha editado desde la última entrada: las líneas añadidas, o su comienzo — como máximo {{notes}} notas por ejecución. No tiene herramientas: nada más del vault ni acceso a Internet.",
+        "confirmBudget": "Una solicitud por ejecución, con un máximo de {{tokens}} tokens de salida.",
+        "confirmWhoAway": "{{provider}} · {{model}}. Confirmas lo que una ejecución lleva consigo: a este modelo, lo que se ha añadido a las notas de esta carpeta desde la última entrada — nunca más de las {{notes}} notas indicadas arriba, y ninguna que tus reglas mantengan lejos de este modelo. Cuáles son esas notas se decide de nuevo en cada ejecución. Si una ejecución fuera a llevar un tipo de texto sensible que no hayas confirmado, se detiene y lo dice.",
+        "confirmResult": "Una entrada bajo la fecha del día, al principio de «{{file}}»: una línea por nota — su enlace, escrito por Plainva, y una frase del modelo. Plainva crea el archivo donde falta y no cambia nada más en él.",
+        "confirmLeft": "Lo que omite",
+        "confirmLeftDesc": "Notas con reglas propias más estrictas que las de esta carpeta: el registro no las nombra y, para escribirlo, no se muestran a ningún modelo. Lo que se quitó de una nota nunca se muestra ni se anota."
+      },
+      "kind": "Qué hace",
+      "kindSkill": "Ejecuta una habilidad",
+      "kindLog": "Lleva el registro de una carpeta"
     },
     "memory": {
       "segment": "Memoria",

@@ -13,9 +13,12 @@ import {
   MenuItem,
   MenuSurface,
   Modal,
+  newLogDraft,
   newRoutineDraft,
   routineChoiceKey,
   routineDayName,
+  routineKindPatch,
+  routineLogFolders,
   routineModelOptions,
   routineNow,
   routineRows,
@@ -34,6 +37,7 @@ import {
   useRoutineForm,
   useWeekStartDay,
   type AiSession,
+  type RoutineKind,
   type RoutineModelOption,
   type RoutineSkillOption,
 } from "@plainva/ui";
@@ -51,9 +55,10 @@ const NONE = () => null;
  * needs its user leads to its confirmation instead.
  *
  * The list and its texts are the shared view model (`routineRows`); the phone
- * dresses the same in its own grammar.
+ * dresses the same in its own grammar. `folders` are the vault's folders, for
+ * a routine that keeps a folder's log (plan P8-2).
  */
-export function RoutinesCard({ onOpenNote }: { onOpenNote?: (path: string) => void }) {
+export function RoutinesCard({ onOpenNote, folders = [] }: { onOpenNote?: (path: string) => void; folders?: readonly string[] }) {
   const { t, i18n } = useTranslation();
   const session = getDesktopAiSession();
   const state = useSyncExternalStore(session ? session.subscribe : NOOP, session ? session.getState : NONE, session ? session.getState : NONE);
@@ -126,8 +131,9 @@ export function RoutinesCard({ onOpenNote }: { onOpenNote?: (path: string) => vo
             </div>
           );
         })}
-        <SettingRow label={t("ai.routines.add")} desc={skills.length === 0 ? t("ai.routines.noSkill") : full ? t("ai.routines.full", { max: ROUTINES_MAX }) : t("ai.routines.eligible")}>
-          <Button size="sm" variant="secondary" icon={<Plus size={ICON.ui} />} disabled={skills.length === 0 || full} onClick={() => setDialog({ routine: null, review: false })} data-testid="settings-ai-routine-add">
+        <SettingRow label={t("ai.routines.add")} desc={full ? t("ai.routines.full", { max: ROUTINES_MAX }) : skills.length === 0 ? t("ai.routines.noSkill") : t("ai.routines.eligible")}>
+          {/* A folder's log needs no skill: without one, a new routine starts as a log. */}
+          <Button size="sm" variant="secondary" icon={<Plus size={ICON.ui} />} disabled={full} onClick={() => setDialog({ routine: null, review: false })} data-testid="settings-ai-routine-add">
             {t("ai.routines.add")}
           </Button>
         </SettingRow>
@@ -152,6 +158,7 @@ export function RoutinesCard({ onOpenNote }: { onOpenNote?: (path: string) => vo
           routine={dialog.routine}
           review={dialog.review}
           skills={skills}
+          folders={folders}
           models={routineModelOptions(t, state.settings, dialog.routine?.choice ?? null)}
           weekStart={weekStart}
           onClose={() => setDialog(null)}
@@ -169,6 +176,8 @@ interface RoutineDialogProps {
   /** A second look: straight to what holds for it, with what a run would send now. */
   review: boolean;
   skills: readonly RoutineSkillOption[];
+  /** The vault's folders, for a folder's log. */
+  folders: readonly string[];
   models: readonly RoutineModelOption[];
   weekStart: number;
   onClose: () => void;
@@ -176,12 +185,13 @@ interface RoutineDialogProps {
 }
 
 /** Setting a routine up, in two steps: the form, then what holds for a run nobody watches. Only the yes there makes it. */
-function RoutineDialog({ session, routine, review, skills, models, weekStart, onClose, onOpenNote }: RoutineDialogProps) {
+function RoutineDialog({ session, routine, review, skills, folders, models, weekStart, onClose, onOpenNote }: RoutineDialogProps) {
   const { t, i18n } = useTranslation();
-  const [initial] = useState<RoutineDraft>(() => (routine ? routineDraftOf(routine) : newRoutineDraft(skills[0]?.id ?? "", models[0]?.choice ?? null)));
+  const [initial] = useState<RoutineDraft>(() => (routine ? routineDraftOf(routine) : skills[0] ? newRoutineDraft(skills[0].id, models[0]?.choice ?? null) : newLogDraft(models[0]?.choice ?? null)));
   const form = useRoutineForm(session, initial, { ...(routine ? { id: routine.id } : {}), review });
   const { draft } = form;
   const skill = skills.find((option) => option.id === draft.skill);
+  const kind: RoutineKind = draft.log ? "log" : "skill";
   const confirm = () => {
     void form.confirm().then((saved) => {
       if (saved === "saved") onClose();
@@ -240,17 +250,60 @@ function RoutineDialog({ session, routine, review, skills, models, weekStart, on
       <label className="pv-modal-label" htmlFor="pv-routine-name">
         {t("ai.routines.form.name")}
       </label>
-      <TextInput id="pv-routine-name" value={draft.name} maxLength={ROUTINE_NAME_MAX} placeholder={t("ai.routines.form.namePlaceholder")} onChange={(event) => form.change({ name: event.target.value })} data-testid="ai-routine-name" />
+      <TextInput
+        id="pv-routine-name"
+        value={draft.name}
+        maxLength={ROUTINE_NAME_MAX}
+        placeholder={draft.log ? t("ai.routines.log.namePlaceholder") : t("ai.routines.form.namePlaceholder")}
+        onChange={(event) => form.change({ name: event.target.value })}
+        data-testid="ai-routine-name"
+      />
 
-      <span className="pv-modal-label">{t("ai.routines.form.skill")}</span>
-      <Select value={draft.skill} options={skills.map((option) => ({ value: option.id, label: option.title }))} onChange={(value) => form.change({ skill: value })} ariaLabel={t("ai.routines.form.skill")} minWidth="100%" data-testid="ai-routine-skill" />
-      <p className="pv-modal-hint">{t("ai.routines.form.skillDesc")}</p>
+      {/* What it does (plan P8-2): runs a skill, or keeps a folder's log. */}
+      <span className="pv-modal-label">{t("ai.routines.kind")}</span>
+      {/* A block of its own: the next field's label begins below it. */}
+      <div>
+        <Segmented<RoutineKind>
+          ariaLabel={t("ai.routines.kind")}
+          value={kind}
+          onChange={(next) => form.change(routineKindPatch(draft, next, skills[0]?.id ?? ""))}
+          options={[
+            { value: "skill", label: t("ai.routines.kindSkill"), testId: "ai-routine-kind-skill" },
+            { value: "log", label: t("ai.routines.kindLog"), testId: "ai-routine-kind-log" },
+          ]}
+        />
+      </div>
 
-      <label className="pv-modal-label" htmlFor="pv-routine-request">
-        {t("ai.routines.form.request")}
-      </label>
-      <TextInput id="pv-routine-request" value={draft.request} maxLength={500} placeholder={skill?.request ?? ""} onChange={(event) => form.change({ request: event.target.value })} data-testid="ai-routine-request" />
-      <p className="pv-modal-hint">{t("ai.routines.form.requestDesc")}</p>
+      {draft.log ? (
+        <>
+          <span className="pv-modal-label">{t("ai.routines.log.folder")}</span>
+          <Select
+            value={draft.log.folder}
+            options={[{ value: "", label: t("ai.routines.log.wholeVault") }, ...routineLogFolders(folders, draft.log.folder || null).map((folder) => ({ value: folder, label: folder }))]}
+            onChange={(folder) => form.change({ log: { folder } })}
+            ariaLabel={t("ai.routines.log.folder")}
+            minWidth="100%"
+            data-testid="ai-routine-folder"
+          />
+          <p className="pv-modal-hint">{t("ai.routines.log.folderDesc")}</p>
+        </>
+      ) : (
+        <>
+          <span className="pv-modal-label">{t("ai.routines.form.skill")}</span>
+          {skills.length > 0 ? (
+            <Select value={draft.skill} options={skills.map((option) => ({ value: option.id, label: option.title }))} onChange={(value) => form.change({ skill: value })} ariaLabel={t("ai.routines.form.skill")} minWidth="100%" data-testid="ai-routine-skill" />
+          ) : (
+            <p className="pv-modal-hint">{t("ai.routines.noSkill")}</p>
+          )}
+          <p className="pv-modal-hint">{t("ai.routines.form.skillDesc")}</p>
+
+          <label className="pv-modal-label" htmlFor="pv-routine-request">
+            {t("ai.routines.form.request")}
+          </label>
+          <TextInput id="pv-routine-request" value={draft.request} maxLength={500} placeholder={skill?.request ?? ""} onChange={(event) => form.change({ request: event.target.value })} data-testid="ai-routine-request" />
+          <p className="pv-modal-hint">{t("ai.routines.form.requestDesc")}</p>
+        </>
+      )}
 
       <span className="pv-modal-label">{t("ai.routines.form.when")}</span>
       <div className="pv-ai-chips" role="group" aria-label={t("ai.routines.form.when")}>
@@ -275,10 +328,15 @@ function RoutineDialog({ session, routine, review, skills, models, weekStart, on
       />
       <p className="pv-modal-hint">{t("ai.routines.form.missedDesc")}</p>
 
-      <Checkbox checked={draft.onlyWhenChanged} onChange={(event) => form.change({ onlyWhenChanged: event.target.checked })} data-testid="ai-routine-changed">
-        {t("ai.routines.form.changed")}
-      </Checkbox>
-      <p className="pv-modal-hint">{t("ai.routines.form.changedDesc")}</p>
+      {/* A folder's log always looks first whether anything changed: the choice is a skill's routine's only. */}
+      {!draft.log && (
+        <>
+          <Checkbox checked={draft.onlyWhenChanged} onChange={(event) => form.change({ onlyWhenChanged: event.target.checked })} data-testid="ai-routine-changed">
+            {t("ai.routines.form.changed")}
+          </Checkbox>
+          <p className="pv-modal-hint">{t("ai.routines.form.changedDesc")}</p>
+        </>
+      )}
 
       <span className="pv-modal-label">{t("ai.routines.form.model")}</span>
       {models.length > 0 ? (

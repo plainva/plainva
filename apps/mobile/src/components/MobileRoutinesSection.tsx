@@ -13,9 +13,10 @@ import { RoutineSheet } from "./RoutineSheet";
  * a routine does and when, how its last run ended and when the next stands —
  * or what it needs. Tapping it offers what can be done with it; setting one
  * up is the sheet (`RoutineSheet`). The rows and their texts are the shared
- * view model (`routineRows`).
+ * view model (`routineRows`). `folders` are the vault's folders, for a
+ * routine that keeps a folder's log (plan P8-2).
  */
-export function MobileRoutinesSection({ onOpenNote }: { onOpenNote?: (path: string) => void }) {
+export function MobileRoutinesSection({ onOpenNote, folders = [] }: { onOpenNote?: (path: string) => void; folders?: readonly string[] }) {
   const { t, i18n } = useTranslation();
   const session = getMobileAiSession();
   const state = useSyncExternalStore(session.subscribe, session.getState);
@@ -88,12 +89,13 @@ export function MobileRoutinesSection({ onOpenNote }: { onOpenNote?: (path: stri
               />
             );
           })}
+          {/* A folder's log needs no skill: without one, a new routine starts as a log. */}
           <Row
             wrap
             icon={<Plus size={ICON.ui} />}
             title={t("ai.routines.add")}
-            subtitle={skills.length === 0 ? t("ai.routines.noSkill") : full ? t("ai.routines.full", { max: ROUTINES_MAX }) : t("ai.routines.eligible")}
-            disabled={skills.length === 0 || full}
+            subtitle={full ? t("ai.routines.full", { max: ROUTINES_MAX }) : skills.length === 0 ? t("ai.routines.noSkill") : t("ai.routines.eligible")}
+            disabled={full}
             onClick={() => setSheet({ routine: null, review: false })}
             data-testid="settings-ai-routine-add"
           />
@@ -105,6 +107,7 @@ export function MobileRoutinesSection({ onOpenNote }: { onOpenNote?: (path: stri
           routine={sheet.routine}
           review={sheet.review}
           skills={skills}
+          folders={folders}
           models={routineModelOptions(t, state.settings, sheet.routine?.choice ?? null)}
           weekStart={weekStart}
           onClose={() => setSheet(null)}

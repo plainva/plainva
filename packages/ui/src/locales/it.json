@@ -1178,7 +1178,8 @@
         "unchanged": "Ultima esecuzione {{when}} — non era cambiato nulla, quindi non è stato interpellato alcun modello",
         "failed": "Ultima esecuzione {{when}} — nessuna nota: {{reason}}",
         "stopped": "Ultima esecuzione {{when}} — interrotta",
-        "needed": "Ultima esecuzione {{when}} — non eseguita: serviva il tuo intervento"
+        "needed": "Ultima esecuzione {{when}} — non eseguita: serviva il tuo intervento",
+        "logged": "Ultima esecuzione {{when}} — voce in {{file}}"
       },
       "reason": {
         "budget": "l'esecuzione ha raggiunto il budget di una routine",
@@ -1197,7 +1198,8 @@
         "scope": "Serve il tuo intervento: ora invierebbe più di quanto hai confermato. Non è stato inviato nulla.",
         "confirm": "In pausa: questo dispositivo chiede prima di ogni richiesta e, quando una routine viene eseguita, non c'è nessuno che risponda.",
         "model": "Serve il tuo intervento: il provider del suo modello non è più configurato su questo dispositivo.",
-        "local": "In pausa finché «Completamente locale» è attivo: il suo modello non è su questo dispositivo."
+        "local": "In pausa finché «Completamente locale» è attivo: il suo modello non è su questo dispositivo.",
+        "rules": "In pausa: le tue regole tengono questa cartella lontana dal suo modello. Per questa routine scegli un modello su questo dispositivo, oppure cambia le regole."
       },
       "review": "Controlla",
       "active": "Esecuzione di {{name}}",
@@ -1259,7 +1261,8 @@
         "skill": "Questa competenza non può essere una routine qui: non è attiva su questo dispositivo, oppure non si limita più a leggere.",
         "model": "Il provider di questo modello non è configurato su questo dispositivo.",
         "local": "Finché «Completamente locale» è attivo, risponde solo un modello su questo dispositivo. Scegline uno, oppure disattiva «Completamente locale».",
-        "failed": "Non è stato possibile comporre ciò che un'esecuzione invierebbe. Riprova."
+        "failed": "Non è stato possibile comporre ciò che un'esecuzione invierebbe. Riprova.",
+        "rules": "Le tue regole tengono questa cartella lontana da questo modello. Per il registro di questa cartella serve un modello su questo dispositivo."
       },
       "running": "La routine «{{name}}» è in esecuzione. Si limita a leggere; il suo risultato diventa una nota. Nel frattempo questa conversazione resta in attesa.",
       "ready": "La routine «{{name}}» è pronta.",
@@ -1273,8 +1276,23 @@
         "fileTitleVault": "Registro di questo vault",
         "entryNew": "Nuova",
         "entryChanged": "Modificata",
-        "entryMore": "Altre note modificate: {{count}}."
-      }
+        "entryMore": "Altre note modificate: {{count}}.",
+        "folder": "Cartella",
+        "folderDesc": "Quando in questa cartella o nelle sue sottocartelle ci sono note nuove o modificate, nel suo file log.md viene aggiunta una voce sotto la data del giorno — una riga per nota. Tieni il registro di una cartella su un solo dispositivo.",
+        "wholeVault": "L'intero vault",
+        "namePlaceholder": "Per esempio: Registro del progetto",
+        "running": "La routine «{{name}}» è in esecuzione. Legge ciò che è cambiato nella sua cartella; il suo risultato diventa una voce nel registro di quella cartella. Nel frattempo questa conversazione resta in attesa.",
+        "confirmReads": "Legge ciò che è cambiato",
+        "confirmReadsDesc": "Di ogni nota di questa cartella che è nuova o è stata modificata dall'ultima voce: le righe aggiunte, oppure il suo inizio — al massimo {{notes}} note per esecuzione. Non ha strumenti: nient'altro del vault, nessun accesso a Internet.",
+        "confirmBudget": "Una richiesta per esecuzione, con al massimo {{tokens}} token di output.",
+        "confirmWhoAway": "{{provider}} · {{model}}. Confermi ciò che un'esecuzione porta con sé: a questo modello, ciò che è stato aggiunto alle note di questa cartella dall'ultima voce — al massimo le {{notes}} note indicate sopra, e nessuna che le tue regole tengano lontana da questo modello. A ogni esecuzione si decide di nuovo quali siano queste note. Se un'esecuzione dovesse portare con sé un tipo di testo sensibile che non hai confermato, si ferma e lo dice.",
+        "confirmResult": "Una voce sotto la data del giorno in cima a «{{file}}»: una riga per nota — il link scritto da Plainva, una frase del modello. Plainva crea il file se manca e non modifica nient'altro al suo interno.",
+        "confirmLeft": "Cosa lascia fuori",
+        "confirmLeftDesc": "Note con regole proprie più severe di quelle di questa cartella: il registro non le nomina e nessun modello le vede a questo scopo. Ciò che è stato rimosso da una nota non viene mai mostrato né scritto."
+      },
+      "kind": "Cosa fa",
+      "kindSkill": "Esegue una competenza",
+      "kindLog": "Tiene il registro di una cartella"
     },
     "memory": {
       "segment": "Memoria",

@@ -272,8 +272,8 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
       <InternetCard />
       <ExternalToolsCard />
       <SkillsCard onOpenSkills={openSkills} onOpenMemory={openMemory} />
-      {/* Routines (plan KI-Harness P8): a skill at a time its user set — below the skills they are made of. */}
-      <RoutinesCard />
+      {/* Routines (plan KI-Harness P8): a skill at a time its user set — below the skills they are made of; or a folder's log (P8-2). */}
+      <RoutinesCard folders={folders} />
     </div>
   );
 }

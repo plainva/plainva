@@ -1178,7 +1178,8 @@
         "unchanged": "Dernière exécution : {{when}} — rien n'avait changé, donc aucun modèle n'a été interrogé",
         "failed": "Dernière exécution : {{when}} — pas de note : {{reason}}",
         "stopped": "Dernière exécution : {{when}} — arrêtée",
-        "needed": "Dernière exécution : {{when}} — non exécutée : elle avait besoin de vous"
+        "needed": "Dernière exécution : {{when}} — non exécutée : elle avait besoin de vous",
+        "logged": "Dernière exécution : {{when}} — entrée dans {{file}}"
       },
       "reason": {
         "budget": "l'exécution a atteint le budget d'une routine",
@@ -1197,7 +1198,8 @@
         "scope": "A besoin de vous : elle enverrait désormais plus que ce que vous avez confirmé. Rien n'a été envoyé.",
         "confirm": "En sommeil : cet appareil demande avant chaque requête, et personne n'est là pour répondre quand une routine s'exécute.",
         "model": "A besoin de vous : le fournisseur de son modèle n'est plus configuré sur cet appareil.",
-        "local": "En sommeil tant que « Entièrement local » est activé : son modèle n'est pas sur cet appareil."
+        "local": "En sommeil tant que « Entièrement local » est activé : son modèle n'est pas sur cet appareil.",
+        "rules": "En sommeil : vos règles tiennent ce dossier à l'écart du modèle de cette routine. Choisissez-lui un modèle sur cet appareil, ou modifiez les règles."
       },
       "review": "Examiner",
       "active": "{{name}} s'exécute",
@@ -1259,7 +1261,8 @@
         "skill": "Cette compétence ne peut pas être une routine ici : elle n'est pas active sur cet appareil, ou elle ne se contente plus de lire.",
         "model": "Le fournisseur de ce modèle n'est pas configuré sur cet appareil.",
         "local": "Tant que « Entièrement local » est activé, seul un modèle sur cet appareil répond. Choisissez-en un, ou désactivez « Entièrement local ».",
-        "failed": "Ce qu'une exécution enverrait n'a pas pu être préparé. Réessayez."
+        "failed": "Ce qu'une exécution enverrait n'a pas pu être préparé. Réessayez.",
+        "rules": "Vos règles tiennent ce dossier à l'écart de ce modèle. Le registre de ce dossier a besoin d'un modèle sur cet appareil."
       },
       "running": "La routine « {{name}} » s'exécute. Elle ne fait que lire ; son résultat devient une note. Cette conversation attend pendant ce temps.",
       "ready": "« {{name}} » : le résultat est prêt.",
@@ -1273,8 +1276,23 @@
         "fileTitleVault": "Registre de ce vault",
         "entryNew": "Nouvelle",
         "entryChanged": "Modifiée",
-        "entryMore": "Autres notes modifiées : {{count}}."
-      }
+        "entryMore": "Autres notes modifiées : {{count}}.",
+        "folder": "Dossier",
+        "folderDesc": "Quand des notes de ce dossier ou de ses sous-dossiers sont nouvelles ou ont été modifiées, son log.md reçoit une entrée sous la date du jour — une ligne par note. Ne tenez le registre d'un dossier que sur un seul appareil.",
+        "wholeVault": "Tout le vault",
+        "namePlaceholder": "Par exemple : Registre du projet",
+        "running": "La routine « {{name}} » s'exécute. Elle lit ce qui a changé dans son dossier ; son résultat devient une entrée dans le registre de ce dossier. Cette conversation attend pendant ce temps.",
+        "confirmReads": "Elle lit ce qui a changé",
+        "confirmReadsDesc": "De chaque note de ce dossier qui est nouvelle ou a été modifiée depuis la dernière entrée : les lignes qui s'y sont ajoutées, ou son début — au plus {{notes}} notes par exécution. Elle n'a aucun outil : rien d'autre du vault, pas d'Internet.",
+        "confirmBudget": "Une requête par exécution, avec au plus {{tokens}} jetons de sortie.",
+        "confirmWhoAway": "{{provider}} · {{model}}. Vous confirmez ce qu'une exécution apporte : à ce modèle, ce qui s'est ajouté aux notes de ce dossier depuis la dernière entrée — jamais plus de {{notes}} notes, comme indiqué ci-dessus, et aucune que vos règles tiennent à l'écart de ce modèle. Les notes concernées sont choisies de nouveau à chaque exécution. Si une exécution devait apporter un type de texte sensible que vous n'avez pas confirmé, elle s'arrête et le signale.",
+        "confirmResult": "Une entrée sous la date du jour, en haut de « {{file}} » : une ligne par note — son lien, écrit par Plainva, et une phrase du modèle. Plainva crée le fichier s'il n'existe pas et n'y modifie rien d'autre.",
+        "confirmLeft": "Ce qu'elle laisse de côté",
+        "confirmLeftDesc": "Les notes qui ont leurs propres règles, plus strictes que celles de ce dossier : le registre ne les nomme pas, et aucun modèle ne les voit pour l'écrire. Ce qui a été retiré d'une note n'est jamais montré et jamais consigné."
+      },
+      "kind": "Ce qu'elle fait",
+      "kindSkill": "Lance une compétence",
+      "kindLog": "Tient le registre d'un dossier"
     },
     "memory": {
       "segment": "Mémoire",

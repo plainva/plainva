@@ -44,6 +44,7 @@ import type { AiInstructionsHost, AiVaultHost, InstructionVersions } from "./aiS
 import { createAiVaultStores, type AiFileStore, type InstructionApprovalStore } from "./aiStores";
 import { createMcpVaultStore } from "./mcpStores";
 import { createWriteDraftStore, type DraftCreator } from "./aiWrites";
+import type { FolderLogHost } from "./folderLogRun";
 import type { WriteRun } from "./writeTools";
 import { CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, unmarkSnippet, withoutBrokenLinks, type ToolScope, type VaultToolDeps } from "./vaultTools";
 
@@ -184,6 +185,8 @@ export interface AiVaultHostInput {
   instructionWriter?: InstructionWriter;
   /** The vault's version history for a skill's file (plan P6): the version before a rewrite, and the way back. Absent where the vault keeps none. */
   instructionVersions?: InstructionVersions;
+  /** A folder's log (plan KI-Harness P8-2): which notes changed, a note's text before, and the change of the log file; absent where the shell keeps none. */
+  log?: FolderLogHost;
   /** What an external agent's session reaches of this vault (plan P4.6); absent where the shell hosts no agents. */
   agents?: { access: AcpVaultAccess; activeNote(): string | null };
 }
@@ -288,6 +291,38 @@ export function adapterInstructionVersions(adapter: IVaultAdapter, backup: () =>
     },
     list: async (path) => (await history.listVersions(path)).map((version) => ({ id: version.backupPath, at: version.timestamp, size: version.size })),
     read: (id) => history.readVersionText(id).catch(() => null),
+  };
+}
+
+/**
+ * A folder's log as a shell keeps it (plan KI-Harness P8-2): which notes of a
+ * folder changed, from the shell's index; a note's text before its first
+ * change since the log's last entry, from the vault's version history; and a
+ * change of the log file where it lies, through the chain's one entry.
+ *
+ * The version a note had then: a snapshot holds a file as it was before the
+ * write it was taken for, so the first snapshot after `since` holds the note
+ * as it stood at that instant. A vault takes one at most every two minutes;
+ * where none was taken after `since`, the newest one before it stands in —
+ * what the note gained may then count a line from just before. Without any
+ * there is no earlier state, and the log shows the note's beginning.
+ */
+export function folderLogHost(input: {
+  changedIn: FolderLogHost["changed"];
+  versions: Pick<InstructionVersions, "list" | "read"> | null;
+  update: FolderLogHost["update"];
+}): FolderLogHost {
+  return {
+    changed: input.changedIn,
+    async before(path, since) {
+      const versions = input.versions;
+      if (!versions) return null;
+      const kept = [...(await versions.list(path))].sort((a, b) => a.at - b.at);
+      const earlier = kept.filter((version) => version.at <= since);
+      const pick = kept.find((version) => version.at > since) ?? earlier[earlier.length - 1];
+      return pick ? versions.read(pick.id) : null;
+    },
+    update: input.update,
   };
 }
 
@@ -414,6 +449,8 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     },
     ...(input.instructionIO ? { instructions: instructionsHost(input.instructionIO, stores.instructionApprovals, input.instructionWriter, input.instructionVersions) } : {}),
     ...(memory ? { memory } : {}),
+    // A folder's log (plan P8-2): the shell's index, the vault's version history and the chain's one entry for a change.
+    ...(input.log ? { log: input.log } : {}),
     tools(
       recipient: EgressRecipient,
       scope?: ToolScope,

@@ -249,8 +249,8 @@ export function AiPolicyScreen({
           </RowList>
         </GroupCard>
         <p className="m-hint">{t("ai.workshop.settingsDesc")}</p>
-        {/* Routines (plan KI-Harness P8): a skill at a time its user set — below the skills they are made of, as on the desktop. */}
-        <MobileRoutinesSection onOpenNote={onOpenNote} />
+        {/* Routines (plan KI-Harness P8): a skill at a time its user set — below the skills they are made of, as on the desktop; or a folder's log (P8-2). */}
+        <MobileRoutinesSection onOpenNote={onOpenNote} folders={folders} />
       </div>
       {external === "add" && <ExternalAddSheet onClose={() => setExternal(null)} onAdded={(id) => setExternal({ review: id })} />}
       {external !== null && external !== "add" && <ExternalReviewSheet vault={vault} serverId={external.review} onClose={() => setExternal(null)} />}

@@ -1178,7 +1178,8 @@
         "unchanged": "Última execução {{when}} — nada tinha mudado, então nenhum modelo foi consultado",
         "failed": "Última execução {{when}} — sem nota: {{reason}}",
         "stopped": "Última execução {{when}} — parada",
-        "needed": "Última execução {{when}} — não executada: ela precisava de você"
+        "needed": "Última execução {{when}} — não executada: ela precisava de você",
+        "logged": "Última execução {{when}} — entrada em {{file}}"
       },
       "reason": {
         "budget": "a execução atingiu o orçamento de uma rotina",
@@ -1197,7 +1198,8 @@
         "scope": "Precisa de você: ela agora enviaria mais do que você confirmou. Nada foi enviado.",
         "confirm": "Fica em espera: este dispositivo pergunta antes de cada solicitação, e, quando uma rotina é executada, não há ninguém para responder.",
         "model": "Precisa de você: o provedor do modelo dela não está mais configurado neste dispositivo.",
-        "local": "Fica em espera enquanto “Totalmente local” está ativado: o modelo dela não está neste dispositivo."
+        "local": "Fica em espera enquanto “Totalmente local” está ativado: o modelo dela não está neste dispositivo.",
+        "rules": "Fica em espera: suas regras mantêm esta pasta longe do modelo da rotina. Escolha um modelo neste dispositivo para ela ou altere as regras."
       },
       "review": "Revisar",
       "active": "A rotina {{name}} é executada",
@@ -1259,7 +1261,8 @@
         "skill": "Esta habilidade não pode ser uma rotina aqui: ela não está ativa neste dispositivo ou deixou de apenas ler.",
         "model": "O provedor deste modelo não está configurado neste dispositivo.",
         "local": "Enquanto “Totalmente local” está ativado, só um modelo neste dispositivo responde. Escolha um ou desative “Totalmente local”.",
-        "failed": "Não foi possível montar o que uma execução enviaria. Tente de novo."
+        "failed": "Não foi possível montar o que uma execução enviaria. Tente de novo.",
+        "rules": "Suas regras mantêm esta pasta longe deste modelo. O registro dela precisa de um modelo neste dispositivo."
       },
       "running": "A rotina “{{name}}” está em execução. Ela só lê; o resultado dela vira uma nota. Enquanto isso, esta conversa espera.",
       "ready": "O resultado de “{{name}}” está pronto.",
@@ -1273,8 +1276,23 @@
         "fileTitleVault": "Registro deste vault",
         "entryNew": "Nova",
         "entryChanged": "Atualizada",
-        "entryMore": "Outras notas que mudaram: {{count}}."
-      }
+        "entryMore": "Outras notas que mudaram: {{count}}.",
+        "folder": "Pasta",
+        "folderDesc": "Quando há notas novas ou editadas nesta pasta ou em suas subpastas, o log.md dela recebe uma entrada sob a data do dia — uma linha por nota. Mantenha o registro de uma pasta em um único dispositivo.",
+        "wholeVault": "O vault inteiro",
+        "namePlaceholder": "Por exemplo: Registro do projeto",
+        "running": "A rotina “{{name}}” está em execução. Ela lê o que mudou na pasta dela; o resultado dela vira uma entrada no registro dessa pasta. Enquanto isso, esta conversa espera.",
+        "confirmReads": "Ela lê o que mudou",
+        "confirmReadsDesc": "De cada nota desta pasta que é nova ou foi editada desde a última entrada: as linhas acrescentadas ou o início dela — no máximo {{notes}} notas por execução. Ela não tem ferramentas: não lê mais nada do vault e não usa a internet.",
+        "confirmBudget": "Uma solicitação por execução, com no máximo {{tokens}} tokens de saída.",
+        "confirmWhoAway": "{{provider}} · {{model}}. Você confirma o que uma execução leva junto: para este modelo, o que foi acrescentado às notas desta pasta desde a última entrada — nunca mais do que as {{notes}} notas indicadas acima e nenhuma que suas regras mantenham longe deste modelo. Quais notas vão junto é decidido de novo a cada execução. Se uma execução for levar junto um tipo de texto sensível que você não confirmou, ela para e avisa.",
+        "confirmResult": "Uma entrada sob a data do dia, no início de “{{file}}”: uma linha por nota — o link, escrito pelo Plainva, e uma frase do modelo. O Plainva cria o arquivo se ele não existir e não altera mais nada nele.",
+        "confirmLeft": "O que ela deixa de fora",
+        "confirmLeftDesc": "Notas com regras próprias mais restritivas do que as desta pasta: o registro não as menciona, e nenhum modelo as recebe para escrevê-lo. O que foi removido de uma nota nunca é mostrado nem anotado."
+      },
+      "kind": "O que ela faz",
+      "kindSkill": "Executa uma habilidade",
+      "kindLog": "Mantém o registro de uma pasta"
     },
     "memory": {
       "segment": "Memória",

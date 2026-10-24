@@ -1141,7 +1141,8 @@
         "unchanged": "Zuletzt {{when}} — nichts hatte sich geändert, also wurde kein Modell gefragt",
         "failed": "Zuletzt {{when}} — keine Notiz: {{reason}}",
         "stopped": "Zuletzt {{when}} — gestoppt",
-        "needed": "Zuletzt {{when}} — nicht gelaufen: Sie brauchte Dich"
+        "needed": "Zuletzt {{when}} — nicht gelaufen: Sie brauchte Dich",
+        "logged": "Zuletzt {{when}} — Eintrag in {{file}}"
       },
       "reason": {
         "budget": "der Lauf hat das Budget einer Routine erreicht",
@@ -1160,7 +1161,8 @@
         "scope": "Braucht Dich: Sie würde jetzt mehr mitgeben, als Du bestätigt hast. Es wurde nichts gesendet.",
         "confirm": "Ruht: Dieses Gerät fragt vor jeder Anfrage, und wenn eine Routine läuft, ist niemand da, der antwortet.",
         "model": "Braucht Dich: Der Anbieter ihres Modells ist auf diesem Gerät nicht mehr eingerichtet.",
-        "local": "Ruht, solange „Voll-lokal“ an ist: Ihr Modell ist nicht auf diesem Gerät."
+        "local": "Ruht, solange „Voll-lokal“ an ist: Ihr Modell ist nicht auf diesem Gerät.",
+        "rules": "Ruht: Deine Regeln halten diesen Ordner von ihrem Modell fern. Wähle dafür ein Modell auf diesem Gerät, oder ändere die Regeln."
       },
       "review": "Ansehen",
       "active": "{{name}} läuft",
@@ -1222,7 +1224,8 @@
         "skill": "Dieser Skill kann hier keine Routine sein: Er ist auf diesem Gerät nicht aktiv, oder er liest nicht mehr nur.",
         "model": "Der Anbieter dieses Modells ist auf diesem Gerät nicht eingerichtet.",
         "local": "Solange „Voll-lokal“ an ist, antwortet nur ein Modell auf diesem Gerät. Wähle eines, oder schalte „Voll-lokal“ aus.",
-        "failed": "Was ein Lauf senden würde, ließ sich nicht zusammenstellen. Versuch es noch einmal."
+        "failed": "Was ein Lauf senden würde, ließ sich nicht zusammenstellen. Versuch es noch einmal.",
+        "rules": "Deine Regeln halten diesen Ordner von diesem Modell fern. Sein Log braucht ein Modell auf diesem Gerät."
       },
       "running": "Die Routine „{{name}}“ läuft gerade. Sie liest nur; ihr Ergebnis wird eine Notiz. Solange wartet dieses Gespräch.",
       "ready": "„{{name}}“ liegt bereit.",
@@ -1236,8 +1239,23 @@
         "fileTitleVault": "Log dieses Vaults",
         "entryNew": "Neu",
         "entryChanged": "Geändert",
-        "entryMore": "Weitere geänderte Notizen: {{count}}."
-      }
+        "entryMore": "Weitere geänderte Notizen: {{count}}.",
+        "folder": "Ordner",
+        "folderDesc": "Sind Notizen in diesem Ordner oder darunter neu oder bearbeitet worden, bekommt seine log.md einen Eintrag unter dem Datum des Tages — eine Zeile je Notiz. Führe das Log eines Ordners nur auf einem Gerät.",
+        "wholeVault": "Der ganze Vault",
+        "namePlaceholder": "Zum Beispiel: Projekt-Log",
+        "running": "Die Routine „{{name}}“ läuft. Sie liest, was sich in ihrem Ordner geändert hat; ihr Ergebnis wird ein Eintrag im Log dieses Ordners. Dieses Gespräch wartet so lange.",
+        "confirmReads": "Sie liest, was sich geändert hat",
+        "confirmReadsDesc": "Von jeder Notiz in diesem Ordner, die seit dem letzten Eintrag neu ist oder bearbeitet wurde: die Zeilen, die dazugekommen sind, oder ihren Anfang — höchstens {{notes}} Notizen je Lauf. Sie hat keine Werkzeuge: nichts sonst aus dem Vault, kein Internet.",
+        "confirmBudget": "Eine Anfrage je Lauf, mit höchstens {{tokens}} Token Ausgabe.",
+        "confirmWhoAway": "{{provider}} · {{model}}. Du bestätigst, was ein Lauf mitgibt: an dieses Modell das, was in den Notizen dieses Ordners seit dem letzten Eintrag dazugekommen ist — nie mehr als die oben genannten {{notes}} Notizen und keine, die Deine Regeln von diesem Modell fernhalten. Welche Notizen es sind, entscheidet sich bei jedem Lauf neu. Würde ein Lauf eine Art sensiblen Text mitgeben, die Du nicht bestätigt hast, hält er an und sagt es.",
+        "confirmResult": "Ein Eintrag unter dem Datum des Tages oben in „{{file}}“: eine Zeile je Notiz — der Link von Plainva geschrieben, ein Satz vom Modell. Plainva legt die Datei an, wo sie fehlt, und ändert sonst nichts an ihr.",
+        "confirmLeft": "Was sie auslässt",
+        "confirmLeftDesc": "Notizen mit eigenen Regeln, die strenger sind als die dieses Ordners: Das Log nennt sie nicht, und kein Modell bekommt sie dafür gezeigt. Was aus einer Notiz entfernt wurde, wird nie gezeigt und nie aufgeschrieben."
+      },
+      "kind": "Was sie tut",
+      "kindSkill": "Führt einen Skill aus",
+      "kindLog": "Führt das Log eines Ordners"
     },
     "memory": {
       "segment": "Gedächtnis",
