@@ -71,6 +71,46 @@ test("a drag inside an open cell selects part of its text", async ({ page }) => 
   expect(after.end - after.start).toBeLessThan(after.length);
 });
 
+/** Counts the table menu requests the cell sends while `run` happens. */
+async function tableMenuRequests(page: Page, run: () => Promise<void>): Promise<number> {
+  await page.evaluate(() => {
+    const w = window as unknown as { __tableMenus: number };
+    w.__tableMenus = 0;
+    window.addEventListener("plainva-open-table-menu", () => { w.__tableMenus++; });
+  });
+  await run();
+  return page.evaluate(() => (window as unknown as { __tableMenus: number }).__tableMenus);
+}
+
+test("a cell being edited keeps the system's text menu, not the table menu", async ({ page }) => {
+  // Android (#118, 24.10.): holding a word in an open cell, or tapping its
+  // selected text, opened the table menu instead of selecting the word — and
+  // the menu took the focus, which closed the field.
+  await loadProbe(page);
+  const field = await openLongCell(page);
+  let prevented: boolean | null = null;
+  const requests = await tableMenuRequests(page, async () => {
+    prevented = await field.evaluate((el) => {
+      const e = new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 10, clientY: 10 });
+      el.dispatchEvent(e);
+      return e.defaultPrevented;
+    });
+  });
+  expect(requests, "the table menu opened over a cell being edited").toBe(0);
+  expect(prevented, "the system's text menu was suppressed").toBe(false);
+  await expect(field).toBeFocused();
+});
+
+test("a cell that is not being edited still opens the table menu", async ({ page }) => {
+  await loadProbe(page);
+  const cell = page.locator(".cm-md-table tbody tr").first().locator("td").nth(1);
+  const requests = await tableMenuRequests(page, async () => {
+    await cell.click({ button: "right" });
+  });
+  expect(requests).toBe(1);
+  await expect(cell.locator("textarea.cm-md-table-input")).toHaveCount(0);
+});
+
 test("a tap inside an open cell places the caret (touch)", async ({ page }) => {
   test.skip(!test.info().project.use.hasTouch, "needs a touch screen (the WebKit job has one)");
   await loadProbe(page);
