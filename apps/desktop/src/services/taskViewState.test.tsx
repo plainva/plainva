@@ -55,7 +55,7 @@ describe("device-local task filters", () => {
   it("rejects unknown versions and malformed values; never accepts the task database as a filter", () => {
     for (const raw of ["broken", "[]", '{"version":0,"text":"old"}', '{"version":2,"text":"future"}']) expect(parseTaskViewState(raw).text).toBe("");
     expect(parseTaskViewState('{"version":1,"status":"bad","text":false,"folder":[],"dueOnly":"yes","list":"someday","taskDatabase":"Tasks.base"}'))
-      .toEqual({ status: "open", text: "", folder: "", tag: "", dueOnly: false, showHidden: false, list: "today" });
+      .toEqual({ status: "open", text: "", folder: "", tag: "", dueOnly: false, showHidden: false, subtasks: true, details: true, list: "today" });
   });
 
   it("remembers the planner list, and resetting the filters leaves it alone", () => {

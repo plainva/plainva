@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as R
 import { useTranslation } from "react-i18next";
 import { CheckSquare, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat, Flag } from "lucide-react";
 import { type PimSyncProblem, isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, updateVaultText, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
-import { CalendarSyncNotice, syncProblemsFor, errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
+import { CalendarSyncNotice, syncProblemsFor, errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, Checkbox, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -32,48 +32,16 @@ import { calendarDay } from "@plainva/ui";
 import { formatDueLabel } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
-import { buildPlanner, isOpenState, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
+import { buildPlanner, doneTasksOnDay, isOpenState, plannerRowsForTree, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, TaskTitle, useTodayKey, type CaptureResult, type InlineLinkHandlers, type PlannerRow } from "@plainva/ui";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { openLink } from "../../services/openLink";
 import { applyTaskDueChanges, DateJumpPopover, DuePicker, dueTimeOf, offerDueTimeColumn, overdueToDayChanges, TaskCheckButton, taskDueFailureText, taskDueMovedText, useWeekStartDay, type DuePick, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
 import { TimeBlockModal } from "../pimcal/TimeBlockModal";
-
-const inlineLinkStyle: React.CSSProperties = { color: "var(--accent-color)" };
-const inlineCodeStyle: React.CSSProperties = { background: "var(--code-bg)", borderRadius: "var(--radius-xs)", padding: "0 3px", fontSize: "0.9em" };
-const inlineMarkStyle: React.CSSProperties = { background: "var(--highlight-bg)", color: "inherit", borderRadius: "var(--radius-xs)" };
-
-/** Renders the inline-markdown token tree to React nodes. In the Tasks view the
- * whole row opens the note, so links render as their (tinted) display text —
- * never as separate interactive elements nested inside the row button. */
-function renderInlineNodes(nodes: InlineNode[], keyPrefix = ""): React.ReactNode[] {
-  return nodes.map((n, i) => {
-    const key = `${keyPrefix}${i}`;
-    switch (n.kind) {
-      case "text": return <span key={key}>{n.text}</span>;
-      case "br": return <br key={key} />;
-      case "code": return <code key={key} style={inlineCodeStyle}>{n.text}</code>;
-      case "strong": return <strong key={key}>{renderInlineNodes(n.children, `${key}.`)}</strong>;
-      case "em": return <em key={key}>{renderInlineNodes(n.children, `${key}.`)}</em>;
-      case "strike": return <del key={key}>{renderInlineNodes(n.children, `${key}.`)}</del>;
-      case "strongEm": return <strong key={key}><em>{renderInlineNodes(n.children, `${key}.`)}</em></strong>;
-      case "highlight": return <mark key={key} style={inlineMarkStyle}>{renderInlineNodes(n.children, `${key}.`)}</mark>;
-      case "wikiLink": return <span key={key} style={inlineLinkStyle}>{n.display}</span>;
-      case "link": return <span key={key} style={inlineLinkStyle}>{n.label}</span>;
-      case "url": return <span key={key} style={inlineLinkStyle}>{n.href}</span>;
-      default: return null;
-    }
-  });
-}
 
 /** Task line without the `#tags` and `📅 date` — those already render as chips
  * and a due pill, so they must not appear twice in the text. One rule with the
  * planner rows and the phone (`taskDisplayText`). */
 const stripTaskMeta = taskDisplayText;
-
-/** Task text rendered as inline markdown (bold/italic/code/==highlight==/links),
- * meta stripped; falls back to the raw text, then the empty label. */
-function renderTaskText(text: string, emptyLabel: string): React.ReactNode {
-  const shown = stripTaskMeta(text) || text;
-  return shown ? renderInlineNodes(parseInlineMarkdown(shown)) : emptyLabel;
-}
 
 interface Props {
   /** Open a note (the search-jump store already carries the line to reveal). */
@@ -128,7 +96,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   const tasks = useMemo(() => keptListRows(taskList, queryService ?? null), [taskList, queryService]);
   const loading = keptListLoading(taskList, queryService ?? null);
   const setTasks = useCallback((change: (prev: TaskRecord[]) => TaskRecord[]) => setTaskList((prev) => keptListMap(prev, change)), []);
-  const { status, text, folder, tag, dueOnly, showHidden, list, setStatus, setText, setFolder, setTag, setDueOnly, setShowHidden, setList, resetFilters } = useTaskViewState(vaultPath);
+  const { status, text, folder, tag, dueOnly, showHidden, subtasks, details, list, setStatus, setText, setFolder, setTag, setDueOnly, setShowHidden, setSubtasks, setDetails, setList, resetFilters } = useTaskViewState(vaultPath);
   const [templateFolder, setTemplateFolder] = useState("Templates");
   const [refreshTick, setRefreshTick] = useState(0);
   // A listTasks() call reads the FTS snapshot asynchronously. A checkbox write
@@ -649,7 +617,19 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     const meta = new Map((dbRows ?? []).map((r) => [r.path, { repeats: r.repeat !== null, mirrored: r.mirrored, repeatsAtProvider: r.providerRepeats }]));
     return [...plannerRowsFromDb(db, (path) => meta.get(path)), ...plannerRowsFromTasks(notes)];
   }, [dbRows, visibleTasks, folder, tag, dueOnly, text]);
-  const planner = useMemo(() => buildPlanner(plannerRows, todayKey), [plannerRows, todayKey]);
+  // Subtasks under their task (E6): an undated subtask of an open task is
+  // listed under it rather than on its own in the Inbox.
+  const planner = useMemo(() => buildPlanner(subtasks ? plannerRowsForTree(plannerRows) : plannerRows, todayKey), [plannerRows, subtasks, todayKey]);
+  // What was finished today, folded under Today (E5).
+  const doneToday = useMemo(() => doneTasksOnDay(plannerRows, todayKey), [plannerRows, todayKey]);
+  // Links in a task's title open their note (E3), read from the note the task
+  // stands in and opened as the editor opens a link there.
+  const titleLinks = useMemo<InlineLinkHandlers>(() => ({
+    onOpenNote: (target, newTab, kind, fromPath) => {
+      void openLink({ text: target, kind: kind ?? "wiki", sourcePath: fromPath }, { queryService, vaultAdapter, onOpenPath, newTab, t });
+    },
+    onOpenUrl: (url) => { void openUrl(url).catch((error) => toast.error(errorText(error))); },
+  }), [onOpenPath, queryService, vaultAdapter, t]);
   const openCount = useMemo(() => plannerRows.filter((r) => isOpenState(r.state)).length, [plannerRows]);
   /** The tags that occur most among the open tasks — the rail's one-click filters. */
   const railTags = useMemo(() => {
@@ -1174,6 +1154,12 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
           <input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} />
           {t("tasks.showHidden", { defaultValue: "Ausgeblendete anzeigen" })}
         </label>
+        <Checkbox checked={subtasks} onChange={(e) => setSubtasks(e.target.checked)} data-testid="tasks-filter-subtasks">
+          {t("tasks.showSubtasks")}
+        </Checkbox>
+        <Checkbox checked={details} onChange={(e) => setDetails(e.target.checked)} data-testid="tasks-filter-details">
+          {t("tasks.showDetails")}
+        </Checkbox>
         <Button variant="ghost" size="sm" onClick={resetFilters} data-testid="tasks-reset-filters">{t("tasks.resetFilters")}</Button>
       </div>
 
@@ -1196,6 +1182,10 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
               onDue={onPlannerDue}
               canDue={(row) => plannerDueChange(row) !== null}
               onOverdueToToday={overdueToToday}
+              links={titleLinks}
+              subtasks={subtasks ? plannerRows : undefined}
+              details={details}
+              doneToday={list === "today" ? doneToday : undefined}
             />
           )}
         </div>
@@ -1411,15 +1401,26 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
                       testId="task-toggle"
                     />
                     <div className="pv-taskline" onClick={() => open(task)}>
-                      <button
-                        type="button"
+                      {/* A link in the title opens its note (E3), so the title
+                          is a button by role, not a <button>: a link inside a
+                          button cannot be pressed. */}
+                      <span
+                        role="button"
+                        tabIndex={0}
                         className="pv-taskline-open"
                         style={{ color: isOpenTaskState(task.state) ? "var(--text-main)" : "var(--text-muted)" }}
+                        onKeyDown={(e) => {
+                          if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
+                          e.preventDefault();
+                          open(task);
+                        }}
                       >
                         <TaskPriorityFlag rank={task.priority} />
-                        <span style={{ textDecoration: isOpenTaskState(task.state) ? "none" : "line-through" }}>{renderTaskText(task.text, t("tasks.empty", { defaultValue: "Keine Aufgaben" }))}</span>
+                        <span style={{ textDecoration: isOpenTaskState(task.state) ? "none" : "line-through" }}>
+                          {stripTaskMeta(task.text) || task.text ? <TaskTitle text={stripTaskMeta(task.text) || task.text} notePath={task.path} links={titleLinks} /> : t("tasks.empty", { defaultValue: "Keine Aufgaben" })}
+                        </span>
                         <TaskMetadataDetails task={task} />
-                      </button>
+                      </span>
                       {task.due ? (
                         <Chip
                           size="sm"

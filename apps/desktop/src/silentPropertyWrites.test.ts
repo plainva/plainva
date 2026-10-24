@@ -406,7 +406,7 @@ const STRETCHES: Stretch[] = [
     how: "the desktop's write of a task note — a status, a priority, a repeat rule: a message with the reason", says: [SAID],
   },
   {
-    file: "apps/mobile/src/screens/TasksScreen.tsx", at: "const writeDbNote = useCallback(", span: 900, calls: {},
+    file: "apps/mobile/src/components/useTaskRowActions.tsx", at: "const writeDbNote = useCallback(", span: 900, calls: {},
     how: "the phone's write of a task note: a message with the reason as errorText reads it, not the bare one",
     says: [SAID], never: [/toast\.error\(e instanceof Error/],
   },
@@ -430,7 +430,7 @@ const STRETCHES: Stretch[] = [
     how: "the note through writeDbNote, which says it; the database's own file through the catch here", says: [/writeNote: writeDbNote,?\s*\}/, /toast\.error\(errorText\(e\)\)/],
   },
   {
-    file: "apps/mobile/src/screens/TasksScreen.tsx", at: "const pickPriority = useCallback(", span: 2400, calls: { setDbTaskPriority: 1 },
+    file: "apps/mobile/src/components/useTaskRowActions.tsx", at: "const pickPriority = useCallback(", span: 2400, calls: { setDbTaskPriority: 1 },
     how: "the note through writeDbNote, which says it; the database's own file through the catch here", says: [/writeNote: writeDbNote \}/, /toast\.error\(errorText\(e\)\)/],
   },
   {
@@ -442,7 +442,7 @@ const STRETCHES: Stretch[] = [
     how: "inside the mutation handed to writeDbNote, which says it", says: [/await writeDbNote\(path, \(raw\) => \{/],
   },
   {
-    file: "apps/mobile/src/screens/TasksScreen.tsx", at: "<RepeatTaskSheet", span: 700, calls: { writeRepeatRule: 1 },
+    file: "apps/mobile/src/components/useTaskRowActions.tsx", at: "<RepeatTaskSheet", span: 700, calls: { writeRepeatRule: 1 },
     how: "inside the mutation handed to writeDbNote, which says it", says: [/await writeDbNote\(path, \(raw\) => \{/],
   },
   {
@@ -879,7 +879,7 @@ describe("a property write through the surgical helpers is never silent", () => 
     expect(readers.map((file) => file.rel).sort()).toEqual([
       "apps/desktop/src/components/BaseViewer.tsx",
       "apps/desktop/src/components/tasks/TasksView.tsx",
-      "apps/mobile/src/screens/TasksScreen.tsx",
+      "apps/mobile/src/components/useTaskRowActions.tsx",
       "apps/mobile/src/screens/base/BaseScreen.tsx",
       "packages/ui/src/pim/taskToProvider.ts",
     ]);

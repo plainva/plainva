@@ -29,6 +29,8 @@ Die vier Filter der Desktop-Leiste stehen mobil als Chips über der Liste: **Ord
 
 Aufgaben sind nach Notiz gruppiert; der Notiztitel ist eine Überschrift, die Du anklicken kannst, um die Notiz zu öffnen. Jede Aufgabe zeigt ihre Checkbox und ihren Text, durchgestrichen, sobald sie erledigt ist. Eine **Fälligkeit**, die als `📅 2026-08-01` in der Aufgabenzeile steht, erscheint als kleines Abzeichen.
 
+Ein Link im Text einer Aufgabe steht als sein Text da: `[[Alexander Gaas|Alex]]` zeigt **Alex**, `[[Personen/Anna]]` zeigt **Anna**, im Aussehen eines Links. Ein Klick oder Tipp auf den Link öffnet diese Notiz, ein Klick auf den Rest der Zeile die Aufgabe. Das gilt für jede Aufgabenliste, am Desktop wie am Telefon.
+
 ## Filtern
 
 Die Leiste oben grenzt die Liste ein:
@@ -177,3 +179,16 @@ Weitere Wege hinein: **Neue Aufgabe** im Tray-Menü am Desktop (wenn Plainva im 
 ## Abhaken im Widget
 
 Das Kästchen im Widget **Heute** nimmt einen Auftrag auf: der Haken erscheint sofort, die Notiz ändert sich beim nächsten Öffnen von Plainva, und dann passieren auch Wiederholung und Abgleich. Bis dahin sagt die Zeile **wird beim Öffnen übernommen**. Eine Aufgabe, die Du inzwischen erledigt, gelöscht oder verschoben hast, bleibt still unberührt. Am iPhone braucht das iOS 17; darunter öffnet ein Tipp auf die Zeile die Aufgabe. Einzelheiten: [Die mobile App](Mobile_App.md).
+
+<!-- task-rows-2026-10-24 -->
+## Unteraufgaben, Stichpunkte und was heute erledigt ist
+
+**Unteraufgaben.** Ein Kästchen, das unter einem anderen eingerückt steht, ist dessen Unteraufgabe — wie `show tree` im Obsidian-Plugin Tasks. In den Listen **Heute**, **Demnächst**, **Eingang** und **Erledigt** trägt eine Aufgabe ihre Unteraufgaben eingerückt unter sich — offene und erledigte, die erledigten durchgestrichen —, und ein Pfeil am Ende der Zeile klappt sie zu. Eine Unteraufgabe mit eigenem Datum steht zusätzlich an ihrem Tag; eine ohne Datum steht unter ihrer Aufgabe und nicht noch einmal allein im **Eingang**. Die Liste **Alle** behält jedes Kästchen in der Reihenfolge seiner Notiz.
+
+**Stichpunkte.** Einfache Punkte, die unter einer Aufgabe eingerückt stehen — Fragen, Notizen —, zeigt die Zeile unter dem Titel als bis zu zwei Zeilen Vorschau; den Rest hält die Notiz.
+
+Beides ist an, bis Du es abschaltest: **Unteraufgaben** und **Stichpunkte** stehen bei den anderen Filtern (am Desktop als Häkchen, am Telefon als Chips) und werden mit ihnen gemerkt.
+
+**Heute erledigt.** Unter **Heute** sammelt eine zugeklappte Zeile **Erledigt (n)**, was heute abgehakt wurde — ein Kästchen nach seinem Erledigt-Datum `✅` (das Plainva bei jedem Haken schreibt), ein Eintrag der Aufgaben-Datenbank nach dem Tag, an dem seine Notiz zuletzt geändert wurde, denn eine Datenbank hat kein eigenes Erledigt-Datum. Ein abgehaktes Kästchen ohne Datum zählt nicht mit: Nichts sagt, wann es erledigt wurde. Die Zeile ist zu, bis Du sie öffnest; das Gerät merkt sich Deine Wahl. Der Bildschirm **Heute** am Telefon zeigt dieselbe Zeile unter **Fällig**.
+
+**Das Kästchen am Telefon.** Im Editor, im Lesemodus, im Bereich Aufgaben und unter **Heute** zeichnet das Telefon jedes Aufgaben-Kästchen gleich: groß und abgerundet, mit Haken gefüllt, wenn erledigt, halb gefüllt bei **In Arbeit**, durchgestrichen bei **Abgebrochen**. Der Desktop behält seine kleineren Kästchen, gemacht für die Maus.

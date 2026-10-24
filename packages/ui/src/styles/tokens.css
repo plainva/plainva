@@ -96,6 +96,10 @@
   /* The state box of a task row. Its own token: it is a glyph inside a button,
      not a native tick, and it is the one thing on the row a person aims at. */
   --taskbox-size: 18px;
+  /* The drawn task box of the touch density (wish E9, 2026-10-24): one square
+     for the lists, Today and the note's text — its corner and its line. */
+  --taskbox-radius: 6px;
+  --taskbox-line: 2px;
   /* A task box in the text of a note (the editor's `.cm-md-task`, both
      shells, also the phone's reading view) and in a journal line. With a
      pointer: the native box and the journal's 15px glyph, as before. Under a

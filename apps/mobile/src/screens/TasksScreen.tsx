@@ -1,39 +1,38 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { Browser } from "@capacitor/browser";
 import { consumePendingNew } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { Banner, CalendarSyncNotice, errorText, syncProblemsFor, useTaskDuplicates } from "@plainva/ui";
 import type { PimSyncProblem } from "@plainva/core";
-import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, type TaskPriority } from "@plainva/ui";
-import { buildPlanner, isOpenState, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
+import { convertDueColumnToDateTime, shouldOfferDueTimeColumn, TaskPriorityFlag } from "@plainva/ui";
+import { buildPlanner, doneTasksOnDay, isOpenState, plannerRowsForTree, plannerRowsFromDb, plannerRowsFromTasks, TaskPlannerList, TaskPlannerNav, TaskTitle, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
-import { CalendarClock, CalendarPlus, Database, FileText, RefreshCw, Repeat, Table, Eye, EyeOff} from "lucide-react";
+import { CalendarClock, CalendarPlus, Database, RefreshCw, Repeat, Table, Eye, EyeOff} from "lucide-react";
 import { dueTimeOf, overdueToDayChanges, TaskCheckButton, taskDueMovedText, type DuePick, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
 import { TaskDueSheet } from "../components/TaskDueSheet";
 import { announceTaskDue, moveTaskDueOnPhone } from "../services/taskDueAction";
-import { applyTaskStatusOption, Button, canRepeat, checkboxJumpTerm, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, isRecurringAtProviderNamespace, calendarDay, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, taskRowActions, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
+import { applyTaskStatusOption, Button, checkboxJumpTerm, Chip, formatDueLabel, NotePath, createTaskInDatabase, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, isMirroredNamespace, isRecurringAtProviderNamespace, calendarDay, noteDisplayName, parseBaseConfig, repeatFromNamespace, type RepeatRule, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, toast, toggleTaskAtIndex } from "@plainva/ui";
 import {
-  isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setTasksPriority, type ChecklistMutationResult, type TaskBoxState,
+  isOpenTaskState, resolveTaskOrdinal, type ChecklistMutationResult,
   setFrontmatterPath,
   type TaskRecord,
   deleteFrontmatterPath,
   trimEndChars,
 } from "@plainva/core";
-import { useLongPress } from "../lib/useLongPress";
-import { RowActionSheet } from "../components/RowActionSheet";
 import { SwipeRow } from "../components/SwipeRow";
-import { RepeatTaskSheet } from "../components/RepeatTaskSheet";
+import { useTaskRowActions, type NoteTaskRef } from "../components/useTaskRowActions";
 import { TaskDuplicatesSheet } from "../components/TaskDuplicatesSheet";
 import { TaskNamesNotice } from "../components/TaskNamesNotice";
 import { TaskCaptureSheet } from "../components/TaskCaptureSheet";
-import { TimeBlockSheet } from "../components/TimeBlockSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { getMobileSettings } from "../services/mobileSettings";
 import { configuredNoteType } from "../services/newNote";
 import { phoneTemplateVault } from "../services/templateVault";
 import { providerListLabel, sendTaskToProviderList } from "../services/pim/taskToProvider";
-import { mSelect, mTargets } from "../services/mobileDialogs";
+import { mSelect } from "../services/mobileDialogs";
+import { openLink } from "../services/openLink";
 import { setTaskDone } from "../services/taskCompletionAction";
-import { getPimCache, pimForegroundSync, pimSyncNow, pimTargetForCalendarKey, writablePimCalendarOptions } from "../services/pim/pimService";
+import { getPimCache, pimForegroundSync, pimSyncNow } from "../services/pim/pimService";
 import { syncSoon } from "../services/syncService";
 import { vaultOps, vaultTextFiles, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
@@ -51,10 +50,6 @@ import { AppBar } from "../components/AppBar";
  * OKF-safe: checking a box rewrites exactly the one `[ ]`/`[x]` character; a
  * database entry is an ordinary note whose frontmatter is edited surgically.
  */
-
-/** Strips the metadata that already has its own chip, so it is not said twice.
- *  One rule with the planner rows and the desktop (`taskDisplayText`). */
-const taskLabel = taskDisplayText;
 
 /**
  * The due date as a short phrase rather than a stored day key (E3).
@@ -83,50 +78,6 @@ function DueText({ due, testId, onPress }: { due: string; testId: string; onPres
       {label.text}
     </span>
   );
-}
-
-/**
- * Renders the inline markdown of a task line. Links stay visible TEXT: the row
- * itself is tappable, and a second target inside it would compete with it.
- */
-function TaskText({ text }: { text: string }) {
-  const render = (nodes: InlineNode[]): ReactNode[] =>
-    nodes.map((n, i) => {
-      switch (n.kind) {
-        case "text":
-          return <span key={i}>{n.text}</span>;
-        case "code":
-          return <code key={i}>{n.text}</code>;
-        case "br":
-          return <span key={i}> </span>;
-        case "strong":
-          return <strong key={i}>{render(n.children)}</strong>;
-        case "em":
-          return <em key={i}>{render(n.children)}</em>;
-        case "strongEm":
-          return (
-            <strong key={i}>
-              <em>{render(n.children)}</em>
-            </strong>
-          );
-        case "strike":
-          return <s key={i}>{render(n.children)}</s>;
-        case "highlight":
-          return <mark key={i}>{render(n.children)}</mark>;
-        case "wikiLink":
-          return <span key={i}>{n.display}</span>;
-        case "link":
-          return <span key={i}>{n.label}</span>;
-        case "checkbox":
-          // A task's own title, not a cell: the box says its state in words.
-          return <span key={i}>{n.checked ? "☑" : "☐"}</span>;
-        case "url":
-          return <span key={i}>{n.href}</span>;
-        default:
-          return null;
-      }
-    });
-  return <>{render(parseInlineMarkdown(taskLabel(text)))}</>;
 }
 
 export function TasksScreen({
@@ -159,7 +110,7 @@ export function TasksScreen({
   const tasks = useMemo(() => keptListRows(taskList, taskSource), [taskList, taskSource]);
   const loading = keptListLoading(taskList, taskSource);
   const setTasks = useCallback((change: (prev: TaskRecord[]) => TaskRecord[]) => setTaskList((prev) => keptListMap(prev, change)), []);
-  const { status, text, folder, tag, dueOnly, showHidden, list, setStatus, setText, setFolder, setTag, setDueOnly, setShowHidden, setList, resetFilters } = useTaskViewState(vault.vaultId);
+  const { status, text, folder, tag, dueOnly, showHidden, subtasks, details, list, setStatus, setText, setFolder, setTag, setDueOnly, setShowHidden, setSubtasks, setDetails, setList, resetFilters } = useTaskViewState(vault.vaultId);
   const [tick, setTick] = useState(0);
   // Known from the first render on (plan Befunde 2026-09-24, E28). "New task"
   // from the ＋ menu on another tab, the palette, the launcher shortcut and the
@@ -177,12 +128,6 @@ export function TasksScreen({
   /** Repeat rule + provider origin per row, read from the INDEXED `plainva`
    *  namespace — so a badge costs no file read. */
   const [dbMeta, setDbMeta] = useState<Record<string, { repeat: RepeatRule | null; mirrored: boolean; providerRepeats: boolean }>>({});
-  const [repeatTarget, setRepeatTarget] = useState<{ path: string; title: string; rule: RepeatRule | null; due: string | null } | null>(null);
-  /** "Block time": `notePath` is the note that receives the anchor (a database
-   *  entry has one, a checkbox does not); `linkPath` is what the event links
-   *  back to. */
-  const [blockTarget, setBlockTarget] = useState<{ title: string; due: string | null; notePath?: string; linkPath: string } | null>(null);
-  const [calendarOptions, setCalendarOptions] = useState<Array<{ value: string; label: string }>>([]);
   // A listTasks() read is asynchronous; a checkbox write can finish while an
   // older read is still in flight, and that older result must never roll the
   // box back to its pre-write value.
@@ -310,56 +255,6 @@ export function TasksScreen({
     };
   }, [tick, pimTick]);
 
-  // Writable calendars for "block time" — the SAME rule the calendar uses
-  // (shared helper), so the two pickers can never disagree about which
-  // calendars accept a write. Visibility is not a write permission.
-  useEffect(() => {
-    let alive = true;
-    void writablePimCalendarOptions()
-      .then((options) => {
-        if (alive) setCalendarOptions(options);
-      })
-      .catch(() => {
-        if (alive) setCalendarOptions([]);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [vault, bump, tick]);
-
-  const submitBlock = useCallback(
-    async (values: TaskBlockValues, calendarKey: string) => {
-      const target = blockTarget;
-      if (!target) return;
-      const provider = await pimTargetForCalendarKey(calendarKey);
-      if (!provider) throw new Error(t("pim.eventWriteFailed"));
-      const allPaths = vault.queryService
-        ? (await vault.queryService.listNotes().catch(() => [])).map((n) => n.path)
-        : [target.linkPath];
-      const res = await createTaskTimeBlock({
-        adapter: vault.files,
-        target: provider,
-        calendarKey,
-        title: target.title,
-        values,
-        notePath: target.notePath,
-        linkPath: target.linkPath,
-        allPaths,
-      });
-      setBlockTarget(null);
-      // An event that exists but could not be linked is a warning, never a
-      // failure — saying "done" would hide half the outcome.
-      toast.info(
-        target.notePath && !res.anchored
-          ? t("pim.blockNotAnchored")
-          : t("pim.blockCreated", { title: target.title })
-      );
-      if (target.notePath) setTick((x) => x + 1);
-      pimSyncNow();
-    },
-    [blockTarget, vault, t]
-  );
-
   /**
    * Hidden notes come out FIRST, so the folder and tag lists offer only what
    * the user can actually reach — a folder that exists solely inside hidden
@@ -455,124 +350,6 @@ export function TasksScreen({
     setTick((x) => x + 1);
   };
 
-  /** Promotes a checkbox into the task database — the same shared path the
-   *  desktop uses, so a task promoted on either device looks identical. */
-  const promote = useCallback(
-    (task: TaskRecord, intoDb?: string) => {
-      const dbPath = intoDb ?? taskDb;
-      if (!dbPath) {
-        toast.info(t("tasks.promoteNoDb"));
-        return;
-      }
-      void (async () => {
-        const allNotePaths = vault.queryService
-          ? (await vault.queryService.listNotes().catch(() => [])).map((n) => n.path)
-          : [];
-        const res = await promoteTask({
-          adapter: promotionAdapter,
-          sourcePath: task.path,
-          task,
-          dbPath,
-          noteType: configuredNoteType(),
-          templateVault: await phoneTemplateVault(),
-          allNotePaths,
-          fallbackTitle: t("tasks.promoteFallbackTitle"),
-        }).catch(() => null);
-        if (!res || !res.ok) {
-          const reason = res && !res.ok ? res.reason : null;
-          if (reason === "stale") {
-            toast.info(t("tasks.promoteStale"));
-            setTick((x) => x + 1);
-          } else {
-            toast.error(t(reason === "noFolder" ? "tasks.promoteNoFolder" : "tasks.promoteFailed"));
-          }
-          return;
-        }
-        // A promoted checkbox is a task in that database like any other (C4,
-        // S17) — it takes the same route to the provider, or it would depend
-        // on WHERE a task was born whether it gets there.
-        await sendTaskToProviderList(promotionAdapter, dbPath, res.notePath, res.title, task.due ?? undefined);
-        syncSoon();
-        toast.info(t("tasks.promoted", { name: res.title }));
-        setTick((x) => x + 1);
-      })();
-    },
-    [taskDb, promotionAdapter, vault, t]
-  );
-
-  /**
-   * Promoting into a DIFFERENT database (S31). The button uses the vault's
-   * default, which is right nearly always; holding it asks instead. A vault
-   * with a work list and a private one has no single right answer, and the
-   * desktop already offered the choice — the phone silently did not, so a task
-   * that belonged elsewhere had to be moved by hand afterwards.
-   */
-  const promoteInto = async (task: TaskRecord) => {
-    const bases = vault.queryService ? await vault.queryService.listBases().catch(() => []) : [];
-    if (bases.length === 0) {
-      toast.info(t("sidebar.noDatabases"));
-      return;
-    }
-    // The database the task moves into: the target of an action (E20).
-    const picked = await mTargets({
-      title: t("tasks.promoteTo"),
-      options: bases.map((b) => ({ value: b.path, label: b.path === taskDb ? `${b.title} ★` : b.title })),
-    });
-    if (picked !== null) promote(task, picked);
-  };
-
-  const promotePress = useLongPress<TaskRecord>((task) => void promoteInto(task));
-
-  /**
-   * A task row can be held too (S22).
-   *
-   * Its actions sat visibly ON the row — a checkbox, a chip, a trailing button
-   * — so the row deliberately had no sheet and, per the swipe rule, no swipe
-   * either. That left one list where holding a row did nothing while holding a
-   * row on the next screen opened its actions. The sheet is what makes both the
-   * gesture and (in S23) the swipe possible: one definition, several ways in.
-   *
-   * A press that starts ON one of the row's own controls is left alone — the
-   * same test the row itself uses to decide whether a tap was meant for it.
-   */
-  /**
-   * What a task row can do, once (S22/S23).
-   *
-   * The sheet shows the whole list (plus "open"); the swipe shows the part of
-   * the same list marked `swipe` — done, to the database, block time — like
-   * every other list in the app. Until 24.10. the swipe took the whole list:
-   * with six actions the strip was wider than the row and pushed it off the
-   * screen, leaving nothing to swipe back (TestFlight, build 139). Both still
-   * come from one definition, so a gesture and the menu cannot disagree.
-   */
-  const rowActions = (a: {
-    done: boolean;
-    toggle: () => void;
-    promote?: () => void;
-    repeat?: () => void;
-    block?: () => void;
-    due?: () => void;
-    priority?: () => void;
-    state?: () => void;
-  }) =>
-    // The list itself lives in @plainva/ui since the Design-Runde (E2): the
-    // desktop's context menu reads the same one.
-    taskRowActions(t, a).map((s) => ({ icon: <s.icon size={ICON.head} />, label: s.label, danger: s.danger, onClick: s.run }));
-  const swipeActions = (a: Parameters<typeof rowActions>[0]) =>
-    taskRowActions(t, a)
-      .filter((s) => s.swipe)
-      .map((s) => ({ icon: <s.icon size={ICON.head} />, label: s.label, danger: s.danger, onClick: s.run }));
-
-  const [taskSheet, setTaskSheet] = useState<
-    | { title: string; open: () => void; done: boolean; toggle: () => void; promote?: () => void; repeat?: () => void; block?: () => void; due?: () => void; priority?: () => void; state?: () => void }
-    | null
-  >(null);
-  const rowPress = useLongPress<() => void>((show) => show());
-  const startRowPress = (e: ReactPointerEvent, show: () => void) => {
-    if ((e.target as HTMLElement).closest("button,a,input,select,textarea,label")) return;
-    rowPress.start(show);
-  };
-
   const groups = useMemo(
     () => groupTasksByNote(filterTasks(visibleTasks, { status, text, folder, tag, dueOnly, includeHidden: true })),
     [visibleTasks, status, text, folder, tag, dueOnly]
@@ -592,7 +369,7 @@ export function TasksScreen({
    * person's own version as well.
    */
   const mutateCheckbox = useCallback(
-    async (task: TaskRecord, mutate: (fresh: string, ordinal: number) => ChecklistMutationResult, optimistic: (row: TaskRecord) => TaskRecord) => {
+    async (task: NoteTaskRef, mutate: (fresh: string, ordinal: number) => ChecklistMutationResult, optimistic: (row: TaskRecord) => TaskRecord) => {
       gate.begin();
       // The ordinal was taken from a snapshot; if the note changed since, it
       // may point at a different line now. Checked on the text that is written.
@@ -627,92 +404,6 @@ export function TasksScreen({
     },
     [mutateCheckbox]
   );
-  /** In progress and cancelled (E12) are set on request — a tap never writes them. */
-  const pickState = useCallback(
-    async (task: TaskRecord) => {
-      const picked = await mSelect({
-        title: t("tasks.setState"),
-        value: task.state,
-        options: [
-          { value: "open", label: t("tasks.open") },
-          { value: "progress", label: t("tasks.stateProgress") },
-          { value: "done", label: t("tasks.done") },
-          { value: "cancelled", label: t("tasks.stateCancelled") },
-        ],
-      });
-      if (picked === null) return;
-      const state = picked as TaskBoxState;
-      await mutateCheckbox(task, (fresh, ordinal) => setChecklistTaskState(fresh, ordinal, state), (row) => ({ ...row, done: state === "done", state }));
-    },
-    [mutateCheckbox, t]
-  );
-
-  /** Surgical frontmatter edit of a database note, then a refresh. */
-  const writeDbNote = useCallback(
-    async (path: string, mutate: (raw: string) => string) => {
-      try {
-        if ((await vaultOps.update(vault, path, mutate)).changed) syncSoon();
-        setTick((x) => x + 1);
-      } catch (e) {
-        // A status, a priority, a repeat rule: each is one property of the
-        // task's note. The sentence a property write gets, with the reason as
-        // `errorText` reads it (finding 2026-10-12) — the bare message stood
-        // here, and for a block that is no YAML that is the parser's quote of
-        // the note's own line.
-        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
-      }
-    },
-    [vault, t]
-  );
-
-  /**
-   * Priority (plan Aufgaben-Oberfläche, B3) — the desktop's twin is the priority
-   * menu in TasksView. A database entry stores it in the priority column, which
-   * a database made before priorities existed gets the first time one is SET; a
-   * checkbox carries the Tasks-plugin mark on its line.
-   */
-  const pickPriority = useCallback(
-    async (target: { kind: "db"; path: string; rank: TaskPriority } | { kind: "note"; task: TaskRecord }) => {
-      const current = target.kind === "db" ? target.rank : target.task.priority ?? 0;
-      const picked = await mSelect({
-        title: t("tasks.prioritySet"),
-        value: String(current),
-        options: [
-          { value: "1", label: t("tasks.priorityHigh") },
-          { value: "2", label: t("tasks.priorityMedium") },
-          { value: "3", label: t("tasks.priorityLow") },
-          { value: "0", label: t("tasks.priorityNone") },
-        ],
-      });
-      if (picked === null) return;
-      const rank = Number(picked) as TaskPriority;
-      if (target.kind === "note") {
-        await mutateCheckbox(
-          target.task,
-          (fresh, ordinal) => setChecklistTaskPriority(fresh, ordinal, rank),
-          (row) => ({ ...row, text: setTasksPriority(row.text, rank), priority: rank || undefined }),
-        );
-        return;
-      }
-      if (!taskDb) return;
-      try {
-        const { columnAdded } = await setDbTaskPriority(
-          { ...vaultTextFiles(vault), writeNote: writeDbNote },
-          taskDb,
-          target.path,
-          rank,
-          { key: t("tasks.dbPriorityKey"), options: [t("tasks.priorityHigh"), t("tasks.priorityMedium"), t("tasks.priorityLow")] },
-        );
-        if (columnAdded) toast.info(t("tasks.priorityColumnAdded", { name: columnAdded }));
-        syncSoon();
-        setTick((x) => x + 1);
-      } catch (e) {
-        toast.error(errorText(e));
-      }
-    },
-    [mutateCheckbox, writeDbNote, taskDb, vault, t]
-  );
-
   /**
    * The due day (plan Befunde 2026-10-06, W2/W3) — the desktop's twin is the
    * date popover in TasksView. A tap on a task's date opens the shared date
@@ -798,25 +489,6 @@ export function TasksScreen({
     [t]
   );
 
-  const pickDbStatus = useCallback(
-    (row: TaskDbRow) => {
-      const model = dbCompletion;
-      const statusModel = statusModelOf(model);
-      if (!model || !statusModel) return;
-      void (async () => {
-        const picked = await mSelect({
-          title: t("tasks.setStatus"),
-          options: statusModel.options.map((o) => ({ value: o, label: o })),
-          value: row.status ?? "",
-        });
-        if (picked === null) return;
-        await writeDbNote(row.path, (raw) =>
-          applyTaskStatusOption(raw, model, picked, (c, p, v) => setFrontmatterPath(c, p, v))
-        );
-      })();
-    },
-    [dbCompletion, writeDbNote, t]
-  );
 
   /**
    * Quick capture (plan Aufgaben-Oberfläche, B2): "+ New task", the FAB and the
@@ -907,63 +579,97 @@ export function TasksScreen({
   // Overdue on top), Upcoming, Inbox and Done. The screen's filters apply — all
   // but the status filter, which a planner list answers by itself.
   const todayKey = useTodayKey();
+  const dbMetaOf = useCallback(
+    (path: string) => {
+      const meta = dbMeta[path];
+      return meta ? { repeats: meta.repeat !== null, mirrored: meta.mirrored, repeatsAtProvider: meta.providerRepeats } : undefined;
+    },
+    [dbMeta]
+  );
   const plannerRows = useMemo(() => {
     const db = filterTaskDbRows(dbRows ?? [], { status: "all", text, dueOnly });
     const notes = filterTasks(visibleTasks, { status: "all", text, folder, tag, dueOnly, includeHidden: true });
-    return [
-      ...plannerRowsFromDb(db, (path) => {
-        const meta = dbMeta[path];
-        return meta ? { repeats: meta.repeat !== null, mirrored: meta.mirrored, repeatsAtProvider: meta.providerRepeats } : undefined;
-      }),
-      ...plannerRowsFromTasks(notes),
-    ];
-  }, [dbRows, dbMeta, visibleTasks, text, folder, tag, dueOnly]);
-  const planner = useMemo(() => buildPlanner(plannerRows, todayKey), [plannerRows, todayKey]);
+    return [...plannerRowsFromDb(db, dbMetaOf), ...plannerRowsFromTasks(notes)];
+  }, [dbRows, dbMetaOf, visibleTasks, text, folder, tag, dueOnly]);
+  // Subtasks under their task (E6): an undated subtask of an open task is
+  // listed under it rather than on its own in the Inbox.
+  const planner = useMemo(() => buildPlanner(subtasks ? plannerRowsForTree(plannerRows) : plannerRows, todayKey), [plannerRows, subtasks, todayKey]);
+  // What was finished today, folded under Today (E5).
+  const doneToday = useMemo(() => doneTasksOnDay(plannerRows, todayKey), [plannerRows, todayKey]);
   const openCount = useMemo(() => plannerRows.filter((r) => isOpenState(r.state)).length, [plannerRows]);
   const plannerSections = list === "all" ? [] : planner.sections(list);
   const plannerEmpty =
     list === "upcoming" ? t("tasks.plannerEmptyUpcoming", { days: 14 }) : list === "inbox" ? t("tasks.plannerEmptyInbox") : list === "done" ? t("tasks.plannerEmptyDone") : t("tasks.plannerEmptyToday");
   const taskOfRow = (row: PlannerRow) => tasks.find((tk) => tk.path === row.path && tk.ordinal === row.ordinal);
   const dbRowOf = (row: PlannerRow) => (dbRows ?? []).find((r) => r.path === row.path);
-  /** What a planner row can do — the same capability lists the two sections below build. */
-  const plannerActs = (row: PlannerRow) => {
+  /** A row opens where it lives: a checkbox at its line, a database entry as its note. */
+  const openRow = (row: PlannerRow) => {
+    const task = row.source === "note" ? taskOfRow(row) : undefined;
+    if (task) open(task);
+    else onOpenNote(row.path);
+  };
+  const toggleRow = (row: PlannerRow) => {
     const dbRow = row.source === "database" ? dbRowOf(row) : undefined;
     const task = row.source === "note" ? taskOfRow(row) : undefined;
-    if (dbRow) {
-      return {
-        title: noteDisplayName(dbRow.title),
-        open: () => onOpenNote(dbRow.path),
-        done: dbRow.done,
-        toggle: () => void toggleDbRow(dbRow),
-        repeat: dbMeta[dbRow.path]?.mirrored
-          ? undefined
-          : () => setRepeatTarget({ path: dbRow.path, title: noteDisplayName(dbRow.title), rule: dbMeta[dbRow.path]?.repeat ?? null, due: dbRow.due }),
-        block:
-          calendarOptions.length > 0
-            ? () => setBlockTarget({ title: noteDisplayName(dbRow.title), due: dbRow.due, notePath: dbRow.path, linkPath: dbRow.path })
-            : undefined,
-        due: dueOfDb(dbRow),
-        priority: () => void pickPriority({ kind: "db", path: dbRow.path, rank: dbRow.priority ?? 0 }),
-      };
-    }
-    if (task) {
-      return {
-        title: taskLabel(task.text) || task.text,
-        open: () => open(task),
-        done: !isOpenTaskState(task.state),
-        toggle: () => void toggle(task),
-        promote: taskDb ? () => promote(task) : undefined,
-        block:
-          calendarOptions.length > 0
-            ? () => setBlockTarget({ title: taskLabel(task.text) || task.text, due: task.due ?? null, linkPath: task.path })
-            : undefined,
-        due: dueOfNote(task),
-        priority: () => void pickPriority({ kind: "note", task }),
-        state: () => void pickState(task),
-      };
-    }
-    return null;
+    if (dbRow) toggleDbRow(dbRow);
+    else if (task) void toggle(task);
   };
+  const dueOfRow = (row: PlannerRow) => {
+    const dbRow = row.source === "database" ? dbRowOf(row) : undefined;
+    const task = row.source === "note" ? taskOfRow(row) : undefined;
+    (dbRow ? dueOfDb(dbRow) : task ? dueOfNote(task) : undefined)?.();
+  };
+  const reloadTasks = useCallback(() => setTick((x) => x + 1), []);
+  /**
+   * What a task row can do (E1, 2026-10-24): the one builder the phone's task
+   * lists read — this screen's planner and "All", and Today → Due. The screen
+   * hands in its own ways to open, tick and date a task.
+   */
+  const rowKit = useTaskRowActions({
+    vault,
+    taskDb,
+    abilities: { databaseTickable: dbCompletion !== null, databaseDue: dbDueKey !== null },
+    reloadKey: `${bump}:${tick}`,
+    open: (row) => openRow(row),
+    toggle: (row) => toggleRow(row),
+    due: (row) => dueOfRow(row),
+    onChanged: reloadTasks,
+    mutateCheckbox,
+  });
+  const { capsOf, swipeActions, setTaskSheet, rowPress, startRowPress, writeDbNote, promote, promotePress, openRepeat, openBlock, canBlock } = rowKit;
+
+  const pickDbStatus = useCallback(
+    (row: TaskDbRow) => {
+      const model = dbCompletion;
+      const statusModel = statusModelOf(model);
+      if (!model || !statusModel) return;
+      void (async () => {
+        const picked = await mSelect({
+          title: t("tasks.setStatus"),
+          options: statusModel.options.map((o) => ({ value: o, label: o })),
+          value: row.status ?? "",
+        });
+        if (picked === null) return;
+        await writeDbNote(row.path, (raw) =>
+          applyTaskStatusOption(raw, model, picked, (c, p, v) => setFrontmatterPath(c, p, v))
+        );
+      })();
+    },
+    [dbCompletion, writeDbNote, t]
+  );
+
+  /** What a planner row can do — the rows of "All" ask the same builder. Only for a row this screen still holds. */
+  const plannerActs = (row: PlannerRow) => ((row.source === "database" ? dbRowOf(row) : taskOfRow(row)) ? capsOf(row) : null);
+  /** A row of "All" in the planner's shape, so it asks the same builder. */
+  const dbPlannerRow = (row: TaskDbRow) => plannerRowsFromDb([row], dbMetaOf)[0]!;
+  const notePlannerRow = (task: TaskRecord) => plannerRowsFromTasks([task])[0]!;
+  // Links in a task's title open their note (E3), read from the note the task stands in.
+  const titleLinks = useMemo(() => ({
+    onOpenNote: (target: string, _newTab: boolean, kind?: "wiki" | "markdown", fromPath?: string) => {
+      void openLink({ text: target, kind: kind ?? "wiki", sourcePath: fromPath }, { vault, onOpenNote }).catch(() => undefined);
+    },
+    onOpenUrl: (url: string) => { void Browser.open({ url }).catch(() => undefined); },
+  }), [vault, onOpenNote]);
   const overdueToToday = () => {
     const overdue = planner.sections("today").find((section) => section.kind === "overdue")?.rows ?? [];
     const changes = overdueToDayChanges(overdue, todayKey, (row) => taskOfRow(row));
@@ -1054,6 +760,12 @@ export function TasksScreen({
         <Chip onClick={() => setShowHidden((v) => !v)} selected={showHidden}>
           {t("tasks.showHidden")}
         </Chip>
+        <Chip onClick={() => setSubtasks((v) => !v)} selected={subtasks} testId="tasks-filter-subtasks">
+          {t("tasks.showSubtasks")}
+        </Chip>
+        <Chip onClick={() => setDetails((v) => !v)} selected={details} testId="tasks-filter-details">
+          {t("tasks.showDetails")}
+        </Chip>
         <Button variant="ghost" size="sm" onClick={resetFilters} data-testid="tasks-reset-filters">{t("tasks.resetFilters")}</Button>
         {templateNotePaths.length > 0 && (
           <Chip onClick={() => void hideAllTemplates()}>{t("tasks.hideTemplates")}</Chip>
@@ -1084,7 +796,7 @@ export function TasksScreen({
             sections={plannerSections}
             emptyLabel={plannerEmpty}
             databaseLabel={taskDb ? noteDisplayName(taskDb.split("/").pop() ?? taskDb) : t("tasks.plannerFromDatabase")}
-            onToggle={(row) => plannerActs(row)?.toggle()}
+            onToggle={(row) => plannerActs(row)?.toggle?.()}
             onOpen={(row) => {
               if (rowPress.clicked()) plannerActs(row)?.open();
             }}
@@ -1106,6 +818,10 @@ export function TasksScreen({
             onDue={(row) => plannerActs(row)?.due?.()}
             canDue={(row) => plannerActs(row)?.due !== undefined}
             onOverdueToToday={overdueToToday}
+            links={titleLinks}
+            subtasks={subtasks ? plannerRows : undefined}
+            details={details}
+            doneToday={list === "today" ? doneToday : undefined}
           />
         )
       ) : (
@@ -1119,25 +835,8 @@ export function TasksScreen({
             ) : (
               <RowList>
                 {dbVisible.map((row) => {
-                  const acts = {
-                    done: row.done,
-                    toggle: () => void toggleDbRow(row),
-                    repeat: dbMeta[row.path]?.mirrored
-                      ? undefined
-                      : () =>
-                          setRepeatTarget({
-                            path: row.path,
-                            title: noteDisplayName(row.title),
-                            rule: dbMeta[row.path]?.repeat ?? null,
-                            due: row.due,
-                          }),
-                    block:
-                      calendarOptions.length > 0
-                        ? () => setBlockTarget({ title: row.title, due: row.due ?? null, linkPath: row.path })
-                        : undefined,
-                    due: dueOfDb(row),
-                    priority: () => void pickPriority({ kind: "db", path: row.path, rank: row.priority ?? 0 }),
-                  };
+                  const prow = dbPlannerRow(row);
+                  const acts = capsOf(prow);
                   return (
                   <SwipeRow actions={swipeActions(acts)} key={row.path}>
                   <Row
@@ -1197,14 +896,7 @@ export function TasksScreen({
                                    without the distinction every row carried a
                                    "Wiederholung" chip that said nothing. */
                                 tone={dbMeta[row.path]?.repeat ? "default" : "muted"}
-                                onClick={() =>
-                                  setRepeatTarget({
-                                    path: row.path,
-                                    title: noteDisplayName(row.title),
-                                    rule: dbMeta[row.path]?.repeat ?? null,
-                                    due: row.due,
-                                  })
-                                }
+                                onClick={() => openRepeat(prow, dbMeta[row.path]?.repeat ?? null)}
                                 icon={<Repeat size={ICON.meta} />}
                               >
                                 {dbMeta[row.path]?.repeat
@@ -1215,27 +907,18 @@ export function TasksScreen({
                       </>
                     }
                     end={
-                      calendarOptions.length > 0 ? (
+                      canBlock ? (
                         <IconButton
                           label={t("pim.blockTime")}
                           data-testid="task-db-block"
-                          onClick={() =>
-                            setBlockTarget({
-                              title: noteDisplayName(row.title),
-                              due: row.due,
-                              notePath: row.path,
-                              linkPath: row.path,
-                            })
-                          }
+                          onClick={() => openBlock(prow)}
                         >
                           <CalendarPlus size={ICON.head} />
                         </IconButton>
                       ) : undefined
                     }
                     onPointerDown={(e: ReactPointerEvent) =>
-                      startRowPress(e, () =>
-                        setTaskSheet({ ...acts, title: row.title, open: () => onOpenNote(row.path) }),
-                      )
+                      startRowPress(e, () => setTaskSheet(acts))
                     }
                     onPointerUp={rowPress.clear}
                     onPointerLeave={rowPress.clear}
@@ -1314,23 +997,8 @@ export function TasksScreen({
             <GroupCard>
               <RowList>
                 {group.items.map((task) => {
-                  const acts = {
-                    done: !isOpenTaskState(task.state),
-                    toggle: () => void toggle(task),
-                    promote: taskDb ? () => promote(task) : undefined,
-                    block:
-                      calendarOptions.length > 0
-                        ? () =>
-                            setBlockTarget({
-                              title: taskLabel(task.text) || task.text,
-                              due: task.due ?? null,
-                              linkPath: task.path,
-                            })
-                        : undefined,
-                    due: dueOfNote(task),
-                    priority: () => void pickPriority({ kind: "note", task }),
-                    state: () => void pickState(task),
-                  };
+                  const prow = notePlannerRow(task);
+                  const acts = capsOf(prow);
                   return (
                   /* S23: the swipe the sammelplan asked to hold back until the
                      sheet existed. Same actions, same order, one definition. */
@@ -1350,7 +1018,7 @@ export function TasksScreen({
                     title={
                       <span className={isOpenTaskState(task.state) ? undefined : "m-task-done"}>
                         <TaskPriorityFlag rank={task.priority} />
-                        <TaskText text={task.text} />
+                        <TaskTitle text={prow.title} notePath={task.path} links={titleLinks} />
                       </span>
                     }
                     subtitle={
@@ -1370,9 +1038,9 @@ export function TasksScreen({
                             testId="task-promote"
                             tone="muted"
                             onClick={() => {
-                              if (promotePress.clicked()) promote(task);
+                              if (promotePress.clicked()) promote(prow);
                             }}
-                            onPointerDown={() => promotePress.start(task)}
+                            onPointerDown={() => promotePress.start(prow)}
                             onPointerUp={promotePress.clear}
                             onPointerLeave={promotePress.clear}
                             onPointerCancel={promotePress.clear}
@@ -1384,29 +1052,18 @@ export function TasksScreen({
                       </>
                     }
                     end={
-                      calendarOptions.length > 0 ? (
+                      canBlock ? (
                         <IconButton
                           label={t("pim.blockTime")}
                           data-testid="task-block"
-                          onClick={() =>
-                            setBlockTarget({
-                              title: taskLabel(task.text) || task.text,
-                              due: task.due ?? null,
-                              // A checkbox has no note of its own — only the
-                              // event is created, linking back to the note the
-                              // line lives in.
-                              linkPath: task.path,
-                            })
-                          }
+                          onClick={() => openBlock(prow)}
                         >
                           <CalendarPlus size={ICON.head} />
                         </IconButton>
                       ) : undefined
                     }
                     onPointerDown={(e: ReactPointerEvent) =>
-                      startRowPress(e, () =>
-                        setTaskSheet({ ...acts, title: taskLabel(task.text) || task.text, open: () => open(task) }),
-                      )
+                      startRowPress(e, () => setTaskSheet(acts))
                     }
                     onPointerUp={rowPress.clear}
                     onPointerLeave={rowPress.clear}
@@ -1437,22 +1094,7 @@ export function TasksScreen({
         />
       )}
 
-      {taskSheet && (
-        <RowActionSheet
-          actions={[
-            { icon: <FileText size={ICON.head} />, label: t("mobile.sheetOpen"), onClick: () => { const x = taskSheet; setTaskSheet(null); x.open(); } },
-            ...rowActions(taskSheet).map((a) => ({
-              ...a,
-              onClick: () => {
-                setTaskSheet(null);
-                a.onClick();
-              },
-            })),
-          ]}
-          onClose={() => setTaskSheet(null)}
-          title={taskSheet.title}
-        />
-      )}
+      {rowKit.element}
 
       {dueTarget && <TaskDueSheet value={dueTarget.value} time={dueTarget.time} timeAllowed={dueTarget.timeAllowed} onPick={pickDue} onClose={() => setDueTarget(null)} />}
 
@@ -1461,36 +1103,6 @@ export function TasksScreen({
         onOpenNote={onOpenNote}
         onRemoved={(count) => toast.info(t("tasks.duplicatesRemoved", { count }))}
       />
-
-      {repeatTarget && (
-        <RepeatTaskSheet
-          currentDue={repeatTarget.due}
-          initial={repeatTarget.rule}
-          onClose={() => setRepeatTarget(null)}
-          onSubmit={async (rule) => {
-            const path = repeatTarget.path;
-            await writeDbNote(path, (raw) => {
-              if (rule && !canRepeat(raw)) throw new Error(t("tasks.repeatRemote"));
-              return writeRepeatRule(raw, rule);
-            });
-            setRepeatTarget(null);
-          }}
-          taskTitle={repeatTarget.title}
-        />
-      )}
-
-      {blockTarget && (
-        <TimeBlockSheet
-          calendarOptions={calendarOptions}
-          initialCalendarKey={resolveDefaultCalendarKey(calendarOptions, "")}
-          // A due task blocks on its due day by default, everything else today.
-          initialDayKey={blockTarget.due ?? calendarDay()}
-          initialStartTime={minutesToTime(nextHalfHourMinutes(new Date()))}
-          onClose={() => setBlockTarget(null)}
-          onSubmit={submitBlock}
-          taskTitle={blockTarget.title}
-        />
-      )}
     </div>
   );
 }

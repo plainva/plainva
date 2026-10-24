@@ -1,8 +1,9 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { Browser } from "@capacitor/browser";
 import { consumePendingNew } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarClock, CalendarDays, FileText, ListTodo, Trash2 } from "lucide-react";
-import { dueTimeOf, errorText, noteDisplayName, setPendingSearchJump, TaskCheckButton, taskDueMovedText, toast, useTodayKey, type DuePick, type PlannerRow, type TaskDueChange } from "@plainva/ui";
+import { doneTasksOnDay, dueTimeOf, errorText, noteDisplayName, setPendingSearchJump, TaskCheckButton, TaskDoneFold, taskDueMovedText, TaskTitle, toast, useDoneFold, useTodayKey, type DuePick, type PlannerRow, type TaskDueChange } from "@plainva/ui";
 import { TaskDueSheet } from "../components/TaskDueSheet";
 import { announceTaskDue, moveTaskDueOnPhone } from "../services/taskDueAction";
 import { loadPhoneDueTasks, taskJumpTerm, tickPhoneDueTask, type PhoneDueTasks } from "../services/dueTasks";
@@ -13,6 +14,9 @@ import { getMobileSettings } from "../services/mobileSettings";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useLongPress } from "../lib/useLongPress";
 import { RowActionSheet } from "../components/RowActionSheet";
+import { SwipeRow } from "../components/SwipeRow";
+import { useTaskRowActions } from "../components/useTaskRowActions";
+import { openLink } from "../services/openLink";
 import { confirmDeleteFile } from "../lib/deleteFile";
 import type { MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
@@ -146,6 +150,94 @@ export function TodayScreen({
         if (row.source === "database") toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
         else toast.error(errorText(e));
       });
+  };
+  const reloadDue = useCallback(() => setDueTick((x) => x + 1), []);
+  /**
+   * What a task under Due can do (E1, 2026-10-24): the same as in the tasks tab
+   * — one builder for both lists, so the hold opens the same sheet and the
+   * swipe offers the same strip. This screen hands in its own tick, its own way
+   * to open a task and its own date sheet.
+   */
+  const taskRows = useTaskRowActions({
+    vault,
+    taskDb: settings.taskDatabase.trim(),
+    abilities: { databaseTickable: dueTasks.databaseTickable, databaseDue: taskDueKey !== null },
+    reloadKey: `${bump}:${dueTick}`,
+    open: openTask,
+    toggle: tick,
+    due: (row) => setDueTarget(row),
+    onChanged: reloadDue,
+  });
+  // What was finished on the selected day (E5), folded under Due. On the
+  // diary's today before the vault's day boundary, the calendar's today too —
+  // as Due reaches up to it (`dueTasksForDay`).
+  const doneOnDay = useMemo(
+    () => doneTasksOnDay(dueTasks.rows, selectedIso, selectedIso === todayIso && calendarToday > selectedIso ? calendarToday : selectedIso),
+    [dueTasks.rows, selectedIso, todayIso, calendarToday],
+  );
+  const [doneOpen, toggleDone] = useDoneFold();
+  // Links in a task's title open their note (E3), read from the note the task stands in.
+  const titleLinks = useMemo(() => ({
+    onOpenNote: (target: string, _newTab: boolean, kind?: "wiki" | "markdown", fromPath?: string) => {
+      void openLink({ text: target, kind: kind ?? "wiki", sourcePath: fromPath }, { vault, onOpenNote }).catch(() => undefined);
+    },
+    onOpenUrl: (url: string) => { void Browser.open({ url }).catch(() => undefined); },
+  }), [vault, onOpenNote]);
+  /** One task row of Due — open, late or (in the fold) finished. */
+  const taskRow = (row: PlannerRow, overdue: boolean, keyPrefix = "") => {
+    const closed = !isOpenState(row.state);
+    const [dy, dm, dd] = (row.due ?? selectedIso).split("-").map(Number);
+    const move = canMoveDue(row) ? () => setDueTarget(row) : undefined;
+    const acts = taskRows.capsOf(row);
+    return (
+      <SwipeRow actions={taskRows.swipeActions(acts)} key={keyPrefix + row.id}>
+        <Row
+          // The box ticks the task where it is stored (the task
+          // screen's write); the row opens it.
+          icon={<TaskCheckButton state={row.state} label={closed ? t("tasks.open") : t("tasks.done")} onToggle={() => tick(row)} disabled={row.source === "database" && !dueTasks.databaseTickable} testId="today-task-toggle" />}
+          onClick={() => {
+            if (taskRows.rowPress.clicked()) openTask(row);
+          }}
+          onPointerDown={(e: ReactPointerEvent) => taskRows.startRowPress(e, () => taskRows.setTaskSheet(acts))}
+          onPointerUp={taskRows.rowPress.clear}
+          onPointerLeave={taskRows.rowPress.clear}
+          onPointerCancel={taskRows.rowPress.clear}
+          // The date is a control of its own (W2): a tap on it opens
+          // the date sheet, a tap beside it still opens the task.
+          controls
+          data-testid="today-task-row"
+          data-source={row.source}
+          data-state={row.state}
+          data-overdue={overdue ? "true" : undefined}
+          subtitle={
+            <>
+              {row.due && (
+                <Chip
+                  size="sm"
+                  tone={overdue ? "warning" : undefined}
+                  icon={move ? <CalendarClock size={ICON.meta} /> : undefined}
+                  testId="today-task-due"
+                  onClick={move}
+                >
+                  {/* Its own day: late, or — before the day boundary — the calendar's today. */}
+                  {row.due !== selectedIso || row.dueMinutes === null
+                    ? t("pim.dueOn", { date: longDate.format(new Date(dy, dm - 1, dd)) })
+                    : t("pim.dueAt", { defaultValue: "fällig {{time}}", time: minutesToHHMM(row.dueMinutes) })}
+                </Chip>
+              )}
+              {/* A checkbox says which note it lives in, as in the planner. */}
+              {row.source === "note" && <Chip size="sm" tone="muted">{noteDisplayName(row.noteTitle ?? row.path)}</Chip>}
+            </>
+          }
+          title={
+            <span className={closed ? "pv-planner-closed" : undefined}>
+              {row.source === "database" ? noteDisplayName(row.title) : <TaskTitle text={row.title} notePath={row.path} links={titleLinks} />}
+            </span>
+          }
+          wrap
+        />
+      </SwipeRow>
+    );
   };
   /**
    * Where a new appointment starts when it is created from a day rather than
@@ -379,54 +471,20 @@ export function TodayScreen({
           </RowList>
         </GroupCard>
       )}
-      {dayTasks.length === 0 ? (
+      {dayTasks.length === 0 && (
         <GroupCard className="m-daycard-empty">
           <p className="m-hint">{t("mobile.todayNoDue")}</p>
         </GroupCard>
-      ) : (
+      )}
+      {(dayTasks.length > 0 || doneOnDay.length > 0) && (
         <GroupCard>
           <RowList>
-            {dayTasks.map((item) => {
-              const row = item.task;
-              const closed = !isOpenState(row.state);
-              const [dy, dm, dd] = (row.due ?? selectedIso).split("-").map(Number);
-              const move = canMoveDue(row) ? () => setDueTarget(row) : undefined;
-              return (
-                <Row
-                  // The box ticks the task where it is stored (the task
-                  // screen's write); the row opens it.
-                  icon={<TaskCheckButton state={row.state} label={closed ? t("tasks.open") : t("tasks.done")} onToggle={() => tick(row)} disabled={row.source === "database" && !dueTasks.databaseTickable} testId="today-task-toggle" />}
-                  key={row.id}
-                  onClick={() => openTask(row)}
-                  // The date is a control of its own (W2): a tap on it opens
-                  // the date sheet, a tap beside it still opens the task.
-                  controls
-                  data-testid="today-task-row"
-                  data-source={row.source}
-                  data-overdue={item.overdue ? "true" : undefined}
-                  subtitle={
-                    <>
-                      <Chip
-                        size="sm"
-                        tone={item.overdue ? "warning" : undefined}
-                        icon={move ? <CalendarClock size={ICON.meta} /> : undefined}
-                        testId="today-task-due"
-                        onClick={move}
-                      >
-                        {/* Its own day: late, or — before the day boundary — the calendar's today. */}
-                        {row.due !== selectedIso || row.dueMinutes === null
-                          ? t("pim.dueOn", { date: longDate.format(new Date(dy, dm - 1, dd)) })
-                          : t("pim.dueAt", { defaultValue: "fällig {{time}}", time: minutesToHHMM(row.dueMinutes) })}
-                      </Chip>
-                      {/* A checkbox says which note it lives in, as in the planner. */}
-                      {row.source === "note" && <Chip size="sm" tone="muted">{noteDisplayName(row.noteTitle ?? row.path)}</Chip>}
-                    </>
-                  }
-                  title={row.source === "database" ? noteDisplayName(row.title) : row.title}
-                  wrap
-                />
-              );
-            })}
+            {dayTasks.map((item) => taskRow(item.task, item.overdue))}
+            {/* What was finished on the day (E5): closed until opened, and the
+                device remembers which. A tick in the fold takes the task back
+                up to Due. */}
+            {doneOnDay.length > 0 && <TaskDoneFold count={doneOnDay.length} open={doneOpen} onToggle={toggleDone} />}
+            {doneOpen && doneOnDay.map((row) => taskRow(row, false, "done:"))}
           </RowList>
         </GroupCard>
       )}
@@ -498,6 +556,7 @@ export function TodayScreen({
         />
       )}
 
+      {taskRows.element}
       {editor.element}
     </div>
   );

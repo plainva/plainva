@@ -675,12 +675,16 @@ test("the due day on the phone: a box a finger can hit, a tap on the date opens 
     // Oldest first: the longest-waiting thing leads.
     await expect(rowTitles(overdue)).toHaveText(["Miete zahlen", "Steuer abgeben", "Drucker einrichten"], { timeout: 20_000 });
 
-    // W1: the box is a 44px target with a 24px glyph — it was a 15px glyph.
+    // W1: the box is a 44px target — it was a 15px glyph. Since E9 (2026-10-24)
+    // a finger sees the drawn 22px box the note's text shows too, not the glyph.
     const box = plannerRow(overdue, "Miete zahlen").getByTestId("task-planner-toggle");
     const target = (await box.boundingBox())!;
     expect(target.width).toBeGreaterThanOrEqual(44);
     expect(target.height).toBeGreaterThanOrEqual(44);
-    expect((await box.locator("svg").boundingBox())!.width).toBe(24);
+    await expect(box.locator("svg[data-task-state]")).toBeHidden();
+    const face = (await box.locator(".pv-taskbox-face").boundingBox())!;
+    expect([face.width, face.height]).toEqual([22, 22]);
+    expect(await box.locator(".pv-taskbox-face").evaluate((el) => getComputedStyle(el).borderTopLeftRadius)).toBe("6px");
 
     // W2: the date is a button. A tap opens the date sheet and does NOT open the note.
     await plannerRow(overdue, "Miete zahlen").getByTestId("task-planner-due").click();
@@ -714,7 +718,7 @@ test("the due day on the phone: a box a finger can hit, a tap on the date opens 
     await page.getByTestId("tasks-list-all").click();
     const dbRow = page.getByTestId("task-db-row").filter({ hasText: "Steuer abgeben" });
     expect((await dbRow.getByTestId("task-db-toggle").boundingBox())!.width).toBeGreaterThanOrEqual(44);
-    expect((await dbRow.getByTestId("task-db-toggle").locator("svg").boundingBox())!.width).toBe(24);
+    expect((await dbRow.getByTestId("task-db-toggle").locator(".pv-taskbox-face").boundingBox())!.width).toBe(22);
     await dbRow.getByTestId("task-db-due").click();
     await expect(sheet).toBeVisible();
     await sheet.getByTestId("task-due-grid-day-2026-09-25").click();
@@ -914,6 +918,125 @@ test("a swiped task row keeps itself in sight: three actions at most, and a tap 
       await page.mouse.click(moved.x + moved.width - 20, moved.y + moved.height / 2);
       await expect(swipe.locator(".m-swipe-act")).toHaveCount(0);
     }
+    expect(errors).toEqual([]);
+  } finally {
+    sql.close();
+  }
+});
+
+/** A finger held on the middle of an element for longer than the app's hold, then lifted (mail.spec.ts). */
+async function holdOn(page: Page, target: Locator) {
+  const box = (await target.boundingBox())!;
+  const cdp = await page.context().newCDPSession(page);
+  const point = { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2), id: 1 };
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
+  await page.waitForTimeout(750);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await cdp.detach();
+}
+
+test("Today → Due: a held task opens the sheet of the tasks tab, and what was ticked folds under Done (TestFlight wishes E1, E5)", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const errors = collectErrors(page);
+  const sql = await installSqlBridge(context);
+  const errand = "# Errands\n\n- [ ] Briefmarken kaufen 📅 2026-09-20\n- [x] Papier ✅ 2026-09-20\n- [x] Gestern ✅ 2026-09-19\n";
+  try {
+    await start(page, context, sql, [["Aufgaben.base", TASK_BASE], ["Aufgaben/Angebot schicken.md", taskNote("Angebot schicken", { status: "Offen", frist: "2026-09-20T14:00" })], ["Errands.md", errand]]);
+    await page.locator(".m-tabbar .m-tab", { hasText: "Today" }).click();
+    const row = (title: string) => page.getByTestId("today-task-row").filter({ hasText: title });
+    await expect(row("Briefmarken kaufen")).toBeVisible({ timeout: 20_000 });
+
+    // E1: the same sheet as in the tasks tab — the date among its entries.
+    await holdOn(page, row("Briefmarken kaufen").locator(".pv-grouprow-title"));
+    const sheet = page.locator(".m-sheet");
+    await expect(sheet.locator(".m-sheet-title")).toHaveText("Briefmarken kaufen");
+    for (const entry of ["Open", "Done", "Move to database", "Change due date", "Set priority", "Set state"]) {
+      await expect(sheet.locator(".m-row", { hasText: new RegExp(`^${escapeRe(entry)}$`) })).toHaveCount(1);
+    }
+    await page.locator(".m-sheet-backdrop").click({ position: { x: 10, y: 10 } });
+    await expect(sheet).toHaveCount(0);
+    // The swipe is a row of the same list: every task under Due can be swiped.
+    await expect(page.locator(".m-swipe").filter({ has: row("Angebot schicken") })).toHaveCount(1);
+
+    // E5: what was finished today is folded under Due, closed until opened.
+    const fold = page.getByTestId("task-done-fold");
+    await expect(fold).toHaveText("Done (1)");
+    await expect(fold).toHaveAttribute("aria-expanded", "false");
+    await expect(row("Papier")).toHaveCount(0);
+    await fold.click();
+    await expect(row("Papier")).toHaveAttribute("data-state", "done");
+    await expect(row("Gestern")).toHaveCount(0);
+    // A tick on Due moves the task into the fold, its completion date written.
+    await row("Briefmarken kaufen").getByTestId("today-task-toggle").click();
+    await expect.poll(() => readFile(page, "Errands.md")).toBe(errand.replace("- [ ] Briefmarken kaufen 📅 2026-09-20", "- [x] Briefmarken kaufen 📅 2026-09-20 ✅ 2026-09-20"));
+    await expect(fold).toHaveText("Done (2)");
+    await expect(row("Briefmarken kaufen")).toHaveAttribute("data-state", "done");
+    // …and a tick in the fold takes it back up under Due.
+    await row("Briefmarken kaufen").getByTestId("today-task-toggle").click();
+    await expect(row("Briefmarken kaufen")).toHaveAttribute("data-state", "open");
+    await expect(fold).toHaveText("Done (1)");
+    // The device remembers that the fold stands open.
+    await restart(page);
+    await page.locator(".m-tabbar .m-tab", { hasText: "Today" }).click();
+    await expect(page.getByTestId("task-done-fold")).toHaveAttribute("aria-expanded", "true", { timeout: 20_000 });
+    expect(errors).toEqual([]);
+  } finally {
+    sql.close();
+  }
+});
+
+test("subtasks under their task, bullets as a preview, links as their text — and the filters switch the tree off (TestFlight wishes E3, E6)", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const errors = collectErrors(page);
+  const sql = await installSqlBridge(context);
+  const work = [
+    "# Work",
+    "",
+    "- [ ] Einführung PD Level 7 📅 2026-09-20",
+    "  - Vorschlag: PD Level 8 alle zwei Wochen",
+    "  - Wo binden wir den Besteller ein?",
+    "  - [ ] Termine mit Javid 📅 2026-09-22",
+    "  - [x] Checkliste prüfen",
+    "- [ ] [[Alexander Gaas|Alex]] fragen 📅 2026-09-20",
+    "",
+  ].join("\n");
+  try {
+    await start(page, context, sql, [["Aufgaben.base", TASK_BASE], ["Work.md", work], ["Alexander Gaas.md", "# Alexander Gaas\n\n- [x] Willkommenspaket\n"]]);
+    await openTasks(page);
+    const today = page.getByTestId("task-planner-section-today");
+    // Ordered by what the rows show: the link sorts under A for "Alex".
+    await expect(rowTitles(today)).toHaveText(["Alex fragen", "Einführung PD Level 7", "Termine mit Javid", "Checkliste prüfen"], { timeout: 20_000 });
+    await expect(plannerRow(today, "Termine mit Javid")).toHaveClass(/pv-grouprow--indent/);
+    await expect(plannerRow(today, "Checkliste prüfen")).toHaveAttribute("data-state", "done");
+    await expect(plannerRow(today, "Einführung PD Level 7").getByTestId("task-planner-details")).toHaveText("Vorschlag: PD Level 8 alle zwei WochenWo binden wir den Besteller ein?");
+    // A subtask with a day of its own is on that day too.
+    await page.getByTestId("tasks-list-upcoming").click();
+    await expect(rowTitles(page.getByTestId("task-planner-section-day"))).toHaveText(["Termine mit Javid"]);
+    await page.getByTestId("tasks-list-today").click();
+    // The chevron folds the subtasks away.
+    await plannerRow(today, "Einführung PD Level 7").getByTestId("task-planner-fold").click();
+    await expect(rowTitles(today)).toHaveText(["Alex fragen", "Einführung PD Level 7"]);
+
+    // E3: the link reads as its alias; a tap on it opens the note it names.
+    await expect(plannerRow(today, "Alex fragen").getByTestId("task-title-link")).toHaveText("Alex");
+
+    // Both switches off: every row on its own, no preview.
+    await page.getByTestId("tasks-filter-subtasks").click();
+    await page.getByTestId("tasks-filter-details").click();
+    await expect(rowTitles(today)).toHaveText(["Alex fragen", "Einführung PD Level 7"]);
+    await expect(today.getByTestId("task-planner-details")).toHaveCount(0);
+    await expect(today.getByTestId("task-planner-fold")).toHaveCount(0);
+    // Without the tree the finished subtask stands in Done on its own.
+    await page.getByTestId("tasks-list-done").click();
+    await expect(rowTitles(page.getByTestId("task-planner-section-done"))).toHaveText(["Checkliste prüfen", "Willkommenspaket"]);
+
+    await page.getByTestId("tasks-list-today").click();
+    await plannerRow(today, "Alex fragen").getByTestId("task-title-link").click();
+    await expect(page.locator(".cm-content")).toContainText("Alexander Gaas", { timeout: 20_000 });
+    // E9: the box in the note is the box of the lists — drawn, 22 px, rounded, filled when done.
+    const noteBox = page.locator(".cm-content input.cm-md-task").first();
+    await expect(noteBox).toBeVisible();
+    expect(await noteBox.evaluate((el) => { const c = getComputedStyle(el); return [c.width, c.height, c.borderTopLeftRadius, c.appearance]; })).toEqual(["22px", "22px", "6px", "none"]);
     expect(errors).toEqual([]);
   } finally {
     sql.close();

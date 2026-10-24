@@ -29,6 +29,8 @@ I quattro filtri della barra desktop appaiono sul telefono come chip sopra l'ele
 
 Le attività sono raggruppate per nota; il titolo della nota compare come intestazione su cui puoi fare clic per aprire la nota. Ogni attività mostra la sua casella di controllo e il suo testo, barrato una volta completata. Una **scadenza** scritta come `📅 2026-08-01` nella riga dell'attività compare come un piccolo badge.
 
+Un link nel testo di un'attività si legge come il suo testo: `[[Alexander Gaas|Alex]]` mostra **Alex**, `[[Persone/Anna]]` mostra **Anna**, con l'aspetto di un link. Un clic o un tocco sul link apre quella nota; un clic sul resto della riga apre l'attività. Vale per ogni elenco di attività, su desktop e su telefono.
+
 ## Filtrare
 
 La barra in alto restringe l'elenco:
@@ -177,3 +179,16 @@ Altri modi per crearle: **Nuova attività** nel menu del vassoio di sistema sul 
 ## Spuntare da un widget
 
 La casella del widget **Oggi** registra una richiesta: la spunta compare subito, la nota cambia alla prossima apertura di Plainva, ed è allora che avvengono anche la ricorrenza e la sincronizzazione. Fino a quel momento la riga dice **verrà applicato all’apertura di Plainva**. Un’attività completata, eliminata o spostata nel frattempo resta intatta. Su iPhone serve iOS 17; al di sotto, un tocco sulla riga apre l’attività. Dettagli: [L’app per dispositivi mobili](Mobile_App.md).
+
+<!-- task-rows-2026-10-24 -->
+## Sottoattività, elenchi puntati e ciò che è fatto oggi
+
+**Sottoattività.** Una casella rientrata sotto un'altra è la sua sottoattività, come `show tree` nel plugin Tasks di Obsidian. Negli elenchi **Oggi**, **Prossimamente**, **In entrata** e **Completate** un'attività porta le sue sottoattività rientrate sotto di sé — aperte e completate, queste barrate — e una freccia a fine riga le comprime. Una sottoattività con una data propria compare anche nel proprio giorno; una senza data è elencata sotto la sua attività e non da sola in **In entrata**. L'elenco **Tutte** mantiene ogni casella nell'ordine della sua nota.
+
+**Elenchi puntati.** I punti elenco semplici rientrati sotto un'attività — domande, appunti — compaiono sotto il titolo come anteprima di al massimo due righe; il resto lo conserva la nota.
+
+Entrambi sono attivi finché non li disattivi: **Sottoattività** ed **Elenchi puntati** stanno insieme agli altri filtri (caselle su desktop, chip su telefono) e vengono ricordati con essi.
+
+**Completate oggi.** Sotto **Oggi** una riga compressa **Completate (n)** raccoglie ciò che è stato spuntato oggi — una casella secondo la sua data di completamento `✅` (che Plainva scrive a ogni spunta), una voce del database attività secondo il giorno in cui la sua nota è stata modificata l'ultima volta, perché un database non ha una propria data di completamento. Una casella completata senza data non conta: niente dice quando è stata completata. La riga è chiusa finché non la apri; il dispositivo ricorda la tua scelta. La schermata **Oggi** del telefono mostra la stessa riga sotto **In scadenza**.
+
+**La casella sul telefono.** Nell'editor, in modalità lettura, nell'area Attività e sotto **Oggi**, il telefono disegna ogni casella di attività allo stesso modo: grande e arrotondata, riempita con una spunta se completata, riempita a metà se **In corso**, barrata se **Annullata**. Il desktop mantiene le sue caselle più piccole, pensate per il mouse.

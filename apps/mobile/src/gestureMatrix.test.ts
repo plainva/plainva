@@ -64,22 +64,34 @@ describe("holding a row means the same on every kind of row", () => {
 
 describe("a task row can be held too", () => {
   const tasks = strip(read("screens", "TasksScreen.tsx"));
+  // The sheet, the hold and the swipe list of a task row live in one hook since
+  // the tasks tab and Today → Due both show tasks (E1, 2026-10-24).
+  const kit = strip(read("components", "useTaskRowActions.tsx"));
 
   it("both kinds of task row open the same sheet", () => {
     // The row's actions sat visibly ON it, so it deliberately had no sheet —
     // which left one list where holding did nothing.
-    expect(tasks).toMatch(/const \[taskSheet, setTaskSheet\]/);
+    expect(kit).toMatch(/const \[taskSheet, setTaskSheet\]/);
     expect(
       [...tasks.matchAll(/onPointerDown=\{\(e: ReactPointerEvent\) =>\s*startRowPress\(/g)].length,
       "the note-derived rows and the database rows",
     ).toBe(2);
-    expect(tasks).toMatch(/<RowActionSheet/);
+    expect(kit).toMatch(/<RowActionSheet/);
+    expect(tasks).toMatch(/\{rowKit\.element\}/);
   });
 
   it("a press that starts on the row's own controls is left alone", () => {
     // Same test the row itself uses to decide whether a tap was meant for it —
     // otherwise holding the promote chip would open the sheet behind it.
-    expect(tasks).toMatch(/closest\("button,a,input,select,textarea,label"\)\) return;/);
+    expect(kit).toMatch(/closest\("button,a,input,select,textarea,label"\)\) return;/);
+  });
+
+  it("a task under Today → Due opens the same sheet and the same swipe (E1)", () => {
+    const today = strip(read("screens", "TodayScreen.tsx"));
+    expect(today).toMatch(/const taskRows = useTaskRowActions\(/);
+    expect(today).toMatch(/onPointerDown=\{\(e: ReactPointerEvent\) => taskRows\.startRowPress\(e, \(\) => taskRows\.setTaskSheet\(acts\)\)\}/);
+    expect(today).toMatch(/if \(taskRows\.rowPress\.clicked\(\)\) openTask\(row\);/);
+    expect(today).toMatch(/\{taskRows\.element\}/);
   });
 
   it("a tap still opens, and is not swallowed by the hold", () => {

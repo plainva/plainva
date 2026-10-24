@@ -17,7 +17,7 @@ import { Button } from "./ui/Button";
 import { cx } from "./ui/cx";
 import { GroupCard, Row, RowList, SectionLabel } from "./ui/GroupedRows";
 import { IconButton } from "./ui/IconButton";
-import { TaskStateIcon } from "./TaskStateIcon";
+import { TaskBoxGlyph } from "./TaskCheckButton";
 
 /**
  * The days of the journal stream (plan Journal, J5), drawn the same way in both
@@ -331,7 +331,7 @@ export function JournalDayList({ days, todayKey, links, loadImage, onToggleTask,
                         {entry.task && (
                           <span className="pv-journal-box">
                             <IconButton label={closed ? t("tasks.open") : t("tasks.done")} onClick={() => onToggleTask(day, entry)} data-testid="journal-entry-toggle">
-                              <TaskStateIcon state={entry.task} size={ICON.ui} />
+                              <TaskBoxGlyph state={entry.task} size={ICON.ui} />
                             </IconButton>
                           </span>
                         )}

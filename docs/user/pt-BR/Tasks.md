@@ -29,6 +29,8 @@ Os quatro filtros da barra do desktop aparecem no telefone como chips acima da l
 
 As tarefas são agrupadas por nota; o título da nota é um cabeçalho no qual você pode clicar para abrir a nota. Cada tarefa mostra sua caixa de seleção e seu texto, ficando tachada assim que é concluída. Uma **data de vencimento** escrita como `📅 2026-08-01` na linha da tarefa aparece como um pequeno emblema.
 
+Um link no texto de uma tarefa aparece como o seu texto: `[[Alexander Gaas|Alex]]` mostra **Alex**, `[[Pessoas/Anna]]` mostra **Anna**, com a aparência de um link. Clicar ou tocar no link abre essa nota; clicar no resto da linha abre a tarefa. Isso vale para toda lista de tarefas, no desktop e no telefone.
+
 ## Filtragem
 
 A barra no topo restringe a lista:
@@ -177,3 +179,16 @@ Mais formas de entrada: **Nova tarefa** no menu da bandeja no computador (quando
 ## Marcar a partir de um widget
 
 A caixa do widget **Hoje** registra um pedido: a marca aparece na hora, a nota muda na próxima vez que você abrir o Plainva e é então que acontecem também a recorrência e a sincronização. Até lá a linha diz **será aplicado ao abrir o Plainva**. Uma tarefa concluída, excluída ou movida nesse meio-tempo fica intocada. No iPhone isso exige iOS 17; abaixo disso, um toque na linha abre a tarefa. Detalhes: [O aplicativo móvel](Mobile_App.md).
+
+<!-- task-rows-2026-10-24 -->
+## Subtarefas, marcadores e o que foi feito hoje
+
+**Subtarefas.** Uma caixa de seleção recuada sob outra é a sua subtarefa, como `show tree` no plugin Tasks do Obsidian. Nas listas **Hoje**, **Em breve**, **Caixa de entrada** e **Concluídas**, uma tarefa traz as suas subtarefas recuadas abaixo dela — abertas e concluídas, estas tachadas — e uma seta no fim da linha as recolhe. Uma subtarefa com data própria aparece também no seu próprio dia; uma sem data é listada sob a sua tarefa e não sozinha na **Caixa de entrada**. A lista **Todas** mantém cada caixa de seleção na ordem da sua nota.
+
+**Marcadores.** Itens simples recuados sob uma tarefa — perguntas, anotações — aparecem sob o título dela como uma prévia de até duas linhas; o restante fica na nota.
+
+Ambos ficam ligados até você desligá-los: **Subtarefas** e **Marcadores** ficam junto com os outros filtros (caixas de seleção no desktop, chips no telefone) e são lembrados com eles.
+
+**Concluídas hoje.** Sob **Hoje**, uma linha recolhida **Concluídas (n)** reúne o que foi marcado hoje — uma caixa de seleção pela data de conclusão `✅` (que o Plainva escreve a cada marcação), uma entrada do banco de tarefas pelo dia em que a nota dela mudou pela última vez, porque um banco de dados não tem data de conclusão própria. Uma caixa concluída sem data não conta: nada diz quando foi concluída. A linha fica fechada até você abri-la; o dispositivo lembra a sua escolha. A tela **Hoje** do telefone mostra a mesma linha em **Vence**.
+
+**A caixa no telefone.** No editor, no modo de leitura, na área Tarefas e sob **Hoje**, o telefone desenha toda caixa de tarefa do mesmo jeito: grande e arredondada, preenchida com um visto quando concluída, meio preenchida em **Em andamento**, tachada em **Cancelada**. O desktop mantém suas caixas menores, feitas para o mouse.

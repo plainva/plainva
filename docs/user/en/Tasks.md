@@ -29,6 +29,8 @@ The desktop bar's four filters appear on the phone as chips above the list: **Fo
 
 Tasks are grouped by note; the note title is a heading you can click to open the note. Each task shows its checkbox and its text, with a strike-through once it is done. A **due date** written as `📅 2026-08-01` in the task line appears as a small badge.
 
+A link in a task's text reads as its text: `[[Alexander Gaas|Alex]]` shows **Alex**, `[[People/Anna]]` shows **Anna**, in the look of a link. Clicking or tapping the link opens that note; clicking the rest of the line opens the task. This holds for every task list, on the desktop and on the phone.
+
 ## Filtering
 
 The bar at the top narrows the list:
@@ -177,3 +179,16 @@ More ways in: **New task** in the tray menu on the desktop (when Plainva keeps r
 ## Ticking off from a widget
 
 The checkbox in the **Today** widget records a request: the tick appears at once, the note changes the next time you open Plainva, and that is when the recurrence and the sync happen. Until then the row says **applied when you open Plainva**. A task you have finished, deleted or moved in the meantime is quietly left alone. On an iPhone this needs iOS 17; below that a tap on the row opens the task. Details: [The mobile app](Mobile_App.md).
+
+<!-- task-rows-2026-10-24 -->
+## Subtasks, bullet points and what was done today
+
+**Subtasks.** A checkbox indented under another is its subtask, as in the Obsidian Tasks plugin's `show tree`. In the lists **Today**, **Upcoming**, **Inbox** and **Done** a task carries its subtasks below it, indented — open and finished ones, the finished struck through — and an arrow at the end of the row folds them away. A subtask with a date of its own also stands on its own day; one without a date is listed under its task and not on its own in the **Inbox**. The list **All** keeps every checkbox in the order of its note.
+
+**Bullet points.** Plain bullets indented under a task — questions, notes — show below its title as up to two lines of preview; the note holds the rest.
+
+Both are on until you switch them off: **Subtasks** and **Bullet points** sit with the other filters (checkboxes on the desktop, chips on the phone) and are remembered with them.
+
+**Done today.** Under **Today**, a folded line **Done (n)** collects what was ticked off today — a checkbox by its completion date `✅` (which Plainva writes with every tick), an entry of the task database by the day its note last changed, because a database has no completion date of its own. A finished checkbox without a date is not counted: nothing says when it was done. The fold is closed until you open it; the device remembers your choice. The phone's **Today** screen shows the same fold under **Due**.
+
+**The box on the phone.** In the editor, in reading mode, in the Tasks area and under **Today**, the phone draws every task box the same way: large and rounded, filled with a tick when done, half filled when **In progress**, struck through when **Cancelled**. The desktop keeps its smaller boxes, made for a mouse.

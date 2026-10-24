@@ -45,7 +45,7 @@ describe("one action list per row kind (E2)", () => {
     // row kind, desktop consumer, mobile consumer
     ["mailRowActions", "components/mail/MailView.tsx", "screens/MailListScreen.tsx"],
     ["fileRowActions", "components/FileContextMenu.tsx", "lib/useFileRowSheet.tsx"],
-    ["taskRowActions", "components/tasks/TasksView.tsx", "screens/TasksScreen.tsx"],
+    ["taskRowActions", "components/tasks/TasksView.tsx", "components/useTaskRowActions.tsx"],
   ];
 
   it.each(consumers)("%s is what both shells read", (builder, desktop, mobile) => {
@@ -91,7 +91,8 @@ describe("one action list per row kind (E2)", () => {
       expect(src, rel).not.toMatch(/<SwipeRow\s+actions=\{\[/);
       expect(src, rel).toContain("swipeFor(");
     }
-    const tasks = stripComments(read(MOBILE, "screens/TasksScreen.tsx"));
+    // Every task list of the phone reads the one task-row hook (E1).
+    const tasks = stripComments(read(MOBILE, "components/useTaskRowActions.tsx"));
     expect(tasks).toMatch(/taskRowActions\(t, a\)\.map/);
   });
 

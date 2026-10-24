@@ -11,6 +11,8 @@
  * been — database section, then notes grouped by note — and stays where it is.
  */
 
+import { taskPlainTitle } from "./taskTitle";
+
 export type PlannerList = "today" | "upcoming" | "inbox" | "done";
 
 /**
@@ -66,6 +68,16 @@ export interface PlannerRow {
   mirrored?: boolean;
   /** The provider has reopened this task before — it repeats THERE. */
   repeatsAtProvider?: boolean;
+  /** For a checkbox indented under another: the id of that task's row (wish E6). */
+  parentId?: string;
+  /** For a checkbox: up to two bullets without a box indented under it, as a preview (wish E6). */
+  details?: readonly string[];
+  /**
+   * The calendar day it was finished, where the source says so (wish E5): a
+   * checkbox's `✅` date; for a database entry that is done, the day its note
+   * last changed — a database has no completion date of its own.
+   */
+  doneOn?: string;
 }
 
 export interface PlannerSection {
@@ -108,7 +120,23 @@ export function addDaysToKey(dayKey: string, days: number): string {
  * name. A row without a priority sorts after every row that has one; a row
  * without a time after every row that has one — "at 14:00" is more specific
  * than "today", and the specific thing is what gets missed.
+ *
+ * The name is what the row SHOWS (wish E3, 2026-10-24): a link reads as its
+ * text, so `[[Alexander Gaas|Alex]] fragen` sorts under A for "Alex" — the
+ * written brackets sorted it before every other task.
  */
+/** A row's title as it reads (`taskPlainTitle`), kept for the sorts that ask again and again. */
+const shown = new Map<string, string>();
+function shownTitle(title: string): string {
+  let plain = shown.get(title);
+  if (plain === undefined) {
+    if (shown.size > 5000) shown.clear();
+    plain = taskPlainTitle(title);
+    shown.set(title, plain);
+  }
+  return plain;
+}
+
 export function comparePlannerRows(a: Pick<PlannerRow, "priority" | "dueMinutes" | "title" | "id">, b: Pick<PlannerRow, "priority" | "dueMinutes" | "title" | "id">): number {
   const pa = a.priority === 0 ? 9 : a.priority;
   const pb = b.priority === 0 ? 9 : b.priority;
@@ -116,7 +144,7 @@ export function comparePlannerRows(a: Pick<PlannerRow, "priority" | "dueMinutes"
   const ta = a.dueMinutes ?? Number.POSITIVE_INFINITY;
   const tb = b.dueMinutes ?? Number.POSITIVE_INFINITY;
   if (ta !== tb) return ta - tb;
-  const byTitle = a.title.localeCompare(b.title, undefined, { sensitivity: "base", numeric: true });
+  const byTitle = shownTitle(a.title).localeCompare(shownTitle(b.title), undefined, { sensitivity: "base", numeric: true });
   return byTitle !== 0 ? byTitle : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 

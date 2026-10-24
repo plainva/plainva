@@ -157,7 +157,8 @@ describe("a write that fails is said for what it is", () => {
   });
 
   it("the tasks screen says a refused write in the sentence of a property write, not in the error's own words", () => {
-    const text = strip(read("screens", "TasksScreen.tsx"));
+    // The write of a task note is the shared row hook's since E1 (2026-10-24).
+    const text = strip(read("screens", "TasksScreen.tsx")) + strip(read("components", "useTaskRowActions.tsx"));
     for (const anchor of ["const writeDbNote = useCallback(", "const setNoteExcluded = async (", "const toggleDbRow = useCallback("]) {
       const stretch = from(text, anchor, 800);
       expect(stretch, anchor).toMatch(/mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}/);

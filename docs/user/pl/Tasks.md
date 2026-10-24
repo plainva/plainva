@@ -29,6 +29,8 @@ Cztery filtry paska na komputerze pojawiają się na telefonie jako chipy nad li
 
 Zadania są pogrupowane według notatki; tytuł notatki to nagłówek, który można kliknąć, aby otworzyć notatkę. Każde zadanie pokazuje swoje pole wyboru i tekst, przekreślony po ukończeniu. **Termin** zapisany jako `📅 2026-08-01` w linii zadania pojawia się jako mała plakietka.
 
+Link w tekście zadania widać jako jego tekst: `[[Alexander Gaas|Alex]]` pokazuje **Alex**, `[[Osoby/Anna]]` pokazuje **Anna**, w wyglądzie linku. Kliknięcie lub dotknięcie linku otwiera tę notatkę; kliknięcie reszty wiersza otwiera zadanie. Dotyczy to każdej listy zadań, na komputerze i na telefonie.
+
 ## Filtrowanie
 
 Pasek na górze zawęża listę:
@@ -177,3 +179,16 @@ Więcej sposobów: **Nowe zadanie** w menu zasobnika systemowego na komputerze (
 ## Odhaczanie z widgetu
 
 Pole w widgecie **Dziś** przyjmuje prośbę: ptaszek pojawia się od razu, notatka zmienia się przy następnym otwarciu Plainvy i wtedy też następuje powtarzanie i synchronizacja. Do tego czasu wiersz mówi **zostanie zastosowane po otwarciu Plainvy**. Zadanie ukończone, usunięte lub przeniesione w międzyczasie zostaje nietknięte. Na iPhonie wymaga to iOS 17; poniżej dotknięcie wiersza otwiera zadanie. Szczegóły: [Aplikacja mobilna](Mobile_App.md).
+
+<!-- task-rows-2026-10-24 -->
+## Podzadania, wypunktowania i to, co zrobiono dzisiaj
+
+**Podzadania.** Pole wyboru wcięte pod innym jest jego podzadaniem, tak jak `show tree` we wtyczce Tasks do Obsidiana. Na listach **Dziś**, **Nadchodzące**, **Skrzynka** i **Ukończone** zadanie niesie swoje podzadania wcięte pod sobą — otwarte i ukończone, te drugie przekreślone — a strzałka na końcu wiersza je zwija. Podzadanie z własną datą stoi dodatkowo w swoim dniu; to bez daty jest wymienione pod swoim zadaniem, a nie osobno w **Skrzynka**. Lista **Wszystkie** zachowuje każde pole wyboru w kolejności jego notatki.
+
+**Wypunktowania.** Zwykłe punkty wcięte pod zadaniem — pytania, uwagi — wiersz pokazuje pod tytułem jako podgląd do dwóch linii; resztę trzyma notatka.
+
+Jedno i drugie jest włączone, dopóki tego nie wyłączysz: **Podzadania** i **Wypunktowania** stoją przy pozostałych filtrach (pola wyboru na komputerze, chipy na telefonie) i są zapamiętywane razem z nimi.
+
+**Dziś zrobione.** Pod **Dziś** zwinięty wiersz **Ukończone (n)** zbiera to, co odhaczono dzisiaj — pole wyboru według daty ukończenia `✅` (którą Plainva zapisuje przy każdym odhaczeniu), wpis bazy zadań według dnia, w którym jego notatka ostatnio się zmieniła, bo baza nie ma własnej daty ukończenia. Odhaczone pole bez daty się nie liczy: nic nie mówi, kiedy je ukończono. Wiersz jest zamknięty, dopóki go nie otworzysz; urządzenie pamięta Twój wybór. Ekran **Dzisiaj** na telefonie pokazuje ten sam wiersz pod **Termin**.
+
+**Pole na telefonie.** W edytorze, w trybie czytania, w obszarze Zadania i pod **Dzisiaj** telefon rysuje każde pole zadania tak samo: duże i zaokrąglone, wypełnione ptaszkiem, gdy ukończone, do połowy wypełnione przy **W toku**, przekreślone przy **Anulowane**. Komputer zachowuje swoje mniejsze pola, zrobione dla myszy.

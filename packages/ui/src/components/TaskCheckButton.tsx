@@ -15,6 +15,10 @@ import { TaskStateIcon } from "./TaskStateIcon";
  * 15 px of the glyph. The GLYPH is `--taskbox-size` (18 px, 24 px on touch): it
  * was 15 px in the phone's planner, the same as an inline icon, which is what a
  * tester reported as too small to tick.
+ *
+ * Under a finger the glyph gives way to the drawn box the note's text shows as
+ * well (wish E9, 2026-10-24; `TaskBoxGlyph`): one box on every task surface of
+ * the phone.
  */
 export interface TaskCheckButtonProps {
   state: TaskBoxState;
@@ -35,7 +39,22 @@ export function TaskCheckButton({ state, label, onToggle, disabled, testId }: Ta
       data-testid={testId}
       data-state={state}
     >
-      <TaskStateIcon state={state} size={ICON.head} />
+      <TaskBoxGlyph state={state} size={ICON.head} />
     </IconButton>
+  );
+}
+
+/**
+ * A task's box as it is drawn: the state glyph with a pointer, the drawn square
+ * of the touch density under a finger (`.pv-taskbox-face`, the editor's box in
+ * the note's text wears the same rules). Which one shows is the density's
+ * business — CSS, so a shell that switches density needs no new render.
+ */
+export function TaskBoxGlyph({ state, size }: { state: TaskBoxState; size: number }) {
+  return (
+    <span className="pv-taskbox-glyph">
+      <TaskStateIcon state={state} size={size} />
+      <span className="pv-taskbox-face" data-state={state} aria-hidden="true" />
+    </span>
   );
 }

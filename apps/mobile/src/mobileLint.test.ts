@@ -1592,7 +1592,9 @@ describe("tasks can be narrowed the same way on both shells", () => {
   });
 
   it("lets a promotion choose its database", () => {
-    const screen = stripComments(readFileSync(join(SRC, "screens/TasksScreen.tsx"), "utf8"));
+    // Promotion is the task-row hook's since E1 (2026-10-24); the tab wires its chip to it.
+    const screen = stripComments(readFileSync(join(SRC, "components/useTaskRowActions.tsx"), "utf8"));
+    expect(stripComments(readFileSync(join(SRC, "screens/TasksScreen.tsx"), "utf8"))).toMatch(/promotePress\.start\(/);
     expect(screen).toMatch(/promoteInto\(/);
     expect(screen).toMatch(/listBases\(\)/);
   });
@@ -3329,7 +3331,8 @@ describe("plain text files do not get the note toolbar", () => {
  */
 describe("tasks created on the phone reach the provider list", () => {
   const service = stripComments(readFileSync(join(SRC, "services/pim/taskToProvider.ts"), "utf8"));
-  const tasks = stripComments(readFileSync(join(SRC, "screens/TasksScreen.tsx"), "utf8"));
+  // The tasks tab and its row hook (promotion lives there since E1, 2026-10-24).
+  const tasks = stripComments(readFileSync(join(SRC, "screens/TasksScreen.tsx"), "utf8")) + stripComments(readFileSync(join(SRC, "components/useTaskRowActions.tsx"), "utf8"));
   const mail = stripComments(readFileSync(join(SRC, "screens/MailMessageScreen.tsx"), "utf8"));
   const note = stripComments(readFileSync(join(SRC, "screens/NoteScreen.tsx"), "utf8"));
   const sheet = stripComments(readFileSync(join(SRC, "screens/base/BaseConfigSheet.tsx"), "utf8"));
