@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { parseJournal } from "@plainva/core";
+import { sourceFile } from "./test-sourceTree";
 import {
   JournalCaptureField, JournalDayList, JournalDaySection, toast, toastStore, useJournalActions, useJournalFeed,
   type JournalActions, type JournalDay, type JournalFeedDeps, type JournalFeedState, type JournalFiles,
@@ -262,7 +263,13 @@ describe("JournalCaptureField", () => {
     ]);
     // Each pair is one unbreakable box — that is what stops "Shift+Enter starts
     // a new" / "line" from happening in any of the ten languages.
-    for (const pair of pairs) expect(pair.style.whiteSpace || getComputedStyle(pair).whiteSpace).not.toBe("normal");
+    // jsdom loads no stylesheet, so the computed style only ever said what jsdom
+    // assumes — since jsdom 30.1.3 that is "normal", before it was nothing at
+    // all, and the check passed without looking. The rule is read where it is
+    // written instead.
+    const rule = /\.pv-shortcut-hint\s*\{([^}]*)\}/.exec(sourceFile("packages/ui/src/styles/ui.css"))?.[1] ?? "";
+    expect(rule, "the shortcut pair may break inside").toMatch(/white-space:\s*nowrap/);
+    for (const pair of pairs) expect(pair.classList.contains("pv-shortcut-hint")).toBe(true);
     // Without a way to cancel there is nothing to say about Esc.
     const { host: noEsc } = await mount(<JournalCaptureField {...base} value="x" />);
     expect([...noEsc.querySelectorAll(".pv-shortcut-hint")]).toHaveLength(2);
