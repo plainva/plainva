@@ -73,6 +73,24 @@ Notes:
   from `packages/ui/src/locales/<code>.json`; vault-template prose uses the
   same terms.
 
+## Due dates (nl)
+
+Dutch had four words for one thing — "te doen", "met einddatum", "vervaldatum"
+and "vervallen" (which reads as "expired") — and "Due" in the phone's Today
+tab said "to do". Plainva follows the Microsoft To Do wording (decision
+2026-10-24):
+
+| Term | nl |
+|---|---|
+| Due date | vervaldatum |
+| Due (a task that is due) | vervalt (vervalt vandaag, vervalt om 14:00) |
+| With due date | met vervaldatum |
+| Overdue | te laat |
+
+"Einddatum" stays the end date of a timeline bar or an event. "Te doen" stays a
+status option ("te doen → bezig → klaar"). `apps/desktop/src/translationTerms.test.ts`
+fails when "met einddatum" or "Vervallen taken" comes back.
+
 ## Daily note and journal (zh-CN)
 
 The daily note (one note per day, named by the vault's date format) and the

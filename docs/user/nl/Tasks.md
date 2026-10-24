@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-10-21
+Laatst bijgewerkt: 2026-10-24
 
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
@@ -23,7 +23,7 @@ De weergave toont dezelfde twee secties als op de desktop: bovenaan de **Takenda
 
 Welke database je vault als takendatabase gebruikt, stel je mobiel in onder **Instellingen** → **Inhoud en structuur**. De instelling reist mee via de [instellingensynchronisatie](Sync_Setup.md), dus je hoeft hem maar één keer te kiezen, op het apparaat van je keuze.
 
-De vier filters van de desktopbalk verschijnen op de telefoon als chips boven de lijst: **Map**, **Tag**, **Met einddatum** en **Verborgen tonen**. Chips in plaats van keuzelijsten, omdat een filterbalk boven een toch al smalle lijst meer ruimte kost dan hij oplevert — één tik opent de keuze, een tweede wist hem weer.
+De vier filters van de desktopbalk verschijnen op de telefoon als chips boven de lijst: **Map**, **Tag**, **Met vervaldatum** en **Verborgen tonen**. Chips in plaats van keuzelijsten, omdat een filterbalk boven een toch al smalle lijst meer ruimte kost dan hij oplevert — één tik opent de keuze, een tweede wist hem weer.
 
 ## De lijst lezen
 
@@ -37,7 +37,7 @@ De balk bovenaan beperkt de lijst:
 - **Taken filteren…** — vrije tekst; komt overeen met de taaktekst.
 - **Alle mappen** — alleen taken in de gekozen map (en de submappen daarvan).
 - **Alle tags** — alleen taken met een gekozen inline-`#tag`.
-- **Met einddatum** — alleen taken met een `📅`-datum.
+- **Met vervaldatum** — alleen taken met een `📅`-datum.
 
 Tags en vervaldatums worden rechtstreeks uit de taakregel gelezen — bijvoorbeeld `- [ ] Factuur betalen #finance 📅 2026-08-01`.
 

@@ -12,6 +12,11 @@ import { sourceFile, sourceTexts } from "./test-sourceTree";
 /** A term a language no longer uses, and the one it uses instead. */
 const RETIRED: { lang: string; term: string; use: string }[] = [
   { lang: "zh-CN", term: "每日笔记", use: "日记" },
+  // nl: "vervallen" reads as "expired"; a task that is due "vervalt", its due
+  // date is its "vervaldatum" (24.10., the Microsoft To Do wording). "Einddatum"
+  // stays — it is the end date of a timeline bar, a different thing.
+  { lang: "nl", term: "Vervallen taken", use: "Taken met vervaldatum" },
+  { lang: "nl", term: "met einddatum", use: "met vervaldatum" },
 ];
 
 type Source = { path: string; text: string };
