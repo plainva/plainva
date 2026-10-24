@@ -52,6 +52,7 @@ import { createMobileMcpBrowser } from "./mobileMcpBrowser";
 import { vaultOps, type MobileVault } from "../vaultService";
 import { readEditorSelection } from "../editorSelection";
 import { getMobileSettings } from "../mobileSettings";
+import { configuredNoteType } from "../newNote";
 import { mobileCommentOperations } from "../commentOperations";
 import { useMobileEmbeddings } from "./mobileEmbeddings";
 import { useMobileGists } from "./mobileGists";
@@ -388,6 +389,8 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         await postThreadReply(mobileCommentOperations(vault), reply);
       },
       encrypted: () => vault.workspaceRuntime !== null,
+      // The type a note the assistant makes carries: the vault's, like every new note (finding 2026-10-09).
+      noteType: async () => configuredNoteType(),
       // "Keep as a note" (plan P4-6): into the vault's inbox folder — where the ＋ quick capture puts its notes too.
       capture: {
         folder: async () => getMobileSettings().inboxFolder.trim() || (profileDefault<string>("inboxFolder") ?? "Inbox"),

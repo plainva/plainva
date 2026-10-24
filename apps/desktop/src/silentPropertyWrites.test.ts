@@ -750,7 +750,7 @@ const STRETCHES: Stretch[] = [
   {
     file: "packages/ui/src/ai/aiCapture.ts", at: "export function captureNote(", until: "export interface CaptureAdapter {", calls: { [upsert]: 1 },
     how: "a NEW note an answer is kept as: the block is the app's own, built a few lines before",
-    says: [/let content = buildNewNoteContent\("Note", title\);/],
+    says: [/let content = buildNewNoteContent\(input\.noteType \?\? defaultNoteType\(\), title\);/],
   },
   {
     file: "packages/ui/src/ai/aiCapture.ts", at: "export function withInheritedRules(", until: "export async function writeCapturedNote(", calls: { [set]: 1 },
@@ -765,7 +765,7 @@ const STRETCHES: Stretch[] = [
   {
     file: "packages/ui/src/ai/aiWrites.ts", at: "export function draftedNoteContent(", calls: { [upsert]: 1, withInheritedRules: 1 },
     how: "a NEW note the assistant drafted, its block the app's own and built in the line before: thrown on to the draft's creation, which the assistant answers as failed",
-    says: [/let content = buildNewNoteContent\("Note", draft\.title\);\s*content = upsertFrontmatterKeys\(content, \{/],
+    says: [/let content = buildNewNoteContent\(noteType, draft\.title\);\s*content = upsertFrontmatterKeys\(content, \{/],
   },
   {
     file: "packages/ui/src/ai/aiWrites.ts", at: "export function namedNoteContent(", calls: { [upsert]: 1 },

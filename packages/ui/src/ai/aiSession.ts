@@ -152,6 +152,7 @@ import {
   conversationSummaryOf,
   conversationTitleFrom,
   EMPTY_USAGE,
+  editorTextOf,
   estimateTokens,
   fenceUntrusted,
   gateDecision,
@@ -422,6 +423,12 @@ export interface AiVaultHost {
    */
   capture?: { folder(): Promise<string>; write(folder: string, stem: string, content: string): Promise<string> };
   /**
+   * The `type` of a note created in this vault — the setting "type for new notes", asked where each shell names it
+   * (finding 2026-10-09): a note kept from an answer or made from a draft carries it like every other new note.
+   * Absent, or unanswered: the setting's default.
+   */
+  noteType?(): Promise<string>;
+  /**
    * The notes that embed a file (plan P4-5): their rules decide whether a
    * picture may go to a cloud. `null` when that cannot be found out — which
    * is not "none", and neither is a host that cannot be asked at all: either
@@ -469,8 +476,10 @@ export interface AiInstructionsHost {
   /** A file of a source as the scan saw it (its hash checked again), as text; null otherwise. */
   readFile(source: InstructionSource, rel: string): Promise<string | null>;
   approvals: InstructionApprovalStore;
-  /** Writes one file into the vault, its folder created — synced and backed up like any edit (the workshop's skills, plan P3-5). */
+  /** Writes one NEW file into the vault, its folder created — synced and backed up like any edit (the workshop's skills, plan P3-5). */
   write?(path: string, bytes: Uint8Array): Promise<void>;
+  /** Changes a text file of the agent area where it lies, through the chain's one entry (`InstructionWriter.update`). */
+  update?(path: string, change: (text: string | null) => string | null): Promise<string | null>;
   /** Removes a folder of the vault after the user confirmed it: through the adapters, so it is backed up and goes to the trash. */
   remove?(path: string): Promise<void>;
   /** One text file of the agent area as it is now — the learning log (plan P6); null where there is none. */
@@ -940,6 +949,11 @@ type Listener = () => void;
 /** What the user typed in a conversation so far: their own words, without the context the app put beside them. */
 function userTextsOf(conversation: ConversationRecord["conversation"]): string[] {
   return conversation.turns.flatMap((turn) => (turn.role === "user" ? turn.parts.flatMap((part) => (part.type === "text" && !part.context ? [part.text] : [])) : []));
+}
+
+/** The vault's type for new notes as its shell names it; undefined where the shell names none or cannot answer. */
+async function noteTypeOf(vault: AiVaultHost): Promise<string | undefined> {
+  return (await vault.noteType?.().catch(() => null))?.trim() || undefined;
 }
 
 /** The time of day as the journal writes it: HH:mm. */
@@ -1677,7 +1691,7 @@ export class AiSession {
         const stem = safeFileStem(draft.title) ?? "Note";
         const denied = creates.placeDenies ? await creates.placeDenies(body.folder, stem).catch(() => []) : [];
         const rules = draft.inherited.filter((dimension) => !denied.includes(dimension));
-        path = await creates.note({ folder: body.folder, stem, content: draftedNoteContent(draft, this.host.now(), rules) });
+        path = await creates.note({ folder: body.folder, stem, content: draftedNoteContent(draft, this.host.now(), rules, await noteTypeOf(vault)) });
       } else if (body.kind === "task") {
         // Also at the provider list the task database names — only where the user left that on, on the card.
         path = await creates.task({ text: body.text, day: body.day, atProvider: choice.atProvider === true });
@@ -2142,7 +2156,7 @@ export class AiSession {
     const memoryOn = vault.memory ? (await vault.memory.prefs.load().catch(() => ({ on: false }))).on : false;
     if (!memoryOn) limits.push("memory-off");
     // What nobody could take over is not proposed: an entry where the shell cannot write the memory, a rule or a skill where it cannot write the instructions.
-    const remembers = memoryOn && Boolean(vault.memory?.write);
+    const remembers = memoryOn && Boolean(vault.memory?.update);
     const writes = Boolean(vault.instructions?.write);
     if (!writes || (memoryOn && !remembers)) limits.push("read-only");
     // What assistants do — a rule, a skill's instructions — goes to every model, and is no stranger's to say.
@@ -2295,10 +2309,11 @@ export class AiSession {
    */
   private async logLearning(vault: AiVaultHost, event: LearnLogEvent): Promise<void> {
     const host = vault.instructions;
-    if (!host?.write || !host.readText) return;
+    if (!host?.update) return;
     try {
-      const existing = await host.readText(LEARN_LOG_FILE);
-      await host.write(LEARN_LOG_FILE, utf8Encode(appendLearnLog(existing, learnLogLine(learnLogTime(this.host.now()), event))));
+      const line = learnLogLine(learnLogTime(this.host.now()), event);
+      // Appended to the log as it lies there (the chain's one entry): a line another device added meanwhile stays.
+      await host.update(LEARN_LOG_FILE, (existing) => appendLearnLog(existing, line));
       if (this.vault === vault && !this.state.learnLog) this.set({ learnLog: true });
     } catch {
       // Said above.
@@ -2322,7 +2337,7 @@ export class AiSession {
     previous: string | null,
   ): Promise<{ ok: true } | { ok: false; reason: "unavailable" | "changed" | "invalid" | "no-history" | "failed" }> {
     const host = vault.instructions;
-    if (!host?.write) return { ok: false, reason: "unavailable" };
+    if (!host?.update) return { ok: false, reason: "unavailable" };
     const folder = before.root.slice(before.root.lastIndexOf("/") + 1);
     const bytes = utf8Encode(next);
     // What would be written has to be a skill of this folder, as the format defines it — and no larger than one may be.
@@ -2336,11 +2351,24 @@ export class AiSession {
         return { ok: false, reason: "no-history" };
       }
     }
+    // Through the chain's one entry, and only over the text the proposal or the version was made for: a main file that
+    // changed meanwhile — on another device — keeps its text, and the user decides again (`changed`).
+    const moved = { since: false };
     try {
-      await host.write(path, bytes);
+      await host.update(path, (file) => {
+        if (file === null || before.text === null || editorTextOf(file) !== editorTextOf(before.text)) {
+          moved.since = true;
+          return null;
+        }
+        return next;
+      });
     } catch {
       await this.refreshSkills();
       return { ok: false, reason: "failed" };
+    }
+    if (moved.since) {
+      await this.refreshSkills();
+      return { ok: false, reason: "changed" };
     }
     const written = await host.scanOne(before.id).catch(() => null);
     // Every other file as it was, the main file as it was written: anything else is not what the user saw.
@@ -2596,7 +2624,7 @@ export class AiSession {
       memory: {
         loaded: true,
         available: read !== null,
-        writable: read !== null && Boolean(host.write),
+        writable: read !== null && Boolean(host.update),
         on: prefs.on,
         active: read?.active ?? [],
         long: read?.long ?? [],
@@ -2625,16 +2653,24 @@ export class AiSession {
     const vault = this.vault;
     const host = vault?.memory;
     if (!vault) return Promise.resolve({ ok: false, reason: "no-vault" });
-    if (!host?.write) return Promise.resolve({ ok: false, reason: "unavailable" });
-    const write = host.write;
+    if (!host?.update) return Promise.resolve({ ok: false, reason: "unavailable" });
+    const update = host.update;
     return this.inMemoryLane(async (): Promise<MemoryOutcome> => {
       try {
         const read = await host.read(place);
         // A file that is too large to be read is none this app writes over.
         if (read.tooLarge) return { ok: false, reason: "unavailable" };
-        const changed = change(read.text);
-        if (!changed.ok) return { ok: false, reason: changed.problem };
-        if (changed.text !== read.text) await write(place, changed.text);
+        // The change runs on the file as the chain reads it at the moment of writing — not on what was read above.
+        const refused: { problem?: Extract<MemoryChange, { ok: false }>["problem"] } = {};
+        await update(place, (file) => {
+          const changed = change(file);
+          if (!changed.ok) {
+            refused.problem = changed.problem;
+            return null;
+          }
+          return changed.text === file ? null : changed.text;
+        });
+        if (refused.problem) return { ok: false, reason: refused.problem };
         return { ok: true };
       } catch {
         return { ok: false, reason: "write-failed" };
@@ -2678,20 +2714,28 @@ export class AiSession {
     const host = vault?.memory;
     const from = memoryPlaceOfId(id);
     if (!vault) return Promise.resolve({ ok: false, reason: "no-vault" });
-    if (!host?.write) return Promise.resolve({ ok: false, reason: "unavailable" });
+    if (!host?.update) return Promise.resolve({ ok: false, reason: "unavailable" });
     if (!from || from === to) return Promise.resolve({ ok: false, reason: "gone" });
-    const write = host.write;
+    const update = host.update;
     return this.inMemoryLane(async (): Promise<MemoryOutcome> => {
       try {
         const [source, target] = await Promise.all([host.read(from), host.read(to)]);
         if (source.tooLarge || target.tooLarge || source.text === null) return { ok: false, reason: source.text === null ? "gone" : "unavailable" };
         const entry = parseMemory(source.text, from).entries.find((candidate) => candidate.id === id);
         if (!entry) return { ok: false, reason: "gone" };
-        const added = addMemoryEntry(target.text, to, entry.text, memoryMetaOf(entry));
-        if (!added.ok && added.problem !== "duplicate") return { ok: false, reason: added.problem };
-        if (added.ok) await write(to, added.text);
-        const removed = removeMemoryEntry(source.text, from, id);
-        if (removed.ok) await write(from, removed.text);
+        // Each file changed as it lies there at the moment of writing (the chain's one entry).
+        const refused: { problem?: Extract<MemoryChange, { ok: false }>["problem"] } = {};
+        await update(to, (file) => {
+          const added = addMemoryEntry(file, to, entry.text, memoryMetaOf(entry));
+          if (!added.ok && added.problem !== "duplicate") refused.problem = added.problem;
+          return added.ok ? added.text : null;
+        });
+        if (refused.problem) return { ok: false, reason: refused.problem };
+        await update(from, (file) => {
+          if (file === null) return null;
+          const removed = removeMemoryEntry(file, from, id);
+          return removed.ok ? removed.text : null;
+        });
         return { ok: true };
       } catch {
         return { ok: false, reason: "write-failed" };
@@ -2715,22 +2759,32 @@ export class AiSession {
     const vault = this.vault;
     const host = vault?.instructions;
     if (!vault) return Promise.resolve({ ok: false, reason: "no-vault" });
-    if (!host?.write) return Promise.resolve({ ok: false, reason: "unavailable" });
-    const write = host.write;
+    if (!host?.update) return Promise.resolve({ ok: false, reason: "unavailable" });
+    const update = host.update;
     return this.inMemoryLane(async () => {
       try {
         const [before, approvals] = await Promise.all([host.scanOne(AGENTS_FILE).catch(() => null), host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS)]);
         if (before?.tooLarge) return { ok: false as const, reason: "too-large" as const };
         const status = before ? instructionStatus(before, approvals) : null;
-        const changed = addRuleLine(before?.text ?? null, text);
-        if (!changed.ok) return { ok: false as const, reason: changed.problem === "too-large" ? ("too-large" as const) : changed.problem };
-        const bytes = new TextEncoder().encode(changed.text);
-        await write(AGENTS_FILE, bytes);
-        const written = await host.scanOne(AGENTS_FILE).catch(() => null);
+        // Asked once of what the scan read, for the answer; the line itself goes into the file as the chain reads it.
+        const asked = addRuleLine(before?.text ?? null, text);
+        if (!asked.ok) return { ok: false as const, reason: asked.problem === "too-large" ? ("too-large" as const) : asked.problem };
+        // Through the chain's one entry, and only into the file this device's approval was decided on: what another
+        // device left in it meanwhile is nothing this device approves without the user reading it — the rule waits.
+        const asScanned = (file: string | null) =>
+          file === null || before === null || before.text === null ? file === null && (before === null || before.text === null) : editorTextOf(file) === editorTextOf(before.text);
+        const written = await update(AGENTS_FILE, (file) => {
+          if (!asScanned(file)) return null;
+          const changed = addRuleLine(file, text);
+          return changed.ok ? changed.text : null;
+        });
+        if (written === null) return { ok: false as const, reason: "write-failed" as const };
+        const bytes = new TextEncoder().encode(written);
+        const scanned = await host.scanOne(AGENTS_FILE).catch(() => null);
         // Approved only what reads back as written, and only where the file was this device's own before.
         const own = status === null || status === "active" || status === "off";
-        const approved = own && written !== null && written.files.length === 1 && written.files[0]!.sha256 === instructionFileHash(bytes);
-        if (approved) await host.approvals.save(approveInstruction(await host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS), written, this.host.now().toISOString(), "created"));
+        const approved = own && scanned !== null && scanned.files.length === 1 && scanned.files[0]!.sha256 === instructionFileHash(bytes);
+        if (approved) await host.approvals.save(approveInstruction(await host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS), scanned, this.host.now().toISOString(), "created"));
         return { ok: true as const, approved };
       } catch {
         return { ok: false as const, reason: "write-failed" as const };
@@ -4133,6 +4187,7 @@ export class AiSession {
         searches: (run.web?.searches ?? []).map((search) => ({ query: search.query, at: search.at })),
         searchProvider: provider?.label ?? run.providerId,
         notes: [...notes].map(([path, noteTitle]) => ({ path, title: noteTitle })),
+        noteType: await noteTypeOf(vault),
       },
       t,
     );

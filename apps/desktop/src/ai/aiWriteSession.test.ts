@@ -139,6 +139,8 @@ function writeVault(
     taskList?: string;
     /** A mail account and a calendar that takes appointments: the shell serves the two drafts that leave the vault (P5-6). */
     pim?: boolean;
+    /** The vault's type for new notes, as the shell names it; absent, the shell names none. */
+    noteType?: string;
   } = {},
 ) {
   const disk = new Map(Object.entries(options.skills ?? {}));
@@ -249,6 +251,7 @@ function writeVault(
     },
     skillTests: { load: async () => tests, save: async (value) => void (tests = value) },
     drafts: createWriteDraftStore(files, "vault-a"),
+    ...(options.noteType ? { noteType: async () => options.noteType! } : {}),
     ...(options.creates === false
       ? {}
       : {
@@ -457,6 +460,15 @@ describe("a proposal of a run", () => {
 });
 
 describe("a draft of a run", () => {
+  it("of a note is made with the vault's type for new notes, as the shell names it", async () => {
+    const vault = writeVault({ noteType: "Notiz" });
+    const { s } = await session([turn({ calls: [viaDispatch("c1", "create_note", { title: "Kick-off", content: "Agenda" })] }), turn({ text: "Drafted." })], vault);
+    expect(await s.send("Draft a kick-off note.")).toEqual({ kind: "answered" });
+    const [draft] = s.getState().drafts.drafts;
+    expect(await s.createDraft(draft!.id)).toEqual({ kind: "created", path: "Inbox/Kick-off.md" });
+    expect(readFrontmatterPath(vault.created[0]!.content!, ["type"])).toBe("Notiz");
+  });
+
   it("waits on this device, signed with the model and with what the run rested on — nothing exists yet", async () => {
     const vault = writeVault({ active: "Projects/Offer.md" });
     const { s, fake } = await session([turn({ calls: [viaDispatch("c1", "create_note", { title: "Kick-off", content: "Agenda\n\n- one" })] }), turn({ text: "I drafted the note; it waits for you." })], vault);

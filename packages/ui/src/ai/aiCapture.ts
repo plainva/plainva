@@ -1,6 +1,7 @@
 import { conversationTitleFrom, setFrontmatterPath, trimChars, upsertFrontmatterKeys, type AiPolicyDimension, type OkfSource } from "@plainva/core";
 import { safeFileStem } from "../lib/fileStem";
 import { buildNewNoteContent } from "../lib/newNoteContent";
+import { profileDefault } from "../lib/profileFields";
 import { generatedStamp } from "../lib/okfProvenance";
 import { defuseNewAddresses } from "./aiWriteLint";
 
@@ -54,6 +55,13 @@ export interface AnswerToCapture {
   searchProvider: string;
   /** The notes that went along with the question. */
   notes: readonly { path: string; title: string }[];
+  /** The vault's type for new notes, as the shell names it (`AiVaultHost.noteType`); the vault's default where absent. */
+  noteType?: string;
+}
+
+/** The type of a new note where the shell names none: the default of the setting "type for new notes". */
+export function defaultNoteType(): string {
+  return profileDefault<string>("defaultNoteType") ?? "Note";
 }
 
 type Translate = (key: string, vars?: Record<string, string>) => string;
@@ -196,7 +204,7 @@ export function captureNote(input: AnswerToCapture, t: Translate): CapturedNote 
     }
   }
 
-  let content = buildNewNoteContent("Note", title);
+  let content = buildNewNoteContent(input.noteType ?? defaultNoteType(), title);
   const sources: OkfSource[] = [
     ...pages.map((page) => ({ resource: page.url, ...(inline(page.title) ? { title: inline(page.title) } : {}) })),
     ...notes.map((note) => ({ resource: note.path, ...(inline(note.title) ? { title: inline(note.title) } : {}) })),

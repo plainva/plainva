@@ -27,6 +27,8 @@ export function memoryVault(files: Record<string, string> = {}, options: MemoryV
   const disk = new Map(Object.entries(files));
   /** The paths written, in the order they were. */
   const written: string[] = [];
+  /** What another device does to a file in the moment between a read of the session and its write (`meanwhile`). */
+  let meanwhile: ((path: string) => void) | null = null;
   const io: InstructionIO = {
     async list(folder) {
       const prefix = `${folder}/`;
@@ -48,6 +50,17 @@ export function memoryVault(files: Record<string, string> = {}, options: MemoryV
     async write(path: string, bytes: Uint8Array) {
       disk.set(path, new TextDecoder("utf-8").decode(bytes));
       written.push(path);
+    },
+    // A change of a file where it lies, as the chain's one entry makes it (`adapterInstructionWriter`): `change` is
+    // handed the file as it is at that moment. What a real chain does with it is in `aiFilesChain.test.ts`.
+    async update(path: string, change: (text: string | null) => string | null) {
+      meanwhile?.(path);
+      const before = disk.get(path) ?? null;
+      const next = change(before);
+      if (next === null || next === before) return null;
+      disk.set(path, next);
+      written.push(path);
+      return next;
     },
     async remove(path: string) {
       for (const key of [...disk.keys()]) if (key === path || key.startsWith(`${path}/`)) disk.delete(key);
@@ -147,6 +160,10 @@ export function memoryVault(files: Record<string, string> = {}, options: MemoryV
     written,
     replies,
     file: (path: string) => disk.get(path) ?? null,
+    /** Lets another device change a file right before the session's next change of one is written. */
+    meanwhile: (step: ((path: string) => void) | null) => {
+      meanwhile = step;
+    },
   };
 }
 

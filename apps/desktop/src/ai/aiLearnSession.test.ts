@@ -587,6 +587,17 @@ describe("a skill's earlier versions", () => {
     expect(await s.readSkillVersion("AGENTS.md", versions[0]!.id)).toBeNull();
   });
 
+  it("restores nothing over a main file that another device changed between the dialog and the write", async () => {
+    const { s, vault } = await withHistory();
+    const [version] = (await s.skillVersions(SKILL_ID))!;
+    const theirs = `${HEAD}\n\nAnother device's words.\n`;
+    vault.meanwhile((path) => {
+      if (path === SKILL_PATH) vault.disk.set(path, theirs);
+    });
+    expect(await s.restoreSkillVersion(SKILL_ID, version!.id, SKILL)).toEqual({ ok: false, reason: "changed" });
+    expect(vault.file(SKILL_PATH)).toBe(theirs);
+  });
+
   it("restores the version the dialog showed: written back, approved, the current one kept", async () => {
     const { s, vault } = await withHistory();
     const [version] = (await s.skillVersions(SKILL_ID))!;

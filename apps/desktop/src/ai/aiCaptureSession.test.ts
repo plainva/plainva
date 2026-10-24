@@ -84,6 +84,8 @@ function vaultOf(
     notes?: Record<string, string>;
     /** The vault's folder rules (`.agent/policy.yml`). */
     rules?: FolderPolicyRule[];
+    /** The vault's type for new notes, as the shell names it; absent, the shell names none. */
+    noteType?: string;
   } = {},
 ) {
   const saved = new Map<string, ConversationRecord>();
@@ -139,6 +141,7 @@ function vaultOf(
     web: { load: async () => web, save: async (next) => void (web = next) },
     skillTests: { load: async () => tests, save: async (value) => void (tests = value) },
     encrypted: () => options.shared === true,
+    ...(options.noteType ? { noteType: async () => options.noteType! } : {}),
     ...(options.capture === false
       ? {}
       : {
@@ -238,6 +241,22 @@ describe("keep as a note", () => {
     expect(note).toContain("to: “How does the offer compare with last year?”");
     expect(note).toContain("The offer names 1,800 euros; last year it was 1,750 [[Rates]].");
     expect(note).not.toContain("Missing");
+  });
+
+  it("gives the note the vault's type for new notes, as the shell names it — and the setting's default where it names none", async () => {
+    const typed = vaultOf({ noteType: "Notiz" });
+    const one = await session([turn({ text: "The rate is 1,800 euros." })], typed);
+    await one.s.send("What is the rate?");
+    const kept = await one.s.captureAnswer(0);
+    if (kept.kind !== "captured") throw new Error("nothing was kept");
+    expect(readFrontmatterPath(typed.written.get(kept.path)!, ["type"])).toBe("Notiz");
+
+    const plain = vaultOf();
+    const two = await session([turn({ text: "The rate is 1,800 euros." })], plain);
+    await two.s.send("What is the rate?");
+    const keptPlain = await two.s.captureAnswer(0);
+    if (keptPlain.kind !== "captured") throw new Error("nothing was kept");
+    expect(readFrontmatterPath(plain.written.get(keptPlain.path)!, ["type"])).toBe("Note");
   });
 
   it("names the pages a run read and the searches it made — from the run's record, with the addresses as they were read", async () => {

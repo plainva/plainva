@@ -16,7 +16,7 @@ import { buildNewItemContent } from "../lib/newItemContent";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 import { generatedStamp } from "../lib/okfProvenance";
 import type { EventSeed } from "../pim/eventSeed";
-import { capturedFolder, withInheritedRules } from "./aiCapture";
+import { capturedFolder, defaultNoteType, withInheritedRules } from "./aiCapture";
 import type { AiFileStore } from "./aiStores";
 
 /**
@@ -167,9 +167,9 @@ export function entryPlaceOf(raw: string | null, noteType: string): EntryPlace |
  * says who wrote it and what it rests on (once, at this moment — ADR 0023 §3),
  * the rules it takes over from its sources, and the draft's text.
  */
-export function draftedNoteContent(draft: WriteDraft, now: Date, rules: readonly AiPolicyDimension[]): string {
+export function draftedNoteContent(draft: WriteDraft, now: Date, rules: readonly AiPolicyDimension[], noteType: string = defaultNoteType()): string {
   if (draft.body.kind !== "note") throw new Error("not a note draft");
-  let content = buildNewNoteContent("Note", draft.title);
+  let content = buildNewNoteContent(noteType, draft.title);
   content = upsertFrontmatterKeys(content, {
     generated: generatedStamp(draft.author.id, now),
     ...(draft.sources.length ? { sources: draft.sources } : {}),

@@ -18,6 +18,7 @@ import {
   scanVaultInstructions,
   recencySignal,
   setFrontmatterPath,
+  updateVaultText,
   VersionHistoryService,
   type AiPolicyDimension,
   type Candidate,
@@ -32,6 +33,7 @@ import {
   type PackageGists,
   type ParsedPolicyFile,
   type SituationInput,
+  type TextUpdateFiles,
   type ToolManifest,
 } from "@plainva/core";
 import type { AcpVaultAccess } from "./acpFiles";
@@ -170,6 +172,8 @@ export interface AiVaultHostInput {
   reply?: AiVaultHost["reply"];
   /** Where an answer kept as a note is written (plan P4-6); absent where the shell writes no notes. */
   capture?: AiVaultHost["capture"];
+  /** The vault's type for new notes, as the shell names it (finding 2026-10-09); absent, the setting's default. */
+  noteType?: AiVaultHost["noteType"];
   /** How this shell makes what a draft describes — a note, a task, a line in the journal (plan P5); absent where it cannot. */
   creates?: DraftCreator;
   /** The notes that carry open suggestions of a machine, from the vault's comments (plan P5); absent where the shell cannot list them. */
@@ -185,22 +189,40 @@ export interface AiVaultHostInput {
 }
 
 export interface InstructionWriter {
+  /** A file written whole — a NEW one: a skill made in the workshop or imported, its folder created first. */
   write(path: string, bytes: Uint8Array): Promise<void>;
+  /**
+   * A change of a text file where it lies (Sammelplan 3.87): the vault's memory, its rules for assistants, the
+   * learning log, a skill's instructions. Through the chain's one entry for a change, as every writer of the app
+   * changes a file that is there: the change starts from the file as it lies there, whoever wrote it last — no
+   * merge, no conflict copy —, and a file with an open conflict takes it in the user's own version as well. A file
+   * that is not there is made from what `change` makes of nothing (`null`). Answers the text that was written,
+   * or null where `change` left the file as it was.
+   */
+  update(path: string, change: (text: string | null) => string | null): Promise<string | null>;
   remove(path: string): Promise<void>;
 }
 
 /** Writing through a vault adapter: the folder first, then the file; a removal as the file tree does it, confirmed. */
-export function adapterInstructionWriter(adapter: {
-  exists(path: string): Promise<boolean>;
-  createDir(path: string): Promise<void>;
-  writeBinaryFile(path: string, content: Uint8Array): Promise<void>;
-  deleteItem(path: string, recursive?: boolean, confirmation?: { confirmed: true }): Promise<void>;
-}): InstructionWriter {
+export function adapterInstructionWriter(
+  adapter: TextUpdateFiles & Pick<IVaultAdapter, "exists" | "createDir" | "writeBinaryFile" | "deleteItem">,
+): InstructionWriter {
+  const write = async (path: string, bytes: Uint8Array): Promise<void> => {
+    const folder = path.slice(0, path.lastIndexOf("/"));
+    if (folder && !(await adapter.exists(folder))) await adapter.createDir(folder);
+    await adapter.writeBinaryFile(path, bytes);
+  };
   return {
-    async write(path, bytes) {
-      const folder = path.slice(0, path.lastIndexOf("/"));
-      if (folder && !(await adapter.exists(folder))) await adapter.createDir(folder);
-      await adapter.writeBinaryFile(path, bytes);
+    write,
+    async update(path, change) {
+      if (!(await adapter.exists(path))) {
+        const made = change(null);
+        if (made === null) return null;
+        await write(path, new TextEncoder().encode(made));
+        return made;
+      }
+      const update = await updateVaultText(adapter, path, (text) => change(text));
+      return update.changed ? update.text : null;
     },
     // The user confirmed in the workshop; the adapters back the files up before they go.
     remove: (path) => adapter.deleteItem(path, true, { confirmed: true }),
@@ -239,7 +261,7 @@ function instructionsHost(io: InstructionIO, approvals: InstructionApprovalStore
     scanOne: (id) => scanInstruction(io, id),
     readFile: (source, rel) => readInstructionFile(io, source, rel),
     approvals,
-    ...(writer ? { write: writer.write, remove: writer.remove } : {}),
+    ...(writer ? { write: writer.write, update: writer.update, remove: writer.remove } : {}),
     readText: async (path) => {
       const bytes = await io.read(path);
       return bytes ? decoder.decode(bytes) : null;
@@ -369,6 +391,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...(input.encrypted ? { encrypted: input.encrypted } : {}),
     ...(input.reply ? { reply: input.reply } : {}),
     ...(input.capture ? { capture: input.capture } : {}),
+    ...(input.noteType ? { noteType: input.noteType } : {}),
     // The drafts of this vault on this device (plan P5): beside its other AI data, never in the vault.
     drafts: createWriteDraftStore(input.files, input.vaultKey),
     ...(input.creates ? { creates: input.creates } : {}),

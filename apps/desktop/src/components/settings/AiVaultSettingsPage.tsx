@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
-import { parsePolicyFile, serializePolicyFile, type FolderPolicyRule } from "@plainva/core";
+import { parsePolicyFile, type FolderPolicyRule } from "@plainva/core";
 import {
   AI_POLICY_FILE,
   Banner,
   Button,
+  changeFolderRules,
   ICON,
   memorySummary,
   skillView,
@@ -190,10 +191,10 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
   }
   if (!vaultAdapter || rules === null) return null;
 
-  const save = async (next: FolderPolicyRule[]) => {
-    setRules(next);
+  // The user's step, applied to the rules as they lie in the file at that moment (`changeFolderRules`).
+  const save = async (step: (current: FolderPolicyRule[]) => FolderPolicyRule[]) => {
     try {
-      await vaultAdapter.writeTextFile(AI_POLICY_FILE, serializePolicyFile(next));
+      setRules(await changeFolderRules(vaultAdapter, step));
       currentAiPolicy()?.invalidate();
       toast.success(t("ai.policy.saved"));
     } catch (error) {
@@ -216,13 +217,13 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
         ariaLabel={`${t("ai.policy.cloud")} · ${folder || t("ai.policy.vaultDefault")}`}
         value={rule?.cloud ?? (withInherit ? "inherit" : "allow")}
         options={options(withInherit).map((o) => ({ ...o, label: `${t("ai.policy.cloud")}: ${o.label}` }))}
-        onChange={(choice) => void save(withRuleValue(rules, folder, "cloud", choice))}
+        onChange={(choice) => void save((current) => withRuleValue(current, folder, "cloud", choice))}
       />
       <Select<PolicyChoice>
         ariaLabel={`${t("ai.policy.web")} · ${folder || t("ai.policy.vaultDefault")}`}
         value={rule?.web ?? (withInherit ? "inherit" : "allow")}
         options={options(withInherit).map((o) => ({ ...o, label: `${t("ai.policy.web")}: ${o.label}` }))}
-        onChange={(choice) => void save(withRuleValue(rules, folder, "web", choice))}
+        onChange={(choice) => void save((current) => withRuleValue(current, folder, "web", choice))}
       />
     </div>
   );
@@ -242,7 +243,7 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
           <SettingRow key={rule.folder} label={rule.folder}>
             <div className="pv-ai-rowactions">
               {controls(rule.folder, rule, true)}
-              <IconButton label={t("ai.policy.removeRule")} size="sm" onClick={() => void save(withoutRule(rules, rule.folder))}>
+              <IconButton label={t("ai.policy.removeRule")} size="sm" onClick={() => void save((current) => withoutRule(current, rule.folder))}>
                 <Trash2 size={ICON.ui} />
               </IconButton>
             </div>
@@ -258,7 +259,7 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
                 options={free.map((f) => ({ value: f, label: f }))}
                 onChange={setAdding}
               />
-              <Button size="sm" variant="secondary" disabled={!adding} onClick={() => { void save(withRuleValue(rules, adding, "cloud", "deny")); setAdding(""); }}>
+              <Button size="sm" variant="secondary" disabled={!adding} onClick={() => { void save((current) => withRuleValue(current, adding, "cloud", "deny")); setAdding(""); }}>
                 {t("ai.policy.addRule")}
               </Button>
             </div>

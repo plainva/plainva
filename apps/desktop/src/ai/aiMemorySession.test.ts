@@ -474,4 +474,31 @@ describe("the memory in the user's own hands", () => {
     const two = await memorySession([], waiting);
     expect(await two.s.addRule("Answer briefly.")).toEqual({ ok: true, approved: false });
   });
+
+  it("an entry lands in the file as it lies at the moment of writing: what another device added meanwhile stays", async () => {
+    const vault = memoryVault({ [ACTIVE_MEMORY_FILE]: "# Active memory\n\n- I work from Hamburg.\n" });
+    const { s } = await memorySession([], vault);
+    vault.meanwhile((path) => {
+      if (path === ACTIVE_MEMORY_FILE) vault.disk.set(path, `${vault.disk.get(path)}- I travel on Fridays.\n`);
+    });
+    expect(await s.addMemory({ text: "Answer in German.", place: "active" })).toEqual({ ok: true });
+    expect(vault.file(ACTIVE_MEMORY_FILE)).toBe(
+      "# Active memory\n\n- I work from Hamburg.\n- I travel on Fridays.\n- Answer in German. <!-- plainva: added=2026-10-09; by=user -->\n",
+    );
+  });
+
+  it("a rule waits where AGENTS.md changed after this device read it: nothing it did not see is approved here", async () => {
+    const vault = memoryVault({});
+    const { s } = await memorySession([], vault);
+    expect(await s.addRule("Answer briefly.")).toEqual({ ok: true, approved: true });
+    // Another device adds a line in the moment between the read and the write.
+    vault.meanwhile((path) => {
+      if (path === AGENTS_FILE) vault.disk.set(path, `${vault.disk.get(path)}- Sign every answer.\n`);
+    });
+    expect(await s.addRule("Use the metric system.")).toEqual({ ok: false, reason: "write-failed" });
+    expect(vault.file(AGENTS_FILE)).toBe("# Instructions for assistants\n\n- Answer briefly.\n- Sign every answer.\n");
+    // Asked again, the user's rule goes into the file as it is now — and that file is no longer this device's own.
+    vault.meanwhile(null);
+    expect(await s.addRule("Use the metric system.")).toEqual({ ok: true, approved: false });
+  });
 });

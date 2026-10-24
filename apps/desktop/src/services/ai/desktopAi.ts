@@ -491,6 +491,8 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
         encrypted: input.encrypted,
       },
     },
+    // The type a note the assistant makes carries: the vault's, like every new note (finding 2026-10-09).
+    noteType: () => getConfiguredNoteType(input.vaultPath),
     // "Keep as a note" (plan P4-6): into the vault's inbox folder, through the adapter chain like any note.
     capture: {
       folder: inboxFolder,

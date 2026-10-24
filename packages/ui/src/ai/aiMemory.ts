@@ -8,6 +8,7 @@ import {
   type MemoryPlace,
 } from "@plainva/core";
 import type { AiFileStore } from "./aiStores";
+import type { InstructionWriter } from "./aiVaultHost";
 
 /**
  * The vault's memory on this device (plan KI-Harness P6, ADR 0032): how a
@@ -36,8 +37,12 @@ export const DEFAULT_MEMORY_PREFS: MemoryPrefs = { on: true };
 
 export interface AiMemoryHost {
   read(place: MemoryPlace): Promise<MemoryFileRead>;
-  /** Replaces a memory file as a whole. Absent where the shell cannot write: the memory is then read only. */
-  write?(place: MemoryPlace, text: string): Promise<void>;
+  /**
+   * Changes a memory file where it lies, through the chain's one entry for a change (`InstructionWriter.update`):
+   * `change` is handed the file as it is at that moment — null where there is none — and answers its new text, or
+   * null to leave it. Answers what was written. Absent where the shell cannot write: the memory is then read only.
+   */
+  update?(place: MemoryPlace, change: (text: string | null) => string | null): Promise<string | null>;
   prefs: { load(): Promise<MemoryPrefs>; save(prefs: MemoryPrefs): Promise<void> };
 }
 
@@ -63,7 +68,7 @@ export function createMemoryPrefStore(files: AiFileStore, vaultKey: string): AiM
 }
 
 /** The memory host of a shell: the files through the vault's own reader and writer, the switch in the app's data. */
-export function createMemoryHost(io: InstructionIO, writer: { write(path: string, bytes: Uint8Array): Promise<void> } | undefined, prefs: AiMemoryHost["prefs"]): AiMemoryHost {
+export function createMemoryHost(io: InstructionIO, writer: Pick<InstructionWriter, "update"> | undefined, prefs: AiMemoryHost["prefs"]): AiMemoryHost {
   return {
     async read(place) {
       const bytes = await io.read(memoryFileOf(place));
@@ -71,7 +76,7 @@ export function createMemoryHost(io: InstructionIO, writer: { write(path: string
       if (bytes.byteLength > MEMORY_LIMITS.fileBytes) return { text: null, tooLarge: true };
       return { text: new TextDecoder("utf-8").decode(bytes), tooLarge: false };
     },
-    ...(writer ? { write: (place: MemoryPlace, text: string) => writer.write(memoryFileOf(place), new TextEncoder().encode(text)) } : {}),
+    ...(writer ? { update: (place: MemoryPlace, change: (text: string | null) => string | null) => writer.update(memoryFileOf(place), change) } : {}),
     prefs,
   };
 }

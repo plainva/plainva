@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Globe, Plug, Plus } from "lucide-react";
-import { mcpServerStanding, parsePolicyFile, serializePolicyFile, type AiPolicyDimension, type FolderPolicyRule } from "@plainva/core";
+import { mcpServerStanding, parsePolicyFile, type AiPolicyDimension, type FolderPolicyRule } from "@plainva/core";
 import {
   AI_POLICY_FILE,
   Banner,
+  changeFolderRules,
   externalStatusText,
   GroupCard,
   ICON,
@@ -70,10 +71,10 @@ export function AiPolicyScreen({ vault, onBack, onOpenSkills, onOpenMemory }: { 
 
   if (rules === null) return null;
 
-  const save = async (next: FolderPolicyRule[]) => {
-    setRules(next);
+  // The user's step, applied to the rules as they lie in the file at that moment (`changeFolderRules`).
+  const save = async (step: (current: FolderPolicyRule[]) => FolderPolicyRule[]) => {
     try {
-      await vault.files.writeTextFile(AI_POLICY_FILE, serializePolicyFile(next));
+      setRules(await changeFolderRules(vault.files, step));
       currentMobileAiPolicy()?.invalidate();
       // The rules decide which titles the system's assistant may know (AI harness P4.7): that list is written again.
       window.dispatchEvent(new CustomEvent("m-ai-policy-changed"));
@@ -99,7 +100,7 @@ export function AiPolicyScreen({ vault, onBack, onOpenSkills, onOpenMemory }: { 
     });
     if (!pick) return;
     if (pick === "remove") {
-      void save(withoutRule(rules, folder));
+      void save((current) => withoutRule(current, folder));
       return;
     }
     const dimension = pick as AiPolicyDimension;
@@ -108,7 +109,7 @@ export function AiPolicyScreen({ vault, onBack, onOpenSkills, onOpenMemory }: { 
       options: [...(inherit ? [{ value: "inherit", label: t("ai.policy.inherit") }] : []), { value: "allow", label: t("ai.policy.allow") }, { value: "deny", label: t("ai.policy.deny") }],
       value: rule?.[dimension] ?? (inherit ? "inherit" : "allow"),
     });
-    if (value) void save(withRuleValue(rules, folder, dimension, value as PolicyChoice));
+    if (value) void save((current) => withRuleValue(current, folder, dimension, value as PolicyChoice));
   };
 
   const web = aiState.web;
@@ -148,7 +149,7 @@ export function AiPolicyScreen({ vault, onBack, onOpenSkills, onOpenMemory }: { 
                 title={t("ai.policy.addFolder")}
                 onClick={() => {
                   void mTargets({ title: t("ai.policy.folder"), options: free.map((f) => ({ value: f, label: f })), search: t("ai.policy.folder") }).then((folder) => {
-                    if (folder) void save(withRuleValue(rules, folder, "cloud", "deny"));
+                    if (folder) void save((current) => withRuleValue(current, folder, "cloud", "deny"));
                   });
                 }}
               />
