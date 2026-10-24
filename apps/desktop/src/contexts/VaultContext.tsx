@@ -1,16 +1,17 @@
 import { afterTaskSyncResume, clearPinboardCache, InlineSuggestProvider } from "@plainva/ui";
-import { projectPublicationFeedbackForOwner, sameStoredValue } from "@plainva/core";
+import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText, WORKSPACE_FORKS_FOLDER } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import { relocateDrafts } from "../services/draftJournal";
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, formatQueueEntryReport, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, formatFullScan, formatFullScanFailure, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { rotateLegacyFileGrant } from "../services/accountGrantMigration";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { fileBrokerTokenProvider } from "../services/accountBroker";
+import { migrateVaultGrants } from "../services/accountGrantMigration";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
@@ -18,10 +19,10 @@ import { settlePendingWrites } from "../services/pendingWrites";
 import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown";
 import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
-import { createLimiter, formatListingReport, formatTaskSync, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
+import { createIndexNotices, createLimiter, formatListingReport, formatTaskSync, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
-import { workspaceSyncFailureText } from "@plainva/ui";
+import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
@@ -53,12 +54,13 @@ import { createClientPimRuntime } from "../services/pim/remotePimTarget";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
 import { getSettingsStore } from "../services/settingsStore";
+import { templateVaultOf } from "../services/dailyNotes";
 import { appDataDir } from "@tauri-apps/api/path";
 import { readFile, writeFile, exists as fsExists, mkdir } from "@tauri-apps/plugin-fs";
 import { indexDbFileName } from "../services/indexDbPath";
 import { createIncrementalIndexQueue, IncrementalIndexQueue } from "../services/incrementalIndexQueue";
+import { createWatchBatchCollector, toEnqueueArgs } from "../services/watchBatch";
 import { AUTO_REFRESH_LIMITS, buildRefreshToast, planAutoRefresh, runVaultRefresh, type VaultRefreshResult } from "@plainva/ui";
-import { WATCH_RESCAN_MARKER } from "../adapters/TauriVaultAdapter";
 import { createPimRuntime, type PimRuntime } from "../services/pim/pimRuntime";
 import { runEntryEventSync } from "../services/pim/entryEventSync";
 import { runTaskSync } from "../services/pim/taskSync";
@@ -162,7 +164,8 @@ export type PublicationCommentEntry = PublicationComment & { publicationName: st
 
 interface VaultContextType extends VaultState {
   selectVault: () => Promise<void>;
-  openVault: (path: string) => Promise<void>;
+  /** True once the window shows `path`; false when it was left where it is (`AppContext`). */
+  openVault: (path: string) => Promise<boolean>;
   /**
    * "Read the vault again" (P1): reconcile the index against the disk AND —
    * when the vault syncs — ask the cloud for a full listing. Returns the report
@@ -802,9 +805,10 @@ export const VaultProvider: React.FC<{
       workspaceRuntimeRef.current = workspaceRuntime;
       let resolvedWorkspaceSecurityStatus = workspaceSecurityStatus;
       const workspaceStateStore = workspaceSecurityStatus ? new SqlWorkspaceStateStore(dbAdapter) : null;
-      const workspaceMaterializedPaths = new Set<string>();
       workspaceStateRef.current = workspaceStateStore;
-      const permissionedWorkspaceAdapter = workspaceStateStore ? new PermissionedVaultAdapter(backupVaultAdapter, async (request) => {
+      // With the workspace's state: what the worker brought from another
+      // device is nothing the index reports for this one (finding 2026-10-12).
+      const permissionedWorkspaceAdapter = workspaceStateStore ? new PermissionedVaultAdapter(backupVaultAdapter, workspaceStateStore, async (request) => {
         if (!workspaceRuntime) return false;
         const existing = await workspaceStateStore.getObjectByPath(request.path);
         const objectId = existing?.objectId ?? createWorkspaceObjectId();
@@ -852,16 +856,16 @@ export const VaultProvider: React.FC<{
       }, async (request) => {
         const forkId = createWorkspaceObjectId();
         const safeName = request.path.split("/").pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") || "external-change";
-        const forkPath = `.plainva/workspace/forks/${forkId}-${safeName}`;
+        const forkPath = `${WORKSPACE_FORKS_FOLDER}/${forkId}-${safeName}`;
         if (await backupVaultAdapter.exists(request.path)) {
-          await backupVaultAdapter.createDir(".plainva/workspace/forks");
+          await backupVaultAdapter.createDir(WORKSPACE_FORKS_FOLDER);
           await backupVaultAdapter.writeBinaryFile(forkPath, await backupVaultAdapter.readBinaryFile(request.path));
         }
         await workspaceStateStore.saveLocalFork({ forkId, originalPath: request.path, forkPath, reason: "permission-denied", createdAt: new Date().toISOString() });
       }) : null;
       const queueingVaultAdapter = workspaceStateStore
         ? new WorkspaceQueueingVaultAdapter(permissionedWorkspaceAdapter!, workspaceStateStore)
-        : new QueueingVaultAdapter(backupVaultAdapter, syncQueue);
+        : new QueueingVaultAdapter(backupVaultAdapter, syncQueue, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) });
 
       const syncRepo = new SyncStateRepository(dbAdapter, backupVaultAdapter, await getDeviceId());
       const vaultAdapter = new ConflictAwareVaultAdapter(
@@ -873,7 +877,17 @@ export const VaultProvider: React.FC<{
           window.dispatchEvent(new CustomEvent("plainva-auto-merged", { detail: { path: mergedPath, mergedText } }));
         },
         workspaceStateStore ?? syncRepo,
-        "external-folder"
+        "external-folder",
+        // A write turned line ends the file's shape does not keep (a carriage
+        // return of its own) — every line of the file, unasked: said here for
+        // every writer of the app at once, in this window and in the auxiliary
+        // windows on this vault, whose saves come through this chain as well.
+        (convertedPath, lineEnd) => {
+          sayLineEndsConverted(convertedPath, lineEnd);
+          void getWindowBus()
+            .then((bus) => bus.broadcast("line-ends-converted", { path: convertedPath, eol: lineEnd }, path))
+            .catch(() => { /* no bus (browser/test): a single window has said it */ });
+        }
       );
 
       // Read this vault's sync credentials once: decides whether locally-detected changes
@@ -913,7 +927,6 @@ export const VaultProvider: React.FC<{
       // are indexed but were never enqueued. Push them when this vault has a sync target.
       const enqueueLocalChange = async (changedPath: string) => {
         if (!hasSyncTarget || changedPath.includes(".plainva") || changedPath.includes(".CONFLICT")) return;
-        if (workspaceMaterializedPaths.delete(changedPath)) return;
         if (permissionedWorkspaceAdapter && !await permissionedWorkspaceAdapter.authorizeExternalChange(changedPath, true)) return;
         const queued = workspaceStateStore
           ? workspaceStateStore.enqueue("write", changedPath)
@@ -931,6 +944,18 @@ export const VaultProvider: React.FC<{
       // mass data loss). The first pull's reconcile adopts/merges the remote instead, and
       // onFirstCycleComplete then sweeps only the genuinely local-only files.
       let deferInitialEnqueue = true;
+      // The index is owed a full scan until it is known to have had one — a
+      // cold index until its first scan goes through, a warm one on which none
+      // ever did (`indexComplete`; issue 125). Every file such a scan did not
+      // reach is still "new" to it, so the deferral above holds until then, and
+      // the task reconciler creates no notes either: the anchors it looks for
+      // come from the index. Owed from the start, so no cycle runs before the
+      // open has looked.
+      let coldIndexOwed = true;
+      // Whether the first sync has swept the local-only files (onFirstCycleComplete).
+      let localOnlySwept = false;
+      // What a full scan left out, or why it failed, said once on screen (issue 125).
+      const indexNotices = createIndexNotices(toast);
       // What the sync worker removes itself is not the user's deletion (finding
       // 2026-09-20): the worker marks a path before it mirrors a remote deletion,
       // and `onLocalFileDeleted` below asks once and then queues nothing. Without
@@ -953,16 +978,17 @@ export const VaultProvider: React.FC<{
           if (deferInitialEnqueue) return;
           void enqueueLocalChange(path);
         },
-        onLocalFileDeleted: (path) => {
+        onLocalFileDeleted: (path, row) => {
           // An editor that shows this file learns that it vanished (issue 110,
           // E9) — moved or deleted outside Plainva while open. It looks for
           // the file; the owner bridge carries the event to other windows.
           if (!path.includes(".plainva")) window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
           if (path.includes(".plainva") || path.includes(".CONFLICT")) return;
-          if (workspaceMaterializedPaths.delete(path)) return;
           // The worker mirrored a remote deletion: its sync_state is already
-          // gone and the remote has nothing left to delete.
-          if (ownDeletions.consume(path)) return;
+          // gone and the remote has nothing left to delete. Asked for the row
+          // the index removed: the mark answers for the file the worker took
+          // away, not for a later one of that name (finding 2026-10-12).
+          if (ownDeletions.consume(path, row)) return;
           if (hasSyncTarget) {
             if (permissionedWorkspaceAdapter) {
               void permissionedWorkspaceAdapter.authorizeExternalChange(path, false).then((allowed) => {
@@ -983,6 +1009,33 @@ export const VaultProvider: React.FC<{
             syncRepo.deleteSyncState(path).catch(() => {});
           }
         },
+        // One line per full scan (issue 122): what set it off, how much it
+        // walked, how long it took and what it changed. Counts only. On
+        // screen, what it left out, by name (issue 125).
+        onFullScan: (info) => {
+          // First, so that a line or a notice that fails cannot keep the
+          // deferral up for the rest of the session.
+          if (coldIndexOwed) {
+            coldIndexOwed = false;
+            deferInitialEnqueue = false;
+            // The first sync may have swept the local-only files already, over
+            // what the failed scan had reached: the ones this scan found only
+            // now go up as well (the sweep passes over what is queued).
+            if (localOnlySwept) {
+              syncQueue.enqueueLocalOnlyFiles()
+                .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
+                .catch((e) => console.error("[VaultContext] enqueueLocalOnlyFiles failed", e));
+            }
+          }
+          logDiagnostic("index", formatFullScan(info));
+          indexNotices.scanned(info);
+        },
+        // A scan that failed is said once, with its reason (issue 125): the
+        // index keeps what it got, and the next scan tries again.
+        onFullScanFailed: (info) => {
+          logDiagnostic("index", formatFullScanFailure(info));
+          indexNotices.failed(info);
+        },
         onProgress: (current, total, msgPath) => {
           // Only the INITIAL vault load reports progress into React state (P3):
           // background re-indexes (watcher echo of our own saves, sync pulls)
@@ -1001,13 +1054,18 @@ export const VaultProvider: React.FC<{
       // Serialized incremental indexing for watcher events and sync pulls (P2.5):
       // one batch at a time, concurrent producers coalesce into one follow-up
       // pass, redundant full scans collapse. Batch results map to the version
-      // bumps here: a full scan may have changed the folder structure (both
-      // versions), a per-path batch is file-only, a pure echo batch bumps nothing.
+      // bumps here: a changed folder list bumps both versions, changed files
+      // the file version only (with the batch's paths; null after a full scan,
+      // which may have touched any), and a batch that changed nothing — a pure
+      // echo, or a full scan that found the vault as it was — bumps nothing
+      // (issue 122: every bump reloads the tree and each view that hangs on it).
       const indexQueue = createIncrementalIndexQueue({
         indexer,
         exists: (p) => tauriVaultAdapter.exists(p),
-        onBatchDone: ({ fullScan, anyChange, paths: batchPaths, structureChanged }) => {
-          if (fullScan || structureChanged) {
+        onEscalation: ({ reason, sources, paths: n }) =>
+          logDiagnostic("index", `batch of ${n} path(s) from ${sources.join("+") || "the app"} escalated to a full scan: ${reason}`),
+        onBatchDone: ({ anyChange, paths: batchPaths, structureChanged }) => {
+          if (structureChanged) {
             setState(s => ({ ...s, fileTreeVersion: s.fileTreeVersion + 1, treeStructureVersion: s.treeStructureVersion + 1, fileTreeVersionPaths: null }));
           } else if (anyChange) {
             setState(s => ({ ...s, fileTreeVersion: s.fileTreeVersion + 1, fileTreeVersionPaths: batchPaths }));
@@ -1051,6 +1109,7 @@ export const VaultProvider: React.FC<{
               adapter: {
                 readTextFile: (p) => vaultAdapter.readTextFile(p),
                 writeTextFile: (p, c) => vaultAdapter.writeTextFile(p, c),
+                updateTextFile: (p, change) => updateVaultText(vaultAdapter, p, change),
                 exists: (p) => vaultAdapter.exists(p),
                 createDir: (p) => vaultAdapter.createDir(p),
                 // A note whose task a person deleted elsewhere (journal, P1)
@@ -1062,12 +1121,13 @@ export const VaultProvider: React.FC<{
               buildTarget: pimRuntime.buildTarget,
               taskDbPath,
               noteType,
+              templateVault: await templateVaultOf(path),
               allNotePaths,
               // OKF 0.2 provenance (plan P3b): a mirrored task names its producer.
               generatedBy: await plainvaProducer("task-sync"),
               // One query instead of reading every note once per task.
               anchorsByUid: await queryService.getTaskAnchors(),
-              mayCreateNotes: firstSyncSettled,
+              mayCreateNotes: firstSyncSettled && !coldIndexOwed,
               // Deletions the user confirmed here whose provider task should
               // follow (E4b). The reconciler owns the call: it has the target,
               // the etag and the CalDAV href, and it retries next cycle.
@@ -1079,7 +1139,7 @@ export const VaultProvider: React.FC<{
             // Task notes are being renamed in bulk (E12): come back once that is done.
             if (res.paused) afterTaskSyncResume(() => void runTaskSyncNow());
             const touched = [...res.createdNotes, ...res.changedNotes];
-            if (touched.length > 0) indexQueue.enqueue(touched);
+            if (touched.length > 0) indexQueue.enqueue(touched, { source: "tasks" });
             for (const err of res.errors) console.warn("[VaultContext] task sync:", err);
             // The same line the phone writes (plan Befunde 2026-10-06, T4):
             // what the reconcile did, readable from a diagnostics export.
@@ -1106,7 +1166,7 @@ export const VaultProvider: React.FC<{
             window: { startDay: day(-60), endDay: day(400) },
           });
           if (ev.changedNotes.length > 0) {
-            indexQueue.enqueue(ev.changedNotes);
+            indexQueue.enqueue(ev.changedNotes, { source: "tasks" });
             window.dispatchEvent(new CustomEvent("plainva-pim-changed"));
           }
           for (const err of ev.errors) console.warn("[VaultContext] entry event sync:", err);
@@ -1126,9 +1186,14 @@ export const VaultProvider: React.FC<{
       initTaskDeletion({
         writeTextFile: (p, c) => vaultAdapter.writeTextFile(p, c),
         runTaskSync: () => void runTaskSyncNow(),
-        onRestored: (paths) => indexQueue.enqueue(paths),
+        onRestored: (paths) => indexQueue.enqueue(paths, { source: "tasks" }),
       });
 
+      // A calendar or mailbox that still signs in on its own hands that sign-in
+      // to its card before the calendar starts (account sign-in plan K2).
+      await perfMeasure("vault open: account grants", () => migrateVaultGrants(path)).catch((e) =>
+        console.error("[VaultContext] moving sign-ins to their accounts failed", e),
+      );
       const pimRuntime = createPimRuntime({ db: dbAdapter, vaultPath: path, onCycleEnd: () => void runTaskSyncNow() });
       try {
         if ((await pimRuntime.cache.listAccounts()).length > 0) pimRuntime.worker.start();
@@ -1157,11 +1222,21 @@ export const VaultProvider: React.FC<{
         reportInitialProgress = false; // background reconcile: no loading bar
         // Warm index: files are already known, so the background pass discovers no mass
         // of "new" files — let any genuinely new ones (created while closed) enqueue.
-        deferInitialEnqueue = false;
+        // Unless no full scan has gone through on it: a first scan that failed
+        // keeps the rows it wrote, and the files it never reached are still new
+        // to it (issue 125) — the deferral holds until a scan goes through.
+        if (await indexer.indexComplete().catch(() => false)) {
+          coldIndexOwed = false;
+          deferInitialEnqueue = false;
+        }
         void indexer
-          .indexVaultFull()
-          .then(() => {
+          .indexVaultFull("open")
+          .then((report) => {
             if (currentAbortSignal.aborted) return;
+            // The tree was drawn from the index before this pass; it only
+            // needs redrawing when the pass changed files. The folder list is
+            // read from the disk once loading ends, so it is current already.
+            if (report.added + report.changed + report.removed === 0) return;
             setState((s) => ({
               ...s,
               fileTreeVersion: s.fileTreeVersion + 1,
@@ -1174,9 +1249,16 @@ export const VaultProvider: React.FC<{
         // Fresh/empty index: block with progress so the tree isn't empty. Every file is
         // "new" here — the deferred enqueue (3c) keeps this from mass-pushing over the
         // remote; the first pull reconciles and onFirstCycleComplete sweeps local-only.
-        await perfMeasure("initial full index (cold)", () => indexer.indexVaultFull());
+        // A scan that fails no longer keeps the vault from opening (issue 125): the
+        // index holds what it got, the failure is on screen (onFullScanFailed), and
+        // the next full scan — the watcher's, a refresh — tries again. The index
+        // is owed that scan from the start (coldIndexOwed), and onFullScan settles it.
+        await perfMeasure("initial full index (cold)", () => indexer.indexVaultFull("open, empty index"))
+          .catch((error: unknown) => {
+            // Called off because another vault opens: the load ends here, as at every other step.
+            if (currentAbortSignal.aborted) throw error;
+          });
         reportInitialProgress = false;
-        deferInitialEnqueue = false;
       }
 
       // If it's a new WebDAV connection, we enqueue all local files to trigger an initial push
@@ -1393,8 +1475,7 @@ export const VaultProvider: React.FC<{
                   }
                 };
                 worker.onFilesChanged = (paths) => {
-                  for (const changedPath of paths) workspaceMaterializedPaths.add(changedPath);
-                  indexQueue.enqueue(paths);
+                  indexQueue.enqueue(paths, { source: "sync" });
                   for (const changedPath of paths) {
                     if (!changedPath.includes(".CONFLICT")) {
                       window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: changedPath } }));
@@ -1494,6 +1575,7 @@ export const VaultProvider: React.FC<{
               syncQueue.enqueueLocalOnlyFiles()
                 .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
                 .catch((e) => console.error("[VaultContext] enqueueLocalOnlyFiles failed", e));
+              localOnlySwept = true;
             };
             syncWorker.onFilesChanged = (paths) => {
               // Pulled writes/deletions happen outside the editor; re-index so the
@@ -1501,7 +1583,7 @@ export const VaultProvider: React.FC<{
               // emits in chunks while the cycle runs (and flushes on abort), so the
               // tree fills progressively during a long first sync and an aborted
               // cycle can no longer hide already-written files until a restart.
-              indexQueue.enqueue(paths);
+              indexQueue.enqueue(paths, { source: "sync" });
               for (const p of paths) {
                 if (!p.includes(".CONFLICT")) {
                   window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: p } }));
@@ -1562,7 +1644,7 @@ export const VaultProvider: React.FC<{
                 } else {
                   try {
                     const kept = await guardedWorker.keepSuspendedDeletionsLocal();
-                    toast.info(i18n.t("sync.pullGuardKept", { n: kept }));
+                    toast.info(i18n.t("sync.pullGuardKept", { count: kept }));
                   } catch (e) {
                     console.error("[VaultContext] keepSuspendedDeletionsLocal failed", e);
                     toast.error(i18n.t("sync.pullGuardFailed"));
@@ -1573,9 +1655,13 @@ export const VaultProvider: React.FC<{
             syncWorker.onDeletionReport = (report) => {
               // A remote deletion the worker did NOT mirror because the local
               // copy carries unsynced edits used to be silent — and silence is
-              // how a "deleted" note came back without anyone knowing why.
-              if (report.keptLocalEdits.length > 0) {
-                toast.info(i18n.t("sync.deletionsKeptLocalEdits", { n: report.keptLocalEdits.length }));
+              // how a "deleted" note came back without anyone knowing why. The
+              // notice names the files and what happens to them (finding
+              // 2026-10-19), and the diagnostics keep the paths.
+              const kept = keptDeletionsText(report.keptLocalEdits);
+              if (kept) {
+                logDiagnostic("sync", keptDeletionsDiagnostic(report.keptLocalEdits));
+                toast.info(kept);
               }
             };
             syncWorker.start();
@@ -1752,6 +1838,11 @@ export const VaultProvider: React.FC<{
           await bus.onBroadcast("note-saved", ({ path }) => {
             window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path } }));
           }),
+        );
+        // The owner's chain turned a file's line ends — perhaps for a save from
+        // this very window: said here as well, where this window's user looks.
+        offs.push(
+          await bus.onBroadcast("line-ends-converted", ({ path, eol }) => sayLineEndsConverted(path, eol)),
         );
         // There is one sync worker, in the owner. This window has no way to
         // observe it, so without the mirror its status bar would say "local"
@@ -1947,12 +2038,10 @@ export const VaultProvider: React.FC<{
     let unwatchFn: (() => void) | undefined;
     let debounceTimer: ReturnType<typeof setTimeout>;
     let commentWatchTimer: ReturnType<typeof setTimeout> | undefined;
-    // Paths accumulated across the debounce window: the timer only sees the
-    // LAST event batch otherwise, and incremental indexing needs all of them.
-    const pendingWatchPaths = new Set<string>();
-    // Paths named by a rename or removal: their parent folder is reconciled
-    // too, once they turn out to have changed the index (issue 110, E8).
-    const pendingMovedPaths = new Set<string>();
+    // Events accumulated across the debounce window, each path with what
+    // happened to it: the timer only sees the LAST delivery otherwise, and the
+    // queue needs all of them — and the kinds (issue 122, watchBatch.ts).
+    const watchBatch = createWatchBatchCollector();
 
     const startWatching = async () => {
       if (!state.vaultAdapter?.watch) return;
@@ -1967,37 +2056,19 @@ export const VaultProvider: React.FC<{
             clearTimeout(commentWatchTimer);
             commentWatchTimer = setTimeout(() => window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: "*" } })), 500);
           }
-          // Only react to real markdown changes. Crucially this excludes writes
-          // inside .plainva (the SQLite db + its -wal/-shm files), which we write
-          // on every index/sync; reacting to them caused an endless
-          // re-index -> db write -> watcher -> re-index feedback loop. The
-          // `.includes` checks are robust even if the path was not relativised.
-          const relevantEvents = events.filter(e => {
-            // React to markdown AND attachment changes, mirroring the indexer's own
-            // SQLite db + -wal/-shm), so we don't re-trigger on our own index writes.
-            // The rescan marker always passes: it means the adapter could NOT
-            // attribute a change, and dropping it would lose the change entirely.
-            if (e.path === WATCH_RESCAN_MARKER) return true;
-            return e.path !== "" && !isInternalPath(e.path);
-          });
-          if (relevantEvents.length > 0) {
-            for (const e of relevantEvents) {
-              // "" is the vault root — indexPath classifies it as a directory and
-              // the queue escalates to a full reconcile (P1d fail-safe).
-              pendingWatchPaths.add(e.path === WATCH_RESCAN_MARKER ? "" : e.path);
-              if ((e.type === "rename" || e.type === "remove") && e.path !== WATCH_RESCAN_MARKER) pendingMovedPaths.add(e.path);
-            }
+          // Internal paths never get further than the collector — crucially
+          // the writes inside .plainva (the SQLite db + its -wal/-shm files),
+          // which the app makes on every index and sync pass, and the temp
+          // file of its own atomic save.
+          if (watchBatch.add(events)) {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
-              const batch = Array.from(pendingWatchPaths);
-              const moved = Array.from(pendingMovedPaths);
-              pendingWatchPaths.clear();
-              pendingMovedPaths.clear();
-              console.log("[VaultContext] vault watcher detected changes", batch);
+              const batch = watchBatch.take();
+              console.log("[VaultContext] vault watcher detected changes", batch.paths, batch.modifiedOnly);
               // Incremental per-path indexing (P2.5) — the former full scan
               // walked the ENTIRE vault over IPC after every save echo. The
               // shared queue serializes this with concurrent sync-pull batches.
-              indexQueue.enqueue(batch, { moved });
+              indexQueue.enqueue(...toEnqueueArgs(batch));
             }, 1000);
           }
         });
@@ -2264,7 +2335,7 @@ export const VaultProvider: React.FC<{
   const refreshVault = async (opts?: { silent?: boolean; skipCloud?: boolean }): Promise<VaultRefreshResult> => {
     const indexer = state.indexer;
     if (!indexer) {
-      return { local: { added: 0, changed: 0, removed: 0, skipped: [], durationMs: 0 }, cloud: "none" };
+      return { local: { added: 0, changed: 0, removed: 0, skipped: [], durationMs: 0, walked: 0, foldersChanged: false }, cloud: "none" };
     }
     if (refreshInFlightRef.current) return refreshInFlightRef.current;
     const run = (async () => {
@@ -2273,8 +2344,17 @@ export const VaultProvider: React.FC<{
           indexer,
           syncWorker: state.syncWorker,
           skipCloud: opts?.skipCloud,
+          trigger: opts?.silent ? "automatic refresh" : "manual refresh",
         });
-        bumpTree();
+        // The automatic pass (window focus, the interval net) runs while
+        // somebody may be typing: it reloads only what it found changed, and
+        // nothing when the vault is as it was (issue 122). A pass somebody
+        // asked for redraws everything, as it always did.
+        if (!opts?.silent) bumpTree();
+        else if (result.local.foldersChanged) bumpTree();
+        else if (result.local.added + result.local.changed + result.local.removed > 0) {
+          setState(s => ({ ...s, fileTreeVersion: s.fileTreeVersion + 1, fileTreeVersionPaths: null }));
+        }
         if (!opts?.silent) toast.success(buildRefreshToast(result, i18n.t.bind(i18n)));
         return result;
       } catch (e) {
@@ -2317,21 +2397,20 @@ export const VaultProvider: React.FC<{
   };
 
   /**
-   * The expensive sibling of refreshVault: drop every indexed row and parse the
-   * whole vault again. This is what the maintenance page always CLAIMED to do
-   * ("Index neu aufbauen") while actually running the cheap reconcile.
+   * The expensive sibling of refreshVault: read every file of the vault again
+   * ("Index neu aufbauen"). The way both shells rebuild is the core's
+   * (`VaultIndexer.rebuildIndex`): it used to drop every indexed row first,
+   * and every file then came back as a new one — announced for an upload
+   * nobody needed, its creation time and its sync label lost (finding
+   * 2026-10-12). sync_state stays, as it always did: it carries the remote
+   * base for every file.
    */
   const rebuildIndex = async () => {
     const indexer = state.indexer;
-    const db = state.dbAdapter;
-    if (!indexer || !db) return;
+    if (!indexer) return;
     setState(s => ({ ...s, isLoading: true }));
     try {
-      // sync_state stays: it carries the remote base for every file, and losing
-      // it would make the next cycle re-upload the entire vault.
-      await db.execute(`DELETE FROM files`);
-      await db.execute(`DELETE FROM fts_notes`);
-      await indexer.indexVaultFull();
+      await indexer.rebuildIndex("index rebuild");
       bumpTree();
       toast.success(i18n.t("refresh.rebuildDone", { defaultValue: "Index vollständig neu aufgebaut." }));
     } catch (e) {
@@ -3040,8 +3119,9 @@ export const VaultProvider: React.FC<{
    * signed objects.
    *
    * The open store reads through the BACKUP adapter, exactly what the sync
-   * worker hands the sideband step: the conflict-aware app adapter would mint
-   * sync_state rows and `.CONFLICT` copies of the comment bundle.
+   * worker hands the sideband step: until 2026-10-20 the conflict-aware app
+   * adapter would have minted sync_state rows and `.CONFLICT` copies of the
+   * comment bundle (since then it leaves the app's own files alone).
    * `BackupVaultAdapter` skips `.plainva` for snapshots anyway, so nothing
    * here lands in the version history either.
    */
@@ -3461,7 +3541,7 @@ export const VaultProvider: React.FC<{
         await bus.request("reindex", { scope: "refresh" });
         // The owner reports what it found; this window learns of the result
         // through `index-changed`, so there is nothing local to hand back.
-        return { local: { added: 0, changed: 0, removed: 0, skipped: [], durationMs: 0 }, cloud: "none" };
+        return { local: { added: 0, changed: 0, removed: 0, skipped: [], durationMs: 0, walked: 0, foldersChanged: false }, cloud: "none" };
       },
       rebuildIndex: async () => {
         const bus = await getWindowBus();

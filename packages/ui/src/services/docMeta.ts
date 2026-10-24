@@ -1,21 +1,21 @@
-import { markdownLinks } from "@plainva/core";
+import { frontmatterSpan, markdownLinks } from "@plainva/core";
 import { parse as parseYaml } from "yaml";
 import { getPlainvaMeta, type PlainvaDocMeta } from "@plainva/core";
 
-const FM_RE = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
-
-/** Raw YAML text of the leading frontmatter block, or null when absent. */
+/**
+ * Raw YAML text of the leading frontmatter block, or null when absent. A block
+ * without entries (`---` directly on `---`) is a block: its text is "".
+ */
 export function frontmatterBlockOf(content: string): string | null {
-  const match = content.match(FM_RE);
-  return match ? match[1] : null;
+  return frontmatterSpan(content)?.yaml ?? null;
 }
 
 /** The document body with a leading frontmatter block removed (and the blank
  * line that followed it), or the content unchanged when there is none. Used
  * when a note becomes an email body so the YAML never leaks into the message. */
 export function stripFrontmatter(content: string): string {
-  const stripped = content.replace(FM_RE, "");
-  return stripped === content ? content : stripped.replace(/^\r?\n/, "");
+  const block = frontmatterSpan(content);
+  return block ? content.slice(block.end).replace(/^\r?\n/, "") : content;
 }
 
 /** The `to:` recipient from a note's frontmatter (a reply-as-note stores the

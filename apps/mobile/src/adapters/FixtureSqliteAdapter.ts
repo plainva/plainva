@@ -1,4 +1,5 @@
-import type { BatchStatement, IDatabaseAdapter } from "@plainva/core";
+import type { BatchOptions, BatchStatement, IDatabaseAdapter } from "@plainva/core";
+import { TransactionTurns } from "./transactionTurns";
 
 /**
  * IDatabaseAdapter over a REAL SQLite that lives outside the browser.
@@ -64,14 +65,22 @@ function toPositional(params?: unknown[] | Record<string, unknown>): unknown[] {
 
 export class FixtureSqliteAdapter implements IDatabaseAdapter {
   /**
-   * Nesting depth. SQLite has no nested transactions, and the callers do nest:
-   * `runBatch` is invoked from inside `transaction()`, so an unconditional
-   * BEGIN fails with "cannot start a transaction within a transaction" — and
-   * because the boot swallows index errors, the app then simply runs on
-   * without an index. That is precisely the silent hole this adapter exists to
-   * close, so only the OUTERMOST call opens and commits.
+   * One transaction at a time, exactly as the native adapter has it
+   * (transactionTurns.ts): the runner's database is one connection too, and
+   * SQLite refuses a second BEGIN.
+   *
+   * This adapter used to count a depth instead and let a second transaction
+   * ENTER the first — which kept the index alive (an unconditional BEGIN from
+   * the indexer's batch inside its own transaction had failed, the boot
+   * swallowed that, and the app ran on without an index: precisely the silent
+   * hole this adapter exists to close). But it also meant that two flows of
+   * the app shared one transaction here, where the phone refused the second:
+   * nothing these runs showed said anything about what a device does when two
+   * transactions meet (finding 2026-10-12).
    */
-  private depth = 0;
+  private readonly turns = new TransactionTurns();
+  /** The body of a `transaction()` is running. `runBatch` reads it. */
+  private inTransaction = false;
 
   constructor(private readonly dbName: string) {}
 
@@ -118,29 +127,52 @@ export class FixtureSqliteAdapter implements IDatabaseAdapter {
     return rows.length > 0 ? rows[0] : null;
   }
 
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    const outermost = this.depth === 0;
-    if (outermost) await this.execute("BEGIN");
-    this.depth += 1;
+  /** BEGIN, `work`, COMMIT — or ROLLBACK, and the error of `work`. */
+  private async inOneTransaction<T>(work: () => Promise<T>): Promise<T> {
+    await this.execute("BEGIN");
+    let result: T;
     try {
-      const result = await fn();
-      this.depth -= 1;
-      if (outermost) await this.execute("COMMIT");
-      return result;
+      result = await work();
     } catch (err) {
-      this.depth -= 1;
-      if (outermost) {
-        await this.execute("ROLLBACK").catch(() => {
-          /* connection state wins; surface the original error */
-        });
-      }
+      await this.execute("ROLLBACK").catch(() => {
+        /* connection state wins; surface the original error */
+      });
       throw err;
     }
+    try {
+      await this.execute("COMMIT");
+    } catch (err) {
+      // What a failed COMMIT left open must not ride into the next turn.
+      await this.execute("ROLLBACK").catch(() => {});
+      throw err;
+    }
+    return result;
   }
 
-  async runBatch(statements: BatchStatement[]): Promise<void> {
-    await this.transaction(async () => {
+  transaction<T>(fn: () => Promise<T>): Promise<T> {
+    return this.turns.take(() =>
+      this.inOneTransaction(async () => {
+        this.inTransaction = true;
+        try {
+          return await fn();
+        } finally {
+          this.inTransaction = false;
+        }
+      }),
+    );
+  }
+
+  /**
+   * A transaction of its own, in its turn — except for the batch its caller
+   * sends from inside the body of its own `transaction()` and says so (the
+   * indexer's full scan): that one runs in the transaction that is open.
+   */
+  async runBatch(statements: BatchStatement[], options?: BatchOptions): Promise<void> {
+    if (statements.length === 0) return;
+    const run = async () => {
       for (const s of statements) await this.execute(s.sql, s.params);
-    });
+    };
+    if (options?.inOpenTransaction && this.inTransaction) await run();
+    else await this.turns.take(() => this.inOneTransaction(run));
   }
 }

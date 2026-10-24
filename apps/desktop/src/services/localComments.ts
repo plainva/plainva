@@ -37,8 +37,9 @@ export function commentDeviceFallbackName(deviceId: string): string {
  * The store for a vault without an encrypted workspace.
  *
  * `raw` is deliberately the BACKUP adapter, exactly what the sync worker
- * hands the sideband step: the conflict-aware app adapter would mint
- * sync_state rows and `.CONFLICT` copies of the comment bundle.
+ * hands the sideband step: until 2026-10-20 the conflict-aware app adapter
+ * would have minted sync_state rows and `.CONFLICT` copies of the comment
+ * bundle (since then it leaves the app's own files alone).
  * `BackupVaultAdapter` skips `.plainva` for snapshots anyway, so nothing here
  * lands in the version history either.
  */

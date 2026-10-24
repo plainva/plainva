@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { FolderPlus, ListTree, RefreshCw } from "lucide-react";
 import {
   adoptFileAsIndex,
+  adoptionSummary,
   Button,
   EmptyState,
   GroupCard,
@@ -19,7 +20,7 @@ import {
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { writeOverview } from "../services/indexOverviews";
-import { mConfirm } from "../services/mobileDialogs";
+import { mConfirmOption } from "../services/mobileDialogs";
 import type { MobileVault } from "../services/vaultService";
 
 /**
@@ -34,6 +35,13 @@ import type { MobileVault } from "../services/vaultService";
  * action, just the fact. Adopting an existing note AS the overview is offered
  * only where there is no index.md yet and the folder holds a plausible
  * candidate — and it renames a file, so it asks first.
+ *
+ * That question carries the choice the desktop's dialog offers (finding
+ * 2026-10-11): prepare the note for OKF on the way — its properties block
+ * out, its wikilinks to Markdown links —, preset as it is there. The phone
+ * adopted every note as it was and asked nothing, so a note adopted here had
+ * to be prepared at a desktop. What was done is said in the words of the
+ * desktop's result line (`adoptionSummary`).
  */
 
 type FolderRow = FolderIndexInfo & { state: FolderIndexState };
@@ -66,11 +74,11 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
     void load();
   }, [load]);
 
-  const run = async (work: () => Promise<number>) => {
+  /** Runs one piece of work on the vault; what it answers is the notice shown when it is done. */
+  const run = async (work: () => Promise<string>) => {
     setBusy(true);
     try {
-      const n = await work();
-      toast.success(t("indexMd.bulkDone", { count: n }));
+      toast.success(await work());
       await load();
     } catch (e) {
       console.error("[mobile] overview run failed", e);
@@ -79,11 +87,12 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
       setBusy(false);
     }
   };
+  const written = (count: number) => t("indexMd.bulkDone", { count });
 
   const generateOne = (folder: string) =>
     void run(async () => {
       await writeOverview(vault, folder);
-      return 1;
+      return written(1);
     });
 
   const generateAllMissing = () =>
@@ -100,7 +109,7 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
           console.warn("[mobile] overview skipped", folder, e);
         }
       }
-      return done;
+      return written(done);
     });
 
   const adopt = (row: FolderRow) =>
@@ -108,22 +117,25 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
       const candidate = row.candidates[0];
       if (!candidate || !vault.queryService) return;
       const name = candidate.path.split("/").pop() ?? candidate.path;
-      const ok = await mConfirm({
+      const answer = await mConfirmOption({
         title: t("indexMd.actionAdopt", { file: name }),
         message: t("indexMd.renameHint"),
+        checkbox: { label: t("indexMd.prepareOption"), initial: true },
       });
-      if (!ok) return;
+      if (!answer.confirmed) return;
       await run(async () => {
-        await adoptFileAsIndex({
+        const result = await adoptFileAsIndex({
           adapter: vault.files,
           queryService: vault.queryService!,
           candidatePath: candidate.path,
           folder: row.folder,
-          prepare: false,
+          prepare: answer.checked,
         });
-        await vault.indexer?.indexVaultFull().catch(() => {});
+        await vault.indexer?.indexVaultFull("index.md generation").catch(() => {});
         window.dispatchEvent(new CustomEvent("m-vault-changed"));
-        return 1;
+        // Said as after any rename: a link that could not be followed still names the old file.
+        if (result.linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));
+        return adoptionSummary(t, name, result);
       });
     })();
 
@@ -158,8 +170,12 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
             <SectionLabel>{t("indexMd.overviewsTitle")}</SectionLabel>
             <GroupCard>
               <RowList>
+                {/* A row carries a button of its own and may lead somewhere itself
+                    (`controls`): a tap on "Create overview" is not a tap on the row.
+                    As a button it held that button inside a button. */}
                 {rows.map((row) => (
                   <Row
+                    controls
                     data-testid={`overview-row-${row.folder || "root"}`}
                     disabled={busy}
                     end={

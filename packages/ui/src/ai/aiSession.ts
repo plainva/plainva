@@ -449,7 +449,7 @@ export interface AiVaultHost {
    */
   instructions?: AiInstructionsHost;
   /**
-   * The vault's memory for assistants (plan KI-Harness P6, ADR 0027): its
+   * The vault's memory for assistants (plan KI-Harness P6, ADR 0032): its
    * two files, and this device's switch for it. Absent where the shell cannot
    * read the hidden agent area.
    */
@@ -916,7 +916,8 @@ export type DraftOutcome =
    * `invalid`: what would be written is no skill's instructions — nothing, or too much.
    * `no-entry-folder`: the database an entry was drafted for has no folder for new entries (yet, or any more).
    * `exists`: the draft names its own file, and a file of that name is there by now — nothing is written over.
-   * `editor-open`: the mail composer is already open with a mail, this one or another — it keeps what it has, and the draft stays.
+   * `editor-open`: the shell's mail composer could not take the mail, and the draft stays. Neither shell says so any more:
+   *   both composers take a drafted mail like every request to write one, and ask before a changed draft goes.
    * `no-calendar`: no calendar takes an appointment right now — the event editor would have nowhere to save to.
    */
   | { kind: "refused"; reason: "off" | "unavailable" | "gone" | "busy" | "failed" | "no-entry-folder" | "exists" | "editor-open" | "no-calendar" | "changed" | "invalid"; message?: string };
@@ -1654,7 +1655,8 @@ export class AiSession {
           ).catch(() => null);
         if (body.kind === "mail") {
           if (!creates.mail) return refused("unavailable");
-          // A composer that is already open keeps its mail: this draft stays where it is until that one is free.
+          // The shell's composer takes it like every request to write a mail, and asks before a changed draft goes. A
+          // shell that cannot take it says so, and this draft stays where it is.
           if (!(await creates.mail({ to: body.to, cc: body.cc, bcc: body.bcc, subject: body.subject, body: body.body }, taken))) return refused("editor-open");
         } else {
           if (!creates.event) return refused("unavailable");
@@ -2740,7 +2742,7 @@ export class AiSession {
 
   /**
    * What of the vault's memory a new conversation is started with (plan P6,
-   * ADR 0027). Asked once, when the conversation begins: its system prompt
+   * ADR 0032). Asked once, when the conversation begins: its system prompt
    * is fixed from then on. The file's own rules come first — a folder rule
    * over the agent area, a rule in the file's properties —, then each
    * entry's: an entry goes to no recipient one of its rules keeps out, and
@@ -4652,7 +4654,7 @@ export class AiSession {
       const skillWeb = Boolean(boundSkill && skillNamesWeb(boundSkill));
       // Fully local (plan P7): the internet rests, whoever chose it.
       const withWeb = !apart && this.state.web.enabled && !this.state.settings.localOnly && (skills?.bind ? skillWeb : this.state.draftWeb);
-      // The vault's memory (plan P6, ADR 0027): what this recipient may have of it goes into the system prompt of a
+      // The vault's memory (plan P6, ADR 0032): what this recipient may have of it goes into the system prompt of a
       // conversation the user began — never of a door, which answers one question where it was asked, nor of a
       // regression run, which measures a skill and not what the user happens to have kept.
       const memory = apart ? null : await this.memoryStart(vault, recipient, withWeb);

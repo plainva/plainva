@@ -1,9 +1,9 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, Ban, BellOff, Clock, Copy, ExternalLink, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, Link2, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, TriangleAlert, X } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, IconButton, mailRowActions, MenuItem, MenuLabel, MenuSeparator, MenuSurface, RowActionList, SelectionBar, plainvaProducer, toast, type LinkTarget, type MailRowCaps } from "@plainva/ui";
+import { Banner, Button, EmptyState, ICON, IconButton, mailRowActions, MenuItem, MenuLabel, MenuSeparator, MenuSurface, RowActionList, SelectionBar, plainvaProducer, toast, useStableHandler, type LinkTarget, type MailRowCaps } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { firstAngleValue, nameBeforeAngle, trimChars } from "@plainva/core";
+import { firstAngleValue, nameBeforeAngle, trimChars, updateVaultText } from "@plainva/core";
 import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
 import { mailSnoozedKey } from "../../services/settingsProfile";
@@ -22,6 +22,7 @@ import {
 import { applyMailBulk, MailBulkReport, type MailBulkReportItem, type MailBulkAction } from "@plainva/ui/mail";
 import { flatMailRows, mailListKeyAction, stepMailRow, stepMailRowInto, threadNavId, threadedMailRows, type MailNavStep } from "@plainva/ui/mail";
 import { getSettingsStore } from "../../services/settingsStore";
+import { templateVaultOf } from "../../services/dailyNotes";
 import { activeDocument } from "../../services/activeDocument";
 import { MAIL_TAB_PATH } from "../graph/virtualPaths";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -32,8 +33,9 @@ import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCac
 import { sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit } from "@plainva/ui/mail";
 import { attachMailLinks, LinkTargetText, MailPlainText, messageJunkState, remoteImagesDecision } from "@plainva/ui/mail";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
+import { fetchAttachment, formatAttachmentSize, forwardSource, saveMailAttachment, type ForwardSource, type MailAttachmentInfo } from "@plainva/ui/mail";
 import { AUTO_READ_DELAY_MS, applyManualSeen, retainOnlyOpen, shouldScheduleAutoRead } from "@plainva/ui/mail";
-import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, applyJunk, planJunkAction, pickJunkFolder, listMailRules, runRules, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, unifiedId } from "@plainva/ui/mail";
+import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, applyJunk, planJunkAction, pickJunkFolder, listMailRules, runRules, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, rowAddress, unifiedId } from "@plainva/ui/mail";
 import { appConfirm } from "../../services/appDialogs";
 import {
   clampMailColumns,
@@ -46,9 +48,40 @@ import {
   type MailColumns,
 } from "./mailColumns";
 import { createTaskInDatabase } from "../../services/taskPromotion";
+import { getConfiguredNoteType } from "../../services/newNote";
 import { sendTaskToProviderList } from "../../services/pim/taskToProvider";
-import { MailDraftModal } from "./MailDraftModal";
-import { popOutCompose } from "../../services/mail/composeWindow";
+
+/**
+ * Opens the composer — the one the window hosts, through the event the
+ * editor's "send this note" already uses (finding 2026-10-09).
+ *
+ * This view used to render a composer of its own. The composer is a floating
+ * window to work BESIDE, and the view is a tab: opening a note to look
+ * something up replaced the tab, the view was unmounted, and the composer went
+ * with it — a written message gone without a word, on the one route that asks
+ * nobody. Every window that shows this view answers the event (the central and
+ * the full window in `MailComposeHost`, beside their shell; an auxiliary window
+ * through `useAuxBridge`), so the draft now lives where no tab can take it
+ * away — and, in the first two, no reload of the vault either.
+ */
+function composeMail(draft: {
+  /**
+   * The mailbox the message is written from (finding 2026-10-09). Not
+   * optional here: the event went out without it, so the composer started
+   * with the first mailbox that is stored and with its signature — a reply to
+   * a message in the second one left under the first one's address unless
+   * "From" was changed by hand. Every way into the composer from this view
+   * has a mailbox, so every one of them has to name it.
+   */
+  accountId: string;
+  subject: string;
+  markdown: string;
+  to?: string;
+  /** A forward names the message whose files it carries; the composer loads them. */
+  forward?: ForwardSource;
+}): void {
+  window.dispatchEvent(new CustomEvent("plainva-compose-mail", { detail: draft }));
+}
 
 /**
  * Mail workspace (virtual path plainva://mail): a provider-neutral browser for
@@ -61,6 +94,15 @@ import { popOutCompose } from "../../services/mail/composeWindow";
  */
 
 const PAGE_SIZE = 50;
+
+/**
+ * What the view shows, as a value: one folder of one account in one vault.
+ * What the view holds about a folder is kept or dropped by comparing THIS —
+ * never by asking whether a function that loads it has become a new one.
+ */
+function shownMailbox(vaultPath: string | null | undefined, accountId: string, mailbox: string): string {
+  return JSON.stringify([vaultPath ?? "", accountId, mailbox]);
+}
 
 // ---- Display helpers (mockup section 05: designed list + reader) ----
 
@@ -125,11 +167,17 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
    *  folder helpers below already ask whether it is. */
   const [unified, setUnified] = useState(false);
   const mailbox = mailboxSel.accountId === accountId ? mailboxSel.name : "";
+  /** What is shown, as one value: vault, account and folder (finding 2026-10-11). */
+  const shown = shownMailbox(vaultPath, accountId, mailbox);
   const selectMailbox = useCallback((name: string) => setMailboxSel({ accountId, name }), [accountId]);
   /** The account's mailboxes in display order (with their backend role). */
   const [boxes, setBoxes] = useState<MailboxInfo[]>([]);
-  /** WHOSE mailboxes `boxes` are. The list of the account that was open a
-   *  moment ago says nothing about a message of another one (M2). */
+  /**
+   * WHOSE mailboxes `boxes` are: the account whose folder list has been
+   * answered — with a list, or with a failure and none. Empty while the
+   * question is still out. The list of the account that was open a moment ago
+   * says nothing about a message of another one (M2).
+   */
   const [boxesAccount, setBoxesAccount] = useState("");
   const folders = useMemo(() => boxes.map((b) => b.name), [boxes]);
   /** Server-stated hierarchy delimiter, so folder labels split at the real
@@ -141,13 +189,21 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   /** Stale-response guards: only the newest request per channel writes state. */
   const listSeq = useRef(0);
   const msgSeq = useRef(0);
-  const [compose, setCompose] = useState<{ subject: string; markdown: string; to?: string } | null>(null);
+  const searchSeq = useRef(0);
+  const flaggedSeq = useRef(0);
   const [envelopes, setEnvelopes] = useState<MailEnvelope[]>([]);
   const envelopesRef = useRef<MailEnvelope[]>([]);
   useEffect(() => { envelopesRef.current = envelopes; }, [envelopes]);
   const [total, setTotal] = useState(0);
   const [unseen, setUnseen] = useState(0);
   const [loadingList, setLoadingList] = useState(false);
+  /**
+   * Which shown folder's list has been answered — with its messages, or with
+   * an error. A folder waits for the folders of its account before its list is
+   * read, and its list is asked for only after the render in which they come;
+   * in between, an empty list is a list nobody has read.
+   */
+  const [listAnsweredFor, setListAnsweredFor] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   // Showing the cached copy because the refresh failed (offline / throttled).
   const [stale, setStale] = useState(false);
@@ -164,6 +220,21 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
    * the message's folder — spam stays spam when it is read from a thread.
    */
   const [openOrigin, setOpenOrigin] = useState<{ accountId: string; mailbox: string } | null>(null);
+  /**
+   * The folder the open message was opened INTO — what `shownMailbox` says of
+   * the view once that opening has taken effect. Mostly that is the folder that
+   * was shown already; a row of the merged list that lies in another mailbox
+   * takes the open mailbox along, and the change it causes must not close the
+   * message again (see the effect that empties the view).
+   */
+  const openedInto = useRef<string | null>(null);
+  /**
+   * The mailbox a message written from the reader goes out from: the one the
+   * open message is in (finding 2026-10-09). A reply, a forward and the
+   * message a list asks for to unsubscribe all answer for THAT mailbox — in
+   * "All inboxes" every row has one of its own.
+   */
+  const messageAccountId = openOrigin?.accountId ?? accountId;
   /** The link under the pointer or holding the keyboard focus (M1). */
   const [pointedLink, setPointedLink] = useState<LinkTarget | null>(null);
   /** The link that was right-clicked, and where: open it, or copy its address. */
@@ -207,6 +278,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const [snoozeMenu, setSnoozeMenu] = useState<{ x: number; y: number; ids: string[] } | null>(null);
   const [filterFlagged, setFilterFlagged] = useState(false);
   const [flaggedResults, setFlaggedResults] = useState<MailEnvelope[] | null>(null);
+  /** The flagged list is a server query of its own, beside the search: each says when it is done. */
+  const [flaggedBusy, setFlaggedBusy] = useState(false);
   /**
    * Conversations (findings P9.3, W2). OFF is today's behaviour to the pixel —
    * a flat list of messages — so nobody's mail rearranges itself after an
@@ -273,6 +346,30 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   }, [vaultPath]);
 
   const account = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
+  /**
+   * Whether the folder list of the OPEN account has been answered. Two things
+   * wait for it: the list of a folder is read once its account's folders are
+   * known (local rules act with them), and "Move to…", "Spam" and "Delete" in
+   * the reader's bar — each goes to a folder that every account names
+   * differently, and the list of the account that was open a moment ago is
+   * the wrong place to look. The open message itself does not wait: it is
+   * read, marked read and starred where it lives. "Move to…" from a row's
+   * menu needs no guard of its own: the merged list does not offer it, no row
+   * of a folder stands before that folder has been read, and the menu offers
+   * only the folders that are in.
+   *
+   * With one mailbox open this was never a question: the folder list comes
+   * first and names the folder to show. A row of the merged list names its own
+   * folder (finding 2026-10-11), so its message is on screen while the folders
+   * of its account are still on their way.
+   */
+  const foldersAnswered = !!account && boxesAccount === account.id;
+  /**
+   * Whether the list on screen is still on its way — the merged list, or the
+   * folder's, until the list of the folder that is shown has been answered.
+   * Until then, "No messages." would be a claim about a list nobody has read.
+   */
+  const listPending = unified ? unifiedBusy : loadingList || listAnsweredFor !== shown;
 
   /**
    * Is the failure in front of the user a MISSING SIGN-IN rather than a broken
@@ -461,12 +558,19 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   // Status-bar info line (#4): the selected mailbox + its message count and, when
   // present, the unread count — instead of the last-opened file's stale word
   // stats. Only the focused pane publishes.
+  // In "All inboxes" it names the merged list: the folder behind it is not what
+  // is shown, and its counts are not the list's (the phone's mailbox line shows
+  // no count there either).
   useEffect(() => {
     if (!isActivePane) return;
-    let info = `${mailFolderLabel(mailbox, delimiter)} · ${total} ${t("mail.messagesLabel", { defaultValue: "Nachrichten" })}`;
-    if (unseen > 0) info += ` · ${unseen} ${t("mail.unreadLabel", { defaultValue: "ungelesen" })}`;
+    let info: string;
+    if (unified) info = t("mail.allInboxes");
+    else {
+      info = `${mailFolderLabel(mailbox, delimiter)} · ${total} ${t("mail.messagesLabel", { defaultValue: "Nachrichten" })}`;
+      if (unseen > 0) info += ` · ${unseen} ${t("mail.unreadLabel", { defaultValue: "ungelesen" })}`;
+    }
     activeDocument.set({ path: MAIL_TAB_PATH, content: "", kind: "virtual", meta: { info } });
-  }, [isActivePane, mailbox, delimiter, total, unseen, t]);
+  }, [isActivePane, unified, mailbox, delimiter, total, unseen, t]);
 
   useEffect(() => {
     let alive = true;
@@ -486,9 +590,12 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   // read-only login command already returns the mailbox list, so this needs no
   // new Rust. The mailbox stays EMPTY until the list arrives — assuming the
   // IMAP name "INBOX" made Graph fail on localized mailboxes ("Posteingang").
+  // Until it arrives the folders are nobody's: `boxesAccount` names an account
+  // only once that account has answered.
   useEffect(() => {
     let alive = true;
     setBoxes([]);
+    setBoxesAccount("");
     setListError(null);
     if (!vaultPath || !account) return;
     const forAccount = account.id;
@@ -508,8 +615,12 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         );
       })
       .catch(() => {
-        // Fall back to the IMAP default so the envelope list still loads.
-        if (alive) setMailboxSel({ accountId: forAccount, name: "INBOX" });
+        if (!alive) return;
+        // Answered, with nothing. Fall back to the IMAP default so the envelope
+        // list still loads — unless a folder of this account is named already:
+        // a row of the merged list brings its own.
+        setBoxesAccount(forAccount);
+        setMailboxSel((prev) => (prev.accountId === forAccount && prev.name ? prev : { accountId: forAccount, name: "INBOX" }));
       });
     return () => {
       alive = false;
@@ -572,13 +683,23 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     [vaultPath, account, boxes, vaultAdapter, mailFolder, t]
   );
 
-  const loadList = useCallback(
+  /**
+   * Reads the list of the folder that is shown.
+   *
+   * One handle on the newest version of itself, on purpose: what it closes
+   * over changes for reasons that are not a new folder — the folder list the
+   * rules act with, the language of a notice — and none of those may be what
+   * starts it. WHEN it runs is said below, by what is shown.
+   */
+  const loadList = useStableHandler(
     async (offset: number) => {
       // No mailbox yet = the folder list is still loading; opening a guessed
-      // name would fail on backends that localize their folders (Graph).
-      if (!vaultPath || !account || !mailbox) return;
+      // name would fail on backends that localize their folders (Graph). And
+      // a mailbox that IS named waits for that list too (`foldersAnswered`).
+      if (!vaultPath || !account || !mailbox || !foldersAnswered) return;
       const seq = ++listSeq.current;
       const current = (): boolean => seq === listSeq.current;
+      const forShown = shown;
       setLoadingList(true);
       setListError(null);
       // Cache FIRST, network second (report 2026-07-29 F4a). The last page of a
@@ -610,6 +731,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         setUnseen(page.unseen);
         setEnvelopes((prev) => (offset === 0 ? page.messages : [...prev, ...page.messages]));
         setStale(false);
+        setListAnsweredFor(forShown);
         // The first page IS the newest window of this folder, so it may also
         // drop what the server no longer lists. A "load more" says nothing
         // about the top of the folder and stays purely additive.
@@ -630,6 +752,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         // EMPTY cache still needs the error, or the pane would sit blank.
         const cached = offset === 0 ? await cachedEnvelopes(dbAdapter, account.id, mailbox, PAGE_SIZE).catch(() => []) : [];
         if (!current()) return;
+        setListAnsweredFor(forShown);
         if (cached.length > 0) {
           setEnvelopes(cached);
           setTotal(cached.length);
@@ -643,14 +766,56 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
           setRefreshing(false);
         }
       }
-    },
-    [vaultPath, account, mailbox, dbAdapter, applyLocalRules]
+    }
   );
 
-  useEffect(() => {
+  /**
+   * What the view holds about ONE folder of ONE account — its list and the
+   * list still on its way for it, the search in it, the rows picked in it, the
+   * message in the reader — goes when another one is shown (finding
+   * 2026-10-11).
+   *
+   * Keyed on WHAT is shown, as a value. It hung on the identity of the loader,
+   * and the loader was a new function for reasons that are not a new folder:
+   * the folder list of the account that was left being emptied, the folder
+   * list of the new one arriving, a junk folder Plainva had just created, the
+   * app language. Each of those emptied the list, dropped the search and the
+   * selection, closed the reader and read the folder again.
+   *
+   * What is still on its way for the folder that was left — its list, a
+   * search in it, its flagged list — is turned away here, not by the next
+   * request. The next list waits for the folders of its account, and in that
+   * time the answer for the folder that was left came in under the new name:
+   * its rows, or its error in place of the merged list. A search or a flagged
+   * list came in under the next folder, below an empty search field — the
+   * hits of the inbox under Sent, with folder-local numbers that name other
+   * messages there. What those answers would have cleared up is cleared with
+   * them.
+   *
+   * One message outlives the change: the one whose opening caused it. A row of
+   * the merged list that lies in another mailbox takes the open mailbox along
+   * (`openMessage`), and its message belongs to what is shown afterwards — it
+   * and its row stay. Every other change closes the reader and turns away a
+   * message that is still on its way: such a message arrived after the reader
+   * had been emptied and stood there with no row of its own, under a bar that
+   * acts on the open row.
+   */
+  // Before the frame is painted: the rows of the folder that was left are not
+  // shown under the new one, and nothing opened in between meets a reset that
+  // was still pending for the change before it.
+  useLayoutEffect(() => {
+    listSeq.current++;
+    searchSeq.current++;
+    flaggedSeq.current++;
     setEnvelopes([]);
-    setSelectedId(null);
-    setMessage(null);
+    setListAnsweredFor(null);
+    setTotal(0);
+    setUnseen(0);
+    setLoadingList(false);
+    setRefreshing(false);
+    setStale(false);
+    setSearchBusy(false);
+    setFlaggedBusy(false);
     // Drop the search AND the selection when the account/mailbox changes: IMAP
     // UIDs are folder-local, so a stale id set would highlight unrelated mails
     // in the new folder (and a Graph id set would just come up empty).
@@ -660,8 +825,22 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     setSearchQuery("");
     setSelectedIds(new Set());
     setCtxMenu(null);
-    if (account) void loadList(0);
-  }, [account, loadList]);
+    if (openedInto.current === shown) return;
+    msgSeq.current++;
+    setSelectedId(null);
+    setMessage(null);
+    setOpenOrigin(null);
+    setLoadingMessage(false);
+  }, [shown]);
+
+  /**
+   * The list of the folder that is shown is read when THAT changes — and once
+   * the folders of its account are known, which for a row of the merged list
+   * is later than the folder itself. Not when the loader is a new function.
+   */
+  useEffect(() => {
+    if (foldersAnswered) void loadList(0);
+  }, [shown, foldersAnswered, dbAdapter, loadList]);
 
   /**
    * Reads the Sent folder alongside the open one while conversations are on
@@ -703,17 +882,29 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
        * another account switches the active account and folder to it, so
        * replying, moving, trashing and capturing afterwards all act on the right
        * mailbox — with no second code path for any of them.
+       *
+       * Outside the merged list an address names a message of the open account
+       * in another folder: a reply of yours in Sent, as the row menu of a
+       * conversation names it. It opens there the same way — the view follows
+       * into its folder, and the bar acts where the message lives. (A click on
+       * that reply reads it where it stands and leaves the folder as it is.)
+       * The open row is named as the list shown afterwards names its rows: by
+       * its address in the merged list, by its number in a folder.
        */
-      const origin = parseUnifiedId(uid);
-      const acct = origin ? accounts.find((a) => a.id === origin.accountId) ?? null : account;
+      const address = rowAddress({ id: uid, mailbox: from }, { accountId, mailbox });
+      const acct = accounts.find((a) => a.id === address.accountId) ?? null;
       if (!acct) return;
-      const box = origin ? origin.mailbox : from ?? mailbox;
-      const rowId = uid;
-      if (origin) {
-        uid = origin.uid;
+      const box = address.mailbox;
+      const rowId = unified ? uid : address.uid;
+      uid = address.uid;
+      const follows = address.own && (acct.id !== accountId || box !== mailbox);
+      if (follows) {
         if (acct.id !== accountId) setAccountId(acct.id);
-        if (box !== mailbox || acct.id !== accountId) setMailboxSel({ accountId: acct.id, name: box });
+        setMailboxSel({ accountId: acct.id, name: box });
       }
+      // What is shown once the lines above have taken effect: the change of
+      // mailbox this opening causes must not close the message again.
+      openedInto.current = shownMailbox(vaultPath, follows ? acct.id : accountId, follows ? box : mailbox);
       const seq = ++msgSeq.current;
       const current = (): boolean => seq === msgSeq.current;
       setSelectedId(rowId);
@@ -750,7 +941,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     // `accounts`/`accountId` are read above (code review B1): without them
     // here, a unified-inbox row opened after an account switch resolved
     // against the account list of the previous render.
-    [vaultPath, account, accounts, accountId, mailbox, dbAdapter, t]
+    [vaultPath, accounts, accountId, mailbox, unified, dbAdapter, t]
   );
 
   // ONE rule for both shells (M2): "always" does not reach into the junk
@@ -920,8 +1111,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     if (!unsubRoute || !message) return;
     if (unsubRoute.kind === "mailto") {
       // A mailto route is a message the reader SENDS — it opens the composer
-      // rather than going out behind their back.
-      setCompose({
+      // rather than going out behind their back. From the mailbox the list
+      // wrote to: a list takes the address a request comes from off its roll.
+      composeMail({
+        accountId: messageAccountId,
         to: unsubRoute.target,
         subject: unsubRoute.subject || "unsubscribe",
         markdown: "",
@@ -938,10 +1131,20 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     } catch {
       toast.error(t("mail.unsubscribeFailed"));
     }
-  }, [unsubRoute, message, t]);
+  }, [unsubRoute, message, messageAccountId, t]);
 
   const currentSeen = displayedEnvelopes.find((e) => e.id === selectedId)?.seen ?? false;
   const currentFlagged = displayedEnvelopes.find((e) => e.id === selectedId)?.flagged ?? false;
+  /**
+   * Whether the list on screen holds the open message — the one its read state
+   * is read off. In a folder that means the message lives there, too: a reply
+   * read along from Sent can carry the number of a message of the open folder,
+   * and that row is not its row.
+   */
+  const openRowListed =
+    selectedId != null &&
+    displayedEnvelopes.some((e) => e.id === selectedId) &&
+    (unified || (openOrigin?.accountId === accountId && openOrigin?.mailbox === mailbox));
   const isTrash = useMemo(
     () => boxes.find((b) => b.name === mailbox)?.role === "trash" || classifyFolderRole(mailbox, delimiter) === "trash",
     [boxes, mailbox, delimiter]
@@ -955,11 +1158,13 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     [ctxMenu, selectedIds]
   );
 
-  const searchSeq = useRef(0);
   const runSearch = useCallback(async () => {
     if (!vaultPath || !account || !mailbox) return;
     const q = searchQuery.trim();
     if (!q) {
+      // An empty field ends the search — and the one still on its way.
+      searchSeq.current++;
+      setSearchBusy(false);
       setSearchResults(null);
       return;
     }
@@ -977,6 +1182,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   }, [vaultPath, account, mailbox, searchQuery, t]);
 
   const clearSearch = useCallback(() => {
+    // A search still on its way would bring its hits back.
+    searchSeq.current++;
+    setSearchBusy(false);
     setSearchQuery("");
     setSearchResults(null);
   }, []);
@@ -984,19 +1192,26 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const toggleFlaggedFilter = useCallback(async () => {
     const next = !filterFlagged;
     setFilterFlagged(next);
+    // An answer belongs to the switch that asked for it: switched off, or on
+    // again, the one still on its way is turned away.
+    const seq = ++flaggedSeq.current;
+    const current = (): boolean => seq === flaggedSeq.current;
     if (!next) {
       setFlaggedResults(null);
+      setFlaggedBusy(false);
       return;
     }
     if (!vaultPath || !account || !mailbox) return;
-    setSearchBusy(true);
+    setFlaggedBusy(true);
     try {
-      setFlaggedResults(await listFlaggedEnvelopes(vaultPath, account, mailbox));
+      const starred = await listFlaggedEnvelopes(vaultPath, account, mailbox);
+      if (current()) setFlaggedResults(starred);
     } catch (e) {
+      if (!current()) return;
       setFilterFlagged(false);
       toast.error(mailErrorText(e, t));
     } finally {
-      setSearchBusy(false);
+      if (current()) setFlaggedBusy(false);
     }
   }, [filterFlagged, vaultPath, account, mailbox, t]);
 
@@ -1167,17 +1382,55 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     setHeldUnread((held) => retainOnlyOpen(held, selectedId));
   }, [selectedId]);
 
+  /**
+   * Turns the merged list on or off. The open message stays, and the id of its
+   * row changes form with the list (finding 2026-10-11): the merged list names
+   * a row by its address, a folder by its number. In the old form the open
+   * message had no row in the list beside it — none marked, the read button
+   * saying the opposite of the truth, and the reading time running out again
+   * after every write. A hold on it (turned unread by hand) goes along.
+   */
+  const showUnified = useCallback(
+    (on: boolean) => {
+      const inForm = (id: string): string => {
+        const own = parseUnifiedId(id);
+        if (!on) return own && own.accountId === accountId && own.mailbox === mailbox ? own.uid : id;
+        return own || !openOrigin ? id : unifiedId({ accountId: openOrigin.accountId, mailbox: openOrigin.mailbox, uid: id });
+      };
+      setUnified(on);
+      // The merged list is read when it is turned on; until then it is on its
+      // way, and "No messages." would be said of a list nobody has read.
+      if (on) setUnifiedBusy(true);
+      // Rows picked in one list are not rows of the other. Left by a click on
+      // the folder that stood behind it — a click that shows no other folder,
+      // so nothing else lets the pick go — the merged list's pick stood on
+      // over the folder: "2 selected", no row marked, and the bar acted on the
+      // other mailbox's message by its address.
+      if (on !== unified) setSelectedIds(new Set());
+      setSelectedId((cur) => (cur == null ? cur : inForm(cur)));
+      setHeldUnread((held) => (held.size === 0 ? held : new Set([...held].map(inForm))));
+    },
+    [accountId, mailbox, openOrigin, unified]
+  );
+
   // Auto-mark-read: a message left open for a few seconds switches to "read" on
   // its own (like every mail client). Switching messages cancels the timer, and
   // a message the user turned unread BY HAND is left alone — see autoRead.ts.
   // The write goes through `bulkSetSeen` rather than `setSeenManually`: this is
   // not a manual change and must not touch the hold.
+  // Only for a message the list on screen holds: a message it does not hold — a
+  // reply read along from Sent in a conversation, an open message the merged
+  // list does not show — counted as unread forever. The timer ran out again
+  // after every write, and the write went to the open folder under that
+  // message's number. (The phone's reader is a screen of its own, opened on
+  // the message itself; it has no such state.)
   useEffect(() => {
+    if (!openRowListed) return;
     if (!shouldScheduleAutoRead({ openId: selectedId, hasBody: !!message, seen: currentSeen, heldUnread })) return;
     const id = selectedId as string;
     const timer = setTimeout(() => void bulkSetSeen([id], true), AUTO_READ_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [message, selectedId, currentSeen, heldUnread, bulkSetSeen]);
+  }, [message, selectedId, currentSeen, heldUnread, bulkSetSeen, openRowListed]);
 
   // Make links in the sandboxed viewer clickable: the frame is allow-same-origin
   // but has NO allow-scripts (so the mail HTML still can't run any code), which
@@ -1288,7 +1541,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
 
   const bulkJunk = useCallback(
     async (ids: string[]) => {
-      if (!vaultPath || !account || ids.length === 0 || actionBusy) return;
+      // Not before the folders of this account are known: "no junk folder"
+      // would be a guess, and the offer to create one a wrong one.
+      if (!vaultPath || !account || ids.length === 0 || actionBusy || !foldersAnswered) return;
       const report = junkPlan.direction === "report";
       // Same reason as delete: the target folder belongs to ONE account.
       if (originGroups(ids).some((g) => g.account.id !== account.id)) {
@@ -1344,12 +1599,13 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         clearSel();
       }
     },
-    [vaultPath, account, mailbox, actionBusy, junkPlan, originGroups, removeFromList, delimiter, clearSel, t, dbAdapter]
+    [vaultPath, account, mailbox, actionBusy, foldersAnswered, junkPlan, originGroups, removeFromList, delimiter, clearSel, t, dbAdapter]
   );
 
   const bulkDeleteToTrash = useCallback(
     async (ids: string[]) => {
-      if (!vaultPath || !account || ids.length === 0 || actionBusy) return;
+      // Not before the folders of this account are known — see `bulkJunk`.
+      if (!vaultPath || !account || ids.length === 0 || actionBusy || !foldersAnswered) return;
       // The trash folder belongs to ONE account: `boxes` holds the open
       // account's mailboxes, and providers name it differently ("Trash",
       // "Papierkorb", "Deleted Items"). A selection reaching into another
@@ -1373,7 +1629,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       });
       if (ok) await bulkMove(ids, trash);
     },
-    [vaultPath, account, mailbox, actionBusy, boxes, bulkMove, originGroups, isGmailAllMail, t]
+    [vaultPath, account, mailbox, actionBusy, foldersAnswered, boxes, bulkMove, originGroups, isGmailAllMail, t]
   );
   const deleteMessage = useCallback(() => { if (selectedId != null) void bulkDeleteToTrash([selectedId]); }, [selectedId, bulkDeleteToTrash]);
 
@@ -1508,8 +1764,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         if (withEml && res.created) {
           const raw = await fetchRawMessage(vaultPath, account, mailbox, message.id);
           const emlPath = await saveEmlFile(vaultAdapter, message, raw, folder);
-          const content = await vaultAdapter.readTextFile(res.path);
-          await vaultAdapter.writeTextFile(res.path, `${content.trimEnd()}\n\n[[${emlPath}]]\n`);
+          await updateVaultText(vaultAdapter, res.path, (content) => `${content.trimEnd()}\n\n[[${emlPath}]]\n`);
           touched.push(emlPath);
         }
         if (res.created) {
@@ -1523,6 +1778,37 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       }
     },
     [vaultPath, vaultAdapter, account, message, mailbox, mailFolder, indexer, triggerFileTreeUpdate, onOpenPath, t]
+  );
+
+  /**
+   * Saves a received file into the vault — next to where captured mail lands,
+   * under the name and by the rule the phone uses (`saveMailAttachment`), so
+   * the same file ends up in the same place from either shell. The vault is
+   * the storage that syncs; a file saved here is on the other devices too.
+   *
+   * Asked of the mailbox the MESSAGE lies in: in the merged inbox that is not
+   * necessarily the one the folder list shows.
+   */
+  const [savingFile, setSavingFile] = useState<number | null>(null);
+  const saveAttachment = useCallback(
+    async (file: MailAttachmentInfo) => {
+      const origin = openOrigin ?? { accountId, mailbox };
+      const from = accounts.find((a) => a.id === origin.accountId);
+      if (!vaultPath || !vaultAdapter || !from || !message || savingFile !== null) return;
+      setSavingFile(file.index);
+      try {
+        const content = await fetchAttachment(vaultPath, from, origin.mailbox, message.id, file.index);
+        const path = await saveMailAttachment(vaultAdapter, await mailFolder(), file.name, content);
+        if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => undefined);
+        triggerFileTreeUpdate([path]);
+        toast.success(t("mail.attachmentSaved", { name: path }));
+      } catch (e) {
+        toast.error(mailErrorText(e, t));
+      } finally {
+        setSavingFile(null);
+      }
+    },
+    [vaultPath, vaultAdapter, accounts, accountId, mailbox, openOrigin, message, savingFile, mailFolder, indexer, triggerFileTreeUpdate, t]
   );
 
   const captureTask = useCallback(async () => {
@@ -1539,12 +1825,14 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       // (S30). This path used to resolve the target by hand and therefore
       // skipped two things the others do: the database's TEMPLATE, and the
       // checkbox pre-fill the completion model reads. A task born from a mail
-      // looked subtly unlike a task born from a checkbox.
+      // looked subtly unlike a task born from a checkbox. Its type is the
+      // vault's, as there; it was a fixed `Task` (finding 2026-10-21).
       const res = await createTaskInDatabase({
         adapter: vaultAdapter,
         dbPath,
         title,
-        noteType: "Task",
+        noteType: await getConfiguredNoteType(vaultPath),
+        templateVault: await templateVaultOf(vaultPath),
         dueDate: mailDayKey(message),
         trailer: message.from ? `\n${t("mail.fromLabel", { defaultValue: "Von" })}: ${message.from}\n` : undefined,
       });
@@ -1618,16 +1906,18 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   );
   const handleReply = useCallback(() => {
     if (!message) return;
-    setCompose({ subject: replySubject(message), markdown: buildReplyBody(message, replyAttribution(message)), to: fromAddr(message.from) });
-  }, [message, replySubject, replyAttribution]);
+    composeMail({ accountId: messageAccountId, subject: replySubject(message), markdown: buildReplyBody(message, replyAttribution(message)), to: fromAddr(message.from) });
+  }, [message, messageAccountId, replySubject, replyAttribution]);
   const handleReplyAll = useCallback(() => {
     if (!message) return;
-    setCompose({
+    composeMail({
+      accountId: messageAccountId,
       subject: replySubject(message),
       markdown: buildReplyBody(message, replyAttribution(message)),
-      to: replyAllRecipients(message, account?.user ?? ""),
+      // "Everyone but me" is asked of the same mailbox the reply leaves from.
+      to: replyAllRecipients(message, accounts.find((a) => a.id === messageAccountId)?.user ?? ""),
     });
-  }, [message, account, replySubject, replyAttribution]);
+  }, [message, messageAccountId, accounts, replySubject, replyAttribution]);
 
   const dateFmt = useMemo(() => new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }), [i18n.language]);
   // Compact list time (mockup: "14:32" today, "Di" this week, "9. Jul" older).
@@ -1721,8 +2011,13 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             data-testid="mail-all-inboxes"
             aria-pressed={unified}
             onClick={() => {
-              setUnified((v) => !v);
-              setSelectedIds(new Set());
+              showUnified(!unified);
+              // The search and the flagged list ask ONE folder, and their answers
+              // still on the way would land in whatever is shown next.
+              searchSeq.current++;
+              flaggedSeq.current++;
+              setSearchBusy(false);
+              setFlaggedBusy(false);
               setSearchResults(null);
               setFlaggedResults(null);
               setFilterFlagged(false);
@@ -1749,7 +2044,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             <span className="pv-mail-acct-name">{account?.label}</span>
           )}
         </div>
-        <button type="button" className="pv-mail-compose" data-testid="mail-compose" onClick={() => setCompose({ subject: "", markdown: "" })}>
+        <button type="button" className="pv-mail-compose" data-testid="mail-compose" onClick={() => composeMail({ accountId, subject: "", markdown: "" })}>
           <Pencil size={ICON.ui} /> {t("mail.newMessage", { defaultValue: "Neue Nachricht" })}
         </button>
         <div className="pv-mail-flist" data-testid="mail-folders">
@@ -1757,7 +2052,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             // A folder of ONE account cannot be "on" while the merged list is.
             const on = !unified && name === mailbox;
             return (
-              <button key={name} type="button" data-testid="mail-folder" className={on ? "pv-mail-folder on" : "pv-mail-folder"} onClick={() => { setUnified(false); selectMailbox(name); }} data-tip={name}>
+              <button key={name} type="button" data-testid="mail-folder" className={on ? "pv-mail-folder on" : "pv-mail-folder"} onClick={() => { showUnified(false); selectMailbox(name); }} data-tip={name}>
                 <FolderGlyph name={name} delimiter={delimiter} />
                 <span className="pv-mail-folder-label">{mailFolderLabel(name, delimiter)}</span>
                 {on && unseen > 0 && <span className="pv-mail-folder-ct">{unseen}</span>}
@@ -1891,21 +2186,28 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         <MailBulkReport items={bulkReport} busy={bulkRunning} onCancel={() => bulkAbort.current?.abort()} onDismiss={() => setBulkReport([])} />
         {filterAttachments && <Banner kind="info">{t("mail.attachmentsLoaded", { known: displayedEnvelopes.filter(e => e.hasAttachments !== undefined).length, loaded: displayedEnvelopes.length })}</Banner>}
         <div className="pv-mail-scroll" data-testid="mail-list" ref={listRef} role="listbox" aria-multiselectable onKeyDown={onListKeyDown}>
-          {searchBusy && <p className="pv-mail-hint">{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</p>}
-          {unifiedBusy && <p className="pv-mail-hint">{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</p>}
+          {(searchBusy || flaggedBusy) && <p className="pv-mail-hint">{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</p>}
+          {/* Only in the merged list, as the line below: left while it is still
+              being read, the folder shown next is not. */}
+          {unified && unifiedBusy && <p className="pv-mail-hint">{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</p>}
           {/* One unreachable account must not empty the list of the others — it
               says which one, and why (P9.3b). */}
-          {unifiedErrors.map((f) => (
+          {/* Only in the merged list: which mailbox it could not reach is not a
+              word about the folder shown after it. */}
+          {unified && unifiedErrors.map((f) => (
             <p key={f.label} className="pv-mail-hint pv-mail-hint--error" data-testid="mail-unified-error">
               {f.label}: {f.message}
             </p>
           ))}
-          {stale && (
+          {/* This banner and the error below belong to the folder behind the
+              merged list, not to it: a folder the view followed into does not
+              stand in for the list its row was opened from. */}
+          {stale && !unified && (
             <p className="pv-mail-hint pv-mail-hint--warn" data-testid="mail-offline">
               {refreshing ? t("mail.cachedRefreshing") : t("mail.offlineCopy")}
             </p>
           )}
-          {listError ? (
+          {listError && !unified ? (
             signInState !== "active" ? (
               /* The offer where the absence hurts. The provider's own words stay
                  BELOW the advice: `missing mail credentials` as a headline is
@@ -1945,7 +2247,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             ) : (
               <p className="pv-mail-hint pv-mail-hint--error">{listError}</p>
             )
-          ) : visibleEnvelopes.length === 0 && !loadingList && !searchBusy ? (
+          ) : visibleEnvelopes.length === 0 && !listPending && !searchBusy && !flaggedBusy ? (
             <p className="pv-mail-hint">
               {filterUnread && displayedEnvelopes.length > 0
                 ? t("mail.noUnread", { defaultValue: "Keine ungelesenen Nachrichten." })
@@ -2181,7 +2483,16 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => setCompose({ subject: `Fwd: ${message.subject.trim().replace(/^(fwd|wg):\s*/i, "")}`.trim(), markdown: buildForwardBody(message) })}
+                onClick={() =>
+                  composeMail({
+                    accountId: messageAccountId,
+                    subject: `Fwd: ${message.subject.trim().replace(/^(fwd|wg):\s*/i, "")}`.trim(),
+                    markdown: buildForwardBody(message),
+                    // The files of the original come along by reference: the
+                    // composer loads them from the mailbox the message lies in.
+                    forward: forwardSource(messageAccountId, openOrigin?.mailbox ?? mailbox, message),
+                  })
+                }
                 data-testid="mail-forward"
                 icon={<Forward size={ICON.ui} />}
               >
@@ -2219,10 +2530,12 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               >
                 <Star size={ICON.ui} fill={currentFlagged ? "currentColor" : "none"} />
               </IconButton>
+              {/* These three go to a folder of the account, so they wait for its
+                  folder list (`foldersAnswered`). */}
               <IconButton
                 label={t("mail.moveTo", { defaultValue: "Verschieben nach…" })}
                 onClick={(ev) => selectedId != null && setMoveMenu({ x: ev.clientX, y: ev.clientY, ids: [selectedId] })}
-                disabled={actionBusy}
+                disabled={actionBusy || !foldersAnswered}
                 data-testid="mail-move"
               >
                 <FolderInput size={ICON.ui} />
@@ -2230,23 +2543,34 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               <IconButton
                 label={junkPlan.direction === "report" ? t("mail.reportJunk", { defaultValue: "Spam" }) : t("mail.notJunk", { defaultValue: "Kein Spam" })}
                 onClick={() => selectedId != null && void bulkJunk([selectedId])}
-                disabled={actionBusy}
+                disabled={actionBusy || !foldersAnswered}
                 data-testid="mail-junk"
               >
                 <Ban size={ICON.ui} />
               </IconButton>
-              <IconButton label={isTrash ? t("mail.deleteForever", { defaultValue: "Endgültig löschen" }) : t("mail.delete", { defaultValue: "Löschen" })} onClick={() => selectedId != null && void (isTrash ? bulkDeleteForever([selectedId]) : deleteMessage())} disabled={actionBusy} data-testid="mail-delete">
+              <IconButton label={isTrash ? t("mail.deleteForever", { defaultValue: "Endgültig löschen" }) : t("mail.delete", { defaultValue: "Löschen" })} onClick={() => selectedId != null && void (isTrash ? bulkDeleteForever([selectedId]) : deleteMessage())} disabled={actionBusy || !foldersAnswered} data-testid="mail-delete">
                 <Trash2 size={ICON.ui} />
               </IconButton>
             </div>
 
+            {/* A received file is saved into the vault, as the phone does it
+                (finding 2026-10-09: until then the desktop listed attachments
+                as text and could do nothing with them). */}
             {message.attachments.length > 0 && (
               <div className="pv-mail-attach">
                 {message.attachments.map((a) => (
-                  <span key={a.index} className="pv-mail-attach-chip">
-                    <Paperclip size={ICON.ui} />
-                    {a.name} ({Math.max(1, Math.round(a.size / 1024))} KB)
-                  </span>
+                  <Button
+                    key={a.index}
+                    variant="secondary"
+                    size="sm"
+                    icon={<Paperclip size={ICON.ui} />}
+                    disabled={savingFile !== null}
+                    onClick={() => void saveAttachment(a)}
+                    data-tip={t("mail.attachmentSave")}
+                    data-testid="mail-attachment"
+                  >
+                    {a.name} ({formatAttachmentSize(a.size, i18n.language)})
+                  </Button>
                 ))}
               </div>
             )}
@@ -2323,15 +2647,6 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         )}
       </div>
     </div>
-    {compose && (
-      <MailDraftModal
-        subject={compose.subject}
-        markdown={compose.markdown}
-        initialTo={compose.to}
-        onPopOut={vaultPath ? (snap) => void popOutCompose(vaultPath, snap) : undefined}
-        onClose={() => setCompose(null)}
-      />
-    )}
     {moveMenu && (
       <MenuSurface open at={{ x: moveMenu.x, y: moveMenu.y }} onClose={() => setMoveMenu(null)} ariaLabel={t("mail.moveTo", { defaultValue: "Verschieben nach…" })}>
         {folders.filter((f) => f !== mailbox).map((f) => (

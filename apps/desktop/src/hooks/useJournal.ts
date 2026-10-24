@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { normalizeJournalHeading, type JournalEntry } from "@plainva/core";
+import { normalizeJournalHeading, updateVaultText, type JournalEntry } from "@plainva/core";
 import {
   appendJournalEntry,
   ensureDailyNote,
@@ -14,7 +14,7 @@ import {
   type JournalWriteFailure,
 } from "@plainva/ui";
 import { journalHeadingKey, journalMoodPropertyKey, useVault } from "../contexts/VaultContext";
-import { dailyNoteFiles, makeDailyPathProvider, readDailyNoteConfig } from "../services/dailyNotes";
+import { dailyNoteFiles, readDailyNoteConfig, templateVaultOf } from "../services/dailyNotes";
 import { applyIndexChanges } from "../services/fileActions";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { setQuickCaptureSink } from "../services/quickCapture";
@@ -52,13 +52,12 @@ export function useJournalFiles(): JournalFiles | null {
     return {
       ensureDailyNote: async (date) => {
         const now = new Date();
-        // Headless (decision E4): a capture never stops for the template's questions.
+        // Headless (decision E4): a capture never stops for the template's
+        // questions. The daily links and the week start come from the shared
+        // block, as on the phone; the vault's name from here.
         const ensured = await ensureDailyNote(date, await readDailyNoteConfig(vaultPath), dailyNoteFiles(vaultAdapter), {
           now,
-          templateContext: {
-            vaultName: vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "",
-            dailyPath: await makeDailyPathProvider(vaultPath, date),
-          },
+          templateContext: { vaultName: (await templateVaultOf(vaultPath)).name },
         });
         if (ensured?.created) {
           notifyFileOps([{ type: "create", path: ensured.path }]);
@@ -74,6 +73,15 @@ export function useJournalFiles(): JournalFiles | null {
         // flushed before the read). The adapter counts this write as the app's
         // own, so no watcher would ever tell it.
         window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path, vaultPath } }));
+      },
+      // A change of a note that exists: one step of the chain, then the same notices.
+      updateTextFile: async (path, change) => {
+        const update = await updateVaultText(vaultAdapter, path, change);
+        if (update.changed) {
+          await written(path);
+          window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path, vaultPath } }));
+        }
+        return update;
       },
     };
   }, [vaultPath, vaultAdapter, indexer, triggerFileTreeUpdate]);

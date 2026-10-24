@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-10-09
+Stan na: 2026-10-22
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -12,7 +12,7 @@ Wszystko tutaj to zwykły tekst UTF-8. Notatki to Markdown z frontmatter YAML; b
 2. **Notatki pozostają Obsidian-natywne.** We frontmatter notatki zapisuj wyłącznie proste skalary i listy (string, liczba, boolean, data ISO, lista YAML). Nigdy nie zapisuj zagnieżdżonego obiektu ani flagi „aktywne/wybrane” w notatce.
 3. **`.base` używa tylko pięciu kluczy najwyższego poziomu Obsidian** (`filters`, `formulas`, `properties`, `summaries`, `views`). Obsidian nie rozumie żadnego innego klucza najwyższego poziomu. Dlatego wszystkie dane specyficzne dla Plainva znajdują się pod zagnieżdżonymi podkluczami `plainva:`.
 4. **Zachowaj to, czego nie rozumiesz.** Nieznane klucze muszą przetrwać cykl odczytu/zapisu bez zmian. Nie „porządkuj” kluczy, których nie rozpoznajesz.
-5. **Zapisuj UTF-8 bez BOM, z zakończeniami linii LF.**
+5. **Zapisuj UTF-8. Nowy plik dostaje zakończenia linii LF i nie ma BOM; plik, który już istnieje, zachowuje to, co ma.** Plainva robi tak samo: to, co tworzy, zaczyna się od LF i bez BOM, a to, co zastaje, zachowuje swoje zakończenia linii i swój BOM — gdy edytujesz notatkę, zmieniają się tylko linie, które zmienisz. Plik, w którym mieszają się oba rodzaje zakończeń linii, przy pierwszej edycji dostaje w całości ten rodzaj, który ma większość jego linii. Sam znak powrotu karetki (CR) jako zakończenie linii — tak kończą się linie w starych plikach z Maca — jest odczytywany, ale nie jest zachowywany: przy pierwszej zmianie takiego pliku Plainva zapisuje go z LF (z CRLF, jeśli większość pozostałych zakończeń linii to CRLF) i informuje Cię o tym.
 
 ## Vault w skrócie
 
@@ -51,6 +51,10 @@ A **bold** thought that links to [[Another Note]].
 
 - [ ] First task
 ```
+
+Blok może być pusty: `---`, po którym bezpośrednio następuje `---`, to blok bez właściwości, a nie dwa separatory — treść notatki zaczyna się w następnej linii. Plainva nie zostawia pustego bloku: gdy usuwana jest ostatnia właściwość, obie linie `---` znikają razem z nią. Pozostają tylko wtedy, gdy sama treść zaczyna się od linii `---`, która w przeciwnym razie zostałaby odczytana jako początek bloku.
+
+Blok, którego Plainva nie potrafi odczytać jako właściwości, pozostaje dokładnie taki, jaki jest: tekst między dwiema liniami `---`, który nie jest YAML-em, albo YAML będący listą zamiast linii `klucz: wartość`. Sekcja **Właściwości** mówi o tym, zamiast nie pokazywać żadnych właściwości, a zmiana właściwości takiej notatki — tam, w bazie danych, na tablicy korkowej, na liście zadań albo jej ikony i koloru — niczego nie zmienia, a Plainva o tym informuje: **Nie udało się zapisać właściwości**, a dalej przyczyna. Popraw blok w treści notatki, a zmiana zostanie zapisana. Pojedyncza wartość w nieoczekiwanej postaci nie czyni bloku nieczytelnym: Plainva odczytuje ją tak, jak jest zapisana — puste `tags:` to notatka bez tagów, liczba wśród tagów (`- 2024`) to tag `2024`, liczba jako `title` to ten tytuł, a `timestamp` będący datą to zwykła właściwość.
 
 ### Pola frontmatter OKF
 
@@ -214,7 +218,8 @@ Plik jest listą pod nagłówkiem i można go skrócić albo usunąć. Nie zawie
 ### Linki
 
 - **Link wiki:** `[[Nazwa notatki]]` — rozwiązywany według nazwy notatki w całym vaulcie. Z kotwicą nagłówka: `[[Notatka#Sekcja]]` — kliknięcie otwiera notatkę **przy tym nagłówku**; `[[#Sekcja]]` przeskakuje w bieżącej notatce, a slug w stylu GitHuba (`[[Notatka#cool-header]]`) również jest rozwiązywany. Z odwołaniem do bloku: `[[Notatka#^id]]` dla wiersza kończącego się na `^id`. Z tekstem wyświetlanym: `[[Notatka|pokazywany tekst]]`.
-- **Link Markdown:** `[tekst](względna/ścieżka.md)` również działa. Z fragmentem (`[tekst](#cool-header)`, `[tekst](inna.md#cool-header)`) kliknięcie trafia na nagłówek.
+- **Jak rozwiązywany jest cel linku wiki** — tak samo dla kliknięcia, osadzenia, relacji, grafu i linków zwrotnych, na komputerze i na telefonie. W tej kolejności: (1) jawna ścieżka — `/Folder/Notatka` od katalogu głównego vaultu, `./Notatka` lub `../Folder/Notatka` od folderu notatki z linkiem — i nic poza tym dla takiego celu; (2) ścieżka w vaulcie tak, jak została zapisana — plik zapisany dokładnie tak —, potem notatka pod tą ścieżką (`.md`); (3) końcówka ścieżki notatki: sama nazwa pliku albo z folderami przed nią (`Klienci/List` znajduje `Projekty/Klienci/List.md`); (4) plik, który nie jest notatką (`plan.pdf`, `Tasks.base`, `LICENSE`), przez swoją ścieżkę lub jej końcówkę — po notatkach, więc cel bez rozszerzenia oznacza notatkę wszędzie tam, gdzie taka istnieje; (5) `title` z właściwości notatki. Nazwy są porównywane bez rozróżniania wielkich i małych liter, a złożona i rozłożona postać litery liczą się jako ta sama nazwa. Gdy pasuje kilka plików: najpierw pisownia dokładnie taka jak zapisana, potem ścieżka odczytana od folderu notatki z linkiem (dla samej nazwy — notatka obok), potem najkrótsza ścieżka, potem kolejność alfabetyczna. Kroki od 1 do 4 to także sposób, w jaki Obsidian znajduje plik, choć może wybrać inny, gdy kilka ma tę samą nazwę; link przez `title` (krok 5) działa tylko w Plainvie — dlatego listy wyboru Plainvy zapisują nazwę pliku.
+- **Link Markdown:** `[tekst](cel)`. Cel jest czytany najpierw od folderu notatki z linkiem — plik zapisany dokładnie tak, potem notatka pod tą ścieżką (`.md`); jeśli tam niczego nie ma, jest rozwiązywany jak cel linku wiki (kroki od 2 do 5 powyżej: ścieżka od katalogu głównego vaultu, końcówka ścieżki, plik, który nie jest notatką, `title`). Jawna ścieżka — `/Folder/Plik`, `./Plik`, `../Folder/Plik` — wskazuje jedno miejsce i nic poza tym nie jest dla niej próbowane. Cel kończący się na `/` wskazuje folder i prowadzi do jego `index.md`. Kodowanie procentowe jest dekodowane (`Mój%20list.md`), nawiasy ostre i tytuł są odczytywane jak w CommonMark (`[x](<Mój list.md> "Tytuł")`), a pierwszy zapisany `#` zaczyna fragment: z `[tekst](#cool-header)` lub `[tekst](inna.md#cool-header)` kliknięcie trafia na nagłówek; `#`, który należy do nazwy pliku, zapisuje się jako `%23`. Linki w każdym z trzech formatów, których używa Obsidian — najkrótsza ścieżka, ścieżka względna, ścieżka bezwzględna w vaulcie — są rozwiązywane w ten sposób; gdy jeden plik leży pod ścieżką od folderu notatki z linkiem, a inny pod tą samą ścieżką od katalogu głównego vaultu, Plainva bierze pierwszy, tak jak robi to czytnik Markdown poza aplikacją. Sama Plainva zapisuje względne, zakodowane procentowo linki Markdown (przeglądy folderów, przygotowane przeglądy). Odpowiedź jest taka sama dla kliknięcia, grafu i linków zwrotnych, na komputerze i na telefonie.
 - **Linki zwrotne** są wyprowadzane automatycznie, także z linków wiki we frontmatter (to właśnie sprawia, że relacje pojawiają się jako linki zwrotne).
 
 ---
@@ -647,7 +652,7 @@ Zasady: przypięte ścieżki nie powtarzają się w `pinboardOrder`. Karty spoza
 - **Nieznane klucze są święte.** Gdy przepisujesz `.base` lub notatkę, przenieś każdy klucz, którego nie zamierzałeś zmienić, bez zmian. Sam Plainva zachowuje nieznane klucze `.base` przez wewnętrzną surową kopię; zewnętrzny program piszący powinien robić to samo (sparsuj → zmień tylko to, co zamierzasz → zserializuj).
 - **Wartości zmieniają się w notatce, nie w `.base`.** Aby ustawić komórkę, edytuj frontmatter notatki. `.base` decyduje tylko o tym, które notatki i kolumny są pokazywane.
 - **Nie dodawaj kluczy najwyższego poziomu `.base`** poza `filters` / `formulas` / `properties` / `views`.
-- **Kodowanie:** UTF-8 bez BOM, zakończenia linii LF, wszędzie.
+- **Kodowanie:** UTF-8. Nowe pliki: zakończenia linii LF, bez BOM. Notatka lub plik tekstowy, który ma już zakończenia linii CRLF albo BOM, zachowuje je — Plainva ich nie zmienia i narzędzie też nie powinno. Jedynym wyjątkiem jest `.base`: Plainva zapisuje go na nowo, z LF i bez BOM, za każdym razem, gdy zmienia się jego konfiguracja. Sam znak powrotu karetki (CR) jako zakończenie linii (stare pliki z Maca) jest odczytywany, ale nie jest zachowywany: przy pierwszej zmianie takiego pliku Plainva zapisuje go z LF.
 
 ## Zobacz też
 

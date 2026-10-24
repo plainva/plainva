@@ -104,29 +104,46 @@ describe("mobile native comment journal", () => {
     } finally { await db.close(); }
   });
 
-  it("a note that lies there with \\r\\n is not rewritten by an accept: the decision is held for review, and no byte of the file moves (AI harness P5-7)", async () => {
+  it("an accept lands on a note that lies there with \\r\\n and a byte order mark, and the note keeps both (finding 2026-10-08)", async () => {
     const raw = new LocalVaultAdapter(join(root, "vault")); await raw.initialize();
     const db = await realSqlite();
     try {
-      const backup = new BackupVaultAdapter(raw);
-      const files = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(backup, new SyncQueue(db)), new SyncStateRepository(db));
-      const vault = { vaultId: "vault-a", adapter: raw, files, backup, indexer: null, workspaceRuntime: null, workspaceState: null } as unknown as MobileVault;
-      // A byte order mark and \r\n, as an editor on Windows may leave a note; the mark is made at run time, never typed into this file.
-      const windows = `${String.fromCharCode(0xfeff)}Old sentence.\r\nKeep this line.\r\n`;
-      await raw.writeTextFile("note.md", windows);
-      const bytes = async () => (await readFile(join(root, "vault", "note.md"))).toString("hex");
-      const before = await bytes();
+      const files = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(new BackupVaultAdapter(raw), new SyncQueue(db)), new SyncStateRepository(db));
+      const vault = { vaultId: "vault-a", adapter: raw, files, indexer: null, workspaceRuntime: null, workspaceState: null } as unknown as MobileVault;
+      // As an editor on Windows may leave a note; the mark is made at run time, never typed into this file.
+      const mark = String.fromCharCode(0xfeff);
+      await raw.writeTextFile("note.md", `${mark}Old sentence.\r\nKeep this line.\r\n`);
+      const bytes = async () => (await readFile(join(root, "vault", "note.md"))).toString("utf8");
       const service = mobileCommentOperations(vault);
-      // The phone's editor holds the note without \r — it keeps no file's shape yet —, so that is what a decision is planned on.
+      // The decision is planned on what the editor holds: "\n", no mark. This
+      // wiring used to compare that with the raw file — "the note changed",
+      // for every suggestion on every note from Windows, a person's as well
+      // as an assistant's.
+      const apply = await service.prepare({ notePath: "note.md", kind: "apply", text: { before: "Old sentence.\nKeep this line.\n", intended: "New sentence.\nKeep this line.\n" },
+        markers: [{ path: "note.md", body: "", resolvedCommentId: createWorkspaceObjectId(), suggestionOutcome: "applied" }] });
+      expect((await service.run(apply)).phase).toBe("completed");
+      // The passage changed; every other byte is where it was.
+      expect(await bytes()).toBe(`${mark}New sentence.\r\nKeep this line.\r\n`);
+      // The receipt is the editor's text: that is what the open editor adopts.
+      expect((await service.read(apply.operationId))?.receipt?.confirmedText).toBe("New sentence.\nKeep this line.\n");
+      expect(await db.query("SELECT file_path FROM offline_queue")).toEqual([{ file_path: "note.md" }]);
+    } finally { await db.close(); }
+  });
+
+  it("still holds a decision for review when the note really says something else — and moves no byte of it", async () => {
+    const raw = new LocalVaultAdapter(join(root, "vault")); await raw.initialize();
+    const db = await realSqlite();
+    try {
+      const files = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(new BackupVaultAdapter(raw), new SyncQueue(db)), new SyncStateRepository(db));
+      const vault = { vaultId: "vault-a", adapter: raw, files, indexer: null, workspaceRuntime: null, workspaceState: null } as unknown as MobileVault;
+      const windows = "Rewritten elsewhere.\r\nKeep this line.\r\n";
+      await raw.writeTextFile("note.md", windows);
+      const service = mobileCommentOperations(vault);
       const apply = await service.prepare({ notePath: "note.md", kind: "apply", text: { before: "Old sentence.\nKeep this line.\n", intended: "New sentence.\nKeep this line.\n" },
         markers: [{ path: "note.md", body: "", resolvedCommentId: createWorkspaceObjectId(), suggestionOutcome: "applied" }] });
       await expect(service.run(apply)).rejects.toMatchObject({ phase: "needs-review", reason: "needs-review" });
-      // Nothing was written: not the passage, and not the note with every line end turned.
-      expect(await bytes()).toBe(before);
+      expect((await readFile(join(root, "vault", "note.md"))).toString("utf8")).toBe(windows);
       expect(await db.query("SELECT file_path FROM offline_queue")).toEqual([]);
-      // Nothing was replaced, so nothing was kept.
-      await expect(raw.listDir(".plainva/backups", false)).rejects.toThrow();
-      expect((await service.read(apply.operationId))?.receipt ?? null).toBeNull();
     } finally { await db.close(); }
   });
 

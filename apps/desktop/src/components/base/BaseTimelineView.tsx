@@ -26,6 +26,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { OPEN_SPLIT_TARGET, SplitDropZone } from "./baseViewerShared";
 import type { BaseCells } from "./useBaseCells";
+import { buildLinkTargetIndex, linkTargetName, resolveLinkTargetIndexed } from "@plainva/core";
 
 // Timeline view of the BaseViewer — a ROW per entry since S21 (plan P10).
 //
@@ -71,7 +72,7 @@ export function BaseTimelineView({
   onDropToSplit?: (path: string) => void;
 }) {
   const { t, i18n } = useTranslation();
-  const { handleCellSave, formatValueForDisplay } = cells;
+  const { handleCellSave, formatValueForDisplay, resolveTarget, linksReady } = cells;
   const locale = i18n.language || "de";
 
   const days = React.useMemo(() => windowDays(timelineWindow), [timelineWindow]);
@@ -132,7 +133,9 @@ export function BaseTimelineView({
       d.mode === "move"
         ? moveBar({ ...opts, toDay: days[Math.max(0, Math.min(days.length - 1, (barFor(opts.currentStart, opts.currentEnd, days)?.startCol ?? 0) + (d.col - d.fromCol)))]! })
         : edgeDrag({ ...opts, edge: d.mode, toDay });
-    if (res.start !== undefined) await handleCellSave(d.path, dateProp, res.start);
+    // A start that did not reach the note is not followed by the end: the bar
+    // stays as the note has it instead of moving with one edge only.
+    if (res.start !== undefined && !(await handleCellSave(d.path, dateProp, res.start))) return;
     if (res.end !== undefined && endProp) await handleCellSave(d.path, endProp, res.end);
   };
 
@@ -208,26 +211,26 @@ export function BaseTimelineView({
   // user's statement about the world, and silently moving one would rewrite a
   // note nobody asked to change.
   const depNodes: DependencyNode[] = React.useMemo(() => {
-    const titleToKey = new Map<string, string>();
-    for (const r of rows) {
-      const path = String(r["file.path"] ?? "");
-      titleToKey.set(String(r["file.name"] ?? ""), path);
-      titleToKey.set(path, path);
-      titleToKey.set(path.replace(/\.md$/i, ""), path);
-    }
-    const resolve = (uid: string): string | null => {
-      const inner = uid.trim().replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0]!.trim();
-      return titleToKey.get(inner) ?? titleToKey.get(inner.replace(/\.md$/i, "")) ?? null;
+    // Which note a predecessor link means is the link rule's answer for the
+    // vault (`LinkResolver.ts` in the core), read from the successor's own
+    // note — the same answer a click on the link gives. Until the lookup is
+    // there, the rows of this view stand in for the vault.
+    const inView = new Set(rows.map((r) => String(r["file.path"] ?? "")));
+    const rowsOnly = linksReady ? null : buildLinkTargetIndex(rows.map((r) => ({ path: String(r["file.path"] ?? ""), title: String(r["file.name"] ?? "") })));
+    const resolve = (uid: string, fromPath: string): string | null => {
+      const target = linkTargetName(uid.trim().replace(/^\[\[/, "").replace(/\]\]$/, ""));
+      const path = rowsOnly ? resolveLinkTargetIndexed(fromPath, target, rowsOnly) : (resolveTarget(target, fromPath) ?? null);
+      // A predecessor outside this view simply has no line to draw.
+      return path !== null && inView.has(path) ? path : null;
     };
     return rows.map((r) => ({
       key: String(r["file.path"] ?? ""),
       blockedBy: parseDependencies(r["blockedBy"] ?? r["note.blockedBy"]).flatMap((d) => {
-        const key = resolve(d.uid);
-        // A predecessor outside this view simply has no line to draw.
+        const key = resolve(d.uid, String(r["file.path"] ?? ""));
         return key ? [{ key, reltype: d.reltype, gap: d.gap }] : [];
       }),
     }));
-  }, [rows]);
+  }, [rows, resolveTarget, linksReady]);
 
   const conflicts = React.useMemo(() => {
     const dates = new Map(
@@ -422,7 +425,7 @@ export function BaseTimelineView({
                       {entryColumns.map((col) => {
                         let v = row[col];
                         if (v === undefined && col.startsWith("note.")) v = row[col.substring(5)];
-                        const { displayVal, isMissing } = formatValueForDisplay(v, col);
+                        const { displayVal, isMissing } = formatValueForDisplay(v, col, path);
                         if (isMissing) return null;
                         return (
                           <div key={col} style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

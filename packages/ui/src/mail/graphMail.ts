@@ -5,7 +5,7 @@ export { GRAPH_MAIL_SCOPES } from "../lib/oauthScopes";
 import type { MailAccountConfig } from "./mailAccounts";
 import { getMailRefreshToken, listMailAccounts, saveMailRefreshToken } from "./mailAccounts";
 import { mailHttp } from "./transport";
-import type { MailboxInfo, MailEnvelope, MailEnvelopePage, MailMessage, MailAttachmentInfo, MailFolderRole } from "./types";
+import type { AttachmentFetchResult, MailboxInfo, MailEnvelope, MailEnvelopePage, MailMessage, MailAttachmentInfo, MailFolderRole } from "./types";
 import type { MailAttachment } from "./mailOut";
 import { NO_STORED_SIGN_IN } from "../lib/authErrors";
 import { buildGraphRules, isPlainvaRule, type GraphMessageRule } from "./graphRules";
@@ -47,9 +47,13 @@ const runtimeKey = (vaultPath: string, accountId: string) => JSON.stringify([vau
  * (mirrors buildPimAuthProvider — Microsoft rotates the refresh token). */
 /**
  * Set by the shell (cloud accounts stage B): resolves the account broker's
- * access-token provider for the mail service of a vault, or undefined when the
- * account still holds its own refresh token. Injected rather than imported,
+ * access-token provider for ONE mailbox of a vault, or undefined when that
+ * mailbox still holds its own refresh token. Injected rather than imported,
  * because the broker wiring is platform code and this module is not.
+ *
+ * Both arguments are the question. A resolver that answers for the vault alone
+ * hands every mailbox the sign-in of whichever account it finds first — which
+ * is what both shells registered until 2026-10-12.
  */
 export type MailTokenResolver = (
   vaultPath: string,
@@ -63,9 +67,12 @@ export function setMailTokenResolver(resolver: MailTokenResolver | null): void {
 /**
  * Optional companion to the resolver: one sentence on WHY it came back empty,
  * for the error a person reads (finding 2026-07-30). Without it the message
- * still names the situation, just not which sign-in was looked for.
+ * still names the situation, just not which sign-in was looked for. It is
+ * asked for the mailbox the resolver was asked for — the sentence is about
+ * that mailbox's account, not about whichever one the vault holds first
+ * (finding 2026-10-12).
  */
-export type MailLookupNote = (vaultPath: string) => Promise<string>;
+export type MailLookupNote = (vaultPath: string, accountId: string) => Promise<string>;
 let mailLookupNote: MailLookupNote | null = null;
 export function setMailLookupNote(note: MailLookupNote | null): void {
   mailLookupNote = note;
@@ -120,7 +127,7 @@ async function runtimeFor(vaultPath: string, account: MailAccountConfig): Promis
     if (!refreshToken && !viaBroker) {
       // Distinguish a never-connected mailbox from one whose per-service
       // credential was cleared but whose account sign-in cannot be read.
-      const why = mailLookupNote ? await mailLookupNote(vaultPath).catch(() => "") : "";
+      const why = mailLookupNote ? await mailLookupNote(vaultPath, account.id).catch(() => "") : "";
       throw new Error(`${NO_STORED_SIGN_IN}: this mailbox has no stored sign-in${why ? ` — ${why}` : "."}`);
     }
     return buildRuntime(vaultPath, account, refreshToken ?? "", viaBroker);
@@ -383,6 +390,57 @@ export async function graphFetchAttachment(
   );
   if (!full.contentBytes) throw new Error("this attachment has no downloadable content");
   return full.contentBytes;
+}
+
+/** A Graph attachment that is not a file: an attached Outlook item (a mail, an
+ *  event, a contact) or a link to a file in the cloud. Neither has bytes. */
+function isNotAFile(odataType: string | undefined): boolean {
+  return !!odataType && !/fileAttachment$/i.test(odataType);
+}
+
+/**
+ * The attachments of ONE message the caller names (plan "Weiterleiten", A4).
+ *
+ * `graphFetchAttachment` lists the attachments again for every file it is
+ * asked for — two requests per file. Here the list is read once and each file
+ * is one request; they pass through the same gate as everything else, so a
+ * mail with ten files does not trip the mailbox's concurrency limit.
+ *
+ * One entry per index, in the order asked. A file that fails is `failed` and
+ * the others still come; an attachment that is not a file answers `notAFile`
+ * instead of an error, because asking again would not change it. Only a list
+ * that cannot be read rejects the call.
+ */
+export async function graphFetchAttachments(
+  vaultPath: string,
+  account: MailAccountConfig,
+  _mailbox: string,
+  id: string,
+  indexes: readonly number[]
+): Promise<AttachmentFetchResult[]> {
+  const rt = await runtimeFor(vaultPath, account);
+  const base = `/me/messages/${encodeURIComponent(id)}/attachments`;
+  const list = await graphJson<{ value?: Array<{ id?: string; "@odata.type"?: string }> }>(rt, "GET", `${base}?$select=id`);
+  const items = list.value ?? [];
+  return Promise.all(
+    indexes.map(async (index): Promise<AttachmentFetchResult> => {
+      const item = items[index];
+      if (!item?.id) return { index, failure: "missing" };
+      if (isNotAFile(item["@odata.type"])) return { index, failure: "notAFile" };
+      try {
+        const full = await graphJson<{ contentBytes?: string | null; "@odata.type"?: string }>(
+          rt,
+          "GET",
+          `${base}/${encodeURIComponent(item.id)}`
+        );
+        // An empty file is a file: only the absence of the field says "not one".
+        if (typeof full.contentBytes !== "string") return { index, failure: "notAFile" };
+        return { index, contentBase64: full.contentBytes };
+      } catch (e) {
+        return { index, failure: "failed", detail: e instanceof Error ? e.message : String(e) };
+      }
+    })
+  );
 }
 
 /** The account's primary address (Graph /me) for the display label; also a
@@ -651,8 +709,80 @@ export async function graphSendMail(
   if (sender) message.from = { emailAddress: { address: sender } };
   if (cc.trim()) message.ccRecipients = toRecipients(cc);
   if (bcc.trim()) message.bccRecipients = toRecipients(bcc);
-  if (attachments.length) message.attachments = graphAttachments(attachments);
-  await graphJson(rt, "POST", "/me/sendMail", { message, saveToSentItems: true });
+  const files = graphAttachments(attachments);
+  const whole = { message: files.length ? { ...message, attachments: files } : message, saveToSentItems: true };
+  if (!files.length || fitsOneRequest(whole, attachments)) {
+    await graphJson(rt, "POST", "/me/sendMail", whole);
+    return;
+  }
+  // Too much for one request: a draft, each file on its own, then send.
+  const draftId = await createDraft(rt, message);
+  try {
+    await attachEach(rt, draftId, files);
+    await graphJson(rt, "POST", `/me/messages/${encodeURIComponent(draftId)}/send`);
+  } catch (e) {
+    await discardDraft(rt, draftId);
+    throw e;
+  }
+}
+
+/**
+ * The size Microsoft Graph takes in one write request, with room to spare.
+ *
+ * Graph refuses a write request above 4 MB ("Request entity too large", HTTP
+ * 413; https://learn.microsoft.com/en-us/graph/use-the-api), and a file grows
+ * by a third when it is packed as base64. A message whose files do not fit
+ * goes the way Microsoft describes for several files — create a draft, attach
+ * each file with a request of its own, send the draft
+ * (https://learn.microsoft.com/en-us/graph/outlook-large-attachments) — which
+ * moves the limit from the whole message to the single file.
+ *
+ * Whatever fits one request keeps going in one: nothing about a message that
+ * could be sent before is sent differently now.
+ */
+export const GRAPH_REQUEST_LIMIT = 3_900_000;
+
+/**
+ * The largest file (its own bytes, not packed) a Microsoft mailbox takes from
+ * Plainva: 2.8 MB, which is what still fits a request of its own — packed it
+ * is 3.9 million characters, under the 4 MB of a write request whether that
+ * figure means 4,000,000 bytes or 4,194,304. Microsoft's documentation rounds
+ * this to "under 3 MB" and names an upload session for anything above, which
+ * Plainva does not have: the composers leave a larger file behind, by name.
+ *
+ * Counted the way the mail surfaces show a size (1 MB = 1024 × 1024 bytes), so
+ * the bound a file is held against reads like the size next to it.
+ */
+export const GRAPH_FILE_LIMIT = Math.floor(2.8 * 1024 * 1024);
+
+function fitsOneRequest(payload: unknown, attachments: readonly MailAttachment[]): boolean {
+  // The files alone settle most cases without serialising megabytes twice.
+  const packed = attachments.reduce((sum, a) => sum + a.contentBase64.length, 0);
+  if (packed > GRAPH_REQUEST_LIMIT) return false;
+  return new TextEncoder().encode(JSON.stringify(payload)).length <= GRAPH_REQUEST_LIMIT;
+}
+
+async function createDraft(rt: GraphMailRuntime, message: Record<string, unknown>): Promise<string> {
+  const created = await graphJson<{ id?: string } | undefined>(rt, "POST", "/me/messages", message);
+  if (!created?.id) throw new Error("Graph mail: the draft came back without an id");
+  return created.id;
+}
+
+async function attachEach(rt: GraphMailRuntime, draftId: string, files: Array<Record<string, unknown>>): Promise<void> {
+  // One after the other: the order of the files is the order they were put on.
+  for (const file of files) {
+    await graphJson(rt, "POST", `/me/messages/${encodeURIComponent(draftId)}/attachments`, file);
+  }
+}
+
+/** A draft that did not become a message is taken out of the mailbox again.
+ *  Best effort: the failure that brought us here is the one to report. */
+async function discardDraft(rt: GraphMailRuntime, draftId: string): Promise<void> {
+  try {
+    await graphJson(rt, "DELETE", `/me/messages/${encodeURIComponent(draftId)}`);
+  } catch {
+    /* the mailbox keeps a half-made draft; nothing here can do better */
+  }
 }
 
 /** The bare address to put in `from`, or "" when it is the account's own
@@ -682,8 +812,20 @@ export async function graphAppendDraft(
   };
   if (cc.trim()) body.ccRecipients = toRecipients(cc);
   if (bcc.trim()) body.bccRecipients = toRecipients(bcc);
-  if (attachments.length) body.attachments = graphAttachments(attachments);
-  await graphJson(rt, "POST", "/me/messages", body);
+  const files = graphAttachments(attachments);
+  const whole = files.length ? { ...body, attachments: files } : body;
+  if (!files.length || fitsOneRequest(whole, attachments)) {
+    await graphJson(rt, "POST", "/me/messages", whole);
+    return;
+  }
+  // The same limit as for sending: the draft first, then each file on its own.
+  const draftId = await createDraft(rt, body);
+  try {
+    await attachEach(rt, draftId, files);
+  } catch (e) {
+    await discardDraft(rt, draftId);
+    throw e;
+  }
 }
 
 /**

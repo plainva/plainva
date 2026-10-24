@@ -2,6 +2,7 @@ import { createTemplateIn, toast } from "@plainva/ui";
 import type { TFunction } from "i18next";
 import { mPrompt } from "./mobileDialogs";
 import { getMobileSettings } from "./mobileSettings";
+import { configuredNoteType } from "./newNote";
 import { vaultOps, type MobileVault } from "./vaultService";
 
 /**
@@ -26,10 +27,9 @@ export async function createTemplatePrompt(
   const name = value?.trim().replace(/[\\/]/g, "-");
   if (cancelled || !name) return null;
 
-  const settings = getMobileSettings();
   const created = await createTemplateIn(
-    vault.adapter,
-    { folder: settings.templateFolder, noteType: settings.defaultNoteType },
+    vault.files,
+    { folder: getMobileSettings().templateFolder, noteType: configuredNoteType() },
     name,
   ).catch(() => null);
 

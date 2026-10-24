@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { PimConflictError, VaultFileNotFoundError, type DeletionConfirmation, type IVaultAdapter } from "@plainva/core";
+import { PimConflictError, TextFileChangedError, VaultFileNotFoundError, type DeletionConfirmation, type IVaultAdapter } from "@plainva/core";
 import { ConflictAwareVaultAdapter } from "../../../../packages/core/src/vault/ConflictAwareVaultAdapter";
 import { SyncStateRepository } from "../../../../packages/core/src/vault/SyncStateRepository";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
@@ -222,8 +222,8 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
     worker: {
       start: () => {},
       stop: () => {},
-      triggerImmediate: async () => {
-        triggered.push("now");
+      triggerImmediate: async (opts?: { afterWrite?: boolean }) => {
+        triggered.push(opts?.afterWrite ? "after write" : "now");
       },
     },
     stop: () => {},
@@ -370,6 +370,89 @@ describe("delegated mutations", () => {
       expect(content.has(first.session!.workingCopyPath)).toBe(false);
     } finally { stop(); await db.close(); }
   });
+  describe("a change of a file where it lies, from an auxiliary window", () => {
+    // `updateTextFile` in a window beside the main one: the change is a function and cannot travel,
+    // so the owner hands out what the file is and writes what the window made of it — if the file
+    // still is that (finding 2026-10-12).
+    async function ownerWith(files: Map<string, string>, indexed: string[] = []) {
+      const wire = createWire();
+      const owner = createWindowBus(wire(OWNER_LABEL), undefined, () => "/owner-vault");
+      const aux = createWindowBus(wire("aux-update"), undefined, () => "/owner-vault");
+      busForTest = owner;
+      const db = await realSqlite();
+      const raw = createFileAdapter(files), chain = new ConflictAwareVaultAdapter(raw, new SyncStateRepository(db));
+      const indexer = { indexFile: async (info: { path: string }) => { indexed.push(info.path); return false; } };
+      const stop = await installOwnerBus({ vaultPath: "/owner-vault", vaultAdapter: chain, indexer: indexer as never, pimRuntime: null,
+        refresh: () => {}, refreshVault: async () => {}, rebuildIndex: async () => {}, syncWorker: null });
+      return { aux, raw, chain, remote: new RemoteVaultAdapter(raw, aux, "/owner-vault"), close: async () => { stop(); await db.close(); } };
+    }
+    const done = (text: string) => text.replace("status: open", "status: done");
+
+    it("starts from the file as the owner's chain finds it — also one somebody changed below the chain", async () => {
+      const files = new Map<string, string>(), indexed: string[] = [];
+      const { chain, raw, remote, close } = await ownerWith(files, indexed);
+      try {
+        await chain.writeTextFile("Note.md", "---\nstatus: open\n---\nText.\n");
+        await raw.writeTextFile("Note.md", "---\nstatus: waiting\n---\nText, changed by another program.\n");
+        const update = await remote.updateTextFile("Note.md", (text) => text.replace("status: waiting", "status: done"));
+        expect(update).toEqual({
+          before: "---\nstatus: waiting\n---\nText, changed by another program.\n",
+          text: "---\nstatus: done\n---\nText, changed by another program.\n",
+          changed: true, conflict: null,
+        });
+        expect(files.get("Note.md")).toBe(update.text);
+        expect(await chain.listConflictSessions()).toEqual([]);
+        // The owner indexes what it wrote, as for every delegated write.
+        expect(indexed).toEqual(["Note.md"]);
+        // A change that leaves the file alone writes nothing and indexes nothing.
+        expect((await remote.updateTextFile("Note.md", () => null)).changed).toBe(false);
+        expect(indexed).toEqual(["Note.md"]);
+      } finally { await close(); }
+    });
+
+    it("at a note with an open conflict it lands in the note and in the user's own version", async () => {
+      const files = new Map<string, string>(), indexed: string[] = [];
+      const { chain, raw, remote, close } = await ownerWith(files, indexed);
+      try {
+        const base = "---\nstatus: open\n---\nText.\n", theirs = base.replace("Text.", "Their text."), mine = base.replace("Text.", "My text.");
+        await chain.writeTextFile("Note.md", base);
+        await raw.writeTextFile("Note.md", theirs);
+        const copy = (await remote.writeEditorText("Note.md", mine, base)).session!.workingCopyPath;
+        indexed.length = 0;
+        const update = await remote.updateTextFile("Note.md", done);
+        expect(update.conflict).toEqual({ workingCopyPath: copy, changed: true });
+        expect(files.get("Note.md")).toBe(done(theirs));
+        expect(files.get(copy)).toBe(done(mine));
+        expect(indexed.sort()).toEqual(["Note.md", copy].sort());
+      } finally { await close(); }
+    });
+
+    it("is made again from what is there when another writer was faster, and gives up when the file never holds still", async () => {
+      const files = new Map<string, string>([["Note.md", "one\n"]]);
+      const { aux, raw, remote, close } = await ownerWith(files);
+      try {
+        // Another writer lands between this window's read and its write: once, then every time.
+        let faster = 1, seen = 0;
+        const request = aux.request.bind(aux);
+        (aux as { request: unknown }).request = async (kind: string, args: unknown, options: unknown) => {
+          if (kind === "update-write" && faster-- > 0) await raw.writeTextFile("Note.md", `${files.get("Note.md")}somebody else's line ${++seen}\n`);
+          return (request as (...a: unknown[]) => Promise<unknown>)(kind, args, options);
+        };
+        const calls: string[] = [];
+        const update = await remote.updateTextFile("Note.md", (text) => { calls.push(text); return `${text}mine\n`; });
+        expect(calls).toEqual(["one\n", "one\nsomebody else's line 1\n"]);
+        expect(update.text).toBe("one\nsomebody else's line 1\nmine\n");
+        expect(files.get("Note.md")).toBe(update.text);
+
+        faster = Number.POSITIVE_INFINITY;
+        const before = files.get("Note.md")!;
+        await expect(remote.updateTextFile("Note.md", (text) => `${text}mine again\n`)).rejects.toBeInstanceOf(TextFileChangedError);
+        // Four attempts, and nothing of this window's written over anybody.
+        expect(files.get("Note.md")).toBe(`${before}somebody else's line 2\nsomebody else's line 3\nsomebody else's line 4\nsomebody else's line 5\n`);
+      } finally { await close(); }
+    });
+  });
+
   it("waits for a comment operation holding the same physical note's write lane", async () => {
     const { aux, calls, dispose } = await setup();
     let release!: () => void;
@@ -531,6 +614,9 @@ describe("calendar writes from another window", () => {
     // A poller per window would multiply provider traffic and write the same
     // cache tables from several sides.
     expect(triggered).toEqual(["now"]);
+    // A refresh after a write in that window keeps saying so (issue 119).
+    await aux.request("pim-refresh", { afterWrite: true });
+    expect(triggered).toEqual(["now", "after write"]);
     dispose();
   });
 });

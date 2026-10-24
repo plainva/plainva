@@ -151,7 +151,7 @@ describe("a composer opened with a mail somebody drafted", () => {
     const closed = vi.fn();
     render(<MailDraftModal {...DRAFT} onDone={(how) => told.push(how)} onClose={closed} />);
     await settle();
-    const cancel = Array.from(document.querySelectorAll<HTMLButtonElement>(".pv-mail-winfoot button")).find((button) => !button.dataset.testid)!;
+    const cancel = byTestId("draft-cancel")!;
     await click(cancel);
     expect(closed).toHaveBeenCalledTimes(1);
     expect(told).toEqual([]);

@@ -465,6 +465,80 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-20",
   },
   {
+    id: "base-cell-text-links",
+    title: "Follow a link in the free text of a database cell",
+    area: "database",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "A cell of the desktop's database views draws a wiki link, a Markdown link " +
+      "and a bare URL inside free text as links (renderInlineString in " +
+      "useBaseCells) and opens them through the desktop's opener. The phone shows " +
+      "the same text as text (cellText in BaseScreen): a tap on a cell opens its " +
+      "edit sheet, and nothing there follows a link. Relation chips open on both " +
+      "shells. Found on 2026-10-12 while the opener for a link became one per " +
+      "shell; listed in the maintainer's open-items plan.",
+    verified: "2026-10-22",
+  },
+  {
+    id: "base-date-type-converts-values",
+    title: "Switching a date column between \"Date only\" and \"Date & time\" converts the stored values",
+    area: "database",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "On the desktop the view settings of a calendar or timeline carry a Format for the " +
+      "date field; switching it rewrites the value in every shown note — a day gets 12:00, " +
+      "a time is dropped after a question — so the notes and the column's type keep agreeing. " +
+      "The phone sets a column's type in its property sheet (Date, Date & time) and leaves " +
+      "the notes as they are, without a question: the values are then read by the new type. " +
+      "The loop is the shared rewriteNoteProperties, so nothing of the platform stands in the " +
+      "way. Read against the code on 2026-10-21 while the surgical property writers learned " +
+      "to say a failed write; put off that day, listed in the maintainer's open-items plan.",
+    verified: "2026-10-21",
+  },
+  {
+    id: "base-fill-missing-property",
+    title: "Writing a property (empty) into the notes of a database that lack it",
+    area: "database",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop's column editor offers to add a property to the shown notes that do " +
+      "not carry it, and a view that needs a column it has to create (a date for a " +
+      "calendar, a selection for a board) writes it into the notes the same way. The " +
+      "phone's property sheet has no such row and its view switch creates no column: a " +
+      "property reaches a note there when a cell is filled in. The loop is the shared " +
+      "rewriteNoteProperties. Read against the code on 2026-10-21 while the surgical " +
+      "property writers learned to say a failed write; put off that day, listed in the " +
+      "maintainer's open-items plan.",
+    verified: "2026-10-21",
+  },
+  {
+    id: "base-new-entry-template-caret",
+    title: "A new database entry opens with the keyboard where its template's cursor stands",
+    area: "database",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "Both shells place the caret a template leaves in a new entry ({{cursor}}). On the " +
+      "phone \"Entry\" opens the note as a screen, and a note just made opens to be written " +
+      "in: the keyboard is at that place at once. On the desktop the entry opens in the peek " +
+      "window beside the database, so that title and properties can be filled in first. Its " +
+      "editor holds the place while properties and text are written, and the keyboard stays " +
+      "where it was: entered with the keyboard, the text is written from the template's place, " +
+      "a click chooses its own; renaming the entry in the window shows it in a new editor, " +
+      "and the place is gone. Meant to close by the window taking the keyboard when the " +
+      "template has a cursor; put off on 2026-10-22, when the window learned to take the " +
+      "caret, until the maintainer decides that behaviour, listed in the maintainer's " +
+      "open-items plan.",
+    mobile: "yes",
+    verified: "2026-10-22",
+  },
+  {
     id: "base-peek-depth",
     title: "Peek preview of a database entry",
     area: "database",
@@ -477,6 +551,42 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "opens a bottom sheet with the row's fields and prev/next. Rendering a full " +
       "editor inside a sheet would nest two scroll surfaces on a small screen.",
     verified: "2026-08-19",
+  },
+  {
+    id: "base-reverse-relation-edit",
+    title: "Adding or removing a link in the cell of a reverse relation",
+    area: "database",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "Both shells show a computed reverse column — the notes whose relation points at " +
+      "this row. On the desktop its cell is an editor: adding a link writes the owning " +
+      "property of the other note, removing one takes it out there. On the phone a tap on " +
+      "such a cell opens the first linked note, and the relation is changed from the " +
+      "owning side only. The writers are the desktop's services/relations.ts and the " +
+      "shared relationCleanup; the phone's cell sheet has no editor that calls them. Read " +
+      "against the code on 2026-10-21 while the desktop's cell learned to say a note that " +
+      "refuses the link; put off that day, listed in the maintainer's open-items plan.",
+    verified: "2026-10-21",
+  },
+  {
+    id: "base-template-assignment",
+    title: "Assigning a template to the databases it belongs to",
+    area: "database",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Both shells let a database name one default template for its new entries. The " +
+      "desktop also assigns templates to databases (plainva.templateFor): the \"Entry\" " +
+      "menu lists the templates of this database first and toggles the assignment, and a " +
+      "template has a dialog for its target databases. The phone creates an entry from " +
+      "the default template or from the folder and type rules, offers no choice among " +
+      "templates there and neither reads nor writes the assignment. Read against the code " +
+      "on 2026-10-21 while the desktop's two assignment surfaces learned to say a template " +
+      "that refuses it; put off that day, listed in the maintainer's open-items plan.",
+    verified: "2026-10-21",
   },
   {
     id: "board-card-color-entry",
@@ -558,6 +668,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-22",
   },
   {
+    id: "managed-index-tiles",
+    title: "A managed index.md shown as tiles",
+    area: "editor",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Both shells open a managed index.md read-only, with the same banner and the " +
+      "same two buttons. The desktop's reader lays its link list out as a grid of " +
+      "tiles (a long name ends in \"…\" inside its tile, the tip names it whole - " +
+      "finding 2026-10-19). The mobile shell reads every note in the editor's live " +
+      "preview, which has no tile layout: the list stays a list, one link per line, " +
+      "and a long name wraps instead of running into a neighbour, so the finding " +
+      "has no counterpart there. Tiles would be a reader of their own for one file.",
+    verified: "2026-10-21",
+  },
+  {
     id: "print-note",
     title: "Print a note or save it as PDF",
     area: "editor",
@@ -605,7 +732,10 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "One device switch and one rule serve both shells (lib/spellcheck.ts); what " +
       "checks the text is the platform. On Windows (WebView2) and macOS (WKWebView) " +
       "the WebView checks with the system's languages, on a phone the keyboard and " +
-      "the system do. On Linux nothing checks: wry 0.57 never switches WebKitGTK's " +
+      "the system do. macOS needs one step of its own: WKWebView marks nothing " +
+      "until the app's \"Check Spelling While Typing\" is on, which src-tauri sets " +
+      "at start (src/macos_spellcheck.rs, issue #135 - until then nothing was " +
+      "marked on a Mac either). On Linux nothing checks: wry 0.57 never switches WebKitGTK's " +
       "spell checker on (no call in its source), and WebKitGTK has it off until an " +
       "application enables it on the WebKitWebContext and names the languages. " +
       "Closing this needs a Linux-only step in src-tauri (enable it and pass the " +
@@ -632,6 +762,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-19",
   },
   {
+    id: "graph-edge-actions",
+    title: "Remove the links or the relation behind an edge of the graph",
+    area: "graph",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop's menu of an edge opens either note and removes what the edge " +
+      "stands for: the links in the text between the two notes (removeLinksTo) or " +
+      "the relation a property holds (removeRelationLink). The phone's sheet for " +
+      "an edge opens the two notes and offers nothing else (edgeActions in " +
+      "GraphScreen). Found on 2026-10-12 while removing text links was rebuilt to " +
+      "know a Markdown link and to leave properties and code alone; listed in the " +
+      "maintainer's open-items plan.",
+    verified: "2026-10-22",
+  },
+  {
     id: "blockers-follow-their-event",
     title: "Blockers follow their event, and a moved or changed blocker asks",
     area: "pim",
@@ -649,23 +796,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "phone's form for one decision with two outcomes (useEventEditor.tsx). " +
       "Blockers written into the device's own calendars carry no link on either " +
       "side: DevicePimTarget has no place to store one (plan Befunde 2026-10-06, E4).",
-    verified: "2026-10-06",
-  },
-  {
-    id: "calendar-all-day-row-limit",
-    title: "The all-day row of the time grid: five rows, a count, and opening it",
-    area: "pim",
-    kind: "decision",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "On the desktop the all-day row is pinned above a time grid that fills the pane, " +
-      "so it grows to five rows, counts the rest per day and opens for all days on a " +
-      "click (DayTimeGrid.tsx). On the phone the row is not pinned: it scrolls away " +
-      "with the grid (PimCalendarScreen.tsx), so it shows every entry at once and has " +
-      "nothing to hide or to open - a limit there would add a tap without saving " +
-      "space. Status entries are bands in both rows, and the phone's month grid " +
-      "counts what lies beyond its dots (plan Befunde 2026-10-06, E8).",
     verified: "2026-10-06",
   },
   {
@@ -688,6 +818,152 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "date the provider does not expose - a change that leaves every visible " +
       "field alone is invisible to it. Both named on the account card.",
     verified: "2026-09-04",
+  },
+  {
+    id: "mail-attachment-list",
+    title: "Which parts of an IMAP message count as its attachments",
+    area: "pim",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The reader's list of attachments is what a forward carries and what can be " +
+      "saved, and for an IMAP mailbox the two shells build it with two parsers. The " +
+      "desktop's (mail-parser, mail_imap.rs) lists every part that is not the body " +
+      "shown: an embedded image without a name, a named text part, the calendar " +
+      "alternative of an invitation, an attached message. The phone's (net/mime.ts) " +
+      "lists a part only when it carries a file name or is marked as an attachment, " +
+      "and never a text part that is not marked so. The same message can therefore " +
+      "show more files on the desktop - one for every such part, the logo of a " +
+      "signature included -, and a forward then carries them from there, each " +
+      "counted against what a forward loads on its own. A Microsoft mailbox is " +
+      "not affected: both shells read Graph's list. " +
+      "Closing this means one rule for what counts, held by the same example " +
+      "messages against both parsers (finding 2026-10-11).",
+    verified: "2026-10-12",
+  },
+  {
+    id: "mail-base64-reading",
+    title: "Reading base64 in an IMAP message that is not written as the rule says",
+    area: "pim",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "For an IMAP mailbox the two shells read a message with two parsers. Both " +
+      "read a \"=\" inside base64 as the end of a group and go on reading behind " +
+      "it - every line padded on its own, two encodings joined into one (finding " +
+      "2026-10-12; one table of examples is held against both, in " +
+      "imapClient.test.ts and in mail_imap.rs). In two things the desktop's parser " +
+      "(mail-parser) reads less than the phone's reader (net/mime.ts). A last group " +
+      "without its padding is dropped: the last one or two bytes of a file that is " +
+      "not a text file, of the message's text, of an encoded word in a header. And " +
+      "one character that is no base64 gives the whole part up - in a body any " +
+      "but a blank, a tab, a line break or a single hyphen, though RFC 2045 says " +
+      "to pass any of them over; in an encoded word any but a blank, a tab or a " +
+      "line break, so a hyphen too: a file, a text file too, is handed out as it " +
+      "stands in the message, undecoded; an encoded word in a header is shown as it " +
+      "was written; " +
+      "and the text of a message in such a part is shown undecoded or, inside a " +
+      "multipart, listed as a file instead. A Microsoft mailbox is not affected: Graph " +
+      "delivers the message decoded. Closing this means reading base64 in " +
+      "mail_imap.rs itself, from a part's own header and its raw body - for the " +
+      "text and for every file - instead of taking the parser's reading, or a " +
+      "parser that reads it (what_the_parser_gives_up_in_base64 in mail_imap.rs " +
+      "fails on the day one of the two is gone).",
+    mobile: "yes",
+    verified: "2026-10-21",
+  },
+  {
+    id: "mail-digest-parts",
+    title: "The parts of a digest that name no type of their own",
+    area: "pim",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "In a multipart/digest a part that names no type of its own is an enclosed " +
+      "message (RFC 2046, 5.1.5); without any header line it begins with the empty " +
+      "line. For an IMAP mailbox the desktop's parser (mail-parser, mail_imap.rs) " +
+      "reads it so: the digest has no text of its own, and the enclosed messages " +
+      "are listed as files. The phone's reader (net/mime.ts) does not know that " +
+      "default and reads such a part as plain text: the first enclosed message, " +
+      "its header lines included, is shown as the text of the digest, and none is " +
+      "listed. Closing this means the default in the phone's reader together with " +
+      "one rule for which parts count as attachments (mail-attachment-list): the " +
+      "default alone would leave such a digest empty on the phone, which lists no " +
+      "enclosed message without a file name. Held on each side by the same " +
+      "message, in imapClient.test.ts and in mail_imap.rs (finding 2026-10-21).",
+    verified: "2026-10-21",
+  },
+  {
+    id: "mail-imap-opening-line",
+    title: "The opening words of a message in the list of an IMAP mailbox",
+    area: "pim",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "A row of the message list can open with the first words of the message. " +
+      "For a Microsoft mailbox both shells have them (Graph's bodyPreview). For an " +
+      "IMAP mailbox only the phone has: its client takes the first bytes of the " +
+      "body along in the request of the list and reads the line from them " +
+      "(net/imap.ts, previewFromBodyPrefix in net/mime.ts), and shows it as the " +
+      "third line of a row (MailListScreen.tsx). The desktop's client " +
+      "(mail_imap.rs) does not ask for them, so the one place the desktop shows " +
+      "the words - the rows of an opened conversation - falls back to the " +
+      "sender's address there (MailView.tsx). Closing this means the same request " +
+      "in mail_imap.rs and the same reading of it; whether the desktop's list row " +
+      "itself should open with the words is a separate question of its design " +
+      "(written down with the fix to the line's reading, finding 2026-10-12).",
+    mobile: "yes",
+    verified: "2026-10-13",
+  },
+  {
+    id: "mail-unified-row-read-star",
+    title: "Read and star on a row of All inboxes, from the list",
+    area: "pim",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "In All inboxes the desktop marks a row read or unread and stars it from " +
+      "its menu and the selection bar, in the row's own mailbox. The phone " +
+      "offers both for a row only in the row's sheet, and the sheet does not " +
+      "open there: the selection it is built on holds no row of the merged " +
+      "list, so a long press opens no sheet (MailListScreen.tsx, selectable). On " +
+      "the phone both are reached through the opened message, which acts in " +
+      "the row's mailbox. Moving, spam and deleting are offered on neither " +
+      "shell there - each mailbox has its own folders. Closing this means a " +
+      "selection that holds merged rows by their address, and a row change " +
+      "that reaches the merged list too (the phone's patchRows does not touch " +
+      "unifiedRows; the desktop updates its merged list). Written down on " +
+      "2026-10-22 while the swipe on such a row stopped offering spam and " +
+      "delete; put off that day, listed in the maintainer's open-items plan.",
+    verified: "2026-10-22",
+  },
+  {
+    id: "mail-unified-snooze",
+    title: "Snoozing a row of All inboxes",
+    area: "pim",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "Both shells offer snooze on a row of All inboxes and note it with the " +
+      "open mailbox and the folder behind the merged list, under the merged " +
+      "row's id - not with the row's own mailbox and folder. The desktop does " +
+      "not filter the merged list by snoozes (on purpose, like a search and " +
+      "the flagged list), and the rows of a folder carry plain ids, so a snooze " +
+      "given there hides the message nowhere, behind a notice that it is " +
+      "snoozed. Closing this means one rule for both shells: the note keyed by " +
+      "the row's origin (parseUnifiedId), or no snooze in the merged list. " +
+      "Written down on 2026-10-22; listed in the maintainer's open-items plan.",
+    mobile: "partial",
+    mobileReason:
+      "The phone keys the note the same way but filters the merged list by " +
+      "it: the row goes while the same mailbox and folder stand behind the " +
+      "list, comes back early once another folder was opened, is never snoozed " +
+      "in its own folder, and a conversation's rows are not filtered at all. " +
+      "Snooze is the only swipe such a row offers.",
+    verified: "2026-10-22",
   },
   {
     id: "note-copy-as-email",
@@ -778,7 +1054,7 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
   },
   {
     id: "editor-tabs",
-    title: "Tabs: closing one, reopening the last one closed",
+    title: "Tabs: closing one, reopening the last one closed, new notes in a new tab",
     area: "platform",
     kind: "decision",
     desktop: "yes",
@@ -788,8 +1064,11 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "them on a navigation stack: going back pops it (see system-back), and the " +
       "bottom bar switches between the main screens rather than between open notes. " +
       "With no strip there is no tab to close and no closed tab to bring back, so " +
-      "the phone's palette has no close-tab and no reopen-tab.",
-    verified: "2026-09-24",
+      "the phone's palette has no close-tab and no reopen-tab. The desktop's choice " +
+      "to open new notes in a new tab (issue 135) is what the phone always does: a " +
+      "new note is pushed as a screen of its own, and the one before stays a " +
+      "'back' away.",
+    verified: "2026-10-21",
   },
   {
     id: "external-change-watcher",
@@ -998,6 +1277,20 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "On iOS the app bar's arrow is THE way back, so it carries the full 44px " +
       "touch target. Both shells run through one pop path; only the trigger differs.",
     verified: "2026-09-03",
+  },
+  {
+    id: "window-bounds-restore",
+    title: "The main window comes back with its size, place and maximized state",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The phone has no window to size or place: the system shows the app full " +
+      "screen (or in the split the system offers on a tablet) and puts it back " +
+      "itself. On the desktop the main window keeps its last place across " +
+      "restarts (window_state.rs; issue 135, 2026-10-19).",
+    verified: "2026-10-21",
   },
   {
     id: "comment-card-actions-hover",

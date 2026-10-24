@@ -1,6 +1,6 @@
 [package]
 name = "plainva-desktop"
-version = "0.8.4"
+version = "0.8.6"
 description = "Plainva - a Markdown vault editor"
 authors = ["Plainva contributors"]
 edition = "2021"
@@ -49,9 +49,13 @@ tauri-plugin-http = { version = "^2", features = ["rustls-tls-native-roots"] }
 # native build, especially the secret-service/DBus path, before release.
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
 trash = "5.2.6"
-tauri-plugin-updater = "2.10.1"
+# Without the default `zip` feature: it only unpacks a zipped Windows installer
+# or a gzipped AppImage, and this app's updater artifacts are neither (raw
+# `.exe`/`.msi`/`.AppImage`; the macOS `.app.tar.gz` path does not depend on the
+# feature). The feature pulls `zip` 4, which carries RUSTSEC-2026-0367..0369.
+tauri-plugin-updater = { version = "2.10.1", default-features = false, features = ["rustls-tls", "system-proxy"] }
 tauri-plugin-process = "2.3.1"
-zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
+zip = { version = "9.0.1", default-features = false, features = ["deflate"] }
 walkdir = "2.5.0"
 # Direct reqwest for the OAuth token POST (oauth_token_request): a native HTTP client
 # sends NO Origin header, unlike the webview fetch (Azure AADSTS90023). tauri-plugin-http
@@ -123,6 +127,12 @@ windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Securit
 # The Unix socket's private folder (uid, the per-user temporary folder on macOS).
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+# Spell checking in WKWebView (issue #135, src/macos_spellcheck.rs): the
+# app's "Check Spelling While Typing" lives in its defaults. Already in the
+# lock file through tauri and wry; only the two classes are asked for.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSUserDefaults"] }
 
 [dev-dependencies]
 # The MCP server's connection tests run against Tauri's mock runtime.

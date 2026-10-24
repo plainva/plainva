@@ -195,6 +195,10 @@ describe("the section head counts what the section shows", () => {
     expect(propertySectionCounts("# Nur Text\n")).toEqual({ present: 0, shown: 0 });
     expect(propertySectionCounts(note(["plainva:", "  icon: x"])).present).toBe(0);
     expect(propertySectionCounts("---\n: : :\n---\n")).toEqual({ present: 0, shown: 0 });
+    // A block without entries has none — and the text behind it is not read
+    // for some, up to whatever rule it contains.
+    expect(propertySectionCounts("---\n---\n# Nur Text\n")).toEqual({ present: 0, shown: 0 });
+    expect(propertySectionCounts("---\n---\nstatus: draft\n\n---\n")).toEqual({ present: 0, shown: 0 });
   });
 
   it("a note that carries only a lifecycle key still has its section", () => {

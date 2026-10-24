@@ -30,6 +30,7 @@ import {
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
+import { templateVaultOf } from "../../services/dailyNotes";
 import { readJournalHeading, useJournalFiles } from "../../hooks/useJournal";
 import { applyIndexChanges, moveItems, reindexAfterRename, renameToName } from "../../services/fileActions";
 import { notifyFileOps } from "../../services/indexMdAutoUpdate";
@@ -198,6 +199,8 @@ export function useDesktopAi(input: DesktopAiInput) {
           dbPath: taskDb,
           title: read.title.trim() || text,
           noteType: await getConfiguredNoteType(root),
+          // The database's template is filled as for a task made by hand: {{vault}}, {{daily}} and the rest.
+          templateVault: await templateVaultOf(root),
           ...(read.due ? { dueDate: read.due, dueMinutes: read.minutes } : {}),
           tags: read.tags,
           priority: read.priority,
@@ -276,14 +279,16 @@ export function useDesktopAi(input: DesktopAiInput) {
         addJournal: (entry) => (writeHost.current ? writeHost.current.addJournal(entry) : Promise.reject(new Error("no vault"))),
         // A drafted e-mail opens in the window's own composer — the event every "write a mail" of the app sends —,
         // a drafted appointment in the calendar's event editor (plan P5-6). Nothing is sent or saved by either.
-        // Asked as a cancelable event: a composer that is open keeps its mail and says no, so nothing is lost unseen.
-        openMail: (mail, done) =>
+        // The composer takes it like every request to write a mail: a draft nobody changed gives way, and a changed
+        // one is asked about first (services/mail/composeHost.ts). Kept, the drafted mail stays in the list.
+        openMail: (mail, done) => {
           window.dispatchEvent(
             new CustomEvent("plainva-compose-mail", {
-              cancelable: true,
               detail: { subject: mail.subject, markdown: mail.body, to: mail.to.join(", "), cc: mail.cc.join(", "), bcc: mail.bcc.join(", "), onDone: done },
             }),
-          ),
+          );
+          return true;
+        },
         openEvent: (seed, saved) => {
           requestEventSeed(seed, saved);
           latest.current.openView(CALENDAR_TAB_PATH);

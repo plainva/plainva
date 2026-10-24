@@ -1,4 +1,4 @@
-import { bracketLinkMatcher, findInlineTags, nextWhere, readHtmlCheckbox, trimEndChars, wikiLinkMatcher } from "@plainva/core";
+import { bracketLinkMatcher, findInlineTags, markdownDestinationUrl, nextWhere, readHtmlCheckbox, trimEndChars, wikiLinkMatcher } from "@plainva/core";
 import { tagSegments } from "../base/propertyModel";
 import { splitLinkAnchor } from "./linkAnchor";
 import { tagColorAttrs } from "./tagColor";
@@ -21,12 +21,19 @@ export type InlineNode =
   | { kind: "code"; text: string }
   | { kind: "strong" | "em" | "strongEm" | "strike" | "highlight"; children: InlineNode[] }
   | { kind: "wikiLink"; target: string; display: string; anchor?: string }
-  | { kind: "link"; href: string; label: string; external: boolean }
+  /** `href` is the URL the link names; `written` its destination as it stands in the line - what a click hands on. */
+  | { kind: "link"; href: string; written: string; label: string; external: boolean }
   | { kind: "url"; href: string };
 
 export interface InlineLinkHandlers {
-  /** Open a note by wiki target / vault-relative path (newTab on Ctrl/Cmd). */
-  onOpenNote?: (target: string, newTab: boolean) => void;
+  /**
+   * Open a note by wiki target / vault-relative path (newTab on Ctrl/Cmd).
+   * `kind` says how the link was written: a wiki link names a note and is
+   * resolved by the link rule alone, a Markdown link names a path. `fromPath`
+   * is the note the link stands in, where the surface that draws it knows —
+   * the rule reads a link from that note's folder.
+   */
+  onOpenNote?: (target: string, newTab: boolean, kind?: "wiki" | "markdown", fromPath?: string) => void;
   /** Open an external http(s) URL in the system browser. */
   onOpenUrl?: (url: string) => void;
   /** Open the notes that carry a tag - a click on a tag pill (finding 2026-09-19). */
@@ -233,9 +240,13 @@ function parseRange(text: string, depth: number): InlineNode[] {
     } else if (/^!?\[/.test(tok)) {
       const lm = /^!?\[([^\]\n]*?)\]\(([^)\n]+?)\)$/.exec(tok);
       if (lm) {
-        const href = lm[2].trim().split(/\s+/)[0]; // strip optional "title"
+        // The URL without angle brackets and title - what the parser reads
+        // for the same link. Cutting at the first blank made `<My letter.md>`
+        // a link to `<My`.
+        const written = lm[2].trim();
+        const href = markdownDestinationUrl(written);
         const label = lm[1].trim() || href;
-        out.push({ kind: "link", href, label, external: /^https?:\/\//i.test(href) });
+        out.push({ kind: "link", href, written, label, external: /^https?:\/\//i.test(href) });
       } else {
         pushText(out, tok);
       }
@@ -274,9 +285,9 @@ function parseRange(text: string, depth: number): InlineNode[] {
 
 /** Clickable link element; swallows mousedown so host widgets (e.g. the
  *  table cell editor, which opens on mousedown) don't react to link clicks. */
-function makeLink(label: string, onActivate: (e: MouseEvent) => void): HTMLAnchorElement {
+function makeLink(label: string, onActivate: (e: MouseEvent) => void, wiki = false): HTMLAnchorElement {
   const a = document.createElement("a");
-  a.className = "cm-md-cell-link";
+  a.className = wiki ? "cm-md-cell-link pv-wiki-link" : "cm-md-cell-link";
   a.textContent = label;
   return wireActivation(a, onActivate);
 }
@@ -412,11 +423,12 @@ function appendInlineNodes(parent: Node, nodes: InlineNode[], handlers: InlineLi
         break;
       }
       case "wikiLink":
-        parent.appendChild(makeLink(n.display, (e) => handlers.onOpenNote?.(n.target, e.ctrlKey || e.metaKey)));
+        parent.appendChild(makeLink(n.display, (e) => handlers.onOpenNote?.(n.target, e.ctrlKey || e.metaKey, "wiki"), true));
         break;
       case "link":
         if (n.external) parent.appendChild(makeLink(n.label, () => handlers.onOpenUrl?.(n.href)));
-        else parent.appendChild(makeLink(n.label, (e) => handlers.onOpenNote?.(n.href, e.ctrlKey || e.metaKey)));
+        // A Markdown link into the vault is a link to a note (linkStyle.ts).
+        else parent.appendChild(makeLink(n.label, (e) => handlers.onOpenNote?.(n.written, e.ctrlKey || e.metaKey, "markdown"), true));
         break;
       case "url":
         parent.appendChild(makeLink(n.href, () => handlers.onOpenUrl?.(n.href)));

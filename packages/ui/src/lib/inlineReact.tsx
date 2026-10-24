@@ -9,8 +9,8 @@ import type { InlineNode } from "./inlineMarkdown";
  * written as `![alt](url)` is a link, so nothing loads until a person clicks.
  */
 export interface InlineReactHandlers {
-  /** Wiki target (or vault path) of a link the reader clicked. */
-  onOpenNote?: (target: string) => void;
+  /** Wiki target (or vault path) of a link the reader clicked, and how it was written: a wiki link names a note, a Markdown link a path. */
+  onOpenNote?: (target: string, kind?: "wiki" | "markdown") => void;
   /** External http(s) URL the reader clicked. */
   onOpenUrl?: (url: string) => void;
   /**
@@ -63,7 +63,7 @@ export function renderInlineNodes(nodes: InlineNode[], keyPrefix: string, handle
             data-wiki-target={node.target}
             onClick={(event) => {
               stop(event);
-              handlers.onOpenNote?.(node.target);
+              handlers.onOpenNote?.(node.target, "wiki");
             }}
           >
             {node.display}
@@ -78,7 +78,8 @@ export function renderInlineNodes(nodes: InlineNode[], keyPrefix: string, handle
             onClick={(event) => {
               stop(event);
               if (node.external) handlers.onOpenUrl?.(node.href);
-              else handlers.onOpenNote?.(node.href);
+              // What the line says, not the URL it was decoded to: the link rule reads the destination as written.
+              else handlers.onOpenNote?.(node.written, "markdown");
             }}
           >
             {node.label}

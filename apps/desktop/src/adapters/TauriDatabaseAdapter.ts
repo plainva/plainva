@@ -113,6 +113,16 @@ export class TauriDatabaseAdapter implements IDatabaseAdapter {
     return results.length > 0 ? results[0] : null;
   }
 
+  /**
+   * `transaction()` below takes nothing back (see there): what ran before a
+   * failure stays written, and so does every `runBatch` that got through.
+   * Said out loud so that a caller which reports what it wrote AFTER its
+   * transaction knows it has to speak when the transaction fails — the index
+   * does (`VaultIndexer.announceWhatStays`, finding 2026-10-12). The phone's
+   * adapter holds a real transaction and says nothing of the kind.
+   */
+  readonly keepsWhatAFailedTransactionWrote = true;
+
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
     const unlock = await this.acquireLock();
     try {

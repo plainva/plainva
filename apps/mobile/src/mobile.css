@@ -906,6 +906,16 @@ textarea {
    (sheets, wizards, forms): they are block flow and would collapse without it.
    Inside `.m-settings` the page carries the rhythm and the margin is cancelled
    there — see the rule next to `.m-settings`. */
+/* Appearance -> Links: the sentence that shows the device's link look as a
+   note draws it (LinkStylePreview, linkStyle.ts). */
+.m-link-preview {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-content);
+  font-size: var(--content-font-size, 16px);
+  line-height: 1.6;
+  color: var(--text-main);
+}
 .m-hint {
   margin: 0 0 var(--space-1);
   font-size: var(--text-sm, 0.85rem);
@@ -2461,6 +2471,11 @@ textarea {
   gap: var(--space-2);
   padding: 6px 8px 10px;
 }
+/* One more decision on a confirmation (`mConfirmOption`): a checkbox whose
+   sentence wraps, on the edge the sheet's title and buttons stand on. */
+.m-sheet-option {
+  padding: 0 var(--space-2);
+}
 .m-cell-commit {
   display: block;
   width: calc(100% - 16px);
@@ -3043,9 +3058,12 @@ textarea {
   color: var(--on-accent-container);
   font-size: var(--text-sm);
 }
-/* ISO week column (package I): the grid grows an extra narrow column. */
+/* ISO week column of the month (wish 2026-10-19): the grid grows an extra
+   narrow column when "Show week numbers" is on. */
 .m-cal-grid--weeks {
-  grid-template-columns: 24px repeat(7, 1fr);
+  /* minmax(0, …): a bar's title must not widen its columns - with the extra
+     column the week ran past the screen's edge. */
+  grid-template-columns: 20px repeat(7, minmax(0, 1fr));
 }
 .m-cal-week {
   align-self: center;
@@ -4232,6 +4250,19 @@ textarea {
    (device report B3) — every mobile mail client gives the sender the largest
    type and the body a line of its own. */
 .m-maillist { list-style: none; margin: 0; padding: 0; }
+
+/* A file on a message that is being written, and what is with it (design
+   language: "A file says what is with it"). The glyph carries the state — on
+   its way, did not come, stays behind — and the tone only repeats it: a row
+   that stays behind is quieter and its name is struck, one that did not come
+   speaks in the warning voice. Every file of the draft is this one row, so a
+   file that has arrived looks like one attached by hand — and a name from
+   somebody else's mail wraps instead of pushing the buttons off the row. */
+.m-mailfile .m-linestack > span { overflow-wrap: anywhere; }
+.m-mailfile--loading { color: var(--text-muted); }
+.m-mailfile--failed small { color: var(--warning-text); }
+.m-mailfile--left { color: var(--text-faint); }
+.m-mailfile--left .m-linestack > span { text-decoration: line-through; }
 .m-mailrow {
   display: flex;
   align-items: flex-start;
@@ -4888,6 +4919,9 @@ textarea {
 .m-note-chrome { flex: none; z-index: var(--z-m-bar); background: var(--surface); transition: transform var(--dur-2) var(--ease-effects); }
 .m-page--note[data-reader-overlay] > .m-note-chrome { position: absolute; top: 0; left: 0; right: 0; }
 .m-page--note[data-reader-overlay] .m-editor .cm-content { padding-top: calc(var(--m-reader-chrome-height, var(--m-docked-h)) + var(--space-3)); }
+/* The same bar covers the top of every scroll the editor makes: a heading
+   picked in the outline starts below it, not under it (lineJump.ts). */
+.m-page--note[data-reader-overlay] .m-editor .cm-scroller { --pv-editor-covered-top: var(--m-reader-chrome-height); }
 .m-note-chrome.is-away { transform: translateY(-100%); pointer-events: none; }
 .m-note-pencil { transition: transform var(--dur-2) var(--ease-effects), opacity var(--dur-2) var(--ease-effects); }
 .m-note-pencil.is-away { transform: translateY(calc(100% + 32px)); opacity: 0; pointer-events: none; }
@@ -4907,3 +4941,56 @@ textarea {
 /* The AI segment of the note's context: bounded, so its thread scrolls inside the sheet or the docked column. */
 .m-ai-segment { display: flex; flex-direction: column; height: 56vh; }
 .m-ai-segment > .pv-ai { flex: 1; min-height: 0; }
+/* Database entries and tasks in the day columns and the all-day strip
+   (TestFlight, build 125): notes, not appointments - a line with a mark, an
+   outline for a task with a due time, never the event fill. */
+.m-cal-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: 0 var(--space-1);
+  font-size: var(--text-xs);
+  background: var(--bg-primary);
+  color: var(--text-main);
+  text-align: left;
+  overflow: hidden;
+}
+.m-cal-note--timed {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  min-height: var(--space-5);
+}
+.m-cal-note--task {
+  border: 1.5px dashed var(--border-color);
+  border-radius: var(--radius-xs);
+}
+.m-cal-note-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.m-cal-note-title.is-done {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+.m-cal-note-box {
+  display: inline-flex;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-muted);
+}
+.m-cal-note-box[data-state="done"] {
+  color: var(--accent-color);
+}

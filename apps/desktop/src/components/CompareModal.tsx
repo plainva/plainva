@@ -11,7 +11,9 @@ import {
   Checkbox,
   ICON,
   Modal,
+  adoptedCopyText,
   compareStats,
+  comparesAsText,
   conflictCopyStamp,
   conflictOriginalPath,
   isImagePath,
@@ -23,7 +25,7 @@ import {
 import { MergeView } from "@codemirror/merge";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { VersionHistoryService, assertComparisonUnchanged, classifyTaskNotes, displacedTaskPath, separateTaskConflict, isTextLikePath, type FileVersion } from "@plainva/core";
+import { VersionHistoryService, assertComparisonUnchanged, classifyTaskNotes, displacedTaskPath, editorTextOf, fileVersionOfBytes, isNotTextFileError, seeConflictCopy, separateTaskConflict, settleConflictCopy, utf8TextOf, writeFileVersion, type ConflictCopySight, type FileVersion } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import { requestSaveFlush } from "../services/saveFlush";
 
@@ -107,7 +109,11 @@ export const CompareModal: React.FC<{
   const initialVersion = subject.kind === "version" ? subject.selectedBackupPath : undefined;
 
   const basename = path.split(/[/\\]/).pop() || path;
-  const isText = isTextLikePath(path);
+  // What the NAME says — the rule both shells' comparisons share, not a list
+  // of this surface's own (finding 2026-10-11): an image is shown as one, and
+  // whatever an editor or the sync takes for text is read as text. Whether a
+  // side IS text is asked of its bytes, where it is read: see `notText` below.
+  const isText = comparesAsText(path);
   const isImage = isImagePath(path);
 
   // Version history state.
@@ -124,6 +130,21 @@ export const CompareModal: React.FC<{
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /**
+   * A side of the comparison is no text by its bytes — an image, and just the
+   * same a `.csv` in Windows-1252 or a note in UTF-16 (finding 2026-10-11).
+   * There is nothing to lay side by side then, and nothing of such a file is
+   * shown: what a decoder makes of it is not the file. The exits stay, and go
+   * byte for byte. This used to end in an error line and three dead buttons —
+   * for the very copy the sync leaves beside such a file.
+   *
+   * Kept with the load it was found in (`revision`), and for the version it
+   * was found for: a reload, or another version, asks again.
+   */
+  const [unreadableAt, setUnreadableAt] = useState<number | null>(null);
+  const [unreadableVersion, setUnreadableVersion] = useState<string | null>(null);
+  /** What the byte-wise exits answer for: the bytes both files had when the comparison found nothing to show — in the load it was found in. */
+  const [sight, setSight] = useState<{ at: number; seen: ConflictCopySight } | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const mergeRef = useRef<MergeView | null>(null);
   const originalSnapshot = useRef<string | null>(null);
@@ -142,12 +163,15 @@ export const CompareModal: React.FC<{
   }, [onClose]);
 
   // The note's current text + modification time (the left side, both cases).
+  // Both sides are SHOWN the way an editor holds them (`editorTextOf`): line
+  // ends and a byte order mark are no difference between two versions. What is
+  // written comes from the snapshots, which are the files as they lie there.
   useEffect(() => {
     let alive = true;
     if (!vaultAdapter || orphan || !isText) return;
     vaultAdapter.exists(path).then(exists => exists ? vaultAdapter.readTextFile(path) : null)
-      .then(text => { if (alive) { originalSnapshot.current = text; setCurrentText(text === null ? (isConflict ? "" : null) : text.replace(/\r\n/g, "\n")); } })
-      .catch(e => { if (alive) setError(String(e)); });
+      .then(text => { if (alive) { originalSnapshot.current = text; setCurrentText(text === null ? (isConflict ? "" : null) : editorTextOf(text)); } })
+      .catch(e => { if (alive) { if (isNotTextFileError(e)) setUnreadableAt(revision); else setError(String(e)); } });
     vaultAdapter
       .getFileInfo(path)
       .then((info) => alive && setCurrentMtime(info.mtime))
@@ -160,15 +184,16 @@ export const CompareModal: React.FC<{
   // Conflict: the preserved copy (the right side).
   useEffect(() => {
     let alive = true;
-    if (!vaultAdapter || !conflictPath) return;
+    // A copy that is no text by its name is not put through a text reader.
+    if (!vaultAdapter || !conflictPath || !isText) return;
     vaultAdapter
       .readTextFile(conflictPath)
-      .then(text => { if (alive) { copySnapshot.current = text; setConflictText(text.replace(/\r\n/g, "\n")); } })
-      .catch((e) => alive && setError(e instanceof Error ? e.message : String(e)));
+      .then(text => { if (alive) { copySnapshot.current = text; setConflictText(editorTextOf(text)); } })
+      .catch((e) => { if (alive) { if (isNotTextFileError(e)) setUnreadableAt(revision); else setError(e instanceof Error ? e.message : String(e)); } });
     return () => {
       alive = false;
     };
-  }, [vaultAdapter, conflictPath, revision]);
+  }, [vaultAdapter, conflictPath, isText, revision]);
 
   // Version history: the list, once.
   useEffect(() => {
@@ -202,8 +227,13 @@ export const CompareModal: React.FC<{
       ? readWorkspaceRevision(selected.backupPath.slice("workspace:".length))
       : service!.readVersionBinary(selected.backupPath);
     if (isText) {
-      (workspaceHistory ? readBytes().then((bytes) => new TextDecoder("utf-8", { fatal: true }).decode(bytes)) : service!.readVersionText(selected.backupPath))
-        .then((text) => alive && setVersionText(text.replace(/\r\n/g, "\n")))
+      // The version's text, or null where its bytes are not UTF-8 — a snapshot
+      // of a file in another encoding is kept byte for byte and has no preview.
+      const backupPath = selected.backupPath;
+      (workspaceHistory
+        ? readBytes().then((bytes) => utf8TextOf(bytes))
+        : service!.readVersionText(backupPath).catch((e) => { if (isNotTextFileError(e)) return null; throw e; }))
+        .then((text) => { if (alive) { if (text === null) setUnreadableVersion(backupPath); else setVersionText(editorTextOf(text)); } })
         .catch((e) => alive && setError(e instanceof Error ? e.message : String(e)));
     } else if (isImage) {
       readBytes()
@@ -222,9 +252,31 @@ export const CompareModal: React.FC<{
 
   // The right side: the other version.
   const rightText = isConflict ? conflictText : versionText;
-  const differentTasks = isConflict && currentText !== null && conflictText !== null && classifyTaskNotes(currentText, conflictText) === "different";
-  const canDiff = isText && !orphan && currentText !== null && rightText !== null;
+  // Nothing to lay side by side (see `unreadableAt`): in a conflict when either
+  // file is no text, in the history when the note or the chosen version is not.
+  const notText = isConflict ? !isText || unreadableAt === revision : unreadableAt === revision || (selected !== null && unreadableVersion === selected.backupPath);
+  const differentTasks = !notText && isConflict && currentText !== null && conflictText !== null && classifyTaskNotes(currentText, conflictText) === "different";
+  const canDiff = isText && !notText && !orphan && currentText !== null && rightText !== null;
+  /** The exits of a conflict are there once it is known what the two files are: two texts, or two files whose bytes were seen. */
+  const sidesKnown = notText ? sight?.at === revision : rightText !== null;
   const diffMounted = isConflict ? canDiff : canDiff && showDiff;
+
+  // Nothing to show of a conflict: the bytes both files have now are what the
+  // byte-wise exits will answer for (`settleConflictCopy`).
+  useEffect(() => {
+    let alive = true;
+    if (!isConflict || !notText || !vaultAdapter || !conflictPath || !originalOfConflict) return;
+    seeConflictCopy(vaultAdapter, originalOfConflict, conflictPath)
+      .then((seen) => { if (alive) setSight({ at: revision, seen }); })
+      .catch((e) => {
+        if (!alive) return;
+        if (e instanceof Error && e.message === "comparisonChanged") setNotice(t("compare.comparisonChanged"));
+        else setError(e instanceof Error ? e.message : String(e));
+      });
+    return () => {
+      alive = false;
+    };
+  }, [isConflict, notText, vaultAdapter, conflictPath, originalOfConflict, revision, t]);
 
   // The comparison itself. Left = the note (a), right = the other version (b);
   // in a conflict the right side is editable with per-chunk arrows from the
@@ -276,10 +328,12 @@ export const CompareModal: React.FC<{
   const conflictStamp = useMemo(() => (conflictPath ? conflictCopyStamp(conflictPath) : null), [conflictPath]);
 
   const finishRestore = async (targetPath: string, size: number) => {
-    if (isTextLikePath(targetPath) && vaultAdapter) {
-      // Hand the restored content to any open editor, bypassing its dirty guard.
-      const text = await vaultAdapter.readTextFile(targetPath);
-      window.dispatchEvent(new CustomEvent("plainva-file-restored", { detail: { path: targetPath, content: text.replace(/\r\n/g, "\n") } }));
+    if (comparesAsText(targetPath) && vaultAdapter) {
+      // Hand the restored content to any open editor, bypassing its dirty
+      // guard. A version that is no text by its bytes has none to hand over:
+      // the editor hears of the file all the same, and shows what it is now.
+      const text = await vaultAdapter.readTextFile(targetPath).catch((e) => { if (isNotTextFileError(e)) return null; throw e; });
+      window.dispatchEvent(new CustomEvent("plainva-file-restored", { detail: { path: targetPath, ...(text === null ? {} : { content: editorTextOf(text) }) } }));
     }
     await indexer?.indexFile({
       path: targetPath,
@@ -311,8 +365,10 @@ export const CompareModal: React.FC<{
       if (workspaceHistory) {
         const bytes = await readWorkspaceRevision(selected.backupPath.slice("workspace:".length));
         if (!orphan) await backupAdapter?.forceBackup(path);
-        if (isTextLikePath(path)) await vaultAdapter.writeTextFile(path, new TextDecoder("utf-8", { fatal: true }).decode(bytes));
-        else await vaultAdapter.writeBinaryFile(path, bytes);
+        // The version as it was, mark included: a plain decoder drops the mark,
+        // and the restored file came back without the one it had. As text
+        // where it is text, byte for byte where not (`writeFileVersion`).
+        await writeFileVersion(vaultAdapter, path, fileVersionOfBytes(bytes));
       } else await service!.restoreVersion({
           backupPath: selected.backupPath,
           targetPath: path,
@@ -346,8 +402,7 @@ export const CompareModal: React.FC<{
     try {
       if (workspaceHistory) {
         const bytes = await readWorkspaceRevision(selected.backupPath.slice("workspace:".length));
-        if (isTextLikePath(candidate)) await vaultAdapter.writeTextFile(candidate, new TextDecoder("utf-8", { fatal: true }).decode(bytes));
-        else await vaultAdapter.writeBinaryFile(candidate, bytes);
+        await writeFileVersion(vaultAdapter, candidate, fileVersionOfBytes(bytes));
       } else await service!.restoreVersion({ backupPath: selected.backupPath, targetPath: candidate, writeAdapter: vaultAdapter });
       await finishRestore(candidate, selected.size);
       setNotice(t("versions.copyCreated", { path: candidate }));
@@ -361,13 +416,16 @@ export const CompareModal: React.FC<{
   // ---- conflict exits -------------------------------------------------------
 
   const resolve = async (work: () => Promise<ConflictOutcome>) => {
-    if (resolving.current || !vaultAdapter || !conflictPath || !originalOfConflict || copySnapshot.current === null) return;
+    if (resolving.current || !vaultAdapter || !conflictPath || !originalOfConflict || (!notText && copySnapshot.current === null)) return;
     resolving.current = true;
     setBusy(true);
     try {
       await requestSaveFlush(originalOfConflict);
       await requestSaveFlush(conflictPath);
-      await assertComparisonUnchanged(vaultAdapter, originalOfConflict, originalSnapshot.current, conflictPath, copySnapshot.current);
+      // Where two texts were compared, the confirmation holds for exactly
+      // those. Where nothing could be shown (`notText`), it holds for the
+      // bytes that were seen — the byte-wise exits ask that themselves.
+      if (!notText) await assertComparisonUnchanged(vaultAdapter, originalOfConflict, originalSnapshot.current, conflictPath, copySnapshot.current!);
       const outcome = await work();
       onResolved?.(outcome);
     } catch (e) {
@@ -377,10 +435,87 @@ export const CompareModal: React.FC<{
     } finally { resolving.current = false; }
   };
 
+  /**
+   * The three exits where nothing could be laid side by side (`notText`) — the
+   * same three, byte for byte, through the one way both shells settle such a
+   * copy (`settleConflictCopy`): the copy takes the file's place as it lies
+   * there, becomes a file of its own, or goes. None of them reads a file as
+   * text, so none can write a reading of it; an open conflict ends through
+   * its own gate; and nothing happens where a file changed since it was seen.
+   */
+  /**
+   * The editor of the file in this window hears of a byte-wise answer, as of a
+   * restored version: it shows the file as what it is now, and lets go of a
+   * working copy that is gone — it held that copy's text, and its next save
+   * kept the text it had just been told to let go once more.
+   */
+  const tellEditorOf = (target: string) => {
+    window.dispatchEvent(new CustomEvent("plainva-file-restored", { detail: { path: target } }));
+  };
+  const adoptBytes = async () => {
+    if (!vaultAdapter || !conflictPath || !originalOfConflict || sight?.at !== revision) return;
+    const { seen } = sight;
+    const ok = await appConfirm({
+      title: t("compare.adoptTitle"),
+      message: t("compare.replaceMessage", { source: conflictPath, target: originalOfConflict }),
+      kind: "warning",
+      confirmLabel: t("compare.replaceConfirm"),
+    });
+    if (!ok) return;
+    await resolve(async () => {
+      // What the copy replaces stays in the version history, whatever the
+      // snapshot interval says: this write means to take a file's place.
+      if (await vaultAdapter.exists(originalOfConflict)) await backupAdapter?.forceBackup(originalOfConflict);
+      await settleConflictCopy(vaultAdapter, originalOfConflict, conflictPath, seen, { disposition: "adopt" });
+      tellEditorOf(originalOfConflict);
+      toast.success(t("compare.resolvedAdopted"));
+      return { originalPath: originalOfConflict, conflictPath, forkId, kind: "adopted", mergedContent: null, touched: [originalOfConflict, conflictPath] };
+    });
+  };
+  const keepBothBytes = async () => {
+    if (!vaultAdapter || !conflictPath || !originalOfConflict || sight?.at !== revision) return;
+    const { seen } = sight;
+    const candidate = await versionCopyPath(originalOfConflict, conflictStamp ?? new Date(), (p) => vaultAdapter.exists(p));
+    const ok = await appConfirm({
+      title: t("compare.keepBothTitle"),
+      message: t("compare.keepBothPaths", { original: originalOfConflict, copy: candidate }),
+      kind: "info",
+      confirmLabel: t("compare.keepBoth"),
+    });
+    if (!ok) return;
+    await resolve(async () => {
+      await settleConflictCopy(vaultAdapter, originalOfConflict, conflictPath, seen, { disposition: "discard", keepCopyAs: candidate });
+      tellEditorOf(originalOfConflict);
+      toast.success(t("compare.resolvedKeptBoth", { name: candidate }));
+      return { originalPath: originalOfConflict, conflictPath, forkId, kind: "keptBoth", mergedContent: null, touched: [conflictPath, candidate] };
+    });
+  };
+  const discardBytes = async () => {
+    if (!vaultAdapter || !conflictPath || !originalOfConflict || sight?.at !== revision) return;
+    const { seen } = sight;
+    const ok = await appConfirm({
+      title: t("compare.discardTitle"),
+      message: t("compare.discardPaths", { source: conflictPath, target: originalOfConflict }),
+      kind: "danger",
+      confirmLabel: t("compare.discardCopy"),
+    });
+    if (!ok) return;
+    await resolve(async () => {
+      await settleConflictCopy(vaultAdapter, originalOfConflict, conflictPath, seen, { disposition: "discard" });
+      tellEditorOf(originalOfConflict);
+      toast.success(t("compare.resolvedDiscarded"));
+      return { originalPath: originalOfConflict, conflictPath, forkId, kind: "discarded", mergedContent: null, touched: [conflictPath] };
+    });
+  };
+
   /** Take the right side into the note — the copy as it is, or as merged. */
   const adoptRight = async () => {
-    if (!vaultAdapter || !conflictPath || !originalOfConflict || differentTasks) return;
-    const merged = mergeRef.current ? mergeRef.current.b.state.doc.toString() : conflictText ?? "";
+    if (notText) return adoptBytes();
+    if (!vaultAdapter || !conflictPath || !originalOfConflict || differentTasks || copySnapshot.current === null) return;
+    // What takes the note's place: the copy as it lies there, or the reader's
+    // text in the copy's shape — never the text of the comparison as it
+    // stands, which has neither the copy's line ends nor its mark.
+    const merged = adoptedCopyText(copySnapshot.current, mergeRef.current ? mergeRef.current.b.state.doc.toString() : conflictText ?? "");
     const ok = await appConfirm({
       title: rightEdited ? t("compare.mergeTitle") : t("compare.adoptTitle"),
       message: rightEdited
@@ -408,6 +543,7 @@ export const CompareModal: React.FC<{
 
   /** The note stays; the copy becomes a plain sibling named by its time. */
   const keepBoth = async () => {
+    if (notText) return keepBothBytes();
     if (!vaultAdapter || !conflictPath || !originalOfConflict) return;
     const candidate = differentTasks ? await displacedTaskPath(vaultAdapter, originalOfConflict, copySnapshot.current!) : await versionCopyPath(originalOfConflict, conflictStamp ?? new Date(), (p) => vaultAdapter.exists(p));
     const ok = await appConfirm({
@@ -430,6 +566,7 @@ export const CompareModal: React.FC<{
 
   /** The note stays; the copy is deleted (a snapshot of it remains). */
   const discardCopy = async () => {
+    if (notText) return discardBytes();
     if (!vaultAdapter || !conflictPath || !originalOfConflict || differentTasks) return;
     const ok = await appConfirm({
       title: t("compare.discardTitle"),
@@ -499,8 +636,14 @@ export const CompareModal: React.FC<{
           <img src={imageUrl} alt={basename} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
         </div>
       ) : !isConflict && selected ? (
-        <div style={{ padding: "1rem", color: "var(--text-muted)", fontSize: "var(--text-md)" }}>
-          {t("versions.binaryNoPreview")} ({formatBytes(selected.size)})
+        // No preview: an image format the viewer does not have, any other kind
+        // of bytes — and a version whose name says text and whose bytes do not.
+        <div data-testid="version-no-preview" style={{ padding: "1rem", color: "var(--text-muted)", fontSize: "var(--text-md)" }}>
+          {t(unreadableVersion === selected.backupPath ? "editor.notTextBody" : "versions.binaryNoPreview")} ({formatBytes(selected.size)})
+        </div>
+      ) : isConflict && notText ? (
+        <div data-testid="compare-not-text" style={{ padding: "var(--space-4)", color: "var(--text-muted)", fontSize: "var(--text-md)" }}>
+          {t(isText ? "editor.notTextBody" : "versions.binaryNoPreview")}
         </div>
       ) : isConflict && (currentText === null || rightText === null) && !error ? (
         <div style={{ padding: "1rem", color: "var(--text-muted)", fontSize: "var(--text-md)" }}>{t("versions.loading")}</div>
@@ -514,9 +657,9 @@ export const CompareModal: React.FC<{
       {isConflict ? (
         <>
           <Button size="sm" variant="ghost" onClick={onClose} disabled={busy}>{t("compare.later")}</Button>
-          {!differentTasks && <Button size="sm" variant="secondary" data-testid="compare-discard" onClick={() => { void discardCopy(); }} disabled={busy || rightText === null}>{t("compare.discardCopy")}</Button>}
-          <Button size="sm" variant={differentTasks ? "primary" : "secondary"} data-testid="compare-keep-both" onClick={() => { void keepBoth(); }} disabled={busy || rightText === null}>{t(differentTasks ? "compare.keepSeparateTasks" : "compare.keepBoth")}</Button>
-          {!differentTasks && <Button size="sm" variant="primary" data-testid="compare-adopt" onClick={() => { void adoptRight(); }} disabled={busy || rightText === null}>
+          {!differentTasks && <Button size="sm" variant="secondary" data-testid="compare-discard" onClick={() => { void discardCopy(); }} disabled={busy || !sidesKnown}>{t("compare.discardCopy")}</Button>}
+          <Button size="sm" variant={differentTasks ? "primary" : "secondary"} data-testid="compare-keep-both" onClick={() => { void keepBoth(); }} disabled={busy || !sidesKnown}>{t(differentTasks ? "compare.keepSeparateTasks" : "compare.keepBoth")}</Button>
+          {!differentTasks && <Button size="sm" variant="primary" data-testid="compare-adopt" onClick={() => { void adoptRight(); }} disabled={busy || !sidesKnown}>
             {rightEdited ? t("compare.applyMerge") : t("compare.adoptCopy")}
           </Button>}
         </>
@@ -615,7 +758,7 @@ export const CompareModal: React.FC<{
                 {error || notice}
               </div>
             )}
-            {isConflict && !differentTasks && (
+            {isConflict && !differentTasks && !notText && (
               <div style={{ padding: "0.3rem 0.9rem", fontSize: "var(--text-sm)", color: "var(--text-faint)", flexShrink: 0 }}>{t("compare.mergeHint")}</div>
             )}
             {content}

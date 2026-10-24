@@ -4,6 +4,7 @@ import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
 import { getSettingsStore } from "../services/settingsStore";
+import { templateVaultOf } from "../services/dailyNotes";
 import { attachmentFolderKey, commentAnchorsKey, commentColumnKey, commentInlineKey, taskDatabaseKey, useVault } from "../contexts/VaultContext";
 import { useTranslation } from "react-i18next";
 import { CustomDatePicker } from "./DatePicker";
@@ -22,16 +23,17 @@ import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
-import { applyTextShape, isVaultPathLink, looksBinary, planRelativeLinkOpen, readTextShape, resolveOpenAction, resolveRelativeTarget, type LinkKind } from "@plainva/ui";
-import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor } from "@plainva/ui";
+import { applyTextShape, editorTextOf, inShapeOf, keepTextBeside, newestConflictCopy, openEditorText, resolveOpenAction, type KeptText, type LinkKind } from "@plainva/ui";
+import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, jumpToLineTop, selectAndCenter, resolveAnchor } from "@plainva/ui";
+import { openLink } from "../services/openLink";
 import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext } from "@plainva/ui";
 import { answerEditorPathProbe } from "@plainva/ui";
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
-import { docIconValue } from "@plainva/ui";
+import { docIconValue, editedNoteProperties, withNoteColor, withNoteIcon } from "@plainva/ui";
 import { ColorPopover } from "./ColorPopover";
 import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, insertAnchorMarkers, removeAnchorMarkers, wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState } from "@plainva/core";
+import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, insertAnchorMarkers, removeAnchorMarkers, wikiTargetForPath, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
@@ -58,6 +60,7 @@ import { applyIndexChanges, duplicateFile, promptRenameFile } from "../services/
 import { retargetDesktopBookmarks } from "../services/bookmarks";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { getTemplateFolder } from "../services/newItemFlow";
+import { getConfiguredNoteType } from "../services/newNote";
 import { TemplateTargetsModal } from "./TemplateTargetsModal";
 import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } from "../services/viewModeDefault";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
@@ -67,15 +70,15 @@ import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, Select
 import { BlockMenu } from "./BlockMenu";
 import { applyBlockAction, performBlockMove, type BlockAction } from "@plainva/ui";
 import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
-import { consumePendingSearchJump, consumePendingTemplateCaret, resolveSearchJump, findSourceTextRange, type SearchJump, findTextRange, selectAndRevealRange } from "@plainva/ui";
+import { consumePendingSearchJump, takeTemplateCaret, resolveSearchJump, findSourceTextRange, type SearchJump, findTextRange, selectAndRevealRange } from "@plainva/ui";
 import { setHtmlCheckboxChecked, toggleTaskAtIndex } from "@plainva/ui";
 import { decideDirtyExternalUpdate } from "@plainva/ui";
-import { setWikiResolver } from "@plainva/ui";
+import { setWikiResolver, type WikiTargetSet } from "@plainva/ui";
 import { parkTreeReveal } from "@plainva/ui";
 import { imageMimeType } from "@plainva/ui";
 import { openContextMenu } from "../services/contextMenuStore";
 import { pendingWriteFor, withPendingWrite, waitForPendingWrites } from "../services/pendingWrites";
-import { mergeEditorText, containsTextChanges, readIndexedIdentity, type MissingFileOutcome } from "@plainva/core";
+import { frontmatterSpan, isNotTextFileError, mergeEditorText, containsTextChanges, readIndexedIdentity, type MissingFileOutcome } from "@plainva/core";
 import { EditorSaveLifetime } from "../services/editorSaveLifetime";
 import { propertyCommentStore } from "../services/propertyComments";
 import { editorCommandTarget } from "../services/editorCommandTarget";
@@ -485,7 +488,11 @@ export const Editor: React.FC<{
     if (!ok) return;
     try {
       const stripped = stripPlainvaIndexMarker(content);
-      await vaultAdapter.writeTextFile(activePath, stripped);
+      // `content` is what the editor holds; the overview leaves in the shape
+      // its file has, as on the phone (`saveEditorText` there). It used to be
+      // written as it stood — `\n` throughout, and without the file's mark
+      // (finding 2026-10-09).
+      await vaultAdapter.writeTextFile(activePath, inShapeOf(await vaultAdapter.readTextFile(activePath), stripped));
       setContent(stripped);
       setViewMode('live');
       rememberSessionViewMode(activePath, 'live');
@@ -749,6 +756,11 @@ export const Editor: React.FC<{
    * shown as text at all — the system app gets the offer instead.
    */
   const [notText, setNotText] = useState(false);
+  /** The same, for the listener that hears of a change to the file. */
+  const notTextRef = useRef(false);
+  useEffect(() => { notTextRef.current = notText; }, [notText]);
+  /** What a load that ends in "not text" looks up beside the file (filled further down, after the load). */
+  const lookBesideRef = useRef<(path: string, alive: () => boolean) => void>(() => {});
   const [conflictInfo, setConflictInfo] = useState<{ conflictPath: string; working?: boolean; foreignCopySnapshot?: string | null } | null>(null);
   // Crash/draft recovery (P2.4): a journal snapshot survived that never made
   // it to disk — offered in a banner, applied only on explicit user action.
@@ -763,7 +775,7 @@ export const Editor: React.FC<{
   // into the CM view via a StateEffect; the ref lets the session-creation
   // effect seed a freshly created view without re-running on every resolver bump.
   const wikiResolver = useWikiResolver();
-  const wikiResolverRef = useRef<Set<string> | null>(null);
+  const wikiResolverRef = useRef<WikiTargetSet | null>(null);
   useEffect(() => {
     wikiResolverRef.current = wikiResolver;
     const view = sessionRef.current?.view;
@@ -774,15 +786,6 @@ export const Editor: React.FC<{
   // prevents mounting a session with the PREVIOUS file's text during a switch.
   const contentRef = useRef<string>("");
   const loadedPathRef = useRef<string | null>(null);
-  /**
-   * The shape a foreign text file arrived in (C15, S13).
-   *
-   * Notes are UTF-8/LF by house rule and keep being normalised on load. A
-   * `.ini` from Windows or a `.csv` carrying the BOM Excel wants is not ours:
-   * saving it back as LF would rewrite every line in the file — one edit, a
-   * whole-file diff, and for a `.bat` a change in what the file DOES. Null for
-   * anything that is not opened as text.
-   */
   // Scroll container around the read view / editor. Used to scope outline
   // navigation to this pane's read view instead of a document-wide id lookup
   // (which would hit the first/left pane in a split — #4).
@@ -811,23 +814,43 @@ export const Editor: React.FC<{
     }).catch((error) => { console.error("Could not journal the pending note save", error); });
     await withPendingWrite(draftVault, path, async () => {
       await journal;
-      if (revAtSave < saveState.savedRevision || revAtSave <= saveState.discardedRevision) return;
+      if (revAtSave < saveState.savedRevision || revAtSave <= saveState.discardedRevision) {
+        // Behind what was saved, or given up — adopted from the disk, kept
+        // beside a file that is no text —: the snapshot just journaled for it
+        // is obsolete as well. Left there, it was offered or kept once more.
+        if (draftVault) {
+          const { clearDraft } = await import("../services/draftJournal");
+          await clearDraft(draftVault, path, revAtSave, saveState.id);
+        }
+        return;
+      }
       saveState.update({ activeWrites: saveState.activeWrites + 1 });
       if (current()) { setIsSaving(true); setSaveError(null); }
       try {
-        const normalize = (text: string) => shape ? readTextShape(text).text : text.replace(/\r\n/g, "\n");
-        const disk = normalize(await vaultAdapter.readTextFile(path));
         const base = saveState.baseInput;
+        // Nothing to write: the editor holds what the file last said — the
+        // suggestion mode put its base back, or an edit was taken back before
+        // the save came. Writing it anyway cost a version and an upload for
+        // nothing, and a note that arrived with `\r\n` every one of its line
+        // ends, for an edit that never happened (finding 2026-10-08; the
+        // phone's saver has the same guard). A file that changed elsewhere
+        // meanwhile is the external update's business.
+        const unchanged = base !== null && val === base && val === saveState.persisted;
         let candidate = val;
         let conflictSession: import("@plainva/core").ConflictEditSession | null = null;
         let confirmed: string;
-        if (vaultAdapter.writeEditorText) {
+        if (unchanged) {
+          confirmed = val;
+        } else if (vaultAdapter.writeEditorText) {
           const result = await vaultAdapter.writeEditorText(path, shape ? applyTextShape(val, shape) : val,
             base === null ? null : shape ? applyTextShape(base, shape) : base);
           conflictSession = result.session;
-          confirmed = normalize(result.stored);
+          confirmed = editorTextOf(result.stored);
           if (current()) setConflictInfo(conflictSession ? { conflictPath: conflictSession.workingCopyPath, working: true, foreignCopySnapshot: conflictSession.foreignCopySnapshot } : null);
         } else {
+        // Whatever comes from disk is compared in the editor's text (ONE text
+        // space, see the core's textFileShape.ts).
+        const disk = editorTextOf(await vaultAdapter.readTextFile(path));
         // A pull may already have advanced the sync index. The editor's own
         // base still identifies changes it has not incorporated into its buffer.
         if (base !== null && disk !== base && disk !== val) {
@@ -838,13 +861,16 @@ export const Editor: React.FC<{
           candidate = merged.mergedText;
         }
         await vaultAdapter.writeTextFile(path, shape ? applyTextShape(candidate, shape) : candidate);
-        confirmed = normalize(await vaultAdapter.readTextFile(path));
+        confirmed = editorTextOf(await vaultAdapter.readTextFile(path));
         if (!containsTextChanges(disk, candidate, confirmed)) throw new Error("The saved note could not be confirmed");
         }
         const stored = confirmed;
         saveState.update({ baseInput: val });
         saveState.update({ savedRevision: revAtSave });
         saveState.update({ persisted: stored });
+        // The file took this text: a copy kept beside it before holds another
+        // text, and is never written into again.
+        if (!unchanged) saveState.update({ kept: null });
         const sameRevision = saveState.revision === revAtSave;
         if (sameRevision) dirtyStore.set(path, false, saveState.id);
         if (current() && sameRevision) {
@@ -857,7 +883,8 @@ export const Editor: React.FC<{
             saveState.update({ baseInput: stored });
             saveState.update({ dirty: false });
             dirtyStore.set(path, false, saveState.id);
-            if (!conflictSession) setConflictInfo(null);
+            // Nothing was written, so nothing was learnt about a conflict.
+            if (!conflictSession && !unchanged) setConflictInfo(null);
           }
         }
         if (draftVault) {
@@ -869,6 +896,8 @@ export const Editor: React.FC<{
             saveState.update({ recoveredDraft: null });
           }
         }
+        // No file was touched: no index to refresh, and no "saved" to announce.
+        if (unchanged) return;
         // The note is committed even if refreshing its derived index fails.
         try {
           if (indexer) {
@@ -882,6 +911,72 @@ export const Editor: React.FC<{
           window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path, vaultPath: draftVault } }));
         } catch (error) { console.error("Could not refresh the saved note index", error); }
       } catch (error) {
+        // The file turned into no text while this editor held changes —
+        // another program saved it in another encoding, or a pull brought such
+        // a version (finding 2026-10-11). Nothing is written over it. The text
+        // is kept beside it as a conflict copy, the way a conflict keeps one,
+        // and the editor shows the file as what it is now; the comparison
+        // offers to take the copy in its place. (The phone's saver does the
+        // same.)
+        if (isNotTextFileError(error)) {
+          // What is still scheduled for this revision goes, as when the buffer
+          // adopts the disk: a save timer that fired after the next load kept
+          // the same text once more, or wrote it over a version that is text
+          // again. The timers are the pane's: once it shows another file,
+          // they are that file's.
+          if (current() && saveState.revision === revAtSave) {
+            if (saveTimeoutRef.current !== null) { window.clearTimeout(saveTimeoutRef.current); saveTimeoutRef.current = null; }
+            if (draftTimerRef.current !== null) { window.clearTimeout(draftTimerRef.current); draftTimerRef.current = null; }
+          }
+          const earlier = saveState.kept;
+          let kept: KeptText;
+          try {
+            kept = await keepTextBeside(vaultAdapter, path, shape ? applyTextShape(val, shape) : val, earlier);
+          } catch (keepError) {
+            // Not even beside it: the text stays in the editor and its journal,
+            // and the failed save says why the file did not take it.
+            console.error("Could not keep the unsaved text beside the file", keepError);
+            if (current()) setSaveError(t("editor.notTextTitle"));
+            throw error;
+          }
+          // Typing that goes on is kept into the same copy (`keepTextBeside`).
+          saveState.update({ kept });
+          // This revision is done with; a save of it still under way gives up
+          // and drops its journal entry (above).
+          saveState.update({ savedRevision: revAtSave });
+          saveState.update({ discardedRevision: Math.max(saveState.discardedRevision, revAtSave) });
+          const sameRevision = saveState.revision === revAtSave;
+          if (sameRevision) {
+            saveState.update({ dirty: false });
+            dirtyStore.set(path, false, saveState.id);
+          }
+          if (draftVault) {
+            const { clearDraft } = await import("../services/draftJournal");
+            await clearDraft(draftVault, path, revAtSave, saveState.id);
+            // A draft restored from the journal is in this text now, as on a save.
+            const recovered = saveState.recoveredDraft;
+            if (recovered && sameRevision) {
+              await clearDraft(draftVault, path, recovered.revision, recovered.sessionId);
+              saveState.update({ recoveredDraft: null });
+            }
+          }
+          triggerFileTreeUpdate([kept.copy]);
+          // Said wherever the editor went meanwhile — once per copy.
+          if (kept.copy !== earlier?.copy) toast.warning(t("dialogs.conflictSavedMsg", { path: kept.copy }));
+          if (current()) {
+            setSaveError(null);
+            setConflictInfo({ conflictPath: kept.copy });
+            // Typing that came after this revision — also while the journal
+            // entry was cleared just now — is the next save's: it is kept the
+            // same way. Otherwise nothing is left to save here.
+            if (saveState.revision === revAtSave) {
+              loadedPathRef.current = null;
+              setNotText(true);
+              setContent("");
+            }
+          }
+          return;
+        }
         const e = error as Error & { conflictPath?: string };
         console.error("Failed to save file", error);
         if (current()) {
@@ -918,6 +1013,11 @@ export const Editor: React.FC<{
       const draftPath = activePath;
       draftTimerRef.current = window.setTimeout(() => {
         draftTimerRef.current = null;
+        // A save that covered this revision first — Ctrl+S, a closed tab —
+        // has cleared its entry already. Journalled now, the entry stayed for
+        // days with a text the file has; and where the file has turned into
+        // no text by the next run, nobody can tell it from unsaved typing.
+        if (rev <= saveState.savedRevision || rev <= saveState.discardedRevision) return;
         const text = getText();
         void import("../services/draftJournal")
           .then(({ recordDraft }) => recordDraft(draftVault, draftPath, text, rev, saveState.id))
@@ -1038,42 +1138,29 @@ export const Editor: React.FC<{
   // Frontmatter edits from the properties panel. The CURRENT text comes from
   // the view (the source of truth while an editor is mounted) — the `content`
   // state may lag behind by the E3 debounce and would yield stale offsets.
+  //
+  // Only what stands in front of the note's text is exchanged: the properties
+  // block, and with it a byte order mark the note starts with. A block that got
+  // its first entry, lost its last one or merely changed is one and the same
+  // step — and the empty block `---` on `---` is a block here like anywhere
+  // else: it used to count as none, so the next entry landed in a second block
+  // on top of it.
   const handlePropertiesChange = (newContent: string) => {
     const view = sessionRef.current?.view;
     if (view) {
       const current = view.state.doc.toString();
-      const fmRegex = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
-      const oldMatch = current.match(fmRegex);
-      const newMatch = newContent.match(fmRegex);
+      const oldBlock = frontmatterSpan(current);
+      const newBlock = frontmatterSpan(newContent);
+      const headEnd = (text: string, block: typeof oldBlock) => block?.end ?? (text.charCodeAt(0) === 0xfeff ? 1 : 0);
 
       if (current.trim() === "") {
         view.dispatch({
           changes: { from: 0, to: view.state.doc.length, insert: newContent },
           selection: { anchor: newContent.length }
         });
-      } else if (oldMatch && newMatch) {
+      } else if (oldBlock || newBlock) {
         view.dispatch({
-          changes: {
-            from: 0,
-            to: oldMatch[0].replace(/\r\n/g, '\n').length,
-            insert: newMatch[0]
-          }
-        });
-      } else if (!oldMatch && newMatch) {
-        view.dispatch({
-          changes: {
-            from: 0,
-            to: 0,
-            insert: newMatch[0]
-          }
-        });
-      } else if (oldMatch && !newMatch) {
-        view.dispatch({
-          changes: {
-            from: 0,
-            to: oldMatch[0].replace(/\r\n/g, '\n').length,
-            insert: ""
-          }
+          changes: { from: 0, to: headEnd(current, oldBlock), insert: newContent.slice(0, headEnd(newContent, newBlock)) }
         });
       } else {
         view.dispatch({
@@ -1093,8 +1180,13 @@ export const Editor: React.FC<{
     // channel (a floating peek) always publishes — it drives its own inline
     // Properties, independent of pane focus.
     if (ownsGlobalStats && !isActivePane) return;
-    channel.set({ path: activePath, content: activePath ? content : "", kind: activePath ? "markdown" : "none" });
-  }, [activePath, content, isActivePane, channel, ownsGlobalStats]);
+    // A file shown as "not text" is no document to count, to read properties
+    // of or to write them into (finding 2026-10-11): the status bar named it
+    // UTF-8, and the Properties column wrote into it — which only keeps one
+    // more copy beside it.
+    const isDocument = !!activePath && !notText;
+    channel.set({ path: activePath, content: isDocument ? content : "", kind: isDocument ? "markdown" : "none" });
+  }, [activePath, content, notText, isActivePane, channel, ownsGlobalStats]);
   // Register a stable wrapper so the channel doesn't need re-registration on
   // every render (handlePropertiesChange is a fresh closure each time).
   const handlePropertiesChangeRef = useRef(handlePropertiesChange);
@@ -1149,36 +1241,14 @@ export const Editor: React.FC<{
   // `content` state (used in read mode) may lag by the E3 sync debounce.
   const currentText = () => sessionRef.current?.view.state.doc.toString() ?? content;
 
-  const applyPlainvaValue = (key: "icon" | "header_color", value: string | null) => {
-    try {
-      const base = currentText();
-      const next =
-        value === null
-          ? deleteFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, key])
-          : setFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, key], value);
-      if (next !== base) handlePropertiesChange(next);
-    } catch (e) {
-      console.warn("[Editor] updating plainva frontmatter failed", e);
-    }
-  };
-
-  // Icon + tint are written together: emoji picks clear a stale tint, icon-set
-  // picks ("lucide:<name>") persist their color in plainva.icon_color.
-  const applyDocIcon = (value: string | null, color: string | null) => {
-    try {
-      const base = currentText();
-      let next =
-        value === null
-          ? deleteFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "icon"])
-          : setFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "icon"], value);
-      next =
-        color === null
-          ? deleteFrontmatterPath(next, [PLAINVA_NAMESPACE_KEY, "icon_color"])
-          : setFrontmatterPath(next, [PLAINVA_NAMESPACE_KEY, "icon_color"], color);
-      if (next !== base) handlePropertiesChange(next);
-    } catch (e) {
-      console.warn("[Editor] updating plainva icon failed", e);
-    }
+  // The note's icon and colour: written into the text this editor holds, by
+  // the shared rules (`withNoteIcon`, `withNoteColor`) the phone's editor
+  // follows too. A note that refuses the change — a block at its top that is
+  // no YAML map — is said by `editedNoteProperties`; two handlers of their own
+  // caught that here and wrote it to the console (finding 2026-10-09).
+  const applyNoteProperties = (change: (text: string) => string) => {
+    const next = editedNoteProperties(currentText(), change);
+    if (next !== null) handlePropertiesChange(next);
   };
 
   // Slash commands `/icon` + `/header color` fire window events; anchor the
@@ -1302,9 +1372,7 @@ export const Editor: React.FC<{
     }
     const view = sessionRef.current?.view;
     if (!view || !line) return false;
-    const ln = view.state.doc.line(Math.max(1, Math.min(line, view.state.doc.lines)));
-    view.dispatch({ selection: { anchor: ln.from }, effects: EditorView.scrollIntoView(ln.from, { y: "start" }) });
-    view.focus();
+    jumpToLineTop(view, line, { focus: true });
     return true;
   }, [viewMode]);
   useEffect(() => {
@@ -1489,64 +1557,20 @@ export const Editor: React.FC<{
     return () => window.removeEventListener("plainva-editor-block-format-conflict", onConflict);
   }, [t]);
 
-  // Resolve a clicked in-app link and open it. Shared by the wiki-link plugin
-  // and the rendered table-cell links (tableLinkHandlers).
+  // Open a clicked in-app link. Shared by the wiki-link plugin, the rendered
+  // table-cell links (tableLinkHandlers) and the comments beside the note.
   //
-  // `kind` matters (issue #61). A WIKI target is a name the index resolves, and
-  // a miss there is an invitation to create the note (Obsidian parity,
-  // 2026-07-18). A relative MARKDOWN target is a path on disk: it gets resolved
-  // against this note's folder, and a miss is a missing file — never a new note
-  // called `../_resources/x.mp3.md`.
+  // `kind` says how the link is written (issue #61). What follows from it is
+  // the desktop's one opener's to say (`services/openLink`): a wiki link names
+  // a note, and where none answers the note is offered; a Markdown link is
+  // read from this note's folder first, and a path that leads nowhere is a
+  // missing file — never a new note called `../_resources/x.mp3.md`.
   const openWikiTarget = async (linkText: string, newTab: boolean, kind?: LinkKind, anchor?: string | null) => {
-    if (!onOpenPath || !queryService) return;
-
-    // The anchor (issue #92) either arrives separately (the wiki-link plugin
-    // splits it) or still sits in the text (a table cell, a markdown href).
-    const split = splitLinkAnchor(linkText);
-    const anchorPart = anchor ?? split.anchor;
-    // `[[#Heading]]`, `[text](#heading)`: a place in THIS note.
-    if (!split.target && anchorPart) {
-      applyAnchor(anchorPart);
-      return;
-    }
-
-    if (kind === "markdown" && activePath && isVaultPathLink(linkText)) {
-      const target = resolveRelativeTarget(activePath, linkText);
-      if (target) {
-        // Same rule the reading view uses — one function, two renderers.
-        const outcome = vaultAdapter
-          ? await planRelativeLinkOpen(target, (p) => vaultAdapter.exists(p))
-          : { action: "notFound" as const, path: target.path };
-        if (outcome.action === "open") {
-          onOpenPath(outcome.path, newTab);
-          if (target.anchor) requestAnchorJump(outcome.path, target.anchor);
-        }
-        else if (outcome.action === "revealFolder") window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: outcome.path } }));
-        else toast.warning(t("dialogs.linkNotFoundMsg", { target: outcome.path }));
-        return;
-      }
-    }
-
-    const searchTarget = split.target;
-
-    const sql = `
-      SELECT path FROM files
-      WHERE title = ? COLLATE NOCASE
-         OR path = ? COLLATE NOCASE
-         OR path = ? COLLATE NOCASE
-      LIMIT 1
-    `;
-    const rows = await queryService.db.query(sql, [searchTarget, searchTarget, searchTarget + ".md"]);
-    if (rows && rows.length > 0) {
-      onOpenPath(rows[0].path, newTab);
-      // Parked under the path: the pane that shows the note — this one after
-      // the switch, or a fresh tab — takes it once the text is in.
-      if (anchorPart) requestAnchorJump(rows[0].path, anchorPart);
-    } else {
-      // Target note doesn't exist yet — create it (Obsidian parity, maintainer
-      // 2026-07-18). App owns the write/index/open (+ optional confirm).
-      window.dispatchEvent(new CustomEvent("plainva-create-note-from-link", { detail: { target: searchTarget, hostPath: activePath, newTab } }));
-    }
+    if (!onOpenPath) return;
+    await openLink(
+      { text: linkText, kind: kind === "markdown" ? "markdown" : "wiki", sourcePath: activePath ?? undefined, anchor },
+      { queryService, vaultAdapter, onOpenPath, newTab, onSameNoteAnchor: applyAnchor, t },
+    );
   };
 
   // Block handle menu + drag reorder (#7).
@@ -1894,10 +1918,7 @@ export const Editor: React.FC<{
       // A backlink names its line (P7); the search names a term.
       const match = resolveSearchJump(view.state.doc.toString(), jump);
       if (!match) { if (jump.from !== undefined) toast.info(t("searchResults.changed")); return; }
-      view.dispatch({
-        selection: { anchor: match.from, head: match.to },
-        effects: EditorView.scrollIntoView(match.from, { y: 'center' }),
-      });
+      selectAndCenter(view, match.from, match.to);
       view.focus();
     };
     // A result click can also commit navigation state and replace reader text
@@ -1925,8 +1946,12 @@ export const Editor: React.FC<{
   // Vorlagen-Engine, P3). Same two consumers and the same retry loop as the
   // search jump above — the pane is usually mounted only AFTER the file was
   // written. Read mode has no caret, so the jump simply does not apply there.
+  //
+  // Who is handed the caret, and whether the text gets the keyboard with it,
+  // is one rule (`takeTemplateCaret`): the pane the person works in, and a
+  // window for the note it shows — placed there, without the keyboard.
   const caretRafRef = useRef(0);
-  const startTemplateCaret = (caret: { path: string; offset: number }) => {
+  const startTemplateCaret = (caret: { path: string; offset: number; focus: boolean }) => {
     cancelAnimationFrame(caretRafRef.current);
     const tick = (attemptsLeft: number) => {
       if (attemptsLeft <= 0) return;
@@ -1935,29 +1960,37 @@ export const Editor: React.FC<{
       if (viewModeRef.current === 'read') return;
       const view = sessionRef.current?.view;
       if (!view) return retry();
-      // The offset comes from the template text; the note on disk carries the
-      // OKF frontmatter in front of it, so clamp instead of trusting it.
+      // A place in the text this editor holds: `parkTemplateCaret` counted it
+      // over from the file as it was written. Clamped all the same — the file
+      // may have changed between that write and this load.
       const pos = Math.min(Math.max(caret.offset, 0), view.state.doc.length);
-      view.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: 'center' }) });
-      view.focus();
+      selectAndCenter(view, pos);
+      if (caret.focus) view.focus();
     };
     tick(120);
   };
+  // The poke names a note a pane is about to show. The peek window does not
+  // listen: it would take the caret of a note that is opening in a tab.
   useEffect(() => {
     if (!isActivePane) return;
     const onCaret = (e: Event) => {
       const detail = (e as CustomEvent).detail as { path?: string } | undefined;
-      const caret = consumePendingTemplateCaret(detail?.path ?? null);
+      const caret = takeTemplateCaret(detail?.path ?? null, "pane");
       if (caret) startTemplateCaret(caret);
     };
     window.addEventListener('plainva-template-caret', onCaret);
     return () => window.removeEventListener('plainva-template-caret', onCaret);
   }, [isActivePane]);
+  // The note this editor shows, once it is loaded. A window's editor asks here
+  // too, and it is never the active pane: the peek window, where a database
+  // opens the entry it has just made, and the pinboard's entry window (nothing
+  // is parked for its draft on this shell; it places its caret from the draft).
+  const caretSurface = isActivePane ? "pane" : peek ? "preview" : null;
   useEffect(() => {
-    if (!isActivePane || isLoading || !activePath) return;
-    const caret = consumePendingTemplateCaret(activePath);
+    if (!caretSurface || isLoading || !activePath) return;
+    const caret = takeTemplateCaret(activePath, caretSurface);
     if (caret) startTemplateCaret(caret);
-  }, [isActivePane, isLoading, activePath]);
+  }, [caretSurface, isLoading, activePath]);
   useEffect(() => () => cancelAnimationFrame(caretRafRef.current), []);
 
   // A new path starts without a remembered identity; a reload of the same path
@@ -1995,20 +2028,29 @@ export const Editor: React.FC<{
     readAfterWrites.then(text => {
       if (isMounted) {
         loadedPathRef.current = activePath;
-        // A foreign text file keeps its own shape; a note is normalised as it
-        // always was (C15, S13).
-        const isText = resolveOpenAction(activePath) === "text";
-        // …and only if its bytes agree with its name. The check runs on the
-        // decoded text we already hold: a 0x00 byte decodes to U+0000, so this
-        // is the same evidence without reading the file a second time.
-        if (isText && looksBinary(text)) {
+        // One rule for both shells (C15, S13; finding 2026-10-08): the editor
+        // gets `\n` text without a byte order mark, the save gets the shape to
+        // put back — the file's own, for a note as for any other text file
+        // (since 2026-10-09) — and a file whose bytes do not agree with its
+        // name is not shown at all. The check runs on the decoded text we
+        // already hold: a 0x00 byte decodes to U+0000, so this is the same
+        // evidence without a second read.
+        const opened = openEditorText(activePath, text);
+        if (!opened) {
           setNotText(true);
           setIsLoading(false);
+          lookBesideRef.current(activePath, () => isMounted);
           return;
         }
-        const shaped = isText ? readTextShape(text) : null;
-        saveState.update({ shape: shaped?.shape ?? null });
-        const normalized = shaped ? shaped.text : text.replace(/\r\n/g, '\n');
+        saveState.update({ shape: opened.shape });
+        // A new buffer from here: a copy kept beside the file for the one
+        // before holds another text, and is never written into again. Here,
+        // not where the load began — a save of that buffer still queued, which
+        // the load waited for, kept into that buffer's copy, and may have said
+        // "not text" for a file that is text again by now.
+        saveState.update({ kept: null });
+        setNotText(false);
+        const normalized = opened.text;
         // The freshly loaded disk state counts as "our" persisted baseline.
         saveState.update({ persisted: normalized });
         saveState.update({ baseInput: normalized });
@@ -2024,13 +2066,33 @@ export const Editor: React.FC<{
         if (vaultPath) {
           void import("../services/draftJournal").then(async ({ readDraft }) => {
             const draft = await readDraft(vaultPath, activePath, normalized);
-            if (isMounted && draft && draft.text !== normalized) {
-              setDraftOffer({ text: draft.text, savedAt: draft.savedAt, revision: draft.revision, sessionId: draft.sessionId });
+            // A draft is an editor's text. One journalled before the editor
+            // stopped holding a note's byte order mark still starts with it;
+            // restoring that as it is would write the mark twice.
+            const draftText = draft ? editorTextOf(draft.text) : null;
+            if (isMounted && draft && draftText !== null && draftText !== normalized) {
+              setDraftOffer({ text: draftText, savedAt: draft.savedAt, revision: draft.revision, sessionId: draft.sessionId });
             }
           }).catch(() => {});
         }
       }
     }).catch(e => {
+      // The file lies there, and its bytes are not UTF-8 — a `.csv` Excel
+      // saved in Windows-1252, a note in UTF-16 (finding 2026-10-11). The
+      // vault's read refuses it with either kind of text reader, in this
+      // window and in an auxiliary one, and the same state shows as for a
+      // file the first bytes gave away above. The desktop used to end here in
+      // "This file no longer exists": its reader refuses such bytes, and every
+      // failed load counted as a missing file.
+      if (isNotTextFileError(e)) {
+        if (isMounted) {
+          setNotText(true);
+          setContent("");
+          setIsLoading(false);
+          lookBesideRef.current(activePath, () => isMounted);
+        }
+        return;
+      }
       console.error("Failed to load file content:", e);
       if (isMounted) {
         // A missing file is a STATE, never content (issue #34): the error text
@@ -2048,6 +2110,48 @@ export const Editor: React.FC<{
     // `reloadNonce`: a clean note whose file vanished while open loads again,
     // and the failed load looks for the file (issue 110, E9).
   }, [vaultAdapter, activePath, vaultPath, saveState, reloadNonce]);
+
+  // A file that loaded as "not text" (finding 2026-10-11): the way to what
+  // lies beside it, after every load — the banner leads to the newest
+  // conflict copy of it, kept here or left by the sync (`newestConflictCopy`;
+  // the phone's card the same way) —, and a text the draft journal holds for
+  // it from an earlier run of the app. That one belongs to an editor that
+  // held changes when the app went; it cannot go into the file, and the
+  // journal offers a draft only for a file that loads as text. Kept beside
+  // it, once. A draft of this run belongs to an editor that is still open —
+  // this one, another pane, another window — and that editor keeps its own
+  // text when it saves; only the main window, which began the run, looks.
+  //
+  // Called by the load, which knows when (a reload can end in "not text"
+  // without the state ever reading anything else); the latest render's
+  // values are kept here, as for the session (`sessionDepsRef`).
+  useLayoutEffect(() => {
+    lookBesideRef.current = (path, alive) => {
+      if (!vaultPath || !vaultAdapter) return;
+      const vault = vaultPath, files = vaultAdapter;
+      void (async () => {
+        if (isOwnerWindow()) {
+          const { clearDraft, releaseLeftoverDrafts, takeLeftoverDrafts } = await import("../services/draftJournal");
+          const leftovers = await takeLeftoverDrafts(vault, path);
+          for (const [at, draft] of leftovers.entries()) {
+            try {
+              // In the editor's shape, as the phone keeps it: an older journal may hold a mark or `\r\n`.
+              const kept = await keepTextBeside(files, path, editorTextOf(draft.text));
+              await clearDraft(vault, path, draft.revision, draft.sessionId);
+              triggerFileTreeUpdate([kept.copy]);
+              toast.warning(t("dialogs.conflictSavedMsg", { path: kept.copy }));
+            } catch (error) {
+              // Not kept: handed out again at the next look, this one and those after it.
+              releaseLeftoverDrafts(vault, path, leftovers.slice(at));
+              throw error;
+            }
+          }
+        }
+        const newest = await newestConflictCopy(files, path);
+        if (alive() && newest) setConflictInfo({ conflictPath: newest });
+      })().catch((error) => console.error("Could not look beside the file that is no text", error));
+    };
+  });
 
   // The identity of what was just loaded, kept for the day the file vanishes.
   useEffect(() => {
@@ -2342,6 +2446,13 @@ export const Editor: React.FC<{
       if (!activePath || !vaultAdapter || detail.path !== activePath
         || (detail.vaultPath && detail.vaultPath !== vaultPath)) return;
       const path = activePath;
+      // Nothing of a file shown as "not text" is held here. When it changes —
+      // saved as UTF-8 in the other program, say — it is loaded anew, and
+      // shows as what it is now.
+      if (notTextRef.current) {
+        setReloadNonce((n) => n + 1);
+        return;
+      }
       const capturedSession = sessionRef.current;
       void withPendingWrite(vaultPath ?? "", path, async () => {
         if (!current() || sessionRef.current !== capturedSession) return;
@@ -2349,7 +2460,12 @@ export const Editor: React.FC<{
         if (current()) setConflictInfo(conflict ? { conflictPath: conflict.workingCopyPath, working: true, foreignCopySnapshot: conflict.foreignCopySnapshot } : null);
         const raw = await vaultAdapter.readTextFile(conflict?.workingCopyPath ?? path);
         if (!current() || sessionRef.current !== capturedSession) return;
-        const disk = saveState.shape ? readTextShape(raw).text : raw.replace(/\r\n/g, "\n");
+        // The shape is that of the file as it lies there NOW: another program
+        // may have changed the line ends along with the text, and neither the
+        // next save nor a conflict copy beside the file may turn them back.
+        const reopened = openEditorText(path, raw);
+        if (reopened) saveState.update({ shape: reopened.shape });
+        const disk = editorTextOf(raw);
         const draft = capturedSession?.view.state.doc.toString() ?? contentRef.current;
         const revision = saveState.revision;
         const action = saveState.dirty
@@ -2379,6 +2495,9 @@ export const Editor: React.FC<{
         saveState.update({ discardedRevision: revision });
         saveState.update({ baseInput: disk });
         saveState.update({ persisted: disk });
+        // The buffer holds the file's text now: a copy kept beside it before
+        // holds another, and is never written into again.
+        saveState.update({ kept: null });
         applyExternalText(disk, "external modification");
         saveState.update({ dirty: false });
         dirtyStore.set(path, false, saveState.id);
@@ -2389,6 +2508,15 @@ export const Editor: React.FC<{
         await vaultAdapter.acknowledgeExternalUpdate?.(path);
       }).catch(async (error) => {
         if (!current()) return;
+        // Another program saved the open file in another encoding: it is no
+        // text any more. With nothing unsaved the load's own way says so. A
+        // changed text goes to the save now, which keeps it beside the file
+        // as a conflict copy — the file stays as the other program left it.
+        if (isNotTextFileError(error)) {
+          if (saveState.dirty) void persistText(sessionRef.current?.view.state.doc.toString() ?? contentRef.current).catch(() => {});
+          else setReloadNonce((n) => n + 1);
+          return;
+        }
         // The file is gone — moved or deleted outside Plainva, or by sync
         // (issue 110, E9). That is not a failed save; the vanish check takes
         // over. Asked by existence, because a client window's error comes
@@ -2570,9 +2698,12 @@ export const Editor: React.FC<{
   // One CodeMirror session per open file: created when the pane shows an
   // editor (live/source) with loaded content, destroyed on file switch / read
   // mode / unmount. A language switch rebuilds it (localized header labels).
+  // A file that turns into no text while it is open ends its session as well
+  // (finding 2026-10-11): kept alive behind the "not text" state, a command
+  // such as "Insert template" still typed into it, and its save kept that.
   const isReadMode = viewMode === 'read';
   useLayoutEffect(() => {
-    if (isLoading || isReadMode || !activePath || loadedPathRef.current !== activePath) return;
+    if (isLoading || isReadMode || notText || !activePath || loadedPathRef.current !== activePath) return;
     const parent = editorContainerRef.current;
     if (!parent) return;
     const session = createEditorSession({
@@ -2645,7 +2776,7 @@ export const Editor: React.FC<{
     // viewMode is handled by setMode below (the compartment swap keeps the
     // syntax tree); content is owned by the view while mounted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, isReadMode, activePath, vaultPath, i18n.language, workspaceReadOnly]);
+  }, [isLoading, isReadMode, notText, activePath, vaultPath, i18n.language, workspaceReadOnly]);
 
   useEffect(() => { sessionRef.current?.setEditable(!workspaceReadOnly && !saveState.transferFrozen); }, [workspaceReadOnly, saveState]);
 
@@ -2749,7 +2880,8 @@ export const Editor: React.FC<{
    */
   // Stable so the callbacks below do not re-create on every render: the wiki
   // opener itself is a plain function of the component.
-  const openNoteFromComment = useStableHandler((target: string) => { void openWikiTarget(target, false); });
+  // A link in a comment says how it is written, like one in the note.
+  const openNoteFromComment = useStableHandler((target: string, kind?: "wiki" | "markdown") => { void openWikiTarget(target, false, kind ?? "wiki"); });
   const promoteCommentToTask = useCallback(async (comment: WorkspaceCommentRecord) => {
     if (!activePath || !vaultAdapter || !vaultPath) return;
     const store = await getSettingsStore();
@@ -2764,7 +2896,9 @@ export const Editor: React.FC<{
       adapter: vaultAdapter,
       dbPath,
       title,
-      noteType: "Task",
+      // The vault's type, as the task view writes it; it was a fixed `Task` (finding 2026-10-21).
+      noteType: await getConfiguredNoteType(vaultPath),
+      templateVault: await templateVaultOf(vaultPath),
       trailer: commentTaskTrailer({
         body: comment.body,
         quote: (comment.anchor as WorkspaceCommentAnchor | null)?.quote ?? null,
@@ -3521,6 +3655,11 @@ export const Editor: React.FC<{
             onClick={() => {
               const offer = draftOffer;
               setDraftOffer(null);
+              // Another text than one kept beside a file that is no text: it
+              // is never written into that copy (`keepTextBeside`). Let go in
+              // the write lane, after a keep of the typing still under way
+              // there has set its copy, and before this text's own save.
+              if (activePath) void withPendingWrite(vaultPath ?? "", activePath, async () => { saveState.update({ kept: null }); });
               const view = sessionRef.current?.view;
               if (view) {
                 saveState.recover(offer);
@@ -3582,7 +3721,9 @@ export const Editor: React.FC<{
       )}
       <div className={commentsAccessible ? "pv-comment-layout" : undefined} style={commentsAccessible ? undefined : { display: "contents" }}>
       <div ref={readScrollRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: "var(--bg-primary)", overflowY: viewMode === 'read' ? "auto" : "hidden" }}>
-        {viewMode === 'read' ? (
+        {/* A note that is no text shows that in the read view as well: the
+            reader would show an empty note in its place. */}
+        {viewMode === 'read' && !notText ? (
           <>
             {managedIndex && (
               <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", padding: "0.5rem 1rem", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "var(--text-ui)", color: "var(--text-muted)" }}>
@@ -3777,9 +3918,9 @@ export const Editor: React.FC<{
           y={iconPicker.y}
           labels={emojiPickerLabels}
           showRemove={!!docMeta.icon}
-          onSelect={(emoji) => { applyDocIcon(emoji, null); setIconPicker(null); }}
-          onSelectIcon={(name, color) => { applyDocIcon(docIconValue(name), color); setIconPicker(null); }}
-          onRemove={() => { applyDocIcon(null, null); setIconPicker(null); }}
+          onSelect={(emoji) => { applyNoteProperties((text) => withNoteIcon(text, emoji, null)); setIconPicker(null); }}
+          onSelectIcon={(name, color) => { applyNoteProperties((text) => withNoteIcon(text, docIconValue(name), color)); setIconPicker(null); }}
+          onRemove={() => { applyNoteProperties((text) => withNoteIcon(text, null, null)); setIconPicker(null); }}
           onClose={() => setIconPicker(null)}
         />
       )}
@@ -3813,8 +3954,8 @@ export const Editor: React.FC<{
           x={colorPicker.x}
           y={colorPicker.y}
           value={docMeta.headerColor}
-          onSelect={(color, { close }) => { applyPlainvaValue("header_color", color); if (close) setColorPicker(null); }}
-          onRemove={() => { applyPlainvaValue("header_color", null); setColorPicker(null); }}
+          onSelect={(color, { close }) => { applyNoteProperties((text) => withNoteColor(text, color)); if (close) setColorPicker(null); }}
+          onRemove={() => { applyNoteProperties((text) => withNoteColor(text, null)); setColorPicker(null); }}
           onClose={() => setColorPicker(null)}
         />
       )}

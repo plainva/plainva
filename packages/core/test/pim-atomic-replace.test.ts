@@ -257,20 +257,22 @@ describe("PIM cache: since when a scope has not synced", () => {
     await repo.setScopeState("acc1", "events:cal1", { lastSyncTs: 2000, lastError: null });
     await repo.recordScopeFailure("acc1", "events:cal1", { lastError: "google api 403 forbidden", lastErrorKind: "fatal" });
     await repo.setScopeState("acc1", "account", { lastSyncTs: 3000, lastError: "google api 403 forbidden" });
-    // A task-list failure is not the calendar's business.
-    await repo.setScopeState("acc1", "tasklists", { lastError: "503" });
+    // A task-list failure is the task lists' own line (B2, 19.10.): the task
+    // views show it, the calendar leaves it out (`syncProblemsFor`).
+    await repo.setScopeState("acc1", "tasklists", { lastSyncTs: 1000, lastError: "503" });
 
     expect(await repo.listSyncProblems()).toEqual([
       { accountId: "acc2", accountLabel: "Home", provider: "google", since: null, error: "invalid_grant", signIn: true },
       { accountId: "acc1", accountLabel: "Work", provider: "caldav", calendarId: "cal1", calendarName: "Team", since: 2000, error: "google api 403 forbidden", signIn: false },
+      { accountId: "acc1", accountLabel: "Work", provider: "caldav", taskListId: "", since: 1000, error: "503", signIn: false },
     ]);
 
     // A calendar that is switched off is not on screen to be stale…
     await repo.setCalendarSelected("acc1", "cal1", false);
-    expect((await repo.listSyncProblems()).map((p) => p.accountId)).toEqual(["acc2"]);
+    expect((await repo.listSyncProblems()).filter((p) => p.taskListId === undefined).map((p) => p.accountId)).toEqual(["acc2"]);
     // …a disabled account is not either…
     await repo.upsertAccount({ id: "acc2", provider: "google", label: "Home", config: {}, enabled: false });
-    expect(await repo.listSyncProblems()).toEqual([]);
+    expect((await repo.listSyncProblems()).filter((p) => p.taskListId === undefined)).toEqual([]);
     // …and an account that fails as a whole is named once, not per calendar.
     await repo.setCalendarSelected("acc1", "cal1", true);
     await repo.recordScopeFailure("acc1", "account", { lastError: "503 unavailable", lastErrorKind: "transient" });

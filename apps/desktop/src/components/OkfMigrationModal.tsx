@@ -79,7 +79,7 @@ export const OkfMigrationModal: React.FC<{
     setReport(result);
     // Refresh index + open editors so the changed frontmatter is visible everywhere.
     try {
-      await indexer?.indexVaultFull();
+      await indexer?.indexVaultFull("OKF migration");
       triggerFileTreeUpdate();
       for (const path of result.changed) {
         window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
@@ -100,7 +100,7 @@ export const OkfMigrationModal: React.FC<{
       if (result.failed.length > 0) toast.error(t("okf.rollbackFailed", { count: result.failed.length }));
       else toast.info(t("okf.rollbackDone", { count: result.restored.length }));
       try {
-        await indexer?.indexVaultFull();
+        await indexer?.indexVaultFull("OKF migration");
         triggerFileTreeUpdate();
         for (const path of result.restored) {
           window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));

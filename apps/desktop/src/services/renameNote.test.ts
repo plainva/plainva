@@ -57,12 +57,46 @@ describe("renameFileWithLinkUpdates", () => {
     expect(store.has("Projects/index.md")).toBe(true);
     expect(result.renamedLinks).toBe(4);
     expect(result.changedFiles).toBe(2);
-    // Bare raw stays bare (basename "index" is unique in this vault).
-    expect(store.get("a.md")).toContain("[[index]]");
+    // A bare raw names the folder of the overview it now leads to: `index` is
+    // the name every folder's overview has, and the one here would only stay
+    // unique until the next folder gets one (finding 2026-10-21).
+    expect(store.get("a.md")).toContain("See [[Projects/index]] and");
     // Qualified raw stays qualified; the heading anchor and alias survive.
     expect(store.get("a.md")).toContain("[[Projects/index#Intro|Alias]]");
-    expect(store.get("b.md")).toContain("![[index]]");
+    expect(store.get("b.md")).toContain("![[Projects/index]]");
     expect(store.get("b.md")).toContain("(Projects/index.md)");
+  });
+
+  // Since the link rule reads an explicit path (2026-10-09), such a link is a
+  // backlink and is rewritten. A rename leaves the file in its folder, so only
+  // the name at the end changes — the whole vault path, which a link with a
+  // folder gets, would read `Projekte/Projekte/…` from a note in `Projekte/`.
+  it("keeps the place an explicit path names and changes only the name at its end", async () => {
+    const { store, adapter, queryService } = makeVault(
+      {
+        "Projekte/Brief.md": "# Brief\n",
+        "Projekte/Plan.md": "[the letter](./Brief.md), [[./Brief#Anrede|shown]] and ![[./Brief]]\n",
+        "Projekte/Hafen/Notiz.md": "[up](../Brief.md) and [[/Projekte/Brief]]\n",
+      },
+      [
+        { source_path: "Projekte/Plan.md", target_path: "./Brief.md" },
+        { source_path: "Projekte/Plan.md", target_path: "./Brief" },
+        { source_path: "Projekte/Hafen/Notiz.md", target_path: "../Brief.md" },
+        { source_path: "Projekte/Hafen/Notiz.md", target_path: "/Projekte/Brief" },
+      ]
+    );
+
+    const result = await renameFileWithLinkUpdates({ adapter, queryService, oldPath: "Projekte/Brief.md", newPath: "Projekte/Letter.md" });
+
+    expect(result.linkUpdateFailed).toBe(false);
+    const plan = store.get("Projekte/Plan.md")!;
+    expect(plan).toContain("(./Letter.md)");
+    expect(plan).toContain("[[./Letter#Anrede|shown]]");
+    expect(plan).toContain("![[./Letter]]");
+    const note = store.get("Projekte/Hafen/Notiz.md")!;
+    expect(note).toContain("(../Letter.md)");
+    expect(note).toContain("[[/Projekte/Letter]]");
+    expect(plan + note).not.toContain("Brief");
   });
 
   it("qualifies bare wikilinks when the new basename collides with another file", async () => {
@@ -83,6 +117,33 @@ describe("renameFileWithLinkUpdates", () => {
     });
 
     expect(store.get("a.md")).toContain("[[Projects/index]]");
+  });
+
+  it("keeps a bare wikilink bare for any other unique name, and for the vault's own index.md", async () => {
+    for (const [oldPath, newPath, written] of [
+      ["Projects/MOC.md", "Projects/Map.md", "See [[Map]]."],
+      ["MOC.md", "index.md", "See [[index]]."],
+    ]) {
+      const { store, adapter, queryService } = makeVault({ [oldPath]: "# MOC\n", "a.md": "See [[MOC]].\n" }, [{ source_path: "a.md", target_path: "MOC" }]);
+      await renameFileWithLinkUpdates({ adapter, queryService, oldPath, newPath });
+      expect(store.get("a.md"), newPath).toBe(`${written}\n`);
+    }
+  });
+
+  // `[[C# Notes/index]]` would name `C`: no wiki link can carry that folder's
+  // name, and a bare `[[index]]` follows whichever overview the rule finds
+  // first — one the index may not even know yet. The link stays as it was, and
+  // the rename says so.
+  it("leaves a link to the overview of a folder a wiki link cannot carry as it was, and says so", async () => {
+    const vaults: Array<Record<string, string>> = [{}, { "Other/index.md": "# Other\n" }];
+    for (const others of vaults) {
+      const { store, adapter, queryService } = makeVault({ "C# Notes/Map.md": "# Map\n", "a.md": "See [[Map]] and ![[Map#Teil]].\n", ...others }, [
+        { source_path: "a.md", target_path: "Map" },
+      ]);
+      const result = await renameFileWithLinkUpdates({ adapter, queryService, oldPath: "C# Notes/Map.md", newPath: "C# Notes/index.md" });
+      expect(store.get("a.md"), JSON.stringify(others)).toBe("See [[Map]] and ![[Map#Teil]].\n");
+      expect(result.linkUpdateFailed, JSON.stringify(others)).toBe(true);
+    }
   });
 
   it("updates self-references inside the renamed file via its new path", async () => {
@@ -124,7 +185,7 @@ describe("renameFileWithLinkUpdates", () => {
     });
 
     expect(result).toEqual({ renamedLinks: 2, changedFiles: 1, linkUpdateFailed: false, changedPaths: ["task.md"] });
-    expect(store.get("task.md")).toContain('projekt: "[[index]]"');
+    expect(store.get("task.md")).toContain('projekt: "[[Projects/index]]"');
     expect(store.get("task.md")).toContain('- "[[Projects/index#Intro|Alias]]"');
   });
 

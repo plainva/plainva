@@ -1,5 +1,8 @@
 import {
-  accountServices,
+  brokerCardsFor,
+  brokerFamily,
+  brokeredSubsystemId,
+  describeBrokerLookup as describeSharedBrokerLookup,
   createServiceGrantProbe,
   resolveFileBrokerAccount,
   type FileBrokerBinding,
@@ -22,7 +25,6 @@ import {
   tokenCoversService,
   type CloudAccountRecord,
   type CloudServiceId,
-  type CloudProviderFamily,
   type OAuthClientRegistration,
   logDiagnostic,
   normalizeVerifiedProviderIdentity,
@@ -154,9 +156,7 @@ export function googleScopeFor(audience: string): string {
 }
 
 /** Families whose services can share one refresh token through the broker. */
-export function brokerFamily(family: CloudProviderFamily): "microsoft" | "google" | null {
-  return family === "microsoft" || family === "google" ? family : null;
-}
+export { brokerFamily };
 
 /** Union of the scopes of the services an account actually connects. */
 export function microsoftUnionScope(audiences: readonly string[]): string {
@@ -337,9 +337,44 @@ export function calendarGrantProbe(vaultPath: string, accountId: string, family:
  * run DURING the connect (listing calendars, reading the mailbox address)
  * would find no account and fall back to an empty per-service token.
  */
-let pendingAccount: { vaultPath: string; accountId: string; family: "microsoft" | "google" } | null = null;
-export function setPendingBrokerAccount(next: { vaultPath: string; accountId: string; family: "microsoft" | "google" } | null): void {
+interface PendingBrokerAccount {
+  vaultPath: string;
+  accountId: string;
+  family: "microsoft" | "google";
+  /** The mailbox this connect creates — the one mailbox the marker answers. */
+  mailAccountId?: string;
+}
+let pendingAccount: PendingBrokerAccount | null = null;
+export function setPendingBrokerAccount(next: PendingBrokerAccount | null): void {
   pendingAccount = next;
+}
+
+/**
+ * The connect in progress names the mailbox it is creating, before anything
+ * asks on that mailbox's behalf.
+ *
+ * A mailbox is not "part of the connect" because no card claims it yet. That
+ * reading failed in both directions: a mailbox that has its own sign-in and no
+ * card drew the sign-in of the account being connected — and kept it, the
+ * mail runtime decides once where its token comes from; and the connect's own
+ * mailbox lost the token the moment a card was written for it, which the
+ * registry reconcile does for every mailbox it finds, also for one the wizard
+ * saved a moment ago. So the marker answers the mailbox that was named, and no
+ * other.
+ */
+export function claimPendingMailbox(vaultPath: string, mailAccountId: string): void {
+  if (pendingAccount && pendingAccount.vaultPath === vaultPath) pendingAccount = { ...pendingAccount, mailAccountId };
+}
+
+/** Whether the account being connected right now answers this question. */
+function pendingAnswers(
+  pending: PendingBrokerAccount,
+  records: CloudAccountRecord[],
+  service: CloudServiceId,
+  subsystemId: string
+): boolean {
+  if (service === "mail") return pending.mailAccountId === subsystemId;
+  return !belongsToAnotherAccount(records, service, subsystemId, pending.accountId);
 }
 
 /** Resolve only a service whose stored grant covers it. Both shells use the
@@ -348,15 +383,21 @@ export function setPendingBrokerAccount(next: { vaultPath: string; accountId: st
 export async function brokerTokenProvider(
   vaultPath: string,
   service: CloudServiceId,
-  /** The asking subsystem account (pim row / mail account), where there is one. */
-  subsystemId?: string
+  /**
+   * The subsystem account that is asking (pim row / mail account). Required:
+   * as an option it could be left out, and mail left it out — every mailbox of
+   * a vault then drew the sign-in of the first card (finding 2026-10-12).
+   */
+  subsystemId: string
 ): Promise<((force: boolean) => Promise<string>) | undefined> {
   if (service === "files") return undefined; // Files must supply their concrete provider/client below.
+  // Nobody asking is nobody to answer — not even the connect in progress.
+  if (!subsystemId) return undefined;
   const records = await loadCloudAccounts(vaultPath);
   if (
     pendingAccount &&
     pendingAccount.vaultPath === vaultPath &&
-    !belongsToAnotherAccount(records, service, subsystemId, pendingAccount.accountId)
+    pendingAnswers(pendingAccount, records, service, subsystemId)
   ) {
     const minted = await getAccountToken(vaultPath, pendingAccount.accountId, service, pendingAccount.family);
     // The same scope rule as below: a consent that just covered file sync must
@@ -378,7 +419,10 @@ export async function brokerTokenProvider(
   // EVERY candidate is tried, not just the first (finding 2026-07-30): the
   // reconcile can hold more than one record of a family, and one without an
   // account token used to shadow the one that actually had the sign-in.
-  for (const record of brokerCandidates(records, service, subsystemId)) {
+  // A candidate is a card that points at the account that asks, and no other
+  // (`brokerCardsFor`): no match means no broker, and the service falls back
+  // to its own sign-in — never to a stranger's.
+  for (const record of brokerCardsFor(records, service, subsystemId)) {
     const family = brokerFamily(record.family);
     if (!family) continue;
     if (!await adoptLegacyGrant(vaultPath, record, service)) continue;
@@ -410,24 +454,6 @@ export async function fileBrokerTokenProvider(vaultPath: string, binding: FileBr
 }
 
 /**
- * The records that could serve a service through the broker: a broker family
- * that carries the service. A Google mailbox is usable only when an actual
- * Gmail grant exists; app-password mail never asks for a broker token.
- */
-function brokerCandidates(records: CloudAccountRecord[], service: CloudServiceId, subsystemId?: string): CloudAccountRecord[] {
-  const carries = records.filter(
-    (r) => brokerFamily(r.family) && accountServices(r).includes(service),
-  );
-  if (!subsystemId) return carries;
-  // WHICH account is asking matters as soon as a vault has two of a broker
-  // family. Without this, "a calendar token for this vault" answered with the
-  // first card that had one — so a Microsoft calendar could be handed the
-  // GOOGLE account's token and answer 401 (finding 2026-07-30). No match means
-  // no broker: the service falls back to its own sign-in, never to a stranger's.
-  return carries.filter((r) => referencedSubsystemId(r, service) === subsystemId);
-}
-
-/**
  * Whether the asking subsystem already belongs to a card OTHER than the one
  * being connected right now.
  *
@@ -442,60 +468,35 @@ function brokerCandidates(records: CloudAccountRecord[], service: CloudServiceId
  * 2026-07-30).
  *
  * A subsystem that some card already claims is never part of the connect in
- * progress, so it keeps its own path.
+ * progress, so it keeps its own path. That only holds when the subsystem is
+ * named: mail asked without its mailbox until 2026-10-12, so for the length of
+ * a connect every OAuth mailbox of the vault drew the token just minted for
+ * the new account.
+ *
+ * This is the calendar's rule. Mail no longer asks it: the connect names the
+ * mailbox it creates (`claimPendingMailbox`), and the marker answers that one.
  */
 function belongsToAnotherAccount(
   records: CloudAccountRecord[],
   service: CloudServiceId,
-  subsystemId: string | undefined,
+  subsystemId: string,
   pendingId: string
 ): boolean {
-  if (!subsystemId) return false;
-  return records.some((r) => r.id !== pendingId && referencedSubsystemId(r, service) === subsystemId);
-}
-
-/** The subsystem account a card points its service at (pim row / mail account). */
-function referencedSubsystemId(record: CloudAccountRecord, service: CloudServiceId): string | undefined {
-  if (service === "calendar") return record.services.calendar?.pimAccountId;
-  if (service === "mail") return record.services.mail?.mailAccountId;
-  return undefined;
+  return records.some((r) => r.id !== pendingId && brokeredSubsystemId(r, service) === subsystemId);
 }
 
 /**
- * Why the broker did not answer, in one sentence, for the error a person reads.
- *
- * The settings show the provider's own words under the advice, and "no stored
- * sign-in" alone did not say which sign-in was missing (finding 2026-07-30) —
- * the fix for "the service has none" is connecting the service, the fix for "the
- * account has none" is one login for all services. Never throws: it exists to
- * explain a failure, not to add one.
+ * Why the broker did not answer for this account, in one sentence, for the
+ * error a person reads — the shared rule (`@plainva/ui`) over this shell's
+ * registry and account slots.
  */
-export async function describeBrokerLookup(vaultPath: string, service: CloudServiceId, subsystemId?: string): Promise<string> {
-  try {
-    const candidates = brokerCandidates(await loadCloudAccounts(vaultPath), service, subsystemId);
-    if (candidates.length === 0) {
-      return "this service has no sign-in of its own, and no cloud account carries it — connect it again.";
-    }
-    let withToken = 0;
-    let outOfScope = 0;
-    for (const record of candidates) {
-      const family = brokerFamily(record.family);
-      const anyGrant = await getAccountToken(vaultPath, record.id);
-      if (!anyGrant?.refreshToken) continue;
-      const stored = await getAccountToken(vaultPath, record.id, service, family ?? undefined);
-      withToken++;
-      if (family && !tokenCoversService(stored, service, family)) outOfScope++;
-    }
-    if (withToken === 0) {
-      return `${candidates.length} cloud account(s) carry this service, but none holds the shared sign-in — reconnect the account with "one login for all services".`;
-    }
-    // The precise case, and the one nobody could have guessed from a 401: the
-    // shared sign-in exists but was granted for other services only.
-    if (outOfScope === withToken) {
-      return `the shared sign-in of this account was granted for its other services only and cannot cover this one — sign in again, which now asks for the whole account.`;
-    }
-    return `a shared sign-in is stored (${withToken}/${candidates.length}) but could not be used for this service — reconnect the account with "one login for all services".`;
-  } catch (err) {
-    return `the cloud account list could not be read (${err instanceof Error ? err.message : String(err)}).`;
-  }
+export async function describeBrokerLookup(vaultPath: string, service: CloudServiceId, subsystemId: string): Promise<string> {
+  return describeSharedBrokerLookup(
+    {
+      records: () => loadCloudAccounts(vaultPath),
+      token: (accountId, forService, family) => getAccountToken(vaultPath, accountId, forService, family),
+    },
+    service,
+    subsystemId,
+  );
 }

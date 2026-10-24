@@ -116,6 +116,117 @@ describe("resolveTaskStatusModel + classifyTaskStatus", () => {
     expect(classifyTaskStatus("Backlog", model)).toBeNull(); // foreign value is ambiguous
   });
 
+  // Finding B2 (19.10.): "the last option is done" wrote "Abgebrochen" for
+  // every task ticked off at the provider.
+  it("takes a done word for done wherever it stands, never a cancelled option after it", () => {
+    const config = parseBaseConfig(`properties:
+  note.status:
+    plainva:
+      input: status
+      options:
+        - value: Offen
+        - value: Erledigt
+        - value: Abgebrochen
+views:
+  - type: table
+    name: T
+`);
+    const model = resolveTaskStatusModel(config)!;
+    expect(model.done).toBe("Erledigt");
+    expect(model.closed).toEqual(["Abgebrochen"]);
+    // Cancelled counts as closed - read as open it would reopen the provider's task.
+    expect(classifyTaskStatus("Abgebrochen", model)).toBe(true);
+    expect(classifyTaskStatus("Offen", model)).toBe(false);
+  });
+
+  it("keeps an option after the done one closed: a task ticked under the old rule never reads as open", () => {
+    const config = parseBaseConfig(`properties:
+  note.status:
+    plainva:
+      input: status
+      options:
+        - value: Open
+        - value: Done
+        - value: Archived
+views:
+  - type: table
+    name: T
+`);
+    const model = resolveTaskStatusModel(config)!;
+    expect(model.done).toBe("Done");
+    // Under the old rule "Archived" was done; read as open, the next sync
+    // would reopen every such task at the provider.
+    expect(classifyTaskStatus("Archived", model)).toBe(true);
+  });
+
+  it("without a done word keeps the old rule: the last option is done", () => {
+    const config = parseBaseConfig(`properties:
+  note.phase:
+    plainva:
+      input: select
+      options:
+        - value: Idee
+        - value: In progress
+        - value: Cancelled
+views:
+  - type: table
+    name: T
+`);
+    const model = resolveTaskStatusModel(config)!;
+    expect(model).toMatchObject({ open: "Idee", done: "Cancelled" });
+    // An option in between stays what it always was: open.
+    expect(classifyTaskStatus("In progress", model)).toBe(false);
+  });
+
+  it("leaves options between the done one and the last open, and keeps the others closed", () => {
+    const between = resolveTaskStatusModel(parseBaseConfig(`properties:
+  note.status:
+    plainva:
+      input: status
+      options:
+        - value: Open
+        - value: Done
+        - value: Waiting
+        - value: Cancelled
+views:
+  - type: table
+    name: T
+`))!;
+    expect(between.done).toBe("Done");
+    expect(classifyTaskStatus("Waiting", between)).toBe(false);
+    expect(classifyTaskStatus("Cancelled", between)).toBe(true);
+    // Two done words: the last is written, the other still reads as done.
+    const two = resolveTaskStatusModel(parseBaseConfig(`properties:
+  note.status:
+    plainva:
+      input: status
+      options:
+        - value: Open
+        - value: Done
+        - value: Completed
+views:
+  - type: table
+    name: T
+`))!;
+    expect(two.done).toBe("Completed");
+    expect(classifyTaskStatus("Done", two)).toBe(true);
+    // A done word as the FIRST option is the open one; the old rule decides.
+    const first = resolveTaskStatusModel(parseBaseConfig(`properties:
+  note.status:
+    plainva:
+      input: status
+      options:
+        - value: Done
+        - value: Todo
+        - value: In progress
+views:
+  - type: table
+    name: T
+`))!;
+    expect(first).toMatchObject({ open: "Done", done: "In progress" });
+    expect(classifyTaskStatus("Todo", first)).toBe(false);
+  });
+
   it("returns null when the database has no status/select column", () => {
     const config = parseBaseConfig(`properties:\n  note.frist:\n    plainva:\n      input: date\nviews:\n  - type: table\n    name: T\n`);
     expect(resolveTaskStatusModel(config)).toBeNull();

@@ -6,6 +6,7 @@ import remarkFrontmatter from "remark-frontmatter";
 import remarkParse from "remark-parse";
 import remarkStringify from "remark-stringify";
 import remarkObsidianPreserve from "../src/remark-obsidian-preserve.ts";
+import { remarkWikiLinks } from "../src/wikiLinkSyntax.ts";
 import { unified } from "unified";
 import { describe, expect, it } from "vitest";
 
@@ -22,6 +23,8 @@ const edgeCases = [
 const processor = unified()
   .use(remarkParse)
   .use(remarkFrontmatter, ["yaml"])
+  // Wiki links and embeds are read by the tokenizer and written back as they stand.
+  .use(remarkWikiLinks)
   .use(remarkObsidianPreserve)
   .use(remarkStringify, {
     bullet: "-",

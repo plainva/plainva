@@ -1,5 +1,5 @@
-import { trimChars, PathSpellings, withStoredSpelling, type SpellingSource } from "@plainva/core";
-import { VaultFileExistsError, VaultFileNotFoundError, type IVaultAdapter, type VaultFileInfo } from "@plainva/core";
+import { textOfFileBytes, trimChars, PathSpellings, withStoredSpelling, type SpellingSource } from "@plainva/core";
+import { VaultFileExistsError, VaultFileNotFoundError, type IVaultAdapter, type VaultFileInfo, type VaultListing, type VaultWalkOptions, type VaultWalkSkip } from "@plainva/core";
 import type { VaultFolderAccess, VaultFolderEntry, VaultFolderNative } from "../platform/vaultFolder";
 import { isMissingFile } from "./fileErrors";
 
@@ -48,8 +48,40 @@ function utf8ToB64(text: string): string {
   return bytesToB64(new TextEncoder().encode(text));
 }
 
+/**
+ * The file's text as every adapter hands it out — with its byte order mark as
+ * the first character, where it has one (`textOfFileBytes`). A plain decoder
+ * dropped it here: an editor saw a note or a `.csv` without its mark, and the
+ * first save wrote the file back without one (finding 2026-10-09). The desktop
+ * reads through Rust, which keeps it. The container adapter decodes by the
+ * same rule since 2026-10-20: it used to ask the system for the text, and iOS'
+ * own decoder skips the mark (see `readTextFile` there).
+ */
 function b64ToUtf8(b64: string): string {
-  return new TextDecoder().decode(b64ToBytes(b64));
+  return textOfFileBytes(b64ToBytes(b64));
+}
+
+/** Same cap as the desktop's walk (`MAX_WALK_DEPTH`, vault_walk.rs). */
+const MAX_WALK_DEPTH = 32;
+
+/** One walk over the picked folder. */
+interface Walk {
+  /** What could not be listed, by vault-relative path; null for the backup inventory, which must be whole or fail. */
+  skipped: VaultWalkSkip[] | null;
+  /** The identities of the folders this walk is in or has been in (iOS: device and inode); what a walk that follows links cuts by. */
+  seen: Set<string>;
+  /**
+   * Whether an entry reached through a link counts (iOS marks it). The walk of
+   * the vault follows links, as the desktop's does; the backup inventory
+   * leaves them out, as the desktop's backup does — what lies behind a link is
+   * not the vault's to pack, and a link inside the vault would pack its folder
+   * twice —, and so does the snapshot before a recursive delete, which
+   * removes the link and not what it points at.
+   */
+  followLinks: boolean;
+  includeHidden: boolean;
+  excludeDirNames: readonly string[];
+  signal?: AbortSignal;
 }
 
 function toInfo(rel: string, e: VaultFolderEntry): VaultFileInfo {
@@ -90,14 +122,15 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     return withStoredSpelling(this.spellings, norm(path), this.spellingSource, io);
   }
 
-  /** A walk's stored spellings as identities, below the folder stored as `raw`. */
-  private identities(entries: VaultFileInfo[], raw: string): VaultFileInfo[] {
+  /** A walk's stored spellings as identities, below the folder stored as `raw` — its skip list too. */
+  private identities(entries: VaultFileInfo[], raw: string, skipped: VaultWalkSkip[] = []): { files: VaultFileInfo[]; skipped: VaultWalkSkip[] } {
     const anchor = { raw, identity: raw ? this.spellings.identityOfStored(raw) : "" };
-    const ids = this.spellings.observe(entries.map((e) => e.path), anchor);
-    return entries.map((e) => {
+    const ids = this.spellings.observe([...entries.map((e) => e.path), ...skipped.map((s) => s.path)], anchor);
+    const files = entries.map((e) => {
       const id = ids.get(e.path);
       return id === undefined || id === e.path ? e : { ...e, path: id, name: id.split("/").pop() ?? id };
     });
+    return { files, skipped: skipped.map((s) => ({ ...s, path: ids.get(s.path) ?? s.path })) };
   }
 
   constructor(
@@ -191,16 +224,37 @@ export class ExternalVaultAdapter implements IVaultAdapter {
   }
 
   async listDir(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultFileInfo[]> {
+    return (await this.listDirReport(path, recursive, options)).files;
+  }
+
+  /**
+   * The listing with what it left out, as the desktop's (issue 125): a link
+   * that points nowhere, a folder below that could not be listed, a link back
+   * into a folder the walk is already in. The index keeps what lies under a
+   * named path instead of taking it for deleted.
+   */
+  async listDirReport(path?: string, recursive?: boolean, options?: VaultWalkOptions): Promise<VaultListing> {
     const raw = await this.realPath(path ?? "");
     const out: VaultFileInfo[] = [];
-    await this.walk(raw, recursive ?? false, out, false, [], 0, options?.signal);
-    return this.identities(out, raw);
+    const skipped: VaultWalkSkip[] = [];
+    // Without links on request: the snapshot before a recursive delete, which
+    // removes the links and not what they point at. Dot-named entries this
+    // walk never lists (`dotEntries` has nothing to leave out here).
+    const followLinks = options?.followLinks ?? true;
+    // A folder that is itself a link holds nothing of its own: what it lists
+    // lies where it points, and a delete takes the link alone.
+    if (!followLinks && raw) {
+      const own = await this.plugin.stat({ handle: this.handle, path: raw }).catch(() => null);
+      if (own?.entry?.link && own.entry.isDirectory) return { files: [], skipped: [] };
+    }
+    await this.walk(raw, recursive ?? false, out, { skipped, seen: new Set(), followLinks, includeHidden: false, excludeDirNames: [], signal: options?.signal });
+    return this.identities(out, raw, skipped);
   }
 
   async listDirForBackup(excludeDirNames: readonly string[]): Promise<VaultFileInfo[]> {
     const out: VaultFileInfo[] = [];
-    await this.walk("", true, out, true, excludeDirNames);
-    return this.identities(out, "");
+    await this.walk("", true, out, { skipped: null, seen: new Set(), followLinks: false, includeHidden: true, excludeDirNames });
+    return this.identities(out, "").files;
   }
 
   async createDir(path: string): Promise<void> {
@@ -217,22 +271,65 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     }
   }
 
-  private async walk(rel: string, recursive: boolean, out: VaultFileInfo[], includeHidden = false, excludeDirNames: readonly string[] = [], depth = 0, signal?: AbortSignal): Promise<void> {
+  private async walk(rel: string, recursive: boolean, out: VaultFileInfo[], walk: Walk, depth = 0, identity?: string): Promise<void> {
+    const { signal } = walk;
     signal?.throwIfAborted();
-    if (includeHidden && depth > 256) throw new Error("Backup directory depth exceeded at " + rel);
-    const res = await this.plugin.list({ handle: this.handle, path: rel });
+    // A walk that follows no link cannot come back to where it was: it goes
+    // as deep as the folder does — the backup packs all of it, a recursive
+    // delete removes all of it —, bounded only against a broken file system.
+    if (!walk.followLinks && depth > 256) throw new Error((walk.skipped === null ? "Backup directory" : "Directory") + " depth exceeded at " + rel);
+    // A folder this walk is already in, reached again through a link, is cut
+    // where it is met — and so is a chain deeper than any vault, where the
+    // platform names no identity (issue 125, the desktop's rules).
+    if (walk.followLinks && identity !== undefined && walk.seen.has(identity)) {
+      walk.skipped?.push({ path: rel, reason: "cycle" });
+      return;
+    }
+    if (walk.followLinks && depth > MAX_WALK_DEPTH) {
+      walk.skipped?.push({ path: rel, reason: "cycle" });
+      return;
+    }
+    if (identity !== undefined) walk.seen.add(identity);
+    let res: Awaited<ReturnType<VaultFolderNative["list"]>>;
+    try {
+      res = await this.plugin.list({ handle: this.handle, path: rel });
+    } catch (error) {
+      // A folder below the one asked for that cannot be listed is named, and
+      // the walk goes on: "could not look" is never "is empty" — the index
+      // keeps what lies under a named path. The folder asked for itself, and
+      // every folder of the backup inventory, still fails the call.
+      if (depth === 0 || walk.skipped === null || signal?.aborted) throw error;
+      walk.skipped.push({ path: rel, reason: "unreadable" });
+      return;
+    }
     signal?.throwIfAborted();
+    if (depth === 0 && res.identity) walk.seen.add(res.identity);
+    for (const s of res.skipped ?? []) {
+      if (!s.name || (!walk.includeHidden && s.name.startsWith("."))) continue;
+      const at = rel ? `${rel}/${s.name}` : s.name;
+      // A link that points nowhere and an entry that is neither file nor
+      // folder hold nothing to pack or to keep: a walk that leaves links out
+      // passes them by, as the desktop's backup does.
+      if (!walk.followLinks && (s.kind === "link" || s.kind === "special")) continue;
+      if (walk.skipped) {
+        walk.skipped.push({ path: at, reason: "unreadable" });
+        continue;
+      }
+      // The backup inventory is whole or fails.
+      throw new Error(`Cannot back up ${at}: the folder lists it, but it cannot be read`);
+    }
     for (const e of res.entries) {
       signal?.throwIfAborted();
       // Desktop and container parity: dot-prefixed children stay out of the
       // tree and the index — here that also covers the OTHER app's markers
       // (`.stfolder`, `.obsidian`) that share the folder with us.
-      if (!e.name) { if (includeHidden) throw new Error("Invalid backup entry at " + rel); continue; }
-      if (!includeHidden && e.name.startsWith(".")) continue;
-      if (e.isDirectory && excludeDirNames.includes(e.name)) continue;
+      if (!e.name) { if (walk.includeHidden) throw new Error("Invalid backup entry at " + rel); continue; }
+      if (!walk.includeHidden && e.name.startsWith(".")) continue;
+      if (e.isDirectory && walk.excludeDirNames.includes(e.name)) continue;
+      if (e.link && !walk.followLinks) continue;
       const childRel = rel ? `${rel}/${e.name}` : e.name;
       out.push(toInfo(childRel, e));
-      if (e.isDirectory && recursive) await this.walk(childRel, true, out, includeHidden, excludeDirNames, depth + 1, signal);
+      if (e.isDirectory && recursive) await this.walk(childRel, true, out, walk, depth + 1, e.identity);
     }
   }
 }

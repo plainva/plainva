@@ -9,6 +9,7 @@ import {
   type JournalDay, type JournalFeedSettings, type JournalRowCaps, type JournalWriteFailure,
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
+import { openLink } from "../../services/openLink";
 import { journalFailureKey, readJournalHeading, useJournalFiles } from "../../hooks/useJournal";
 import { readDailyNoteConfig } from "../../services/dailyNotes";
 
@@ -76,14 +77,14 @@ export function JournalSidebarSection({ activeDate, onOpenPath, onOpenJournal, o
 
   const loadImage = useMemo(() => (vaultAdapter ? (imagePath: string) => loadImageBlob(vaultAdapter, imagePath) : undefined), [vaultAdapter]);
   const links = useMemo(() => ({
-    onOpenNote: (target: string, newTab: boolean) => {
-      void (queryService ? queryService.resolveNotePath(target) : Promise.resolve(null))
-        .then((resolved) => onOpenPath(resolved ?? target, newTab))
-        .catch(() => onOpenPath(target, newTab));
+    // Read from the day's note the entry stands in, and opened as the editor
+    // opens a link there (`services/openLink`).
+    onOpenNote: (target: string, newTab: boolean, kind?: "wiki" | "markdown", fromPath?: string) => {
+      void openLink({ text: target, kind: kind ?? "wiki", sourcePath: fromPath }, { queryService, vaultAdapter, onOpenPath, newTab, t });
     },
     onOpenUrl: (url: string) => { void openUrl(url).catch((error) => toast.error(errorText(error))); },
     onOpenTag: onOpenJournal,
-  }), [onOpenPath, onOpenJournal, queryService]);
+  }), [onOpenPath, onOpenJournal, queryService, vaultAdapter, t]);
 
   if (!settings || !vaultPath) return null;
   return (

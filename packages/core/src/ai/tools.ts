@@ -112,7 +112,7 @@ export const MAIL_TOOL_NAMES: readonly string[] = ["search_mail", "read_mail"];
  */
 export const PIM_DRAFT_TOOL_NAMES: readonly string[] = ["draft_mail", "draft_event"];
 /**
- * The vault's memory for assistants (plan KI-Harness P6, ADR 0027). The one
+ * The vault's memory for assistants (plan KI-Harness P6, ADR 0032). The one
  * that reads is carried by a conversation whose vault has a long-term memory
  * for it. The two that write lay a draft down, like every proposal: an entry
  * to remember, an entry to take out — the user's "Remember" is what writes.

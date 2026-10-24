@@ -40,6 +40,8 @@ export interface TaskNameCleanupDeps {
   exists(path: string): Promise<boolean>;
   readTextFile(path: string): Promise<string>;
   writeTextFile(path: string, content: string): Promise<void>;
+  /** The vault's entry for a change of a note that exists: a resumed run rewrites links through it. */
+  updateTextFile: NonNullable<TaskNameCleanupRunner["updateTextFile"]>;
   renameNote: TaskNameCleanupRunner["renameNote"];
   moveTaskNotePath: TaskNameCleanupRunner["moveTaskNotePath"];
   reindex: TaskNameCleanupRunner["reindex"];
@@ -79,6 +81,7 @@ export function useTaskNameCleanup(deps: TaskNameCleanupDeps): TaskNameCleanupSt
       exists: d.exists,
       readTextFile: d.readTextFile,
       writeTextFile: d.writeTextFile,
+      updateTextFile: d.updateTextFile,
       journal: taskNameJournalStore(d.vault),
       planLinks: async (from, to) => (await planLinkUpdates(query, from, to)).plan,
       renameNote: d.renameNote,

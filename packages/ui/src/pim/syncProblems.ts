@@ -33,10 +33,21 @@ export interface SyncProblemNotice {
 
 type Translate = (key: string, vars?: Record<string, unknown>) => string;
 
+/** What a `tasknotes:` row says (B2): the task reconciler's own reason, as a code the line translates. */
+export const TASK_NOTE_PROBLEM_PREFIX = "plainva:task-note:";
+
 /** Why, in a sentence. A reason this cannot name is shown in the provider's own
  * words — shortened and without the path of any address, never withheld. */
 export function syncProblemReason(problem: PimSyncProblem, t: Translate): string {
   if (problem.signIn) return t("pim.problemSignIn");
+  // What the task reconciler could not carry into the notes (B2): Plainva's
+  // own reason, said in the reader's language.
+  if (problem.error.startsWith(TASK_NOTE_PROBLEM_PREFIX)) {
+    const code = problem.error.slice(TASK_NOTE_PROBLEM_PREFIX.length);
+    if (code === "no-done-column") return t("pim.problemTaskNoDoneColumn");
+    if (code === "no-due-column") return t("pim.problemTaskNoDueColumn");
+    return t("pim.problemTaskNotWritten");
+  }
   if (isLocalStoreBusy(problem.error)) return t("pim.problemBusy");
   if (isRequestSendFailure(problem.error) || classifyAuthError(problem.error) === "network") return t("pim.problemNoAnswer");
   const raw = withoutUrlPaths(problem.error).split("\n")[0]!.trim();
@@ -59,6 +70,16 @@ export function syncProblemSince(since: number, locale: string, now: number): st
   }
 }
 
+/**
+ * The problems one surface has to name (B2, 19.10.). The calendar is about
+ * events: its accounts and its calendars. The task views are about tasks:
+ * the accounts again — an account that does not sign in has neither — and
+ * the task lists. A task list that fails used to leave no line anywhere.
+ */
+export function syncProblemsFor(problems: readonly PimSyncProblem[], surface: "calendar" | "tasks"): PimSyncProblem[] {
+  return problems.filter((p) => (surface === "calendar" ? p.taskListId === undefined : p.calendarId === undefined));
+}
+
 export function describeSyncProblems(
   problems: readonly PimSyncProblem[],
   t: Translate,
@@ -67,14 +88,26 @@ export function describeSyncProblems(
 ): SyncProblemNotice | null {
   if (problems.length === 0) return null;
   const lines = problems.slice(0, SYNC_PROBLEM_LINES).map((p) => {
-    // A calendar is named WITH its account: "Team" exists in three of them.
-    const name = p.calendarName !== undefined ? `${p.calendarName} (${p.accountLabel})` : p.accountLabel;
+    // A calendar or list is named WITH its account: "Team" exists in three of them.
+    const name =
+      p.calendarName !== undefined
+        ? `${p.calendarName} (${p.accountLabel})`
+        : p.taskListName !== undefined
+          ? `${p.taskListName} (${p.accountLabel})`
+          : p.taskListId === ""
+            ? t("pim.taskListsOf", { account: p.accountLabel })
+            : p.accountLabel;
     const reason = syncProblemReason(p, t);
-    const text =
-      p.since === null
-        ? t("pim.notSyncedYet", { name, reason })
-        : t("pim.notSyncedSince", { name, since: syncProblemSince(p.since, locale, now), reason });
-    return { key: `${p.accountId}/${p.calendarId ?? ""}`, text };
+    // A task list's line speaks of tasks: "the events below" would be wrong there.
+    const tasks = p.taskListId !== undefined;
+    // A list that syncs but cannot write into its notes is not "not synced".
+    const text = p.error.startsWith(TASK_NOTE_PROBLEM_PREFIX)
+      ? t("pim.taskNotesNotCarried", { name, reason })
+      : p.since === null
+        ? t(tasks ? "pim.taskListNotSyncedYet" : "pim.notSyncedYet", { name, reason })
+        : t(tasks ? "pim.taskListNotSyncedSince" : "pim.notSyncedSince", { name, since: syncProblemSince(p.since, locale, now), reason });
+    const scope = p.error.startsWith(TASK_NOTE_PROBLEM_PREFIX) ? "tasknotes" : "tasks";
+    return { key: `${p.accountId}/${p.calendarId ?? ""}${tasks ? `/${scope}/${p.taskListId}` : ""}`, text };
   });
   return { lines, more: Math.max(0, problems.length - SYNC_PROBLEM_LINES) };
 }

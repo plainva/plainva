@@ -111,6 +111,9 @@ describe("SyncWorker", () => {
     vault = {
       exists: vi.fn().mockResolvedValue(false),
       readTextFile: vi.fn().mockResolvedValue(""),
+      // The worker reads a local file as bytes; here they are the bytes of
+      // whatever text a test put there.
+      readBinaryFile: vi.fn(async (p: string) => new TextEncoder().encode(await vault.readTextFile(p))),
       writeTextFile: vi.fn().mockResolvedValue(undefined),
       deleteItem: vi.fn().mockResolvedValue(undefined)
     };
@@ -399,10 +402,11 @@ describe("SyncWorker", () => {
     });
     target.download.mockResolvedValueOnce(new TextEncoder().encode("remote line"));
 
-    // Simulate local edits with a known base.
+    // Simulate local edits with a known base — the hash names the base text,
+    // or the worker would not take that text for the ancestor at all.
     stateRepo.getAllStates.mockResolvedValueOnce(new Map([["conflict.md", {
       local_sha256: "local-hash",
-      base_sha256: "base-hash",
+      base_sha256: await sha("base line"),
       remote_etag: "old-etag"
     }]]));
     vault.exists.mockResolvedValueOnce(true);
@@ -464,7 +468,37 @@ describe("SyncWorker", () => {
     expect(writeCall![1]).toContain("Line 1 (local)");
     expect(writeCall![1]).toContain("Line 2 (external)");
     // The merge result is queued so it propagates back to the remote.
-    expect(queue.queueWrite).toHaveBeenCalledWith("note.md");
+    expect(queue.queueWrite).toHaveBeenCalledWith("note.md", { supersedeRefused: false });
+    // Until that upload is through, the common ancestor is the REMOTE version
+    // — hash and text. The merged text recorded in its place made the next
+    // remote change replace the local one (finding 2026-10-12).
+    expect(stateRepo.updateLocalHashAndBaseText).toHaveBeenCalledWith("note.md", await sha(writeCall![1]), remote);
+    expect(stateRepo.updateBaseState).toHaveBeenCalledWith("note.md", await sha(remote), "etag-remote");
+  });
+
+  it("does not take a base text for the ancestor that is not the version the base hash names", async () => {
+    // What a row looks like that an older version left behind: the device's
+    // own text where the common ancestor belongs. Merged against it, nothing
+    // changed here and the remote version would simply win.
+    const local = "Line 1 (local)\n\nLine 2\n\nLine 3";
+    const remote = "Line 1\n\nLine 2 (external)\n\nLine 3";
+    target.pull.mockResolvedValueOnce({ etagMap: new Map([["note.md", "etag-remote"]]) });
+    target.download.mockResolvedValueOnce(new TextEncoder().encode(remote));
+    stateRepo.getAllStates.mockResolvedValueOnce(new Map([["note.md", {
+      local_sha256: await sha(local),
+      base_sha256: await sha("Line 1\n\nLine 2\n\nLine 3"),
+      remote_etag: "etag-old"
+    }]]));
+    stateRepo.getBaseText.mockResolvedValueOnce(local);
+    vault.exists.mockResolvedValueOnce(true);
+    vault.readTextFile.mockResolvedValueOnce(local);
+
+    await worker.runCycle();
+
+    const calls = vault.writeTextFile.mock.calls;
+    expect(calls[0][0]).toMatch(/note\.CONFLICT-.*\.md$/);
+    expect(calls[0][1]).toBe(local);
+    expect(calls[1]).toEqual(["note.md", remote]);
   });
 
   describe("two devices append to the journal of the same daily note (plan Journal, E6)", () => {
@@ -486,7 +520,7 @@ describe("SyncWorker", () => {
       const writes = vault.writeTextFile.mock.calls;
       expect(writes.map((c: any[]) => c[0])).toEqual([day]);
       expect(writes[0][1]).toBe("# 2026-09-20\n\n## Journal\n\n- 08:00 breakfast\n- 09:10 on the train\n- 10:45 call with the workshop\n- 12:30 lunch\n\n## Notes\n");
-      expect(queue.queueWrite).toHaveBeenCalledWith(day);
+      expect(queue.queueWrite).toHaveBeenCalledWith(day, { supersedeRefused: false });
     });
 
     it("unites two daily notes that were created apart, with no common ancestor", async () => {
@@ -500,7 +534,7 @@ describe("SyncWorker", () => {
       const writes = vault.writeTextFile.mock.calls;
       expect(writes.map((c: any[]) => c[0])).toEqual([day]);
       expect(writes[0][1]).toContain("- 09:10 on the train\n- 10:45 call with the workshop\n- 12:30 lunch\n");
-      expect(queue.queueWrite).toHaveBeenCalledWith(day);
+      expect(queue.queueWrite).toHaveBeenCalledWith(day, { supersedeRefused: false });
     });
 
     it("still preserves the local note when the two differ in anything but journal entries", async () => {
@@ -540,7 +574,10 @@ describe("SyncWorker", () => {
     // but the still-unsynced local change is queued for push.
     const wroteNote = vault.writeTextFile.mock.calls.some((c: any[]) => c[0] === "note.md");
     expect(wroteNote).toBe(false);
-    expect(queue.queueWrite).toHaveBeenCalledWith("note.md");
+    expect(queue.queueWrite).toHaveBeenCalledWith("note.md", { supersedeRefused: false });
+    // The local change is not the common ancestor before it has been uploaded:
+    // the base text stays the remote version (finding 2026-10-12).
+    expect(stateRepo.updateLocalHashAndBaseTextGuarded).toHaveBeenCalledWith("note.md", await sha(local), remote, await sha(local));
   });
 
   it("reconciles a pending-write file against a changed remote instead of clobbering it (3a)", async () => {
@@ -874,6 +911,43 @@ describe("SyncWorker", () => {
     expect(target.pull).toHaveBeenCalledWith("c0"); // incremental
     expect(vault.deleteItem).toHaveBeenCalledWith("gone.md");
     expect(vault.deleteItem).not.toHaveBeenCalledWith("keep.md");
+  });
+
+  it("does not mirror a deletion the same incremental pull contradicts by listing the path (review of finding 2026-10-19)", async () => {
+    // Deleted under one id and put back under another — a device that kept its
+    // edits carries the file up as new — the feed reports both. The file is
+    // alive; acting on the stale deletion removed the fresh copy here.
+    worker["cursor"] = "c0";
+    const sameSha = await sha("same");
+    stateRepo.getAllStates.mockResolvedValueOnce(new Map([["back.md", { remote_etag: "e-old", base_sha256: sameSha }]]));
+    vault.exists.mockResolvedValue(true);
+    vault.readTextFile.mockResolvedValue("same");
+    target.download.mockResolvedValue(new TextEncoder().encode("same"));
+    target.pull.mockResolvedValueOnce({ etagMap: new Map([["back.md", "e-new"]]), deleted: ["back.md"], nextCursor: "c1" });
+
+    await worker.runCycle();
+
+    expect(target.pull).toHaveBeenCalledWith("c0");
+    expect(vault.deleteItem).not.toHaveBeenCalledWith("back.md");
+  });
+
+  it("never removes a file the remote never confirmed, although its stored text equals the local one (review of finding 2026-10-19)", async () => {
+    // A note made here and not yet uploaded: the indexer stored this device's
+    // own text as its base text. Another device deletes its own file of the
+    // same name, and the feed reports that path. Nothing of ours was up there.
+    worker["cursor"] = "c0";
+    stateRepo.getAllStates.mockResolvedValueOnce(new Map([["Untitled.md", { local_sha256: await sha("mine"), remote_etag: null, base_sha256: null }]]));
+    stateRepo.getBaseText.mockResolvedValue("mine");
+    vault.exists.mockResolvedValue(true);
+    vault.readTextFile.mockResolvedValue("mine");
+    target.pull.mockResolvedValueOnce({ etagMap: new Map(), deleted: ["Untitled.md"], nextCursor: "c1" });
+    const report = vi.fn();
+    worker.onDeletionReport = report;
+
+    await worker.runCycle();
+
+    expect(vault.deleteItem).not.toHaveBeenCalled();
+    expect(report).not.toHaveBeenCalled();
   });
 
   it("runs a periodic full listing after N incremental cycles (1a)", async () => {
@@ -1286,6 +1360,37 @@ describe("SyncWorker", () => {
 
       expect(vault.deleteItem).not.toHaveBeenCalled();
       expect(report).toHaveBeenCalledWith({ mirrored: 0, explained: 0, keptLocalEdits: ["edited.md"] });
+      // Kept means carried up again: the row that pointed at the deleted remote
+      // file goes, and the file is queued as a new one (finding 2026-10-19).
+      expect(stateRepo.deleteSyncState).toHaveBeenCalledWith("edited.md");
+      expect(queue.queueWrite).toHaveBeenCalledWith("edited.md");
+    });
+
+    it("a kept file is announced once, even when the provider repeats its deletion (finding 2026-10-19)", async () => {
+      // An incremental pull delivers `deleted[]` again while the cursor cannot
+      // move on. Before, the kept file stayed tied to the deleted remote copy
+      // and was announced in every cycle; once it is carried up as a new file,
+      // a repeated deletion of the old copy has nothing left to say about it.
+      const states = new Map<string, any>([["edited.md", { remote_etag: "e2", base_sha256: await sha("old") }]]);
+      stateRepo.getAllStates.mockImplementation(async () => new Map(states));
+      stateRepo.getSyncState.mockImplementation(async (p: string) => states.get(p) ?? null);
+      stateRepo.deleteSyncState.mockImplementation(async (p: string) => void states.delete(p));
+      vault.exists.mockResolvedValue(true);
+      vault.readTextFile.mockResolvedValue("typed here");
+      target.pull.mockResolvedValue({ etagMap: new Map(), deleted: ["edited.md"], nextCursor: "c0" });
+      const report = vi.fn();
+      worker.onDeletionReport = report;
+
+      for (let i = 0; i < 3; i++) {
+        worker["cursor"] = "c0";
+        await worker.runCycle();
+      }
+
+      expect(target.pull).toHaveBeenCalledWith("c0");
+      expect(vault.deleteItem).not.toHaveBeenCalled();
+      expect(queue.queueWrite).toHaveBeenCalledWith("edited.md");
+      expect(report).toHaveBeenCalledTimes(1);
+      expect(report).toHaveBeenCalledWith({ mirrored: 0, explained: 0, keptLocalEdits: ["edited.md"] });
     });
 
     it("a historical journal entry does not authorize a new queued delete", async () => {
@@ -1517,7 +1622,7 @@ describe("SyncWorker", () => {
       expect(stateRepo.updateBaseState).toHaveBeenCalledWith("note.md", await sha(p1), "etag-p1");
       expect(stateRepo.clearPendingPushSha).toHaveBeenCalledWith("note.md");
       // …and the newer local content is (re-)queued for push.
-      expect(queue.queueWrite).toHaveBeenCalledWith("note.md");
+      expect(queue.queueWrite).toHaveBeenCalledWith("note.md", { supersedeRefused: false });
     });
 
     it("a genuinely foreign remote change still preserves a .CONFLICT despite a stale journal entry", async () => {

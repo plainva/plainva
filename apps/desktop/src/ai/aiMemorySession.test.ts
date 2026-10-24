@@ -4,7 +4,7 @@ import { LOCAL, SEARCH, answering, body, chat, connect, results, toolNames, trac
 import { memorySession, memoryVault } from "./memorySessionHarness";
 
 /**
- * The vault's memory in the session (plan KI-Harness P6, ADR 0027): what a
+ * The vault's memory in the session (plan KI-Harness P6, ADR 0032): what a
  * conversation is started with, what it can look up, and how an entry comes
  * to be — as a draft the user decides on. The vault host is the one both
  * shells build; the model is scripted.

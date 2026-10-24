@@ -8,11 +8,13 @@ import { markdownHighlightStyle } from "@plainva/ui";
 vi.mock("../services/CredentialManager", () => ({ credentialManager: {} }));
 
 import { syntaxTree } from "@codemirror/language";
+import { markdown } from "@codemirror/lang-markdown";
+import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { undoDepth } from "@codemirror/commands";
 import { searchPanelOpen } from "@codemirror/search";
 import type { i18n as I18nInstance } from "i18next";
-import { createEditorSession, resetSpellcheckForTests, setSpellcheckOn, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
+import { createEditorSession, markdownDecorationPlugin, resetSpellcheckForTests, setSpellcheckOn, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
 import { tableLinkHandlers } from "@plainva/ui";
 import { setWikiResolver, buildWikiTargetSet } from "@plainva/ui";
 import { forceFullParse } from "../test-parse";
@@ -203,7 +205,7 @@ describe("editorSession", () => {
       const off = Array.from(content.querySelectorAll('[spellcheck="false"]')).map((el) => el.textContent ?? "");
       // Inline code and the URL are spans inside a checked line …
       expect(off).toContain("`code`");
-      expect(off.some((text) => text.includes("https://example.com/pfad"))).toBe(true);
+      expect(off).toContain("https://example.com/pfad");
       // … the fenced block and the frontmatter are whole lines.
       expect(off).toContain("const a = 1;");
       expect(off).toContain("title: Xyzzy");
@@ -215,6 +217,34 @@ describe("editorSession", () => {
       // Switch off: the marks are gone with the compartment.
       setSpellcheckOn(false);
       expect(content.querySelectorAll('[spellcheck="false"]').length).toBe(0);
+    });
+
+    // Where the frontmatter ends is the one definition's answer (finding
+    // 2026-10-09): a fence with a blank behind it used to end nothing here,
+    // and the YAML below it was checked like prose.
+    it("leaves the frontmatter unchecked in every form the definition reads as a block", () => {
+      setSpellcheckOn(true);
+      const MARK = String.fromCharCode(0xfeff);
+      const checked = (doc: string) => {
+        const { session } = makeSession("source", doc);
+        forceFullParse(session.view);
+        session.view.dispatch({});
+        return Array.from(session.view.contentDOM.querySelectorAll(".cm-line")).map((line) => line.getAttribute("spellcheck") !== "false");
+      };
+      for (const head of [
+        "--- \ntitle: Xyzzy\n---\t\n", // blanks behind either fence
+        "---\n---\n", // the empty block
+        "---\n\n---\n", // a blank line between the fences
+        `${MARK}---\ntitle: Xyzzy\n---\n`, // behind a byte order mark
+      ]) {
+        const blockLines = head.split("\n").length - 1;
+        // Every line of the block is exempt; the two lines of text and the empty last line are not.
+        expect(checked(`${head}Ende.\nNoch eine Zeile.\n`), JSON.stringify(head)).toEqual([...Array<boolean>(blockLines).fill(false), true, true, true]);
+      }
+      // A note that only opens with a rule has no frontmatter: its text is checked.
+      expect(checked("---\n\nEnde.\n")).toEqual([true, true, true, true]);
+      // The empty block ends on its second line; the text behind it is checked, a rule further down included.
+      expect(checked("---\n---\nEnde.\n\n---\n")).toEqual([false, false, true, true, true, true]);
     });
 
     it("never checks a text file that has a grammar; a plain text file follows the switch", () => {
@@ -324,6 +354,38 @@ describe("editorSession", () => {
     });
   });
 
+  // One answer for the whole session to where the frontmatter is, and it is the
+  // one definition's (finding 2026-10-09). A fence with a blank behind it was a
+  // block for the properties panel and text in the editor: a rule and a
+  // heading, open to typing. A document that starts with a byte order mark —
+  // an editor is handed a note without it — is read the same way.
+  it("hides and protects the frontmatter in every form the definition reads as a block", () => {
+    const MARK = String.fromCharCode(0xfeff);
+    for (const head of ["--- \nname: Ada\n---\t\n", `${MARK}---\nname: Ada\n---\n`, `${MARK}--- \n--- \n`, "---\n---\n"]) {
+      const doc = `${head}Body text\n`;
+      const live = makeSession("live", doc).session;
+      const shown = live.view.contentDOM.textContent ?? "";
+      expect(shown, JSON.stringify(head)).toContain("Body text");
+      expect(shown, JSON.stringify(head)).not.toContain("---");
+      expect(shown, JSON.stringify(head)).not.toContain("name: Ada");
+      // A byte order mark is hidden with the block: no placeholder for it on screen.
+      expect(live.view.contentDOM.querySelector(".cm-specialChar"), JSON.stringify(head)).toBeNull();
+
+      // Typing into the hidden block is refused — the first character included —, typing into the text is not.
+      live.view.dispatch({ changes: { from: 2, insert: "x" }, userEvent: "input.type" });
+      live.view.dispatch({ changes: { from: 0, to: 1 }, userEvent: "delete.backward" });
+      expect(live.view.state.doc.toString(), JSON.stringify(head)).toBe(doc);
+      live.view.dispatch({ changes: { from: head.length, insert: "x" }, userEvent: "input.type" });
+      expect(live.view.state.doc.toString(), JSON.stringify(head)).toBe(`${head}xBody text\n`);
+
+      // Source mode shows the block as it is written, every line marked as frontmatter.
+      const source = makeSession("source", doc).session;
+      const lines = [...source.view.contentDOM.querySelectorAll(".cm-line")];
+      const blockLines = head.split("\n").length - 1;
+      expect(lines.map((line) => line.classList.contains("cm-frontmatter")), JSON.stringify(head)).toEqual([...Array<boolean>(blockLines).fill(true), false, false]);
+    }
+  });
+
   it("keeps the parsed syntax tree across a live→source→live switch", () => {
     const { session } = makeSession("live");
     const len = session.view.state.doc.length;
@@ -410,8 +472,12 @@ describe("editorSession", () => {
     const { session, deps } = makeSession();
     const late = vi.fn();
     deps.current = { ...baseDeps(), openWikiTarget: late };
-    session.view.state.facet(tableLinkHandlers).onOpenNote?.("Ziel", true);
-    expect(late).toHaveBeenCalledWith("Ziel", true);
+    // A link in a rendered table cell reaches the shell with the way it is
+    // written, like one in running text (finding 2026-10-12).
+    session.view.state.facet(tableLinkHandlers).onOpenNote?.("Ziel", true, "wiki");
+    expect(late).toHaveBeenLastCalledWith("Ziel", true, "wiki");
+    session.view.state.facet(tableLinkHandlers).onOpenNote?.("Ordner/Ziel.md", false, "markdown");
+    expect(late).toHaveBeenLastCalledWith("Ordner/Ziel.md", false, "markdown");
   });
 
   it("shows line numbers only in source mode and toggles via setMode", () => {
@@ -441,6 +507,33 @@ describe("live preview decorations", () => {
     expect(el, `no rendered line contains "${needle}"`).toBeTruthy();
     return el!.textContent ?? "";
   };
+
+  // Wish 2026-10-19: the box sits in a span whose padding is the touch
+  // density's hit area; a tap on it toggles the task, so does the box.
+  it("ticks a task through the box's hit area, and back through the box", () => {
+    const { session } = makeSession("live", "Intro\n\n- [ ] Buy stamps\n");
+    const hit = session.view.contentDOM.querySelector<HTMLElement>("span.cm-md-task-hit");
+    expect(hit).toBeTruthy();
+    expect(hit!.querySelector<HTMLInputElement>("input.cm-md-task")).toBeTruthy();
+    hit!.click();
+    expect(session.view.state.doc.toString()).toBe("Intro\n\n- [x] Buy stamps\n");
+    // The redrawn box, clicked itself: once, not twice through its span.
+    session.view.contentDOM.querySelector<HTMLInputElement>("input.cm-md-task")!.click();
+    expect(session.view.state.doc.toString()).toBe("Intro\n\n- [ ] Buy stamps\n");
+  });
+
+  // Wish 2026-10-19: only a wiki link wears the note-link tint; a Markdown
+  // link and a bare address keep the web link's line.
+  it("marks a wiki link as a note link and a web link not", () => {
+    const { session } = makeSession("live", "Intro\n\nSee [[Plan]] and [docs](https://example.org) or https://example.com\n");
+    const marks = [...session.view.contentDOM.querySelectorAll<HTMLElement>(".cm-wiki-link")];
+    const byType = (type: string) => marks.filter((m) => m.getAttribute("data-link-type") === type);
+    expect(byType("wiki").length).toBeGreaterThan(0);
+    expect(byType("wiki").every((m) => m.classList.contains("cm-wiki-link--note"))).toBe(true);
+    const web = [...byType("markdown"), ...byType("url")];
+    expect(web.length).toBeGreaterThan(0);
+    expect(web.some((m) => m.classList.contains("cm-wiki-link--note"))).toBe(false);
+  });
 
   it("hides the space after # so inactive headings align with body text", () => {
     const { session } = makeSession("live", "Intro\n\n# Kopf\n\nEnde");
@@ -504,6 +597,39 @@ describe("live preview decorations", () => {
     // Once "Ghost" exists, the unresolved style clears again.
     session.view.dispatch({ effects: setWikiResolver.of(buildWikiTargetSet([{ title: "Ghost", path: "Ghost.md" }])) });
     expect(ghost()!.classList.contains("cm-wiki-link--unresolved")).toBe(false);
+  });
+
+  // The builder leaves the frontmatter alone, and where that ends is the one
+  // definition's answer (finding 2026-10-09). With a blank behind the opening
+  // fence it used to build a rule out of that line and a heading out of the
+  // YAML comment below it.
+  it("builds nothing inside the frontmatter, in every form the definition reads as a block", () => {
+    const MARK = String.fromCharCode(0xfeff);
+    const decoratedFrom = (doc: string) => {
+      const plugin = markdownDecorationPlugin(true);
+      const state = EditorState.create({ doc, extensions: [markdown(), plugin], selection: { anchor: doc.length } });
+      const view = new EditorView({ state: forceFullParse(state), parent: document.body });
+      try {
+        const starts: number[] = [];
+        for (const cursor = view.plugin(plugin)!.decorations.iter(); cursor.value; cursor.next()) starts.push(cursor.from);
+        return starts;
+      } finally {
+        view.destroy();
+      }
+    };
+    const TEXT = "A ==marked== word\n\nEnde";
+    for (const head of [
+      "--- \n# a comment\nnote: ==x==\n---\t\n", // blanks behind either fence
+      `${MARK}---\n# a comment\nnote: ==x==\n---\n`, // behind a byte order mark
+      "---\n---\n", // the empty block
+    ]) {
+      const starts = decoratedFrom(head + TEXT);
+      expect(starts.filter((from) => from < head.length), JSON.stringify(head)).toEqual([]);
+      // The note's text is decorated as ever: the highlight and its two hidden marks.
+      expect(starts.filter((from) => from >= head.length).length, JSON.stringify(head)).toBe(3);
+    }
+    // Without a closing fence there is no frontmatter: the rule on line 1 is a rule.
+    expect(decoratedFrom(`---\n\n${TEXT}`).some((from) => from === 0)).toBe(true);
   });
 });
 

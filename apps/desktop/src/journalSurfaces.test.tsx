@@ -88,6 +88,17 @@ describe("JournalDayList", () => {
     expect(host.querySelector('.pv-tag-pill[data-tag="client"]')).not.toBeNull();
   });
 
+  it("keeps an embed in a code span as text — written-out syntax, not a picture (TestFlight build 136)", async () => {
+    const raw = "# Sunday\n\n## Journal\n\n- 09:12 The syntax is `![[a.png|240]]`, escaped \\![[c.png]], and here is one: ![[b.png]]\n";
+    const loadImage = vi.fn(async () => new Blob(["x"], { type: "image/png" }));
+    const { host } = await mount(<JournalDayList days={[dayOf("2026-09-20", raw)]} todayKey="2026-09-20" loadImage={loadImage} {...listProps} />);
+    await settle();
+    const asked = loadImage.mock.calls.map((call) => String((call as unknown[])[0]));
+    expect(asked.some((path) => path.endsWith("b.png"))).toBe(true);
+    expect(asked.some((path) => path.endsWith("a.png") || path.endsWith("c.png"))).toBe(false);
+    expect(host.querySelector(".pv-journal-text code")?.textContent).toBe("![[a.png|240]]");
+  });
+
   it("names yesterday, and writes the year only for a day of another year", async () => {
     const { host } = await mount(
       <JournalDayList days={[dayOf("2026-09-19", NOTE), dayOf("2025-12-31", NOTE)]} todayKey="2026-09-20" {...listProps} />,
@@ -170,6 +181,26 @@ describe("JournalDayList", () => {
     await act(async () => { (host.querySelector(".pv-tag-pill") as HTMLElement).click(); });
     expect(onOpenTag).toHaveBeenCalledWith("client");
     expect(onOpenEntry).not.toHaveBeenCalled();
+  });
+
+  // One rule for where a link leads (finding 2026-10-08): a link in an entry is
+  // read from the day's note. The handler for that is made per entry — a list
+  // that only renders again must not draw its entries anew: a selection in an
+  // entry would collapse, and the phone's inline editor would redraw every
+  // other row on each keystroke.
+  it("reads a link from the day's note, and does not draw an entry anew when the list only renders again", async () => {
+    const onOpenNote = vi.fn();
+    const links = { onOpenNote };
+    const raw = "## Journal\n\n- 09:12 See [[Brief]] today\n";
+    const list = () => <JournalDayList days={[dayOf("2026-09-20", raw, "Journal/2026-09-20.md")]} todayKey="2026-09-20" {...listProps} links={links} />;
+    const { host, root } = await mount(list());
+    const drawn = host.querySelector(".pv-journal-text")!.firstChild;
+    expect(drawn).not.toBeNull();
+    // A new array of the same day, as the sidebar and the Today section hand it over on every render.
+    await act(async () => { root.render(list()); });
+    expect(host.querySelector(".pv-journal-text")!.firstChild).toBe(drawn);
+    await act(async () => { (host.querySelector(".pv-journal-text a") as HTMLElement).click(); });
+    expect(onOpenNote).toHaveBeenCalledWith("Brief", false, "wiki", "Journal/2026-09-20.md");
   });
 });
 

@@ -1,5 +1,5 @@
 import { retargetDesktopBookmarks } from "./bookmarks";
-import { isTextFile, toPathIdentity, type VaultQueryService } from "@plainva/core";
+import { copyFileContent, frontmatterSpan, toPathIdentity, updateVaultText, type VaultQueryService } from "@plainva/core";
 import { errorText, landedAtDestination, moveItemName, retargetTemplateForInFolder, sweepPinboardRefs, type PinboardSweepDeps } from "@plainva/ui";
 import { copyCandidate, parentOf } from "../components/fileTreeModel";
 import { renameFileWithLinkUpdates, type RenameAdapter } from "./renameNote";
@@ -120,8 +120,7 @@ function firstHeadingLine(body: string): HeadingLine | null {
  * Frontmatter is skipped, never rewritten.
  */
 export function carryMirroredHeading(content: string, oldName: string, newName: string): string | null {
-  const fm = content.startsWith("---") ? content.indexOf("\n---", 3) : -1;
-  const bodyStart = fm >= 0 ? content.indexOf("\n", fm + 1) + 1 : 0;
+  const bodyStart = frontmatterSpan(content)?.end ?? 0;
   const body = content.slice(bodyStart);
   // The heading must be the first non-empty body line — a "# Task_1" buried in
   // the middle of a note is prose, not a title.
@@ -183,9 +182,7 @@ export async function renameToName(opts: {
   // Before the move, while the old name is still the truth.
   if (opts.carryHeading && wasNote) {
     try {
-      const before = await adapter.readTextFile(oldPath);
-      const carried = carryMirroredHeading(before, renameInitialName(oldPath, false), name);
-      if (carried !== null) await adapter.writeTextFile(oldPath, carried);
+      await updateVaultText(adapter, oldPath, (before) => carryMirroredHeading(before, renameInitialName(oldPath, false), name));
     } catch (e) {
       console.warn("[fileActions] heading carry before rename failed", e);
     }
@@ -219,6 +216,9 @@ export async function renameToName(opts: {
         renamedLinks += sweep.renamed;
         changedFiles += sweep.changedPaths.length;
         for (const p of sweep.changedPaths) if (!changedPaths.includes(p)) changedPaths.push(p);
+        // A template that could not be written still names the old file: the
+        // rename says that not every link could be updated (finding 2026-10-12).
+        if (sweep.failed.length > 0) linkUpdateFailed = true;
       } catch (e) {
         console.warn("[fileActions] templateFor sweep after .base rename failed", e);
         linkUpdateFailed = true;
@@ -264,7 +264,7 @@ async function followUp(step: () => Promise<unknown>): Promise<string | undefine
 
 /** Minimal indexer surface the incremental-reindex helpers need (VaultIndexer satisfies it). */
 export interface RenameReindexer {
-  indexVaultFull(): Promise<unknown>;
+  indexVaultFull(trigger?: string): Promise<unknown>;
   indexPath(path: string): Promise<unknown>;
   removePathFromIndex(path: string): Promise<void>;
   /** Re-keys the rows of a path the app moved itself; reports no deletion (issue 113). */
@@ -300,7 +300,7 @@ export async function applyIndexChanges(
 ): Promise<void> {
   for (const { from, to } of changes.moved ?? []) await indexer.relocatePathInIndex(from, to);
   if (changes.needsFullScan) {
-    await indexer.indexVaultFull();
+    await indexer.indexVaultFull("folder moved in the app");
     return;
   }
   for (const path of changes.removed ?? []) await indexer.removePathFromIndex(path);
@@ -326,18 +326,16 @@ export async function reindexAfterRename(
   });
 }
 
-/** "Datei duplizieren" (P8): text files copy as text, attachments byte-wise;
- *  the copy gets the next free "(Kopie)" name next to the original. */
+/** "Datei duplizieren" (P8): text files copy as text, everything else byte for
+ *  byte — a text-named file in another encoding included (`copyFileContent`,
+ *  the phone's duplicate asks the same). The copy gets the next free "(Kopie)"
+ *  name next to the original. */
 export async function duplicateFile(adapter: FileActionAdapter, path: string, copySuffix: string): Promise<string> {
   let candidate = copyCandidate(path, copySuffix, 1);
   for (let n = 2; await adapter.exists(candidate); n++) {
     candidate = copyCandidate(path, copySuffix, n);
   }
-  if (isTextFile(path)) {
-    await adapter.writeTextFile(candidate, await adapter.readTextFile(path));
-  } else {
-    await adapter.writeBinaryFile(candidate, await adapter.readBinaryFile(path));
-  }
+  await copyFileContent(adapter, path, candidate);
   return candidate;
 }
 

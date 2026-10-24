@@ -87,6 +87,13 @@ export interface BroadcastMap {
   };
   /** Calendar/task data changed (PIM worker cycle finished). */
   "pim-changed": Record<string, never>;
+  /**
+   * The owner's chain turned a file's line ends — a carriage return of its own
+   * — into `eol` (ADR 0003, paragraph of 2026-10-22). A save from an auxiliary
+   * window goes through that chain too, and the window has a toast host of its
+   * own: a client says it there (`sayLineEndsConverted`).
+   */
+  "line-ends-converted": { path: string; eol: "\n" | "\r\n" };
   /** A setting the other windows must re-apply (theme, density, font, zoom). */
   "settings-changed": { domain: string };
   /**
@@ -119,6 +126,13 @@ export interface BroadcastMap {
    * its tag pane on that tag (a tag clicked in a note, finding 2026-09-19).
    */
   "reveal-path": { label: string; path?: string; tag?: string };
+  /**
+   * Owner to one window: your close was asked for, and you had said you hold
+   * unsaved work — say whether you still do (finding 2026-10-09). The window
+   * answers with `window-close-hold` and, when it holds something, asks the
+   * person. The owner does not send this to a window that never reported any.
+   */
+  "close-requested": { label: string };
 }
 
 export type BroadcastChannel = keyof BroadcastMap;
@@ -151,11 +165,17 @@ export interface RpcMap {
   "tab-transfer-cancel": { args: { id: string }; result: import("./tabTransfer").TransferResult };
   write: { args: { path: string; content: string }; result: void };
   "editor-write": { args: { path: string; content: string; baseText: string | null }; result: import("@plainva/core").EditorWriteResult };
+  /** The two halves of a change of a file where it lies (`RemoteVaultAdapter.updateTextFile`): what the file is … */
+  "update-read": { args: { path: string }; result: import("@plainva/core").TextFileState };
+  /** … and the change made of it, written only if the file still is that. `null`: it is not, read again. */
+  "update-write": { args: { path: string; expected: import("@plainva/core").TextFileState; next: import("@plainva/core").TextFileChange }; result: import("@plainva/core").TextFileUpdate | null };
   "conflict-read": { args: { path: string }; result: import("@plainva/core").ConflictEditSession | null };
   "conflict-list": { args: Record<string, never>; result: import("@plainva/core").ConflictEditSession[] };
   "conflict-diagnostics": { args: Record<string, never>; result: import("@plainva/core").ConflictDiagnostic[] };
   "conflict-preserve": { args: { path: string; content: string; writer: import("@plainva/core").ConflictWriter }; result: import("@plainva/core").ConflictEditSession };
   "conflict-resolve": { args: { path: string; resolution: import("@plainva/core").ConflictResolution }; result: void };
+  /** The way out of an open conflict whose file is no text any more: byte for byte (`resolveConflictBytes`). */
+  "conflict-resolve-bytes": { args: { path: string; resolution: import("@plainva/core").ConflictBytesResolution }; result: void };
   "write-binary": { args: { path: string; base64: string }; result: void };
   rename: { args: { from: string; to: string }; result: void };
   delete: { args: { path: string; recursive?: boolean; confirmation?: import("@plainva/core").DeletionConfirmation }; result: void };
@@ -255,7 +275,7 @@ export interface RpcMap {
   "move-bookmark": { args: { key: string; beforeKey: string | null }; result: BookmarkEntry[] };
   "rename-bookmarks": { args: { from: string; to: string }; result: BookmarkEntry[] };
   /** Ask the owner's PIM worker for a cycle now (an aux view has no worker). */
-  "pim-refresh": { args: Record<string, never>; result: void };
+  "pim-refresh": { args: { afterWrite?: boolean }; result: void };
   /**
    * Show one of the owner-only surfaces (stage C2).
    *
@@ -368,6 +388,17 @@ export interface RpcMap {
   /** An auxiliary window reports its always-on-top pin so it survives a restart. */
   "window-always-on-top": { args: { label: string; value: boolean }; result: void };
   /**
+   * A client window says whether closing it now would lose something
+   * (finding 2026-10-09): a message composer whose draft was changed.
+   *
+   * The owner creates every other window and is the one that destroys it, so
+   * it is the one that has to know. The sender's own label is the address —
+   * a window speaks for itself, never for another. Sent when the answer
+   * changes, and again when the owner asks (`close-requested`), so what the
+   * owner acts on is what is true at the moment of the close.
+   */
+  "window-close-hold": { args: { held: boolean }; result: void };
+  /**
    * Re-read the vault, or rebuild the index from scratch (multi-window C1).
    *
    * The indexer stays with the owner — a client holds a read-only connection to
@@ -420,6 +451,7 @@ export const BROADCAST_SCOPE: Record<BroadcastChannel, "vault" | "app"> = {
   "workspace-security-changed": "vault",
   "sync-status": "vault",
   "pim-changed": "vault",
+  "line-ends-converted": "vault",
   // App- or window-scoped: appearance is one setting for the process, and the
   // three window channels address a window by label, not a vault by path.
   "settings-changed": "app",
@@ -428,6 +460,7 @@ export const BROADCAST_SCOPE: Record<BroadcastChannel, "vault" | "app"> = {
   "focus-content": "app",
   "set-content": "app",
   "reveal-path": "app",
+  "close-requested": "app",
 };
 
 /**
@@ -447,11 +480,14 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "tab-transfer-cancel": "app",
   write: "vault",
   "editor-write": "vault",
+  "update-read": "vault",
+  "update-write": "vault",
   "conflict-read": "vault",
   "conflict-list": "vault",
   "conflict-diagnostics": "vault",
   "conflict-preserve": "vault",
   "conflict-resolve": "vault",
+  "conflict-resolve-bytes": "vault",
   "write-binary": "vault",
   rename: "vault",
   delete: "vault",
@@ -498,6 +534,7 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "window-bounds": "app",
   "window-contents": "app",
   "window-always-on-top": "app",
+  "window-close-hold": "app",
   // About a WINDOW and the process-wide runtime registry, and it names its
   // vault in the arguments — addressing it by vault would be circular.
   "hold-vault": "app",

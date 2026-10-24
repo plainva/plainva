@@ -58,8 +58,9 @@ export async function createTemplateIn(
 ): Promise<string | null> {
   if (!(await ensureFolder(adapter, opts.folder))) return null;
   const path = await uniqueTemplatePath(adapter, opts.folder, stem);
-  // A template opts itself out of the Tasks view (`plainva.tasks: false`);
-  // applyTemplatePlaceholders strips the marker again for notes created from it.
+  // A template opts itself out of the Tasks view (`plainva.tasks: false`); the
+  // builder of every note that is made from it takes the marker out again
+  // (`templateAsNewNote`).
   let content = setFrontmatterPath(
     buildNewNoteContent(opts.noteType, "{{title}}"),
     ["plainva", "tasks"],

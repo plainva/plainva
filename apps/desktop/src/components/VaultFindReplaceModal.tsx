@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Search as SearchIcon, SearchX } from "lucide-react";
-import { type FindReplaceOptions, type VaultFindResult } from "@plainva/core";
+import { updateVaultText, type FindReplaceOptions, type VaultFindResult } from "@plainva/core";
 import {
   Button,
   Checkbox,
@@ -79,8 +79,9 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
     setStatus(null);
     const res = await runVaultReplace(
       {
-        read: (path) => vaultAdapter.readTextFile(path),
-        write: (path, content) => vaultAdapter.writeTextFile(path, content),
+        readTextFile: (path) => vaultAdapter.readTextFile(path),
+        writeTextFile: (path, content) => vaultAdapter.writeTextFile(path, content),
+        updateTextFile: (path, change) => updateVaultText(vaultAdapter, path, change),
       },
       {
         results,

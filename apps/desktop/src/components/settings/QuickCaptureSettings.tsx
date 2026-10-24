@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Banner, Button, SettingCard, SettingCardNote, SettingRow, Switch } from "@plainva/ui";
 import { detectMac } from "../WindowControls";
@@ -21,8 +21,14 @@ import {
  * Off by default. The switch proves itself instead of predicting: it registers
  * the shortcut, and when the system refuses — another application holds it, the
  * key is not one it knows, the session is Wayland — the reason stands under the
- * switch and nothing is left half-on. The shortcut is recorded, not typed: the
- * button listens for the next key press with Ctrl, Alt or Cmd/Win.
+ * switch and nothing is left half-on. The shortcut is recorded, not typed: after
+ * a click on the button the next key press with Ctrl, Alt or Cmd/Win is it.
+ *
+ * The recorder listens on the WINDOW, not on the button (issue 123): WebKit on
+ * macOS does not move the focus to a button that is clicked, so a key listener
+ * on the button heard nothing there and the recorder could only be left with
+ * Escape. A press beside the button, or the window losing the system's focus,
+ * ends the recording the way the button's blur used to.
  */
 const FAILURE_KEY: Record<QuickCaptureFailure, string> = {
   taken: "quickCapture.failedTaken",
@@ -38,6 +44,7 @@ export function QuickCaptureSettings() {
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
+  const recordButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let alive = true;
@@ -46,7 +53,7 @@ export function QuickCaptureSettings() {
     return () => { alive = false; off(); };
   }, []);
 
-  const apply = async (next: QuickCaptureConfig) => {
+  const apply = useCallback(async (next: QuickCaptureConfig) => {
     setBusy(true);
     setConfig(next);
     try {
@@ -54,26 +61,39 @@ export function QuickCaptureSettings() {
     } finally {
       setBusy(false);
     }
-  };
+  }, []);
 
-  const onRecordKey = (e: KeyboardEvent<HTMLButtonElement>) => {
+  useEffect(() => {
     if (!recording || !config) return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.key === "Escape") {
-      setRecording(false);
-      setHint(null);
-      return;
-    }
-    const read = acceleratorFromEvent(e, mac);
-    if (!read.ok) {
-      setHint(read.reason === "needs-modifier" ? t("quickCapture.needsModifier") : read.reason === "unsupported" ? t("quickCapture.unsupportedKey") : null);
-      return;
-    }
-    setRecording(false);
-    setHint(null);
-    void apply({ ...config, shortcut: read.accelerator });
-  };
+    const stop = () => { setRecording(false); setHint(null); };
+    const onKey = (e: KeyboardEvent) => {
+      // Capture phase, and nothing behind it: while the recorder listens, a key
+      // press is the shortcut being chosen, not a command of the app.
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === "Escape") { stop(); return; }
+      const read = acceleratorFromEvent(e, mac);
+      if (!read.ok) {
+        setHint(read.reason === "needs-modifier" ? t("quickCapture.needsModifier") : read.reason === "unsupported" ? t("quickCapture.unsupportedKey") : null);
+        return;
+      }
+      stop();
+      void apply({ ...config, shortcut: read.accelerator });
+    };
+    const onPointer = (e: PointerEvent) => {
+      // The button itself toggles on its click.
+      if (e.target instanceof Node && recordButton.current?.contains(e.target)) return;
+      stop();
+    };
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("pointerdown", onPointer, true);
+    window.addEventListener("blur", stop);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("pointerdown", onPointer, true);
+      window.removeEventListener("blur", stop);
+    };
+  }, [recording, config, mac, t, apply]);
 
   if (!config) return null;
   const failure = state.status === "failed" && config.enabled ? state : null;
@@ -98,9 +118,8 @@ export function QuickCaptureSettings() {
             variant={recording ? "primary" : "secondary"}
             size="sm"
             disabled={busy}
+            ref={recordButton}
             onClick={() => { setRecording((on) => !on); setHint(null); }}
-            onKeyDown={onRecordKey}
-            onBlur={() => { setRecording(false); setHint(null); }}
             data-testid="quick-capture-record"
           >
             {t("quickCapture.record")}

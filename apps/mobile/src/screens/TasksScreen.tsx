@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { consumePendingNew } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
-import { Banner, errorText, useTaskDuplicates } from "@plainva/ui";
+import { Banner, CalendarSyncNotice, errorText, syncProblemsFor, useTaskDuplicates } from "@plainva/ui";
+import type { PimSyncProblem } from "@plainva/core";
 import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, type TaskPriority } from "@plainva/ui";
 import { buildPlanner, isOpenState, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
@@ -9,7 +10,7 @@ import { CalendarClock, CalendarPlus, Database, FileText, RefreshCw, Repeat, Tab
 import { formatPickedDay, overdueToDayChanges, TaskCheckButton, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
 import { TaskDueSheet } from "../components/TaskDueSheet";
 import { announceTaskDue, moveTaskDueOnPhone } from "../services/taskDueAction";
-import { applyTaskStatusOption, Button, canRepeat, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, isRecurringAtProviderNamespace, calendarDay, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, taskRowActions, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
+import { applyTaskStatusOption, Button, canRepeat, checkboxJumpTerm, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, isRecurringAtProviderNamespace, calendarDay, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, taskRowActions, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
 import {
   isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setTasksPriority, type ChecklistMutationResult, type TaskBoxState,
   setFrontmatterPath,
@@ -27,12 +28,14 @@ import { TaskCaptureSheet } from "../components/TaskCaptureSheet";
 import { TimeBlockSheet } from "../components/TimeBlockSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { getMobileSettings } from "../services/mobileSettings";
+import { configuredNoteType } from "../services/newNote";
+import { phoneTemplateVault } from "../services/templateVault";
 import { providerListLabel, sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mSelect, mTargets } from "../services/mobileDialogs";
 import { setTaskDone } from "../services/taskCompletionAction";
 import { getPimCache, pimForegroundSync, pimSyncNow, pimTargetForCalendarKey, writablePimCalendarOptions } from "../services/pim/pimService";
 import { syncSoon } from "../services/syncService";
-import { vaultOps, type MobileVault } from "../services/vaultService";
+import { vaultOps, vaultTextFiles, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
 
 /**
@@ -207,15 +210,9 @@ export function TasksScreen({
   const ptrIndicator = usePullToRefresh(ptrRef);
 
   /** Promotion and creation write through vaultOps.save, so the new note lands
-   *  in the index, the backup chain and the sync queue like any other write. */
-  const promotionAdapter = useMemo(
-    () => ({
-      readTextFile: (path: string) => vaultOps.read(vault, path),
-      writeTextFile: (path: string, content: string) => vaultOps.save(vault, path, content),
-      exists: (path: string) => vault.files.exists(path),
-    }),
-    [vault]
-  );
+   *  in the index, the backup chain and the sync queue like any other write —
+   *  and the line of the source note is replaced through vaultOps.update. */
+  const promotionAdapter = useMemo(() => vaultTextFiles(vault), [vault]);
 
   // Mirrored provider tasks reach this list through the task sync, and that
   // runs at the END of a PIM cycle — which is asleep while the app is away
@@ -284,6 +281,34 @@ export function TasksScreen({
       alive = false;
     };
   }, [vault, bump, tick]);
+
+  // Which accounts and task lists are not being synced, and why (B2, 19.10.):
+  // the same line the desktop's task view shows. Read again whenever a cycle
+  // or a reconcile finished, so it goes once the cause is gone.
+  const [syncProblems, setSyncProblems] = useState<PimSyncProblem[]>([]);
+  const [pimTick, setPimTick] = useState(0);
+  useEffect(() => {
+    const onChanged = () => setPimTick((x) => x + 1);
+    window.addEventListener("m-pim-changed", onChanged);
+    window.addEventListener("m-task-sync-done", onChanged);
+    return () => {
+      window.removeEventListener("m-pim-changed", onChanged);
+      window.removeEventListener("m-task-sync-done", onChanged);
+    };
+  }, []);
+  useEffect(() => {
+    let alive = true;
+    void (getPimCache()?.listSyncProblems() ?? Promise.resolve([]))
+      .then((problems) => {
+        if (alive) setSyncProblems(syncProblemsFor(problems, "tasks"));
+      })
+      .catch(() => {
+        if (alive) setSyncProblems([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [tick, pimTick]);
 
   // Writable calendars for "block time" — the SAME rule the calendar uses
   // (shared helper), so the two pickers can never disagree about which
@@ -393,28 +418,40 @@ export function TasksScreen({
     return [...seen];
   }, [tasks]);
 
-  /** One note in or out of the task list. The marker lives in the note. */
+  /**
+   * One note in or out of the task list. The marker lives in the note. Throws
+   * what the write throws; the two gestures below say it — one note in the
+   * sentence a property write gets, the templates in one count. The single
+   * note used to show the bare message (for a block that is no YAML, the
+   * parser's quote of the note's line), the templates nothing at all (finding
+   * 2026-10-12).
+   */
+  const writeNoteExcluded = async (path: string, excluded: boolean) => {
+    await vaultOps.update(vault, path, (raw) => setNoteTaskExclusion(raw, excluded, { setFrontmatterPath, deleteFrontmatterPath }));
+  };
+
   const setNoteExcluded = async (path: string, excluded: boolean) => {
     try {
-      const raw = await vault.files.readTextFile(path);
-      const next = setNoteTaskExclusion(raw, excluded, { setFrontmatterPath, deleteFrontmatterPath });
-      if (next !== raw) await vault.files.writeTextFile(path, next);
+      await writeNoteExcluded(path, excluded);
       setTick((x) => x + 1);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
     }
   };
 
   const hideAllTemplates = async () => {
+    let hidden = 0;
+    let failed = 0;
     for (const path of templateNotePaths) {
       try {
-        const raw = await vault.files.readTextFile(path);
-        const next = setNoteTaskExclusion(raw, true, { setFrontmatterPath, deleteFrontmatterPath });
-        if (next !== raw) await vault.files.writeTextFile(path, next);
+        await writeNoteExcluded(path, true);
+        hidden += 1;
       } catch {
-        /* one unreadable note must not stop the rest */
+        // One template that cannot be written must not stop the rest.
+        failed += 1;
       }
     }
+    if (failed > 0) toast.error(t("database.bulkSetPartial", { done: hidden, failed }));
     setTick((x) => x + 1);
   };
 
@@ -436,7 +473,8 @@ export function TasksScreen({
           sourcePath: task.path,
           task,
           dbPath,
-          noteType: getMobileSettings().defaultNoteType,
+          noteType: configuredNoteType(),
+          templateVault: await phoneTemplateVault(),
           allNotePaths,
           fallbackTitle: t("tasks.promoteFallbackTitle"),
         }).catch(() => null);
@@ -542,26 +580,28 @@ export function TasksScreen({
    * ONE write path for every change to a checkbox line — the tick, and since the
    * planner the priority mark (B3); the desktop's twin is `mutateCheckbox` in
    * TasksView. `mutate` edits the fresh file at the verified ordinal,
-   * `optimistic` is what the row shows until the index catches up.
+   * `optimistic` is what the row shows until the index catches up. The line
+   * is found and changed in the note as it lies there when it is written
+   * (`vaultOps.update`) — and, where the note has an open conflict, in the
+   * person's own version as well.
    */
   const mutateCheckbox = useCallback(
     async (task: TaskRecord, mutate: (fresh: string, ordinal: number) => ChecklistMutationResult, optimistic: (row: TaskRecord) => TaskRecord) => {
       gate.begin();
-      try {
-        const fresh = await vaultOps.read(vault, task.path);
-        // The ordinal was taken from a snapshot; if the note changed since, it
-        // may point at a different line now. Re-read and check before writing.
+      // The ordinal was taken from a snapshot; if the note changed since, it
+      // may point at a different line now. Checked on the text that is written.
+      const changed = (fresh: string): string | null => {
         const ordinal = resolveTaskOrdinal(fresh, task);
-        if (ordinal < 0) {
-          setTick((x) => x + 1);
-          return;
-        }
+        if (ordinal < 0) return null;
         const next = mutate(fresh, ordinal);
-        if (!next.changed) {
+        return next.changed ? next.content : null;
+      };
+      try {
+        const update = await vaultOps.update(vault, task.path, changed);
+        if (changed(update.before) === null) {
           setTick((x) => x + 1);
           return;
         }
-        await vaultOps.save(vault, task.path, next.content);
         setTasks((prev) => prev.map((tk) => (tk.path === task.path && tk.ordinal === task.ordinal ? optimistic(tk) : tk)));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
@@ -605,18 +645,18 @@ export function TasksScreen({
   const writeDbNote = useCallback(
     async (path: string, mutate: (raw: string) => string) => {
       try {
-        const raw = await vaultOps.read(vault, path);
-        const next = mutate(raw);
-        if (next !== raw) {
-          await vaultOps.save(vault, path, next);
-          syncSoon();
-        }
+        if ((await vaultOps.update(vault, path, mutate)).changed) syncSoon();
         setTick((x) => x + 1);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        // A status, a priority, a repeat rule: each is one property of the
+        // task's note. The sentence a property write gets, with the reason as
+        // `errorText` reads it (finding 2026-10-12) — the bare message stood
+        // here, and for a block that is no YAML that is the parser's quote of
+        // the note's own line.
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
       }
     },
-    [vault]
+    [vault, t]
   );
 
   /**
@@ -651,7 +691,7 @@ export function TasksScreen({
       if (!taskDb) return;
       try {
         const { columnAdded } = await setDbTaskPriority(
-          { readTextFile: (path) => vaultOps.read(vault, path), writeTextFile: (path, content) => vaultOps.save(vault, path, content), writeNote: writeDbNote },
+          { ...vaultTextFiles(vault), writeNote: writeDbNote },
           taskDb,
           target.path,
           rank,
@@ -734,12 +774,18 @@ export function TasksScreen({
     (row: TaskDbRow) => {
       void setTaskDone(row.path, !row.done)
         .then((result) => {
-          if (result.changed) syncSoon();
+          if (result.changed) {
+            syncSoon();
+            // A mirrored task reaches its provider list with the next cycle -
+            // asked for now, as the desktop does after every tick.
+            pimSyncNow();
+          }
           setTick((x) => x + 1);
           if (result.spawnedDue) toast.info(t("tasks.repeatSpawned", { date: result.spawnedDue }));
           if (result.spawnFailed) toast.error(t("tasks.repeatFailed"));
         })
-        .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
+        // The tick writes the note's completion property; see `writeDbNote`.
+        .catch((e) => toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) })));
     },
     [t]
   );
@@ -785,7 +831,8 @@ export function TasksScreen({
         adapter: promotionAdapter,
         dbPath: taskDb,
         title: result.title,
-        noteType: getMobileSettings().defaultNoteType,
+        noteType: configuredNoteType(),
+        templateVault: await phoneTemplateVault(),
         ...(result.due ? { dueDate: result.due, dueMinutes: result.minutes } : {}),
         tags: result.tags,
         priority: result.priority,
@@ -817,7 +864,7 @@ export function TasksScreen({
           toast.info(t("tasks.dueTimeOffer", { name: dayOnly }), {
             label: t("tasks.dueTimeOfferAction"),
             run: () => {
-              void convertDueColumnToDateTime({ readTextFile: (path) => vaultOps.read(vault, path), writeTextFile: (path, content) => vaultOps.save(vault, path, content) }, taskDb)
+              void convertDueColumnToDateTime(vaultTextFiles(vault), taskDb)
                 .then((key) => {
                   if (!key) return;
                   syncSoon();
@@ -840,7 +887,9 @@ export function TasksScreen({
   const open = (task: TaskRecord) => {
     // Opens the note AND jumps to the line — the same parking store the search
     // results use, because the editor is not mounted yet at this point.
-    setPendingSearchJump({ path: task.path, term: taskLabel(task.text).slice(0, 40) });
+    // The raw line: the label drops tags and Tasks fields from the middle of
+    // the text, and what is left need not stand in the note.
+    setPendingSearchJump({ path: task.path, term: checkboxJumpTerm(task.text) });
     onOpenNote(task.path);
   };
 
@@ -941,12 +990,22 @@ export function TasksScreen({
         subtitle={barSummary}
         title={t("tasks.title")}
         actions={
-          <IconButton label={t("tasks.refresh")} onClick={() => setTick((x) => x + 1)}>
+          <IconButton
+            label={t("tasks.refresh")}
+            onClick={() => {
+              // A re-query alone shows what the cache already had: a task
+              // ticked at the provider only arrives with a cycle (the desktop's
+              // refresh has asked for one since the Google Tasks report).
+              setTick((x) => x + 1);
+              pimSyncNow();
+            }}
+          >
             <RefreshCw size={ICON.head} />
           </IconButton>
         }
       />
       {ptrIndicator}
+      <CalendarSyncNotice problems={syncProblems} onRetry={pimSyncNow} />
 
       <TaskPlannerNav variant="segment" value={list} onChange={setList} counts={planner.counts} allCount={openCount} />
 

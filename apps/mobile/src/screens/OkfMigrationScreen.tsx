@@ -76,7 +76,7 @@ export function OkfMigrationScreen({ vault, onBack }: { vault: MobileVault; onBa
 
   const refreshIndex = async (paths: string[]) => {
     try {
-      await vault.indexer?.indexVaultFull();
+      await vault.indexer?.indexVaultFull("OKF migration");
     } catch {
       // The index catches up on the next pass; the files themselves are written.
     }

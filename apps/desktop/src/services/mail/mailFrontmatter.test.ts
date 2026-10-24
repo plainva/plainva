@@ -19,6 +19,14 @@ describe("stripFrontmatter", () => {
     const md = "# Title\n\n---\n\nAfter a rule";
     expect(stripFrontmatter(md)).toBe(md);
   });
+
+  it("removes a block without entries, and nothing of the text up to the next rule", () => {
+    // The two fences went into the mail as two rules — or, with a rule in the
+    // note, everything in front of that rule was cut as "frontmatter".
+    expect(stripFrontmatter("---\n---\n# Body\n")).toBe("# Body\n");
+    expect(stripFrontmatter("---\r\n---\r\n\r\n# Body\r\n")).toBe("# Body\r\n");
+    expect(stripFrontmatter("---\n---\nIntro\n\n---\n\nRest")).toBe("Intro\n\n---\n\nRest");
+  });
 });
 
 describe("frontmatterToAddress", () => {

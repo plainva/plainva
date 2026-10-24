@@ -42,7 +42,7 @@ const SKILL_BODY_TOKENS = 700;
 /**
  * The skills that bring no scenarios, each with why. A regression run brings
  * neither the vault's memory nor the tools that draft a change to it (ADR
- * 0027, ADR 0029) — it measures a skill, not what a user happens to have
+ * 0032, ADR 0029) — it measures a skill, not what a user happens to have
  * kept. A scenario of "memory-care" could require nothing such a run can do,
  * so it would pass or fail for reasons that say nothing about the skill.
  */

@@ -8,6 +8,7 @@ import { IconButton } from "./IconButton";
 import { Button } from "./Button";
 import { cx } from "./cx";
 import { useFixedPopover } from "./useFixedPopover";
+import { ClickCatch } from "./ClickCatch";
 
 /**
  * The date jump picker (plan "Kalender, Anker-Links, Dependabot", 2026-09-10,
@@ -427,7 +428,7 @@ export function DateJumpPopover({
   if (!open) return null;
   return (
     <>
-      <div className="pv-click-catch" style={{ zIndex: "var(--z-menu)" }} onMouseDown={onClose} />
+      <ClickCatch onPress={onClose} popover={ref} on="mousedown" />
       <div ref={ref} role="dialog" aria-label={ariaLabel} className="pv-popover pv-popover--fixed pv-datejump-pop" data-testid={testId}>
         {children}
       </div>

@@ -1,6 +1,6 @@
 # Referencia del formato de archivo
 
-Última actualización: 2026-10-09
+Última actualización: 2026-10-22
 
 Esta página es el contrato exacto, tal como queda en el disco, para **cada archivo de un vault de Plainva**. Está escrita para que una herramienta — u otro programa, un script o un asistente de IA — pueda leer y editar con seguridad los archivos del vault directamente, sin pasar por la interfaz de Plainva. Si solo usas la aplicación, nunca necesitas esta página; las [demás páginas de la guía](README.md) cubren el uso normal.
 
@@ -12,7 +12,7 @@ Todo aquí es texto UTF-8 puro. Las notas son Markdown con frontmatter YAML; las
 2. **Las notas siguen siendo nativas de Obsidian.** En el frontmatter de una nota, escribe siempre solo escalares y listas simples (string, número, booleano, fecha ISO, lista YAML). Nunca escribas un objeto anidado ni un indicador de "activo/seleccionado" en una nota.
 3. **Una `.base` usa solo las cinco claves de nivel superior de Obsidian** (`filters`, `formulas`, `properties`, `summaries`, `views`). Obsidian no entiende ninguna otra clave de nivel superior. Por eso todos los datos específicos de Plainva van bajo subclaves anidadas `plainva:`.
 4. **Conserva lo que no entiendas.** Las claves desconocidas deben sobrevivir intactas a un ciclo de lectura/escritura. No "limpies" claves que no reconozcas.
-5. **Escribe UTF-8 sin BOM, con finales de línea LF.**
+5. **Escribe UTF-8. Un archivo nuevo lleva finales de línea LF y no lleva BOM; uno que ya existe conserva los que tiene.** Plainva hace lo mismo: lo que crea empieza con LF y sin BOM, y lo que encuentra conserva sus finales de línea y su BOM — si editas una nota, solo cambian las líneas que has cambiado. Un archivo que mezcla ambos tipos de final de línea pasa, la primera vez que se edita, al tipo que tiene la mayoría de sus líneas. Un retorno de carro solo como final de línea — lo que tienen los archivos antiguos de Mac — se lee, pero no se conserva: la primera vez que se modifica un archivo así, Plainva lo guarda con LF (con CRLF si la mayoría de sus otros finales de línea son CRLF) y te lo indica.
 
 ## El vault de un vistazo
 
@@ -51,6 +51,10 @@ A **bold** thought that links to [[Another Note]].
 
 - [ ] First task
 ```
+
+Un bloque puede estar vacío: `---` seguido directamente de `---` es un bloque sin propiedades, no dos separadores; el texto de la nota empieza en la línea siguiente. Plainva no deja ningún bloque vacío: cuando se elimina la última propiedad, las dos líneas `---` desaparecen con ella. Solo permanecen cuando el propio texto empieza con una línea `---`, que de otro modo se leería como el inicio de un bloque.
+
+Un bloque que Plainva no puede leer como propiedades se deja tal como está: texto entre las dos líneas `---` que no es YAML, o YAML que es una lista en lugar de líneas `clave: valor`. **Propiedades** lo indica en lugar de no mostrar ninguna propiedad, y cambiar una propiedad de una nota así —allí, en una base de datos, en un tablón, en la lista de tareas, o su icono y su color— no cambia nada, y Plainva lo dice: **No se pudo guardar la propiedad**, seguido del motivo. Corrige el bloque en el texto de la nota y el cambio se aplicará. Un solo valor con una forma inesperada no hace ilegible un bloque: Plainva lo lee tal como está escrito —un `tags:` vacío es una nota sin etiquetas, un número entre las etiquetas (`- 2024`) es la etiqueta `2024`, un número como `title` es ese título, y un `timestamp` que es una fecha es una propiedad como cualquier otra.
 
 ### Campos de frontmatter OKF
 
@@ -214,7 +218,8 @@ El archivo es una lista bajo un encabezado y se puede acortar o eliminar. No con
 ### Enlaces
 
 - **Wiki-link:** `[[Nombre de la nota]]` — resuelto por nombre de nota en todo el vault. Con ancla de encabezado: `[[Nota#Sección]]` — un clic abre la nota **en ese encabezado**; `[[#Sección]]` salta dentro de la nota actual, y un slug al estilo de GitHub (`[[Nota#cool-header]]`) también se resuelve. Con referencia de bloque: `[[Nota#^id]]` para una línea que termina en `^id`. Con texto mostrado: `[[Nota|texto mostrado]]`.
-- **Enlace Markdown:** `[texto](ruta/relativa.md)` también funciona. Con fragmento (`[texto](#cool-header)`, `[texto](otra.md#cool-header)`) el clic aterriza en el encabezado.
+- **Cómo se resuelve el destino de un wiki-link** — igual para un clic, una inserción, una relación, el grafo y los retroenlaces, en el escritorio y en el teléfono. En este orden: (1) una ruta explícita — `/Carpeta/Nota` desde la raíz del vault, `./Nota` o `../Carpeta/Nota` desde la carpeta de la nota que enlaza — y nada más para un destino así; (2) la ruta del vault tal como está escrita — un archivo escrito exactamente así —, después la nota en esa ruta (`.md`); (3) el final de la ruta de una nota: el nombre de archivo solo o con carpetas delante (`Clientes/Carta` encuentra `Proyectos/Clientes/Carta.md`); (4) un archivo que no es una nota (`plan.pdf`, `Tasks.base`, `LICENSE`), por su ruta o por el final de su ruta — después de las notas, de modo que un destino sin extensión es una nota siempre que exista una; (5) el `title` de las propiedades de una nota. Los nombres se comparan sin distinguir mayúsculas de minúsculas, y la forma compuesta y la descompuesta de una letra cuentan como el mismo nombre. Si coinciden varios archivos: primero la grafía tal como está escrita, después la ruta leída desde la carpeta de la nota que enlaza (para un nombre solo, la nota de al lado), después la ruta más corta, después el orden alfabético. Los pasos 1 a 4 son también la forma en que Obsidian encuentra un archivo, aunque puede elegir otro cuando varios comparten nombre; un enlace por `title` (paso 5) solo funciona en Plainva — por eso los selectores de Plainva escriben el nombre de archivo.
+- **Enlace Markdown:** `[texto](destino)`. El destino se lee primero desde la carpeta de la nota que enlaza — el archivo escrito exactamente así, después la nota en esa ruta (`.md`); si allí no hay nada, se resuelve como el destino de un wiki-link (pasos 2 a 5 de arriba: la ruta desde la raíz del vault, el final de una ruta, un archivo que no es una nota, el `title`). Una ruta explícita — `/Carpeta/Archivo`, `./Archivo`, `../Carpeta/Archivo` — nombra un único lugar, y no se prueba nada más para ella. Un destino que termina en `/` nombra una carpeta y lleva a su `index.md`. La codificación porcentual se decodifica (`Mi%20carta.md`), los paréntesis angulares y un título se leen como en CommonMark (`[x](<Mi carta.md> "Título")`), y el primer `#` que se escribe inicia un fragmento: con `[texto](#cool-header)` o `[texto](otra.md#cool-header)` el clic aterriza en el encabezado; un `#` que forma parte de un nombre de archivo se escribe `%23`. Los enlaces en cualquiera de los tres formatos de Obsidian — ruta más corta, ruta relativa, ruta absoluta en el vault — se resuelven así; si un archivo está en la ruta desde la carpeta de la nota que enlaza y otro en la misma ruta desde la raíz del vault, Plainva toma el primero, como lo hace un lector de Markdown fuera de la aplicación. El propio Plainva escribe enlaces Markdown relativos y codificados con porcentaje (resúmenes de carpeta, resúmenes preparados). La respuesta es la misma para un clic, el grafo y los retroenlaces, en el escritorio y en el teléfono.
 - Los **retroenlaces** se derivan automáticamente, incluso desde wiki-links en frontmatter (eso es lo que hace que las relaciones aparezcan como retroenlaces).
 
 ---
@@ -647,7 +652,7 @@ Reglas: las rutas fijadas no se repiten en `pinboardOrder`. Las tarjetas que no 
 - **Las claves desconocidas son sagradas.** Cuando reescribas una `.base` o una nota, arrastra sin cambios cada clave que no tenías intención de modificar. Plainva mismo conserva las claves desconocidas de `.base` mediante una copia interna en bruto; un escritor externo debería hacer lo mismo (analizar → cambiar solo lo que se pretende → serializar).
 - **Los valores cambian en la nota, no en la `.base`.** Para fijar una celda, edita el frontmatter de la nota. La `.base` solo decide qué notas y columnas se muestran.
 - **No añadas claves `.base` de nivel superior** más allá de `filters` / `formulas` / `properties` / `views`.
-- **Codificación:** UTF-8 sin BOM, finales de línea LF, en todas partes.
+- **Codificación:** UTF-8. Archivos nuevos: finales de línea LF, sin BOM. Una nota o un archivo de texto que ya tiene finales de línea CRLF o un BOM los conserva — Plainva no los cambia, y una herramienta tampoco debería. La única excepción es un `.base`: Plainva lo escribe de nuevo, con LF y sin BOM, cada vez que cambia su configuración. Un retorno de carro solo como final de línea (archivos antiguos de Mac) se lee, pero no se conserva: Plainva guarda un archivo así con LF la primera vez que lo modifica.
 
 ## Ver también
 

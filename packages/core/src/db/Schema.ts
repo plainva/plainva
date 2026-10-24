@@ -1,5 +1,7 @@
 import { IDatabaseAdapter } from "./IDatabaseAdapter.js";
 import { migratePathIdentity } from "./pathIdentityMigration.js";
+import { flagLossyTextBases } from "./lossyTextBaseMigration.js";
+import { markNotesForWikiLinkReading } from "./wikiLinkReadingMigration.js";
 import { runStatementsAtomic } from "./batch.js";
 import { segmentedIndexText, SPACELESS_GLOB } from "../vault/spacelessText.js";
 
@@ -110,7 +112,8 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       remote_id TEXT,
       last_sync_ts INTEGER,
       base_text TEXT,
-      pending_push_sha TEXT
+      pending_push_sha TEXT,
+      recheck INTEGER
     );`,
 
     `CREATE TABLE IF NOT EXISTS meta (
@@ -383,8 +386,10 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_props_kv ON properties(key, value);`,
     // P2.1: every per-file re-index starts with DELETE FROM files WHERE id=?,
     // whose ON DELETE CASCADE otherwise full-scans links + properties on EVERY
-    // save; wiki-link resolution matches files.title with COLLATE NOCASE, so
-    // the index must carry the same collation to be usable.
+    // save. The title index carries COLLATE NOCASE because the statements that
+    // read it compare and sort that way (the `[[` completion's prefix match,
+    // a search ordered by title). Wiki-link RESOLUTION no longer asks SQL: it
+    // reads the corpus once and resolves in JavaScript (LinkResolver.ts).
     `CREATE INDEX IF NOT EXISTS idx_links_source ON links(source_id);`,
     `CREATE INDEX IF NOT EXISTS idx_props_file ON properties(file_id);`,
     `CREATE INDEX IF NOT EXISTS idx_files_title ON files(title COLLATE NOCASE);`
@@ -544,6 +549,17 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
   }
 
   try {
+    // "Look at this file again" (2026-10-11): set once for the rows an older
+    // version left for a file it synced as decoded text although its bytes are
+    // not UTF-8 (lossyTextBaseMigration.ts), cleared by the reconcile that has
+    // compared the file with the server's copy. A column of its own, because it
+    // has to outlive a rename and a push, which both rewrite the remote marker.
+    await db.execute(`ALTER TABLE sync_state ADD COLUMN recheck INTEGER;`);
+  } catch {
+    // Column might already exist
+  }
+
+  try {
     // Per-event colour (2026-07-18): overrides the calendar colour on the grid.
     await db.execute(`ALTER TABLE pim_events ADD COLUMN color TEXT;`);
   } catch {
@@ -605,6 +621,9 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
   await migrateIndexFormat(db);
   // Paths are NFC identities since ADR 0016; re-keys what older versions stored.
   await migratePathIdentity(db);
+  // Files an older version synced as text although their bytes are not UTF-8
+  // are reconciled once more by the next full listing.
+  await flagLossyTextBases(db);
 }
 
 /**
@@ -627,7 +646,27 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
 // spaces (Gesamtplan Volltextsuche CJK, 2026-09-30). It is the first step that
 // re-parses nothing: the table is copied into its new shape, so search never
 // stands empty, and only notes holding such text get the new columns filled.
-const INDEX_FORMAT_VERSION = 5;
+//
+// Version 6 reads a wiki link where the tokenizer reads a code span, as the
+// name it is written as (finding 2026-10-11). Only the notes whose links the
+// two readings may list differently are read again by the next full scan
+// (`wikiLinkReadingMigration.ts`).
+//
+// Version 7 reads the target of a Markdown link anew (finding 2026-10-11): a
+// link without an anchor of its own was cut at the first `#` or `^` of its
+// DECODED target, so `Draft%20%231.md` stood in the link table as a link to
+// `Draft` with the anchor `#1.md`. A stored row cannot tell such a link from
+// one with a real anchor — both carry one —, so every note that holds a
+// Markdown link with an anchor is re-parsed, and no other.
+//
+// Version 8 reads a note's properties field by field (ADR 0009, addendum
+// 2026-10-22): one value outside its field's form — an empty `tags:`, a
+// `timestamp` that is a date — made the reader refuse the whole block, and the
+// index held no property, no tag from the block and no title of that note. A
+// row cannot tell such a note from one whose block holds nothing, so every
+// note that begins with a block and that the index holds no property for is
+// re-parsed, and no other.
+const INDEX_FORMAT_VERSION = 8;
 
 async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
   let stored: number;
@@ -642,9 +681,29 @@ async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
   }
   if (stored >= INDEX_FORMAT_VERSION) return;
 
-  await upgradeFullTextTable(db);
+  if (stored < 5) await upgradeFullTextTable(db);
   if (stored >= 4) {
-    await fillSegmentedColumns(db);
+    if (stored < 5) await fillSegmentedColumns(db);
+    if (stored < 6) await markNotesForWikiLinkReading(db);
+    // Version 7: the notes whose Markdown links may stand under a cut target.
+    // The same reset as below, for those notes alone — the next full pass
+    // re-parses them, and a file that has not changed fires no sync callback.
+    if (stored < 7) {
+      await db.execute(
+        `UPDATE files SET mtime_local = 0
+         WHERE id IN (SELECT source_id FROM links WHERE link_type = 'markdown-link' AND anchor IS NOT NULL)`
+      );
+    }
+    // Version 8: the notes that begin with a block (`---`, after a byte order
+    // mark too) and that the index holds no property for — those whose block
+    // the reader refused, among the ones whose block holds nothing. Their text
+    // is in `fts_notes`, read once for all of them.
+    await db.execute(
+      `UPDATE files SET mtime_local = 0
+       WHERE path LIKE '%.md'
+         AND NOT EXISTS (SELECT 1 FROM properties WHERE properties.file_id = files.id)
+         AND path IN (SELECT path FROM fts_notes WHERE substr(content, 1, 3) = '---' OR substr(content, 1, 4) = char(65279) || '---')`
+    );
   } else {
     // Below 4 every note is re-parsed, which fills the new columns as well.
     // Backfill BEFORE the mtime reset — ctime derives from mtime_local.

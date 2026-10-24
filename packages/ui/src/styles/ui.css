@@ -124,9 +124,18 @@
    inline styles carry coordinates only. */
 .pv-fixed-ghost { position: fixed; pointer-events: none; z-index: var(--z-tooltip); }
 
-/* Invisible full-viewport click catcher for outside-click dismissal of
-   non-modal popovers (no dim - the pickers stay visually anchored). */
-.pv-click-catch { position: fixed; inset: 0; }
+/* Invisible full-viewport click catcher for the dialog-like popovers (colour,
+   emoji, date jump, a selection's "set a value" form): the press beside them
+   closes them and goes nowhere else (no dim - they stay visually anchored).
+   It carries the menus' layer ITSELF: a catcher takes only what no higher
+   layer takes first, and one without a layer lay under the floating windows -
+   a press into a note preview never reached it. Drawn by the ClickCatch
+   primitive alone, BEFORE its popover (they share the layer); the primitive
+   also hears the press the catcher does not get, because a layer counts only
+   inside its own stacking context (a database embedded in a note sits in the
+   editor's). Menus and popovers that let the press through hear it at the
+   window instead (useOutsidePress) and lay nothing over the page. */
+.pv-click-catch { position: fixed; inset: 0; z-index: var(--z-menu); }
 
 /* ----------------------------------------------------------------- fields */
 /* Field metric roles (design sweep 2026-07-19, E10): the FORM standard is the
@@ -662,6 +671,15 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
    at narrow widths that has to wrap rather than clip. */
 .pv-appbar--wrap { flex-wrap: wrap; }
 
+/* Pin of a pinned tab: accent like the unsaved dot; the themes whose tab bar
+   is the accent colour repaint both (Win95's navy bar, LCARS's filled pill). */
+.pv-tab-pin {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent-color);
+}
+
 /* Unsaved-changes dot in tab strips (P6/L2). */
 .pv-tab-dirty {
   width: 7px;
@@ -678,6 +696,23 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 .tabstrip [role="tab"][aria-selected="true"] {
   box-shadow: inset 0 -2px 0 0 var(--accent-color);
 }
+/* A tab is as wide as what it holds, up to its most (inline, TAB_MAX_WIDTH):
+   one grid column each, sized minmax(0, max-content). While the strip has room
+   every tab takes its own width; once it is full the room is shared EQUALLY,
+   so short names stay whole and long ones are cut first. Equal-share flex
+   items stretched "index" to the width of a long name (finding 2026-10-23).
+   Which tabs are in the window at all is `useTabWindow`'s business. */
+.tabstrip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, max-content);
+  justify-content: start;
+  align-items: stretch;
+  /* Foreground colours as an indirection (see below). */
+  --tab-fg: var(--text-main);
+  --tab-fg-muted: var(--text-muted);
+}
+.tabstrip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* The tabs that do not fit, behind one button at the end of the strip.
    The strips used to scroll sideways instead (finding 2026-09-22). */
 .tabstrip-more { flex: none; gap: var(--space-1); align-self: center; margin: 0 var(--space-1); }
@@ -686,7 +721,6 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 /* Tab foreground colors as an indirection: the title-bar strip runs on the
    titlebar palette, pane strips on the document palette — same rules, one
    hover system (CSS :hover, no JS style mutation; design sweep 2026-07-19). */
-.tabstrip { --tab-fg: var(--text-main); --tab-fg-muted: var(--text-muted); }
 .tabstrip--titlebar { --tab-fg: var(--titlebar-fg); --tab-fg-muted: var(--titlebar-fg-muted); }
 .tabstrip [role="tab"] { color: var(--tab-fg-muted); }
 .tabstrip [role="tab"]:hover,
@@ -702,6 +736,15 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   flex-shrink: 0;
 }
 .pv-tab-close:hover { opacity: 1; background: var(--state-hover); }
+/* An unsaved tab shows its dot in the ✕'s slot, at full strength; under the
+   pointer or the keyboard focus the ✕ takes the slot back. A dot beside the ✕
+   widened the tab on the first keystroke and narrowed it on save (2026-10-23). */
+.pv-tab-close[data-dirty] > svg { display: none; }
+.tabstrip [role="tab"]:not(:hover):not(:focus-visible) .pv-tab-close[data-dirty] { opacity: 1; }
+.tabstrip [role="tab"]:hover .pv-tab-close[data-dirty] > svg,
+.tabstrip [role="tab"]:focus-visible .pv-tab-close[data-dirty] > svg { display: block; }
+.tabstrip [role="tab"]:hover .pv-tab-close[data-dirty] > .pv-tab-dirty,
+.tabstrip [role="tab"]:focus-visible .pv-tab-close[data-dirty] > .pv-tab-dirty { display: none; }
 
 /* Title-bar chrome buttons (sidebar toggles, theme toggle, window controls). */
 .pv-titlebar-btn {
@@ -1399,6 +1442,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   line-height: 1.4;
   white-space: nowrap;
 }
+/* Under a finger the count is a target like any other (the phone's all-day
+   row follows the desktop's since 2026-10-19). */
+[data-density="touch"] .pv-btn.pv-allday-more { min-height: var(--touch-sm); }
 /* The line above the calendar (K1): one sentence per account or calendar that
    is not fresh. Each on its own line — two accounts are two statements. */
 .pv-syncnote-line { display: block; }
@@ -1752,6 +1798,65 @@ button.pv-chip:hover { background: var(--state-hover); }
 .pv-chip-plain { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
 .pv-chip-tag { background: var(--chip-tag-bg); color: var(--chip-tag-fg); border-color: transparent; }
 .pv-tag-parent { color: var(--chip-tag-parent-fg); }
+/* A link to a note outside the editor - the desktop's reading view, card
+   previews, cells. The same values as the editor's `.cm-wiki-link--note`
+   (wikiLinkStyle.ts; wishes10b.test.ts holds the two together). */
+.pv-wiki-link {
+  color: var(--wiki-link-text, var(--wiki-link-color, var(--accent-color)));
+  background-color: var(--wiki-link-bg);
+  border-radius: var(--radius-xs);
+  padding: 0;
+  font-weight: var(--wiki-link-weight);
+  text-decoration: var(--wiki-link-decoration);
+  text-underline-offset: 3px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  cursor: pointer;
+}
+.pv-wiki-link:hover {
+  color: var(--wiki-link-color, var(--accent-color));
+  background-color: var(--wiki-link-bg-hover);
+  text-decoration: underline;
+}
+.pv-wiki-link--unresolved,
+.pv-wiki-link--unresolved:hover {
+  color: var(--wiki-link-unresolved-color, var(--text-muted));
+  background-color: transparent;
+  padding: 0;
+  font-weight: inherit;
+  text-decoration: underline dashed;
+}
+/* A link out of the vault in the desktop's reading view: the web link's look
+   (Appearance -> Links, linkStyle.ts); the line comes under the pointer when
+   the device chose colour only. */
+.pv-web-link {
+  color: var(--accent-color);
+  text-decoration: var(--web-link-decoration);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.pv-web-link:hover {
+  text-decoration: underline;
+}
+/* The link look a device chose (Appearance -> Links, linkStyle.ts). The default
+   - underlined - is the absence of the attribute; high contrast keeps it for
+   every choice. A link to a note that does not exist yet keeps its own look. */
+html:not([data-theme-name="high-contrast"])[data-link-note="tint"] {
+  --wiki-link-bg: color-mix(in srgb, var(--wiki-link-color) 13%, transparent);
+  --wiki-link-bg-hover: color-mix(in srgb, var(--wiki-link-color) 24%, transparent);
+  --wiki-link-weight: 500;
+  --wiki-link-decoration: none;
+}
+html:not([data-theme-name="high-contrast"])[data-link-note="color"] {
+  --wiki-link-decoration: none;
+}
+html:not([data-theme-name="high-contrast"])[data-link-note="subtle"] {
+  --wiki-link-text: var(--text-main);
+  --wiki-link-decoration: underline dotted color-mix(in srgb, var(--wiki-link-color) 70%, transparent);
+}
+html:not([data-theme-name="high-contrast"])[data-link-web="color"] {
+  --web-link-decoration: none;
+}
 /* A tag in running text (finding 2026-09-19): the editor's mark and the reader's
    span are this one class, so a tag looks the same where it is written and where
    it is read. Sized in `em` - it sits in note text of any size - and allowed to
@@ -2642,6 +2747,11 @@ button.pv-acct:hover { background: var(--state-hover); }
   gap: var(--space-2);
 }
 .pv-provtile {
+  /* A grid item is as wide as its longest word unless told otherwise; the
+     tile's text wraps inside it instead (same build as the index tiles,
+     finding 2026-10-19). */
+  min-width: 0;
+  overflow-wrap: anywhere;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -3029,6 +3139,8 @@ button.pv-acct:hover { background: var(--state-hover); }
 .pv-journal-line .pv-journal-body { flex: 1; }
 .pv-journal-line .pv-journal-time { padding: 0; line-height: var(--pv-journal-lh); }
 .pv-journal-box { flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--control-sm); height: var(--pv-journal-lh); }
+/* The glyph grows under a finger like the planner's box (wish 2026-10-19). */
+.pv-journal-box svg { width: var(--journal-taskbox-size); height: var(--journal-taskbox-size); }
 /* The same entries in a 250-px side column (finding 2026-09-22): one line each,
    nothing to operate, and every row on the same text edge. The content row's
    52-px metric was built for a settings line, not for a list beside the note —

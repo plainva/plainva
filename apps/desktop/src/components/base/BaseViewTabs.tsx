@@ -1,14 +1,20 @@
-import React, { useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, ChevronDown } from "lucide-react";
 import { ALL_VIEW_TYPES, EXTENDED_TYPES, defaultViewName, viewIcon, viewLabel } from "./baseViewerShared";
-import { ICON } from "@plainva/ui";
+import { ICON, MenuItem, MenuSeparator, MenuSurface, TextInput, useFixedPopover, useOutsidePress, useStableHandler } from "@plainva/ui";
 
 // Notion-style view tabs of the BaseViewer (structural split, plan C3): one tab
 // per view in views[], a "+" to add a view of a chosen type, and a per-view menu
 // (rename/duplicate/delete). Tab drag reorder is pointer-based (Tauri-safe): a
 // small move threshold tells a drag from a click, so tapping a tab still just
 // switches the active view. Config mutations happen in the BaseViewer callbacks.
+//
+// Both menus are the menu primitive, and the rename field is a popover that
+// hears the press beside it itself. Until 2026-10-11 all three were boxes of
+// their own over an element that caught the press beside them: no Escape for
+// the menus, and the catcher lay under the floating windows — a press into a
+// note preview left them open.
 export function BaseViewTabs({
   views,
   activeViewIndex,
@@ -33,15 +39,24 @@ export function BaseViewTabs({
   const { t } = useTranslation();
   const [viewMenuFor, setViewMenuFor] = useState<number | null>(null);
   const [showAddViewMenu, setShowAddViewMenu] = useState(false);
+  const closeViewMenu = useCallback(() => setViewMenuFor(null), []);
+  const closeAddViewMenu = useCallback(() => setShowAddViewMenu(false), []);
+  // The view's menu and the rename field hang on the tab they belong to — the
+  // active one, the only tab with a caret.
+  const activeTabRef = useRef<HTMLDivElement>(null);
+  const addViewRef = useRef<HTMLButtonElement>(null);
 
   // Inline rename popover (plan W6): native window.prompt is unreliable in
   // WebView2, so the menu's "rename" opens a small anchored input instead.
   const [renamingIdx, setRenamingIdx] = useState<number | null>(null);
-  const [renameValue, setRenameValue] = useState("");
-  const commitRename = () => {
-    if (renamingIdx != null) onRename(renamingIdx, renameValue);
-    setRenamingIdx(null);
-  };
+
+  // Both belong to the tab they were opened for. A database that is read again
+  // from outside (a sync, another window) can take that view away or make
+  // another one the active one: then they go with it, and nothing they held is
+  // applied to a view that merely has the same number.
+  const stillThere = (i: number | null) => (i !== null && i === activeViewIndex && i < views.length ? i : null);
+  const menuFor = stillThere(viewMenuFor);
+  const renaming = stillThere(renamingIdx);
 
   const tabEls = useRef<Record<number, HTMLElement>>({});
   const viewDragRef = useRef<{ from: number; x: number; moved: boolean } | null>(null);
@@ -59,6 +74,9 @@ export function BaseViewTabs({
   };
   const onTabPointerDown = (i: number, e: React.PointerEvent) => {
     if (e.button !== 0) return;
+    // The tab is what the view's menu hangs on, so the menu does not take a
+    // press on it for a press beside it. It is one all the same.
+    setViewMenuFor(null);
     try { (e.currentTarget as Element).setPointerCapture(e.pointerId); } catch { /* unsupported */ }
     viewDragRef.current = { from: i, x: e.clientX, moved: false };
   };
@@ -88,7 +106,7 @@ export function BaseViewTabs({
       {views.map((view: any, i: number) => {
         const active = i === activeViewIndex;
         return (
-          <div key={i} className={`base-view-tab${active ? " active" : ""}${viewOverIdx === i && viewDragIdx !== null && viewDragIdx !== i ? " drop" : ""}`} style={{ opacity: viewDragIdx === i ? 0.5 : 1 }}>
+          <div key={i} ref={active ? activeTabRef : undefined} className={`base-view-tab${active ? " active" : ""}${viewOverIdx === i && viewDragIdx !== null && viewDragIdx !== i ? " drop" : ""}`} style={{ opacity: viewDragIdx === i ? 0.5 : 1 }}>
             <button
               className="base-view-tab-btn"
               ref={(el) => { if (el) tabEls.current[i] = el; }}
@@ -103,57 +121,127 @@ export function BaseViewTabs({
               <span className="base-view-tab-label">{viewLabel(t, view)}</span>
             </button>
             {active && (
-              <button className="base-view-tab-caret" aria-label={t("database.viewOptions", "Ansichts-Optionen")} data-tip={t("database.viewOptions", "Ansichts-Optionen")} onClick={() => setViewMenuFor(viewMenuFor === i ? null : i)}>
+              <button
+                className="base-view-tab-caret"
+                aria-label={t("database.viewOptions", "Ansichts-Optionen")}
+                data-tip={t("database.viewOptions", "Ansichts-Optionen")}
+                aria-haspopup="menu"
+                aria-expanded={menuFor === i}
+                onClick={() => setViewMenuFor(menuFor === i ? null : i)}
+              >
                 <ChevronDown size={ICON.meta} />
               </button>
-            )}
-            {viewMenuFor === i && (
-              <>
-                <div className="base-menu-backdrop" onClick={() => setViewMenuFor(null)} />
-                <div className="base-view-menu">
-                  <button onClick={() => { setViewMenuFor(null); setRenamingIdx(i); setRenameValue(viewLabel(t, views[i])); }}>{t("database.renameView", "Umbenennen")}</button>
-                  <button onClick={() => { setViewMenuFor(null); onDuplicate(i); }}>{t("database.duplicateView", "Duplizieren")}</button>
-                  <div className="base-menu-sep" role="separator" />
-                  <button onClick={() => { setViewMenuFor(null); onDelete(i); }} disabled={views.length <= 1} className="danger">{t("database.deleteView", "Löschen")}</button>
-                </div>
-              </>
-            )}
-            {renamingIdx === i && (
-              <>
-                <div className="base-menu-backdrop" onClick={() => setRenamingIdx(null)} />
-                <div className="base-view-menu" style={{ padding: "0.4rem" }}>
-                  <input
-                    autoFocus
-                    type="text"
-                    className="base-inline-input"
-                    aria-label={t("database.renameViewPrompt", "Name der Ansicht:")}
-                    placeholder={t("database.renameViewPrompt", "Name der Ansicht:")}
-                    value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") commitRename(); if (e.key === "Escape") setRenamingIdx(null); }}
-                    onBlur={commitRename}
-                  />
-                </div>
-              </>
             )}
           </div>
         );
       })}
-      <div style={{ position: "relative" }}>
-        <button className="base-view-add" aria-label={t("database.addView", "Ansicht hinzufügen")} data-tip={t("database.addView", "Ansicht hinzufügen")} onClick={() => setShowAddViewMenu((s) => !s)}>
-          <Plus size={ICON.ui} />
-        </button>
-        {showAddViewMenu && (
-          <>
-            <div className="base-menu-backdrop" onClick={() => setShowAddViewMenu(false)} />
-            <div className="base-view-menu">
-              {ALL_VIEW_TYPES.filter((ty) => extendedDbEnabled || !EXTENDED_TYPES.includes(ty)).map((ty) => (
-                <button key={ty} onClick={() => { setShowAddViewMenu(false); onAdd(ty); }}>{viewIcon(ty)} {defaultViewName(t, ty)}</button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+      <MenuSurface
+        open={menuFor !== null}
+        onClose={closeViewMenu}
+        anchorRef={activeTabRef}
+        minWidth={160}
+        ariaLabel={t("database.viewOptions", "Ansichts-Optionen")}
+      >
+        <MenuItem onSelect={() => setRenamingIdx(menuFor)}>{t("database.renameView", "Umbenennen")}</MenuItem>
+        <MenuItem onSelect={() => { if (menuFor !== null) onDuplicate(menuFor); }}>{t("database.duplicateView", "Duplizieren")}</MenuItem>
+        <MenuSeparator />
+        <MenuItem danger disabled={views.length <= 1} onSelect={() => { if (menuFor !== null) onDelete(menuFor); }}>{t("database.deleteView", "Löschen")}</MenuItem>
+      </MenuSurface>
+      {renaming !== null && (
+        <RenameViewPopover
+          anchorRef={activeTabRef}
+          initial={viewLabel(t, views[renaming])}
+          label={t("database.renameViewPrompt", "Name der Ansicht:")}
+          onKeep={(name) => { onRename(renaming, name); setRenamingIdx(null); }}
+          onDrop={() => setRenamingIdx(null)}
+        />
+      )}
+      <button
+        ref={addViewRef}
+        className="base-view-add"
+        aria-label={t("database.addView", "Ansicht hinzufügen")}
+        data-tip={t("database.addView", "Ansicht hinzufügen")}
+        aria-haspopup="menu"
+        aria-expanded={showAddViewMenu}
+        onClick={() => setShowAddViewMenu((s) => !s)}
+      >
+        <Plus size={ICON.ui} />
+      </button>
+      <MenuSurface
+        open={showAddViewMenu}
+        onClose={closeAddViewMenu}
+        anchorRef={addViewRef}
+        minWidth={160}
+        ariaLabel={t("database.addView", "Ansicht hinzufügen")}
+      >
+        {ALL_VIEW_TYPES.filter((ty) => extendedDbEnabled || !EXTENDED_TYPES.includes(ty)).map((ty) => (
+          <MenuItem key={ty} icon={viewIcon(ty)} onSelect={() => onAdd(ty)}>{defaultViewName(t, ty)}</MenuItem>
+        ))}
+      </MenuSurface>
+    </div>
+  );
+}
+
+/**
+ * The field a view is renamed in, under its tab.
+ *
+ * It ends once, whichever way it is left: Enter, a press beside it and losing
+ * the focus keep the name, Escape drops it. The press beside it is heard for
+ * itself and not read off the blur — a press that is taken for a drag (the
+ * head of a floating window) moves no focus, and the field would stay.
+ */
+function RenameViewPopover({ anchorRef, initial, label, onKeep, onDrop }: {
+  anchorRef: RefObject<HTMLElement | null>;
+  initial: string;
+  label: string;
+  onKeep: (name: string) => void;
+  onDrop: () => void;
+}) {
+  const [value, setValue] = useState(initial);
+  const popRef = useFixedPopover(true, anchorRef, { minWidth: 200 });
+  const ended = useRef(false);
+  const end = useStableHandler((keep: boolean) => {
+    if (ended.current) return;
+    ended.current = true;
+    if (keep) onKeep(value);
+    else onDrop();
+  });
+  const keep = useCallback(() => end(true), [end]);
+  useOutsidePress(true, keep, popRef);
+  // Being taken away is not being left: when the tab the field hangs on goes
+  // (the database was read again from outside), nothing is kept. The field
+  // loses its focus as it is removed, and that must not count as "keep".
+  useLayoutEffect(() => {
+    ended.current = false;
+    return () => { ended.current = true; };
+  }, []);
+  // The caret goes into the field once the popover is placed: until then it is
+  // hidden, and what is hidden takes no focus (`autoFocus` comes too early).
+  const fieldRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    fieldRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  return (
+    <div ref={popRef} className="pv-popover pv-popover--fixed">
+      <TextInput
+        ref={fieldRef}
+        compact
+        aria-label={label}
+        placeholder={label}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") end(true);
+          else if (e.key === "Escape") {
+            // The key is used here: it drops the name and reaches nothing behind.
+            e.preventDefault();
+            e.stopPropagation();
+            end(false);
+          }
+        }}
+        onBlur={keep}
+      />
     </div>
   );
 }

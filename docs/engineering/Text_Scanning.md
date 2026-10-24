@@ -25,7 +25,42 @@ keeps the class closed.
    - `packages/core/src/linkScan.ts` — wiki and Markdown link scanners
      (`wikiLinks`, `bracketLinks`, `replaceBracketLinks`, the matchers and the
      `nextWhere` cursor they are built on), used by the editor plugins, the
-     inline renderer, the importers, publications and the reader;
+     inline renderer, the importers and publications;
+   - `packages/core/src/wikiLinkSyntax.ts` — `[[…]]` and `![[…]]` as a
+     construct of the Markdown tokenizer, read before anything is read into
+     them (ADR 0003, addendum 2026-10-21): a `[[` that finds no `]]` before
+     its line ends settles that for every `[[` behind it on the line, so a run
+     of brackets is read once (`linear-link-scans.test.ts`). The index, the
+     link rewriter and the reading view take wiki links from its nodes;
+   - `packages/core/src/linkEncoding.ts` — what a Markdown link's destination
+     names: `markdownDestinationUrl` takes angle brackets, a title and
+     escapes off for the surfaces that scan a line instead of parsing it (the
+     editor's link drawing, a table cell, a journal entry), reading the title
+     from the end in one pass; `markdownLinkTarget` splits at the first written
+     `#` and decodes — the one reading of the index, a click, a rename and the
+     graph (ADR 0027, addendum 2026-10-12);
+   - `packages/core/src/linkRewrite.ts` — where the links of a note stand in
+     its text (`readNoteLinks`), and their rewrite in that place
+     (`rewriteNoteLinks`, `renameNoteLinks`): a rename and the preparation of
+     an overview change a link there and never write the note back from its
+     parsed tree (ADR 0003, addendum 2026-10-12;
+     `markdownSerializerUse.test.ts` fails a file that does);
+   - `packages/core/src/frontmatter-block.ts` — the properties block at the top
+     of a note: `frontmatterSpan` for where it is, `noteBodyOf` for the text
+     behind it. Every reader and writer asks there; a pattern or a search of
+     one's own for the two `---` lines fails `frontmatterDefinition.test.ts`.
+     The editor holds lines, not a string, and reads the same rule on them in
+     one place, `frontmatterLines` in
+     `packages/ui/src/components/editorFrontmatter.ts` — kept per document, so
+     no part of the editor scans the lines for itself on a transaction;
+   - `packages/core/src/frontmatter-entry.ts` — a property of that block,
+     changed where it stands: the block stays text, the YAML library says
+     where a key and a value are, and setting, removing or renaming one entry
+     changes its characters or its lines and nothing else (ADR 0009, addendum
+     2026-10-13). The writers in `frontmatter-surgical.ts` and
+     `updateFrontmatterString` go through it; a block that was read is never
+     printed by the library, and `yamlWriters.test.ts` fails a file that
+     takes more from the library than `parse` without being listed there;
    - `packages/core/src/vault/htmlCheckbox.ts` — the tag tokenizer behind the
      HTML task box, shared by both renderers and the writer;
    - `packages/core/src/vault/filterComparison.ts` — the `column op "value"`

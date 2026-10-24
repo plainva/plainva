@@ -1,5 +1,6 @@
 import { EditorState } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
+import { frontmatterLines } from "./editorFrontmatter";
 
 // Top-level "block" model for the Notion-style block handles (#7). A block is a
 // top-level markdown element (paragraph, heading, blockquote/callout, fenced
@@ -50,28 +51,17 @@ function mkBlock(state: EditorState, from: number, to: number, type: BlockType):
 }
 
 /**
- * End offset of the leading YAML frontmatter (`---` … `---`), or 0 if none.
- * `@codemirror/lang-markdown` doesn't parse frontmatter as its own node — lezer
- * sees the `---` fences as thematic breaks / setext headings — so without this
- * the frontmatter would surface as phantom blocks (which the editor hides),
- * stacking handles at the top and corrupting move line numbers.
- */
-function frontmatterEnd(state: EditorState): number {
-  if (state.doc.lines < 2 || state.doc.line(1).text !== "---") return 0;
-  for (let i = 2; i <= state.doc.lines; i++) {
-    if (state.doc.line(i).text === "---") return state.doc.line(i).to;
-  }
-  return 0;
-}
-
-/**
  * All top-level blocks in document order. A whole bullet/ordered list is ONE
  * block (not per item), matching how users think about moving/converting a list.
- * Blocks inside the YAML frontmatter are excluded.
+ * Blocks inside the YAML frontmatter are excluded: `@codemirror/lang-markdown`
+ * doesn't parse frontmatter as its own node — lezer sees the `---` fences as
+ * thematic breaks / setext headings — so without this the frontmatter would
+ * surface as phantom blocks (which the editor hides), stacking handles at the
+ * top and corrupting move line numbers.
  */
 export function listBlocks(state: EditorState): DocBlock[] {
   const blocks: DocBlock[] = [];
-  const fmEnd = frontmatterEnd(state);
+  const fmEnd = frontmatterLines(state.doc)?.closeTo ?? 0;
   const top = syntaxTree(state).topNode;
   let child = top.firstChild;
   while (child) {

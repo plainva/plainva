@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { consumeReminderIntent } from "./services/reminderScheduler";
-import { runReminderIntent, type CalendarFocus } from "./services/reminderActions";
+import type { CalendarFocus } from "./services/calendarFocus";
+import { runReminderIntent } from "./services/reminderActions";
 
 /**
  * Runs the intents that arrive from outside the app — a launcher shortcut, a

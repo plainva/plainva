@@ -43,6 +43,16 @@ describe("attachments in the navigator", () => {
     expect(open).toContain("shareVaultFile");
   });
 
+  it("opens a text file from the list in Plainva, as from everywhere else", () => {
+    // The shared rule calls a `.csv` a text file, and a link, a bookmark or a
+    // search hit opened it in the editor — while this list handed the same
+    // file to the share sheet (finding 2026-10-08). One file, one answer: the
+    // row asks the rule and takes the note's way.
+    expect(browse).toMatch(/resolveOpenAction\(a\.path\) === "text" \? onOpenNote\(a\.path\) : onOpenAttachment\(a\.path, a\.isImage\)/);
+    // …and the gate behind `onOpenNote` lets a text file through to the note screen.
+    expect(open).toMatch(/if \(action === "image" \|\| action === "external"\)/);
+  });
+
   it("releases the image blob when the viewer closes", () => {
     // Without this a gallery of photos holds every one of them for the session.
     expect(viewer).toContain("URL.revokeObjectURL");

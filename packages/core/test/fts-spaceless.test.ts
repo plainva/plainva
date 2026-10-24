@@ -124,6 +124,9 @@ describe("index format 5 on an existing index", () => {
     for (const row of rows) await db.execute(`INSERT INTO fts_notes (content, title, path) VALUES (?, ?, ?)`, row);
     await db.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES ('index_format_version', '4')`);
     await db.execute(`INSERT INTO files (id, path, title, mtime_local) VALUES ('a', 'ja.md', 'ja', 111), ('b', 'en.md', 'en', 222)`);
+    // Each note has a property: the step of version 8 reads again a note that
+    // begins with a block and holds none, and that is not what these tests are about.
+    await db.execute(`INSERT INTO properties (file_id, key, value, type) VALUES ('a', 'type', 'Note', 'string'), ('b', 'type', 'Note', 'string')`);
   }
   const ROWS: [string, string, string][] = [
     ["今日は会議の議事録を書いた。", "議事録", "ja.md"],
@@ -137,7 +140,7 @@ describe("index format 5 on an existing index", () => {
     await versionFour(db, ROWS);
     await initializeSchema(db);
     expect(await columns(db)).toEqual(["content", "title", "path", "seg_content", "seg_title"]);
-    expect(await version(db)).toBe("5");
+    expect(await version(db)).toBe("8");
     const rows = await db.query<{ path: string; content: string; seg_content: string | null; seg_title: string | null }>(`SELECT path, content, seg_content, seg_title FROM fts_notes ORDER BY path`);
     expect(rows.map((row) => [row.path, row.content])).toEqual([["en.md", "An English note."], ["ja.md", "今日は会議の議事録を書いた。"]]);
     expect(rows[0].seg_content ?? "").toBe("");
@@ -159,7 +162,7 @@ describe("index format 5 on an existing index", () => {
     expect(await columns(db)).toContain("seg_content");
     expect((await db.query<{ path: string }>(`SELECT path FROM fts_notes ORDER BY path`)).map((row) => row.path)).toEqual(["en.md", "ja.md"]);
     expect(await db.queryOne(`SELECT name FROM sqlite_master WHERE name = 'fts_notes_next'`)).toBeNull();
-    expect(await version(db)).toBe("5");
+    expect(await version(db)).toBe("8");
   });
 
   it("does nothing on the next start", async () => {

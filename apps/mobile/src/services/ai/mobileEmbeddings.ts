@@ -46,7 +46,7 @@ export function useMobileEmbeddings(vault: MobileVault | null, loaded: AiAppSett
       related: stores.related,
       provider: {
         egress: session.egress,
-        policy: createVaultPolicy({ readFile: readText, resolveLink: (target, from) => vaultOps.resolveWikiTarget(vault, target, from), fileNames: () => names.fileNames(), encrypted }),
+        policy: createVaultPolicy({ readFile: readText, resolveLink: (target, from) => vaultOps.resolveWikiTarget(vault, target, from), fileNames: () => names.linkTargets(), encrypted }),
         encrypted,
         approvals: stores.approvals,
         ledger: stores.ledger,

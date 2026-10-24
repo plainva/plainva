@@ -23,8 +23,10 @@ import {
   resolveViewModeForPath,
   setStoredDefaultViewMode,
 } from "./viewModeDefault";
+import { markFreshNote, resetFreshNotesForTests } from "@plainva/ui";
 
 beforeEach(() => {
+  resetFreshNotesForTests();
   storeValues = {};
   setSpy.mockClear();
   resetViewModeStateForTests();
@@ -64,5 +66,24 @@ describe("viewModeDefault service", () => {
     rememberSessionViewMode(null, "live");
     rememberSessionViewMode("", "live");
     expect(resolveViewModeForPath(null)).toBe("read");
+  });
+
+  // Wish 2026-10-19: a note just created opens to be written in.
+  it("opens a note just created in live preview when the default is read", async () => {
+    await setStoredDefaultViewMode("read");
+    markFreshNote("notes/new.md");
+    expect(resolveViewModeForPath("notes/new.md")).toBe("live");
+    expect(resolveViewModeForPath("notes/old.md")).toBe("read");
+    // The user's own choice in the note wins.
+    rememberSessionViewMode("notes/new.md", "read");
+    expect(resolveViewModeForPath("notes/new.md")).toBe("read");
+  });
+
+  it("leaves a default of source or live alone for a new note", async () => {
+    markFreshNote("notes/new.md");
+    await setStoredDefaultViewMode("source");
+    expect(resolveViewModeForPath("notes/new.md")).toBe("source");
+    await setStoredDefaultViewMode("live");
+    expect(resolveViewModeForPath("notes/new.md")).toBe("live");
   });
 });

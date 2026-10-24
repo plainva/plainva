@@ -39,7 +39,7 @@ describe("AiAnswer", () => {
     expect(container.textContent).toContain("<img src=x onerror=alert(1)>");
     const [wiki, beacon] = Array.from(container.querySelectorAll("a"));
     act(() => wiki!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })));
-    expect(onOpenNote).toHaveBeenCalledWith("Offer 2026");
+    expect(onOpenNote).toHaveBeenCalledWith("Offer 2026", "wiki");
     act(() => beacon!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })));
     expect(onOpenUrl).toHaveBeenCalledWith("https://evil.example/p.png?d=secret");
     expect(container.querySelector(".pv-ai-box")).not.toBeNull();

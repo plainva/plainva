@@ -1,8 +1,9 @@
 import { scanTemplate, replaceTemplateTokens, type TemplateToken } from "./templateEngine";
 import { parse as parseYaml } from "yaml";
-import { deleteFrontmatterPath, setFrontmatterPath, wikiTargetForFile } from "@plainva/core";
+import { deleteFrontmatterPath, editorTextOf, noteBodyOf, setFrontmatterPath, updateVaultText, wikiTargetForFile, type TextUpdateFiles } from "@plainva/core";
 import { frontmatterBlockOf } from "../services/docMeta";
 import { resolveTemplate, type TemplateContext } from "./templateEngine";
+import { isFileNotFound } from "../lib/movedNote";
 
 /**
  * Template file helpers (moved from the desktop newItemFlow in R3 so the
@@ -80,7 +81,14 @@ export function finalizeTemplate(text: string, answers: Record<string, string> =
 /** Placeholders for creating/seeding a note: date/time/title PLUS the
  * insert-time tokens resolved non-interactively ({{cursor}} stripped,
  * {{prompt}} blanked) so a "new note from template" never leaves a literal
- * token behind. Shared with the editor's template picker. */
+ * token behind. Shared with the editor's template picker.
+ *
+ * The answer is the template, filled — its properties as they stand. What a
+ * NOTE does not take over from them (`plainva.tasks`, `plainva.templateFor`,
+ * a legacy `okf_version`) is taken out where the note is built
+ * (`templateAsNewNote`), for this path and for the one that asks questions
+ * alike. It used to be taken out here, and so only for a note nobody was
+ * asked about (finding 2026-10-11). */
 export function applyTemplatePlaceholders(
   content: string,
   title: string,
@@ -88,28 +96,7 @@ export function applyTemplatePlaceholders(
   extra: Omit<Partial<TemplateContext>, "title" | "now"> = {}
 ): string {
   const resolved = resolveTemplate(content, { ...extra, title, now }, "headless");
-  return withoutTemplateOnlyKeys(finalizeTemplate(resolved.text).text);
-}
-
-/**
- * Template-only keys must not carry over into created notes:
- * `plainva.tasks: false` opts the TEMPLATE out of the Tasks view (a note
- * created from it is real content), `plainva.templateFor` scopes the
- * TEMPLATE to databases (a created entry is not a template), and an
- * `okf_version` a legacy template still carries is a bundle declaration that
- * belongs only in the root index.md (OKF v0.2, E1 — notes stop carrying it).
- * Other plainva keys (icon, header color) stay intentionally inheritable.
- * Malformed frontmatter → leave as-is.
- */
-export function withoutTemplateOnlyKeys(filled: string): string {
-  try {
-    return deleteFrontmatterPath(
-      deleteFrontmatterPath(deleteFrontmatterPath(filled, ["plainva", "tasks"]), TEMPLATE_FOR_PATH),
-      ["okf_version"]
-    );
-  } catch {
-    return filled;
-  }
+  return finalizeTemplate(resolved.text).text;
 }
 
 /** OKF reserved note names — folder infrastructure, never a fill-in template. */
@@ -250,6 +237,13 @@ export interface TemplateForSweepResult {
   changedPaths: string[];
   /** Number of rewritten templateFor entries across all templates. */
   renamed: number;
+  /**
+   * Templates that are assigned to the renamed database and could not be
+   * written: they still name the old file. They used to be skipped without a
+   * trace (finding 2026-10-12); the rename now says that not every link could
+   * be updated.
+   */
+  failed: string[];
 }
 
 /**
@@ -258,10 +252,11 @@ export interface TemplateForSweepResult {
  * regular backlink-driven rename chain cannot see these links — this dedicated
  * sweep over the template folder is the only carrier. Bare entries stay bare
  * (new file name; qualified on collision), qualified entries stay qualified.
- * Broken/unreadable templates are skipped — a rename must never fail over one.
+ * A rename must never fail over a template: one that is gone is skipped, one
+ * that is there and cannot be read or written is listed in `failed`.
  */
 export async function retargetTemplateForInFolder(opts: {
-  adapter: ScopedTemplateListAdapter & { writeTextFile(path: string, content: string): Promise<void> };
+  adapter: ScopedTemplateListAdapter & TextUpdateFiles;
   folder: string;
   oldBasePath: string;
   newBasePath: string;
@@ -273,39 +268,51 @@ export async function retargetTemplateForInFolder(opts: {
   const adjusted = opts.allFilePaths.map((p) => (p === oldBasePath ? newBasePath : p));
   const bareTarget = wikiTargetForFile(newBasePath, adjusted);
   const changedPaths: string[] = [];
+  const failed: string[] = [];
   let renamed = 0;
+
+  const retargeted = (content: string): { hits: number; next: string | null } => {
+    const raw = rawTemplateForOf(content);
+    let hits = 0;
+    const next = (raw?.values ?? []).map((value) => {
+      const target = templateForTargetOf(value);
+      if (target === null || !templateMatchesBase([target], oldBasePath)) return value;
+      hits++;
+      const qualified = target.includes("/") || target.includes("\\");
+      return `[[${qualified ? newBasePath : bareTarget}]]`;
+    });
+    return { hits, next: !raw || hits === 0 ? null : setFrontmatterPath(content, TEMPLATE_FOR_PATH, raw.scalar ? next[0] : next) };
+  };
 
   for (const item of await listTemplates(adapter, folder)) {
     try {
-      const content = await adapter.readTextFile(item.path);
-      const raw = rawTemplateForOf(content);
-      if (!raw) continue;
-      let changed = 0;
-      const next = raw.values.map((value) => {
-        const target = templateForTargetOf(value);
-        if (target === null || !templateMatchesBase([target], oldBasePath)) return value;
-        changed++;
-        const qualified = target.includes("/") || target.includes("\\");
-        return `[[${qualified ? newBasePath : bareTarget}]]`;
-      });
-      if (changed === 0) continue;
-      await adapter.writeTextFile(
-        item.path,
-        setFrontmatterPath(content, TEMPLATE_FOR_PATH, raw.scalar ? next[0] : next)
-      );
+      // Counted on the template as it was changed; a working copy of an open conflict is retargeted the same way.
+      const update = await updateVaultText(adapter, item.path, (content) => retargeted(content).next);
+      const { hits } = retargeted(update.before);
+      if (!hits) continue;
       changedPaths.push(item.path);
-      renamed += changed;
-    } catch {
-      /* skip broken template — the rename itself must go through */
+      renamed += hits;
+    } catch (e) {
+      // The rename itself must go through. A template that is gone since it
+      // was listed names no database any more; one that is there and could
+      // not be read or written may still name the old file.
+      if (!isFileNotFound(e)) failed.push(item.path);
     }
   }
-  return { changedPaths, renamed };
+  return { changedPaths, renamed, failed };
 }
 
 /**
  * Adds a templateFor assignment onto `basePath` (no-op when a stored entry
  * already matches it). The link text is collision-safe via wikiTargetForFile;
- * existing entries are kept verbatim. Malformed frontmatter → unchanged.
+ * existing entries are kept verbatim.
+ *
+ * A template whose properties block cannot be written — no YAML map, YAML that
+ * cannot be read — throws what the writer throws. It used to answer "nothing
+ * changed", the answer of a template that is assigned already, and so the
+ * menu that asked said nothing and showed the template as it was (finding
+ * 2026-10-12). `removeTemplateForAssignment` has no such case: it finds
+ * nothing to remove in a block it cannot read.
  */
 export function addTemplateForAssignment(
   content: string,
@@ -319,11 +326,7 @@ export function addTemplateForAssignment(
     .filter((t): t is string => t !== null);
   if (templateMatchesBase(targets, basePath)) return { content, changed: false };
   const link = `[[${wikiTargetForFile(basePath, [...allFilePaths])}]]`;
-  try {
-    return { content: setFrontmatterPath(content, TEMPLATE_FOR_PATH, [...values, link]), changed: true };
-  } catch {
-    return { content, changed: false };
-  }
+  return { content: setFrontmatterPath(content, TEMPLATE_FOR_PATH, [...values, link]), changed: true };
 }
 
 /**
@@ -380,33 +383,20 @@ export function groupTemplatesForBase<T extends ScopedTemplateItem>(
   return { forBase, others };
 }
 
-const LEADING_FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
-
-/** Interpolated template BODY for an interactive insert: frontmatter stripped,
- * date/time/title filled, but {{cursor}}/{{prompt}} PRESERVED so the caller can
- * extractTemplatePrompts → ask the user → finalizeTemplate. */
-export function interpolateTemplateBody(raw: string, title: string, now: Date = new Date()): string {
-  return resolveTemplate(raw.replace(LEADING_FRONTMATTER, ""), { title, now }, "interactive").text;
-}
-
-/** Insert-into-note parts WITH caret placement (prompts already answered). */
-export function templateInsertParts(
-  raw: string,
-  title: string,
-  answers: Record<string, string> = {},
-  now: Date = new Date()
-): FinalizedTemplate {
-  return finalizeTemplate(interpolateTemplateBody(raw, title, now), answers);
-}
-
 /**
- * Text a template contributes when inserted INTO an existing note (slash
- * command "insert template"): the template's own frontmatter would be inert
- * garbage mid-document, so it is stripped; placeholders interpolate against the
- * hosting note's title, and {{cursor}}/{{prompt}} are resolved (stripped/blank)
- * so they never leak. Callers wanting caret/prompt handling use
- * templateInsertParts + extractTemplatePrompts.
+ * The text a template contributes when it goes INTO another text — the body of
+ * a mail (the composers of both shells): its own properties block stays out,
+ * since a mail body has none and the recipient would get YAML, and it is read
+ * as an editor holds it — `\n` line ends, no byte order mark. A mark is its
+ * file's first character, not text; read as the file has it, the mark of a
+ * template without a properties block stood at the start of the body, and
+ * "insert template" put it into the message (finding 2026-10-11).
+ *
+ * The placeholders stay: the pipeline with questions fills them, ONCE. The
+ * composers filled the text here first, without the shell's context and
+ * without asking — every question became nothing, its default too — and then
+ * ran the pipeline on what was left (Sammelplan § 3.97).
  */
-export function templateInsertText(raw: string, title: string, now: Date = new Date()): string {
-  return templateInsertParts(raw, title, {}, now).text;
+export function templateBodyOf(raw: string): string {
+  return noteBodyOf(editorTextOf(raw));
 }

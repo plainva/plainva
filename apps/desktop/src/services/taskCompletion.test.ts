@@ -85,7 +85,7 @@ plainva:
 describe("writeTaskNote", () => {
   it("writes, refreshes the tree and nudges the provider", async () => {
     const { deps, written, triggerFileTreeUpdate, triggerImmediate, onChanged } = makeDeps({ "T/a.md": PLAIN_TASK });
-    const changed = await writeTaskNote(deps, "T/a.md", (raw) => raw + "\nx\n");
+    const { changed } = await writeTaskNote(deps, "T/a.md", (raw) => raw + "\nx\n");
     expect(changed).toBe(true);
     expect(written["T/a.md"]).toContain("\nx\n");
     expect(triggerFileTreeUpdate).toHaveBeenCalledWith(["T/a.md"]);
@@ -95,7 +95,7 @@ describe("writeTaskNote", () => {
 
   it("writes nothing when the mutation changes nothing, but still re-queries", async () => {
     const { deps, written, triggerFileTreeUpdate, onChanged } = makeDeps({ "T/a.md": PLAIN_TASK });
-    const changed = await writeTaskNote(deps, "T/a.md", (raw) => raw);
+    const { changed } = await writeTaskNote(deps, "T/a.md", (raw) => raw);
     expect(changed).toBe(false);
     expect(written["T/a.md"]).toBeUndefined();
     expect(triggerFileTreeUpdate).not.toHaveBeenCalled();

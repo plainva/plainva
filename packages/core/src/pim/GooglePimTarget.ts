@@ -564,7 +564,8 @@ function googleTaskBody(draft: PimTaskDraft, isPatch: boolean): Record<string, u
     status: draft.completed ? "completed" : "needsAction",
   };
   if (draft.notes !== undefined) body.notes = draft.notes;
-  if (draft.due) body.due = `${draft.due}T00:00:00.000Z`;
+  // Google keeps days only; a note may carry a time (the reconciler compares by day).
+  if (draft.due) body.due = `${draft.due.slice(0, 10)}T00:00:00.000Z`;
   else if (isPatch) body.due = null;
   if (isPatch && !draft.completed) body.completed = null;
   return body;

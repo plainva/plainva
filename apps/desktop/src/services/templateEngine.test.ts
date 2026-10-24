@@ -7,6 +7,7 @@ import {
   resolveTemplate,
   scanTemplate,
   setDateLocaleForTests,
+  templateAsNewNote,
   type TemplateContext,
 } from "@plainva/ui";
 
@@ -220,12 +221,15 @@ describe("applyTemplatePlaceholders — the headless facade", () => {
     expect(out).toBe("# Titel\n2026-07-29 14:37\n");
   });
 
-  it("still removes the template-only plainva keys", () => {
-    const out = applyTemplatePlaceholders(
-      '---\ntype: Note\nplainva:\n  tasks: false\n  templateFor:\n    - "[[A.base]]"\n---\n\nBody\n',
-      "Titel",
-      NOW
-    );
+  // The facade took the template-only keys out itself — and so only for the
+  // notes nobody is asked about, which are the ones it fills (finding
+  // 2026-10-11). The builder of the note takes them out now, whichever way its
+  // template was filled; every caller of the facade hands its answer there.
+  it("leaves the template-only plainva keys to the builder of the note, which still removes them", () => {
+    const raw = '---\ntype: Note\nplainva:\n  tasks: false\n  templateFor:\n    - "[[A.base]]"\n---\n\nBody\n';
+    const filled = applyTemplatePlaceholders(raw, "Titel", NOW);
+    expect(filled).toBe(raw);
+    const out = templateAsNewNote({ text: filled, cursor: null }, "Note").content;
     expect(out).not.toContain("tasks: false");
     expect(out).not.toContain("templateFor");
     expect(out).toContain("type: Note");

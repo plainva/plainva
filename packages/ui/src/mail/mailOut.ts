@@ -4,9 +4,10 @@ import { markdownToPlainText } from "../lib/markdownToPlainText";
 import { upsertFrontmatterKeys } from "@plainva/core";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 import type { MailAccountConfig } from "./mailAccounts";
-import { mailAccountKind } from "./mailAccounts";
+import { mailAccountKind, mailSendRoute } from "./mailAccounts";
 import { withMailCredentials } from "./mailCredentials";
 import { buildQuoteBlock, quoteText, FORWARD_SEPARATOR } from "./replyQuote";
+import { mailMessageText } from "./messageText";
 import type { MailMessage } from "./types";
 import { graphSendMail, graphAppendDraft } from "./graphMail";
 import { mailTransport } from "./transport";
@@ -189,7 +190,7 @@ export function resolveDraftsMailbox(
 
 /** Reply note: a NORMAL vault note addressed at the sender, with the
  * original quoted below — written in Plainva, sent later via draft/mailto. */
-export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "from" | "text">, dayKey: string): string {
+export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "from" | "text" | "html">, dayKey: string): string {
   const subject = message.subject.trim().replace(/^(re|aw|antw):\s*/i, "");
   const title = `Re: ${subject || "E-Mail"}`;
   let content = buildNewNoteContent("Email", title);
@@ -198,7 +199,7 @@ export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "fr
   } catch {
     /* best effort */
   }
-  const quoted = quoteText(message.text ?? "");
+  const quoted = quoteText(mailMessageText(message));
   content = (content.trimEnd() + "\n\n") + (quoted ? `\n${quoted}\n` : "");
   return content;
 }
@@ -214,11 +215,11 @@ export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "fr
  * never produces an unattributed quote.
  */
 export function buildReplyBody(
-  message: Pick<MailMessage, "from" | "text" | "dateTs">,
+  message: Pick<MailMessage, "from" | "text" | "html" | "dateTs">,
   attribution?: string
 ): string {
   const line = attribution?.trim() || defaultAttribution(message);
-  return `\n\n${buildQuoteBlock(message.text ?? "", line)}\n`;
+  return `\n\n${buildQuoteBlock(mailMessageText(message), line)}\n`;
 }
 
 /** Fallback attribution: local date and sender, never a machine timestamp. */
@@ -261,7 +262,7 @@ export function bytesToBase64(bytes: Uint8Array): string {
 
 /** Forwarded-message body (mail-client E1): the quoted original with a header
  * block, ready to drop into a compose draft. Pure. */
-export function buildForwardBody(message: Pick<MailMessage, "subject" | "from" | "text" | "dateTs">): string {
+export function buildForwardBody(message: Pick<MailMessage, "subject" | "from" | "text" | "html" | "dateTs">): string {
   // The separator is shared grammar: it is how `quotedOriginalStart` recognises
   // a forward, so a signature lands ABOVE the forwarded message rather than
   // below it. The header field names stay English on purpose — mail convention.
@@ -269,7 +270,7 @@ export function buildForwardBody(message: Pick<MailMessage, "subject" | "from" |
   if (message.from) header.push(`From: ${message.from}`);
   if (message.dateTs > 0) header.push(`Date: ${new Date(message.dateTs).toLocaleString()}`);
   if (message.subject) header.push(`Subject: ${message.subject}`);
-  return `\n\n${header.join("\n")}\n\n${(message.text ?? "").trim()}\n`;
+  return `\n\n${header.join("\n")}\n\n${mailMessageText(message).trim()}\n`;
 }
 
 /** Escapes a string for use inside a RegExp character class / literal. Pure. */
@@ -363,7 +364,11 @@ const MIME_BY_EXT: Record<string, string> = {
 
 export function guessAttachmentMime(name: string): string {
   const ext = name.toLowerCase().split(".").pop() ?? "";
-  return MIME_BY_EXT[ext] ?? "application/octet-stream";
+  // An entry of the table itself, never one every object inherits: a file
+  // called `constructor` or `notes.__proto__` found a function or an object
+  // here, and that went on as the file's type. Names come from other people's
+  // mail since a forward carries their files.
+  return Object.prototype.hasOwnProperty.call(MIME_BY_EXT, ext) ? MIME_BY_EXT[ext] : "application/octet-stream";
 }
 
 export interface MailAttachment {
@@ -382,8 +387,9 @@ export function utf8ToBase64(text: string): string {
   return btoa(bin);
 }
 
-/** Sends an outgoing message via the account's SMTP submission host
- * (mail-client E3). Requires smtpHost/smtpPort on the account; the sender is
+/** Sends an outgoing message by the account's route (`mailSendRoute`): through
+ * Microsoft Graph for a Microsoft mailbox, otherwise via the account's SMTP
+ * submission host (mail-client E3), which then has to be set. The sender is
  * the account user unless an alias was chosen. Never relays — this only submits
  * the user's own mail. */
 export async function sendMail(
@@ -406,7 +412,9 @@ export async function sendMail(
 ): Promise<void> {
   if (!to.trim()) throw new Error("no recipient");
   const { html, text } = noteToClipboardFlavors(markdown);
-  if (mailAccountKind(account) === "microsoft") {
+  // The same decision the composers offer "Send" by — the two cannot disagree.
+  const route = mailSendRoute(account);
+  if (route === "graph") {
     // Microsoft Graph sends directly (no SMTP) via /me/sendMail. The compose flow
     // lifts the invite OUT of `attachments` into `calendar`; re-attach it as a
     // text/calendar file attachment so Outlook renders it as an invite (Graph has
@@ -417,7 +425,7 @@ export async function sendMail(
     await graphSendMail(vaultPath, account, to, subject, html, msAttachments, cc, bcc, from);
     return;
   }
-  if (!account.smtpHost) throw new Error("no SMTP host configured for this account");
+  if (route !== "smtp") throw new Error("no SMTP host configured for this account");
   await withMailCredentials(vaultPath, account, credential => mailTransport().send({
     ...credential,
     host: account.smtpHost!,

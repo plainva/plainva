@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
-import { Check, ExternalLink, FileText, MessageSquare, Sparkles } from "lucide-react";
-import { asSingleLineValue, Button, type CuratedOption, dateTimeEditorValue, GrowingField, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, PropertyDiffLine, usePropertyValues, parseWikiLinkValue, Rating, SearchField, splitMultiValue, type SuggestedProperty, TextInput } from "@plainva/ui";
+import { Check, ExternalLink, MessageSquare, FileText, Sparkles } from "lucide-react";
+import { asSingleLineValue, Button, calendarDay, type CuratedOption, DateJumpPicker, dateTimeEditorValue, GrowingField, useShowWeekNumbers, useWeekStartDay, weekNumbersShown, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, Rating, SearchField, splitMultiValue, TextInput, PropertyDiffLine, type SuggestedProperty } from "@plainva/ui";
 import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
 import { ChoiceMark, useChoiceBeat } from "../../components/ChoiceMark";
+import { buildWikiTargetSet, wikiLinkTextFor, wikiTargetPath, type WikiTargetSet } from "@plainva/ui";
+import { wikiTargetChooser } from "@plainva/core";
 
 /**
  * Typed cell editor (R4.3, desktop useBaseCells contract): the sheet renders
@@ -107,6 +109,13 @@ export function CellEditSheet({
     return input === "datetime" && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T00:00` : raw;
   });
   const [multi, setMulti] = useState<string[]>(() => toArray(value));
+  // A date comes from the app's calendar, as on the desktop (wish
+  // 2026-10-19): the day is picked there, a time beside it.
+  const weekStart = useWeekStartDay();
+  const [showWeeks] = useShowWeekNumbers();
+  const pickedDay = /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : null;
+  // A stored moment may separate day and time with a space (`2026-10-21 14:30`).
+  const pickedTime = input === "datetime" && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(text) ? text.slice(11, 16) : "00:00";
   const [free, setFree] = useState("");
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<Array<{ path: string; title: string }>>([]);
@@ -138,27 +147,54 @@ export function CellEditSheet({
   // a status picked here used to vanish with the sheet before it showed.
   const beat = useChoiceBeat<string>((picked) => onCommit(picked));
 
-  const selectedTargets = useMemo(() => {
-    const set = new Set<string>();
-    for (const v of toArray(value)) {
-      const parsed = parseWikiLinkValue(v);
-      set.add((parsed?.target ?? v).toLowerCase());
-    }
-    return set;
-  }, [value]);
+  // Which note a stored link means, and what a pick writes, is the link
+  // rule's — as in the desktop's relation editor. A stored value may name its
+  // note by file name, path or title; a pick writes the file's name, the title
+  // as the link's text where it reads otherwise (`wikiLinkTextFor`). This sheet
+  // used to compare and write TITLES: a value the desktop had written with the
+  // file's name was not shown as chosen here, and the two shells wrote
+  // different text for the same pick (finding 2026-10-08).
+  //
+  // `undefined` while the lookup is being read, `null` where there is none to
+  // read (no index, or the read failed — then titles are compared, as before).
+  // Nothing can be picked while it is being read: a tap in that moment wrote
+  // the title and compared by title, and a note that was linked under its
+  // file's name got linked a second time.
+  const [links, setLinks] = useState<{ lookup: WikiTargetSet; textFor: (c: { path: string; title: string }) => string } | null | undefined>(
+    () => (vault.queryService ? undefined : null),
+  );
+  useEffect(() => {
+    const qs = vault.queryService;
+    if (!isRelation || !qs) return;
+    let stale = false;
+    void qs.linkTargets().then((files) => {
+      if (stale) return;
+      // The names are counted once: every row of the list asks what a pick would write.
+      const targetFor = wikiTargetChooser(files.filter((f) => f.mode !== "attachment").map((f) => f.path));
+      setLinks({ lookup: buildWikiTargetSet(files), textFor: (c) => wikiLinkTextFor(c.path, c.title, targetFor) });
+    }).catch(() => {
+      if (!stale) setLinks(null);
+    });
+    return () => {
+      stale = true;
+    };
+  }, [vault, isRelation]);
 
-  const relationToggle = (title: string) => {
-    const link = `[[${title}]]`;
+  const targetOf = (v: string) => parseWikiLinkValue(v)?.target ?? v;
+  /** Whether a stored value links this candidate. By title only where there is no index to ask. */
+  const means = (v: string, c: { path: string; title: string }) =>
+    links ? wikiTargetPath(targetOf(v), links.lookup, target.notePath) === c.path : targetOf(v).toLowerCase() === c.title.toLowerCase();
+  const linkTextOf = (c: { path: string; title: string }) => (links ? links.textFor(c) : `[[${c.title}]]`);
+
+  const relationToggle = (c: { path: string; title: string }) => {
+    const link = linkTextOf(c);
     if (target.relationLimit === "one") {
       beat.pick(link);
       return;
     }
     const current = toArray(value);
-    const key = title.toLowerCase();
-    const exists = current.some((v) => (parseWikiLinkValue(v)?.target ?? v).toLowerCase() === key);
-    const next = exists
-      ? current.filter((v) => (parseWikiLinkValue(v)?.target ?? v).toLowerCase() !== key)
-      : [...current, link];
+    const exists = current.some((v) => means(v, c));
+    const next = exists ? current.filter((v) => !means(v, c)) : [...current, link];
     onCommit(next);
   };
 
@@ -276,12 +312,12 @@ export function CellEditSheet({
                 value={query}
               />
             </div>
-            {filteredCandidates.slice(0, 60).map((c) => {
+            {links !== undefined && filteredCandidates.slice(0, 60).map((c) => {
               const on = beat.picked
-                ? beat.picked.value === `[[${c.title}]]`
-                : selectedTargets.has(c.title.toLowerCase());
+                ? beat.picked.value === linkTextOf(c)
+                : toArray(value).some((v) => means(v, c));
               return (
-                <button className="m-row" key={c.path} onClick={() => relationToggle(c.title)}>
+                <button className="m-row" key={c.path} onClick={() => relationToggle(c)}>
                   <span>{c.title}</span>
                   {/* One note is a ring, several are boxes — it was a tick
                       for one and a ring for several. */}
@@ -307,19 +343,43 @@ export function CellEditSheet({
           </div>
         )}
         {isDate && (
-          <div className="m-sheet-inputrow">
-            <TextInput
-              onChange={(e) => setText(e.target.value)}
-              type={input === "datetime" ? "datetime-local" : "date"}
-              value={text}
+          <>
+            <DateJumpPicker
+              value={pickedDay ?? calendarDay()}
+              weekStart={weekStart}
+              showWeekNumbers={weekNumbersShown(showWeeks, weekStart)}
+              size="sheet"
+              onPick={(day) => (input === "datetime" ? setText(`${day}T${pickedTime}`) : onCommit(day))}
+              onToday={() => (input === "datetime" ? setText(`${calendarDay()}T${pickedTime}`) : onCommit(calendarDay()))}
+              testId="cell-date"
             />
-            <IconButton
-              label={t("common.ok", { defaultValue: "OK" })}
-              onClick={() => onCommit(input === "datetime" && text.includes("T") ? dateTimeEditorValue(text.slice(0, 10), text.slice(11)) : text)}
-            >
-              <Check size={ICON.head} />
-            </IconButton>
-          </div>
+            {input === "datetime" && (
+              <div className="m-sheet-inputrow">
+                <TextInput
+                  aria-label={t("editor.time")}
+                  data-testid="cell-date-time"
+                  onChange={(e) => setText(`${pickedDay ?? calendarDay()}T${e.target.value || "00:00"}`)}
+                  type="time"
+                  value={pickedTime}
+                />
+                <IconButton
+                  label={t("common.ok", { defaultValue: "OK" })}
+                  // Nothing picked: OK keeps what the cell holds (empty stays empty,
+                  // a value that is no date stays as it is), as before.
+                  onClick={() => onCommit(pickedDay ? dateTimeEditorValue(pickedDay, pickedTime) : text)}
+                >
+                  <Check size={ICON.head} />
+                </IconButton>
+              </div>
+            )}
+            {text !== "" && (
+              <div className="m-btnrow">
+                <Button variant="ghost" data-testid="cell-date-clear" onClick={() => onCommit("")}>
+                  {t("common.remove")}
+                </Button>
+              </div>
+            )}
+          </>
         )}
 
         {!isSelect && !isMulti && !isRelation && !isDate && input !== "checkbox" && (

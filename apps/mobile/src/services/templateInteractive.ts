@@ -1,25 +1,26 @@
 import {
-  buildDailyNotePath,
-  finalizeTemplate,
-  resolveTemplate,
   resolveTemplateForNewNote,
+  runTemplateInteractive,
+  templateAsNewNote,
   templateFilePath,
+  withOkfDefaults,
   type TemplateContext,
 } from "@plainva/ui";
-import { getWeekStartSetting, weekStartDayOf } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { mTemplateAnswers } from "./mobileDialogs";
 import { getMobileSettings } from "./mobileSettings";
 import { readEditorSelection } from "./editorSelection";
+import { phoneTemplateVault } from "./templateVault";
 
 /**
  * The interactive half of the template pipeline on the phone
- * (plan Vorlagen-Engine, P6) — the mobile twin of the desktop service.
+ * (plan Vorlagen-Engine, P6) — the same pipeline as the desktop's, shared
+ * (`runTemplateInteractive`).
  *
- * Same three steps, same contract: resolve → ask once → finalize, and
- * cancelling returns null so the caller writes nothing. What differs is only
- * the shell: the questions arrive as a bottom sheet, and the clipboard is the
- * web API rather than Tauri's.
+ * Same steps, same contract: the full context → resolve → ask once →
+ * finalize, and cancelling returns null so the caller writes nothing. What
+ * differs is only the shell: the questions arrive as a bottom sheet, and the
+ * vault's pieces come from the phone's settings.
  *
  * Background paths (sync, task promotion, mail capture) deliberately keep
  * calling the headless `applyTemplatePlaceholders` — a dialog inside a sync
@@ -33,61 +34,38 @@ export interface InteractiveTemplateResult {
 }
 
 /**
- * Fills in the context pieces the mobile shell owns.
+ * Runs the pipeline; null = cancelled, and the caller creates nothing.
  *
- * `weekStart` comes from the shared setting since S26. It used to be left
- * unset — the phone had no first-day-of-week preference, so `{{weekday:…}}`
- * fell back to Monday, which is a guess and a wrong one every Sunday for
- * anyone whose week starts elsewhere.
- *
- * The clipboard is read ONLY when the template carries the token — reading it
- * on every note creation is an overreach (and a permission prompt on iOS) for
- * something almost no template uses.
+ * The vault's pieces — its name, its daily notes, this device's week start —
+ * and what a person brings — the selection, the clipboard, read only when the
+ * template carries the token — are added here, so no way can leave them out.
+ * The daily note left out its daily links (Sammelplan § 3.97). A piece the
+ * caller set itself stays.
  */
-export async function withShellContext(raw: string, ctx: TemplateContext): Promise<TemplateContext> {
-  const next: TemplateContext = { ...ctx };
-  if (next.weekStart === undefined) next.weekStart = weekStartDayOf(await getWeekStartSetting());
-  if (next.selection === undefined) next.selection = () => readEditorSelection();
-  if (next.clipboardLabel === undefined) {
-    next.clipboardLabel = i18n.t("templatePicker.clipboardLabel", { defaultValue: "Zwischenablage" });
-  }
-  if (next.clipboard === undefined && raw.includes("{{clipboard")) {
-    let text: string | null = null;
-    try {
-      text = await navigator.clipboard.readText();
-    } catch {
-      text = null; // denied or empty — the token reports itself unresolved
-    }
-    next.clipboard = () => text;
-  }
-  return next;
-}
-
-/** Runs the pipeline; null = cancelled, and the caller creates nothing. */
 export async function applyTemplateInteractive(
   raw: string,
   ctx: TemplateContext,
 ): Promise<InteractiveTemplateResult | null> {
-  const resolved = resolveTemplate(raw, await withShellContext(raw, ctx), "interactive");
-  let answers: Record<string, string> = {};
-  if (resolved.requests.length > 0) {
-    const given = await mTemplateAnswers({
-      title: i18n.t("templatePicker.answersTitle", { defaultValue: "Angaben für die Vorlage" }),
-      fields: resolved.requests,
-    });
-    if (given === null) return null;
-    answers = given;
-  }
-  return finalizeTemplate(resolved.text, answers);
+  return runTemplateInteractive(raw, ctx, {
+    vault: await phoneTemplateVault(ctx.vaultName),
+    person: {
+      selection: () => readEditorSelection(),
+      readClipboard: () => navigator.clipboard.readText(),
+      clipboardLabel: i18n.t("templatePicker.clipboardLabel", { defaultValue: "Zwischenablage" }),
+    },
+    ask: (fields) =>
+      mTemplateAnswers({ title: i18n.t("templatePicker.answersTitle", { defaultValue: "Angaben für die Vorlage" }), fields }),
+  });
 }
 
 /**
  * The template a new note in `folder` starts from, or `""` when no rule
  * matches (plan Vorlagen-Engine P4/P4b).
  *
- * The rules are set on the desktop and travel through the settings profile;
- * the phone only applies them. That is the whole point — a note created in
- * `Projekte/` has to start the same way whichever device is at hand.
+ * The rules travel through the settings profile and are set on either
+ * device — on the phone under the vault's settings (`TemplateRules`). That is
+ * the whole point: a note created in `Projekte/` has to start the same way
+ * whichever device is at hand.
  */
 export function templateForNewNote(folder: string, type: string): string {
   const ms = getMobileSettings();
@@ -108,6 +86,40 @@ export interface NewNoteContent {
 }
 
 /**
+ * A template's text as the content of a new note titled `title` in `folder`:
+ * its questions asked, the OKF header on it, `{{cursor}}` found in the result.
+ * `null`: the questions were cancelled, and nothing is created.
+ *
+ * The ONE place the phone turns a template into a note. The template a rule
+ * or a database names (`buildNewNoteFromTemplate`) and the one picked by hand
+ * (`vaultOps.createNoteFromTemplate`) both end here, and the header is the
+ * shared writer's (`templateAsNewNote`), as on the desktop: `type` goes into
+ * the block the template carries, a `type` of its own wins, and the text
+ * arrives byte for byte.
+ *
+ * Both places used to set a header string of their own (finding 2026-10-09),
+ * and only in front of a text without a properties block: a template whose
+ * block named no `type` — also the empty block — made a note without one, and
+ * a blank line stood between header and text that the desktop does not write.
+ */
+export async function buildNewNoteFromTemplateText(opts: {
+  /** The template as it was read, placeholders unresolved. */
+  raw: string;
+  vaultName: string;
+  folder: string;
+  title: string;
+  type: string;
+}): Promise<NewNoteContent | null> {
+  const answered = await applyTemplateInteractive(opts.raw, {
+    title: opts.title,
+    now: new Date(),
+    folder: opts.folder,
+    vaultName: opts.vaultName,
+  });
+  return answered ? templateAsNewNote(answered, opts.type) : null;
+}
+
+/**
  * Content for a new note, template rules applied (plan Vorlagen-Engine P6).
  *
  * Returns `null` when the person cancelled the template's questions — the
@@ -124,34 +136,21 @@ export async function buildNewNoteFromTemplate(opts: {
   type: string;
   /** Template chosen explicitly; beats every rule. */
   explicitTemplate?: string;
-  /** Body used when no template applies (`# Title`, the OKF skeleton, …). */
+  /** Text used when no template applies (`# Title`); it gets its header here, like a template's. */
   fallbackBody: string;
 }): Promise<NewNoteContent | null> {
-  const ms = getMobileSettings();
   const name = opts.explicitTemplate?.trim() || templateForNewNote(opts.folder, opts.type);
   const path = name ? templatePathOf(name) : "";
-
-  let body = opts.fallbackBody;
   if (path && (await opts.exists(path).catch(() => false))) {
-    const raw = await opts.read(path);
-    const now = new Date();
-    const answered = await applyTemplateInteractive(raw, {
-      title: opts.title,
-      now,
-      folder: opts.folder,
+    return buildNewNoteFromTemplateText({
+      raw: await opts.read(path),
       vaultName: opts.vaultName,
-      dailyPath: (offset) => {
-        const d = new Date(now);
-        d.setDate(d.getDate() + offset);
-        return buildDailyNotePath(d, ms.dailyFormat, ms.dailyFolder).fullPath.replace(/\.md$/i, "");
-      },
+      folder: opts.folder,
+      title: opts.title,
+      type: opts.type,
     });
-    if (!answered) return null;
-    body = answered.text;
-    const secured = ensureOkf(body, opts.type);
-    return { content: secured, caret: answered.cursor === null ? null : answered.cursor + (secured.length - body.length) };
   }
-  return { content: ensureOkf(body, opts.type), caret: null };
+  return { content: withOkfDefaults(opts.fallbackBody, opts.type), caret: null };
 }
 
 /**
@@ -170,23 +169,10 @@ export async function answerTemplateFile(opts: {
 }): Promise<InteractiveTemplateResult | null | undefined> {
   const path = templatePathOf(opts.template);
   if (!path || !(await opts.exists(path).catch(() => false))) return undefined;
-  const ms = getMobileSettings();
-  const now = new Date();
   return applyTemplateInteractive(await opts.read(path), {
     title: opts.title,
-    now,
+    now: new Date(),
     folder: opts.folder,
     vaultName: opts.vaultName,
-    dailyPath: (offset) => {
-      const d = new Date(now);
-      d.setDate(d.getDate() + offset);
-      return buildDailyNotePath(d, ms.dailyFormat, ms.dailyFolder).fullPath.replace(/\.md$/i, "");
-    },
   });
-}
-
-/** Prepends the OKF header unless the text already carries frontmatter. */
-function ensureOkf(text: string, type: string): string {
-  if (/^---\r?\n/.test(text)) return text;
-  return `---\ntype: ${type}\n---\n\n${text.replace(/^\n+/, "")}`;
 }

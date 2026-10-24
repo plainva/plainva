@@ -1,18 +1,19 @@
 /**
  * Which files a link could mean (ADR 0018; AI harness P5-7b).
  *
- * The app follows a link by more than one rule: the desktop's editor by a
- * note's title or its whole path, the phone by a path from the note it stands
- * in and by the file's name anywhere, the graph by the end of a path. Each
- * rule opens ONE file, and they do not always open the same one.
+ * The app follows a link by one rule (ADR 0027): a path, then the file's name
+ * or the end of its path, last the `title` of a note's properties — and a
+ * Markdown link from the folder of the note it stands in first. That rule
+ * opens ONE file: of two notes that share a name, the one beside the linking
+ * note, then the shorter path, then the first in the alphabet.
  *
  * The privacy gate asks another question. "Does this link name a note the
- * rules keep back?" must not depend on which shell assembles the text, and
- * its error is to miss a note, not to find one too many. So it asks for every
- * file a link of this spelling could mean under any of those rules — by path
- * from the note it stands in, by path from the vault's root, by the end of a
- * path, by the file's name, by the title of a note's properties — and
- * withholds the link where one of them is kept back.
+ * rules keep back?" must not depend on which of two notes of one name a tap
+ * would open, and its error is to miss a note, not to find one too many. So
+ * it asks for every file a link of this spelling could mean — by path from
+ * the note it stands in, by path from the vault's root, by the end of a path,
+ * by the file's name, by the title of a note's properties — and withholds the
+ * link where one of them is kept back.
  *
  * The same answer serves the source check of the writing tools: a link leads
  * "nowhere" only where no note could be meant by it.

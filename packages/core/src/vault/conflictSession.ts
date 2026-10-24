@@ -1,6 +1,7 @@
 import type { IVaultAdapter } from "./IVaultAdapter.js";
 import { withPathMutation } from "./pathMutation.js";
 import { mergeEditorText } from "../conflict-resolver.js";
+import { copyFileContent, fileSha256 } from "./localText.js";
 
 export type ConflictWriter = "adapter" | "editor-save" | "editor-external" | "sync-pull";
 
@@ -21,6 +22,14 @@ export interface ConflictEditSession {
   foreignCopySnapshot: string | null;
   /** Persisted before replacing the original; a restart must not resume editing its old copy. */
   resolution: { content: string; originalHash: string | null; copyHash: string; keepCopyAs?: string } | null;
+  /**
+   * The hash of the draft as a write WITHOUT a starting text left it
+   * (`writePlainLocked`); `null` or absent as soon as anyone else has written
+   * the draft. Only a draft that still is such a write's own text may be
+   * replaced by the next one (finding 2026-10-12). Absent in a session an
+   * older version wrote: that draft counts as somebody else's.
+   */
+  plainDraft?: string | null;
 }
 
 export interface ConflictDiagnostic {
@@ -62,6 +71,26 @@ export interface ConflictResolution {
   keepCopyAs?: string;
 }
 
+/**
+ * The answer to an open conflict whose two sides could not be compared as
+ * text: another program turned the file into no text after the conflict
+ * began (finding 2026-10-11). What the comparison saw is named by the hashes
+ * of the bytes, since there was no text to name it by.
+ */
+export interface ConflictBytesResolution {
+  /** SHA-256 of the file's bytes as the comparison saw them; null where it saw no file. */
+  originalSha256: string | null;
+  /** SHA-256 of the working copy's bytes as the comparison saw them. */
+  copySha256: string;
+  /**
+   * "adopt": the working copy takes the file's place, byte for byte.
+   * "discard": the file stays as it lies, and the working copy goes — or
+   * stays beside it as a file of its own (`keepCopyAs`).
+   */
+  disposition: "adopt" | "discard";
+  keepCopyAs?: string;
+}
+
 export interface ConflictSessionGate {
   session: ConflictEditSession | null;
   workingCopyPath: string;
@@ -90,6 +119,7 @@ export function decodeConflictSession(value: string): ConflictEditSession {
     || (s.baseText !== null && typeof s.baseText !== "string")
     || typeof s.draftText !== "string"
     || (s.pendingText !== null && typeof s.pendingText !== "string")
+    || (s.plainDraft !== undefined && !hash(s.plainDraft))
     || (s.foreignCopySnapshot !== null && (!safePath(s.foreignCopySnapshot) || !s.foreignCopySnapshot.startsWith(".plainva/conflict-revisions/")))
     || (s.resolution !== null && (!s.resolution || typeof s.resolution.content !== "string"
       || !hash(s.resolution.originalHash) || !s.resolution.copyHash || !hash(s.resolution.copyHash)
@@ -158,10 +188,69 @@ export class ConflictSessions {
 
   list(): Promise<ConflictEditSession[]> { return this.store.listConflictSessions(); }
 
-  /** Preserving an observed version never overwrites a newer editor draft. */
+  /**
+   * Ends conflicts that should never have been opened — the ones the
+   * conflict-aware adapter left on the app's own files (`ends` says which).
+   * The file stays as it is on disk. What the conflict holds is not lost: its
+   * draft is first put in the working copy, as every step of a session does
+   * (`recoverDraft`; a working copy another program changed is set aside as
+   * well), a copy of the working copy is kept under
+   * `.plainva/conflict-revisions/`, where the sessions keep the versions they
+   * set aside, and only once that copy reads back the same are the working
+   * copy and the session removed. A resolution that had been confirmed and not
+   * yet carried out is carried out instead, as confirmed; where the files
+   * changed since, the conflict is ended as above.
+   *
+   * Any other failure leaves the session for the next time: a copy made before
+   * it stays where it is, and a resolution half carried out is finished then.
+   * Answers which conflicts were ended with their working copy set aside,
+   * which by their confirmed resolution, and which could not be ended.
+   */
+  async release(ends: (session: ConflictEditSession) => boolean): Promise<{ setAside: string[]; carriedOut: string[]; failed: string[] }> {
+    const setAside: string[] = [];
+    const carriedOut: string[] = [];
+    const failed: string[] = [];
+    for (const listed of await this.store.listConflictSessions()) {
+      if (!ends(listed)) continue;
+      try {
+        await this.withMutation(listed.originalPath, async gate => {
+          const session = gate.session;
+          if (!session || !ends(session)) return;
+          if (session.resolution) {
+            try {
+              await this.finishResolution(session);
+              carriedOut.push(session.originalPath);
+              return;
+            } catch (error) {
+              // Only new evidence ends it below; a write that failed is tried again next time.
+              if (!(error instanceof Error && error.message === "comparisonChanged")) throw error;
+            }
+          }
+          await this.recoverDraft(session);
+          const name = session.workingCopyPath.slice(session.workingCopyPath.lastIndexOf("/") + 1);
+          const kept = `.plainva/conflict-revisions/${crypto.randomUUID()}-${name}`;
+          await copyFileContent(this.files, session.workingCopyPath, kept);
+          if (await fileSha256(this.files, kept) !== await fileSha256(this.files, session.workingCopyPath)) throw new Error("The working copy could not be kept");
+          await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true });
+          await this.store.removeConflictSession(session.originalPath);
+          setAside.push(session.originalPath);
+        });
+      } catch {
+        failed.push(listed.originalPath);
+      }
+    }
+    return { setAside, carriedOut, failed };
+  }
+
+  /**
+   * Preserving an observed version never overwrites a newer editor draft.
+   * `plain` says the text comes from a write that named no starting text
+   * (`writeTextFile`): the draft it opens is that writer's own, and its next
+   * write may replace it (`writePlainLocked`).
+   */
   async preserveLocked(gate: ConflictSessionGate, input: {
     path: string; text: string; base: string | null; external: string | null; writer: ConflictWriter;
-    diagnostic?: ConflictDiagnostic;
+    diagnostic?: ConflictDiagnostic; plain?: boolean;
   }): Promise<ConflictEditSession> {
     if (gate.session) {
       if (gate.session.resolution) throw new Error("Conflict resolution is still being completed");
@@ -174,7 +263,7 @@ export class ConflictSessions {
       baseRevision: input.base === null ? null : await conflictHash(input.base), baseText: input.base,
       externalRevision: input.external === null ? null : await conflictHash(input.external),
       draftRevision: 1, workingHash: null, draftText: input.text, pendingText: input.text, createdAt: Date.now(), writer: input.writer,
-      foreignCopySnapshot: null, resolution: null,
+      foreignCopySnapshot: null, resolution: null, plainDraft: input.plain ? await conflictHash(input.text) : null,
     };
     // Journal first. Failure to create the file leaves the entire input recoverable.
     await this.store.saveConflictSession(session); gate.session = session;
@@ -189,14 +278,63 @@ export class ConflictSessions {
     if (baseText !== null && baseText !== session.draftText && text !== session.draftText) {
       const merged = mergeEditorText(baseText, text, session.draftText);
       if (merged.hasConflicts) await this.preserveRevision(session, session.draftText);
+      // The merge decides the shape, as in the adapter's own merge.
       else text = merged.mergedText;
     }
+    // Whoever writes here knows the draft: it is no longer the text a write
+    // without a starting text left behind (see `writePlainLocked`).
+    if (text !== session.draftText) session.plainDraft = null;
     session.draftRevision++;
     session.draftText = text;
     session.pendingText = text;
     await this.store.saveConflictSession(session);
     await this.recoverDraft(session);
     return session;
+  }
+
+  /**
+   * The draft the journal holds for this conflict — asked inside its gate
+   * (this takes none), after a write of the draft failed half way: the journal
+   * is written before the working copy, so it may hold what the file does not
+   * yet, and the session's next step then writes it there.
+   */
+  async journaledDraft(session: ConflictEditSession): Promise<string | null> {
+    return (await this.store.getConflictSession(session.originalPath))?.draftText ?? null;
+  }
+
+  /** The draft of an open conflict as it stands — the user's own version of the file — read inside its gate. */
+  async draftLocked(session: ConflictEditSession): Promise<string> {
+    if (session.resolution) throw new Error("Conflict resolution is still being completed");
+    await this.recoverDraft(session);
+    return session.draftText;
+  }
+
+  /**
+   * A write that names no text it started from, into a file with an open
+   * conflict (finding 2026-10-12). Answers whether the draft now holds `text`.
+   *
+   * It used to replace the draft, whatever the draft was. A writer of that
+   * kind read the file itself — which carries the OTHER side while a conflict
+   * is open — or holds a text from before; put in place of the draft, its text
+   * took the user's own version away, and only a snapshot older than the
+   * versions layer's interval still had it.
+   *
+   * So the draft is replaced only where it still is what such a write left
+   * there: then it is that writer's own, older text, and the new one follows
+   * it. Any other draft stays, and nothing is written.
+   */
+  async writePlainLocked(session: ConflictEditSession, text: string): Promise<boolean> {
+    if (session.resolution) throw new Error("Conflict resolution is still being completed");
+    await this.recoverDraft(session);
+    if (text === session.draftText) return true;
+    if (!session.plainDraft || session.plainDraft !== await conflictHash(session.draftText)) return false;
+    session.draftRevision++;
+    session.draftText = text;
+    session.pendingText = text;
+    session.plainDraft = await conflictHash(text);
+    await this.store.saveConflictSession(session);
+    await this.recoverDraft(session);
+    return true;
   }
 
   private async recoverDraft(session: ConflictEditSession): Promise<void> {
@@ -246,6 +384,44 @@ export class ConflictSessions {
       session.resolution = { content, originalHash: original === null ? null : await conflictHash(original), copyHash: await conflictHash(copy!), ...(resolution.keepCopyAs ? { keepCopyAs: resolution.keepCopyAs } : {}) };
       await this.store.saveConflictSession(session);
       await this.finishResolution(session);
+    }, resolution.keepCopyAs ? [resolution.keepCopyAs] : []);
+  }
+
+  /**
+   * Ends an open conflict whose file is no text any more (see
+   * `ConflictBytesResolution`). `resolve` compares two texts and writes one,
+   * and this file has none: here the answer goes byte for byte, and only if
+   * both files still are what the comparison saw. The working copy — the
+   * user's own text — takes the file's place; or the file stays and the
+   * working copy goes, or stays beside it under a name of its own.
+   */
+  async resolveBytes(path: string, resolution: ConflictBytesResolution): Promise<void> {
+    await this.withMutation(path, async gate => {
+      const session = gate.session;
+      if (!session) throw new Error("Conflict session no longer exists");
+      if (session.resolution) throw new Error("Conflict resolution is still being completed");
+      await this.recoverDraft(session);
+      const original = await fileSha256(this.files, session.originalPath);
+      const copy = await fileSha256(this.files, session.workingCopyPath);
+      if (original !== resolution.originalSha256 || copy === null || copy !== resolution.copySha256) throw new Error("comparisonChanged");
+      // Letting the copy go where no file is left would leave nothing at all.
+      if (resolution.disposition === "discard" && !resolution.keepCopyAs && original === null) throw new Error("Cannot discard a conflict whose original is missing");
+      if (resolution.keepCopyAs && (resolution.disposition !== "discard" || !safePath(resolution.keepCopyAs) || await this.files.exists(resolution.keepCopyAs))) {
+        throw new Error("comparisonChanged");
+      }
+      if (resolution.disposition === "adopt") {
+        await copyFileContent(this.files, session.workingCopyPath, session.originalPath);
+        if (await fileSha256(this.files, session.originalPath) !== copy) throw new Error("Conflict resolution could not be confirmed");
+        // The local marker follows the write in the same gate, as in
+        // `finishResolution`; the sync base stays the last confirmed remote one.
+        await this.store.updateLocalHash(session.originalPath, copy);
+        await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true });
+      } else if (resolution.keepCopyAs) {
+        await this.files.renameItem(session.workingCopyPath, resolution.keepCopyAs);
+      } else {
+        await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true });
+      }
+      await this.store.removeConflictSession(session.originalPath);
     }, resolution.keepCopyAs ? [resolution.keepCopyAs] : []);
   }
 

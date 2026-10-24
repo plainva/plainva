@@ -3,6 +3,7 @@ import type React from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { appendTaskLine, Button, Checkbox, ICON, listTaskLines, parseTaskProgress, TextInput, toast, toggleTaskAtIndex, type TaskLine } from "@plainva/ui";
+import { updateVaultText } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { applyIndexChanges } from "../../services/fileActions";
 
@@ -11,8 +12,9 @@ import { applyIndexChanges } from "../../services/fileActions";
  * P4/E5): the note's own `- [ ]` lines. Folded, the card shows the progress
  * the index counted (`file.tasks`); unfolded, the lines with a checkbox each
  * and a field for one more. A tick flips exactly its line through the shared
- * toggle, a new line lands after the last checkbox — both write through the
- * adapter chain and re-index the path, the pinboard's pattern. Editing the
+ * toggle, a new line lands after the last checkbox — both change the note as
+ * it lies there when it is written (`updateVaultText`, one step of the
+ * adapter chain) and re-index the path, the pinboard's pattern. Editing the
  * wording of a sub-task is what opening the note is for.
  *
  * Every pointer event stops here: the card underneath is a drag handle and a
@@ -53,12 +55,12 @@ export function BoardCardChecklist({ path, progress }: { path: string; progress:
     async (mutate: (fresh: string) => string | null) => {
       if (!vaultAdapter) return;
       try {
-        const fresh = await vaultAdapter.readTextFile(path);
-        const next = mutate(fresh);
-        if (next === null || next === fresh) return;
-        await vaultAdapter.writeTextFile(path, next);
-        if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => {});
-        window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path } }));
+        const update = await updateVaultText(vaultAdapter, path, mutate);
+        if (update.changed) {
+          if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => {});
+          window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path } }));
+        }
+        // Also where nothing was written: the line was not where the card listed it.
         await load();
       } catch (e: unknown) {
         toast.error(String((e as { message?: string })?.message ?? e));
@@ -103,7 +105,14 @@ export function BoardCardChecklist({ path, progress }: { path: string; progress:
                 // React has reset the controlled box to the old value — read late,
                 // the toggle saw "unchanged" and never wrote (E2E finding 2026-09-06).
                 const checked = e.target.checked;
-                void write((fresh) => { const r = toggleTaskAtIndex(fresh, l.ordinal, checked); return r.changed ? r.content : null; });
+                void write((fresh) => {
+                  // Its line, by text as well as by place: where the note has an open
+                  // conflict the person's own version takes the tick too, and there
+                  // another line may stand at that place.
+                  if (listTaskLines(fresh)[l.ordinal]?.text !== l.text) return null;
+                  const r = toggleTaskAtIndex(fresh, l.ordinal, checked);
+                  return r.changed ? r.content : null;
+                });
               }}
             >
               <span style={{ fontSize: "var(--text-sm)", color: l.done || l.state === "cancelled" ? "var(--text-faint)" : "var(--text-main)", textDecoration: l.done || l.state === "cancelled" ? "line-through" : "none", overflowWrap: "anywhere" }}>{l.text}</span>

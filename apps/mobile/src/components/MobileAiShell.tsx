@@ -1,7 +1,12 @@
 import { useEffect, useRef } from "react";
 import { AiSheet } from "./AiSheet";
 import { LearnSheets } from "./LearnSheets";
-import { MobileAiNavigation, type useMobileAi } from "../services/ai/mobileAi";
+import { pushEntry, SCREEN_ENTRY, tapTab, type NavEntry, type NavState } from "../navigation";
+import { draftPath } from "../screens/mail/mailNavRefs";
+import { MobileAiNavigation, openAiNoteTarget, type useMobileAi } from "../services/ai/mobileAi";
+import { leaveThen } from "../services/leaveQuestion";
+import { tabTapped } from "../services/tabTap";
+import type { MobileVault } from "../services/vaultService";
 
 /*
  * The assistant's place in the shell, in one module. App.tsx is under a line
@@ -10,6 +15,47 @@ import { MobileAiNavigation, type useMobileAi } from "../services/ai/mobileAi";
  * and gets all of it from here.
  */
 export { openAiNoteTarget, useMobileAi, withoutAiArea } from "../services/ai/mobileAi";
+
+/**
+ * Where the assistant's surfaces lead in the shell — every step through
+ * `leaveThen` (finding 2026-10-09). Only the screen on top is rendered, so a
+ * note, the search, the settings or the composer put over a surface that
+ * holds unsaved input — a message being written — would take that input with
+ * it. These steps are not that surface's own, so they ask first, as every
+ * other way onto the stack does. The event editor's way is the bar's
+ * (`tabTapped`), which asks itself; the assistant's sheet closes only once the
+ * step was agreed to. The composer gets its draft through the codec of its
+ * path (`draftPath`).
+ */
+export function aiShellRoutes(shell: {
+  ai: { closeSheet(): void };
+  vault: MobileVault;
+  openNote: (path: string) => void;
+  push: (entry: NavEntry) => void;
+  setNav: (fn: (state: NavState) => NavState) => void;
+  commands: MobileAiNavigation["commands"];
+  /** The bar carries the assistant's screen: a tap there is the way to it, otherwise it is pushed. */
+  aiInBar: boolean;
+}): { nav: MobileAiNavigation; onOpenNote: (target: string) => void; onOpenScreen: () => void } {
+  const { ai, vault, openNote, push, setNav } = shell;
+  const asked = (step: () => void) => () => leaveThen(step);
+  return {
+    nav: {
+      openNote: (path) => leaveThen(() => openNote(path)),
+      openSearch: asked(() => push({ kind: "search", path: "" })),
+      openSettings: asked(() => push({ kind: "settingsArea", path: "ai" })),
+      openMailDraft: (mail) =>
+        leaveThen(() => {
+          ai.closeSheet();
+          push({ kind: "mailcompose", path: draftPath({ accountId: "", ...mail }) });
+        }),
+      openEventEditor: () => void tabTapped("today", setNav, () => ai.closeSheet()),
+      commands: shell.commands,
+    },
+    onOpenNote: (target) => openAiNoteTarget(vault, target, (path) => leaveThen(() => openNote(path))),
+    onOpenScreen: asked(() => setNav((s) => (shell.aiInBar ? tapTab(s, "ai") : pushEntry({ ...s, overlay: [] }, SCREEN_ENTRY.ai)))),
+  };
+}
 
 /**
  * Somewhere the system's assistant was asked to take the user (AI harness

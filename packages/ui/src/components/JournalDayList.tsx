@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type HTMLAttributes, type ReactElement, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Ellipsis, FileText } from "lucide-react";
-import { trimSpaceBeforeLineEnds, type JournalEntry } from "@plainva/core";
+import { codeSpanRanges, trimSpaceBeforeLineEnds, type JournalEntry } from "@plainva/core";
 import { resolveCoverSource } from "../base/coverImage";
 import { ICON } from "../lib/iconSizes";
 import { findMediaEmbeds, imageCandidates } from "../lib/imageTarget";
@@ -9,6 +9,7 @@ import { renderInlineMarkdown, type InlineLinkHandlers } from "../lib/inlineMark
 import { addDaysToKey } from "../lib/taskPlanner";
 import { formatJournalTime, newestFirst, type JournalDay } from "../lib/journalFeed";
 import { AudioEmbed } from "./AudioEmbed";
+import { isEscapedAt } from "./literalSyntax";
 import { boundaryLabel } from "../lib/today";
 import { Rating } from "./ui/Rating";
 import { useDayBoundaryMinutes } from "../hooks/useTodayKey";
@@ -76,7 +77,11 @@ const FOLD_LINES = 6;
 
 /** The text without its media embeds, and the embeds - pictures and sound apart (X3). */
 function splitMedia(text: string): { prose: string; images: string[]; sounds: string[] } {
-  const embeds = findMediaEmbeds(text);
+  // An embed in a code span, or escaped, is written-out syntax and stays in
+  // the text, as in the editor and the read view (literalSyntax.ts).
+  const code = codeSpanRanges(text);
+  const embeds = findMediaEmbeds(text).filter((embed) =>
+    !isEscapedAt(text, embed.start) && !code.some((span) => embed.start >= span.from && embed.start < span.to));
   if (embeds.length === 0) return { prose: text, images: [], sounds: [] };
   let prose = "";
   let at = 0;
@@ -93,12 +98,19 @@ function splitMedia(text: string): { prose: string; images: string[]; sounds: st
   };
 }
 
-function EntryText({ text, links }: { text: string; links?: InlineLinkHandlers }) {
+function EntryText({ text, links, notePath }: { text: string; links?: InlineLinkHandlers; notePath: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
+    // A link in an entry is read from the note it stands in — the day's note —
+    // exactly as the editor reads it there: of two notes with one name, the one
+    // beside the day's note comes first. The handler is made here, from the
+    // shell's own set, so the text is drawn anew only when that set, the text
+    // or the note changes — never because the list around it rendered again.
+    const open = links?.onOpenNote;
+    const handlers: InlineLinkHandlers = links && open ? { ...links, onOpenNote: (target, newTab, kind) => open(target, newTab, kind, notePath) } : (links ?? {});
     // The shared renderer builds DOM (no innerHTML); React owns only the span.
-    ref.current?.replaceChildren(renderInlineMarkdown(text, links ?? {}));
-  }, [text, links]);
+    ref.current?.replaceChildren(renderInlineMarkdown(text, handlers));
+  }, [text, links, notePath]);
   // Note text beside the time (issue 111): `dir="auto"` isolates it like a
   // <bdi> - a right-to-left entry orders its own characters and keeps its place.
   return <span ref={ref} className="pv-journal-text" dir="auto" />;
@@ -172,7 +184,7 @@ function EntryBody({ entry, notePath, links, loadImage }: { entry: JournalEntry;
   return (
     <span className="pv-journal-body">
       <span className={long && !open ? "pv-journal-fold" : undefined}>
-        <EntryText text={prose} links={links} />
+        <EntryText text={prose} links={links} notePath={notePath} />
       </span>
       {long && (
         <Button variant="ghost" size="sm" onClick={() => setOpen((x) => !x)} data-testid="journal-entry-more">
@@ -258,7 +270,7 @@ export function JournalDayList({ days, todayKey, links, loadImage, onToggleTask,
                   onContextMenu={(e) => { e.preventDefault(); onMenu(day, entry, { x: e.clientX, y: e.clientY }); }}
                 >
                   <time className="pv-journal-time" dateTime={clockOf(entry)}>{formatJournalTime(entry, locale)}</time>
-                  <EntryText text={splitMedia(entry.text).prose} links={links} />
+                  <EntryText text={splitMedia(entry.text).prose} links={links} notePath={day.path} />
                   {entry.task && (
                     <span
                       className={cx("pv-journal-mark", closed && "pv-journal-mark--closed")}

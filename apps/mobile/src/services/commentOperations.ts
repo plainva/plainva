@@ -1,4 +1,4 @@
-import { commentOperationStore, commentSignedByPerson, createCommentOperationService, type CommentOperation, type CommentOperationService, type CommentStore } from "@plainva/core";
+import { commentOperationStore, createCommentOperationService, editorTextFiles, type CommentOperation, type CommentOperationService, type CommentStore, commentSignedByPerson } from "@plainva/core";
 import { mobileCommentStore, ensureMobileCommentAuthorName } from "./mobileComments";
 import { mobileCommentOperationJournal } from "./commentOperationJournal";
 import { noteSaver, vaultOps, type MobileVault } from "./vaultService";
@@ -16,6 +16,10 @@ export function mobileCommentOperations(vault: MobileVault): CommentOperationSer
     return commentOperationStore(store, journal, operation);
   };
   const paths = new Map<string, string>();
+  // Planned on the editor's text, written back in the note's own shape — the
+  // one rule both shells take from the core (finding 2026-10-08: this wiring
+  // handed over the raw file, and a note with `\r\n` could accept nothing).
+  const noteFiles = editorTextFiles({ read: (path) => vault.files.readTextFile(path), write: (path, text) => vaultOps.save(vault, path, text) });
   const service = createCommentOperationService({
     contextKey: vault.vaultId,
     journal,
@@ -35,12 +39,12 @@ export function mobileCommentOperations(vault: MobileVault): CommentOperationSer
       return path;
     },
     withNoteLock: (path, work) => noteSaver.withWriteLock(path, vault, work),
-    readText: (path) => vault.files.readTextFile(path),
+    readText: noteFiles.readText,
     // An accepted suggestion keeps what it replaces as a version first (AI harness P5-7), as on the desktop: the
     // editor's undo does not take an accept back, and a save only snapshots every few minutes. Not twice: where
     // the newest version already holds exactly this text, that one is the way back.
     ...(vault.backup ? { snapshot: (path: string) => vault.backup!.ensureSnapshot(path) } : {}),
-    writeText: (path, text) => vaultOps.save(vault, path, text),
+    writeText: noteFiles.writeText,
     post: async (marker, operation) => (await route(operation)).post(marker),
     changed: (operation) => {
       window.dispatchEvent(new CustomEvent("plainva-comment-operation-changed", { detail: { vaultId: vault.vaultId, path: paths.get(operation.operationId) ?? operation.notePath, operation } }));

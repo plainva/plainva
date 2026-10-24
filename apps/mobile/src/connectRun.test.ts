@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   caldavUrlFromFiles,
@@ -90,61 +90,23 @@ describe("credentials collected by one step reach the next", () => {
   });
 });
 
-describe("the add-calendar form asks the device for a client id", () => {
-  beforeEach(() => vi.resetModules());
-
-  const mockChain = (opts: { sync?: unknown; token?: unknown; throws?: boolean }) => {
-    vi.doMock("./services/vaultRegistry", () => ({
-      getActiveVaultEntry: async () => {
-        if (opts.throws) throw new Error("no vault");
-        return { id: "v1" };
-      },
-    }));
-    vi.doMock("./services/cloudAccountsStore", () => ({ loadCloudAccounts: async () => [{ id: "a1", family: "google" }] }));
-    vi.doMock("./services/accountBroker", () => ({ getAccountToken: async () => opts.token ?? null }));
-    vi.doMock("./services/syncService", () => ({ getStoredProvider: async () => opts.sync ?? null }));
-    vi.doMock("./services/pim/pimService", () => ({ listPimAccounts: async () => [] }));
-    vi.doMock("./services/pim/pimCredentials", () => ({ getPimCredentials: async () => null }));
-  };
-
-  /**
-   * The case the maintainer met: step 1 connected Google Drive with a BYO
-   * client id, step 2 demanded it again although it sat in the file-sync
-   * credentials of the vault the run had just created.
-   */
-  it("finds the client id the file sync of this vault already uses", async () => {
-    mockChain({ sync: { provider: "drive", creds: { clientId: "drive-client", clientSecret: "s" } } });
-    const { lookupOAuthClientForNewAccount } = await import("./services/pim/pimClientLookup");
-    await expect(lookupOAuthClientForNewAccount("google")).resolves.toEqual({
-      clientId: "drive-client",
-      clientSecret: "s",
-    });
-  });
-
-  it("does not hand a Drive client to Microsoft", async () => {
-    mockChain({ sync: { provider: "drive", creds: { clientId: "drive-client" } } });
-    const { lookupOAuthClientForNewAccount } = await import("./services/pim/pimClientLookup");
-    await expect(lookupOAuthClientForNewAccount("microsoft")).resolves.toBeNull();
-  });
-
-  /** Nothing to find means the form asks — never an error the user sees. */
-  it("returns null when there is nothing on the device", async () => {
-    mockChain({});
-    const { lookupOAuthClientForNewAccount } = await import("./services/pim/pimClientLookup");
-    await expect(lookupOAuthClientForNewAccount("google")).resolves.toBeNull();
-  });
-
-  it("survives a source that throws", async () => {
-    mockChain({ throws: true });
-    const { lookupOAuthClientForNewAccount } = await import("./services/pim/pimClientLookup");
-    await expect(lookupOAuthClientForNewAccount("google")).resolves.toBeNull();
-  });
-
-  /** The button must not be gated on a field the chain is about to fill. */
-  it("does not gate Connect on the client-id field", () => {
+/**
+ * Google and Microsoft calendars sign in with this device's access through the
+ * one account sign-in (account sign-in plan K4b). The form used to look a
+ * client id up along a chain of its own and offer a field for it - a second
+ * way to sign in beside the card's.
+ */
+describe("the add-calendar form signs in through the card", () => {
+  it("shows this device's access instead of a client-id field", () => {
     const src = read("./screens/PimAccountsScreen.tsx");
-    expect(src).not.toMatch(/disabled=\{busy \|\| !gClientId\.trim\(\)\}/);
-    expect(src).toContain("lookupOAuthClientForNewAccount");
-    expect(src).toContain('data-testid="pim-client-from-device"');
+    expect(src).toContain('data-testid="pim-access"');
+    expect(src).not.toContain("lookupOAuthClientForNewAccount");
+    expect(src).not.toContain("setGClientId");
+    expect(src).not.toContain("beginPimOAuth(");
+  });
+
+  it("adds the calendar through the one sign-in", () => {
+    const src = read("./screens/PimAccountsScreen.tsx");
+    expect(src).toMatch(/beginMobileSignIn\(vaultId, \{ family: provider, \.\.\.\(cardId \? \{ cardId \} : \{\}\), add: \["calendar"\] \}\)/);
   });
 });

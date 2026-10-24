@@ -1,5 +1,6 @@
-import { snoozeMoment, snoozeTask, toast } from "@plainva/ui";
+import { errorText, snoozeMoment, snoozeTask, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
+import type { CalendarFocus } from "./calendarFocus";
 import { getPimCache, openMeetingNoteFor } from "./pim/pimService";
 import { setTaskDone } from "./taskCompletionAction";
 import { rescheduleReminders, type ReminderIntent } from "./reminderScheduler";
@@ -26,14 +27,6 @@ function meetingDayKey(event: { allDay?: boolean; start?: { date?: string } }, s
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** The appointment a tapped reminder points at — enough to find it in the cache. */
-export interface CalendarFocus {
-  uid: string;
-  accountId: string;
-  calendarId: string;
-  startTs: number;
-}
-
 export interface ReminderActionHost {
   /** Opens a note by vault path. */
   openNote: (path: string) => void;
@@ -56,7 +49,11 @@ export async function runReminderIntent(intent: ReminderIntent, host: ReminderAc
         else if (result.spawnedDue) toast.info(i18n.t("tasks.repeatSpawned", { date: result.spawnedDue }));
         else if (result.changed) toast.info(i18n.t("reminders.taskDone"));
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        // The tick writes the note's completion property: the sentence a
+        // property write gets, with the reason as `errorText` reads it
+        // (finding 2026-10-12) — the bare message of a block that is no YAML
+        // quotes the note's own line.
+        toast.error(i18n.t("mobile.propertyWriteFailed", { message: errorText(e) }));
       }
       return;
     }

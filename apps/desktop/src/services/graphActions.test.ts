@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
+import { resolveLinkTarget, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
 import {
   appendWikiLink,
   applyInlineLink,
   applyMentionLink,
+  createBrokenLinkTarget,
   findFirstUnlinkedOccurrence,
   frontmatterBodyOffset,
   removeLinksTo,
@@ -53,7 +54,11 @@ function fakeAdapter(files: Record<string, string>): IVaultAdapter {
 }
 
 function fakeQuery(paths: string[]): VaultQueryService {
-  return { listNotes: async () => paths.map((p) => ({ path: p, title: p })) } as unknown as VaultQueryService;
+  return {
+    listNotes: async () => paths.map((p) => ({ path: p, title: p })),
+    // The link rule's corpus, as the index holds it: a note's title is its file's name.
+    linkTargets: async () => paths.map((p) => ({ path: p, title: p.split("/").pop()!.replace(/\.md$/, ""), mode: "obsidian" })),
+  } as unknown as VaultQueryService;
 }
 
 describe("appendWikiLink", () => {
@@ -103,6 +108,15 @@ describe("appendWikiLink", () => {
     expect(files["src.md"]).toBe("See Ziel and [[A/Other]] plus shown text and Ziel.");
   });
 
+  it("removes a link whose anchor begins with `^` — the graph draws it as an edge", async () => {
+    // The index lists `[[Ziel^abc]]` under `Ziel` (an anchor begins at the first
+    // `#` or `^`); asked with the whole text, "remove link" found nothing.
+    const files: Record<string, string> = { "src.md": "See [[Ziel^abc]] and [[Ziel#^abc|shown]]." };
+    const removed = await removeLinksTo(fakeAdapter(files), fakeQuery(["src.md", "Ziel.md"]), "src.md", "Ziel.md");
+    expect(removed).toBe(2);
+    expect(files["src.md"]).toBe("See Ziel and shown.");
+  });
+
   it("links the first unlinked mention with word boundaries and alias form", async () => {
     const files: Record<string, string> = {
       "src.md": "[[Projekt X]] is linked. Projekt Xtra stays. But Projekt X here is bare.",
@@ -141,6 +155,41 @@ describe("appendWikiLink", () => {
   });
 });
 
+describe("createBrokenLinkTarget", () => {
+  /** Files on disk and the folders made on the way; a folder exists where a file lies in it or it was made. */
+  function disk(files: Record<string, string>) {
+    const made: string[] = [];
+    const adapter: IVaultAdapter = {
+      ...fakeAdapter(files),
+      exists: async (p: string) => p in files || made.includes(p) || Object.keys(files).some((f) => f.startsWith(`${p}/`)),
+      createDir: async (p: string) => { made.push(p); },
+    };
+    return { adapter, made };
+  }
+
+  it("creates the note where the link will find it — the place a click on the link creates it", async () => {
+    // The clean-up views put every such note beside the linking note under the
+    // last piece of the target: `[[Ablage/Brief]]` became `Projekte/Brief.md`,
+    // and the link stayed broken.
+    const files: Record<string, string> = { "Projekte/Plan.md": "[[Neu]], [[Ablage/Brief]] and [[../Eingang/Zettel#Kopf|the slip]]\n" };
+    const { adapter, made } = disk(files);
+    const query = fakeQuery(["Projekte/Plan.md"]);
+    const from = "Projekte/Plan.md";
+    // A bare name: beside the linking note. A path: at that path, its folder made on the way.
+    expect(await createBrokenLinkTarget(adapter, query, { sourcePath: from, targetRaw: "Neu" }, "Note")).toBe("Projekte/Neu.md");
+    expect(await createBrokenLinkTarget(adapter, query, { sourcePath: from, targetRaw: "Ablage/Brief" }, "Note")).toBe("Ablage/Brief.md");
+    expect(await createBrokenLinkTarget(adapter, query, { sourcePath: from, targetRaw: "../Eingang/Zettel#Kopf" }, "Note")).toBe("Eingang/Zettel.md");
+    expect(made).toEqual(["Ablage", "Eingang"]);
+    const all = Object.keys(files);
+    for (const [target, path] of [["Neu", "Projekte/Neu.md"], ["Ablage/Brief", "Ablage/Brief.md"], ["../Eingang/Zettel", "Eingang/Zettel.md"]]) {
+      expect({ target, leadsTo: resolveLinkTarget(from, target, all) }).toEqual({ target, leadsTo: path });
+    }
+    // A target that climbs out of the vault names no place: nothing is created.
+    expect(await createBrokenLinkTarget(adapter, query, { sourcePath: "Plan.md", targetRaw: "../Neu" }, "Note")).toBeNull();
+    expect(Object.keys(files)).toHaveLength(4);
+  });
+});
+
 describe("frontmatterBodyOffset", () => {
   it("returns 0 when there is no frontmatter", () => {
     expect(frontmatterBodyOffset("# Note\nBody")).toBe(0);
@@ -153,6 +202,20 @@ describe("frontmatterBodyOffset", () => {
 
   it("treats an unterminated block as body (safe fallback)", () => {
     expect(frontmatterBodyOffset("---\nno closing fence\nmore")).toBe(0);
+  });
+
+  it("points past a block without entries, and no further", () => {
+    // Up to the rule in the text, the mention scan saw "frontmatter" and left
+    // a mention there unlinked.
+    const c = "---\n---\nWe met Ziel today.\n\n---\n\nMore.";
+    expect(c.slice(frontmatterBodyOffset(c))).toBe("We met Ziel today.\n\n---\n\nMore.");
+    expect(findFirstUnlinkedOccurrence(c, ["Ziel"])).toEqual({ index: "---\n---\nWe met ".length, matched: "Ziel" });
+  });
+
+  it("keeps a closing fence with blanks behind it a closing fence", () => {
+    const c = "---\nalias: Ziel\n---  \nBody text";
+    expect(c.slice(frontmatterBodyOffset(c))).toBe("Body text");
+    expect(findFirstUnlinkedOccurrence(c, ["Ziel"])).toBeNull();
   });
 });
 

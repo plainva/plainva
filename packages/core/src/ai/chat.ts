@@ -29,7 +29,7 @@ export interface SystemPromptInput {
   skill?: { name: string; instructions: string };
   /**
    * What the vault's memory holds for this conversation (plan KI-Harness P6,
-   * ADR 0027): the entries of "always included" that this recipient may have,
+   * ADR 0032): the entries of "always included" that this recipient may have,
    * as a Markdown list — already through the gate, entry by entry. `lookup`:
    * the conversation also carries the tool that searches the long-term memory.
    */
@@ -58,7 +58,7 @@ const TOOL_LINES: Record<string, string> = {
 const MEMORY_ORIGIN = ".agent/active_memory.md";
 
 /**
- * The vault's memory in a conversation (plan KI-Harness P6, ADR 0027). It is
+ * The vault's memory in a conversation (plan KI-Harness P6, ADR 0032). It is
  * data — tier 3, inside the same fence as a note's text —, and the sentence
  * before it says so: what the user kept for assistants informs an answer and
  * never instructs one. A rule for assistants is no memory; it is a line of

@@ -161,13 +161,10 @@ button.base-cell-comments:focus-visible { outline: 2px solid var(--accent-color)
 .base-view-tab-caret { background: transparent; border: none; cursor: pointer; color: var(--accent-color); display: flex; padding: 2px 6px 2px 0; }
 .base-view-add { display: flex; align-items: center; justify-content: center; background: transparent; border: none; cursor: pointer; color: var(--text-muted); padding: 4px 8px; border-radius: var(--radius-pill); }
 .base-view-add:hover { background: var(--state-hover); color: var(--text-main); }
-.base-menu-backdrop { position: fixed; inset: 0; z-index: var(--z-popover); }
-.base-view-menu { position: absolute; top: 100%; left: 0; margin-top: 4px; z-index: var(--z-menu); background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-2); padding: 0.25rem; min-width: 160px; display: flex; flex-direction: column; }
-.base-view-menu button { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; background: transparent; border: none; cursor: pointer; color: var(--text-main); padding: 6px 8px; border-radius: var(--radius-xs); font-size: var(--text-ui); }
-.base-view-menu button:hover { background: var(--state-hover); }
-.base-view-menu button:disabled { opacity: 0.4; cursor: not-allowed; }
-.base-view-menu button.danger { color: var(--error-text); }
-.base-menu-sep { height: 1px; margin: var(--space-1) 6px; background: var(--border-color-light); }
+/* The view's menu and the "add view" menu are the menu primitive (.pv-menu),
+   the rename field a .pv-popover: no box of their own here, and no element
+   laid over the page to catch the press beside them (it lay below the
+   floating windows, and a press into a note preview never reached it). */
 
 /* Timeline (S21): three stacking layers inside the grid — the day header, the
    sticky name column and the today line. They only need to order themselves

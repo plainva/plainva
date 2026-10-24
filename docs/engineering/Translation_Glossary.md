@@ -64,6 +64,15 @@ Notes:
   examples remain unchanged.
 - ja: katakana for loanwords (タブ, テーマ, リンク, テンプレート); UI labels stay
   concise, user-guide running text uses です・ます.
+- ja, zh-CN — bold next to running text: `**` opens or closes bold only where
+  CommonMark lets it, and a bold run that begins or ends with punctuation or a
+  symbol ("…", "：", "）", "⋮", "+") and touches a letter on its outside is not
+  read as bold — the asterisks stay on the page, or the wrong words turn bold.
+  Set one blank on the outside of such a run (`右上の **⋮** メニュー`,
+  `**连接账户…** 中选择`, `**系统要求：** 在 iPhone 上`); it is the one blank the
+  zh-CN rule above does not forbid. `apps/desktop/src/docsEmphasis.test.ts`
+  parses every page of the guide and fails a marker that is not read as the
+  one it was written as, in any language.
 - Terminology register: the respective locale JSON is the authoritative term
   register for its language. User-guide pages adopt UI terms VERBATIM (bolded)
   from `packages/ui/src/locales/<code>.json`; vault-template prose uses the

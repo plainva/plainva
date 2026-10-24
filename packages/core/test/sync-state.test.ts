@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { MockDatabaseAdapter } from "./mocks/MockDatabaseAdapter.ts";
+import { realSqlite } from "./helpers/realSqlite.ts";
 import { SyncStateRepository } from "../src/vault/SyncStateRepository.ts";
 
 describe("SyncStateRepository", () => {
@@ -107,6 +108,35 @@ describe("SyncStateRepository", () => {
     expect(db.queries[0].query).toContain("local_sha256 = excluded.local_sha256");
     expect(db.queries[0].query).not.toContain("base_text");
     expect(db.queries[0].params).toEqual(["note.md", "localhash"]);
+  });
+
+  it("updateLocalHashAndUnsyncedBaseText writes the base text only where no sync recorded a base (finding 2026-10-11)", async () => {
+    // The rule is the statement's own: asked of the row at the moment of the write, on a real database.
+    const real = await realSqlite();
+    try {
+      const rows = new SyncStateRepository(real);
+      const row = async (path: string) => {
+        const state = await rows.getSyncState(path);
+        return { local: state?.local_sha256 ?? null, baseSha: state?.base_sha256 ?? null, base: state?.base_text ?? null };
+      };
+      // No row yet: the write chain's text is all there is.
+      await rows.updateLocalHashAndUnsyncedBaseText("new.md", "local-1", "text 1");
+      expect(await row("new.md")).toEqual({ local: "local-1", baseSha: null, base: "text 1" });
+      // A row no sync has seen: the text follows the marker.
+      await rows.updateLocalHashAndUnsyncedBaseText("new.md", "local-2", "text 2");
+      expect(await row("new.md")).toEqual({ local: "local-2", baseSha: null, base: "text 2" });
+      // A row that carries the sync's base: the marker moves, hash and text of the base stay.
+      await rows.updateBaseState("new.md", "synced-sha", "etag-1");
+      await rows.updateBaseText("new.md", "synced text");
+      await rows.updateLocalHashAndUnsyncedBaseText("new.md", "local-3", "text 3");
+      expect(await row("new.md")).toEqual({ local: "local-3", baseSha: "synced-sha", base: "synced text" });
+      // Also where the sync recorded a base and no text for it (a file that is no UTF-8, a streamed upload).
+      await rows.clearBaseText("new.md");
+      await rows.updateLocalHashAndUnsyncedBaseText("new.md", "local-4", "text 4");
+      expect(await row("new.md")).toEqual({ local: "local-4", baseSha: "synced-sha", base: null });
+    } finally {
+      await real.close();
+    }
   });
 
   it("getAllPaths returns the persisted paths", async () => {

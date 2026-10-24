@@ -38,7 +38,9 @@ describe("inline markdown in cells and cards", () => {
     expect(parseInlineMarkdown("a <br /> b <BR/> c <br x>")).toEqual([
       { kind: "text", text: "a " }, { kind: "br" }, { kind: "text", text: " b " }, { kind: "br" }, { kind: "text", text: " c <br x>" },
     ]);
-    expect(parseInlineMarkdown("[l](<u> \"t\")")).toEqual([{ kind: "link", href: "<u>", label: "l", external: false }]);
+    // The token is the same; its URL is read without angle brackets and title
+    // since 2026-10-22, and `written` keeps the destination as it stands.
+    expect(parseInlineMarkdown("[l](<u> \"t\")")).toEqual([{ kind: "link", href: "u", written: "<u> \"t\"", label: "l", external: false }]);
     expect(parseInlineMarkdown("__x__y _z_")).toEqual([{ kind: "text", text: "__x__y " }, { kind: "em", children: [{ kind: "text", text: "z" }] }]);
     expect(parseInlineMarkdown("<!-- open")).toEqual([{ kind: "text", text: "<!-- open" }]);
   });
@@ -107,7 +109,7 @@ describe("unlinking in the graph", () => {
       readTextFile: async (path: string) => files[path],
       writeTextFile: async (path: string, content: string) => { files[path] = content; },
     } as unknown as IVaultAdapter;
-    const query = { listNotes: async () => [] } as unknown as VaultQueryService;
+    const query = { listNotes: async () => [], linkTargets: async () => [] } as unknown as VaultQueryService;
     await within(1_000, async () => expect(await removeLinksTo(adapter, query, "a.md", "x.md")).toBe(0));
     await within(1_000, async () => expect(await removeLinksTo(adapter, query, "b.md", "x.md")).toBe(0));
   });

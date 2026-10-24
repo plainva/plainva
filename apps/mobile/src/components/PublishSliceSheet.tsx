@@ -6,7 +6,7 @@ import {
   type PublishedSliceMode,
   type PublishedSliceProvider,
 } from "@plainva/core";
-import { Banner, Button, publicationInstructionText, Segmented, TextInput } from "@plainva/ui";
+import { Banner, Button, isPublishedNoteRefusal, publicationErrorText, publicationInstructionText, Segmented, TextInput } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { mSelect } from "../services/mobileDialogs";
 
@@ -62,6 +62,9 @@ export function PublishSliceSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ mode: PublishedSliceMode; data: PublishedProjectionPreview } | null>(null);
+  /* Why the last preview has no answer: for the mode it was asked in where a
+     note was refused, for every mode (`null`) where anything else failed. */
+  const [previewError, setPreviewError] = useState<{ mode: PublishedSliceMode | null; text: string } | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
 
   const valid = name.trim().length > 0;
@@ -70,14 +73,32 @@ export function PublishSliceSheet({
      mode is not this mode's answer, and a count that outlives the rule it was
      computed for is worse than no count. */
   const shown = preview && preview.mode === mode ? preview.data : null;
+  /* A refused note belongs to its mode as the answer does: it stops a
+     sanitized copy, while an exact one hands the note out as it is. Any other
+     failure of a preview - a note that cannot be read, a locked vault - and a
+     failed creation are said whatever the mode. */
+  const shownError =
+    error ?? (previewError && (previewError.mode === null || previewError.mode === mode) ? previewError.text : null);
 
+  /* A failure is said through the shared text, as on the desktop: a note the
+     sanitizer refuses is named in the app's language, and a publication code
+     is a sentence. The banner used to show the thrown message as it came.
+     An earlier answer goes with a failed one - for the same mode where a note
+     was refused, for both where the failure is not about the mode: numbers
+     beside a reason why there are none would be numbers for a publication
+     that does not come. A reason the other mode was given stays with it. */
   const runPreview = () => {
     if (previewBusy) return;
     setPreviewBusy(true);
     setError(null);
+    setPreviewError((earlier) => (earlier && (earlier.mode === null || earlier.mode === mode) ? null : earlier));
     void onPreview(mode)
       .then((data) => setPreview({ mode, data }))
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e: unknown) => {
+        const refused = isPublishedNoteRefusal(e);
+        setPreview((earlier) => (refused && earlier && earlier.mode !== mode ? earlier : null));
+        setPreviewError({ mode: refused ? mode : null, text: publicationErrorText(e, t) });
+      })
       .finally(() => setPreviewBusy(false));
   };
 
@@ -86,7 +107,7 @@ export function PublishSliceSheet({
     setBusy(true);
     setError(null);
     void onSubmit({ name: name.trim(), mode, access, provider }).catch((e: unknown) => {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(publicationErrorText(e, t));
       setBusy(false);
     });
   };
@@ -227,9 +248,9 @@ export function PublishSliceSheet({
           })}
         </p>
 
-        {error && (
+        {shownError && (
           <Banner kind="error" rounded>
-            {error}
+            {shownError}
           </Banner>
         )}
 

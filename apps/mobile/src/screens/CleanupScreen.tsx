@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FileText, Link2, Plus, Trash2 } from "lucide-react";
-import { brokenLinkNoteTitle, GraphService, type BrokenLinkInfo, type GraphNodeInfo, type GraphSuggestion } from "@plainva/core";
+import { GraphService, type BrokenLinkInfo, type GraphNodeInfo, type GraphSuggestion } from "@plainva/core";
 import {
   applyMentionLink,
   Button,
-  createConnectedNote,
+  brokenLinkLabel,
+  brokenLinkNotePath,
+  createBrokenLinkTarget,
   EmptyState,
   getGraphState,
   type GraphStateStore,
@@ -17,7 +19,7 @@ import {
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { confirmDeleteFile } from "../lib/deleteFile";
-import { getMobileSettings } from "../services/mobileSettings";
+import { configuredNoteType } from "../services/newNote";
 import { syncSoon } from "../services/syncService";
 import type { MobileVault } from "../services/vaultService";
 
@@ -127,15 +129,12 @@ export function CleanupScreen({
     const service = vault.queryService;
     if (!service) return;
     try {
-      const folder = item.sourcePath.includes("/")
-        ? item.sourcePath.substring(0, item.sourcePath.lastIndexOf("/"))
-        : "";
-      const title = brokenLinkNoteTitle(item.targetRaw);
-      const path = await createConnectedNote(vault.files, service, {
-        folder,
-        title,
-        noteType: getMobileSettings().defaultNoteType,
-      });
+      // Where the link will find it — the place a tap on the link creates the note.
+      const path = await createBrokenLinkTarget(vault.files, service, item, configuredNoteType());
+      if (!path) {
+        toast.error(t("graph.cleanupActionFailed"));
+        return;
+      }
       setBroken((prev) => prev.filter((b) => b !== item));
       syncSoon();
       toast.info(t("graph.cleanupCreated", { name: path }));
@@ -223,13 +222,16 @@ export function CleanupScreen({
                   <Link2 size={ICON.head} />
                 </span>
                 <span className="m-row-txt">
-                  {`[[${b.targetRaw}]]`}
+                  {brokenLinkLabel(b)}
                   <small>{titleOf(b.sourcePath)}</small>
                 </span>
               </button>
-              <IconButton label={t("graph.createTarget", { defaultValue: "Ziel anlegen" })} onClick={() => void createTarget(b)}>
-                <Plus size={ICON.ui} />
-              </IconButton>
+              {/* A link to a picture, a PDF or a folder names no note: there is none to create. */}
+              {brokenLinkNotePath(b) && (
+                <IconButton label={t("graph.createTarget", { defaultValue: "Ziel anlegen" })} onClick={() => void createTarget(b)}>
+                  <Plus size={ICON.ui} />
+                </IconButton>
+              )}
             </div>
           ))
         ))}

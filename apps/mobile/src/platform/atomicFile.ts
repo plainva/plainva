@@ -35,7 +35,13 @@ export async function atomicWriteBase64(path: string, dataB64: string): Promise<
     await AtomicFile.write({ path, data: dataB64, encoding: "base64" });
     return;
   }
-  await Filesystem.writeFile({ path, directory: Directory.Data, data: dataB64, recursive: true });
+  // The web shell keeps what it is handed and hands it back whatever a read
+  // asks for. Bytes kept as their base64 string came back from a TEXT read as
+  // that string — valid UTF-8, a "text" no file ever held (finding 2026-10-11).
+  // Kept as a Blob they stay bytes, and the vault's text read decodes them the
+  // way Android's reader does.
+  const bytes = Uint8Array.from(atob(dataB64), (character) => character.charCodeAt(0));
+  await Filesystem.writeFile({ path, directory: Directory.Data, data: new Blob([bytes]), recursive: true });
 }
 
 /**

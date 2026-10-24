@@ -10,6 +10,7 @@ import { bindRunTokenToAccount } from "./connectConsent";
 import { runServices } from "./connectQueue";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
 import { finishConnectVault, loadConnectQueue, outcomeBelongsToRun, prepareConnectVault, recordConnectOutcome } from "./connectQueue";
+import { CONNECT_FORM_GUARD, foreignInputOnScreen, whileEntering } from "./flowVault";
 import { copyProfilePreferences } from "./profileImportJournal";
 import { getPimCredentials, savePimCredentials } from "./pim/pimCredentials";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
@@ -150,7 +151,16 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
     await bindRunTokenToAccount(id, run.family, runServices(run));
   } finally { await db.close(); }
   if (!existing) await addVault({ id, name, provider: p.provider });
-  await finishConnectVault(context, id, accountId);
-  await switchVault(id);
+  // From the committed result to the active vault is this flow's own stretch.
+  // The run's event reaches `useConnectRun` in between, and what it sees there
+  // is what an interrupted activation looks like — so the stretch is marked:
+  // nobody switches a second time, and nobody is offered a switch that is
+  // about to happen. The switch itself is not made from under someone else's
+  // unsaved input (the copy can outlive its form): the run is left where an
+  // interrupted activation leaves it, and its own way back offers the vault.
+  await whileEntering(id, async () => {
+    await finishConnectVault(context, id, accountId);
+    if (!foreignInputOnScreen(CONNECT_FORM_GUARD)) await switchVault(id);
+  });
   window.dispatchEvent(new Event("m-connect-run-changed"));
 }

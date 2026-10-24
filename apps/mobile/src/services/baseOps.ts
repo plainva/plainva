@@ -1,10 +1,7 @@
 import { Capacitor } from "@capacitor/core";
-import {
-  deleteFrontmatterPath,
-  renameFrontmatterKey,
-} from "@plainva/core";
+import type { TextChange } from "@plainva/core";
 import { buildMobilePlanDeps } from "./cascadeDelete";
-import { getMobileSettings } from "./mobileSettings";
+import { configuredNoteType } from "./newNote";
 import {
   applyRelationWrite,
   assertFileStillThere,
@@ -32,9 +29,18 @@ import {
   renamePropertyInConfig,
   resolveNewItemTarget,
   serializeBaseConfig,
-  setPendingTemplateCaret,
+  parkTemplateCaret,
+  templateCaretInNote,
   viewPrefill,
   writeNoteProperty,
+  bulkSetProperty,
+  renamePropertyAcrossNotes,
+  removePropertyAcrossNotes,
+  type BulkSetOptions,
+  type BulkSetResult,
+  type NoteRewriteResult,
+  type RenamePropertyOutcome,
+  type PropertyWriteAdapter,
   type PinboardDraft,
   type PinboardDraftLedger,
   type PinboardDraftSweep,
@@ -91,13 +97,9 @@ export async function saveBaseConfig(v: MobileVault, path: string, config: any, 
   const text = serializeBaseConfig(config);
   if (!recreate) await assertFileStillThere(v.files, path);
   await v.files.writeTextFile(path, text);
-  if (v.indexer) {
-    try {
-      await v.indexer.indexFile(await v.adapter.getFileInfo(path));
-    } catch {
-      /* next full pass repairs it */
-    }
-  }
+  // The index hears of a database like of a note (finding 2026-10-09): the
+  // call that stood here took notes only and never did anything for a `.base`.
+  if (v.indexer) await v.reindexPaths([path]);
   syncSoon();
 }
 
@@ -118,22 +120,73 @@ export async function commitCellValue(
   col: string,
   value: unknown,
 ): Promise<void> {
-  // The note may be open in the editor — land its pending keystrokes first
-  // so the frontmatter rewrite starts from the live text.
-  await noteSaver.flush(notePath, v);
-  await writeNoteProperty(
-    {
-      readTextFile: (p) => vaultOps.read(v, p),
-      // vaultOps.save is the conflict-aware adapter chain — snapshot, sync
-      // queue, index — so the shared write keeps every guarantee a mobile
-      // write has.
-      writeTextFile: (p, text) => vaultOps.save(v, p, text),
-    },
-    notePath,
-    col,
-    value,
-  );
+  await writeNoteProperty(noteFiles(v), notePath, col, value);
   syncSoon();
+}
+
+/**
+ * Sets one property across many notes — the selection of a database (plan
+ * Mehrfachauswahl, P5) — through the same write as one cell.
+ *
+ * The loop, its progress, its cancel, its count of the notes that failed and
+ * how many notes it writes at a time are the shared ones the desktop runs;
+ * the phone's own is the vault it hands that loop.
+ *
+ * It wrote one note at a time for a while (finding 2026-10-12): every write
+ * through the chain opens a transaction for the sync queue and one for the
+ * index, and the plugin of the phone's single database connection refused a
+ * second transaction while one was open — the note was changed on disk and
+ * counted as failed. The database's transactions take their turns since
+ * (`adapters/transactionTurns.ts`), so the selection writes several notes at
+ * a time again, with the desktop's gate, and none is refused
+ * (`vaultChainWrites.test.ts`). Measured on 2026-10-19 with a probe outside
+ * the repository, against the simulated connection with 1 and 3 ms added to
+ * each call (48 notes): one at a time took 425 to 435 ms per note, two to six
+ * at a time 200 to 285 ms per note. Not measured on a device.
+ */
+export async function commitBulkValue(
+  v: MobileVault,
+  paths: readonly string[],
+  col: string,
+  value: unknown,
+  options: Pick<BulkSetOptions, "onProgress" | "isCancelled"> = {},
+): Promise<BulkSetResult> {
+  const result = await bulkSetProperty(noteFiles(v), paths, col, value, options);
+  if (result.written.length > 0) syncSoon();
+  return result;
+}
+
+/**
+ * A note as the shared property writers read and write it on the phone — ONE
+ * definition for a cell and for a selection.
+ *
+ * A property goes into the note through `vaultOps.update`: the editor's
+ * pending keystrokes land first — the note may be open, and the rewrite of its
+ * properties has to start from the live text —, then the vault's chain reads
+ * the note, changes it and writes it in one step (a version of the note as it
+ * was, the sync queue) and the index follows. So a property written here
+ * keeps every guarantee a write on the phone has, and starts from the note as
+ * it lies there, whoever wrote it last (finding 2026-10-12).
+ *
+ * The selection had no part in this (finding 2026-10-09): its screen handed
+ * the shared loop `vault.adapter`, the storage BELOW the chain. Forty notes
+ * changed at once had no version to go back to and no entry in the sync
+ * queue, and the table went on showing the old values because the index had
+ * not heard of the write. And the next cell written in one of those rows was
+ * refused: the chain met a file it did not know, could not merge it, and cut
+ * a conflict copy of a note nobody else had touched.
+ */
+function noteFiles(v: MobileVault): PropertyWriteAdapter {
+  return {
+    readTextFile: async (p) => {
+      await noteSaver.flush(p, v);
+      return vaultOps.read(v, p);
+    },
+    writeTextFile: (p, text) => vaultOps.save(v, p, text),
+    // What the shared property writers use: the note is read where it is
+    // written, in one step of the chain (finding 2026-10-12).
+    updateTextFile: (p, change) => vaultOps.update(v, p, change),
+  };
 }
 
 /** Candidate rows of a relation's target base (desktop picker contract). */
@@ -175,14 +228,10 @@ export async function writeRelationSchema(
     readTextFile: (p: string) => vaultOps.read(v, p),
     writeTextFile: async (p: string, text: string) => {
       await v.files.writeTextFile(p, text);
-      if (v.indexer) {
-        try {
-          await v.indexer.indexFile(await v.adapter.getFileInfo(p));
-        } catch {
-          /* next full pass repairs it */
-        }
-      }
+      if (v.indexer) await v.reindexPaths([p]);
     },
+    // The reverse column goes into the TARGET base as that file lies there.
+    updateTextFile: (p: string, change: TextChange) => vaultOps.update(v, p, change),
   };
   return applyRelationWrite(
     adapter,
@@ -284,8 +333,16 @@ export async function listBasePaths(v: MobileVault): Promise<Array<{ path: strin
 
 /**
  * Renames a property in the config (shared renamePropertyInConfig) and moves
- * the frontmatter key in every source note (desktop rename contract).
- * Returns the number of rewritten notes.
+ * the frontmatter key in every source note — by the shared rule
+ * (`renamePropertyAcrossNotes`): checked first. Where a note cannot take the
+ * new name, nothing is written, the database included, and the answer names
+ * the notes; a write that fails during the run is counted in the result.
+ *
+ * The loop that stood here swallowed every error (finding 2026-10-09) — "note
+ * lacks the key or already carries the new one", its comment said, of a case
+ * in which the note keeps the old key under a column that no longer exists.
+ * And it read and wrote past the editor: the notes go through `noteFiles` now,
+ * as a cell and a selection do, so pending keystrokes land first.
  */
 export async function renameBaseProperty(
   v: MobileVault,
@@ -294,29 +351,24 @@ export async function renameBaseProperty(
   oldName: string,
   newName: string,
   rowPaths: string[],
-): Promise<number> {
-  const nc = renamePropertyInConfig(config, oldName, newName);
-  await saveBaseConfig(v, basePath, nc);
-  let changed = 0;
-  for (const p of rowPaths) {
-    try {
-      const text = await vaultOps.read(v, p);
-      const next = renameFrontmatterKey(text, oldName, newName);
-      if (next !== text) {
-        await vaultOps.save(v, p, next);
-        changed++;
-      }
-    } catch {
-      /* note lacks the key or already carries the new one — skip */
-    }
-  }
-  if (changed > 0) syncSoon();
-  return changed;
+): Promise<RenamePropertyOutcome> {
+  const outcome = await renamePropertyAcrossNotes({
+    adapter: noteFiles(v),
+    paths: rowPaths,
+    oldName,
+    newName,
+    saveConfig: () => saveBaseConfig(v, basePath, renamePropertyInConfig(config, oldName, newName)),
+  });
+  if (outcome.status === "renamed" && outcome.result.written.length > 0) syncSoon();
+  return outcome;
 }
 
 /**
  * Deletes a property from the config (shared deletePropertyFromConfig) and
- * optionally removes the frontmatter key from the source notes.
+ * optionally removes the frontmatter key from the source notes. Answers which
+ * notes were cleaned and which could not be written — not checked first, see
+ * `renamePropertyAcrossNotes`. The loop that stood here skipped a note it
+ * could not write without a word (finding 2026-10-09).
  */
 export async function deleteBaseProperty(
   v: MobileVault,
@@ -325,21 +377,12 @@ export async function deleteBaseProperty(
   name: string,
   rowPaths: string[],
   cleanNotes: boolean,
-): Promise<void> {
+): Promise<NoteRewriteResult> {
   const nc = deletePropertyFromConfig(config, name);
   await saveBaseConfig(v, basePath, nc);
-  if (cleanNotes) {
-    for (const p of rowPaths) {
-      try {
-        const text = await vaultOps.read(v, p);
-        const next = deleteFrontmatterPath(text, [name]);
-        if (next !== text) await vaultOps.save(v, p, next);
-      } catch {
-        /* skip unreadable notes; the column is gone either way */
-      }
-    }
-  }
+  const result = cleanNotes ? await removePropertyAcrossNotes(noteFiles(v), rowPaths, name) : { written: [], unchanged: [], failed: [] };
   syncSoon();
+  return result;
 }
 
 /**
@@ -391,7 +434,7 @@ export async function createBaseItem(
   // on the database has already answered the question the rules exist for);
   // otherwise the rules decide, and without either it is the skeleton.
   // Questions are asked in one sheet — cancelling creates nothing (P6).
-  const type = getMobileSettings().defaultNoteType;
+  const type = configuredNoteType();
   const tplPath = typeof config?.newItemTemplate === "string" ? config.newItemTemplate : "";
   const built = await buildNewNoteFromTemplate({
     read: (p) => vaultOps.read(v, p),
@@ -412,11 +455,10 @@ export async function createBaseItem(
   const content = finalizeItemContent(built.content, type, tags, inherited.props);
 
   await vaultOps.save(v, path, content);
-  // `{{cursor}}` was measured before the prefill rewrote the frontmatter, so
-  // the offset shifts by whatever grew in front of the body.
-  if (built.caret !== null) {
-    setPendingTemplateCaret({ path, offset: built.caret + (content.length - built.content.length) });
-  }
+  // `{{cursor}}` was found before the prefill rewrote the frontmatter; the
+  // shared rule finds it again behind whatever grew in front of the text.
+  // Both steps count in the file; parking brings the place to the editor's text.
+  parkTemplateCaret(path, content, built.caret === null ? null : templateCaretInNote(built.content, content, built.caret));
   syncSoon();
   return { status: "created", path };
 }
@@ -440,6 +482,7 @@ export function pinboardEntryFiles(v: MobileVault): PinboardEntryFiles {
       return vaultOps.read(v, p);
     },
     write: (p, text) => vaultOps.save(v, p, text),
+    update: (p, change) => vaultOps.update(v, p, change),
     rename: (p, stem) => vaultOps.rename(v, p, stem),
     // The person's own draft with nothing in it, a confirmed discard, or what
     // an app that went away during an entry left behind unchanged.
@@ -489,7 +532,7 @@ export async function planMobilePinboardEntry(
     activeLabels: opts.activeLabels,
     labelProperty: opts.labelProperty,
     folder: opts.folder,
-    noteType: getMobileSettings().defaultNoteType,
+    noteType: configuredNoteType(),
     now: new Date(),
     ledger: mobileDraftLedger(v),
     // The base's default template fills the body; its questions come first.
@@ -509,7 +552,7 @@ export async function planMobilePinboardEntry(
   });
   if (plan.status === "ready") {
     notifyFileOps([{ type: "create", path: plan.draft.path }]);
-    if (plan.draft.caret !== null) setPendingTemplateCaret({ path: plan.draft.path, offset: plan.draft.caret });
+    parkTemplateCaret(plan.draft.path, plan.draft.initial, plan.draft.caret);
     syncSoon();
   }
   return plan;
@@ -557,13 +600,7 @@ export async function createDatabase(
     views: [{ type: "table", name: tableLabel, order: ["file.name"] }],
   };
   await v.files.writeTextFile(path, serializeBaseConfig(config));
-  if (v.indexer) {
-    try {
-      await v.indexer.indexFile(await v.adapter.getFileInfo(path));
-    } catch {
-      /* next full pass repairs it */
-    }
-  }
+  if (v.indexer) await v.reindexPaths([path]);
   window.dispatchEvent(new CustomEvent("m-vault-changed"));
   syncSoon();
   return path;

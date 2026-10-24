@@ -1,13 +1,15 @@
 import { toast } from "@plainva/ui";
-import { UndoSendQueue, secondsLeft, listMailAccounts, sendMail, appendDraft, type MailAttachment } from "@plainva/ui/mail";
+import { HeldSends, UndoSendQueue, secondsLeft, listMailAccounts, mailErrorText, sendMail, appendDraft, utf8ToBase64, type MailAttachment } from "@plainva/ui/mail";
 import i18n from "@plainva/ui/i18n";
 import { isOwnerWindow } from "../windowContext";
 import { getWindowBus } from "../windowBus";
+import type { ComposeSnapshot } from "./composeHandoff";
 
 /**
  * Sending a message, from whichever window wrote it (multi-window P3).
  *
- * Two things live here that used to live inside the compose component:
+ * Three things live here that used to live inside the compose component, or
+ * nowhere:
  *
  * 1. **The delayed send.** "Undo send" is a DELAY, not a recall — once SMTP has
  *    the message there is no taking it back. The compose window closes the
@@ -20,6 +22,9 @@ import { getWindowBus } from "../windowBus";
  *    queue lived there, closing it would decide between sending and losing.
  *    A compose window therefore hands the message over and closes; the undo
  *    toast appears where the user keeps working.
+ * 3. **A refused message.** By the time the mail server answers, the composer
+ *    is closed. A message it refuses is kept and comes back in a compose
+ *    window, with everything it was sent with (`refusedSends`).
  *
  * Callers do not choose: `submitSend`/`submitDraft` route by window role, so
  * the compose form is the same component in both places.
@@ -45,8 +50,90 @@ export interface MailDraftRequest extends Omit<MailSendRequest, "calendar" | "fr
   mailbox: string;
 }
 
+/** A message on its way: what was asked for, and the call that hands it over. */
+interface QueuedSend {
+  req: MailSendRequest;
+  deliver: () => Promise<void>;
+}
+
 let undoToastId: number | null = null;
-let queue: UndoSendQueue<() => Promise<void>> | null = null;
+let queue: UndoSendQueue<QueuedSend> | null = null;
+let refused: HeldSends<MailSendRequest> | null = null;
+
+/** `i18n.t` in the shape the shared mail texts take. */
+const say = (key: string, options?: Record<string, unknown>): string => i18n.t(key, options ?? {});
+
+/**
+ * The messages the mail server refused (`HeldSends`): kept here, where the
+ * queue lives, until a composer has them again.
+ *
+ * A refused message comes back as a compose WINDOW of the vault it was written
+ * in — the way a popped-out composer opens. The central window may be showing
+ * another vault by then, and whatever draft floats there stays untouched. The
+ * queue lets go of the message when that window has collected it
+ * (`releaseRefusedSend`, called where the owner answers `compose-draft`).
+ */
+function refusedSends(): HeldSends<MailSendRequest> {
+  refused ??= new HeldSends<MailSendRequest>({
+    text: (reason) => ({ message: i18n.t("mail.sendFailed", { reason }), action: i18n.t("mail.sendReopen") }),
+    open: async (id, req) => {
+      try {
+        // Loaded on demand: the window manager is the owner's, and a compose
+        // window that only sends has no use for it.
+        const { openComposeWindow } = await import("../windowManager");
+        await openComposeWindow({
+          vaultPath: req.vaultPath,
+          snapshot: refusedSnapshot(id, req),
+          title: req.subject.trim() || i18n.t("mail.composeTitle"),
+        });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+        throw e;
+      }
+    },
+    // `open` is over when the window EXISTS; the message is its only once it
+    // has collected the draft, and until then the notice still stands. A new
+    // window takes its time to start, longer with megabytes to fetch, and the
+    // fetch itself gives up after fifteen seconds. Answering the notice again
+    // any sooner would bring the same message up in a second window — and a
+    // message in two windows is a message that can be sent twice.
+    settleMs: 20_000,
+  });
+  return refused;
+}
+
+/**
+ * A refused message as the state a composer opens with.
+ *
+ * It opens as it was SENT: the files that went along are its files (one that
+ * stayed behind was agreed to), and an invitation is an invitation again. Its
+ * opened state is an empty composer, so closing the window asks — a message
+ * that was not sent is unsaved work, whoever typed how much of it.
+ */
+function refusedSnapshot(id: number, req: MailSendRequest): ComposeSnapshot {
+  const invitation: MailAttachment[] = req.calendar
+    ? [{ name: "invite.ics", mime: `text/calendar; method=${req.calendar.method ?? "REQUEST"}`, contentBase64: utf8ToBase64(req.calendar.ics) }]
+    : [];
+  return {
+    accountId: req.accountId,
+    fromAddress: req.fromAddress ?? "",
+    to: req.to,
+    cc: req.cc ?? "",
+    bcc: req.bcc ?? "",
+    showCc: !!(req.cc || req.bcc),
+    subject: req.subject,
+    body: req.body,
+    attachments: [...req.attachments, ...invitation],
+    mailbox: "",
+    opened: { to: "", cc: "", bcc: "", subject: "", body: "", attachments: [] },
+    refused: id,
+  };
+}
+
+/** The compose window of a refused message has collected it: it lives there now. */
+export function releaseRefusedSend(id: number | undefined): void {
+  refused?.claim(id);
+}
 
 /**
  * Built on first use, not while the module loads (C20): this file is reachable
@@ -55,17 +142,26 @@ let queue: UndoSendQueue<() => Promise<void>> | null = null;
  * window twice. Nothing can be queued before this ran, so the flush listener
  * is registered here too.
  */
-function undoQueue(): UndoSendQueue<() => Promise<void>> {
+function undoQueue(): UndoSendQueue<QueuedSend> {
   if (queue) return queue;
-  queue = new UndoSendQueue<() => Promise<void>>(async (deliver) => {
+  queue = new UndoSendQueue<QueuedSend>(async ({ req, deliver }) => {
+    // The notice ends WITH the window, before the transport is asked. Whatever
+    // brought the message here — the timer, Plainva closing, a second message
+    // pushing this one out — "Undo" can no longer stop it, and the notice is
+    // persistent: nothing but this takes it down. It is also the last moment
+    // the id still names THIS message's notice; by the time the transport has
+    // answered, a message sent in between has its own behind it. The outcome
+    // is therefore said on its own, as the phone says it.
+    if (undoToastId !== null) toast.dismiss(undoToastId);
+    undoToastId = null;
     try {
       await deliver();
-      if (undoToastId !== null) toast.dismiss(undoToastId);
-      undoToastId = null;
+      toast.success(i18n.t("mail.sent"));
     } catch (e) {
-      if (undoToastId !== null) toast.dismiss(undoToastId);
-      undoToastId = null;
-      toast.error(e instanceof Error ? e.message : String(e));
+      // The composer closed eight seconds ago. Until 2026-10 the refusal was
+      // one line of text and the message was gone; now it is kept, and the
+      // notice that says why is its way back.
+      refusedSends().hold(req, mailErrorText(e, say));
     }
   });
   // Closing Plainva must not lose a message someone asked to send.
@@ -91,20 +187,23 @@ async function accountOf(vaultPath: string, accountId: string) {
 export async function enqueueSend(req: MailSendRequest, delivered?: () => void): Promise<void> {
   const account = await accountOf(req.vaultPath, req.accountId);
   const q = undoQueue();
-  const entry = q.enqueue(async () => {
-    await sendMail(
-      req.vaultPath,
-      account,
-      req.to,
-      req.subject,
-      req.body,
-      req.attachments,
-      req.calendar,
-      req.cc ?? "",
-      req.bcc ?? "",
-      req.fromAddress,
-    );
-    delivered?.();
+  const entry = q.enqueue({
+    req,
+    deliver: async () => {
+      await sendMail(
+        req.vaultPath,
+        account,
+        req.to,
+        req.subject,
+        req.body,
+        req.attachments,
+        req.calendar,
+        req.cc ?? "",
+        req.bcc ?? "",
+        req.fromAddress,
+      );
+      delivered?.();
+    },
   });
   undoToastId = toast.progress(i18n.t("mail.sendingWithUndo", { seconds: secondsLeft(entry) }), {
     label: i18n.t("common.undo"),

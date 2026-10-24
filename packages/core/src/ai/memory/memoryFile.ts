@@ -2,7 +2,7 @@ import { AI_POLICY_DIMENSIONS, type AiPolicyDimension } from "../policy.js";
 import { stripInvisible } from "../trust.js";
 
 /**
- * The vault's memory for assistants (plan KI-Harness P6, ADR 0027): what an
+ * The vault's memory for assistants (plan KI-Harness P6, ADR 0032): what an
  * assistant should know about the user and their work, kept as two Markdown
  * files in the hidden `.agent/` area — so it travels with the vault, can be
  * read and edited by hand, and belongs to no provider.

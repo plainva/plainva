@@ -1,9 +1,9 @@
-import { decodeMarkdownLinkTarget } from "./linkEncoding.js";
-import { visit } from "unist-util-visit";
+import { decodeMarkdownLinkTarget, markdownLinkTarget } from "./linkEncoding.js";
 import { MarkdownAst } from "./markdown-ast.js";
 import { extractFrontmatter } from "./metadata-extractor.js";
 import { PLAINVA_NAMESPACE_KEY } from "./metadata.js";
 import { findInlineTags } from "./tagRule.js";
+import { wikiLinkInner, wikiLinkParts } from "./wikiLink.js";
 
 export type TagOccurrence = {
   name: string;
@@ -39,62 +39,51 @@ export function extractLinksAndTags(ast: MarkdownAst): ExtractedData {
     }
   }
 
-  // 2. Traverse AST for inline tags and links
-  visit(ast as any, (node: any) => {
+  // 2. Walk the tree for inline tags and links, in the order of the text. A
+  // wiki link is a node of its own (`wikiLinkSyntax.ts`): what stands between
+  // its brackets is read as it is written, whatever Markdown would read into
+  // it — `[[_private_]]` names the file "_private_" (finding 2026-10-11).
+  const walk = (node: any): void => {
     if (node.type === "text") {
       // Inline tags: the one rule in tagRule.ts (the task scan, the rename and
       // the editor's pill read the same one).
       for (const tag of findInlineTags(node.value)) result.tags.push({ name: tag.name, source: "inline" });
-    } else if (node.type === "html") {
-      const value = node.value as string;
-      if (value.startsWith("![[") && value.endsWith("]]")) {
-        const inner = value.slice(3, -2);
-        const [targetRaw, ...aliasParts] = inner.split("|");
-        const { target, anchor } = parseLinkTarget(targetRaw);
-        result.links.push({
-          type: "embed",
-          target,
-          rawTarget: targetRaw.trim(),
-          anchor,
-          alias: aliasParts.length > 0 ? aliasParts.join("|") : undefined,
-          line: node.position?.start?.line,
-        });
-      } else if (value.startsWith("[[") && value.endsWith("]]")) {
-        const inner = value.slice(2, -2);
-        const [targetRaw, ...aliasParts] = inner.split("|");
-        const { target, anchor } = parseLinkTarget(targetRaw);
-        result.links.push({
-          type: "wikilink",
-          target,
-          rawTarget: targetRaw.trim(),
-          anchor,
-          alias: aliasParts.length > 0 ? aliasParts.join("|") : undefined,
-          line: node.position?.start?.line,
-        });
-      }
+    } else if (node.type === "wikiLink") {
+      const parts = wikiLinkParts(wikiLinkInner(node));
+      result.links.push({
+        type: node.embed ? "embed" : "wikilink",
+        target: parts.target,
+        rawTarget: parts.rawTarget,
+        anchor: parts.anchor,
+        alias: parts.alias,
+        line: node.position?.start?.line,
+      });
     } else if (node.type === "link") {
       // Split the RAW destination at the anchor marker, then decode each
       // part: a "#" that belongs to the file name arrives encoded ("%23",
       // link-encoding 2026-09-04) and must not be read as the anchor marker,
-      // which it would be once the whole string were decoded first.
+      // which it would be once the whole string were decoded first. The
+      // target itself is `markdownLinkTarget`'s to read — the one reading a
+      // click and a rename share. Until 2026-10-22 a URL without a marker of
+      // its own was cut once more AFTER decoding, at the first `#` or `^`:
+      // `Draft%20%231.md` was listed as a link to `Draft`.
       const rawUrl = node.url;
       const markerIdx = rawUrl.indexOf("#");
       const decodedPath = decodeMarkdownLinkTarget(markerIdx >= 0 ? rawUrl.slice(0, markerIdx) : rawUrl);
       const decodedAnchor = markerIdx >= 0 ? decodeMarkdownLinkTarget(rawUrl.slice(markerIdx)) : "";
-      const decodedUrl = decodedPath + decodedAnchor;
-      const parsed = markerIdx >= 0
-        ? { target: decodedPath.trim(), anchor: decodedAnchor.trim() }
-        : parseLinkTarget(decodedPath);
+      const { target, anchor } = markdownLinkTarget(rawUrl);
       result.links.push({
         type: "markdown-link",
-        target: parsed.target,
-        rawTarget: decodedUrl,
-        anchor: parsed.anchor,
+        target,
+        rawTarget: decodedPath + decodedAnchor,
+        anchor: anchor ?? undefined,
         alias: getChildrenText(node) || undefined,
         line: node.position?.start?.line,
       });
     }
-  });
+    for (const child of node.children ?? []) walk(child);
+  };
+  walk(ast);
 
   return result;
 }

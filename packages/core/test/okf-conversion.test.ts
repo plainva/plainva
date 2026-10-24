@@ -29,6 +29,22 @@ describe("classifyOkfFile", () => {
       "reserved-name-concept"
     );
   });
+
+  it("reads a block without entries as a block that lacks its type, in every form", () => {
+    // `---` on `---` used to count as no block at all, a blank line or a
+    // comment between the fences as broken YAML - and a file with "broken"
+    // frontmatter is left out of the conversion.
+    for (const empty of ["---\n---\n# Note\n", "---\r\n---\r\n# Note\r\n", "---\n\n---\n# Note\n", "---\n# just a comment\n---\n# Note\n"]) {
+      expect(classifyOkfFile("a.md", empty), JSON.stringify(empty)).toBe("missing-type");
+      // It declares nothing, so it makes no concept document of a reserved file.
+      expect(classifyOkfFile("sub/index.md", empty)).toBeNull();
+      expect(classifyOkfFile("index.md", empty)).toBeNull();
+    }
+    // A block that spells out `null` is not a map; the writers refuse it.
+    expect(classifyOkfFile("a.md", "---\nnull\n---\n")).toBe("unparseable-frontmatter");
+    // The text behind an empty block is not its YAML, rule or not.
+    expect(classifyOkfFile("a.md", "---\n---\ntype: Note\n\n---\n")).toBe("missing-type");
+  });
 });
 
 describe("isExcludedFromOkfScan", () => {
@@ -78,6 +94,14 @@ describe("convertFileToOkf", () => {
     expect(result.content).toContain("type: Note");
     expect(result.content).not.toContain("okf_version"); // OKF v0.2: root index.md only
     expect(result.content.endsWith("# Heading\n")).toBe(true);
+  });
+
+  it("writes type into an empty block a note already carries, not into a second one on top", () => {
+    expect(convertFileToOkf("---\n---\n# Heading\n", { defaultType: "Note" }).content).toBe("---\ntype: Note\n---\n# Heading\n");
+    expect(convertFileToOkf("---\r\n---\r\n# Heading\r\n", { defaultType: "Note" }).content).toBe("---\r\ntype: Note\r\n---\r\n# Heading\r\n");
+    // With a rule in the text: the text up to it was taken for YAML.
+    const withRule = convertFileToOkf("---\n---\nIntro\n\n---\n\nRest\n", { defaultType: "Note" });
+    expect(withRule.content).toBe("---\ntype: Note\n---\nIntro\n\n---\n\nRest\n");
   });
 
   it("keeps an existing valid type by default and leaves the document untouched", () => {

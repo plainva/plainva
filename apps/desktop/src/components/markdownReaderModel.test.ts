@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { encodeWikiTarget, isHtmlCommentOnly, remarkBrToBreak, remarkStripHighlightMarks, remarkStripHtmlComments, remarkTagPills, resolveRelativeTarget } from "./markdownReaderModel";
+import { encodeWikiTarget, isHtmlCommentOnly, remarkBrToBreak, remarkStripHighlightMarks, remarkStripHtmlComments, remarkTagPills } from "./markdownReaderModel";
 
 describe("encodeWikiTarget", () => {
   it("leaves no character that can break a markdown link destination", () => {
@@ -14,32 +14,6 @@ describe("encodeWikiTarget", () => {
     const target = "A (b) c! 'd' *e* äöü #x";
     expect(decodeURIComponent(encodeWikiTarget(target))).toBe(target);
     expect(encodeWikiTarget(target)).not.toMatch(/[()!'* ]/);
-  });
-});
-
-describe("resolveRelativeTarget", () => {
-  it("resolves same-folder and encoded links against the source file", () => {
-    expect(resolveRelativeTarget("Efforts/index.md", "Efforts_MOC.md")).toEqual({ kind: "file", path: "Efforts/Efforts_MOC.md" });
-    expect(resolveRelativeTarget("Efforts/index.md", "Meine%20Notiz.md")).toEqual({ kind: "file", path: "Efforts/Meine Notiz.md" });
-    expect(resolveRelativeTarget("index.md", "Zettel.md")).toEqual({ kind: "file", path: "Zettel.md" });
-  });
-
-  it("resolves .. climbs, folder links and bundle-absolute paths", () => {
-    expect(resolveRelativeTarget("A/B/index.md", "../x.md")).toEqual({ kind: "file", path: "A/x.md" });
-    expect(resolveRelativeTarget("Efforts/index.md", "Plainva/")).toEqual({ kind: "folder", path: "Efforts/Plainva" });
-    expect(resolveRelativeTarget("A/B/index.md", "../../")).toEqual({ kind: "folder", path: "" });
-    expect(resolveRelativeTarget("Efforts/index.md", "/Atlas/Idee.md")).toEqual({ kind: "file", path: "Atlas/Idee.md" });
-  });
-
-  it("leaves anchors, schemes and vault-escaping paths alone", () => {
-    expect(resolveRelativeTarget("a/index.md", "#heading")).toBeNull();
-    // A fragment behind a path rides along (issue #92).
-    expect(resolveRelativeTarget("a/index.md", "b.md#heading")).toEqual({ kind: "file", path: "a/b.md", anchor: "#heading" });
-    expect(resolveRelativeTarget("a/index.md", "b.md#")).toEqual({ kind: "file", path: "a/b.md" });
-    expect(resolveRelativeTarget("a/index.md", "https://example.org")).toBeNull();
-    expect(resolveRelativeTarget("a/index.md", "wiki://Notiz")).toBeNull();
-    expect(resolveRelativeTarget("a/index.md", "mailto:x@y.z")).toBeNull();
-    expect(resolveRelativeTarget("index.md", "../draussen.md")).toBeNull();
   });
 });
 

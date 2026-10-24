@@ -101,6 +101,14 @@ describe('Markdown family — the dates come from the note, not the ZIP', () => 
     );
     expect(frontmatterTimes('# no frontmatter')).toBeUndefined();
     expect(frontmatterTimes('---\ntitle: only a title\n---\n')).toBeUndefined();
+    expect(frontmatterTimes('---\r\nCreated: 2023-05-01T09:00:00Z\r\n---\r\n')?.createdMs).toBe(
+      Date.parse('2023-05-01T09:00:00Z')
+    );
+  });
+
+  it('reads no date out of the text behind a block without entries', () => {
+    expect(frontmatterTimes('---\n---\ncreated: 2023-05-01\n\n---\n')).toBeUndefined();
+    expect(frontmatterTimes('---\ncreated: 2023-05-01\n')).toBeUndefined();
   });
 
   it('stamps a Joplin note with its own dates instead of the export time', async () => {

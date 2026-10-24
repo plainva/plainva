@@ -1,4 +1,4 @@
-import { deleteFrontmatterPath, setFrontmatterPath } from "@plainva/core";
+import { deleteFrontmatterPath, setFrontmatterPath, updateVaultText, type TextUpdateFiles } from "@plainva/core";
 import { parseBaseConfig, serializeBaseConfig } from "../base/baseFormat";
 import type { TaskPriority } from "./taskPlanner";
 import { priorityValue, resolveTaskPriorityModel, withPriorityColumn } from "./taskPriority";
@@ -13,10 +13,8 @@ import { priorityValue, resolveTaskPriorityModel, withPriorityColumn } from "./t
  * asked to read. Clearing a priority in a database without the column is a
  * no-op for the same reason.
  */
-export interface TaskPriorityWriteDeps {
-  readTextFile(path: string): Promise<string>;
-  /** Plain write — used for the `.base` only. */
-  writeTextFile(path: string, content: string): Promise<void>;
+/** The database's files — a vault's chain, or a storage with nothing above it (`updateVaultText`) — and the shell's write of a task note. */
+export interface TaskPriorityWriteDeps extends TextUpdateFiles {
   /** The shell's task-note write path (conflict guard, index, sync queue). */
   writeNote(path: string, mutate: (raw: string) => string): Promise<void>;
 }
@@ -35,15 +33,18 @@ export async function setDbTaskPriority(
   rank: TaskPriority,
   labels: TaskPriorityLabels
 ): Promise<{ columnAdded: string | null }> {
-  let config = parseBaseConfig(await deps.readTextFile(dbPath));
-  let model = resolveTaskPriorityModel(config);
+  let model = resolveTaskPriorityModel(parseBaseConfig(await deps.readTextFile(dbPath)));
   let columnAdded: string | null = null;
   if (!model) {
     if (rank === 0) return { columnAdded };
-    config = withPriorityColumn(config, labels.key, labels.options);
-    await deps.writeTextFile(dbPath, serializeBaseConfig(config));
-    model = resolveTaskPriorityModel(config);
-    columnAdded = labels.key;
+    // The column goes into the database as it lies there — and only where it
+    // still has none: somebody may have added one since it was looked for.
+    const update = await updateVaultText(deps, dbPath, (text) => {
+      const read = parseBaseConfig(text);
+      return resolveTaskPriorityModel(read) ? null : serializeBaseConfig(withPriorityColumn(read, labels.key, labels.options));
+    });
+    if (!resolveTaskPriorityModel(parseBaseConfig(update.before))) columnAdded = labels.key;
+    model = resolveTaskPriorityModel(parseBaseConfig(update.text));
   }
   if (!model) return { columnAdded };
   const key = model.key;

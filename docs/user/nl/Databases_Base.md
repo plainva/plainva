@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-10-07
+Laatst bijgewerkt: 2026-10-21
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -60,12 +60,12 @@ Op de telefoon opent **Configureren** dezelfde gebieden als een lijst; tikken op
 
 Een klik op een kolomkop opent de eigenschappeneditor (**Eigenschap: X**):
 
-- **Naam** — hernoemen werkt door op de notities: bij het opslaan wordt de eigenschap in de frontmatter van elke overeenkomende notitie hernoemd (met bevestiging en voortgangsindicator).
+- **Naam** — hernoemen werkt door op de notities: bij het opslaan wordt de eigenschap in de frontmatter van elke overeenkomende notitie hernoemd (met bevestiging en voortgangsindicator). Plainva vraagt het eerst aan elke notitie: kan er één de nieuwe naam niet krijgen — ze heeft al een eigenschap met die naam, of het blok bovenaan kan niet als eigenschappen worden gelezen —, dan wordt er niets hernoemd en noemt een melding die notities.
 - **Veldtype** — Tekst, Getal, Beoordeling, Selectievakje, Datum, Datum & tijd, Lijst, Tags, Selectie, Status, Multiselectie, URL, E-mail, Telefoon, Relatie (hetzelfde gegroepeerde typemenu als in het **Eigenschappen**-paneel van de notities).
   Een **Beoordeling** is een getal dat als punten wordt getekend (vijf, tenzij de kolom iets anders zegt). Het bestand houdt `stemming: 4` — een gewoon getal dat Obsidian en elk rekenblad ook lezen; sorteren en filteren gaan als bij een getal. Je drukt op het punt dat moet tellen; op de huidige waarde drukken wist die weer.
 - **Dag uit de bestandsnaam** (`file.day`) — agenda's en tijdlijnen kunnen dagnotities op hun **bestandsnaam** plaatsen, zonder dat de datum ook in de frontmatter staat. Het veld verschijnt in de kiezer voor het datumveld zodra de kluis dagnotities een naam geeft (map en formaat onder **Instellingen → Je kluis → Inhoud en structuur**); het wordt uit de naam berekend, staat in geen enkele notitie en is niet te bewerken — een kaart die zo geplaatst is, kun je dus ook niet naar een andere dag slepen (dat zou het bestand hernoemen). Obsidian kent dit veld niet: een weergave die het gebruikt blijft daar leeg.
 - **Opties** (bij Selectie/Status/Multiselectie) — vaste waarden met een **Kleur** en, bij **Status**, een **Groep**/fase (bijv. te doen → bezig → klaar); volgorde per sleep. Wanneer je de kolomeditor opent, is de optielijst al vooraf ingevuld met de waarden die in de database voorkomen — zo kun je elke optie een kleur geven zonder die opnieuw te typen.
-- **Eigenschap verwijderen** — verwijdert kolom, schema, filters en sorteerregels uit de database. De checkbox **Ook verwijderen uit de frontmatter van de notities** (standaard aan) ruimt bovendien de bronnotities op.
+- **Eigenschap verwijderen** — verwijdert kolom, schema, filters en sorteerregels uit de database. De checkbox **Ook verwijderen uit de frontmatter van de notities** (standaard aan) ruimt bovendien de bronnotities op. Een notitie die niet kan worden gewijzigd, behoudt de eigenschap; één melding telt de gewijzigde en de mislukte notities.
 
 Gedragsopmerkingen:
 

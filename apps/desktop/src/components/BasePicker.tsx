@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Database, Plus } from "lucide-react";
 import { useVault } from "../contexts/VaultContext";
-import { errorText, ICON } from "@plainva/ui";
+import { errorText, ICON, useOutsidePress } from "@plainva/ui";
 
 interface BaseRow {
   path: string;
@@ -50,14 +50,12 @@ export const BasePicker: React.FC<Props> = ({ onPick, onCreate, onClose }) => {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } };
-    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
     window.addEventListener("keydown", onKey, true);
-    window.addEventListener("mousedown", onDown, true);
-    return () => {
-      window.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("mousedown", onDown, true);
-    };
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose]);
+  // A press beside the palette closes it, heard as every menu and popover
+  // hears it (Sammelplan § 3.100).
+  useOutsidePress(true, onClose, ref);
 
   return (
     <div className="pv-palette-overlay">

@@ -1,6 +1,7 @@
 import {
   setFrontmatterPath,
   readFrontmatterPath,
+  updateVaultText,
   wikiTargetForPath,
   type IVaultAdapter,
   type PimEventDraft,
@@ -146,7 +147,6 @@ export async function createEntryEvent(opts: CreateEntryEventOptions): Promise<C
   // exists, so a note that cannot be written is a warning, not a rollback.
   let anchored: boolean;
   try {
-    const content = await opts.adapter.readTextFile(opts.notePath);
     const anchor: EntryEventAnchor = {
       uid: res.uid,
       account: key.accountId,
@@ -158,9 +158,11 @@ export async function createEntryEvent(opts: CreateEntryEventOptions): Promise<C
     };
     // setFrontmatterPath, NOT upsertFrontmatterKeys: the latter replaces the
     // whole `plainva` map and would drop a sibling `plainva.pim` or
-    // `plainva.blocks` anchor.
-    const next = setFrontmatterPath(content, [...ENTRY_EVENT_PATH], [...readEntryEvents(content), anchor]);
-    await opts.adapter.writeTextFile(opts.notePath, next);
+    // `plainva.blocks` anchor. And into the note as it lies there now — the
+    // provider call took its time.
+    await updateVaultText(opts.adapter, opts.notePath, (content) =>
+      setFrontmatterPath(content, [...ENTRY_EVENT_PATH], [...readEntryEvents(content), anchor])
+    );
     anchored = true;
   } catch {
     anchored = false;

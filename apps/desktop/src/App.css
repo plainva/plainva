@@ -315,20 +315,18 @@ option {
   background-color: var(--selection-bg) !important;
 }
 
-/* .base viewer header: responsive to the PANE width (a size container), so it
-   degrades correctly inside a split pane where a viewport media query would be
-   wrong. Below the threshold the Filter/Sort/Columns buttons collapse to
-   icon-only — the visible label is hidden, accessible names stay via
-   aria-label/title. The view switcher wraps on its own via flex-wrap.
-   The threshold is purely cosmetic and safe to tune. */
-.base-header-container {
-  container-type: inline-size;
-  container-name: base-header;
-}
-@container base-header (max-width: 600px) {
-  .base-toolbar-label {
-    display: none;
-  }
+/* .base viewer header: responsive to the PANE width, so it degrades correctly
+   inside a split pane where a viewport media query would be wrong. Below the
+   threshold the buttons collapse to icon-only — the visible label is hidden,
+   accessible names stay via aria-label. The view switcher wraps on its own via
+   flex-wrap. The threshold (base/baseHeadWidth.ts) is purely cosmetic.
+   The head MEASURES its width and says `data-narrow`; it is deliberately no
+   size container. Its menus and popovers are placed by the window, and where
+   `container-type` still brings layout containment (older WebKit) a container
+   becomes the box they are placed in — displaced, and under the floating
+   windows. The sidebars and the calendar grid keep clear of it the same way. */
+.base-header-container[data-narrow] .base-toolbar-label {
+  display: none;
 }
 
 /* ============================================================
@@ -545,14 +543,25 @@ option {
    lists as a theme card grid. Applied only to marker-carrying listings. */
 .pv-index-doc h1 { border-bottom: 2px solid var(--accent-color); padding-bottom: 0.35rem; }
 .pv-index-doc ul { list-style: none; padding: 0; margin: 0.75rem 0 1.25rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
-.pv-index-doc ul li { border: 1px solid var(--border-color); background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 9px 12px; font-size: var(--text-md); line-height: 1.45; }
+/* A tile holds its text (finding 2026-10-19): a grid item is as wide as its
+   longest word unless told otherwise, so a long name ran into the next tile.
+   The name stays on one line and ends in "…" (the tip carries the whole
+   name); a description after it wraps, even inside one long word. */
+.pv-index-doc ul li { min-width: 0; overflow: hidden; overflow-wrap: anywhere; border: 1px solid var(--border-color); background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 9px 12px; font-size: var(--text-md); line-height: 1.45; }
 .pv-index-doc ul li a { font-weight: 600; text-decoration: none; }
 .pv-index-doc ul li a:hover { text-decoration: underline; }
+.pv-index-link { display: inline-flex; align-items: center; gap: 0.45em; max-width: 100%; vertical-align: bottom; color: var(--accent-color); cursor: pointer; }
+.pv-index-link-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Peek window for notes opened from a .base view (Base-UX2 P5) */
 /* Floating peek window: free-floating (non-modal), draggable + resizable. The
-   dynamic position/size come in as CSS vars set inline by BasePeekModal. */
-.pv-peek-window { position: fixed; left: var(--peek-x); top: var(--peek-y); width: var(--peek-w); height: var(--peek-h); z-index: var(--z-modal); display: flex; flex-direction: column; overflow: hidden; }
+   dynamic position/size come in as CSS vars set inline by FloatingWindow, and
+   so does --peek-order: the open windows from back to front, the one in use
+   in front. They count up from a layer of their own, below the dialogs — a
+   dialog, a palette or a menu that opens beside a window lies in front of it. */
+.pv-peek-window { position: fixed; left: var(--peek-x); top: var(--peek-y); width: var(--peek-w); height: var(--peek-h); z-index: calc(var(--z-floating) + var(--peek-order, 0)); display: flex; flex-direction: column; overflow: hidden; }
+/* A window a dialog opened belongs to that dialog and lies in front of it. */
+.pv-peek-window[data-over-dialog] { z-index: calc(var(--z-modal) + var(--peek-order, 0)); }
 .pv-peek-card { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-xl); box-shadow: var(--shadow-3); }
 .pv-peek-head { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.5rem 0.4rem 0.5rem; border-bottom: 1px solid var(--border-color); background: var(--surface-container-low); flex-shrink: 0; cursor: move; user-select: none; touch-action: none; }
 .pv-peek-grip { display: flex; align-items: center; color: var(--text-faint); flex-shrink: 0; }

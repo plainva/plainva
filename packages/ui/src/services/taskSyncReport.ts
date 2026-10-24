@@ -29,6 +29,8 @@ export interface TaskSyncReport {
   deletedRemote: number;
   deletedNotes: readonly string[];
   errors: readonly string[];
+  /** Provider changes that did not reach their notes (B2); absent in older shapes. */
+  notApplied?: number;
   paused?: boolean;
 }
 
@@ -51,6 +53,7 @@ export function formatTaskSync(result: TaskSyncReport, ms: number, mayCreateNote
     ["notes deleted", result.deletedNotes.length],
     ["conflicts", result.conflicts],
     ["creations deferred", result.deferredCreates],
+    ["changes not carried into notes", result.notApplied ?? 0],
   ];
   const said = counts.filter(([, n]) => n > 0).map(([label, n]) => `${label} ${n}`);
   if (said.length === 0 && result.errors.length === 0) return null;

@@ -14,8 +14,9 @@ import { setForeignLegacyComments } from "@plainva/ui";
  *
  * The app-facing writes go through getSettingsStore() only; the profile FILE
  * itself is read/written by the core sideband step through the raw backup
- * adapter (never the conflict-aware adapter — that would create .CONFLICT copies
- * of the settings file).
+ * adapter (not the conflict-aware adapter — until 2026-10-20 that would have
+ * created .CONFLICT copies of the settings file; since then it leaves the app's
+ * own files alone).
  */
 import {
   SettingsSyncStep,

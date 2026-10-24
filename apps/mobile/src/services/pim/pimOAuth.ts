@@ -1,7 +1,7 @@
 import { sameStoredValue } from "@plainva/core";
 import { Browser } from "@capacitor/browser";
-import { Capacitor } from "@capacitor/core";
-import { authorizeNativeGoogle } from "../googleNativeAuthorization";
+import { authorizeNativeGoogle, googleSignInFlow, hasGooglePlayServices } from "../googleNativeAuthorization";
+import { wasSignInAnnounced } from "../signInNotice";
 import {
   buildAuthUrl,
   buildOneDriveAuthUrl,
@@ -15,12 +15,13 @@ import { getPlatformServices, PLAINVA_ONEDRIVE_CLIENT_ID, ServiceConnectionError
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../../adapters/webdavHttp";
 import { addPimAccount, reauthorizePimAccount } from "./pimService";
-import type { PimStoredCredentials } from "./pimCredentials";
-import type { CloudAccountRecord, CloudServiceId, StoredAccountToken } from "@plainva/ui";
+import { getPimCredentials, type PimStoredCredentials } from "./pimCredentials";
+import type { CloudAccountRecord, CloudServiceId, PreparedSignIn, StoredAccountToken } from "@plainva/ui";
 import type { ServiceConnectionContext } from "@plainva/ui";
 import { getActiveVaultEntry } from "../vaultRegistry";
 import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConnectOutcome } from "../connectQueue";
-import { getMobileVault, switchVault } from "../vaultService";
+import { getMobileVault } from "../vaultService";
+import { enterFlowVault, releaseFlowVault, waitsAtOffer } from "../flowVault";
 import { APP_ID, APP_URL } from "../appScheme";
 
 /** Stored beside the PKCE verifier, never inferred from the current screen. */
@@ -32,21 +33,27 @@ export interface AccountOAuthContext {
 }
 
 /**
- * Mobile OAuth for calendar, mail and combined account grants. Android Google
- * uses the native AuthorizationClient; iOS Google and Microsoft use the system
- * browser with PKCE. Both paths persist the originating account and vault until
- * the service handler has durably acknowledged the granted credentials.
+ * Mobile OAuth for calendar, mail and combined account grants. Google and
+ * Microsoft sign in through the system browser with PKCE, on both phones.
+ * Android additionally has Play services' AuthorizationClient, used only where
+ * it can work (`chooseGoogleSignInFlow`): with the client this build ships, and
+ * to renew an account that already holds a Play-services grant. Both paths
+ * persist the originating account and vault until the service handler has
+ * durably acknowledged the granted credentials.
  *
- * Console prerequisites (one-time, maintainer):
- *  - Google: the appropriate Android package/signing-certificate registration
- *    or iOS bundle registration, with the requested APIs and consent scopes.
- *    See docs/engineering/Google_Mail.md for the optional public test clients.
+ * Console prerequisites:
+ *  - Google, a user's own project (both phones): an OAuth client of type iOS
+ *    whose bundle ID is the app id — its custom-scheme return is the redirect
+ *    below. An Android-type client is NOT an option for a user: Google lets
+ *    the package name + signing fingerprint of the Play build be registered in
+ *    exactly one project. See docs/engineering/Google_Mail.md.
  *  - Microsoft: the central Plainva Entra app (same as the OneDrive sync)
  *    already carries delegated Calendars/Tasks scopes — just connect + consent.
  */
 
-// Browser redirects: Google uses this URI only on iOS. Android Google consent
-// returns through the native activity result, without a custom-scheme redirect.
+// Browser redirects. The Android manifest's intent filter and the iOS URL type
+// both answer on the app id as a scheme; a Play-services consent returns
+// through the activity result instead and uses neither.
 const MS_REDIRECT_URI = `${APP_URL}oauth`;
 const GOOGLE_REDIRECT_URI = `${APP_ID}:/oauth2redirect`;
 
@@ -65,7 +72,12 @@ export type PimOAuthProvider = "google" | "microsoft";
  * account slot instead of one copy per service. The desktop has offered it
  * since stage B; the phone only ever signed in per service (Sammelplan C5).
  */
-export type PimOAuthPurpose = "calendar" | "mail" | "gmail" | "account";
+/**
+ * `signin` is the one account sign-in (account sign-in plan K4): connecting an
+ * account, adding a service and signing in again, carried through the browser
+ * and a cold start as a prepared request (`PreparedSignIn`).
+ */
+export type PimOAuthPurpose = "calendar" | "mail" | "gmail" | "account" | "signin";
 
 /** Resolves the token result of a completed flow; mail registers its own. */
 export type OAuthPurposeHandler = (result: {
@@ -86,6 +98,7 @@ export type OAuthPurposeHandler = (result: {
   requestedScope?: string;
   accountContext?: AccountOAuthContext;
   serviceContext?: ServiceConnectionContext;
+  signIn?: PreparedSignIn;
 }) => Promise<void>;
 
 const purposeHandlers = new Map<string, OAuthPurposeHandler>();
@@ -115,6 +128,7 @@ interface PendingPimFlow {
   accountId?: string;
   accountContext?: AccountOAuthContext;
   serviceContext?: ServiceConnectionContext;
+  signIn?: PreparedSignIn;
   createdAt: number;
 }
 
@@ -132,8 +146,22 @@ export async function hasReceivedPimOAuthResult(context: ServiceConnectionContex
   return !!saved && (saved.flow.purpose === "gmail" ? "mail" : saved.flow.purpose ?? "calendar") === service && saved.flow.serviceContext?.runId === context.runId && saved.flow.serviceContext?.vaultId === context.vaultId;
 }
 
+/** A received grant is accepted for this long after its consent was begun. */
+const receivedInTime = (flow: PendingPimFlow) => Date.now() - flow.createdAt >= 0 && Date.now() - flow.createdAt < PENDING_TTL_MS;
+/** One received grant waits at a time (`RESULT_KEY` is one slot), so one sign-in can wait for its vault. */
+const SIGN_IN_FLOW = "sign-in";
+
 /** Replays a received grant after a storage error or process restart. */
-export async function resumePimOAuthResult(): Promise<void> {
+export function resumePimOAuthResult(): Promise<void> {
+  return applyReceived();
+}
+
+/**
+ * `offered` names the grant whose vault was offered instead of taken
+ * (`flowVault.ts`) and has now become the active one: this call is that grant
+ * going on, and it is for no other.
+ */
+async function applyReceived(offered?: string): Promise<void> {
   if (applyingResult) return;
   applyingResult = true;
   let saved: ReceivedPimFlow | null = null;
@@ -143,8 +171,17 @@ export async function resumePimOAuthResult(): Promise<void> {
     const { flow, refreshToken, accessToken, grantedScope, nativeGoogle, providerIdentity } = saved;
     const purpose = flow.purpose ?? "calendar";
     const context = flow.serviceContext;
-    if (Date.now() - flow.createdAt < 0 || Date.now() - flow.createdAt >= PENDING_TTL_MS) {
+    const waited = offered !== undefined && flow.state === offered;
+    // A later sign-in has taken this one's place meanwhile; it goes its own way.
+    if (offered !== undefined && !waited) return;
+    // The ten minutes bound a replay after a storage error or a restart. A
+    // grant that was held back for the sake of the person's own screen has not
+    // been waiting on anything of ours: it holds until its vault is open or a
+    // later sign-in takes its place — also through a replay while it waits.
+    const heldBack = waited || (!!context && waitsAtOffer(context.vaultId, SIGN_IN_FLOW));
+    if (!heldBack && !receivedInTime(flow)) {
       await getPlatformServices().credentials.removeSecret(RESULT_KEY);
+      releaseFlowVault(SIGN_IN_FLOW);
       await recordConnectOutcome(context, (purpose === "mail" || purpose === "gmail") ? "mail" : "calendar", { state: "needsConsent" });
       return;
     }
@@ -152,17 +189,34 @@ export async function resumePimOAuthResult(): Promise<void> {
       const run = await loadConnectQueue();
       if (!run || !outcomeBelongsToRun(run, context, (purpose === "mail" || purpose === "gmail") ? "mail" : "calendar")) {
         await getPlatformServices().credentials.removeSecret(RESULT_KEY);
+        releaseFlowVault(SIGN_IN_FLOW);
         return;
       }
     }
-    if (context && (await getActiveVaultEntry()).id !== context.vaultId) {
-      await switchVault(context.vaultId);
-      if (purpose === "calendar") { const { startPim } = await import("./pimService"); await startPim(await getMobileVault()); }
+    if (context) {
+      // The sign-in belongs to the vault it was begun in. With another one on
+      // screen by now it goes back there — offered rather than taken while
+      // something unsaved is on screen there (`flowVault.ts`). The grant stays
+      // where it is, in protected storage, until its vault is the active one.
+      const here = (await getActiveVaultEntry()).id === context.vaultId;
+      const state = flow.state;
+      if (!here && !(await enterFlowVault(context.vaultId, SIGN_IN_FLOW, {
+        resume: () => applyReceived(state),
+        waits: async () => (await getPlatformServices().credentials.readSecret<ReceivedPimFlow>(RESULT_KEY))?.flow.state === state,
+        // Its vault was deleted: the grant has nowhere to go.
+        gone: async () => {
+          const credentials = getPlatformServices().credentials;
+          if ((await credentials.readSecret<ReceivedPimFlow>(RESULT_KEY))?.flow.state === state) await credentials.removeSecret(RESULT_KEY);
+        },
+      }))) return;
+      // The vault was just made the active one for this grant, here or on its
+      // offer: its calendar runtime is started rather than waited for.
+      if ((waited || !here) && purpose === "calendar") { const { startPim } = await import("./pimService"); await startPim(await getMobileVault()); }
     }
     const handler = purposeHandlers.get(purpose);
-    if ((purpose === "account" || purpose === "gmail") && !handler) throw new Error("Account sign-in handler is not ready");
+    if ((purpose === "account" || purpose === "gmail" || purpose === "signin") && !handler) throw new Error("Account sign-in handler is not ready");
     if (handler) {
-      await handler({ provider: flow.provider, clientId: flow.clientId, clientSecret: nativeGoogle ? undefined : flow.clientSecret, refreshToken, accessToken, label: flow.label, grantedScope, requestedScope: flow.scope, accountContext: flow.accountContext, serviceContext: context, ...(nativeGoogle ? { nativeGoogle, providerIdentity } : {}) });
+      await handler({ provider: flow.provider, clientId: flow.clientId, clientSecret: nativeGoogle ? undefined : flow.clientSecret, refreshToken, accessToken, label: flow.label, grantedScope, requestedScope: flow.scope, accountContext: flow.accountContext, serviceContext: context, ...(flow.signIn ? { signIn: flow.signIn } : {}), ...(nativeGoogle ? { nativeGoogle, providerIdentity } : {}) });
     } else {
       const creds: PimStoredCredentials = flow.provider === "microsoft"
         ? { kind: "microsoft", clientId: flow.clientId, refreshToken }
@@ -174,7 +228,7 @@ export async function resumePimOAuthResult(): Promise<void> {
     }
     const current = await getPlatformServices().credentials.readSecret<ReceivedPimFlow>(RESULT_KEY);
     if (current?.flow.state === flow.state) await getPlatformServices().credentials.removeSecret(RESULT_KEY);
-    if (purpose !== "account") toast.success(i18n.t("pim.accountAdded"));
+    if (purpose !== "account" && purpose !== "signin") toast.success(i18n.t("pim.accountAdded"));
     window.dispatchEvent(new CustomEvent("m-pim-changed"));
   } catch (error) {
     if (saved) {
@@ -227,14 +281,24 @@ async function loadPending(): Promise<PendingPimFlow | null> {
   return null;
 }
 
-type PimOAuthOptions = { clientId: string; clientSecret?: string; label?: string; purpose?: PimOAuthPurpose; scope?: string; accountId?: string; accountContext?: AccountOAuthContext; serviceContext?: ServiceConnectionContext };
+type PimOAuthOptions = { clientId: string; clientSecret?: string; label?: string; purpose?: PimOAuthPurpose; scope?: string; accountId?: string; accountContext?: AccountOAuthContext; serviceContext?: ServiceConnectionContext; signIn?: PreparedSignIn };
+
+/** The vault a sign-in belongs to: the account flows carry their own. */
+async function contextOf(opts: PimOAuthOptions, purpose: PimOAuthPurpose): Promise<ServiceConnectionContext | undefined> {
+  if (purpose === "account") return undefined;
+  if (purpose === "signin") return { vaultId: opts.signIn!.intent.vaultId };
+  return opts.serviceContext ?? await connectionContextFor(purpose === "gmail" ? "mail" : purpose) ?? { vaultId: (await getActiveVaultEntry()).id };
+}
 
 /** Native Google consent and its durable completion form one operation, shared
  * with Drive, so another screen cannot replace an unacknowledged result. */
 export async function beginPimOAuth(provider: PimOAuthProvider, opts: PimOAuthOptions): Promise<void> {
-  if (provider === "google" && Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
+  // The one sign-in knows its flow from this device's access: the system sheet
+  // only with Plainva's own client on Android (oauthAccess.ts).
+  const native = opts.signIn ? opts.signIn.intent.access.flow === "system" : await signsInThroughPlayServices(opts);
+  if (provider === "google" && native) {
     const purpose = opts.purpose ?? "calendar";
-    const context = purpose === "account" ? undefined : opts.serviceContext ?? await connectionContextFor(purpose === "gmail" ? "mail" : purpose) ?? { vaultId: (await getActiveVaultEntry()).id };
+    const context = await contextOf(opts, purpose);
     const captured = structuredClone({ ...opts, serviceContext: context });
     return withAccountCredentialLock("native-google-consent", async () => {
       const saved = await getPlatformServices().credentials.readSecret<ReceivedPimFlow>(RESULT_KEY);
@@ -249,21 +313,54 @@ export async function beginPimOAuth(provider: PimOAuthProvider, opts: PimOAuthOp
           && saved.flow.serviceContext?.cloudAccountId === captured.serviceContext?.cloudAccountId
           && saved.flow.accountContext?.record.id === captured.accountContext?.record.id) return;
       }
-      return beginPimOAuthFlow(provider, captured);
+      return beginPimOAuthFlow(provider, captured, true);
     });
   }
-  return beginPimOAuthFlow(provider, opts);
+  return beginPimOAuthFlow(provider, opts, false);
+}
+
+/** The client ID of a stored Google grant, when Play services holds it. */
+function nativeGrantClientId(value: unknown): string | null {
+  if (!value || typeof value !== "object") return null;
+  const grant = value as { clientId?: unknown; nativeGoogle?: { email?: unknown } | null; creds?: unknown; grants?: unknown };
+  if (grant.nativeGoogle?.email && typeof grant.clientId === "string") return grant.clientId;
+  // A file-sync provider keeps its grant under `creds`, an account slot under `grants`.
+  if (Array.isArray(grant.grants)) return grant.grants.map(nativeGrantClientId).find((id) => !!id) ?? null;
+  return grant.creds ? nativeGrantClientId(grant.creds) : null;
+}
+
+/**
+ * Whether this Google sign-in goes through Play services (Android) or through
+ * the browser — the rule is `chooseGoogleSignInFlow`; this collects what it
+ * needs to know: which Play-services grants the sign-in would replace.
+ *
+ * A NEW connection has none, so a client ID the user entered opens the
+ * browser. Signing an account in again that already works through Play
+ * services stays there, as long as it is asked for with the same client.
+ */
+async function signsInThroughPlayServices(opts: PimOAuthOptions): Promise<boolean> {
+  if (!hasGooglePlayServices()) return false;
+  const held: (string | null)[] = [nativeGrantClientId(opts.accountContext?.expectedToken)];
+  for (const source of Object.values(opts.accountContext?.serviceSources ?? {})) {
+    try { held.push(nativeGrantClientId(JSON.parse(source ?? "null"))); } catch { /* not a stored grant */ }
+  }
+  if (opts.accountId && (opts.purpose ?? "calendar") === "calendar") {
+    const vaultId = opts.serviceContext?.vaultId ?? (await getActiveVaultEntry()).id;
+    held.push(nativeGrantClientId(await getPimCredentials(vaultId, opts.accountId).catch(() => null)));
+  }
+  return googleSignInFlow(opts.clientId, held) === "native";
 }
 
 async function beginPimOAuthFlow(
   provider: PimOAuthProvider,
   opts: PimOAuthOptions,
+  playServices: boolean,
 ): Promise<void> {
   const pkce = await generatePkcePair();
   const state = randomState();
   const clientId = provider === "microsoft" ? opts.clientId.trim() || PLAINVA_ONEDRIVE_CLIENT_ID : opts.clientId.trim();
   const purpose = opts.purpose ?? "calendar";
-  const serviceContext = purpose === "account" ? undefined : opts.serviceContext ?? await connectionContextFor(purpose === "gmail" ? "mail" : purpose) ?? { vaultId: (await getActiveVaultEntry()).id };
+  const serviceContext = await contextOf(opts, purpose);
   const scope = opts.scope ?? (provider === "microsoft" ? GRAPH_CALENDAR_SCOPES : GOOGLE_CALENDAR_SCOPES);
   pending = {
     provider,
@@ -277,12 +374,14 @@ async function beginPimOAuthFlow(
     accountId: opts.accountId,
     accountContext: opts.accountContext ? structuredClone(opts.accountContext) : undefined,
     serviceContext,
+    ...(opts.signIn ? { signIn: structuredClone(opts.signIn) } : {}),
     createdAt: Date.now(),
   };
   // An account reconnect must restore its target after a cold start. Do not
   // open a consent whose durable context could not be stored.
   {
     if (purpose === "account" && !pending.accountContext) { pending = null; throw new Error("Missing account sign-in context"); }
+    if (purpose === "signin" && !pending.signIn) { pending = null; throw new Error("Missing account sign-in context"); }
     const flow = pending;
     try { await withAccountCredentialLock(PENDING_KEY, async () => {
       const creds = getPlatformServices().credentials;
@@ -291,16 +390,20 @@ async function beginPimOAuthFlow(
     }); }
     catch (error) { pending = null; throw error; }
   }
-  if (provider === "google" && Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
+  if (provider === "google" && playServices) {
     const flow = pending;
     try {
-      if (await getPlatformServices().credentials.readSecret(RESULT_KEY)) throw new Error("storageFailed: a previous sign-in must finish first");
+      // A grant that waits at its vault's offer is not in flight: like a sign-in
+      // through the browser, this one takes its place (`flowVault.ts`).
+      const held = await getPlatformServices().credentials.readSecret<ReceivedPimFlow>(RESULT_KEY);
+      if (held && !(held.flow.serviceContext && waitsAtOffer(held.flow.serviceContext.vaultId, SIGN_IN_FLOW))) throw new Error("storageFailed: a previous sign-in must finish first");
       const result = await authorizeNativeGoogle(scope, true, opts.accountContext?.expectedToken ?? undefined);
       const received: ReceivedPimFlow = { flow, refreshToken: "", accessToken: result.accessToken, grantedScope: result.scope,
         nativeGoogle: { email: result.profile.label! }, providerIdentity: result.profile.identity };
       const credentials = getPlatformServices().credentials;
       await credentials.writeSecret(RESULT_KEY, received);
       if (!sameStoredValue(await credentials.readSecret(RESULT_KEY), received)) throw new Error("Google sign-in could not be confirmed in secure storage");
+      releaseFlowVault(SIGN_IN_FLOW);
       pending = null;
       await persistPending(null);
       await resumePimOAuthResult();
@@ -308,14 +411,19 @@ async function beginPimOAuthFlow(
     } catch (error) {
       pending = null;
       await persistPending(null);
-      await recordConnectOutcome(serviceContext, purpose === "gmail" || purpose === "mail" ? "mail" : "calendar", { state: (error as { code?: string })?.code === "CANCELLED" ? "cancelled" : "failed" }).catch(() => {});
+      // The run keeps WHY (a marker or the provider's words, never a token):
+      // a screen that is opened again must show the same, true sentence the
+      // attempt itself showed, not "could not be completed".
+      const cancelled = (error as { code?: string })?.code === "CANCELLED";
+      await recordConnectOutcome(serviceContext, purpose === "gmail" || purpose === "mail" ? "mail" : "calendar",
+        cancelled ? { state: "cancelled" } : { state: "failed", message: error instanceof Error ? error.message : String(error) }).catch(() => {});
       throw error;
     }
   }
   const url =
     provider === "microsoft"
-      ? buildOneDriveAuthUrl({ clientId, redirectUri: MS_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope })
-      : buildAuthUrl({ clientId, redirectUri: GOOGLE_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope });
+      ? buildOneDriveAuthUrl({ clientId, redirectUri: MS_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope, loginHint: opts.signIn?.loginHint })
+      : buildAuthUrl({ clientId, redirectUri: GOOGLE_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope, loginHint: opts.signIn?.loginHint });
   await Browser.open({ url });
 }
 
@@ -380,11 +488,15 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
     const received: ReceivedPimFlow = { flow, refreshToken, accessToken, grantedScope };
     await getPlatformServices().credentials.writeSecret(RESULT_KEY, received);
     if (!sameStoredValue(await getPlatformServices().credentials.readSecret(RESULT_KEY), received)) throw new ServiceConnectionError("storageFailed");
+    // One slot: a grant that still waited for its vault is written over now,
+    // and the notice that offered that vault goes with it — not before: a
+    // write that failed has left that grant, and its offer, where they were.
+    releaseFlowVault(SIGN_IN_FLOW);
     await resumePimOAuthResult();
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     await recordConnectOutcome(flow.serviceContext, (flow.purpose === "mail" || flow.purpose === "gmail") ? "mail" : "calendar", { state: /wrongAccount|needsConsent|invalid_grant|accountChanged/.test(message) ? "needsConsent" : "failed", message }).catch(() => {});
-    toast.error(serviceConnectionMessage(e, i18n.t));
+    if (!wasSignInAnnounced(e)) toast.error(serviceConnectionMessage(e, i18n.t));
   }
   return true;
 }

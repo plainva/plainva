@@ -1054,8 +1054,12 @@ describe("the week starts on the same day everywhere", () => {
     expect(screen).toMatch(/const weekStart = useWeekStartDay\(\)/);
     expect(stripComments(readFileSync(join(SRC, "screens/base/BaseScreen.tsx"), "utf8"))).toMatch(/const weekStart = useWeekStartDay\(\)/);
     // The template engine had the same gap: `{{weekday:…}}` fell back to Monday.
+    // The phone's pipeline is the shared one, which reads the setting for every
+    // template — asked or not (Sammelplan § 3.97).
     const tpl = stripComments(readFileSync(join(SRC, "services/templateInteractive.ts"), "utf8"));
-    expect(tpl).toMatch(/weekStart = weekStartDayOf\(/);
+    expect(tpl).toMatch(/runTemplateInteractive\(/);
+    const shared = stripComments(readFileSync(join(SRC, "../../../packages/ui/src/lib/templateContext.ts"), "utf8"));
+    expect(shared).toMatch(/weekStart = weekStartDayOf\(await getWeekStartSetting\(\)\)/);
   });
 
   it("names the day a column stands for, and shows what lasts all of it", () => {
@@ -1072,8 +1076,12 @@ describe("the week starts on the same day everywhere", () => {
     const screen = stripComments(readFileSync(join(SRC, "screens/PimCalendarScreen.tsx"), "utf8"));
     const grid = screen.slice(screen.indexOf('data-testid="pim-timegrid"'));
     expect(grid, "a day column with no date on it").toMatch(/weekday: "short", day: "numeric"/);
-    expect(grid, "no place for an all-day event").toMatch(/e\.allDay/);
+    expect(screen, "no place for an all-day event").toMatch(/e\.allDay/);
     expect(grid).toMatch(/data-testid="pim-allday-strip"/);
+    // Pinned with the header and held to the desktop's five rows (wish
+    // 2026-10-19): the shared plan, not a second rule.
+    expect(screen).toMatch(/planAllDayRows\(/);
+    expect(grid).toMatch(/data-testid="pim-timegrid-head"/);
   });
 
   it("offers the week and the month the desktop has", () => {
@@ -1129,9 +1137,35 @@ describe("mail can answer everyone, pass on, and carry a file", () => {
 
   it("actually sends the attachments instead of an empty array", () => {
     const screen = stripComments(readFileSync(join(SRC, "screens/MailComposeScreen.tsx"), "utf8"));
-    expect(screen).toMatch(/sendMail\(.*\bbody,\s*attach\s*,/);
+    // What goes out is ONE list: the files of a forwarded original that have
+    // arrived, then the files attached by hand — sending and filing a draft
+    // both take it, so neither can leave one kind behind.
+    expect(screen).toMatch(/const outgoing = \[\.\.\.carried\.attachments, \.\.\.attach\.filter\(/);
+    expect(screen).toMatch(/sendMail\(.*\bbody,\s*outgoing\s*,/);
+    expect(screen).toMatch(/appendDraft\(.*\bbody,\s*outgoing\s*,/);
     // The hard-coded empty array is what made the whole pipeline unreachable.
     expect(screen).not.toMatch(/sendMail\(.*\bbody,\s*\[\]\s*,/);
+  });
+
+  it("forwards the files of the original by reference, and loads them by the shared rule", () => {
+    // A forward carried the text and none of the files (finding 2026-10-09).
+    // The message screen names the message; the composer fetches. The bytes
+    // must not ride in the draft — it is its own nav path.
+    const message = stripComments(readFileSync(join(SRC, "screens/MailMessageScreen.tsx"), "utf8"));
+    expect(message).toMatch(/forward: forwardSource\(accountId, mailbox, message\)/);
+    const compose = stripComments(readFileSync(join(SRC, "screens/MailComposeScreen.tsx"), "utf8"));
+    expect(compose).toMatch(/useCarriedFiles\(\{/);
+    expect(compose).toMatch(/source: draft\.forward,/);
+    const codec = stripComments(readFileSync(join(SRC, "screens/mail/mailNavRefs.ts"), "utf8"));
+    expect(codec).toMatch(/readForwardSource\(d\.forward\)/);
+  });
+
+  it("saves a received attachment by the rule the desktop reads too", () => {
+    const message = stripComments(readFileSync(join(SRC, "screens/MailMessageScreen.tsx"), "utf8"));
+    expect(message).toMatch(/saveMailAttachment\(vault\.files, getMobileSettings\(\)\.mailFolder, name, base64\)/);
+    // Not a second copy of where it goes and what it is called.
+    expect(message).not.toMatch(/\/Attachments/);
+    expect(message).not.toMatch(/safeFileStem\(/);
   });
 
   it("asks the shared guess for an attachment's type", () => {
@@ -1195,6 +1229,296 @@ describe("mail can file a draft and narrow the list", () => {
 });
 
 /**
+ * Whether an account can send (finding 2026-10-08). The decision is the shared
+ * one the transport itself reads — a Microsoft mailbox sends through Graph and
+ * carries no SMTP host, a mailbox connected for reading only cannot send at
+ * all. The desktop asked the SMTP host instead and locked Microsoft out; the
+ * phone asked nothing, so a message for a read-only mailbox was written, the
+ * screen closed, and the refusal came seconds later with the text already gone.
+ */
+describe("the composer offers Send by the shared decision", () => {
+  const screen = stripComments(readFileSync(join(SRC, "screens/MailComposeScreen.tsx"), "utf8"));
+
+  it("asks the shared decision, never the SMTP host itself", () => {
+    expect(screen).toMatch(/const canSend = mailAccountCanSend\(/);
+    // A second rule next to the shared one is how the desktop went wrong.
+    expect(screen).not.toMatch(/smtpHost/);
+    expect(screen).not.toMatch(/=== "microsoft"/);
+  });
+
+  it("closes both ways to send, and says what is missing", () => {
+    // The bar's icon and the button under the body: one without the other
+    // leaves a Send that can only fail. Both also wait while a file of a
+    // forwarded original is on its way (`waiting`).
+    expect(screen.match(/disabled=\{busy \|\| !canSend \|\| waiting\}/g)).toHaveLength(2);
+    expect(screen).toMatch(/accountsLoaded && !canSend && <p className="m-hint"[^>]*>\{t\("mail\.noSmtpHint"\)\}/);
+  });
+
+  it("leaves saving a draft open — that needs no way to send", () => {
+    // Open to a mailbox that cannot send; it waits for files on their way like
+    // Send does, because a draft filed without them would have lost them.
+    expect(screen).toMatch(/<Button variant="ghost" disabled=\{busy \|\| waiting\}[^>]*onClick=\{\(\) => void saveDraft\(\)\}>/);
+  });
+});
+
+/**
+ * Leaving the composer asks, and by the shared measure (finding 2026-10-09).
+ * The desktop composer asks the same question since then. Arming the guard is
+ * the composer's half; who asks it is pinned in the block below this one.
+ */
+describe("the composer asks before a changed draft is left", () => {
+  const screen = stripComments(readFileSync(join(SRC, "screens/MailComposeScreen.tsx"), "utf8"));
+
+  it("arms the leave guard, which every step that takes it off the screen asks", () => {
+    expect(screen).toMatch(/useLeaveGuard\(\s*"mail-compose",/);
+  });
+
+  it("measures by the rule both shells share, not by an expression of its own", () => {
+    // Two measures are how the shells came apart: the phone counted the
+    // signature as typing while the desktop did not ask at all.
+    expect(screen).toMatch(/useLeaveGuard\(\s*"mail-compose",\s*composeChanged\(/);
+    expect(screen).not.toMatch(/!==\s*untouchedBody/);
+  });
+});
+
+/**
+ * Who asks the guard (finding 2026-10-09).
+ *
+ * Only the screen on top is rendered, so whatever is put over a screen takes
+ * its state in that moment. The bar tap, the back arrow and Android back asked
+ * first; every other step the shell can start over a surface with unsaved
+ * input did not, and a message being written went without a word — with the
+ * share inbox's "Choose vault" the vault after it, which is where this was
+ * found. They go through `leaveThen` now. What it does is behaviour
+ * (services/leaveQuestion.test.ts, services/besideNav.test.ts, and the built
+ * app in e2e-prod/compose-leave.spec.ts); pinned here is that the shell's own
+ * steps are WIRED to it, because the shell cannot be rendered in a unit test
+ * and one forgotten prop is exactly how this hole came to be.
+ */
+describe("what the shell puts over a surface asks first", () => {
+  const app = stripComments(readFileSync(join(SRC, "App.tsx"), "utf8"));
+  /** The JSX opening tag of a component the shell renders, props and all. */
+  const tag = (name: string) => {
+    const at = app.indexOf(`<${name}`);
+    expect(at, `the shell renders <${name}>`).toBeGreaterThan(-1);
+    // The tag ends at the first "/>" on a line of its own indentation or at the
+    // end of a one-line tag; 1800 characters cover the longest of them.
+    const rest = app.slice(at, at + 1800);
+    const end = rest.search(/\n\s*\/>|\s\/>\s*\n/);
+    return end < 0 ? rest : rest.slice(0, end);
+  };
+  /** The handler a prop is given, up to the next prop of the same tag. */
+  const prop = (source: string, name: string) => {
+    const at = source.indexOf(`${name}={`);
+    expect(at, `${name} is wired`).toBeGreaterThan(-1);
+    const next = source.slice(at + name.length + 2).search(/\s[a-zA-Z]+=\{/);
+    return next < 0 ? source.slice(at) : source.slice(at, at + name.length + 2 + next);
+  };
+
+  it("the share inbox: choosing a vault, unlocking and the filed note", () => {
+    // The inbox asks itself, and closes only once the step is taken: "cancel"
+    // leaves the screen underneath and the sheet as they are.
+    const inbox = stripComments(readFileSync(join(SRC, "components/ShareInbox.tsx"), "utf8"));
+    expect(inbox).toMatch(/onClick=\{\(\) => leaveThen\(\(\) => \{ close\(\); onChooseVault\(\); \}\)\}/);
+    expect(inbox).toMatch(/onClick=\{\(\) => leaveThen\(\(\) => \{ close\(\); onUnlock\(\); \}\)\}/);
+    expect(inbox).toMatch(/leaveThen\(\(\) => onImported\(path\)\)/);
+    // And no second way on beside the asking one.
+    expect(inbox.match(/onChooseVault\(\);/g), "one call, the one above").toHaveLength(1);
+    expect(inbox.match(/onUnlock\(\);/g), "one call, the one above").toHaveLength(1);
+    expect(inbox.match(/onImported\(path\)/g), "one call, the one above").toHaveLength(1);
+  });
+
+  it("the rail's settings and the areas sheet", () => {
+    expect(prop(tag("NavBar"), "onOpenSettings")).toMatch(/=>\s*leaveThen\(/);
+    const sheet = tag("AreasSheet");
+    expect(prop(sheet, "onArrange")).toMatch(/leaveThen\(/);
+    expect(prop(sheet, "onPick")).toMatch(/leaveThen\(/);
+  });
+
+  it("what arrives from outside the app: a launcher shortcut, a reminder, a widget row", () => {
+    const runner = tag("PendingIntentRunner");
+    for (const name of ["onCapture", "onOpenCalendar", "onOpenNote", "onOpenToday"]) {
+      expect(prop(runner, name), `${name} navigates over whatever is on top`).toMatch(/=>\s*leaveThen\(/);
+    }
+    // These two ask already, or open a sheet that covers nothing.
+    expect(prop(runner, "onNewTask")).toMatch(/=>\s*void newInTab\("task", "tasks", setNav\)/);
+    expect(prop(runner, "onJournal")).toMatch(/setJournalCapture\(/);
+  });
+
+  it("a new task or event from elsewhere: the request is parked only once the step is agreed to", () => {
+    // "New task" and "New event" open their area and leave a request for the
+    // screen that mounts there. Parked a line BEFORE the bar step asked, the
+    // request outlived a "Cancel" and opened the capture sheet on the next
+    // visit to the area (finding 2026-10-12). The shell parks nothing itself
+    // any more: all four ways go through `newInTab`, which asks first.
+    expect(app, "the shell parks a request itself").not.toMatch(/requestNew\(/);
+    expect(app.match(/newInTab\(/g), "the intent, the two catalog entries and the journal sheet").toHaveLength(4);
+    expect(app).toMatch(/event: \(\) => void newInTab\("event", "today", setNav\),/);
+    expect(app).toMatch(/task: \(\) => void newInTab\("task", "tasks", setNav\),/);
+    // The journal sheet keeps what was typed until the task capture has it:
+    // it closes, and says so, only after the step was taken.
+    const journal = prop(tag("JournalCaptureSheet"), "onSwitchToTask");
+    expect(journal).toMatch(/newInTab\("task", "tasks", setNav, text\)\.then\(\(went\) => \{ if \(went\) \{ setJournalCapture\(null\);/);
+    expect(journal.indexOf("newInTab(")).toBeLessThan(journal.indexOf("setJournalCapture(null)"));
+
+    const tap = stripComments(readFileSync(join(SRC, "services/tabTap.ts"), "utf8"));
+    const ask = tap.indexOf("askBeforeLeaving(");
+    const agreed = tap.indexOf("agreed?.()");
+    expect(ask, "the leave question is gone").toBeGreaterThan(-1);
+    expect(agreed, "what the step brings along runs before the question").toBeGreaterThan(ask);
+    expect(agreed).toBeLessThan(tap.indexOf("tapTab("));
+    expect(tap).toMatch(/return tabTapped\(tab, setNav, \(\) => requestNew\(item, text\)\);/);
+  });
+
+  it("a notice's button, a remark's notification and a file revealed from a sheet", () => {
+    const links = stripComments(readFileSync(join(SRC, "hooks/useDeepLinkNav.ts"), "utf8"));
+    // Two events, and the way back of a message the mail server refused.
+    expect(links.match(/=>\s*leaveThen\(\(\) => setNav\(/g), "all three notice routes").toHaveLength(3);
+    expect(links).not.toMatch(/askBeforeLeaving/);
+    expect(app).toMatch(/useCommentShell\(vault, useCallback\(\(entry\) => leaveThen\(/);
+    expect(app).toMatch(/leaveThen\(\(\) => setNav\(st => pushEntry\(st, \{ kind: "folder"/);
+  });
+
+  it("the assistant's ways to another screen: a note, the search, the settings, the composer, its own screen", () => {
+    // One element, its routes from one helper (components/MobileAiShell.tsx), and no second way beside it.
+    expect(app).toMatch(/<MobileAiShell ai=\{ai\} \{\.\.\.aiShellRoutes\(\{ ai, vault, openNote, push, setNav, commands, aiInBar: slots\.includes\("ai"\) \}\)\} \/>/);
+    expect(app.match(/<MobileAiShell\b/g)).toHaveLength(1);
+    const shell = stripComments(readFileSync(join(SRC, "components/MobileAiShell.tsx"), "utf8"));
+    const routes = shell.slice(shell.indexOf("export function aiShellRoutes"), shell.indexOf("function useIntentNavigation"));
+    expect(routes).toMatch(/openNote: \(path\) => leaveThen\(\(\) => openNote\(path\)\)/);
+    expect(routes).toMatch(/openSearch: asked\(/);
+    expect(routes).toMatch(/openSettings: asked\(/);
+    expect(routes).toMatch(/openMailDraft: \(mail\) =>\s*leaveThen\(/);
+    expect(routes).toMatch(/onOpenScreen: asked\(/);
+    expect(routes).toMatch(/onOpenNote: \(target\) => openAiNoteTarget\(vault, target, \(path\) => leaveThen\(\(\) => openNote\(path\)\)\)/);
+    // The event editor's way is the bar's, which asks itself; the sheet closes once the step was agreed to.
+    expect(routes).toMatch(/openEventEditor: \(\) => void tabTapped\("today", setNav, \(\) => ai\.closeSheet\(\)\)/);
+    // What the behaviour is: components/aiShellRoutes.test.ts.
+  });
+
+  it("the navigator column of a wide window, which stands beside the work", () => {
+    const layout = stripComments(readFileSync(join(SRC, "components/AdaptiveLayout.tsx"), "utf8"));
+    expect(layout).toMatch(/TAB_ROUTES\.notes\(besideContext\(ctx\)\)/);
+    // The surface on top keeps the plain context: its steps are its own.
+    expect(layout).toMatch(/renderRoute\(top, activeTab, ctx\)/);
+  });
+
+  it("leaves a surface's own steps alone", () => {
+    // `push`, `replace` and `done` are a surface moving on by its own decision
+    // (a wizard to its next page, a composer that has sent). Asking there is
+    // the fault `done` was made for.
+    const nav = stripComments(readFileSync(join(SRC, "services/navActions.ts"), "utf8"));
+    expect(nav).not.toMatch(/leaveThen/);
+    expect(nav).toMatch(/push: \(entry\) => setNav\(\(s\) => pushEntry\(s, entry\)\)/);
+  });
+});
+
+/**
+ * Who may switch the vault (finding 2026-10-12).
+ *
+ * `switchVault` drops every stack, and it cannot ask: every connect flow ends
+ * through it, with the guard of its own form still armed. So the question has
+ * to be put by whoever CALLS it. A tap on a vault is the top screen's own
+ * step. A connection is not: a sign-in that returns, a folder pick and an
+ * interrupted connect run went BACK to a vault by themselves, and every file
+ * connection ends by opening the vault it has just made — whatever was on
+ * screen by then. They come to `services/flowVault.ts` for their vault now,
+ * which offers the switch while someone else's unsaved input is on screen.
+ * What that does is behaviour (services/flowVault.test.ts,
+ * services/flowVaultReturn.test.ts, hooks/useConnectRun.test.tsx,
+ * services/accountVaultTransfer.test.ts); pinned here is who goes which way,
+ * so that another flow cannot quietly take the direct one.
+ */
+describe("a vault switch the program starts is offered, not taken", () => {
+  const read = (file: string) => stripComments(readFileSync(join(SRC, file), "utf8"));
+
+  it("the flows that go back to their vault ask for it", () => {
+    for (const file of ["services/oauthService.ts", "services/pim/pimOAuth.ts", "hooks/useConnectRun.ts"]) {
+      const src = read(file);
+      expect(src, `${file} switches the vault itself`).not.toMatch(/switchVault/);
+      expect(src, `${file} asks for its vault`).toMatch(/await enterFlowVault\(/);
+    }
+  });
+
+  it("a file connection ends in the vault it made the same way", () => {
+    const sync = read("services/syncService.ts");
+    expect(sync, "the connect service switches the vault itself").not.toMatch(/switchVault/);
+    // An existing folder connected, and a new vault created in the cloud — whose
+    // template settings are written into it before it is opened or offered, so
+    // nothing of it waits in memory for the person.
+    expect(sync).toMatch(/await addVault\(\{ id, name: providerVaultName\(p\), provider: p\.provider \}\);\s*await enterMadeVault\(id\);/);
+    expect(sync).toMatch(/await applyTemplateSettingsTo\(id, opts\.template\?\.settings\);\s*await enterMadeVault\(id\);/);
+    expect(sync.match(/enterMadeVault\(/g)).toHaveLength(2);
+  });
+
+  it("every direct switch is the person's own step, or is made where it is decided", () => {
+    const direct = walk(SRC)
+      .filter((file) => /\bswitchVault\(/.test(stripComments(readFileSync(file, "utf8"))))
+      .map((file) => relative(SRC, file).replace(/\\/g, "/"))
+      .sort();
+    expect(direct).toEqual([
+      // "Use this vault" on a vault's page.
+      "VaultDetailScreen.tsx",
+      // The import wizard's "Done": the vault it has just made.
+      "screens/ImportWizardScreen.tsx",
+      // A tap on a row of the vault list.
+      "screens/VaultsScreen.tsx",
+      // The files step of a run: the vault it copied into. Marked and decided, see below.
+      "services/accountVaultTransfer.ts",
+      // The one place a flow's way to its vault is decided.
+      "services/flowVault.ts",
+      // The switch itself; a vault made in a chain of dialogs, and the one left behind by a delete.
+      "services/vaultService.ts",
+    ]);
+  });
+
+  it("and so is every indirect one: who makes, deletes or reloads a vault", () => {
+    // Each of these ends in a switch, or drops every stack like one. A flow
+    // that called them would take the vault past `flowVault.ts`.
+    const callers = (fn: string) =>
+      walk(SRC)
+        .filter((file) => new RegExp(`\\b${fn}\\(`).test(stripComments(readFileSync(file, "utf8"))))
+        .map((file) => relative(SRC, file).replace(/\\/g, "/"))
+        .sort();
+    // "Create a vault" in the vault list.
+    expect(callers("createLocalVault")).toEqual(["App.tsx", "services/vaultService.ts"]);
+    // A picked folder, inside the dialogs that pick it.
+    expect(callers("createExternalVault")).toEqual(["services/vaultService.ts"]);
+    // "Delete" on a vault's page.
+    expect(callers("deleteVault")).toEqual(["VaultDetailScreen.tsx", "services/vaultService.ts"]);
+    // A button of the screen on top (retry, the security steps, the rebuilt index).
+    expect(callers("reloadActiveMobileVault")).toEqual([
+      "AddVaultScreen.tsx",
+      "VaultDetailScreen.tsx",
+      "screens/SearchScreen.tsx",
+      "screens/SecurityAreaScreen.tsx",
+      "screens/SecurityWizardScreen.tsx",
+      "screens/base/BaseScreen.tsx",
+      "services/vaultService.ts",
+    ]);
+  });
+
+  it("knows the connect form by the guard that form arms", () => {
+    // The id is the form's (`leaveGuardCoverage.test.ts` pins it there); the
+    // two have to agree, or every connection would offer its vault over its
+    // own form.
+    const id = /export const CONNECT_FORM_GUARD = "([^"]+)";/.exec(read("services/flowVault.ts"))?.[1];
+    expect(id, "flowVault.ts names no connect form").toBeTruthy();
+    expect(read("AddVaultScreen.tsx")).toMatch(new RegExp(`useLeaveGuard\\(\\s*"${id}",`));
+  });
+
+  it("the files step marks the stretch in which it activates its vault, and does not switch under someone else's input", () => {
+    // Between the committed result and the switch the run looks interrupted to
+    // `useConnectRun`. Unmarked, that hook would offer a switch that is about
+    // to happen — over the flow's own form. And the copy can outlive that
+    // form: then the run is left as it is, and the hook's way back offers it.
+    const transfer = read("services/accountVaultTransfer.ts");
+    expect(transfer).toMatch(/await whileEntering\(id, async \(\) => \{\s*await finishConnectVault\(context, id, accountId\);\s*if \(!foreignInputOnScreen\(CONNECT_FORM_GUARD\)\) await switchVault\(id\);\s*\}\);/);
+    expect(transfer.match(/switchVault\(/g), "one switch, the guarded one").toHaveLength(1);
+  });
+});
+
+/**
  * Capturing, one status line, and a delete you can take back (S30).
  */
 describe("mail files, says and deletes carefully", () => {
@@ -1238,6 +1562,13 @@ describe("mail files, says and deletes carefully", () => {
    * — while the phone had grown it on 2026-08-20 (draft field, composer, send
    * path) and this assertion, pinning the other two, never noticed. The entry
    * is gone; what keeps the capability from quietly leaving is this line.
+   *
+   * It pins that the menu OFFERS the three routes, and no more than that: it
+   * stayed green from 2026-08-21 to 2026-10-09 while the third one opened the
+   * composer without the attachment, because the file was lost two modules
+   * further on. That it ARRIVES is held where it can be seen —
+   * mailRoutes.test.ts (through the route tables) and mailComposeDraft.test.tsx
+   * (on screen and in the send call).
    */
   it("offers the note itself as mail — handoff, body and attachment", () => {
     const note = stripComments(readFileSync(join(SRC, "screens/NoteScreen.tsx"), "utf8"));
@@ -1455,10 +1786,12 @@ describe("vault operations report themselves to the overview updater", () => {
     // in without a report (raise it deliberately, with the site next to it).
     // Six since the daily note is created in ONE place — the shared
     // `ensureDailyNote` of packages/ui (plan Journal, J2); the template branch
-    // and the skeleton branch used to report separately. Seven with
+    // and the skeleton branch used to report separately. Five since the unused
+    // `vaultOps.ensureNote` is gone (2026-10-21): it took the type of the note
+    // from its caller, which no creation path may do any more. Six with
     // `createNoteWithContent`: an AI answer kept as a note (plan KI-Harness
     // P4-6) is a new note like any other.
-    expect(svc.match(/reportCreated\(/g)?.length).toBe(7);
+    expect(svc.match(/reportCreated\(/g)?.length).toBe(6);
   });
 
   it("does not report from the indexer's callbacks", () => {
@@ -2121,7 +2454,7 @@ describe("the cloud accounts screen", () => {
     // the button.
     expect(screen).toMatch(/DeviceSignInBadge/);
     expect(screen).toMatch(/cloudacct-signin-again/);
-    expect(screen).toMatch(/beginAccountLogin/);
+    expect(screen).toMatch(/beginMobileSignIn/);
   });
 
   it("leads into the account, not into the list of a service", () => {
@@ -3126,9 +3459,9 @@ describe("desktop rules the phone had never been given (finding 2026-08-19)", ()
   it("clears the mailbox token when one sign-in takes over the account", () => {
     // Otherwise the mail token is exactly the second copy that keeps
     // refreshing on the side — the arrangement stage B exists to end.
-    const login = read("src/services/accountLogin.ts");
-    expect(login).toMatch(/forgetGraphMailRuntime\(vaultId, id\)/);
-    expect(login).toMatch(/replaceProtectedSlot\(accountCredentialStore, \[mailSecretKey\(vaultId, id\), legacyMailSecretKey\(vaultId, id\)\], previous, \{ \.\.\.previous, refreshToken: "" \}\)/);
+    const login = read("src/services/accountSignIn.ts");
+    expect(login).toMatch(/forgetGraphMailRuntime\(vaultId, existing\)/);
+    expect(login).toMatch(/replaceProtectedSlot\(accountCredentialStore, \[mailSecretKey\(vaultId, existing\), legacyMailSecretKey\(vaultId, existing\)\], previous \?\? null, \{ \.\.\.previous, refreshToken: "" \}\)/);
   });
 
   it("says whether restoring a mass deletion worked", () => {

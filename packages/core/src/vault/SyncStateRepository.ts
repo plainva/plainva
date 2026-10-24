@@ -21,6 +21,15 @@ export interface SyncState {
    * used to produce .CONFLICT files out of nothing but typing with pauses.
    */
   pending_push_sha: string | null;
+  /**
+   * Set for a row an older version left for a file it synced as decoded text
+   * although its bytes are not UTF-8 (see lossyTextBaseMigration.ts): the file
+   * on this device may be that decoded text, written back. The next full
+   * listing reconciles the file whatever its ETag says, and nothing of it is
+   * pushed before — the reconcile that compared it with the server's copy
+   * clears the mark. Absent on a row no version ever marked.
+   */
+  recheck?: number | null;
 }
 
 export class SyncStateRepository {
@@ -102,7 +111,7 @@ export class SyncStateRepository {
    */
   async getAllStates(): Promise<Map<string, SyncState>> {
     const rows = await this.db.query<SyncState>(
-      `SELECT path, local_sha256, remote_etag, base_sha256, base_etag, remote_id, last_sync_ts, pending_push_sha FROM sync_state`
+      `SELECT path, local_sha256, remote_etag, base_sha256, base_etag, remote_id, last_sync_ts, pending_push_sha, recheck FROM sync_state`
     );
     const map = new Map<string, SyncState>();
     for (const row of rows) {
@@ -170,6 +179,36 @@ export class SyncStateRepository {
        VALUES (?, ?)
        ON CONFLICT(path) DO UPDATE SET local_sha256 = excluded.local_sha256`,
       [path, localSha256]
+    );
+  }
+
+  /**
+   * What the write chain records after a write of its own that leaves the row
+   * without a text for its marker — a merge with a change from outside, a
+   * marker put right: the local marker, and the text as the base ONLY for a
+   * file no sync has seen.
+   *
+   * `base_sha256`, `base_etag` and the base text of a row that carries a
+   * `base_sha256` are the sync's: the version this device and the remote last
+   * agreed on. A text put there from outside a sync makes the row name one
+   * version and hold another, and the next change from another device is
+   * merged against a text that is not the common ancestor. Where that text is
+   * this device's own, nothing has changed here as far as the merge can tell —
+   * the other device's version comes out, every change made here is gone, and
+   * no conflict copy is written (finding 2026-10-11).
+   *
+   * The condition stands in the statement itself, not in a look at the row
+   * beforehand: a first upload that finishes in between must not find its base
+   * text replaced a moment later.
+   */
+  async updateLocalHashAndUnsyncedBaseText(path: string, localSha256: string, text: string): Promise<void> {
+    await this.db.execute(
+      `INSERT INTO sync_state (path, local_sha256, base_text)
+       VALUES (?, ?, ?)
+       ON CONFLICT(path) DO UPDATE SET
+         local_sha256 = excluded.local_sha256,
+         base_text = CASE WHEN sync_state.base_sha256 IS NULL THEN excluded.base_text ELSE sync_state.base_text END`,
+      [path, localSha256, text]
     );
   }
 
@@ -302,6 +341,31 @@ export class SyncStateRepository {
        ON CONFLICT(path) DO UPDATE SET base_text = excluded.base_text`,
       [path, baseText]
     );
+  }
+
+  /**
+   * Drops the merge base text of a file that is text by its name and not by
+   * its bytes (`mergeableText` said no) — after a sync that carried it byte for
+   * byte, or when the indexer finds it. A text kept from the time the file WAS
+   * text, from an earlier file under the same name, or from a version that
+   * kept the lossy decode of such a file describes another content than
+   * `base_sha256` does; a later merge against it would take that stranger for
+   * the common ancestor. `writer` as in `updateLocalHashAndBaseText`.
+   */
+  async clearBaseText(
+    path: string,
+    writer: { execute(query: string, params?: unknown[]): Promise<void> } = this.db
+  ): Promise<void> {
+    await writer.execute(`UPDATE sync_state SET base_text = NULL WHERE path = ? AND base_text IS NOT NULL`, [path]);
+  }
+
+  /**
+   * Takes the "look at this file again" mark off a row (`SyncState.recheck`):
+   * the reconcile has compared the file with the server's copy, or the server
+   * no longer holds one to compare it with.
+   */
+  async clearRecheck(path: string): Promise<void> {
+    await this.db.execute(`UPDATE sync_state SET recheck = NULL WHERE path = ? AND recheck IS NOT NULL`, [path]);
   }
 
   async deleteSyncState(path: string): Promise<void> {

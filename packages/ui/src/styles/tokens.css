@@ -96,6 +96,14 @@
   /* The state box of a task row. Its own token: it is a glyph inside a button,
      not a native tick, and it is the one thing on the row a person aims at. */
   --taskbox-size: 18px;
+  /* A task box in the text of a note (the editor's `.cm-md-task`, both
+     shells, also the phone's reading view) and in a journal line. With a
+     pointer: the native box and the journal's 15px glyph, as before. Under a
+     finger they grow, and the box in the text gets a hit area of --touch-sm
+     around it that does not grow the line (wish 2026-10-19). */
+  --md-task-size: auto;
+  --md-task-hit: 0px;
+  --journal-taskbox-size: 15px;
   --switch-w: 34px;
   --switch-h: 18px;
   --switch-knob-size: 14px;
@@ -125,8 +133,15 @@
   /* Stacking layers (replaces the 50/1000/1200/4000 ad-hoc values). Menus sit
      above modals (dropdowns open from inside dialogs); appDialogs (confirm/
      prompt) sit above EVERY modal — legacy hand-rolled overlays go up to 1200
-     until they migrate onto <Modal> (plan P4). Toasts/tooltips top it all. */
+     until they migrate onto <Modal> (plan P4). Toasts/tooltips top it all.
+     Floating windows have a layer of their own BELOW the modals: a window is
+     not modal, so a dialog, a palette or a menu opens beside it and must lie
+     in front of it. Sharing --z-modal left that to the order in the document,
+     and the window, portalled to the end of the body, won. The open windows
+     count up from this layer (--peek-order, the one in use in front), so the
+     gap to --z-modal is the room they have. */
   --z-popover: 500;
+  --z-floating: 900;
   --z-modal: 1000;
   --z-menu: 1100;
   --z-dialog: 1250;
@@ -311,6 +326,9 @@
   --chip-x-size: 22px;
   --tick-size: 24px;
   --taskbox-size: 24px;
+  --md-task-size: 22px;
+  --md-task-hit: calc((var(--touch-sm) - var(--md-task-size)) / 2);
+  --journal-taskbox-size: 22px;
   --switch-w: 52px;
   --switch-h: 32px;
   --switch-knob-size: 28px;

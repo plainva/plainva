@@ -1,17 +1,14 @@
-import {
-  finalizeTemplate,
-  resolveTemplate,
-  setPendingTemplateCaret,
-  type TemplateContext,
-} from "@plainva/ui";
+import { runTemplateInteractive, type TemplateContext } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { appTemplateAnswers } from "./appDialogs";
 import { readEditorSelection } from "./editorSelection";
-import { getWeekStartSetting, weekStartDayOf } from "@plainva/ui";
+import { templateVaultOf } from "./dailyNotes";
 
 /**
  * The interactive half of the template pipeline (plan Vorlagen-Engine, P3):
- * resolve → ask (once, in one dialog) → finalize.
+ * the full context → resolve → ask (once, in one dialog) → finalize. The
+ * pipeline itself is shared with the phone (`runTemplateInteractive`); this
+ * shell hands it its vault, its selection, its clipboard and its dialog.
  *
  * Every place where a PERSON triggered the creation goes through here, so the
  * behaviour is identical whether the note comes from the file tree, a database
@@ -32,69 +29,41 @@ export interface InteractiveTemplateResult {
  * Runs the pipeline. `title` in `ctx` is what `{{title}}` becomes; `dialogTitle`
  * is what the question dialog is called.
  *
- * A template without questions never opens a dialog — creating an entry stays
- * a single click (decision E3).
- */
-/**
- * Fills in the context pieces the desktop shell owns — clipboard, selection,
- * first day of the week — for a template that actually asks for them.
+ * `vaultPath` is the vault the template belongs to, and a caller has to name
+ * it (null only where no vault is open): the vault's name, its daily notes
+ * and this device's week start come from here, as the selection and the
+ * clipboard do, so no way can leave them out. Each caller used to add them
+ * itself, and three ways — the daily note, a database's "+ Entry" and the
+ * pinboard entry — never got the week start or the clipboard (Sammelplan
+ * § 3.97). A piece the caller sets itself stays.
  *
- * The clipboard is read ONLY when the template carries the token. Reading it on
- * every note creation would be an overreach (and on some platforms a permission
- * prompt) for a feature almost no template uses.
+ * A template without questions never opens a dialog — creating an entry stays
+ * a single click (decision E3). The clipboard is read ONLY when the template
+ * carries the token: reading it on every note creation would be an overreach
+ * (and on some platforms a permission prompt) for a feature almost no template
+ * uses.
  */
-export async function withShellContext(raw: string, ctx: TemplateContext): Promise<TemplateContext> {
-  const next: TemplateContext = { ...ctx };
-  if (next.weekStart === undefined) {
-    try {
-      next.weekStart = weekStartDayOf(await getWeekStartSetting());
-    } catch {
-      /* the default (Monday) is fine — a template must not fail over this */
-    }
-  }
-  if (next.selection === undefined) next.selection = () => readEditorSelection();
-  if (next.clipboardLabel === undefined) {
-    next.clipboardLabel = i18n.t("templatePicker.clipboardLabel", { defaultValue: "Zwischenablage" });
-  }
-  if (next.clipboard === undefined && raw.includes("{{clipboard")) {
-    let text: string | null = null;
-    try {
-      text = await navigator.clipboard.readText();
-    } catch {
-      text = null; // denied or empty — the token reports itself unresolved
-    }
-    next.clipboard = () => text;
-  }
-  return next;
-}
-
 export async function applyTemplateInteractive(
   raw: string,
-  ctx: TemplateContext,
+  ctx: TemplateContext & { vaultPath: string | null },
   dialogTitle: string
 ): Promise<InteractiveTemplateResult | null> {
-  const resolved = resolveTemplate(raw, ctx, "interactive");
-  let answers: Record<string, string> = {};
-  if (resolved.requests.length > 0) {
-    const given = await appTemplateAnswers({ title: dialogTitle, fields: resolved.requests });
-    if (given === null) return null; // cancelled → the caller writes nothing
-    answers = given;
-  }
-  return finalizeTemplate(resolved.text, answers);
+  const { vaultPath, ...base } = ctx;
+  return runTemplateInteractive(raw, base, {
+    vault: vaultPath ? await templateVaultOf(vaultPath) : null,
+    person: {
+      selection: () => readEditorSelection(),
+      readClipboard: () => navigator.clipboard.readText(),
+      clipboardLabel: i18n.t("templatePicker.clipboardLabel", { defaultValue: "Zwischenablage" }),
+    },
+    ask: (fields) => appTemplateAnswers({ title: dialogTitle, fields }),
+  });
 }
 
 /**
- * Parks the caret for a note that is about to be opened. `offset` is measured
- * in the template body; `prefixLength` accounts for whatever the write path put
- * in front of it (OKF frontmatter, an H1), so the caret lands where the
- * template said even though the file starts differently.
+ * Pokes an already-mounted editor after the note was opened. The caret itself
+ * is parked with the shared `parkTemplateCaret`, on this shell as on the phone.
  */
-export function parkTemplateCaret(path: string, offset: number | null, prefixLength = 0): void {
-  if (offset === null) return;
-  setPendingTemplateCaret({ path, offset: offset + prefixLength });
-}
-
-/** Pokes an already-mounted editor after the note was opened. */
 export function pokeTemplateCaret(path: string): void {
   window.dispatchEvent(new CustomEvent("plainva-template-caret", { detail: { path } }));
 }

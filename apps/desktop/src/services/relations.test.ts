@@ -16,6 +16,8 @@ function makeVault(files: Record<string, string>) {
   };
   const queryService = {
     db: { query: async () => Array.from(store.keys()).map((path) => ({ path })) },
+    // The link rule's corpus, as the index holds it: a note's title is its file's name.
+    linkTargets: async () => Array.from(store.keys()).map((path) => ({ path, title: path.split("/").pop()!.replace(/\.md$/, ""), mode: "obsidian" })),
   } as any;
   return { store, adapter, queryService };
 }
@@ -113,6 +115,53 @@ describe("addRelationLink", () => {
   });
 });
 
+/**
+ * What the note holds is read from the note (finding 2026-10-12).
+ *
+ * The values a link is added to came from the reader of the index, whose
+ * schema rejected a proper YAML map with a value it did not take — an empty
+ * `tags:`, a year among the tags (until 2026-10-22, ADR 0009). "Could not be
+ * read" then passed for "holds no link", and adding one link replaced the
+ * list that was there.
+ */
+describe("addRelationLink: a note the index's reader did not take", () => {
+  const EMPTY_TAGS = '---\ntags:\nrefs:\n  - "[[Eins]]"\n  - "[[Zwei]]"\n---\nText.\n';
+
+  it("keeps the links the note holds when one is added", async () => {
+    const { store, adapter, queryService } = makeVault({
+      "Aufgaben/A1.md": EMPTY_TAGS,
+      "Notizen/Eins.md": "x\n",
+      "Notizen/Zwei.md": "x\n",
+      "Notizen/Drei.md": "x\n",
+    });
+    const res = await addRelationLink({ adapter, queryService, notePath: "Aufgaben/A1.md", propertyKey: "refs", targetNotePath: "Notizen/Drei.md" });
+    expect(res.changed).toBe(true);
+    expect(store.get("Aufgaben/A1.md")).toBe('---\ntags:\nrefs:\n  - "[[Eins]]"\n  - "[[Zwei]]"\n  - "[[Drei]]"\n---\nText.\n');
+  });
+
+  it("writes nothing where such a note already links the target", async () => {
+    const { store, adapter, queryService } = makeVault({
+      "Aufgaben/A1.md": EMPTY_TAGS,
+      "Notizen/Eins.md": "x\n",
+      "Notizen/Zwei.md": "x\n",
+    });
+    const res = await addRelationLink({ adapter, queryService, notePath: "Aufgaben/A1.md", propertyKey: "refs", targetNotePath: "Notizen/Zwei.md" });
+    expect(res.changed).toBe(false);
+    expect(store.get("Aufgaben/A1.md")).toBe(EMPTY_TAGS);
+  });
+
+  it.each([
+    ["a YAML list", "---\n- a\n- list\n---\nText.\n", /^Frontmatter is not a YAML map/],
+    ["YAML that cannot be parsed", "---\ntitle: [unclosed\nrefs: x\n---\nText.\n", /^Frontmatter is not parseable YAML/],
+  ])("refuses %s and leaves the note byte for byte", async (_label, note, reason) => {
+    const { store, adapter, queryService } = makeVault({ "Aufgaben/A1.md": note, "Notizen/Drei.md": "x\n" });
+    await expect(
+      addRelationLink({ adapter, queryService, notePath: "Aufgaben/A1.md", propertyKey: "refs", targetNotePath: "Notizen/Drei.md" })
+    ).rejects.toThrow(reason);
+    expect(store.get("Aufgaben/A1.md")).toBe(note);
+  });
+});
+
 describe("removeRelationLinksToNote", () => {
   it("removes every raw form resolving to the target and keeps others", async () => {
     const { store, adapter, queryService } = makeVault({
@@ -151,6 +200,26 @@ describe("removeRelationLinksToNote", () => {
     expect(text).not.toContain("projekt");
     expect(text).toContain("status: offen");
     expect(text).toContain("Body.");
+  });
+
+  it("removes the link from a note the index's reader did not take", async () => {
+    // An empty `tags:` — a proper YAML map the reader's schema rejected until
+    // 2026-10-22. Read through that reader the note held no property at all,
+    // and a link to a note that was being deleted stayed in it without a word
+    // (finding 2026-10-12).
+    const note = '---\ntags:\nrefs:\n  - "[[P1]]"\n  - "[[Bleibt]]"\n---\nBody.\n';
+    const { store, adapter, queryService } = makeVault({ "Aufgaben/A1.md": note, "Projekte/P1.md": "x\n", "Notizen/Bleibt.md": "x\n" });
+    const res = await removeRelationLinksToNote({ adapter, queryService, notePath: "Aufgaben/A1.md", propertyKey: "refs", targetNotePath: "Projekte/P1.md" });
+    expect(res).toEqual({ changed: true, removed: 1 });
+    expect(store.get("Aufgaben/A1.md")).toBe('---\ntags:\nrefs:\n  - "[[Bleibt]]"\n---\nBody.\n');
+  });
+
+  it("finds nothing to remove in a block that is no YAML map, and leaves the note alone", async () => {
+    const note = "---\n- a\n- list\n---\nBody.\n";
+    const { store, adapter, queryService } = makeVault({ "Aufgaben/A1.md": note, "Projekte/P1.md": "x\n" });
+    const res = await removeRelationLinksToNote({ adapter, queryService, notePath: "Aufgaben/A1.md", propertyKey: "refs", targetNotePath: "Projekte/P1.md" });
+    expect(res).toEqual({ changed: false, removed: 0 });
+    expect(store.get("Aufgaben/A1.md")).toBe(note);
   });
 
   it("is a no-op when nothing resolves to the target or the key is missing", async () => {

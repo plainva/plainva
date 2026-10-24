@@ -4,7 +4,8 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
 import { BackupVaultAdapter } from "../src/vault/BackupVaultAdapter.js";
-import { VersionHistoryService, isTextLikePath } from "../src/vault/VersionHistoryService.js";
+import { VersionHistoryService } from "../src/vault/VersionHistoryService.js";
+import * as versionHistoryModule from "../src/vault/VersionHistoryService.js";
 import { makeBackupPath } from "../src/vault/backupNaming.js";
 
 describe("VersionHistoryService", () => {
@@ -37,12 +38,11 @@ describe("VersionHistoryService", () => {
     }
   };
 
-  it("classifies text-like paths", () => {
-    expect(isTextLikePath("a/b.md")).toBe(true);
-    expect(isTextLikePath("tasks.base")).toBe(true);
-    expect(isTextLikePath("x.txt")).toBe(true);
-    expect(isTextLikePath("img.png")).toBe(false);
-    expect(isTextLikePath("noext")).toBe(false);
+  it("keeps no list of text extensions of its own", () => {
+    // Whether a version goes back as text is asked once, of its name AND its
+    // bytes (`mergeableText`, non-utf8-text-in-app.test.ts). This module had a
+    // third list — eight extensions, by the name alone.
+    expect(Object.keys(versionHistoryModule)).toEqual(["VersionHistoryService"]);
   });
 
   it("lists versions newest first with sizes, filtering exact names", async () => {

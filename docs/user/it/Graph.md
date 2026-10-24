@@ -1,6 +1,6 @@
 # Grafo
 
-Ultimo aggiornamento: 2026-09-30
+Ultimo aggiornamento: 2026-10-22
 
 Il grafo di Plainva è uno strumento di lavoro, non un poster: ti mostra dove sei, cosa è collegato, cosa manca — e puoi agire direttamente su di esso. C'è UN motore del grafo con tre facce.
 
@@ -38,7 +38,7 @@ Lavorare sulla mappa:
 
 ## Pulizia
 
-Il pulsante **Pulizia** apre un elenco di lavoro con tre schede: **Orfane** (note senza connessioni), **Link interrotti** (destinazioni che non esistono — **Crea nota** le crea) e **Menzioni** (**Scansiona il vault** trova i punti in cui una nota viene nominata ma non collegata; **Collega** trasforma l'occorrenza in un wiki-link). Il piè di pagina della mappa mostra il conteggio delle orfane — cliccarci apre il pannello.
+Il pulsante **Pulizia** apre un elenco di lavoro con tre schede: **Orfane** (note senza connessioni), **Link interrotti** (destinazioni che non esistono — **Crea nota** crea la nota dove il suo link la troverà; per un link a un'immagine, a un PDF o a una cartella non c'è alcuna nota da creare) e **Menzioni** (**Scansiona il vault** trova i punti in cui una nota viene nominata ma non collegata; **Collega** trasforma l'occorrenza in un wiki-link). Il piè di pagina della mappa mostra il conteggio delle orfane — cliccarci apre il pannello.
 
 Nelle scritture senza spazi un titolo conta come menzionato in qualsiasi punto del testo — non ci sono confini di parola — e bastano due caratteri come 会議.
 

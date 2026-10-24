@@ -100,7 +100,7 @@ export interface EgressManifest {
   instructions?: ManifestInstructions;
   /**
    * The vault's memory as the conversation carries it (plan KI-Harness P6,
-   * ADR 0027): how many entries go along with every request of it, and how
+   * ADR 0032): how many entries go along with every request of it, and how
    * many a rule kept back for this recipient. Data, not instructions — the
    * first time it goes to a cloud, the scope grows by the kind `memory`.
    */

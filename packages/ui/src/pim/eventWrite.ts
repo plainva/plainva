@@ -147,6 +147,26 @@ export async function updateCalendarEvent(
   };
 }
 
+/**
+ * What "delete all events" of a series is written against (issue 119). The
+ * series' own row where the cache has it. Where it does not, the occurrence
+ * still names everything the provider needs: the series id (`seriesMaster`)
+ * and, for CalDAV, the object the series lives in (`href`) - with its etag,
+ * which the object shares with every occurrence of it. The other providers
+ * give an occurrence its own etag, so none is sent there. Until now a missing
+ * master row ended in "Saving to the provider failed." and nothing was deleted.
+ * The device's own calendars are the exception (see below).
+ */
+export function seriesDeleteSubject(occurrence: PimEventRow, master: PimEventRow | null, provider?: string): PimEventRow | null {
+  if (master) return master;
+  if (!occurrence.seriesMaster) return null;
+  // The device's calendar store addresses a series only through an
+  // occurrence: its "series id" names the FIRST occurrence, and deleting that
+  // removes one event, not the series. No fallback there - the refusal stays.
+  if (provider === "device") return null;
+  return { ...occurrence, uid: occurrence.seriesMaster, seriesMaster: undefined, etag: occurrence.href ? occurrence.etag : undefined };
+}
+
 export async function deleteCalendarEvent(
   targets: EventTargets,
   event: Pick<PimEventRow, "accountId" | "calendarId" | "uid" | "etag" | "href">,

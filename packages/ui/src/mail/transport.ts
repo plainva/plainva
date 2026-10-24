@@ -35,6 +35,20 @@ export interface ImapAttachment {
   contentBase64: string;
 }
 
+/** One attachment's bytes (standard base64), under the index its message
+ *  listed it with. */
+export interface FetchedAttachment {
+  index: number;
+  contentBase64: string;
+}
+
+/**
+ * What a transport answers when the mailbox is not the one the message was
+ * read in any more: the server has renumbered it (a new UIDVALIDITY), and the
+ * UID the caller holds now names another message, or none.
+ */
+export const MAIL_MAILBOX_CHANGED = "MAIL_MAILBOX_CHANGED";
+
 export interface SmtpSendArgs {
   host: string;
   port: number;
@@ -70,8 +84,26 @@ export interface MailTransport {
   checkLogin(creds: ImapCreds): Promise<MailboxInfo[]>;
   listEnvelopes(creds: ImapCreds, args: { mailbox: string; offset: number; limit: number; beforeUid?: number }): Promise<RawImapEnvelopePage>;
   fetchMessage(creds: ImapCreds, args: { mailbox: string; uid: number }): Promise<RawImapMessage>;
+  /** The raw RFC 822 message as standard base64 (with padding, no line breaks)
+   * of exactly the bytes the server holds — `saveEmlFile` decodes it. */
   fetchRaw(creds: ImapCreds, args: { mailbox: string; uid: number }): Promise<string>;
   fetchAttachment(creds: ImapCreds, args: { mailbox: string; uid: number; index: number }): Promise<string>;
+  /**
+   * Every attachment of ONE message the caller names, from one fetch of it.
+   * `fetchAttachment` loads the whole message for a single file; a forward
+   * wants all of them, and three files must not be three downloads.
+   *
+   * The answer holds what was found, in the order asked: an index the message
+   * does not have is absent rather than an error. `uidValidity` is the epoch
+   * the message was read under; a mailbox that has changed since is refused
+   * with `MAIL_MAILBOX_CHANGED` before anything is fetched.
+   *
+   * Optional: a transport without it is asked file by file (`mailClient`).
+   */
+  fetchAttachments?(
+    creds: ImapCreds,
+    args: { mailbox: string; uid: number; indexes: number[]; uidValidity?: number },
+  ): Promise<FetchedAttachment[]>;
   appendDraft(creds: ImapCreds, args: AppendDraftArgs): Promise<void>;
   setSeen(creds: ImapCreds, args: { mailbox: string; uid: number; seen: boolean }): Promise<void>;
   setFlagged(creds: ImapCreds, args: { mailbox: string; uid: number; flagged: boolean }): Promise<void>;

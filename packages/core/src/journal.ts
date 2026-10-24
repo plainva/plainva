@@ -170,6 +170,9 @@ function insertAfter(lines: SourceLine[], index: number, texts: string[]): Sourc
 
 interface ParsedEntry extends JournalEntry { marker: string; loose: boolean }
 interface ParsedSection {
+  /** A byte order mark the note starts with, or "". It is no part of a line. */
+  mark: string;
+  /** The note's lines, behind its mark. */
   lines: SourceLine[];
   heading: { line: number; lastLine: number; level: number; text: string } | null;
   /** First line after the section (exclusive). */
@@ -189,9 +192,16 @@ function dedent(text: string, column: number): string {
 }
 
 function parseSection(raw: string, options: JournalOptions): ParsedSection {
-  const lines = splitLines(raw);
+  // A byte order mark stands in front of the first line and belongs to none.
+  // The journal reads and changes the lines behind it and puts it back in
+  // front of them. As the start of the first line it kept that line from being
+  // blank — in a note that holds nothing but its mark, the section was written
+  // above it — and every place the outline names was counted without it.
+  const mark = raw.charCodeAt(0) === 0xfeff ? raw[0] : "";
+  const text = mark ? raw.slice(mark.length) : raw;
+  const lines = splitLines(text);
   const wanted = normalizeJournalHeading(options.heading);
-  const outline = analyzeNoteOutline(raw);
+  const outline = analyzeNoteOutline(text);
   const starts: number[] = [];
   let offset = 0;
   for (const line of lines) { starts.push(offset); offset += line.text.length + line.eol.length; }
@@ -203,7 +213,7 @@ function parseSection(raw: string, options: JournalOptions): ParsedSection {
   const lastLineOf = (node: { from: number; to: number }) => lineOf(Math.max(node.from, node.to - 1));
 
   const at = outline.findIndex((node) => node.type === "heading" && sameHeading(node.text ?? "", wanted));
-  if (at < 0) return { lines, heading: null, endLine: lines.length, entries: [], lastNode: null };
+  if (at < 0) return { mark, lines, heading: null, endLine: lines.length, entries: [], lastNode: null };
   const head = outline[at];
   const closing = outline.find((node, i) => i > at && node.type === "heading" && node.level! <= head.level!);
   const endLine = closing ? closing.line - 1 : lines.length;
@@ -233,7 +243,7 @@ function parseSection(raw: string, options: JournalOptions): ParsedSection {
     }
   }
   return {
-    lines,
+    mark, lines,
     heading: { line: head.line - 1, lastLine: lastLineOf(head), level: head.level!, text: head.text ?? "" },
     endLine, entries, lastNode: inside[inside.length - 1] ?? null,
   };
@@ -260,9 +270,9 @@ function entryLines(prefix: string, column: number, time: string, text: string):
 
 const sameSource = (a: string[], b: string[]): boolean => a.length === b.length && a.every((text, i) => text === b[i]);
 
-/** The edit counts only when a fresh parse finds the entry exactly where it was put. */
-function confirmed(lines: SourceLine[], line: number, source: string[], options: JournalOptions, createdHeading: boolean): JournalEdit | null {
-  const content = joinLines(lines);
+/** The edit counts only when a fresh parse finds the entry exactly where it was put. `mark` goes back in front of the lines. */
+function confirmed(mark: string, lines: SourceLine[], line: number, source: string[], options: JournalOptions, createdHeading: boolean): JournalEdit | null {
+  const content = mark + joinLines(lines);
   const entry = parseJournal(content, options).entries.find((e) => e.line === line && sameSource(e.source, source));
   return entry ? { ok: true, content, entry, createdHeading } : null;
 }
@@ -288,7 +298,7 @@ function placeEntry(raw: string, options: JournalOptions, build: (marker: string
     const hasGap = last >= 0 && last < lines.length - 1;
     const lead = last < 0 ? [title, ""] : hasGap ? [title, ""] : ["", title, ""];
     const after = last < 0 ? -1 : hasGap ? last + 1 : last;
-    return confirmed(insertAfter(lines, after, [...lead, ...source]), after + 1 + lead.length, source, options, true) ?? { ok: false, reason: "unplaceable" };
+    return confirmed(section.mark, insertAfter(lines, after, [...lead, ...source]), after + 1 + lead.length, source, options, true) ?? { ok: false, reason: "unplaceable" };
   }
 
   const head = section.heading;
@@ -297,8 +307,8 @@ function placeEntry(raw: string, options: JournalOptions, build: (marker: string
     const before = [...section.entries].reverse().find((e) => e.seconds <= place.seconds);
     const first = section.entries[0];
     const result = before
-      ? confirmed(insertAfter(lines, before.line + before.lineCount - 1, before.loose ? ["", ...source] : source), before.line + before.lineCount + (before.loose ? 1 : 0), source, options, false)
-      : confirmed(insertAfter(lines, first.line - 1, first.loose ? [...source, ""] : source), first.line, source, options, false);
+      ? confirmed(section.mark, insertAfter(lines, before.line + before.lineCount - 1, before.loose ? ["", ...source] : source), before.line + before.lineCount + (before.loose ? 1 : 0), source, options, false)
+      : confirmed(section.mark, insertAfter(lines, first.line - 1, first.loose ? [...source, ""] : source), first.line, source, options, false);
     if (result) return result;
   }
 
@@ -306,22 +316,22 @@ function placeEntry(raw: string, options: JournalOptions, build: (marker: string
   while (last > head.lastLine && isBlank(lines[last])) last--;
   if (last > head.lastLine) {
     const tight = section.lastNode?.type === "list" && !(lastEntry && lastEntry.line + lastEntry.lineCount - 1 === last && lastEntry.loose);
-    const result = confirmed(insertAfter(lines, last, tight ? source : ["", ...source]), last + (tight ? 1 : 2), source, options, false);
+    const result = confirmed(section.mark, insertAfter(lines, last, tight ? source : ["", ...source]), last + (tight ? 1 : 2), source, options, false);
     if (result) return result;
   } else {
     const blanks = section.endLine - 1 - head.lastLine;
     const closes = section.endLine < lines.length;
     const result = blanks === 0
-      ? confirmed(insertAfter(lines, head.lastLine, ["", ...source, ...(closes ? [""] : [])]), head.lastLine + 2, source, options, false)
-      : confirmed(insertAfter(lines, head.lastLine + 1, [...source, ...(blanks === 1 && closes ? [""] : [])]), head.lastLine + 2, source, options, false);
+      ? confirmed(section.mark, insertAfter(lines, head.lastLine, ["", ...source, ...(closes ? [""] : [])]), head.lastLine + 2, source, options, false)
+      : confirmed(section.mark, insertAfter(lines, head.lastLine + 1, [...source, ...(blanks === 1 && closes ? [""] : [])]), head.lastLine + 2, source, options, false);
     if (result) return result;
   }
 
   // The end of the section swallows what is appended. Directly under the heading it can be read.
   const gap = head.lastLine + 1 < lines.length && isBlank(lines[head.lastLine + 1]);
   const under = gap
-    ? confirmed(insertAfter(lines, head.lastLine + 1, [...source, ""]), head.lastLine + 2, source, options, false)
-    : confirmed(insertAfter(lines, head.lastLine, ["", ...source, ""]), head.lastLine + 2, source, options, false);
+    ? confirmed(section.mark, insertAfter(lines, head.lastLine + 1, [...source, ""]), head.lastLine + 2, source, options, false)
+    : confirmed(section.mark, insertAfter(lines, head.lastLine, ["", ...source, ""]), head.lastLine + 2, source, options, false);
   return under ?? { ok: false, reason: "unplaceable" };
 }
 
@@ -376,7 +386,7 @@ export function replaceJournalEntry(raw: string, ref: JournalEntryRef, change: {
   if (!entry || !groups) return { ok: false, reason: "missing" };
   const column = groups.indent.length + groups.marker.length + groups.gap.length;
   const source = entryLines(groups.prefix, column, time ?? groups.time, change.text);
-  return confirmed(replaceLines(section.lines, entry, source), entry.line, source, options, false) ?? { ok: false, reason: "unplaceable" };
+  return confirmed(section.mark, replaceLines(section.lines, entry, source), entry.line, source, options, false) ?? { ok: false, reason: "unplaceable" };
 }
 
 /** Makes an entry a task (`- [ ] 14:05 …`), sets what its box holds, or — with `null` — takes the box away. */
@@ -388,7 +398,7 @@ export function setJournalEntryTask(raw: string, ref: JournalEntryRef, task: Tas
   const lead = groups.indent + groups.marker + groups.gap;
   const box = task === null ? "" : `[${taskBoxChar(task)}]${groups.boxGap ?? " "}`;
   const source = [lead + box + entry.source[0].slice(groups.prefix.length), ...entry.source.slice(1)];
-  return confirmed(replaceLines(section.lines, entry, source), entry.line, source, options, false) ?? { ok: false, reason: "unplaceable" };
+  return confirmed(section.mark, replaceLines(section.lines, entry, source), entry.line, source, options, false) ?? { ok: false, reason: "unplaceable" };
 }
 
 /**
@@ -426,5 +436,5 @@ export function removeJournalEntry(raw: string, ref: JournalEntryRef, options: J
   next.splice(from, end - from);
   // The note ended without a line break, and it still does.
   if (closing === "" && from > 0 && from === next.length) next[from - 1].eol = "";
-  return { ok: true, content: joinLines(next), removed: publicEntry(entry) };
+  return { ok: true, content: section.mark + joinLines(next), removed: publicEntry(entry) };
 }

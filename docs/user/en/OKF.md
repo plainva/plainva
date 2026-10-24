@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Last reviewed: 2026-09-04
+Last reviewed: 2026-10-21
 
 OKF (Open Knowledge Format) is an open convention for Markdown knowledge collections: plain Markdown files with a small, uniform frontmatter header. This page explains what OKF is, what Plainva does for it automatically — and why you do not *have* to use any of it.
 
@@ -65,12 +65,12 @@ Since OKF 0.2 a note can say where it came from, who reviewed it and whether it 
 An `index.md` is a folder's table of contents: a list of the notes and subfolders it contains, with descriptions and relative links.
 
 - **Generating** — always on your action, never out of nowhere: right-click a folder → **Create overview** / **Refresh overview**, or in bulk via the **index.md manager** (**Settings → Vault → Content & structure**).
-- **Adopting instead of generating** — if you already have overview notes (MOC, Overview, folder note, README …), the manager suggests them as candidates. **Adopt** renames the file to `index.md` (links are updated vault-wide) and can optionally prepare it for OKF.
+- **Adopting instead of generating** — if you already have overview notes (MOC, Overview, folder note, README …), the manager suggests them as candidates. **Adopt** renames the file to `index.md` (links are updated vault-wide). With **Prepare adopted files for OKF (remove frontmatter, convert this file's wikilinks to markdown links)** — ticked by default — the note is prepared on the way: its frontmatter is removed (the note as it was is backed up first) and its wikilinks become relative Markdown links, each where it stands; nothing else in the note changes. The note's links to itself then lead to the new `index.md`, and a link from another note that reached it through the `title` in its frontmatter — which goes with the frontmatter — names the file from then on. Embeds, wikilinks that lead to no note and a wikilink inside the text of another link are not converted; the result line counts them. If the folder already has an `index.md`, nothing is adopted and the note stays untouched.
 - **Automatic upkeep** — listings *generated* by Plainva carry an invisible marker at the end of the file (an HTML comment). Only such marked files are kept up to date automatically whenever the folder changes — and only in OKF vaults (recognizable by `okf_version` in the root `index.md`).
 - **Read-only with an exit** — managed index.md files open in read mode with the banner "This index.md is managed by Plainva and updated automatically." There you can **Refresh** — or choose **Edit anyway**: that removes the marker and the file is fully yours again (no more automatic updates).
 - **All at once** — **Update all index.md files** is available in the vault root's context menu and in the settings; files without the marker are skipped.
 - **Fill the gaps** — inside the index.md manager, **Generate index.md in all N folders without one** preselects every folder that has no index.md yet, so you can create them all in one run.
-- **On the phone** — the same, through two doors: holding a folder offers **Create overview** or **Refresh overview**, whichever that folder needs. For the rare pass across everything there is **Settings → Vault → Maintenance → Overviews**: folders without one come first, and **Generate index.md in all N folders without one** creates them in a single run. A folder whose `index.md` you wrote yourself is listed and left alone — adopting is a named decision in that list, never the side effect of a tap. The automatic upkeep runs on the phone too now: a vault edited there no longer drifts out of date until a desktop opens it.
+- **On the phone** — the same, through two doors: holding a folder offers **Create overview** or **Refresh overview**, whichever that folder needs. For the rare pass across everything there is **Settings → Vault → Maintenance → Overviews**: folders without one come first, and **Generate index.md in all N folders without one** creates them in a single run. A folder whose `index.md` you wrote yourself is listed and left alone — adopting is a named decision in that list, never the side effect of a tap. It asks first, and the question offers the same preparation as the desktop's dialog, ticked by default. The automatic upkeep runs on the phone too now: a vault edited there no longer drifts out of date until a desktop opens it.
 - In read mode, managed listings render as cards with file/folder icons; links open right inside Plainva.
 
 ## Converting an existing vault (opt-in)

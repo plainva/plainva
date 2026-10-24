@@ -5,11 +5,11 @@ import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { writeFile as fsWriteFile, writeTextFile as fsWriteTextFile } from "@tauri-apps/plugin-fs";
 import type { FolderOverview, GraphEdgeKind, VaultGraph } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { EmptyState, ICON, MenuItem, MenuSurface } from "@plainva/ui";
+import { EmptyState, ICON, markFreshNote, MenuItem, MenuSurface, useOutsidePress } from "@plainva/ui";
 import { BasePeekModal } from "../BasePeekModal";
 import { appConfirm, appPrompt } from "../../services/appDialogs";
 import { requestCascadeDelete } from "../../services/cascadeDelete";
-import { toast } from "@plainva/ui";
+import { errorText, toast } from "@plainva/ui";
 import { renameFileWithLinkUpdates } from "../../services/renameNote";
 import { createConnectedNote, removeLinksTo } from "../../services/graphActions";
 import { loadGraphCached } from "../../services/graphCache";
@@ -70,14 +70,12 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
   // Facet popover (P7.1): filters moved off the always-visible bar.
   const [showFilters, setShowFilters] = useState(false);
   const filterPopRef = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    if (!showFilters) return;
-    const onDown = (e: PointerEvent) => {
-      if (!filterPopRef.current?.contains(e.target as Node)) setShowFilters(false);
-    };
-    document.addEventListener("pointerdown", onDown);
-    return () => document.removeEventListener("pointerdown", onDown);
-  }, [showFilters]);
+  // A press beside the button and its popover closes the popover, heard as
+  // every menu and popover hears it (Sammelplan § 3.100): at the document,
+  // after the press had passed every handler on its way, a handler that
+  // stopped it hid it; and a finger closed the popover when it touched down to
+  // scroll.
+  useOutsidePress(showFilters, () => setShowFilters(false), filterPopRef);
   const [tagPaths, setTagPaths] = useState<Set<string> | null>(null);
   const [edgeKinds, setEdgeKinds] = useState<Set<GraphEdgeKind>>(new Set(DEFAULT_EDGE_KINDS));
   // Managed index.md/log.md are hidden by default (they link to everything);
@@ -463,6 +461,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
         const folder = sourcePath.includes("/") ? sourcePath.substring(0, sourcePath.lastIndexOf("/")) : "";
         const noteType = vaultPath ? await getConfiguredNoteType(vaultPath) : "Note";
         const path = await createConnectedNote(vaultAdapter, queryService, { folder, title, sourcePath, noteType });
+        markFreshNote(path); // opens to be written in (wish 2026-10-19)
         onOpenPath(path, true);
       } catch {
         toast.error(t("graph.cleanupActionFailed", { defaultValue: "Aktion fehlgeschlagen." }));
@@ -478,6 +477,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
     try {
       const noteType = vaultPath ? await getConfiguredNoteType(vaultPath) : "Note";
       const path = await createConnectedNote(vaultAdapter, queryService, { folder: "", title, noteType });
+      markFreshNote(path);
       onOpenPath(path, true);
     } catch {
       toast.error(t("graph.cleanupActionFailed", { defaultValue: "Aktion fehlgeschlagen." }));
@@ -500,7 +500,10 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
       try {
         const n = await removeLinksTo(vaultAdapter, queryService, source, target);
         if (n > 0) toast.success(t("graph.edgeRemoved", { defaultValue: "{{n}} Link(s) entfernt.", n }));
-        else toast.warning(t("graph.cleanupMentionGone", { defaultValue: "Fundstelle existiert nicht mehr — Liste neu scannen." }));
+        // The text no longer holds such a link (the note changed since the
+        // graph was drawn). Until 2026-10-22 this said the clean-up's "rescan
+        // the list" - and every edge drawn from a Markdown link got it.
+        else toast.warning(t("graph.edgeNothingRemoved", { defaultValue: "Kein Text-Link von „{{source}}“ auf „{{target}}“ gefunden — die Notiz hat sich vielleicht geändert, seit der Graph gezeichnet wurde.", source: titleOf(source), target: titleOf(target) }));
       } catch {
         toast.error(t("graph.cleanupActionFailed", { defaultValue: "Aktion fehlgeschlagen." }));
       }
@@ -525,8 +528,9 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
       try {
         const n = await removeRelationLink(vaultAdapter, queryService, source, target, propertyKey);
         if (n > 0) toast.success(t("graph.edgeRemoved", { defaultValue: "{{n}} Link(s) entfernt.", n }));
-      } catch {
-        toast.error(t("graph.cleanupActionFailed", { defaultValue: "Aktion fehlgeschlagen." }));
+      } catch (e) {
+        // A relation is a property of the source note; see `linkAsRelation`.
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
       }
     },
     [vaultAdapter, queryService, t, titleOf]

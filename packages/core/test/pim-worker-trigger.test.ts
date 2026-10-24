@@ -107,6 +107,22 @@ describe("PimWorker: one request, one cycle", () => {
     expect(cycles).toEqual([expect.objectContaining({ cause: "start", coalesced: 2, hadError: false })]);
   });
 
+  it("a trigger after a write is never answered by the cycle already running (issue 119)", async () => {
+    // A cycle that started before the event was written may have read before
+    // it landed; answering the write's refresh with it took the new event off
+    // the screen until the next timer.
+    const t = gatedTarget();
+    const worker = workerFor(t.target);
+    worker.start();
+    await worker.triggerImmediate({ afterWrite: true });
+    t.release();
+    await vi.waitFor(() => expect(cycles).toHaveLength(2));
+    worker.stop();
+
+    expect(cycles.map((c) => c.cause)).toEqual(["start", "queued"]);
+    expect(t.listCalendars).toHaveBeenCalledTimes(2);
+  });
+
   it("a trigger that arrives LATE in a running cycle is still run afterwards", async () => {
     const t = gatedTarget();
     const worker = workerFor(t.target);

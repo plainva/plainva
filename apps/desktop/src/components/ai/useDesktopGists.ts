@@ -54,7 +54,7 @@ export function useDesktopGists({
     const created = new LocalGists({
       db: dbAdapter,
       readText,
-      policy: createVaultPolicy({ readFile: readText, resolveLink: (target) => queryService.resolveNotePath(target), fileNames: () => queryService.fileNames(), encrypted }),
+      policy: createVaultPolicy({ readFile: readText, resolveLink: (target) => queryService.resolveNotePath(target), fileNames: () => queryService.linkTargets(), encrypted }),
       encrypted,
       ready: idleMoment,
       ledger: stores.ledger,

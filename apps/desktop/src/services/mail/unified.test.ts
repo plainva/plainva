@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupByOrigin, isUnifiedId, mergeInboxes, parseUnifiedId, unifiedId } from "@plainva/ui/mail";
+import { groupByOrigin, isUnifiedId, mergeInboxes, parseUnifiedId, rowAddress, unifiedId } from "@plainva/ui/mail";
 
 /**
  * The address of a message in a merged list (P9.3b).
@@ -38,6 +38,39 @@ describe("unifiedId", () => {
     expect(parseUnifiedId("acc\u0000INBOX")).toBeNull();
     expect(parseUnifiedId("\u0000INBOX\u00001")).toBeNull();
     expect(parseUnifiedId("acc\u0000INBOX\u0000")).toBeNull();
+  });
+});
+
+describe("rowAddress", () => {
+  const open = { accountId: "acc-a", mailbox: "INBOX" };
+  const merged = unifiedId({ accountId: "acc-b", mailbox: "Posteingang", uid: "7" });
+
+  it("opens a row of a merged list at the address the row carries, not in the open mailbox", () => {
+    expect(rowAddress({ id: merged }, open)).toEqual({ accountId: "acc-b", mailbox: "Posteingang", uid: "7", own: true });
+  });
+
+  it("keeps the row's own address when a conversation is built over a merged list", () => {
+    // Such a row names its folder as a field too, and its id is still the whole
+    // address. The folder field must not be paired with the OPEN account, and
+    // the id must not be handed on as if it were the uid — the phone did both.
+    const at = rowAddress({ id: merged, mailbox: "Posteingang" }, open);
+    expect(at).toEqual({ accountId: "acc-b", mailbox: "Posteingang", uid: "7", own: true });
+    expect(isUnifiedId(at.uid)).toBe(false);
+  });
+
+  it("reads a plain row off the open account, in the folder it was listed in", () => {
+    // A conversation reads Sent along: the reply lies there, not in the open folder.
+    expect(rowAddress({ id: "91", mailbox: "Sent" }, open)).toEqual({ accountId: "acc-a", mailbox: "Sent", uid: "91", own: false });
+    expect(rowAddress({ id: "2" }, open)).toEqual({ accountId: "acc-a", mailbox: "INBOX", uid: "2", own: false });
+    expect(rowAddress({ id: "2", mailbox: "" }, open)).toEqual({ accountId: "acc-a", mailbox: "INBOX", uid: "2", own: false });
+    expect(rowAddress({ id: "2", mailbox: null }, open)).toEqual({ accountId: "acc-a", mailbox: "INBOX", uid: "2", own: false });
+  });
+
+  it("says whether the address is the row's own, so a view can follow it there", () => {
+    // The desktop moves the open mailbox along for a row that names its own
+    // address, and stays where it is for a reply read out of Sent.
+    expect(rowAddress({ id: merged }, open).own).toBe(true);
+    expect(rowAddress({ id: "91", mailbox: "Sent" }, open).own).toBe(false);
   });
 });
 

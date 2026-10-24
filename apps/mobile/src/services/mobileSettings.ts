@@ -2,6 +2,11 @@ import { sameStoredValue } from "@plainva/core";
 import {
   applyAppFonts,
   applyTagColors,
+  applyLinkStyle,
+  readNoteLinkStyle,
+  readWebLinkStyle,
+  type NoteLinkStyle,
+  type WebLinkStyle,
   setSpellcheckOn,
   migrateCustomThemeFont,
   type AppFonts,
@@ -125,6 +130,9 @@ export interface MobileSettings extends VaultScopedSettings {
    * a tag is stored, the colour follows from its name.
    */
   tagColors: boolean;
+  /** How a link to a note and a link to the web look (Appearance -> Links, linkStyle.ts); device-local like on the desktop. */
+  noteLinkStyle: NoteLinkStyle;
+  webLinkStyle: WebLinkStyle;
   /**
    * "Spell checking" (plan Befunde 2026-10-06, E3): the device switch behind
    * the one rule in @plainva/ui's lib/spellcheck.ts. Device-local and OFF by
@@ -215,6 +223,8 @@ function defaults(): MobileSettings {
     readerAutoHide: true,
     contextPanelDocked: false,
     tagColors: false,
+    noteLinkStyle: "underline",
+    webLinkStyle: "underline",
     spellcheck: false,
     navSidebarCollapsed: false,
     widgetShowTitles: true,
@@ -300,6 +310,7 @@ function applyTheme(): void {
   // sanitized before it reaches CSS. Device-local, like the desktop's.
   applyAppFonts(mobileAppFonts(live()));
   applyTagColors(live().tagColors === true);
+  applyLinkStyle(readNoteLinkStyle(live().noteLinkStyle), readWebLinkStyle(live().webLinkStyle));
   // D6: chrome motion — the shared tokens.css collapses on data-motion="off"
   // and skips the OS reduce-collapse on "on"; absent = follow the system.
   if (live().motion === "system") root.removeAttribute("data-motion");
@@ -401,14 +412,30 @@ export function getMobileSettings(): MobileSettings {
  * are written, and all three scaffold sites (first run, new vault, cloud vault)
  * go through here so a rule cannot apply in one of them and not in the others.
  */
-export async function applyTemplateSettings(ts: VaultTemplateDefinition["settings"]): Promise<void> {
-  if (!ts) return;
-  await updateMobileSettings({
+/** A template's settings, as the per-vault settings they are. */
+function templateVaultSettings(ts: NonNullable<VaultTemplateDefinition["settings"]>): Partial<VaultScopedSettings> {
+  return {
     ...(ts.dailyNotesFolder !== undefined ? { dailyFolder: ts.dailyNotesFolder } : {}),
     ...(ts.templateFolder !== undefined ? { templateFolder: ts.templateFolder } : {}),
     ...(ts.dailyNoteTemplate !== undefined ? { dailyTemplate: ts.dailyNoteTemplate } : {}),
     ...(ts.folderTemplates !== undefined ? { folderTemplates: ts.folderTemplates } : {}),
-  });
+  };
+}
+
+export async function applyTemplateSettings(ts: VaultTemplateDefinition["settings"]): Promise<void> {
+  if (!ts) return;
+  await updateMobileSettings(templateVaultSettings(ts));
+}
+
+/**
+ * A template's settings for a vault that need not be the active one — a vault
+ * just made, which may wait for the person before it is opened
+ * (`flowVault.ts`). Written into it now, they are there when it opens, and
+ * nothing is left to do in between that the app could lose.
+ */
+export async function applyTemplateSettingsTo(vaultId: string, ts: VaultTemplateDefinition["settings"]): Promise<void> {
+  if (!ts) return;
+  await applyVaultSettings(vaultId, templateVaultSettings(ts));
 }
 
 let settingsWrites: Promise<unknown> = Promise.resolve();

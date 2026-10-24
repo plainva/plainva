@@ -343,7 +343,10 @@ describe("the properties block of a note", () => {
     expect(frontmatterBlock("---\na: 1\n---")).toBe("---\na: 1\n---");
     expect(frontmatterBlock("# T\n---\na: 1\n---\n")).toBe("");
     expect(frontmatterBlock("---\na: 1\nno end")).toBe("");
-    expect(frontmatterBlock("--- \na: 1\n---\n")).toBe("");
+    // As the one definition reads a block (`frontmatterSpan`): blanks behind a fence, and a byte order mark in front.
+    expect(frontmatterBlock("--- \na: 1\n---\n")).toBe("--- \na: 1\n---\n");
+    const bom = String.fromCharCode(0xfeff);
+    expect(frontmatterBlock(`${bom}---\na: 1\n---\n# T\n`)).toBe(`${bom}---\na: 1\n---\n`);
     expect(frontmatterBlock("")).toBe("");
     // A rule line further down is no fence of the properties.
     expect(frontmatterBlock("---\na: 1\n---\nText\n\n---\n\nMore")).toBe("---\na: 1\n---\n");

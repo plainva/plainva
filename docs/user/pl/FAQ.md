@@ -1,6 +1,6 @@
 # FAQ i rozwiązywanie problemów
 
-Stan na: 2026-09-30
+Stan na: 2026-10-22
 
 Odpowiedzi na najczęstsze pytania — od zgodności z Obsidian, przez pliki konfliktów, po kopie zapasowe.
 
@@ -42,9 +42,9 @@ Nowa nazwa jest zapisywana we frontmatter **każdej pasującej notatki** (po pot
 
 Przed każdą zmianą kreator tworzy kopię zapasową pliku w `.plainva/backups/okf-conversion-<znacznik-czasu>/`. Końcowy raport podaje dokładny folder; stamtąd możesz skopiować z powrotem pojedyncze pliki. Skorzystaj też z **Podglądu (bez zmian)** przed konwersją.
 
-### Stara notatka dzienna nie pojawia się w widoku Zadania
+### Notatka utworzona z szablonu nie pojawia się w widoku Zadania
 
-Bardzo stare notatki dzienne mogły odziedziczyć po swoim szablonie ustawienie, które ukrywa ich zadania. Wyszukaj w vaulcie `"tasks: false"` — **z** cudzysłowami, w przeciwnym razie znajdziesz też notatki, w których oba słowa pojawiają się tylko przypadkowo. W wynikach ten wiersz znajduje się we frontmatter pod blokiem `plainva:`; usuń tam `tasks: false` (oraz `templateFor:`, jeśli występuje), a notatka wróci. Notatki nowo utworzone z szablonu już tego nie dziedziczą.
+Notatka utworzona z szablonu do wersji 0.8.5 włącznie — także notatka dzienna — mogła odziedziczyć po swoim szablonie ustawienie, które ukrywa jej zadania. Wyszukaj w vaulcie `"tasks: false"` — **z** cudzysłowami, w przeciwnym razie znajdziesz też notatki, w których oba słowa pojawiają się tylko przypadkowo. W wynikach ten wiersz znajduje się we frontmatter pod blokiem `plainva:`; usuń tam `tasks: false` (oraz `templateFor:`, jeśli występuje), a notatka wróci. W samych szablonach zostaw ten wiersz — tam jest jego miejsce. Notatki nowo utworzone z szablonu już tego nie dziedziczą.
 
 ## Synchronizacja
 
@@ -106,6 +106,14 @@ Plainva pokazuje wtedy krótki raport: ile plików było nowych, zmienionych lub
 
 Dodatkowo Plainva uzgadnia stan automatycznie za każdym razem, gdy wracasz do okna z innego programu (co najwyżej co 30 sekund; chmura co najwyżej co 5 minut). Jeśli plik mimo to pozostaje niewidoczny, użyj **Odbuduj indeks od zera** w Ustawienia → Vault → Konserwacja.
 
+### W wyszukiwaniu, tagach lub bazach danych brakuje części mojego vaultu
+
+Podczas wczytywania vaultu Plainva podąża za linkami tak jak system: link do folderu jest czytany jako ten folder, a link do pliku jako ten plik — na komputerze i w folderze wybranym na iPhonie. To, czego nie da się odczytać, pomija i nazywa: link do miejsca, którego nie ma na tym urządzeniu (na przykład folder, który istnieje tylko na innym komputerze i dotarł tu jako link) lub folder bez dostępu. Powiadomienie nazywa je raz — **pominięto w indeksie wyszukiwania** — a reszta vaultu jest indeksowana jak zwykle. Nic, co leży pod takim wpisem, nie jest traktowane jako usunięte — ani przez indeks, ani przez synchronizację zaszyfrowanej przestrzeni roboczej.
+
+Jeśli indeksu w ogóle nie da się zaktualizować, powiadomienie podaje powód (**Nie udało się zaktualizować indeksu wyszukiwania: …**); vault pozostaje otwarty z tym, co indeks już zawiera, a przy następnym wczytaniu vaultu Plainva spróbuje ponownie. Na telefonie nazwany zostaje też indeks wyszukiwania, którego nie da się otworzyć: wyszukiwanie, tagi, bazy danych, synchronizacja i kalendarz pozostają wtedy wyłączone, dopóki Plainva nie zdoła go otworzyć.
+
+Usuń lub napraw wpis wskazany w powiadomieniu, a potem użyj **Wczytaj vault ponownie** (na telefonie: przeciągnij listę w dół).
+
 ### Plik został przeniesiony poza Plainva
 
 Plainva za nim podąża. Drzewo plików pokazuje plik w nowym miejscu, nawet jeśli przeniesiono go w Finderze, Eksploratorze lub innym programie. Gdy notatka jest otwarta — albo zostanie otwarta w starym miejscu, na przykład z zakładki — Plainva jej szuka: jeśli dokładnie jeden plik w innym miejscu ma tę samą treść i ten sam czas modyfikacji, karta za nim podąża, krótki komunikat podaje nowy folder, a zakładki, miejsca na tablicy korkowej i komentarze do notatki przenoszą się razem z nim. Niezapisane zmiany trafiają razem z nim w nowe miejsce. Jeśli nie jest to jednoznaczne, na przykład dlatego, że ta sama treść jest w kilku miejscach, **Przeniesiono?** pyta, który to plik, i wybierasz właściwy. Jeśli Plainva nie znajdzie żadnego, karta pokazuje dalej **Ten plik już nie istnieje**, a nieaktualny wpis w indeksie Plainva usuwa samodzielnie. Niezapisane zmiany są wtedy zachowane, a **Zapisz tutaj ponownie** odtwarza plik w starym miejscu — sama Plainva nigdy tam nie zapisuje. Dopóki wyszukiwanie przegląda jeszcze cały vault, widać **Trwa wyszukiwanie w innych miejscach vaultu…**.
@@ -114,7 +122,7 @@ To samo dotyczy otwartej karty z bazą danych (`.base`) lub obrazem, a na telefo
 
 Na telefonie nic nie obserwuje folderu podczas pracy. Zamiast tego Plainva ponownie wczytuje vault za każdym razem, gdy **wracasz do aplikacji** (najwyżej raz na minutę), oraz gdy **pociągasz listę w dół** — dla każdego vaulta, także tego w samej aplikacji, który na iOS pokazuje aplikacja Pliki. Przeniesiona notatka podąża tam za swoim plikiem w ten sam sposób, także otwarta; jeśli Plainva jej nie znajdzie, pojawia się **Nie znaleziono tej notatki.**
 
-Plainva pomija pliki systemowe: `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (ikony folderów), `.Spotlight-V100`, `.Trashes`, `.fseventsd` oraz pliki AppleDouble, które macOS kładzie obok każdego pliku na dyskach sieciowych i pendrive'ach (`._Notatka.md`). Nie pojawiają się w drzewie plików i nie są ani wysyłane, ani pobierane. Kopia, którą wcześniejsza wersja już wysłała do chmury, pozostaje tam nietknięta. Twoja własna notatka, której nazwa po prostu zaczyna się od `._`, pozostaje widoczna — Plainva rozpoznaje pliki AppleDouble po treści, a nie po nazwie.
+Plainva pomija pliki systemowe: `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (ikony folderów), `.Spotlight-V100`, `.Trashes`, `.fseventsd`, `$RECYCLE.BIN`, `System Volume Information` (oba w katalogu głównym dysku w systemie Windows) oraz pliki AppleDouble, które macOS kładzie obok każdego pliku na dyskach sieciowych i pendrive'ach (`._Notatka.md`). Nie pojawiają się w drzewie plików i nie są ani wysyłane, ani pobierane. Kopia, którą wcześniejsza wersja już wysłała do chmury, pozostaje tam nietknięta. Twoja własna notatka, której nazwa po prostu zaczyna się od `._`, pozostaje widoczna — Plainva rozpoznaje pliki AppleDouble po treści, a nie po nazwie.
 
 ### Dlaczego nie widzę żadnych animacji?
 

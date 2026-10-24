@@ -17,6 +17,7 @@ import type { JournalCheckResult } from "@plainva/core";
 import { BackgroundSettings } from "./BackgroundSettings";
 import { QuickCaptureSettings } from "./QuickCaptureSettings";
 import { WindowSettings } from "./WindowSettings";
+import { LinkStyleSettings } from "./LinkStyleSettings";
 import { Select } from "../Select";
 import { getThemeDef, isModePinned, type ThemePref } from "../../services/theme";
 import { pinnedModeHintKey } from "@plainva/ui";
@@ -239,6 +240,7 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
         <SettingRow label={t("settings.tagColors")} desc={t("settings.tagColorsDesc")}>
           <Switch checked={p.tagColors} label={t("settings.tagColors")} onChange={p.onTagColors} />
         </SettingRow>
+        <LinkStyleSettings />
         <SettingRow
           label={t("settings.uiZoom", { defaultValue: "Oberflächen-Zoom" })}
           desc={t("settings.uiZoomDesc", { defaultValue: "Skaliert die gesamte Oberfläche. Auch per Strg/Cmd + Plus/Minus; 0 setzt zurück." })}
@@ -269,6 +271,9 @@ export interface EditorPageProps {
   /** The device's spell-checking switch (plan Befunde 2026-10-06, E3): device-local, off by default. */
   spellcheck: boolean;
   onSpellcheck: (on: boolean) => void;
+  /** Open a new note in a tab of its own (issue 135): device-local, off by default. */
+  newNotesInNewTab: boolean;
+  onNewNotesInNewTab: (on: boolean) => void;
 }
 
 /**
@@ -300,6 +305,9 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
               ]}
             />
           </div>
+        </SettingRow>
+        <SettingRow label={t("settings.newNotesInNewTab")} desc={t("settings.newNotesInNewTabDesc")}>
+          <Switch checked={p.newNotesInNewTab} label={t("settings.newNotesInNewTab")} onChange={p.onNewNotesInNewTab} />
         </SettingRow>
       </SettingCard>
 

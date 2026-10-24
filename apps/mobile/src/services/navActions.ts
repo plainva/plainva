@@ -8,10 +8,10 @@ import { loadMobileBar, shownBarTabs } from "./mobileBar";
 import { getWindowClass, isRailClass } from "./windowClass";
 
 /**
- * The three ways a screen changes, in one place.
+ * The ways a screen changes, in one place.
  *
  * They lived in the shell as three loose consts, which is how the mistake
- * behind #47 became possible: `pop` is the only one of the three that is
+ * behind #47 became possible: `pop` is the only one of them that is
  * ASYNCHRONOUS — it asks about unsaved input before it moves — and a caller
  * that wrote `pop(); push(...)` got the push first and the pop afterwards, so
  * the screen it had just opened was closed again. Standing next to each other,
@@ -19,13 +19,23 @@ import { getWindowClass, isRailClass } from "./windowClass";
  * someone would otherwise reinvent it.
  *
  * `push` and `replace` never ask: they move FORWARD, and a chooser has nothing
- * to discard. Only `pop` leaves a surface, so only `pop` asks.
+ * to discard. `pop` leaves a surface, so `pop` asks.
+ *
+ * `done` leaves too and does not ask (finding 2026-10-09): it is the exit a
+ * surface takes ITSELF once its work is sent or saved. The mail composer used
+ * to leave through `pop` after a send, with everything typed still standing in
+ * its fields — so the shell asked whether to discard a message that was already
+ * on its way, and "cancel" kept a composer open whose mail went out regardless.
+ * The guard cannot tell the two leaves apart. The surface can, so it says which
+ * one it means.
  */
 export interface NavActions {
   /** Open a screen on top of the current one. */
   push: (entry: NavEntry) => void;
   /** Leave the current screen — asks first if it holds unsaved input. */
   pop: () => void;
+  /** Leave the current screen because its work is finished — never asks. */
+  done: () => void;
   /** Forward step that drops the current screen (a chooser hands over). */
   replace: (entry: NavEntry) => void;
 }
@@ -34,16 +44,19 @@ export function createNavActions(
   setNav: Dispatch<SetStateAction<NavState>>,
   setBump: Dispatch<SetStateAction<number>>,
 ): NavActions {
+  const leave = () => {
+    setNav(popTop);
+    setBump((n) => n + 1);
+  };
   return {
     push: (entry) => setNav((s) => pushEntry(s, entry)),
     replace: (entry) => setNav((s) => replaceTop(s, entry)),
     pop: () => {
       void askBeforeLeaving().then((ok) => {
-        if (!ok) return;
-        setNav(popTop);
-        setBump((n) => n + 1);
+        if (ok) leave();
       });
     },
+    done: leave,
   };
 }
 

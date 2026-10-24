@@ -1,3 +1,4 @@
+import { buildLinkTargetIndex, linkTargetName, resolveLinkTargetIndexed } from "@plainva/core";
 import { parseWikiLinkValue } from "./propertyModel";
 
 /**
@@ -9,14 +10,16 @@ import { parseWikiLinkValue } from "./propertyModel";
  *
  * Semantics:
  * - The parent reference is the row's self-relation value (a wiki link; lists
- *   use their first entry). It resolves against the FILTERED result set only —
- *   a parent outside the result makes the child a top-level row.
+ *   use their first entry). Where it leads is the link rule's answer for the
+ *   vault (`resolveRef`); a parent outside the FILTERED result set makes the
+ *   child a top-level row.
  * - Sibling order preserves the input order, so the query's sort applies per
  *   nesting level for free.
  * - Collapsed nodes contribute their child count but no descendants.
  * - Cycle guard: a covered-set DFS emits every row exactly once; rows only
  *   reachable through a cycle become additional top-level roots in input order.
- * - Duplicate titles: the first row wins the title mapping (vault convention).
+ * - Two notes of one name: the link rule's order decides — the note beside
+ *   the child's own, then the shorter path, then the alphabet.
  */
 
 export interface SubItemNode<R = unknown> {
@@ -35,31 +38,44 @@ export function buildSubItemsTree<R>(
     parentRefOf(r: R): unknown;
     expandedKeys: ReadonlySet<string>;
     maxDepth?: number;
+    /**
+     * Where a link leads in the vault — the link rule over ALL its files, as a
+     * click on the link is answered (`wikiTargetPath` over the shell's lookup).
+     * With it a row is the parent only where the link leads to that row: of two
+     * notes of one name, one in the result and one outside, the table nests
+     * under the one the chip opens, or not at all. Absent (the lookup is not
+     * loaded yet, or there is no index), the rows of the result stand in for
+     * the vault.
+     */
+    resolveRef?(fromPath: string, target: string): string | null;
   }
 ): SubItemNode<R>[] {
   const maxDepth = opts.maxDepth ?? 32;
   const byKey = new Map<string, R>();
-  const refIndex = new Map<string, string>(); // lowercase title/path/path-sans-md -> key
+  const corpus: { path: string; title: string }[] = [];
 
   for (const r of rows) {
     const key = opts.keyOf(r);
     if (byKey.has(key)) continue;
     byKey.set(key, r);
-    const title = opts.titleOf(r).toLowerCase();
-    if (!refIndex.has(title)) refIndex.set(title, key);
-    const lower = key.toLowerCase();
-    if (!refIndex.has(lower)) refIndex.set(lower, key);
-    const sansMd = lower.replace(/\.md$/, "");
-    if (!refIndex.has(sansMd)) refIndex.set(sansMd, key);
+    corpus.push({ path: key, title: opts.titleOf(r) });
   }
+  // Which row a parent link means is the link rule's answer (`LinkResolver.ts`
+  // in the core): the file's name, part of its path or the title of its
+  // properties, read from the child's own folder. A set of lowercased titles
+  // and paths used to stand here — a row with a title of its own was not found
+  // under its file's name (finding 2026-10-08).
+  const rowsOnly = opts.resolveRef ? null : buildLinkTargetIndex(corpus);
 
   const parentKeyOf = (r: R): string | null => {
     let ref = opts.parentRefOf(r);
     if (Array.isArray(ref)) ref = ref[0];
     if (typeof ref !== "string" || !ref.trim()) return null;
-    const target = (parseWikiLinkValue(ref)?.target ?? ref).trim().toLowerCase();
-    const key = refIndex.get(target) ?? refIndex.get(`${target}.md`) ?? null;
-    return key !== null && key !== opts.keyOf(r) ? key : null;
+    const own = opts.keyOf(r);
+    const target = linkTargetName(parseWikiLinkValue(ref)?.target ?? ref);
+    const key = rowsOnly ? resolveLinkTargetIndexed(own, target, rowsOnly) : opts.resolveRef!(own, target);
+    // A parent outside the result set makes the child a top-level row.
+    return key !== null && key !== own && byKey.has(key) ? key : null;
   };
 
   const children = new Map<string, string[]>();

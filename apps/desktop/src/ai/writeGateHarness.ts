@@ -13,9 +13,12 @@ import {
   SyncQueue,
   SyncStateRepository,
   VersionHistoryService,
+  buildLinkTargetIndex,
+  linkTargetName,
   planCommentDecision,
   readConversationRecord,
   readFrontmatterPath,
+  resolveLinkTargetIndexed,
   type CommentOperationService,
   type ConversationRecord,
   type EgressChunk,
@@ -152,11 +155,9 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
         return { path, title: typeof own === "string" && own.trim() ? own.trim() : title(path) };
       }),
     );
-  /** Where a tap on a link leads on the desktop (`VaultQueryService.resolveNotePath`): a note's title, or its whole path. */
-  const resolveLink = async (target: string): Promise<string | null> => {
-    const wanted = target.toLowerCase();
-    return (await fileNames()).find((file) => file.title.toLowerCase() === wanted || file.path.toLowerCase() === wanted || file.path.toLowerCase() === `${wanted}.md`)?.path ?? null;
-  };
+  /** Where a tap on a link leads (`VaultQueryService.resolveNotePath`): the core's one rule (ADR 0027), over these names. */
+  const resolveLink = async (target: string, from: string): Promise<string | null> =>
+    resolveLinkTargetIndexed(from, linkTargetName(target), buildLinkTargetIndex(await fileNames()));
   // The policy host both shells build (`createVaultPolicy`): the folder rules — here the test's, as
   // `.agent/policy.yml` would hold them —, a note's own rule read from its file, and the names of all files for
   // the question which notes a link could mean.

@@ -15,6 +15,7 @@
  * left, and the phone called the line diff with its own argument order. This
  * module pins the order once; `compareLines` is the only way the shells diff.
  */
+import { editorTextOf, inShapeOf } from "@plainva/core";
 import { collapseContext, lineDiff, type DiffLine } from "./lineDiff";
 
 export type CompareLine = DiffLine | { type: "skip"; count: number };
@@ -67,8 +68,27 @@ export function lineCount(text: string): number {
   return normalize(text).split("\n").length;
 }
 
+/**
+ * Both sides are compared the way an editor holds them — the ONE text space
+ * of the core's `textFileShape.ts`: a line ending written two ways is no
+ * difference, and neither is a byte order mark only one side carries.
+ */
 function normalize(text: string): string {
-  return text.replace(/\r\n/g, "\n");
+  return editorTextOf(text);
+}
+
+/**
+ * What takes the note's place when the right side of a comparison is adopted.
+ *
+ * The copy itself, byte for byte, where the reader changed nothing on it — the
+ * phone, whose comparison has no editable side, hands over exactly that. Where
+ * they worked on the right side first, their text leaves in the shape the copy
+ * has. The comparison shows both sides the way an editor holds them, and
+ * writing that text as it stood turned every line end of a note that lies
+ * there with `\r\n` (finding 2026-10-09).
+ */
+export function adoptedCopyText(copy: string, rightSide: string): string {
+  return rightSide === editorTextOf(copy) ? copy : inShapeOf(copy, rightSide);
 }
 
 /**

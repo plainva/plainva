@@ -64,6 +64,20 @@ export function planAllDayRows(input: {
 }
 
 /**
+ * A day's entries in the order its row draws them, cut to the `room` the plan
+ * gives it: the first groups fill first. One rule for both shells' all-day
+ * rows (the phone's row follows the desktop's since 2026-10-19).
+ */
+export function fillAllDayRoom<T extends readonly (readonly unknown[])[]>(groups: readonly [...T], room: number): { -readonly [K in keyof T]: T[K] } {
+  let left = Math.max(0, room);
+  return groups.map((group) => {
+    const taken = group.slice(0, left);
+    left = Math.max(0, left - group.length);
+    return taken;
+  }) as unknown as { -readonly [K in keyof T]: T[K] };
+}
+
+/**
  * The month grid of the phone: a day shows at most `shown` dots, and says how
  * many entries lie beyond them. 0 = everything is on screen.
  */

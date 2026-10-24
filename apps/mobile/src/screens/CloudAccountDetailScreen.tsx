@@ -24,11 +24,14 @@ import {
 import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
 import { mobilePasswordChangePorts } from "../services/accountPassword";
-import { beginAccountLogin, canUnifyMobileAccount, getAccountLoginStatus, ACCOUNT_LOGIN_STATUS_EVENT, type AccountLoginStatus } from "../services/accountLogin";
+import { canUnifyMobileAccount, getAccountLoginStatus, ACCOUNT_LOGIN_STATUS_EVENT, type AccountLoginStatus } from "../services/accountLogin";
+import { AccessUnavailableError, beginMobileSignIn } from "../services/accountSignIn";
+import { toastConnectionFailure } from "../services/connectionToast";
 import { clearAccountToken, getAccountToken } from "../services/accountBroker";
 import { mConfirm } from "../services/mobileDialogs";
 import { DeviceSignInBadge, DeviceSignInCard } from "../components/DeviceSignInRow";
-import { AccountClientIdSheet } from "../components/AccountClientIdSheet";
+import { AccountAccessSheet } from "../components/AccountAccessSheet";
+import { AccountCheckSheet } from "../components/AccountCheckSheet";
 import { AppBar } from "../components/AppBar";
 
 /**
@@ -137,6 +140,8 @@ export function CloudAccountDetailScreen({
    */
   const [needClient, setNeedClient] = useState<"google" | "microsoft" | null>(null);
   const [signingIn, setSigningIn] = useState(false);
+  /** "Check connection" open (plan E6). */
+  const [checking, setChecking] = useState(false);
 
   // The device account's state is the system permission; read when the card shows.
   const [deviceStatus, setDeviceStatus] = useState<DevicePimStatus | null>(null);
@@ -147,15 +152,20 @@ export function CloudAccountDetailScreen({
     return () => { alive = false; };
   }, [card?.family]);
 
-  const signIn = (fallback?: { clientId: string; clientSecret?: string }) => {
+  /** Signing in again is the one sign-in for everything the card carries (plan E2). */
+  const signIn = () => {
     if (!card?.record || !loginVaultId) return;
+    const family = card.record.family;
+    if (family !== "google" && family !== "microsoft") return;
     void (async () => {
       setSigningIn(true);
       try {
-        const out = await beginAccountLogin(loginVaultId, card.record!, fallback);
-        setNeedClient(out.kind === "needsClientId" ? out.family : null);
+        await beginMobileSignIn(loginVaultId, { family, cardId: card.record!.id, add: [] });
+        setNeedClient(null);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        // No usable access on this phone: the sheet asks for it, then signs in.
+        if (e instanceof AccessUnavailableError) setNeedClient(e.family);
+        else toastConnectionFailure(e);
       } finally {
         setSigningIn(false);
       }
@@ -265,6 +275,37 @@ export function CloudAccountDetailScreen({
             </RowList>
           </GroupCard>
 
+          {/* This phone's access for the provider (plan E3): what signs in here,
+              and the way to change it - not only when a sign-in fails. */}
+          {(card.family === "google" || card.family === "microsoft") && (
+            <GroupCard>
+              <RowList>
+                <Row
+                  data-testid="cloudacct-access"
+                  title={t("accountAccess.lineLabel")}
+                  subtitle={t(card.family === "google" ? "accountAccess.title.google" : "accountAccess.title.microsoft")}
+                  end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                  onClick={() => setNeedClient(card.family as "google" | "microsoft")}
+                />
+              </RowList>
+            </GroupCard>
+          )}
+
+          {card.record && loginVaultId && (
+            <Button variant="secondary" data-testid="cloudacct-check-open" onClick={() => setChecking(true)}>
+              {t("cloudAccounts.checkConnection")}
+            </Button>
+          )}
+          {checking && card.record && loginVaultId && (
+            <AccountCheckSheet
+              vaultId={loginVaultId}
+              record={card.record}
+              serviceLabel={serviceLabel}
+              onSignInAgain={() => signIn()}
+              onClose={() => setChecking(false)}
+            />
+          )}
+
           {card.record && loginVaultId && passwordServicesOf(card.record).length > 0 && (
             <AccountPasswordChangePanel ports={mobilePasswordChangePorts(loginVaultId, card.record)} />
           )}
@@ -340,11 +381,10 @@ export function CloudAccountDetailScreen({
     </div>
 
       {needClient && (
-        <AccountClientIdSheet
-          busy={signingIn}
+        <AccountAccessSheet
           family={needClient}
           onCancel={() => setNeedClient(null)}
-          onSubmit={(client) => signIn(client)}
+          onSaved={() => { setNeedClient(null); signIn(); }}
         />
       )}
       </div>

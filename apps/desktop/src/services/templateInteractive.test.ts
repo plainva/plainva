@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { consumePendingTemplateCaret, clearPendingTemplateCaret } from "@plainva/ui";
-import { applyTemplateInteractive, parkTemplateCaret } from "./templateInteractive";
+import { clearPendingTemplateCaret } from "@plainva/ui";
+import { applyTemplateInteractive } from "./templateInteractive";
 import { dialogStore, settleDialog, type AnswersRequest } from "./appDialogs";
 
 vi.mock("@tauri-apps/plugin-store", () => {
@@ -9,7 +9,7 @@ vi.mock("@tauri-apps/plugin-store", () => {
 });
 vi.mock("@tauri-apps/plugin-dialog", () => ({ ask: vi.fn(async () => true), open: vi.fn() }));
 
-const ctx = { title: "Meine Notiz", now: new Date(2026, 6, 29, 14, 37) };
+const ctx = { title: "Meine Notiz", now: new Date(2026, 6, 29, 14, 37), vaultPath: null };
 
 /** Answers the dialog the pipeline opens, as the user would. */
 function answerNextDialog(answer: Record<string, string> | null): Promise<AnswersRequest> {
@@ -68,28 +68,10 @@ describe("applyTemplateInteractive", () => {
   });
 });
 
-describe("parkTemplateCaret", () => {
-  beforeEach(() => clearPendingTemplateCaret());
-
-  it("shifts the offset by whatever the write path put in front", () => {
-    // The offset is measured in the template body; the file starts with OKF
-    // frontmatter, so the caret has to move by its length.
-    parkTemplateCaret("Notes/A.md", 5, 42);
-    expect(consumePendingTemplateCaret("Notes/A.md")).toEqual({ path: "Notes/A.md", offset: 47 });
-  });
-
-  it("parks nothing when the template had no cursor marker", () => {
-    parkTemplateCaret("Notes/A.md", null, 42);
-    expect(consumePendingTemplateCaret("Notes/A.md")).toBeNull();
-  });
-
-  it("hands the caret only to the note it was parked for, and only once", () => {
-    parkTemplateCaret("Notes/A.md", 1);
-    expect(consumePendingTemplateCaret("Notes/B.md")).toBeNull();
-    expect(consumePendingTemplateCaret("Notes/A.md")).not.toBeNull();
-    expect(consumePendingTemplateCaret("Notes/A.md")).toBeNull();
-  });
-});
+// Parking a note's caret is the shared `parkTemplateCaret` since 2026-10-09 —
+// this shell's own function took a bare number, and the place it parked was
+// counted in the file, not in the text an editor holds. Its cases moved with
+// it: templateCaret.test.ts.
 
 describe("the background paths stay dialog-free", () => {
   it("no module that creates notes in the background reaches for the dialog", async () => {
@@ -110,7 +92,7 @@ describe("the background paths stay dialog-free", () => {
     for (const file of files) {
       const source = await fs.readFile(new URL(file, import.meta.url), "utf8");
       expect(source, `${file} must not use the interactive template pipeline`).not.toMatch(
-        /applyTemplateInteractive|appTemplateAnswers/
+        /applyTemplateInteractive|appTemplateAnswers|runTemplateInteractive|withPersonContext/
       );
     }
   });

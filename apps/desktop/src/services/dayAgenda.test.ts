@@ -6,7 +6,9 @@ const ev = (uid: string, title: string, allDay: boolean, hh: number): AgendaEven
   startMs: new Date(2026, 7, 4, hh, 0).getTime(),
   timeLabel: allDay ? "" : `${String(hh).padStart(2, "0")}:00`,
 });
-const task = (title: string, due: string | null, done = false): AgendaTask => ({ path: `${title}.md`, title, due, done });
+const task = (title: string, due: string | null, done = false): AgendaTask => ({
+  id: `db:${title}.md`, source: "database", path: `${title}.md`, title, due, dueMinutes: null, state: done ? "done" : "open", priority: 0, tags: [],
+});
 
 describe("buildDayAgenda", () => {
   it("puts all-day entries first, then the clock, then what is due", () => {
@@ -32,6 +34,17 @@ describe("buildDayAgenda", () => {
     const done = [task("erledigt", "2026-08-04", true)];
     expect(buildDayAgenda("2026-08-04", [], done)).toHaveLength(0);
     expect(buildDayAgenda("2026-08-04", [], done, { includeDone: true })).toHaveLength(1);
+  });
+
+  it("leads today with what is late, oldest first, and says so — and only on today", () => {
+    const tasks = [task("heute", "2026-08-04"), task("vorgestern", "2026-08-02"), task("gestern", "2026-08-03"), task("alt erledigt", "2026-08-01", true)];
+    const items = buildDayAgenda("2026-08-04", [], tasks, { today: "2026-08-04" });
+    expect(items.map((i) => (i.kind === "task" ? [i.task.title, i.overdue] : null))).toEqual([
+      ["vorgestern", true], ["gestern", true], ["heute", false],
+    ]);
+    // Another day shows its own tasks; without a today nothing is late.
+    expect(buildDayAgenda("2026-08-03", [], tasks, { today: "2026-08-04" }).map((i) => i.kind === "task" && i.task.title)).toEqual(["gestern"]);
+    expect(buildDayAgenda("2026-08-04", [], tasks).map((i) => i.kind === "task" && i.task.title)).toEqual(["heute"]);
   });
 
   it("orders equal starts by title so the list does not reshuffle", () => {
@@ -66,7 +79,9 @@ describe("buildDayStrip", () => {
 });
 
 describe("buildDayAgenda · tasks that carry a time (S6)", () => {
-  const task = (title: string, dueMinutes?: number) => ({ path: `T/${title}.md`, title, done: false, due: "2026-08-09", dueMinutes });
+  const task = (title: string, dueMinutes?: number): AgendaTask => ({
+    id: `db:T/${title}.md`, source: "database", path: `T/${title}.md`, title, state: "open", due: "2026-08-09", dueMinutes: dueMinutes ?? null, priority: 0, tags: [],
+  });
 
   it("orders timed tasks by the clock and puts them before the day-granular rest", () => {
     // Until S6 a task could not carry a time, so title order was the only

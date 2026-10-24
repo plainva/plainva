@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { InlineSuggestProvider, LocalModelsProvider, newEntries, requestNew, type NewHandlers } from "@plainva/ui";
+import { newEntries, type NewHandlers } from "@plainva/ui";
 import { NavBar } from "./components/NavBar";
-import { tabTapped } from "./services/tabTap";
+import { newInTab, tabTapped } from "./services/tabTap";
 import { useTranslation } from "react-i18next";
 import { Cloud, FileText, Plus } from "lucide-react";
 import {
@@ -26,7 +26,7 @@ import { backupVaultNow } from "./services/vaultBackup";
 import { rebuildVaultIndex } from "./services/indexMaintenance";
 import { useIndexAutoUpdate } from "./services/useIndexAutoUpdate";
 import { usePinboardDraftSweep } from "./services/usePinboardDraftSweep";
-import { startPim, stopPim } from "./services/pim/pimService";
+import { restartPimAfterImport, startPim, stopPim } from "./services/pim/pimService";
 import { onAppBackground, onAppForeground } from "./services/appLifecycle";
 import { recordProcessExitsOnBoot } from "./services/processExits";
 import { startMobileMail, stopMobileMail } from "./services/mail/mailRuntime";
@@ -34,13 +34,14 @@ import { useConnectRun } from "./hooks/useConnectRun";
 import { useConnectionRun } from "./hooks/useConnectionRun";
 import { resumePimOAuthResult } from "./services/pim/pimOAuth";
 import { useDeepLinkNav } from "./hooks/useDeepLinkNav";
+import { useFolderLinkNav } from "./hooks/useFolderLinkNav";
 import { useSoftKeyboard } from "./hooks/useSoftKeyboard";
 import { cancelConnect, finishConnect, listPendingConnectFolders as oauthListFolders, createPendingConnectFolder as oauthCreateFolder, restorePendingConnect } from "./services/oauthService";
 import { routeAppUrl } from "./services/appUrlRoutes";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { App as CapApp } from "@capacitor/app";
 import { mActions, mPrompt } from "./services/mobileDialogs";
-import { askBeforeLeaving } from "./services/leaveQuestion";
+import { askBeforeLeaving, leaveThen } from "./services/leaveQuestion";
 import { createNavActions, restoreSession } from "./services/navActions";
 import { bindConflictStore } from "./services/conflictState";
 import { useNavPersistence } from "./services/sessionState";
@@ -63,7 +64,7 @@ import { StartupSheets } from "./components/StartupSheets";
 import { markReleaseDialogSeen, pendingReleaseDialog, type ReleaseDialog } from "./services/mobileWhatsNew";
 import {
   activeFolderPath,
-  backStep, currentArea,
+  backStep, calendarEntry, currentArea,
   ensureVisibleTab,
   hidesTabBar,
   initialNavState,
@@ -84,7 +85,8 @@ import { buildMobileCommands } from "./services/mobileCommands";
 import { getWindowClass, isRailClass, subscribeWindowClass } from "./services/windowClass";
 import { useAdaptiveSplit } from "./hooks/useAdaptiveSplit";
 import { FabMenu } from "./components/FabMenu";
-import { MobileAiShell, openAiNoteTarget, useMobileAi, withoutAiArea } from "./components/MobileAiShell";
+import { aiShellRoutes, MobileAiShell, useMobileAi, withoutAiArea } from "./components/MobileAiShell";
+import { ShellProviders } from "./components/ShellProviders";
 
 // Tab/stack shell (rebuilt in R2): the bottom bar carries up to four
 // user-chosen screens around the fixed ＋ (M3 navigation bar); search and
@@ -262,8 +264,8 @@ export default function App() {
     // the mailbox invisible until the next app start.
     const onAccountsImported = () => {
       void getMobileVault().then((v) => {
-        stopPim();
-        void startPim(v).catch((e) => console.error("[import] pim restart failed", e));
+        // Queued behind a sign-in that is being stored (pimService).
+        void restartPimAfterImport(v).catch((e) => console.error("[import] pim restart failed", e));
         stopMobileMail();
         startMobileMail(v);
         setBump((n) => n + 1);
@@ -273,7 +275,7 @@ export default function App() {
       const { path, vaultId } = (event as CustomEvent<{ path: string; vaultId: string }>).detail;
       if (barVaultRef.current !== vaultId) return;
       const folder = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
-      setNav(st => pushEntry(st, { kind: "folder", path: folder }));
+      leaveThen(() => setNav(st => pushEntry(st, { kind: "folder", path: folder })));
     };
     window.addEventListener("m-reveal-file", onRevealFile);
     window.addEventListener("m-vault-changed", onChanged);
@@ -389,6 +391,7 @@ export default function App() {
 
   useConnectRun(setNav);
   useDeepLinkNav(setNav);
+  useFolderLinkNav(setNav, barVaultRef);
 
   // Whether a tablet stands two columns, and whether the navigator is folded
   // away. Above the early return with the rest: it holds state and a
@@ -401,7 +404,7 @@ export default function App() {
   // switch, so the timer is cancelled on pointerup/leave. Declared above the
   // early return: hooks must run in the same order on every render.
 
-  useCommentShell(vault, useCallback((entry) => setNav((s) => pushEntry(s, entry)), []));
+  useCommentShell(vault, useCallback((entry) => leaveThen(() => setNav((s) => pushEntry(s, entry))), []));
   const ai = useMobileAi(vault, () => commandNotePath(nav));
   if (!vault) return <div className="m-app" />;
 
@@ -409,7 +412,7 @@ export default function App() {
 
   // push / pop / replace live together in services/navActions: `pop` is the
   // only asynchronous one, and that asymmetry is what #47 tripped over.
-  const { push, pop, replace } = createNavActions(setNav, setBump);
+  const { push, pop, done, replace } = createNavActions(setNav, setBump);
 
 
   // What a tapped vault path becomes. Declared before `openNote` because that
@@ -437,10 +440,10 @@ export default function App() {
   };
 
   const capture = () => {
-    // Context-aware (P3): capture into the folder the user is looking at,
-    // else the configurable inbox (R3.6).
+    // Context-aware (P3): capture into the folder the user is looking at, else
+    // the configurable inbox (R3.6). `createNote` asks for the note's type.
     const folder = browseFolder() || getMobileSettings().inboxFolder;
-    void vaultOps.createNote(vault, folder, "Note").then((path) => {
+    void vaultOps.createNote(vault, folder).then((path) => {
       // null = the template's questions were cancelled, so nothing was created.
       if (path) setNav((s) => pushCapturedNote(s, slots, path));
     });
@@ -457,12 +460,12 @@ export default function App() {
 
   const runPendingIntents = (
     <PendingIntentRunner
-      onCapture={capture}
-      onNewTask={() => { requestNew("task"); void tabTapped("tasks", setNav); }}
+      onCapture={() => leaveThen(capture)}
+      onNewTask={() => void newInTab("task", "tasks", setNav)}
       onJournal={() => setJournalCapture({ text: "" })}
-      onOpenCalendar={(focus) => setNav((n) => pushEntry(n, { kind: "pimcalendar", path: focus ? JSON.stringify(focus) : "" }))}
-      onOpenNote={openNote}
-      onOpenToday={() => openDaily(journalTodayKey())}
+      onOpenCalendar={(focus) => leaveThen(() => setNav((n) => pushEntry(n, calendarEntry(focus))))}
+      onOpenNote={(path) => leaveThen(() => openNote(path))}
+      onOpenToday={() => leaveThen(() => openDaily(journalTodayKey()))}
       pendingShortcut={pendingShortcut}
       setPendingShortcut={setPendingShortcut}
     />
@@ -532,7 +535,7 @@ export default function App() {
         subfoldersHeading: t("indexMd.subfoldersHeading"),
       });
       await applyTemplateSettings(def?.settings);
-      await vault.indexer?.indexVaultFull();
+      await vault.indexer?.indexVaultFull("vault template");
       window.dispatchEvent(new CustomEvent("m-vault-changed"));
     })().catch((e) => console.error("template scaffold failed", e));
   };
@@ -569,7 +572,7 @@ export default function App() {
       const nv = await getMobileVault();
       if (def) {
         await applyTemplateSettings(def.settings);
-        await nv.indexer?.indexVaultFull();
+        await nv.indexer?.indexVaultFull("vault template");
       }
       window.dispatchEvent(new CustomEvent("m-vault-changed"));
     })().catch((e) => console.error("create vault failed", e));
@@ -627,8 +630,8 @@ export default function App() {
     journal: () => setJournalCapture({ text: "" }),
     folder: quickNewFolder,
     base: quickNewDatabase,
-    event: () => { requestNew("event"); void tabTapped("today", setNav); },
-    task: () => { requestNew("task"); void tabTapped("tasks", setNav); },
+    event: () => void newInTab("event", "today", setNav),
+    task: () => void newInTab("task", "tasks", setNav),
   };
   const commands = buildMobileCommands({
     newNote: capture,
@@ -662,7 +665,7 @@ export default function App() {
   });
 
   const routeCtx = {
-    vault, vaultName, bump, push, pop, replace, setNav,
+    vault, vaultName, bump, push, pop, done, replace, setNav,
     openNote, openBase, openDaily, createVaultFlow, quickNewDatabase,
     openAttachment,
     captureNote: capture,
@@ -673,9 +676,7 @@ export default function App() {
 
   const hasFab = onboarded && showsCaptureFab(top, nav.activeTab); // the strip: reservesFabStrip
   return (
-    // `[[` and `#` in the capture fields read this vault's index (W5).
-    <InlineSuggestProvider source={vault.queryService ?? null}>
-    <LocalModelsProvider embeddings={ai.embeddings} gists={ai.gists}>
+    <ShellProviders index={vault.queryService ?? null} embeddings={ai.embeddings} gists={ai.gists}>
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
       <ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} />
@@ -717,7 +718,7 @@ export default function App() {
           areasOpen={areasOpen}
           navCollapsed={navCollapsed}
           onOpenAreas={() => setAreasOpen(true)}
-          onOpenSettings={() => setNav((st) => pushEntry({ ...st, overlay: [] }, { kind: "settings", path: "" }))}
+          onOpenSettings={() => leaveThen(() => setNav((st) => pushEntry({ ...st, overlay: [] }, { kind: "settings", path: "" })))}
           onPick={(id) => void tabTapped(id, setNav)}
           onToggleNav={splitPossible ? toggleNav : undefined}
           tabs={slots}
@@ -740,7 +741,7 @@ export default function App() {
             setAreasOpen(false);
             // Straight to the setting that arranges the bar — noticing "this
             // should be in the bar" and fixing it is one tap apart.
-            setNav((s) => pushEntry({ ...s, overlay: [] }, { kind: "more", path: "" }));
+            leaveThen(() => setNav((s) => pushEntry({ ...s, overlay: [] }, { kind: "more", path: "" })));
           }}
           onClose={() => setAreasOpen(false)}
           onPick={(id) => {
@@ -748,11 +749,11 @@ export default function App() {
             haptics.light();
             // In the bar → switch tabs. Outside it → push the screen as an
             // overlay, so back returns to where the user came from.
-            setNav((s) =>
+            leaveThen(() => setNav((s) =>
               slots.includes(id)
                 ? tapTab(s, id)
                 : pushEntry({ ...s, overlay: [] }, SCREEN_ENTRY[id])
-            );
+            ));
           }}
         />
       )}
@@ -769,11 +770,11 @@ export default function App() {
         <JournalCaptureSheet
           initialText={journalCapture.text}
           onClose={() => setJournalCapture(null)}
-          onSwitchToTask={(text) => { setJournalCapture(null); requestNew("task", text); void tabTapped("tasks", setNav); toast.info(t("journal.handoverTask")); }}
+          onSwitchToTask={(text) => void newInTab("task", "tasks", setNav, text).then((went) => { if (went) { setJournalCapture(null); toast.info(t("journal.handoverTask")); } })}
           vault={vault}
         />
       )}
-      <MobileAiShell ai={ai} nav={{ openNote, openSearch: () => push({ kind: "search", path: "" }), openSettings: () => push({ kind: "settingsArea", path: "ai" }), openMailDraft: (mail) => { ai.closeSheet(); push({ kind: "mailcompose", path: JSON.stringify({ accountId: "", ...mail }) }); }, openEventEditor: () => { ai.closeSheet(); void tabTapped("today", setNav); }, commands }} onOpenNote={(target) => openAiNoteTarget(vault, target, openNote)} onOpenScreen={() => setNav((s) => (slots.includes("ai") ? tapTab(s, "ai") : pushEntry({ ...s, overlay: [] }, SCREEN_ENTRY.ai)))} />
+      <MobileAiShell ai={ai} {...aiShellRoutes({ ai, vault, openNote, push, setNav, commands, aiInBar: slots.includes("ai") })} />
       {fromTemplate && (
         <TemplatePickSheet
           onClose={() => setFromTemplate(false)}
@@ -784,8 +785,7 @@ export default function App() {
         />
       )}
     </div>
-    </LocalModelsProvider>
-    </InlineSuggestProvider>
+    </ShellProviders>
   );
 }
 

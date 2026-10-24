@@ -30,7 +30,7 @@ export interface RefreshSyncWorker {
 }
 
 export interface RefreshIndexer {
-  indexVaultFull(): Promise<IndexScanReport>;
+  indexVaultFull(trigger?: string): Promise<IndexScanReport>;
 }
 
 /** What the cloud half of a refresh did. */
@@ -52,6 +52,8 @@ export interface VaultRefreshOptions {
   syncWorker: RefreshSyncWorker | null;
   /** Skip the cloud half (focus trigger inside the throttle window). */
   skipCloud?: boolean;
+  /** What set the refresh off, for the full scan's diagnostics line. */
+  trigger?: string;
 }
 
 /**
@@ -60,7 +62,7 @@ export interface VaultRefreshOptions {
  * not swallow the local report the user asked for.
  */
 export async function runVaultRefresh(opts: VaultRefreshOptions): Promise<VaultRefreshResult> {
-  const local = await opts.indexer.indexVaultFull();
+  const local = await opts.indexer.indexVaultFull(opts.trigger ?? "refresh");
 
   let cloud: CloudRefreshOutcome = "none";
   const worker = opts.syncWorker;

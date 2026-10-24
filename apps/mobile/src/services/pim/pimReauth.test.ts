@@ -2,93 +2,72 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const begin = vi.fn(async () => {});
-/** Keyed by account id — `own` and the siblings must not share one answer. */
-const credsByAccount = new Map<string, unknown>();
-const provider = vi.fn(async () => null as unknown);
-const accountToken = vi.fn(async () => null as unknown);
-const accounts = vi.fn(async () => [] as unknown[]);
-const records = vi.fn(async () => [] as unknown[]);
-vi.mock("@capacitor/core", () => ({ Capacitor: { getPlatform: () => "android" } }));
+const { begin, records, AccessUnavailableError } = vi.hoisted(() => {
+  class AccessUnavailableError extends Error {
+    constructor(readonly family: string) {
+      super("no access");
+    }
+  }
+  return {
+    begin: vi.fn(async (..._args: unknown[]) => ({ kind: "started" }) as unknown),
+    records: vi.fn(async () => [] as unknown[]),
+    AccessUnavailableError,
+  };
+});
 
 vi.mock("../vaultRegistry", () => ({ getActiveVaultEntry: async () => ({ id: "v1" }) }));
-vi.mock("./pimOAuth", () => ({ beginPimOAuth: (...a: unknown[]) => begin(...(a as [])) }));
-vi.mock("./pimCredentials", () => ({
-  getPimCredentials: async (_vault: string, accountId: string) => credsByAccount.get(accountId) ?? null,
-}));
-vi.mock("./pimService", () => ({ listPimAccounts: () => accounts() }));
-vi.mock("../syncService", () => ({ getStoredProvider: () => provider() }));
-vi.mock("../accountBroker", () => ({ getAccountToken: () => accountToken() }));
 vi.mock("../cloudAccountsStore", () => ({ loadCloudAccounts: () => records() }));
+vi.mock("../accountSignIn", () => ({
+  AccessUnavailableError,
+  beginMobileSignIn: (...a: unknown[]) => begin(...a),
+}));
 
 import { reauthorizeCalendarAccount } from "./pimReauth";
 
 /**
- * Re-authorising a calendar account that arrived through the settings sync.
- *
- * Client ids are device-local by design — they are stripped from the profile so
- * a desktop BYO id never travels to the phone. The consequence nobody drew: the
- * row on the receiving device has no slot, and asking only the slot produced
- * "Google needs its own client id" for an id the device was already holding in
- * its Drive sync (finding 2026-08-19). The user could not act on that answer:
- * the form it pointed at was not open.
+ * Renewing a Google or Microsoft calendar is its card's "Sign in again"
+ * (account sign-in plan K4b). Until then this module ran a consent for the
+ * calendar alone, with a client id looked up along a chain of its own - the
+ * second way to sign in that the plan removes.
  */
 describe("reauthorizeCalendarAccount", () => {
   beforeEach(() => {
-    vi.unstubAllEnvs();
-    begin.mockClear();
-    credsByAccount.clear();
-    provider.mockResolvedValue(null);
-    accountToken.mockResolvedValue(null);
-    accounts.mockResolvedValue([]);
+    begin.mockReset();
+    begin.mockResolvedValue({ kind: "started" });
     records.mockResolvedValue([]);
   });
 
-  it("uses the configured native test client for a calendar received on another device", async () => {
-    vi.stubEnv("VITE_PLAINVA_GOOGLE_MAIL_STATE", "testing");
-    vi.stubEnv("VITE_PLAINVA_GOOGLE_ANDROID_CLIENT_ID", "native-test.apps.googleusercontent.com");
-    expect(await reauthorizeCalendarAccount({ id: "synced", label: "Google", provider: "google" })).toEqual({ kind: "started" });
-    expect(begin).toHaveBeenCalledWith("google", expect.objectContaining({ clientId: "native-test.apps.googleusercontent.com", accountId: "synced" }));
+  it("signs the card that carries the calendar in again, for everything it carries", async () => {
+    records.mockResolvedValue([
+      { id: "other", family: "google", label: "b@example.com", services: { files: { provider: "drive" } } },
+      { id: "card-a", family: "google", label: "a@example.com", services: { calendar: { pimAccountId: "cal-1" } } },
+    ]);
+    expect(await reauthorizeCalendarAccount({ id: "cal-1", label: "Google", provider: "google" })).toEqual({ kind: "started" });
+    expect(begin).toHaveBeenCalledWith("v1", { family: "google", cardId: "card-a", add: [] });
   });
 
-  it("signs in with the client id of the file sync when the row has no slot", async () => {
-    provider.mockResolvedValue({ provider: "drive", creds: { clientId: "from-sync", clientSecret: "s" } });
-    const out = await reauthorizeCalendarAccount({ id: "a1", label: "Google", provider: "google" });
-    expect(out).toEqual({ kind: "started" });
-    expect(begin).toHaveBeenCalledWith("google", expect.objectContaining({ clientId: "from-sync", accountId: "a1" }));
-  });
-
-  it("borrows from another calendar account of the same provider", async () => {
-    accounts.mockResolvedValue([{ id: "a2", provider: "google" }]);
-    credsByAccount.set("a2", { kind: "google", clientId: "from-sibling" });
-    const out = await reauthorizeCalendarAccount({ id: "a1", label: "Google", provider: "google" });
-    expect(out).toEqual({ kind: "started" });
-    expect(begin).toHaveBeenCalledWith("google", expect.objectContaining({ clientId: "from-sibling" }));
-  });
-
-  it("keeps the SAME account id, so calendars and task anchors survive", async () => {
-    provider.mockResolvedValue({ provider: "onedrive", creds: { clientId: "ms" } });
+  it("works the same for Microsoft", async () => {
+    records.mockResolvedValue([{ id: "card-m", family: "microsoft", label: "m@example.com", services: { calendar: { pimAccountId: "keep-me" } } }]);
     await reauthorizeCalendarAccount({ id: "keep-me", label: "Outlook", provider: "microsoft" });
-    expect(begin).toHaveBeenCalledWith("microsoft", expect.objectContaining({ accountId: "keep-me" }));
+    expect(begin).toHaveBeenCalledWith("v1", { family: "microsoft", cardId: "card-m", add: [] });
   });
 
-  it("never borrows a Drive id for a Microsoft account", async () => {
-    provider.mockResolvedValue({ provider: "drive", creds: { clientId: "google-id" } });
-    await reauthorizeCalendarAccount({ id: "a1", label: "Outlook", provider: "microsoft" });
-    // Microsoft still starts — on the shipped central registration, not on a
-    // Google client id that would be rejected.
-    expect(begin).toHaveBeenCalledWith("microsoft", expect.not.objectContaining({ clientId: "google-id" }));
+  it("asks for this device's access when it has none", async () => {
+    records.mockResolvedValue([{ id: "card-a", family: "google", label: "a@example.com", services: { calendar: { pimAccountId: "cal-1" } } }]);
+    begin.mockRejectedValue(new AccessUnavailableError("google"));
+    expect(await reauthorizeCalendarAccount({ id: "cal-1", label: "Google", provider: "google" })).toEqual({ kind: "needsAccess", family: "google" });
   });
 
-  it("asks the form only when the device really holds nothing", async () => {
-    const out = await reauthorizeCalendarAccount({ id: "a1", label: "Google", provider: "google" });
-    expect(out).toEqual({ kind: "needsForm", provider: "google", reason: "missingClientId" });
+  it("never runs a consent of its own for a calendar no card carries", async () => {
+    const out = await reauthorizeCalendarAccount({ id: "orphan", label: "Google", provider: "google" });
+    expect(out.kind).toBe("failed");
     expect(begin).not.toHaveBeenCalled();
   });
 
-  it("sends CalDAV to the form without touching the chain", async () => {
+  it("sends CalDAV to the form without a sign-in", async () => {
     const out = await reauthorizeCalendarAccount({ id: "a1", label: "Fastmail", provider: "caldav" });
     expect(out).toEqual({ kind: "needsForm", provider: "caldav", reason: "caldav" });
+    expect(begin).not.toHaveBeenCalled();
   });
 });
 
@@ -96,11 +75,11 @@ describe("reauthorizeCalendarAccount", () => {
  * The outcome must OPEN the form, not merely preselect inside a closed sheet.
  *
  * Read from the source: the form is a sheet gated on `formOpen`, and the branch
- * that answers `needsForm` is a handful of setter calls — a test with a mounted
+ * that answers `needsForm` is a handful of setter calls - a test with a mounted
  * screen would be asserting against its own harness, while what can regress is
- * exactly a missing `setFormOpen(true)` or a hard-wired provider.
+ * exactly a missing `setFormOpen(true)`.
  */
-describe("the accounts screen acts on needsForm", () => {
+describe("the accounts screen acts on the outcome", () => {
   const source = readFileSync(join(__dirname, "..", "..", "screens", "PimAccountsScreen.tsx"), "utf-8");
   const branch = (() => {
     const start = source.indexOf('if (out.kind === "needsForm")');
@@ -108,11 +87,12 @@ describe("the accounts screen acts on needsForm", () => {
     return source.slice(start, source.indexOf("\n    }", start));
   })();
 
-  it("opens the sheet", () => {
+  it("opens the CalDAV form", () => {
     expect(branch).toContain("setFormOpen(true)");
+    expect(branch).toContain('setAddProvider("caldav")');
   });
 
-  it("preselects the account's own provider instead of defaulting to Google", () => {
-    expect(branch).toContain('a.provider === "microsoft" ? "microsoft"');
+  it("opens the access sheet when the device has no access", () => {
+    expect(source).toContain('if (out.kind === "needsAccess") { setAccessFor(out.family); return; }');
   });
 });

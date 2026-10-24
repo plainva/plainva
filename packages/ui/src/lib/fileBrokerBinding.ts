@@ -1,5 +1,5 @@
 import type { CloudAccountRecord } from "./cloudAccounts";
-import { sameOAuthClient, tokenCoversService, type StoredAccountToken } from "./tokenBroker";
+import { hasStoredAccountGrant, sameOAuthClient, tokenCoversService, type StoredAccountToken } from "./tokenBroker";
 
 export interface FileBrokerBinding {
   provider: "drive" | "onedrive";
@@ -24,7 +24,10 @@ export async function resolveFileBrokerAccount(
   for (const record of records) {
     if (!fileBrokerMatches(record, binding)) continue;
     const token = await read(record.id);
-    if (token?.refreshToken && sameOAuthClient(token, binding)
+    // A grant through Android's system sheet has no refresh token; the broker
+    // renews it there. Asking for a refresh token here left such a Drive vault
+    // without access once its slot was handed to the card.
+    if (hasStoredAccountGrant(token) && sameOAuthClient(token, binding)
       && tokenCoversService(token, "files", binding.provider === "drive" ? "google" : "microsoft")) matches.push(record);
   }
   return matches.length === 1 ? matches[0] : undefined;

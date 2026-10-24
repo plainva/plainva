@@ -20,6 +20,7 @@ export function TaskNamesNotice({ vault, reloadKey, onChanged }: { vault: Mobile
     exists: (path) => vault.files.exists(path),
     readTextFile: (path) => vaultOps.read(vault, path),
     writeTextFile: (path, content) => vaultOps.save(vault, path, content),
+    updateTextFile: (path, change) => vaultOps.update(vault, path, change),
     renameNote: async (from, to) => {
       const title = (to.split("/").pop() ?? to).replace(/\.md$/i, "");
       const result = await vaultOps.renameReport(vault, from, title);

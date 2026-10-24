@@ -18,7 +18,9 @@ jobs:
       statuses: write
     steps:
       - name: "CLA Assistant"
-        if: (github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA') || github.event_name == 'pull_request_target'
+        # `recheck` re-reads the signatures for a pull request whose author
+        # signed earlier, without a new push to it (the action handles it).
+        if: (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA') || github.event_name == 'pull_request_target'
         uses: cla-assistant/github-action@v2.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -30,5 +32,10 @@ jobs:
         with:
           path-to-signatures: 'signatures/version1/cla.json'
           path-to-document: 'https://github.com/plainva/plainva/blob/main/CLA.md'
-          branch: 'main'
+          # The bot commits each signature itself, so the file cannot live on
+          # `main`: `main` only accepts commits whose required checks are green,
+          # and a signature commit has none ("4 of 4 required status checks are
+          # expected" - every signature after 2026-09-28 was lost that way). The
+          # branch `cla-signatures` holds this record and must stay unprotected.
+          branch: 'cla-signatures'
           allowlist: 'bot*,dependabot*'

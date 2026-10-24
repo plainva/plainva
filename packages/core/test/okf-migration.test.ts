@@ -24,6 +24,11 @@ describe("readRootOkfDeclaration", () => {
     expect(readRootOkfDeclaration("# Vault\n\n* [a](a.md)\n")).toBeNull();
     expect(readRootOkfDeclaration("---\ntitle: x\n---\n")).toBeNull();
     expect(readRootOkfDeclaration('---\nokf_version: ""\n---\n')).toBeNull();
+    // A block without entries declares nothing — and neither does the listing
+    // behind it, up to whatever rule that listing contains.
+    expect(readRootOkfDeclaration("---\n---\n# Vault\n")).toBeNull();
+    expect(readRootOkfDeclaration('---\n---\nokf_version: "0.1"\n\n---\n')).toBeNull();
+    expect(bumpRootOkfDeclaration('---\n---\nokf_version: "0.1"\n\n---\n').changed).toBe(false);
   });
 });
 

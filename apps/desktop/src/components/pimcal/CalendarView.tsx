@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { CalendarRange, CheckSquare, ChevronLeft, Diamond, ChevronRight, Link2, ListChecks, MapPin, Plus, RefreshCw, Repeat, Square, Users } from "lucide-react";
+import { CalendarRange, ChevronLeft, Diamond, ChevronRight, Link2, ListChecks, MapPin, Plus, RefreshCw, Repeat, Users } from "lucide-react";
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { errorText, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, layoutSpanningEvents, sameEventRef, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
+import { errorText, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, markFreshNote, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
 import { PimConflictError, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
 import {
   blockLinkKey,
@@ -22,21 +22,19 @@ import {
   updateEventWithBlockers,
   type BlockFollowDeps,
   type BlockFollowReport,
-  type EventWriteOutcome,
   type ResolvedBlocker,
 } from "@plainva/ui";
-import { CalendarSyncNotice, type EventChange } from "@plainva/ui";
+import { CalendarSyncNotice, syncProblemsFor, type EventChange } from "@plainva/ui";
 import { useVault, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { listExistingDailyNotes } from "../../services/dailyNotes";
 import { useDailyNoteAction } from "../../hooks/useDailyNoteAction";
-import { getTaskDatabasePath } from "../../services/taskDatabase";
 import { loadCalendarOverlays, saveCalendarOverlays } from "../../services/pim/calendarOverlays";
-import { loadTaskOverlay, type DueTask } from "../../services/pim/taskOverlay";
-import { toggleTaskDone } from "../../services/taskCompletion";
+import { compareDueTasks, loadTaskOverlay, type DueTask } from "../../services/pim/taskOverlay";
+import { tickNoteTask, toggleTaskDone } from "../../services/taskCompletion";
 import type { TaskCompletionModel } from "../../services/taskDatabase";
 import { usePageWheel } from "./pageWheel";
-import { CALENDAR_GOTO_EVENT, calendarDay, consumeEventSeed, consumePendingCalendarDay, consumePendingNew, eventFormFromSeed, setPendingTemplateCaret } from "@plainva/ui";
+import { calendarDay, consumePendingNew, checkboxJumpTerm, parkTemplateCaret, setPendingSearchJump, TaskStateIcon, CALENDAR_GOTO_EVENT, consumeEventSeed, consumePendingCalendarDay, eventFormFromSeed } from "@plainva/ui";
 import { isAuthorizationFailure, runCalendarBlocks } from "../../services/pim/blockCalendars";
 import { eventStateClass, eventStateLabelKey, eventVisualState } from "@plainva/ui";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -103,6 +101,23 @@ const AGENDA_DAYS = 60;
 /* draftToRow / sameEventRef live in @plainva/ui since S24 — both shells write
  * events the same way, so the optimistic row is the same row. */
 
+/** The month's week numbers, one per row in the grid's first column (wish 2026-10-19). */
+function MonthWeekColumn({ weeks }: { weeks: number[] }) {
+  return (
+    <>
+      {weeks.map((weekNo, row) => (
+        <div
+          key={`week-${row}`}
+          data-testid="calendar-week-number"
+          style={{ gridRow: row + 1, gridColumn: 1, textAlign: "end", padding: "var(--space-1) var(--space-1) 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)", fontVariantNumeric: "tabular-nums" }}
+        >
+          {weekNo}
+        </div>
+      ))}
+    </>
+  );
+}
+
 export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewProps) {
   const { t, i18n } = useTranslation();
   const { pimRuntime, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, queryService, fileTreeVersion } = useVault();
@@ -144,6 +159,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   }, [viewMode]);
   // App-wide first-day-of-week (settings; shared with the sidebar widget).
   const weekStartDay = useWeekStartDay();
+  // Week numbers: one choice for every calendar on the device, ISO weeks only
+  // on Monday rows (wish 2026-10-19).
+  const [showWeeksChoice] = useShowWeekNumbers();
+  const showWeeks = weekNumbersShown(showWeeksChoice, weekStartDay);
   // The date jump picker under the title (plan Kalender 2026-09-10, P2).
   const [jumpOpen, setJumpOpen] = useState(false);
   const titleRef = useRef<HTMLButtonElement>(null);
@@ -158,9 +177,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   // Accounts and calendars that are not being synced — the line above the grid.
   const [syncProblems, setSyncProblems] = useState<PimSyncProblem[]>([]);
   const [tick, setTick] = useState(0);
-  // Optional: overlay the standard task database's due-dated tasks (device-local
-  // view preference, like the graph pins). Only offered when a task DB exists.
-  const [hasTaskDb, setHasTaskDb] = useState(false);
+  // Optional: overlay the due-dated tasks (device-local view preference, like
+  // the graph pins) — the task database's entries and the checkboxes in notes.
+  // Always offered: it used to need a task database, and every vault can hold
+  // checkboxes with a due date (TestFlight 136).
   const [taskError, setTaskError] = useState<string | null>(null);
   const [showTasks, setShowTasks] = useState(() => {
     try {
@@ -211,6 +231,11 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     const grid = buildMonthCells(viewDate, weekStartDay);
     return { cells: grid, gridDays: [] as Date[], rangeStartTs: grid[0].getTime(), rangeEndTs: grid[grid.length - 1].getTime() + DAY_MS };
   }, [viewMode, viewDate, selectedDate, weekStartDay]);
+  // The month's week column: a narrow first column, so cells and bars move
+  // one column right (their placement is explicit).
+  const monthWeeks = showWeeks && cells.length > 0 ? isoWeeksForCells(cells) : null;
+  const weekCol = monthWeeks ? 1 : 0;
+  const monthColumns = monthWeeks ? "24px repeat(7, minmax(0, 1fr))" : "repeat(7, 1fr)";
 
   // Sidebar calendar hand-off: "show this day in the calendar tab". A freshly
   // mounting tab consumes the parked day (the event fired before the listener
@@ -284,7 +309,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         setAccounts(acc);
         setCalendars(cals);
         setEvents(evs);
-        setSyncProblems(notFresh);
+        // The task lists have their line above the task view (B2).
+        setSyncProblems(syncProblemsFor(notFresh, "calendar"));
       } catch {
         /* cache unreadable — leave the previous state */
       }
@@ -293,23 +319,6 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       stale = true;
     };
   }, [pimRuntime, rangeStartTs, rangeEndTs, tick]);
-
-  // Does a standard task database exist? (Only then is the toggle offered.)
-  useEffect(() => {
-    let alive = true;
-    if (!vaultPath) {
-      setHasTaskDb(false);
-      return;
-    }
-    getTaskDatabasePath(vaultPath)
-      .then((p) => {
-        if (alive) setHasTaskDb(!!p);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [vaultPath]);
 
   useEffect(() => {
     try {
@@ -320,7 +329,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   }, [showTasks]);
 
   // Task overlay: due-dated rows of the standard task database, classified with
-  // the SAME shared status model the reconciler uses (so "done" is consistent).
+  // the SAME shared status model the reconciler uses (so "done" is consistent),
+  // and the checkboxes in notes with a `📅`, chosen by the shared rule.
   useEffect(() => {
     let alive = true;
     if (!showTasks || !vaultPath || !queryService || !vaultAdapter) {
@@ -329,12 +339,12 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     }
     void (async () => {
       try {
-        const out = await loadTaskOverlay({ vaultPath, vaultAdapter, queryService });
+        const out = await loadTaskOverlay({ vaultPath, vaultAdapter, queryService }, { notes: true });
         if (alive) {
           setTasks(out.tasks);
           setTaskCompletion(out.completion);
           setTaskDueKey(out.dueKey);
-          setTaskError(null);
+          setTaskError(out.error !== undefined ? errorText(out.error) : null);
         }
       } catch (err) {
         // S18: the tasks simply vanished from the grid. A calendar missing its
@@ -453,11 +463,14 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         await writeNoteProperty(vaultAdapter, entry.path, entry.dateField, day);
         if (indexer) await applyIndexChanges(indexer, { added: [entry.path] });
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        // The sentence every refused property write gets, with the reason as
+        // `errorText` reads it: the bare message of a block that is no YAML
+        // quotes the note's own line.
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
         setOverlayEntries((prev) => prev.map((x) => (x.path === entry.path && x.basePath === entry.basePath ? { ...x, day: entry.day } : x)));
       }
     },
-    [vaultAdapter, indexer]
+    [vaultAdapter, indexer, t]
   );
 
   /**
@@ -468,14 +481,31 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
    * occurrence of a repeating task. A second implementation would drift, and a
    * drift can un-complete a remote task.
    */
+  /** A task opens where it lives: a database entry as its note, a checkbox at its line. */
+  const openTask = useCallback(
+    (task: CalTask) => {
+      if (task.source === "note" && task.line) setPendingSearchJump({ path: task.path, term: checkboxJumpTerm(task.line.text) });
+      onOpenPath(task.path, false);
+    },
+    [onOpenPath]
+  );
+
   const toggleTaskFromCalendar = useCallback(
     (task: CalTask) => {
-      if (!vaultAdapter || !taskCompletion) return;
+      if (!vaultAdapter) return;
+      if (task.source === "database" && !taskCompletion) return;
       const done = !task.done;
       // Optimistic: the row answers immediately, the reload confirms it.
-      setTasks((prev) => prev.map((x) => (x.path === task.path ? { ...x, done } : x)));
+      setTasks((prev) => prev.map((x) => (x.id === task.id ? { ...x, done, state: done ? "done" : "open" } : x)));
       void (async () => {
         try {
+          // A checkbox is ticked in its note's line — the editor's and the task
+          // overview's mutation, through the same step of the chain.
+          if (task.source === "note") {
+            if (task.line) await tickNoteTask({ vaultAdapter, indexer, triggerFileTreeUpdate, onChanged: () => setTick((x) => x + 1) }, task.path, task.line, done);
+            return;
+          }
+          if (!taskCompletion) return;
           const result = await toggleTaskDone(
             {
               vaultAdapter,
@@ -496,8 +526,12 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           }
         } catch (e) {
           console.error("[CalendarView] toggling a task failed", task.path, e);
-          setTasks((prev) => prev.map((x) => (x.path === task.path ? { ...x, done: task.done } : x)));
-          toast.error(t("tasks.statusUpdateFailed", { defaultValue: "Status konnte nicht geändert werden." }));
+          setTasks((prev) => prev.map((x) => (x.id === task.id ? { ...x, done: task.done, state: task.state } : x)));
+          // A database tick writes the note's completion property: the
+          // sentence of a property write, with its reason (finding
+          // 2026-10-12). A checkbox says its reason.
+          if (task.source === "database") toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+          else toast.error(errorText(e));
         }
       })();
     },
@@ -527,6 +561,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       if (arr) arr.push(task);
       else m.set(task.due, [task]);
     }
+    for (const list of m.values()) list.sort(compareDueTasks);
     return m;
   }, [tasks]);
 
@@ -623,14 +658,17 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const periodTitle = useMemo(() => {
     if (viewMode === "agenda") return t("pim.viewAgenda", { defaultValue: "Agenda" });
     if (viewMode === "month") return monthTitle;
-    if (viewMode === "day") return dayTitle;
+    // A time grid names its week when week numbers are on; the month has its
+    // own column for them.
+    const week = showWeeks && gridDays.length > 0 ? ` · ${isoWeekLabel(gridDays, t("calendar.weekShort"))}` : "";
+    if (viewMode === "day") return `${dayTitle}${week}`;
     const first = gridDays[0];
     const last = gridDays[gridDays.length - 1];
     if (!first || !last) return monthTitle;
     const dayNum = new Intl.DateTimeFormat(i18n.language, { day: "numeric" });
     const dayMonth = new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "long" });
-    return `${dayNum.format(first)}.–${dayMonth.format(last)}`;
-  }, [viewMode, monthTitle, dayTitle, gridDays, i18n.language, t]);
+    return `${dayNum.format(first)}.–${dayMonth.format(last)}${week}`;
+  }, [viewMode, monthTitle, dayTitle, gridDays, i18n.language, t, showWeeks]);
 
   // Prev/next steps by the visible period (1 / 3 / 7 days, or one month).
   const navPeriod = useCallback(
@@ -653,6 +691,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
 
   const refresh = useCallback(() => {
     pimRuntime?.worker.triggerImmediate().catch(() => undefined);
+  }, [pimRuntime]);
+  /**
+   * The cycle after a write (issue 119). Never answered by a cycle that was
+   * already running: that one may have read before the write landed.
+   */
+  const refreshAfterWrite = useCallback(() => {
+    pimRuntime?.worker.triggerImmediate({ afterWrite: true }).catch(() => undefined);
   }, [pimRuntime]);
 
   // ---- event writes (stage 3: single events; series stay read-only) -------
@@ -836,24 +881,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     [calName, t]
   );
 
-  /** The loaded row after a write: a drag changed when it is, a form what it says too. */
-  const landWrite = useCallback(
-    (e: PimEventRow, out: Exclude<EventWriteOutcome, { kind: "conflict" }>, moved: boolean, shape: "time" | "form") => {
-      const rows = out.rows;
-      setEvents((prev) => {
-        // Moved: the old row is gone, the new one takes its place. In place:
-        // keep the row's identity, take the edited fields.
-        if (moved) return [...prev.filter((ev) => !sameEventRef(ev, e)), ...rows];
-        const row = rows[0];
-        if (!row) return prev;
-        return prev.map((ev) => {
-          if (!sameEventRef(ev, e)) return ev;
-          return shape === "time" ? { ...ev, start: row.start, end: row.end, allDay: row.allDay } : { ...ev, ...row };
-        });
-      });
-    },
-    []
-  );
+  // A written row is never put into `cachedEvents` (issue 119). The shared
+  // overlay holds it until the cache lists it; a copy here made the overlay
+  // step aside at once, and the next reload from a cycle that had started
+  // before the write took the event off the screen until the cycle after.
 
   /**
    * ONE update of one event, with its blockers (K3). The event and every
@@ -870,7 +901,6 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       }
       if (out.kind === "duplicate") toast.error(out.error instanceof Error ? out.error.message : String(out.error));
       const moved = !!moveTo && (moveTo.accountId !== e.accountId || moveTo.calendarId !== e.calendarId);
-      landWrite(e, out, moved, shape);
       const followed = out.blockers.followed;
       const n = followed.length;
       const message = !announce
@@ -889,9 +919,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         message,
         back && after ? () => retryWrites.current?.apply(after, back, moved ? { accountId: e.accountId, calendarId: e.calendarId } : null, shape) : undefined,
       );
-      refresh();
+      refreshAfterWrite();
     },
-    [followDeps, landWrite, reportBlockers, refresh, t, i18n.language]
+    [followDeps, reportBlockers, refresh, refreshAfterWrite, t, i18n.language]
   );
 
   /**
@@ -955,10 +985,16 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
 
   /** A refused write, said once, with the way to try it again. */
   const reportWriteFailure = useCallback(
-    (error: unknown, retry: () => void) => {
+    (error: unknown, retry: () => void, what: "save" | "delete" = "save") => {
       const reason = error instanceof Error ? error.message : String(error);
-      logDiagnostic("calendar", `event write refused: ${reason}`);
-      toast.error(t("pim.eventWriteRefused", { reason, defaultValue: "Der Termin wurde nicht gespeichert: {{reason}}" }), {
+      logDiagnostic("calendar", `event ${what === "delete" ? "delete" : "write"} refused: ${reason}`);
+      // A refused deletion said "was not saved" (issue 119) - true of nothing
+      // the person had done.
+      const message =
+        what === "delete"
+          ? t("pim.eventDeleteRefused", { reason, defaultValue: "Der Termin wurde nicht gelöscht: {{reason}}" })
+          : t("pim.eventWriteRefused", { reason, defaultValue: "Der Termin wurde nicht gespeichert: {{reason}}" });
+      toast.error(message, {
         label: t("pim.eventWriteRetry", { defaultValue: "Erneut versuchen" }),
         run: retry,
       });
@@ -1016,9 +1052,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           (out) => out.rows.map((row) => ({ kind: "create" as const, row })),
           id,
         ).then(
-          (out) => {
-            setEvents((prev) => [...prev, ...out.rows]);
-            refresh();
+          () => {
+            refreshAfterWrite();
             seeded?.();
           },
           (error) => reportWriteFailure(error, create),
@@ -1026,7 +1061,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       };
       create();
     },
-    [editState, saveEventForm, reportWriteFailure, targetFor, refresh, t]
+    [editState, saveEventForm, reportWriteFailure, targetFor, refreshAfterWrite, t]
   );
 
   // ---- drag reschedule (move/resize existing single events) ----------------
@@ -1088,10 +1123,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: e, patch: { selfResponse: response } }, () =>
         respond({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, response),
       );
-      setEvents((prev) => prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, selfResponse: response } : ev)));
-      refresh();
+      refreshAfterWrite();
     },
-    [targetFor, refresh, t]
+    [targetFor, refreshAfterWrite, t]
   );
 
   // ---- quick colour set (context menu): set/clear the per-event colour without
@@ -1123,10 +1157,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         reportWriteFailure(err, () => retryWrites.current?.color(e, color));
         return;
       }
-      setEvents((prev) => prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, color } : ev)));
-      refresh();
+      refreshAfterWrite();
     },
-    [targetFor, refresh, reportWriteFailure, t]
+    [targetFor, refresh, refreshAfterWrite, reportWriteFailure, t]
   );
 
   // ---- quick create (feedback round 3: click/drag on an empty slot) --------
@@ -1184,19 +1217,17 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       try {
         // Gone from view with the confirmation; a refusal brings it back.
         const report = await deleteEventWithBlockers(followDeps, e, blockers);
-        const gone = [e, ...report.followed];
-        setEvents((prev) => prev.filter((ev) => !gone.some((ref) => sameEventRef(ev, ref))));
         reportBlockers(report, null);
       } catch (err) {
         if (err instanceof PimConflictError) {
           toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
         } else {
-          reportWriteFailure(err, () => retryWrites.current?.remove(e, blockers));
+          reportWriteFailure(err, () => retryWrites.current?.remove(e, blockers), "delete");
         }
       }
-      refresh();
+      refreshAfterWrite();
     },
-    [followDeps, reportBlockers, refresh, reportWriteFailure, t]
+    [followDeps, reportBlockers, refreshAfterWrite, reportWriteFailure, t]
   );
 
   useEffect(() => {
@@ -1262,14 +1293,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
         } else {
           if (out.kind === "duplicate") toast.error(out.error instanceof Error ? out.error.message : String(out.error));
-          landWrite(blocker, out, !!moveTo && (moveTo.accountId !== blocker.accountId || moveTo.calendarId !== blocker.calendarId), shape);
         }
-        refresh();
+        refreshAfterWrite();
       } catch (error) {
         reportWriteFailure(error, () => retryWrites.current?.write(blocker, draft, moveTo, shape));
       }
     },
-    [blockerPrompt, followDeps, applyEventWrite, landWrite, refresh, reportWriteFailure, t]
+    [blockerPrompt, followDeps, applyEventWrite, refreshAfterWrite, reportWriteFailure, t]
   );
 
   const cancelBlockerPrompt = useCallback(() => {
@@ -1316,7 +1346,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       const instance = prompt.event;
       // "all" targets the MASTER row (cache keeps it despite the day-grid
       // filtering it out); an unresolvable master degrades to an error toast.
-      const subject = scope === "this" ? instance : await resolveSeriesMaster(instance);
+      const provider = accounts.find((a) => a.id === instance.accountId)?.provider;
+      const subject = scope === "this" ? instance : seriesDeleteSubject(instance, await resolveSeriesMaster(instance), provider);
       if (!subject) {
         toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
         return;
@@ -1324,7 +1355,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       // The scope dialog already confirmed the deletion.
       await deleteAsking(subject, true);
     },
-    [seriesPrompt, resolveSeriesMaster, deleteAsking, t]
+    [seriesPrompt, resolveSeriesMaster, deleteAsking, accounts, t]
   );
 
   /**
@@ -1392,7 +1423,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         // note itself comes from the builder the phone shares (E24).
         const res = await openMeetingNoteInVault(vaultPath, vaultAdapter, e);
         if (!res) return; // the template's questions were cancelled — nothing was written
-        if (res.cursor !== undefined) setPendingTemplateCaret({ path: res.path, offset: res.cursor });
+        if (res.caret) parkTemplateCaret(res.path, res.caret.note, res.caret.offset);
+        // A meeting note just written opens to be written in (wish 2026-10-19).
+        if (res.created) markFreshNote(res.path);
         if (res.created) {
           if (indexer) await applyIndexChanges(indexer, { added: [res.path] }).catch(() => undefined);
           triggerFileTreeUpdate([res.path]);
@@ -1504,11 +1537,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         draft: bd,
         mode,
         onCreated: (accountId, calId, res) => {
-          // Optimistic for a one-off block (a recurring block expands server-side,
-          // so we let the worker re-query bring its instances).
-          if (!recurrence) {
-            setEvents((prev) => [...prev, { ...draftToRow(accountId, calId, res.uid, bd), etag: res.etag, href: res.href }]);
-          }
+          // Shown until the cache has it, like every other written event (issue
+          // 119). A recurring block expands at the provider; the overlay knows
+          // its occurrences by their series and steps aside for them.
+          showWrittenEvents(pendingEventWrites, [{ kind: "create", row: { ...draftToRow(accountId, calId, res.uid, bd), etag: res.etag, href: res.href } }]);
         },
       });
       if (ok > 0) {
@@ -1517,14 +1549,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         // the provider — not for an invitation of somebody else, which is not
         // the user's to write — and shown on the loaded rows at once.
         if (mayChangeEvent(source, writableAnyKeys)) void recordBlockers(followDeps, source, created);
-        setEvents((prev) =>
-          prev.map((ev) =>
-            ev.accountId === source.accountId && ev.calendarId === source.calendarId && !ev.blockOf && blockLinkKey(ev) === source.uid
-              ? { ...ev, blocks: uniqueBlockRefs([...(ev.blocks ?? []), ...created]) }
-              : ev
-          )
+        showWrittenEvents(
+          pendingEventWrites,
+          loadedEvents.current
+            .filter((ev) => ev.accountId === source.accountId && ev.calendarId === source.calendarId && !ev.blockOf && blockLinkKey(ev) === source.uid)
+            .map((ev) => ({ kind: "update" as const, ref: ev, patch: { blocks: uniqueBlockRefs([...(ev.blocks ?? []), ...created]) } })),
         );
-        refresh();
+        refreshAfterWrite();
       }
       if (failed.length > 0) {
         for (const failure of failed) logDiagnostic("calendar", `block in ${failure.label}: ${failure.reason}`);
@@ -1545,7 +1576,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
       }
     },
-    [resolveSeriesMaster, accounts, pimRuntime, refresh, calName, followDeps, writableAnyKeys, t]
+    [resolveSeriesMaster, accounts, pimRuntime, refreshAfterWrite, calName, followDeps, writableAnyKeys, t]
   );
 
   /** The OTHER writable calendars (never the event's own) for the block dialog.
@@ -1663,10 +1694,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
    * renders as a plain indicator rather than a control that does nothing.
    */
   const renderTaskCheckbox = (task: CalTask, size: number, dense = false) => {
-    const icon = task.done
-      ? <CheckSquare size={size} style={{ color: "var(--accent-color)" }} />
-      : <Square size={size} style={{ color: task.due < todayKey ? "var(--warning-text)" : "var(--text-muted)" }} />;
-    if (!taskCompletion) return <span style={{ display: "grid", placeItems: "center" }}>{icon}</span>;
+    // The box as it stands — in progress and cancelled too, as on the phone.
+    const icon = (
+      <span style={{ display: "grid", placeItems: "center", color: task.done ? "var(--accent-color)" : task.due < todayKey ? "var(--warning-text)" : "var(--text-muted)" }}>
+        <TaskStateIcon state={task.state} size={size} />
+      </span>
+    );
+    if (task.source === "database" && !taskCompletion) return <span style={{ display: "grid", placeItems: "center" }}>{icon}</span>;
     return (
       <button
         type="button"
@@ -1711,15 +1745,15 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     // made the month cell's contents unclickable (issue #34, wave 2).
     return (
       <div
-        key={task.path}
+        key={task.id}
         role="button"
         tabIndex={0}
-        onClick={() => onOpenPath(task.path, false)}
+        onClick={() => openTask(task)}
         onKeyDown={(ev) => {
           if (ev.target !== ev.currentTarget) return;
           if (ev.key === "Enter" || ev.key === " ") {
             ev.preventDefault();
-            onOpenPath(task.path, false);
+            openTask(task);
           }
         }}
         data-testid="calendar-task"
@@ -1778,7 +1812,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       canEditEvent={canEditEvent}
       onEventClick={requestPreview}
       onEventContextMenu={openEventContextMenu}
-      onOpenTask={(p) => onOpenPath(p, false)}
+      onOpenTask={openTask}
       renderTaskCheckbox={renderTaskCheckbox}
       taskTone={taskTone}
       onCreateSlot={onCreateSlot}
@@ -1847,6 +1881,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
             onToday={() => { applyDay(calendarDay(new Date())); setJumpOpen(false); titleRef.current?.focus(); }}
             onClose={() => { setJumpOpen(false); titleRef.current?.focus(); }}
             autoFocus
+            showWeekNumbers={showWeeks}
+            footer={<WeekNumbersToggle weekStart={weekStartDay} />}
             testId="calendar-jump"
           />
         </DateJumpPopover>
@@ -1886,16 +1922,14 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
             {t("pim.syncError", { defaultValue: "Sync-Fehler" })}
           </span>
         ) : null}
-        {hasTaskDb && (
-          <IconButton
-            label={t("pim.showTasks", { defaultValue: "Aufgaben anzeigen" })}
-            onClick={() => setShowTasks((v) => !v)}
-            aria-pressed={showTasks}
-            data-testid="calendar-toggle-tasks"
-          >
-            <ListChecks size={ICON.ui} style={{ color: showTasks ? "var(--accent-color)" : undefined }} />
-          </IconButton>
-        )}
+        <IconButton
+          label={t("pim.showTasks", { defaultValue: "Aufgaben anzeigen" })}
+          onClick={() => setShowTasks((v) => !v)}
+          aria-pressed={showTasks}
+          data-testid="calendar-toggle-tasks"
+        >
+          <ListChecks size={ICON.ui} style={{ color: showTasks ? "var(--accent-color)" : undefined }} />
+        </IconButton>
         {viewMode !== "month" && viewMode !== "agenda" && calendarOptions.length > 0 && (
           <IconButton label={t("pim.newEvent", { defaultValue: "Neuer Termin" })} onClick={() => setEditState({ mode: "create" })} data-testid="calendar-new-event-top">
             <Plus size={ICON.ui} />
@@ -1951,7 +1985,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         <>
         {/* Month grid */}
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", padding: "var(--space-2)" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, flexShrink: 0 }}>
+          <div style={{ display: "grid", gridTemplateColumns: monthColumns, gap: 2, flexShrink: 0 }}>
+            {showWeeks && (
+              <div style={{ textAlign: "end", fontSize: "var(--text-xs)", color: "var(--text-faint)", padding: "2px var(--space-1) 2px 0" }}>{t("calendar.weekShort")}</div>
+            )}
             {weekdayNames.map((w) => (
               <div key={w} style={{ textAlign: "center", fontSize: "var(--text-xs)", color: "var(--text-muted)", padding: "2px 0" }}>
                 {w}
@@ -1961,8 +1998,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           <div
             ref={monthGridRef}
             data-testid="calendar-grid"
-            style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gridAutoRows: "minmax(72px, 1fr)", gap: 2, flex: 1, minHeight: 0 }}
+            style={{ display: "grid", gridTemplateColumns: monthColumns, gridAutoRows: "minmax(72px, 1fr)", gap: 2, flex: 1, minHeight: 0 }}
           >
+            {monthWeeks !== null && <MonthWeekColumn weeks={monthWeeks} />}
             {cells.map((cell, cellIndex) => {
               const key = calendarDay(cell);
               // A spanning event is drawn ONCE as a bar across the row, so the
@@ -2023,7 +2061,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                     // would shuffle past every bar, and the day numbers would
                     // drift out from under their own dates.
                     gridRow: Math.floor(cellIndex / 7) + 1,
-                    gridColumn: (cellIndex % 7) + 1,
+                    gridColumn: (cellIndex % 7) + 1 + weekCol,
                     border: isSelected ? "1px solid var(--accent-color)" : "1px solid var(--border-color-light)",
                     borderRadius: "var(--radius-sm)",
                     background: isSelected ? "var(--bg-hover)" : "var(--bg-primary)",
@@ -2098,17 +2136,17 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                     const tone = taskTone(task);
                     return (
                       <div
-                        key={`task-${task.path}`}
+                        key={`task-${task.id}`}
                         role="button"
                         tabIndex={0}
                         data-testid="calendar-month-task"
-                        onClick={(ev) => { ev.stopPropagation(); onOpenPath(task.path, false); }}
+                        onClick={(ev) => { ev.stopPropagation(); openTask(task); }}
                         onKeyDown={(ev) => {
                           if (ev.target !== ev.currentTarget) return;
                           if (ev.key === "Enter" || ev.key === " ") {
                             ev.preventDefault();
                             ev.stopPropagation();
-                            onOpenPath(task.path, false);
+                            openTask(task);
                           }
                         }}
                         style={{
@@ -2193,7 +2231,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                   onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); openEventContextMenu(bar.event, { x: ev.clientX, y: ev.clientY }); }}
                   style={{
                     gridRow: weekIndex + 1,
-                    gridColumn: `${bar.startCol + 1} / span ${bar.endCol - bar.startCol + 1}`,
+                    gridColumn: `${bar.startCol + 1 + weekCol} / span ${bar.endCol - bar.startCol + 1}`,
                     alignSelf: "start",
                     // Clear the day number, then stack by lane.
                     marginTop: 20 + bar.lane * MONTH_BAR_H,

@@ -75,8 +75,14 @@ test('does nothing at all on a supported engine', async ({ page }) => {
 });
 
 /** The entry module, in dev and in a production build — so these tests say the
- *  same thing whether the suite runs against `pnpm dev` or `vite preview`. */
-const ENTRY_PATTERNS = ['**/src/main.tsx', '**/assets/index-*.js'];
+ *  same thing whether the suite runs against `pnpm dev` or `vite preview`.
+ *  With whatever query follows: a dev server that has seen a file change serves
+ *  the entry as `/src/main.tsx?t=<timestamp>`, and a pattern that ends at the
+ *  file name lets that through. The app then starts unhindered, and the three
+ *  tests that use these patterns fail for a reason that has nothing to do with
+ *  the guard — the late-mount test in 30 of 30 runs against such a server
+ *  (2026-10-12). */
+const ENTRY_PATTERNS = ['**/src/main.tsx*', '**/assets/index-*.js*'];
 
 test('reports the error when the entry module dies while evaluating', async ({ page }) => {
   // The v0.3.0 failure class: the bundle loads and then throws on its way up.
@@ -139,19 +145,37 @@ test('a late mount retires the timeout overlay instead of burying the app', asyn
   // top of a perfectly running app, swallowing every click: 47 E2E tests failed
   // that way in one run (2026-08-24). An ERROR still keeps the screen; the test
   // above pins that half.
+  //
+  // The entry module is held until the test has SEEN the overlay, not for a
+  // number of seconds. It used to be nine, one more than the watchdog's eight,
+  // which reads like a second in which to look at the overlay. There was no
+  // such second: `goto` waits for the load event, and the load event waits for
+  // the entry module and everything it imports. `goto` came back when the app
+  // was about to render, and what was left of the overlay was the app's first
+  // render plus the watchdog's next look — 58 to 94 ms in four measured runs,
+  // and the same with the module held for thirteen seconds (2026-10-12). The
+  // two assertions that followed lost that race in 25 of 65 CI runs on
+  // 2026-10-09, 14 times the first and 11 times the second.
+  let releaseEntry!: () => void;
+  const overlaySeen = new Promise<void>((resolve) => {
+    releaseEntry = resolve;
+  });
   for (const pattern of ENTRY_PATTERNS) {
     await page.route(pattern, async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 9000));
+      await overlaySeen;
       await route.continue();
     });
   }
 
-  await page.goto('/');
+  // `commit`: the load event does not come while the module is held.
+  await page.goto('/', { waitUntil: 'commit' });
 
+  // Visible AND saying what the timeout says, as one question — two questions
+  // leave a moment between their answers.
   const overlay = page.locator(OVERLAY);
-  await expect(overlay).toBeVisible({ timeout: 15000 });
-  await expect(overlay).toContainText('No error was reported');
+  await expect(overlay.filter({ hasText: 'No error was reported' })).toBeVisible({ timeout: 15000 });
 
+  releaseEntry();
   await expect(page.locator('#root > *').first()).toBeAttached({ timeout: 20000 });
   await expect(overlay).toHaveCount(0, { timeout: 5000 });
 });

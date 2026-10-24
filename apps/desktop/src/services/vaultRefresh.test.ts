@@ -14,6 +14,8 @@ const report = (over: Partial<IndexScanReport> = {}): IndexScanReport => ({
   removed: 0,
   skipped: [],
   durationMs: 1,
+  walked: 0,
+  foldersChanged: false,
   ...over,
 });
 

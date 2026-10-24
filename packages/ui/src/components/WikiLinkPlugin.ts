@@ -5,16 +5,18 @@ import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from "@
 import { toast } from "../services/toastStore";
 import { getPlatformServices } from "../platform/services";
 import { findLinkAtOffset } from "../lib/linkParser";
-import { isWikiTargetResolved } from "../lib/wikiResolver";
+import { isWikiTargetResolved, type WikiTargetSet } from "../lib/wikiResolver";
 import { isEditorInteractive } from "./editorInteractive";
+import { isNoteLinkTarget } from "../lib/linkStyle";
+import { WIKI_LINK_HOVER_STYLE, WIKI_LINK_STYLE, WIKI_LINK_UNRESOLVED_STYLE } from "./wikiLinkStyle";
 import i18n from "../i18n";
 
-// Resolver set of existing wiki targets (lowercased titles + paths), pushed in
-// from the shell whenever the vault index changes. A wiki link whose target is
-// NOT in the set renders "unresolved" (muted, dashed) — Obsidian parity
+// The lookup over the vault's files (`buildWikiTargetSet`), pushed in from the
+// shell whenever the vault index changes. A wiki link that the link rule finds
+// no file for renders "unresolved" (muted, dashed) — Obsidian parity
 // (maintainer 2026-07-18). null = index not loaded yet → nothing flagged.
-export const setWikiResolver = StateEffect.define<Set<string> | null>();
-export const wikiResolverField = StateField.define<Set<string> | null>({
+export const setWikiResolver = StateEffect.define<WikiTargetSet | null>();
+export const wikiResolverField = StateField.define<WikiTargetSet | null>({
   create: () => null,
   update(value, tr) {
     for (const e of tr.effects) if (e.is(setWikiResolver)) return e.value;
@@ -139,7 +141,12 @@ function openLinkAtCoords(
   return openParsedLink(view, link.type, link.target, newTab, onOpenPath, timeStamp, link.type === "wiki" ? link.anchor : undefined);
 }
 
-export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean) {
+/**
+ * `hostPath` names the note the editor shows: a link that names a path from
+ * its own folder (`./Note`, `../Folder/Note`) exists or not depending on it.
+ * A getter, because the session's extensions outlive a rename of the note.
+ */
+export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean, hostPath?: () => string | undefined) {
   return [
     ViewPlugin.fromClass(class {
       decorations: DecorationSet;
@@ -284,8 +291,13 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean) {
 
           // Unresolved = a wiki link whose target note does not exist yet
           // (only wiki links carry the "not created yet" meaning).
-          const unresolved = m.type === "wiki" && !isWikiTargetResolved(m.target, resolver);
-          const linkClass = unresolved ? "cm-wiki-link cm-wiki-link--unresolved" : "cm-wiki-link";
+          const unresolved = m.type === "wiki" && !isWikiTargetResolved(m.target, resolver, hostPath?.());
+          // A link to a note - a wiki link, or a Markdown link into the vault -
+          // wears the note-link look; a bare address and a Markdown link with a
+          // scheme wear the web link's (linkStyle.ts). `.cm-wiki-link` stays
+          // the click target.
+          const toNote = m.type === "wiki" || (m.type === "markdown" && isNoteLinkTarget(m.target));
+          const linkClass = !toNote ? "cm-wiki-link" : unresolved ? "cm-wiki-link cm-wiki-link--note cm-wiki-link--unresolved" : "cm-wiki-link cm-wiki-link--note";
           const linkAttrs: Record<string, string> = { "data-link-target": m.target, "data-link-type": m.type };
           if (m.anchor) linkAttrs["data-link-anchor"] = m.anchor;
           if (unresolved) linkAttrs.title = i18n.t("editor.unresolvedLinkTip", "Note doesn't exist yet — click to create");
@@ -323,11 +335,19 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean) {
     }),
     wikiResolverField,
     EditorView.baseTheme({
+      // A link out of the vault: the web link's look (Appearance -> Links).
       ".cm-wiki-link": {
         color: "var(--wiki-link-color, var(--accent-color))",
-        textDecoration: "underline",
-        cursor: "pointer"
+        textDecoration: "var(--web-link-decoration)",
+        cursor: "pointer",
       },
+      ".cm-wiki-link:hover": {
+        textDecoration: "underline",
+      },
+      // A wiki link: the look lives in wikiLinkStyle.ts, shared with
+      // table-cell links and the reading views.
+      ".cm-wiki-link.cm-wiki-link--note": WIKI_LINK_STYLE,
+      ".cm-wiki-link.cm-wiki-link--note:hover": WIKI_LINK_HOVER_STYLE,
       // lezer-markdown tags the inner `[target]` of `[[wiki]]` (and `[text](url)`)
       // as a Link, so the highlighter paints its own SOLID underline on the token
       // nested inside this mark. It stacked with this mark's underline — invisible
@@ -336,17 +356,19 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean) {
       // underline; drop the nested token's so exactly one line renders. Scoped to
       // `.cm-wiki-link`, so the compose editor (no wiki plugin) keeps its links
       // underlined.
+      // The nested token also takes the mark's colour: a highlighter rule painted
+      // the text of a link in the body colour, so an underlined link read as body
+      // text with a coloured line (seen 2026-10-23 while building Appearance ->
+      // Links). The mark decides colour and line for everything inside it.
       ".cm-wiki-link *": {
         textDecoration: "none",
+        color: "inherit",
       },
       // Unresolved (note doesn't exist yet): muted + dashed underline, still
       // clickable — clicking creates the note (Obsidian parity). Kept visually
       // identical to the reading view's `underline dashed` (maintainer: the
       // live-preview link must look the same as in reading mode).
-      ".cm-wiki-link--unresolved": {
-        color: "var(--wiki-link-unresolved-color, var(--text-muted))",
-        textDecorationStyle: "dashed",
-      },
+      ".cm-wiki-link.cm-wiki-link--unresolved, .cm-wiki-link.cm-wiki-link--unresolved:hover": WIKI_LINK_UNRESOLVED_STYLE,
     }),
     EditorView.domEventHandlers({
       mousedown: (event, view) => {

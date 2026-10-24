@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-22
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -12,7 +12,7 @@ Everything here is plain UTF-8 text. Notes are Markdown with YAML frontmatter; d
 2. **Notes stay Obsidian-native.** In note frontmatter, only ever write plain scalars and lists (string, number, boolean, ISO date, YAML list). Never write a nested object or an "active/selected" flag into a note.
 3. **A `.base` uses only Obsidian's five top-level keys** (`filters`, `formulas`, `properties`, `summaries`, `views`). Obsidian does not understand any other top-level key. That is why everything Plainva-specific goes under nested `plainva:` sub-keys.
 4. **Preserve what you do not understand.** Unknown keys must survive a read/write round-trip unchanged. Do not "clean up" keys you do not recognize.
-5. **Write UTF-8 without BOM, with LF line endings.**
+5. **Write UTF-8. A new file gets LF line endings and no BOM; a file that is already there keeps the ones it has.** Plainva does the same: what it creates starts with LF and without a BOM, and what it finds keeps its line endings and its BOM — edit a note and only the lines you changed change. A file that mixes both kinds of line ending is brought to the kind most of its lines have the first time it is edited. A carriage return on its own as a line ending — what old Mac files have — is read but not kept: the first time such a file is changed, Plainva saves it with LF (with CRLF if most of its other line endings are CRLF) and tells you so.
 
 ## The vault at a glance
 
@@ -51,6 +51,10 @@ A **bold** thought that links to [[Another Note]].
 
 - [ ] First task
 ```
+
+A block may be empty: `---` directly followed by `---` is a block without properties, not two dividers — the note's text begins on the line after it. Plainva leaves no empty block behind: when the last property is removed, the two `---` lines go with it. They only stay where the text itself begins with a `---` line, which would otherwise be read as the start of a block.
+
+A block Plainva cannot read as properties is left exactly as it is: text between the two `---` lines that is not YAML, or YAML that is a list instead of `key: value` lines. **Properties** says so instead of showing no properties, and changing a property of such a note — there, in a database, on a pinboard, in the task list, or its icon and colour — changes nothing and says so: **Property could not be saved**, followed by the reason. Correct the block in the note's text and the change goes through. A single value in an unexpected form does not make a block unreadable: Plainva reads it as what is written there — an empty `tags:` is a note without tags, a number among the tags (`- 2024`) is the tag `2024`, a number as `title` is that title, and a `timestamp` that is a date is a property like any other.
 
 ### OKF frontmatter fields
 
@@ -214,7 +218,8 @@ The file is a list under a heading and can be shortened or deleted. It holds no 
 ### Links
 
 - **Wiki link:** `[[Note name]]` — resolved by note name across the vault. With a heading anchor: `[[Note#Section]]` — a click opens the note **at that heading**; `[[#Section]]` jumps within the current note, and a GitHub-style slug (`[[Note#cool-header]]`) resolves as well. With a block reference: `[[Note#^id]]` for a line that ends in `^id`. With display text: `[[Note|shown text]]`.
-- **Markdown link:** `[text](relative/path.md)` also works. With a fragment (`[text](#cool-header)`, `[text](other.md#cool-header)`) the click lands on the heading.
+- **How a wiki-link target is resolved** — the same for a click, an embed, a relation, the graph and the backlinks, on desktop and phone. In this order: (1) an explicit path — `/Folder/Note` from the vault root, `./Note` or `../Folder/Note` from the folder of the linking note — and nothing else for such a target; (2) the vault path as written — a file spelled exactly so —, then the note at that path (`.md`); (3) the end of a note's path: the file name alone, or with folders in front of it (`Clients/Letter` finds `Projects/Clients/Letter.md`); (4) a file that is not a note (`plan.pdf`, `Tasks.base`, `LICENSE`), by its path or the end of its path — after the notes, so a target without an extension means a note wherever one answers; (5) the `title` of a note's properties. Names are compared without regard to letter case, and a composed and a decomposed spelling of a letter count as the same name. Where several files match: the spelling as written first, then the path read from the linking note's folder (for a bare name, the note beside it), then the shortest path, then alphabetical order. Steps 1 to 4 are also how Obsidian finds a file, though it may pick a different one where several share a name; a link by `title` (step 5) only works in Plainva — Plainva's own pickers therefore write the file name.
+- **Markdown link:** `[text](target)`. The target is read from the folder of the linking note first — the file spelled exactly so, then the note at that path (`.md`); where nothing lies there, it is resolved like a wiki-link target (steps 2 to 5 above: the path from the vault root, the end of a path, a file that is not a note, the `title`). An explicit path — `/Folder/File`, `./File`, `../Folder/File` — names one place, and nothing else is tried for it. A target that ends in `/` names a folder and leads to its `index.md`. Percent-encoding is decoded (`My%20letter.md`), angle brackets and a title are read as in CommonMark (`[x](<My letter.md> "Title")`), and the first `#` that is written starts a fragment: with `[text](#cool-header)` or `[text](other.md#cool-header)` the click lands on the heading; a `#` that belongs to a file name is written `%23`. Links in any of Obsidian's three formats — shortest path, relative path, absolute path in vault — resolve this way; where one file lies at the path from the linking note's folder and another at the same path from the vault root, Plainva takes the first, as a Markdown reader outside the app does. Plainva itself writes relative, percent-encoded Markdown links (folder overviews, prepared overviews). The answer is the same for a click, the graph and the backlinks, on desktop and phone.
 - **Backlinks** are derived automatically, including from frontmatter wiki-links (that is what makes relations show up as backlinks).
 
 ---
@@ -647,7 +652,7 @@ Rules: pinned paths are not repeated in `pinboardOrder`. Cards in neither list r
 - **Unknown keys are sacred.** When you rewrite a `.base` or a note, carry through every key you did not intend to change. Plainva itself preserves unknown `.base` keys via an internal raw copy; a third-party writer should do the same (parse → change only what you mean → serialize).
 - **Values change in the note, not the `.base`.** To set a cell, edit the note's frontmatter. The `.base` only decides which notes and columns are shown.
 - **Do not add top-level `.base` keys** beyond `filters` / `formulas` / `properties` / `views`.
-- **Encoding:** UTF-8 without BOM, LF newlines, everywhere.
+- **Encoding:** UTF-8. New files: LF line endings, no BOM. A note or text file that already has CRLF line endings or a BOM keeps them — Plainva does not change them, and a tool should not either. A `.base` is the one exception: Plainva writes it anew, with LF and without a BOM, whenever its configuration changes. A carriage return on its own as a line ending (old Mac files) is read but not kept: Plainva saves such a file with LF the first time it changes it.
 
 ## See also
 

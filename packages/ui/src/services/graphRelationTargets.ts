@@ -1,5 +1,5 @@
 import { flushPendingSave } from "../platform/services";
-import { upsertFrontmatterKeys, wikiTargetForPath, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
+import { readFrontmatterPath, updateVaultText, upsertFrontmatterKeys, wikiTargetForPath, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
 import { parseBaseConfig } from "../base/baseFormat";
 
 /**
@@ -109,26 +109,28 @@ export async function removeRelationLink(
   targetPath: string,
   propertyKey: string
 ): Promise<number> {
-  const notes = await queryService.listNotes();
-  const allPaths = notes.map((n) => n.path);
-  const { resolveLinkTarget } = await import("@plainva/core");
-  const props = await queryService.getFileProperties(sourcePath);
-  const raw = props[propertyKey];
-  const list = Array.isArray(raw) ? raw.map((v) => String(v)) : raw != null ? [String(raw)] : [];
+  const { noteLinkResolver } = await import("@plainva/core");
+  const linkedNote = noteLinkResolver(await queryService.linkTargets());
   const resolves = (value: string): boolean => {
     const m = value.match(/\[\[([^\]|#]+)/);
     const target = (m ? m[1] : value).trim();
-    return !!target && resolveLinkTarget(sourcePath, target, allPaths) === targetPath;
+    return !!target && linkedNote(sourcePath, target) === targetPath;
   };
-  const kept = list.filter((v) => !resolves(v));
-  const removed = list.length - kept.length;
-  if (removed === 0) return 0;
+  // The list is the one the text carries, not the index's: the note is
+  // changed as it lies there, and where it has an open conflict the user's
+  // own version keeps the values only it has.
+  const without = (content: string): { removed: number; next: string | null } => {
+    const raw = readFrontmatterPath(content, [propertyKey]);
+    const list = Array.isArray(raw) ? raw.map((v) => String(v)) : raw != null ? [String(raw)] : [];
+    const kept = list.filter((v) => !resolves(v));
+    const removed = list.length - kept.length;
+    if (removed === 0) return { removed, next: null };
+    return { removed, next: upsertFrontmatterKeys(content, { [propertyKey]: Array.isArray(raw) ? kept : (kept[0] ?? "") }) };
+  };
 
   await flushPendingSave(sourcePath);
-  const content = await adapter.readTextFile(sourcePath);
-  const value = Array.isArray(raw) ? kept : (kept[0] ?? "");
-  await adapter.writeTextFile(sourcePath, upsertFrontmatterKeys(content, { [propertyKey]: value }));
-  return removed;
+  const update = await updateVaultText(adapter, sourcePath, (content) => without(content).next);
+  return without(update.before).removed;
 }
 
 /**
@@ -149,15 +151,14 @@ export async function writeRelationLink(
   const link = `[[${wikiTargetForPath(targetPath, allPaths)}]]`;
 
   await flushPendingSave(sourcePath);
-  const content = await adapter.readTextFile(sourcePath);
-  let value: unknown = link;
-  if (!limitOne) {
-    const existing = await queryService.getFileProperties(sourcePath);
-    const raw = existing[propertyKey];
+  await updateVaultText(adapter, sourcePath, (content) => {
+    if (limitOne) return upsertFrontmatterKeys(content, { [propertyKey]: link });
+    // Appended to the list the text carries, not the index's: where the note
+    // has an open conflict, the user's own version keeps the values only it has.
+    const raw = readFrontmatterPath(content, [propertyKey]);
     const list = Array.isArray(raw) ? raw.map((v) => String(v)) : raw ? [String(raw)] : [];
     if (!list.includes(link)) list.push(link);
-    value = list;
-  }
-  await adapter.writeTextFile(sourcePath, upsertFrontmatterKeys(content, { [propertyKey]: value }));
+    return upsertFrontmatterKeys(content, { [propertyKey]: list });
+  });
   return link;
 }

@@ -339,7 +339,7 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
       readFile: read,
       resolveLink: (target, from) => vaultOps.resolveWikiTarget(vault, target, from),
       // Which notes a link COULD mean is asked of the names of all files, by one rule for both shells.
-      fileNames: () => query.fileNames(),
+      fileNames: () => query.linkTargets(),
       encrypted: () => vault.workspaceRuntime !== null,
     });
     // What `run_command` can do: the palette's commands that show something, and the three that take a note or a day.
@@ -397,9 +397,8 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
       async keepOnDevice(path) {
         // The editor's pending keystrokes land first; the save is the conflict-aware chain, synced like any edit.
         await flushPendingSave(path);
-        const text = await read(path);
-        if (text === null) throw new Error(`No note at ${path}`);
-        await vaultOps.save(vault, path, withCloudDenied(text));
+        // Through the chain's one entry for a change, as a rule of a note from a plan is written (Sammelplan 3.87).
+        await vaultOps.update(vault, path, (text) => withCloudDenied(text));
       },
       // The phone's situation: the note the sheet opened over (one editor at a
       // time, no tabs), due tasks, the next appointments, today's daily note.

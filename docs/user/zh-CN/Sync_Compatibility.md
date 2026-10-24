@@ -1,6 +1,6 @@
 # Plainva同步兼容性
 
-更新日期：2026-09-30
+更新日期：2026-10-21
 
 如果 WebDAV、CalDAV 或 S3 服务返回登录页面或不完整的资源列表，Plainva 会报告同步错误。它不会将该响应视为空文件夹或空日历列表，也不会据此执行推断出的删除操作。此规则适用于桌面端和移动端。
 
@@ -68,5 +68,6 @@ OneDrive、Dropbox和S3兼容存储自2026-07-04起已直接集成（见上表�
 ## 刻意未规划
 
 - **作为API集成的iCloud：** 苹果没有为iCloud Drive提供官方的第三方API。请改用本地iCloud文件夹（见上文）。
+- **将Syncthing作为内置服务商：** 无需如此——Plainva可以配合任何由Syncthing（iPhone和iPad上为Synctrain）保持同步的本地文件夹使用（见上文）。
 - **Proton Drive / Mega：** 没有官方API，或者只有难以集成的API（端到端加密、C++ SDK）。持续观察中。
 - **观察清单**（按需评估）：pCloud、Box、Filen、SFTP。

@@ -1,7 +1,6 @@
 import { sameStoredValue } from "@plainva/core";
 import { Browser } from "@capacitor/browser";
-import { Capacitor } from "@capacitor/core";
-import { authorizeNativeGoogle } from "./googleNativeAuthorization";
+import { authorizeNativeGoogle, googleSignInFlow, hasGooglePlayServices } from "./googleNativeAuthorization";
 import {
   buildAuthUrl,
   buildDropboxAuthUrl,
@@ -16,34 +15,39 @@ import { getPlatformServices, getVaultTemplates, PLAINVA_DROPBOX_APP_KEY, PLAINV
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../adapters/webdavHttp";
 import { connectProvider, createProviderVault, createProviderFolder, listProviderFolders, getStoredProvider, reauthorizeVault, type MobileSyncProvider } from "./syncService";
-import { beginAccountLogin } from "./accountLogin";
+import { adoptAddedVaultSignIn, beginMobileSignIn } from "./accountSignIn";
 import { fileGrantProbe, getAccountToken, tokenCoversService } from "./accountBroker";
 import { loadCloudAccounts } from "./cloudAccountsStore";
-import { getMobileVault, switchVault } from "./vaultService";
-import type { ServiceConnectionContext } from "@plainva/ui";
+import { getMobileVault } from "./vaultService";
+import { enterFlowVault, releaseFlowVault } from "./flowVault";
+import type { OAuthAccess, ServiceConnectionContext } from "@plainva/ui";
 import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConnectOutcome } from "./connectQueue";
 import { getActiveVaultEntry } from "./vaultRegistry";
 import { APP_ID, APP_URL } from "./appScheme";
 
 /**
- * Mobile OAuth: Android Google uses native AuthorizationClient consent. The
- * other flows use the system browser and PKCE with the custom-scheme callback.
+ * Mobile OAuth: the system browser and PKCE with the custom-scheme callback,
+ * for every provider on both phones. Android Google additionally has Play
+ * services' AuthorizationClient, used only where it can work (the client this
+ * build ships, or a vault that already holds a Play-services grant).
  * A received grant remains in protected storage until its destination is saved.
  *
  * Console prerequisites (maintainer, one-time):
  *  - Dropbox app: add redirect URI  com.plainva.app://oauth
  *  - Entra (OneDrive): platform "Mobile and desktop applications", add
  *    redirect URI  com.plainva.app://oauth
- *  - Google Drive: register the Android package and installed signing SHA-1,
- *    or the iOS bundle and redirect scheme. Native clients have no secret.
- *    See docs/engineering/Google_Mail.md for the public test-client setup.
+ *  - Google Drive, a user's own project (both phones): an OAuth client of type
+ *    iOS with the app id as bundle ID; it has no secret. An Android-type client
+ *    cannot be a user's: package + fingerprint are unique across all projects.
+ *    See docs/engineering/Google_Mail.md.
  *  - The Labs build (com.plainva.app.labs) is a separate app to every provider:
  *    each of the above again with that id, see docs/engineering/Labs_Channel.md.
  */
 
 export const OAUTH_REDIRECT_URI = `${APP_URL}oauth`;
 /**
- * iOS Google installed-app redirect. Android Google returns through the SDK's
+ * Google's installed-app redirect on both phones (the custom scheme of an
+ * iOS-type client). A Play-services consent returns through the SDK's
  * activity result and does not use this URI.
  */
 export const DRIVE_REDIRECT_URI = `${APP_ID}:/oauth2redirect`;
@@ -80,6 +84,12 @@ export interface OAuthExtras {
    * slot and restarts its worker — no folder pick, no new vault.
    */
   reconnectVaultId?: string;
+  /**
+   * This device's access the consent ran with, for a vault that does not exist
+   * yet (account sign-in plan K4b): once the vault is made, the sign-in becomes
+   * a card with its identity.
+   */
+  access?: OAuthAccess;
 }
 
 interface PendingFlow {
@@ -143,9 +153,17 @@ async function loadPending(): Promise<PendingFlow | null> {
 let pendingConnect: MobileSyncProvider | null = null;
 /** Create-mode companion of pendingConnect (restored from the persisted flow). */
 let pendingCreateTemplateId: string | null = null;
+/** The access a pre-vault consent ran with (K4b); the card is made from it once the vault exists. */
+let pendingAccess: OAuthAccess | undefined;
 let pendingServiceContext: ServiceConnectionContext | undefined;
 const FOLDER_KEY = "oauth_pending_folder";
-interface PendingFolder { provider: MobileSyncProvider; createTemplateId: string | null; context?: ServiceConnectionContext; createdAt: number }
+/**
+ * One connection waits for its folder at a time. When another takes its place,
+ * or it is given up, whatever it had waiting for a vault ends with it
+ * (`flowVault.ts`).
+ */
+const FILE_FLOW = "file-connection";
+interface PendingFolder { provider: MobileSyncProvider; createTemplateId: string | null; context?: ServiceConnectionContext; access?: OAuthAccess; createdAt: number }
 export function getPendingConnectContext(): ServiceConnectionContext | undefined { return pendingServiceContext; }
 
 /** Folder browsing can rotate a refresh token; persist that exact provider. */
@@ -169,7 +187,8 @@ export async function beginStoredFilesConnection(context: ServiceConnectionConte
   if (!token?.clientId || !tokenCoversService(token, "files", record.family)) return false;
   try { await (await fileGrantProbe(context.vaultId, record.id, record.family, token)).getAccessToken(); } catch { return false; }
   pendingConnect = record.family === "google" ? { provider: "drive", creds: { clientId: token.clientId, clientSecret: token.clientSecret, refreshToken: "" } } : { provider: "onedrive", creds: { clientId: token.clientId, refreshToken: "" } };
-  pendingCreateTemplateId = null; pendingServiceContext = context;
+  pendingCreateTemplateId = null; pendingServiceContext = context; pendingAccess = undefined;
+  releaseFlowVault(FILE_FLOW);
   const saved: PendingFolder = { provider: pendingConnect, createTemplateId: null, context, createdAt: Date.now() };
   await getPlatformServices().credentials.writeSecret(FOLDER_KEY, saved);
   if (!sameStoredValue(await getPlatformServices().credentials.readSecret(FOLDER_KEY), saved)) throw new ServiceConnectionError("storageFailed");
@@ -184,7 +203,8 @@ export async function restorePendingConnect(): Promise<void> {
     const run = await loadConnectQueue();
     if (!run || !outcomeBelongsToRun(run, saved.context, "files")) { await getPlatformServices().credentials.removeSecret(FOLDER_KEY); return; }
   }
-  pendingConnect = saved.provider; pendingCreateTemplateId = saved.createTemplateId; pendingServiceContext = saved.context;
+  pendingConnect = saved.provider; pendingCreateTemplateId = saved.createTemplateId; pendingServiceContext = saved.context; pendingAccess = saved.access;
+  releaseFlowVault(FILE_FLOW);
   window.dispatchEvent(new CustomEvent("plainva-oauth-choose-folder"));
 }
 
@@ -211,13 +231,24 @@ export async function createPendingConnectFolder(path: string): Promise<void> {
 export async function finishConnect(rootFolder: string): Promise<void> {
   const p = pendingConnect;
   const createTemplateId = pendingCreateTemplateId;
+  const access = pendingAccess;
   if (!p) return;
   const context = pendingServiceContext;
   if (context?.runId) {
     const run = await loadConnectQueue();
     if (!run || !outcomeBelongsToRun(run, context, "files")) throw new Error("accountChanged");
   }
-  if (context && (await getActiveVaultEntry()).id !== context.vaultId) await switchVault(context.vaultId);
+  // The connection belongs to the vault its sign-in was begun in. With another
+  // one on screen by now it goes back there — offered rather than taken while
+  // something unsaved is on screen there (`flowVault.ts`); the sign-in and the
+  // folder that was picked wait.
+  if (context && !(await enterFlowVault(context.vaultId, FILE_FLOW, {
+    // The folder was picked for THIS sign-in: one that came after it gets its own pick.
+    resume: async () => { if (pendingConnect === p) await finishConnect(rootFolder); },
+    waits: () => pendingConnect === p,
+    // Its vault was deleted: the connection has no home any more.
+    gone: () => { if (pendingConnect === p) cancelConnect(); },
+  }))) return;
   const folder = rootFolder.trim() || undefined;
   let withFolder: MobileSyncProvider;
   switch (p.provider) {
@@ -238,7 +269,7 @@ export async function finishConnect(rootFolder: string): Promise<void> {
   pendingConnect = withFolder;
   await persistPendingConnect(withFolder);
   if (createTemplateId === null) {
-    await connectProvider(await getMobileVault(), withFolder, context);
+    await connectProvider(await getMobileVault(), withFolder, context, adoptFor(access, withFolder, context));
     const run = await loadConnectQueue();
     if (!context?.runId || run?.outcomes.files?.state === "connected") cancelConnect();
     return;
@@ -250,8 +281,14 @@ export async function finishConnect(rootFolder: string): Promise<void> {
     template,
     vaultName: folder?.split("/").pop() || "Plainva",
     subfoldersHeading: i18n.t("indexMd.subfoldersHeading"),
-  });
+  }, adoptFor(access, withFolder, context));
   cancelConnect();
+}
+
+/** A new vault's Google or Microsoft sign-in becomes a card (K4b); a run inside a card already has one. */
+function adoptFor(access: OAuthAccess | undefined, provider: MobileSyncProvider, context?: ServiceConnectionContext): ((vaultId: string) => Promise<void>) | undefined {
+  if (!access || context?.runId || (provider.provider !== "drive" && provider.provider !== "onedrive")) return undefined;
+  return (vaultId) => adoptAddedVaultSignIn(vaultId, access, provider);
 }
 
 /** The user backed out of the folder pick — discard the token, create no vault. */
@@ -259,6 +296,8 @@ export function cancelConnect(): void {
   pendingConnect = null;
   pendingCreateTemplateId = null;
   pendingServiceContext = undefined;
+  pendingAccess = undefined;
+  releaseFlowVault(FILE_FLOW);
   void withAccountCredentialLock(FOLDER_KEY, async () => {
     if (!pendingConnect) await getPlatformServices().credentials.removeSecret(FOLDER_KEY);
   }).catch(error => toast.error(serviceConnectionMessage(error, i18n.t)));
@@ -280,8 +319,10 @@ export async function reconnectVault(vaultId: string): Promise<void> {
   if (stored.provider === "drive" || stored.provider === "onedrive") {
     const family = stored.provider === "drive" ? "google" : "microsoft";
     const records = (await loadCloudAccounts(vaultId)).filter((r) => r.family === family && r.services.files?.provider === stored.provider);
-    if (records.length === 1 && await getAccountToken(vaultId, records[0].id)) {
-      await beginAccountLogin(vaultId, records[0], stored.creds);
+    // The vault's files belong to one account card: signing that card in again
+    // is the one sign-in for everything it carries (account sign-in plan E2).
+    if (records.length === 1) {
+      await beginMobileSignIn(vaultId, { family, cardId: records[0].id, add: [] });
       return;
     }
   }
@@ -302,11 +343,24 @@ export async function reconnectVault(vaultId: string): Promise<void> {
 /** Opens the provider consent page in the system browser. */
 export async function beginOAuth(provider: OAuthProviderId, extras: OAuthExtras): Promise<void> {
   extras = { ...extras, serviceContext: extras.serviceContext ?? await connectionContextFor("files") ?? { vaultId: (await getActiveVaultEntry()).id } };
-  if (provider === "drive" && Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
+  if (provider === "drive" && await driveSignsInThroughPlayServices(extras)) {
     const captured = structuredClone(extras);
     return withAccountCredentialLock("native-google-consent", () => beginNativeDrive(captured));
   }
   return beginBrowserOAuth(provider, extras);
+}
+
+/**
+ * Browser or Play services for Drive (`chooseGoogleSignInFlow`): a client ID
+ * the user entered opens the browser. Play services is kept for the client
+ * this build ships and for reconnecting a vault whose stored grant already is
+ * a Play-services one with the same client.
+ */
+async function driveSignsInThroughPlayServices(extras: OAuthExtras): Promise<boolean> {
+  if (!hasGooglePlayServices() || !extras.clientId) return false;
+  const stored = extras.reconnectVaultId ? await getStoredProvider(extras.reconnectVaultId).catch(() => null) : null;
+  const held = stored?.provider === "drive" && stored.creds.nativeGoogle?.email ? stored.creds.clientId : null;
+  return googleSignInFlow(extras.clientId, [held]) === "native";
 }
 
 async function beginNativeDrive(extras: OAuthExtras): Promise<void> {
@@ -478,11 +532,13 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
 }
 
 async function offerFolderPicker(provider: MobileSyncProvider, extras: OAuthExtras): Promise<void> {
-  const folderState: PendingFolder = { provider, createTemplateId: extras.createTemplateId ?? null, context: extras.serviceContext, createdAt: Date.now() };
+  const folderState: PendingFolder = { provider, createTemplateId: extras.createTemplateId ?? null, context: extras.serviceContext, ...(extras.access ? { access: extras.access } : {}), createdAt: Date.now() };
   await getPlatformServices().credentials.writeSecret(FOLDER_KEY, folderState);
   if (!sameStoredValue(await getPlatformServices().credentials.readSecret(FOLDER_KEY), folderState)) throw new ServiceConnectionError("storageFailed");
   pendingConnect = provider;
   pendingCreateTemplateId = folderState.createTemplateId;
+  pendingAccess = folderState.access;
   pendingServiceContext = folderState.context;
+  releaseFlowVault(FILE_FLOW);
   window.dispatchEvent(new CustomEvent("plainva-oauth-choose-folder"));
 }

@@ -34,6 +34,21 @@ describe("leave guard", () => {
     expect(confirm).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the guard on a confirmed step that may not leave after all, when asked to", async () => {
+    // A step started from outside the surface (finding 2026-10-09): "Discard"
+    // agrees to the step. Whether the surface then really goes is the
+    // surface's to say — its cleanup disarms, nothing else does.
+    armLeaveGuard({ id: "compose", message: "Entwurf verwerfen?" });
+    const confirm = vi.fn(async () => true);
+    expect(await confirmLeave(confirm, true)).toBe(true);
+    expect(activeLeaveGuard()?.id).toBe("compose");
+    expect(await confirmLeave(confirm, true)).toBe(true);
+    expect(confirm, "still there, so it is asked about again").toHaveBeenCalledTimes(2);
+    disarmLeaveGuard("compose");
+    expect(await confirmLeave(confirm, true)).toBe(true);
+    expect(confirm).toHaveBeenCalledTimes(2);
+  });
+
   it("only lets a surface disarm the guard it armed itself", () => {
     armLeaveGuard({ id: "compose", message: "Entwurf verwerfen?" });
     // React runs the OLD screen's cleanup after the new screen mounted; without

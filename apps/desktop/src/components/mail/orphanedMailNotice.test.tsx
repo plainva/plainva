@@ -51,7 +51,6 @@ vi.mock("../../contexts/VaultContext", () => ({
 }));
 vi.mock("../../services/settingsStore", () => ({ getSettingsStore: async () => ({ get: async () => undefined, set: async () => {}, save: async () => {} }) }));
 vi.mock("../../services/deviceSignIn", () => ({ deviceSignInStates: async (_k: string, _v: string, ids: string[]) => new Map(ids.map((id) => [id, "signin"])) }));
-vi.mock("../../services/mail/gmailAuth", () => ({ desktopGmailClient: () => null, signInGmail: vi.fn() }));
 vi.mock("./RulesSettings", () => ({ RulesSettings: () => null }));
 vi.mock("./VacationSettings", () => ({ VacationSettings: () => null }));
 vi.mock("./ComposeEditor", () => ({ ComposeEditor: () => null }));

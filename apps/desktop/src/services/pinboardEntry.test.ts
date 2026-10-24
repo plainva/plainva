@@ -1,10 +1,14 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
+import { editorTextOf } from "@plainva/core";
 import {
   applyPinboardEntryTitle,
   discardPinboardEntry,
   finalizePinboardEntry,
   pinboardDraftState,
+  pinboardEntryCaret,
   pinboardLabelProperty,
   planPinboardEntry,
   viewPrefill,
@@ -189,13 +193,17 @@ describe("planPinboardEntry: the draft exists before a word is typed", () => {
     const textA = withHeader.store.get(a.path)!;
     expect(a.caret).toBe(textA.length);
     expect(textA.slice(0, a.caret!).endsWith("\n\n- [ ] ")).toBe(true);
-    // An empty header block (`---` twice) is not taken as frontmatter when the
-    // OKF header is written, so a whole new block lands in front of it — the
-    // caret still lands after "- [ ] ", not somewhere in the frontmatter.
+    // An empty header block (`---` on `---`) is a block like any other: the
+    // OKF header and the view's filters go between its fences. It used to be
+    // taken for no block at all, so a whole new block landed in front of it
+    // and its two fences stood in the note as rules (finding 2026-10-07).
     const emptyHeader = memoryFiles();
     const b = await ready(emptyHeader.files, { template: async () => ({ text: "---\n---\n- [ ] ", caret: "---\n---\n- [ ] ".length }) });
     const textB = emptyHeader.store.get(b.path)!;
-    expect(textB.slice(0, b.caret!).endsWith("---\n---\n- [ ] ")).toBe(true);
+    expect(textB.split("\n").filter((line) => line === "---")).toHaveLength(2);
+    expect(frontmatter(textB)).toMatchObject({ type: "Note", status: "offen" });
+    expect(textB.endsWith("\n---\n- [ ] ")).toBe(true);
+    expect(b.caret).toBe(textB.length);
     // A template that is only frontmatter: the caret goes to the end, never
     // into the header.
     const onlyHeader = memoryFiles();
@@ -209,6 +217,101 @@ describe("planPinboardEntry: the draft exists before a word is typed", () => {
     const draft = await ready(files, { template: async () => ({ text: "---\nstatus: entwurf\n---\n\nText\n", caret: null }) });
     expect(frontmatter(store.get(draft.path)!).status).toBe("entwurf");
     expect(draft.chips.map((c) => c.key)).not.toContain("status");
+  });
+
+  // Finding 2026-10-11. The entry set the header on the template's text
+  // itself, and the keys that are meant for the template alone stayed in the
+  // draft: its checkboxes were hidden from the Tasks view, and it carried the
+  // template's database assignment. The template goes through the builder of
+  // every note from a template now (`templateAsNewNote`, newNote.test.ts).
+  it("the template's own keys do not come along: its task opt-out, its database assignment, a legacy okf_version", async () => {
+    const { files, store } = memoryFiles();
+    const text = `---\nokf_version: "0.1"\nthemen:\n  - vorlage\nplainva:\n  tasks: false\n  icon: 📌\n  templateFor:\n    - "[[Zettel.base]]"\n---\n# Liste\n\n- [ ] `;
+    const draft = await ready(files, { template: async () => ({ text: `${text}\nEnde\n`, caret: text.length }), activeLabels: ["einkauf"] });
+    const written = store.get(draft.path)!;
+    expect(written).toBe(draft.initial);
+    // What the board requires of its members stands beside what the template brings.
+    expect(frontmatter(written)).toEqual({ themen: ["vorlage"], plainva: { icon: "📌" }, type: "Note", status: "offen", prio: 2, tags: ["einkauf"] });
+    expect(written.endsWith("---\n# Liste\n\n- [ ] \nEnde\n")).toBe(true);
+    expect(written.slice(draft.caret!)).toBe("\nEnde\n");
+    // An untouched draft is told from a written one by this very text.
+    expect(pinboardDraftState(written, draft.initial, "")).toBe("untouched");
+  });
+
+  it("a template that is only what is meant for it leaves the entry empty — closing it takes the draft back", async () => {
+    const { files, store } = memoryFiles();
+    const draft = await ready(files, { template: async () => ({ text: "---\nplainva:\n  tasks: false\n---\n", caret: null }) });
+    expect(frontmatter(store.get(draft.path)!)).toEqual({ type: "Note", status: "offen", prio: 2 });
+    expect(pinboardDraftState(store.get(draft.path)!, draft.initial, "")).toBe("blank");
+    expect(await finalizePinboardEntry(files, { draft, title: "", intent: "close" })).toEqual({ outcome: "removed", path: null });
+  });
+});
+
+/**
+ * Where the caret of a new entry goes in its editor (finding 2026-10-09).
+ *
+ * `draft.caret` is a place in the file the plan wrote. The entry's editor holds
+ * that file with `\n` line ends and without its byte order mark, and the
+ * desktop's window compared the two numbers as they were: with a template
+ * written on Windows the caret stood further right for every line above it,
+ * or fell to the end of the entry. `pinboardEntryCaret` is the window's rule
+ * now; the phone parks the same caret through the same conversion
+ * (baseOpsCapture.test.ts there).
+ */
+describe("pinboardEntryCaret: the caret of a new entry, in the text its editor holds", () => {
+  // Built at run time: the mark is never typed into this file.
+  const MARK = String.fromCharCode(0xfeff);
+
+  /** Plans an entry from a template in which `|` marks `{{cursor}}`; answers with the draft and what its editor holds. */
+  async function planned(marked: string): Promise<{ draft: PinboardDraft; written: string; doc: string }> {
+    const { files, store } = memoryFiles();
+    const at = marked.indexOf("|");
+    const draft = await ready(files, { template: async () => ({ text: marked.replace(/\|/g, ""), caret: at }) });
+    const written = store.get(draft.path)!;
+    return { draft, written, doc: editorTextOf(written) };
+  }
+
+  it("is the template's cursor, whatever line ends the template has and whether or not it opens with a mark or a block", async () => {
+    const templates: Record<string, string> = {
+      "\\n": "# Liste\n\n- [ ] |\nEnde\n",
+      "\\n, block": "---\nstatus: entwurf\n---\n# Liste\n\n- [ ] |\nEnde\n",
+      "\\r\\n": "# Liste\r\n\r\n- [ ] |\r\nEnde\r\n",
+      "\\r\\n, block": "---\r\nstatus: entwurf\r\n---\r\n# Liste\r\n\r\n- [ ] |\r\nEnde\r\n",
+      mark: `${MARK}# Liste\n\n- [ ] |\nEnde\n`,
+      "mark, block": `${MARK}---\nstatus: entwurf\n---\n# Liste\n\n- [ ] |\nEnde\n`,
+      "mark and \\r\\n, block": `${MARK}---\r\nstatus: entwurf\r\n---\r\n# Liste\r\n\r\n- [ ] |\r\nEnde\r\n`,
+    };
+    for (const [name, marked] of Object.entries(templates)) {
+      const { draft, written, doc } = await planned(marked);
+      // The draft keeps the template's line ends and its mark; the view's filters went into the block.
+      expect(written, name).toBe(draft.initial);
+      expect(written.includes("\r\n"), name).toBe(marked.includes("\r\n"));
+      expect(written.startsWith(MARK), name).toBe(marked.startsWith(MARK));
+      expect(written, name).toContain("prio: 2");
+      expect(doc.slice(pinboardEntryCaret(draft, doc)), name).toBe("\nEnde\n");
+    }
+  });
+
+  it("is the builder's own number for a template with \\n and without a mark", async () => {
+    const { draft, doc } = await planned("---\nstatus: entwurf\n---\n# Liste\n\n- [ ] |\nEnde\n");
+    expect(doc).toBe(draft.initial);
+    expect(pinboardEntryCaret(draft, doc)).toBe(draft.caret);
+  });
+
+  it("is the end without a cursor, and never a place in the properties block or past the text", () => {
+    const initial = "---\r\ntype: Note\r\n---\r\n- [ ] \r\n";
+    const doc = editorTextOf(initial);
+    expect(pinboardEntryCaret({ initial, caret: null }, doc)).toBe(doc.length);
+    // A caret that points into the block goes to the end, as it always did.
+    expect(pinboardEntryCaret({ initial, caret: 7 }, doc)).toBe(doc.length);
+    // The editor holds less than was written (the draft changed underneath): the end of what it holds.
+    expect(pinboardEntryCaret({ initial, caret: initial.length }, "---\ntype: Note\n---\n")).toBe("---\ntype: Note\n---\n".length);
+  });
+
+  it("is what the desktop's entry window asks — it compares no caret of the draft with its editor itself", () => {
+    const source = readFileSync(fileURLToPath(new URL("../components/base/PinboardEntryModal.tsx", import.meta.url)), "utf8");
+    expect(source).toMatch(/pinboardEntryCaret\(draft, /);
+    expect(source).not.toMatch(/draft\.caret/);
   });
 });
 

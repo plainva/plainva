@@ -1,3 +1,4 @@
+import { updateVaultText } from "@plainva/core";
 import { TaskNameCleanupNotice, errorText, toast, useTaskNameCleanup } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
@@ -34,6 +35,7 @@ export function TaskNamesNotice({
     exists: (path) => vaultAdapter!.exists(path),
     readTextFile: (path) => vaultAdapter!.readTextFile(path),
     writeTextFile: (path, content) => vaultAdapter!.writeTextFile(path, content),
+    updateTextFile: (path, change) => updateVaultText(vaultAdapter!, path, change),
     renameNote: async (from, to) => {
       await requestSaveFlush(from, vaultPath ?? undefined);
       const name = (to.split("/").pop() ?? to).replace(/\.md$/i, "");

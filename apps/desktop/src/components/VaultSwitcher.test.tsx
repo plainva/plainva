@@ -86,6 +86,46 @@ describe("the vault line in the sidebar", () => {
     expect(openVault).toHaveBeenCalledWith("/a/one");
   });
 
+  it("opens the other vault in a window of its own, and the menu goes", async () => {
+    const openVaultWindow = vi.fn();
+    const onOpenChange = vi.fn();
+    await mount({ open: true, closeVault: () => {}, openVaultWindow, onOpenChange, recentVaults: ["/a/one"] });
+    const inWindow = host.querySelector<HTMLButtonElement>(".pv-menu .pv-iconbtn")!;
+    await act(async () => { inWindow.click(); });
+    expect(openVaultWindow).toHaveBeenCalledWith("/a/one");
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  // The menu was drawn by hand until 2026-10-11: the look of a menu and none
+  // of its contract. It stayed open until its own line was pressed again.
+  it("is the menu primitive: Escape closes it, wherever the keyboard is", async () => {
+    const onOpenChange = vi.fn();
+    await mount({ open: true, closeVault: () => {}, onOpenChange, recentVaults: ["/a/one"] });
+    expect(host.querySelector('.pv-menu[role="menu"]')).not.toBeNull();
+    await act(async () => {
+      document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("closes on a press beside it — and leaves a press on its own line to the line", async () => {
+    const onOpenChange = vi.fn();
+    await mount({ open: true, closeVault: () => {}, onOpenChange, recentVaults: ["/a/one"] });
+    const press = (target: Element) => act(async () => {
+      target.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, cancelable: true }));
+    });
+    // Inside the menu, and on the line it hangs on: neither is "beside".
+    await press(host.querySelector(".pv-menu-label")!);
+    await press(host.querySelector('button[aria-haspopup="true"]')!);
+    expect(onOpenChange).not.toHaveBeenCalled();
+    // The line's own press is what closes the menu there: one press, one change.
+    await act(async () => { host.querySelector<HTMLButtonElement>('button[aria-haspopup="true"]')!.click(); });
+    expect(onOpenChange.mock.calls).toEqual([[false]]);
+
+    await press(document.body);
+    expect(onOpenChange.mock.calls).toEqual([[false], [false]]);
+  });
+
   it("stays dead only where there is nothing to switch to", async () => {
     // No `closeVault` means no app layer behind this line at all (the splash
     // renders no sidebar) — offering a menu there would be a lie.

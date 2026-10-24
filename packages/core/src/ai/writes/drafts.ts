@@ -62,7 +62,7 @@ export type WriteDraftBody =
    */
   | { kind: "event"; title: string; allDay: boolean; day: string; endDay: string; start: string; end: string; location: string; description: string; attendees: string[]; unnamed: string[] }
   /**
-   * An entry for the vault's memory (plan P6, ADR 0027): one sentence an
+   * An entry for the vault's memory (plan P6, ADR 0032): one sentence an
    * assistant should know. `place`: where the writer would put it — the user
    * can choose the other on the card. `replaces`: the text of the entry it
    * stands in for, where it rewords one. Created, it is a line in one of the

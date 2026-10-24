@@ -37,7 +37,7 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
   const { t } = useTranslation();
   const [text, setText] = useState(dialog.kind === "prompt" ? (dialog.initial ?? "") : "");
   const [filter, setFilter] = useState("");
-  const [checked, setChecked] = useState(dialog.kind === "prompt" ? (dialog.checkbox?.initial ?? false) : false);
+  const [checked, setChecked] = useState(dialog.kind === "prompt" || dialog.kind === "confirm" ? (dialog.checkbox?.initial ?? false) : false);
   // A single choice shows its new mark, THEN closes (E21). Called before the
   // kind branches below, which return early.
   const beat = useChoiceBeat<string>((value) => {
@@ -115,6 +115,17 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
           </>
         )}
 
+        {/* One more decision of the same act (`mConfirmOption`). A checkbox with
+            its sentence beside it, as the phone's OKF screens ask theirs: the
+            sentence wraps, where a row's title would be cut. */}
+        {dialog.kind === "confirm" && dialog.checkbox && (
+          <div className="m-sheet-option">
+            <Checkbox checked={checked} data-testid="confirm-option" onChange={(e) => setChecked(e.target.checked)}>
+              {dialog.checkbox.label}
+            </Checkbox>
+          </div>
+        )}
+
         {dialog.kind === "confirm" && (
           <div className="m-btnrow">
             {/* A NAMED safe branch is an action of its own, and the one the
@@ -127,7 +138,7 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
               data-testid="confirm-act"
               variant={dialog.danger ? "danger" : "primary"}
               onClick={() => {
-                dialog.resolve(true);
+                dialog.resolve(true, checked);
                 dismissMobileDialog(dialog);
               }}
             >

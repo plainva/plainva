@@ -1,9 +1,11 @@
 import {
-  parseMarkdownAst,
-  extractFrontmatter,
+  readFrontmatterPath,
   upsertFrontmatterKeys,
   deleteFrontmatterPath,
-  resolveLinkTarget,
+  noteLinkResolver,
+  updateVaultText,
+  type LinkTargetRow,
+  type TextUpdateFiles,
 } from "@plainva/core";
 
 /**
@@ -15,11 +17,10 @@ import {
  * never touched (they simply become unresolved links, Obsidian parity).
  */
 
-export interface RelationCleanupDeps {
-  readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, content: string): Promise<void>;
-  /** Resolver corpus: every non-attachment file path in the vault. */
-  listNotePaths(): Promise<string[]>;
+/** The note's files — a vault's chain, or a storage with nothing above it (`updateVaultText`) — and the link rule's corpus. */
+export interface RelationCleanupDeps extends TextUpdateFiles {
+  /** The link rule's corpus (`VaultQueryService.linkTargets`): every file a link can lead to. */
+  listLinkTargets(): Promise<readonly LinkTargetRow[]>;
 }
 
 const WIKILINK_VALUE_RE = /^\s*\[\[([^[\]]+)\]\]\s*$/;
@@ -38,8 +39,7 @@ function linkBaseOf(value: unknown): string | null {
   return base || null;
 }
 
-function currentValues(props: Record<string, unknown>, key: string): unknown[] {
-  const value = props[key];
+function currentValues(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
   if (value == null || value === "") return [];
   return [value];
@@ -50,27 +50,37 @@ export async function removeRelationLinksToNoteShared(
   opts: { notePath: string; propertyKey: string; targetNotePath: string }
 ): Promise<{ changed: boolean; removed: number }> {
   const { notePath, propertyKey, targetNotePath } = opts;
-  const [content, allFilePaths] = await Promise.all([deps.readTextFile(notePath), deps.listNotePaths()]);
-  const fm = extractFrontmatter(parseMarkdownAst(content));
-  const props: Record<string, unknown> = fm.success && fm.data ? (fm.data as Record<string, unknown>) : {};
-  if (!(propertyKey in props)) return { changed: false, removed: 0 };
-
+  // What a link leads to is asked first: the change itself runs on the note's text alone.
+  const linkedNote = noteLinkResolver(await deps.listLinkTargets());
   const resolvesToTarget = (value: unknown): boolean => {
     const base = linkBaseOf(value);
-    return base != null && resolveLinkTarget(notePath, base, allFilePaths) === targetNotePath;
+    return base != null && linkedNote(notePath, base) === targetNotePath;
   };
 
-  const values = currentValues(props, propertyKey);
-  const kept = values.filter((v) => !resolvesToTarget(v));
-  const removed = values.length - kept.length;
-  if (removed === 0) return { changed: false, removed: 0 };
-
-  const next =
-    kept.length === 0
-      ? deleteFrontmatterPath(content, [propertyKey])
-      : upsertFrontmatterKeys(content, {
-          [propertyKey]: Array.isArray(props[propertyKey]) ? kept : kept[0],
-        });
-  await deps.writeTextFile(notePath, next);
-  return { changed: true, removed };
+  // What the note holds is read with the reader of the writers below (finding
+  // 2026-10-12). The reader of the index stood here: its schema rejected a
+  // proper YAML map with a value it did not take — an empty `tags:`, until
+  // 2026-10-22 (ADR 0009) —, such a note came back as holding no property at
+  // all, and a link to a note that was being deleted stayed in it without a
+  // word.
+  const cleaned = (content: string): { removed: number; next: string | null } => {
+    const stored = readFrontmatterPath(content, [propertyKey]);
+    const values = currentValues(stored);
+    const kept = values.filter((v) => !resolvesToTarget(v));
+    const removed = values.length - kept.length;
+    if (removed === 0) return { removed, next: null };
+    return {
+      removed,
+      next: kept.length === 0
+        ? deleteFrontmatterPath(content, [propertyKey])
+        : upsertFrontmatterKeys(content, {
+            [propertyKey]: Array.isArray(stored) ? kept : kept[0],
+          }),
+    };
+  };
+  // Counted on the note as it was changed; where it has an open conflict, the
+  // user's own version is cleaned the same way and counts for itself.
+  const update = await updateVaultText(deps, notePath, (content) => cleaned(content).next);
+  const removed = cleaned(update.before).removed;
+  return { changed: removed > 0, removed };
 }

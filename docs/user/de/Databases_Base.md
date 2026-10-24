@@ -1,6 +1,6 @@
 # Datenbanken (.base)
 
-Stand: 2026-10-07
+Stand: 2026-10-21
 
 Mit `.base`-Dateien verwandelst Du Notizen in Datenbanken: Tabellen, Boards, Kalender — mit Filtern, typisierten Eigenschaften und Relationen zwischen Datenbanken. Das Konzept ähnelt Notion-Datenbanken, mit einem entscheidenden Unterschied: **Die Daten liegen nicht in der Datenbank, sondern in Deinen Notizen.**
 
@@ -60,12 +60,12 @@ Auf dem Smartphone öffnet **Konfigurieren** dieselben Bereiche als Liste; ein T
 
 Ein Klick auf einen Spaltenkopf öffnet den Eigenschafts-Editor (**Eigenschaft: X**):
 
-- **Name** — Umbenennen wirkt auf die Notizen: Beim Speichern wird die Eigenschaft in allen passenden Notizen im Frontmatter umbenannt (mit Bestätigung und Fortschrittsanzeige).
+- **Name** — Umbenennen wirkt auf die Notizen: Beim Speichern wird die Eigenschaft in allen passenden Notizen im Frontmatter umbenannt (mit Bestätigung und Fortschrittsanzeige). Plainva fragt vorher jede Notiz: Kann eine den neuen Namen nicht annehmen — sie hat schon eine Eigenschaft dieses Namens, oder der Block an ihrem Anfang lässt sich nicht als Eigenschaften lesen —, wird nichts umbenannt, und eine Meldung nennt diese Notizen.
 - **Feldtyp** — Text, Zahl, Bewertung, Kontrollkästchen, Datum, Datum & Uhrzeit, Liste, Tags, Auswählen, Status, Mehrfachauswahl, URL, E-Mail, Telefon, Relation (dasselbe gruppierte Typ-Menü wie im **Eigenschaften**-Panel der Notizen).
   Eine **Bewertung** ist eine Zahl, die als Punkte gezeichnet wird (fünf, wenn die Spalte nichts anderes sagt). In der Datei steht `stimmung: 4` — eine schlichte Zahl, die auch Obsidian und jede Tabellenkalkulation lesen; sortiert und gefiltert wird wie bei einer Zahl. Du klickst den Punkt, der zählen soll; ein Klick auf den aktuellen Wert löscht ihn wieder.
 - **Tag aus dem Dateinamen** (`file.day`) — Kalender und Zeitleiste können Tagesnotizen nach ihrem **Dateinamen** einsortieren, ohne dass das Datum zusätzlich im Frontmatter steht. Das Feld erscheint im Wähler für das Datumsfeld, sobald der Vault Tagesnotizen benennt (Ordner und Format unter **Einstellungen → Dein Vault → Inhalt & Struktur**); es wird aus dem Namen berechnet, steht in keiner Notiz und lässt sich nicht bearbeiten — eine Karte, die so platziert ist, lässt sich deshalb auch nicht auf einen anderen Tag ziehen (das würde die Datei umbenennen). Obsidian kennt dieses Feld nicht: eine Ansicht, die es benutzt, bleibt dort leer. Der Preis dafür, das Datum nicht zweimal zu führen.
 - **Optionen** (bei Auswahl/Status/Mehrfachauswahl) — feste Werte mit **Farbe** und bei **Status** einer **Gruppe**/Stufe (z. B. offen → in Arbeit → erledigt); Reihenfolge per Drag. Beim Öffnen des Spalten-Editors ist die Optionsliste bereits mit den Werten vorbelegt, die in der Datenbank vorkommen — so kannst Du jedem eine Farbe geben, ohne ihn erst neu einzutippen.
-- **Eigenschaft löschen** — entfernt Spalte, Schema, Filter und Sortierungen aus der Datenbank. Die Checkbox **Auch aus dem Frontmatter der Notizen entfernen** (standardmäßig an) bereinigt zusätzlich die Quell-Notizen.
+- **Eigenschaft löschen** — entfernt Spalte, Schema, Filter und Sortierungen aus der Datenbank. Die Checkbox **Auch aus dem Frontmatter der Notizen entfernen** (standardmäßig an) bereinigt zusätzlich die Quell-Notizen. Eine Notiz, die sich nicht ändern lässt, behält die Eigenschaft; eine Meldung zählt die geänderten und die fehlgeschlagenen Notizen.
 
 Hinweise zum Verhalten:
 

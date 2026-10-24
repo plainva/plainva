@@ -28,7 +28,7 @@ import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
 import { authorizeNativeGoogle, forgetNativeGoogleTokens } from "./googleNativeAuthorization";
 import i18n from "@plainva/ui/i18n";
-import { workspaceSyncFailureText } from "@plainva/ui";
+import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 import { mConfirm } from "./mobileDialogs";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
@@ -36,9 +36,10 @@ import { createContentRefResolver, mobileSyncUploader } from "../adapters/syncUp
 import { fileBrokerTokenProvider, fileGrantProbe } from "./accountBroker";
 import { rotateLegacyFileGrant } from "./accountGrantMigration";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
-import { applyTemplateSettings, getMobileSettings } from "./mobileSettings";
+import { applyTemplateSettingsTo, getMobileSettings } from "./mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
-import { getMobileVault, switchVault, type MobileVault } from "./vaultService";
+import { getMobileVault, type MobileVault } from "./vaultService";
+import { enterMadeVault } from "./flowVault";
 import { mobileSyncDeviceId, prepareMobileSettingsSync } from "./mobileSettingsSync";
 import { notifyPulledFiles } from "./pulledFiles";
 import { loadMobilePublicationRuntime } from "./mobileWorkspaceSecurity";
@@ -294,7 +295,13 @@ function providerVaultName(p: MobileSyncProvider): string {
  * the remote content into the new vault. Files from other vaults are
  * never enqueued (isolation requirement, maintainer 2026-07-10).
  */
-export async function connectProvider(v: MobileVault, p: MobileSyncProvider, selectedContext?: ServiceConnectionContext): Promise<void> {
+export async function connectProvider(
+  v: MobileVault,
+  p: MobileSyncProvider,
+  selectedContext?: ServiceConnectionContext,
+  /** Runs once the slot exists and before the vault is listed (account sign-in plan K4b); a failure leaves no vault. */
+  adopt?: (vaultId: string) => Promise<void>,
+): Promise<void> {
   if (!syncPossible(v)) throw new Error("sync requires the native SQLite queue");
   const { connectionContextFor } = await import("./connectQueue");
   const context = selectedContext ?? await connectionContextFor("files");
@@ -305,8 +312,11 @@ export async function connectProvider(v: MobileVault, p: MobileSyncProvider, sel
   }
   const id = newVaultId();
   await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
+  await adoptOrForget(id, adopt);
   await addVault({ id, name: providerVaultName(p), provider: p.provider });
-  await switchVault(id);
+  // Offered instead of taken while something else's unsaved input is on screen
+  // (`flowVault.ts`): the vault is connected either way.
+  await enterMadeVault(id);
 }
 
 /**
@@ -321,6 +331,7 @@ export async function createProviderVault(
   v: MobileVault,
   p: MobileSyncProvider,
   opts: { template: VaultTemplateDefinition | null; vaultName: string; subfoldersHeading: string },
+  adopt?: (vaultId: string) => Promise<void>,
 ): Promise<void> {
   if (!syncPossible(v)) throw new Error("sync requires the native SQLite queue");
   if (p.provider === "webdav") await allowHttpOrigin(p.creds.url);
@@ -340,9 +351,24 @@ export async function createProviderVault(
     subfoldersHeading: opts.subfoldersHeading,
   });
   await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
+  await adoptOrForget(id, adopt);
   await addVault({ id, name: providerVaultName(p), provider: p.provider });
-  await switchVault(id);
-  await applyTemplateSettings(opts.template?.settings);
+  // The template's settings are the new vault's own: written into it now, they
+  // are there whether it opens at once or waits at its offer (`flowVault.ts`)
+  // — and an app that ends in between loses nothing.
+  await applyTemplateSettingsTo(id, opts.template?.settings);
+  await enterMadeVault(id);
+}
+
+/** Hands a new vault's sign-in to its card; on failure the slot goes and no vault is listed. */
+async function adoptOrForget(vaultId: string, adopt?: (vaultId: string) => Promise<void>): Promise<void> {
+  if (!adopt) return;
+  try {
+    await adopt(vaultId);
+  } catch (error) {
+    await getPlatformServices().credentials.removeSecret(credKeyFor(vaultId)).catch(() => undefined);
+    throw error;
+  }
 }
 
 /**
@@ -400,11 +426,27 @@ export async function reauthorizeVault(vaultId: string, fresh: MobileSyncProvide
  * left behind here would keep refreshing on the side, which is exactly the
  * arrangement that let one service go stale while another stayed alive.
  */
-export async function switchProviderToAccountBroker(vaultId: string, record: CloudAccountRecord, clientId: string): Promise<void> {
-  const existing = await getStoredProvider(vaultId);
+export async function switchProviderToAccountBroker(
+  vaultId: string,
+  record: CloudAccountRecord,
+  clientId: string,
+  /**
+   * The one sign-in (account sign-in plan K4) may have used another access of
+   * this device than the slot names: the slot then takes the new client, so it
+   * names the sign-in that serves it instead of refusing as "changed".
+   */
+  adopt?: { clientSecret?: string },
+): Promise<void> {
+  const stored = await getStoredProvider(vaultId);
   if (!record.services.files) return;
-  if (!existing || existing.provider !== record.services.files.provider
-    || (existing.provider !== "drive" && existing.provider !== "onedrive") || existing.creds.clientId !== clientId) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+  if (!stored || stored.provider !== record.services.files.provider
+    || (stored.provider !== "drive" && stored.provider !== "onedrive") || (!adopt && stored.creds.clientId !== clientId)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+  const existing: MobileSyncProvider = adopt && stored.creds.clientId !== clientId
+    ? (stored.provider === "drive"
+      ? { provider: "drive", creds: { ...stored.creds, clientId, clientSecret: adopt.clientSecret ?? "", refreshToken: "", nativeGoogle: undefined } }
+      : { provider: "onedrive", creds: { ...stored.creds, clientId, refreshToken: "" } })
+    : stored;
+  if (existing !== stored) await getPlatformServices().credentials.writeSecret(credKeyFor(vaultId), existing);
   const probe = await fileGrantProbe(vaultId, record.id, existing.provider === "drive" ? "google" : "microsoft", existing.creds);
   await probe.getAccessToken();
   if ((await getActiveVaultEntry()).id === vaultId) await stopSyncAndDrain();
@@ -966,7 +1008,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
       }
       try {
         const kept = await w.keepSuspendedDeletionsLocal();
-        toast.info(i18n.t("sync.pullGuardKept", { n: kept }));
+        toast.info(i18n.t("sync.pullGuardKept", { count: kept }));
       } catch (e) {
         console.error("[syncService] keepSuspendedDeletionsLocal failed", e);
         toast.error(i18n.t("sync.pullGuardFailed"));
@@ -975,9 +1017,12 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
   };
   w.onDeletionReport = (report) => {
     // Same rule as the desktop: a deletion kept back because of unsynced local
-    // edits is said, not swallowed.
-    if (report.keptLocalEdits.length > 0) {
-      toast.info(i18n.t("sync.deletionsKeptLocalEdits", { n: report.keptLocalEdits.length }));
+    // edits is said, not swallowed — with the names of the files and what
+    // happens to them (finding 2026-10-19), and the paths in the diagnostics.
+    const kept = keptDeletionsText(report.keptLocalEdits);
+    if (kept) {
+      logDiagnostic("sync", keptDeletionsDiagnostic(report.keptLocalEdits));
+      toast.info(kept);
     }
   };
   worker = w;

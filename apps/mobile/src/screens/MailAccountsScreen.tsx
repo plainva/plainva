@@ -1,7 +1,8 @@
 import { sameStoredValue } from "@plainva/core";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GmailSignInButton } from "@plainva/ui";
-import { mobileGmailClient, signInGmail } from "../services/mail/gmailAuth";
+import { connectGmailFromCard } from "../services/mail/gmailAuth";
+import { beginMobileSignIn } from "../services/accountSignIn";
+import { toastConnectionFailure } from "../services/connectionToast";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailTargetForFamily, Row, RowList, SectionLabel, Segmented, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
@@ -130,11 +131,13 @@ export function MailAccountsScreen({
     if (kind === "imap") { setKind("imap"); setEditing(a); setFormOpen(true); return; }
     if (kind === "microsoft") { setEditing(null); setKind("microsoft"); setFormOpen(true); return; }
     try {
+      // A Gmail mailbox signs in at its card: the one sign-in renews everything the card carries.
       const record = (await loadCloudAccounts(vault.vaultId)).find((row) => row.services.mail?.mailAccountId === a.id);
-      await signInGmail(vault.vaultId, record);
+      if (record) await beginMobileSignIn(vault.vaultId, { family: "google", cardId: record.id, add: [] });
+      else await connectGmailFromCard();
       reload();
     } catch (e) {
-      toast.error(serviceConnectionMessage(e, t));
+      toastConnectionFailure(e);
     }
   };
 
@@ -446,9 +449,7 @@ export function MailAccountsScreen({
                   controls
                   data-testid={`mail-orphan-${a.id}`}
                   end={<>
-                    {(a.kind !== "gmail" || mobileGmailClient()) && (
-                      <Button size="sm" variant="primary" onClick={() => void signInOrphan(a)} data-testid={`mail-orphan-signin-${a.id}`}>{t("deviceSignIn.action")}</Button>
-                    )}
+                    <Button size="sm" variant="primary" onClick={() => void signInOrphan(a)} data-testid={`mail-orphan-signin-${a.id}`}>{t("deviceSignIn.action")}</Button>
                     <Button size="sm" variant="danger-soft" onClick={() => void removeOrphan(a)} data-testid={`mail-orphan-remove-${a.id}`}>{t("mail.orphans.remove")}</Button>
                   </>}
                   key={a.id}
@@ -459,11 +460,14 @@ export function MailAccountsScreen({
             </RowList>
           </GroupCard>
         )}
-        {mobileGmailClient() && (!mailRun || family === "google") && <GmailSignInButton onSignIn={async () => {
-          const records = await loadCloudAccounts(vault.vaultId);
-          const expected = records.find(row => (!!mailRun?.context.cloudAccountId && row.id === mailRun.context.cloudAccountId) || (!!accountId && row.services.mail?.mailAccountId === accountId));
-          await signInGmail(vault.vaultId, expected, mailRun?.context); reload();
-        }} />}
+        {/* Gmail in a run of a Google card: the mailbox binds with the card's
+            sign-in, or the one sign-in asks for mail (account sign-in plan K4). */}
+        {mailRun && family === "google" && (
+          <Button variant="primary" disabled={busy} data-testid="mail-gmail-connect" onClick={() => {
+            setBusy(true);
+            void connectGmailFromCard().then(() => reload()).catch((e) => toastConnectionFailure(e)).finally(() => setBusy(false));
+          }}>{t("cloudAccounts.signInGoogle")}</Button>
+        )}
 
         {/* Where captured mail lands. The setting has always travelled with the
             profile and the mail screens have always read it — the phone simply

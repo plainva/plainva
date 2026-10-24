@@ -49,3 +49,539 @@ The spike must not:
 - Master project plan, sections 2.1, 3, 14.2 and 16 (internal planning document, maintainer workspace)
 - `docs/adr/0001-monorepo-pnpm-turborepo.md`
 - `docs/adr/0002-app-stack-baseline.md`
+
+## Addendum 2026-10-09 (a text file keeps its line endings and its byte order mark)
+
+One of the "formatter-normalization questions" this ADR left open, decided by
+the maintainer on 2026-10-09. It reverses a rule of 2026-08-13: notes were
+"UTF-8/LF project-wide", so the first changed character wrote a note back with
+`\n` throughout, and so did every merge. For a vault that came from Windows and
+is kept in Git that is the difference between one changed line and the whole
+file — a silent reformat of existing vault content, which this ADR rules out.
+
+1. **A file keeps the shape it has.** Line endings and a UTF-8 byte order mark
+   are the file's, for a note as for any other text file. Plainva takes them
+   when it reads a file and puts them back when it writes it. What Plainva
+   creates itself starts with `\n` and without a mark.
+2. **An editor holds one text.** `\n` line ends, no mark
+   (`packages/core/src/textFileShape.ts`, `editorTextOf`). Whatever is compared
+   with what an editor holds is read into that text first; every write of it
+   says which shape it leaves in. Both shells open a file through one function
+   (`openEditorText` in the UI package), which returns the file's own shape
+   for every text file. A place is a place in one of the two texts: one that
+   was counted in the file reaches an editor through `editorOffsetOf`, as the
+   caret a template leaves in a new note does (ADR 0009, addendum
+   2026-10-09, point 4).
+3. **A merge decides the shape itself.** The merges in `conflict-resolver.ts`
+   work on lines and hand their result back in the shape `mergedTextShape`
+   gives: line endings and the mark are merged like a line — where one side
+   changed them and the other did not, the change stands. Where no ancestor
+   says who changed what, the version that is already there decides: the file
+   on disk for a save, the server's version for a sync. A device that joins a
+   sync with the same notes in other line endings takes the ones the others
+   hold and uploads nothing. A merge that takes nothing from the other side
+   hands its own side back byte for byte, stray line endings included. No
+   caller puts the shape back, so none can forget to. A sync therefore
+   neither turns the line endings of a file two devices changed, nor undoes a
+   conversion one device made on purpose.
+4. **A file's text is its bytes decoded with the mark** (`textOfFileBytes`). A
+   plain `TextDecoder` drops it; a pulled file, a version restored from an
+   encrypted workspace's history, and every file in a folder the phone reaches
+   through the system's document provider came back without the mark they had.
+   **The phone's own storage (added 2026-10-20).** Its adapter asked the system
+   for a file's text, and the two systems decode differently: Android's reader
+   leaves a leading mark in the text, Foundation skips it. On an iPhone a file
+   reached the editor without its mark and was saved without it, a write
+   beside the editor dropped it as well, and the sync carried the loss to every
+   other device (read in the sources of the plugin's libraries and of
+   Foundation, run on no iPhone). The adapter reads the bytes and decodes them
+   by this rule on both systems, so no system decoder has a say; only the
+   browser build, whose store keeps a text file as the text it was given,
+   hands that text out. Bytes that are not UTF-8 come out with replacement
+   characters on both systems, as from the folder adapter — iOS' own reader
+   refused them —, and the chain refuses such a file either way (the
+   paragraph of 2026-10-20 below). A build before this left a local marker
+   that is the hash of the text without its mark beside a base the sync
+   recorded with it. The write chain and the index take such a marker for the
+   file that is there where that base is the file as it lies
+   (`isMarkerTakenWithoutMark` in `packages/core/src/vault/localText.ts`), and
+   a merge takes that base for the version the marker names; otherwise a whole
+   text written over such a file — a version put back, a view that holds its
+   text — ended as a conflict copy, and a pass that read the file again called
+   it changed elsewhere. A mark another program adds to a file the sync knows
+   without one is no such marker: the base has no mark either, and the change
+   is reported and merged like any other (a row cannot tell one corner apart:
+   such a build wrote the file back without its mark, its upload had not gone
+   out, and another program put the mark back — that mark may be lost again,
+   never the text). In a vault without sync the merge with the base on record
+   decides, and a pass that reads such a file again reports it as changed
+   until it is opened or written.
+5. **Writers beside an editor follow the same rule.** One that adds or
+   replaces a line thinks in `\n` and writes in the file's shape
+   (`editInShape`); one that writes a whole text anew over an existing file
+   takes that file's shape (`inShapeOf`). The frontmatter writers use the same
+   definition of a note's line ending as everything else.
+6. **Mixed line endings go to the majority.** A file that mixes both kinds is
+   brought to the kind most of its lines have the first time its text is
+   changed. Remembering the ending per line would be the only way to be exact,
+   and it would preserve a stray ending forever. A write that changes nothing
+   writes nothing.
+7. **Outside this decision.** A `.base` is serialised anew from its
+   configuration, with `\n` and without a mark, whenever that configuration
+   changes. A text file in an encoding other than UTF-8 is read as UTF-8, and
+   a sync does not carry it over intact — a separate, older question. And the
+   Markdown serializer a rename runs over the notes that link to the renamed
+   one changes more than line endings (list bullets, emphasis marks, table
+   rules); its result is brought back to the note's shape, the rest is a
+   separate question.
+8. **Whoever reads a file's text meets the mark (added 2026-10-11).** Point 4
+   brought the mark to the phone's readers, which had never seen one, and
+   showed what the desktop's had done with it all along. A reader that names
+   PLACES in a note — the outline, an embedded section, the reading view, the
+   journal — counts them in the text it was given, mark included: the
+   Markdown parser skips the mark and counts from behind it, so its offsets
+   are brought back to the text before anything is laid on it (point 9). What
+   is handed to the reading view has no mark, as it has no `\r`. And the
+   journal reads and changes the lines behind the mark and puts it back in
+   front of them.
+9. **Markdown is parsed in one place, and its places are places in the text
+   it was given (added 2026-10-12).** The note source was one of three readers
+   that laid a parser's offsets on a file's text, each with a parser of its
+   own: the import from Joplin kept a link definition unresolved in a body
+   that starts with a mark, and `parseMarkdownAst` handed out offsets one
+   short — the index reads lines only, and the link rewriter of the addendum
+   below cuts the mark off itself before it parses. All three take their tree
+   from
+   `packages/core/src/markdown-parser.ts` now (`parseMarkdownTree`,
+   `parseCommonMarkTree`, `parseMarkdownAst`), which adds the one character
+   the parser skipped back to every offset, and to the columns of the first
+   line. A reader of places has nothing to remember about a mark, and a
+   shipped file that brings a parser of its own fails a guard. The reading
+   view's renderer is the one other parse; what it is handed has no mark at
+   its start (point 8). A reader that goes through a file's LINES reads them
+   as an editor holds them (`editorTextOf`): the context of a backlink took a
+   list item in the first line of such a note for plain text, and the reading
+   view read the writing direction of an embedded note's blocks from lines of
+   which the first began with the mark — a task there ran left to right
+   whatever it was written in, and behind a properties block the whole note
+   did.
+
+**2026-10-12 — the encoding question of point 7, answered for the sync.** A
+file is text when its name says so AND its bytes are UTF-8 (`mergeableText` in
+`packages/core/src/sync/fileType.ts`). Every other file travels byte for byte,
+like an image: it has no merge base text, it is never merged, and where both
+sides changed it the local version is kept as a `.CONFLICT` copy. Until then
+the name alone decided: a pull wrote the decoded text of a `.csv` in
+Windows-1252 or a `.txt` in UTF-16 as the file — every byte that is not UTF-8
+replaced —, and a change on both sides merged the two decoded texts and sent
+the result to everyone. The sync worker asks the question for both sides of a
+pull and reads both as bytes; the sync engine asks it for what it pushed. The
+indexer, and the marker the conflict-aware adapter records when a file is
+opened, read a file of the device through `readLocalText`
+(`packages/core/src/vault/localText.ts`), which answers the same question and
+gives the one hash all of them compare by — the hash of the file's bytes —
+whether the platform's text reader replaces such bytes or refuses the file.
+Rows an older version left behind are marked (`sync_state.recheck`,
+`packages/core/src/db/lossyTextBaseMigration.ts`): the file is compared with
+the server's copy once more, and nothing of it is pushed before. As long as
+a device with an older version can still send a decoded text: such a version,
+arriving over an unchanged file in another encoding, is taken like any other,
+and that file is kept next to it as a `.CONFLICT` copy.
+What the app itself does with such a file is answered in the next paragraph.
+Tests: `packages/core/test/sync/non-utf8-text-sync.test.ts` (two devices, both
+kinds of text reader, bytes on both disks and on the server),
+`packages/core/test/local-text.test.ts`.
+
+**2026-10-20 — the same question, answered for the app.** The app asks what
+the sync asks. The adapter chain both shells hand out
+(`ConflictAwareVaultAdapter`) hands out a file's text or refuses the file
+(`NotTextFileError`, through `readExactText` in
+`packages/core/src/vault/localText.ts`), whether the platform's text reader
+replaces such bytes or refuses them; and it writes no text over a file it could
+not read as one — not an editor's save, not a change through its one entry for
+reading, changing and writing back (`updateTextFile`), not a whole text. An
+editor shows such a file as not text on both shells, a note included, and an
+auxiliary window of the desktop reads the same way. The version kept before a
+write is the file's bytes where the file is no text. A restored version, a
+duplicate and the copy of a conflict that takes a file's place are written as
+text only where they are text, and byte for byte otherwise
+(`writeFileVersion`, `copyFileContent`); the version history keeps no list of
+text extensions of its own. What an editor held when its file turned into such
+a file is kept beside it as a conflict copy (`keepTextBeside`), both shells
+lead from such a file to the newest copy beside it, kept there or left by the
+sync (`newestConflictCopy`), and the comparison of both shells settles a copy
+that cannot be laid out as text byte for byte, through one way
+(`settleConflictCopy`) — an open conflict through its own gate
+(`resolveConflictBytes`); while a conflict is open, no bytes are written into
+either side of it. Which files a comparison reads as text is one rule of both
+shells (`comparesAsText`). Until then the extension decided: where the reader
+replaces, an editor opened a `.csv` in Windows-1252 with replacement
+characters, its first save wrote them, and the version kept before that save
+was the same reading; where it refuses, the desktop's editor called the file
+missing. A read-only view that offers to convert such a file to UTF-8 is a
+separate question (maintainer, 2026-10-19). Tests:
+`packages/core/test/non-utf8-text-in-app.test.ts` (both kinds of text reader,
+bytes read), `apps/mobile/src/services/notTextFiles.test.ts`,
+`apps/desktop/e2e/not-text.spec.ts`, `apps/mobile/e2e-prod/not-text.spec.ts`.
+
+**2026-10-22 — a carriage return of its own is read, and not kept.** Decided
+by the maintainer on 2026-10-12, as the one exception to point 1. A shape has
+two line endings, `\n` and `\r\n`. A `\r` alone — every line ending of a file
+from a classic Mac, or a stray one elsewhere — is a third way to end a line
+that an editor has always read (CodeMirror splits there) and that nothing
+could put back.
+
+- **It is read everywhere.** The text an editor holds has `\n` in its place,
+  and `editorTextOf` gives exactly that text. It did not: the `\r` stayed in
+  it, and for such a file the "one text" of point 2 was two. Measured on a
+  file from a classic Mac: a merge of two devices' changes ended in a conflict
+  over the whole file, and a line added by a writer beside the editor landed
+  at the end of the file instead of in its list; a comment operation was
+  handed a text other than the one the editor held.
+- **It is not kept.** The first write through the chain that changes a file
+  which has such line endings leaves it with the line ending its shape has —
+  `\n` where it has no other, the majority of point 6 otherwise. That is every
+  line of the file, whoever writes: an editor's save, a writer beside it, and
+  a writer that changed one place and left every other line as it was (a
+  property, a task's box, a line of the journal, a link a rename rewrites)
+  alike — the top of the chain turns what such a writer left (`keptLineEnds`,
+  `withKeptLineEnds`). Nobody asked for that, so the user is told, once per
+  file, by a notice. A write that changes nothing still gives the file back
+  byte for byte, and so does a merge that has nothing new to say; a text that
+  differs from the file only in such line endings is no change either (an
+  overview of a folder, refreshed with the same lines). A new file, and a text
+  written over a file without such line endings — a version put back, an undo,
+  a copy taken over —, is written as it is handed in, byte for byte. Keeping
+  the `\r` as a third line ending was the alternative: the shape module with a
+  new merge rule, and some twenty-five readers that split a raw file at `\n`
+  and would see such a file as one line for as long as it lives — for a kind
+  of file nobody has yet seen in a vault. It can still be built on top of
+  this.
+- **`\r\r\n` is one line ending**, as it has always been for an editor: it is
+  what a file from Windows has after its line endings were converted twice,
+  and such a file comes back with the `\r\n` it was meant to have. (The
+  Markdown parser reads two line endings there, and so do the index and the
+  definition of the properties block on the file as it lies on disk — ADR
+  0009, addendum 2026-10-09, point 10.)
+- **Where it is said.** At the top of the adapter chain
+  (`ConflictAwareVaultAdapter`, `onLineEndsConverted`): every write of the app
+  to a file the user sees passes there — an editor's save, a whole text
+  (`writeTextFile`) and a change of a place through the chain's one entry
+  (`updateTextFile`, ADR 0031) alike, on both shells —, and each has read the
+  file it writes over. Both shells hand it the one notice
+  (`sayLineEndsConverted` in the UI package), which gathers a burst of writes
+  into one message. On the desktop the chain lives in the central window,
+  which hands the notice on to the auxiliary windows on the vault over the
+  window bus (`line-ends-converted`): a save from such a window is said there
+  too. Over a file that has such line endings, a version put back or a copy
+  that takes the file's place is a write like any other: turned, and said.
+  Nothing is said, and nothing is turned, where nobody is to be told: what the
+  app writes to its own files under `.plainva`, the working copy of a conflict
+  (a draft), and the resolution of a conflict, which writes the text the
+  person chose below the chain. The sync writes below the chain and says
+  nothing either: a file it pulls was converted, and said, on the device that
+  changed it, and a merge the sync makes itself is silent.
+- **Not changed:** what reads a raw file line by line outside this text — the
+  task scan of the index among them — still sees a file with `\r` alone as one
+  line until that first write. Promoting a task to a note counts its
+  checkboxes the way that scan does (`replaceCheckboxWithLink`): the ordinal
+  the scan hands out names the same line there, and what such a line holds
+  behind a carriage return of its own stays in the note.
+
+Tests: `packages/core/test/text-file-shape.test.ts`,
+`packages/core/test/conflict-resolver.test.ts`,
+`packages/core/test/sync/text-shape-sync.test.ts` (two devices, bytes on both
+disks and on the server), `apps/desktop/src/services/editorSaveRecovery.test.ts`,
+`apps/mobile/src/services/editorTextSpace.test.ts`,
+`apps/desktop/src/noteLineEnds.test.ts`, and
+`apps/mobile/e2e-prod/note-line-ends.spec.ts` against the phone's production
+bundle. For point 8: `packages/core/test/noteSource.test.ts`,
+`packages/core/test/journal.test.ts`, and
+`apps/mobile/src/adapters/externalVaultAdapter.test.ts`, which reads the same
+files with and without a mark through the phone's adapter for a picked folder.
+For the phone's own storage (point 4):
+`apps/mobile/src/adapters/capacitorVaultAdapter.test.ts`, against a fake of
+the storage plugin that answers a read as text the way each system's library
+does, with the same note between a phone and another device.
+For point 9: `packages/core/test/markdown-places.test.ts`, the guard
+`apps/desktop/src/markdownParseSites.test.ts`, and a daily note with a mark
+taken through every change the journal makes, on each shell's own way and
+with the bytes read back — `apps/desktop/src/journalByteOrderMark.test.ts`,
+`apps/mobile/src/services/journalByteOrderMark.test.ts` —, and through the
+reading view: `apps/desktop/src/lib/readerByteOrderMark.test.tsx`.
+For the carriage return of its own, beside the first two and the phone's two:
+`apps/desktop/src/openTarget.test.ts` (the text against CodeMirror),
+`apps/desktop/src/lineEndNotice.test.ts` (with the hand-over to an auxiliary
+window), `apps/desktop/src/services/taskPromotion.test.ts` (the count of the
+scan), and `apps/desktop/e2e/editor-stability.spec.ts`.
+
+## Addendum 2026-10-12 (a note is never written back from its parsed tree)
+
+The question point 7 above left open, decided the way this ADR decides it:
+parse-serialize is no way to change a note that is already there.
+
+Finding 2026-10-09: renaming a note sent every note that links to it through
+the Markdown serializer — parse the note, change the link in the tree, write
+the tree back. So did preparing a note as the overview of its folder. The
+serializer writes in its own form, and the note came back in it: `- ` for
+whatever list marker the note uses, `_emphasis_`, a table rule as `| - | - |`
+with its cells padded, a blank line behind the properties block, a line end at
+the end of the file. An aliased link in a table cell, `[[Note\|alias]]`, came
+back without the backslash that keeps its `|` in the cell, and the row had one
+cell more. A link in the properties was renamed by writing the whole block
+anew through the YAML library: a long line folded at 80 characters, `[a, b]` as
+`[ a, b ]`, an unquoted `007` as `7`. Measured on real vaults (3 139 notes):
+written back from its tree, 3 122 of them come back changed. For a vault kept
+in Git, renaming one note was a diff across every note that links to it — a
+silent reformat of existing vault content.
+
+1. **A change stands where it is made.** A rename changes, in every note that
+   links to the renamed one, the part of each link that names the file — and
+   no other byte. Anchor, alias, label, title, line endings and a byte order
+   mark stay. Of the name itself, what the old and the new one begin and end
+   with stays as it is spelled: a folder in another tool's encoding
+   (`Projects%20(old)/`), an escaped character (`My\_Note`), the extension;
+   what is written anew follows the form the destination had (percent-encoded,
+   between angle brackets, with letters beyond ASCII left as they are). A
+   destination is read back before it is written: where what is kept and what
+   is new would read as something else together — `&amp;` in a name is a
+   character reference, `41` behind a `%` the note left bare an encoded
+   letter —, all of it is written in Plainva's own encoding, with `&` encoded
+   as well. A wiki link's name is written as the name it is. The same holds
+   for a link in the properties: the target changes inside its scalar, the
+   block is not written anew.
+2. **The parser says where, the text is what is changed.**
+   `packages/core/src/linkRewrite.ts` reads a note's links with their places
+   (`readNoteLinks`) from the same tree the index lists a note's links from, so
+   a link that counts as a backlink is a link that is rewritten, and what the
+   index does not take for a link — code, HTML, the properties block — is left
+   alone. `rewriteNoteLinks` and `renameNoteLinks` replace characters of the
+   text as it was read. The parser hands out a text with its backslash escapes
+   and character references resolved; a link is therefore placed by finding it
+   in the source lines with their escapes taken out — `\|` in a table cell is
+   the common one — and only where the source spells it out: the n-th link
+   read is the n-th link spelled, where the two are spelled the same. A link
+   the source does not spell (a character reference inside it,
+   `[[A &amp; B]]`) is reported and left as it is: the rename says that a link
+   could not be updated, as it does when the index cannot be read, and nothing
+   is guessed. Where the two readings do not even hold the same number of
+   links (`&#91;` spells a bracket), a place is only tried, and the note is
+   read once more with a name of its own there: a link is handed out only
+   where the parser reads it. (For a wiki link this second reading is gone
+   since the addendum of 2026-10-21: it is placed by its own node.)
+3. **Preparing an overview changes two things.** The properties block goes by
+   the rule every writer follows when a block goes (`noteWithoutProperties`,
+   over `composeNote`), and each wiki link that leads to a listed note is
+   replaced, where it stands, by a Markdown link. The rest of the note stays
+   byte for byte.
+4. **The serializer writes new text only.** Its one use in the app is the
+   Markdown link that takes a wiki link's place (`serializeMarkdownLink`).
+   `apps/desktop/src/markdownSerializerUse.test.ts` fails a shipped file that
+   reaches for `serializeMarkdownAst` or for a package that writes Markdown
+   from a tree. It stays in the core for tools outside the app that build a
+   note from a tree of their own.
+5. **Outside this decision.** The writers of a note's properties other than a
+   rename — the properties panel, a database cell, a renamed tag or key —
+   still write the block anew through the YAML library when one entry
+   changes, and the other entries come back in the library's form. That is
+   the same question for another writer, and a separate one. So is what the
+   index takes for a wiki link: it scans Markdown text, and a link whose name
+   carries marks that pair up (`[[_draft_]]`) is none for it, typed by hand
+   or written by a rename. The rename writes the name as it is — a backslash
+   in it would be part of the name for every reader that takes a wiki link
+   as it stands — and leaves that to the scan. (Done in the addendum of
+   2026-10-21.)
+
+Tests: `packages/core/test/link-rewrite.test.ts` (every form of link and of
+note; the rewriter lists the links the index lists),
+`packages/core/test/frontmatter-surgical.test.ts`,
+`packages/core/test/okf-index.test.ts`, and each shell's own rename over real
+files, a real index and bytes read back —
+`apps/desktop/src/renameLinkBytes.test.ts` and
+`apps/mobile/src/services/renameLinkBytes.test.ts`, over the notes in
+`packages/core/test/helpers/renameNotes.ts`.
+
+## Addendum 2026-10-21 (a wiki link is read by the tokenizer)
+
+Finding 2026-10-11: a wiki link was looked for in the text the Markdown parser
+had finished — in the value of each text node, after the parser had read
+emphasis, code spans, escapes and character references into it. Whatever
+Markdown read something into was gone by then. `[[_private_]]` was two
+brackets, an emphasis and two brackets; `[[_x]] and [[y_]]` one emphasis
+across both links; an alias with a code span three pieces. None of them was a
+link for the index — no backlink, no edge in the graph, and a rename left them
+on the old name (point 5 of the addendum above left that to the scan). And
+`[[Tom &amp; Jerry]]` was listed as a link to "Tom & Jerry", which is not what
+the line says and not where a click on it leads. The editor reads the line and
+showed all of these as links; the reading view did not.
+
+1. **A wiki link is a construct of the tokenizer.** `[[` and `![[` are read
+   where a code span or an HTML tag is read: from the left, before anything is
+   read into the text (`packages/core/src/wikiLinkSyntax.ts`, in both parses
+   of a note; not in the parse of another program's CommonMark). The form is
+   the one the scan knew: `[[`, then anything but a line end up to the first
+   `]]`; a `!` right in front makes it an embed. It reaches the tree as a node
+   of its own (`wikiLink`, holding the link as it stands, with its place), and
+   the index, the link rewriter and the reading view read that node.
+2. **What starts further left wins.** A link inside a code span, an HTML tag,
+   an address in angle brackets or a bare address the tokenizer takes is none.
+   A bracket behind a backslash or spelled as a character reference opens
+   none (`\[[Note]]`, `&#91;[Note]]`); until now the index listed both. What
+   starts at `[[` takes its line up to the `]]`: `[[1]](https://example.com)`
+   is a wiki link and a text in parentheses — the editor read it so already —,
+   and `[[link]]` is a wiki link even where `[link]` is defined. In the text of
+   a Markdown link or a reference link a wiki link is a node of that text; a
+   Markdown link whose text begins with one, `[[[Note]] and more](url)`, is
+   read from its first `[[` as well — a wiki link to `[Note` and text —, as
+   the editor reads it.
+3. **The text between the brackets is not Markdown.** It is a file's name, an
+   anchor and an alias, as they are written (`packages/core/src/wikiLink.ts`).
+   A backslash or a character reference in it is the character it is:
+   `[[My\_Note]]` names "My\_Note", `[[Tom &amp; Jerry]]` names
+   "Tom &amp; Jerry" — what the editor and a click read. One spelling besides
+   the plain one is kept: in a table cell the bar is written `\|`, so a `\|`
+   is a bar wherever it stands — the one that begins the alias and one in the
+   alias —, outside a table as well, where notes carry that spelling too (the
+   Markdown parse read it so before).
+4. **The rewriter places a wiki link by its node.** The second reading of
+   point 2 above — finding a link in the source lines, and trying a place
+   where the two readings differ — is gone for wiki links; it stays for a
+   Markdown link's destination, which is Markdown. A rename writes the new
+   name as the name it is, as before, and the next rename finds it.
+5. **The reading view shows these links.** A name is shown as it is written:
+   it is the file's name, the one the link opens — `[[__init__]]` is no bold
+   "init", `[[Tom &amp; Jerry]]` no "Tom & Jerry". (The editor's live preview
+   still hides the emphasis marks in a name; and the reader marks a
+   `==…==` wherever it stands, for it reads the text, not how it is written.)
+   An alias is the text the link shows. It is handed to the renderer as it is
+   written, so it is shown as the text around it is — `*the* alias` with its
+   emphasis, as the editor shows it — unless it would not stay in its
+   brackets (a bracket, a `<`, a bare `|`, a `$` anywhere, a code span it does
+   not close, a backslash at its end, a `^` at its start); then it is shown
+   character for character. A bare `|` is on that list because a table
+   counts the cells of a line by them, in a code span too; a `$` because a
+   note's math, once it is read, pairs it with one outside the link — behind
+   a backslash and in a code span too, for math reads neither. What is shown character for
+   character is spelled out only where Markdown would read something into
+   it — `my_note` and `Tom & Jerry` stand as they are written —, with a
+   backslash, except a backtick and a `$`, which are spelled as character
+   references: inside a code span or math a backslash is a character, so an
+   escaped one would close a code span or math opened before the link. A
+   place in the label, wherever it is not spelled out, is a place in the
+   rendered label; a place in what the link hides (its brackets, the target
+   before an alias) stands for the whole link. A link written with `\|` — in
+   a table cell and outside one — opens the file it names (the backslash was
+   taken for part of the name), and such an embed keeps its size.
+6. **The index catches up in a step of its format (6).** A note's rows are
+   written when its file changes. The step hands the next full scan only the
+   notes whose rows the two readings may list differently
+   (`packages/core/src/db/wikiLinkReadingMigration.ts`): a link whose text
+   holds a character Markdown reads something into — a bracket and a `<`
+   among them —, one with a `(` glued to its end or an address glued to its
+   front, a note with a definition, a bracket or a `!` spelled with a
+   backslash or a reference. The choice reads the text the index holds for
+   search, nothing from disk, in one pass over each note; a note with a line
+   longer than the indexer reads links from (10 000 characters) has no rows in
+   either reading and is left out. It is held against the old reading itself,
+   kept in its test, over generated notes. Measured on real vaults (about
+   1 350 notes that link): about one in a hundred is read again.
+   Where only the line a link is listed on would differ — a character
+   reference for a line break in front of it, an address cut out of the text
+   around it —, the row keeps its line until its note changes.
+7. **What stays as it was.** Code, HTML and the properties block hold no link;
+   a link in the properties is read by its own rule (a whole value `[[…]]`).
+   A bare `|` in a table cell still ends the cell before a link can — the row
+   is split first. `remark-obsidian-preserve.ts` keeps only a callout's marker
+   for the serializer, which writes a wiki link node as it stands.
+
+Tests: `packages/core/test/wiki-link-syntax.test.ts` (the forms at the parser,
+the index, the rewriter and the reading view, with `\r\n` and a byte order
+mark), `packages/core/test/wiki-link-reading-migration.test.ts` (the selection
+against the old reading, kept in the test, over generated notes; the step on
+real SQLite and the full scan after it),
+`packages/core/test/link-rewrite.test.ts`,
+`packages/core/test/linear-link-scans.test.ts`,
+`apps/desktop/src/lib/readerSourceRendering.test.tsx` (the labels in the
+renderer the reading view uses, with math), and each shell's own rename to
+and from such a name with a real index —
+`apps/desktop/src/renameLinkBytes.test.ts` and
+`apps/mobile/src/services/renameLinkBytes.test.ts`.
+
+## Addendum 2026-10-21 (an overview is prepared for the name it takes)
+
+Findings 2026-10-11 and 2026-10-12: adopting a note as the `index.md` of its
+folder with "prepare" left links behind that led nowhere, and the phone did
+not offer to prepare at all. The note was prepared first and renamed then;
+the rename's plan is read from the index, which still knew the note with its
+wiki links, so the note's links to itself kept naming its old file. A wiki
+link in the label of a Markdown link became a link inside a link, and the
+link around it was text afterwards. A link that reached the note by the
+`title` of its properties lost its way with the block. And where the folder
+had an `index.md` already, the note was prepared and the rename refused.
+
+1. **A note is prepared for the name it takes.** A link of the note to
+   itself is converted to that name, written from the note's own folder:
+   `./index.md` (`becomes` of `convertWikilinksToMarkdownLinks`). The
+   explicit path, because `index.md` is the one name a vault holds in every
+   folder, and readers have not agreed which one a bare `index.md` means. The
+   label is the one every converted link gets — what the wiki link showed,
+   "Map" for `[[Map]]` —: the note reads as it did. Renaming first and
+   converting then would have written "index" there.
+2. **A wiki link in the label of a link stays a wiki link.** In an inline
+   link's text and in a reference link's text (`[see [[Alpha]]](Beta.md)`,
+   `[see [[Alpha]]][ref]`) a Markdown link cannot take its place: links do
+   not nest. `readNoteLinks` says where a link stands (`inLabel`), and the
+   result counts such links on their own (`inLabels`), beside the embeds and
+   the links that lead to no listed note.
+3. **A link by the title names the file.** The properties block goes, and
+   its `title` with it. The links that reached the note only by that title —
+   what its backlinks hold beyond the rename's own plan — are let name the
+   file, like every link that named it (point 5), unless a wiki link cannot
+   carry that name (point 6). No alias is put in; a rename writes none.
+4. **Nothing is written where the name is taken.** An `index.md` in the
+   folder refuses the adoption before the note is touched. A link that could
+   not be followed is said, as after any rename (`linkUpdateFailed`).
+5. **A wiki link to a folder's overview names its folder.** A rename to a
+   folder's `index.md` writes a bare wiki link as `[[Projects/index]]`, as
+   ADR 0009 (point 6) says of an adoption; until now it stayed `[[index]]`
+   while no other file was called so. `index.md` is the name every folder's
+   overview has: a bare `[[index]]` meant whichever the rule found first, and
+   that changed with the next overview — in the desktop's manager in the
+   same run, before the index knew it. The vault's own `index.md` stays
+   `[[index]]`. (`planLinkUpdates` in `packages/ui/src/lib/renameNote.ts`.)
+   Not yet for a link written with the extension — `[[Map.md]]`,
+   `[x](Map.md)`: it still becomes a bare `index.md`, which the link rule
+   reads as the vault's own overview where there is one. The plan knows a
+   link by its target as written, not by its kind, and how a Markdown link is
+   read is decided with the rule for Markdown links.
+6. **A name a wiki link cannot carry is not written.** Between the brackets a
+   name ends at the first `#`, `^` or `|`, its blanks at either end are not
+   part of it, and the first `]]` ends the link: `[[C# Notes/index]]` names
+   `C`. Whether `[[name]]` reads back as one link to that name is asked of
+   the reader itself (`wikiLinkCanName` in `packages/core/src/linkRewrite.ts`)
+   — `[[Meeting [draft] notes]]` is such a link —, and in the properties of
+   the block's own reader, which takes no bracket at all. In a note's text a
+   backslash at the end of a name is none a link can carry: in front of an
+   alias it takes the bar for its own. The rewriter leaves such a link as it
+   is and counts it, so the rename says that a link could not be followed. So
+   it does with a link to the overview of such a folder: no wiki link without
+   the extension leads there for sure — a bare `[[index]]` follows whichever
+   overview the rule finds first (point 5; a link written with the extension
+   is still rewritten, as point 5 says).
+
+Both shells adopt through `adoptFileAsIndex` and say what was done in one
+line (`adoptionSummary`); the phone's question carries the same choice as the
+desktop's dialog, preset.
+
+Tests: `packages/core/test/okf-index.test.ts`,
+`packages/core/test/link-rewrite.test.ts` (also point 6),
+`packages/core/test/frontmatter-surgical.test.ts` (point 6),
+`apps/desktop/src/services/indexMd.test.ts` (also point 6),
+`apps/desktop/src/services/renameNote.test.ts` (points 5 and 6), and each
+shell's adoption over real files, a real index and the bytes read back, in a
+vault with `index.md` at its root and in another folder — each of its links
+leads where it led, the overview under its new name
+(`apps/desktop/src/renameLinkBytes.test.ts`,
+`apps/mobile/src/services/renameLinkBytes.test.ts`, over the notes in
+`packages/core/test/helpers/renameNotes.ts`); the phone's question in
+`apps/mobile/src/overviewsScreen.test.tsx` and `apps/mobile/src/confirmOption.test.tsx`.

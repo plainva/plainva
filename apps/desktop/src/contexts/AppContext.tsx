@@ -16,6 +16,7 @@ import {
   subscribeVaultRuntimes,
 } from "../services/vaultRuntimes";
 import { vaultNestingConflict, vaultNestingMessage } from "../services/vaultNesting";
+import { askHeldWork, holdsUnsavedWork } from "../services/windowCloseGuard";
 
 /**
  * What the APP knows, as opposed to what a vault knows (multi-window stage D).
@@ -47,7 +48,13 @@ interface AppContextType {
   autoOpenLastVault: boolean;
   /** True until the stored settings have been read (avoids a splash flash). */
   isBooting: boolean;
-  openVault: (path: string) => Promise<void>;
+  /**
+   * Resolves true once this window shows `path`, and false when it was left
+   * where it is: the vault overlaps one another window holds, or the person
+   * kept a changed draft ("cancel" in the question). A caller that goes on as
+   * if the vault were open reads the answer.
+   */
+  openVault: (path: string) => Promise<boolean>;
   selectVault: () => Promise<void>;
   closeVault: () => Promise<void>;
   removeRecentVault: (path: string) => Promise<void>;
@@ -292,8 +299,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const clash = vaultNestingConflict(path, others);
     if (clash) {
       toast.error(vaultNestingMessage(clash));
-      return;
+      return false;
     }
+    // Another vault tears down everything under this one's provider (VaultHost
+    // keys it by the vault), a floating composer included. A changed draft is
+    // asked about first, and "cancel" leaves vault and composer as they are —
+    // until now the draft went without a word (finding 2026-10-09). After the
+    // refusal above, so nobody is asked to discard a draft for a switch that
+    // then does not happen. Opening the vault already shown rebuilds nothing,
+    // and with nothing held this does not wait.
+    if (path !== shownVaultRef.current && holdsUnsavedWork() && !(await askHeldWork())) return false;
     const store = await getSettingsStore();
     await store.set("lastVaultPath", path);
     // Keep creation history even when a vault is removed from recent entries.
@@ -305,17 +320,54 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await store.save();
     setRecentVaults(newRecents);
     setShownVault(path);
+    return true;
   }, [label]);
+
+  /**
+   * The vault a tab handed over from another window needs (tabTransfer.ts).
+   *
+   * It is `openVault` without the question, because a hand-over cannot wait
+   * for an answer: the window the tab comes from keeps it — and a notice over
+   * its whole shell — until this window confirms, and a question put here,
+   * behind that window, would hold both for as long as nobody looks. So while
+   * this window holds a changed draft it does not change vaults for a tab. The
+   * hand-over fails at once, the tab stays where it is, and this window comes
+   * forward and says why (finding 2026-10-09).
+   */
+  const openVaultForTab = useCallback(async (path: string) => {
+    if (path !== shownVaultRef.current && holdsUnsavedWork()) {
+      toast.warning(i18n.t("window.transferBlockedByDraft"));
+      // Forward from wherever it is — minimised while the work went on in the
+      // other window, hidden to the tray, or merely behind: the three calls
+      // that bring an auxiliary window back, too. A notice in a window nobody
+      // sees would say nothing.
+      void import("@tauri-apps/api/window")
+        .then(async ({ getCurrentWindow }) => {
+          const win = getCurrentWindow();
+          await win.unminimize().catch(() => {});
+          await win.show().catch(() => {});
+          await win.setFocus();
+        })
+        .catch(() => {
+          /* browser/test: no OS window to bring forward */
+        });
+      throw new Error("The main window holds unsaved work");
+    }
+    // Refused for another reason (an overlapping vault, said in a notice of its
+    // own): the hand-over fails now instead of waiting for a vault that will
+    // not come.
+    if (!(await openVault(path))) throw new Error("The main window did not open the vault");
+  }, [openVault]);
 
   useEffect(() => {
     if (!isOwner) return;
     let disposed = false;
     let off: (() => void) | undefined;
     void import("../services/tabTransfer").then(({ registerMainTabOpener }) => {
-      if (!disposed) off = registerMainTabOpener(openVault);
+      if (!disposed) off = registerMainTabOpener(openVaultForTab);
     });
     return () => { disposed = true; off?.(); };
-  }, [isOwner, openVault]);
+  }, [isOwner, openVaultForTab]);
 
   const selectVault = useCallback(async () => {
     const selected = await open({
@@ -327,6 +379,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [openVault]);
 
   const closeVault = useCallback(async () => {
+    // Closing the vault takes a floating composer with it exactly as a switch
+    // does: a changed draft is asked about first (finding 2026-10-09). With
+    // nothing held there is nothing to wait for, so the line below still runs
+    // in the same tick as the click.
+    if (holdsUnsavedWork() && !(await askHeldWork())) return;
     // The runtime tears itself down when its provider unmounts; the app layer
     // only stops looking. In this order the UI answers immediately even when
     // the teardown has to wait for a sync cycle to drain.
@@ -451,8 +508,18 @@ export const ClientAppProvider: React.FC<{ vaultPath: string | null; children: R
     })();
   }, [shown]);
 
-  const value = useMemo<AppContextType>(
-    () => ({
+  const value = useMemo<AppContextType>(() => {
+    // Another vault, or none, rebuilds everything under this window's provider
+    // (ClientVaultHost keys it by the vault), a floating composer included. A
+    // changed draft is asked about first, as in the central window, and
+    // "cancel" leaves vault and composer as they are (finding 2026-10-09).
+    // Nothing held, nothing to wait for.
+    const show = async (next: string | null): Promise<boolean> => {
+      if (next !== shown && holdsUnsavedWork() && !(await askHeldWork())) return false;
+      setShown(next);
+      return true;
+    };
+    return {
       shownVault: shown,
       // What the PROCESS holds, as the central window last reported it. This
       // window still renders only `shownVault`; the list is what the title rule
@@ -461,16 +528,17 @@ export const ClientAppProvider: React.FC<{ vaultPath: string | null; children: R
       recentVaults: recents,
       autoOpenLastVault: false,
       isBooting: false,
-      openVault: async (path: string) => setShown(path),
+      openVault: (path: string) => show(path),
       selectVault: async () => {
         const selected = await open({ directory: true, multiple: false });
-        if (typeof selected === "string") setShown(selected);
+        if (typeof selected === "string") await show(selected);
       },
-      closeVault: async () => setShown(null),
+      closeVault: async () => {
+        await show(null);
+      },
       removeRecentVault: ownerOnly,
       setAutoOpenLastVault: ownerOnly,
-    }),
-    [shown, recents, openVaults],
-  );
+    };
+  }, [shown, recents, openVaults]);
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };

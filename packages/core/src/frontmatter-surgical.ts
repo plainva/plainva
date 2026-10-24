@@ -1,49 +1,23 @@
-import { parseDocument, Document, YAMLMap, isMap, isScalar, isSeq } from "yaml";
+import { CST, Scalar, isAlias, isMap, isScalar, isSeq, type YAMLMap } from "yaml";
+import { frontmatterSpan, splitDocument, type SplitDocument } from "./frontmatter-block.js";
+import { changeScalars, removeEntry, renameEntryKey, setEntries, setEntry } from "./frontmatter-entry.js";
 
 /**
- * Surgical frontmatter edits: unlike updateFrontmatterString (which replaces
- * the whole frontmatter map from a props object), these helpers touch only the
- * keys they are asked to touch. Untouched keys keep their order, formatting
- * and YAML comments; the markdown body is preserved byte-for-byte. This is the
- * only write path allowed for bulk operations over files the user never
- * opened (OKF conversion), where silent reformatting would be unacceptable.
+ * Surgical frontmatter edits: these helpers change the entry they are asked
+ * to change, where it stands, and nothing else in the note. Every other entry
+ * keeps its place, its form and its comments, byte for byte, and so does the
+ * text behind the block. This is the only write path allowed for operations
+ * over files the user never opened (a tag renamed vault-wide, a column removed
+ * from a database, the OKF conversion), where silent reformatting would be
+ * unacceptable.
+ *
+ * How an entry is changed where it stands is `frontmatter-entry.ts`; what a
+ * properties block is, and what becomes of one that loses its last entry, is
+ * decided in `frontmatter-block.ts` — for these helpers and for
+ * updateFrontmatterString alike.
  */
 
-/** Raised when a document cannot be edited safely (caller should skip the file). */
-export class FrontmatterSurgicalError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "FrontmatterSurgicalError";
-  }
-}
-
-const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
-
-/** The properties block at the top of a note, by its offsets. */
-export interface FrontmatterSpan {
-  /** The YAML between the two fences, without the line break that ends it. */
-  yaml: string;
-  /** Where the YAML begins: behind the opening fence. */
-  yamlStart: number;
-  /** Where the line that closes the block begins. */
-  closeAt: number;
-  /** Where the note's text begins: behind the closing fence. */
-  end: number;
-}
-
-/**
- * Where the properties block of a note is — the block these helpers read and
- * write —, or null where the note has none. Everything that has to say "this
- * place lies in the properties" asks here, so there is one answer to what a
- * properties block is.
- */
-export function frontmatterSpan(content: string): FrontmatterSpan | null {
-  const match = FRONTMATTER_RE.exec(content);
-  if (!match) return null;
-  const yamlStart = match[0].indexOf("\n") + 1;
-  const yamlEnd = yamlStart + match[1].length;
-  return { yaml: match[1], yamlStart, closeAt: yamlEnd + (content[yamlEnd] === "\r" ? 2 : 1), end: match[0].length };
-}
+export { FrontmatterSurgicalError, frontmatterSpan, noteBodyOf, noteWithoutProperties, type FrontmatterSpan } from "./frontmatter-block.js";
 
 const RESERVED_PROPERTY_NAMES = ["__proto__", "prototype", "constructor", "type", "okf_version", "generated", "verified", "sources"];
 
@@ -59,58 +33,21 @@ export function isReservedPropertyName(name: string): boolean {
   return /^(?:file\.|formula\.|plainva(?:$|[.:]))/i.test(name) || RESERVED_PROPERTY_NAMES.includes(name.toLowerCase());
 }
 
-interface SplitDocument {
-  doc: Document;
-  body: string;
-  hadFrontmatter: boolean;
-  eol: string;
-}
-
-function splitDocument(content: string): SplitDocument {
-  const eol = content.includes("\r\n") ? "\r\n" : "\n";
-  const match = content.match(FRONTMATTER_RE);
-
-  if (!match) {
-    const doc = new Document({});
-    return { doc, body: content, hadFrontmatter: false, eol };
+/**
+ * Whether the property writers refuse the block at the top of a note: YAML
+ * that does not parse, or YAML that is no map — a list, a line of prose, a
+ * number (`parseBlockYaml`). The index's reader reads a block of prose or a
+ * number as one without properties (ADR 0009, addendum 2026-10-22); the
+ * properties panel and the phone's sheet ask here as well, and say what a
+ * write would say.
+ */
+export function propertiesBlockRefused(content: string): boolean {
+  try {
+    splitDocument(content);
+    return false;
+  } catch {
+    return true;
   }
-
-  const doc = parseDocument(match[1]);
-  if (doc.errors.length > 0) {
-    throw new FrontmatterSurgicalError(
-      `Frontmatter is not parseable YAML: ${doc.errors[0].message}`
-    );
-  }
-  if (doc.contents !== null && !isMap(doc.contents)) {
-    throw new FrontmatterSurgicalError("Frontmatter is not a YAML map");
-  }
-  return { doc, body: content.slice(match[0].length), hadFrontmatter: true, eol };
-}
-
-function ensureMapContents(doc: Document): YAMLMap {
-  if (doc.contents === null || doc.contents === undefined) {
-    doc.contents = doc.createNode({}) as unknown as Document["contents"];
-  }
-  if (!isMap(doc.contents)) {
-    throw new FrontmatterSurgicalError("Frontmatter is not a YAML map");
-  }
-  return doc.contents;
-}
-
-function joinDocument(split: SplitDocument): string {
-  const { doc, eol } = split;
-  let body = split.body;
-  if (!body) {
-    body = eol;
-  }
-
-  let yamlString = doc.toString().trim();
-  yamlString = yamlString.replace(/\r?\n/g, eol);
-
-  if (yamlString === "{}" || yamlString === "") {
-    return `---${eol}---${eol}${body}`;
-  }
-  return `---${eol}${yamlString}${eol}---${eol}${body}`;
 }
 
 /**
@@ -122,12 +59,7 @@ export function upsertFrontmatterKeys(
   content: string,
   updates: Record<string, unknown>
 ): string {
-  const split = splitDocument(content);
-  ensureMapContents(split.doc);
-  for (const [key, value] of Object.entries(updates)) {
-    split.doc.set(key, value);
-  }
-  return joinDocument(split);
+  return setEntries(content, Object.entries(updates));
 }
 
 /**
@@ -139,13 +71,7 @@ export function setFrontmatterPath(
   path: readonly string[],
   value: unknown
 ): string {
-  if (path.length === 0) {
-    throw new FrontmatterSurgicalError("Path must not be empty");
-  }
-  const split = splitDocument(content);
-  ensureMapContents(split.doc);
-  split.doc.setIn(path, value);
-  return joinDocument(split);
+  return setEntry(content, path, value);
 }
 
 /**
@@ -205,11 +131,60 @@ function isNode(value: unknown): value is { toJSON: () => unknown } {
 }
 
 /**
+ * What becomes of one entry of the tags when `old` is renamed to `next`: the
+ * tag itself and its children (`old/sub` -> `next/sub`). Handed the value as
+ * the YAML reads it, the text it is written with and whether it is an item of
+ * a list; answers the value it was handed where no tag in it is renamed.
+ *
+ * A tag is found by the text the index's reader reads it as
+ * (`metadata-extractor.ts`), or the index would list a tag the rename cannot
+ * find: a number among the tags (`- 2024`) is the tag `2024`, as it is
+ * written (`- 1.10` is `1.10`); a text with commas directly under the key
+ * (`tags: a, b`) is its parts, and a part is renamed where it stands in it.
+ * Such a text over several lines is written anew, on one line, and a new name
+ * YAML would read as a number (`2025`) stands between quotes: the index reads
+ * either as the same tags.
+ */
+function renamedTag(value: unknown, written: string | null, inList: boolean, old: string, next: string): unknown {
+  const renamed = (tag: string): string | null => {
+    if (tag === old) return next;
+    return tag.startsWith(old + "/") ? next + tag.slice(old.length) : null;
+  };
+  if (typeof value === "string") {
+    if (inList) return renamed(value) ?? value;
+    let changed = false;
+    const parts = value.split(",").map((part) => {
+      const tag = part.trim();
+      const to = tag ? renamed(tag) : null;
+      if (to === null) return part;
+      changed = true;
+      const at = part.indexOf(tag);
+      return part.slice(0, at) + to + part.slice(at + tag.length);
+    });
+    return changed ? parts.join(",") : value;
+  }
+  if (value === null || value === undefined || typeof value === "object") return value;
+  return renamed(written || String(value)) ?? value;
+}
+
+/**
+ * The same under `tag`, which the index does not read as tags: a text that is
+ * the tag or one of its children, compared whole, as before 2026-10-22.
+ */
+function renamedTagText(value: unknown, old: string, next: string): unknown {
+  if (typeof value !== "string") return value;
+  if (value === old) return next;
+  return value.startsWith(old + "/") ? next + value.slice(old.length) : value;
+}
+
+/**
  * Renames a tag value inside the `tags`/`tag` frontmatter key — the exact tag and
- * its children (`old/sub` -> `new/sub`) — mutating the scalar values in place so
- * the list format, order, other keys and comments are preserved. Returns the
- * content unchanged (and changed=false) when there is no parseable frontmatter or
- * no matching tag. The inline `#tag` rewrite in the body is the caller's job.
+ * its children (`old/sub` -> `new/sub`) — where it stands: the characters of the
+ * tag change, in the quotes it has, and nothing else in the note does (a text
+ * of several tags over several lines is written anew, see `renamedTag`). Returns
+ * the content unchanged (and changed=false) when there is no parseable
+ * frontmatter or no matching tag. The inline `#tag` rewrite in the body is the
+ * caller's job.
  */
 export function renameFrontmatterTag(
   content: string,
@@ -221,108 +196,42 @@ export function renameFrontmatterTag(
   if (!o || !n || o === n) return { content, changed: false };
   let split: SplitDocument;
   try {
-    split = splitDocument(content);
+    split = splitDocument(content, { sourceTokens: true });
   } catch {
     return { content, changed: false };
   }
-  if (!split.hadFrontmatter || !isMap(split.doc.contents)) return { content, changed: false };
-
-  let changed = false;
-  const renamed = (v: unknown): unknown => {
-    if (typeof v !== "string") return v;
-    if (v === o) {
-      changed = true;
-      return n;
-    }
-    if (v.startsWith(o + "/")) {
-      changed = true;
-      return n + v.slice(o.length);
-    }
-    return v;
-  };
-
-  for (const key of ["tags", "tag"]) {
-    const node = split.doc.contents.get(key, true);
-    if (isSeq(node)) {
-      for (const item of node.items) {
-        if (isScalar(item)) {
-          const nv = renamed(item.value);
-          if (nv !== item.value) item.value = nv;
-        }
-      }
-    } else if (isScalar(node)) {
-      const nv = renamed(node.value);
-      if (nv !== node.value) node.value = nv;
-    }
-  }
-
-  if (!changed) return { content, changed: false };
-  return { content: joinDocument(split), changed: true };
+  const result = changeScalars(
+    content,
+    ["tags", "tag"],
+    (value, written, inList, key) => (key === "tags" ? renamedTag(value, written, inList, o, n) : renamedTagText(value, o, n)),
+    split
+  );
+  return result.changed > 0 ? { content: result.content, changed: true } : { content, changed: false };
 }
 
 /**
- * Deletes a nested key. Parent maps that become empty through this deletion
- * are removed as well (an empty `plainva:` namespace should not linger).
+ * Deletes a nested key: the lines of its entry go, and no other line of the
+ * note. Parent maps that become empty through this deletion are removed as
+ * well (an empty `plainva:` namespace should not linger) — and so is the block
+ * itself once nothing is left in it: a property set and removed again leaves
+ * the note as it was.
  * Returns the content unchanged if the path does not exist.
  */
 export function deleteFrontmatterPath(content: string, path: readonly string[]): string {
-  if (path.length === 0) {
-    throw new FrontmatterSurgicalError("Path must not be empty");
-  }
-  const split = splitDocument(content);
-  if (!split.hadFrontmatter || split.doc.contents === null) {
-    return content;
-  }
-  ensureMapContents(split.doc);
-  if (!split.doc.hasIn(path)) {
-    return content;
-  }
-  split.doc.deleteIn(path);
-
-  for (let depth = path.length - 1; depth > 0; depth--) {
-    const parentPath = path.slice(0, depth);
-    const parent = split.doc.getIn(parentPath);
-    if (isMap(parent) && parent.items.length === 0) {
-      split.doc.deleteIn(parentPath);
-    } else {
-      break;
-    }
-  }
-  return joinDocument(split);
+  return removeEntry(content, path);
 }
 
 /**
- * Renames a top-level key in place (position, value and attached comments are
- * kept). No-op when oldKey is absent; throws when newKey already exists.
+ * Renames a top-level key in place: the characters of the key change;
+ * position, value and comments stay. No-op when oldKey is absent; throws when
+ * newKey already exists.
  */
 export function renameFrontmatterKey(
   content: string,
   oldKey: string,
   newKey: string
 ): string {
-  const split = splitDocument(content);
-  if (!split.hadFrontmatter || split.doc.contents === null) {
-    return content;
-  }
-  const map = ensureMapContents(split.doc);
-
-  const pair = map.items.find(
-    (item) => (item.key as { value?: unknown } | null)?.value === oldKey
-  );
-  if (!pair) {
-    return content;
-  }
-  if (map.items.some((item) => (item.key as { value?: unknown } | null)?.value === newKey)) {
-    throw new FrontmatterSurgicalError(
-      `Cannot rename '${oldKey}' to '${newKey}': target key already exists`
-    );
-  }
-  const newKeyNode = split.doc.createNode(newKey);
-  const oldKeyNode = pair.key as { commentBefore?: string | null; comment?: string | null };
-  (newKeyNode as { commentBefore?: string | null }).commentBefore = oldKeyNode.commentBefore;
-  (newKeyNode as { comment?: string | null }).comment = oldKeyNode.comment;
-  pair.key = newKeyNode;
-  return joinDocument(split);
+  return renameEntryKey(content, oldKey, newKey);
 }
 
 export interface FrontmatterLinkRename {
@@ -354,21 +263,106 @@ function splitWikiInner(inner: string): { base: string; anchor: string; alias: s
 }
 
 /**
+ * Whether a link in the properties can name this file as the name is written:
+ * the block reads a whole value as a link only without a bracket inside it
+ * (the index reads it so too, `ast-scanner.ts`), up to the first `#`, `^` or
+ * `|` (finding 2026-10-21).
+ */
+const propertiesCanName = (name: string): boolean => WHOLE_WIKILINK_RE.test(`[[${name}]]`) && splitWikiInner(name).base === name;
+
+/** A text as it stands between double quotes in YAML, for the two characters that need a backslash there. */
+const inDoubleQuotes = (text: string): string => text.replace(/[\\"]/g, "\\$&");
+/** A text as it stands between single quotes in YAML. */
+const inSingleQuotes = (text: string): string => text.replace(/'/g, "''");
+
+/** A change to a scalar as it is written in the YAML: the stretch from `from` to `to` of it becomes `text`. */
+interface ScalarEdit {
+  from: number;
+  to: number;
+  text: string;
+}
+
+/**
+ * What has to change in one scalar, as it is written in the YAML, for the
+ * `base` that begins at `at` of its value to become `next` — or null where
+ * that cannot be done without guessing.
+ *
+ * The value is one link, so `[[` stands in the scalar once, and the target
+ * follows it the way the value says: as it is in a block scalar, and between
+ * quotes but for the characters the quote style escapes. Where the scalar
+ * spells it so, the target's characters are the whole change — whatever the
+ * rest of the scalar looks like: an alias folded onto a second line stays
+ * folded, and a line end inside the scalar stays the one the note has.
+ * A quoted scalar that spells the target itself another way — an escape the
+ * quotes do not need (`[`), a fold inside the name — is written anew by
+ * the YAML library in the quotes it has; nothing outside the scalar moves then
+ * either.
+ */
+function targetInScalar(written: string, node: Scalar, value: string, at: number, base: string, next: string): ScalarEdit | null {
+  const quoted = node.type === Scalar.QUOTE_DOUBLE || node.type === Scalar.QUOTE_SINGLE;
+  const quote = node.type === Scalar.QUOTE_DOUBLE ? inDoubleQuotes : node.type === Scalar.QUOTE_SINGLE ? inSingleQuotes : (text: string) => text;
+  const open = written.indexOf("[[");
+  // The blanks between `[[` and the target, then the target.
+  const lead = value.slice(value.indexOf("[[") + 2, at);
+  if (open >= 0 && written.indexOf("[[", open + 1) < 0 && written.startsWith(lead + quote(base), open + 2)) {
+    const from = open + 2 + lead.length;
+    return { from, to: from + quote(base).length, text: quote(next) };
+  }
+  const token = node.srcToken;
+  if (!quoted || !token || (token.type !== "double-quoted-scalar" && token.type !== "single-quoted-scalar") || token.source !== written) return null;
+  CST.setScalarValue(token, value.slice(0, at) + next + value.slice(at + base.length));
+  return { from: 0, to: written.length, text: token.source };
+}
+
+/**
+ * The value under a key as the index names the key. The index reads the block
+ * as data, where every key is a text: `1:` is listed as "1", `true:` as
+ * "true", a key without a name (`~:`) as "". In the YAML they are a number, a
+ * boolean and nothing, and asked for by their text they are not found.
+ */
+function valueUnder(map: YAMLMap, key: string): unknown {
+  const direct = map.get(key, true);
+  if (direct !== undefined) return direct;
+  for (const pair of map.items) {
+    const name = isScalar(pair.key) ? pair.key.value : pair.key;
+    if (typeof name === "string" || (typeof name === "object" && name !== null)) continue;
+    if ((name === null || name === undefined ? "" : String(name)) === key) return pair.value;
+  }
+  return undefined;
+}
+
+/**
  * Rewrites whole-value wiki links (`"[[T]]"`, `"[[T#a|alias]]"`) in the given
  * frontmatter keys — scalar string values and string items of sequences —
- * preserving anchors, aliases, each scalar's quoting style, YAML comments, key
- * order and the body byte-for-byte. Only the listed keys are inspected;
- * missing keys and non-string items are no-ops. Malformed frontmatter throws
- * FrontmatterSurgicalError (callers keep their body-side fix, see renameNote).
+ * where they stand: the characters of the target change, and nothing else in
+ * the note does. Anchor, alias, the scalar's quotes, the block's comments,
+ * spacing and line ends, every other entry and the text behind the block stay
+ * byte for byte.
+ *
+ * It does not write the block anew through the YAML library (finding
+ * 2026-10-09; no helper here does any more, see `frontmatter-entry.ts`). A
+ * rename runs over notes nobody opened, and a block written anew came back in
+ * the library's form: a long line folded at 80 characters, `[a, b]` as
+ * `[ a, b ]`, `- item` under a key indented, `007` as `7`.
+ *
+ * Only the listed keys are inspected; missing keys and non-string items are
+ * no-ops. `skipped` counts links that name one of the targets and could not
+ * be rewritten in place — a link folded over two lines of a block scalar, one
+ * whose new name a link here cannot carry (`propertiesCanName`), or one a key
+ * holds only by reference (`key: *a`) while the value it refers to was not
+ * rewritten: they still name the old file. Malformed frontmatter
+ * throws FrontmatterSurgicalError (callers keep their body-side fix, see
+ * renameNote).
  */
 export function renameFrontmatterWikiLinks(
   content: string,
   renames: readonly FrontmatterLinkRename[]
-): { content: string; renamed: number } {
-  if (renames.length === 0) return { content, renamed: 0 };
-  const split = splitDocument(content);
-  if (!split.hadFrontmatter || split.doc.contents === null) return { content, renamed: 0 };
-  const map = ensureMapContents(split.doc);
+): { content: string; renamed: number; skipped: number } {
+  if (renames.length === 0) return { content, renamed: 0, skipped: 0 };
+  const split = splitDocument(content, { sourceTokens: true });
+  const span = frontmatterSpan(content);
+  const map = split.doc.contents;
+  if (!span || !split.hadFrontmatter || !isMap(map)) return { content, renamed: 0, skipped: 0 };
 
   const byKey = new Map<string, Map<string, string>>();
   for (const r of renames) {
@@ -376,21 +370,54 @@ export function renameFrontmatterWikiLinks(
     byKey.get(r.key)!.set(r.oldTarget, r.newTarget);
   }
 
-  let renamed = 0;
-  const rewriteScalar = (node: unknown, targets: Map<string, string>) => {
-    if (!isScalar(node) || typeof node.value !== "string") return;
+  /** Changes to the YAML as it stands in the note, by its offsets. */
+  const edits: Array<{ from: number; to: number; text: string }> = [];
+  let skipped = 0;
+  /** The scalars a change was made in, and — once per reference — those a key holds by reference. */
+  const rewritten = new Set<Scalar>();
+  const referred: Scalar[] = [];
+  /** The target a scalar's link is to get, and where the old one begins in its value; null where it holds no such link. */
+  const wanted = (node: Scalar, targets: Map<string, string>): { base: string; next: string; at: number } | null => {
+    if (typeof node.value !== "string") return null;
     const match = WHOLE_WIKILINK_RE.exec(node.value);
-    if (!match) return;
-    const { base, anchor, alias } = splitWikiInner(match[1]);
+    if (!match) return null;
+    const { base } = splitWikiInner(match[1]);
     const next = targets.get(base);
-    if (next === undefined || next === base) return;
-    // In-place value swap keeps the scalar's quoting style and comments.
-    node.value = `[[${next}${anchor}${alias}]]`;
-    renamed++;
+    if (next === undefined || next === base) return null;
+    // Behind `[[` and the blanks in front of the target.
+    const inner = match[1];
+    const pipe = inner.indexOf("|");
+    const target = pipe === -1 ? inner : inner.slice(0, pipe);
+    return { base, next, at: node.value.indexOf("[[") + 2 + (target.length - target.trimStart().length) };
+  };
+  const rewriteScalar = (node: unknown, targets: Map<string, string>) => {
+    if (isAlias(node)) {
+      // The value stands where its anchor is; it changes there or not at all.
+      const source = node.resolve(split.doc);
+      if (isScalar(source) && wanted(source, targets)) referred.push(source);
+      return;
+    }
+    if (!isScalar(node) || typeof node.value !== "string") return;
+    const link = wanted(node, targets);
+    if (!link || rewritten.has(node)) return;
+    // A name a link here cannot carry is not written: the link keeps the old one.
+    if (!propertiesCanName(link.next)) {
+      skipped++;
+      return;
+    }
+    const range = node.range;
+    const written = range ? span.yaml.slice(range[0], range[1]) : null;
+    const edit = range && written !== null && node.value.startsWith(link.base, link.at) ? targetInScalar(written, node, node.value, link.at, link.base, link.next) : null;
+    if (!range || edit === null) {
+      skipped++;
+      return;
+    }
+    edits.push({ from: range[0] + edit.from, to: range[0] + edit.to, text: edit.text });
+    rewritten.add(node);
   };
 
   for (const [key, targets] of byKey) {
-    const value = map.get(key, true);
+    const value = valueUnder(map, key);
     if (value == null) continue;
     if (isSeq(value)) {
       for (const item of value.items) rewriteScalar(item, targets);
@@ -398,9 +425,19 @@ export function renameFrontmatterWikiLinks(
       rewriteScalar(value, targets);
     }
   }
+  for (const source of referred) if (!rewritten.has(source)) skipped++;
 
-  if (renamed === 0) return { content, renamed: 0 };
-  return { content: joinDocument(split), renamed };
+  if (edits.length === 0) return { content, renamed: 0, skipped };
+  // In one pass over the note. A scalar is changed once, so no two changes meet.
+  edits.sort((a, b) => a.from - b.from);
+  const pieces: string[] = [];
+  let cursor = 0;
+  for (const edit of edits) {
+    pieces.push(content.slice(cursor, span.yamlStart + edit.from), edit.text);
+    cursor = span.yamlStart + edit.to;
+  }
+  pieces.push(content.slice(cursor));
+  return { content: pieces.join(""), renamed: edits.length, skipped };
 }
 
 export interface EnsureOkfFrontmatterOptions {
@@ -430,9 +467,9 @@ export function ensureOkfFrontmatter(
   options: EnsureOkfFrontmatterOptions
 ): EnsureOkfFrontmatterResult {
   const split = splitDocument(content);
-  const map = ensureMapContents(split.doc);
+  const map = split.doc.contents;
 
-  const existingType = map.has("type") ? split.doc.get("type") : undefined;
+  const existingType = isMap(map) && map.has("type") ? split.doc.get("type") : undefined;
   const typeIsBlank =
     existingType === undefined ||
     existingType === null ||
@@ -440,6 +477,5 @@ export function ensureOkfFrontmatter(
   if (!typeIsBlank) {
     return { content, changed: false, setType: false };
   }
-  split.doc.set("type", options.type);
-  return { content: joinDocument(split), changed: true, setType: true };
+  return { content: setEntry(content, ["type"], options.type), changed: true, setType: true };
 }

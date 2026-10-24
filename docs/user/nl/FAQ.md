@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-09-30
+Laatst bijgewerkt: 2026-10-22
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -42,9 +42,9 @@ De nieuwe naam wordt geschreven in de frontmatter van **elke overeenkomende noti
 
 Vóór elke wijziging maakt de wizard een back-up van het bestand naar `.plainva/backups/okf-conversion-<tijdstempel>/`. Het eindrapport noemt de precieze map; van daaruit kun je losse bestanden terugkopiëren. Gebruik daarnaast **Voorbeeld (geen wijzigingen)** voordat je converteert.
 
-### Een oude dagelijkse notitie ontbreekt in het Taken-overzicht
+### Een notitie uit een sjabloon ontbreekt in het Taken-overzicht
 
-Zeer oude dagelijkse notities kunnen een instelling van hun sjabloon hebben geërfd die hun taken verbergt. Zoek in de vault naar `"tasks: false"` — **met** de aanhalingstekens, anders vind je ook notities waarin beide woorden toevallig samen voorkomen. In de resultaten staat de regel in de frontmatter onder een `plainva:`-blok; verwijder daar `tasks: false` (en `templateFor:`, indien aanwezig) en de notitie verschijnt weer. Notities die nieuw uit een sjabloon zijn aangemaakt, erven dit niet meer.
+Een notitie die je tot en met versie 0.8.5 uit een sjabloon hebt aangemaakt — ook een dagelijkse notitie — kan van dat sjabloon een instelling hebben geërfd die haar taken verbergt. Zoek in de vault naar `"tasks: false"` — **met** de aanhalingstekens, anders vind je ook notities waarin beide woorden toevallig samen voorkomen. In de resultaten staat de regel in de frontmatter onder een `plainva:`-blok; verwijder daar `tasks: false` (en `templateFor:`, indien aanwezig) en de notitie verschijnt weer. Laat de regel in de sjablonen zelf staan; daar hoort hij. Notities die nieuw uit een sjabloon zijn aangemaakt, erven dit niet meer.
 
 ## Sync
 
@@ -106,6 +106,14 @@ Plainva toont vervolgens een kort rapport: hoeveel bestanden nieuw, gewijzigd of
 
 Daarnaast gelijkt Plainva automatisch af zodra je vanuit een ander programma terugkeert naar het venster (maximaal elke 30 seconden; de cloud maximaal elke 5 minuten). Blijft een bestand ook dan onzichtbaar, gebruik dan **Index volledig opnieuw opbouwen** onder Instellingen → Vault → Onderhoud.
 
+### Zoeken, tags of databases missen een deel van mijn vault
+
+Bij het inlezen volgt Plainva links zoals het systeem dat doet: een link naar een map wordt gelezen als die map, een link naar een bestand als dat bestand — op de desktop en in een map die je op de iPhone hebt gekozen. Wat het niet kan lezen, laat het weg en noemt het: een link naar een plek die op dit apparaat niet bestaat (bijvoorbeeld een map die alleen op een andere computer staat en hier als link is aangekomen) of een map zonder toegang. Een melding noemt ze één keer — **ontbreekt in de zoekindex** — en de rest van de vault wordt zoals gewoonlijk geïndexeerd. Niets onder zo'n item geldt als verwijderd, niet voor de index en niet voor de synchronisatie van een versleutelde workspace.
+
+Kan de index helemaal niet worden bijgewerkt, dan zegt de melding waarom (**De zoekindex kon niet worden bijgewerkt: …**); de vault blijft open met wat de index al bevat, en bij het volgende inlezen probeert Plainva het opnieuw. Op de telefoon wordt ook een zoekindex genoemd die niet kan worden geopend: zoeken, tags, databases, de synchronisatie en de kalender blijven dan uit tot Plainva hem kan openen.
+
+Verwijder of herstel het item dat de melding noemt en kies daarna **Vault opnieuw inlezen** (op de telefoon: trek een lijst omlaag).
+
 ### Ik heb een bestand buiten Plainva verplaatst
 
 Plainva volgt het. De bestandsboom toont het bestand op de nieuwe plek, ook als je het in de Finder, de Verkenner of een ander programma hebt verplaatst. Staat de notitie open — of open je haar nog op de oude plek, bijvoorbeeld via een bladwijzer —, dan zoekt Plainva haar: heeft precies één bestand elders dezelfde inhoud en hetzelfde wijzigingstijdstip, dan volgt het tabblad dat bestand, noemt een korte melding de nieuwe map, en verhuizen bladwijzers, plekken op het prikbord en opmerkingen bij de notitie mee. Niet-opgeslagen wijzigingen gaan mee naar de nieuwe plek. Is dat niet eenduidig, bijvoorbeeld omdat dezelfde inhoud op meerdere plekken staat, dan vraagt **Verplaatst?** welke het is en kies je het juiste bestand. Vindt Plainva er geen, dan blijft het tabblad bij **Dit bestand bestaat niet meer** en ruimt Plainva de verouderde indexvermelding vanzelf op. Had je niet-opgeslagen wijzigingen, dan blijven ze bewaard, en **Hier opnieuw opslaan** zet het bestand terug op de oude plek — uit zichzelf schrijft Plainva daar niets. Zolang de zoektocht nog de hele vault doorloopt, staat **Zoekt nog elders in de vault…** erbij.
@@ -114,7 +122,7 @@ Hetzelfde geldt voor een geopend tabblad met een database (`.base`) of een afbee
 
 Op de telefoon houdt niets de map in de gaten terwijl je werkt. In plaats daarvan leest Plainva de vault opnieuw in zodra je **terugkeert naar de app** (hoogstens één keer per minuut) en zodra je een lijst **omlaag trekt** — voor elke vault, ook de vault in de app zelf, die de Bestanden-app op iOS toont. Een verplaatste notitie volgt daar haar bestand op dezelfde manier, ook een die openstaat; vindt Plainva haar niet, dan verschijnt **Deze notitie is niet gevonden.**
 
-Systeembestanden slaat Plainva over: `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (mapsymbolen), `.Spotlight-V100`, `.Trashes`, `.fseventsd` en de AppleDouble-bestanden die macOS op netwerkschijven en USB-sticks naast elk bestand legt (`._Notitie.md`). Ze verschijnen niet in de bestandsboom en worden niet geüpload of gedownload. Een kopie die een eerdere versie al naar de cloud heeft geüpload, blijft daar onaangeroerd. Een eigen notitie waarvan de naam toevallig met `._` begint, blijft zichtbaar — Plainva herkent AppleDouble-bestanden aan hun inhoud, niet aan hun naam.
+Systeembestanden slaat Plainva over: `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (mapsymbolen), `.Spotlight-V100`, `.Trashes`, `.fseventsd`, `$RECYCLE.BIN`, `System Volume Information` (beide in de hoofdmap van een schijf onder Windows) en de AppleDouble-bestanden die macOS op netwerkschijven en USB-sticks naast elk bestand legt (`._Notitie.md`). Ze verschijnen niet in de bestandsboom en worden niet geüpload of gedownload. Een kopie die een eerdere versie al naar de cloud heeft geüpload, blijft daar onaangeroerd. Een eigen notitie waarvan de naam toevallig met `._` begint, blijft zichtbaar — Plainva herkent AppleDouble-bestanden aan hun inhoud, niet aan hun naam.
 
 ### Waarom zie ik geen animaties?
 

@@ -808,6 +808,52 @@
   color: var(--text-main);
 }
 
+/* ---- A file says what is with it (Design_Language.md) ------------------- */
+
+/* The files of a forwarded original arrive after the composer has opened, and
+   not every file goes. A chip carries its state as a glyph and as words behind
+   the name; colour only seconds them. A file that stays behind keeps its chip
+   and its name, struck through, until someone takes it off. */
+.pv-mail-attach-name {
+  overflow-wrap: anywhere;
+}
+.pv-mail-attach-note {
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.pv-mail-attach-chip--loading {
+  border-style: dashed;
+}
+.pv-mail-attach-chip--failed {
+  border-color: var(--warning-border);
+}
+.pv-mail-attach-chip--failed > svg,
+.pv-mail-attach-chip--failed .pv-mail-attach-note {
+  color: var(--warning-text);
+}
+.pv-mail-attach-chip--left > svg {
+  color: var(--text-faint);
+}
+.pv-mail-attach-chip--left .pv-mail-attach-name {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+/* The controls inside a chip sit in its line, so a chip with a way to ask
+   again is as tall as the one beside it. */
+.pv-mail-attach-chip .pv-iconbtn {
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: var(--radius-xs);
+  flex: 0 0 auto;
+}
+/* The line under the files: that Send waits, and the bound a file was held
+   against. */
+.pv-mail-filehint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 /* ---- Conversations (findings P9.3) ------------------------------------- */
 
 /* Count badge of a collapsed conversation. Reads as a quantity, not a button:

@@ -26,7 +26,8 @@ function fakeVault(files = new Map<string, string>()) {
     files,
     dirs,
     vault: {
-      adapter: {
+      // The vault's chain — what a template is written through (finding 2026-10-09).
+      files: {
         exists: async (p: string) => files.has(p) || dirs.has(p),
         createDir: async (p: string) => {
           dirs.add(p);

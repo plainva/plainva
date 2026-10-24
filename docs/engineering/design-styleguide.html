@@ -462,7 +462,7 @@
       </div>
       <div class="card spec">
         <h4>Schatten &amp; Z-Ebenen</h4>
-        <p><code>--shadow-1</code> Karten · <code>--shadow-2</code> Menüs/Popover · <code>--shadow-3</code> Modale/Peek. Sechs handkopierte Fast-Schatten werden ersetzt (schwarze Themes pinnen Schatten auf <i>none</i> — Literale bleiben sonst stehen).<br>Z nur aus <code>--z-popover/modal/menu/dialog/toast/tooltip</code>; beseitigt 4000/2000/999/60/59 … und die private Mobile-Skala.</p>
+        <p><code>--shadow-1</code> Karten · <code>--shadow-2</code> Menüs/Popover · <code>--shadow-3</code> Modale/Peek. Sechs handkopierte Fast-Schatten werden ersetzt (schwarze Themes pinnen Schatten auf <i>none</i> — Literale bleiben sonst stehen).<br>Z nur aus <code>--z-popover/floating/modal/menu/dialog/toast/tooltip</code>; beseitigt 4000/2000/999/60/59 … und die private Mobile-Skala. Die Reihenfolge und was auf welcher Ebene liegt: <a href="#overlays">Überlagerungen</a>.</p>
       </div>
       <div class="card spec">
         <h4>Motion &amp; Fokus</h4>
@@ -660,7 +660,7 @@
   <!-- ================= OVERLAYS ================= -->
   <section id="overlays">
     <h2><span class="no">6</span>Überlagerungen</h2>
-    <p class="sec-sub">Vier Ebenen, klar getrennt: Modal (zentriert) · appDialogs (Bestätigungen, über allem) · FloatingWindow (frei schwebend, nicht-modal) · mobile Sheets. Toasts und Tooltips obendrüber.</p>
+    <p class="sec-sub">Vier Ebenen, klar getrennt: Modal (zentriert) · appDialogs (Bestätigungen, über allem) · FloatingWindow (frei schwebend, nicht-modal, <b>unter</b> den Dialogen) · mobile Sheets. Toasts und Tooltips obendrüber. Was vor was liegt, steht in der Ebenen-Ordnung am Ende des Abschnitts.</p>
     <div class="grid g2">
       <div class="card spec">
         <h4>Modal-Anatomie + Footer-Vertrag</h4>
@@ -702,6 +702,27 @@
         </div>
         <p>Mobile Sheets bleiben das Modal-Pendant — bekommen aber die <b>Severity-Icons</b> der Dialoge (heute nur Buttonfarbe) und denselben Footer-Vertrag. Tooltips ausschließlich über <code>data-tip</code> — die ~170 <code>title=</code> werden migriert.</p>
       </div>
+    </div>
+    <div class="card spec" style="margin-top:14px;">
+      <h4>Ebenen-Ordnung <span class="tagnew">neu: <code>--z-floating</code></span></h4>
+      <div class="scrollbox">
+      <table class="plain">
+        <tr><th>Ebene (von vorn nach hinten)</th><th>Token</th><th>Was dort liegt</th></tr>
+        <tr><td>Tooltip</td><td><code>--z-tooltip</code> 1400</td><td><code>data-tip</code>-Hinweise, Drag-Geister (<code>.pv-fixed-ghost</code>)</td></tr>
+        <tr><td>Toast</td><td><code>--z-toast</code> 1300</td><td>Meldungen unten rechts</td></tr>
+        <tr><td>Bestätigung</td><td><code>--z-dialog</code> 1250</td><td>appDialogs (Bestätigen, Eingabe, Hinweis) — auch aus einem Modal heraus</td></tr>
+        <tr><td>Menü · Popover</td><td><code>--z-menu</code> 1100</td><td><code>MenuSurface</code>, <code>.pv-popover--fixed</code>, Select-Liste, Picker — auch aus einem Modal heraus</td></tr>
+        <tr><td>Dialog · Palette</td><td><code>--z-modal</code> 1000</td><td><code>Modal</code>, Befehlspalette, Schnellwechsler, Vorlagenwahl; dunkelt alles darunter ab</td></tr>
+        <tr><td><b>Schwebendes Fenster</b></td><td><code>--z-floating</code> 900</td><td><code>FloatingWindow</code>: Notiz-Vorschau, Mail-Entwurf, Termin-Vorschau</td></tr>
+        <tr><td>In der Fläche</td><td><code>--z-popover</code> 500</td><td>klebende Tabellenköpfe, Ablagezonen, Fensterleiste — alles, was zu einem Bereich der App gehört</td></tr>
+      </table>
+      </div>
+      <p>Ein schwebendes Fenster ist <b>nicht modal</b>: es dunkelt nichts ab und bleibt offen, während daneben gearbeitet wird. Deshalb kann sich neben ihm ein Dialog, eine Palette oder ein Menü öffnen — und jedes davon liegt <b>vor</b> dem Fenster; unter einem Dialog gehört das Fenster zu dem, was der Dialog abdunkelt. Vier Regeln, alle in der Primitive, keine beim Aufrufer:</p>
+      <p><b>1 · Was ein Fenster öffnet, gehört zu ihm.</b> Menüs, Popover, Select-Listen und Dialoge aus dem Fenster hängen in ihm und liegen damit vor ihm.<br>
+      <b>2 · Das benutzte Fenster liegt vorn.</b> Ein Zeiger, der im Fenster drückt, oder eine Taste, während die Tastatur im Fenster steht, holt es vor die anderen schwebenden Fenster (Fokus allein nicht — den setzt auch Code); ebenso, wenn sein Gastgeber etwas anderes in ihm zeigt (<code>subject</code> — eine angeklickte Zeile darf sich nicht hinter einem anderen Fenster öffnen). <code>--peek-order</code> zählt die Fenster von hinten nach vorn, ein neues öffnet vorn. Wegen Regel 1 liegt damit auch alles, was das benutzte Fenster öffnet, vor den anderen.<br>
+      <b>3 · Ein Fenster, das ein Dialog öffnet, gehört zum Dialog</b> und liegt vor ihm (<code>.pv-peek-window[data-over-dialog]</code>) — gelesen daran, wo das Fenster im Dokument hängt, damit es auch für eine in eine Notiz eingebettete Datenbank gilt. Ein Fenster, das sich nur zufällig öffnet, während ein fremder Dialog steht, kommt nicht vor ihn.<br>
+      <b>4 · Escape geht an das, was vorn liegt — und an genau einen.</b> Ein schwebendes Fenster reagiert auf Escape nur, wenn es das vorderste ist und nichts vor ihm die Taste nimmt. Ein <code>Modal</code>, eine Palette und ein <code>MenuSurface</code>-Menü nehmen sie, wo auch immer die Tastatur steht; ein Popover, eine Select-Liste oder ein handgebautes Menü nur, solange die Tastatur in ihnen steht — sonst haben sie kein eigenes Escape, und ein Fenster, das auf sie wartete, hörte die Taste nicht mehr. Ein Tastendruck schließt eine Sache (das Fenster markiert die Taste als verbraucht), und eine gehaltene Taste läuft nicht durch die Fenster. Gegenüber dem eigenen Inhalt gewinnt das Fenster weiterhin (ein Editor im Fenster schluckt die Taste nicht). Dieselbe Reihenfolge gilt zwischen den Ebenen darüber: ein Menü liegt vor jedem Dialog, also überlässt ein <code>Modal</code> Escape einem offenen <code>MenuSurface</code>-Menü — beide lauschen am Dokument, und ohne diese Regel schloss der Dialog samt Menü, wann immer er zufällig zuerst angehängt war.</p>
+      <p>Das Telefon hat keine schwebenden Fenster; seine Sheets haben eine eigene Leiter (<code>--z-m-sheet</code> &lt; <code>--z-m-sheet-dialog</code>), auf der ein Dialog-Sheet schon über einem Inhalts-Sheet liegt.</p>
     </div>
   </section>
 
@@ -794,6 +815,10 @@
           <span style="display:inline-flex;align-items:center;gap:6px;font-size:var(--text-sm);color:var(--text-muted);"><i style="width:8px;height:8px;border-radius:999px;background:var(--accent-color);display:inline-block"></i> ungelesen-Dot</span>
         </div>
         <p><b>Tag im Fließtext <span class="tagnew">Neu 2026-09-19</span>:</b> ein Tag hat <b>eine</b> Form, wo immer es im Text steht — <code>.pv-tag-pill</code> auf dem Chip-Tag-Paar, in <code>em</code> bemessen, der Pfad eines verschachtelten Tags gedämpft (<code>.pv-tag-parent</code>). Im Live-Editor eine <i>Markierung</i> (der Text bleibt <code>#projekt/website</code>), im Lesemodus und in der gerenderten Tabellenzelle ein <code>span</code>; alle lesen die Regel des Index (<code>core/tagRule.ts</code>). Jede Tag-Fläche trägt <code>data-tag-color</code> — den Slot aus der <b>Wurzel</b> des Tags, 1–7, nie den grauen Slot 0 —, und der Slot malt <b>nur</b> unter <code>html[data-tag-colors="on"]</code>, dem Geräteschalter „Tags einfärben“ (Darstellung, Standard aus). Keine Fläche färbt ein Tag selbst oder setzt eine Inline-Farbe darauf: die schlägt den Schalter.</p>
+        <p><b>Links im Fließtext <span class="tagnew">Neu 2026-10-23</span>:</b> wie ein Link aussieht, wählt das Gerät unter Erscheinungsbild → Links. Links zu Notizen (Wiki-Links und Markdown-Links in den Vault): <b>Unterstrichen</b> (voreingestellt, wie bis 0.8.5), <b>Getönt</b> (leichte Tönung, Gewicht 500, Linie unter dem Zeiger), <b>Nur Farbe</b>, <b>Dezent</b> (Textfarbe, gepunktete Linie in Linkfarbe); Links ins Web: <b>Unterstrichen</b> oder <b>Nur Farbe</b>. Die Wahl ist ein Attribut am Wurzelelement (<code>data-link-note</code>, <code>data-link-web</code>, <code>linkStyle.ts</code>), das nur Tokens setzt (<code>--wiki-link-*</code>, <code>--web-link-decoration</code>); Editor-Markierung <code>.cm-wiki-link</code>, Tabellenzelle, Lesemodus und Kartenvorschau (<code>.pv-wiki-link</code>, <code>.pv-web-link</code>) folgen ohne Kenntnis der Einstellung. Ein Link auf eine Notiz, die es noch nicht gibt, bleibt in jeder Wahl gedämpft und gestrichelt; Hoher Kontrast unterstreicht jeden Link.
+          <span style="color:var(--accent-color);background:color-mix(in srgb,var(--accent-color) 13%,transparent);border-radius:var(--radius-xs);padding:0 2px;font-weight:500">Jahresplan</span> ·
+          <span style="color:var(--text-muted);text-decoration:underline dashed">Lieferanten 2027</span> ·
+          <span style="color:var(--accent-color);text-decoration:underline">example.org</span></p>
         <p><b>Drei präzise Formen, zentral definiert</b> (Komponenten-Innenmaße leben NUR in ui.css, nie inline): <b>Label-Chip</b> Höhe 22, symmetrisch 0 10px — der bisherige Rechts-Abstand (4px) war der X-Chip-Wert und ließ den Text am Rand kleben; <b>entfernbarer Chip</b> 0 4px 0 10px mit 16px-X-Hit-Fläche; <b>Zähler-Badge</b> Höhe 18, min-width 18, <code>tabular-nums</code>, pill (Board-Zähler heute Karten-Radius). Farbklassen aus den <code>--chip-*</code>-Tokens; Mobile-Zoo (5 Klassen, 3 Radien) → Basis + Touch-Modifier (Höhe 28). Dots 6–8px bleiben.</p>
         <p><b>Sync-Zustand <span class="tagnew">Neu 2026-08-08</span>:</b> drei Farben, nicht zwei —
         <i>ruhig/synchronisiert</i> neutral, <b><i>wird erneut versucht</i> neutral mit gedämpftem Glyph</b>,
@@ -1597,6 +1622,27 @@
     <h3>Shared content</h3>
     <div class="schema"><span class="blk">Preview and wrapping file names</span><span class="blk">Vault / folder</span><span class="blk">Inline error</span><span class="blk">Later / Cancel</span><span class="blk hi">Import</span></div>
     <p>The existing sheet hosts destination review. Pending content uses an inline Banner with Review above the app header and owns its status-bar inset. Later and Cancel are ghost buttons; Import is primary. Discard is a separate ghost action followed by the existing danger confirmation. Banner, Button and sheet keep their established LCARS and Win95 docking. The native iOS extension confirms local staging; destination review happens in the host app.</p>
+  </section>
+
+  <section id="file-states">
+    <h2>A file says what is with it · a notice for something still owed</h2>
+    <p class="sec-sub">The files of a forwarded original arrive after the composer has opened. Each carries its state as a glyph and as words behind its name; colour only seconds them. A file that cannot go keeps its place and its name. One quiet line under the files says that the ways out wait, and the bound a file was held against.</p>
+    <div class="card" style="max-width: 640px; display: grid; gap: var(--space-2)">
+      <div style="display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; font-size: var(--text-sm)">
+        <span style="display: inline-flex; align-items: center; gap: 7px; border: 1px dashed var(--border-color-light); border-radius: var(--radius-xs); padding: 5px 10px; color: var(--text-muted)"><span aria-hidden="true">↻</span>plan.pdf <span style="color: var(--text-faint)">412 KB · loading…</span> <span aria-hidden="true">✕</span></span>
+        <span style="display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border-color-light); border-radius: var(--radius-xs); padding: 5px 10px; color: var(--text-muted)"><span aria-hidden="true" style="color: var(--accent-color)">📎</span>site.png <span style="color: var(--text-faint)">2 MB</span> <span aria-hidden="true">✕</span></span>
+        <span style="display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--warning-border); border-radius: var(--radius-xs); padding: 5px 10px; color: var(--text-muted)"><span aria-hidden="true" style="color: var(--warning-text)">⚠</span>notes.docx <span style="color: var(--warning-text)">not loaded</span> <span aria-hidden="true">⟳</span> <span aria-hidden="true">✕</span></span>
+        <span style="display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border-color-light); border-radius: var(--radius-xs); padding: 5px 10px; color: var(--text-faint)"><span aria-hidden="true">⊘</span><s>film.mp4</s> <span>7 MB · too large</span> <span aria-hidden="true">✕</span></span>
+      </div>
+      <p class="sec-sub" style="margin: 0">1 attachment of the original is loading… “Send” and “Save draft” wait for them.</p>
+      <p class="sec-sub" style="margin: 0">From this mailbox, any file up to 2.8 MB goes along.</p>
+    </div>
+    <p class="sec-sub">A notice that stands for something the app still holds — a message the mail server refused — is an error toast without a close button. Its action asks for the way back and does not take the notice down; the owner dismisses it once a composer has the message again.</p>
+    <div class="toast" style="border-left-color: var(--error-text)">
+      <span aria-hidden="true" style="color: var(--error-text)">!</span>
+      Not sent: The mail server does not accept a message of this size.
+      <button class="pvbtn ghost" style="margin-left: auto; height: var(--control-sm)">Open again</button>
+    </div>
   </section>
 
   <!-- ================= FRAGEN ================= -->

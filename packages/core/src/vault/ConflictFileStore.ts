@@ -15,8 +15,18 @@ export class ConflictFileStore implements ConflictSessionStore {
   private async key(kind: string, path: string): Promise<string> {
     return `${await this.directory}/${kind}/${await conflictHash(conflictSessionKey(path))}.json`;
   }
-  private async read(path: string): Promise<string | null> {
-    return await this.files.exists(path) ? this.files.readTextFile(path) : null;
+  /** A file of the store, or `null` where there is none; `listed` says a listing of its folder has just named it. */
+  private async read(path: string, listed = false): Promise<string | null> {
+    if (!listed && !await this.files.exists(path)) return null;
+    try { return await this.files.readTextFile(path); }
+    catch (error) {
+      // Gone since it was found: a session that ended meanwhile — resolved, or
+      // one an older version left on an own file, ended in the background — or
+      // a diagnostic pruned. A look that cannot answer leaves the read's own
+      // failure standing.
+      if (await this.files.exists(path).catch(() => true)) throw error;
+      return null;
+    }
   }
   private async write(path: string, value: unknown): Promise<void> {
     const text = JSON.stringify(value);
@@ -35,11 +45,16 @@ export class ConflictFileStore implements ConflictSessionStore {
     return session;
   }
   async listConflictSessions(): Promise<ConflictEditSession[]> {
-    return Promise.all((await this.paths("sessions")).map(async path => {
-      const session = decodeConflictSession(await this.files.readTextFile(path));
+    const sessions = await Promise.all((await this.paths("sessions")).map(async path => {
+      // A session that ends while the folder is read is no session any more;
+      // the others are still listed.
+      const raw = await this.read(path, true);
+      if (raw === null) return null;
+      const session = decodeConflictSession(raw);
       if (await this.key("sessions", session.originalPath) !== path) throw new Error("Conflict session path does not match its key");
       return session;
     }));
+    return sessions.filter((session): session is ConflictEditSession => session !== null);
   }
   async saveConflictSession(session: ConflictEditSession): Promise<void> {
     await this.write(await this.key("sessions", session.originalPath), session);
@@ -55,7 +70,12 @@ export class ConflictFileStore implements ConflictSessionStore {
     }
   }
   async listConflictDiagnostics(): Promise<ConflictDiagnostic[]> {
-    return Promise.all((await this.paths("diagnostics")).slice(-100).reverse().map(async path => JSON.parse(await this.files.readTextFile(path)) as ConflictDiagnostic));
+    // One pruned while the folder is read (`recordConflictDiagnostic`) is left out, like a session that ends.
+    const diagnostics = await Promise.all((await this.paths("diagnostics")).slice(-100).reverse().map(async path => {
+      const raw = await this.read(path, true);
+      return raw === null ? null : JSON.parse(raw) as ConflictDiagnostic;
+    }));
+    return diagnostics.filter((diagnostic): diagnostic is ConflictDiagnostic => diagnostic !== null);
   }
 
   /** Only used when the index is unavailable. There is no synced ancestor;
@@ -72,7 +92,7 @@ export class ConflictFileStore implements ConflictSessionStore {
   async updateLocalHash(path: string, hash: string): Promise<void> {
     await this.write(await this.key("markers", path), { path: conflictSessionKey(path), hash });
   }
-  async updateLocalHashAndBaseText(path: string, hash: string, _text: string): Promise<void> {
+  async updateLocalHashAndUnsyncedBaseText(path: string, hash: string, _text: string): Promise<void> {
     await this.updateLocalHash(path, hash);
   }
 }

@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { BINARY_PROBE_BYTES, applyTextShape, getExtraTextExtensions, looksBinary, opensExternally, readTextShape, resolveOpenAction, setExtraTextExtensions } from "@plainva/ui";
+import { EditorState } from "@codemirror/state";
+import { BINARY_PROBE_BYTES, applyTextShape, comparesAsText, editorTextOf, getExtraTextExtensions, looksBinary, openEditorText, opensExternally, readTextShape, resolveOpenAction, setExtraTextExtensions } from "@plainva/ui";
 
 /**
  * The rule from issue #55 and the ratchet that keeps it in one place.
@@ -89,10 +90,10 @@ describe("resolveOpenAction", () => {
   });
 
   /**
-   * A foreign file leaves the way it arrived. Notes are UTF-8/LF by house rule
-   * and keep being normalised; an `.ini` from Windows or a `.csv` with the BOM
-   * Excel wants is not ours to reformat — and rewriting every line ending turns
-   * one edit into a whole-file diff.
+   * A file leaves the way it arrived: an `.ini` from Windows or a `.csv` with
+   * the BOM Excel wants is not ours to reformat, and rewriting every line
+   * ending turns one edit into a whole-file diff. Until 2026-10-09 a note was
+   * the exception (UTF-8/LF by house rule); since then it keeps its shape too.
    */
   it("remembers the line endings and BOM a text file arrived in", () => {
     const crlf = readTextShape("a\r\nb\r\nc");
@@ -139,6 +140,81 @@ describe("resolveOpenAction", () => {
     expect(applyTextShape(text, shape)).toBe("a\r\nb\r\nc\r\nd\r\n");
   });
 
+  /**
+   * The one opener of both shells (finding 2026-10-08). Text, save shape and
+   * the bytes' veto come from one call, so no shell can take one without the
+   * others — the phone had taken none of them.
+   */
+  it("opens a file for an editor: the text it holds, the shape its save puts back, and the bytes' veto", () => {
+    // Built at run time: neither character is typed into this file.
+    const MARK = String.fromCharCode(0xfeff), NUL = String.fromCharCode(0);
+    // A foreign text file leaves exactly as it arrived.
+    expect(openEditorText("Settings.ini", `${MARK}[a]\r\nx=1\r\n`)).toEqual({ text: "[a]\nx=1\n", shape: { eol: "\r\n", bom: true } });
+    // A note is held in the SAME text space — no mark in the buffer either,
+    // where it used to hide a properties block from the editor and made every
+    // decision on a suggestion fail, because the comment operation reads the
+    // note without one. And it leaves as it arrived, like any other text file:
+    // its save used to write "\n" whatever the note had (the mark alone kept).
+    expect(openEditorText("Note.md", `${MARK}---\r\ntitle: x\r\n---\r\n`)).toEqual({ text: "---\ntitle: x\n---\n", shape: { eol: "\r\n", bom: true } });
+    expect(openEditorText("Note.md", "plain\n")).toEqual({ text: "plain\n", shape: { eol: "\n", bom: false } });
+    // The shape is the file's, whatever its name: there is no second rule to ask.
+    for (const name of ["Note.md", "Settings.ini", "Data.csv", "run.bat", "Board.base"]) {
+      for (const raw of [`${MARK}a\r\nb\r\n`, "a\r\nb\r\n", "a\nb\n", `${MARK}a\nb\n`]) {
+        const opened = openEditorText(name, raw)!;
+        expect(applyTextShape(opened.text, opened.shape), `${name} ${JSON.stringify(raw)}`).toBe(raw);
+      }
+    }
+    // The veto: a text name over bytes that are not text opens nothing…
+    expect(openEditorText("dump.log", `PK${NUL}${NUL}`)).toBeNull();
+    // …and it is a foreign file's veto. A note is a note by its name.
+    expect(openEditorText("Note.md", `a${NUL}b`)).not.toBeNull();
+  });
+
+  /**
+   * Why there is ONE text space, as a fact about the editor: CodeMirror splits
+   * a document at every line end and joins it with "\n". Whatever a shell
+   * keeps beside its editor — the last saved text, the text its screen
+   * resolves comment anchors on — has to be that same string, or a file from
+   * Windows differs from itself. `editorTextOf` is that string.
+   */
+  it("holds exactly what CodeMirror holds for the same file", () => {
+    const MARK = String.fromCharCode(0xfeff);
+    for (const raw of ["one\r\ntwo\r\nthree", `${MARK}one\r\ntwo\n`, "one\ntwo\n", ""]) {
+      const held = editorTextOf(raw);
+      expect(EditorState.create({ doc: held }).doc.toString(), JSON.stringify(raw)).toBe(held);
+    }
+    // The raw file is NOT that string, and offsets into it are not offsets
+    // into the editor: one further right with every "\r\n" before them.
+    const raw = "one\r\ntwo\r\nthree";
+    expect(EditorState.create({ doc: raw }).doc.toString()).not.toBe(raw);
+    expect(raw.indexOf("three") - editorTextOf(raw).indexOf("three")).toBe(2);
+  });
+
+  /**
+   * A carriage return of its own (2026-10-12). CodeMirror splits a document
+   * there as well, so a file from a classic Mac always showed its lines — but
+   * `editorTextOf` kept the "\r", and for such a file it was NOT the string an
+   * editor holds: a merge, a writer beside the editor and a comment operation
+   * read one long line. Now it is that string, and the proof that nothing
+   * changes in the editor is the old text itself: what CodeMirror made of the
+   * text it used to be handed is exactly what it is handed today.
+   */
+  it("holds what CodeMirror always held for a file with carriage returns of their own", () => {
+    const MARK = String.fromCharCode(0xfeff);
+    const handedBefore = (file: string) => (file.startsWith(MARK) ? file.slice(1) : file).replace(/\r\n/g, "\n");
+    for (const file of ["one\rtwo\rthree\r", `${MARK}one\rtwo`, "one\r\rtwo", "one\ntwo\rthree\r\nfour", "one\r\r\ntwo\r\r\n", "one\r\r\r\ntwo", "one\n\rtwo"]) {
+      const held = editorTextOf(file);
+      expect(held.includes("\r"), JSON.stringify(file)).toBe(false);
+      expect(EditorState.create({ doc: held }).doc.toString(), JSON.stringify(file)).toBe(held);
+      expect(EditorState.create({ doc: handedBefore(file) }).doc.toString(), JSON.stringify(file)).toBe(held);
+    }
+    // The opener of both shells hands out that text, and the shape the save
+    // puts back: "\n" for a file that has no other line end, the "\r\n" a
+    // twice-converted file from Windows was meant to have.
+    expect(openEditorText("Old Mac.txt", "one\rtwo\r")).toEqual({ text: "one\ntwo\n", shape: { eol: "\n", bom: false } });
+    expect(openEditorText("Twice.md", "one\r\r\ntwo\r\r\n")).toEqual({ text: "one\ntwo\n", shape: { eol: "\r\n", bom: false } });
+  });
+
   it("never hands a virtual tab to the operating system", () => {
     // These are not files. `plainva://graph` reaching openPath would ask the OS
     // to open a path that does not exist.
@@ -149,8 +225,45 @@ describe("resolveOpenAction", () => {
   });
 });
 
+describe("comparesAsText", () => {
+  it("lays a file out as text where Plainva opens it as text or the sync merges it as text — an image as an image", () => {
+    for (const p of ["Notes/Plan.md", "Tasks.base", "script.py", "data.csv", "board.canvas", "page.html", "notes.org", "x.gitignore"]) {
+      expect(comparesAsText(p), p).toBe(true);
+    }
+    // An SVG is text AND an image; it is shown as the image it is.
+    for (const p of ["Bild.svg", "Bild.png", "Doc.pdf", "archive.zip", "noext"]) {
+      expect(comparesAsText(p), p).toBe(false);
+    }
+    setExtraTextExtensions(["adoc"]);
+    try {
+      expect(comparesAsText("Guide.adoc")).toBe(true);
+    } finally {
+      setExtraTextExtensions([]);
+    }
+  });
+});
+
 describe("the decision stays in one place", () => {
   const desktopSrc = join(__dirname);
+
+  /**
+   * The comparisons of both shells read a file as text by ONE rule (finding
+   * 2026-10-11). The desktop asked a list of its own, then the sync's alone;
+   * a conflict of a `.py` file an editor had saved fell outside both, and its
+   * copy was put in the file's place as bytes while the conflict stayed open.
+   */
+  it("is the comparisons' rule too, in both shells", () => {
+    const surfaces = [
+      join(desktopSrc, "components/CompareModal.tsx"),
+      join(desktopSrc, "../../mobile/src/components/ConflictCompareSheet.tsx"),
+      join(desktopSrc, "../../mobile/src/components/VersionsPanel.tsx"),
+    ];
+    for (const file of surfaces) {
+      const src = readFileSync(file, "utf8");
+      expect(src, file).toMatch(/comparesAsText\(/);
+      expect(src, file).not.toMatch(/\bisTextFile\(|\bisTextLikePath\(/);
+    }
+  });
 
   /**
    * Both places that render a vault path must consult the shared rule. Today
@@ -228,17 +341,49 @@ describe("the decision stays in one place", () => {
    * the write left every other test in this file green, which is exactly the
    * gap this guard closes: a text file must go back through the shape it came
    * in, or one edit rewrites every line ending in the file.
+   *
+   * BOTH shells (finding 2026-10-08): the phone opened the same files and
+   * called neither function. It showed whatever decoded and wrote every text
+   * file back with `\n` — and because its screens held the raw file while its
+   * editor held it without `\r`, a note from Windows counted as edited from the
+   * moment it was opened. What the two shells do with a file's shape is tested
+   * on real files beside their savers; this guard only keeps the calls there.
    */
-  it("writes a foreign text file back in the shape it arrived in", () => {
+  it("opens a text file through the one opener and writes it back in its shape — in both shells", () => {
     const editor = readFileSync(join(desktopSrc, "components/Editor.tsx"), "utf8");
-    // The load side: the shape is taken, and the bytes are checked against the
-    // name before anything is shown as text.
-    expect(editor).toMatch(/readTextShape\(/);
-    expect(editor).toMatch(/looksBinary\(/);
+    // The load side: text, shape and the bytes' veto come from ONE call.
+    expect(editor).toMatch(/openEditorText\(activePath, text\)/);
     // The save side: the write ARGUMENT carries the shape, not just the file.
     const write = /vaultAdapter\.writeTextFile\(path,([^)]*)\)/.exec(editor);
     expect(write, "the save write moved — re-point this guard").not.toBeNull();
     expect(write![1]).toMatch(/applyTextShape/);
+
+    const phone = readFileSync(join(desktopSrc, "..", "..", "mobile", "src", "services", "vaultService.ts"), "utf8");
+    // The phone has ONE read of a file for an editor, and one saver.
+    const read = /async readEditor\([\s\S]*?\n {2}\},/.exec(phone);
+    expect(read, "the phone's editor read moved — re-point this guard").not.toBeNull();
+    expect(read![0]).toMatch(/openEditorText\(path, /);
+    expect(phone, "the phone's saver no longer puts the shape back").toMatch(/writeEditorText\(path, applyTextShape\(text, shape\)/);
+    // …and nothing else on a note screen reads the open file around it.
+    for (const rel of ["screens/NoteScreen.tsx", "EditorHost.tsx", "screens/base/PinboardEntryScreen.tsx"]) {
+      const source = readFileSync(join(desktopSrc, "..", "..", "mobile", "src", rel), "utf8");
+      expect(source, `${rel} reads the open file itself instead of asking vaultOps.readEditor`).not.toMatch(/files\.readTextFile\(path\)|vaultOps\.read\(vault, path\)/);
+    }
+  });
+
+  /**
+   * A comment operation is planned on what the editor holds and changes one
+   * passage of the note. Both wirings take the two file functions for that
+   * from the core; the phone's own pair handed over the raw file, and no
+   * suggestion on a note with `\r\n` could be accepted (finding 2026-10-08).
+   */
+  it("runs the comment operation of both shells on the editor's text", () => {
+    for (const rel of [join("services", "commentOperations.ts"), join("..", "..", "mobile", "src", "services", "commentOperations.ts")]) {
+      const source = readFileSync(join(desktopSrc, rel), "utf8");
+      expect(source, `${rel} wires its own file functions`).toMatch(/readText: noteFiles\.readText/);
+      expect(source).toMatch(/noteFiles = editorTextFiles\(/);
+      expect(source).toMatch(/noteFiles\.writeText/);
+    }
   });
 
   /**

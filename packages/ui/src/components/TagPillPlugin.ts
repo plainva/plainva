@@ -5,6 +5,7 @@ import { findInlineTagsInLine } from "@plainva/core";
 import { tagSegments } from "../base/propertyModel";
 import { tagColorAttrs } from "../lib/tagColor";
 import { isEditorInteractive } from "./editorInteractive";
+import { frontmatterLines } from "./editorFrontmatter";
 
 /**
  * Tags as pills in the live editor (finding 2026-09-19).
@@ -33,15 +34,6 @@ const SKIP = new Set([
   "InlineCode", "Link", "Image", "URL", "Autolink", "HTMLTag", "Comment",
 ]);
 
-/** End offset of the leading YAML frontmatter, or 0 - lezer has no node for it. */
-function frontmatterEnd(state: EditorState): number {
-  if (state.doc.lines < 2 || state.doc.line(1).text !== "---") return 0;
-  for (let i = 2; i <= state.doc.lines; i++) {
-    if (state.doc.line(i).text === "---") return state.doc.line(i).to;
-  }
-  return 0;
-}
-
 function skipped(state: EditorState, pos: number): boolean {
   for (let node: { name: string; parent: unknown } | null = syntaxTree(state).resolveInner(pos, 1); node; node = node.parent as typeof node) {
     if (SKIP.has(node.name)) return true;
@@ -50,8 +42,10 @@ function skipped(state: EditorState, pos: number): boolean {
 }
 
 /** The tag ranges of the visible lines - exported for the decoration test. */
-export function visibleTagRanges(state: EditorState, ranges: readonly { from: number; to: number }[], fmEnd: number): { from: number; to: number; name: string }[] {
+export function visibleTagRanges(state: EditorState, ranges: readonly { from: number; to: number }[]): { from: number; to: number; name: string }[] {
   const out: { from: number; to: number; name: string }[] = [];
+  // The frontmatter ends with its closing line; lezer has no node for it.
+  const fmEnd = frontmatterLines(state.doc)?.closeTo ?? 0;
   let lastLine = -1;
   for (const { from, to } of ranges) {
     for (let pos = from; pos <= to; ) {
@@ -93,15 +87,12 @@ export function tagPillPlugin(onOpenTag: OpenTagFn): Extension {
     ViewPlugin.fromClass(
       class {
         decorations: DecorationSet;
-        fmEnd: number;
 
         constructor(view: EditorView) {
-          this.fmEnd = frontmatterEnd(view.state);
           this.decorations = this.build(view);
         }
 
         update(update: ViewUpdate) {
-          if (update.docChanged) this.fmEnd = frontmatterEnd(update.state);
           // The syntax tree arrives in steps on a long note: a line that was not
           // parsed yet may turn out to be code.
           if (update.docChanged || update.viewportChanged || syntaxTree(update.startState) !== syntaxTree(update.state)) {
@@ -111,7 +102,7 @@ export function tagPillPlugin(onOpenTag: OpenTagFn): Extension {
 
         build(view: EditorView): DecorationSet {
           const builder = new RangeSetBuilder<Decoration>();
-          for (const tag of visibleTagRanges(view.state, view.visibleRanges, this.fmEnd)) {
+          for (const tag of visibleTagRanges(view.state, view.visibleRanges)) {
             builder.add(tag.from, tag.to, Decoration.mark({ class: "pv-tag-pill", attributes: { "data-tag": tag.name, ...tagColorAttrs(tag.name) } }));
             // `#project/` stands quieter than `website`; the mark nests inside the pill.
             const { parent } = tagSegments(tag.name);

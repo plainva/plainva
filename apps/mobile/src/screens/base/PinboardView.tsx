@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
 import { mimeTypeForPath, readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
-import { AudioEmbed, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, scrollerOf, SectionLabel, spliceIntoSequence, splitMultiValue } from "@plainva/ui";
+import { AudioEmbed, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, listTaskLines, errorText, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, scrollerOf, SectionLabel, spliceIntoSequence, splitMultiValue } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { mActions, mMultiSelect, mSelect } from "../../services/mobileDialogs";
 import { confirmDeleteFile } from "../../lib/deleteFile";
@@ -41,7 +41,7 @@ function CardAudio({ vault, target, alt, notePath }: { vault: MobileVault; targe
       const candidates = imageCandidates(target, { notePath });
       const byName = imageBasename(target);
       if (byName) {
-        const resolved = await vaultOps.resolveWikiTarget(vault, byName, notePath).catch(() => null);
+        const resolved = await vaultOps.resolveWikiTarget(vault, byName, notePath, "wiki").catch(() => null);
         if (resolved && !candidates.includes(resolved)) candidates.push(resolved);
       }
       if (!alive) return;
@@ -82,7 +82,7 @@ function CardImage({ vault, target, alt, notePath }: { vault: MobileVault; targe
     void (async () => {
       const byName = imageBasename(target);
       if (byName) {
-        const resolved = await vaultOps.resolveWikiTarget(vault, byName, notePath).catch(() => null);
+        const resolved = await vaultOps.resolveWikiTarget(vault, byName, notePath, "wiki").catch(() => null);
         if (resolved && !candidates.includes(resolved)) candidates.push(resolved);
       }
       if (!alive) return;
@@ -316,29 +316,26 @@ export function PinboardView({
     [visibleSections, columnCount, heights],
   );
 
-  // ── Card writes (shared semantics with the desktop view) ──
-  const afterCardWrite = useCallback(async (path: string) => {
-    if (vault.indexer) {
-      try {
-        await vault.indexer.indexFile(await vault.adapter.getFileInfo(path));
-      } catch {
-        /* next full pass repairs it */
-      }
-    }
-    onMutated();
-  }, [vault, onMutated]);
-
+  // ── Card writes (shared semantics with the desktop view): every change
+  //    goes into the note as it lies there when it is written
+  //    (`vaultOps.update` — one step of the vault's chain, then the index) ──
   const handleToggleTask = useCallback(async (path: string, ordinal: number, checked: boolean) => {
     try {
-      const fresh = await vault.files.readTextFile(path);
-      const res = toggleTaskAtIndex(fresh, ordinal, checked);
-      if (!res.changed) return;
-      await vault.files.writeTextFile(path, res.content);
-      await afterCardWrite(path);
+      // The box is found by its line's text as well as by its place: where the
+      // note has an open conflict, the person's own version takes the tick
+      // too, and there another line may stand at that place.
+      const listed = listTaskLines(await vault.files.readTextFile(path))[ordinal];
+      if (!listed) return;
+      const update = await vaultOps.update(vault, path, (fresh) => {
+        if (listTaskLines(fresh)[ordinal]?.text !== listed.text) return null;
+        const res = toggleTaskAtIndex(fresh, ordinal, checked);
+        return res.changed ? res.content : null;
+      });
+      if (update.changed) onMutated();
     } catch (e: any) {
       toast.error(String(e?.message ?? e));
     }
-  }, [vault, afterCardWrite]);
+  }, [vault, onMutated]);
 
   const persistSections = useCallback((next: { order?: string[]; pinned?: string[] }) => {
     const patch: Record<string, unknown> = {};
@@ -360,24 +357,23 @@ export function PinboardView({
     const picked = await mSelect({ title: t("pinboard.color", { defaultValue: "Farbe" }), options, value });
     if (picked === null) return;
     try {
-      const fresh = await vault.files.readTextFile(path);
       const hex = picked ? PALETTE_SWATCH[picked] : null;
-      const next = withNoteColor(fresh, hex);
-      if (next !== fresh) {
-        await vault.files.writeTextFile(path, next);
-        await afterCardWrite(path);
-      }
-    } catch (e: any) {
-      toast.error(String(e?.message ?? e));
+      const update = await vaultOps.update(vault, path, (fresh) => withNoteColor(fresh, hex));
+      if (update.changed) onMutated();
+    } catch (e) {
+      // The sentence every refused property write gets, with the reason as
+      // `errorText` reads it (finding 2026-10-12): the bare message of a block
+      // that is no YAML quotes the note's own line. The card is drawn from the
+      // note, so it keeps the colour the note has.
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
     }
-  }, [vault, t, afterCardWrite, cards]);
+  }, [vault, t, onMutated, cards]);
 
   const editLabels = useCallback(async (path: string) => {
     const current = labelsByPath.get(path) ?? [];
     let fmTags: string[] | null = null;
-    let fresh: string;
     try {
-      fresh = await vault.files.readTextFile(path);
+      const fresh = await vault.files.readTextFile(path);
       if (!labelProp) {
         const raw = readFrontmatterPath(fresh, ["tags"]);
         fmTags = Array.isArray(raw) ? raw.map(String) : typeof raw === "string" && raw ? [raw] : [];
@@ -414,28 +410,27 @@ export function PinboardView({
     const keep = candidates.filter((v: string) => inlineOnlyOf(v));
     const desired = [...new Set([...chosen.filter((v) => !inlineOnlyOf(v)), ...keep])];
     try {
-      let next: string;
-      if (labelProp) {
-        // Only the values this sheet offered are ours to decide about; anything
-        // else in the property was put there elsewhere and stays.
-        const cur = splitMultiValue(readFrontmatterPath(fresh, [labelProp])).map(String);
-        const untouched = cur.filter((v) => !candidates.includes(v));
-        const list = [...untouched, ...desired.filter((v) => candidates.includes(v))];
-        next = list.length > 0 ? setFrontmatterPath(fresh, [labelProp], list) : deleteFrontmatterPath(fresh, [labelProp]);
-      } else {
-        const cur = fmTags ?? [];
+      // The sheet stood open for as long as the person took: the list is
+      // rebuilt from the note as it lies there NOW. Only the values this sheet
+      // offered are ours to decide about; anything else in the property was
+      // put there elsewhere — or since — and stays.
+      const key = labelProp ?? "tags";
+      const update = await vaultOps.update(vault, path, (text) => {
+        const raw = readFrontmatterPath(text, [key]);
+        const cur = labelProp
+          ? splitMultiValue(raw).map(String)
+          : Array.isArray(raw) ? raw.map(String) : typeof raw === "string" && raw ? [raw] : [];
         const untouched = cur.filter((v) => !candidates.includes(v));
         const list = [...untouched, ...desired.filter((v) => candidates.includes(v) && !inlineOnlyOf(v))];
-        next = list.length > 0 ? setFrontmatterPath(fresh, ["tags"], list) : deleteFrontmatterPath(fresh, ["tags"]);
-      }
-      if (next !== fresh) {
-        await vault.files.writeTextFile(path, next);
-        await afterCardWrite(path);
-      }
-    } catch (e: any) {
-      toast.error(String(e?.message ?? e));
+        return list.length > 0 ? setFrontmatterPath(text, [key], list) : deleteFrontmatterPath(text, [key]);
+      });
+      if (update.changed) onMutated();
+    } catch (e) {
+      // See `pickColor`: the one sentence, and the reason through `errorText`.
+      // The labels on the card come from the index, which heard of no write.
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
     }
-  }, [vault, labelProp, labelsByPath, chipEntries, labelOptions, t, afterCardWrite]);
+  }, [vault, labelProp, labelsByPath, chipEntries, labelOptions, t, onMutated]);
 
   const openActions = useCallback(async (path: string) => {
     const isPinned = sections.pinned.includes(path);

@@ -3,6 +3,7 @@ import { BadgeCheck, Check, ExternalLink, Link2, Plus, ShieldCheck, Sparkles } f
 import { useTranslation } from "react-i18next";
 import {
   appendVerification,
+  errorText,
   formatActor,
   formatStampDate,
   generatedAtOf,
@@ -16,11 +17,15 @@ import {
   toast,
   TRUST_LEVEL_I18N,
   trustLevelOf,
+  unreadablePropertiesBlock,
   useKeptResolution,
+  writableProperties,
 } from "@plainva/ui";
 import {
   parseMarkdownAst,
   extractFrontmatter,
+  FrontmatterSurgicalError,
+  renameFrontmatterKey,
   updateFrontmatterString,
   ReadableFrontmatter,
   OKF_STATUS_VALUES,
@@ -38,6 +43,8 @@ import { getConfiguredNoteType, getConfiguredDailyNoteType } from "../services/n
 import { loadPropertyTypes, setPropertyType, clearPropertyType, renamePropertyType } from "./propertyTypeStore";
 import { resolveGoverningBase, clearGoverningBaseCache, governingBasesBelongTo, governingBaseMemory, type GoverningBase } from "../services/baseSchema";
 import { PropertyRow, AddPropertyPopover, type RelationCandidate } from "./PropertyValues";
+import { parseWikiLinkValue, pathsSharingNames, stripWikiLink, wikiLinkTextFor, wikiTargetPath } from "@plainva/ui";
+import { useWikiResolver } from "../hooks/useWikiResolver";
 import {
   propertyCommentStore,
   usePropertyCommentCounts,
@@ -64,6 +71,22 @@ const OKF_SYSTEM_KEYS = new Set(["type", "okf_version"]);
 /** OKF 0.2 lifecycle keys (plan P3a): pinned rows with a fixed meta — the
  * value stays editable, and clearing it removes the key. */
 const OKF_LIFECYCLE_KEYS = new Set(["status", "stale_after"]);
+
+/**
+ * A note's text with one entry renamed: its name changes and nothing else
+ * (`renameFrontmatterKey`), as in a database's rename of a column. The panel
+ * used to hand the writer a set with the new name, and the old key's READING
+ * went under it — the reader reads `title: 2024` as the text "2024" (ADR 0009,
+ * addendum 2026-10-22), and the note got `heading: "2024"`. A rename that
+ * finds no entry of the name — a key that is an alias, which the reader names
+ * after what it stands for — changes nothing: it is refused, as an entry the
+ * writers cannot change where it stands, and the panel says so.
+ */
+function renamedEntry(content: string, from: string, to: string): string {
+  const next = renameFrontmatterKey(content, from, to);
+  if (next === content) throw new FrontmatterSurgicalError(`Frontmatter is not a YAML map whose entry '${from}' can be renamed where it stands`);
+  return next;
+}
 
 // The OKF 0.2 provenance families (`generated`/`verified`/`sources`) render as
 // the read-only trust group, never as editable rows — the editor does not
@@ -132,6 +155,8 @@ function SourceLine({ source }: { source: OkfSource }) {
 export function PropertiesSection({ onCountChange, onOpenPath, channel = activeDocument }: PropertiesSectionProps) {
   const { t, i18n } = useTranslation();
   const { queryService, vaultAdapter, vaultPath, fileTreeVersion } = useVault();
+  // The link rule's lookup, as the editor draws its links with it.
+  const linkLookup = useWikiResolver();
   const [doc, setDoc] = useState<ActiveDoc>(() => channel.get());
   const [properties, setProperties] = useState<ReadableFrontmatter>({});
   const [typeReg, setTypeReg] = useState<Record<string, PropertyType>>({});
@@ -203,12 +228,18 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   // The add popover belongs to the note it was opened on.
   useEffect(() => { setShowAdd(false); }, [governingKey]);
 
+  // A block that cannot be read as properties — YAML that does not parse, a
+  // list, a line of prose — is said as such: "No properties" stood there, the
+  // same mix-up of "could not be read" and "has none" the writers had (ADR
+  // 0009, addendum 2026-10-22). The phone's sheet asks the same question.
+  const [unreadable, setUnreadable] = useState(false);
   useEffect(() => {
-    if (doc.kind !== "markdown") { setProperties({}); return; }
+    if (doc.kind !== "markdown") { setProperties({}); setUnreadable(false); return; }
     try {
       const ast = parseMarkdownAst(doc.content);
       const fm = extractFrontmatter(ast);
       setProperties(fm.success && fm.data ? fm.data : {});
+      setUnreadable(unreadablePropertiesBlock(doc.content, fm));
     } catch { /* ignore parse errors while typing */ }
   }, [doc.content, doc.kind]);
 
@@ -224,16 +255,34 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
 
   useEffect(() => { onCountChange?.(model.shownCount); }, [model.shownCount, onCountChange]);
 
-  const apply = useCallback((newProps: ReadableFrontmatter) => {
+  // Rows are drawn anew after a refused write, so an editor that keeps what
+  // was typed or picked falls back to the note's value with the rest.
+  const [refusals, setRefusals] = useState(0);
+
+  // Hands a new set of properties to the editor and answers whether it got
+  // there. A refused set — a block that is no YAML map, or one the panel could
+  // not read, whose rows are then NOT the note's properties and whose write
+  // would remove the ones it does not show — used to end in the console while
+  // the panel went on showing it (finding 2026-10-09). Now the panel keeps
+  // what the note says and a message names the reason. What a handler does
+  // beside the note (the type registry, a notice of success) follows a true.
+  //
+  // A rename hands its two names along (`renamedEntry`): handed over as a set,
+  // the old key's READING went under the new name.
+  const commit = useCallback((next: ReadableFrontmatter, rename?: readonly [string, string]): boolean => {
     try {
-      const newContent = updateFrontmatterString(doc.content, newProps);
-      channel.applyFrontmatter(newContent);
+      writableProperties(doc.content);
+      const newContent = rename ? renamedEntry(doc.content, rename[0], rename[1]) : updateFrontmatterString(doc.content, next);
+      if (!channel.applyFrontmatter(newContent)) throw new Error(t("rightPanel.propertiesUnavailable"));
     } catch (e) {
       console.error("Failed to update properties", e);
+      setRefusals((n) => n + 1);
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+      return false;
     }
-  }, [doc.content, channel]);
-
-  const commit = useCallback((next: ReadableFrontmatter) => { setProperties(next); apply(next); }, [apply]);
+    setProperties(next);
+    return true;
+  }, [doc.content, channel, t]);
 
   // "Mark as reviewed" (OKF 0.2, plan P3b): appends `human:<name>` with the
   // current instant to the note's `verified` list. The name is asked for once
@@ -266,8 +315,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
     // Plain `{ by, at }` objects — the frontmatter value type wants shapes it
     // can serialise, not the core interface.
     const verified = appendVerification(properties.verified, name).map((v) => ({ by: v.by, at: v.at }));
-    commit({ ...properties, verified });
-    toast.success(t("trust.verifiedToast", { name }));
+    if (commit({ ...properties, verified })) toast.success(t("trust.verifiedToast", { name }));
   }, [doc.kind, vaultPath, properties, commit, t]);
 
   const onChangeProp = useCallback((key: string, value: any) => {
@@ -287,18 +335,18 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
     if (oldKey === newKey || !newKey.trim() || properties[newKey] !== undefined) return;
     const next: ReadableFrontmatter = {};
     for (const [k, v] of Object.entries(properties)) next[k === oldKey ? newKey : k] = v;
+    if (!commit(next, [oldKey, newKey])) return;
     renamePropertyType(vaultPath, oldKey, newKey);
     setTypeReg(loadPropertyTypes(vaultPath));
-    commit(next);
   }, [commit, properties, vaultPath]);
 
   const onDeleteProp = useCallback((key: string) => {
     if (OKF_SYSTEM_KEYS.has(key)) return;
     const next = { ...properties };
     delete next[key];
+    if (!commit(next)) return;
     clearPropertyType(vaultPath, key);
     setTypeReg(loadPropertyTypes(vaultPath));
-    commit(next);
   }, [commit, properties, vaultPath]);
 
   const onAddProp = useCallback((name: string, type: PropertyType) => {
@@ -311,16 +359,16 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
       while (properties[finalName] !== undefined) finalName = `${base} ${n++}`;
     }
     if (Object.prototype.hasOwnProperty.call(properties, finalName) || reservedPropertyName(finalName)) return;
+    if (!commit({ ...properties, [finalName]: defaultValueForType(type) as any })) return;
     setPropertyType(vaultPath, finalName, type);
     setTypeReg(loadPropertyTypes(vaultPath));
-    commit({ ...properties, [finalName]: defaultValueForType(type) as any });
   }, [commit, properties, vaultPath, t]);
 
   const onChangeType = useCallback((key: string, type: PropertyType) => {
     if (OKF_SYSTEM_KEYS.has(key) || OKF_LIFECYCLE_KEYS.has(key)) return;
+    if (!commit({ ...properties, [key]: coerceForType(normalizeFrontmatterValue(properties[key]), type) as any })) return;
     setPropertyType(vaultPath, key, type);
     setTypeReg(loadPropertyTypes(vaultPath));
-    commit({ ...properties, [key]: coerceForType(normalizeFrontmatterValue(properties[key]), type) as any });
   }, [commit, properties, vaultPath]);
 
   // Folder of the active note — scopes select/status discovery so a generic key
@@ -338,8 +386,12 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
 
   // Relation candidates: from the target `.base`'s notes if the column declares one,
   // else any note in the vault. Cached per scope; filtered by the typed query.
-  const relationCandidates = useCallback(async (query: string, relationBase?: string): Promise<RelationCandidate[]> => {
+  const relationCandidates = useCallback(async (query: string, relationBase?: string, current?: unknown): Promise<RelationCandidate[]> => {
     if (!queryService) return [];
+    // The notes the value links already — by the link rule, read from this
+    // note: a stored link may name its note by file name, path or title.
+    const stored = Array.isArray(current) ? current : current == null || current === "" ? [] : [current];
+    const linked = new Set(stored.map((v) => wikiTargetPath(parseWikiLinkValue(v)?.target ?? stripWikiLink(String(v)), linkLookup, doc.path ?? undefined)));
     const cacheKey = relationBase || "__all__";
     let list = relationCandidateCache.get(cacheKey);
     if (!list) {
@@ -360,23 +412,27 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
       relationCandidateCache.set(cacheKey, list);
     }
     const q = query.trim().toLowerCase();
-    return list
-      .filter((c) => c.path !== doc.path)
+    const shown = list
+      .filter((c) => c.path !== doc.path && !linked.has(c.path))
       .filter((c) => q === "" || c.title.toLowerCase().includes(q) || c.path.toLowerCase().includes(q))
       .slice(0, 30);
-  }, [queryService, vaultAdapter, doc.path]);
+    // What a pick writes: the file's name, the title as the link's text where
+    // it reads otherwise — a target that leads back to the picked note.
+    const sharing = await pathsSharingNames(queryService, shown.map((c) => c.path)).catch(() => shown.map((c) => c.path));
+    return shown.map((c) => ({ ...c, link: wikiLinkTextFor(c.path, c.title === c.path ? null : c.title, sharing) }));
+  }, [queryService, vaultAdapter, doc.path, linkLookup]);
 
   // Relation chips open a note: resolve the wikilink target like the editor does.
   const onOpenLink = useCallback(async (target: string) => {
     if (!onOpenPath || !queryService) return;
     const search = target.split("#")[0].trim();
     try {
-      const path = await queryService.resolveNotePath(search);
+      const path = await queryService.resolveNotePath(search, doc.path ?? undefined);
       if (path) onOpenPath(path, false);
     } catch (e) {
       console.warn("[PropertiesSection] resolving relation link target failed", e);
     }
-  }, [onOpenPath, queryService]);
+  }, [onOpenPath, queryService, doc.path]);
 
   const locale = i18n.language || "de";
 
@@ -454,7 +510,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
 
   const renderRow = ({ key, value, type, curatedOptions, relationBase, relationLimit, lockMeta, lockValue }: Row) => (
     <PropertyRow
-      key={key}
+      key={`${refusals}:${key}`}
       propKey={key}
       displayLabel={lockedLabel(key, lockMeta)}
       value={value}
@@ -470,7 +526,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
       lockValue={lockValue}
       commentCount={commentCounts.get(key)}
       onComment={canCommentOnProps && key in properties ? requestComment : undefined}
-      getRelationCandidates={(q) => relationCandidates(q, relationBase)}
+      getRelationCandidates={(q) => relationCandidates(q, relationBase, properties[key])}
       onOpenLink={onOpenLink}
       relationLimit={relationLimit}
       t={t}
@@ -483,7 +539,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   // rows at the end. Nothing here lays itself out.
   return (
     <div className="pv-props">
-      {rows.length === 0 ? <p className="pv-prow-hint">{t("properties.noProperties")}</p> : rows.map(renderRow)}
+      {rows.length === 0 ? <p className="pv-prow-hint">{t(unreadable ? "properties.unreadableBlock" : "properties.noProperties")}</p> : rows.map(renderRow)}
 
       <div data-testid="okf-trust-section">
         <PropGroupHead

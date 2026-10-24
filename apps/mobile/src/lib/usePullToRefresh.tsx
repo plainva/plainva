@@ -85,12 +85,33 @@ export function usePullToRefresh(
     onRefreshRef.current = onRefresh;
   }, [onRefresh]);
 
+  // Where a pull stands. Kept here rather than in the listeners: they are put
+  // on again after every commit (below), and a pull in progress must not start
+  // over because the indicator it grows re-rendered the page.
+  const gesture = useRef({ el: null as HTMLDivElement | null, startY: 0, tracking: false, dist: 0 });
+
+  // On the element the caller's ref points at NOW, looked at after every
+  // commit rather than once: a screen whose first render is something else —
+  // the mail list shows an empty state until its accounts are read — has its
+  // page a render later, and a once-only effect found no element, never
+  // looked again, and the pull did nothing there. Without dependencies on
+  // purpose; the one state it sets itself is the reset below, only when the
+  // element changed — the next run finds the same element and sets nothing.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const el = ref.current;
-    if (!el || !enabled) return;
-    let startY = 0;
-    let tracking = false;
-    let dist = 0;
+    const el = enabled ? ref.current : null;
+    const g = gesture.current;
+    // A pull belongs to the page it began on. Listeners that come back to
+    // another page, or to none, start without it — and without its drawn
+    // indicator: its end was never heard there, and the next lift of a finger
+    // would have run the refresh.
+    if (g.el !== el) {
+      g.el = el;
+      g.tracking = false;
+      g.dist = 0;
+      setPull(0);
+    }
+    if (!el) return;
 
     const run = async () => {
       busyRef.current = true;
@@ -105,31 +126,31 @@ export function usePullToRefresh(
 
     const onStart = (e: TouchEvent) => {
       if (busyRef.current || el.scrollTop > 0) return;
-      startY = e.touches[0].clientY;
-      tracking = true;
-      dist = 0;
+      g.startY = e.touches[0].clientY;
+      g.tracking = true;
+      g.dist = 0;
     };
     const onMove = (e: TouchEvent) => {
-      if (!tracking || busyRef.current) return;
-      const dy = e.touches[0].clientY - startY;
+      if (!g.tracking || busyRef.current) return;
+      const dy = e.touches[0].clientY - g.startY;
       if (el.scrollTop > 0 || dy <= 0) {
-        dist = 0;
+        g.dist = 0;
         setPull(0);
         return;
       }
-      const prev = dist;
-      dist = pullDistance(dy);
+      const prev = g.dist;
+      g.dist = pullDistance(dy);
       // Own the gesture: without this the browser rubber-bands instead.
-      if (dist > 0 && e.cancelable) e.preventDefault();
+      if (g.dist > 0 && e.cancelable) e.preventDefault();
       // One tactile tick exactly when the pull arms (crosses the threshold).
-      if (prev < PULL_THRESHOLD && dist >= PULL_THRESHOLD) haptics.light();
-      setPull(dist);
+      if (prev < PULL_THRESHOLD && g.dist >= PULL_THRESHOLD) haptics.light();
+      setPull(g.dist);
     };
     const onEnd = () => {
-      if (!tracking) return;
-      tracking = false;
-      if (dist >= PULL_THRESHOLD && !busyRef.current) void run();
-      dist = 0;
+      if (!g.tracking) return;
+      g.tracking = false;
+      if (g.dist >= PULL_THRESHOLD && !busyRef.current) void run();
+      g.dist = 0;
       setPull(0);
     };
 
@@ -143,7 +164,7 @@ export function usePullToRefresh(
       el.removeEventListener("touchend", onEnd);
       el.removeEventListener("touchcancel", onEnd);
     };
-  }, [ref, enabled]);
+  });
 
   const visible = busy || pull > 8;
   return visible ? (

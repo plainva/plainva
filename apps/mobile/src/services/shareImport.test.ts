@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 import type { IVaultAdapter } from "@plainva/core";
+import { withOkfDefaults } from "@plainva/ui";
 import { importSharedContent, type ShareImportContext } from "./shareImport";
 import { SHARE_LIMITS, validateShare, type PendingShare, type ShareTargetPort } from "./shareTarget";
 
@@ -24,9 +25,87 @@ function fixture() {
     readBinaryFile: vi.fn(async (path: string) => (contents.get(path) as Uint8Array).slice()),
     readTextFile: vi.fn(async (path: string) => contents.get(path) as string),
   };
-  const context: ShareImportContext = { vaultId: "test-vault", files: files as unknown as IVaultAdapter, folder: "Inbox", ensureOpen: vi.fn(async () => {}) };
+  const context: ShareImportContext = { vaultId: "test-vault", files: files as unknown as IVaultAdapter, folder: "Inbox", noteType: "Note", ensureOpen: vi.fn(async () => {}) };
   return { port, context, files, contents, get: () => clone(entry), set: (value: PendingShare) => { entry = value; }, payload };
 }
+const ATTACHMENT = "Attachments/Shared/aaaaaaaa-1111-2222-3333-444444444444/1-sketch.png";
+/** The fixture's share as a note of its own: heading, text, the attachment's link. */
+const SHARED_BODY = `# Agenda\n\nA shared text\nhttps://example.test/agenda\n\n![[${ATTACHMENT}]]\n`;
+
+/**
+ * A shared note is a new note: it gets its properties block from the shared
+ * writer, with the vault's type for new notes (ADR 0009; finding 2026-10-09).
+ * The pipeline wrote heading, text and links and no block at all, so the note
+ * had no `type`. A task brings its own header; a journal entry is no note.
+ */
+describe("a shared note carries the type for new notes", () => {
+  it("gets its properties block from the shared writer, in front of the heading", async () => {
+    const f = fixture();
+    const path = await importSharedContent(f.port, f.get(), { ...f.context, noteType: "Zettel" });
+    expect(path).toBe("Inbox/Agenda.md");
+    expect(f.contents.get(path)).toBe(`---\ntype: Zettel\n---\n${SHARED_BODY}`);
+    // The bytes the one writer of a new note's header produces.
+    expect(f.contents.get(path)).toBe(withOkfDefaults(SHARED_BODY, "Zettel"));
+    // The header is part of the plan, so the note that is written is the planned one.
+    expect(f.get().plan?.noteText).toBe(f.contents.get(path));
+  });
+
+  it("keeps the type its plan was made with: a retry writes the planned note, whatever the setting says now", async () => {
+    const f = fixture();
+    f.files.writeTextFile.mockRejectedValueOnce(Error("disk full"));
+    await expect(importSharedContent(f.port, f.get(), { ...f.context, noteType: "Zettel" })).rejects.toThrow("disk full");
+    expect(f.get().plan?.noteText).toBe(`---\ntype: Zettel\n---\n${SHARED_BODY}`);
+    const path = await importSharedContent(f.port, f.get(), { ...f.context, noteType: "Idee" });
+    expect(f.contents.get(path)).toBe(`---\ntype: Zettel\n---\n${SHARED_BODY}`);
+  });
+
+  it("a share without a subject, a text or a file is still a note with a type", async () => {
+    const f = fixture(), entry = f.get();
+    entry.subject = ""; entry.text = ""; entry.files = []; f.set(entry);
+    const path = await importSharedContent(f.port, f.get(), f.context);
+    expect(path).toBe("Inbox/Shared.md");
+    expect(f.contents.get(path)).toBe("---\ntype: Note\n---\n# Shared\n");
+  });
+
+  it("puts the block in front of a shared text that brings fences of its own — they stay text", async () => {
+    const f = fixture(), entry = f.get();
+    entry.subject = ""; entry.text = "---\ntitle: Elsewhere\n---\nBody"; entry.files = []; f.set(entry);
+    const path = await importSharedContent(f.port, f.get(), f.context);
+    expect(f.contents.get(path)).toBe("---\ntype: Note\n---\n# ---\n\n---\ntitle: Elsewhere\n---\nBody\n");
+  });
+
+  it("fits the plan's size limit with the largest share there can be", async () => {
+    // The text at its limit, ten attachments with names at theirs, and a long
+    // type: the plan allows 16 KB beyond the shared text, and the header,
+    // the heading and the links stay below it.
+    const id = "aaaaaaaa-1111-2222-3333-444444444444", bytes = new Uint8Array([7]), type = "Besprechungsprotokoll".repeat(8);
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const sharedFiles = Array.from({ length: SHARE_LIMITS.files }, (_, i) => ({ id: `bbbbbbbb-1111-2222-3333-${String(i).padStart(12, "0")}`, name: "ä".repeat(300) + ".png", mime: "image/png", size: 1, sha256 }));
+    let entry: PendingShare = { version: 1, id, createdAt: 100, status: "ready", text: "T".repeat(SHARE_LIMITS.textBytes), subject: "", files: sharedFiles };
+    const contents = new Map<string, string | Uint8Array>();
+    const port: ShareTargetPort = {
+      listPendingShares: async () => ({ entries: [clone(entry)] }),
+      beginImport: async ({ plan }) => { entry = { ...entry, plan: entry.plan ?? clone(plan) }; return { entry: clone(entry) }; },
+      readFileChunk: async () => ({ data: Buffer.from(bytes).toString("base64") }),
+      markImported: async ({ fileId, note }) => { if (note) entry.noteWritten = true; else entry.filesDone = [...(entry.filesDone ?? []), fileId!]; },
+      finishShare: async () => {},
+    };
+    const files = {
+      exists: async (path: string) => contents.has(path),
+      writeBinaryFile: async (path: string, data: Uint8Array) => { contents.set(path, data.slice()); },
+      writeTextFile: async (path: string, text: string) => { contents.set(path, text); },
+      readBinaryFile: async (path: string) => (contents.get(path) as Uint8Array).slice(),
+      readTextFile: async (path: string) => contents.get(path) as string,
+    };
+    const path = await importSharedContent(port, clone(entry), { vaultId: "test-vault", files: files as unknown as IVaultAdapter, folder: "Inbox", noteType: type, ensureOpen: async () => {} });
+    const note = contents.get(path) as string;
+    expect(note.startsWith(`---\ntype: ${type}\n---\n# ${"T".repeat(60)}\n\n`)).toBe(true);
+    expect(note.match(/!\[\[Attachments\/Shared\//g)).toHaveLength(SHARE_LIMITS.files);
+    const size = new TextEncoder().encode(note).length;
+    expect(size).toBeGreaterThan(SHARE_LIMITS.textBytes);
+    expect(size).toBeLessThanOrEqual(SHARE_LIMITS.textBytes + 16384);
+  });
+});
 describe("durable inbound transfers", () => {
   it("bounds Unicode names by UTF-8 bytes and keeps attachment links readable", async () => {
     const f = fixture(), entry = f.get(); entry.subject = "日😀".repeat(80); entry.files[0].name = "日😀".repeat(80) + ".png"; f.set(entry);
@@ -41,10 +120,14 @@ describe("durable inbound transfers", () => {
       folder: "Aufgaben",
       text: `---\nstatus: Offen\n---\n# ${title}\n\n${body}\n`,
     }));
-    const path = await importSharedContent(f.port, f.get(), { ...f.context, asTask });
+    const path = await importSharedContent(f.port, f.get(), { ...f.context, noteType: "Zettel", asTask });
     expect(path).toBe("Aufgaben/Agenda.md");
     expect(asTask).toHaveBeenCalledTimes(1);
     const note = f.contents.get(path) as string;
+    // The host's text as it made it: a task brings its own header, and the
+    // type of a plain shared note is not written over it.
+    expect(note.startsWith("---\nstatus: Offen\n---\n# Agenda\n")).toBe(true);
+    expect(note).not.toContain("Zettel");
     expect(note).toContain("status: Offen");
     expect(note).toContain("# Agenda");
     expect(note).toContain("https://example.test/agenda");

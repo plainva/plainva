@@ -54,6 +54,36 @@ export function isUnifiedId(id: string): boolean {
   return id.includes(SEP);
 }
 
+export interface RowAddress extends MailOrigin {
+  /** The row named this address itself; it is not read off the open mailbox. */
+  own: boolean;
+}
+
+/**
+ * The message a list row opens.
+ *
+ * A row that carries its own address — every row of a merged list, and every
+ * row built from one, a conversation over it included — opens THAT message:
+ * its account, its folder, its uid. Any other row is a message of the account
+ * that is open, in the folder it was listed in (a conversation reads Sent
+ * along, so that is not always the folder on screen), else in the open one.
+ * It is handed the id the row carries, or the selection id that addresses the
+ * row's message (the row menu of a conversation names a message so).
+ *
+ * One answer for both shells (finding 2026-10-11). The desktop had it; the
+ * phone's conversation rows asked the OPEN account for a row of the merged
+ * list and handed the whole address on as if it were the uid, so with "All
+ * inboxes" and conversations both on, no row led to its message.
+ */
+export function rowAddress(
+  row: { id: string; mailbox?: string | null },
+  open: { accountId: string; mailbox: string },
+): RowAddress {
+  const own = parseUnifiedId(row.id);
+  if (own) return { ...own, own: true };
+  return { accountId: open.accountId, mailbox: row.mailbox || open.mailbox, uid: row.id, own: false };
+}
+
 export interface OriginGroup<A> {
   account: A;
   mailbox: string;

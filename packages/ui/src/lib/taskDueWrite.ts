@@ -1,4 +1,7 @@
-import { deleteFrontmatterPath, readFrontmatterPath, readTasksMetadata, resolveTaskOrdinal, setChecklistTaskDue, setFrontmatterPath, setTasksField } from "@plainva/core";
+import { deleteFrontmatterPath, readFrontmatterPath, readTasksMetadata, resolveTaskOrdinal, setChecklistTaskDue, setFrontmatterPath, setTasksField, type TextChange } from "@plainva/core";
+import i18n from "i18next";
+import { errorText } from "./errorText";
+import { isFileNotFound } from "./movedNote";
 import { isOpenState, type PlannerRow } from "./taskPlanner";
 
 /**
@@ -29,12 +32,18 @@ export type TaskDueChange =
   | { source: "database"; path: string; day: string | null }
   | { source: "note"; path: string; task: TaskDueLineRef; day: string | null };
 
+/**
+ * Both writes are the shell's entry for a change of a note where it lies
+ * (`updateTextFile` of the vault's chain): the change gets the note's text as
+ * it is at that moment and answers the new one — more than once where the
+ * note has an open conflict, so it keeps nothing on the way. They resolve with
+ * the text the note had, and what moved is read from that.
+ */
 export interface TaskDueDeps {
-  readTextFile(path: string): Promise<string>;
-  /** The shell's write path for a note that holds checkboxes (whole content). */
-  writeNoteText(path: string, content: string): Promise<void>;
-  /** The shell's task-note write path (conflict guard, index, sync queue). */
-  writeDbNote(path: string, mutate: (raw: string) => string): Promise<void>;
+  /** The shell's change of a note that holds checkboxes; `null` leaves the note alone. */
+  updateNoteText(path: string, change: TextChange): Promise<{ before: string }>;
+  /** The shell's task-note write path (index, sync queue, the nudge to the provider). */
+  writeDbNote(path: string, mutate: (raw: string) => string): Promise<{ before: string }>;
   /** The database's date column (`taskDbDueKey`); null: its entries cannot carry a date. */
   dueKey: string | null;
 }
@@ -42,8 +51,16 @@ export interface TaskDueDeps {
 export interface TaskDueOutcome {
   /** How many tasks now carry their new day. */
   moved: number;
-  /** Tasks that were left alone: gone or changed since they were listed, or unreadable. */
+  /** Tasks that were left alone: gone or changed since they were listed. */
   skipped: number;
+  /**
+   * Notes that are there and could not be read or written, with the reason
+   * and how many of their tasks were to move: a properties block the writer
+   * refuses, a file another program holds, an error of the vault. They used to
+   * be counted as skipped, and the shells said of them that they had "changed
+   * in the meantime" (finding 2026-10-12). One entry per note.
+   */
+  failed: Array<{ path: string; message: string; tasks: number }>;
   /** The same changes pointing back at the day each task had — hand it to `applyTaskDueChanges` to undo. */
   undo: TaskDueChange[];
   /** Notes with checkboxes that were rewritten, for the shell's index update. */
@@ -75,7 +92,8 @@ function storedDay(raw: unknown): string | null {
  * move; a task that cannot be found any more is counted, not guessed at.
  */
 export async function applyTaskDueChanges(deps: TaskDueDeps, changes: readonly TaskDueChange[]): Promise<TaskDueOutcome> {
-  const out: TaskDueOutcome = { moved: 0, skipped: 0, undo: [], notePaths: [], lines: [] };
+  const out: TaskDueOutcome = { moved: 0, skipped: 0, failed: [], undo: [], notePaths: [], lines: [] };
+  const reasonOf = (e: unknown): string => (e instanceof Error ? e.message : String(e));
   const byNote = new Map<string, Array<Extract<TaskDueChange, { source: "note" }>>>();
 
   for (const change of changes) {
@@ -95,66 +113,91 @@ export async function applyTaskDueChanges(deps: TaskDueDeps, changes: readonly T
       continue;
     }
     try {
-      // Filled in by the mutation, which runs inside the shell's write path.
-      const seen: { previous: string | null; empty: boolean; written: boolean } = { previous: null, empty: true, written: false };
       const day = change.day;
-      await deps.writeDbNote(change.path, (raw) => {
+      const moved = (raw: string): { previous: string | null; empty: boolean; written: boolean; next: string } => {
         const current = readFrontmatterPath(raw, [key]);
-        seen.previous = storedDay(current);
-        seen.empty = current == null || String(current).trim() === "";
-        if (day === null) {
-          if (seen.empty) return raw;
-          seen.written = true;
-          return deleteFrontmatterPath(raw, [key]);
-        }
+        const previous = storedDay(current);
+        const empty = current == null || String(current).trim() === "";
+        if (day === null) return empty ? { previous, empty, written: false, next: raw } : { previous, empty, written: true, next: deleteFrontmatterPath(raw, [key]) };
         const next = withDueDay(current, day);
-        if (!seen.empty && String(current).trim() === next) return raw;
-        seen.written = true;
-        return setFrontmatterPath(raw, [key], next);
-      });
+        if (!empty && String(current).trim() === next) return { previous, empty, written: false, next: raw };
+        return { previous, empty, written: true, next: setFrontmatterPath(raw, [key], next) };
+      };
+      // What moved is read from the note as it was changed, not from inside the change.
+      const seen = moved((await deps.writeDbNote(change.path, (raw) => moved(raw).next)).before);
       if (!seen.written) continue;
       out.moved += 1;
       // Back to the day that was there, or to no date at all. A value that was
       // there but was not a date cannot be brought back, so nothing is offered.
       if (seen.previous) out.undo.push({ source: "database", path: change.path, day: seen.previous });
       else if (seen.empty) out.undo.push({ source: "database", path: change.path, day: null });
-    } catch {
-      out.skipped += 1;
+    } catch (e) {
+      // A note that is gone since it was listed is left alone; one that is
+      // there and could not be read or written failed, with its reason.
+      if (isFileNotFound(e)) out.skipped += 1;
+      else out.failed.push({ path: change.path, message: reasonOf(e), tasks: 1 });
     }
   }
 
   for (const [path, list] of byNote) {
     try {
-      let content = await deps.readTextFile(path);
-      const undo: TaskDueChange[] = [];
-      const lines: TaskDueOutcome["lines"] = [];
-      let skipped = 0;
-      for (const change of list) {
-        // The ordinal comes from a listing; the note may have changed since.
-        const ordinal = resolveTaskOrdinal(content, change.task);
-        const next = ordinal < 0 ? null : setChecklistTaskDue(content, ordinal, change.day);
-        if (!next || !next.changed) {
-          skipped += 1;
-          continue;
+      const movedIn = (read: string): { content: string; undo: TaskDueChange[]; lines: TaskDueOutcome["lines"]; skipped: number } => {
+        let content = read;
+        const undo: TaskDueChange[] = [];
+        const lines: TaskDueOutcome["lines"] = [];
+        let skipped = 0;
+        for (const change of list) {
+          // The ordinal comes from a listing; the note may have changed since.
+          const ordinal = resolveTaskOrdinal(content, change.task);
+          const next = ordinal < 0 ? null : setChecklistTaskDue(content, ordinal, change.day);
+          if (!next || !next.changed) {
+            skipped += 1;
+            continue;
+          }
+          content = next.content;
+          const text = setTasksField(change.task.text, "due", change.day);
+          lines.push({ path, ordinal, text, day: change.day });
+          undo.push({ source: "note", path, task: { ordinal, text, ...(change.task.taskId ? { taskId: change.task.taskId } : {}) }, day: readTasksMetadata(change.task.text).due });
         }
-        content = next.content;
-        const text = setTasksField(change.task.text, "due", change.day);
-        lines.push({ path, ordinal, text, day: change.day });
-        undo.push({ source: "note", path, task: { ordinal, text, ...(change.task.taskId ? { taskId: change.task.taskId } : {}) }, day: readTasksMetadata(change.task.text).due });
-      }
+        return { content, undo, lines, skipped };
+      };
+      const { before } = await deps.updateNoteText(path, (read) => {
+        const result = movedIn(read);
+        return result.lines.length > 0 ? result.content : null;
+      });
+      // Which lines moved is read from the note as it was changed.
+      const { undo, lines, skipped } = movedIn(before);
       if (lines.length > 0) {
-        await deps.writeNoteText(path, content);
         out.notePaths.push(path);
         out.moved += lines.length;
         out.undo.push(...undo);
         out.lines.push(...lines);
       }
       out.skipped += skipped;
-    } catch {
-      out.skipped += list.length;
+    } catch (e) {
+      if (isFileNotFound(e)) out.skipped += list.length;
+      else out.failed.push({ path, message: reasonOf(e), tasks: list.length });
     }
   }
   return out;
+}
+
+/**
+ * What to say of the notes a move could not write, or null when there is none:
+ * the sentence a property write gets, with its reason, where one note failed
+ * and nothing else happened — and one count where a section was moved. Both
+ * shells say this; "not moved because they changed in the meantime"
+ * (`tasks.dueSkipped`) is the sentence for `skipped`, and it was said of
+ * these too.
+ */
+export function taskDueFailureText(outcome: TaskDueOutcome): string | null {
+  if (outcome.failed.length === 0) return null;
+  if (outcome.failed.length === 1 && outcome.moved === 0 && outcome.skipped === 0) {
+    return i18n.t("mobile.propertyWriteFailed", { message: errorText(outcome.failed[0].message) });
+  }
+  // Tasks on both sides: `moved` counts tasks, and so does this.
+  const failed = outcome.failed.reduce((sum, note) => sum + note.tasks, 0);
+  return i18n.t("database.bulkSetPartial", { done: outcome.moved, failed });
 }
 
 /**

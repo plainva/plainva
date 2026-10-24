@@ -383,6 +383,9 @@ test.beforeEach(async ({ page }) => {
         // command falls through to `null` and every start looks like an update.
         if (cmd === 'plugin:app|version') return '9.9.9';
         if (cmd === 'plugin:store|get') {
+          // A test sets a setting of its own before the app starts (`addInitScript`).
+          const own = (window as any).__storeOverrides;
+          if (own && Object.prototype.hasOwnProperty.call(own, args.key)) return [own[args.key], true];
           if (args.key === 'lastVaultPath') return ['/test-vault', true];
           if (args.key === 'recentVaults') return [['/test-vault'], true];
           // The splash is the default entry since 2026-07-04 — the suite keeps
@@ -405,6 +408,21 @@ test.beforeEach(async ({ page }) => {
         if (cmd === 'plugin:sql|select') {
           const query: string = args.query || '';
           const values: any[] = args.values || [];
+          // The link rule's corpus (VaultQueryService.linkTargets): the indexed
+          // notes with their titles, and every other file of the vault — a
+          // database, an attachment — under its file name, as the indexer
+          // registers them. A click on a link, the reverse columns, the
+          // rollups and the relation writes are all resolved against these
+          // rows in JavaScript; there is no lookup in SQL to answer any more.
+          if (query.includes('FROM files WHERE is_deleted IS NULL OR is_deleted = 0')) {
+            const others = Object.keys(fs)
+              .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/\.md$/i.test(p) && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
+              .map(p => p.replace('/test-vault/', ''));
+            return [
+              ...dbFiles.map(f => ({ path: f.path, title: f.title, mode: 'obsidian' })),
+              ...others.map(path => ({ path, title: path.split('/').pop()!, mode: 'attachment' })),
+            ];
+          }
           if (query.includes('SELECT path, title, mode FROM files')) {
             return Object.keys(fs)
               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
@@ -430,17 +448,9 @@ test.beforeEach(async ({ page }) => {
           if (query.includes(`SELECT path FROM files WHERE mode != 'attachment'`)) {
             return dbFiles.map(f => ({ path: f.path }));
           }
-          // resolveNotePath (title/path, case-insensitive).
-          if (query.includes('COLLATE NOCASE')) {
-            const target = String(values[0] ?? '').toLowerCase();
-            const hit = dbFiles.find(f =>
-              f.title.toLowerCase() === target || f.path.toLowerCase() === target || f.path.toLowerCase() === `${target}.md`
-            );
-            if (hit) return [{ path: hit.path }];
-            // Also resolve a `.base` file by its path/name (peek base navigation).
-            const baseHit = Object.keys(fs).find(p => !fs[p].isDir && p.replace('/test-vault/', '').toLowerCase() === target);
-            return baseHit ? [{ path: baseHit.replace('/test-vault/', '') }] : [];
-          }
+          // The backlinks' link rows (`ORDER BY f.path COLLATE NOCASE …`): this
+          // fixture keeps no body links, so a note has no backlinks.
+          if (query.includes('COLLATE NOCASE')) return [];
           // Property-scoped reverse lookup (links.property_key), P3.
           if (query.includes('l.property_key = ?')) {
             return dbLinks.filter(l => l.property_key === values[0]).map(l => ({ ...l }));
@@ -1061,6 +1071,40 @@ test('Base board: pointer drag moves a card and writes the frontmatter', async (
     .toContain('status: paused');
 });
 
+test('Base board: a card whose note refuses the write goes back to its column and says why', async ({ page }) => {
+  await page.goto('/');
+  // A block at the top of the note that is a YAML list: nothing a property can
+  // be written into. The index still lists the note under "active".
+  const refused = '---\n- a\n- list\n---\n# Alpha\n';
+  await page.evaluate((text) => { (window as any).mockFs['/test-vault/Projekte/Alpha.md'] = text; }, refused);
+  await openBase(page, 'Board');
+
+  const card = page.locator('[data-tip="Alpha"]');
+  await expect(card).toBeVisible({ timeout: 10000 });
+  const pausedHeader = page.getByText('paused', { exact: true }).first();
+  await expect(pausedHeader).toBeVisible();
+  await expect(page.getByTestId('board-col-count-active')).toHaveText('2');
+  await expect(page.getByTestId('board-col-count-paused')).toHaveText('1');
+
+  const cardBox = (await card.boundingBox())!;
+  const targetBox = (await pausedHeader.boundingBox())!;
+  await page.mouse.move(cardBox.x + cardBox.width / 2, cardBox.y + cardBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  // One sentence says why (the card used to stay in the new column, and the
+  // failure went to the console), …
+  await expect(
+    page.locator('.pv-toast--error', { hasText: /Property could not be saved|Eigenschaft konnte nicht gespeichert werden/ }),
+  ).toHaveCount(1);
+  // … the card is back in the column the note puts it in, …
+  await expect(page.getByTestId('board-col-count-active')).toHaveText('2');
+  await expect(page.getByTestId('board-col-count-paused')).toHaveText('1');
+  // … and the note is what it was, byte for byte.
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Alpha.md'])).toBe(refused);
+});
+
 test('Base board: dragging a column header reorders the group options (report 2026-07-07)', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Board');
@@ -1554,6 +1598,90 @@ test('Peek: a .base opened from inside the peek renders in-window and joins the 
   await expect(peek.locator('.cm-editor')).toBeVisible();
 });
 
+// The peek is a floating window: it stays open while the rest of the app is
+// used, so a dialog can open beside it. Until 2026-10-09 the two shared a
+// layer, and the window — portalled to the end of the body — lay over the
+// dialog: here, where both are centered and the dialog is no larger than the
+// window, the dialog was not to be seen at all, and a click into it landed in
+// the note. The rules themselves (what a window opens, two windows, a window
+// opened from a dialog) are asked of the primitives in floatingLayer.spec.ts;
+// this is the app's own window and two of its own dialogs, in the default
+// theme and in the two that redraw every surface.
+for (const theme of [
+  null,
+  { name: 'lcars', mode: 'dark', variant: 'make-it-so' },
+  { name: 'win95', mode: 'light', variant: null },
+] as const) {
+  test(`Peek (${theme?.name ?? 'default theme'}): a dialog and a palette opened beside the peek lie in front of it, and Escape closes them first`, async ({ page }) => {
+    await page.goto('/');
+    await openBase(page, 'Board');
+    if (theme) {
+      await page.evaluate((t) => {
+        const root = document.documentElement;
+        root.setAttribute('data-theme-name', t.name);
+        root.setAttribute('data-theme', t.mode);
+        if (t.variant) root.setAttribute('data-theme-variant', t.variant);
+        else root.removeAttribute('data-theme-variant');
+      }, theme);
+    }
+    await page.locator('[data-tip="Alpha"]').click();
+    const peek = page.locator('.pv-peek-card');
+    await expect(peek).toBeVisible();
+    await expect(peek.locator('.cm-editor')).toBeVisible({ timeout: 15000 });
+
+    // What lies at the centre of an element: the element, the peek, or neither.
+    const atCentreOf = (testId: string) =>
+      page.getByTestId(testId).evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        if (top && (top === el || el.contains(top))) return 'the element';
+        return top?.closest('.pv-peek-window') ? 'the floating window' : 'something else';
+      });
+    // The POINT is clicked, not the locator: whatever lies there takes the click.
+    const clickCentreOf = async (testId: string) => {
+      const box = (await page.getByTestId(testId).boundingBox())!;
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    };
+
+    // F1 opens the shortcuts window — a dialog as wide as the peek.
+    await page.keyboard.press('F1');
+    await expect(page.getByTestId('shortcuts-modal')).toBeVisible();
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ animations: 'disabled', path: test.info().outputPath(`peek-under-dialog-${theme?.name ?? 'default'}.png`) });
+    expect(await atCentreOf('shortcuts-search')).toBe('the element');
+    await clickCentreOf('shortcuts-search');
+    await page.keyboard.type('F1');
+    await expect(page.getByTestId('shortcuts-search')).toHaveValue('F1');
+    // Escape belongs to the dialog — to its search field first, which it
+    // clears, then to the dialog itself; the peek under it stays through both.
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('shortcuts-search')).toHaveValue('');
+    await expect(page.getByTestId('shortcuts-modal')).toBeVisible();
+    await expect(peek).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('shortcuts-modal')).toHaveCount(0);
+    await expect(peek).toBeVisible();
+
+    // The command palette is no Modal, but the same layer.
+    await page.keyboard.press('Control+p');
+    const palette = page.getByTestId('command-palette');
+    await expect(palette).toBeVisible();
+    const paletteInput = palette.locator('.pv-palette-input');
+    const hit = await paletteInput.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return top === el ? 'the element' : top?.closest('.pv-peek-window') ? 'the floating window' : 'something else';
+    });
+    expect(hit).toBe('the element');
+    await page.keyboard.press('Escape');
+    await expect(palette).toHaveCount(0);
+    await expect(peek).toBeVisible();
+
+    // With nothing over it, Escape is the peek's again.
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.pv-peek-card')).toHaveCount(0);
+  });
+}
+
 test('Board: Ctrl+click on a card opens it in the split pane (P5)', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Board');
@@ -1688,6 +1816,43 @@ test('Base: renaming a property updates the config and the note frontmatter', as
   // The table shows the renamed column with its values intact.
   await expect(page.locator('table').getByText('zustand')).toBeVisible();
   await expect(page.locator('table').getByText('active').first()).toBeVisible();
+});
+
+test('Base: renaming a property does not start where a note cannot take the new name', async ({ page }) => {
+  await page.goto('/');
+  // A block at the top of the note that is a YAML list: no key can be renamed
+  // in it. The index still lists the note with its status, so the rename
+  // would reach it — and used to leave it behind under a database already
+  // renamed, with the failure in the console (finding 2026-10-09).
+  const refused = '---\n- a\n- list\n---\n# Alpha\n';
+  await page.evaluate((text) => { (window as any).mockFs['/test-vault/Projekte/Alpha.md'] = text; }, refused);
+  const files = () => page.evaluate(() => ({
+    base: (window as any).mockFs['/test-vault/Cockpit.base'] as string,
+    alpha: (window as any).mockFs['/test-vault/Projekte/Alpha.md'] as string,
+    beta: (window as any).mockFs['/test-vault/Projekte/Beta.md'] as string,
+    gamma: (window as any).mockFs['/test-vault/Projekte/Gamma.md'] as string,
+  }));
+  const before = await files();
+  await openBase(page, 'Cockpit');
+  await expect(page.locator('table').getByText('Alpha')).toBeVisible();
+
+  await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'columns');
+  await page.locator('.base-config-panel').getByRole('button', { name: /Eigenschaft: status|Property: status/ }).click();
+  const dialog = page.getByRole('dialog', { name: /Eigenschaft: status|Property: status/ });
+  await dialog.getByRole('textbox', { name: 'Name' }).fill('zustand');
+  await dialog.getByRole('button', { name: /Speichern|Save/ }).click();
+
+  // One message says that nothing was renamed, and names the note that stands in the way.
+  const said = page.locator('.pv-toast--error', { hasText: /was not renamed|wurde nicht umbenannt/ });
+  await expect(said).toHaveCount(1);
+  await expect(said).toContainText('Alpha');
+  // Nothing was written: the database keeps the old name, and so do the notes
+  // that could have followed — byte for byte.
+  expect(await files()).toEqual(before);
+  expect(before.alpha).toBe(refused);
+  expect(before.base).toContain('note.status');
+  await expect(page.locator('table').getByText('zustand')).toHaveCount(0);
 });
 
 test('Wizard: a brand-new EMPTY folder is pickable via the browsable picker; tag sources keep their dropdown (P8/F4)', async ({ page }) => {
@@ -2013,7 +2178,7 @@ test('Base "Neu" templates: create with a template once and set it as default', 
 
   const chevron = page.getByRole('button', { name: /Vorlagen und Ablage-Ordner|Templates and storage folder/ });
   await chevron.click();
-  // Open dropdown adds backdrop+popover into .pv-splitbtn: the chevron must
+  // Open dropdown adds the popover into .pv-splitbtn: the chevron must
   // KEEP its half-pill shape (regression: :last-child lost to the popover div).
   await expect(chevron).toHaveCSS('border-top-left-radius', '0px');
   await expect(chevron).toHaveCSS('border-bottom-left-radius', '0px');
@@ -2041,6 +2206,152 @@ test('Base "Neu" templates: create with a template once and set it as default', 
   // still-open menu — and the expander disappears because nothing else is left.
   await expect(page.getByRole('button', { name: 'Projektvorlage', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Alle Vorlagen anzeigen|Show all templates/ })).toHaveCount(0);
+});
+
+// The caret a template leaves in a new entry (`{{cursor}}`, finding
+// 2026-10-12). "Entry" opens the note in the peek window, whose editor is
+// never the active pane — and only the active pane asked for the caret. It was
+// not applied in the window, stayed parked, and the tab that showed the entry
+// later took it: a place counted when the note was written. `zweck` is a key
+// no database of this vault knows, so it is a plain text property.
+const CURSOR_TEMPLATE = '---\ntype: Projekt\nzweck: Angebot\n---\n\n# {{title}}\n\nZiel: {{cursor}} (bis Freitag)\n\n- [ ] erste Aufgabe\n';
+const cursorEntry = (page: Page) => page.evaluate(() => String((window as any).mockFs['/test-vault/Projekte/Cockpit_4.md']));
+async function newEntryFromCursorTemplate(page: Page) {
+  await page.goto('/');
+  await page.evaluate((template) => { (window as any).mockFs['/test-vault/Templates/Projektvorlage.md'] = template; }, CURSOR_TEMPLATE);
+  await openBase(page, 'Cockpit');
+  await expect(page.locator('table').getByText('Alpha')).toBeVisible();
+  await page.getByRole('button', { name: /Vorlagen und Ablage-Ordner|Templates and storage folder/ }).click();
+  await page.getByRole('button', { name: /Alle Vorlagen anzeigen|Show all templates/ }).click();
+  await page.getByRole('button', { name: 'Projektvorlage', exact: true }).click();
+  const peek = page.locator('.pv-peek-card');
+  await expect(peek.locator('.pv-peek-title')).toContainText('Cockpit_4');
+  await expect(peek.locator('.cm-content')).toContainText('(bis Freitag)', { timeout: 15000 });
+  return peek;
+}
+/** An editor takes a parked caret in the effect that follows its load: two frames on, whatever it was handed has been applied. */
+const twoFrames = (page: Page) => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(null)))));
+
+test('Base "Neu": the caret of a template is placed in the peek window, the keyboard stays where it was, and the place holds while a property is filled in', async ({ page }) => {
+  const peek = await newEntryFromCursorTemplate(page);
+  const text = peek.locator('.cm-content');
+
+  // Placed: the line the caret is on is the one the template names …
+  await expect(peek.locator('.cm-activeLine')).toHaveText(/^Ziel:\s+\(bis Freitag\)$/);
+  // … and opening the window did not take the keyboard into the text.
+  await expect(text).not.toBeFocused();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ animations: 'disabled', path: test.info().outputPath('peek-template-caret.png') });
+
+  // What the window opens for comes first: a property is filled in. The block
+  // in front of the text grows, and the place is the editor's — it moves along.
+  await peek.locator('.pv-peek-actions').getByRole('button', { name: /Eigenschaften|Properties/ }).click();
+  const zweck = peek.locator('.pv-peek-side .pv-property-text textarea');
+  await expect(zweck).toHaveValue('Angebot');
+  await zweck.fill('Angebot für die Erweiterung, bis zur Freigabe durch das Team');
+  await zweck.press('Enter');
+  await expect.poll(() => cursorEntry(page)).toContain('zweck: Angebot für die Erweiterung, bis zur Freigabe durch das Team\n');
+
+  // The text gets the keyboard without a place being chosen — what Tab does —
+  // and writing starts where the template says. CodeMirror puts its place into
+  // the page once it has seen the focus, an event later; keys typed before that
+  // go where the browser put the caret (in CI the first ones did, 22.10.). A
+  // person does not type within that moment — the test waits for it.
+  await text.focus();
+  await expect(text).toBeFocused();
+  await expect.poll(() => page.evaluate(() => {
+    const node = document.getSelection()?.focusNode;
+    const element = node instanceof Element ? node : node?.parentElement;
+    return !!element?.closest('.pv-peek-card .cm-activeLine');
+  })).toBe(true);
+  await page.keyboard.type('Angebot schreiben');
+  await expect(peek.locator('.cm-activeLine')).toHaveText(/^Ziel: Angebot schreiben \(bis Freitag\)$/);
+  await expect.poll(() => cursorEntry(page)).toContain('\nZiel: Angebot schreiben (bis Freitag)\n');
+});
+
+test('Base "Neu": opened as a tab from the peek window, a new entry goes on where the window\'s caret is — not at the place of the moment it was created', async ({ page }) => {
+  const peek = await newEntryFromCursorTemplate(page);
+
+  // The heading grows in the window: a place counted when the note was
+  // written now points into it, fifteen characters in front of the template's.
+  await peek.locator('.cm-line', { hasText: 'Cockpit_4' }).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' für den Kunden');
+  await expect.poll(() => cursorEntry(page)).toContain('# Cockpit_4 für den Kunden\n');
+
+  await peek.locator('.pv-peek-actions').getByRole('button', { name: /Als Tab öffnen|Open as tab/ }).click();
+  await expect(page.locator('.pv-peek-card')).toHaveCount(0);
+  const tab = page.locator('main .cm-content').first();
+  await expect(tab).toContainText('(bis Freitag)', { timeout: 15000 });
+  await twoFrames(page);
+
+  // The tab takes the place the window's caret had, with the keyboard: the
+  // writing goes on at the end of the heading.
+  await expect(tab).toBeFocused();
+  await page.keyboard.type('!');
+  await expect.poll(() => cursorEntry(page)).toContain('# Cockpit_4 für den Kunden!\n');
+});
+
+// What a database's template is resolved WITH (Sammelplan § 3.97). The view
+// gave "+ Entry" and the pinboard's New entry the vault's name and nothing
+// else: `{{daily}}` stayed text, `{{weekday:…}}` counted from Monday whatever
+// "Week starts on" says, and "+ Entry" filled the answered text a second time,
+// so a placeholder written as text (`\{{date}}`) became a date. Sunday,
+// 2026-10-11, with the week starting on Sunday: its Monday is the 12th.
+const CONTEXT_TEMPLATE = '---\ntype: Projekt\n---\n\n# {{title}}\n\nTag: {{daily}} · Montag: {{weekday:monday}} · Platzhalter: \\{{date}}\n';
+const CONTEXT_FILLED = 'Tag: [[2026-10-11]] · Montag: 2026-10-12 · Platzhalter: {{date}}\n';
+async function onSundayWeekStartingSunday(page: Page) {
+  await page.clock.setFixedTime(new Date(2026, 9, 11, 9, 30));
+  await page.addInitScript(() => { (window as any).__storeOverrides = { calendarWeekStart: 'sunday' }; });
+}
+
+test('Base "Neu": a template gets the daily note and the week start, and is filled once (Sammelplan 3.97)', async ({ page }) => {
+  await onSundayWeekStartingSunday(page);
+  await page.goto('/');
+  await page.evaluate((template) => { (window as any).mockFs['/test-vault/Templates/Projektvorlage.md'] = template; }, CONTEXT_TEMPLATE);
+  await openBase(page, 'Cockpit');
+  await expect(page.locator('table').getByText('Alpha')).toBeVisible();
+  await page.getByRole('button', { name: /Vorlagen und Ablage-Ordner|Templates and storage folder/ }).click();
+  await page.getByRole('button', { name: /Alle Vorlagen anzeigen|Show all templates/ }).click();
+  await page.getByRole('button', { name: 'Projektvorlage', exact: true }).click();
+  await expect(page.locator('.pv-peek-card .pv-peek-title')).toContainText('Cockpit_4');
+  await expect.poll(() => cursorEntry(page)).toContain(CONTEXT_FILLED);
+});
+
+test('pinboard: New entry from the board\'s template gets the daily note and the week start (Sammelplan 3.97)', async ({ page }) => {
+  await onSundayWeekStartingSunday(page);
+  await page.goto('/');
+  await page.evaluate((template) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Templates/Zettelvorlage.md'] = template;
+    // The board's default template, where "Set as default" keeps it: in its first view.
+    fs['/test-vault/Pinnwand.base'] = String(fs['/test-vault/Pinnwand.base']).replace('      render: pinboard', '      render: pinboard\n      newItemTemplate: Templates/Zettelvorlage.md');
+  }, CONTEXT_TEMPLATE);
+  await openBase(page, 'Pinnwand');
+  await expect(page.locator('[data-pinboard-card]')).toHaveCount(3);
+  await page.getByTestId('base-new-entry').click();
+  await expect(page.getByTestId('pinboard-entry')).toBeVisible();
+  await expect.poll(() => zettelDrafts(page)).toHaveLength(1);
+  const [draft] = await zettelDrafts(page);
+  await expect.poll(() => page.evaluate((p) => String((window as any).mockFs[p]), draft)).toContain(CONTEXT_FILLED);
+});
+
+test('Base "Neu": a new entry whose peek window was closed opens later without a caret from the moment it was created', async ({ page }) => {
+  const peek = await newEntryFromCursorTemplate(page);
+  // The window's editor has loaded the entry and had its turn at the caret.
+  await twoFrames(page);
+  await peek.locator('.pv-peek-actions').getByRole('button', { name: /Schließen|Close/ }).click();
+  await expect(page.locator('.pv-peek-card')).toHaveCount(0);
+
+  // Later the entry is opened from the file tree, like any note.
+  await openTreeNote(page, 'Projekte', 'Cockpit_4');
+  const tab = page.locator('main .cm-content').first();
+  await expect(tab).toContainText('(bis Freitag)', { timeout: 15000 });
+  await twoFrames(page);
+
+  // Nothing was left for it: the text has not taken the keyboard, and the
+  // caret is not on the template's line.
+  await expect(tab).not.toBeFocused();
+  await expect(page.locator('main .cm-activeLine').filter({ hasText: 'Ziel:' })).toHaveCount(0);
 });
 
 test('Template-database assignment: quick-assign regroups the menu, entries never inherit templateFor, new templates auto-assign', async ({ page }) => {

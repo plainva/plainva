@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, remove } from "@tauri-apps/plugin-fs";
 import i18n from "@plainva/ui/i18n";
-import { acpToolbox, AI_POLICY_DIMENSIONS, MCP_OAUTH_CLIENT_DOCUMENT } from "@plainva/core";
+import { acpToolbox, AI_POLICY_DIMENSIONS, MCP_OAUTH_CLIENT_DOCUMENT, updateVaultText } from "@plainva/core";
 import type { AiAppSettings, CommentOperationService, IDatabaseAdapter, IVaultAdapter, VaultQueryService, WorkspaceCommentRecord } from "@plainva/core";
 import type { EventSeed, LocalEmbeddings, LocalGists } from "@plainva/ui";
 import {
@@ -52,7 +52,7 @@ import {
 import { checkedReadTextFile } from "../../adapters/checkedFilesystem";
 import { requestCascadeDelete } from "../cascadeDelete";
 import { inboxFolderKey, journalMoodPropertyKey } from "../../contexts/VaultContext";
-import { buildDailyNotePath, readDailyNoteConfig } from "../dailyNotes";
+import { buildDailyNotePath, readDailyNoteConfig, templateVaultOf } from "../dailyNotes";
 import { readEditorSelection } from "../editorSelection";
 import { getConfiguredNoteType } from "../newNote";
 import { protectedSecrets } from "../protectedSecrets";
@@ -307,7 +307,11 @@ export interface DesktopWriteHost {
    * event editor, opens with everything filled in, and the rest is the
    * user's there.
    */
-  /** False where the composer is already open with a mail — this one or another: it keeps what it has. `done`: the mail went out, was saved, or moved to its own window. */
+  /**
+   * True once the window's composer has the mail. It takes it like every request to write one: a draft nobody
+   * changed gives way, and a changed one is asked about first (`services/mail/composeHost.ts`) — kept, the drafted
+   * mail stays in the list. `done`: the mail went out, was saved, or moved to its own window.
+   */
   openMail(mail: { to: string[]; cc: string[]; bcc: string[]; subject: string; body: string }, done: (how: "sent" | "saved" | "opened") => void): boolean;
   /** `saved`: the calendar took the appointment. */
   openEvent(seed: EventSeed, saved: () => void): void;
@@ -345,7 +349,7 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
     readFile: read,
     resolveLink: (target) => input.query.resolveNotePath(target),
     // Which notes a link COULD mean is asked of the names of all files, by one rule for both shells.
-    fileNames: () => input.query.fileNames(),
+    fileNames: () => input.query.linkTargets(),
     encrypted: input.encrypted,
   });
   currentPolicy = policy;
@@ -390,7 +394,7 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
           if (kind === "task") {
             const dbPath = await getTaskDatabasePath(input.vaultPath).catch(() => null);
             if (dbPath) {
-              const prepared = await prepareTaskNote({ adapter: input.adapter, dbPath, title: "task", noteType: "Task" });
+              const prepared = await prepareTaskNote({ adapter: input.adapter, dbPath, title: "task", noteType: await getConfiguredNoteType(input.vaultPath), templateVault: await templateVaultOf(input.vaultPath) });
               return prepared.ok ? `${prepared.folder}/task.md` : null;
             }
             // Without a task database a task is a line in the journal.
@@ -409,12 +413,9 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
         // A rule of the note itself, after the user's yes: written like "keep on this device" writes its rule.
         async setRule(path, rule, set) {
           await flushPendingSave(path);
-          const text = await read(path);
-          if (text === null) return false;
-          const next = withNoteRule(text, rule, set);
-          if (next === text) return false;
-          await input.adapter.writeTextFile(path, next);
-          return true;
+          // Through the chain's one entry for a change: the rule goes into the note as it lies there, and a note with an
+          // open conflict takes it in the user's own version as well (Sammelplan 3.87).
+          return (await updateVaultText(input.adapter, path, (text) => withNoteRule(text, rule, set))).changed;
         },
         entryPlace,
         // A draft of an e-mail or an appointment (plan P5-6) is offered only where it has somewhere to go.
@@ -549,9 +550,8 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
     async keepOnDevice(path) {
       // The editor's pending keystrokes land first, so the rule is written into the live text.
       await flushPendingSave(path);
-      const text = await read(path);
-      if (text === null) throw new Error(`No note at ${path}`);
-      await input.adapter.writeTextFile(path, withCloudDenied(text));
+      // Through the chain's one entry for a change, as a rule of a note from a plan is written (Sammelplan 3.87).
+      await updateVaultText(input.adapter, path, (text) => withCloudDenied(text));
     },
     async situation() {
       const now = new Date();

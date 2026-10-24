@@ -251,6 +251,14 @@
   background: rgba(255, 255, 255, 0.14);
   box-shadow: inset 0 -2px 0 #FFFFFF;
 }
+/* The pin and the unsaved dot are accent - navy on the navy bar, there but
+   unseen (Sammelplan 3.147). White, like the underline. */
+[data-theme-name="win95"] .tabstrip .pv-tab-pin {
+  color: #FFFFFF;
+}
+[data-theme-name="win95"] .tabstrip .pv-tab-dirty {
+  background: #FFFFFF;
+}
 
 /* Scrollbars: silver beveled thumbs on a light track — the global styling
    paints floating pills, which reads wrong here. */

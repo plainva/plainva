@@ -22,5 +22,30 @@ export function mailErrorText(err: unknown, t: (key: string, opts?: Record<strin
       defaultValue: "No password is stored for this mailbox on this device.",
     });
   }
+  // A size refusal has an action too — take a file off and send again — and a
+  // message that was refused comes back for exactly that (`heldSend.ts`).
+  if (isMailTooLarge(err)) return t("mail.sendTooLarge");
   return errorText(err);
+}
+
+/**
+ * A refusal for SIZE, however the backend words it: an SMTP server answers
+ * with the enhanced status 5.3.4 ("message too big for system") or 5.2.3
+ * ("message length exceeds administrative limit"), or says so in words; Graph
+ * answers a request it finds too large with HTTP 413, Exchange a message with
+ * `ErrorMessageSizeExceeded`.
+ *
+ * Deliberately narrow. A bare 552 also means "the recipient's mailbox is
+ * full", and that one must keep its own words.
+ */
+export function isMailTooLarge(err: unknown): boolean {
+  const text = errorText(err);
+  return (
+    // An enhanced status stands on its own: after the reply code, never inside
+    // a longer number (an address in the server's text).
+    /(?:^|[\s(:-])5\.(?:3\.4|2\.3)(?=\s|$)/.test(text) ||
+    /\bfailed: 413\b/.test(text) ||
+    /ErrorMessageSizeExceeded|RequestEntityTooLarge|RequestBodyTooLarge/i.test(text) ||
+    /message (?:size|length) (?:exceed|is too|too)|message size limit|message (?:is )?too (?:large|big)/i.test(text)
+  );
 }

@@ -1,4 +1,4 @@
-import { seedExampleNote } from "./exampleVault";
+import { EXAMPLE_NOTE_FROM_WINDOWS, readVaultFile, seedExampleNote } from "./exampleVault";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { test, expect, type Page } from "@playwright/test";
 
@@ -16,7 +16,7 @@ import { test, expect, type Page } from "@playwright/test";
  * pinned by the screen's and the sheet's unit tests instead.
  */
 
-async function pastTheFirstStart(page: Page) {
+async function pastTheFirstStart(page: Page, note?: string) {
   await page.addInitScript(() => {
     globalThis.localStorage.setItem(
       "CapacitorStorage.mobile-settings",
@@ -25,7 +25,7 @@ async function pastTheFirstStart(page: Page) {
   });
   await page.goto("/");
   await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20000 });
-  await seedExampleNote(page);
+  await seedExampleNote(page, note);
   await page.waitForTimeout(1500);
   const whatsNew = page.locator('[data-testid="whats-new-sheet"]');
   if (await whatsNew.count()) {
@@ -77,10 +77,8 @@ test("a plain vault has the sheet: a remark is posted from the note menu and lis
   await expect(sheet.getByText(/No comments yet/)).toHaveCount(0);
 });
 
-test("a suggestion made in suggest mode is accepted from the sheet and lands in the note", async ({ page }) => {
-  await pastTheFirstStart(page);
-  await openFirstNote(page);
-
+/** One suggestion — " plus" at the end of the note — made in suggest mode and accepted from the sheet. */
+async function suggestAndAccept(page: Page) {
   // Suggest mode from the note menu: typing changes a copy, the band counts.
   await page.getByTestId("note-menu").click();
   await page.getByRole("button", { name: /^Suggest$/ }).click();
@@ -113,9 +111,43 @@ test("a suggestion made in suggest mode is accepted from the sheet and lands in 
   await accept.click();
   await expect(accept).toHaveCount(0, { timeout: 10000 });
   await page.locator(".m-sheet-backdrop").click({ position: { x: 5, y: 5 } });
+}
+
+test("a suggestion made in suggest mode is accepted from the sheet and lands in the note", async ({ page }) => {
+  await pastTheFirstStart(page);
+  await openFirstNote(page);
+  await suggestAndAccept(page);
   // The note on screen carries the change at once - not only the file
   // (finding 2026-09-09: the view stayed on the old text until reopened).
   await expect(page.locator(".cm-content").first()).toContainText("plus", { timeout: 10000 });
+});
+
+/**
+ * The same round on a note from Windows (finding 2026-10-08).
+ *
+ * The file lies there with a byte order mark and `\r\n`; the editor holds it
+ * without either. The phone compared the two, so accepting answered "the note
+ * changed" for every suggestion on such a note and wrote nothing. Now the
+ * decision is planned and checked on the editor's text, and the write changes
+ * the passage and leaves every other byte where it was.
+ */
+test("a suggestion on a note with Windows line ends is accepted, and the note keeps its line ends and its mark", async ({ page }) => {
+  await pastTheFirstStart(page, EXAMPLE_NOTE_FROM_WINDOWS);
+  await openFirstNote(page);
+  // The mark is not part of what the editor shows: the properties block opens the note, as in any other.
+  await expect(page.locator(".cm-content").first()).toContainText("A sentence to review.", { timeout: 10000 });
+  await suggestAndAccept(page);
+  await expect(page.locator(".cm-content").first()).toContainText("plus", { timeout: 10000 });
+  // The answer this used to get, as a toast and as a pending operation above the note.
+  await expect(page.getByText(/The note has changed/)).toHaveCount(0);
+
+  const stored = await readVaultFile(page, "Example.md");
+  expect(stored.charCodeAt(0), "the note lost its byte order mark").toBe(0xfeff);
+  expect(stored).toContain("A sentence to review.");
+  expect(stored).toContain("plus");
+  // Every line end is still "\r\n": none was turned, and the accepted text brought no lone "\n" in.
+  expect(stored.replace(/\r\n/g, ""), "a line end of the note was rewritten").not.toMatch(/[\r\n]/);
+  expect(stored.match(/\r\n/g)?.length ?? 0).toBeGreaterThanOrEqual(6);
 });
 
 /**

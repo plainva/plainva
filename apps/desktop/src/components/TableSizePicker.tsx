@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useOutsidePress } from "@plainva/ui";
 
 interface Props {
   // Anchor position (viewport coords, e.g. the editor caret).
@@ -33,16 +34,13 @@ export const TableSizePicker: React.FC<Props> = ({ x, y, onSelect, onClose }) =>
       else if (e.key === "ArrowDown") { e.preventDefault(); setHover((h) => ({ ...h, r: Math.min(MAX - 1, h.r + 1) })); }
       else if (e.key === "ArrowUp") { e.preventDefault(); setHover((h) => ({ ...h, r: Math.max(0, h.r - 1) })); }
     };
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
     window.addEventListener("keydown", onKey, true);
-    window.addEventListener("mousedown", onDown, true);
-    return () => {
-      window.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("mousedown", onDown, true);
-    };
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [hover, onClose, onSelect]);
+  // A press beside the grid closes it, heard as every menu and popover hears
+  // it (Sammelplan § 3.100): a `mousedown` never came from a press on a
+  // floating window's head or grip.
+  useOutsidePress(true, onClose, ref);
 
   // Keep the popover inside the viewport.
   const width = gridCols * (CELL + GAP) + 20;

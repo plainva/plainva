@@ -186,10 +186,11 @@ describe("a proposed value as one block of the note (planPropertyChange)", () =>
     expect(plan.hinted).toBe(false);
     expect(readFrontmatterPath(plan.intended, ["status"])).toBe("done");
     expect(readFrontmatterPath(plan.intended, ["tags"])).toEqual(["roof"]);
-    // The last property removed: the block that stays is the oracle's.
+    // The last property removed: what stays is the oracle's — a block with nothing left in it (and no comment)
+    // goes with its last entry.
     const only = planned("---\nstatus: open\n---\nText\n", "status", null);
     expect(only.block).toBeNull();
-    expect(only.intended).toBe("---\n---\nText\n");
+    expect(only.intended).toBe("Text\n");
   });
 
   it("gives no hint where the entry is longer than an anchor quotes", () => {

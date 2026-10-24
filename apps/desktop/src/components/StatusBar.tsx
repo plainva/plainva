@@ -7,16 +7,12 @@ import { activeDocument, type ActiveDoc, type SelectionStats } from "../services
 import { virtualTabMeta } from "./graph/virtualPaths";
 import { computeEmbedInfo } from "../services/embedStats";
 import { countWords, ICON } from "@plainva/ui";
-import { parseMarkdownAst } from "@plainva/core";
+import { noteBodyOf, parseMarkdownAst } from "@plainva/core";
 
 interface Stats { words: number; chars: number; blocks: number; }
 
-function stripFrontmatter(s: string): string {
-  return s.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
-}
-
 function computeStats(content: string): Stats {
-  const body = stripFrontmatter(content);
+  const body = noteBodyOf(content);
   const words = countWords(body);
   const chars = body.length;
   let blocks = 0;

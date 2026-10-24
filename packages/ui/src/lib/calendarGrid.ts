@@ -61,6 +61,18 @@ export function isoWeeksForCells(cells: Date[]): number[] {
 }
 
 /**
+ * The ISO week a run of days lies in, as the label a time grid's title carries
+ * ("KW 43", "KW 43–44" when three days cross a Monday). `weekShort` is the
+ * localized prefix (`calendar.weekShort`). Empty for no days.
+ */
+export function isoWeekLabel(days: Date[], weekShort: string): string {
+  if (days.length === 0) return "";
+  const first = getISOWeek(days[0]);
+  const last = getISOWeek(days[days.length - 1]);
+  return first === last ? `${weekShort} ${first}` : `${weekShort} ${first}–${last}`;
+}
+
+/**
  * Short weekday names in the app language, rotated to the chosen week start
  * (2024-01-01 was a Monday). One implementation for the calendar tab, the
  * sidebar widget and the date jump picker — the date field used to carry

@@ -12,13 +12,14 @@ import { realSqlite } from "./helpers/realSqlite.js";
 /**
  * Which note a link names, asked of the real index (plan KI-Harness P5-7b).
  *
- * The app follows a link by more than one rule — the desktop's editor by a
- * note's title or its whole path (`resolveNotePath`), the phone by the file's
- * name, the graph by the end of a path — and the privacy gate used to ask the
- * shell's own rule: a link that rule did not follow was not recognised as a
- * link to a note the rules keep back, and went to a cloud model with the
- * note's name in it. Here the vault is indexed by the real indexer into a
- * real SQLite index, and the gate asks the names of all files instead.
+ * The privacy gate used to ask the shell's own rule where a tap on a link
+ * leads, and the shells followed a link by more than one rule then: a link
+ * that rule did not follow was not recognised as a link to a note the rules
+ * keep back, and went to a cloud model with the note's name in it. The one
+ * rule (ADR 0027) finds such a note by its file's name, the end of its path
+ * and its title alike — but a tap still opens ONE file, and a name two notes
+ * share names both of them. Here the vault is indexed by the real indexer
+ * into a real SQLite index, and the gate asks the names of all files instead.
  */
 
 const FILES: Record<string, string> = {
@@ -43,7 +44,7 @@ const policyOf: ContextPolicyHost["policyOf"] = async (path, text) => effectiveP
 const allowed = async (path: string) => gateDecision(await policyOf(path), { recipient: cloud, webTools: false }).allowed;
 
 let query: VaultQueryService;
-/** The desktop's own host before P5-7b: the gate asks where a tap on the link leads. */
+/** A host as both shells had it before P5-7b: the gate asks where a tap on the link leads — by the one rule now. */
 let byTheEditorsRule: ContextPolicyHost;
 /** The host as both shells build it now: the names of all files, read from the index. */
 let byAllNames: ContextPolicyHost;
@@ -54,35 +55,37 @@ beforeAll(async () => {
   for (const [path, text] of Object.entries(FILES)) await vault.writeTextFile(path, text);
   await new VaultIndexer(vault, db).indexVaultFull();
   query = new VaultQueryService(db);
-  byTheEditorsRule = { policyOf, resolveLink: (target) => query.resolveNotePath(target) };
+  byTheEditorsRule = { policyOf, resolveLink: (target, from) => query.resolveNotePath(target, from) };
   byAllNames = {
     policyOf,
-    resolveLink: (target) => query.resolveNotePath(target),
-    linkCandidates: async (target, from) => filesALinkCouldMean(buildLinkNameIndex(await query.fileNames()), target, from),
+    resolveLink: (target, from) => query.resolveNotePath(target, from),
+    linkCandidates: async (target, from) => filesALinkCouldMean(buildLinkNameIndex(await query.linkTargets()), target, from),
   };
 }, 60_000);
 
 describe("which note a link names, asked of the real index", () => {
-  it("the index holds a note's own title — so the editor's rule does not find that note by its file's name, nor a note by the end of its path", async () => {
-    const names = await query.fileNames();
-    expect(names.find((file) => file.path === "Finance/Brief.md")).toEqual({ path: "Finance/Brief.md", title: "Offer letter" });
-    expect(names.find((file) => file.path === "Plan.md")).toEqual({ path: "Plan.md", title: "Plan" });
-    // What the desktop's editor does with these links: it opens none of the first three.
-    expect(await query.resolveNotePath("Brief")).toBeNull();
-    expect(await query.resolveNotePath("2026/Report")).toBeNull();
-    expect(await query.resolveNotePath("../Finance/2026/Report.md")).toBeNull();
-    expect(await query.resolveNotePath("Offer letter")).toBe("Finance/Brief.md");
-    expect(await query.resolveNotePath("Plan")).toBe("Plan.md");
+  it("the index holds a note's own title — and the one rule finds a note by its file's name, the end of its path and its title", async () => {
+    const names = await query.linkTargets();
+    expect(names.find((file) => file.path === "Finance/Brief.md")).toMatchObject({ path: "Finance/Brief.md", title: "Offer letter" });
+    expect(names.find((file) => file.path === "Plan.md")).toMatchObject({ path: "Plan.md", title: "Plan" });
+    // Where a tap on these links leads (ADR 0027), from the note they stand in.
+    const from = "Projects/Offer.md";
+    expect(await query.resolveNotePath("Brief", from)).toBe("Finance/Brief.md");
+    expect(await query.resolveNotePath("2026/Report", from)).toBe("Finance/2026/Report.md");
+    expect(await query.resolveNotePath("../Finance/2026/Report.md", from)).toBe("Finance/2026/Report.md");
+    expect(await query.resolveNotePath("Offer letter", from)).toBe("Finance/Brief.md");
+    expect(await query.resolveNotePath("Plan", from)).toBe("Plan.md");
+    // Of two notes of one name a tap opens one: the shorter path — the diary anyone may read.
+    expect(await query.resolveNotePath("Diary", from)).toBe("Notes/Diary.md");
   });
 
-  it("asked where a tap leads, three names of kept notes went out — asked what the links could mean, none does", async () => {
+  it("asked where a tap leads, the name a kept note shares with another went out — asked what the links could mean, none does", async () => {
     const text = FILES["Projects/Offer.md"]!;
     const before = await withholdDeniedLinks(text, "Projects/Offer.md", byTheEditorsRule, allowed);
-    // The editor's rule finds the note by its title — and one of the two diaries, whichever the index hands out first.
-    expect(before.text).toContain("[[Brief]]");
-    expect(before.text).toContain("[[2026/Report]]");
-    expect(before.text).toContain("Finance/2026/Report.md");
-    expect(before.text).not.toContain("[[Offer letter]]");
+    // The rule finds each kept note by its name, its path or its title — but of the two diaries a tap opens the one
+    // anyone may read, and with it the name the kept diary carries went out.
+    expect(before.text).toBe(`# Offer\n\nSee ${WITHHELD_LINK}, ${WITHHELD_LINK}, ${WITHHELD_LINK}, ${WITHHELD_LINK}, [[Diary]] — and [[Plan]].\n`);
+    expect(before.redacted).toBe(4);
 
     const after = await withholdDeniedLinks(text, "Projects/Offer.md", byAllNames, allowed);
     expect(after.text).toBe(`# Offer\n\nSee ${WITHHELD_LINK}, ${WITHHELD_LINK}, ${WITHHELD_LINK}, ${WITHHELD_LINK}, ${WITHHELD_LINK} — and [[Plan]].\n`);

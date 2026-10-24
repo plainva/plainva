@@ -35,12 +35,14 @@ import { listShownPimEvents } from "../../services/pim/pimService";
 import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, dueModelOf, groupRowsByLane, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, rowDueTone, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
+import { buildWikiTargetSet, wikiTargetPath, type WikiTargetSet } from "@plainva/ui";
 import { BaseExportDialog } from "@plainva/ui";
 import { shareVaultText } from "../../services/shareFile";
 import { applyNewItemFolder, newItemFolderMode, resolveNewItemTarget, suggestNewItemFolder } from "@plainva/ui";
 import { getLastActiveView, resolveViewIndex, setLastActiveView, viewStateName } from "@plainva/ui";
 import { errorText, isFileNotFound, pinboardLabelProperty, useStableHandler } from "@plainva/ui";
 import {
+  commitBulkValue,
   commitCellValue,
   createBaseItem,
   loadBase,
@@ -50,6 +52,7 @@ import {
   type LoadedBase,
 } from "../../services/baseOps";
 import { reloadActiveMobileVault, reportMoveFailure, vaultOps, type MobileVault } from "../../services/vaultService";
+import { syncSoon } from "../../services/syncService";
 import { MissingFileState } from "../../components/MissingFileState";
 import { useOpenFileLookup } from "../useOpenFileLookup";
 import { canCommentOnNote, listAllMobileComments, listMobileCommentAuthors, noteWorkspaceCapabilities } from "../../services/mobileComments";
@@ -65,7 +68,7 @@ import { BaseConfigSheet } from "./BaseConfigSheet";
 import { ColumnSummaryRow } from "@plainva/ui";
 import { isoOf } from "../../lib/dates";
 import { usePullToRefresh } from "../../lib/usePullToRefresh";
-import { buildMonthCells, useRowSelection, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS, findPropertyCommentThread, requestCommentJump } from "@plainva/ui";
+import { buildMonthCells, useRowSelection, isLargeBulkChange, BULK_SETTABLE_INPUTS, findPropertyCommentThread, requestCommentJump } from "@plainva/ui";
 import { buildProposedCells, decideProposedCells, flushPendingSave, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedCellView, proposedOutcomeWords, ProposedValueChip, ProposedValuesBar, type ProposedCell, type ProposedColumn } from "@plainva/ui";
 import { fillColumnOf, fillPlanLines, FillProgressBanner, fillRows, inferColumnType, useBaseAi, type FillColumn } from "@plainva/ui";
 import { getMobileAiSession } from "../../services/ai/mobileAi";
@@ -406,6 +409,24 @@ export function BaseScreen({
     [vault, cache, path, title, t, queryEpoch],
   );
 
+  // One property write of this screen. Answers whether the value reached the
+  // note, and says so when it did not: three of the four ways to write a cell
+  // here had no `.catch`, and the fourth announced a retry that nothing makes
+  // (finding 2026-10-09). The rows come from the index and are queried anew
+  // only after a write that landed, so a cell goes on showing the note's value.
+  const writeCell = useCallback(
+    async (notePath: string, col: string, value: unknown): Promise<boolean> => {
+      try {
+        await commitCellValue(vault, notePath, col, value);
+        return true;
+      } catch (e) {
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+        return false;
+      }
+    },
+    [vault, t],
+  );
+
   useEffect(() => {
     if (!config) return;
     requery(config, viewIndex);
@@ -423,19 +444,30 @@ export function BaseScreen({
   /**
    * Writes the config of this database — never to a place its file has left
    * (issue 110, E9): the change then waits and goes with the file once found.
+   * Answers whether it was written; `shown` is the config the screen showed
+   * before `next`.
    */
-  const persistConfig = useStableHandler(async (next: any): Promise<void> => {
+  const persistConfig = useStableHandler(async (next: any, shown?: any): Promise<boolean> => {
     try {
       await saveBaseConfig(vault, path, next);
       setPendingConfig(null);
       rememberFile();
+      return true;
     } catch (e) {
       if (isFileNotFound(e)) {
         setPendingConfig(next);
         lookForFile();
-        return;
+        return false;
       }
-      toast.warning(t("mobile.saveRetry"));
+      // The database was not written, and nothing writes it again (finding
+      // 2026-10-09): "retrying in the background" is the editor's sentence,
+      // whose saver does retry. The screen goes back to the database it
+      // showed, unless something else changed it since — as the desktop
+      // does (finding 2026-10-21): it went on showing a config no file held,
+      // and the next change made here wrote it along.
+      if (shown !== undefined) setLoaded((now) => (now && now.config === next ? { ...now, config: shown } : now));
+      toast.error(t("editor.saveFailed"));
+      return false;
     }
   });
   /** "Save here again": the reader brings the database back where it was, with the waiting change. */
@@ -462,7 +494,7 @@ export function BaseScreen({
     const next = JSON.parse(JSON.stringify(loaded.config));
     mutate(next);
     setLoaded({ ...loaded, config: next });
-    void persistConfig(next);
+    void persistConfig(next, loaded.config);
   };
 
   /**
@@ -500,12 +532,15 @@ export function BaseScreen({
       await vaultOps.createFolder(vault, folder);
     } catch {
       if (!(await vault.files.exists(folder).catch(() => false))) {
-        toast.error(t("mobile.saveRetry"));
+        // The folder was not created and nothing tries again: the desktop's
+        // sentence for it, not the editor's "retrying" (finding 2026-10-09).
+        toast.error(t("database.createFolderFailed"));
         return null;
       }
     }
     setLoaded({ ...loaded, config: next });
-    await persistConfig(next);
+    // No entry for a database that was not saved — as on the desktop.
+    if (!(await persistConfig(next, loaded.config))) return null;
     return { config: next, folder };
   }, [loaded, path, vault, t, persistConfig]);
 
@@ -756,7 +791,7 @@ export function BaseScreen({
       const first = Array.isArray(r[col]) ? r[col][0] : r[col];
       const target = first ? parseWikiLinkValue(String(first))?.target : null;
       if (target) {
-        void vaultOps.resolveWikiTarget(vault, target).then((p) => {
+        void vaultOps.resolveWikiTarget(vault, target, rowPath(r), "wiki").then((p) => {
           if (p) onOpenNote(p);
         });
       }
@@ -768,7 +803,7 @@ export function BaseScreen({
     // is where a proposal is decided (plan KI-Harness P5-4).
     if (input === "checkbox" && !proposedCells.get(rowPath(r))?.has(col)) {
       const next = !(r[col] === true);
-      void commitCellValue(vault, rowPath(r), col, next).then(() => requery(config, viewIndex));
+      void writeCell(rowPath(r), col, next).then((written) => { if (written) requery(config, viewIndex); });
       return;
     }
     // May this device remark on the entry? Asked when the sheet opens, not per
@@ -800,9 +835,7 @@ export function BaseScreen({
     const target = cellEdit;
     setCellEdit(null);
     if (!target) return;
-    void commitCellValue(vault, target.notePath, target.col, value)
-      .then(() => requery(config, viewIndex))
-      .catch(() => toast.warning(t("mobile.saveRetry")));
+    void writeCell(target.notePath, target.col, value).then((written) => { if (written) requery(config, viewIndex); });
   };
 
   // ── Proposed values (plan KI-Harness P5-4) ──────────────────────────────
@@ -912,8 +945,11 @@ export function BaseScreen({
    *
    * Two sheets, not a form: pick the property, then give it a value with the
    * editor its type already has. The execution is the SHARED one — same
-   * limiter, same partial-failure report, same threshold question as the
-   * desktop, because a slow write on a phone is the same slow write.
+   * loop, same partial-failure report, same threshold question as the
+   * desktop, because a slow write on a phone is the same slow write. What it
+   * writes through is the phone's (`commitBulkValue`): each note the way a
+   * single cell is written, with its version, its conflict check and its
+   * place in the sync queue.
    */
   const [bulkBusy, setBulkBusy] = useState<{ done: number; total: number } | null>(null);
   const bulkCancelRef = useRef(false);
@@ -995,12 +1031,9 @@ export function BaseScreen({
 
     bulkCancelRef.current = false;
     setBulkBusy({ done: 0, total: paths.length });
-    const result = await bulkSetProperty(vault.adapter, paths, col, value, {
+    const result = await commitBulkValue(vault, paths, col, value, {
       onProgress: (done, total) => setBulkBusy({ done, total }),
       isCancelled: () => bulkCancelRef.current,
-      // The phone's chain is the same read-parse-write per file, and its
-      // storage is slower — a narrower gate rather than the desktop's six.
-      concurrency: 3,
     });
     setBulkBusy(null);
 
@@ -1085,7 +1118,7 @@ export function BaseScreen({
         else v[k] = val;
       }
       setLoaded({ config: next, stem: loaded.stem });
-      void persistConfig(next);
+      void persistConfig(next, config);
     },
     [config, loaded, viewIndex, persistConfig],
   );
@@ -1138,7 +1171,9 @@ export function BaseScreen({
       if (!calendarKey) return;
       try {
         const res = await createEntryEvent({
-          adapter: vault.adapter,
+          // The anchor is a write to the entry's note like any other: through
+          // the vault's chain, never the storage below it (finding 2026-10-09).
+          adapter: vault.files,
           // The phone writes through the shared rules in `createPimEvent`; the
           // uid comes back on the row it wrote.
           createEvent: async (key, draft) => {
@@ -1159,6 +1194,7 @@ export function BaseScreen({
         // a claim that nothing happened.
         toast.info(res.anchored ? t("pim.entryScheduled") : t("pim.blockNotAnchored"));
         await vault.reindexPaths([p]).catch(() => undefined);
+        if (res.anchored) syncSoon();
         if (loaded) requery(loaded.config, viewIndex);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : t("pim.eventWriteFailed"));
@@ -1189,6 +1225,31 @@ export function BaseScreen({
   // cover column's value resolves to a vault file and loads as a blob URL.
   const coverCol =
     effectiveRender === "gallery" && view.coverImage ? String(view.coverImage) : null;
+
+  // The link rule's lookup over the vault, for the two places of this screen
+  // that have to know WHICH file a stored link means for many rows at once: a
+  // table that nests rows under their parent, and the gallery's covers. Read
+  // once per load of the rows — asked row by row, sixty covers were sixty
+  // reads of the index's file list. It is kept with the rows it was read for:
+  // `undefined` until the read for the rows on screen has answered, `null`
+  // where there is none (no index, or the read failed).
+  const needsLinkLookup = !!subItemsProperty || !!coverCol;
+  const [linkState, setLinkState] = useState<{ rows: Row[]; lookup: WikiTargetSet | null } | null>(null);
+  useEffect(() => {
+    const qs = vault.queryService;
+    if (!needsLinkLookup || !qs || !allRows) return;
+    let stale = false;
+    void qs.linkTargets().then((files) => {
+      if (!stale) setLinkState({ rows: allRows, lookup: buildWikiTargetSet(files) });
+    }).catch(() => {
+      if (!stale) setLinkState({ rows: allRows, lookup: null });
+    });
+    return () => {
+      stale = true;
+    };
+  }, [vault, allRows, needsLinkLookup]);
+  const linkLookup: WikiTargetSet | null | undefined = !vault.queryService ? null : linkState && linkState.rows === allRows ? linkState.lookup : undefined;
+
   const [coverUrls, setCoverUrls] = useState<Record<string, string>>({});
   const coverUrlsRef = useRef<string[]>([]);
   useEffect(() => {
@@ -1198,6 +1259,9 @@ export function BaseScreen({
       setCoverUrls({});
       return;
     }
+    // The lookup of this load answers for every row; until it is there, wait
+    // rather than load the covers twice.
+    if (linkLookup === undefined) return;
     let stale = false;
     const created: string[] = [];
     const MIME: Record<string, string> = {
@@ -1224,7 +1288,7 @@ export function BaseScreen({
         if (!rel) continue;
         try {
           if (!(await vault.files.exists(rel))) {
-            const resolved = await vaultOps.resolveWikiTarget(vault, rel);
+            const resolved = linkLookup ? wikiTargetPath(rel, linkLookup, rowPath(r)) : await vaultOps.resolveWikiTarget(vault, rel, rowPath(r), "wiki");
             if (!resolved) continue;
             rel = resolved;
           }
@@ -1249,7 +1313,7 @@ export function BaseScreen({
     return () => {
       stale = true;
     };
-  }, [coverCol, rows, vault]);
+  }, [coverCol, rows, vault, linkLookup]);
   useEffect(
     () => () => {
       coverUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
@@ -1351,6 +1415,10 @@ export function BaseScreen({
           titleOf: (r) => rowTitle(r),
           parentRefOf: (r) => r[subItemsProperty],
           expandedKeys: expandedSubItems,
+          // A row nests under the note its parent link LEADS to — the answer a
+          // tap on the chip gives. Until the lookup is there (or without an
+          // index), the rows of the result stand in for the vault.
+          resolveRef: linkLookup ? (fromPath, target) => wikiTargetPath(target, linkLookup, fromPath) : undefined,
         })
       : rows!.map((row) => ({ row, depth: 0, hasChildren: false, childCount: 0, isExpanded: false }));
     return (
@@ -1533,7 +1601,7 @@ export function BaseScreen({
         if (row) {
           const next = boardDropValue(row[boardGroupBy], drag.fromKey, drag.overKey);
           haptics.light();
-          void commitCellValue(vault, drag.path, boardGroupBy, next).then(() => requery(config, viewIndex));
+          void writeCell(drag.path, boardGroupBy, next).then((written) => { if (written) requery(config, viewIndex); });
         }
       } else if (outcome === "menu" && drag) {
         // Held and released in place: the same entry menu the other views
@@ -2016,9 +2084,10 @@ export function BaseScreen({
         currentEnd: endProp ? row[endProp] : undefined,
         hasEnd: !!endProp,
       });
-      if (patch.start) await commitCellValue(vault, d.path, dateProp, patch.start);
-      if (patch.end && endProp) await commitCellValue(vault, d.path, endProp, patch.end);
-      if (patch.start || patch.end) {
+      // A start that did not reach the note is not followed by the end.
+      const startWritten = patch.start ? await writeCell(d.path, dateProp, patch.start) : true;
+      const endWritten = startWritten && patch.end && endProp ? await writeCell(d.path, endProp, patch.end) : false;
+      if ((patch.start && startWritten) || endWritten) {
         haptics.medium();
         await requery(config, viewIndex);
       }
@@ -2650,7 +2719,6 @@ export function BaseScreen({
           onReload={() => {
             void loadBase(vault, path).then(setLoaded);
           }}
-          rowPaths={(rows ?? []).map((r) => rowPath(r)).filter(Boolean)}
           rows={rows ?? []}
           vault={vault}
         />

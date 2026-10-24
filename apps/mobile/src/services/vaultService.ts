@@ -1,4 +1,4 @@
-import { clearPinboardCache, dailyDayResolver, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
+import { clearPinboardCache, dailyDayResolver, logDiagnostic, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
 import {
   BackupVaultAdapter,
   ConflictAwareVaultAdapter,
@@ -28,10 +28,15 @@ import {
   type DeletionConfirmation,
   type SearchResult,
   type PersonalWorkspaceRuntime,
-  type VaultFileInfo,
   PimCacheRepository,
   toPathIdentity,
+  formatFullScan,
+  formatFullScanFailure,
+  formatQueueEntryReport,
+  scanChangedNothing,
 } from "@plainva/core";
+import { isInternalPath, linkTargetName, resolveLinkTarget, updateVaultText, WORKSPACE_FORKS_FOLDER, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
+import { copyFileContent, isNotTextFileError, NotTextFileError, type EditorWriteResult } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
@@ -53,6 +58,7 @@ import { clearMobileSyncState, mobileSyncDeviceId } from "./mobileSettingsSync";
 import { recoverProfileImportIfNeeded } from "./profileImportJournal";
 import { clearCloudAccounts } from "./cloudAccountsStore";
 import { createSaveCoordinator } from "./saveCoordinator";
+import { createAnnouncer, createIndexTurns, createPathReindexer } from "./pathReindex";
 import { writeDraft, clearDraft, relocateDrafts } from "./draftJournal";
 import { loadCloudAccounts } from "./cloudAccountsStore";
 import { listMailAccounts } from "@plainva/ui/mail";
@@ -64,10 +70,10 @@ import {
   forgetVaultStoreKeys,
 } from "./vaultForget";
 import { getMobileSettings, reloadMobileSettingsForActiveVault } from "./mobileSettings";
-import { buildNewNoteFromTemplate, applyTemplateInteractive } from "./templateInteractive";
-import { relativeLinkCandidates } from "../lib/relativeLink";
+import { configuredDailyNoteType, configuredNoteType } from "./newNote";
+import { buildNewNoteFromTemplate, buildNewNoteFromTemplateText, applyTemplateInteractive } from "./templateInteractive";
 import {
-  buildDailyNotePath,
+  buildNewNoteContent,
   ensureDailyNote as ensureSharedDailyNote, type EnsuredDailyNote,
   conflictCopyPath,
   importObsidianBookmarks, toggleBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, moveBookmarkOnDisk, type BookmarkEntry,
@@ -75,7 +81,7 @@ import {
   pushRecentEntry,
   renameFileWithLinkUpdates,
   serializeRecentsFile,
-  setPendingTemplateCaret,
+  parkTemplateCaret,
   sweepPinboardRefs,
   toast,
   isImagePath,
@@ -85,10 +91,14 @@ import {
   notifyFileOps,
   writeCapturedNote,
   scaffoldVaultTemplate,
+  createIndexNotices,
+  indexUnavailableText,
   type VaultTemplateDefinition,
 } from "@plainva/ui";
+import { Capacitor } from "@capacitor/core";
 import i18n from "@plainva/ui/i18n";
-import { rememberLastOpen, splitLinkAnchor, errorText, landedAtDestination, MoveBlockedError, moveItemName } from "@plainva/ui";
+import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName } from "@plainva/ui";
+import { applyTextShape, DEFAULT_TEXT_SHAPE, editorTextOf, keepTextBeside, openEditorText, sayLineEndsConverted, type KeptText, type TextFileShape } from "@plainva/ui";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
 
@@ -142,14 +152,16 @@ export interface MobileVault {
    * gets imported a second time — the duplicate 0.6.7 exists to prevent.
    */
   indexSettled(): boolean;
-  /** Re-indexes pulled paths so tree and search reflect remote changes. */
+  /**
+   * The index follows these paths — written, moved here or removed, by the
+   * app, a restore or a pull, and whatever kind of file they are. The ONE
+   * door for it on the phone, which has no watcher to pass by later
+   * (pathReindex.ts). Never rejects.
+   */
   reindexPaths(paths: string[]): Promise<void>;
   /** Closes the per-vault database (used when switching vaults). */
   dispose(): Promise<void>;
 }
-
-const OKF = (type: string, title: string, body: string) =>
-  `---\ntype: ${type}\n---\n\n# ${title}\n\n${body}\n`;
 
 const isInternal = (path: string) => path.startsWith(".plainva") || path.includes(".CONFLICT");
 
@@ -168,10 +180,10 @@ function createIndexDatabase(dbName: string): IDatabaseAdapter {
   return isFixtureSqliteAvailable() ? new FixtureSqliteAdapter(dbName) : new CapacitorSqliteAdapter(dbName);
 }
 
-/** Open an inactive connection's index while preparing its service bindings. */
 /** Sent after a saved note was indexed again (search by meaning listens). */
 export const NOTE_INDEXED_EVENT = "m-note-indexed";
 
+/** Open an inactive connection's index while preparing its service bindings. */
 export async function openPreparedVaultDatabase(vaultId: string): Promise<IDatabaseAdapter> {
   if ((await getActiveVaultEntry()).id === vaultId) throw new Error("transfer_destination_active");
   const db = createIndexDatabase(`plainva-${vaultId}`);
@@ -429,8 +441,11 @@ export async function rereadVaultOnResume(now: number = Date.now()): Promise<boo
   const marks = resumeMarks.get(v.vaultId) ?? { local: 0, cloud: 0 };
   if (!planAutoRefresh(now, marks, RESUME_REFRESH_LIMITS).local) return false;
   resumeMarks.set(v.vaultId, { ...marks, local: now });
-  await runVaultRefresh({ indexer: v.indexer, syncWorker: null, skipCloud: true }).catch(() => {});
-  window.dispatchEvent(new CustomEvent("m-vault-changed"));
+  const result = await runVaultRefresh({ indexer: v.indexer, syncWorker: null, skipCloud: true, trigger: "return to the app" }).catch(() => null);
+  // Every list reloads on this event. A re-read that found the vault as it
+  // was leaves them alone (issue 122) — the desktop's automatic refresh does
+  // the same; a re-read that failed still announces itself, as before.
+  if (!result || !scanChangedNothing(result.local)) window.dispatchEvent(new CustomEvent("m-vault-changed"));
   return true;
 }
 
@@ -443,7 +458,7 @@ export async function rereadVaultOnResume(now: number = Date.now()): Promise<boo
 export async function rereadVault(folder?: string): Promise<void> {
   const v = bootPromise ? await bootPromise.catch(() => null) : null;
   if (!v || !v.indexer) return;
-  if (folder === undefined) await v.indexer.indexVaultFull();
+  if (folder === undefined) await v.indexer.indexVaultFull("manual refresh");
   else await v.indexer.reconcileFolder(folder);
 }
 
@@ -500,15 +515,36 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
   let workspaceState: SqlWorkspaceStateStore | null = null;
   let permissioned: PermissionedVaultAdapter | null = null;
 
+  // A pass over a path and what a pass sets off each take a turn, in the
+  // order they were asked for (pathReindex.ts); the database itself has its
+  // transactions wait for one another (CapacitorSqliteAdapter). The hooks
+  // below queued without waiting, each in a transaction of its own — of
+  // several files one pass announced, the second ran into the first.
+  const indexTurns = createIndexTurns();
+  // An entry that fails all the same is tried once more and then named in the
+  // diagnostics: for a file changed or removed outside the app, the index's
+  // word is the only one the sync gets.
+  const announce = createAnnouncer(indexTurns, {
+    whenIdle: async () => { await indexer?.whenIdle(); },
+    onDropped: () => logDiagnostic("index", "an upload or a deletion the index announced could not be queued"),
+  });
+  // A deletion is asked before each attempt whether the file is still gone:
+  // the entry can be seconds old by the time its turn comes, and a file that
+  // is back has nothing to delete remotely.
+  const stillGone = (path: string) => () => adapter.exists(path).then((there) => !there);
+
   const enqueueLocal = async (path: string) => {
     if (!syncEnqueueEnabled || isInternal(path)) return;
     if (permissioned && !await permissioned.authorizeExternalChange(path, true)) return;
-    if (workspaceState) void workspaceState.enqueue("write", path).catch(() => {});
-    else if (queue) void queue.queueWrite(path).catch(() => {});
+    const sealed = workspaceState, plain = queue;
+    if (sealed) void announce(() => sealed.enqueue("write", path));
+    else if (plain) void announce(() => plain.queueWrite(path));
   };
 
   let files: IVaultAdapter;
   let backup: BackupVaultAdapter | null;
+  /** The plain vault's queueing link: its owed entries get their last attempt before the database closes. */
+  let ownQueue: QueueingVaultAdapter | null = null;
   let syncRepo: SyncStateRepository | null;
   const ownDeletions = new OwnDeletionRegister();
   let indexer: VaultIndexer | null;
@@ -554,7 +590,9 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     });
     queue = new SyncQueue(db);
     workspaceState = workspaceStatus ? new SqlWorkspaceStateStore(db) : null;
-    permissioned = workspaceState ? new PermissionedVaultAdapter(backup, async (request) => {
+    // With the workspace's state: what the worker brought from another device
+    // is nothing the index reports for this one (finding 2026-10-12).
+    permissioned = workspaceState ? new PermissionedVaultAdapter(backup, workspaceState, async (request) => {
       if (!workspaceRuntime) return false;
       const existing = await workspaceState!.getObjectByPath(request.path);
       const objectId = existing?.objectId ?? createWorkspaceObjectId();
@@ -605,19 +643,45 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     }, async (request) => {
       const forkId = createWorkspaceObjectId();
       const safeName = request.path.split("/").pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") || "external-change";
-      const forkPath = `.plainva/workspace/forks/${forkId}-${safeName}`;
-      if (await backup!.exists(request.path)) { await backup!.createDir(".plainva/workspace/forks"); await backup!.writeBinaryFile(forkPath, await backup!.readBinaryFile(request.path)); }
+      const forkPath = `${WORKSPACE_FORKS_FOLDER}/${forkId}-${safeName}`;
+      if (await backup!.exists(request.path)) { await backup!.createDir(WORKSPACE_FORKS_FOLDER); await backup!.writeBinaryFile(forkPath, await backup!.readBinaryFile(request.path)); }
       await workspaceState!.saveLocalFork({ forkId, originalPath: request.path, forkPath, reason: "permission-denied", createdAt: new Date().toISOString() });
     }) : null;
-    const queueing = workspaceState ? new WorkspaceQueueingVaultAdapter(permissioned!, workspaceState) : new QueueingVaultAdapter(backup, queue);
+    // An entry of the sync queue that fails after its change is on disk is made
+    // up for while its write waits (QueueingVaultAdapter); one given up fails
+    // its write and is named in the diagnostics, like on the desktop.
+    if (!workspaceState) ownQueue = new QueueingVaultAdapter(backup, queue, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) });
+    const queueing = workspaceState ? new WorkspaceQueueingVaultAdapter(permissioned!, workspaceState) : ownQueue!;
     syncRepo = new SyncStateRepository(db, adapter, await mobileSyncDeviceId());
     const conflictAware = new ConflictAwareVaultAdapter(queueing, syncRepo, (path, mergedText) => {
       window.dispatchEvent(new CustomEvent("m-auto-merged", { detail: { path, mergedText } }));
-    }, workspaceState ?? syncRepo, isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud");
+    }, workspaceState ?? syncRepo, isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud",
+      // A write turned line ends the file's shape does not keep (a carriage
+      // return of its own): said here for every writer of the app at once.
+      (path, lineEnd) => sayLineEndsConverted(path, lineEnd));
     files = conflictAware;
 
+    // What a full scan left out, or why it failed, said once on screen (issue 125).
+    const indexNotices = createIndexNotices(toast);
     indexer = new VaultIndexer(files, db, {
       scanSignal: indexAbort.signal,
+      // One line per full scan (issue 122), the same one the desktop writes:
+      // what set it off, how much it walked, how long it took, what it changed.
+      // On screen, what it left out, by name (issue 125).
+      onFullScan: (info) => {
+        // The index is whole once a full scan has gone through — the gate the
+        // task reconciler waits for before it creates a note (taskSyncRuntime).
+        // Said first: a line or a notice that fails must not keep it closed.
+        indexPassSettled = true;
+        logDiagnostic("index", formatFullScan(info));
+        indexNotices.scanned(info);
+      },
+      // A scan that failed is said once, with its reason (issue 125): the
+      // index keeps what it got, and the next scan tries again.
+      onFullScanFailed: (info) => {
+        logDiagnostic("index", formatFullScanFailure(info));
+        indexNotices.failed(info);
+      },
       // The app's own save is never a foreign change (P1): a pass reading the
       // file between the write and its hash update asks the adapter first.
       isOwnWrite: (path, sha256) => conflictAware.wasWrittenByUs(path, sha256),
@@ -629,7 +693,7 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
         if (deferInitialEnqueue) return;
         void enqueueLocal(path);
       },
-      onLocalFileDeleted: (path) => {
+      onLocalFileDeleted: (path, row) => {
         // A note screen that shows this file learns that it vanished (issue
         // 110, E9) — moved or deleted outside Plainva while open, found by the
         // re-read on return or the pull. The editor looks for it.
@@ -637,11 +701,14 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
         // The worker mirrored a remote deletion (finding 2026-09-20): nothing is
         // left to delete remotely, and queueing it is how a wrongly mirrored
         // file went back up as a remote deletion. Asked first, so the mark is
-        // consumed whether or not enqueueing is on yet.
-        if (ownDeletions.consume(path)) return;
+        // consumed whether or not enqueueing is on yet — and asked for the row
+        // the index removed: the mark answers for the file the worker took
+        // away, not for a later one of that name (finding 2026-10-12).
+        if (ownDeletions.consume(path, row)) return;
         if (!syncEnqueueEnabled || isInternal(path)) return;
-        if (permissioned) { void permissioned.authorizeExternalChange(path, false).then((allowed) => { if (allowed) return workspaceState!.enqueue("delete", path); }).catch(() => {}); }
-        else if (queue) void queue.queueDelete(path).catch(() => {});
+        const plain = queue;
+        if (permissioned) { void permissioned.authorizeExternalChange(path, false).then((allowed) => { if (allowed) void announce(() => workspaceState!.enqueue("delete", path), stillGone(path)); }).catch(() => {}); }
+        else if (plain) void announce(() => plain.queueDelete(path), stillGone(path));
       },
     });
     queryService = new VaultQueryService(db);
@@ -657,19 +724,31 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     const warm = ((await db.queryOne<{ n: number }>("SELECT COUNT(*) AS n FROM files"))?.n ?? 0) > 0;
     if (warm) {
       void indexer
-        .indexVaultFull()
+        .indexVaultFull("open")
         .then(() => {
+          // Got through after the vault began to close: it belongs to no open
+          // vault (as on the desktop).
+          if (indexAbort.signal.aborted) return;
           indexPassSettled = true;
           window.dispatchEvent(new CustomEvent("m-vault-changed"));
         })
         .catch(() => {});
     } else {
-      await indexer.indexVaultFull();
-      indexPassSettled = true;
+      // A scan that fails leaves the index as far as it got (issue 125). It
+      // used to throw into the catch below, which took the whole database with
+      // it — search, tags, databases, the sync queue and the calendar — for
+      // one link to a folder that was not on the phone, and said nothing. The
+      // failure is on screen now (onFullScanFailed); the next full scan, at the
+      // return to the app or a pull to refresh, tries again, and only one that
+      // goes through counts the index as settled (onFullScan).
+      await indexer.indexVaultFull("open, empty index").catch(() => {});
     }
     searchAvailable = true;
   } catch (err) {
     console.warn("[mobile] index unavailable (expected on the plain web dev server)", err);
+    // On a device the database not opening is no expected case, and the vault
+    // runs without search, tags, databases, the sync and the calendar: said.
+    if (Capacitor.isNativePlatform()) toast.error(indexUnavailableText(err));
     // The search index is optional; durable conflict editing is not. The
     // same file journal is used before and after the database recovers.
     const settings = getMobileSettings();
@@ -677,7 +756,8 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       minSnapshotIntervalSeconds: settings.backupIntervalSeconds, maxBackupsPerFile: settings.backupMaxPerFile, maxAgeDays: settings.backupMaxAgeDays },
       onBackupError: reportSnapshotFailure, snapshotRecursiveDeletes: true });
     files = new ConflictAwareVaultAdapter(backup, new ConflictFileStore(adapter, await mobileSyncDeviceId()), undefined, adapter,
-      isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud");
+      isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud",
+      (path, lineEnd) => sayLineEndsConverted(path, lineEnd));
     queue = null;
     syncRepo = null;
     indexer = null;
@@ -713,20 +793,24 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       deferInitialEnqueue = false;
     },
     indexSettled: () => indexPassSettled,
-    reindexPaths: async (paths) => {
-      if (!indexer) return;
-      for (const p of paths) {
-        try {
-          await indexer.indexFile(await adapter.getFileInfo(p));
-        } catch {
-          /* deleted or transient — the next full pass repairs it */
-        }
-      }
-    },
+    // Every kind of file, a removed one included, one path at a time (pathReindex.ts).
+    reindexPaths: createPathReindexer(indexer, adapter, {
+      turns: indexTurns,
+      // Counts only, like every line of the diagnostics export.
+      onLeftBehind: (count) => logDiagnostic("index", `${count} path(s) the index was told of could not be followed — left to the next full scan`),
+      // The batch was announced to the screens when it was handed over; what
+      // got through only now is not in the lists they drew then.
+      onFollowedLate: () => window.dispatchEvent(new CustomEvent("m-vault-changed")),
+      // A saved file sends no m-vault-changed: whoever plans work on the index hears of it by this (AI harness P2a-4).
+      onFollowed: () => window.dispatchEvent(new CustomEvent(NOTE_INDEXED_EVENT)),
+    }),
     dispose: async () => {
       clearPinboardCache(queryService ?? files);
       indexAbort.abort();
       await indexer?.whenIdle();
+      // An entry that waits for its next attempt is no transaction the
+      // database could wait for: it gets its last one while the database is open.
+      await ownQueue?.flush();
       if (db) await db.close().catch(() => {});
     },
   };
@@ -817,6 +901,23 @@ function reportFollowUp(to: string, error: string | undefined): void {
 export function reportMoveFailure(error: unknown): void {
   if (error instanceof MoveBlockedError) return;
   toast.error(i18n.t("dialogs.renameErrorMsg", { error: errorText(error) }));
+}
+
+/**
+ * The vault's text files as the shared writers take them (`TextUpdateFiles`):
+ * its read, the plain write of a whole text, and the ONE way for a change of a
+ * file that exists (`vaultOps.update`) — each with the index following. One
+ * definition, so no screen hands a shared writer a read and a write without
+ * the entry: such a pair reads the file itself and writes it back as if an
+ * editor had held it since (finding 2026-10-12).
+ */
+export function vaultTextFiles(v: MobileVault): Required<Pick<TextUpdateFiles, "readTextFile" | "writeTextFile" | "updateTextFile">> & { exists(path: string): Promise<boolean> } {
+  return {
+    readTextFile: (path) => vaultOps.read(v, path),
+    writeTextFile: (path, content) => vaultOps.save(v, path, content),
+    updateTextFile: (path, change) => vaultOps.update(v, path, change),
+    exists: (path) => v.files.exists(path),
+  };
 }
 
 export const vaultOps = {
@@ -925,13 +1026,7 @@ export const vaultOps = {
       // The index follows the rename (issue 113): reporting the old name as
       // deleted queued a remote DELETE next to the queued MOVE.
       await v.indexer.relocatePathInIndex(oldPath, newPath).catch(() => {});
-      for (const p of [newPath, ...changedPaths]) {
-        try {
-          await v.indexer.indexFile(await v.adapter.getFileInfo(p));
-        } catch {
-          /* next full pass repairs it */
-        }
-      }
+      await v.reindexPaths([newPath, ...changedPaths]);
     }
     await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
     await relocateDrafts(v, [{ from: oldPath, to: newPath }]);
@@ -990,7 +1085,7 @@ export const vaultOps = {
       // Rows follow first, so the full pass finds every note at its new place
       // and reports nothing as vanished (issue 113).
       await v.indexer.relocatePathInIndex(oldPath, newPath).catch(() => {});
-      await v.indexer.indexVaultFull().catch(() => {});
+      await v.indexer.indexVaultFull("folder moved in the app").catch(() => {});
     }
     await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
     await relocateDrafts(v, [{ from: oldPath, to: newPath }]);
@@ -1004,7 +1099,7 @@ export const vaultOps = {
     // would recreate it after the folder is gone.
     await noteSaver.flushAll(v);
     await v.files.deleteItem(path, true, confirmation);
-    if (v.indexer) await v.indexer.indexVaultFull().catch(() => {});
+    if (v.indexer) await v.indexer.indexVaultFull("folder deleted in the app").catch(() => {});
     notifyFileOps([{ type: "delete", path, isFolder: true }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   },
@@ -1020,15 +1115,11 @@ export const vaultOps = {
     // Retarget pinboard arrangements (vault-relative paths, plan Pinboard P5).
     const sweptBases = await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [{ from: path, to: newPath }]).catch(() => [] as string[]);
     if (v.indexer) {
-      // Follows the move as a rename, never as a deletion (issue 113).
+      // Follows the move as a rename, never as a deletion (issue 113). The
+      // databases whose pinboard places were rewritten are files like any
+      // other: the index hears of them here, not at the next start.
       await v.indexer.relocatePathInIndex(path, newPath).catch(() => {});
-      for (const p of [newPath, ...sweptBases]) {
-        try {
-          await v.indexer.indexFile(await v.adapter.getFileInfo(p));
-        } catch {
-          /* next full pass repairs it */
-        }
-      }
+      await v.reindexPaths([newPath, ...sweptBases]);
     }
     await renameBookmarksOnDisk(v.adapter, path, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
     await relocateDrafts(v, [{ from: path, to: newPath }]);
@@ -1043,22 +1134,18 @@ export const vaultOps = {
     // is taken from the LAST SAVED text, so a duplicate made while typing
     // silently loses whatever came after the last autosave.
     await noteSaver.flush(path, v);
-    const text = await v.files.readTextFile(path);
     const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
     const base = path.split("/").pop()!.replace(/\.md$/i, "");
     let candidate = `${dir}${base} 2.md`;
     for (let n = 2; await v.files.exists(candidate); n++) {
       candidate = `${dir}${base} ${n + 1}.md`;
     }
-    await v.files.writeTextFile(candidate, text);
+    // The note as it lies there: its text where it is text, its bytes where
+    // not — a note in another encoding is copied, not re-encoded (the
+    // desktop's duplicate asks the same function).
+    await copyFileContent(v.files, path, candidate);
     reportCreated(candidate);
-    if (v.indexer) {
-      try {
-        await v.indexer.indexFile(await v.adapter.getFileInfo(candidate));
-      } catch {
-        /* next full pass repairs it */
-      }
-    }
+    if (v.indexer) await v.reindexPaths([candidate]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
     return candidate;
   },
@@ -1129,7 +1216,7 @@ export const vaultOps = {
     // not describe a note somebody else has since rewritten.
     if (v.external && v.indexer) {
       const outcome = await v.indexer.indexPath(path).catch(() => "unchanged" as const);
-      if (outcome === "needs-full-scan") await v.indexer.indexVaultFull().catch(() => {});
+      if (outcome === "needs-full-scan") await v.indexer.indexVaultFull("note opened in an external folder").catch(() => {});
     }
     // Desktop parity (P1): the content the editor just loaded IS what the app
     // knows about — record its hash so a stale row cannot turn the first save
@@ -1159,25 +1246,74 @@ export const vaultOps = {
     return v.files.readTextFile(path);
   },
 
+  /**
+   * The file as an editor holds it: `\n` line ends, no byte order mark — the
+   * ONE text everything on a note screen works with and compares against
+   * (finding 2026-10-08, desktop twin in Editor.tsx's load). It used to be the
+   * raw file, while the editor it was handed to held it without `\r`: a note
+   * from Windows counted as edited the moment it was opened, a pull that
+   * rewrote it ended in a conflict copy, its comment marks sat a character
+   * further right with every line, and no suggestion on it could be accepted.
+   *
+   * The shape the editor's save puts back is remembered here, per file. A file
+   * whose name says text and whose bytes do not is refused (`NotTextFileError`)
+   * — by the vault's read, where its bytes are not UTF-8 (a `.csv` in
+   * Windows-1252, a note in UTF-16), and by the first bytes, where a text view
+   * was asked to show something else (`openEditorText`). The phone used to
+   * open the first kind with replacement characters, and its first save wrote
+   * that reading over the file (finding 2026-10-11).
+   */
   async readEditor(v: MobileVault, path: string): Promise<string> {
     const session = await v.files.getConflictSession?.(path);
     if (session) noteConflict(path, session.workingCopyPath, v.vaultId, session);
-    return v.files.readTextFile(session?.workingCopyPath ?? path);
+    const opened = openEditorText(path, await v.files.readTextFile(session?.workingCopyPath ?? path));
+    if (!opened) throw new NotTextFileError(path);
+    editorTextShape.set(JSON.stringify([v.vaultId, path]), opened.shape);
+    return opened.text;
+  },
+
+  /**
+   * The plain write of a text an editor holds, in the shape its file was read
+   * in — for the two places that write around the save coordinator on purpose
+   * ("save here again" for a file that vanished, the overview handed back to
+   * the user). Everything else an editor holds goes through `noteSaver`.
+   */
+  async saveEditorText(v: MobileVault, path: string, text: string): Promise<void> {
+    await this.save(v, path, editorDiskText(v, path, text));
   },
 
   async save(v: MobileVault, path: string, text: string): Promise<void> {
     await v.files.writeTextFile(path, text);
+    // Whatever kind of file it is — "save here again" also writes a table or
+    // a settings file. An index that lags is acceptable; the next full pass
+    // repairs it.
+    if (v.indexer) await v.reindexPaths([path]);
+  },
+
+  /**
+   * A change of a text file where it lies — the phone's ONE way for whoever
+   * reads a file, changes a place of it and writes it back: a property, a
+   * task's box, a link, a line of a list (finding 2026-10-12). The pending
+   * text of an open editor goes to the file first; then the vault's chain
+   * reads, changes and writes in one step (`updateTextFile`), so the change
+   * starts from the file as it lies there — whoever wrote it last — and a
+   * note with an open conflict takes it in the person's own version as well.
+   * The index follows what was written.
+   *
+   * `save` above stays the way for a whole text somebody holds or makes: a
+   * new file, a generated one, a file put back.
+   */
+  async update(v: MobileVault, path: string, change: TextChange): Promise<TextFileUpdate> {
+    await noteSaver.flush(path, v);
+    const update = await updateVaultText(v.files, path, change);
     if (v.indexer) {
-      try {
-        const info: VaultFileInfo = await v.adapter.getFileInfo(path);
-        await v.indexer.indexFile(info);
-        // A save is the one index change that sends no m-vault-changed; search
-        // by meaning plans again on this (plan KI-Harness P2a-4).
-        window.dispatchEvent(new CustomEvent(NOTE_INDEXED_EVENT, { detail: { path } }));
-      } catch {
-        /* index lag is acceptable; the next full pass repairs it */
-      }
+      const written = [
+        ...(update.changed ? [path] : []),
+        ...(update.conflict?.changed && update.conflict.workingCopyPath !== path ? [update.conflict.workingCopyPath] : []),
+      ];
+      if (written.length > 0) await v.reindexPaths(written);
     }
+    return update;
   },
 
   /**
@@ -1186,8 +1322,19 @@ export const vaultOps = {
    * here too, questions are asked in one sheet, and `{{cursor}}` is parked for
    * the editor that opens next. Cancelling the questions creates nothing —
    * hence the nullable return.
+   *
+   * Without a template the note is the skeleton the desktop writes: the
+   * header, and the heading directly under it. The phone had a string of its
+   * own for this, with a blank line above the heading and two below it
+   * (finding 2026-10-09).
+   *
+   * The note's `type` is the vault's type for new notes, asked here and not
+   * handed in: the capture button passed `Note`, so the setting never reached
+   * the note it is named after, and a "note type → template" rule for the
+   * configured type did not apply on capture (finding 2026-10-09).
    */
-  async createNote(v: MobileVault, folder: string, type: string): Promise<string | null> {
+  async createNote(v: MobileVault, folder: string): Promise<string | null> {
+    const type = configuredNoteType();
     for (let n = 1; ; n++) {
       // The name follows the APP's language (issue 105): the phone invents
       // where the desktop asks for it, and an invented name that is always
@@ -1204,12 +1351,12 @@ export const vaultOps = {
         folder,
         title,
         type,
-        fallbackBody: OKF(type, title, ""),
+        fallbackBody: `# ${title}\n`,
       });
       if (!built) return null;
       await this.save(v, path, built.content);
       reportCreated(path);
-      if (built.caret !== null) setPendingTemplateCaret({ path, offset: built.caret });
+      parkTemplateCaret(path, built.content, built.caret);
       return path;
     }
   },
@@ -1234,9 +1381,9 @@ export const vaultOps = {
 
   /**
    * New note from a template (R3.4): the full template text with the
-   * placeholders interpolated against the chosen title; a template without
-   * frontmatter gets the OKF header so every created note stays conformant.
-   * Name collisions count up ("Name 2", "Name 3", …).
+   * placeholders interpolated against the chosen title, and the OKF header as
+   * every new note gets it — `type` also goes into a block the template
+   * carries without one. Name collisions count up ("Name 2", "Name 3", …).
    */
   async createNoteFromTemplate(
     v: MobileVault,
@@ -1248,38 +1395,20 @@ export const vaultOps = {
     let n = 2;
     while (await v.files.exists(`${folder}/${name}.md`)) name = `${title} ${n++}`;
     const path = `${folder}/${name}.md`;
-    const ms = getMobileSettings();
     // The raw text is already in hand (picked template / share capture), so the
     // engine runs on it directly — the file-based rule lookup would only find
     // the same thing, and the share path has no file at all.
-    const answered = await applyTemplateInteractive(templateRaw, {
-      title: name,
-      now: new Date(),
-      folder,
+    const built = await buildNewNoteFromTemplateText({
+      raw: templateRaw,
       vaultName: (await getActiveVaultEntry()).name || "Plainva",
-      dailyPath: (offset) => {
-        const d = new Date();
-        d.setDate(d.getDate() + offset);
-        return buildDailyNotePath(d, ms.dailyFormat, ms.dailyFolder).fullPath.replace(/\.md$/i, "");
-      },
+      folder,
+      title: name,
+      type: configuredNoteType(),
     });
-    if (!answered) return null; // cancelled → nothing is created
-    const content = /^---\r?\n/.test(answered.text)
-      ? answered.text
-      : `---\ntype: ${ms.defaultNoteType}\n---\n\n${answered.text.replace(/^\n+/, "")}`;
-    await this.save(v, path, content);
+    if (!built) return null; // cancelled → nothing is created
+    await this.save(v, path, built.content);
     reportCreated(path);
-    if (answered.cursor !== null) {
-      setPendingTemplateCaret({ path, offset: answered.cursor + (content.length - answered.text.length) });
-    }
-    return path;
-  },
-
-  async ensureNote(v: MobileVault, path: string, type: string, title: string): Promise<string> {
-    if (!(await v.files.exists(path))) {
-      await this.save(v, path, OKF(type, title, ""));
-      reportCreated(path);
-    }
+    parkTemplateCaret(path, built.content, built.caret);
     return path;
   },
 
@@ -1288,13 +1417,28 @@ export const vaultOps = {
    * (maintainer 2026-07-18, Obsidian parity). Same placement rules as desktop
    * (shared wikiTargetToPath): explicit folder, else the host note's folder,
    * else the vault root. Existing target = just return it (race-safe).
+   * The note starts with the vault's type for new notes, as on the desktop
+   * (`createNoteFromLink`); it was `Note` here whatever the setting said
+   * (finding 2026-10-09).
    */
   async createNoteFromWikiTarget(v: MobileVault, target: string, hostPath?: string): Promise<string | null> {
     const { path, title } = wikiTargetToPath(target, hostPath);
     if (!title) return null;
+    return this.createNoteAt(v, path, title);
+  },
+
+  /**
+   * The note at `path`, created with `title` where it does not exist yet — the
+   * place a link's rule chose (`planLinkOpen`): a Markdown link's name keeps
+   * every character there, which the wiki rule's reading of its target would
+   * cut at a `#` (`Draft #1`, review 2026-10-22).
+   */
+  async createNoteAt(v: MobileVault, path: string, title: string): Promise<string | null> {
     if (await v.files.exists(path)) return path;
-    await this.save(v, path, OKF("Note", title, ""));
+    await this.save(v, path, buildNewNoteContent(configuredNoteType(), title));
     reportCreated(path);
+    // It opens next, to be written in (wish 2026-10-19).
+    markFreshNote(path);
     return path;
   },
 
@@ -1309,13 +1453,16 @@ export const vaultOps = {
    * "interactive" is a PERSON opening the note: a `{{prompt:…}}` in the daily
    * template asks (P6). "headless" is the journal capture creating the note on
    * the way: questions resolve to nothing (decision E4).
+   *
+   * A blank "type for daily notes" is an unset one (`configuredDailyNoteType`);
+   * it used to reach the note as a blank `type` (finding 2026-10-09).
    */
   async ensureDailyNote(v: MobileVault, date: Date, mode: "interactive" | "headless" = "interactive"): Promise<EnsuredDailyNote | null> {
     const ms = getMobileSettings();
     const vaultName = (await getActiveVaultEntry()).name || "Plainva";
     const ensured = await ensureSharedDailyNote(
       date,
-      { folder: ms.dailyFolder, format: ms.dailyFormat, templateFolder: ms.templateFolder, template: ms.dailyTemplate, noteType: ms.dailyNoteType },
+      { folder: ms.dailyFolder, format: ms.dailyFormat, templateFolder: ms.templateFolder, template: ms.dailyTemplate, noteType: configuredDailyNoteType() },
       { exists: (path) => v.files.exists(path), readTextFile: (path) => this.read(v, path), createNote: (path, content) => this.save(v, path, content) },
       {
         resolveTemplate: mode === "interactive" ? (raw, ctx) => applyTemplateInteractive(raw, { ...ctx, vaultName }) : undefined,
@@ -1324,38 +1471,74 @@ export const vaultOps = {
     );
     if (!ensured?.created) return ensured;
     reportCreated(ensured.path);
-    if (ensured.cursor !== null) setPendingTemplateCaret({ path: ensured.path, offset: ensured.cursor });
+    if (ensured.content !== null) parkTemplateCaret(ensured.path, ensured.content, ensured.cursor);
     return ensured;
   },
 
-  async resolveWikiTarget(v: MobileVault, target: string, hostPath?: string): Promise<string | null> {
+  /**
+   * Where a MARKDOWN link in the note at `hostPath` leads — the phone's side
+   * of the Markdown rule (`resolveMarkdownLinkIndexed` in the core): the file,
+   * the folder with the `index.md` in it, or null. `target` is what
+   * `markdownLinkTarget` reads from the link's URL.
+   *
+   * The phone used to try the note's folder and the vault's root on disk and
+   * stop there (2026-07-15): `[Letter](Letter.md)` for a note in a third
+   * folder led nowhere, and the tap went on to create a second `Letter.md`
+   * beside the linking note, where the desktop's editor opened the real one
+   * (finding 2026-10-12). A path that climbed out of the vault was folded back
+   * into it, and a folder was handed on as if it were a note. The index
+   * answers now, as it does on the desktop; where it knows nothing — it
+   * follows a save by one pass, and the web build has none — the same rule
+   * reads the files on disk.
+   */
+  async resolveMarkdownLink(v: MobileVault, target: string, hostPath?: string): Promise<MarkdownLinkAnswer> {
     if (!target.trim()) return null;
-    // Path-style target (markdown relative/absolute link, incl. generated
-    // index.md links): resolve against the host folder, then the vault root.
-    // This used to match by note TITLE only, so markdown links never opened on
-    // mobile (maintainer, 2026-07-15).
-    for (const c of relativeLinkCandidates(target, hostPath)) {
-      if (await v.files.exists(c)) return c;
+    const viaIndex = v.queryService ? await v.queryService.resolveMarkdownLink(target, hostPath).catch(() => null) : null;
+    if (viaIndex) return viaIndex;
+    // The app's own folders are no link targets — the index never holds them,
+    // and the listing must not hand them in.
+    const listed = (await v.files.listDir("", true)).filter((e) => !e.isDirectory && !isInternalPath(e.path)).map((e) => e.path);
+    return resolveMarkdownLinkIndexed(hostPath ?? "", target, buildLinkTargetIndex(listed));
+  },
+
+  /**
+   * Where a link in the note at `hostPath` leads — the phone's side of the ONE
+   * link rule (`LinkResolver.ts` in the core); null where it leads nowhere and
+   * a tap offers to create the note.
+   *
+   * The phone used to follow a link by a rule of its own: the first note of
+   * that FILE NAME in the directory listing, while the desktop asked the index
+   * for a note's title. `[[Brief]]` opened a note here that the desktop
+   * offered to create a second time, and a link written with a title did the
+   * reverse (finding 2026-10-08). Both ask `resolveNotePath` now.
+   *
+   * `kind` says how the link is written. A wiki link names a note and is the
+   * wiki rule's alone. A Markdown link — `target` being its URL — is read by
+   * the Markdown rule (`resolveMarkdownLink`); for a folder the answer is the
+   * `index.md` in it. A caller that cannot say how the link was written gets
+   * what it always got: a name without a folder and without `.md` or `.base`
+   * goes by the wiki rule; any other target is read like a Markdown link,
+   * from the note's folder first, then by the wiki rule.
+   */
+  async resolveWikiTarget(v: MobileVault, target: string, hostPath?: string, kind?: "wiki" | "markdown"): Promise<string | null> {
+    if (!target.trim()) return null;
+    // Without a kind the text may carry a wiki link's alias: the name ends at the bar.
+    const named = markdownLinkTarget(kind === undefined ? target.split("|")[0] : target).target;
+    const asMarkdown = kind === "markdown" || (kind === undefined && (named.includes("/") || /\.(md|base)$/i.test(named)));
+    if (asMarkdown) {
+      const answer = await this.resolveMarkdownLink(v, named, hostPath);
+      if (answer !== null) return answer.kind === "file" ? answer.path : answer.index;
+      if (kind === "markdown") return null;
     }
-    // Bare wiki target ([[Note]]): match by note title — and, failing that, by
-    // FILE NAME including the extension, which is how an attachment is written
-    // (issue #55). Dropping a PDF into a note produces `[[Report.pdf]]`; the
-    // title-only match never resolved that, so the app went on to CREATE
-    // `Report.pdf.md`. Notes keep precedence: the loop below runs over notes
-    // first and only then considers attachments, so a note called "Report"
-    // still wins over a file called "Report".
-    const name = splitLinkAnchor(target).target.split("|")[0].trim().toLowerCase();
-    const all = await v.files.listDir("", true);
-    const files = all.filter((e) => !e.isDirectory);
-    for (const e of files) {
-      if (!/\.md$/i.test(e.name)) continue;
-      if (noteTitle(e.path).toLowerCase() === name) return e.path;
-    }
-    for (const e of files) {
-      if (/\.md$/i.test(e.name)) continue;
-      if (e.name.toLowerCase() === name) return e.path;
-    }
-    return null;
+    const viaIndex = v.queryService ? await v.queryService.resolveNotePath(target, hostPath).catch(() => null) : null;
+    if (viaIndex) return viaIndex;
+    // The index follows a save by one pass, and the web build has none: the
+    // same rule over the files on disk, so a note that exists is opened
+    // instead of created a second time. The title of a note's properties is
+    // all a listing cannot know. The app's own folders are no link targets —
+    // the index never holds them, and the listing must not hand them in.
+    const listed = (await v.files.listDir("", true)).filter((e) => !e.isDirectory && !isInternalPath(e.path)).map((e) => e.path);
+    return resolveLinkTarget(hostPath ?? "", linkTargetName(target), listed);
   },
 
   async search(v: MobileVault, query: string): Promise<SearchResult[]> {
@@ -1369,14 +1552,59 @@ export const vaultOps = {
  * the desktop's lastPersisted tracking (2026-07-16). decideDirtyExternalUpdate
  * compares the on-disk content against this to tell our own save echo from a
  * genuinely foreign version reaching the disk (sync pull, auto-merge).
+ *
+ * Both maps hold the EDITOR's text (`\n`, no byte order mark), never the raw
+ * file: they are compared with what the editor holds, and two texts in two
+ * shapes are never equal (finding 2026-10-08). The way back to the file is the
+ * third map — the shape taken when the file was read for the editor
+ * (`vaultOps.readEditor`), which the save below puts around the text again.
  */
 const lastPersistedText = new Map<string, string>();
 const editorBaseText = new Map<string, string>();
+const editorTextShape = new Map<string, TextFileShape>();
+/**
+ * What the editor of a note kept beside its file because the file had turned
+ * into no text (`keepTextBeside`): typing that goes on is kept into the same
+ * copy. Gone as soon as the editor and its file agree on a text again — a
+ * load, a save the file took, a version adopted from the disk.
+ */
+const keptTexts = new Map<string, KeptText>();
+
+/**
+ * The name says text, the bytes do not (C15): nothing of the file may be shown
+ * or saved. The refusal is the core's — the vault's read throws it for bytes
+ * that are not UTF-8, `readEditor` above for a text view over other bytes —,
+ * handed on from here because this is where the note screen takes it from.
+ */
+export { NotTextFileError };
+
+/** An editor's text as its file holds it: in the shape the file was read in. */
+export function editorDiskText(vault: MobileVault, path: string, text: string): string {
+  return applyTextShape(text, editorTextShape.get(JSON.stringify([vault.vaultId, path])) ?? DEFAULT_TEXT_SHAPE);
+}
+
+/** A file that moved is still saved in the shape it was read in. */
+export function keepTextShape(vault: MobileVault, from: string, to: string): void {
+  const shape = editorTextShape.get(JSON.stringify([vault.vaultId, from]));
+  if (shape) editorTextShape.set(JSON.stringify([vault.vaultId, to]), shape);
+}
 
 export function rememberPersistedText(vault: MobileVault, path: string, text: string): void {
   const key = JSON.stringify([vault.vaultId, path]);
   lastPersistedText.set(key, text);
   editorBaseText.set(key, text);
+  // Editor and file agree on a text: a copy kept beside the file before holds
+  // another one, and is never written into again.
+  keptTexts.delete(key);
+}
+
+/**
+ * A text that takes an editor's place — a restored draft — is another text
+ * than one kept beside its file before (`keepTextBeside`): it is never
+ * written into that copy.
+ */
+export function forgetKeptText(vault: MobileVault, path: string): void {
+  keptTexts.delete(JSON.stringify([vault.vaultId, path]));
 }
 
 /** A confirmed comment write is our echo; newer typing still needs its old merge base. */
@@ -1391,6 +1619,8 @@ export function getLastPersistedText(vault: MobileVault, path: string): string |
 export function clearPersistedTextCache(): void {
   lastPersistedText.clear();
   editorBaseText.clear();
+  editorTextShape.clear();
+  keptTexts.clear();
 }
 
 /**
@@ -1405,17 +1635,66 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
   contextKey: (vault) => vault.vaultId,
   write: async (vault, path, text, revision) => {
     const key = JSON.stringify([vault.vaultId, path]);
+    // The editor's text leaves in the shape its file was read in, and what the
+    // disk answers is read back into the editor's text — so everything this
+    // module remembers and compares stays in one text space.
+    const shape = editorTextShape.get(key) ?? DEFAULT_TEXT_SHAPE;
+    const base = editorBaseText.get(key);
+    // Nothing to write: the editor holds what the file last said — the
+    // suggestion mode put its base back, or an edit was taken back before the
+    // save came. Writing it anyway cost a version and an upload for nothing,
+    // and a note that arrived with `\r\n` every one of its line ends, for an
+    // edit that never happened (finding 2026-10-08; the desktop's save has the
+    // same guard). A file that changed elsewhere meanwhile is the external
+    // update's business — this text has nothing to add to it.
+    if (base !== undefined && text === base && text === lastPersistedText.get(key)) return;
+    // The file turned into no text while the note was open — another program
+    // saved it in another encoding, or a pull brought such a version (finding
+    // 2026-10-11). Nothing is written over it: the text is kept beside it as a
+    // conflict copy, the way a conflict keeps one, and the note screen shows
+    // the file as what it is now. The desktop's save does the same.
+    const keepBeside = async (error: unknown): Promise<void> => {
+      if (!isNotTextFileError(error)) throw error;
+      // Typing that went on while a keep ran goes into the same copy — one
+      // copy for one buffer, the one the card points to.
+      const earlier = keptTexts.get(key) ?? null;
+      const kept = await keepTextBeside(vault.files, path, applyTextShape(text, shape), earlier);
+      keptTexts.set(key, kept);
+      // Nothing of this text is unsaved any more: it lies beside the file. The
+      // merge base stays what editor and file last agreed on, as on the
+      // desktop — should the file be text again by the next save, that save
+      // brings all of the typing into it.
+      lastPersistedText.set(key, text);
+      noteConflict(path, kept.copy, vault.vaultId);
+      try { await vault.reindexPaths([kept.copy]); } catch { /* a later index pass repairs the derived data */ }
+      if (kept.copy !== earlier?.copy) toast.warning(i18n.t("dialogs.conflictSavedMsg", { path: kept.copy }));
+      window.dispatchEvent(new CustomEvent("m-note-not-text", { detail: { vaultId: vault.vaultId, path, kept: kept.copy } }));
+    };
     if (vault.files.writeEditorText) {
-      const result = await vault.files.writeEditorText(path, text, editorBaseText.get(key) ?? null);
+      let result: EditorWriteResult;
+      try {
+        result = await vault.files.writeEditorText(path, applyTextShape(text, shape), base === undefined ? null : applyTextShape(base, shape));
+      } catch (error) {
+        await keepBeside(error);
+        return;
+      }
       if (result.session) noteConflict(path, result.session.workingCopyPath, vault.vaultId, result.session);
+      const stored = editorTextOf(result.stored);
       editorBaseText.set(key, text);
-      lastPersistedText.set(key, result.stored);
+      lastPersistedText.set(key, stored);
+      // The file took this text: a copy kept beside it before holds another.
+      keptTexts.delete(key);
       try { await vault.reindexPaths([result.session?.workingCopyPath ?? path]); } catch { /* a later index pass repairs the derived data */ }
-      window.dispatchEvent(new CustomEvent("m-editor-save-confirmed", { detail: { vaultId: vault.vaultId, path, input: text, stored: result.stored, revision } }));
+      window.dispatchEvent(new CustomEvent("m-editor-save-confirmed", { detail: { vaultId: vault.vaultId, path, input: text, stored, revision } }));
       return;
     }
-    const disk = await vault.files.readTextFile(path);
-    const base = editorBaseText.get(key);
+    let disk: string;
+    try {
+      disk = editorTextOf(await vault.files.readTextFile(path));
+    } catch (error) {
+      await keepBeside(error);
+      return;
+    }
     let candidate = text;
     // A pull can advance the sync index while the editor still holds its old
     // base. Preserve that ancestry through delayed saves and further typing.
@@ -1426,11 +1705,12 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
       }
       candidate = merged.mergedText;
     }
-    await vaultOps.save(vault, path, candidate);
-    const stored = await vault.files.readTextFile(path);
+    await vaultOps.save(vault, path, applyTextShape(candidate, shape));
+    const stored = editorTextOf(await vault.files.readTextFile(path));
     if (!containsTextChanges(disk, candidate, stored)) throw new Error("The saved note could not be confirmed");
     editorBaseText.set(key, text);
     lastPersistedText.set(key, stored);
+    keptTexts.delete(key);
     window.dispatchEvent(new CustomEvent("m-editor-save-confirmed", { detail: { vaultId: vault.vaultId, path, input: text, stored, revision } }));
   },
   onSchedule: (vault, path, text, revision) => writeDraft(vault, path, text, revision),
@@ -1448,10 +1728,20 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
   // change that. The text stays in the editor and the draft journal; the note
   // screen looks for the file and asks where the text goes.
   // (Asked by the error code: a vanished file is the adapter's FILE_NOT_FOUND.)
-  isTerminal: (err) => err instanceof ConflictError || (err as { code?: string } | null)?.code === "FILE_NOT_FOUND",
+  // Nor is a file that is no text any more (NOT_TEXT_FILE): the adapter writes
+  // no text over it, however often it is asked. The write above keeps the text
+  // beside such a file; what still arrives here met the change between its
+  // read and its write.
+  isTerminal: (err) => err instanceof ConflictError || ["FILE_NOT_FOUND", "NOT_TEXT_FILE"].includes((err as { code?: string } | null)?.code ?? ""),
   onError: (path, err, attempt, vault) => {
     if ((err as { code?: string } | null)?.code === "FILE_NOT_FOUND") {
       window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path, vaultId: vault.vaultId } }));
+      return;
+    }
+    if ((err as { code?: string } | null)?.code === "NOT_TEXT_FILE") {
+      // The text stays in the editor and the draft journal; the file stays as
+      // the other program left it. Said in the words the screen uses for it.
+      toast.warning(i18n.t("editor.notTextTitle"));
       return;
     }
     console.error(`[noteSaver] save failed for ${path} (attempt ${attempt})`, err);

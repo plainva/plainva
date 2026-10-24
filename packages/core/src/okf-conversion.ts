@@ -1,6 +1,7 @@
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, parseDocument } from "yaml";
 import {
   ensureOkfFrontmatter,
+  frontmatterSpan,
   renameFrontmatterKey,
   FrontmatterSurgicalError,
 } from "./frontmatter-surgical.js";
@@ -37,8 +38,6 @@ export interface OkfScanResult {
   typedPaths: string[];
 }
 
-const FM_RE = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
-
 export function isReservedOkfName(path: string): boolean {
   const base = path.split(/[/\\]/).pop()?.toLowerCase();
   return base === "index.md" || base === "log.md";
@@ -56,13 +55,20 @@ export function isExcludedFromOkfScan(path: string, excludeFolders: string[] = [
   });
 }
 
+/**
+ * The block of a file and what its YAML says. A block without entries — `---`
+ * directly on `---`, blank lines or comments only — says nothing, and nothing
+ * is an empty map here, not broken YAML: it is the block the surgical writers
+ * put `type` into. A block that spells out `null` stays what it says.
+ */
 function parseFrontmatterBlock(content: string): { block: string | null; data: unknown; parseError: boolean } {
-  const match = content.match(FM_RE);
-  if (!match) return { block: null, data: null, parseError: false };
+  const block = frontmatterSpan(content)?.yaml ?? null;
+  if (block === null) return { block: null, data: null, parseError: false };
   try {
-    return { block: match[1], data: parseYaml(match[1]), parseError: false };
+    const data: unknown = parseYaml(block);
+    return { block, data: data === null && parseDocument(block).contents === null ? {} : data, parseError: false };
   } catch {
-    return { block: match[1], data: null, parseError: true };
+    return { block, data: null, parseError: true };
   }
 }
 
@@ -72,19 +78,14 @@ export function classifyOkfFile(path: string, content: string, vaultRootIndexPat
 
   if (isReservedOkfName(path)) {
     // Reserved files must not be concept documents. index.md/log.md without
-    // frontmatter are fine; the bundle-root index.md may carry exactly
-    // `okf_version` (SPEC §11 — the sole frontmatter exception).
+    // frontmatter are fine, and so is a block that declares nothing; the
+    // bundle-root index.md may carry exactly `okf_version` (SPEC §11 — the
+    // sole frontmatter exception).
     if (block === null) return null;
     if (parseError) return "reserved-name-concept";
-    if (
-      path === vaultRootIndexPath &&
-      typeof data === "object" &&
-      data !== null &&
-      !Array.isArray(data) &&
-      Object.keys(data as Record<string, unknown>).every((k) => k === "okf_version")
-    ) {
-      return null;
-    }
+    const keys = typeof data === "object" && data !== null && !Array.isArray(data) ? Object.keys(data as Record<string, unknown>) : null;
+    if (keys?.length === 0) return null;
+    if (path === vaultRootIndexPath && keys?.every((k) => k === "okf_version")) return null;
     return "reserved-name-concept";
   }
 

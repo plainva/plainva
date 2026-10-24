@@ -12,12 +12,12 @@ import { getSettingsStore } from "./services/settingsStore";
 import { requestSaveFlush } from "./services/saveFlush";
 import { credentialManager } from "./services/CredentialManager";
 import { registerDesktopMailPlatform } from "./services/mail/tauriMailTransport";
+import { registerMailSignIn } from "./services/mail/mailSignIn";
 import { getAppVersion } from "./services/whatsNew";
-import { setMailLookupNote, setMailTokenResolver } from "@plainva/ui/mail";
-import { brokerTokenProvider, describeBrokerLookup } from "./services/accountBroker";
 import { ToastHost } from "@plainva/ui";
 import { DialogHost } from "./components/ui/DialogHost";
 import { EncryptionUnlockHost } from "./components/settings/EncryptionUnlockHost";
+import { MailComposeHost } from "./components/mail/MailComposeHost";
 import { ContextMenuHost } from "./components/ContextMenuHost";
 import { AppProvider, ClientAppProvider } from "./contexts/AppContext";
 import { ClientVaultHost, VaultHost } from "./contexts/VaultHost";
@@ -25,8 +25,10 @@ import { currentWindowParams } from "./services/windowContext";
 import { initTheme } from "./services/theme";
 import { initDensity } from "./services/density";
 import { initTagColors } from "./services/tagColors";
+import { initLinkStyle } from "./services/linkStyle";
 import { initSpellcheck } from "./services/spellcheck";
 import { initDefaultViewMode } from "./services/viewModeDefault";
+import { initNewNotesInNewTab } from "./services/newNoteTab";
 import { initAppFonts } from "./services/appFonts";
 import { initUiZoom } from "./services/uiZoom";
 import { initInputModality } from "./services/inputModality";
@@ -45,10 +47,13 @@ initTheme();
 // Apply the persisted UI density (comfortable/compact chrome metrics).
 initDensity();
 initTagColors();
+// How links look on this device (Appearance -> Links).
+initLinkStyle();
 // The device's spell-checking switch (off until the store says otherwise).
 initSpellcheck();
 // Fill the sync cache for the default editor view mode (read/live/source).
 initDefaultViewMode();
+initNewNotesInNewTab();
 // Apply the persisted content font size/family (issue #5, a11y).
 initAppFonts();
 // Re-apply a persisted non-default UI zoom (issue #5 follow-up).
@@ -91,12 +96,11 @@ setPlatformServices({
 if (isOwnerWindow) {
   registerDesktopMailPlatform();
 
-  // Mail draws its Graph token from the shared account broker when the account
-  // was connected through the union consent (cloud accounts stage B); otherwise
-  // the resolver returns undefined and the per-account refresh path stays.
-  setMailTokenResolver((vaultPath) => brokerTokenProvider(vaultPath, "mail"));
-  // And why it came back empty, when it does (finding 2026-07-30).
-  setMailLookupNote((vaultPath) => describeBrokerLookup(vaultPath, "mail"));
+  // A mailbox draws its OAuth token from the shared account broker when a
+  // cloud account card carries it (cloud accounts stage B) — asked for THAT
+  // mailbox, which is why the registration is a function with a test of its
+  // own rather than two lines here (`mailSignIn.ts`, finding 2026-10-12).
+  registerMailSignIn();
 }
 
 // First render waits for the active locale bundle (P2.8): locales are lazy
@@ -176,6 +180,10 @@ void i18nReady.then(async () => {
         <AppProvider>
           <VaultHost>
             <App />
+            {/* Beside the shell, not in it: `App` replaces the shell with the
+                loading screen whenever the vault is loaded again, and a
+                message being written must not go with it. */}
+            <MailComposeHost />
             <EncryptionUnlockHost />
           </VaultHost>
         </AppProvider>

@@ -6,7 +6,8 @@ import { SyncQueue } from "./SyncQueue.js";
 import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
 import { mergeText, mergeWithoutBase } from "../conflict-resolver.js";
 import { classifyTaskNotes, preserveDisplacedTask, taskNotesEquivalent } from "../pim/taskNoteIdentity.js";
-import { isTextFile } from "./fileType.js";
+import { isTextFile, mergeableText } from "./fileType.js";
+import { editorTextOf } from "../textFileShape.js";
 import { findCollidingPath, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
 import { withPathSpellings } from "./spellingSyncTarget.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
@@ -16,6 +17,7 @@ import type { DeletionJournal } from "./deletionJournal.js";
 import { withPathMutation } from "../vault/pathMutation.js";
 import { ConflictSessions, conflictDiagnostic, type ConflictSessionGate } from "../vault/conflictSession.js";
 import { isAppleDoubleCompanion, isSystemJunkPath } from "../vault/systemJunk.js";
+import { indexedRowStamp, type IndexedRowStamp } from "../vault/indexedRowStamp.js";
 
 // Re-exported so every existing import keeps working: the rule moved out
 // (N1/S2) because the PIM worker asks the same question, not because callers
@@ -116,6 +118,12 @@ export interface SettingsSyncRunner {
 function bytesToHex(buffer: ArrayBuffer): string {
   return Array.from(new Uint8Array(buffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+
+/** U+FFFD — what a decoder puts where the bytes were not UTF-8. */
+const REPLACEMENT_CHARACTER = String.fromCharCode(0xfffd);
+
+/** The byte order mark as text. Built here, so that this file does not carry the character itself. */
+const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
 
 async function sha256Hash(text: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -367,7 +375,15 @@ export type MirrorDeletionOutcome =
   | "localOnly"
   | "stillRemote"
   /** A rename or delete of this path (or a folder above it) still waits in the queue. */
-  | "awaitingStructure";
+  | "awaitingStructure"
+  /**
+   * The remote never confirmed this file (no sync row, or one without a remote
+   * marker): its deletion there undoes nothing here, and the local file is
+   * left to the push as it is.
+   */
+  | "untracked"
+  /** The file carries local edits, and the remote could not say whether it still holds it: asked again next time. */
+  | "unverified";
 
 /** Per-cycle account of the deletions the worker mirrored — or deliberately did not. */
 export interface DeletionReport {
@@ -375,7 +391,11 @@ export interface DeletionReport {
   mirrored: number;
   /** Of those, the ones the journal explained (confirmed on another device). */
   explained: number;
-  /** Kept although the remote deleted them: they carry unsynced local edits. */
+  /**
+   * Kept although the remote deleted them, because they carry unsynced local
+   * edits — and queued to go up again as new files, so the next cycle does not
+   * meet them a second time.
+   */
   keptLocalEdits: string[];
 }
 
@@ -553,6 +573,14 @@ export class SyncWorker {
   public onDeletionReport?: (report: DeletionReport) => void;
   private readonly deletionJournal?: DeletionJournal;
   /**
+   * The conflict copy the byte-wise reconcile wrote for a path, by the hash of
+   * the bytes it holds, until the file itself has taken the remote version.
+   * Where that write fails — a file another program holds open can be read
+   * and not replaced — the next cycle arrives at the same place, and without
+   * this it wrote one more copy of the same bytes, every cycle.
+   */
+  private readonly keptByteCopies = new Map<string, { sha: string; copy: string }>();
+  /**
    * Incremental-pull state for change-token providers (Drive). `cursor` is the change
    * token from the last pull; `cyclesSinceFull` forces a periodic full listing. Both live
    * only in memory for the session: a full listing must run first each session anyway to
@@ -646,6 +674,7 @@ export class SyncWorker {
     console.log(`[SyncWorker] started (poll interval ${this.intervalMs}ms)`);
     // Recover operations that got stuck (manual-intervention / backoff) in a
     // previous session before running the first cycle, then sync.
+    this.engine.resetRefusals?.();
     this.queue.resetStuckOperations()
       .catch((e) => console.error("[SyncWorker] resetStuckOperations failed:", e))
       .finally(() => { if (this.isRunning) this.executeCycle(); });
@@ -661,6 +690,7 @@ export class SyncWorker {
       return;
     }
     console.log("[SyncWorker] manual retry: resetting stuck operations");
+    this.engine.resetRefusals?.();
     try {
       await this.queue.resetStuckOperations();
     } catch (e) {
@@ -967,14 +997,40 @@ export class SyncWorker {
    * Preserves the local version of a diverged file as a .CONFLICT-<ts> sibling so
    * no local edits are lost when we adopt the remote version. .CONFLICT files are
    * excluded from pushes by the sync target, so they stay local-only.
+   *
+   * `knownBase` is handed in where the caller has already judged the row's
+   * base text — `null` for one that is not the common ancestor: the copy is
+   * then kept without a starting version rather than with a wrong one.
+   *
+   * Where a conflict of the file is open already, its working copy holds the
+   * person's own version (the draft), and the session keeps that — not the
+   * text the file itself holds now. That text can carry changes made after the
+   * conflict began and not uploaded yet: a change from outside an editor goes
+   * into the file as well as into the draft (§ 3.87), and another program can
+   * change the file. The remote version is written over it next, so it is
+   * kept as a copy of its own beside the file, byte for byte, unless it is the
+   * draft (Sammelplan § 3.102 no. 5; it used to be lost — a snapshot of the
+   * versions layer held it only where the last one was older than its
+   * interval).
    */
-  private async preserveLocalAsConflict(path: string, localContent: string, external: string, state: SyncState | null, gate: ConflictSessionGate): Promise<string> {
-    const base = state?.base_text ?? await this.stateRepo.getBaseText(path);
+  private async preserveLocalAsConflict(path: string, localContent: string, external: string, state: SyncState | null, gate: ConflictSessionGate, changedPaths: string[], knownBase?: string | null): Promise<string> {
+    const base = knownBase !== undefined ? knownBase : state?.base_text ?? await this.stateRepo.getBaseText(path);
+    const open = gate.session;
     const session = await new ConflictSessions(this.vault, this.stateRepo, this.stateRepo).preserveLocked(gate, {
       path, text: localContent, base, external, writer: "sync-pull",
       diagnostic: await conflictDiagnostic({ path, adapter: "cloud", writer: "sync-pull", disk: localContent,
         expectedLocalHash: state?.local_sha256 ?? null, base, baseSource: base === null ? "none" : "captured", wasWrittenByUs: false }),
     });
+    // Not where the text is the draft, in whatever shape (line ends, mark).
+    // Not skipped where it equals the session's "external" version either:
+    // for a conflict the write chain opened, that is what another program
+    // wrote on this device — never uploaded.
+    if (open && session === open && editorTextOf(localContent) !== editorTextOf(session.draftText)) {
+      // The text is the file's own, decoded from UTF-8 with its mark and line
+      // ends (`mergeableText`): encoded again, it is the file's bytes.
+      const bytes = new TextEncoder().encode(localContent);
+      await this.keepByteCopy(path, bytes, await sha256Bytes(bytes), changedPaths);
+    }
     return session.workingCopyPath;
   }
 
@@ -985,11 +1041,52 @@ export class SyncWorker {
    * (`mergeWithoutBase`). Every other divergence keeps the careful path: the
    * local version is preserved as .CONFLICT and the remote one adopted.
    */
-  private async reconcileWithoutBase(path: string, localContent: string, remoteContent: string, state: SyncState | null, gate: ConflictSessionGate, changedPaths: string[]): Promise<string> {
+  private async reconcileWithoutBase(path: string, localContent: string, remoteContent: string, state: SyncState | null, gate: ConflictSessionGate, changedPaths: string[], knownBase?: string | null): Promise<string> {
     const united = mergeWithoutBase(localContent, remoteContent);
     if (!united.hasConflicts) return united.mergedText;
-    changedPaths.push(await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate));
+    changedPaths.push(await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate, changedPaths, knownBase));
     return remoteContent;
+  }
+
+  /**
+   * The base text of `path` — where it IS the version `base_sha256` names.
+   *
+   * A three-way merge takes its ancestor on trust: against a text that is not
+   * the common ancestor it hands back a clean, wrong result. Against this
+   * device's own current text nothing has changed here at all — the remote
+   * version comes out, every local change is gone, and no conflict copy is
+   * written (finding 2026-10-11). More than one writer has put such a text
+   * into a row over time: the index, the write chain after a merge of its own,
+   * and this worker, which recorded a merge as the base before its upload had
+   * gone through. Rows they left are still out there, and a streamed upload
+   * moves the hash on without a text. So the text is asked what it is before
+   * anything is merged against it; one that is another version counts as
+   * none, and the file takes the careful way without an ancestor.
+   *
+   * One kind of row is let through. Until 2026-10-09 the base text of an
+   * upload was kept without the file's byte order mark while the hash was
+   * taken with it (and a database layer that drops a leading mark from a
+   * bound text leaves the same row). That text is the ancestor's, short of
+   * its mark — which is put back in front of it.
+   */
+  private async commonAncestorText(path: string, baseSha256: string): Promise<string | null> {
+    const text = await this.stateRepo.getBaseText(path);
+    if (text === null) return null;
+    if ((await sha256Hash(text)) === baseSha256) return text;
+    // With its mark the text IS the version the hash names: that is the ancestor handed out.
+    if (!text.startsWith(BYTE_ORDER_MARK) && (await sha256Hash(BYTE_ORDER_MARK + text)) === baseSha256) return BYTE_ORDER_MARK + text;
+    console.warn(`[SyncWorker] ${path}: the stored base text is not the version the base hash names (base=${baseSha256.slice(0, 8)}); reconciling without an ancestor`);
+    return null;
+  }
+
+  /**
+   * The hash of a file on this device, as `base_sha256` holds it: the one of
+   * its bytes, whatever its name says it is. For a text file this used to be
+   * the hash of what the platform's text reader handed out — for a file in
+   * another encoding the hash of no file, or no answer at all.
+   */
+  private async localSha(path: string): Promise<string> {
+    return sha256Bytes(await this.vault.readBinaryFile(path));
   }
 
   /**
@@ -998,6 +1095,14 @@ export class SyncWorker {
    * `.CONFLICT` sibling and the remote is adopted; otherwise the remote is fast-forwarded
    * in. Binary files are never pushed from here (a local binary change is pushed via the
    * queue), so the local copy always ends up equal to the remote after this.
+   *
+   * Also the way of a file that is text by its name and not by its bytes on
+   * either side (`mergeableText`). The remote content becomes the common
+   * ancestor here, so the merge base text follows it: its text where the
+   * remote version is one — the file was converted to UTF-8 elsewhere, and is
+   * text from here on —, and none where it is not. What the row held from the
+   * time the file was text, or from a version that kept the lossy decode, is
+   * not the ancestor of anything any more.
    */
   private async reconcileBinaryFile(
     path: string,
@@ -1007,6 +1112,12 @@ export class SyncWorker {
     now: number,
     changedPaths: string[]
   ): Promise<void> {
+    const adoptBaseText = async () => {
+      if (!isTextFile(path)) return;
+      const remoteText = mergeableText(path, contentBytes);
+      if (remoteText === null) await this.stateRepo.clearBaseText(path);
+      else await this.stateRepo.updateBaseText(path, remoteText);
+    };
     const remoteSha = await sha256Bytes(contentBytes);
     const localExists = await this.vault.exists(path);
     let writeNeeded = !localExists;
@@ -1027,17 +1138,28 @@ export class SyncWorker {
         console.log(`[SyncWorker] adopting own echoed binary push for ${path} (response was lost)`);
         await this.stateRepo.updateRemoteState(path, remoteEtag, state?.remote_id ?? null, now);
         await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
+        await adoptBaseText();
         await this.stateRepo.clearPendingPushSha(path);
-        await this.queue.queueWrite(path);
+        await this.lookedAt(path, state);
+        await this.queue.queueWrite(path, { supersedeRefused: false });
         return;
       } else if (state && state.base_sha256 && localSha === state.base_sha256) {
         writeNeeded = true; // local unchanged since base -> fast-forward to remote
+        // A net for as long as some device still runs a version that syncs
+        // such a file as decoded text: what comes in is UTF-8 with replacement
+        // characters in it, and what lies here is a file in another encoding
+        // — in all likelihood the incoming version is a decode of this one,
+        // changed or not. It is adopted like any other version, and the file
+        // that cannot be rebuilt from it stays next to it.
+        if (isTextFile(path) && mergeableText(path, localBytes) === null
+          && (mergeableText(path, contentBytes)?.includes(REPLACEMENT_CHARACTER) ?? false)) {
+          console.warn(`[SyncWorker] ${path}: the incoming version carries replacement characters; the local file in another encoding is kept as a copy`);
+          await this.keepByteCopy(path, localBytes, localSha, changedPaths);
+        }
       } else {
         // Diverged (both changed, or no reliable base): keep local as .CONFLICT, adopt remote.
-        const conflictPath = this.conflictPathFor(path);
         console.warn(`[SyncWorker] CONFLICT (binary): ${path} diverged (localSha=${localSha.slice(0, 8)}, remoteSha=${remoteSha.slice(0, 8)}, base=${state?.base_sha256?.slice(0, 8) ?? "none"})`);
-        await this.vault.writeBinaryFile(conflictPath, localBytes);
-        changedPaths.push(conflictPath);
+        await this.keepByteCopy(path, localBytes, localSha, changedPaths);
         writeNeeded = true;
       }
     }
@@ -1049,17 +1171,50 @@ export class SyncWorker {
       changedPaths.push(path);
     }
 
-    // Local is now aligned with the remote; record state with a byte hash (no base_text).
+    // Local is now aligned with the remote; record state with a byte hash (the
+    // base text follows below, where the file is text by its name).
     // When we did NOT rewrite the file, adopt the marker only while no concurrent
     // app save changed it since our read (guarded, P1 conflict-race); after our own
     // write the disk state IS remoteSha and the update stays unconditional.
-    if (writeNeeded) {
+    //
+    // A row marked to be looked at again (`SyncState.recheck`) is the exception
+    // to the guard: its marker may be the hash an older version took of the
+    // file's decoded text, which equals nothing the guard could wait for. The
+    // bytes were read a moment ago and are the server's — that is the marker.
+    if (writeNeeded || state?.recheck) {
       await this.stateRepo.updateLocalHash(path, remoteSha);
     } else {
       await this.stateRepo.updateLocalHashGuarded(path, remoteSha, localShaAtRead);
     }
     await this.stateRepo.updateRemoteState(path, remoteEtag, state?.remote_id ?? null, now);
     await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
+    await adoptBaseText();
+    await this.lookedAt(path, state);
+    this.keptByteCopies.delete(path);
+  }
+
+  /**
+   * Keeps the local bytes of `path` as a `.CONFLICT` copy before the remote
+   * version replaces them — once: a copy of exactly these bytes that an
+   * earlier attempt left (see `keptByteCopies`) is the copy.
+   */
+  private async keepByteCopy(path: string, localBytes: Uint8Array, localSha: string, changedPaths: string[]): Promise<void> {
+    const kept = this.keptByteCopies.get(path);
+    if (kept && kept.sha === localSha && (await this.vault.exists(kept.copy))) return;
+    const copy = this.conflictPathFor(path);
+    await this.vault.writeBinaryFile(copy, localBytes);
+    changedPaths.push(copy);
+    this.keptByteCopies.set(path, { sha: localSha, copy });
+  }
+
+  /**
+   * The reconcile has compared a file with the server's copy and recorded what
+   * it found: a row an older version left to be looked at again
+   * (`SyncState.recheck`, lossyTextBaseMigration.ts) loses its mark, and the
+   * push may carry the file again.
+   */
+  private async lookedAt(path: string, state: SyncState | null): Promise<void> {
+    if (state?.recheck) await this.stateRepo.clearRecheck(path);
   }
 
   /**
@@ -1228,7 +1383,7 @@ export class SyncWorker {
       let hash: string;
       try {
         if (!(await this.vault.exists(to))) continue;
-        hash = isTextFile(to) ? await sha256Hash(await this.vault.readTextFile(to)) : await sha256Bytes(await this.vault.readBinaryFile(to));
+        hash = await this.localSha(to);
       } catch {
         continue;
       }
@@ -1245,13 +1400,23 @@ export class SyncWorker {
    * none of them is evidence, and the callers treat it as none.
    */
   private async probePresence(path: string, state: SyncState | null | undefined): Promise<RemotePresence> {
+    const presence = await this.probePresenceOrFailure(path, state);
+    return presence === "failed" ? "unknown" : presence;
+  }
+
+  /**
+   * `probePresence` for the caller that has to tell a probe that FAILED from a
+   * target that could not say: the first may answer a moment later, the second
+   * never will.
+   */
+  private async probePresenceOrFailure(path: string, state: SyncState | null | undefined): Promise<RemotePresence | "failed"> {
     if (!this.target.probeExists) return "unknown";
     this.noteCycleActivity();
     try {
       return await this.target.probeExists({ path, remoteId: state?.remote_id ?? null });
     } catch (e) {
       console.warn(`[SyncWorker] existence probe failed for ${path}; treated as unknown`, e);
-      return "unknown";
+      return "failed";
     }
   }
 
@@ -1300,6 +1465,29 @@ export class SyncWorker {
     }
   }
 
+  /**
+   * Whether the local copy of a text file says what the synced base says,
+   * read the way an editor reads it: `\n` line ends, no byte order mark — a
+   * file an older version rewrote in another form (§ 3.50) is then not taken
+   * for an edit made here.
+   *
+   * The stored base text is trusted only where it IS the synced base: the
+   * remote confirmed the file, and the text hashes to the recorded base. A
+   * row the remote never confirmed holds this device's own text (the indexer
+   * writes it for every new file), and a streamed push advances the hash but
+   * leaves the text of an earlier version behind — on either, "same text"
+   * would remove a file nobody deleted.
+   */
+  private async sameTextAsBase(path: string, state: SyncState): Promise<boolean> {
+    if (!state.remote_etag || !state.base_sha256 || !isTextFile(path)) return false;
+    const baseText = await this.stateRepo.getBaseText(path);
+    if (baseText == null) return false;
+    if ((await sha256Bytes(new TextEncoder().encode(baseText))) !== state.base_sha256) return false;
+    const localText = mergeableText(path, await this.vault.readBinaryFile(path));
+    if (localText == null) return false;
+    return editorTextOf(localText) === editorTextOf(baseText);
+  }
+
   /** Whether this device's listing carries exactly the identity `path`. */
   private async holdsLocalIdentity(path: string): Promise<boolean> {
     const slash = path.lastIndexOf("/");
@@ -1312,6 +1500,22 @@ export class SyncWorker {
       throw e;
     }
     return entries.some((entry) => entry.path === path);
+  }
+
+  /**
+   * The read stamps an index row of the file at `path` can carry while the
+   * worker removes it: the row the index holds now, and the file's own time —
+   * the stamp of every row a pass writes for exactly this file, also one it
+   * writes or reads again after this question (a scan that had read the file
+   * before it went). Without either, nothing will be reported.
+   */
+  private async ownRemovalStamps(path: string): Promise<IndexedRowStamp[]> {
+    const stamps: IndexedRowStamp[] = [];
+    const indexed = await this.queue.indexedRow(path);
+    if (indexed) stamps.push(indexed);
+    const info = await Promise.resolve().then(() => this.vault.getFileInfo(path)).catch(() => null);
+    if (info && !info.isDirectory && !stamps.some((s) => s.mtime === info.mtime)) stamps.push(indexedRowStamp(info.mtime));
+    return stamps;
   }
 
   private async mirrorRemoteDeletionLocked(
@@ -1357,10 +1561,16 @@ export class SyncWorker {
       await this.stateRepo.deleteSyncState(path);
       return "gone";
     }
-    const localSha = isTextFile(path)
-      ? await sha256Hash(await this.vault.readTextFile(path))
-      : await sha256Bytes(await this.vault.readBinaryFile(path));
-    if (state?.base_sha256 && localSha === state.base_sha256) {
+    const localSha = await this.localSha(path);
+    // Unchanged since the last sync — by its hash, or by its text where only
+    // the form differs from the recorded base (line ends, byte order mark,
+    // § 3.50). Bytes that differ from a base this device once recorded in
+    // another form are no edit, and keeping such a file would carry a
+    // deletion made on purpose elsewhere back to every device (finding
+    // 2026-10-19).
+    const unchanged = Boolean(state?.base_sha256 && localSha === state.base_sha256)
+      || (state != null && (await this.sameTextAsBase(path, state)));
+    if (unchanged) {
       // The invariant of plan A1: no local file is removed on the word of a
       // listing while the target can be asked about the file itself. A probe
       // that finds it alive ends the matter — for this file, and the cycle
@@ -1368,19 +1578,53 @@ export class SyncWorker {
       if (verify && (await this.probePresence(path, state)) === "present") return "stillRemote";
       // The indexer will report this file as vanished; the shell must be able
       // to tell that the WORKER removed it (plan A2) — marked before, not after.
-      this.options.ownDeletions?.mark(path);
+      // Marked for the rows that can be reported for this file, not for the
+      // path: a mark that answered by name answered the next file of that
+      // name instead (finding 2026-10-12).
+      const register = this.options.ownDeletions;
+      const stamps = register ? await this.ownRemovalStamps(path) : [];
+      if (stamps.length > 0) register!.mark(path, stamps);
       try {
         await this.vault.deleteItem(path);
       } catch (e) {
-        this.options.ownDeletions?.unmark(path);
+        if (stamps.length > 0) register!.unmark(path);
         throw e;
       }
       await this.stateRepo.deleteSyncState(path);
       changedPaths.push(path);
       return "deleted";
     }
+    // Nothing of ours was up there: a row the remote never confirmed (or none
+    // at all) has no deletion to mirror. The local file stays as it is and
+    // goes up, if at all, the way any local file does.
+    if (!state?.remote_etag) return "untracked";
+
     // Local has unsynced edits -> keep it. Counted and reported (P1): a silent
     // skip is how a "deleted" note used to reappear without anyone knowing why.
+    //
+    // Where the absence is only a listing's word, the file is asked for first
+    // (plan A1, as for a deletion): one that is still up there is the
+    // listing's mistake. Only "gone" counts as gone. No answer, and the
+    // "unknown" of a provider that can only search by name for a file without
+    // its id (the search that lost files on 2026-09-20), are asked again with
+    // the next listing — carried up as new next to a living original, the
+    // file would stand twice under one name on Drive.
+    if (verify) {
+      const presence = await this.probePresenceOrFailure(path, state);
+      if (presence === "present") return "stillRemote";
+      if (presence !== "absent") return "unverified";
+    }
+    // Keeping it means carrying it up again (finding 2026-10-19). The row
+    // still pointed at a remote file that no longer exists: nothing queued the
+    // upload, the next full listing found the same file missing again, and the
+    // shell said "kept" every cycle while the file lived on this device only.
+    // As `keepSuspendedDeletionsLocal` does for the files of a held mass
+    // deletion, the row goes — the push then treats the file as new instead of
+    // as an update to a remote file that is gone — and the write is queued.
+    // That also ends a `SyncState.recheck` mark: once the remote holds no copy,
+    // there is nothing left to compare the local one with.
+    await this.stateRepo.deleteSyncState(path);
+    await this.queue.queueWrite(path);
     return "keptLocalEdits";
   }
 
@@ -1444,23 +1688,39 @@ export class SyncWorker {
 
     // Binary files (images, PDFs, …) must never be decoded to text and merged —
     // that corrupts them. Reconcile them byte-wise with conflict-copy on divergence.
-    if (!isTextFile(path)) {
+    //
+    // So does a file that is text by its name and not by its bytes
+    // (`mergeableText`): a `.csv` in Windows-1252, a `.txt` in UTF-16. The name
+    // alone used to decide, and what was written here was the decoded text —
+    // every byte that is not UTF-8 replaced, on a device that had done nothing
+    // but pull (finding 2026-10-09). One side being such a file is enough:
+    // there is no text to merge the other side into.
+    //
+    // The text is taken with its byte order mark, where it has one: it is what
+    // gets written here, and a decoder left to itself drops the mark — the file
+    // arrived on the second device without it, and a merge with the local
+    // version, which still had it, saw a changed first line on both sides.
+    //
+    // Both sides are read as BYTES and asked the same question. What a
+    // platform's text reader makes of a file — whether it replaces what is not
+    // UTF-8, refuses the file, or hands the text out without its mark — has no
+    // part in what the sync decides.
+    const remoteContent = mergeableText(path, contentBytes);
+    const localBytes = remoteContent !== null && await this.vault.exists(path) ? await this.vault.readBinaryFile(path) : null;
+    const localContent = localBytes === null ? null : mergeableText(path, localBytes);
+    if (remoteContent === null || (localBytes !== null && localContent === null)) {
       await this.reconcileBinaryFile(path, contentBytes, remoteEtag, state, now, changedPaths);
       return;
     }
-
-    const remoteContent = new TextDecoder().decode(contentBytes);
     const remoteSha = await sha256Hash(remoteContent);
-
-    const localExists = await this.vault.exists(path);
-    const localContent = localExists ? await this.vault.readTextFile(path) : null;
+    const localExists = localBytes !== null;
     let mergedContent = remoteContent;
     // Local hash at read time — the no-write path below only adopts the marker
     // while it is still current (P1 conflict-race; see the guarded repo update).
     let localShaAtRead: string | null = null;
 
-    if (localExists && localContent !== null) {
-      const localSha = await sha256Hash(localContent);
+    if (localBytes !== null && localContent !== null) {
+      const localSha = await sha256Bytes(localBytes);
       localShaAtRead = localSha;
 
       if (classifyTaskNotes(localContent, remoteContent) === "different") {
@@ -1471,7 +1731,7 @@ export class SyncWorker {
         // existing links survive; the displaced task takes the next free number
         // of its title ("Title 2"), decided by the anchors found there.
         // A crash before here leaves the source; after here its copy is queued.
-        if (await this.vault.readTextFile(path) !== localContent) throw new Error("task_source_changed");
+        if (mergeableText(path, await this.vault.readBinaryFile(path)) !== localContent) throw new Error("task_source_changed");
         mergedContent = remoteContent;
       } else if (localSha === remoteSha || taskNotesEquivalent(localContent, remoteContent)) {
         mergedContent = remoteContent; // identical content
@@ -1489,24 +1749,34 @@ export class SyncWorker {
         await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
         await this.stateRepo.updateRemoteState(path, remoteEtag, state?.remote_id ?? null, now);
         await this.stateRepo.clearPendingPushSha(path);
-        await this.queue.queueWrite(path);
+        await this.lookedAt(path, state);
+        await this.queue.queueWrite(path, { supersedeRefused: false });
         return;
       } else if (state && state.base_sha256 && localSha === state.base_sha256) {
         mergedContent = remoteContent; // local unchanged since base -> fast-forward
       } else if (state && state.base_sha256) {
-        // Both sides changed -> attempt a 3-way merge against the base.
-        const baseText = await this.stateRepo.getBaseText(path);
+        // Both sides changed -> attempt a 3-way merge against the base — the
+        // text that is the version `base_sha256` names, and no other.
+        //
+        // Where the remote is unchanged since the base — a new ETag and
+        // nothing else: a server that re-stamped the file, or one that sends
+        // no ETag on an upload, so that the next listing is the first to bring
+        // one — its content IS that version, whatever text the row holds. The
+        // local change then merges against it and stands; a row without a
+        // usable text must not turn a change nobody else touched into a
+        // conflict copy.
+        const baseText = remoteSha === state.base_sha256 ? remoteContent : await this.commonAncestorText(path, state.base_sha256);
         if (baseText !== null) {
           const mergeRes = mergeText(baseText, localContent, remoteContent);
           if (mergeRes.hasConflicts) {
-            const cp = await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate);
+            const cp = await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate, changedPaths, baseText);
             changedPaths.push(cp);
             mergedContent = remoteContent; // adopt remote; local kept as .CONFLICT
           } else {
             mergedContent = mergeRes.mergedText;
           }
         } else {
-          mergedContent = await this.reconcileWithoutBase(path, localContent, remoteContent, state, gate, changedPaths);
+          mergedContent = await this.reconcileWithoutBase(path, localContent, remoteContent, state, gate, changedPaths, null);
         }
       } else {
         // No reliable base (e.g. first connect) and content diverges. Never
@@ -1533,12 +1803,23 @@ export class SyncWorker {
     const newLocalSha = await sha256Hash(mergedContent);
     // When we did NOT rewrite the file, adopt the local marker only while no
     // concurrent app save changed it since our read (guarded, P1 conflict-race);
-    // base_text still advances unconditionally — the reconciled content IS the
-    // new common ancestor. After our own write the update stays unconditional.
+    // base_text still advances unconditionally. After our own write the update
+    // stays unconditional.
+    //
+    // The base text is the REMOTE version — the one the base hash recorded
+    // below names. Where the reconciled content is ahead of it (both sides
+    // merged, or a local change that still waits for its upload), that content
+    // is this device's text and no common ancestor until its upload has gone
+    // through; the push records it as the base then. It used to be recorded
+    // here already. An upload that was refused, deferred or cut off left the
+    // row naming the remote version and holding the local one — and the next
+    // change from the other device was merged against this device's own text:
+    // its version came out, the change made here was gone, and no conflict
+    // copy was written (finding 2026-10-12).
     if (writeNeeded) {
-      await this.stateRepo.updateLocalHashAndBaseText(path, newLocalSha, mergedContent);
+      await this.stateRepo.updateLocalHashAndBaseText(path, newLocalSha, remoteContent);
     } else {
-      await this.stateRepo.updateLocalHashAndBaseTextGuarded(path, newLocalSha, mergedContent, localShaAtRead);
+      await this.stateRepo.updateLocalHashAndBaseTextGuarded(path, newLocalSha, remoteContent, localShaAtRead);
     }
 
     if (pushMerge) {
@@ -1546,12 +1827,13 @@ export class SyncWorker {
       // processQueue (below) propagates it this same cycle.
       await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
       await this.stateRepo.updateRemoteState(path, remoteEtag, null, now);
-      await this.queue.queueWrite(path);
+      await this.queue.queueWrite(path, { supersedeRefused: false });
     } else {
       // Fully in sync with the remote version.
       await this.stateRepo.updateRemoteState(path, remoteEtag, null, now);
       await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
     }
+    await this.lookedAt(path, state);
   }
 
   public async runCycle(gen = this.activeCycleGen) {
@@ -1729,6 +2011,17 @@ export class SyncWorker {
       // Overlap the network downloads for the files this cycle will actually
       // reconcile (P3.3): everything AFTER the download — merge, writes,
       // sync_state, the failure counters — stays strictly sequential below.
+      // Files whose upload the remote refused in the last push (Sammelplan
+      // § 3.103) are reconciled whatever the listing says: the upload waits
+      // for this reconcile, and a listing that shows the marker the row
+      // already has — a service whose answers disagree, a listing that lags —
+      // would otherwise never bring it.
+      const refused = this.engine.takeRefusedPaths?.() ?? new Set<string>();
+      // Those this pull does not reach (not listed — an incremental listing, a
+      // deletion — or the cycle ends early) are asked for again next time.
+      const unreached = new Set(refused);
+      const unchanged = (s: SyncState | null, remoteEtag: string, path: string) =>
+        !!s && s.remote_etag === remoteEtag && !s.recheck && !refused.has(path);
       const reconcileOrder: string[] = [];
       for (const [path, remoteEtag] of pullResult.etagMap.entries()) {
         if (excludedFromSync(path)) continue;
@@ -1736,8 +2029,7 @@ export class SyncWorker {
         // reconcile skips those (live-checked below), so downloading would be
         // wasted bandwidth at best and a resurrection vector at worst.
         if (awaitingStructure(path)) continue;
-        const s = stateMap.get(path) ?? null;
-        if (s && s.remote_etag === remoteEtag) continue;
+        if (unchanged(stateMap.get(path) ?? null, remoteEtag, path)) continue;
         reconcileOrder.push(path);
       }
       // Prefer the most-recently-modified remote files first (Drive reports
@@ -1765,18 +2057,24 @@ export class SyncWorker {
         // Never pull device-local state (.plainva/*, .CONFLICT copies): downloading a
         // remote index DB over the live local one corrupts it. See isLocalOnlyPath.
         // Nor operating-system bookkeeping (E10).
+        unreached.delete(path);
         if (excludedFromSync(path)) continue;
         this.emitProgress("pull", ++pullIdx, pullTotal);
 
         const state = stateMap.get(path) ?? null;
 
-        // Remote unchanged since our last recorded sync -> nothing to do.
-        if (state && state.remote_etag === remoteEtag) continue;
+        // Remote unchanged since our last recorded sync -> nothing to do. Unless
+        // the row is marked to be looked at again (`SyncState.recheck`): an
+        // older version left it for a file it had synced as decoded text, and
+        // what lies here may be that text, written back. Such a file is
+        // compared with the server's copy once, whatever its ETag says.
+        if (unchanged(state, remoteEtag, path)) continue;
 
         await guardPullStep(path, () =>
           this.reconcilePulledFile(path, remoteEtag, state, now, changedPaths, () => prefetcher.get(path))
         );
       }
+      if (unreached.size > 0) this.engine.keepRefusedPaths?.(unreached);
 
       // 2a. Provider ids (finding 2026-09-20). Only pushes used to record one, so
       // a vault this device mostly PULLED had none — and without an id an
@@ -1856,6 +2154,11 @@ export class SyncWorker {
           if (excludedFromSync(path)) continue;
           // Our own queued rename/delete explains the absence (issue 113).
           if (awaitingStructure(path)) continue;
+          // The same pull also lists the path: a file deleted under one id and
+          // put back under another (a device that kept its edits carries it up
+          // as new) is alive, and the reconcile above already has it. Acting on
+          // the stale deletion removed the fresh copy here.
+          if (remotePaths.has(path)) continue;
           // Guarded like reconcile: an explicit deleted[] entry is delivered exactly
           // once per cursor position, so a failed mirror must block cursor adoption
           // below (otherwise the deletion stays unmirrored until the next full listing).

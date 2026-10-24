@@ -11,6 +11,7 @@ import {
   type JournalDay, type JournalFeedSettings, type JournalRowCaps, type JournalWriteFailure,
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
+import { openLink } from "../../services/openLink";
 import { journalFailureKey, readJournalHeading, readJournalMoodProperty, useJournalFiles } from "../../hooks/useJournal";
 import { readDailyNoteConfig } from "../../services/dailyNotes";
 import { JournalCaptureDialog } from "./JournalCaptureDialog";
@@ -106,20 +107,20 @@ export function JournalView({ onOpenPath, onHandoverTask }: {
         await writeNoteProperty(vaultAdapter, day.path, key, value > 0 ? value : "");
         refreshPath(day.path);
       } catch (error) {
-        toast.error(errorText(error));
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(error) }));
       }
     })();
-  }, [vaultAdapter, settings, refreshPath]);
+  }, [vaultAdapter, settings, refreshPath, t]);
   const links = useMemo(() => ({
-    // A wiki link names a note, not a path: the index resolves it as the editor does.
-    onOpenNote: (target: string, newTab: boolean) => {
-      void (queryService ? queryService.resolveNotePath(target) : Promise.resolve(null))
-        .then((path) => onOpenPath(path ?? target, newTab))
-        .catch(() => onOpenPath(target, newTab));
+    // A link in an entry is opened as one in the editor is (`services/openLink`),
+    // read from the day's note the entry stands in. The raw text of a link
+    // that led nowhere used to be handed to the opener as a path.
+    onOpenNote: (target: string, newTab: boolean, kind?: "wiki" | "markdown", fromPath?: string) => {
+      void openLink({ text: target, kind: kind ?? "wiki", sourcePath: fromPath }, { queryService, vaultAdapter, onOpenPath, newTab, t });
     },
     onOpenUrl: (url: string) => { void openUrl(url).catch((error) => toast.error(errorText(error))); },
     onOpenTag: (tag: string) => setFilter((f) => ({ ...f, tag })),
-  }), [onOpenPath, queryService, setFilter]);
+  }), [onOpenPath, queryService, vaultAdapter, setFilter, t]);
 
   // A picked day: load as far back as it lies, then bring it — or the nearest
   // older day that has entries — into view.

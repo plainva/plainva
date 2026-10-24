@@ -4,8 +4,8 @@ import {
   parseFolderTemplateRules,
   parseTypeTemplateRules,
   resolveTemplateForNewNote,
+  templateAsNewNote,
   templateFilePath,
-  withOkfDefaults,
   type FolderTemplateRule,
   type TypeTemplateRule,
 } from "@plainva/ui";
@@ -13,8 +13,7 @@ import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
 import { folderTemplatesKey, typeTemplatesKey, templateFolderKey } from "../contexts/VaultContext";
 import { getConfiguredNoteType } from "./newNote";
-import { makeDailyPathProvider } from "./dailyNotes";
-import { applyTemplateInteractive, withShellContext } from "./templateInteractive";
+import { applyTemplateInteractive } from "./templateInteractive";
 
 /**
  * What a new note starts from (plan Vorlagen-Engine, P4/P4b).
@@ -103,24 +102,14 @@ export async function buildNewNoteFromTemplate(req: NewNoteRequest): Promise<New
   }
 
   const raw = await adapter.readTextFile(templatePath);
-  const now = new Date();
   const answered = await applyTemplateInteractive(
     raw,
-    await withShellContext(raw, {
-      title,
-      now,
-      folder,
-      vaultName: vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "",
-      dailyPath: await makeDailyPathProvider(vaultPath, now),
-    }),
+    { title, now: new Date(), folder, vaultPath },
     i18n.t("templatePicker.answersTitle", { defaultValue: "Angaben für die Vorlage" })
   );
   if (!answered) return null;
 
-  // `{{cursor}}` is measured in the template body; OKF frontmatter may be
-  // prepended, so the offset shifts by however much grew in front.
-  const bodyLength = answered.text.length;
-  const content = withOkfDefaults(answered.text, type);
-  const caret = answered.cursor === null ? null : answered.cursor + (content.length - bodyLength);
-  return { content, caret, templatePath };
+  // The shared builder, which the phone calls for its notes too: the OKF
+  // defaults on the template, and `{{cursor}}` where it stands in the result.
+  return { ...templateAsNewNote(answered, type), templatePath };
 }

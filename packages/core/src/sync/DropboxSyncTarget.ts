@@ -1,6 +1,7 @@
 import { syncHttpError, SyncRootMissingError } from "./errorKind.js";
 import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
-import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence } from "./ISyncTarget.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence, RemoteChangedError, type ExpectedRemote } from "./ISyncTarget.js";
+import { ConditionalWrites } from "./conditionalWrite.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
@@ -26,6 +27,9 @@ const DEFAULT_ROOT = "/Plainva";
 /** files/upload hard limit is 150 MB; larger bodies go through an upload session. */
 const SIMPLE_UPLOAD_LIMIT = 150 * 1024 * 1024;
 const UPLOAD_CHUNK = 32 * 1024 * 1024;
+
+/** Dropbox `WriteMode`: replace, create only, or replace only this revision. */
+type DropboxWriteMode = "overwrite" | "add" | { ".tag": "update"; update: string };
 
 interface DropboxEntry {
   ".tag": "file" | "folder" | "deleted";
@@ -438,6 +442,12 @@ export class DropboxSyncTarget implements ISyncTarget {
 
   /** One `files/get_metadata` (C31); marker as in `pull` (`fileEtag`). */
   public async stat(filePath: string): Promise<RemoteStat | null> {
+    const entry = await this.statEntry(filePath);
+    return entry ? this.statOf(entry) : null;
+  }
+
+  /** The file's metadata as Dropbox answers it, or null (no file, a folder, a conflict copy). */
+  private async statEntry(filePath: string): Promise<DropboxEntry | null> {
     if (filePath.includes(".CONFLICT")) return null;
     const res = await this.rpc("files/get_metadata", { path: this.dropboxPath(filePath) });
     if (res.status === 409) {
@@ -447,7 +457,10 @@ export class DropboxSyncTarget implements ISyncTarget {
     }
     if (!res.ok) throw syncHttpError(`Dropbox metadata lookup failed: ${res.status} ${res.statusText}`, res);
     const entry = (await res.json()) as DropboxEntry;
-    if (entry[".tag"] !== "file") return null;
+    return entry[".tag"] === "file" ? entry : null;
+  }
+
+  private statOf(entry: DropboxEntry): RemoteStat {
     const modifiedAt = entry.server_modified ? Date.parse(entry.server_modified) : Number.NaN;
     return {
       etag: this.fileEtag(entry),
@@ -485,11 +498,84 @@ export class DropboxSyncTarget implements ISyncTarget {
    * large attachment never exists in memory (issue #48); the session protocol
    * is identical either way.
    */
+  /** Whether Dropbox evaluates the write modes below; see `ConditionalWrites`. */
+  private readonly conditions = new ConditionalWrites("Dropbox");
+
+  /**
+   * The write mode of an upload that expects `expected` (Sammelplan
+   * § 3.103). The marker of the listing is the `content_hash`; Dropbox makes a
+   * write conditional on the `rev`. So the file is asked first, its
+   * `content_hash` compared with the merge base, and the upload commits with
+   * `update` on the `rev` of that very answer — whatever changes the file
+   * after the question, Dropbox refuses the commit. "No file" is `add`.
+   */
+  private async modeFor(filePath: string, expected: ExpectedRemote): Promise<DropboxWriteMode> {
+    if (expected.kind === "absent") {
+      if (this.conditions.conditionsHold) return "add";
+      await this.conditions.askFirst(filePath, expected, () => this.stat(filePath));
+      return "overwrite";
+    }
+    const entry = await this.statEntry(filePath);
+    if (!ConditionalWrites.holds(expected, entry ? this.statOf(entry) : null)) throw new RemoteChangedError(filePath, "found before the upload");
+    return this.conditions.conditionsHold && entry?.rev ? { ".tag": "update", update: entry.rev } : "overwrite";
+  }
+
+  /**
+   * Dropbox refused the write mode `tried` (`path/conflict`). Throws
+   * `RemoteChangedError` when the content really moved. Answers the mode for
+   * one more attempt: `update` on the new `rev` where only the revision moved,
+   * `overwrite` where Dropbox did not evaluate the mode as meant.
+   */
+  private async afterRefusal(filePath: string, expected: ExpectedRemote, tried: DropboxWriteMode, answer: string): Promise<DropboxWriteMode> {
+    if (typeof tried === "object" && expected.kind === "marker") {
+      const entry = await this.statEntry(filePath);
+      if (!ConditionalWrites.holds(expected, entry ? this.statOf(entry) : null)) throw new RemoteChangedError(filePath, answer);
+      if (entry?.rev && entry.rev !== tried.update) return { ".tag": "update", update: entry.rev };
+    }
+    await this.conditions.refused(filePath, expected, () => this.stat(filePath), answer);
+    return "overwrite";
+  }
+
+  /**
+   * The `error_summary` of a refused write mode — 409 `path/conflict/file`:
+   * another file holds the path — or null for any other answer. A folder at
+   * the path (`path/conflict/folder`) is no refusal of the mode; the upload
+   * fails as it always did.
+   */
+  private async refusedMode(res: Response, mode: DropboxWriteMode): Promise<string | null> {
+    if (mode === "overwrite" || res.status !== 409) return null;
+    const summary = await this.errorSummary(res);
+    return summary.includes("path/conflict/file") ? summary : null;
+  }
+
+  /**
+   * One upload under the mode `expected` asks for, and once more where Dropbox
+   * refused it without the content having moved (`afterRefusal`). Answers the
+   * last response, unchecked.
+   */
+  private async writeConditionally(filePath: string, expected: ExpectedRemote | undefined, attempt: (mode: DropboxWriteMode) => Promise<Response>): Promise<Response> {
+    if (!expected) return attempt("overwrite");
+    const mode = await this.modeFor(filePath, expected);
+    const res = await attempt(mode);
+    const refused = await this.refusedMode(res, mode);
+    if (!refused) return res;
+    const next = await this.afterRefusal(filePath, expected, mode, refused);
+    const again = await attempt(next);
+    const refusedAgain = await this.refusedMode(again, next);
+    if (refusedAgain) throw new RemoteChangedError(filePath, refusedAgain);
+    return again;
+  }
+
+  /**
+   * Large upload via an upload session (see `uploadLarge`): the commit's
+   * response, unchecked — a refused write mode is answered at the commit.
+   */
   private async uploadLarge(
     path: string,
     content: Uint8Array | undefined,
-    ref?: SyncContentRef
-  ): Promise<DropboxEntry> {
+    ref: SyncContentRef | undefined,
+    mode: DropboxWriteMode
+  ): Promise<Response> {
     const total = ref ? ref.size : content!.length;
     /** One chunk: from disk when streaming, from the buffer otherwise. */
     const chunkArgs = (start: number, end: number): [Uint8Array | undefined, { ref: SyncContentRef; offset: number; length: number } | undefined] =>
@@ -522,19 +608,15 @@ export class DropboxSyncTarget implements ISyncTarget {
     }
 
     const [restBody, restStream] = chunkArgs(offset, total);
-    const finishRes = await this.contentCall(
+    return this.contentCall(
       "files/upload_session/finish",
       {
         cursor: { session_id, offset },
-        commit: { path, mode: "overwrite", autorename: false, mute: true },
+        commit: { path, mode, autorename: false, mute: true },
       },
       restBody,
       restStream
     );
-    if (!finishRes.ok) {
-      throw syncHttpError(`Dropbox upload finish failed: ${finishRes.status} ${finishRes.statusText}`, finishRes);
-    }
-    return (await finishRes.json()) as DropboxEntry;
   }
 
   public async push(op: SyncOperation): Promise<PushResult | void> {
@@ -546,16 +628,21 @@ export class DropboxSyncTarget implements ISyncTarget {
       const size = op.contentRef ? op.contentRef.size : content.length;
 
       if (size > this.simpleUploadLimit) {
-        const entry = await this.uploadLarge(path, op.contentRef ? undefined : content, op.contentRef);
+        const finishRes = await this.writeConditionally(op.file_path, op.expectedRemote,
+          (mode) => this.uploadLarge(path, op.contentRef ? undefined : content, op.contentRef, mode));
+        if (!finishRes.ok) {
+          throw syncHttpError(`Dropbox upload finish failed: ${finishRes.status} ${finishRes.statusText}`, finishRes);
+        }
+        const entry = (await finishRes.json()) as DropboxEntry;
         return { etag: this.fileEtag(entry), remoteId: entry.id };
       }
 
       // files/upload creates missing parent folders implicitly.
-      const res = await this.contentCall(
+      const res = await this.writeConditionally(op.file_path, op.expectedRemote, (mode) => this.contentCall(
         "files/upload",
-        { path, mode: "overwrite", autorename: false, mute: true },
+        { path, mode, autorename: false, mute: true },
         content
-      );
+      ));
       if (!res.ok) throw syncHttpError(`Dropbox upload failed: ${res.status} ${res.statusText}`, res);
       const entry = (await res.json()) as DropboxEntry;
       return { etag: this.fileEtag(entry), remoteId: entry.id };

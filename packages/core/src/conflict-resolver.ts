@@ -1,13 +1,39 @@
 import { diff3Merge, diffIndices, merge } from "node-diff3";
 import { alignTaskSyncMetadata, classifyTaskNotes } from "./pim/taskNoteIdentity.js";
 import { readJournalLine } from "./journal.js";
+import { applyTextShape, editorTextOf, mergedTextShape, readTextShape, type TextFileShape } from "./textFileShape.js";
 
 export type MergeResult = {
   mergedText: string;
   hasConflicts: boolean;
 };
 
-const splitLines = (text: string): string[] => text.split(/\r?\n/);
+/**
+ * Every merge here works on LINES — the text an editor holds, without line
+ * ends and without a byte order mark — and hands its result back in the shape
+ * `mergedTextShape` decides (see `textFileShape.ts`). The lines used to be
+ * joined with `\n` whatever went in: a file two devices had changed came back
+ * with every line end turned, and one that carries a mark could not be merged
+ * at all, because its first line differed from the same line read without it.
+ */
+const splitLines = (text: string): string[] => editorTextOf(text).split("\n");
+
+/**
+ * The merged text in the merged shape — and where that is one side's own text
+ * in its own shape, that side itself, byte for byte.
+ *
+ * A merge that took nothing from the other side has nothing new to say. Put
+ * together anew, its result still differed from a file with a stray line end:
+ * the sync rewrote such a file and uploaded it, although nobody had edited it
+ * here. `first` is asked first where both sides qualify.
+ */
+function inMergedShape(text: string, shape: TextFileShape, first: string, second: string): string {
+  for (const side of [first, second]) {
+    const read = readTextShape(side);
+    if (read.text === text && read.shape.eol === shape.eol && read.shape.bom === shape.bom) return side;
+  }
+  return applyTextShape(text, shape);
+}
 
 // ---------------------------------------------------------------- journal
 
@@ -173,7 +199,11 @@ export function mergeWithoutBase(yours: string, theirs: string): MergeResult {
     cursor = hunk.buffer1[0] + hunk.buffer1[1];
   }
   out.push(...unitLines(a.slice(cursor)));
-  return { mergedText: out.join("\n"), hasConflicts: false };
+  // Without an ancestor the version that is already out there decides the
+  // shape, and where the two say the same lines it IS the result: a device
+  // that joins with the same notes in other line ends takes over what the
+  // others hold instead of uploading its own.
+  return { mergedText: inMergedShape(out.join("\n"), mergedTextShape(null, yours, theirs), theirs, yours), hasConflicts: false };
 }
 
 // ---------------------------------------------------------------- three-way
@@ -185,11 +215,13 @@ export function mergeWithoutBase(yours: string, theirs: string): MergeResult {
  * @param yours The local text changes
  * @param theirs The remote text changes
  * @returns An object containing the merged text (with conflict markers if any) and a boolean indicating if conflicts exist.
+ *   The text has the line ends and the mark the three versions agree on, or the ones a side changed them to.
  */
 export function mergeText(base: string, yours: string, theirs: string): MergeResult {
   // Different provider tasks can occupy the same legacy filename. Even a
   // clean line merge must never combine their fields into a third task.
   if (classifyTaskNotes(yours, theirs) === "different") return { mergedText: yours, hasConflicts: true };
+  const shape = mergedTextShape(base, yours, theirs);
   if (classifyTaskNotes(base, yours) === "same" && classifyTaskNotes(yours, theirs) === "same") {
     base = alignTaskSyncMetadata(base, theirs);
     yours = alignTaskSyncMetadata(yours, theirs);
@@ -203,20 +235,25 @@ export function mergeText(base: string, yours: string, theirs: string): MergeRes
   if (result.conflict) {
     // Nothing that merges cleanly today takes this path.
     const united = uniteJournalConflicts(yoursLines, baseLines, theirsLines);
-    if (united) return { mergedText: united.join("\n"), hasConflicts: false };
+    if (united) return { mergedText: inMergedShape(united.join("\n"), shape, yours, theirs), hasConflicts: false };
   }
 
+  const merged = result.result.join("\n");
   return {
-    mergedText: result.result.join("\n"),
+    mergedText: result.conflict ? applyTextShape(merged, shape) : inMergedShape(merged, shape, yours, theirs),
     hasConflicts: result.conflict
   };
 }
 
-/** A read-back contains the intended change, possibly with additional edits. */
+/**
+ * A read-back contains the intended change, possibly with additional edits.
+ * The question is about the text: a file whose line ends are not uniform reads
+ * back as it was written and still differs from a merge of its lines.
+ */
 export function containsTextChanges(base: string, intended: string, actual: string): boolean {
   if (actual === intended) return true;
   const result = mergeText(base, intended, actual);
-  return !result.hasConflicts && result.mergedText === actual;
+  return !result.hasConflicts && editorTextOf(result.mergedText) === editorTextOf(actual);
 }
 
 /** Editor input can continue on the same line as a confirmed external write.
@@ -226,7 +263,9 @@ export function containsTextChanges(base: string, intended: string, actual: stri
 export function mergeEditorText(base: string, yours: string, theirs: string): MergeResult {
   const lines = mergeText(base, yours, theirs);
   if (!lines.hasConflicts) return lines;
-  const tokenize = (text: string) => text.match(/\s+|\S+/gu) ?? [];
+  // Words are compared in the one text an editor holds, so that a line end
+  // written two ways is not a difference between two blanks.
+  const tokenize = (text: string) => editorTextOf(text).match(/\s+|\S+/gu) ?? [];
   const a = tokenize(yours), o = tokenize(base), b = tokenize(theirs);
   let start = 0;
   while (start < a.length && start < o.length && start < b.length && a[start] === o[start] && o[start] === b[start]) start++;
@@ -257,5 +296,6 @@ export function mergeEditorText(base: string, yours: string, theirs: string): Me
     if (!duplicate) edits.push(r);
   }
   for (const edit of edits.sort((l, r) => r.from - l.from || r.to - l.to)) ancestor.splice(edit.from, edit.to - edit.from, ...edit.insert);
-  return { mergedText: [...o.slice(0, start), ...ancestor, ...(end ? o.slice(o.length - end) : [])].join(""), hasConflicts: false };
+  const merged = [...o.slice(0, start), ...ancestor, ...(end ? o.slice(o.length - end) : [])].join("");
+  return { mergedText: inMergedShape(merged, mergedTextShape(base, yours, theirs), yours, theirs), hasConflicts: false };
 }

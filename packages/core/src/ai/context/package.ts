@@ -40,7 +40,7 @@ import { questionTerms } from "./terms.js";
  * people's words about a note, which the notes themselves never carry.
  * `images`: a picture of the vault the user asked about ("Explain image", plan P4-5) — never
  * picked by the context package, only ever sent at the user's own request.
- * `memory`: entries of the vault's memory for assistants (plan P6, ADR 0027) — what the user kept
+ * `memory`: entries of the vault's memory for assistants (plan P6, ADR 0032) — what the user kept
  * about themselves and their work. They go with a conversation's system prompt, not with the
  * package; the overview names them because they are vault text all the same.
  */

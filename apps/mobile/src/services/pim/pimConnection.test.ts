@@ -148,4 +148,39 @@ describe("actual mobile calendar connection lifecycle", () => {
     await expect(pim.addPimAccount("microsoft", "New", creds)).rejects.toThrow("runtime changed");
     expect(state.secrets.size).toBe(0); expect(state.rows.size).toBe(0);
   });
+  // The second attempt after a failed Google sign-in read "the target account
+  // or vault changed" although neither had. Two ways there, both reproduced:
+  it("accounts arriving from another device restart the calendar only after the sign-in in flight is stored", async () => {
+    let restart: Promise<void> | undefined;
+    // Returning to the app from the provider's dialog is when the settings sync imports.
+    state.probe = async () => { state.probe = async () => {}; restart = pim.restartPimAfterImport(vault("original")); await Promise.resolve(); };
+    const id = await pim.addPimAccount("microsoft", "New", creds);
+    await restart;
+    expect(state.rows.get("original")?.map((row) => row.id)).toEqual([id]);
+    expect(pim.isPimRuntimeReady()).toBe(true);
+    // ...and a connection that starts while the restart is under way waits for the new runtime.
+    const again = pim.restartPimAfterImport(vault("original"));
+    await expect(pim.reauthorizePimAccount(id, creds)).resolves.toBeUndefined();
+    await again;
+  });
+  it("signs in the account's own calendar row that arrived with the settings of another device", async () => {
+    const context = source();
+    const records = state.settings.get("cloudAccounts_original") as CloudAccountRecord[];
+    state.settings.set("cloudAccounts_original", records.map((r) => r.id === "selected" ? { ...r, services: { ...r.services, calendar: { pimAccountId: "synced" } } } : r));
+    // An older row: no verified identity of its own, and no credential on this device.
+    state.rows.set("original", [{ id: "synced", provider: "google", label: "Selected", enabled: true, config: {} }]);
+    expect(await pim.addPimAccount("google", "New", googleCreds, context)).toBe("synced");
+    expect(state.rows.get("original")?.map((row) => row.id)).toEqual(["synced"]);
+    expect(state.secrets.has(pimSecretKey("original", "synced"))).toBe(true);
+    expect((state.settings.get("cloudAccounts_original") as CloudAccountRecord[]).find((r) => r.id === "selected")?.services.calendar).toEqual({ pimAccountId: "synced" });
+  });
+  it("still refuses a second row when the bound row is signed in on this device", async () => {
+    const context = source();
+    const records = state.settings.get("cloudAccounts_original") as CloudAccountRecord[];
+    state.settings.set("cloudAccounts_original", records.map((r) => r.id === "selected" ? { ...r, services: { ...r.services, calendar: { pimAccountId: "synced" } } } : r));
+    state.rows.set("original", [{ id: "synced", provider: "google", label: "Selected", enabled: true, config: {} }]);
+    state.secrets.set(pimSecretKey("original", "synced"), JSON.stringify({ kind: "google", clientId: "client", clientSecret: "", refreshToken: "kept" }));
+    await expect(pim.addPimAccount("google", "New", googleCreds, context)).rejects.toThrow("accountChanged");
+    expect(JSON.parse(state.secrets.get(pimSecretKey("original", "synced"))!).refreshToken).toBe("kept");
+  });
 });

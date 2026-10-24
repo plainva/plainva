@@ -100,8 +100,9 @@ function fakeQuery(opts: {
     async getFileProperties(_path: string) {
       return opts.props ?? {};
     },
-    async listNotes() {
-      return (opts.notes ?? []).map((path) => ({ path }));
+    // The link rule's corpus: every file with the title and mode the index holds.
+    async linkTargets() {
+      return (opts.notes ?? []).map((path) => ({ path, title: path.split("/").pop()!.replace(/\.md$/, ""), mode: "obsidian" }));
     },
   };
 }
@@ -203,7 +204,7 @@ describe("explicit context filters (Diese Notiz)", () => {
         return m;
       },
       async getFileProperties() { return {}; },
-      async listNotes() { return []; },
+      async linkTargets() { return []; },
     };
     const scope = await computeContextScope(qs, "Host.md", [relA, relB], new Set());
     expect([...scope]).toEqual(["T2.md"]); // intersection

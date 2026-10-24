@@ -13,6 +13,7 @@ import {
   type OkfRunReport,
 } from "../services/okfConversion";
 import type { OkfJournal } from "../services/okfJournal";
+import { configuredNoteType, noteTypeOf } from "../services/newNote";
 import type { MobileVault } from "../services/vaultService";
 
 /**
@@ -52,7 +53,10 @@ export function OkfConversionScreen({ vault, onBack }: { vault: MobileVault; onB
   const [scan, setScan] = useState<OkfScanResult | null>(null);
   const [pending, setPending] = useState<OkfJournal | null>(null);
   const [remaining, setRemaining] = useState(-1);
-  const [defaultType, setDefaultType] = useState("note");
+  // The vault's type for new notes, as on the desktop: the phone offered a
+  // `note` of its own here, so the same vault converted on the two devices got
+  // two types (finding 2026-10-21).
+  const [defaultType, setDefaultType] = useState(() => configuredNoteType());
   const [renameExisting, setRenameExisting] = useState(false);
   const [progress, setProgress] = useState<Progress>({ done: 0, total: 0, path: "" });
   const [report, setReport] = useState<OkfRunReport | null>(null);
@@ -113,7 +117,8 @@ export function OkfConversionScreen({ vault, onBack }: { vault: MobileVault; onB
         vault,
         scan: target,
         options: {
-          defaultType: defaultType.trim() || "note",
+          // Blank is the default type, as on the desktop.
+          defaultType: noteTypeOf(defaultType),
           existingTypeStrategy: renameExisting ? "rename" : "keep",
         },
         backupDir,

@@ -1,4 +1,4 @@
-import { analyzeNoteSource, noteSlug, noteSlugger } from "@plainva/core";
+import { analyzeNoteSource, editorTextOf, noteSlug, noteSlugger } from "@plainva/core";
 
 /**
  * Document outline (#10): extract the heading structure of a markdown note for
@@ -34,7 +34,11 @@ export interface OutlineContext {
 const LIST_ITEM_RE = /^([ \t]*)(?:[-+*]|\d+[.)])[ \t]+(?:\[[ xX/-]\][ \t]+)?(.*)/;
 
 export function outlineContextFor(content: string, line: number): OutlineContext {
-  const lines = content.split("\n");
+  // The lines as an editor holds them. `content` is a file's text, and a byte
+  // order mark stands in front of its first line without being part of it: a
+  // list item there was not read as one and kept its marker in the context
+  // (finding 2026-10-09). The line numbers are the same in both texts.
+  const lines = editorTextOf(content).split("\n");
   const idx = Math.min(Math.max(line, 1), lines.length) - 1;
 
   // Heading chain: walk the headings above the line, keeping a stack by level.

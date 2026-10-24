@@ -83,7 +83,7 @@ function ComputedFields({
                     className="m-row"
                     key={`${link.target}-${i}`}
                     onClick={() => {
-                      void vaultOps.resolveWikiTarget(vault, link.target, path).then((p) => {
+                      void vaultOps.resolveWikiTarget(vault, link.target, path, "wiki").then((p) => {
                         if (p) onOpenNote(p);
                       }).catch(() => {});
                     }}

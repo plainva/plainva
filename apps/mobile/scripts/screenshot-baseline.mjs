@@ -301,6 +301,20 @@ const SURFACES = [
     ],
   },
   { id: "calendar", requires: "[data-testid=\"pim-daycol-head\"]", steps: area("calendar") },
+  // Week numbers (wish 2026-10-19): the month with its week column, switched on
+  // the way a person does - the box at the foot of the date picker.
+  {
+    id: "calendar-month-weeks",
+    requires: "[data-testid=\"pim-week-number\"]",
+    steps: [
+      ...area("calendar"),
+      { click: '[data-testid="pim-view-month"]' },
+      { click: '[data-testid="pim-title"]' },
+      { click: '[data-testid="calendar-show-weeks"]' },
+      { click: '[data-testid="pim-jump-today"]' },
+      { wait: 400 },
+    ],
+  },
   // The "show" row with a database view switched on (S18b). The grid itself
   // stays unreachable (no PIM credential slot, see the fixture's note), so this
   // photographs the row, not the entries in a day.

@@ -5,6 +5,164 @@ All notable changes to Plainva are documented here. The format is based on
 follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once it
 reaches 1.0.
 
+## [0.8.6] - 2026-10-23
+
+Ticks from your provider arrive. This release brings together the changes since 0.8.5: tasks ticked at Google, Microsoft or over CalDAV that reach their note, a round of wishes from testers, among them a choice of how links look, Markdown links that lead to one place, an upload that writes only over the version it expects, and fixes for properties, templates, files in other encodings, mail and the index. Shared improvements apply to desktop and mobile.
+
+If you sync a vault across devices, please update all of them (see *Sync* below).
+
+### Tasks and calendar
+
+- **A task ticked at the provider reaches its note.** Every task list is fetched on its own: a list that fails costs only that list, and its problem stands above the task view. A tick, a status or a due date the note cannot hold — no done column, no date column — is no longer recorded as agreed; the list says why, and the change arrives once the database can take it.
+- In a status column the done option is the one named done, wherever it stands; a cancelled option counts as closed and never reopens the task at the provider. CalDAV reads `COMPLETED` and `PERCENT-COMPLETE:100` as done.
+- Due dates are kept: a date column added later gets the provider's dates instead of clearing them at the provider, a time you put into a note survives a tick at Google, and a reminder's time from the phone is no longer sent back without it.
+- **A saved event stays on screen.** On the desktop an event could disappear after saving and come back a moment later, when a refresh that had started before the save arrived. Thanks for [#119](https://github.com/plainva/plainva/issues/119). **All events** of a series can be deleted where only its occurrences were cached, and a deletion the provider refuses says “not deleted”.
+- On the phone, **Show tasks** puts due tasks into every calendar view, and a database's entries show in the day, 3-day and week views too.
+
+### Wishes from testers
+
+- **Settings → App → Appearance** chooses how links look: **Links to notes** (wiki links and Markdown links into the vault) **Underlined** — the default, as before — **Tinted**, **Colour only** or **Subtle**, and **Links to the web** **Underlined** or **Colour only**. A link to a note that does not exist yet stays muted and dashed, and high contrast underlines every link.
+- **Show week numbers** is one choice per device for every calendar — sidebar, calendar tab and phone — switched at the foot of each date picker. A time grid names its week in the title.
+- On the phone the all-day row stays pinned above the hours, shows five rows and then “+ n more”, like the desktop.
+- A new note opens to be written in, whatever the default view says.
+- Task boxes in a note and in the journal grow under a finger. On the phone, **New task** and a database's date cell pick their day from the app's own calendar.
+- Desktop: the main window comes back with its size, place and maximized state.
+- Desktop: **Open new notes in a new tab** (**Settings → Editor & notes**, off by default). Thanks for [#135](https://github.com/plainva/plainva/issues/135) for both.
+- Tabs with short file names no longer carry empty space.
+
+### Writing and editing
+
+- A click into an open table cell places the caret; the cell used to swallow every press and keep its text selected. Thanks for [#118](https://github.com/plainva/plainva/issues/118).
+- macOS: with **Spell checking** on, misspelled words are marked again. The system setting the web view needs was never switched on; Plainva now sets it at start when nothing is stored. Thanks for [#135](https://github.com/plainva/plainva/issues/135).
+- In a managed `index.md`, a long file name ends in “…” inside its tile, and the tooltip names it whole.
+- A jump from the outline puts the heading at the top, in both shells.
+- An embed in a code span, a comment or behind a backslash stays text instead of drawing a picture mid-sentence.
+- A menu takes the keyboard when it opens and gives it back when it closes; a held Enter no longer picks an entry twice. Select lists, the property popovers, a database's cell editors, the date field and the graph's filters close on a press beside them, also on the title bar of a floating window.
+
+### Links
+
+- One rule says where a Markdown link `[text](target)` leads: from the linking note's folder first, as every Markdown reader reads it, and where nothing lies there, where the wiki link of the same text leads. It holds for the editor, reading mode, table cells, comments, the journal, database cells, the phone, the graph, backlinks, renames and the clean-up. Before, the editor could create a note named `My%20letter.md` beside the real one. Only web, mail and phone addresses are handed to the system.
+- A wiki link is read before Markdown reads anything into it: `[[_private_]]`, `[[__init__]]` and an alias with emphasis or a code span are links for the index, backlinks, the graph and a rename, and the reading view shows a name as it is written. The index catches up in the background, reading only the notes concerned.
+- Preparing a note adopted as a folder's overview no longer breaks the links to and from it, and the phone offers to prepare it too.
+- **Remove text link(s)** in the graph works on Markdown links and embeds as well, and leaves the properties and code alone.
+
+### Properties and templates
+
+- **A note's properties are read field by field.** One value its field does not take — an empty `tags:`, a date under `timestamp`, a number under `title` — used to hide every property of the note: no tags in the index, “No properties” in the panel, every write refused. Such a value is now read as the text it is written with, and the panel says when a block cannot be read at all.
+- Because more notes are now read, databases, filters, the tag tree, the graph and template rules by `type` can show notes they missed before. In an encrypted workspace, a slice rule by tag or property now also matches such a note, and it becomes visible to the slice's members with the next sync.
+- A property write that fails is said, with its reason: a note's icon and colour, a rename of a property across a database — which now asks every note first and does not start where one refuses —, a removal, a relation added to a note, which now keeps the links it had.
+- A note made from a template no longer keeps what is meant for the template alone: `plainva.tasks: false` (its tasks were missing from the task view), the database assignment and an old `okf_version`. Notes that exist are not rewritten.
+- Every way a template is filled gets the same context: the week start and the clipboard reach the desktop's daily note and database entries, `{{daily}}` works in the phone's daily note, the mail composer asks a template's questions once, and an entry made in the background knows `{{folder}}` and `{{vault}}`.
+- The caret of a database template arrives in the peek window where the entry opens.
+- A new note gets the type the vault is set to, also from the phone's capture button, a link and the share sheet, and on the desktop for a task made from a mail or a comment.
+- A published slice refuses a note whose properties block is no YAML map, and names that note, instead of dropping the block without a word.
+
+### Files
+
+- A file is text when its name says so and its bytes are UTF-8. A `.csv` in Windows-1252 opens as **This file is not text** and is never written over as text — before, its first save could replace characters for good. Text being edited when a file turned into another encoding is kept as a copy beside it.
+- On the iPhone, a file in the app's own storage keeps its byte order mark when it is read; before, a save dropped it and the sync carried that on.
+- A line that ends in a carriage return of its own — a file from a classic Mac — is a line for merges and everything that writes beside the editor. The first change to such a file turns its line endings and says so.
+
+### Sync
+
+**Please update every device that works with the same vault.** The upload check below runs on the device that uploads: a device on an older version can still write over a change another device made in between.
+
+- **An upload writes only over the version it expects.** Every upload names the version it expects on the server, and with WebDAV, S3, OneDrive and Dropbox the server refuses the write when another device uploaded in between. Nothing is written then; the upload stays queued, and the next sync merges the other version in or keeps this device's version as a conflict copy. Before, the other device's change could be overwritten and then be gone on both devices, without a conflict copy. Google Drive keeps the check it already made before an upload.
+- **A note's own text is kept beside an open conflict.** When another device contradicted a note with an open conflict before this device had uploaded it, only the draft was kept and the note's own text was lost. It now stays as a further conflict copy.
+- **A file kept although the cloud deleted it goes up again.** A file deleted in the cloud while this device still had unsynced changes to it was kept — and then lived on this device only, while the notice about kept files came back in every cycle, without a name. It is now uploaded again, and the notice names up to three files, once. A file that differs from its last synced version only in its line endings or byte order mark follows a deletion made on another device.
+- A bookmark can be set again after a settings profile brought one from another device, and pins and recent notes are saved in a vault folder that two devices write to. Before, the next bookmark failed with “Bookmarks could not be saved.”
+- **Android: Google Drive keeps its access after Cloud accounts was opened.** A vault connected through Google's own sign-in sheet lost its Drive access once the account list had been opened: the list handed the sign-in to its account, and the files then looked for a kind of sign-in the sheet does not hold. Signing in again could not repair it. Since 0.8.3; the files, signing in again and the account repair now accept such a sign-in.
+- Encrypted workspaces: what the worker brings from another device is no longer queued here again as a change of this device. The phone sent such a note back as a revision and could keep an older text.
+
+### Index
+
+- An index pass that meets a file it cannot read leaves it out and names it, instead of failing; a failed scan keeps the vault and says so. On the iPhone a picked folder is listed by the desktop's rules, and a link that points nowhere is named instead of stopping the index. Thanks for [#125](https://github.com/plainva/plainva/issues/125).
+- A file the app moves during a full scan is no longer reported as deleted and new, and a moved file keeps its creation time. **Rebuild index** reads every file again on both shells.
+- On the phone, database transactions take turns: a write that met a sync step, an index pass or the calendar cache could fail after the file had already changed and lose its place in the sync queue, and an editor then ended in a conflict copy.
+
+### Mail
+
+- In **All inboxes**, a message from another mailbox opens and stays open, and no list, search or flagged list still on its way lands under the next folder. On the phone, pull to refresh reaches the mail list.
+- The phone reads mail as it is really built: a `=` inside base64 no longer costs the whole message and its attachments, a part without header lines keeps its first paragraph, and the list shows the first words of a nested message. On the desktop, a text file attached that way arrives whole.
+
+### Phone
+
+- Tasks due from ordinary notes (`- [ ] … 📅 YYYY-MM-DD`) now appear under **Due** on the phone's **Today** screen, among the tasks of both shells' calendars and in the home-screen widget, not only those from a task database.
+- A vault switch that a calendar or file connection starts is offered instead of taken while unsaved input is on screen, and **New task** asked for from elsewhere waits until the question is answered.
+
+### Security
+
+- The desktop's TLS and archive libraries are updated: rustls 0.23.46 (RUSTSEC-2026-0346 to -0349), rustls-webpki 0.103.16 with webpki-roots 1.0.10 (RUSTSEC-2026-0381 to -0383, intermediates of the distrusted emSign roots) and zip 9 (RUSTSEC-2026-0367 to -0369).
+
+Encrypted workspaces, the on-device calendar, voice notes and the location stamp remain experimental. These are specific corrections and improvements, not an independent security audit.
+
+## [0.8.5] - 2026-10-13
+
+Forward with attachments. This release brings together the changes since 0.8.4: mail that forwards the files of the original and answers from the right mailbox, calendar blockers that follow their event, spell checking as one switch, typing that no longer stutters on save — and a long list of fixes for sync, files and links. Shared improvements apply to desktop and mobile.
+
+If you sync a vault across devices, please update all of them (see *Sync and files* below).
+
+### Mail
+
+- **Forward** brings the files of the original along. Each file says what is happening to it — loading, there, did not arrive, stays behind — and before a message goes out without one of the files shown, Plainva asks once. From a Microsoft mailbox every file up to 2.8 MB travels; on its own, Plainva brings along at most 18 MB per message when forwarding.
+- A received attachment can be saved into the vault on the desktop too (**Save to vault**): next to the filed mail, under the name of the file, never over an existing one.
+- A message the mail server refuses comes back into a compose window with the reason, instead of being lost behind one line of error text.
+- A reply, a forward and a new message start from the mailbox they are written in, with its signature. The desktop composer used to take the first mailbox that is stored.
+- **Each mailbox signs in as its own account.** With two Microsoft or two Gmail mailboxes in one vault, the second one read and sent with the sign-in of the first. That is fixed on both shells. An account that is connected twice with mail in the same vault asks for a sign-in once after the update.
+- A Microsoft mailbox can send from the desktop composer.
+- A message that is HTML only has a text for a reply, a forward and the filed note.
+- The composer asks before a changed draft is discarded — when it is closed, when the vault is switched or closed, and when another message is started while it is open.
+- A link in a message says where it leads before you follow it, and warns when its text names another address. In the spam folder no image loads on its own.
+
+### Calendar
+
+- Blockers follow their event. A blocker holds the time of an event free in another calendar; when the event is moved, changed or deleted, its blockers follow, and a blocker you move asks whether you meant the blocker or the event.
+- An event or task shows the moment you save it, marked as on its way until the provider has answered; a dragged event stays where you drop it. Thanks for [#119](https://github.com/plainva/plainva/issues/119).
+- The calendar no longer turns up empty after a failed refresh: a locked store is temporary, a problem with one calendar stays with that calendar, and a line above the calendar says what has not been synced and since when.
+- The all-day row shows five rows and counts the rest.
+
+### Writing and editing
+
+- **Spell checking** is one switch per device (**Settings**), off until you turn it on. It underlines misspelled words in notes, table cells, emails, comments, journal entries and tasks, using the spell checker of your system; code, keys and passwords are never checked. On Linux the switch has no effect yet.
+- Saving no longer holds up typing. On Windows every save used to trigger a walk through the whole vault; a changed folder now gets a shallow check, and the full scan runs outside the interface. Thanks for [#122](https://github.com/plainva/plainva/issues/122).
+- A table cell is edited in a field as tall as its text. Thanks for [#118](https://github.com/plainva/plainva/issues/118).
+- The right column is one row grid for properties, database fields and origin, and its headings no longer jump with the scrollbar.
+- Every menu closes on Escape and on a press beside it, also when the press lands in a floating window; a dialog lies in front of floating windows.
+- macOS: the shortcut for the global quick capture can be changed again. Thanks for [#123](https://github.com/plainva/plainva/issues/123).
+
+### Tasks
+
+- A task's date opens the date picker, **All to today** moves every overdue task in one step, the checkbox is larger, and the capture field completes `[[` links and `#` tags.
+- Bookmarks can be reordered. A shared note is named after its title, without the id of the share.
+- Voice notes are recorded as m4a where the system's web view supports it.
+
+### Links and renaming
+
+- One rule decides where a wiki link leads: the path, then the file name, last the `title` in the properties. It holds for click, tap, embeds, the graph, backlinks and relations, and the link pickers write the file name.
+- Renaming a note changes the link target in the notes that link to it and nothing else — byte for byte, in the text and in the properties. No note is written back from its parsed form any more.
+
+### Sync and files
+
+**Please update every device that works with the same vault.** The fixes below take effect on each device only once it runs 0.8.5, and a device on an older version can still upload a damaged version of a text file that is not UTF-8. Updated devices then keep the original as a conflict copy.
+
+- Two devices working on the same file could lose a change without a conflict being shown — for example when an upload did not go through between two edits, or, on the phone, after a change to a settings file, a table or a database. The sync now keeps the version it last agreed on with the server to itself, and nothing else writes over it.
+- A text file that is not UTF-8 — a `.csv` from Excel in Windows-1252, a `.txt` in UTF-16 — travels byte for byte, without a merge and with a conflict copy when both sides changed it. Older versions could write such a file back damaged, and on the desktop a single such file could stop the vault from loading. A copy that an older version already pulled damaged gets the server's bytes back at the next sync, as long as the server still has the original.
+- Every text file keeps its line endings and its byte order mark, a note included: editing changes the lines you edit, and a merge — on save, in the sync, when a conflict is resolved — keeps the file's shape. Notes that start with a byte order mark are read correctly by the journal, the outline and embedded sections.
+- On the phone, everything that writes into an open vault takes the same path as the editor: a property set across a selection, a calendar anchor, templates and a voice note get their version, their conflict check and their place in the sync queue.
+- Properties: removing the last property leaves no empty block behind, a property that cannot be written is reported and taken back, and a template's cursor mark stands where the template says, also with Windows line endings.
+- A property, a ticked task or a journal entry written into a note with an open conflict no longer replaces your own text in that note.
+- Changing one property leaves every other property as it was written: `01067` stays `01067`, and a phone number keeps its plus sign.
+- A file whose details cannot be read for a moment is no longer treated as deleted, so such an error no longer reaches the sync as a deletion.
+
+### Phone
+
+- The command palette reaches twelve more commands.
+- **Google on Android:** an account connected with a client ID of your own signs in through the browser again. Since 0.8.3 only the system dialog was used, which works with the built-in entry alone. Accounts already connected through the system dialog stay as they are, and a failed sign-in says why.
+- A large pinboard shows its cards, the find panel in a note stands clear of the status bar, a held kanban card is either the menu or a move, and the Enter key that confirms a Japanese or Chinese composition no longer submits the field.
+- Mail on the phone: a note sent as an attachment arrives with its file, the search keeps its hits, and the notice that offers **Undo** ends with its window.
+
+Encrypted workspaces, the on-device calendar, voice notes and the location stamp remain experimental. These are specific corrections and improvements, not an independent security audit.
+
 ## [0.8.4] - 2026-09-30
 
 A journal for your day. This release brings together the changes since 0.8.3: a journal in the daily note with capture from anywhere, a task planner, widgets on the phone, voice notes, search and writing for every script — and fixes for synced vaults, including notes lost after a move in 0.8.3. Shared improvements apply to desktop and mobile.

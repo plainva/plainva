@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GraphService, type FolderOverview, type GraphEdgeKind, type VaultGraph } from "@plainva/core";
-import { appendWikiLink, consumeGraphTrail, findRelationOptions, getGraphState, GRAPH_TRAIL_EVENT, loadRelationCatalog, trailFocus, trailFolders, type GraphPin, type GraphStateStore, type RelationOption, type VaultMapFocus, type VaultMapOverlay, writeRelationLink } from "@plainva/ui";
+import { appendWikiLink, errorText, findRelationOptions, getGraphState, loadRelationCatalog, type GraphPin, type GraphStateStore, type RelationOption, type VaultMapOverlay, writeRelationLink, consumeGraphTrail, GRAPH_TRAIL_EVENT, trailFocus, trailFolders, type VaultMapFocus } from "@plainva/ui";
 import { buildVaultMapScene, Chip, toast, createGraphScene, DEFAULT_EDGE_KINDS, EmptyState, type GraphEngineDeps, type GraphScene, Button, GroupCard, ICON, IconButton, Row, RowList, SearchField, Switch } from "@plainva/ui";
 import { AlertTriangle, ChevronRight, Clock, Crosshair, FileText, Flame, ImageDown, Maximize2, Minus, MousePointerSquareDashed, PinOff, Plus, SlidersHorizontal, Trash2, Link2, Waypoints } from "lucide-react";
 import { mActions, mConfirm, mSelect } from "../services/mobileDialogs";
@@ -426,7 +426,16 @@ export function GraphScreen({
           });
           if (!ok) return;
         }
-        await writeRelationLink(vault.files, service, source, target, option.propertyKey, option.limitOne);
+        try {
+          await writeRelationLink(vault.files, service, source, target, option.propertyKey, option.limitOne);
+        } catch (e) {
+          // A relation is a property of the source note: the sentence a
+          // property write gets, with the reason as `errorText` reads it
+          // (finding 2026-10-12). The bare message stood on screen here — for
+          // a block that is no YAML, the parser's quote of the note's line.
+          toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+          return;
+        }
       }
       toast.info(t("graph.connectDone"));
       setReload((n) => n + 1);

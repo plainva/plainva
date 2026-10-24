@@ -6,7 +6,8 @@ import {
   type PimEvent,
   type PimEventRow,
 } from "@plainva/core";
-import { buildNewNoteContent, withOkfDefaults } from "../lib/newNoteContent";
+import { buildNewNoteContent, templateAsNewNote } from "../lib/newNoteContent";
+import { templateCaretInNote } from "../lib/templateCaret";
 import { taskDbFileStem } from "../lib/taskDatabase";
 import {
   resolveTemplateForNewNote,
@@ -15,7 +16,7 @@ import {
   type TypeTemplateRule,
 } from "../lib/folderTemplates";
 import { resolveTemplate, type TemplateContext, type TemplateEvent } from "../base/templateEngine";
-import { finalizeTemplate, withoutTemplateOnlyKeys } from "../base/templateFiles";
+import { finalizeTemplate } from "../base/templateFiles";
 import { noteStamp } from "../lib/dailyNoteCreate";
 import { shiftDayKey } from "./calendarForm";
 
@@ -118,8 +119,13 @@ export interface ResolveMeetingNoteOptions {
 export interface ResolveMeetingNoteResult {
   path: string;
   created: boolean;
-  /** Offset of the template's `{{cursor}}` in the written file, when it had one. */
-  cursor?: number;
+  /**
+   * The template's `{{cursor}}`, when a note was written and its template had
+   * one: a place in `note`, the file as it was written. The two travel
+   * together, because the editor that opens the note counts in another text
+   * and the place is converted when it is parked (`parkTemplateCaret`).
+   */
+  caret?: { note: string; offset: number };
 }
 
 /**
@@ -253,12 +259,15 @@ export async function buildMeetingNoteFromTemplate(
     body = finalizeTemplate(resolveTemplate(raw, ctx, "headless").text).text;
   }
 
-  const content = withEventFields(withOkfDefaults(withoutTemplateOnlyKeys(body), noteType), event, dayKey);
+  // The template becomes a note in the builder every note from a template
+  // passes: without what is meant for the template alone, with the OKF
+  // defaults, and with `{{cursor}}` found in what it wrote.
+  const made = templateAsNewNote({ text: body, cursor }, noteType);
+  const content = withEventFields(made.content, event, dayKey);
   if (content === null) return { content: buildMeetingNoteContent(event, dayKey, noteType), cursor: null };
-  // Everything above rewrote the frontmatter only; `{{cursor}}` was measured
-  // in the body, which moved by exactly what grew in front of it.
-  const shifted = cursor === null ? null : cursor + (content.length - body.length);
-  return { content, cursor: shifted !== null && shifted >= 0 && shifted <= content.length ? shifted : null };
+  // The event's fields rewrote the frontmatter only; the shared rule finds the
+  // caret again behind what grew in front of the text.
+  return { content, cursor: made.caret === null ? null : templateCaretInNote(made.content, content, made.caret) };
 }
 
 /** The content a new note gets: from its template, else the built-in one. */
@@ -298,7 +307,7 @@ export async function resolveOrCreateMeetingNote(opts: ResolveMeetingNoteOptions
     if (!built) return null;
     if (dir) await adapter.createDir(dir).catch(() => undefined);
     await adapter.writeTextFile(path, built.content);
-    return built.cursor === null ? { path, created: true } : { path, created: true, cursor: built.cursor };
+    return built.cursor === null ? { path, created: true } : { path, created: true, caret: { note: built.content, offset: built.cursor } };
   };
 
   // Probe the deterministic name and its numbered siblings: reuse on anchor

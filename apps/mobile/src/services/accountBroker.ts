@@ -1,5 +1,7 @@
 import {
-  accountServices,
+  brokerCardsFor,
+  brokerFamily,
+  describeBrokerLookup as describeSharedBrokerLookup,
   logDiagnostic,
   createServiceGrantProbe,
   resolveFileBrokerAccount,
@@ -16,7 +18,6 @@ import {
   withAccountCredentialLock,
   replaceOAuthClientRegistration,
   sameOAuthClient,
-  type CloudProviderFamily,
   type CloudAccountRecord,
   type CloudServiceId,
   type OAuthClientRegistration,
@@ -123,9 +124,7 @@ export function googleScopeFor(audience: string): string {
 }
 
 /** Families whose services can share one refresh token through the broker. */
-export function brokerFamily(family: CloudProviderFamily): "microsoft" | "google" | null {
-  return family === "microsoft" || family === "google" ? family : null;
-}
+export { brokerFamily };
 
 /** One instance per (vault, account) — see the desktop counterpart. */
 const brokers = new Map<string, TokenBroker>();
@@ -199,24 +198,26 @@ function serviceGrantProbe(vaultId: string, accountId: string, family: "google" 
 
 /**
  * The one place that decides whether a mobile service reads through the
- * broker: a broker family (Microsoft or Google), account carries the service,
- * account slot present. Everything else keeps its per-service refresh path.
+ * broker: a broker family (Microsoft or Google), a card that carries the
+ * service for the account that asks, account slot present. Everything else
+ * keeps its per-service refresh path.
  */
 export async function brokerTokenProvider(
   vaultId: string,
   service: CloudServiceId,
-  subsystemId?: string,
+  /**
+   * The subsystem account that is asking (pim row / mail account). Required:
+   * as an option it could be left out, and mail left it out — every mailbox of
+   * a vault then drew the sign-in of the first card (finding 2026-10-12).
+   */
+  subsystemId: string,
 ): Promise<((force: boolean) => Promise<string>) | undefined> {
   if (service === "files") return undefined; // Files must supply their concrete provider/client below.
+  // A card that points at the account that asks, and no other
+  // (`brokerCardsFor`): no match means no broker, and the service falls back
+  // to its own sign-in — never to a stranger's.
   const records = await loadCloudAccounts(vaultId);
-  const candidates = records.filter((record) => {
-    if (!brokerFamily(record.family) || !accountServices(record).includes(service)) return false;
-    if (!subsystemId) return true;
-    if (service === "calendar") return record.services.calendar?.pimAccountId === subsystemId;
-    if (service === "mail") return record.services.mail?.mailAccountId === subsystemId;
-    return true;
-  });
-  for (const record of candidates) {
+  for (const record of brokerCardsFor(records, service, subsystemId)) {
     const family = brokerFamily(record.family);
     if (!family) continue;
     if (!await adoptLegacyGrant(vaultId, record, service)) continue;
@@ -230,6 +231,23 @@ export async function brokerTokenProvider(
     };
   }
   return undefined;
+}
+
+/**
+ * Why the broker did not answer for this account, in one sentence, for the
+ * error a person reads — the shared rule (`@plainva/ui`) over this shell's
+ * registry and account slots. The desktop has said it since 2026-07-30; the
+ * phone's mailbox only said that a sign-in was missing.
+ */
+export async function describeBrokerLookup(vaultId: string, service: CloudServiceId, subsystemId: string): Promise<string> {
+  return describeSharedBrokerLookup(
+    {
+      records: () => loadCloudAccounts(vaultId),
+      token: (accountId, forService, family) => getAccountToken(vaultId, accountId, forService, family),
+    },
+    service,
+    subsystemId,
+  );
 }
 
 export async function fileBrokerTokenProvider(vaultId: string, binding: FileBrokerBinding): Promise<((force: boolean) => Promise<string>) | undefined> {

@@ -75,6 +75,7 @@ import {
   graphListFolders,
   graphListEnvelopes,
   graphSendMail,
+  sendMail,
   graphMove,
   graphSetFlagged,
   graphDeleteMessage,
@@ -213,5 +214,29 @@ describe("graphMail request shaping", () => {
     await graphMove("/vault", account, "INBOX", "AAMkmsg1==", "Trash");
     const move = calls.find((c) => c.url.includes("/move"));
     expect(JSON.parse(move?.body ?? "{}")).toEqual({ destinationId: "deleteditems" });
+  });
+});
+
+/**
+ * The transport half of `mailSendRoute` (finding 2026-10-08): what a composer
+ * offers "Send" by is what `sendMail` then does. The transport stub above
+ * throws on every call, so a message that reached SMTP would fail the test.
+ */
+describe("sendMail follows the account's route", () => {
+  it("submits a Microsoft mailbox through Graph, though it has no SMTP host", async () => {
+    expect(account.smtpHost).toBeUndefined();
+    await sendMail("/vault", account, "b@c.de", "Hi", "Hello **there**");
+    const send = calls.find((c) => c.url.endsWith("/sendMail"));
+    expect(send?.method).toBe("POST");
+    const body = JSON.parse(send?.body ?? "{}");
+    expect(body.message.toRecipients).toEqual([{ emailAddress: { address: "b@c.de" } }]);
+    expect(body.message.body.contentType).toBe("HTML");
+    expect(body.message.body.content).toContain("<strong>there</strong>");
+  });
+
+  it("refuses a mailbox without a route before any request leaves", async () => {
+    const readOnly: MailAccountConfig = { id: "imap1", label: "me@example.org", host: "imap.example.org", port: 993, user: "me@example.org" };
+    await expect(sendMail("/vault", readOnly, "b@c.de", "Hi", "Hello")).rejects.toThrow("no SMTP host configured");
+    expect(calls).toHaveLength(0);
   });
 });

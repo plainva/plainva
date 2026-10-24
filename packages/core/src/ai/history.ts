@@ -182,7 +182,7 @@ export interface ConversationInstructions {
 }
 
 /**
- * The vault's memory as a conversation was started with it (ADR 0027). The
+ * The vault's memory as a conversation was started with it (ADR 0032). The
  * entries themselves are in the system prompt; this is what the record and
  * the overview say about them — how many went, how many a rule kept back, how
  * many no longer fit —, and the rules the entries that went carry: what is

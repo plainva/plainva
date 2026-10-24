@@ -8,9 +8,10 @@ import { vaultOps, type MobileVault } from "../../services/vaultService";
 /**
  * The checklist on a board card, phone edition (issue #83, P4/E5) — the same
  * card the desktop has: the progress the index counted, unfolded the note's
- * own `- [ ]` lines with a checkbox each and a field for one more. Writes go
- * through the conflict-aware save and re-index the path; the caller re-queries
- * so the count on the card follows.
+ * own `- [ ]` lines with a checkbox each and a field for one more. A write
+ * changes the note as it lies there when it is written (`vaultOps.update`,
+ * one step of the vault's chain, then the index); the caller re-queries so the
+ * count on the card follows.
  */
 export function CardChecklist({ vault, path, progress, onChanged }: { vault: MobileVault; path: string; progress: unknown; onChanged: () => void }) {
   const { t } = useTranslation();
@@ -34,13 +35,11 @@ export function CardChecklist({ vault, path, progress, onChanged }: { vault: Mob
   const write = useCallback(
     async (mutate: (fresh: string) => string | null) => {
       try {
-        const fresh = await vaultOps.read(vault, path);
-        const next = mutate(fresh);
-        if (next === null || next === fresh) return;
-        await vaultOps.save(vault, path, next);
-        await vault.indexer?.indexPath(path).catch(() => {});
+        // The update tells the index itself (vaultOps.update).
+        const update = await vaultOps.update(vault, path, mutate);
+        // Also where nothing was written: the line was not where the card listed it.
         await load();
-        onChanged();
+        if (update.changed) onChanged();
       } catch (e: unknown) {
         toast.error(String((e as { message?: string })?.message ?? e));
       }
@@ -89,7 +88,14 @@ export function CardChecklist({ vault, path, progress, onChanged }: { vault: Mob
                 // React has reset the controlled box to the old value — read late,
                 // the toggle saw "unchanged" and never wrote (E2E finding 2026-09-06).
                 const checked = e.target.checked;
-                void write((fresh) => { const r = toggleTaskAtIndex(fresh, l.ordinal, checked); return r.changed ? r.content : null; });
+                void write((fresh) => {
+                  // Its line, by text as well as by place: where the note has an open
+                  // conflict the person's own version takes the tick too, and there
+                  // another line may stand at that place.
+                  if (listTaskLines(fresh)[l.ordinal]?.text !== l.text) return null;
+                  const r = toggleTaskAtIndex(fresh, l.ordinal, checked);
+                  return r.changed ? r.content : null;
+                });
               }}
             >
               <span className={l.done || l.state === "cancelled" ? "is-done" : undefined}>{l.text}</span>

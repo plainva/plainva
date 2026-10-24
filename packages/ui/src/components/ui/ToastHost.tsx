@@ -38,20 +38,24 @@ export function ToastHost() {
                 className="pv-toast-action"
                 onClick={() => {
                   item.action!.run();
-                  toast.dismiss(item.id);
+                  // A notice for something still owed stays until its owner
+                  // takes it down: the action only asks for the way back.
+                  if (!item.owed) toast.dismiss(item.id);
                 }}
               >
                 {item.action.label}
               </button>
             )}
-            <button
-              type="button"
-              className="pv-toast-x"
-              aria-label={t("common.close", { defaultValue: "Schließen" })}
-              onClick={() => toast.dismiss(item.id)}
-            >
-              <X size={14} />
-            </button>
+            {!item.owed && (
+              <button
+                type="button"
+                className="pv-toast-x"
+                aria-label={t("common.close", { defaultValue: "Schließen" })}
+                onClick={() => toast.dismiss(item.id)}
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
         );
       })}

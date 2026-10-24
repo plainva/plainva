@@ -1,8 +1,8 @@
 # OneDrive & Dropboxの設定（自前のアプリ登録）
 
-最終更新: 2026-08-12
+最終更新: 2026-10-23
 
-**通常、このページは必要ありません:** PlainvaはOneDriveとDropboxの**両方に**独自のアプリIDをあらかじめ用意しています——プロバイダーを選び、**接続**をクリックしてサインインするだけです。**自分自身の**（無料の）アプリ登録が必要になるのは、次の2つの場合に限られます。社内の制限で同梱のアクセスが塞がれている場合、または接続を意図的に自分の管理下に置きたい場合です。**デスクトップ**では、同期の設定で**独自のアプリ ID を使用**から入力欄を表示します。**スマートフォン**では、その項目はプロバイダーのすぐ下、接続フォームの中に直接あります。いずれの場合も、公開値を1つだけ入力します。
+**通常、このページは必要ありません:** PlainvaはOneDriveとDropboxの**両方に**独自のアプリIDをあらかじめ用意しています——プロバイダーを選び、**接続**をクリックしてサインインするだけです。**自分自身の**（無料の）アプリ登録が必要になるのは、次の2つの場合に限られます。社内の制限で同梱のログインが塞がれている場合、または接続を意図的に自分の管理下に置きたい場合です。**OneDrive**では、**この端末のログイン** → **変更** → **独自のクライアント ID**に入力します——アカウントページでもウィザードでも、デスクトップでもスマートフォンでも同じで、この端末にのみ適用されます。**Dropbox**では入力欄は従来の場所のままです。**デスクトップ**ではアカウントの**独自のアプリ ID を使用**、**スマートフォン**ではプロバイダーのすぐ下、接続フォームの中です。いずれの場合も、公開値を1つだけ入力します。
 
 - **OneDrive** → **クライアントID**（形式: `00000000-0000-0000-0000-000000000000`）
 - **Dropbox** → **アプリキー**（短い文字列）
@@ -21,14 +21,14 @@
 
 ### 1. ポータルを開く
 
-1. **[entra.microsoft.com](https://entra.microsoft.com)**を開きます（`portal.azure.com`でも動作します）。
+1. **[entra.microsoft.com](https://entra.microsoft.com)** を開きます（`portal.azure.com`でも動作します）。
 2. Microsoftアカウントでサインインします。
 
 ### 2. 新しいアプリ登録を作成する
 
-1. メニューの**Identity → Applications → App registrations**、続いて**+ New registration**。
+1. メニューの**Identity → Applications → App registrations**、続いて **+ New registration**。
 2. **Name:** 自由に選択できます。例: `Plainva`（表示名のみ）。
-3. **Supported account types:** **「Accounts in any organizational directory … and personal Microsoft accounts」**を選択します。このオプションのみがPlainvaのサインインエンドポイントに一致します。「this directory only」を選ぶと個人用OneDriveアカウントが失敗します。
+3. **Supported account types:** **「Accounts in any organizational directory … and personal Microsoft accounts」** を選択します。このオプションのみがPlainvaのサインインエンドポイントに一致します。「this directory only」を選ぶと個人用OneDriveアカウントが失敗します。
 4. **Redirect URI** — ここで同時に設定します。
    - Platform: **「Public client/native (mobile & desktop)」**。
    - Value: `http://localhost`（このとおり——ポートなし、末尾のスラッシュなし）。
@@ -38,12 +38,12 @@
 
 ### 3. クライアントIDをコピーする
 
-アプリの**Overview**で**「Application (client) ID」**をコピーします——これがPlainvaに入力する値です。（「Directory (tenant) ID」は不要です。）
+アプリの**Overview**で **「Application (client) ID」** をコピーします——これがPlainvaに入力する値です。（「Directory (tenant) ID」は不要です。）
 
 ### 4. パブリッククライアントフローを許可する
 
 1. メニューの**Authentication**。
-2. 一番下にある**「Allow public client flows」**を**Yes**に設定します。
+2. 一番下にある **「Allow public client flows」** を**Yes**に設定します。
 3. **Save**。
 
 ### 5. アクセス許可を設定する
@@ -56,10 +56,10 @@
 
 ### Plainvaに入力する
 
-1. **設定 → 保管庫 → 同期**。
-2. **同期プロバイダー**を**OneDrive**に設定します。
-3. コピーしたApplication IDを**クライアントID**フィールドに貼り付けます。任意で**OneDriveフォルダー（名前）**を設定します（デフォルト`Plainva`）。
-4. **Microsoftに接続** → ブラウザーでサインインし、アクセスを確認します。その後ブラウザーはウィンドウを閉じてよいことを知らせます。
+1. **設定 → 保管庫 → クラウドアカウント**: Microsoftアカウントを開くか、**アカウントを接続…** を **Microsoft** タイルで開始します。
+2. **この端末のログイン**で**変更**を選び、続けて**独自のクライアント ID**を選びます。
+3. コピーしたApplication IDを**クライアントID**フィールドに貼り付けて、**保存**します。
+4. **再度ログイン**（ウィザードでは **Microsoftでログイン…**）→ ブラウザーでサインインし、アクセスを確認します。その後ブラウザーはウィンドウを閉じてよいことを知らせます。
 
 ---
 
@@ -69,7 +69,7 @@
 
 ### 1. アプリコンソールを開く
 
-1. **[dropbox.com/developers/apps](https://www.dropbox.com/developers/apps)**を開き、サインインします。
+1. **[dropbox.com/developers/apps](https://www.dropbox.com/developers/apps)** を開き、サインインします。
 2. **Create app**をクリックします。
 
 ### 2. アプリタイプを選択する
@@ -108,7 +108,7 @@
 
 1. **設定 → 保管庫 → 同期**。
 2. **同期プロバイダー**を**Dropbox**に設定します。
-3. コピーしたApp keyを**アプリキー**フィールドに貼り付けます。任意で**Dropboxフォルダー（パス）**を設定します（デフォルト`/Plainva`）。
+3. コピーしたApp keyを**アプリキー**フィールドに貼り付けます。任意で**Dropboxフォルダー（パス）** を設定します（デフォルト`/Plainva`）。
 4. **Dropboxに接続** → ブラウザーでサインインし、アクセスを確認します。
 
 ---

@@ -4,12 +4,11 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { remarkMappedBreaks as remarkBreaks } from './markdownReaderModel';
 import { resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, rehypeReaderDirection, resolveNoteEmbed, AudioEmbed, Button, embedKindOf, imageBasename, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
-import { prepareReaderSource, selectNoteFragment } from '@plainva/core';
+import { markdownLinkTarget, prepareReaderSource, resolveMarkdownLinkIndexed, selectNoteFragment } from '@plainva/core';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
-import { toast } from '@plainva/ui';
-import { parseHeadings, requestAnchorJump, slugify, splitLinkAnchor } from '@plainva/ui';
-import { isWikiTargetResolved, planRelativeLinkOpen } from '@plainva/ui';
+import { parseHeadings, requestAnchorJump, slugify } from '@plainva/ui';
+import { isWikiTargetResolved, opensOutside } from '@plainva/ui';
 import { useWikiResolver } from '../hooks/useWikiResolver';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Folder, FileText } from 'lucide-react';
@@ -19,7 +18,8 @@ import { CodeBlock } from './CodeBlock';
 import { MermaidDiagram } from './MermaidDiagram';
 import { BaseViewer } from './BaseViewer';
 import { formatRelativeDate } from '@plainva/ui';
-import { isDoneTaskItem, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills, remarkTaskStates, resolveRelativeTarget, type RelativeTarget } from './markdownReaderModel';
+import { isDoneTaskItem, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills, remarkTaskStates } from './markdownReaderModel';
+import { openLink } from '../services/openLink';
 import { DocIcon, isRenderableDocIcon } from '@plainva/ui';
 import type { DocIconEntry } from '../hooks/useDocumentIcons';
 import { ICON } from "@plainva/ui";
@@ -208,7 +208,7 @@ export const EmbeddedNote: React.FC<{ target: string; depth: number; onOpenPath?
     if (depth >= 3) { setResult({ error: t("noteEmbed.depth") }); return; }
     if (!vaultAdapter) return;
     void (async () => {
-      const resolved = await resolveNoteEmbed(target, hostPath, { exists: (path) => vaultAdapter.exists(path), db: queryService?.db });
+      const resolved = await resolveNoteEmbed(target, hostPath, { resolve: async (name, from) => queryService ? queryService.resolveNotePath(name, from) : null });
       if (!alive) return;
       if (resolved.status !== "found") { setResult({ error: t("noteEmbed." + resolved.status, { target }) }); return; }
       if (resolved.path.toLowerCase().endsWith(".base")) { setResult(resolved); return; }
@@ -346,33 +346,46 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
     };
   }, [hasMath, mathPlugins]);
 
-  // Relative/bundle-absolute markdown links (generated index.md listings!) open
-  // in-app: folder links prefer the subfolder's index.md, otherwise they reveal
-  // the folder in the tree. Without interception the webview would navigate and
+  // A click on a link is the desktop's one opener's (`services/openLink`), as
+  // in the editor: a Markdown link (generated index.md listings!) is read from
+  // this note's folder first, a folder link prefers the folder's index.md and
+  // otherwise reveals the folder in the tree, a wiki link that leads nowhere
+  // offers the note. Without interception the webview would navigate and
   // reload the whole vault.
-  const handleRelativeLinkClick = async (target: RelativeTarget, newTab: boolean) => {
-    // The decision itself lives in `planRelativeLinkOpen` since issue #61 — the
-    // editor needed the identical rule, and this view keeping its behaviour is
-    // what proves that sharing it changed nothing.
-    const outcome = vaultAdapter
-      ? await planRelativeLinkOpen(target, (p) => vaultAdapter.exists(p))
-      : { action: "notFound" as const, path: target.path };
-    if (outcome.action === "open") {
-      onOpenPath?.(outcome.path, newTab);
-      if (target.anchor) requestAnchorJump(outcome.path, target.anchor);
-      return;
-    }
-    if (outcome.action === "revealFolder") {
-      window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: outcome.path } }));
-      return;
-    }
-    toast.warning(t("dialogs.linkNotFoundMsg", { target: outcome.path }));
+  //
+  // Until 2026-10-22 this view resolved a Markdown link itself, from the
+  // note's folder alone: `[x](Letter)` and `[x](Letter.md)` for a note in
+  // another folder said "not found" here and opened in the editor, and a path
+  // that climbed out of the vault was left to the webview as an ordinary anchor.
+  const openReaderLink = (text: string, kind: 'wiki' | 'markdown', newTab: boolean) => {
+    if (!onOpenPath) return;
+    void openLink(
+      // `href` is the URL the parser read: angle brackets and a title are off already.
+      { text, kind, sourcePath, parsed: kind === 'markdown' },
+      // `[[#Heading]]` is a place in THIS note: no reopening, the pane that shows it scrolls.
+      { queryService, vaultAdapter, onOpenPath, newTab, t, onSameNoteAnchor: (anchor) => { if (sourcePath) requestAnchorJump(sourcePath, anchor); } },
+    );
   };
 
-  const linkIconFor = (target: RelativeTarget): React.ReactNode => {
+  /**
+   * The tooltip host reads `data-tip` when the pointer or the focus arrives,
+   * and React hears both first: the attribute is set right then, and only
+   * while the tile shows less than the whole name.
+   */
+  const offerFullName = (link: HTMLElement) => {
+    const name = link.querySelector<HTMLElement>(".pv-index-link-name");
+    if (name && name.scrollWidth > name.clientWidth) link.setAttribute("data-tip", name.textContent ?? "");
+    else link.removeAttribute("data-tip");
+  };
+
+  /** The symbol in front of a Markdown link of a listing: a folder, the note's own icon, or a sheet. */
+  const linkIconFor = (href: string): React.ReactNode => {
     if (!showLinkIcons) return null;
-    if (target.kind === "folder") return <Folder size={ICON.ui} style={{ flexShrink: 0, opacity: 0.75 }} aria-hidden="true" />;
-    const entry = docIcons?.get(target.path);
+    const { target } = markdownLinkTarget(href);
+    // Where the link leads by the rule — the file a click opens.
+    const answer = wikiResolver && sourcePath != null ? resolveMarkdownLinkIndexed(sourcePath, target, wikiResolver) : null;
+    if (target.endsWith('/') || answer?.kind === 'folder') return <Folder size={ICON.ui} style={{ flexShrink: 0, opacity: 0.75 }} aria-hidden="true" />;
+    const entry = answer?.kind === 'file' ? docIcons?.get(answer.path) : undefined;
     if (entry && isRenderableDocIcon(entry.icon)) {
       return (
         <span aria-hidden="true" style={{ display: "inline-flex", width: 16, justifyContent: "center", flexShrink: 0 }}>
@@ -381,35 +394,6 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
       );
     }
     return <FileText size={ICON.ui} style={{ flexShrink: 0, opacity: 0.75 }} aria-hidden="true" />;
-  };
-
-
-
-  const handleWikiLinkClick = async (rawTarget: string, newTab: boolean) => {
-    if (!queryService || !onOpenPath) return;
-
-    // The anchor (issue #92) rides along; `[[#Heading]]` is a place in THIS note.
-    const { target: searchTarget, anchor } = splitLinkAnchor(rawTarget);
-    if (!searchTarget) {
-      if (anchor && sourcePath) requestAnchorJump(sourcePath, anchor);
-      return;
-    }
-
-    const sql = `
-      SELECT path FROM files
-      WHERE title = ? COLLATE NOCASE
-         OR path = ? COLLATE NOCASE
-         OR path = ? COLLATE NOCASE
-      LIMIT 1
-    `;
-    const rows = await queryService.db.query(sql, [searchTarget, searchTarget, searchTarget + ".md"]);
-    if (rows && rows.length > 0) {
-      onOpenPath(rows[0].path, newTab);
-      if (anchor) requestAnchorJump(rows[0].path, anchor);
-    } else {
-      // Not created yet — create the note (Obsidian parity, maintainer 2026-07-18).
-      window.dispatchEvent(new CustomEvent("plainva-create-note-from-link", { detail: { target: searchTarget, hostPath: sourcePath, newTab } }));
-    }
   };
 
   const processedContent = source.text;
@@ -451,16 +435,13 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
           a: ({ node: _node, href, children, ...props }) => {
             if (href?.startsWith('wiki://')) {
               const target = decodeURIComponent(href.replace('wiki://', ''));
-              const unresolved = !isWikiTargetResolved(target, wikiResolver);
+              const unresolved = !isWikiTargetResolved(target, wikiResolver, sourcePath);
               return (
                 <a
                   href="#"
-                  className={unresolved ? 'is-unresolved' : undefined}
+                  className={unresolved ? 'pv-wiki-link pv-wiki-link--unresolved' : 'pv-wiki-link'}
                   data-tip={unresolved ? t('editor.unresolvedLinkTip', "Note doesn't exist yet — click to create") : undefined}
-                  onClick={(e) => { e.preventDefault(); handleWikiLinkClick(target, e.ctrlKey || e.metaKey); }}
-                  style={unresolved
-                    ? { color: 'var(--wiki-link-unresolved-color, var(--text-muted))', textDecoration: 'underline dashed', cursor: 'pointer' }
-                    : { color: 'var(--accent-color)', textDecoration: 'underline', cursor: 'pointer' }}
+                  onClick={(e) => { e.preventDefault(); openReaderLink(target, 'wiki', e.ctrlKey || e.metaKey); }}
                 >
                   {children}
                 </a>
@@ -474,7 +455,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
                     e.preventDefault();
                     openUrl(href).catch(console.error);
                   }}
-                  style={{ color: 'var(--accent-color)', textDecoration: 'underline', cursor: 'pointer' }}
+                  className="pv-web-link"
                 >
                   {children}
                 </a>
@@ -487,32 +468,46 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
                 <a
                   href="#"
                   onClick={(e) => { e.preventDefault(); if (sourcePath) requestAnchorJump(sourcePath, href); }}
-                  style={{ color: 'var(--accent-color)', textDecoration: 'underline', cursor: 'pointer' }}
+                  className="pv-wiki-link"
                 >
                   {children}
                 </a>
               );
             }
-            const rel = href != null && sourcePath != null ? resolveRelativeTarget(sourcePath, href) : null;
-            if (rel) {
-              const icon = linkIconFor(rel);
+            // Every other target without a scheme is a link into the vault; a
+            // mail or phone address goes to the system through the same opener
+            // as in the editor (review 2026-10-22: it was left to the webview).
+            if (href != null && href !== '' && (!/^[a-z][a-z0-9+.-]*:/i.test(href) || opensOutside(href))) {
+              const icon = opensOutside(href) ? null : linkIconFor(href);
+              if (icon) {
+                // A tile of the managed index.md (finding 2026-10-19): the name
+                // is its own element so a long one ends in "…" inside its tile
+                // instead of running into the next; the full name is the tip,
+                // offered only when the tile actually cuts it.
+                return (
+                  <a
+                    href="#"
+                    className="pv-index-link"
+                    onClick={(e) => { e.preventDefault(); openReaderLink(href, 'markdown', e.ctrlKey || e.metaKey); }}
+                    onPointerEnter={(e) => offerFullName(e.currentTarget)}
+                    onFocus={(e) => offerFullName(e.currentTarget)}
+                  >
+                    {icon}
+                    <span className="pv-index-link-name">{children}</span>
+                  </a>
+                );
+              }
               return (
                 <a
                   href="#"
-                  onClick={(e) => { e.preventDefault(); void handleRelativeLinkClick(rel, e.ctrlKey || e.metaKey); }}
-                  style={{
-                    color: 'var(--accent-color)',
-                    textDecoration: icon ? 'none' : 'underline',
-                    cursor: 'pointer',
-                    ...(icon ? { display: 'inline-flex', alignItems: 'center', gap: '0.45em' } : null),
-                  }}
+                  onClick={(e) => { e.preventDefault(); openReaderLink(href, 'markdown', e.ctrlKey || e.metaKey); }}
+                  className="pv-wiki-link"
                 >
-                  {icon}
                   {children}
                 </a>
               );
             }
-            return <a href={href} style={{ color: 'var(--accent-color)' }} {...props}>{children}</a>;
+            return <a href={href} className="pv-web-link" {...props}>{children}</a>;
           },
           img: ({ node, src, alt, ...props }) => {
             // What applyReadAnchors left on the picture (C28), if anything.

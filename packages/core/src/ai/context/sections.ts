@@ -6,9 +6,8 @@
  * place opens the same section in the other.
  */
 
-const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/;
+import { noteBodyOf } from "../../frontmatter-block.js";
 
-/** The note without its frontmatter block. */
 /**
  * An ATX heading ("## Title", closing hashes allowed), or null. Linear on any
  * input — it also reads untrusted model output — so the closing hashes are cut
@@ -23,14 +22,9 @@ export function atxHeading(line: string): { level: number; text: string } | null
   return { level: m[1]!.length, text };
 }
 
+/** The note without its properties block — by the one definition of that block (`noteBodyOf`). */
 export function noteBody(content: string): string {
-  return content.replace(FRONTMATTER, "");
-}
-
-/** The frontmatter block without its fences, or null. */
-export function frontmatterText(content: string): string | null {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(content);
-  return match ? match[1]! : null;
+  return noteBodyOf(content);
 }
 
 export interface OutlineHeading {

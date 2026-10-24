@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Diamond, Link2, MapPin, Repeat, Square } from "lucide-react";
-import { Button, ICON, blockHeightPx, layoutDayEvents, layoutSpanningEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, nextLaneStartMin, planAllDayRows, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
+import { Button, ICON, blockHeightPx, layoutDayEvents, layoutSpanningEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, nextLaneStartMin, fillAllDayRoom, planAllDayRows, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
 import { eventStateClass, eventVisualState, partitionStatus, statusLabel } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "@plainva/ui";
@@ -61,7 +61,8 @@ export interface DayTimeGridProps {
   onEventClick: (e: PimEventRow) => void;
   /** Right-click an event block → quick-action context menu. */
   onEventContextMenu?: (e: PimEventRow, at: { x: number; y: number }) => void;
-  onOpenTask?: (path: string) => void;
+  /** Opens a task where it lives — a database entry as its note, a checkbox at its line. */
+  onOpenTask?: (task: DueTask) => void;
   /** Shared tick-off control from CalendarView — passed in rather than rebuilt
    * so all three calendar surfaces offer the identical gesture (issue #34). */
   renderTaskCheckbox?: (task: DueTask, size: number, dense?: boolean) => React.ReactNode;
@@ -246,15 +247,12 @@ export function DayTimeGrid(props: DayTimeGridProps) {
     const closed = planAllDayRows({ ...input, expanded: false });
     const shown = allDayOpen ? planAllDayRows({ ...input, expanded: true }) : closed;
     const days = allDayItems.map((d, i) => {
-      const room = shown.days[i]?.visibleItems ?? 0;
-      const afterStatus = Math.max(0, room - d.status.length);
-      const afterAppointments = Math.max(0, afterStatus - d.appointments.length);
-      const afterTasks = Math.max(0, afterAppointments - d.tasks.length);
+      const [status, appointments, tasks, overlay] = fillAllDayRoom([d.status, d.appointments, d.tasks, d.overlay], shown.days[i]?.visibleItems ?? 0);
       return {
-        status: d.status.slice(0, room),
-        appointments: d.appointments.slice(0, afterStatus),
-        tasks: d.tasks.slice(0, afterAppointments),
-        overlay: d.overlay.slice(0, afterTasks),
+        status,
+        appointments,
+        tasks,
+        overlay,
         hidden: shown.days[i]?.hidden ?? 0,
         // Open, the days that had a count offer the way back in its place.
         canClose: allDayOpen && (closed.days[i]?.hidden ?? 0) > 0,
@@ -477,15 +475,15 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                 // inside is itself a button (nesting them is invalid HTML).
                 return (
                   <div
-                    key={`task-${task.path}`}
+                    key={`task-${task.id}`}
                     role="button"
                     tabIndex={0}
-                    onClick={() => onOpenTask?.(task.path)}
+                    onClick={() => onOpenTask?.(task)}
                     onKeyDown={(ev) => {
                       if (ev.target !== ev.currentTarget) return;
                       if (ev.key === "Enter" || ev.key === " ") {
                         ev.preventDefault();
-                        onOpenTask?.(task.path);
+                        onOpenTask?.(task);
                       }
                     }}
                     data-testid="calendar-task"
@@ -785,7 +783,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   const tone = taskTone?.(task) ?? { color: task.done ? "var(--text-muted)" : "var(--text-main)", opacity: 1 };
                   return (
                     <div
-                      key={`timed-task-${task.path}`}
+                      key={`timed-task-${task.id}`}
                       role="button"
                       tabIndex={0}
                       data-testid="calendar-timed-task"
@@ -795,12 +793,12 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                       // off silently does nothing. The event blocks stop it for
                       // the same reason.
                       onPointerDown={(ev) => ev.stopPropagation()}
-                      onClick={() => onOpenTask?.(task.path)}
+                      onClick={() => onOpenTask?.(task)}
                       onKeyDown={(ev) => {
                         if (ev.target !== ev.currentTarget) return;
                         if (ev.key === "Enter" || ev.key === " ") {
                           ev.preventDefault();
-                          onOpenTask?.(task.path);
+                          onOpenTask?.(task);
                         }
                       }}
                       style={{

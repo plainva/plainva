@@ -41,7 +41,7 @@ function world(entries: PendingShare[]) {
     }),
     readTextFile: vi.fn(async (path: string) => contents.get(path) as string),
   };
-  const context: ShareImportContext = { vaultId: "v", files: files as unknown as IVaultAdapter, folder: "Inbox", ensureOpen: vi.fn(async () => {}) };
+  const context: ShareImportContext = { vaultId: "v", files: files as unknown as IVaultAdapter, folder: "Inbox", noteType: "Note", ensureOpen: vi.fn(async () => {}) };
   return { port, context, contents, pending };
 }
 
@@ -91,5 +91,14 @@ describe("a shared note is named after its title", () => {
     const w = world([planned]);
     // A plan made by an earlier version of the app is finished as planned.
     expect(await importSharedContent(w.port, w.pending.get(A)!, w.context)).toBe("Inbox/Buy stamps (aaaaaaaa).md");
+    // That holds for its text, too: such a plan was made without a properties
+    // block, and the note that is written is the planned one.
+    expect(w.contents.get("Inbox/Buy stamps (aaaaaaaa).md")).toBe("# Buy stamps\n\nshared text\n");
+  });
+
+  it("writes a new share's note with its properties block", async () => {
+    const w = world([share(A, "Buy stamps")]);
+    await importSharedContent(w.port, w.pending.get(A)!, w.context);
+    expect(w.contents.get("Inbox/Buy stamps.md")).toBe("---\ntype: Note\n---\n# Buy stamps\n\nshared text\n");
   });
 });

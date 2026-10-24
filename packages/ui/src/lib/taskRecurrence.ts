@@ -1,5 +1,5 @@
 import { sameStoredValue } from "@plainva/core";
-import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath, workspaceSha256Hex, utf8Encode, tasksDayNumber } from "@plainva/core";
+import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath, workspaceSha256Hex, utf8Encode, tasksDayNumber, updateVaultText, type TextUpdateFiles } from "@plainva/core";
 
 /**
  * Recurring tasks (issue #34, wave 3; shared by both shells since S24).
@@ -234,9 +234,14 @@ export function nextDueDate(rule: RepeatRule, currentDue: string | null, complet
 
 /** The next free "<stem> N.md" beside the completed note. The occurrence is an
  * ordinary sibling note, so the finished one stays as the record of what was
- * done. Pure except for the existence probe. */
+ * done. Pure except for the existence probe.
+ *
+ * The plan and its receipt go into the completed note as it lies there at that
+ * moment (`updateVaultText`): a rule, a due date or a line somebody changed
+ * while the copy was written stays, and a note with an open conflict carries
+ * them in both of its versions. */
 export async function writeNextOccurrenceNote(
-  adapter: { exists(path: string): Promise<boolean>; readTextFile(path: string): Promise<string>; writeTextFile(path: string, content: string): Promise<void> },
+  adapter: TextUpdateFiles & { exists(path: string): Promise<boolean> },
   sourcePath: string,
   content: string,
   completedOn?: string
@@ -270,9 +275,18 @@ export async function writeNextOccurrenceNote(
       if (!await adapter.exists(candidate)) { path = candidate; break; }
     }
     if (!path) return null;
-    plan = { version: 1, id, path, hash, ...(completedOn ? { completedOn } : {}) };
-    await adapter.writeTextFile(sourcePath, setFrontmatterPath(initial, planKey, plan));
-    if (!sameStoredValue(readFrontmatterPath(await adapter.readTextFile(sourcePath), planKey), plan)) throw new Error("task_repeat_plan_not_saved");
+    const planned: Plan = { version: 1, id, path, hash, ...(completedOn ? { completedOn } : {}) };
+    plan = planned;
+    // Only where the note still has no plan: one written since it was read is not replaced, and the check below says so.
+    await updateVaultText(adapter, sourcePath, (text) => (readFrontmatterPath(text, planKey) ? null : setFrontmatterPath(text, planKey, planned)));
+    if (!sameStoredValue(readFrontmatterPath(await adapter.readTextFile(sourcePath), planKey), plan)) {
+      // The note carries another plan. A second text may have taken this one —
+      // the user's own version of an open conflict, which had none: it is
+      // taken back there, or that version would name a copy nobody wrote and
+      // refuse every later completion.
+      await updateVaultText(adapter, sourcePath, (text) => (sameStoredValue(readFrontmatterPath(text, planKey), planned) ? deleteFrontmatterPath(text, planKey) : null)).catch(() => undefined);
+      throw new Error("task_repeat_plan_not_saved");
+    }
   }
   let created = false;
   if (await adapter.exists(plan.path)) {
@@ -284,10 +298,13 @@ export async function writeNextOccurrenceNote(
     if (workspaceSha256Hex(utf8Encode(await adapter.readTextFile(plan.path))) !== plan.hash) throw new Error("task_repeat_copy_not_saved");
     created = true;
   }
-  // Re-read before the receipt so a source edit made during the copy survives.
-  const latest = await adapter.readTextFile(sourcePath), current = readFrontmatterPath(latest, planKey) as Plan | undefined;
-  if (current?.id !== plan.id || current.path !== plan.path || current.hash !== plan.hash) throw new Error("task_repeat_plan_changed");
-  await adapter.writeTextFile(sourcePath, setFrontmatterPath(latest, planKey, { ...plan, complete: true }));
+  // The receipt goes into the source as it lies there now, so an edit made during the copy survives.
+  const done = plan;
+  await updateVaultText(adapter, sourcePath, (latest) => {
+    const current = readFrontmatterPath(latest, planKey) as Plan | undefined;
+    if (current?.id !== done.id || current.path !== done.path || current.hash !== done.hash) throw new Error("task_repeat_plan_changed");
+    return setFrontmatterPath(latest, planKey, { ...done, complete: true });
+  });
   const receipt = readFrontmatterPath(await adapter.readTextFile(sourcePath), planKey) as Plan | undefined;
   if (receipt?.id !== plan.id || receipt.complete !== true) throw new Error("task_repeat_receipt_not_saved");
   return created ? plan.path : null;

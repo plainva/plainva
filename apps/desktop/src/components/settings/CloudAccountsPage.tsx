@@ -4,7 +4,14 @@ import { useTranslation } from "react-i18next";
 import { ArrowLeft, Check, ChevronRight, CircleAlert, Clock, Plus, RotateCw, Trash2, Users } from "lucide-react";
 import {
   AccountPasswordChangePanel,
-  GmailSignInButton,
+  OAuthAccessEditor,
+  accessProblemKey,
+  cardOAuthServices,
+  plainvaGoogleClient,
+  SignInNothingGrantedError,
+  SignInWrongAccountError,
+  type AccessResolution,
+  type StoredOAuthAccess,
   Banner,
   Button,
   IconButton,
@@ -45,13 +52,12 @@ import {
 import {
   bindConnectResult,
   disableAccountService,
-  googleByoFromSlots,
   removeCloudAccount,
   rerunAccountAuth,
   canUnifyAccountLogin,
-  unifyAccountLogin,
   passwordServicesOf,
   runConnectSequence,
+  holdCredentialsAnnouncements,
   type ConnectRequest,
   type ServiceRunStatus,
 } from "../../services/cloudAccountsActions";
@@ -63,7 +69,10 @@ import { getSettingsStore } from "../../services/settingsStore";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { CloudAccountsWizard } from "./CloudAccountsWizard";
-import { desktopGmailClient, signInGmail } from "../../services/mail/gmailAuth";
+import { AccountCheckModal } from "./AccountCheckModal";
+import { AccessUnavailableError, deviceAccess, readDeviceAccess, saveDeviceAccess, signInCloudAccount } from "../../services/accountSignIn";
+import { oauthErrorText } from "../../services/oauthLoopback";
+import { listMailAccounts } from "@plainva/ui/mail";
 import { AccountMark, SERVICE_ICONS, ServiceChip, accountTitle, familyLabel, serviceLabel } from "./cloudAccountsShared";
 
 /**
@@ -88,17 +97,35 @@ export const CloudAccountsPage: React.FC<{
   const { dbAdapter, pimRuntime, vaultPath } = useVault();
   const isActiveVault = selectedVault === vaultPath;
   const runtime = isActiveVault ? pimRuntime : null;
+  /** Read when a sign-in reaches the calendar: a runtime captured earlier may be stopped. */
+  const runtimeRef = useRef(runtime);
+  useEffect(() => { runtimeRef.current = runtime; }, [runtime]);
   const [records, setRecords] = useState<CloudAccountRecord[]>([]);
   const [repairNeeds, setRepairNeeds] = useState<AccountRepairNeed[]>([]);
   // The splash "open an online vault" path deep-links here with the provider
   // the user already picked — land in the wizard on that tile, not on the list.
   const [mode, setMode] = useState<Mode>(initialProvider ? { kind: "wizard" } : { kind: "list" });
   const [reconStatus, setReconStatus] = useState<Partial<Record<CloudServiceId, ServiceRunStatus>>>({});
+  // The wizard and an account's detail show what a sign-in did, service by
+  // service; the vault reload that new sync credentials need waits until they
+  // are left (it would put the settings back on this list).
+  const showsResults = mode.kind !== "list";
+  useEffect(() => (showsResults ? holdCredentialsAnnouncements() : undefined), [showsResults]);
   const [busy, setBusy] = useState(false);
   /** Which other card the user declares to be the same account (E3 fallback). */
   const [mergeSource, setMergeSource] = useState("");
   /** Accounts that still hold one refresh token per service (stage B offer). */
   const [unifiable, setUnifiable] = useState<Set<string>>(new Set());
+  /** The card whose Gmail asks for an app password inline (E5). */
+  const [gmailPasswordFor, setGmailPasswordFor] = useState<string | null>(null);
+  const [gmailPassword, setGmailPassword] = useState("");
+  /** This device's access per family, shown on the account page (E3). */
+  const [accessInfo, setAccessInfo] = useState<{ family: "google" | "microsoft"; stored: StoredOAuthAccess | null; resolved: AccessResolution } | null>(null);
+  const [editAccess, setEditAccess] = useState(false);
+  /** The card whose connection is being checked (plan E6). */
+  const [checking, setChecking] = useState<string | null>(null);
+  /** Whether the open card has a service a consent can renew (an app-password-only Gmail card has none). */
+  const [renewable, setRenewable] = useState(true);
   const backfilled = useRef(false);
   // A deep link that names an account lands on its DETAIL page — the only
   // place with the reconnect button (finding 2026-09-01, D2). Applied once per
@@ -203,9 +230,81 @@ export const CloudAccountsPage: React.FC<{
 
   const filesAccount = records.find((r) => r.services.files);
   const detail = mode.kind === "detail" ? records.find((r) => r.id === mode.id) : undefined;
+  const detailFamily = detail && (detail.family === "google" || detail.family === "microsoft") ? detail.family : null;
+  useEffect(() => {
+    if (!detailFamily) return;
+    let alive = true;
+    void (async () => {
+      const stored = await readDeviceAccess(detailFamily, selectedVault);
+      const resolved = await deviceAccess(detailFamily, selectedVault);
+      if (alive) setAccessInfo({ family: detailFamily, stored, resolved });
+    })();
+    return () => { alive = false; };
+  }, [detailFamily, selectedVault]);
+  useEffect(() => {
+    if (!detail) return;
+    let alive = true;
+    void (async () => {
+      const mailKind = detail.services.mail ? (await listMailAccounts(selectedVault)).find((m) => m.id === detail.services.mail!.mailAccountId)?.kind : undefined;
+      if (alive) setRenewable(detail.family !== "google" && detail.family !== "microsoft" ? true : cardOAuthServices(detail, mailKind).length > 0);
+    })();
+    return () => { alive = false; };
+  }, [detail, selectedVault]);
+
+  const signInText = (err: unknown): string => {
+    if (err instanceof SignInWrongAccountError) return t("cloudAccounts.wrongAccount", { expected: err.expected, actual: err.actual });
+    if (err instanceof SignInNothingGrantedError) return t("cloudAccounts.nothingGranted");
+    if (err instanceof AccessUnavailableError) return t(accessProblemKey(err.problem));
+    return oauthErrorText(err);
+  };
+
+  /**
+   * Google and Microsoft: adding a service and signing in again are the same
+   * act - one consent for everything the card carries plus what is added
+   * (plan E2). Each service then says its own result on the page.
+   */
+  const signInCard = async (record: CloudAccountRecord, add: CloudServiceId[], mailPassword?: { email: string; pass: string }) => {
+    const family = record.family === "google" || record.family === "microsoft" ? record.family : null;
+    if (!family) return;
+    setReconStatus({});
+    setBusy(true);
+    try {
+      const outcome = await signInCloudAccount(selectedVault, () => runtimeRef.current, { family, cardId: record.id, add, ...(mailPassword ? { mailPassword } : {}) });
+      const next: Partial<Record<CloudServiceId, ServiceRunStatus>> = {};
+      for (const row of outcome.rows) {
+        next[row.service] = row.state === "active"
+          ? { state: "ok" }
+          : row.state === "notGranted"
+            ? { state: "error", reason: "permissions", detail: t("cloudAccounts.notGranted") }
+            : row.state === "needsPassword"
+              ? { state: "error", detail: t("cloudAccounts.needsAppPassword") }
+              : { state: "error", detail: row.detail };
+      }
+      setReconStatus(next);
+      setGmailPasswordFor(null);
+    } catch (err) {
+      toast.error(signInText(err));
+    } finally {
+      setBusy(false);
+      void reload();
+    }
+  };
 
   /** Headless service enable from the detail toggles, where slots allow it. */
   const enableService = async (record: CloudAccountRecord, service: CloudServiceId) => {
+    if (record.family === "google" || record.family === "microsoft") {
+      // Gmail outside the consent asks for its app password right here, at the
+      // same card - never "use the wizard", never a second account (E5).
+      if (record.family === "google" && service === "mail") {
+        const resolved = await deviceAccess("google", selectedVault);
+        if (resolved.ok && !resolved.access.mail) {
+          setGmailPasswordFor(record.id);
+          return;
+        }
+      }
+      await signInCard(record, [service]);
+      return;
+    }
     // Independent grants preserve the other services while this one is added.
     const req: ConnectRequest = {
       context: { vaultId: selectedVault, cloudAccountId: record.id, expectedIdentity: record.verifiedProviderIdentity },
@@ -215,20 +314,7 @@ export const CloudAccountsPage: React.FC<{
       consentServices: [service],
       byoClientId: record.byoClientId,
     };
-    if (record.family === "google") {
-      if (service === "mail" && desktopGmailClient()) {
-        await signInGmail(selectedVault, record);
-        await reload();
-        return;
-      }
-      const byo = await googleByoFromSlots(selectedVault, record);
-      if (!byo || service === "mail") {
-        toast.info(t("cloudAccounts.useWizardHint"));
-        return;
-      }
-      req.byoClientId = byo.clientId;
-      req.googleClientSecret = byo.clientSecret;
-    } else if (record.family === "webdav") {
+    if (record.family === "webdav") {
       // Derive the missing endpoint from the stored files slot (same server).
       const creds = await credentialManager.getWebDavCredentials(selectedVault);
       if (!creds || !looksLikeNextcloud(creds.url)) {
@@ -332,6 +418,10 @@ export const CloudAccountsPage: React.FC<{
   };
 
   const reconnect = async (record: CloudAccountRecord) => {
+    if (record.family === "google" || record.family === "microsoft") {
+      await signInCard(record, []);
+      return;
+    }
     setReconStatus({});
     setBusy(true);
     try {
@@ -345,22 +435,8 @@ export const CloudAccountsPage: React.FC<{
     }
   };
 
-  /** E8: migrating to the shared broker is an OFFER, never forced. */
-  const unifyLogin = async (record: CloudAccountRecord) => {
-    setReconStatus({});
-    setBusy(true);
-    try {
-      await unifyAccountLogin(selectedVault, runtime, record, (service, st) =>
-        setReconStatus((prev) => ({ ...prev, [service]: st }))
-      );
-      toast.success(t("cloudAccounts.loginUnified"));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-      void reload();
-    }
-  };
+  /** One sign-in for every service of the card is what signing in again does (E2). */
+  const unifyLogin = (record: CloudAccountRecord) => signInCard(record, []);
 
   const persistByoId = async (record: CloudAccountRecord, value: string) => {
     const next = records.map((r) => (r.id === record.id ? { ...r, byoClientId: value.trim() || undefined } : r));
@@ -501,11 +577,14 @@ export const CloudAccountsPage: React.FC<{
               {t("cloudAccounts.unifyLogin")}
             </Button>
           )}
-          {oauthFamily && !unifiable.has(detail.id) && (
+          {oauthFamily && !unifiable.has(detail.id) && renewable && (
             <Button variant="secondary" icon={<RotateCw size={ICON.meta} />} disabled={busy} onClick={() => void reconnect(detail)} data-testid="cloudacct-reconnect">
               {t("cloudAccounts.reconnect")}
             </Button>
           )}
+          <Button variant="secondary" disabled={busy} onClick={() => setChecking(detail.id)} data-testid="cloudacct-check-open">
+            {t("cloudAccounts.checkConnection")}
+          </Button>
           <Button variant="danger-soft" icon={<Trash2 size={ICON.meta} />} disabled={busy} onClick={() => void remove(detail)} data-testid="cloudacct-remove">
             {t("cloudAccounts.removeAccount")}
           </Button>
@@ -642,12 +721,69 @@ export const CloudAccountsPage: React.FC<{
 
         {passwordServices.length > 0 && <AccountPasswordChangePanel ports={desktopPasswordChangePorts(selectedVault, detail, runtime)} />}
 
-        {hasByo && (
+        {checking === detail.id && (
+          <AccountCheckModal
+            vaultPath={selectedVault}
+            record={detail}
+            runtime={runtime}
+            onSignInAgain={() => void reconnect(detail)}
+            onClose={() => setChecking(null)}
+          />
+        )}
+
+        {gmailPasswordFor === detail.id && (
+          <SettingCard label={t("cloudAccounts.gmailPasswordGroup")}>
+            <SettingCardNote>{t("cloudAccounts.gmailPasswordHint", { account: detail.label })}</SettingCardNote>
+            <SettingRow label={t("cloudAccounts.appPassword")} wide>
+              <TextInput type="password" value={gmailPassword} onChange={(e) => setGmailPassword(e.target.value)} data-testid="cloudacct-gmail-password" />
+            </SettingRow>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)" }}>
+              <Button variant="ghost" onClick={() => setGmailPasswordFor(null)}>{t("common.cancel")}</Button>
+              <Button
+                variant="primary"
+                disabled={busy || !gmailPassword}
+                data-testid="cloudacct-gmail-password-save"
+                onClick={() => void signInCard(detail, ["mail"], { email: detail.label, pass: gmailPassword }).then(() => setGmailPassword(""))}
+              >
+                {t("pim.connect")}
+              </Button>
+            </div>
+          </SettingCard>
+        )}
+
+        {detailFamily && accessInfo?.family === detailFamily && !editAccess && (
+          <SettingCard label={t("cloudAccounts.appRegGroup")}>
+            <SettingRow
+              label={t("accountAccess.lineLabel")}
+              desc={accessInfo.resolved.ok
+                ? (accessInfo.resolved.access.source === "plainva" ? t("accountAccess.plainva") : t("accountAccess.ownLine", { id: accessInfo.resolved.access.clientId }))
+                : t(accessProblemKey(accessInfo.resolved.problem))}
+            >
+              <Button variant="secondary" size="sm" data-testid="cloudacct-access-change" onClick={() => setEditAccess(true)}>{t("accountAccess.change")}</Button>
+            </SettingRow>
+          </SettingCard>
+        )}
+        {detailFamily && accessInfo?.family === detailFamily && editAccess && (
+          <OAuthAccessEditor
+            family={detailFamily}
+            platform="desktop"
+            value={accessInfo.stored}
+            plainvaAvailable={detailFamily === "microsoft" || !!plainvaGoogleClient(import.meta.env as unknown as Record<string, unknown>, "desktop")}
+            onSave={async (next) => {
+              await saveDeviceAccess(detailFamily, next);
+              setAccessInfo({ family: detailFamily, stored: next, resolved: await deviceAccess(detailFamily, selectedVault) });
+              setEditAccess(false);
+            }}
+            onCancel={() => setEditAccess(false)}
+          />
+        )}
+
+        {hasByo && detail.family === "dropbox" && (
           <SettingCard label={t("cloudAccounts.appRegGroup")}>
             {/* This connection form supports the user's own Google project. */}
             <SettingRow
               label={t("settings.useOwnAppId")}
-              desc={detail.family === "google" ? t("cloudAccounts.byoAccountHintGoogle") : t("cloudAccounts.byoAccountHint")}
+              desc={t("cloudAccounts.byoAccountHint")}
             >
               <TextInput
                 defaultValue={detail.byoClientId ?? ""}
@@ -667,9 +803,6 @@ export const CloudAccountsPage: React.FC<{
   return (
     <div>
       <AreaHead areaId="cloudAccounts" />
-      {isActiveVault && desktopGmailClient() && <SettingCard label="Gmail">
-        <GmailSignInButton onSignIn={async () => { await signInGmail(selectedVault); await reload(); }} />
-      </SettingCard>}
       {!isActiveVault && <SettingCardNote className="pv-setrow--note">{t("pim.openVaultFirst")}</SettingCardNote>}
       {repairNeeds.length > 0 && (
         <SettingCard label={t("cloudAccounts.repairTitle")}>

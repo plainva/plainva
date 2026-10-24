@@ -225,7 +225,7 @@ describe("desktop reminder scheduler", () => {
 
   it("takes in due tasks only when they are switched on", async () => {
     overlay.mockResolvedValue({
-      tasks: [{ path: "T/a.md", title: "Müll", due: "2026-08-12", dueMinutes: 9 * 60 + 30, done: false, repeats: false }],
+      tasks: [{ id: "db:T/a.md", source: "database", state: "open", priority: 0, path: "T/a.md", title: "Müll", due: "2026-08-12", dueMinutes: 9 * 60 + 30, done: false, repeats: false }],
       completion: null,
       dueKey: "faellig",
     });
@@ -249,7 +249,7 @@ describe("desktop reminder scheduler", () => {
     store.set(remindTasksKey(VAULT), true);
     cache.listEvents.mockResolvedValue([event(16)]);
     overlay.mockResolvedValue({
-      tasks: [{ path: "T/a.md", title: "Müll", due: "2026-08-13", dueMinutes: null, done: false, repeats: false }],
+      tasks: [{ id: "db:T/a.md", source: "database", state: "open", priority: 0, path: "T/a.md", title: "Müll", due: "2026-08-13", dueMinutes: null, done: false, repeats: false }],
       completion: null,
       dueKey: "faellig",
     });

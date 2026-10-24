@@ -107,6 +107,15 @@ jobs:
           swiftc Shared/IntentStore.swift tests/IntentStoreTests.swift -o "$RUNNER_TEMP/intent-store-tests"
           "$RUNNER_TEMP/intent-store-tests"
 
+      # How a picked vault folder is listed (issue #125): a link stands for what
+      # it points at, one that points nowhere is named - on a real file system,
+      # with real links, which no simulator build exercises.
+      - name: Test the vault folder listing
+        working-directory: apps/mobile/ios/App
+        run: |
+          swiftc App/VaultFolderListing.swift tests/VaultFolderListingTests.swift -o "$RUNNER_TEMP/vault-folder-listing-tests"
+          "$RUNNER_TEMP/vault-folder-listing-tests"
+
       - name: Build for simulator
         working-directory: apps/mobile/ios/App
         run: |

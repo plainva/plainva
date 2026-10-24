@@ -9,6 +9,15 @@ import { cx } from "./cx";
  * modals (Settings → Shortcuts, appConfirm over anything) unwind one by one. */
 const modalStack: symbol[] = [];
 
+/**
+ * Whether a modal is open right now. A surface outside this stack that takes
+ * Escape for itself can ask this first, so that the key still goes to the
+ * dialog on top — the floating composer does, for the question about itself.
+ */
+export function isModalOpen(): boolean {
+  return modalStack.length > 0;
+}
+
 export type ModalSize = "sm" | "md" | "lg" | "xl";
 
 export interface ModalProps {
@@ -87,6 +96,12 @@ export function Modal({
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
       if (modalStack[modalStack.length - 1] !== stackIdRef.current) return;
+      // A menu lies in front of every dialog and closes on Escape itself. Both
+      // listen on the document, so which of them hears the key first is the
+      // order they were attached in — and a menu opened by something inside
+      // the dialog that keeps its own state is attached after the dialog: the
+      // dialog closed, menu and all. The key is the menu's.
+      if (document.querySelector('.pv-menu[role="menu"]')) return;
       e.preventDefault();
       onClose();
     };

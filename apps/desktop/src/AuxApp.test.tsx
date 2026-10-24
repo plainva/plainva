@@ -57,9 +57,15 @@ vi.mock("./components/CompareModal", () => ({
 vi.mock("./components/TemplatePickerModal", () => ({
   TemplatePickerModal: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div data-testid="template-picker" /> : null),
 }));
-vi.mock("./components/mail/MailDraftModal", () => ({
-  MailDraftModal: ({ subject }: { subject: string }) => <div data-testid="mail-draft">{subject}</div>,
-}));
+vi.mock("./components/mail/MailDraftModal", async () => {
+  const { useState } = await import("react");
+  // Like the real composer, it reads the draft it is given once, when it opens.
+  function MailDraftModal({ subject }: { subject: string }) {
+    const [opened] = useState(subject);
+    return <div data-testid="mail-draft">{opened}</div>;
+  }
+  return { MailDraftModal };
+});
 /** How often the shell asked the OS to close this window. */
 let closed = 0;
 vi.mock("@tauri-apps/api/window", () => ({
@@ -329,6 +335,26 @@ describe("what the shared components can ask this window for (finding 2026-09-07
       await vi.advanceTimersByTimeAsync(10);
     });
     expect(host.querySelector('[data-testid="mail-draft"]')?.textContent).toBe("Betreff");
+  });
+
+  it("gives the draft of a second compose request a composer of its own", async () => {
+    // A composer reads its draft once (the stub does too). Handed to the one
+    // that is already open, a second draft changes nothing on screen — which is
+    // what "Reply" to another message did (finding 2026-10-09). What a changed
+    // draft is asked first: components/mail/composeSecondRequest.test.tsx.
+    await mount("/?win=aux&vault=%2Fvault&content=Note.md&label=aux-25");
+    const compose = async (subject: string) => {
+      await act(async () => {
+        window.dispatchEvent(new CustomEvent("plainva-compose-mail", { detail: { subject, markdown: "Text" } }));
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10);
+      });
+    };
+    await compose("Erste");
+    expect(host.querySelector('[data-testid="mail-draft"]')?.textContent).toBe("Erste");
+    await compose("Zweite");
+    expect(host.querySelector('[data-testid="mail-draft"]')?.textContent).toBe("Zweite");
   });
 
   it("unfolds the context sidebar when the editor asks for the properties", async () => {

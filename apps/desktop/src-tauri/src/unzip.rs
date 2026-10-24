@@ -214,7 +214,18 @@ pub(crate) fn extract_archive_sync(
             }
         };
 
-        let raw_name = entry.name().to_string();
+        // zip 9 decodes a name that is not UTF-8 as CP437 and can fail at
+        // that; such an entry is as unreadable as one it cannot open.
+        let raw_name = match entry.name() {
+            Ok(name) => name.to_string(),
+            Err(_) => {
+                skipped.push(SkippedEntry {
+                    rel_path: format!("entry #{index}"),
+                    reason: SKIP_UNREADABLE.into(),
+                });
+                continue;
+            }
+        };
         if entry.is_dir() {
             continue;
         }

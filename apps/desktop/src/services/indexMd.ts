@@ -5,6 +5,7 @@
 // changed no behaviour.
 export {
   adoptFileAsIndex,
+  adoptionSummary,
   collectFolderIndexInfos,
   foldersMissingIndex,
   generateIndexForFolder,

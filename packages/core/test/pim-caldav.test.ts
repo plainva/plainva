@@ -520,6 +520,40 @@ describe("CalDAV event pull + ics expansion", () => {
   });
 });
 
+describe("CalDavPimTarget: when a VTODO is done (finding B2, 19.10.)", () => {
+  const todoResponse = (lines: string[]) => {
+    const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VTODO", ...lines, "END:VTODO", "END:VCALENDAR"].join("\r\n");
+    return `<d:response>
+            <d:href>/cal/${lines[0]!.slice(4)}.ics</d:href>
+            <d:propstat><d:prop><d:getetag>"x"</d:getetag><c:calendar-data>${ics.replace(/</g, "&lt;")}</c:calendar-data></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+          </d:response>`;
+  };
+
+  it("reads COMPLETED and PERCENT-COMPLETE:100 without STATUS as done, and lets STATUS decide where it is set", async () => {
+    const fetchFn: FetchFn = vi.fn(async () =>
+      davRes(`<?xml version="1.0"?>
+        <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+          ${todoResponse(["UID:stamp", "SUMMARY:A", "COMPLETED:20261019T080000Z"])}
+          ${todoResponse(["UID:percent", "SUMMARY:B", "PERCENT-COMPLETE:100"])}
+          ${todoResponse(["UID:half", "SUMMARY:C", "PERCENT-COMPLETE:50"])}
+          ${todoResponse(["UID:reopened", "SUMMARY:D", "STATUS:NEEDS-ACTION", "COMPLETED:20261019T080000Z", "PERCENT-COMPLETE:100"])}
+          ${todoResponse(["UID:status", "SUMMARY:E", "STATUS:COMPLETED"])}
+          ${todoResponse(["UID:plain", "SUMMARY:F"])}
+        </d:multistatus>`)
+    );
+    const t = new CalDavPimTarget(CREDS, fetchFn);
+    const { tasks } = await t.pullTasks("https://cloud.example.org/cal/");
+    expect(Object.fromEntries(tasks.map((task) => [task.uid, task.completed]))).toEqual({
+      stamp: true,
+      percent: true,
+      half: false,
+      reopened: false,
+      status: true,
+      plain: false,
+    });
+  });
+});
+
 describe("parseCalDavMultistatus", () => {
   it("rejects garbage bodies loudly (captive-portal HTML must never read as empty)", () => {
     expect(() => parseCalDavMultistatus("<html><body>login</body>")).toThrow(/invalid XML/);

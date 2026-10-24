@@ -1,8 +1,8 @@
 # Configurare la sincronizzazione con Google Drive (Bring Your Own Credentials)
 
-Ultimo aggiornamento: 2026-09-15
+Ultimo aggiornamento: 2026-10-23
 
-Per sincronizzare un vault locale con il tuo Google Drive in Plainva, puoi usare le tue credenziali API di Google. Poiché Plainva non è (ancora) passata attraverso la verifica CASA centrale di Google, questo approccio **Bring Your Own Credentials (BYO)** offre un modo sicuro per sincronizzare i tuoi file privati.
+Plainva accede a Google con **Accesso su questo dispositivo**. Quando la tua build include l'**Accesso standard** per Google, non inserisci nulla e questa pagina non ti serve. Altrimenti — o se preferisci un progetto tutto tuo — usi le tue credenziali API di Google: questo approccio **Bring Your Own Credentials (BYO)** offre un modo sicuro per sincronizzare i tuoi file privati.
 
 In sostanza configuri un tuo piccolo "progetto sviluppatore" presso Google, che appartiene solo a te e a cui solo tu puoi accedere.
 
@@ -46,33 +46,33 @@ Perché Plainva usi le tue credenziali, deve essere configurata una schermata di
 ### 4. Crea le credenziali (ID client e Secret)
 1. Apri **Credenziali** nel menu a sinistra.
 2. Clicca su **Crea credenziali** in alto e scegli **ID client OAuth**.
-3. Come "Tipo di applicazione" scegli **App desktop** (o "Altra interfaccia utente").
+3. Come "Tipo di applicazione" scegli **App desktop** per Plainva su un computer. Per il telefono (Android e iPhone) crea invece un client di tipo **iOS** — vedi la fine di questa pagina.
 4. Nome: ad es. "Plainva Desktop Client".
 5. Clicca su **Crea**.
 6. Un popup mostra il tuo **ID client** e il **Secret client**.
 
 ### 5. Inseriscili in Plainva
-1. Apri Plainva e vai alle impostazioni del vault (icona a forma di ingranaggio per il vault in questione).
-2. Apri la sezione **Sincronizzazione**.
-3. Scegli **Google Drive** come provider.
-4. Incolla l'**ID client** e il **Secret client** copiati nei campi corrispondenti.
-5. Clicca su **Connetti a Google**.
-6. Si apre una finestra del browser di Google. Accedi con l'account che hai aggiunto sotto "Utenti di test".
-7. Google potrebbe avvisare che l'app non è verificata. Clicca su **Avanzate** e poi su **Vai a Plainva (non sicuro)**.
-8. Conferma i permessi richiesti.
+1. Apri **Impostazioni → il tuo vault → Account cloud**.
+2. Per un nuovo account scegli **Collega account…** → la scheda **Google** e spunta i servizi; per un account che hai già, aprilo e scegli **Cambia** in **Accesso su questo dispositivo**.
+3. Scegli **ID client personale** e incolla l'**ID client** e il **Secret client** copiati — sul telefono solo l'**ID client** del client iOS; non ha secret. Poi **Salva**.
+4. Clicca su **Accedi con Google…** (per un account che hai già: **Riconnetti**).
+5. Si apre una finestra del browser di Google. Accedi con l'account che hai aggiunto sotto "Utenti di test".
+6. Google potrebbe avvisare che l'app non è verificata. Clicca su **Avanzate** e poi su **Vai a Plainva (non sicuro)**.
+7. Conferma i permessi richiesti — un solo consenso copre tutti i servizi che hai spuntato.
+8. L'ID client personale vale solo per questo dispositivo; gli altri mantengono la propria impostazione. Inseriscilo su ogni dispositivo che deve usare il tuo progetto.
 
 Il tuo vault ora si sincronizza in sicurezza con Google Drive tramite le tue credenziali.
 
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-Le istruzioni desktop richiedono un client desktop con ID e relativo secret. Android usa Google Identity Services: registra il pacchetto `com.plainva.app` con il certificato SHA-1 della build installata. Le versioni Play usano il certificato di firma dell’app; una build locale può usarne un altro. Android non usa un reindirizzamento del browser né un client secret. Su iOS, usa un client iOS con bundle ID `com.plainva.app` e URI di ritorno `com.plainva.app:/oauth2redirect`. Un client desktop non sostituisce la registrazione mobile. Per il calendario, abilita anche Google Calendar API e Google Tasks API.
+Le istruzioni per desktop qui sopra richiedono un client desktop con ID client e relativo secret. Sul telefono, su Android come su iOS, Plainva accede a Google nel browser: crea nel tuo progetto Google un client OAuth di tipo **iOS**, anche per Android, con l’ID bundle `com.plainva.app`. Plainva ritorna tramite `com.plainva.app:/oauth2redirect`; non c’è un client secret. Inserisci l’ID client sul telefono in **Accesso su questo dispositivo** → **ID client personale**. Non creare un client di tipo Android: Google accetta il nome del pacchetto e l’impronta del certificato della versione Play in un solo progetto al mondo e rifiuta tutti gli altri («il nome del pacchetto Android e l’impronta sono già in uso»). Un client Android configurato per Plainva 0.8.3 o 0.8.4 non funziona per un nuovo accesso; gli account che hanno già effettuato l’accesso continuano a funzionare. Un client desktop non sostituisce la registrazione mobile. Per i calendari abilita anche Google Calendar API e Google Tasks API.
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 
 
 
-Aggiungi file, calendario o email all’account appropriato. Plainva verifica l’accesso scelto e richiede le autorizzazioni mancanti.
+Aggiungi file, calendario o email all’account che deve portarli. Per Google e Microsoft è un unico consenso per tutto ciò che l’account porta più il nuovo servizio.
 
 La registrazione Google non corrisponde al ritorno su questo dispositivo. Controlla il tipo di client e la configurazione mobile nella guida Google.
 

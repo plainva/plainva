@@ -183,4 +183,42 @@ describe("writeNextOccurrenceNote", () => {
     const many = ["Tasks/T.md", ...Array.from({ length: 600 }, (_, i) => `Tasks/T ${i + 2}.md`)];
     expect(await writeNextOccurrenceNote(adapter(many), "Tasks/T.md", "c")).toBeNull();
   });
+
+  it("takes its plan back out of the user's own version where the note itself took another one", async () => {
+    // Files that answer a change the way the vault's chain does at a note with an open conflict (finding
+    // 2026-10-12): the note, then the user's own version. While this plan is on its way, the note gets the plan
+    // another device wrote — so the note refuses this one, and the user's version, which has none, takes it.
+    const SOURCE = "Tasks/Water plants.md";
+    const theirs = `---\nplainva:\n  repeatNext:\n    version: 1\n    id: 11111111-1111-4111-8111-111111111111\n    path: Tasks/Water plants 2.md\n    hash: ${"a".repeat(64)}\n---\n# Water plants\n`;
+    const texts = { note: "# Water plants\n", own: "# Water plants\n\nTyped at this desk.\n" };
+    let pulled = false;
+    const files = {
+      exists: async (p: string) => p === SOURCE,
+      readTextFile: async () => texts.note,
+      writeTextFile: async (_p: string, c: string) => void (texts.note = c),
+      updateTextFile: async (_p: string, change: (text: string) => string | null) => {
+        if (!pulled) {
+          pulled = true;
+          texts.note = theirs;
+        }
+        const before = texts.note;
+        const mineBefore = texts.own;
+        const next = change(before);
+        let mine: string | null;
+        try {
+          mine = change(mineBefore);
+        } catch {
+          mine = null;
+        }
+        texts.note = next ?? before;
+        texts.own = mine ?? mineBefore;
+        return { before, text: texts.note, changed: texts.note !== before, conflict: { workingCopyPath: "Tasks/Water plants.CONFLICT-1.md", changed: texts.own !== mineBefore } };
+      },
+    };
+    await expect(writeNextOccurrenceNote(files, SOURCE, "content")).rejects.toThrow("task_repeat_plan_not_saved");
+    expect(texts.note).toBe(theirs);
+    // Left there, it would name a copy nobody wrote and refuse every later completion of this task.
+    expect(texts.own).not.toContain("repeatNext");
+    expect(texts.own).toContain("Typed at this desk.");
+  });
 });

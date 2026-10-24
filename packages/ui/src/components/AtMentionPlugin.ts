@@ -5,12 +5,13 @@ import {
   pickedCompletion,
 } from "@codemirror/autocomplete";
 import i18n from "../i18n";
+import { pathsSharingNames, wikiLinkTextFor } from "../lib/wikiLinkText";
 
 // The editor's `@` mention menu (Notion-style). Typing `@` opens a menu that
 // blends two kinds of entries:
 //   - dynamic dates (today / tomorrow / yesterday + "pick a date…") inserted as
 //     plain ISO `YYYY-MM-DD` text (Plainva stays plain Markdown);
-//   - note links: a live search of the vault index that inserts `[[Title]]`.
+//   - note links: a live search of the vault index that inserts `[[Name]]`.
 // (People mentions are planned for later.)
 //
 // It is registered as a completion *source* and combined with the slash source
@@ -101,11 +102,14 @@ export function atMentionCompletionSource(deps: AtMentionDeps) {
           [like, like, `${term}%`],
         );
         const noteSection = { name: i18n.t("editor.atSecNotes", { defaultValue: "Notizen" }), rank: 2 };
+        // A pick writes the file's name, the title as the link's text where it
+        // reads otherwise — the same text the `[[` completion writes.
+        const sharing = await pathsSharingNames(qs, rows.map((r: { path: string }) => r.path));
         for (const r of rows) {
           const title = r.title || r.path.split(/[/\\]/).pop()?.replace(/\.md$/i, "") || r.path;
           options.push({
             label: title,
-            apply: `[[${title}]]`,
+            apply: wikiLinkTextFor(r.path, title, sharing),
             detail: "[[ ]]",
             type: "wikilink",
             section: noteSection,

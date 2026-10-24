@@ -1,6 +1,6 @@
 # Bases de données (.base)
 
-Dernière mise à jour : 2026-10-07
+Dernière mise à jour : 2026-10-21
 
 Avec les fichiers `.base`, vous transformez des notes en bases de données : tableaux, boards, calendriers — avec des filtres, des propriétés typées et des relations entre bases de données. Le concept ressemble aux bases de données Notion, avec une différence décisive : **les données ne vivent pas dans la base de données, elles vivent dans vos notes.**
 
@@ -60,12 +60,12 @@ Sur le téléphone, **Configurer** ouvre les mêmes zones sous forme de liste ; 
 
 Cliquer sur un en-tête de colonne ouvre l'éditeur de propriété (**Propriété : X**) :
 
-- **Nom** — le renommage affecte les notes : à l'enregistrement, la propriété est renommée dans le frontmatter de chaque note correspondante (avec confirmation et un indicateur de progression).
+- **Nom** — le renommage affecte les notes : à l'enregistrement, la propriété est renommée dans le frontmatter de chaque note correspondante (avec confirmation et un indicateur de progression). Plainva interroge d'abord chaque note : si l'une d'elles ne peut pas prendre le nouveau nom — elle a déjà une propriété de ce nom, ou le bloc à son début ne peut pas être lu comme des propriétés —, rien n'est renommé et un message nomme ces notes.
 - **Type de champ** — Texte, Nombre, Évaluation, Case à cocher, Date, Date & heure, Liste, Tags, Sélection, Statut, Sélection multiple, URL, E-mail, Téléphone, Relation (le même menu de types groupés que dans le panneau **Propriétés** des notes).
   Une **Évaluation** est un nombre dessiné en points (cinq, sauf mention contraire de la colonne). Le fichier garde `humeur: 4` — un simple nombre que lisent aussi Obsidian et n'importe quel tableur ; le tri et le filtre sont ceux d'un nombre. Vous appuyez sur le point qui doit compter ; appuyer sur la valeur actuelle l'efface.
-- **Jour d'après le nom du fichier** (`file.day`) — les calendriers et les frises peuvent placer les notes quotidiennes d'après leur **nom de fichier**, sans que la date figure aussi dans le frontmatter. Le champ apparaît dans le sélecteur de champ de date dès que le coffre nomme des notes quotidiennes (dossier et format sous **Réglages → Votre coffre → Contenu et structure**) ; il est calculé à partir du nom, ne figure dans aucune note et ne peut pas être modifié — une carte placée ainsi ne peut donc pas être glissée vers un autre jour (cela renommerait le fichier). Obsidian ne connaît pas ce champ : une vue qui l'utilise y reste vide.
+- **Jour d'après le nom du fichier** (`file.day`) — les calendriers et les frises peuvent placer les notes quotidiennes d'après leur **nom de fichier**, sans que la date figure aussi dans le frontmatter. Le champ apparaît dans le sélecteur de champ de date dès que le coffre nomme des notes quotidiennes (dossier et format sous **Paramètres → Votre coffre → Contenu et structure**) ; il est calculé à partir du nom, ne figure dans aucune note et ne peut pas être modifié — une carte placée ainsi ne peut donc pas être glissée vers un autre jour (cela renommerait le fichier). Obsidian ne connaît pas ce champ : une vue qui l'utilise y reste vide.
 - **Options** (pour Sélection/Statut/Sélection multiple) — des valeurs fixes avec une **Couleur** et, pour **Statut**, un **Groupe**/une étape (p. ex. à faire → en cours → terminé) ; réordonnez par glisser-déposer. À l'ouverture de l'éditeur de colonne, la liste des options est déjà préremplie avec les valeurs déjà présentes dans la base de données — vous pouvez ainsi donner une couleur à chacune sans avoir à la ressaisir.
-- **Supprimer la propriété** — retire la colonne, le schéma, les filtres et les règles de tri de la base de données. La case à cocher **Aussi la retirer du frontmatter des notes** (activée par défaut) nettoie en plus les notes sources.
+- **Supprimer la propriété** — retire la colonne, le schéma, les filtres et les règles de tri de la base de données. La case à cocher **Aussi la retirer du frontmatter des notes** (activée par défaut) nettoie en plus les notes sources. Une note qui ne peut pas être modifiée garde la propriété ; un message compte les notes modifiées et celles en échec.
 
 Notes sur le comportement :
 

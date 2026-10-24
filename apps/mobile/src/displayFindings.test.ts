@@ -79,20 +79,21 @@ describe("destructive entries in a sheet are separated, not only coloured", () =
 });
 
 describe("the flagged filter does not outlive its question", () => {
-  it("falls away on every switch of folder, account and mode", () => {
+  it("falls away on every switch of folder, account and mode — with its answer still on the way", () => {
     // The filter is a SERVER answer about one mailbox. Left standing across a
     // switch it showed the previous folder's starred mail under the new
     // folder's name — and "all inboxes", by the code's own reasoning, has no
-    // mailbox for it to be true of.
+    // mailbox for it to be true of. Dropping the rows was not enough: an
+    // answer still on its way came in after the switch and did the same.
     const text = strip(read("screens", "MailListScreen.tsx"));
-    expect(
-      [...text.matchAll(/setFlaggedRows\(null\)/g)].length,
-      "toggle plus three switches",
-    ).toBeGreaterThanOrEqual(4);
+    expect(text, "leaving the filter drops its rows and turns its answer away").toMatch(
+      /const leaveFlagged = \(\) => \{\s*flaggedSeq\.current\+\+;\s*setFlaggedRows\(null\);/,
+    );
+    expect(text, "only the newest question may answer").toMatch(/if \(seq === flaggedSeq\.current\) setFlaggedRows\(starred\)/);
     for (const [what, anchor] of [
-      ["folder", /setMailbox\(name\);[\s\S]{0,200}?setFlaggedRows\(null\)/],
-      ["account", /setAccountId\(a\.id\);[\s\S]{0,200}?setFlaggedRows\(null\)/],
-      ["all inboxes", /setUnified\(true\);[\s\S]{0,200}?setFlaggedRows\(null\)/],
+      ["folder", /setMailbox\(name\);[\s\S]{0,200}?leaveFlagged\(\)/],
+      ["account", /setAccountId\(a\.id\);[\s\S]{0,200}?leaveFlagged\(\)/],
+      ["all inboxes", /setUnified\(true\);[\s\S]{0,200}?leaveFlagged\(\)/],
     ] as const) {
       expect(text, `switching ${what} must drop the filter`).toMatch(anchor);
     }

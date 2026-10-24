@@ -30,8 +30,10 @@ import { appendPlannedJournalEntry, journalHeading } from "../journalService";
 import { awaitComposeDone } from "../mail/composeDone";
 import { listAllMobileComments, listMobileCommentAuthors } from "../mobileComments";
 import { getMobileSettings } from "../mobileSettings";
+import { configuredNoteType } from "../newNote";
 import { providerListLabel, sendTaskToProviderList } from "../pim/taskToProvider";
-import { vaultOps, type MobileVault } from "../vaultService";
+import { phoneTemplateVault } from "../templateVault";
+import { vaultOps, vaultTextFiles, type MobileVault } from "../vaultService";
 
 /**
  * What the phone does for the assistant's writing tools (plan KI-Harness P5).
@@ -47,7 +49,7 @@ const inboxFolder = () => getMobileSettings().inboxFolder.trim() || (profileDefa
 
 /** Where a new entry of a database goes and what it carries, decided as the database's own "Entry" decides it. */
 const entryPlaceIn = (vault: MobileVault) => async (base: string) =>
-  entryPlaceOf(await vaultOps.read(vault, base).catch(() => null), getMobileSettings().defaultNoteType);
+  entryPlaceOf(await vaultOps.read(vault, base).catch(() => null), configuredNoteType());
 
 /** A day key as the middle of that day: the daily note of a day does not depend on the hour. */
 function dayAtNoon(day: string): Date | null {
@@ -74,7 +76,7 @@ export function mobileWriteDeps(vault: MobileVault, query: VaultQueryService, re
       const settings = getMobileSettings();
       const taskDb = settings.taskDatabase.trim();
       if (kind === "task" && taskDb) {
-        const prepared = await prepareTaskNote({ adapter: { readTextFile: (path: string) => vaultOps.read(vault, path), exists }, dbPath: taskDb, title: "task", noteType: settings.defaultNoteType });
+        const prepared = await prepareTaskNote({ adapter: { readTextFile: (path: string) => vaultOps.read(vault, path), exists }, dbPath: taskDb, title: "task", noteType: configuredNoteType(), templateVault: await phoneTemplateVault() });
         return prepared.ok ? `${prepared.folder}/task.md` : null;
       }
       // Without a task database a task is a line in the journal.
@@ -103,12 +105,9 @@ export function mobileWriteDeps(vault: MobileVault, query: VaultQueryService, re
     // A rule of the note itself, after the user's yes: saved through the conflict-aware chain, synced like any edit.
     async setRule(path, rule, set) {
       await flushPendingSave(path);
-      const text = await read(path);
-      if (text === null) return false;
-      const next = withNoteRule(text, rule, set);
-      if (next === text) return false;
-      await vaultOps.save(vault, path, next);
-      return true;
+      // Through the chain's one entry for a change (`vaultOps.update`): the rule goes into the note as it lies there,
+      // and a note with an open conflict takes it in the user's own version as well (Sammelplan 3.87).
+      return (await vaultOps.update(vault, path, (text) => withNoteRule(text, rule, set))).changed;
     },
     entryPlace: entryPlaceIn(vault),
     // A draft of an e-mail or an appointment (plan P5-6) is offered only where it has somewhere to go. Asked when one
@@ -170,18 +169,17 @@ export function mobileDraftCreator(vault: MobileVault, policy: VaultPolicyHost, 
       const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
       // Without a task database a task is what it is everywhere else in Plainva: a line with an open box, in the journal.
       if (!taskDb) return journal({ text, day: day || calendarDay(now), time, task: true });
-      const adapter = {
-        readTextFile: (path: string) => vaultOps.read(vault, path),
-        writeTextFile: (path: string, content: string) => vaultOps.save(vault, path, content),
-        exists: (path: string) => vault.files.exists(path),
-      };
+      // The vault's files with the chain's one entry for a change, as every task the phone makes is handed them.
+      const adapter = vaultTextFiles(vault);
       // The same reading as a line typed into the capture field — with "today" being the day it was drafted.
       const read = parseTaskCapture(text, vocabulary(), day);
       const created = await createTaskInDatabase({
         adapter,
         dbPath: taskDb,
         title: read.title.trim() || text,
-        noteType: settings.defaultNoteType,
+        noteType: configuredNoteType(),
+        // The database's template is filled as for a task made by hand: {{vault}}, {{daily}} and the rest.
+        templateVault: await phoneTemplateVault(),
         ...(read.due ? { dueDate: read.due, dueMinutes: read.minutes } : {}),
         tags: read.tags,
         priority: read.priority,

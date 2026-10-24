@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Tags, Trash2 } from "lucide-react";
-import type { NoteCardData } from "@plainva/core";
-import { AudioEmbed, Button, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, searchableCellText, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, BaseSearchField, useBaseSearch, ICON, imageCandidates, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
-import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath } from "@plainva/core";
+import type { NoteCardData, VaultQueryService } from "@plainva/core";
+import { AudioEmbed, Button, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, searchableCellText, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, BaseSearchField, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, errorText, toast, toggleTaskAtIndex, listTaskLines, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
+import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath, updateVaultText } from "@plainva/core";
 import { ColorPopover } from "../ColorPopover";
 import type { BaseCells } from "./useBaseCells";
 import { useVault } from "../../contexts/VaultContext";
@@ -46,7 +46,7 @@ interface CardVM {
  * off-screen card costs a header rather than a picture.
  */
 function CardAudio({ target, alt, notePath }: { target: string; alt: string; notePath: string }) {
-  const { vaultAdapter } = useVault();
+  const { vaultAdapter, queryService } = useVault();
   const [url, setUrl] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     if (!vaultAdapter) return;
@@ -54,29 +54,49 @@ function CardAudio({ target, alt, notePath }: { target: string; alt: string; not
     let objectUrl: string | null = null;
     setUrl(undefined);
     void (async () => {
-      for (const rel of imageCandidates(target, { notePath })) {
+      const candidates = imageCandidates(target, { notePath });
+      const load = async (rel: string): Promise<boolean> => {
         try {
           const blob = await loadImageBlob(vaultAdapter, rel);
-          if (!alive) return;
-          objectUrl = URL.createObjectURL(blob);
-          setUrl(objectUrl);
-          return;
+          if (alive) {
+            objectUrl = URL.createObjectURL(blob);
+            setUrl(objectUrl);
+          }
+          return true;
         } catch {
-          /* try the next candidate */
+          return false; // try the next candidate
         }
-      }
+      };
+      for (const rel of candidates) if (await load(rel)) return;
+      const named = await fileByName(target, notePath, queryService);
+      if (alive && named && !candidates.includes(named) && (await load(named))) return;
       if (alive) setUrl(null);
     })();
     return () => {
       alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [vaultAdapter, target, notePath]);
+  }, [vaultAdapter, queryService, target, notePath]);
   return <AudioEmbed url={url} label={alt || target} compact place={{ notePath, target }} />;
 }
 
+/**
+ * The last place a card's picture or sound is looked for: by its bare file
+ * name anywhere in the vault, as Obsidian writes an attachment (`![[foto.png]]`,
+ * the file in its attachments folder) — the link rule's answer, read from the
+ * card's note. The phone's cards asked this already; the desktop's stopped at
+ * the path as written and the note's folder, so such a card showed its
+ * picture on the phone and its file name here. Asked last: it is the one
+ * place that costs a query.
+ */
+async function fileByName(target: string, notePath: string, queryService: VaultQueryService | null | undefined): Promise<string | null> {
+  const byName = imageBasename(target);
+  if (!byName || !queryService) return null;
+  return queryService.findByFileName(byName, notePath).catch(() => null);
+}
+
 function CardImage({ target, alt, notePath }: { target: string; alt: string; notePath: string }) {
-  const { vaultAdapter } = useVault();
+  const { vaultAdapter, queryService } = useVault();
   const { ref: imageRef, visible: imageVisible, loaded: onImageLoad, placeholderStyle } = useVisibleImage(vaultAdapter!, `${notePath}#${target}`);
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -91,24 +111,28 @@ function CardImage({ target, alt, notePath }: { target: string; alt: string; not
     const candidates = [resolveVaultRelative(target), noteDir ? resolveVaultRelative(`${noteDir}/${target}`) : null]
       .filter((p): p is string => !!p);
     void (async () => {
-      for (const p of candidates) {
+      const load = async (p: string): Promise<boolean> => {
         try {
           const blob = await loadImageBlob(vaultAdapter, p);
-          if (!alive) return;
-          objectUrl = URL.createObjectURL(blob);
-          setUrl(objectUrl);
-          return;
+          if (alive) {
+            objectUrl = URL.createObjectURL(blob);
+            setUrl(objectUrl);
+          }
+          return true;
         } catch {
-          /* try the next candidate */
+          return false; // try the next candidate
         }
-      }
+      };
+      for (const p of candidates) if (await load(p)) return;
+      const named = await fileByName(target, notePath, queryService);
+      if (alive && named && !candidates.includes(named) && (await load(named))) return;
       if (alive) setFailed(true);
     })();
     return () => {
       alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [vaultAdapter, target, notePath, imageVisible]);
+  }, [vaultAdapter, queryService, target, notePath, imageVisible]);
   if (failed) return <span style={{ color: "var(--text-muted)", fontStyle: "italic", fontSize: "var(--text-xs)" }}>{alt || target}</span>;
   if (!url) return <span ref={imageRef} aria-hidden="true" style={{ display: "block", height: 48, ...placeholderStyle }} />;
   return <img src={url} alt={alt} onLoad={onImageLoad} style={{ maxWidth: "100%", borderRadius: "var(--radius-xs)", display: "block" }} />;
@@ -327,8 +351,9 @@ export function BasePinboardView({
     [visibleSections, columnCount, heights],
   );
 
-  // ── Writes: every card mutation re-reads the file, writes through the
-  //    adapter chain, re-indexes the path and pings the board channel ──
+  // ── Writes: every card mutation changes the file as it lies there when it
+  //    is written (`updateVaultText`, one step of the adapter chain),
+  //    re-indexes the path and pings the board channel ──
   const afterCardWrite = useCallback(async (path: string, metaChanged: boolean) => {
     if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => {});
     window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path } }));
@@ -338,10 +363,17 @@ export function BasePinboardView({
   const handleToggleTask = useCallback(async (path: string, ordinal: number, checked: boolean) => {
     if (!vaultAdapter) return;
     try {
-      const fresh = await vaultAdapter.readTextFile(path);
-      const res = toggleTaskAtIndex(fresh, ordinal, checked);
-      if (!res.changed) return;
-      await vaultAdapter.writeTextFile(path, res.content);
+      // The box is found by its line's text as well as by its place: where the
+      // note has an open conflict, the person's own version takes the tick
+      // too, and there another line may stand at that place.
+      const listed = listTaskLines(await vaultAdapter.readTextFile(path))[ordinal];
+      if (!listed) return;
+      const update = await updateVaultText(vaultAdapter, path, (fresh) => {
+        if (listTaskLines(fresh)[ordinal]?.text !== listed.text) return null;
+        const res = toggleTaskAtIndex(fresh, ordinal, checked);
+        return res.changed ? res.content : null;
+      });
+      if (!update.changed) return;
       await afterCardWrite(path, false); // pure body change — no tree bump (fix C)
     } catch (e: any) {
       toast.error(String(e?.message ?? e));
@@ -351,16 +383,16 @@ export function BasePinboardView({
   const handleSetColor = useCallback(async (path: string, hex: string | null) => {
     if (!vaultAdapter) return;
     try {
-      const fresh = await vaultAdapter.readTextFile(path);
-      const next = withNoteColor(fresh, hex);
-      if (next !== fresh) {
-        await vaultAdapter.writeTextFile(path, next);
-        await afterCardWrite(path, true); // header tint mirrors into tree/tabs
-      }
-    } catch (e: any) {
-      toast.error(String(e?.message ?? e));
+      const update = await updateVaultText(vaultAdapter, path, (fresh) => withNoteColor(fresh, hex));
+      if (update.changed) await afterCardWrite(path, true); // header tint mirrors into tree/tabs
+    } catch (e) {
+      // The sentence every refused property write gets, with the reason as
+      // `errorText` reads it (finding 2026-10-12): the bare message of a block
+      // that is no YAML quotes the note's own line. The card is drawn from the
+      // note, so it keeps the colour the note has.
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
     }
-  }, [vaultAdapter, afterCardWrite]);
+  }, [vaultAdapter, afterCardWrite, t]);
 
   const presentSet = useMemo(() => new Set(paths), [paths]);
   const persistSections = useCallback((next: { order?: string[]; pinned?: string[] }) => {
@@ -408,27 +440,27 @@ export function BasePinboardView({
   const toggleLabel = useCallback(async (path: string, label: string, add: boolean) => {
     if (!vaultAdapter) return;
     try {
-      const fresh = await vaultAdapter.readTextFile(path);
-      let next: string;
-      if (labelProp) {
-        const current = splitMultiValue(readFrontmatterPath(fresh, [labelProp])).map(String);
+      const key = labelProp ?? "tags";
+      const labelled = (fresh: string): { list: string[]; next: string } => {
+        const raw = readFrontmatterPath(fresh, [key]);
+        const current = labelProp
+          ? splitMultiValue(raw).map(String)
+          : Array.isArray(raw) ? raw.map(String) : typeof raw === "string" && raw ? [raw] : [];
         const list = add ? (current.includes(label) ? current : [...current, label]) : current.filter((v) => v !== label);
-        next = list.length > 0 ? setFrontmatterPath(fresh, [labelProp], list) : deleteFrontmatterPath(fresh, [labelProp]);
-      } else {
-        const raw = readFrontmatterPath(fresh, ["tags"]);
-        const current = Array.isArray(raw) ? raw.map(String) : typeof raw === "string" && raw ? [raw] : [];
-        const list = add ? (current.includes(label) ? current : [...current, label]) : current.filter((v) => v !== label);
-        next = list.length > 0 ? setFrontmatterPath(fresh, ["tags"], list) : deleteFrontmatterPath(fresh, ["tags"]);
+        return { list, next: list.length > 0 ? setFrontmatterPath(fresh, [key], list) : deleteFrontmatterPath(fresh, [key]) };
+      };
+      const update = await updateVaultText(vaultAdapter, path, (fresh) => labelled(fresh).next);
+      // What the menu shows is the note's list, as it was changed.
+      if (!labelProp) {
+        const { list } = labelled(update.before);
         setLabelEdit((s) => (s && s.path === path ? { ...s, fmTags: list } : s));
       }
-      if (next !== fresh) {
-        await vaultAdapter.writeTextFile(path, next);
-        await afterCardWrite(path, true); // tags/properties are index metadata
-      }
-    } catch (e: any) {
-      toast.error(String(e?.message ?? e));
+      if (update.changed) await afterCardWrite(path, true); // tags/properties are index metadata
+    } catch (e) {
+      // See `handleSetColor`: the one sentence, and the reason through `errorText`.
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
     }
-  }, [vaultAdapter, labelProp, afterCardWrite]);
+  }, [vaultAdapter, labelProp, afterCardWrite, t]);
 
   // ── Drag reorder (splice semantics, D3); disabled when a sort rule is set ──
   const canDrag = !hasSort && !embedded;
@@ -613,7 +645,7 @@ export function BasePinboardView({
                 // display — a card is an overview, not a form.
                 const input = cells.getColumnSchema(col)?.input;
                 const editable = input === "date" || input === "datetime";
-                const shown = cells.formatValueForDisplay(val, col).displayVal;
+                const shown = cells.formatValueForDisplay(val, col, path).displayVal;
                 return (
                   <div key={col} style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: "var(--text-xs)", minWidth: 0 }}>
                     <span style={{ color: "var(--text-muted)", flexShrink: 0 }}>{cells.columnLabel(col)}</span>

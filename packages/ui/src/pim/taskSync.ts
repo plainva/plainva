@@ -1,5 +1,7 @@
 import {
+  frontmatterSpan,
   readFrontmatterPath,
+  readTextShape,
   upsertFrontmatterKeys,
   deleteFrontmatterPath,
   setFrontmatterPath,
@@ -16,16 +18,21 @@ import {
   trimEndChars,
   taskNoteKey,
   taskNoteStem,
+  updateVaultText,
   type TaskNoteIdentity,
+  type TextUpdateFiles,
 } from "@plainva/core";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
 import { anchorMatchesTask, buildTaskAnchor, taskAnchorIdentity } from "./providerTask";
+import { isFileNotFound } from "../lib/movedNote";
 import { buildNewItemContent } from "../lib/newItemContent";
+import { withVaultContext, type TemplateVault } from "../lib/templateContext";
 import { generatedStamp } from "../lib/okfProvenance";
 import { resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, type TaskCompletionModel } from "../lib/taskDatabase";
 import { findColumnKey } from "../lib/taskPromotion";
 import { taskSyncPaused, trackTaskSync } from "./taskSyncPause";
+import { TASK_NOTE_PROBLEM_PREFIX } from "./syncProblems";
 
 /**
  * Task <-> note reconciler (PIM stage 3): mirrors the SELECTED task lists of
@@ -48,9 +55,8 @@ import { taskSyncPaused, trackTaskSync } from "./taskSyncPause";
  *     task needs an explicit list choice; documented follow-up)
  */
 
-export interface TaskSyncAdapter {
-  readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, content: string): Promise<void>;
+/** The vault's files: its chain, or a storage with nothing above it (`updateVaultText`). */
+export interface TaskSyncAdapter extends TextUpdateFiles {
   exists(path: string): Promise<boolean>;
   createDir(path: string): Promise<void>;
   /**
@@ -80,6 +86,8 @@ export interface TaskSyncOptions {
   taskDbPath: string | null;
   /** Configured OKF `type` for created notes. */
   noteType: string;
+  /** The vault, for `{{vault}}` and `{{daily±N}}` in the task database's template (Sammelplan § 3.97). */
+  templateVault?: TemplateVault | null;
   /** Every vault note path (collision-free naming + move-detection scope). */
   allNotePaths: string[];
   /**
@@ -158,6 +166,14 @@ export interface TaskSyncResult {
   deletedNotes: string[];
   errors: string[];
   /**
+   * Provider changes that could not be carried into their notes (finding B2,
+   * 19.10.): a tick at the provider for a database without a done column, a
+   * due date for one without a date column, properties that could not be
+   * written. They are NOT recorded as agreed - the next cycle tries again -
+   * and each list with such a change says so on its `tasknotes:` row.
+   */
+  notApplied: number;
+  /**
    * True when the reconcile did nothing because task notes are being renamed
    * in bulk (`withTaskSyncPaused`, E12). The runner asks to be called again
    * once the pause lifts (`afterTaskSyncResume`).
@@ -216,7 +232,7 @@ export function chooseAnchorToAdopt<T extends { path: string; ctime: number | nu
 
 export async function runTaskSync(opts: TaskSyncOptions): Promise<TaskSyncResult> {
   if (taskSyncPaused()) {
-    return { createdNotes: [], changedNotes: [], adoptedNotes: [], duplicateAnchors: 0, deferredCreates: 0, pushed: 0, conflicts: 0, deletedRemote: 0, deletedNotes: [], errors: [], paused: true };
+    return { createdNotes: [], changedNotes: [], adoptedNotes: [], duplicateAnchors: 0, deferredCreates: 0, pushed: 0, conflicts: 0, deletedRemote: 0, deletedNotes: [], errors: [], notApplied: 0, paused: true };
   }
   return trackTaskSync(reconcileAll(opts));
 }
@@ -233,6 +249,7 @@ async function reconcileAll(opts: TaskSyncOptions): Promise<TaskSyncResult> {
     deletedRemote: 0,
     deletedNotes: [],
     errors: [],
+    notApplied: 0,
   };
   if (!opts.taskDbPath) return result;
 
@@ -258,11 +275,18 @@ async function reconcileAll(opts: TaskSyncOptions): Promise<TaskSyncResult> {
       return target;
     };
     for (const list of lists) {
+      const notApplied: NotAppliedReason[] = [];
+      let finished = false;
       try {
-        await reconcileList(opts, db, account, list.id, getTarget, result, (task) => creates.push({ account, listId: list.id, listName: list.name, task }));
+        await reconcileList(opts, db, account, list.id, getTarget, result, (task) => creates.push({ account, listId: list.id, listName: list.name, task }), notApplied);
+        finished = true;
       } catch (e) {
         result.errors.push(`${account.label}/${list.name}: ${e instanceof Error ? e.message : String(e)}`);
       }
+      result.notApplied += notApplied.length;
+      // A reconcile that stopped part-way has not looked at every task: it
+      // may add a reason, never clear one.
+      if (finished || notApplied.length > 0) await reportNotApplied(opts.cache, account.id, list.id, notApplied);
     }
   }
   await createPendingNotes(opts, db, creates, result);
@@ -296,13 +320,17 @@ async function createPendingNotes(opts: TaskSyncOptions, db: DbShape, creates: P
       if (!notePath) continue;
       known.add(notePath);
       result.createdNotes.push(notePath);
+      // The file may be one an interrupted run left behind: whether it holds
+      // the date is read from it, not assumed (B2).
+      const createdDue = db.dueKey ? await opts.adapter.readTextFile(notePath).then((text) => readNoteFields(text, db).due, () => null) : null;
       await opts.cache.upsertTaskState({
         accountId: account.id,
         listId,
         uid: task.uid,
         notePath,
         remoteEtag: task.etag ?? null,
-        baseFields: fieldsOfTask(task),
+        // A note created without a date column cannot hold the due date (B2).
+        baseFields: { ...fieldsOfTask(task), ...(db.dueKey && (createdDue !== null || task.due == null) ? { dueHeldIn: db.dueKey } : {}) },
       });
     } catch (e) {
       result.errors.push(`${account.label}/${listName}: ${e instanceof Error ? e.message : String(e)}`);
@@ -329,7 +357,9 @@ async function reconcileList(
   getTarget: () => Promise<IPimTarget | null>,
   result: TaskSyncResult,
   /** Queues a task for import; the notes are created after all lists, in a fixed order. */
-  queueCreate: (task: PimTask) => void
+  queueCreate: (task: PimTask) => void,
+  /** Collects why a provider change did not reach its note (see `notApplied`). */
+  notApplied: NotAppliedReason[] = []
 ): Promise<void> {
   const { adapter, cache } = opts;
   const remoteTasks = await cache.listTasks(account.id, listId);
@@ -396,6 +426,9 @@ async function reconcileList(
       // produced the copies.
       const adopted = await adoptAnchoredNote(opts, account, listId, rt, result);
       if (adopted) {
+        // A note that carries no due date at all says nothing about it; one
+        // that carries its own keeps speaking for it, as before.
+        const adoptedDue = db.dueKey ? await adapter.readTextFile(adopted).then((text) => readNoteFields(text, db).due, () => null) : null;
         await cache.upsertTaskState({
           accountId: account.id,
           listId,
@@ -404,8 +437,9 @@ async function reconcileList(
           remoteEtag: rt.etag ?? null,
           // The remote state is the agreed base: the note was never compared
           // against this task before, and claiming an older base would push
-          // changes nobody made.
-          baseFields: remoteFields,
+          // changes nobody made. A note without a due date is given the
+          // provider's by the next cycle rather than read as cleared (B2).
+          baseFields: { ...remoteFields, ...(db.dueKey && (adoptedDue !== null || remoteFields.due === null) ? { dueHeldIn: db.dueKey } : {}) },
         });
         result.adoptedNotes.push(adopted);
         continue;
@@ -470,42 +504,93 @@ async function reconcileList(
     // stale / foreign-database status un-complete the remote task (the "all
     // tasks undone at Google" failure). In that case completion follows the
     // base, so no spurious flip is ever pushed.
-    const localFields = readNoteFields(content, db, base.completed);
+    // The note does not speak for the due date while the database has no date
+    // column, or while it carries no due property and the date was agreed
+    // without the note holding it in this column (`dueHeldIn`, B2).
+    const readLocal = (text: string): PimTaskFields => {
+      const fields = readNoteFields(text, db, base.completed);
+      return dueSilent(fields, base, db) ? { ...fields, due: base.due } : fields;
+    };
+    // Such a note is given the agreed date first (an empty date is nothing to write).
+    const needsDueWriteIn = (text: string): boolean => !!db.dueKey && base.due !== null && dueSilent(readNoteFields(text, db), base, db);
+    const needsDueWrite = needsDueWriteIn(content);
+    const localFields = readLocal(content);
     const remoteChanged = st.remoteEtag != null ? st.remoteEtag !== (rt.etag ?? null) : !fieldsEqual(remoteFields, base);
     const localChanged = !fieldsEqual(localFields, base);
 
-    if (!remoteChanged && !localChanged) {
-      if (notePath !== st.notePath) await cache.upsertTaskState({ ...st, notePath });
+    if (!remoteChanged && !localChanged && !needsDueWrite) {
+      // A row from before `dueHeldIn`, or from before the column changed,
+      // whose note holds the agreed date is marked once, on first sight: a
+      // date cleared later is then read as cleared.
+      const noteDue = db.dueKey && base.dueHeldIn !== db.dueKey ? readNoteFields(content, db).due : null;
+      const holds = noteDue !== null && dueEqual(noteDue, base.due);
+      if (notePath !== st.notePath || holds) {
+        await cache.upsertTaskState({ ...st, notePath, ...(holds && db.dueKey ? { baseFields: { ...base, dueHeldIn: db.dueKey } } : {}) });
+      }
       continue;
     }
 
     // Field-wise three-way merge, local wins on a per-field tie.
-    const merged: PimTaskFields = {
-      title: localChanged && localFields.title !== base.title ? localFields.title : remoteFields.title,
-      due: localChanged && localFields.due !== base.due ? localFields.due : remoteFields.due,
-      completed: localChanged && localFields.completed !== base.completed ? localFields.completed : remoteFields.completed,
+    const mergeFields = (local: PimTaskFields): PimTaskFields => {
+      const changed = !fieldsEqual(local, base);
+      return {
+        title: changed && local.title !== base.title ? local.title : remoteFields.title,
+        due: changed && !dueEqual(local.due, base.due) ? local.due : remoteFields.due,
+        completed: changed && local.completed !== base.completed ? local.completed : remoteFields.completed,
+      };
     };
+    const merged = mergeFields(localFields);
 
     // Apply to the note when it differs from the local state.
-    if (!fieldsEqual(merged, localFields)) {
-      let updated = upgradeAnchorIfStale(applyFieldsToNote(content, merged, localFields, db), account, listId, rt);
-      // The provider repeats this task (finding 2026-09-20): done at the last
-      // agreement, open again under the SAME id with a later due date — and
-      // nobody reopened it here. The note says so from now on, because "I
-      // ticked this yesterday and it is open again" otherwise reads as a sync
-      // fault. Rides along with the write that reopens the note; never a
-      // write of its own.
-      if (providerReopened(base, remoteFields) && localFields.completed === base.completed) updated = markRecurringAtProvider(updated);
+    if (!fieldsEqual(merged, localFields) || needsDueWrite) {
+      // What the merge writes, as a function of the text it goes into
+      // (`updateVaultText`): the note as it lies there at that moment, and —
+      // where the note has an open conflict — the person's own version, which
+      // takes the same change merged with what it says itself. A text that is
+      // no longer this task is left alone: only the bytes authorize a write.
+      const mergedInto = (text: string): string | null => {
+        if (text !== content && !taskNoteMatches(readTaskNoteIdentity(text), taskId(rt.uid))) return null;
+        const own = text === content ? localFields : readLocal(text);
+        const fields = text === content ? merged : mergeFields(own);
+        const writeDue = text === content ? needsDueWrite : needsDueWriteIn(text);
+        if (fieldsEqual(fields, own) && !writeDue) return null;
+        // A note without its date yet gets it, whatever it was assumed to say.
+        const current = writeDue ? { ...own, due: fields.due === null ? null : "" } : own;
+        let updated = upgradeAnchorIfStale(applyFieldsToNote(text, fields, current, db), account, listId, rt);
+        // The provider repeats this task (finding 2026-09-20): done at the last
+        // agreement, open again under the SAME id with a later due date — and
+        // nobody reopened it here. The note says so from now on, because "I
+        // ticked this yesterday and it is open again" otherwise reads as a sync
+        // fault. Rides along with the write that reopens the note; never a
+        // write of its own.
+        if (providerReopened(base, remoteFields) && own.completed === base.completed) updated = markRecurringAtProvider(updated);
+        return updated;
+      };
       try {
-        if (!await fileStillEquals(adapter, notePath, content)) continue;
-        await adapter.writeTextFile(notePath, updated);
-        content = updated;
-        result.changedNotes.push(notePath);
+        const written = await updateVaultText(adapter, notePath, mergedInto);
+        if (written.changed) result.changedNotes.push(notePath);
+        // Edited since it was read: the note is merged as it lies there, and
+        // the state and the push follow from the next cycle's read of it.
+        if (written.before !== content) continue;
+        content = written.text;
       } catch (e) {
-        result.errors.push(`${notePath}: ${e instanceof Error ? e.message : String(e)}`);
+        // Moved or deleted since it was read: nothing to report, the next
+        // cycle finds the note where it is now (or tombstones it).
+        if (!isFileNotFound(e)) result.errors.push(`${notePath}: ${e instanceof Error ? e.message : String(e)}`);
         continue;
       }
     }
+
+    // Did every field that had to change reach the note? A value the note
+    // cannot hold - a tick for a database without a done column, a date for
+    // one without a date column, a property block that could not be written -
+    // used to be recorded as agreed all the same: the tick was gone for good,
+    // and nothing anywhere said so (finding B2, 19.10.). Such a field keeps its
+    // old base and the remote etag is forgotten, so the next cycle tries again;
+    // the list reports it until the database can take it.
+    // A date that had to be written in counts as a change to check, too.
+    const missing = missingFields(content, merged, needsDueWrite ? { ...localFields, due: null } : localFields, db);
+    for (const field of missing) notApplied.push(notAppliedReason(field, db));
 
     // Push when the merge differs from the remote.
     let newEtag = rt.etag ?? null;
@@ -536,7 +621,17 @@ async function reconcileList(
       }
     }
 
-    await cache.upsertTaskState({ accountId: account.id, listId, uid: rt.uid, notePath, remoteEtag: newEtag, baseFields: merged });
+    // A field held back keeps the old base, so the provider's value is tried
+    // again every cycle - a write that changes nothing and one state row. A
+    // later local edit back TO that old base reads as "unchanged" and yields
+    // to the provider's value; it is the value the provider already holds
+    // that would be lost, never one the person made since.
+    const agreed: PimTaskFields = { ...merged };
+    for (const field of missing) (agreed as Record<keyof PimTaskFields, unknown>)[field] = base[field];
+    // Whether the note now holds the agreed due date; until it does, a missing
+    // due property is not read as a cleared one.
+    if (db.dueKey && dueEqual(readNoteFields(content, db).due, agreed.due)) agreed.dueHeldIn = db.dueKey;
+    await cache.upsertTaskState({ accountId: account.id, listId, uid: rt.uid, notePath, remoteEtag: missing.length > 0 ? null : newEtag, baseFields: agreed });
   }
 
   // Remote deletions: drop the state, keep the note (it becomes a normal note) —
@@ -555,8 +650,9 @@ async function reconcileList(
       if (!taskNoteMatches(readTaskNoteIdentity(content), taskId(st.uid))) continue;
       const base = st.baseFields;
       if (!base) continue;
-      const local = readNoteFields(content, db, base.completed);
-      const unchanged = local.title === base.title && local.due === base.due && local.completed === base.completed;
+      const read = readNoteFields(content, db, base.completed);
+      const local = dueSilent(read, base, db) ? { ...read, due: base.due } : read;
+      const unchanged = local.title === base.title && dueEqual(local.due, base.due) && local.completed === base.completed;
       if (!unchanged) continue;
       if (!await fileStillEquals(adapter, st.notePath, content)) continue;
       await opts.adapter.deleteFile(st.notePath);
@@ -564,6 +660,51 @@ async function reconcileList(
     } catch (e) {
       result.errors.push(`${account.label}/${listId}: ${e instanceof Error ? e.message : String(e)}`);
     }
+  }
+}
+
+// ---- changes that did not reach the note ------------------------------------
+
+/** Why a provider change did not reach its note - the codes the task views translate. */
+export type NotAppliedReason = "no-done-column" | "no-due-column" | "not-written";
+
+/**
+ * The fields of `merged` that differ from what the note said before and that
+ * the note does not say now. The title is left out when the provider's is
+ * empty: an empty title is never written over a note's heading.
+ */
+function missingFields(text: string, merged: PimTaskFields, before: PimTaskFields, db: Pick<DbShape, "dueKey" | "completion">): Array<keyof PimTaskFields> {
+  // Read with the OPPOSITE of the wanted value as the fallback: a note that
+  // does not clearly say "done" (or "open") has not taken the change.
+  const now = readNoteFields(text, db, !merged.completed);
+  const out: Array<keyof PimTaskFields> = [];
+  if (merged.title && merged.title !== before.title && now.title !== merged.title) out.push("title");
+  if (!dueEqual(merged.due, before.due) && (!db.dueKey || !dueEqual(now.due, merged.due))) out.push("due");
+  if (merged.completed !== before.completed && (!db.completion || now.completed !== merged.completed)) out.push("completed");
+  return out;
+}
+
+function notAppliedReason(field: keyof PimTaskFields, db: Pick<DbShape, "dueKey" | "completion">): NotAppliedReason {
+  if (field === "completed" && !db.completion) return "no-done-column";
+  if (field === "due" && !db.dueKey) return "no-due-column";
+  return "not-written";
+}
+
+/** One row per list: set while changes wait, cleared once they all went through. */
+async function reportNotApplied(cache: PimCacheRepository, accountId: string, listId: string, reasons: readonly NotAppliedReason[]): Promise<void> {
+  const scope = `tasknotes:${listId}`;
+  try {
+    if (reasons.length > 0) {
+      // The most telling reason first: a missing column is the person's to fix.
+      const reason = (["no-done-column", "no-due-column", "not-written"] as const).find((r) => reasons.includes(r))!;
+      await cache.recordScopeFailure(accountId, scope, { lastError: `${TASK_NOTE_PROBLEM_PREFIX}${reason}` });
+      return;
+    }
+    // Only a row that says something is cleared: a write every cycle for
+    // every list would be a write for nothing.
+    if ((await cache.getScopeState(accountId, scope))?.lastError) await cache.setScopeState(accountId, scope, { lastError: null });
+  } catch {
+    /* a report must never cost the reconcile */
   }
 }
 
@@ -618,7 +759,9 @@ async function createTaskNote(opts: TaskSyncOptions, db: DbShape, account: PimAc
       prefills[db.completion.status.key] = task.completed ? db.completion.status.done : db.completion.status.open;
     }
   }
-  let content = buildNewItemContent({ templateText, noteType: opts.noteType, title: task.title || "Task", inheritTags: db.inheritTags, prefills });
+  const title = task.title || "Task";
+  const templateContext = await withVaultContext({ title, now: new Date(), folder: notePath.split("/").slice(0, -1).join("/") }, opts.templateVault ?? null);
+  let content = buildNewItemContent({ templateText, noteType: opts.noteType, title, inheritTags: db.inheritTags, prefills, templateContext });
   try {
     // setFrontmatterPath, not upsertFrontmatterKeys: the latter replaces the
     // whole `plainva` map, so a template that gives its tasks an icon would
@@ -772,7 +915,37 @@ export function fieldsOfTask(t: PimTask): PimTaskFields {
 }
 
 export function fieldsEqual(a: PimTaskFields, b: PimTaskFields): boolean {
-  return a.title === b.title && a.due === b.due && a.completed === b.completed;
+  return a.title === b.title && dueEqual(a.due, b.due) && a.completed === b.completed;
+}
+
+/** A due value as the note says it: the day, and the time where it has one. */
+function dueOf(raw: string): string {
+  const m = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}))?/.exec(raw);
+  if (!m) return raw.slice(0, 10);
+  return m[2] ? `${m[1]}T${m[2]}` : m[1]!;
+}
+
+/**
+ * Whether a note says nothing about its due date (B2): the database has no
+ * date column, or the note carries no due property while the agreed date was
+ * not held by it in this column (`dueHeldIn`). A note that carries a date
+ * always speaks.
+ */
+function dueSilent(note: PimTaskFields, base: PimTaskFields, db: Pick<DbShape, "dueKey">): boolean {
+  return !db.dueKey || (note.due === null && base.dueHeldIn !== db.dueKey);
+}
+
+/**
+ * Two due values mean the same (B2): by the minute where both carry a time,
+ * by the day where one does not. Google, Microsoft and CalDAV keep days, a
+ * note may keep a time; the phone's reminders keep a time. Compared by the
+ * day alone, a reminder's time was taken for a change of the note's and sent
+ * back without it - the time was lost at the provider.
+ */
+export function dueEqual(a: string | null, b: string | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.length > 10 && b.length > 10 ? a === b : a.slice(0, 10) === b.slice(0, 10);
 }
 
 /** Local field surface of a task note: first H1 as the title (fallback empty),
@@ -786,7 +959,7 @@ export function readNoteFields(
   fallbackCompleted = false
 ): PimTaskFields {
   const dueRaw = db.dueKey ? readFrontmatterPath(content, [db.dueKey]) : undefined;
-  const due = dueRaw != null && String(dueRaw).trim() ? String(dueRaw).slice(0, 10) : null;
+  const due = dueRaw != null && String(dueRaw).trim() ? dueOf(String(dueRaw).trim()) : null;
   let completed = fallbackCompleted;
   if (db.completion) {
     const model = db.completion;
@@ -813,7 +986,11 @@ export function applyFieldsToNote(content: string, merged: PimTaskFields, curren
     out = replaceFirstH1(out, merged.title);
   }
   try {
-    if (db.dueKey && merged.due !== current.due) {
+    // A day-only value of the same day leaves a time the note carries alone:
+    // a time the person put in survives a provider that knows days only.
+    // Anything else is written as it is, a provider's time included.
+    const keepsNoteTime = !!merged.due && !!current.due && merged.due.length === 10 && current.due.length > 10 && current.due.startsWith(merged.due);
+    if (db.dueKey && merged.due !== current.due && !keepsNoteTime) {
       out = merged.due ? upsertFrontmatterKeys(out, { [db.dueKey]: merged.due }) : deleteFrontmatterPath(out, [db.dueKey]);
     }
     if (db.completion && merged.completed !== current.completed) {
@@ -825,30 +1002,30 @@ export function applyFieldsToNote(content: string, merged: PimTaskFields, curren
   return out;
 }
 
+/**
+ * Where the note's text begins: behind its properties, or — in a note without
+ * any — behind a byte order mark. The mark is no part of the first line: read
+ * as one, it hid a heading on that line from both functions below, and a
+ * title from the provider was written as a second heading above it.
+ */
+function textStartOf(content: string): number {
+  return frontmatterSpan(content)?.end ?? (content.charCodeAt(0) === 0xfeff ? 1 : 0);
+}
+
 function firstH1(content: string): string | null {
-  const body = stripFrontmatterBlock(content);
+  const body = content.slice(textStartOf(content));
   const m = body.match(/^#[ \t]+(\S[^\r\n]*)/m);
   return m ? m[1].trim() : null;
 }
 
 function replaceFirstH1(content: string, title: string): string {
-  const fmEnd = frontmatterEnd(content);
-  const head = content.slice(0, fmEnd);
-  const body = content.slice(fmEnd);
+  const at = textStartOf(content);
+  const head = content.slice(0, at);
+  const body = content.slice(at);
   if (/^#[ \t]+\S[^\r\n]*/m.test(body)) {
     return head + body.replace(/^#[ \t]+\S[^\r\n]*/m, `# ${title}`);
   }
-  return head + `# ${title}\n` + body;
+  // A heading that has to be added ends the way the note's lines end.
+  return head + `# ${title}${readTextShape(content).shape.eol}` + body;
 }
 
-function frontmatterEnd(content: string): number {
-  if (!content.startsWith("---\n")) return 0;
-  const close = content.indexOf("\n---", 3);
-  if (close === -1) return 0;
-  const lineEnd = content.indexOf("\n", close + 4);
-  return lineEnd === -1 ? content.length : lineEnd + 1;
-}
-
-function stripFrontmatterBlock(content: string): string {
-  return content.slice(frontmatterEnd(content));
-}

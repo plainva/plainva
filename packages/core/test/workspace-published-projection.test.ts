@@ -2,11 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PUBLISHED_PRIVATE_PROPERTIES,
   DEFAULT_PUBLISHED_PROPERTY_ALLOWLIST,
+  FrontmatterSurgicalError,
+  PUBLISHED_NOTE_REFUSED,
+  PublishedNoteRefusedError,
+  WorkspaceProtocolError,
   defaultPublishedPropertyPolicy,
   previewPublishedProjection,
   projectPublishedMarkdown,
+  projectPublishedNote,
   publishedSliceProviderInstructions,
 } from "../src/index.js";
+import { splitDocument } from "../src/frontmatter-block.js";
+import { dataOfBlock } from "../src/frontmatter-entry.js";
+import { FRONTMATTER_FORMS } from "./fixtures/frontmatterForms.js";
 
 /**
  * What actually leaves the vault when a slice is published (Stufe B, S3).
@@ -23,6 +31,37 @@ const INCLUDED = ["Shared/Note.md", "Shared/Deep/Other.md"];
 function project(markdown: string, over: Partial<Parameters<typeof projectPublishedMarkdown>[0]> = {}) {
   return projectPublishedMarkdown({ markdown, includedPaths: INCLUDED, ...over });
 }
+
+/**
+ * Everything one call lets out: the note it would publish, what it reports
+ * about it, and - where it refuses - what it says. A refusal hands out no note
+ * and no report, so what it SAYS is all there is to check for a leak.
+ */
+function handedOut(markdown: string) {
+  try {
+    const result = project(markdown);
+    return { note: result.markdown as string | null, report: result.report as typeof result.report | null, refusal: null as unknown };
+  } catch (refusal) {
+    return { note: null, report: null, refusal };
+  }
+}
+
+/**
+ * Whether the property writers refuse to touch the note's block: they all
+ * start at `splitDocument` and turn the block into data by `dataOfBlock`.
+ */
+function writersRefuse(markdown: string): boolean {
+  try {
+    dataOfBlock(splitDocument(markdown).doc);
+    return false;
+  } catch (error) {
+    if (error instanceof FrontmatterSurgicalError) return true;
+    throw error;
+  }
+}
+
+/** Built from its code point: an escape in a source file is easily saved as the invisible character itself. */
+const BOM = String.fromCharCode(0xfeff);
 
 describe("published property policy", () => {
   it("withholds what Plainva itself writes, without being told the names", () => {
@@ -78,6 +117,221 @@ describe("published property policy", () => {
     expect(DEFAULT_PUBLISHED_PROPERTY_ALLOWLIST).toContain("stale_after");
     expect(DEFAULT_PUBLISHED_PROPERTY_ALLOWLIST).not.toContain("sources");
     expect(DEFAULT_PUBLISHED_PROPERTY_ALLOWLIST).not.toContain("plainva");
+  });
+});
+
+describe("published properties, wherever a reader sees a block", () => {
+  // The sanitizer carried a search of its own for the block: `---` lines with
+  // the line ending of the first one. What it did not find it did not filter,
+  // and the note left with every property it had — while the reader on the
+  // other side took the same lines for properties (finding 2026-10-07).
+  it.each([
+    ["closed at the very end of the file", "---\ntitle: Public\nsecret: hidden-value\n---"],
+    ["closed by a fence with another line ending", "---\r\ntitle: Public\r\nsecret: hidden-value\n---\nBody."],
+    ["opened with CRLF, the rest LF", "---\r\ntitle: Public\nsecret: hidden-value\n---\nBody."],
+    ["closed by a fence with a blank behind it", "---\ntitle: Public\nsecret: hidden-value\n--- \nBody."],
+    ["opened by a fence with a blank behind it", "--- \ntitle: Public\nsecret: hidden-value\n---\nBody."],
+    ["behind a byte order mark", "\uFEFF---\ntitle: Public\nsecret: hidden-value\n---\nBody."],
+    // A carriage return of its own ends a line for the reader on the other
+    // side; the definition read on past it and found no block (2026-10-11).
+    ["of a note from a classic Mac", "---\rtitle: Public\rsecret: hidden-value\r---\rBody."],
+    ["closed by a fence behind a stray carriage return", "---\ntitle: Public\nsecret: hidden-value\r---\nBody."],
+    ["opened by a fence that ends in a carriage return", "---\rtitle: Public\nsecret: hidden-value\n---\nBody."],
+  ])("withholds a private property of a block %s", (_form, markdown) => {
+    const result = project(markdown);
+    expect(result.markdown).not.toContain("hidden-value");
+    expect(result.markdown).not.toContain("secret");
+    expect(result.markdown).toContain("title: Public");
+    expect(result.report.removedProperties).toEqual(["secret"]);
+  });
+
+  it("keeps the text behind a block without entries, rule included", () => {
+    // `---` on `---` was not found as a block; the search ran on to the rule
+    // in the text and everything in between was dropped as "properties".
+    expect(project("---\n---\nIntro.\n\n---\n\nRest.\n").markdown).toBe("Intro.\n\n---\n\nRest.\n");
+    expect(project("---\r\n---\r\nIntro.\r\n\r\n---\r\n\r\nRest.\r\n").markdown).toBe("Intro.\r\n\r\n---\r\n\r\nRest.\r\n");
+  });
+
+  it("leaves no block behind when every property is withheld, unless the text opens with a rule", () => {
+    expect(project("---\nsecret: hidden-value\n---\nBody.\n").markdown).toBe("Body.\n");
+    // Dropped, the text's own `---` would open a block on the other side.
+    expect(project("---\nsecret: hidden-value\n---\n---\nIntro.\n---\n").markdown).toBe("---\n---\n---\nIntro.\n---\n");
+  });
+});
+
+describe("a block that names no properties", () => {
+  // Properties are a YAML map, and an allowlist judges names. Text between two
+  // rules at the top of a note parses as one string, a list as an array - and
+  // the sanitizer walked both as if they were a record. The report named "0",
+  // "1", "2" as removed properties, the preview counted them, and the block
+  // was gone from the published note without a word. A number, or a `null`
+  // that is spelt out, went the same way with no entry in the report at all
+  // (finding 2026-10-09).
+  //
+  // Such a note is refused, as one whose YAML does not parse always was. Each
+  // form below carries something that must not leave, and each case fails on
+  // the code before: there the note came back, without its block.
+  const NO_MAP: ReadonlyArray<readonly [string, string]> = [
+    ["plain text", "---\nSalary 4800, hidden-value\n---\nBody.\n"],
+    ["text over two lines", "---\nCall Anna about the offer,\nhidden-value\n---\nBody.\n"],
+    ["a list", "---\n- anna@example.org\n- hidden-value\n---\nBody.\n"],
+    ["a list in brackets", "---\n[anna@example.org, hidden-value]\n---\nBody.\n"],
+    ["a null that is spelt out", "---\nnull # hidden-value\n---\nBody.\n"],
+    ["a tilde under a comment", "---\n# password: hidden-value\n~\n---\nBody.\n"],
+    ["a number", "---\n4800 # hidden-value\n---\nBody.\n"],
+    ["a quoted string", "---\n\"hidden-value\"\n---\nBody.\n"],
+    ["a block scalar", "---\n|\n  hidden-value\n---\nBody.\n"],
+    ["text, with Windows line ends", "---\r\nSalary 4800, hidden-value\r\n---\r\nBody.\r\n"],
+    ["text, with the line ends of a classic Mac", "---\rSalary 4800, hidden-value\r---\rBody.\r"],
+    ["text behind a byte order mark", `${BOM}---\nSalary 4800, hidden-value\n---\nBody.\n`],
+    ["text closed at the very end of the file", "---\nSalary 4800, hidden-value\n---"],
+  ];
+  // What the sanitizer refused before, too - held here for what it says.
+  const UNPARSEABLE: ReadonlyArray<readonly [string, string]> = [
+    ["an unclosed quote", "---\ntitle: \"unclosed\nsecret: hidden-value\n---\nBody.\n"],
+    ["a property named twice", "---\ntitle: Public\ntitle: hidden-value\n---\nBody.\n"],
+  ];
+  // A map that cannot say what it holds: YAML reads `*name` as a reference,
+  // not as emphasis, and the library refuses references that lead nowhere or
+  // multiply past its limit only when the block is turned into data. Its own
+  // sentence for that named no note and quoted the reference.
+  const UNREADABLE: ReadonlyArray<readonly [string, string]> = [
+    ["a map with a reference that leads nowhere", "---\ntitle: *hidden-value*\nstatus: open\n---\nBody.\n"],
+    [
+      "a map whose references multiply past the limit",
+      [
+        "---",
+        "a: &a [x, x, x, x, x, x, x, x, x, x]",
+        "b: &b [*a, *a, *a, *a, *a, *a, *a, *a, *a, *a]",
+        "c: &c [*b, *b, *b, *b, *b, *b, *b, *b, *b, *b]",
+        "d: [*c, *c, *c, *c, *c, *c, *c, *c, *c, *c]",
+        "secret: hidden-value",
+        "---",
+        "Body.",
+      ].join("\n"),
+    ],
+  ];
+  const REFUSED = [...NO_MAP, ...UNREADABLE];
+  // A block without content says nothing, and nothing is no properties.
+  const WITHOUT_ENTRIES: ReadonlyArray<readonly [string, string]> = [
+    ["no line", "---\n---\nBody.\n"],
+    ["a blank line", "---\n\n---\nBody.\n"],
+    ["a comment alone", "---\n# password: hidden-value\n---\nBody.\n"],
+    ["an empty map", "---\n{}\n---\nBody.\n"],
+  ];
+
+  it.each(REFUSED)("refuses a note whose block is %s, and nothing of it leaves", (_form, markdown) => {
+    const out = handedOut(markdown);
+    // Not in a note, not in a report, and not in the words of the refusal.
+    expect(JSON.stringify([out.note, out.report, String(out.refusal)])).not.toContain("hidden-value");
+    expect(out.note).toBeNull();
+    // No report at all: no character position and no place in a list is named
+    // as a property that was removed.
+    expect(out.report).toBeNull();
+    expect(out.refusal).toBeInstanceOf(WorkspaceProtocolError);
+    expect((out.refusal as WorkspaceProtocolError).code).toBe("format");
+  });
+
+  it.each([...REFUSED, ...UNPARSEABLE])("says one fixed sentence about a block that is %s, never the note's own words", (_form, markdown) => {
+    // The YAML parser's message quotes the line it stumbled over. This one is
+    // shown in the app and kept in the publication's record.
+    const { refusal } = handedOut(markdown);
+    expect((refusal as Error).message).toBe("published slice frontmatter is invalid");
+    expect(String(refusal)).not.toContain("hidden-value");
+    expect(String(refusal)).not.toContain("unclosed");
+  });
+
+  it.each(WITHOUT_ENTRIES)("publishes a note whose block is %s without a block, comment included", (_form, markdown) => {
+    const out = handedOut(markdown);
+    expect(out.refusal).toBeNull();
+    expect(out.note).not.toContain("hidden-value");
+    expect(out.note).toBe("Body.\n");
+    expect(out.report?.removedProperties).toEqual([]);
+  });
+
+  it("takes a `null` that is spelt out for what it says, in every spelling", () => {
+    // The line the writers draw (`splitDocument`) and the OKF check with them:
+    // an empty block is a block without entries, a block that says `null` says
+    // something - and it is no map.
+    for (const spelling of ["null", "Null", "NULL", "~"]) {
+      expect(handedOut(`---\n${spelling}\n---\nBody.\n`).refusal, spelling).toBeInstanceOf(WorkspaceProtocolError);
+      expect(writersRefuse(`---\n${spelling}\n---\nBody.\n`), spelling).toBe(true);
+    }
+  });
+
+  // One rule for what a properties block is, asked by the writers and by the
+  // sanitizer alike (`parseBlockYaml`, then `dataOfBlock`). Held on every form
+  // of this file and on the table the definition itself is held on: where a
+  // writer refuses to touch the block, the sanitizer refuses to publish from
+  // it - and nowhere else.
+  it.each([
+    ...REFUSED,
+    ...UNPARSEABLE,
+    ...WITHOUT_ENTRIES,
+    ["a map", "---\ntitle: Public\nsecret: hidden-value\n---\nBody.\n"] as const,
+    ...FRONTMATTER_FORMS.map((form) => [JSON.stringify(form), form] as const),
+  ])("answers like the writers for %s", (_form, markdown) => {
+    expect(handedOut(markdown).refusal !== null).toBe(writersRefuse(markdown));
+  });
+
+  it("still takes a property whose name is a number for a property", () => {
+    // What must not come back with the indices is a rule against digits: a
+    // year as a key is a name like any other, removed and named as such.
+    const result = project("---\n2024: hidden-value\ntitle: Public\n---\nBody.\n");
+    expect(result.markdown).not.toContain("hidden-value");
+    expect(result.markdown).toBe("---\ntitle: Public\n---\nBody.\n");
+    expect(result.report.removedProperties).toEqual(["2024"]);
+  });
+
+  it("leaves a comment in the block at home with the properties that stay", () => {
+    // Held, not changed: the block is written anew from what passed the list,
+    // so a line that was commented out - the usual place for a key somebody
+    // meant to delete - never travels.
+    const result = project("---\ntitle: Public\n# password: hidden-value\nstatus: open # hidden-value\n---\nBody.\n");
+    expect(result.markdown).not.toContain("hidden-value");
+    expect(result.markdown).not.toContain("password");
+    expect(result.markdown).toBe("---\ntitle: Public\nstatus: open\n---\nBody.\n");
+  });
+});
+
+describe("the sanitizer, for a note whose path is known", () => {
+  // `projectPublishedMarkdown` is handed text and cannot say which note it
+  // refuses. The preview and the refresh know, and a slice is many notes.
+  const DRAFT = "---\nSalary 4800, hidden-value\n---\nBody.\n";
+
+  function refusalOf(markdown: string, path = "Shared/Draft.md"): unknown {
+    try {
+      projectPublishedNote({ path, markdown, includedPaths: INCLUDED });
+      return null;
+    } catch (error) {
+      return error;
+    }
+  }
+
+  it("names the note it refuses, and nothing the note says", () => {
+    const refusal = refusalOf(DRAFT);
+    expect(refusal).toBeInstanceOf(PublishedNoteRefusedError);
+    expect((refusal as PublishedNoteRefusedError).path).toBe("Shared/Draft.md");
+    // How the shells recognise it: by how the message begins, with the path behind.
+    expect((refusal as Error).message).toBe(`${PUBLISHED_NOTE_REFUSED}Shared/Draft.md`);
+    expect(String(refusal)).not.toContain("hidden-value");
+    expect(String(refusal)).not.toContain("4800");
+  });
+
+  it("names a note whose YAML does not parse the same way", () => {
+    // Refused before as well, but by a sentence without a note in it.
+    const refusal = refusalOf("---\ntitle: \"unclosed\nsecret: hidden-value\n---\nBody.\n", "Shared/Deep/Other.md");
+    expect((refusal as Error).message).toBe(`${PUBLISHED_NOTE_REFUSED}Shared/Deep/Other.md`);
+    expect(String(refusal)).not.toContain("hidden-value");
+    expect(String(refusal)).not.toContain("unclosed");
+  });
+
+  it("is the same projection where nothing is refused", () => {
+    const markdown = "---\ntitle: Public\nsecret: hidden-value\n---\nSee [[Private/Plan]].\n";
+    const named = projectPublishedNote({ path: "Shared/Note.md", markdown, includedPaths: INCLUDED });
+    expect(named).toEqual(project(markdown));
+    expect(named.markdown).not.toContain("hidden-value");
+    expect(named.markdown).not.toContain("Private/Plan");
   });
 });
 
@@ -307,6 +561,37 @@ describe("published projection preview", () => {
     expect(preview.objectCount).toBe(0);
     expect(preview.sample).toBeNull();
     expect(preview.unchanged).toBe(true);
+  });
+
+  it("ends at a note the sanitizer refuses, and names it", () => {
+    // The numbers used to carry on. The note's block was counted as so many
+    // removed properties - one for every character of its text -, and with the
+    // most "removals" of the slice the note became the sample: a preview that
+    // showed the text going, and said it was properties.
+    const withDraft = [...objects, { path: "Shared/Draft.md", markdown: "---\nSalary 4800, hidden-value\n---\nText." }];
+    let preview: ReturnType<typeof previewPublishedProjection> | null = null;
+    let refusal: unknown = null;
+    try {
+      preview = previewPublishedProjection({ mode: "sanitized", objects: withDraft });
+    } catch (error) {
+      refusal = error;
+    }
+    // No numbers for a publication that does not come about: the refresh stops
+    // at the same note.
+    expect(preview).toBeNull();
+    expect(refusal).toBeInstanceOf(PublishedNoteRefusedError);
+    expect((refusal as PublishedNoteRefusedError).path).toBe("Shared/Draft.md");
+    expect(String(refusal)).not.toContain("hidden-value");
+    expect(String(refusal)).not.toContain("4800");
+  });
+
+  it("hands an exact publication's note out as it is, whatever stands at its top", () => {
+    // Exact projects nothing, so it refuses nothing - and says so.
+    const draft = { path: "Shared/Draft.md", markdown: "---\nA line between two rules\n---\nText." };
+    const preview = previewPublishedProjection({ mode: "exact", objects: [draft] });
+    expect(preview.unchanged).toBe(true);
+    expect(preview.removedProperties).toEqual([]);
+    expect(preview.sample?.after).toBe(draft.markdown);
   });
 });
 

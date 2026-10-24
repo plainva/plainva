@@ -9,15 +9,6 @@ import { findInlineTags, readHtmlCheckbox } from "@plainva/core";
 import { tagColorAttrs, tagSegments } from "@plainva/ui";
 
 /**
- * `resolveRelativeTarget` and its `RelativeTarget` moved to `@plainva/ui`
- * (issue #61): the editor needed the same resolution, and a second copy is how
- * one of them ends up wrong. Re-exported here so the read view and its tests
- * keep their import path — an unchanged read view is the proof that lifting the
- * function changed no behaviour.
- */
-export { resolveRelativeTarget, type RelativeTarget } from "@plainva/ui";
-
-/**
  * Percent-encodes a wiki target for use inside a generated markdown link
  * destination (`[x](wiki://…)`). encodeURIComponent leaves `( ) ! ' *` raw —
  * an unbalanced `(` in a note name (or nesting depth ≥ 2) makes the CommonMark

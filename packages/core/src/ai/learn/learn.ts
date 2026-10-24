@@ -1,3 +1,4 @@
+import { noteBodyOf } from "../../frontmatter-block.js";
 import type { ConversationRecord } from "../history.js";
 import { MEMORY_LIMITS } from "../memory/memoryFile.js";
 import { EFFECT_DECLINED } from "../orchestrator.js";
@@ -238,12 +239,8 @@ export function learnSkillName(raw: string): string | null {
  * and read by nobody.
  */
 function proposedBody(raw: string): string {
-  const text = raw.replace(/\r\n?/g, "\n").trim();
-  if (!text.startsWith("---")) return text;
-  const close = text.indexOf("\n---", 3);
-  if (close < 0) return text;
-  const lineEnd = text.indexOf("\n", close + 1);
-  return lineEnd < 0 ? "" : text.slice(lineEnd + 1).trim();
+  // The head is a properties block, and what that is has one definition (`noteBodyOf`).
+  return noteBodyOf(raw.replace(/\r\n?/g, "\n").trim()).trim();
 }
 
 /**

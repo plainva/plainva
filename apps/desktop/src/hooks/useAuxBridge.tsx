@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "@plainva/ui";
-import type { MailAttachment } from "@plainva/ui/mail";
+import type { ForwardSource, MailAttachment } from "@plainva/ui/mail";
 import type { CompareSubject } from "../components/CompareModal";
 import { useVault } from "../contexts/VaultContext";
 import { appConfirm } from "../services/appDialogs";
 import { createNoteFromLink } from "../services/createNoteFromLink";
 import { getAskBeforeCreateLink } from "../services/linkCreatePrompt";
+import { useComposeHost } from "../services/mail/composeHost";
 import { getConfiguredNoteType } from "../services/newNote";
 import { routeOpenThroughOwner } from "../services/openRouting";
 import { requestRevealInTree, requestRevealTag } from "../services/revealRouting";
 import { getWindowBus } from "../services/windowBus";
+import { newNoteOpensInNewTab } from "../services/newNoteTab";
 
 /** What the editor's "send as mail" hands over — the floating composer's seed. */
 export interface MailDraftSeed {
@@ -18,6 +20,10 @@ export interface MailDraftSeed {
   markdown: string;
   attachments?: MailAttachment[];
   to?: string;
+  /** The mailbox the draft is written from, where the asker has one (the mail view). */
+  accountId?: string;
+  /** A forward names the message whose files it carries; the composer loads them. */
+  forward?: ForwardSource;
 }
 
 export interface AuxBridgeOptions {
@@ -56,7 +62,10 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
 
   const [compareTarget, setCompareTarget] = useState<CompareSubject | null>(null);
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
-  const [mailDraft, setMailDraft] = useState<MailDraftSeed | null>(null);
+  // One composer per window. `setMailDraft` is a request rather than a setter:
+  // with a composer open it replaces an untouched draft, and asks before a
+  // changed one goes (services/mail/composeHost.ts).
+  const [mailDraft, setMailDraft, mailDraftKey, closeMailDraft] = useComposeHost<MailDraftSeed>();
 
   useEffect(() => {
     // --- local: the comparison surface (version history, conflict) ---------
@@ -93,7 +102,7 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
 
     // --- local: the note behind an unresolved wiki link ---------------------
     const onCreateNote = (e: Event) => {
-      const d = (e as CustomEvent).detail as { target?: string; hostPath?: string; newTab?: boolean } | undefined;
+      const d = (e as CustomEvent).detail as { target?: string; hostPath?: string; newTab?: boolean; path?: string; title?: string } | undefined;
       const { vaultAdapter: adapter, vaultPath: vault } = vaultRef.current;
       if (!d?.target || !adapter) return;
       void (async () => {
@@ -110,11 +119,12 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
               }),
             // No indexer here: the write travelled the bus, and the owner
             // indexes what it writes (ownerBus "write").
-          });
+          }, d.path && d.title ? { path: d.path, title: d.title } : undefined);
           if (result.outcome !== "created" && result.outcome !== "exists") return;
           const path = result.path;
           const { label, openInFocusedPane } = optsRef.current;
-          routeOpenThroughOwner(path, () => openInFocusedPane(path, !!d.newTab), { from: label });
+          const newTab = result.outcome === "created" ? newNoteOpensInNewTab(!!d.newTab) : !!d.newTab;
+          routeOpenThroughOwner(path, () => openInFocusedPane(path, newTab), { from: label });
         } catch (err) {
           toast.error(t("dialogs.createErrorMsg", { error: err instanceof Error ? err.message : String(err) }));
         }
@@ -124,7 +134,7 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
     // --- local: the floating composer -----------------------------------------
     const onComposeMail = (e: Event) => {
       const detail = (e as CustomEvent).detail as MailDraftSeed | undefined;
-      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to });
+      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to, accountId: detail.accountId, forward: detail.forward });
     };
 
     // --- local: the template picker, the context sidebar ----------------------
@@ -191,11 +201,10 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
       window.removeEventListener("plainva-open-sync-settings", onOpenSyncSettings);
       window.removeEventListener("plainva-encryption-locked", onEncryptionLocked);
     };
-  }, [t]);
+  }, [t, setMailDraft]);
 
   const closeCompare = useCallback(() => setCompareTarget(null), []);
   const closeTemplatePicker = useCallback(() => setTemplatePickerOpen(false), []);
-  const closeMailDraft = useCallback(() => setMailDraft(null), []);
 
-  return { compareTarget, closeCompare, templatePickerOpen, closeTemplatePicker, mailDraft, closeMailDraft };
+  return { compareTarget, closeCompare, templatePickerOpen, closeTemplatePicker, mailDraft, mailDraftKey, closeMailDraft };
 }

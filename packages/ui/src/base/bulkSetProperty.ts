@@ -1,5 +1,6 @@
+import { updateFrontmatterString, updateVaultText } from "@plainva/core";
 import { createLimiter } from "../lib/concurrencyLimiter";
-import { writeNoteProperty, type PropertyWriteAdapter } from "./writeProperty";
+import { writableProperties, writeNoteProperty, type PropertyWriteAdapter } from "./writeProperty";
 
 /**
  * Setting ONE column to ONE value across many notes (plan Mehrfachauswahl, P5).
@@ -91,4 +92,46 @@ export async function bulkSetProperty(
   );
 
   return { written, failed, cancelled };
+}
+
+export interface RewriteResult {
+  /** Paths that were written. */
+  written: string[];
+  /** Paths that failed, with the reason, in the order they failed. */
+  failed: { path: string; message: string }[];
+}
+
+/**
+ * A change that differs from note to note, across many notes: filling a
+ * property in where it is missing, converting the values of a date column.
+ *
+ * `change` gets a note's properties and answers the new set, or null to leave
+ * the note alone. Like `bulkSetProperty` this goes on past a note it cannot
+ * write and says which ones those were — the database's own loops each logged
+ * the failure to the console and then showed every row as changed (finding
+ * 2026-10-09). One note after the other, as those loops ran.
+ */
+export async function rewriteNoteProperties(
+  adapter: PropertyWriteAdapter,
+  paths: readonly string[],
+  change: (props: Record<string, unknown>) => Record<string, unknown> | null
+): Promise<RewriteResult> {
+  const written: string[] = [];
+  const failed: { path: string; message: string }[] = [];
+  for (const path of paths) {
+    try {
+      // Whether the note is one to change is said by the note itself, as it
+      // lies there when it is written; where it has an open conflict the
+      // change is asked again for the user's own version, and that answer
+      // counts for that version only.
+      const update = await updateVaultText(adapter, path, (text) => {
+        const next = change(writableProperties(text));
+        return next === null ? null : updateFrontmatterString(text, next);
+      });
+      if (change(writableProperties(update.before)) !== null) written.push(path);
+    } catch (e) {
+      failed.push({ path, message: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  return { written, failed };
 }

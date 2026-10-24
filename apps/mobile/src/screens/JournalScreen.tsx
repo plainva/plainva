@@ -19,7 +19,8 @@ import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { journalFailureText, journalFiles, journalHeading, onJournalWrite } from "../services/journalService";
 import { syncSoon } from "../services/syncService";
 import { getMobileSettings } from "../services/mobileSettings";
-import { vaultOps, type MobileVault } from "../services/vaultService";
+import { openLink } from "../services/openLink";
+import { vaultOps, vaultTextFiles, type MobileVault } from "../services/vaultService";
 
 /**
  * The journal as a screen (plan Journal, J5) — the phone's twin of the desktop
@@ -100,10 +101,7 @@ export function JournalScreen({
         // The phone's own way of writing - own-write marking and the index -
         // behind the shared property writer. Zero CLEARS the property.
         await writeNoteProperty(
-          {
-            readTextFile: (path: string) => vaultOps.read(vault, path),
-            writeTextFile: (path: string, content: string) => vaultOps.save(vault, path, content).then(() => undefined),
-          },
+          vaultTextFiles(vault),
           day.path,
           key,
           value > 0 ? value : "",
@@ -111,13 +109,14 @@ export function JournalScreen({
         refreshPath(day.path);
         syncSoon();
       } catch (error) {
-        toast.error(errorText(error));
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(error) }));
       }
     })();
-  }, [vault, ms.journalMoodProperty, refreshPath]);
+  }, [vault, ms.journalMoodProperty, refreshPath, t]);
   const links = useMemo(() => ({
-    onOpenNote: (target: string) => {
-      void vaultOps.resolveWikiTarget(vault, target).then((path) => { if (path) onOpenNote(path); }).catch(() => undefined);
+    // Read from the day's note the entry stands in, as the editor reads it there.
+    onOpenNote: (target: string, _newTab: boolean, kind?: "wiki" | "markdown", fromPath?: string) => {
+      void openLink({ text: target, kind: kind ?? "wiki", sourcePath: fromPath }, { vault, onOpenNote }).catch(() => undefined);
     },
     onOpenUrl: (url: string) => { void Browser.open({ url }).catch(() => undefined); },
     onOpenTag: (tag: string) => setFilter((f) => ({ ...f, tag })),

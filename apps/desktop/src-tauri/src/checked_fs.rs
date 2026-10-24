@@ -51,7 +51,7 @@ fn timestamp_ms(value: io::Result<std::time::SystemTime>) -> Option<u64> {
     value.ok()?.duration_since(std::time::UNIX_EPOCH).ok()?.as_millis().try_into().ok()
 }
 
-fn registered_path(roots: &WriteRoots, root_id: &str, relative: &str) -> Result<PathBuf, String> {
+pub(crate) fn registered_path(roots: &WriteRoots, root_id: &str, relative: &str) -> Result<PathBuf, String> {
     let root = roots
         .0
         .lock()

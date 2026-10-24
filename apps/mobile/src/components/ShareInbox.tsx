@@ -4,17 +4,29 @@ import { Banner, Button, Chip, ICON, noteDisplayName, notifyFileOps, prepareTask
 import { CheckSquare, FileText, Folder, NotebookPen, Paperclip } from "lucide-react";
 import { getActiveVaultEntry, getVaultEntry } from "../services/vaultRegistry";
 import { getMobileSettings } from "../services/mobileSettings";
+import { configuredNoteType } from "../services/newNote";
+import { phoneTemplateVault } from "../services/templateVault";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "../services/mobileWorkspaceSecurity";
 import { listPendingShares, shareTarget, validateShare, type PendingShare, type ShareTargetPort } from "../services/shareTarget";
 import { importSharedContent } from "../services/shareImport";
 import { appendPlannedJournalEntry, planSharedJournalEntry } from "../services/journalService";
-import { vaultOps, type MobileVault } from "../services/vaultService";
+import { vaultTextFiles, type MobileVault } from "../services/vaultService";
 import { providerListLabel, sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
+import { leaveThen } from "../services/leaveQuestion";
 import { FolderPickerSheet } from "./FolderPickerSheet";
 import { SheetGrip } from "./SheetGrip";
 
-/** The native inbox owns waiting content; closing this surface only dismisses it. */
+/**
+ * The native inbox owns waiting content; closing this surface only dismisses it.
+ *
+ * It lies over whatever screen is open, and three of its ways on put another
+ * screen on top of that one: the vault list, the security settings, the note it
+ * has just filed. Only the screen on top is rendered — a message being written
+ * underneath was gone in that moment, unasked (finding 2026-10-09). Those three
+ * ask first (`leaveThen`), and the sheet closes only once the step is taken:
+ * "cancel" leaves the screen underneath AND this sheet as they are.
+ */
 export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImported, port = shareTarget }: {
   vault: MobileVault; vaultName: string; onChooseVault(): void; onUnlock(): void; onImported(path: string): void; port?: ShareTargetPort;
 }) {
@@ -36,8 +48,7 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
   useEffect(() => {
     if (!taskDb || !asTask) return;
     let stale = false;
-    const adapter = { readTextFile: (p: string) => vaultOps.read(vault, p), writeTextFile: (p: string, c: string) => vaultOps.save(vault, p, c), exists: (p: string) => vault.files.exists(p) };
-    void providerListLabel(adapter, taskDb).then(name => { if (!stale) setProviderList(name ?? null); }).catch(() => { if (!stale) setProviderList(null); });
+    void providerListLabel(vaultTextFiles(vault), taskDb).then(name => { if (!stale) setProviderList(name ?? null); }).catch(() => { if (!stale) setProviderList(null); });
     return () => { stale = true; };
   }, [taskDb, asTask, vault]);
   const dismissed = useRef(new Set<string>()), abort = useRef<AbortController | null>(null);
@@ -74,19 +85,22 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
   const importEntry = async () => {
     if (!entry || busy) return;
     const controller = new AbortController(); abort.current = controller; setBusy(true); setError(null);
-    const taskAdapter = { readTextFile: (p: string) => vaultOps.read(vault, p), writeTextFile: (p: string, c: string) => vaultOps.save(vault, p, c), exists: (p: string) => vault.files.exists(p) };
+    const taskAdapter = vaultTextFiles(vault);
     const makesTask = asTask && !toJournal && !!taskDb && !entry.plan;
     const intoJournal = toJournal && !entry.plan;
     let taskTitle = "";
+    // The attachments the import writes; the index hears of them with the note.
+    const written: string[] = [];
     try {
       const path = await importSharedContent(port, entry, {
-        vaultId: vault.vaultId, files: vault.files, folder, signal: controller.signal,
+        vaultId: vault.vaultId, files: vault.files, folder, noteType: configuredNoteType(), signal: controller.signal,
+        onFileWritten: (p) => void written.push(p),
         // A journal plan may have to be RESUMED after a restart, whatever the chips say now.
         appendJournal: (planned) => appendPlannedJournalEntry(vault, planned),
         ...(intoJournal ? { toJournal: async () => planSharedJournalEntry() } : {}),
         ...(makesTask ? {
           asTask: async ({ title, body }) => {
-            const prepared = await prepareTaskNote({ adapter: taskAdapter, dbPath: taskDb, title, noteType: getMobileSettings().defaultNoteType, trailer: body ? "\n" + body + "\n" : undefined });
+            const prepared = await prepareTaskNote({ adapter: taskAdapter, dbPath: taskDb, title, noteType: configuredNoteType(), templateVault: await phoneTemplateVault(), trailer: body ? "\n" + body + "\n" : undefined });
             if (!prepared.ok) throw new Error("SHARE_TASK_UNAVAILABLE");
             taskTitle = title;
             return { folder: prepared.folder, text: prepared.content };
@@ -99,13 +113,13 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
         },
         onProgress: (done, total) => setProgress(t("shareInbox.progress", { done, total })),
       });
-      await vault.reindexPaths([path]).catch(() => toast.error(t("shareInbox.indexIssue")));
+      await vault.reindexPaths([path, ...written]).catch(() => toast.error(t("shareInbox.indexIssue")));
       // A journal entry lands in a note that usually exists already; only a new note is announced as created.
       if (!intoJournal && !entry.plan?.journal) notifyFileOps([{ type: "create", path }]);
       // The note is the deliverable and exists; the provider copy is the
       // addition — same order and same reporting as every other way of creating a task.
       if (makesTask && taskTitle && providerList && atProvider) await sendTaskToProviderList(taskAdapter, taskDb, path, taskTitle).catch(() => toast.error(t("tasks.providerCreateFailed")));
-      toast.info(t("shareInbox.saved")); if (!controller.signal.aborted) onImported(path); await refresh();
+      toast.info(t("shareInbox.saved")); if (!controller.signal.aborted) leaveThen(() => onImported(path)); await refresh();
     } catch (failure) {
       if (controller.signal.aborted) return;
       const code = failure instanceof Error ? failure.message : "";
@@ -141,10 +155,10 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
           </div>
         )}
         <div className="m-btnrow">
-          <Button variant="ghost" disabled={busy} onClick={() => { close(); onChooseVault(); }}>{t("shareInbox.chooseVault")}</Button>
+          <Button variant="ghost" disabled={busy} onClick={() => leaveThen(() => { close(); onChooseVault(); })}>{t("shareInbox.chooseVault")}</Button>
           {!entry.plan && !asTask && !toJournal && <Button variant="ghost" disabled={busy || locked} onClick={() => setPickFolder(true)}><Folder size={ICON.ui} />{t("shareInbox.chooseFolder")}</Button>}
         </div>
-        {locked && <Banner kind="warning">{t("shareInbox.locked")} <Button variant="ghost" onClick={() => { close(); onUnlock(); }}>{t("workspaceSecurity.unlock")}</Button></Banner>}
+        {locked && <Banner kind="warning">{t("shareInbox.locked")} <Button variant="ghost" onClick={() => leaveThen(() => { close(); onUnlock(); })}>{t("workspaceSecurity.unlock")}</Button></Banner>}
         {entry.status !== "ready" && <Banner kind={entry.status === "failed" ? "error" : "info"}>{t(entry.status === "failed" ? "shareInbox.incomplete" : "shareInbox.receiving")}</Banner>}
         {error && <Banner kind="error">{error}</Banner>}
         {busy && <p className="m-hint" role="status">{progress || t("shareInbox.receiving")}</p>}

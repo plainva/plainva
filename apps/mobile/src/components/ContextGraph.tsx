@@ -137,7 +137,10 @@ export function ContextGraph({
         setDismissTick((n) => n + 1);
         toast.info(`[[${titleOf(s.target)}]]`);
       } catch {
-        toast.warning(t("mobile.saveRetry"));
+        // The link was not written, and nothing tries again (finding
+        // 2026-10-09): "retrying in the background" is the editor's sentence,
+        // whose saver does. The suggestion stays in the list.
+        toast.error(t("graph.cleanupActionFailed"));
       }
     })();
   };

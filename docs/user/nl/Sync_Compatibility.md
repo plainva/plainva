@@ -1,6 +1,6 @@
 # Plainva Sync-compatibiliteit
 
-Laatst bijgewerkt: 2026-09-30
+Laatst bijgewerkt: 2026-10-21
 
 Als een WebDAV-, CalDAV- of S3-dienst een aanmeldpagina of een onvolledige inventaris terugstuurt, meldt Plainva een synchronisatiefout. Die reactie wordt niet als een lege map of kalenderlijst behandeld en leidt niet tot daaruit afgeleide verwijderingen. Dit geldt op desktop en mobiel.
 
@@ -68,5 +68,6 @@ OneDrive, Dropbox en S3-compatibele opslag zijn sinds 2026-07-04 rechtstreeks ge
 ## Bewust niet gepland
 
 - **iCloud als API-integratie:** Apple biedt geen officiële externe API voor iCloud Drive. Gebruik in plaats daarvan de lokale iCloud-map (zie hierboven).
+- **Syncthing als ingebouwde provider:** niet nodig — Plainva werkt met elke lokale map die Syncthing, of Synctrain op iPhone en iPad, synchroon houdt (zie hierboven).
 - **Proton Drive / Mega:** geen officiële, of alleen moeilijk te integreren API (E2E-versleuteling, C++-SDK). Wordt verder gevolgd.
 - **Watchlist** (op aanvraag): pCloud, Box, Filen, SFTP.

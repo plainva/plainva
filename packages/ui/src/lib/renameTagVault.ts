@@ -16,12 +16,12 @@
  *    is an index lookup and the index can be a moment stale; a note that no
  *    longer carries the tag must not inflate the number the user is told.
  */
+import { updateVaultText, type TextUpdateFiles } from "@plainva/core";
 
-export interface RenameTagDeps {
+/** The notes' files — a vault's chain, or a storage with nothing above it (`updateVaultText`) — and what the rename asks. */
+export interface RenameTagDeps extends TextUpdateFiles {
   /** Index lookup: notes that carry the tag (or one of its children). */
   findNotesWithTag(tag: string): Promise<readonly string[]>;
-  readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, content: string): Promise<void>;
   /** core's `renameTagInText`. */
   rename(content: string, from: string, to: string): { changed: boolean; content: string };
 }
@@ -43,15 +43,14 @@ export async function renameTagAcrossVault(
   let failed = 0;
   for (const path of candidates) {
     try {
-      // Read fresh rather than trusting the index's copy: the rename writes the
-      // file back whole, so a stale read would silently revert edits made since
-      // the index last ran.
-      const fresh = await deps.readTextFile(path);
-      const res = deps.rename(fresh, fullTag, newName);
-      if (res.changed && res.content !== fresh) {
-        await deps.writeTextFile(path, res.content);
-        notes += 1;
-      }
+      // The note is read where it is written, in one step: the rename writes
+      // the file back whole, so a text from the index — or from a moment ago —
+      // would silently revert what was changed since.
+      const update = await updateVaultText(deps, path, (fresh) => {
+        const res = deps.rename(fresh, fullTag, newName);
+        return res.changed ? res.content : null;
+      });
+      if (update.changed) notes += 1;
     } catch {
       failed += 1;
     }

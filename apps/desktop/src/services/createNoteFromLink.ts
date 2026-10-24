@@ -1,5 +1,5 @@
 import type { IVaultAdapter } from "@plainva/core";
-import { buildNewNoteContent, wikiTargetToPath } from "@plainva/ui";
+import { buildNewNoteContent, markFreshNote, wikiTargetToPath } from "@plainva/ui";
 import { notifyFileOps } from "./indexMdAutoUpdate";
 
 /**
@@ -38,8 +38,10 @@ export async function createNoteFromLink(
   target: string,
   hostPath: string | undefined,
   deps: CreateNoteFromLinkDeps,
+  /** Where the link's rule will find the note, where the opener said so (`services/openLink`). */
+  place?: { path: string; title: string },
 ): Promise<CreateNoteFromLinkResult> {
-  const { path, title } = wikiTargetToPath(target, hostPath);
+  const { path, title } = place ?? wikiTargetToPath(target, hostPath);
   if (!title) return { outcome: "no-title" };
   if (await deps.vaultAdapter.exists(path)) return { outcome: "exists", path };
   if (await deps.askFirst()) {
@@ -51,5 +53,7 @@ export async function createNoteFromLink(
   await deps.vaultAdapter.writeTextFile(path, buildNewNoteContent(await deps.noteType(), title));
   if (deps.index) await deps.index(path);
   notifyFileOps([{ type: "create", path }]);
+  // It opens next, to be written in (wish 2026-10-19).
+  markFreshNote(path);
   return { outcome: "created", path };
 }

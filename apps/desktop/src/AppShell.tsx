@@ -30,7 +30,6 @@ const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').th
 const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({ default: m.TasksView })));
 const CalendarView = lazy(() => import('./components/pimcal/CalendarView').then(m => ({ default: m.CalendarView })));
 const MailView = lazy(() => import('./components/mail/MailView').then(m => ({ default: m.MailView })));
-const MailDraftModal = lazy(() => import('./components/mail/MailDraftModal').then(m => ({ default: m.MailDraftModal })));
 const CommentsOverview = lazy(() => import('./components/comments/CommentsOverview').then(m => ({ default: m.CommentsOverview })));
 const JournalView = lazy(() => import('./components/journal/JournalView').then(m => ({ default: m.JournalView })));
 const AiTabView = lazy(() => import('./components/ai/AiTabView').then(m => ({ default: m.AiTabView })));
@@ -38,7 +37,6 @@ const AiCompanion = lazy(() => import('./components/ai/AiCompanion').then(m => (
 const McpPairing = lazy(() => import('./components/ai/McpPairing').then(m => ({ default: m.McpPairing })));
 const McpPlanDialog = lazy(() => import('./components/ai/McpPlanDialog').then(m => ({ default: m.McpPlanDialog })));
 const LearnDialogs = lazy(() => import('./components/ai/LearnDialogs').then(m => ({ default: m.LearnDialogs })));
-import type { MailAttachment } from "@plainva/ui/mail";
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 const JournalCaptureDialog = lazy(() => import('./components/journal/JournalCaptureDialog').then(m => ({ default: m.JournalCaptureDialog })));
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, JOURNAL_TAB_PATH, AI_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
@@ -66,7 +64,7 @@ import { activeDocument } from "./services/activeDocument";
 import { TagTree } from "./components/TagTree";
 import { appConfirm } from "./services/appDialogs";
 import { getConfiguredNoteType, buildNewNoteContent } from "./services/newNote";
-import { wikiTargetToPath } from "@plainva/ui";
+import { markFreshNote, wikiTargetToPath } from "@plainva/ui";
 import { getAskBeforeCreateLink } from "./services/linkCreatePrompt";
 import { toast } from "@plainva/ui";
 import { requestSaveFlush } from "./services/saveFlush";
@@ -80,7 +78,6 @@ import { nextFolderSort, readStoredFolderSort, writeStoredFolderSort, type Folde
 import { useDebouncedValue } from "@plainva/ui";
 import { stripFrontmatter, frontmatterToAddress } from "@plainva/ui";
 const ShortcutsModal = lazy(() => import("./components/ShortcutsModal").then(m => ({ default: m.ShortcutsModal })));
-import { popOutCompose } from "./services/mail/composeWindow";
 import {
   openOrFocusContent,
   openPresetWindow,
@@ -91,6 +88,7 @@ import { detectMac } from "./components/WindowControls";
 import { useQuickCaptureSink } from "./hooks/useJournal";
 import { useDayBoundary } from "./hooks/useDayBoundary";
 import "./App.css";
+import { newNoteOpensInNewTab } from "./services/newNoteTab";
 
 /**
  * The recents service is loaded on demand, never at App's module init.
@@ -154,14 +152,6 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // actually show sync state — the switcher cloud/error icon and the error
   // dialog — subscribe themselves as leaves (SyncSwitcherIcon / SyncErrorDialog
   // below), so a status flip re-renders only that icon, never the editor.
-  // Mail-raus (stage 6) / compose (mail-client E5): the dialog is prefilled
-  // from the active note, optionally with the note as an attachment.
-  const [mailDraft, setMailDraft] = useState<{ subject: string; markdown: string; attachments?: MailAttachment[]; to?: string; cc?: string; bcc?: string; onDone?: (how: "sent" | "saved" | "opened") => void } | null>(null);
-  /** Whether that composer is open right now, for the listener below — it is registered once. */
-  const composerOpen = useRef(false);
-  useEffect(() => {
-    composerOpen.current = mailDraft !== null;
-  }, [mailDraft]);
   // Version history + deleted-files recovery (Gesamtplan Backups &
   // Versionierung, P5/P6), opened via window events from the file tree,
   // tab context menu and the settings section.
@@ -186,34 +176,15 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       const detail = (e as CustomEvent).detail as { forkId?: string; originalPath?: string; forkPath?: string } | undefined;
       if (detail?.forkId && detail.originalPath && detail.forkPath) setCompareTarget({ kind: "fork", forkId: detail.forkId, originalPath: detail.originalPath, forkPath: detail.forkPath });
     };
-    // Compose mail from anywhere (mail-client E5: editor ⋮ send / send as attachment).
-    const onComposeMail = (e: Event) => {
-      // Cc and Bcc ride along since the assistant's drafted mails (AI harness P5-6): a draft names every recipient —
-      // and `onDone` tells its sender once the mail was sent or saved, never when the composer is just closed.
-      const detail = (e as CustomEvent).detail as
-        | { subject?: string; markdown?: string; attachments?: MailAttachment[]; to?: string; cc?: string; bcc?: string; onDone?: (how: "sent" | "saved" | "opened") => void }
-        | undefined;
-      if (!detail) return;
-      // A composer that is open keeps what was typed into it — it reads its fields once, when it opens. A sender who
-      // asks (a cancelable event) is told that this mail was not taken, and can keep it instead of losing it unseen.
-      if (composerOpen.current) {
-        e.preventDefault();
-        return;
-      }
-      composerOpen.current = true;
-      setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to, cc: detail.cc, bcc: detail.bcc, onDone: detail.onDone });
-    };
     window.addEventListener("plainva-show-version-history", onShowVersions);
     window.addEventListener("plainva-show-deleted-files", onShowDeleted);
     window.addEventListener("plainva-resolve-conflict", onResolveConflict);
     window.addEventListener("plainva-compare-fork", onCompareFork);
-    window.addEventListener("plainva-compose-mail", onComposeMail);
     return () => {
       window.removeEventListener("plainva-show-version-history", onShowVersions);
       window.removeEventListener("plainva-show-deleted-files", onShowDeleted);
       window.removeEventListener("plainva-resolve-conflict", onResolveConflict);
       window.removeEventListener("plainva-compare-fork", onCompareFork);
-      window.removeEventListener("plainva-compose-mail", onComposeMail);
     };
   }, []);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -1052,10 +1023,12 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // open. Default: create immediately; the per-user "ask first" setting confirms.
   useEffect(() => {
     const onCreate = (e: Event) => {
-      const d = (e as CustomEvent).detail as { target: string; hostPath?: string; newTab?: boolean };
+      const d = (e as CustomEvent).detail as { target: string; hostPath?: string; newTab?: boolean; path?: string; title?: string };
       if (!d?.target || !vaultAdapter) return;
       void (async () => {
-        const { path, title } = wikiTargetToPath(d.target, d.hostPath);
+        // The opener names the place where its rule will find the note; the
+        // wiki rule's reading of the target is for a sender that does not.
+        const { path, title } = d.path && d.title ? { path: d.path, title: d.title } : wikiTargetToPath(d.target, d.hostPath);
         if (!title) return;
         try {
           if (await vaultAdapter.exists(path)) { openInFocusedPane(path, !!d.newTab); return; }
@@ -1074,7 +1047,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
           if (indexer) await applyIndexChanges(indexer, { added: [path] });
           triggerFileTreeUpdate();
           notifyFileOps([{ type: "create", path }]);
-          openInFocusedPane(path, !!d.newTab);
+          markFreshNote(path);
+          openInFocusedPane(path, newNoteOpensInNewTab(!!d.newTab));
         } catch (err: any) {
           toast.error(t("dialogs.createErrorMsg", { error: err?.message ?? String(err) }));
         }
@@ -1379,6 +1353,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             const path = await createNewTemplate(vaultAdapter, vaultPath, t("database.newTemplateName", "Neue Vorlage"));
             if (!path) return;
             if (indexer) applyIndexChanges(indexer, { added: [path] }).then(() => triggerFileTreeUpdate()).catch(() => {});
+            markFreshNote(path);
             openInFocusedPane(path, true);
           })
           .catch((e) => console.error("[App] creating a template failed", e));
@@ -1443,7 +1418,11 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
           try {
             const content = await vaultAdapter.readTextFile(p);
             const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
-            setMailDraft({ subject: title, markdown: stripFrontmatter(content), to: frontmatterToAddress(content) ?? undefined });
+            // The composer is hosted beside this shell (MailComposeHost), so
+            // the palette asks for it the way the editor and the mail view do.
+            window.dispatchEvent(new CustomEvent("plainva-compose-mail", {
+              detail: { subject: title, markdown: stripFrontmatter(content), to: frontmatterToAddress(content) ?? undefined },
+            }));
           } catch (e) {
             console.error("[App] draft prefill failed", e);
           }
@@ -2015,21 +1994,6 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       )}
       <Suspense fallback={null}>
         {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
-        {mailDraft && (
-          <Suspense fallback={null}>
-            <MailDraftModal
-              subject={mailDraft.subject}
-              markdown={mailDraft.markdown}
-              attachments={mailDraft.attachments}
-              initialTo={mailDraft.to}
-              initialCc={mailDraft.cc}
-              initialBcc={mailDraft.bcc}
-              onDone={mailDraft.onDone}
-              onPopOut={vaultPath ? (snap) => void popOutCompose(vaultPath, snap) : undefined}
-              onClose={() => setMailDraft(null)}
-            />
-          </Suspense>
-        )}
         {ai.enabled && (
           <Suspense fallback={null}>
             <McpPairing />

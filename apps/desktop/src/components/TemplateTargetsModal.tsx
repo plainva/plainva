@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Database, Plus, X } from "lucide-react";
-import { addTemplateForAssignment, ICON, Modal, parseTemplateForTargets, removeTemplateForAssignment, templateMatchesBase } from "@plainva/ui";
+import { addTemplateForAssignment, errorText, ICON, Modal, parseTemplateForTargets, removeTemplateForAssignment, templateMatchesBase, toast } from "@plainva/ui";
+import { updateVaultText } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import { applyIndexChanges } from "../services/fileActions";
 
@@ -43,11 +44,16 @@ export function TemplateTargetsModal({ templatePath, onClose }: { templatePath: 
 
   const targets = useMemo(() => (content === null ? [] : parseTemplateForTargets(content)), [content]);
 
-  const write = async (next: string) => {
+  // An assignment goes into the template as it lies there when it is written
+  // (`updateVaultText`) — not into the text this dialog read when it opened.
+  const change = async (assign: (text: string) => { content: string; changed: boolean }) => {
     if (!vaultAdapter) return;
-    await vaultAdapter.writeTextFile(templatePath, next);
-    setContent(next);
-    if (indexer) await applyIndexChanges(indexer, { added: [templatePath] }).catch(() => {});
+    const update = await updateVaultText(vaultAdapter, templatePath, (text) => {
+      const res = assign(text);
+      return res.changed ? res.content : null;
+    });
+    setContent(update.text);
+    if (update.changed && indexer) await applyIndexChanges(indexer, { added: [templatePath] }).catch(() => {});
   };
 
   const add = async (basePath: string) => {
@@ -56,11 +62,17 @@ export function TemplateTargetsModal({ templatePath, onClose }: { templatePath: 
       const rows = queryService
         ? await queryService.db.query<{ path: string }>(`SELECT path FROM files`)
         : [];
-      const res = addTemplateForAssignment(content, basePath, rows.map((r) => r.path));
-      if (res.changed) await write(res.content);
+      const paths = rows.map((r) => r.path);
+      await change((text) => addTemplateForAssignment(text, basePath, paths));
       setQuery("");
     } catch (e) {
+      // Said, not only logged (finding 2026-10-12): a template whose block at
+      // the top is no YAML map took no assignment, and the dialog went on
+      // offering the database as if nothing had been asked. The chips are
+      // drawn from the template as it was last read or written, so they show
+      // what it holds.
       console.error("[TemplateTargetsModal] assigning failed", e);
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
     }
   };
 
@@ -69,10 +81,10 @@ export function TemplateTargetsModal({ templatePath, onClose }: { templatePath: 
     try {
       // The stored target text doubles as the match path: bare names match by
       // basename, qualified entries match exactly (same rule the menu uses).
-      const res = removeTemplateForAssignment(content, target);
-      if (res.changed) await write(res.content);
+      await change((text) => removeTemplateForAssignment(text, target));
     } catch (e) {
       console.error("[TemplateTargetsModal] unassigning failed", e);
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
     }
   };
 

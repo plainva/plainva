@@ -432,12 +432,10 @@ async function writeTask(order: IntentOrder): Promise<void> {
   const taskDb = settings.taskDatabase.trim();
   // Without a task database a task is what it is everywhere else in Plainva: a checkbox line — in the journal of that moment.
   if (!taskDb) return writeJournal(order, true);
-  const { vault, vaultOps } = await writableVault();
-  const adapter = {
-    readTextFile: (path: string) => vaultOps.read(vault, path),
-    writeTextFile: (path: string, content: string) => vaultOps.save(vault, path, content),
-    exists: (path: string) => vault.files.exists(path),
-  };
+  const { vault } = await writableVault();
+  const [{ vaultTextFiles }, { configuredNoteType }, { phoneTemplateVault }] = await Promise.all([vaultServiceModule(), import("./newNote"), import("./templateVault")]);
+  // The vault's files with the chain's one entry for a change, as every task the phone makes is handed them.
+  const adapter = vaultTextFiles(vault);
   // The same reading as a line typed into the capture field — with "today" being the day it was said.
   const line = order.text.replace(/\n+/g, " ");
   const read = parseTaskCapture(line, captureVocabularyOf((key) => i18n.t(key), i18n.language), calendarDay(new Date(order.at)));
@@ -446,7 +444,9 @@ async function writeTask(order: IntentOrder): Promise<void> {
     adapter,
     dbPath: taskDb,
     title,
-    noteType: settings.defaultNoteType,
+    noteType: configuredNoteType(),
+    // The database's template is filled as for a task made by hand: {{vault}}, {{daily}} and the rest.
+    templateVault: await phoneTemplateVault(),
     ...(read.due ? { dueDate: read.due, dueMinutes: read.minutes } : {}),
     tags: read.tags,
     priority: read.priority,

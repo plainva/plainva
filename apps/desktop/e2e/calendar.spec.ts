@@ -951,6 +951,43 @@ test('the calendar checkbox ticks a task off, without opening the note (issue #3
   await expect(page.locator('.cm-content')).toHaveCount(0);
 });
 
+test('a checkbox from a note is on its due day in both calendars, without a task database, and its box ticks the line (TestFlight 136)', async ({ page }) => {
+  // The calendars read the task database alone, so a Tasks-plugin line due
+  // today was on the planner's Today and on no calendar. "Show tasks" needed a
+  // task database to be offered at all.
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    fs['/test-vault/Haushalt.md'] = `# Haushalt\n\n- [ ] Drucker einrichten 📅 ${today}\n- [ ] Ohne Datum\n`;
+    // A note that opts out of task aggregation: its box is nobody's to-do.
+    fs['/test-vault/Vorlage.md'] = `---\nplainva:\n  tasks: false\n---\n# Vorlage\n\n- [ ] Vorlagenaufgabe 📅 ${today}\n`;
+  });
+  await openVault(page);
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+
+  // The sidebar calendar's day menu lists it with the day's appointments.
+  await page.getByTestId(`sidecal-day-${todayKey}`).click({ button: 'right' });
+  await expect(page.getByRole('menuitem', { name: 'Drucker einrichten' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Vorlagenaufgabe' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  await page.getByTestId('ribbon-calendar').click();
+  await expect(page.getByTestId('calendar-view')).toBeVisible();
+  await page.getByTestId('calendar-toggle-tasks').click();
+  const row = page.getByTestId('calendar-task').filter({ hasText: 'Drucker einrichten' });
+  await expect(row).toBeVisible();
+  await expect(page.getByTestId('calendar-task').filter({ hasText: 'Vorlagenaufgabe' })).toHaveCount(0);
+
+  // The box ticks the line in the note, with its completion date, and nothing else.
+  await row.getByTestId('calendar-task-checkbox').click();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Haushalt.md'] as string), { timeout: 10000 })
+    .toMatch(new RegExp(`^# Haushalt\\n\\n- \\[x\\] Drucker einrichten 📅 ${todayKey} ✅ ${todayKey}\\n- \\[ \\] Ohne Datum\\n$`));
+  await expect(page.locator('.cm-content')).toHaveCount(0);
+});
+
 test('month grid: a task row opens its note (issue #34)', async ({ page }) => {
   // The rows used to be plain text inside the day button — the pointer promised
   // a jump that never came. Due date sits on a day without fixture events, so

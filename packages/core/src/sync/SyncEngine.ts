@@ -1,10 +1,10 @@
-import { SyncQueue } from "./SyncQueue.js";
-import { ISyncTarget, SyncContentRef } from "./ISyncTarget.js";
+import { SyncQueue, REMOTE_REFUSAL } from "./SyncQueue.js";
+import { ISyncTarget, RemoteChangedError, SyncContentRef, type ExpectedRemote } from "./ISyncTarget.js";
 import { SyncStateRepository } from "../vault/SyncStateRepository.js";
 import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
 import { findCollidingPath, foldPathForCollision, foldPathNormalization, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
 import { withPathSpellings } from "./spellingSyncTarget.js";
-import { isTextFile } from "./fileType.js";
+import { isTextFile, mergeableText } from "./fileType.js";
 import { hasAppleDoubleHeader, isAppleDoubleName, isSystemJunkPath } from "../vault/systemJunk.js";
 
 async function sha256Bytes(bytes: Uint8Array): Promise<string> {
@@ -35,6 +35,25 @@ export type ContentRefResolver = (
   minBytes: number,
 ) => Promise<SyncContentRef | null>;
 
+/**
+ * What an upload of a file with this sync row expects on the remote
+ * (Sammelplan § 3.103): the version of its merge base — the marker the row
+ * recorded with it — or no file at all, where the row knows of no remote copy
+ * (a new file; one kept although the cloud deleted it, whose row went,
+ * § 3.115). A row with a base but no marker (a server that sent no ETag on
+ * the last upload, until the next listing brings one) expects nothing: the
+ * upload stays unconditional, as before.
+ */
+export function expectedRemoteOf(state: { base_sha256: string | null; base_etag: string | null; remote_etag: string | null } | null): ExpectedRemote | undefined {
+  if (state?.base_sha256) return state.base_etag ? { kind: "marker", marker: state.base_etag } : undefined;
+  if (!state || (!state.base_etag && !state.remote_etag)) return { kind: "absent" };
+  return undefined;
+}
+
+function isRemoteChanged(err: unknown): boolean {
+  return err instanceof RemoteChangedError || (err instanceof Error && err.name === "RemoteChangedError");
+}
+
 export class SyncEngine {
   private readonly maxRetryCount = 5;
   /**
@@ -44,6 +63,42 @@ export class SyncEngine {
    * remaining op would only burn their retry budgets.
    */
   private readonly maxConsecutiveFailures = 3;
+
+  /**
+   * Uploads the remote refused because it moved (`RemoteChangedError`), by
+   * path: how many times in a row. A refusal is no failure — the next cycle's
+   * reconcile settles it — but one that comes back cycle after cycle is
+   * settled by nothing (a remote deletion whose mirroring is on hold, a
+   * service whose markers disagree with themselves). After `maxRetryCount`
+   * in a row the write needs a person, as after as many failures, instead of
+   * waiting unseen. Any upload of the path that goes through starts the count
+   * again.
+   */
+  private readonly refusals = new Map<string, number>();
+  /** Paths refused since the worker last asked: reconciled in its next pull whatever the listing says. */
+  private readonly reconcileAgain = new Set<string>();
+
+  /**
+   * The paths whose upload the remote refused since the last call — the
+   * worker reconciles them in its next pull even where the listing shows the
+   * marker the row already has (Sammelplan § 3.103: an upload must not wait
+   * on a reconcile that the listing never triggers).
+   */
+  takeRefusedPaths(): Set<string> {
+    const paths = new Set(this.reconcileAgain);
+    this.reconcileAgain.clear();
+    return paths;
+  }
+
+  /** Paths the worker took and could not reconcile (not listed, the cycle ended early): asked for again. */
+  keepRefusedPaths(paths: Iterable<string>): void {
+    for (const path of paths) this.reconcileAgain.add(path);
+  }
+
+  /** A person asked to try again (`resetStuckOperations`): every refused path starts counting anew. */
+  resetRefusals(): void {
+    this.refusals.clear();
+  }
 
   /** Paths are identities here; the proxy finds the remote's spelling (ADR 0016). */
   private readonly target: ISyncTarget;
@@ -165,6 +220,20 @@ export class SyncEngine {
     return null;
   }
 
+  /**
+   * Retires queued DELETEs of `path` and of every folder above it. The caller
+   * has just found `path` on this device, and a DELETE of a path that is here
+   * is stale by the rule in `processQueue` — dropped, never pushed. Done ahead
+   * of its turn only where that turn would never come (a held write before it).
+   */
+  private async dropStaleDeletesOf(path: string): Promise<void> {
+    for (const pending of await this.queue.getPendingDeleteOperations()) {
+      if (pending.file_path !== path && !path.startsWith(`${pending.file_path}/`)) continue;
+      console.warn(`[SyncEngine] dropping deletion of ${pending.file_path}: ${path} exists on this device`);
+      await this.queue.markSynced(pending.id, pending.file_path, pending.file_path);
+    }
+  }
+
   public async processQueue(
     isAborted?: () => boolean,
     onProgress?: (current: number, total: number) => void,
@@ -198,6 +267,7 @@ export class SyncEngine {
     }
     let consecutiveFailures = 0;
     let pushIdx = 0;
+    const refusedThisPass = new Set<string>();
     const localListings = new Map<string, Promise<VaultFileInfo[] | null>>();
     const remoteFolders: { value?: Map<string, Set<string>> } = {};
     for (let op of pending) {
@@ -294,6 +364,20 @@ export class SyncEngine {
             }
             continue;
           }
+          // An absence nobody confirmed — the file vanished from this device,
+          // or was moved by another program — of a file that is still to be
+          // compared with the remote copy (`SyncState.recheck`): what lay here
+          // may have been the decoded text an older version wrote, and the
+          // server's copy the only original. Its DELETE is not pushed. The row
+          // goes instead, so that the next listing brings the server's copy
+          // back under this name; a copy moved elsewhere goes up as a new file.
+          if (op.delete_confirmed_at == null && this.stateRepo && (await this.stateRepo.getSyncState(op.file_path))?.recheck) {
+            console.warn(`[SyncEngine] not pushing deletion of ${op.file_path}: it was never compared with the remote copy`);
+            await this.stateRepo.deleteSyncState(op.file_path);
+            await this.queue.markSynced(op.id, op.file_path, op.file_path);
+            consecutiveFailures = 0;
+            continue;
+          }
         }
         // The same lock for a folder the remote already holds in the other
         // spelling (issue #112): a Finder-made folder is decomposed, the
@@ -326,6 +410,29 @@ export class SyncEngine {
               // than the pushed content, never newer, or the guard could still
               // clobber a concurrent save's hash.
               const state = this.stateRepo ? await this.stateRepo.getSyncState(op.file_path) : null;
+              // A row an older version left to be looked at again
+              // (`SyncState.recheck`, lossyTextBaseMigration.ts) waits for the
+              // reconcile: what lies here may be the decoded text that version
+              // wrote over the file, and a push — a forced one too — would put
+              // it in place of the original the server still holds. The
+              // reconcile runs before the push in every cycle, compares the two
+              // and takes the mark off.
+              if (state?.recheck) {
+                // A file that is gone has nothing to carry: the write is retired,
+                // as the read below would have retired it.
+                if (!(await this.vault.exists(op.file_path))) {
+                  await this.queue.markSynced(op.id, op.file_path, op.file_path);
+                  consecutiveFailures = 0;
+                  continue;
+                }
+                // The file is here, so a queued DELETE of it — or of a folder above
+                // it — is stale by the rule further up. Left queued, it would wait
+                // behind this write for good, and the reconcile for it in turn.
+                await this.dropStaleDeletesOf(op.file_path);
+                // Stays queued and spends no retry.
+                console.log(`[SyncEngine] holding push of ${op.file_path}: it is compared with the remote copy first`);
+                continue;
+              }
               expectedLocalSha = state?.local_sha256 ?? null;
               // A large file is handed over as a handle, not as bytes: carrying
               // 90 MB through the IPC boundary is what froze the app (issue
@@ -361,6 +468,7 @@ export class SyncEngine {
               if (!op.force && state && state.base_sha256) {
                  if (currentSha === state.base_sha256 && state.remote_etag) {
                    // Already in sync with the server, skip push.
+                   this.refusals.delete(op.file_path);
                    await this.queue.markSynced(op.id, op.file_path, op.file_path);
                    consecutiveFailures = 0;
                    continue;
@@ -392,6 +500,15 @@ export class SyncEngine {
                  }
               }
 
+              // The upload names the version it expects on the remote, and a
+              // target that can makes the write conditional on it (Sammelplan
+              // § 3.103). Pulling first and pushing after is no comparison at
+              // the moment of writing: another device that uploaded in between
+              // had its version overwritten, and its change was lost on the
+              // server and on both devices, without a conflict copy. A forced
+              // re-encrypt write stays unconditional, as with 3b above.
+              op.expectedRemote = op.force ? undefined : expectedRemoteOf(state);
+
               // Push journal (2026-07-16): persist the content hash BEFORE the
               // upload starts. If the app dies (or the response is lost) after
               // the server committed the write but before the base advanced
@@ -412,7 +529,39 @@ export class SyncEngine {
               throw err;
             }
          }
-        let result = await this.target.push(op);
+        let result;
+        try {
+          result = await this.target.push(op);
+        } catch (err) {
+          // The remote no longer holds what the upload expected, and nothing
+          // was written. Not a failure: the upload stays queued, due at once,
+          // and spends no retry — the next cycle's reconcile, which runs
+          // before its push, merges the remote version in or keeps this
+          // device's version as a conflict copy, and the upload after it
+          // expects the version it found.
+          if (op.operation === "write" && isRemoteChanged(err)) {
+            refusedThisPass.add(op.file_path);
+            const message = (err as Error).message;
+            if (this.stateRepo) await this.stateRepo.clearPendingPushSha(op.file_path);
+            const inARow = (this.refusals.get(op.file_path) ?? 0) + 1;
+            this.refusals.set(op.file_path, inARow);
+            if (inARow >= this.maxRetryCount) {
+              // From here the queue row is the record: it waits for a person
+              // or for a newer write of the file, which starts at zero. Nor is
+              // it reconciled again by force — that would queue it anew each
+              // cycle.
+              console.error(`[SyncEngine] not pushing ${op.file_path}: ${message}, ${inARow} times in a row; it needs attention`);
+              await this.queue.markRequiresManualIntervention(op.id, `${REMOTE_REFUSAL} ${message} (${inARow} times in a row)`);
+              this.refusals.delete(op.file_path);
+            } else {
+              console.warn(`[SyncEngine] not pushing ${op.file_path}: ${message}; it is reconciled first`);
+              await this.queue.deferToReconcile(op.id, message);
+              this.reconcileAgain.add(op.file_path);
+            }
+            continue;
+          }
+          throw err;
+        }
 
         if (op.operation === "rename" && op.new_path && result && result.renameSourceMissing) {
           // The remote source vanished (deleted or moved by another device).
@@ -447,6 +596,18 @@ export class SyncEngine {
             consecutiveFailures = 0;
             continue;
           }
+          // Nothing of a file that is still to be compared with the remote copy
+          // goes up (`SyncState.recheck`) — not this way either: a MOVE whose
+          // answer was lost has put the server's copy under the new name, and
+          // this upload would land on it. The MOVE is retired; the next listing
+          // carries the file under its new name, or does not carry it, and then
+          // the deletion mirror decides.
+          if (this.stateRepo && (await this.stateRepo.getSyncState(op.new_path))?.recheck) {
+            console.warn(`[SyncEngine] rename source missing remotely; ${op.new_path} is compared with the remote copy before anything of it goes up`);
+            await this.queue.markSynced(op.id, op.file_path, op.new_path);
+            consecutiveFailures = 0;
+            continue;
+          }
           let content: Uint8Array;
           try {
             content = await this.vault.readBinaryFile(op.new_path);
@@ -468,6 +629,7 @@ export class SyncEngine {
         }
         const syncedPath = op.operation === "rename" && op.new_path ? op.new_path : op.file_path;
         console.log(`[SyncEngine] pushed ${op.operation} ${op.file_path}`);
+        this.refusals.delete(syncedPath);
         await this.queue.markSynced(op.id, op.file_path, syncedPath);
 
         // A delete is only safe to forget once the remote delete succeeded; clean the
@@ -505,15 +667,30 @@ export class SyncEngine {
              // Guarded (P1 conflict-race): local_sha256 is only adopted while it still
              // equals the value read at push start — a save that landed during the
              // upload keeps its newer hash (the base still advances unconditionally).
-             // A streamed file keeps no base_text either: decoding megabytes
+             // A streamed file gets no new base_text either: decoding megabytes
              // just to store them would undo the point of streaming. The hash
-             // alone still carries the merge base; the 3-way merge falls back
-             // to the binary path, which is what a file that large is anyway.
-             if (op.content && isTextFile(syncedPath)) {
-               const textContent = new TextDecoder().decode(op.content);
+             // alone carries the merge base from here on; a text the row still
+             // holds is the one of an earlier version of the file.
+             //
+             // The base is the file's text as every adapter reads it, mark
+             // included: without it the base no longer hashed to the bytes
+             // that were pushed, and the next change from elsewhere found
+             // "no base version" for a file that starts with a mark.
+             //
+             // And it is a text only where the pushed bytes ARE one
+             // (`mergeableText`). A `.csv` in Windows-1252 got the lossy
+             // decode of its bytes as its base here — a text that hashes to
+             // nothing that was ever pushed, kept for the next merge.
+             const textContent = op.content ? mergeableText(syncedPath, op.content) : null;
+             if (textContent !== null) {
                await this.stateRepo.updateLocalHashAndBaseTextGuarded(syncedPath, shaStr, textContent, expectedLocalSha);
              } else {
                await this.stateRepo.updateLocalHashGuarded(syncedPath, shaStr, expectedLocalSha);
+               // Text by its name, and the bytes just pushed are not UTF-8:
+               // whatever base text the row held is the text of another
+               // content. (A streamed file is not asked — its bytes were
+               // never in hand.)
+               if (op.content && isTextFile(syncedPath)) await this.stateRepo.clearBaseText(syncedPath);
              }
              // The push round-trip completed and the base advanced: retire the
              // push-journal entry (see setPendingPushSha above).
@@ -542,6 +719,12 @@ export class SyncEngine {
         consecutiveFailures++;
         if (consecutiveFailures >= this.maxConsecutiveFailures) break;
       }
+    }
+    // A count belongs to one run of refusals of a file's upload: once no write
+    // of the path waits any more — uploaded, retired because the file went,
+    // superseded by a move or a deletion — the next run starts at zero.
+    for (const path of [...this.refusals.keys()]) {
+      if (!refusedThisPass.has(path) && !(await this.queue.hasPendingOperation(path))) this.refusals.delete(path);
     }
   }
 }

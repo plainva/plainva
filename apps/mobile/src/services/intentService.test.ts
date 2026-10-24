@@ -132,6 +132,13 @@ vi.mock("./vaultService", () => ({
     read: vi.fn(async () => ""),
     save: vi.fn(async (_vault: unknown, path: string, text: string) => void saved.push({ path, text })),
   },
+  // The vault's files with the chain's entry for a change, as every task the phone makes is handed them.
+  vaultTextFiles: vi.fn(() => ({
+    readTextFile: vi.fn(async () => ""),
+    writeTextFile: vi.fn(async (path: string, text: string) => void saved.push({ path, text })),
+    updateTextFile: vi.fn(async () => ({ before: "", text: "", changed: false, conflict: null })),
+    exists: vi.fn(async () => false),
+  })),
 }));
 
 let settings = { taskDatabase: "", defaultNoteType: "Note" };
@@ -709,6 +716,8 @@ describe("the app's own paths", () => {
     expect(createdTasks).toHaveLength(1);
     // "Tomorrow", said on the 6th, is the 7th — whenever the app is opened.
     expect(createdTasks[0]).toMatchObject({ dbPath: "Tasks.base", title: "Buy milk", noteType: "Note", dueDate: "2026-10-07", tags: ["home"] });
+    // The database's template is filled as for a task made by hand: the vault's name for {{vault}}, its daily notes for {{daily}}.
+    expect(createdTasks[0]).toMatchObject({ templateVault: { name: "Studio", dailyFolder: "", dailyFormat: "" } });
     expect(journal).toEqual([]);
     expect(fileOps).toEqual([[{ type: "create", path: "Tasks/Buy milk.md" }]]);
     // The note first, the provider's list after — where the database names one.

@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-10-09
+Stand: 2026-10-22
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -12,7 +12,7 @@ Alles hier ist reiner UTF-8-Text. Notizen sind Markdown mit YAML-Frontmatter; Da
 2. **Notizen bleiben Obsidian-nativ.** In Notiz-Frontmatter schreibst Du ausschließlich einfache Skalare und Listen (String, Zahl, Boolean, ISO-Datum, YAML-Liste). Niemals ein verschachteltes Objekt oder ein „aktiv/ausgewählt"-Flag in eine Notiz.
 3. **Eine `.base` nutzt nur Obsidians fünf Top-Level-Schlüssel** (`filters`, `formulas`, `properties`, `summaries`, `views`). Jeder weitere Top-Level-Schlüssel wird von Obsidian nicht verstanden. Alles Plainva-Spezifische liegt deshalb unter verschachtelten `plainva:`-Unterschlüsseln.
 4. **Erhalte, was Du nicht verstehst.** Unbekannte Schlüssel müssen einen Lese-/Schreib-Zyklus unverändert überstehen. Räume keine Schlüssel „auf", die Du nicht kennst.
-5. **Schreibe UTF-8 ohne BOM, mit LF-Zeilenenden.**
+5. **Schreibe UTF-8. Eine neue Datei bekommt LF-Zeilenenden und kein BOM; eine vorhandene behält, was sie hat.** Plainva hält es genauso: Was es anlegt, beginnt mit LF und ohne BOM, und was es vorfindet, behält seine Zeilenenden und sein BOM — bearbeitest Du eine Notiz, ändern sich nur die Zeilen, die Du geändert hast. Eine Datei mit gemischten Zeilenenden bekommt beim ersten Bearbeiten durchgehend die Art, die die meisten ihrer Zeilen haben. Ein Wagenrücklauf allein als Zeilenende — so enden die Zeilen alter Mac-Dateien — wird gelesen, aber nicht bewahrt: Wird eine solche Datei zum ersten Mal geändert, speichert Plainva sie mit LF (mit CRLF, wenn ihre übrigen Zeilenenden überwiegend CRLF sind) und weist Dich darauf hin.
 
 ## Der Vault auf einen Blick
 
@@ -51,6 +51,10 @@ Ein **fetter** Gedanke mit einem Link zu [[Andere Notiz]].
 
 - [ ] Erste Aufgabe
 ```
+
+Ein Block darf leer sein: `---` direkt gefolgt von `---` ist ein Block ohne Eigenschaften, nicht zwei Trennlinien — der Text der Notiz beginnt in der Zeile danach. Plainva lässt keinen leeren Block zurück: Wird die letzte Eigenschaft entfernt, verschwinden die beiden `---`-Zeilen mit. Sie bleiben nur stehen, wenn der Text selbst mit einer `---`-Zeile beginnt, die sonst als Beginn eines Blocks gelesen würde.
+
+Ein Block, den Plainva nicht als Eigenschaften lesen kann, bleibt genau so stehen: Text zwischen den beiden `---`-Zeilen, der kein YAML ist, oder YAML, das eine Liste statt `Schlüssel: Wert`-Zeilen ist. **Eigenschaften** sagt das, statt keine Eigenschaften zu zeigen, und änderst Du an einer solchen Notiz eine Eigenschaft — dort, in einer Datenbank, auf einer Pinnwand, in der Aufgabenliste, auch ihr Symbol oder ihre Farbe —, ändert sich nichts, und Plainva sagt es: **Eigenschaft konnte nicht gespeichert werden**, gefolgt vom Grund. Korrigiere den Block im Text der Notiz, dann geht die Änderung durch. Ein einzelner Wert in unerwarteter Form macht einen Block nicht unlesbar: Plainva liest ihn als das, was dasteht — ein leeres `tags:` ist eine Notiz ohne Tags, eine Zahl unter den Tags (`- 2024`) der Tag `2024`, eine Zahl als `title` dieser Titel und ein `timestamp`, der ein Datum ist, eine Eigenschaft wie jede andere.
 
 ### OKF-Frontmatter-Felder
 
@@ -214,7 +218,8 @@ Die Datei ist eine Liste unter einer Überschrift und lässt sich kürzen oder l
 ### Links
 
 - **Wiki-Link:** `[[Notizname]]` — über den Notiznamen vault-weit aufgelöst. Mit Überschriften-Anker: `[[Notiz#Abschnitt]]` — ein Klick öffnet die Notiz **an dieser Überschrift**; `[[#Abschnitt]]` springt innerhalb der aktuellen Notiz, und ein Slug im GitHub-Stil (`[[Notiz#cool-header]]`) wird ebenfalls aufgelöst. Mit Block-Referenz: `[[Notiz#^id]]` für eine Zeile, die auf `^id` endet. Mit Anzeigetext: `[[Notiz|angezeigter Text]]`.
-- **Markdown-Link:** `[Text](relativer/pfad.md)` funktioniert ebenso. Mit Fragment (`[Text](#cool-header)`, `[Text](andere.md#cool-header)`) landet der Klick an der Überschrift.
+- **Wie das Ziel eines Wiki-Links aufgelöst wird** — für einen Klick, eine Einbettung, eine Relation, den Graph und die Backlinks gleich, am Desktop wie am Telefon. In dieser Reihenfolge: (1) ein ausdrücklicher Pfad — `/Ordner/Notiz` ab der Vault-Wurzel, `./Notiz` oder `../Ordner/Notiz` ab dem Ordner der verlinkenden Notiz — und für ein solches Ziel nichts sonst; (2) der Vault-Pfad wie geschrieben — eine Datei, die genau so geschrieben ist —, dann die Notiz an diesem Pfad (`.md`); (3) das Ende des Pfades einer Notiz: der Dateiname allein oder mit Ordnern davor (`Kunden/Brief` findet `Projekte/Kunden/Brief.md`); (4) eine Datei, die keine Notiz ist (`plan.pdf`, `Tasks.base`, `LICENSE`), über ihren Pfad oder das Ende ihres Pfades — nach den Notizen, ein Ziel ohne Endung meint also eine Notiz, wo immer es eine gibt; (5) der `title` aus den Eigenschaften einer Notiz. Namen werden ohne Rücksicht auf Groß- und Kleinschreibung verglichen, und die zusammengesetzte und die zerlegte Schreibung eines Buchstabens gelten als derselbe Name. Passen mehrere Dateien: zuerst die Schreibung wie geschrieben, dann der Pfad vom Ordner der verlinkenden Notiz aus (bei einem bloßen Namen die Notiz daneben), dann der kürzeste Pfad, dann die alphabetische Reihenfolge. Die Schritte 1 bis 4 sind auch der Weg, auf dem Obsidian eine Datei findet — bei mehreren gleichnamigen wählt es womöglich eine andere; ein Link über den `title` (Schritt 5) funktioniert nur in Plainva — Plainvas eigene Auswahllisten schreiben deshalb den Dateinamen.
+- **Markdown-Link:** `[Text](Ziel)`. Das Ziel wird zuerst vom Ordner der verlinkenden Notiz aus gelesen — die Datei in genau dieser Schreibung, dann die Notiz an diesem Pfad (`.md`); liegt dort nichts, wird es wie das Ziel eines Wiki-Links aufgelöst (Schritte 2 bis 5 oben: der Pfad ab der Vault-Wurzel, das Ende eines Pfades, eine Datei, die keine Notiz ist, der `title`). Ein ausdrücklicher Pfad — `/Ordner/Datei`, `./Datei`, `../Ordner/Datei` — nennt einen Ort, und nichts sonst wird dafür versucht. Ein Ziel, das auf `/` endet, nennt einen Ordner und führt zu dessen `index.md`. Die Prozent-Kodierung wird aufgelöst (`Mein%20Brief.md`), spitze Klammern und ein Titel werden wie in CommonMark gelesen (`[x](<Mein Brief.md> "Titel")`), und das erste geschriebene `#` beginnt ein Fragment: mit `[Text](#cool-header)` oder `[Text](andere.md#cool-header)` landet der Klick an der Überschrift; ein `#`, das zum Dateinamen gehört, schreibt man `%23`. Links in jedem der drei Formate von Obsidian — kürzester Pfad, relativer Pfad, absoluter Pfad im Vault — werden so aufgelöst; liegt eine Datei am Pfad vom Ordner der verlinkenden Notiz und eine andere am selben Pfad ab der Vault-Wurzel, nimmt Plainva die erste, wie ein Markdown-Betrachter außerhalb der App. Plainva selbst schreibt relative, prozent-kodierte Markdown-Links (Ordner-Übersichten, vorbereitete Übersichten). Die Antwort ist für einen Klick, den Graph und die Backlinks dieselbe, am Desktop und am Telefon.
 - **Backlinks** werden automatisch abgeleitet, auch aus Frontmatter-Wiki-Links (deshalb tauchen Relationen als Backlinks auf).
 
 ---
@@ -647,7 +652,7 @@ Regeln: Angepinnte Pfade stehen nicht zusätzlich in `pinboardOrder`. Karten, di
 - **Unbekannte Schlüssel sind heilig.** Wenn Du eine `.base` oder eine Notiz neu schreibst, trage jeden Schlüssel unverändert mit, den Du nicht ändern wolltest. Plainva selbst erhält unbekannte `.base`-Schlüssel über eine interne Rohkopie; ein Fremd-Schreiber sollte dasselbe tun (parsen → nur das Gemeinte ändern → serialisieren).
 - **Werte ändern sich in der Notiz, nicht in der `.base`.** Um eine Zelle zu setzen, bearbeite das Frontmatter der Notiz. Die `.base` entscheidet nur, welche Notizen und Spalten gezeigt werden.
 - **Ergänze keine Top-Level-`.base`-Schlüssel** über `filters` / `formulas` / `properties` / `views` hinaus.
-- **Encoding:** UTF-8 ohne BOM, LF-Zeilenenden, überall.
+- **Encoding:** UTF-8. Neue Dateien: LF-Zeilenenden, kein BOM. Eine Notiz oder Textdatei, die schon CRLF-Zeilenenden oder ein BOM hat, behält sie — Plainva ändert sie nicht, und ein Werkzeug sollte es auch nicht tun. Die eine Ausnahme ist eine `.base`: Plainva schreibt sie neu, mit LF und ohne BOM, sobald sich ihre Konfiguration ändert. Ein Wagenrücklauf allein als Zeilenende (alte Mac-Dateien) wird gelesen, aber nicht bewahrt: Plainva speichert eine solche Datei mit LF, sobald es sie zum ersten Mal ändert.
 
 ## Siehe auch
 

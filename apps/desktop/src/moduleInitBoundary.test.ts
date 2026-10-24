@@ -52,7 +52,9 @@ const BUDGET: Record<string, number> = {
   // imports are evaluated before their own body, so no chunk order can put them
   // ahead of the thing they reach for. Nothing else belongs in this map.
   "apps/desktop/src/main.tsx": 4,
-  "apps/mobile/src/main.tsx": 2,
+  // One less since 2026-10-12: the phone's mail sign-in is registered by a
+  // function of its own (`services/mail/mailSignIn.ts`), so a test can ask it.
+  "apps/mobile/src/main.tsx": 1,
   "apps/desktop/src/test-setup.ts": 4,
 };
 

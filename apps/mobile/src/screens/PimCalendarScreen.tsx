@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ChevronLeft, ChevronRight, Diamond, Link2, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Diamond, Link2, ListChecks, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { haptics } from "../services/haptics";
-import { chunkWeeks, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge, CalendarSyncNotice, hiddenBeyondDots} from "@plainva/ui";
+import { chunkWeeks, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge, fillAllDayRoom, planAllDayRows, CalendarSyncNotice, hiddenBeyondDots, syncProblemsFor, dueRowsByDay, isOpenState, setPendingSearchJump, TaskStateIcon, errorText, type PlannerRow } from "@plainva/ui";
 import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "@plainva/ui";
 import type { PimEventRow, PimSyncProblem } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { usePageSwipe } from "../lib/usePageSwipe";
 import { reauthorizeCalendarAccount } from "../services/pim/pimReauth";
+import { AccountAccessSheet } from "../components/AccountAccessSheet";
+import type { OAuthFamily } from "@plainva/ui";
+import { toastConnectionFailure } from "../services/connectionToast";
 import {
   subscribePimStatus,
   getPimStatus,
@@ -27,6 +30,8 @@ import { DeviceSignInCard } from "../components/DeviceSignInRow";
 import { AppBar } from "../components/AppBar";
 import { getMobileVault } from "../services/vaultService";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
+import { loadPhoneDueTasks, taskJumpTerm, tickPhoneDueTask } from "../services/dueTasks";
+import type { CalendarFocus } from "../services/calendarFocus";
 
 /**
  * Mobile PIM calendar (calendar-mobile branch): the phone twin of the desktop
@@ -45,6 +50,21 @@ const ALL_VIEWS: PimView[] = ["day", "3day", "week", "month", "agenda"];
  * (feedback round 2026-09-01, A1).
  */
 const VIEW_KEY = "plainva-calendar-view";
+/**
+ * "Show tasks", device-local like the view - the desktop's key and its
+ * meaning (TestFlight, build 125: "is it planned to show the tasks in the
+ * calendar? Switching it on in the calendar does nothing"). The phone had no
+ * such switch at all, and the database chip the tester found drew its entries
+ * only in the month and the agenda.
+ */
+const SHOW_TASKS_KEY = "plainva-calendar-show-tasks";
+function storedShowTasks(): boolean {
+  try {
+    return localStorage.getItem(SHOW_TASKS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 function storedView(): PimView {
   try {
     const v = localStorage.getItem(VIEW_KEY);
@@ -54,27 +74,6 @@ function storedView(): PimView {
   }
 }
 
-/** The appointment a pushed calendar should land on (a tapped reminder, M4). */
-export interface CalendarFocus {
-  uid: string;
-  accountId: string;
-  calendarId: string;
-  startTs: number;
-}
-
-/** Route payload → focus; an empty or foreign payload is simply "no focus". */
-export function parseCalendarFocus(path: string): CalendarFocus | undefined {
-  if (!path) return undefined;
-  try {
-    const v = JSON.parse(path) as Partial<CalendarFocus>;
-    if (typeof v.uid === "string" && typeof v.accountId === "string" && typeof v.calendarId === "string" && typeof v.startTs === "number") {
-      return { uid: v.uid, accountId: v.accountId, calendarId: v.calendarId, startTs: v.startTs };
-    }
-  } catch {
-    /* not a focus */
-  }
-  return undefined;
-}
 /** The hour gutter, one value for the header, the all-day strip and the grid. */
 const GUTTER_PX = 44;
 const PX_PER_HOUR = 40;
@@ -146,6 +145,8 @@ export function PimCalendarScreen({
    * sign-in expired" — the second used to be invisible: the row said "aktiv",
    * the calendar stayed empty, and the reason sat unread in the cache (§2.9).
    */
+  /** This phone has no usable access for the account's provider: the sheet asks, then the sign-in runs. */
+  const [accessFor, setAccessFor] = useState<OAuthFamily | null>(null);
   const [needsSignIn, setNeedsSignIn] = useState<{ id: string; label: string; provider: string; state: DeviceSignInState; reason?: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const ptrRef = useRef<HTMLDivElement>(null);
@@ -154,6 +155,13 @@ export function PimCalendarScreen({
   // The week and the month follow the SHARED first-day-of-week setting (S26):
   // a vault whose week starts on Sunday must start on Sunday everywhere.
   const weekStart = useWeekStartDay();
+  // Week numbers: one choice for every calendar on the device, ISO weeks only
+  // on Monday rows - the desktop's calendar tab does the same (wish 2026-10-19).
+  const [showWeeksChoice] = useShowWeekNumbers();
+  const showWeeks = weekNumbersShown(showWeeksChoice, weekStart);
+  // The all-day row: five rows, then a count that opens it for every day -
+  // the desktop's rule (wish 2026-10-19).
+  const [allDayOpen, setAllDayOpen] = useState(false);
 
   // Database views shown alongside the appointments (S18b, plan P9a). The
   // selection is a vault setting and arrives through the settings sync — who
@@ -161,6 +169,13 @@ export function PimCalendarScreen({
   const [ovCands, setOvCands] = useState<OverlayCandidate[]>([]);
   const [ovKeys, setOvKeys] = useState<string[]>([]);
   const [ovEntries, setOvEntries] = useState<OverlayEntry[]>([]);
+  // The due tasks, when "Show tasks" is on (TestFlight 125) — the task
+  // database's entries and the checkboxes in notes (TestFlight 136).
+  const [showTasks, setShowTasks] = useState(storedShowTasks);
+  const [dueTasks, setDueTasks] = useState<PlannerRow[]>([]);
+  // Without a completion model a database entry's tick writes nothing: its box is no control.
+  const [dbTickable, setDbTickable] = useState(false);
+  const [tasksTick, setTasksTick] = useState(0);
   // The date jump sheet under the app bar's period (plan Kalender 2026-09-10,
   // P3): the same picker the desktop opens under its title.
   const [jumpOpen, setJumpOpen] = useState(false);
@@ -180,15 +195,12 @@ export function PimCalendarScreen({
     if (!needsSignIn) return;
     const out = await reauthorizeCalendarAccount(needsSignIn);
     if (out.kind === "needsForm") {
-      toast.info(
-        out.reason === "caldav"
-          ? t("pim.reconnectCaldavHint")
-          : t("pim.googleClientIdRequired"),
-      );
+      toast.info(t("pim.reconnectCaldavHint"));
       onOpenSettings?.();
       return;
     }
-    if (out.kind === "failed") toast.error(out.error);
+    if (out.kind === "needsAccess") { setAccessFor(out.family); return; }
+    if (out.kind === "failed") toastConnectionFailure(out.error);
   }, [needsSignIn, onOpenSettings, t]);
 
   const days = useMemo(() => {
@@ -207,7 +219,8 @@ export function PimCalendarScreen({
 
   const reload = useCallback(() => {
     void listShownPimEvents(rangeStart, rangeEnd).then(setEvents).catch(() => setEvents([]));
-    void (getPimCache()?.listSyncProblems() ?? Promise.resolve([])).then(setSyncProblems).catch(() => setSyncProblems([]));
+    // The task lists have their line above the task screen (B2).
+    void (getPimCache()?.listSyncProblems() ?? Promise.resolve([])).then((problems) => setSyncProblems(syncProblemsFor(problems, "calendar"))).catch(() => setSyncProblems([]));
     void listPimCalendars()
       .then((cals) => setCalColor(new Map(cals.map((c) => [`${c.accountId} ${c.id}`, c.color ?? ""]))))
       .catch(() => setCalColor(new Map()));
@@ -270,13 +283,12 @@ export function PimCalendarScreen({
       try {
         const vault = await getMobileVault();
         const qs = vault.queryService;
-        const adapter = vault.adapter;
-        if (!qs || !adapter) return;
+        if (!qs) return;
         const bases = await qs.listBases();
         const cands: OverlayCandidate[] = [];
         for (const b of bases) {
           try {
-            cands.push(...overlayCandidates(b.path, b.title, await adapter.readTextFile(b.path)));
+            cands.push(...overlayCandidates(b.path, b.title, await vault.files.readTextFile(b.path)));
           } catch {
             /* one unreadable database costs its own views, not the row */
           }
@@ -285,7 +297,7 @@ export function PimCalendarScreen({
         if (!alive) return;
         setOvCands(cands);
         setOvKeys(keys);
-        setOvEntries(keys.length ? await loadBaseOverlay(keys, bases, { vaultAdapter: adapter, queryService: qs }) : []);
+        setOvEntries(keys.length ? await loadBaseOverlay(keys, bases, { vaultAdapter: vault.files, queryService: qs }) : []);
       } catch {
         if (alive) setOvCands([]);
       }
@@ -304,9 +316,8 @@ export function PimCalendarScreen({
         try {
           const vault = await getMobileVault();
           const qs = vault.queryService;
-          const adapter = vault.adapter;
-          if (!qs || !adapter) return;
-          setOvEntries(next.length ? await loadBaseOverlay(next, await qs.listBases(), { vaultAdapter: adapter, queryService: qs }) : []);
+          if (!qs) return;
+          setOvEntries(next.length ? await loadBaseOverlay(next, await qs.listBases(), { vaultAdapter: vault.files, queryService: qs }) : []);
         } catch {
           setOvEntries([]);
         }
@@ -314,6 +325,75 @@ export function PimCalendarScreen({
     },
     [ovKeys]
   );
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SHOW_TASKS_KEY, showTasks ? "1" : "0");
+    } catch {
+      /* preference simply doesn't persist */
+    }
+  }, [showTasks]);
+
+  // Due tasks from both sources, loaded the way the Today screen loads them
+  // (`loadPhoneDueTasks`), so "due" and "done" mean here what they mean there.
+  useEffect(() => {
+    if (!showTasks) {
+      setDueTasks([]);
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      try {
+        const vault = await getMobileVault();
+        const { rows, databaseTickable } = await loadPhoneDueTasks(vault);
+        if (alive) {
+          setDueTasks(rows);
+          setDbTickable(databaseTickable);
+        }
+      } catch {
+        if (alive) setDueTasks([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [showTasks, bump, tasksTick]);
+  useEffect(() => {
+    const onChanged = () => setTasksTick((x) => x + 1);
+    window.addEventListener("m-task-sync-done", onChanged);
+    return () => window.removeEventListener("m-task-sync-done", onChanged);
+  }, []);
+
+  /** Ticks a task off where it stands - each source the way the task screen writes it. */
+  const toggleTask = useCallback(
+    (row: PlannerRow) => {
+      void getMobileVault()
+        .then((vault) => tickPhoneDueTask(vault, row))
+        .then((result) => {
+          setTasksTick((x) => x + 1);
+          if (result.spawnedDue) toast.info(t("tasks.repeatSpawned", { date: result.spawnedDue }));
+          if (result.spawnFailed) toast.error(t("tasks.repeatFailed"));
+        })
+        // A database tick writes the note's completion property: the sentence
+        // a property write gets, with the reason as `errorText` reads it, as
+        // on the task screen (finding 2026-10-12) — the bare message of a
+        // block that is no YAML quotes the note's own line. A checkbox says
+        // its reason.
+        .catch((e) => {
+          if (row.source === "database") toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+          else toast.error(errorText(e));
+        });
+    },
+    [t]
+  );
+
+  const tasksByDay = useMemo(() => dueRowsByDay(dueTasks), [dueTasks]);
+  /** A task opens where it lives: a checkbox at its line, a database entry as its note. */
+  const openTaskRow = (row: PlannerRow) => {
+    const term = taskJumpTerm(row);
+    if (term) setPendingSearchJump({ path: row.path, term });
+    onOpenNote?.(row.path);
+  };
 
   /** Entries by day, so the day lists can merge them with the appointments. */
   const ovByDay = useMemo(() => {
@@ -341,6 +421,11 @@ export function PimCalendarScreen({
     return map;
   }, [events]);
 
+  // The month's week column (wish 2026-10-19): days and bars move one column
+  // right, their placement is explicit.
+  const monthWeeks = view === "month" && showWeeks ? isoWeeksForCells(days) : null;
+  const weekCol = monthWeeks ? 1 : 0;
+
   /** Multi-day events per week row of the month grid — the shared helper. */
   const monthSpans = useMemo(() => {
     if (view !== "month") return [];
@@ -358,6 +443,32 @@ export function PimCalendarScreen({
   };
 
   const colorOf = (e: PimEventRow) => e.color || calColor.get(`${e.accountId} ${e.calendarId}`) || "var(--accent-color)";
+  /** Database entries and tasks of a day, as keys - what the month's hollow dots count. */
+  const notesOf = (key: string): string[] => [
+    ...(ovByDay.get(key) ?? []).map((entry) => `ov-${entry.basePath}-${entry.path}`),
+    ...(tasksByDay.get(key) ?? []).map((row) => `task-${row.id}`),
+  ];
+  /** The entries and tasks of a day that carry no time: the all-day strip's. */
+  const allDayNotesOf = (key: string) => ({
+    overlay: (ovByDay.get(key) ?? []).filter((entry) => entry.minutes === undefined),
+    tasks: (tasksByDay.get(key) ?? []).filter((row) => row.dueMinutes === null),
+  });
+  // Compact: a task in a day column is one line high; the shared icon says
+  // done or open exactly as the task screen does.
+  const taskBox = (row: PlannerRow) => (
+    <button
+      type="button"
+      className="m-cal-note-box"
+      aria-label={t(isOpenState(row.state) ? "tasks.done" : "tasks.open")}
+      data-testid="pim-task-toggle"
+      data-state={row.state}
+      data-source={row.source}
+      disabled={row.source === "database" && !dbTickable}
+      onClick={() => toggleTask(row)}
+    >
+      <TaskStateIcon state={row.state} size={ICON.meta} />
+    </button>
+  );
   /** The one-word state ("Abgesagt", "Offen", "Vielleicht") for an agenda row;
    * confirmed events say nothing (report 2026-07-29 F7/F8). */
   const stateLabel = (e: PimEventRow) => {
@@ -419,14 +530,17 @@ export function PimCalendarScreen({
   }, [focusedKey]);
 
   const periodTitle = () => {
-    if (view === "day") return new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(anchor);
+    // A time grid names its week when week numbers are on; the month has its
+    // own column for them.
+    const week = showWeeks && days.length > 0 ? ` · ${isoWeekLabel(days, t("calendar.weekShort"))}` : "";
+    if (view === "day") return `${new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(anchor)}${week}`;
     if (view === "agenda") return t("pim.viewAgenda", { defaultValue: "Agenda" });
     if (view === "month") return new Intl.DateTimeFormat(i18n.language, { month: "long", year: "numeric" }).format(anchor);
     const first = days[0];
     const last = days[days.length - 1];
     const d = new Intl.DateTimeFormat(i18n.language, { day: "numeric" });
     const dm = new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "short" });
-    return `${d.format(first)}.–${dm.format(last)}`;
+    return `${d.format(first)}.–${dm.format(last)}${week}`;
   };
 
   // The period is a BUTTON in the bar's subtitle slot (N5.1 put the period
@@ -464,6 +578,24 @@ export function PimCalendarScreen({
     el.scrollTop = focusHour * PX_PER_HOUR;
   }, [view, rangeStart, days, todayIso]);
 
+  // What the all-day row of a time grid holds per day, in the order it draws
+  // it, and how much of it fits (the shared plan; the phone draws no bars).
+  const allDayGroups = days.map((day) => {
+    const key = isoOf(day);
+    const split = partitionStatus((byDay.get(key) ?? []).filter((e) => e.allDay));
+    const notes = allDayNotesOf(key);
+    // The desktop's order (DayTimeGrid): what does not fit is the same there.
+    return [split.status, split.appointments, notes.tasks, notes.overlay] as const;
+  });
+  const hasAllDay = allDayGroups.some((groups) => groups.some((g) => g.length > 0));
+  const allDayInput = { laneCount: 0, bars: [], itemCounts: allDayGroups.map((groups) => groups.reduce((n, g) => n + g.length, 0)) };
+  const allDayClosed = planAllDayRows({ ...allDayInput, expanded: false });
+  const allDayShown = allDayOpen ? planAllDayRows({ ...allDayInput, expanded: true }) : allDayClosed;
+  const allDayDays = allDayGroups.map((groups, i) => {
+    const [status, appointments, tasks, overlay] = fillAllDayRoom(groups, allDayShown.days[i]?.visibleItems ?? 0);
+    return { status, appointments, overlay, tasks, hidden: allDayShown.days[i]?.hidden ?? 0, canClose: allDayOpen && (allDayClosed.days[i]?.hidden ?? 0) > 0 };
+  });
+
   return (
     <div className="m-page m-page--pimcal">
       {/* Pushed from "More": the back header. On the Calendar TAB the shell's
@@ -496,6 +628,8 @@ export function PimCalendarScreen({
               onPick={(key) => jumpTo(new Date(`${key}T00:00:00`))}
               onToday={() => jumpTo(new Date())}
               onClose={() => setJumpOpen(false)}
+              showWeekNumbers={showWeeks}
+              footer={<WeekNumbersToggle weekStart={weekStart} />}
               testId="pim-jump"
             />
           </div>
@@ -566,25 +700,33 @@ export function PimCalendarScreen({
 
       {/* The "show" row (S18b): a scrolling chip row instead of the desktop's
           bar. The chips carry a diamond in BOTH states — it is what says
-          "notes", and switching one on must not take that away. */}
-      {ovCands.length > 0 && (
-        <ScrollEdge axis="x" className="m-chiprow" data-testid="pim-overlay-row">
-          {ovCands.map((c) => {
-            const key = overlayKey(c);
-            return (
-              <Chip
-                key={key}
-                icon={<Diamond size={ICON.meta} />}
-                selected={ovKeys.includes(key)}
-                onClick={() => toggleOverlay(key)}
-                testId={`pim-overlay-${key}`}
-              >
-                {c.label}
-              </Chip>
-            );
-          })}
-        </ScrollEdge>
-      )}
+          "notes", and switching one on must not take that away.
+          "Show tasks" is always there: it used to need a task database, and
+          every vault can hold checkboxes with a due date (TestFlight 136). */}
+      <ScrollEdge axis="x" className="m-chiprow" data-testid="pim-overlay-row">
+        <Chip
+          icon={<ListChecks size={ICON.meta} />}
+          selected={showTasks}
+          onClick={() => setShowTasks((v) => !v)}
+          testId="pim-show-tasks"
+        >
+          {t("pim.showTasks")}
+        </Chip>
+        {ovCands.map((c) => {
+          const key = overlayKey(c);
+          return (
+            <Chip
+              key={key}
+              icon={<Diamond size={ICON.meta} />}
+              selected={ovKeys.includes(key)}
+              onClick={() => toggleOverlay(key)}
+              testId={`pim-overlay-${key}`}
+            >
+              {c.label}
+            </Chip>
+          );
+        })}
+      </ScrollEdge>
 
       {/* Who is not being synced, since when and why (K1) — only above an
           actual calendar: without accounts, or with none that signs in, the
@@ -631,7 +773,13 @@ export function PimCalendarScreen({
         // wants from a month is "which days are busy" plus a way in.
         <div ref={ptrRef} className="m-scroll">
           {ptrIndicator}
-          <div className="m-cal-grid m-cal-grid--month">
+          <div className={`m-cal-grid m-cal-grid--month${monthWeeks ? " m-cal-grid--weeks" : ""}`}>
+            {monthWeeks && <div className="m-cal-wd m-cal-week" style={{ gridRow: 1, gridColumn: 1 }}>{t("calendar.weekShort")}</div>}
+            {monthWeeks?.map((week, row) => (
+              <div className="m-cal-week" key={`week-${row}`} data-testid="pim-week-number" style={{ gridRow: row + 2, gridColumn: 1 }}>
+                {week}
+              </div>
+            ))}
             {days.slice(0, 7).map((d) => (
               <div className="m-cal-wd" key={`wd-${d.getDay()}`}>
                 {new Intl.DateTimeFormat(i18n.language, { weekday: "short" }).format(d)}
@@ -647,7 +795,7 @@ export function PimCalendarScreen({
                 <button
                   className={`m-cal-day${outside ? " is-outside" : ""}${key === todayIso ? " is-today" : ""}`}
                   key={key}
-                  style={{ gridRow: Math.floor(cellIndex / 7) + 2, gridColumn: (cellIndex % 7) + 1 }}
+                  style={{ gridRow: Math.floor(cellIndex / 7) + 2, gridColumn: (cellIndex % 7) + 1 + weekCol }}
                   onClick={() => {
                     // A tapped day opens that day — the month answers "when",
                     // the day answers "what".
@@ -679,14 +827,15 @@ export function PimCalendarScreen({
                     {/* A database entry gets a HOLLOW dot — a month cell has
                         room for a mark, not for a label, and the difference
                         between note and appointment has to survive it. */}
-                    {(ovByDay.get(key) ?? []).slice(0, 2).map((entry) => (
-                      <span className="m-cal-dot m-cal-dot--note" key={`ov-${entry.basePath}-${entry.path}`} />
+                    {/* Tasks are notes too: the same hollow dot (TestFlight 125). */}
+                    {notesOf(key).slice(0, 2).map((noteKey) => (
+                      <span className="m-cal-dot m-cal-dot--note" key={noteKey} />
                     ))}
                     {/* What lies beyond the dots (plan Befunde 2026-10-06, K2):
                         three dots said "three" for a day with nine entries. */}
-                    {hiddenBeyondDots(list.length, 3) + hiddenBeyondDots((ovByDay.get(key) ?? []).length, 2) > 0 && (
+                    {hiddenBeyondDots(list.length, 3) + hiddenBeyondDots(notesOf(key).length, 2) > 0 && (
                       <span className="m-cal-more" data-testid="pim-month-more">
-                        +{hiddenBeyondDots(list.length, 3) + hiddenBeyondDots((ovByDay.get(key) ?? []).length, 2)}
+                        +{hiddenBeyondDots(list.length, 3) + hiddenBeyondDots(notesOf(key).length, 2)}
                       </span>
                     )}
                   </span>
@@ -705,7 +854,7 @@ export function PimCalendarScreen({
                   onClick={() => void editor.openEvent(bar.event)}
                   style={{
                     gridRow: weekIndex + 2,
-                    gridColumn: `${bar.startCol + 1} / span ${bar.endCol - bar.startCol + 1}`,
+                    gridColumn: `${bar.startCol + 1 + weekCol} / span ${bar.endCol - bar.startCol + 1}`,
                     background: colorOf(bar.event),
                     marginTop: `calc(var(--m-cal-span-top) + ${bar.lane} * var(--m-cal-span-h))`,
                   }}
@@ -720,7 +869,7 @@ export function PimCalendarScreen({
       ) : view === "agenda" ? (
         <div ref={ptrRef} className="m-scroll">
           {ptrIndicator}
-          {days.filter((d) => (byDay.get(isoOf(d)) ?? []).length > 0 || (ovByDay.get(isoOf(d)) ?? []).length > 0).map((d) => {
+          {days.filter((d) => (byDay.get(isoOf(d)) ?? []).length > 0 || notesOf(isoOf(d)).length > 0).map((d) => {
             const key = isoOf(d);
             // Status entries (S24) come first and read as STATES of the day,
             // not as things happening in it. A list has no "behind", so where
@@ -771,6 +920,17 @@ export function PimCalendarScreen({
                     <span style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)", flexShrink: 0 }}>{entry.source}</span>
                   </button>
                 ))}
+                {(tasksByDay.get(key) ?? []).map((row) => (
+                  <div key={`task-${row.id}`} className="m-row m-overlay-entry" data-testid="pim-task">
+                    {taskBox(row)}
+                    <button type="button" className={`m-cal-note-title${isOpenState(row.state) ? "" : " is-done"}`} onClick={() => openTaskRow(row)}>
+                      {row.title}
+                    </button>
+                    <span style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)", flexShrink: 0 }}>
+                      {row.dueMinutes !== null ? minutesToHHMM(row.dueMinutes) : t("pim.allDay", { defaultValue: "Ganztägig" })}
+                    </span>
+                  </div>
+                ))}
               </div>
             );
           })}
@@ -781,9 +941,11 @@ export function PimCalendarScreen({
               grid answered "at what time" and left "on what date" to the
               period label above it — fine for one day, unreadable for three
               (device report 2026-08-15, point 2). The header and the all-day
-              strip scroll away with the grid on a phone: 812 px of screen has
-              no room to pin them. */}
-          <div style={{ display: "flex", position: "sticky", top: 0, zIndex: "var(--z-m-bar)", background: "var(--bg-primary)", borderBottom: "1px solid var(--border-color-light)" }}>
+              strip stay pinned above the hours together, as on the desktop
+              (wish 2026-10-19); the strip is held to five rows, so the hours
+              keep the screen. */}
+          <div style={{ position: "sticky", top: 0, zIndex: "var(--z-m-bar)", background: "var(--bg-primary)" }} data-testid="pim-timegrid-head">
+          <div style={{ display: "flex", borderBottom: "1px solid var(--border-color-light)" }}>
             <div style={{ width: GUTTER_PX, flexShrink: 0 }} />
             {days.map((day) => {
               const key = isoOf(day);
@@ -812,12 +974,17 @@ export function PimCalendarScreen({
           {/* All-day events had nowhere to go in this view: the grid draws only
               timed blocks, so a whole-day appointment was simply invisible
               here. */}
-          {days.some((d) => (byDay.get(isoOf(d)) ?? []).some((e) => e.allDay)) && (
-            <div style={{ display: "flex", borderBottom: "1px solid var(--border-color-light)" }} data-testid="pim-allday-strip">
+          {hasAllDay && (
+            <div
+              // Opened, the pinned strip scrolls in itself past half the
+              // screen, so the hours and "Show less" stay in reach.
+              style={{ display: "flex", borderBottom: "1px solid var(--border-color-light)", ...(allDayOpen ? { maxHeight: "50vh", overflowY: "auto" } : null) }}
+              data-testid="pim-allday-strip"
+            >
               <div style={{ width: GUTTER_PX, flexShrink: 0, fontSize: "var(--text-xs)", color: "var(--text-faint)", padding: "var(--space-1)", textAlign: "right" }}>
                 {t("pim.allDay", { defaultValue: "Ganztägig" })}
               </div>
-              {days.map((day) => (
+              {days.map((day, dayIndex) => (
                 <div
                   key={isoOf(day)}
                   style={{ flex: 1, minWidth: 0, borderLeft: "1px solid var(--border-color-light)", padding: "var(--space-1)", display: "flex", flexDirection: "column", gap: "var(--space-1)" }}
@@ -826,7 +993,7 @@ export function PimCalendarScreen({
                       the day, not an appointment in it (K2): the same split
                       and the same band as the desktop's all-day row, where
                       this strip used to draw "Home" as a meeting. */}
-                  {partitionStatus((byDay.get(isoOf(day)) ?? []).filter((e) => e.allDay)).status.map((e) => (
+                  {allDayDays[dayIndex].status.map((e) => (
                     <span
                       className={`pv-status-band pv-status-band--${e.statusKind}`}
                       data-status={e.statusKind}
@@ -836,7 +1003,7 @@ export function PimCalendarScreen({
                       {statusLabel(e, t)}
                     </span>
                   ))}
-                  {partitionStatus((byDay.get(isoOf(day)) ?? []).filter((e) => e.allDay)).appointments.map((e) => (
+                  {allDayDays[dayIndex].appointments.map((e) => (
                     <button
                       className={eventStateClass("m-evt", eventVisualState(e), e)}
                       data-state={eventVisualState(e)}
@@ -850,10 +1017,44 @@ export function PimCalendarScreen({
                       <span className="m-evt-title">{e.title}</span>
                     </button>
                   ))}
+                  {allDayDays[dayIndex].tasks.map((row) => (
+                    <div key={`task-${row.id}`} className="m-overlay-entry m-cal-note m-cal-note--task" data-testid="pim-task">
+                      {taskBox(row)}
+                      <button type="button" className={`m-cal-note-title${isOpenState(row.state) ? "" : " is-done"}`} onClick={() => openTaskRow(row)}>
+                        {row.title}
+                      </button>
+                    </div>
+                  ))}
+                  {/* A database entry and a task without a time belong to the
+                      day, not to an hour - here, as in the desktop's row. */}
+                  {allDayDays[dayIndex].overlay.map((entry) => (
+                    <button
+                      key={`ov-${entry.basePath}-${entry.path}`}
+                      type="button"
+                      className="m-overlay-entry m-cal-note"
+                      data-testid="pim-overlay-entry"
+                      onClick={() => onOpenNote?.(entry.path)}
+                    >
+                      <Diamond size={ICON.meta} style={{ flexShrink: 0 }} />
+                      <span className="m-cal-note-title">{entry.title}</span>
+                    </button>
+                  ))}
+                  {/* The day's last row when it holds more than fits, and -
+                      opened - the way back; for every day at once. */}
+                  {allDayDays[dayIndex].hidden > 0 ? (
+                    <Button variant="ghost" size="sm" className="pv-allday-more" data-testid="pim-allday-more" aria-expanded={false} onClick={() => setAllDayOpen(true)}>
+                      {t("pim.allDayMore", { n: allDayDays[dayIndex].hidden })}
+                    </Button>
+                  ) : allDayDays[dayIndex].canClose ? (
+                    <Button variant="ghost" size="sm" className="pv-allday-more" data-testid="pim-allday-less" aria-expanded onClick={() => setAllDayOpen(false)}>
+                      {t("pim.allDayLess")}
+                    </Button>
+                  ) : null}
                 </div>
               ))}
             </div>
           )}
+          </div>
 
           <div style={{ display: "flex", position: "relative", height: 24 * PX_PER_HOUR }}>
             <div style={{ width: GUTTER_PX, flexShrink: 0, position: "relative" }}>
@@ -877,8 +1078,8 @@ export function PimCalendarScreen({
                 <div
                   key={key}
                   onClick={(ev) => {
-                    // Only the empty grid creates — an event handles its own tap.
-                    if ((ev.target as HTMLElement).closest("[data-testid='pim-event']")) return;
+                    // Only the empty grid creates — an event, an entry and a task handle their own tap.
+                    if ((ev.target as HTMLElement).closest("[data-testid='pim-event'], [data-testid='pim-overlay-entry'], [data-testid='pim-task']")) return;
                     const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
                     const min = snapMinutes(pxToMinutes(ev.clientY - rect.top, PX_PER_HOUR), 30);
                     editor.openCreate(dayStartMs + min * 60_000);
@@ -918,8 +1119,37 @@ export function PimCalendarScreen({
                       </button>
                     );
                   })}
+                  {/* Entries and tasks with a time stand at their minute (TestFlight
+                      125): visibly not an appointment - an outline, a diamond or
+                      a box - because a due moment is not a span. */}
+                  {(ovByDay.get(key) ?? []).filter((entry) => entry.minutes !== undefined).map((entry) => (
+                    <button
+                      key={`timed-ov-${entry.basePath}-${entry.path}`}
+                      type="button"
+                      className="m-overlay-entry m-cal-note m-cal-note--timed"
+                      data-testid="pim-overlay-entry"
+                      onClick={() => onOpenNote?.(entry.path)}
+                      style={{ top: minutesToPx(entry.minutes ?? 0, PX_PER_HOUR) }}
+                    >
+                      <Diamond size={ICON.meta} style={{ flexShrink: 0 }} />
+                      <span className="m-cal-note-title">{entry.title}</span>
+                    </button>
+                  ))}
+                  {(tasksByDay.get(key) ?? []).filter((row) => row.dueMinutes !== null).map((row) => (
+                    <div
+                      key={`timed-task-${row.id}`}
+                      className="m-overlay-entry m-cal-note m-cal-note--timed m-cal-note--task"
+                      data-testid="pim-task"
+                      style={{ top: minutesToPx(row.dueMinutes ?? 0, PX_PER_HOUR) }}
+                    >
+                      {taskBox(row)}
+                      <button type="button" className={`m-cal-note-title${isOpenState(row.state) ? "" : " is-done"}`} onClick={() => openTaskRow(row)}>
+                        {row.title}
+                      </button>
+                    </div>
+                  ))}
                   {isToday && (
-                    <div aria-hidden style={{ position: "absolute", left: 0, right: 0, top: minutesToPx(nowMin, PX_PER_HOUR), borderTop: "2px solid var(--error-text)", zIndex: "var(--z-m-bar)" }} />
+                    <div aria-hidden style={{ position: "absolute", left: 0, right: 0, top: minutesToPx(nowMin, PX_PER_HOUR), borderTop: "2px solid var(--error-text)", zIndex: "var(--z-m-bar)", pointerEvents: "none" }} />
                   )}
                 </div>
               );
@@ -930,6 +1160,13 @@ export function PimCalendarScreen({
       </div>
 
       {editor.element}
+      {accessFor && (
+        <AccountAccessSheet
+          family={accessFor}
+          onCancel={() => setAccessFor(null)}
+          onSaved={() => { setAccessFor(null); void renewSignIn(); }}
+        />
+      )}
     </div>
   );
 }

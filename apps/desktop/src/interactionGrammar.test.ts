@@ -209,14 +209,194 @@ describe("modal, menu and bar grammar (E5)", () => {
     }
   });
 
-  it("no menu without MenuSurface: nobody draws role=\"menu\" by hand", () => {
+  /**
+   * `pv-menu` as a class a file DRAWS: not one of the row classes
+   * (`pv-menu-item`), and not a selector the document is asked with
+   * (`.pv-menu[role="menu"]` — the floating window and the modal look for an
+   * open menu that way, which is no menu of their own).
+   */
+  const DRAWS_MENU = /(?<![\w.-])pv-menu(?![\w-])/;
+  /** The role as an attribute a file sets, not inside such a selector. */
+  const SETS_MENU_ROLE = /(?<!\[)role="menu"/;
+  const MENU_PRIMITIVE = `${UI}/components/ui/Menu.tsx`;
+
+  it("no menu without MenuSurface: nobody draws the role or the surface by hand", () => {
+    // The role alone was not enough to look for. The two menus that were still
+    // drawn by hand on 2026-10-09 — the vault menu at the foot of the sidebar,
+    // the ⋮ menu of a database — wore the surface's class WITHOUT the role, so
+    // this check passed them by: they had the look and none of the contract,
+    // no Escape, and for one of them no way out but its own button. Both
+    // shells and the shared package are read; only the primitive may draw it.
     const offenders: string[] = [];
-    for (const { rel, src } of desktopSurfaces()) {
-      if (/role="menu"/.test(src)) offenders.push(rel);
+    for (const { rel, text } of sourceTexts([DESKTOP, MOBILE, UI], "shipped")) {
+      if (rel === MENU_PRIMITIVE) continue;
+      const src = stripComments(text);
+      if (SETS_MENU_ROLE.test(src) || DRAWS_MENU.test(src)) offenders.push(rel);
     }
-    expect(offenders).toEqual([]);
-    // The primitive is the one place the role lives.
-    expect(read(UI, "components/ui/Menu.tsx")).toContain('role="menu"');
+    expect(offenders, "a menu is <MenuSurface> — Escape, the press beside it and its layer come from there").toEqual([]);
+    // The primitive is the one place the role and the surface live.
+    const primitive = stripComments(sourceFile(MENU_PRIMITIVE));
+    expect(primitive).toMatch(SETS_MENU_ROLE);
+    expect(primitive).toMatch(DRAWS_MENU);
+  });
+
+  it("the menu rule sees a hand-drawn surface in every spelling it takes, and nothing else", () => {
+    for (const drawn of [
+      '<div className="pv-menu" style={{ position: "absolute" }}>',
+      "<div className='pv-menu base-thing'>",
+      '<div className={cx("pv-menu", className)}>',
+      "<div className={`pv-menu ${open ? \"is-open\" : \"\"}`}>",
+      '<div className="base-thing pv-menu">',
+    ]) expect(drawn, drawn).toMatch(DRAWS_MENU);
+    expect('<div role="menu" aria-label="Actions">').toMatch(SETS_MENU_ROLE);
+    for (const fine of [
+      '<button className="pv-menu-item">',
+      '<div className="pv-menu-sep" role="separator" />',
+      `document.querySelector('.pv-menu[role="menu"]')`,
+      'const TAKES_ESCAPE = \'.pv-modal, .pv-menu[role="menu"], .pv-palette-overlay\';',
+      '<div className="pv-menubar">',
+    ]) {
+      expect(fine, fine).not.toMatch(DRAWS_MENU);
+      expect(fine, fine).not.toMatch(SETS_MENU_ROLE);
+    }
+  });
+
+  /** Every rule of the shells' and the shared stylesheets, themes aside: [file, selector, declarations]. */
+  const styleRules = (): Array<[string, string, string]> =>
+    sourceTexts([DESKTOP, MOBILE, UI], "css")
+      // A theme's decoration is not in the way of a press (pointer-events: none).
+      .filter(({ rel }) => !rel.startsWith(`${UI}/themes/`))
+      .flatMap(({ rel, text }) =>
+        [...text.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(
+          ([, selector, body]): [string, string, string] => [rel, selector.trim(), body],
+        ),
+      );
+  const DRAWS_CATCHER = /(?<![\w.-])pv-click-catch(?![\w-])/;
+  const CATCHER_PRIMITIVE = `${UI}/components/ui/ClickCatch.tsx`;
+
+  it("a press beside a surface is heard at the window; the one catcher class has the menus' layer and one place that draws it", () => {
+    // A menu and a popover that let the press through hear it at the window
+    // (`useOutsidePress`) and lay nothing over the page. A database's menus
+    // laid an element of their own over it, on the popover layer, and one
+    // popover used the shared catcher class without any layer: both lay under
+    // a floating window, and a press into a note preview never reached them.
+    //
+    // Where the press is meant to go nowhere else — the dialog-like popovers —
+    // an element may catch it: the class below, with the menus' layer in the
+    // class itself. A stylesheet cannot say more than that. A layer counts
+    // only inside its own stacking context (a database embedded in a note
+    // sits in the editor's), so the class is drawn by ONE primitive, which
+    // also hears the press the catcher does not get — and no call site can
+    // draw a catcher without that, or give it a layer of its own.
+    // (The calendar's quick-create card keeps a scrim of its own on the
+    // dialogs' layer; it is listed among the anchored dialogs above.) The
+    // phone has neither: its sheets dim the page, and nothing floats over them.
+    const catchers = styleRules()
+      .filter(([, , body]) => /position:\s*fixed/.test(body) && /inset:\s*0\b/.test(body) && !/background|backdrop-filter/.test(body))
+      .map(([, selector, body]) => `${selector} { z-index: ${/z-index:\s*([^;}]+)/.exec(body)?.[1].trim() ?? "none"} }`);
+    expect(catchers).toEqual([".pv-click-catch { z-index: var(--z-menu) }"]);
+
+    const drawnElsewhere: string[] = [];
+    for (const { rel, text } of sourceTexts([DESKTOP, MOBILE, UI], "shipped")) {
+      if (rel !== CATCHER_PRIMITIVE && DRAWS_CATCHER.test(stripComments(text))) drawnElsewhere.push(rel);
+    }
+    expect(drawnElsewhere, "use <ClickCatch>: it carries the layer and hears what the catcher does not get").toEqual([]);
+    const primitive = stripComments(sourceFile(CATCHER_PRIMITIVE));
+    expect(primitive).toMatch(DRAWS_CATCHER);
+    expect(primitive).toContain("useOutsidePress(");
+    expect(primitive, "the catcher's layer is the class's").not.toMatch(/zIndex|style=/);
+  });
+
+  /**
+   * A listener for a press at the document or the window, in any spelling a
+   * file writes it: the element is the document, the window, or a document
+   * reached from an element (`doc`, `ownerDocument`).
+   */
+  const HEARS_A_PRESS = /\b(?:document|window|doc|ownerDocument)\s*\??\.\s*addEventListener\(\s*["'`](?:mousedown|pointerdown|touchstart)["'`]/;
+  /**
+   * What listens for a press at the document or the window, and why that is
+   * not a surface being left. The list only ever shrinks.
+   */
+  const listensForAnotherReason: Record<string, string> = {
+    [`${UI}/components/ui/useOutsidePress.ts`]: "the primitive itself",
+    [`${UI}/components/ui/Menu.tsx`]: "after a press beside it closed the menu: whether that press moved the focus — if not, the menu hands it back",
+    [`${UI}/components/ui/Tooltip.tsx`]: "any press hides a tooltip, the one on the element it explains as well",
+    [`${UI}/components/anchorRegion.ts`]: "marking a region of a picture is armed; a press elsewhere disarms it (an editor widget, not React)",
+    [`${UI}/components/completedTap.ts`]: "a tap counts once its finger is lifted; another pointer coming down cancels it",
+    [`${DESKTOP}/services/inputModality.ts`]: "which device is in use, for the focus ring",
+    [`${DESKTOP}/components/settings/QuickCaptureSettings.tsx`]: "the shortcut recorder: any press ends the recording, as Escape and the window losing the focus do — a mode, not a surface",
+  };
+
+  it("a surface hears the press beside it through useOutsidePress; nothing else listens for a press at the document or the window without a reason", () => {
+    // Twelve surfaces heard the press beside them by themselves, as a
+    // `mousedown` at the document — the select lists, the font field, the
+    // property popovers, a database's cell editors, the table size, the date
+    // field (Sammelplan § 3.100). A press on a handle that drags — a floating
+    // window's head, a column's grip — cancels its `pointerdown`, the browser
+    // then sends no `mousedown` at all, and they stayed open beside it; a
+    // handler that stopped the event on its way (a table cell of the editor)
+    // hid it too. `useOutsidePress` hears it at the window, capturing, as a
+    // `pointerdown` — and a finger once its tap is made out. Both shells and
+    // the shared package are read.
+    const listening: string[] = [];
+    for (const { rel, text } of sourceTexts([DESKTOP, MOBILE, UI], "shipped")) {
+      if (HEARS_A_PRESS.test(stripComments(text))) listening.push(rel);
+    }
+    expect(
+      listening.filter((rel) => !(rel in listensForAnotherReason)),
+      "hear the press beside a surface with useOutsidePress — or name here why the press is listened for",
+    ).toEqual([]);
+    for (const rel of Object.keys(listensForAnotherReason)) {
+      expect(listening, `${rel} no longer listens for a press — drop it from the list`).toContain(rel);
+    }
+  });
+
+  it("the press rule sees a listener in every spelling it takes, and nothing else", () => {
+    for (const heard of [
+      'document.addEventListener("mousedown", onDoc);',
+      "window.addEventListener('pointerdown', onDown, true);",
+      'doc.addEventListener("touchstart", onTouch, { passive: true });',
+      "el.ownerDocument.addEventListener(`mousedown`, onDown);",
+      'el.ownerDocument?.addEventListener("pointerdown", onDown, true);',
+      'document\n      .addEventListener("mousedown", onDown);',
+    ]) expect(heard, heard).toMatch(HEARS_A_PRESS);
+    for (const fine of [
+      'el.addEventListener("mousedown", (e) => e.preventDefault());',
+      'document.addEventListener("keydown", onKey);',
+      'window.addEventListener("pointerup", done, true);',
+      'document.removeEventListener("mousedown", onDoc);',
+      'window.addEventListener("click", suppress, { capture: true, once: true });',
+    ]) expect(fine, fine).not.toMatch(HEARS_A_PRESS);
+  });
+
+  it("what opens menus and popovers is no size container", () => {
+    // Menus and popovers are placed by the WINDOW (`position: fixed`). By the
+    // first form of the specification `container-type` brought layout
+    // containment with it, and an engine that still follows it (WebKit did for
+    // longest; the app's floor reaches back to such versions) makes a size
+    // container the box its fixed descendants are placed in: they land
+    // displaced by the container's own offset, and under the floating windows.
+    // A database's head was such a container and held the "New entry" popover
+    // from the first release on. It measures its width now (baseHeadWidth.ts),
+    // as the sidebars do; what is left are containers that hold no surface of
+    // that kind. A new one goes on this list with what it holds.
+    const inStylesheets = styleRules()
+      .filter(([, , body]) => /(^|[;\s])container(-type)?\s*:/.test(body))
+      .map(([rel, selector]) => `${rel}: ${selector}`);
+    expect(inStylesheets).toEqual([
+      // The band of the suggestion mode: a sentence, a note field and buttons
+      // — nothing that opens over the page.
+      `${UI}/styles/ui.css: .pv-suggest-band`,
+    ]);
+    const inMarkup = sourceTexts([DESKTOP, MOBILE, UI], "shipped")
+      .filter(({ text }) => /containerType\s*:/.test(stripComments(text)))
+      .map(({ rel }) => rel);
+    expect(inMarkup).toEqual([
+      // The month grid alone — never the widget, whose day menu is a menu.
+      `${DESKTOP}/components/CalendarWidget.tsx`,
+    ]);
+    // …and the head that used to be one says how wide it is by itself.
+    expect(stripComments(read(DESKTOP, "components/BaseViewer.tsx"))).toMatch(/data-narrow=\{narrowHead/);
   });
 
   it("no context menu opens anything but a menu surface", () => {

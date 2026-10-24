@@ -632,8 +632,12 @@ test("Create as a task in the share sheet: the shared text and file become a tas
     expect(note).toMatch(/^# Buy stamps$/m);
     expect(note).toContain("Buy stamps\nThe post office closes at six.");
     expect(note).toContain(`![[${attachment}]]`);
-    const stored = await page.evaluate(async (p) => String((await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readFile({ path: `vault/${p}`, directory: "DATA" })).data), attachment);
-    expect(Buffer.from(stored, "base64").equals(receipt)).toBe(true);
+    // The bytes that lie there: the web shell keeps a file laid down as bytes as a Blob, and one laid down as base64 as that string.
+    const stored = await page.evaluate(async (p) => {
+      const { data } = await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readFile({ path: `vault/${p}`, directory: "DATA" });
+      return data instanceof Blob ? Array.from(new Uint8Array(await data.arrayBuffer())) : Array.from(atob(String(data)), (character) => character.charCodeAt(0));
+    }, attachment);
+    expect(Buffer.from(stored).equals(receipt)).toBe(true);
     // The new note opens, the way every import does.
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(created[0].replace(/\.md$/, ""));
     await expect(page.locator(".cm-content")).toContainText("The post office closes at six.");

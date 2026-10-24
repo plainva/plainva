@@ -56,6 +56,38 @@ export interface SyncOperation {
   delete_confirmed_at?: number | null;
   /** Its intent has been saved in the local deletion journal. */
   delete_journaled?: number;
+  /**
+   * Writes only: the version this upload expects the remote to hold — the one
+   * of its merge base, or no file at all (Sammelplan § 3.103). The engine sets
+   * it right before the push; a target that can make the write conditional
+   * writes only while the remote still holds it, and throws
+   * `RemoteChangedError` otherwise. Absent: the write is unconditional, as
+   * before. Targets that cannot condition a write (Drive) ignore it; the
+   * engine's probe (3b) is their guard.
+   */
+  expectedRemote?: ExpectedRemote;
+}
+
+/**
+ * What an upload expects on the remote at the moment it writes (see
+ * `SyncOperation.expectedRemote`). `marker` uses the change-marker semantics
+ * of `pull()` for the same target — the value the row recorded as
+ * `base_etag`.
+ */
+export type ExpectedRemote = { kind: "marker"; marker: string } | { kind: "absent" };
+
+/**
+ * The remote no longer holds the version an upload expected: another device
+ * wrote (or created) the file after this device's last look at it. Nothing
+ * was written. The engine leaves the upload queued for the next cycle, whose
+ * reconcile runs before the push and merges the remote version in — or keeps
+ * this device's version as a conflict copy.
+ */
+export class RemoteChangedError extends Error {
+  constructor(public readonly path: string, detail?: string) {
+    super(`The remote copy of ${path} changed since this device last saw it${detail ? ` (${detail})` : ""}`);
+    this.name = "RemoteChangedError";
+  }
 }
 
 export interface PushResult {

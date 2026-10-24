@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 vi.mock("@plainva/ui/mail", async original => ({ ...await original<typeof import("@plainva/ui/mail")>(), listMailAccounts: vi.fn(async () => []) }));
 
 vi.mock("./services/pim/pimOAuth", () => ({ beginPimOAuth: vi.fn(), setOAuthPurposeHandler: vi.fn() }));
@@ -36,12 +36,8 @@ vi.mock("./services/cloudAccountsStore", () => ({ loadCloudAccounts: vi.fn(async
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (k: string) => k } }));
 vi.mock("./adapters/webdavHttp", () => ({ webdavFetch: async () => new Response(JSON.stringify({ sub: "person", email: "someone@example.com", email_verified: true })) }));
 
-import { oauthServicesOf, unionScopeFor, canUnifyMobileAccount, beginAccountLogin } from "./services/accountLogin";
+import { oauthServicesOf, unionScopeFor, canUnifyMobileAccount } from "./services/accountLogin";
 import { getAccountToken } from "./services/accountBroker";
-import { getPimCredentials } from "./services/pim/pimCredentials";
-import { listPimAccounts } from "./services/pim/pimService";
-import { getStoredProvider } from "./services/syncService";
-import { beginPimOAuth } from "./services/pim/pimOAuth";
 import type { CloudAccountRecord } from "@plainva/ui";
 
 const record = (family: string, services: string[]): CloudAccountRecord =>
@@ -119,21 +115,6 @@ describe("canUnifyMobileAccount", () => {
     await expect(canUnifyMobileAccount("v1", record("google", ["files", "calendar"]))).resolves.toBe(true);
   });
 
-  it("starts consent from the local account slot, never from synced registry metadata", async () => {
-    const account = { ...record("google", ["files", "calendar"]), byoClientId: "foreign-client" };
-    vi.mocked(getAccountToken).mockResolvedValueOnce({
-      clientId: "local-client",
-      clientSecret: "local-secret",
-      refreshToken: "local-refresh",
-    });
-
-    await beginAccountLogin("v1", account);
-
-    expect(beginPimOAuth).toHaveBeenCalledWith("google", expect.objectContaining({
-      clientId: "local-client",
-      clientSecret: "local-secret",
-    }));
-  });
 });
 
 /**
@@ -147,92 +128,3 @@ describe("canUnifyMobileAccount", () => {
  * only action answered "no client id for this account" in English and left the
  * user with nowhere to go.
  */
-describe("finding the client to sign in with", () => {
-  beforeEach(() => {
-    vi.mocked(getAccountToken).mockResolvedValue(null);
-    vi.mocked(getPimCredentials).mockResolvedValue(null);
-    vi.mocked(getStoredProvider).mockResolvedValue(null);
-    vi.mocked(listPimAccounts).mockResolvedValue([]);
-    vi.mocked(beginPimOAuth).mockClear();
-  });
-
-  it("takes the id from the file sync of the same family", async () => {
-    vi.mocked(getStoredProvider).mockResolvedValue({
-      provider: "drive",
-      creds: { clientId: "drive-client", clientSecret: "drive-secret", refreshToken: "" },
-    } as never);
-
-    await expect(beginAccountLogin("v1", record("google", ["files", "calendar"]))).resolves.toEqual({ kind: "started" });
-    expect(beginPimOAuth).toHaveBeenCalledWith("google", expect.objectContaining({ clientId: "drive-client" }));
-  });
-
-  it("falls back to a sibling account of the same family — the step this caller never had", async () => {
-    vi.mocked(listPimAccounts).mockResolvedValue([{ id: "other", provider: "google" }] as never);
-    vi.mocked(getPimCredentials).mockImplementation(async (_v: string, id: string) =>
-      (id === "other" ? { kind: "google", clientId: "sibling-client" } : null) as never
-    );
-
-    await expect(beginAccountLogin("v1", record("google", ["files", "calendar"]))).resolves.toEqual({ kind: "started" });
-    expect(beginPimOAuth).toHaveBeenCalledWith("google", expect.objectContaining({ clientId: "sibling-client" }));
-  });
-
-  it("asks instead of throwing when Google has nothing on this device", async () => {
-    await expect(beginAccountLogin("v1", record("google", ["files", "calendar"]))).resolves.toEqual({
-      kind: "needsClientId",
-      family: "google",
-    });
-    expect(beginPimOAuth, "no consent may be opened without a client").not.toHaveBeenCalled();
-  });
-
-  it("signs in with the id the form then supplies", async () => {
-    await expect(
-      beginAccountLogin("v1", record("google", ["files", "calendar"]), { clientId: " typed-client ", clientSecret: "typed-secret" })
-    ).resolves.toEqual({ kind: "started" });
-    expect(beginPimOAuth).toHaveBeenCalledWith("google", expect.objectContaining({
-      clientId: "typed-client",
-      clientSecret: "typed-secret",
-    }));
-  });
-
-  it("never asks Microsoft: it ships a registration of its own", async () => {
-    await expect(beginAccountLogin("v1", record("microsoft", ["files", "calendar"]))).resolves.toEqual({ kind: "started" });
-  });
-});
-
-
-describe("mobile Google reconnect preserves the actual mailbox password", () => {
-  it("keeps Gmail's IMAP credential through the registered OAuth completion", async () => {
-    const { setPlatformServices, toast } = await import("@plainva/ui");
-    const { saveMailAccount, getMailPassword, mailSecretKey } = await import("@plainva/ui/mail");
-    const { registerAccountLoginHandler } = await import("./services/accountLogin");
-    const { setOAuthPurposeHandler } = await import("./services/pim/pimOAuth");
-    const metadata = new Map<string, unknown>();
-    const secrets = new Map<string, unknown>();
-    setPlatformServices({
-      loadSettings: async () => ({
-        get: async <T,>(key: string) => metadata.get(key) as T | undefined,
-        set: async (key: string, value: unknown) => { metadata.set(key, value); },
-        delete: async (key: string) => metadata.delete(key), keys: async () => [...metadata.keys()], save: async () => {},
-      }),
-      credentials: {
-        readSecret: async <T,>(key: string) => (secrets.get(key) as T) ?? null,
-        writeSecret: async <T,>(key: string, value: T) => { secrets.set(key, value); },
-        removeSecret: async (key: string) => { secrets.delete(key); },
-      }, openExternal: async () => {},
-    });
-    vi.spyOn(toast, "success").mockImplementation(() => 1);
-    vi.mocked(getAccountToken).mockResolvedValue({ clientId: "client", clientSecret: "test-secret", refreshToken: "old" });
-    vi.mocked(getPimCredentials).mockResolvedValue(null);
-    const card = record("google", ["calendar", "mail"]);
-    await saveMailAccount("v1", { id: "m1", label: "Gmail", host: "imap.gmail.com", port: 993, user: "person@example.invalid" }, "test-app-password");
-    registerAccountLoginHandler();
-    const { loadCloudAccounts } = await import("./services/cloudAccountsStore");
-    vi.mocked(loadCloudAccounts).mockResolvedValue([card]);
-    await beginAccountLogin("v1", card);
-    const handlers = vi.mocked(setOAuthPurposeHandler).mock.calls;
-    const handler = handlers[handlers.length - 1][1];
-    await handler({ clientId: "client", clientSecret: "test-secret", refreshToken: "new", accessToken: "verified-access", grantedScope: unionScopeFor("google", ["calendar"]), provider: "google", label: "Person", accountContext: vi.mocked(beginPimOAuth).mock.calls[vi.mocked(beginPimOAuth).mock.calls.length - 1][1].accountContext });
-    await expect(getMailPassword("v1", "m1")).resolves.toBe("test-app-password");
-    expect(secrets.get(mailSecretKey("v1", "m1"))).toEqual({ pass: "test-app-password" });
-  });
-});

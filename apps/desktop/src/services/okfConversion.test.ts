@@ -7,7 +7,7 @@ vi.mock("@tauri-apps/plugin-store", () => {
 });
 vi.mock("@tauri-apps/plugin-dialog", () => ({ ask: vi.fn(async () => true), open: vi.fn() }));
 
-import { scanVaultOkf, runOkfConversion, type OkfConversionAdapter } from "./okfConversion";
+import { scanVaultOkf, runOkfConversion, rollbackOkfConversion, type OkfConversionAdapter } from "./okfConversion";
 
 function makeAdapter(files: Record<string, string>) {
   const store = new Map(Object.entries(files));
@@ -166,5 +166,165 @@ describe("runOkfConversion", () => {
     expect(base.store.get("n0.md")).toContain("type: Note");
     expect(maxActive).toBeGreaterThan(1); // genuinely ran in parallel
     expect(maxActive).toBeLessThanOrEqual(4); // but bounded by the pool size
+  });
+
+  // The backup folder is what an undo puts back, file by file. A file is
+  // replaced only if it still is the text its backup holds (finding
+  // 2026-10-12) — so a backup the run wrote must not be left behind for a file
+  // it did not convert in the end.
+  describe("what an undo finds in the backup folder", () => {
+    const NEEDS_NOTHING = '---\ntype: Note\nokf_version: "0.1"\n---\nBody\n';
+    const isBackup = (p: string) => p.startsWith(".plainva/backups/");
+    /**
+     * The fake's files with what the vault's chain adds for a run: a listing
+     * (what the undo walks) and a delete. `writeTextFile` is the test's own.
+     */
+    const vaultLike = (base: ReturnType<typeof makeAdapter>, writeTextFile: OkfConversionAdapter["writeTextFile"]): OkfConversionAdapter => ({
+      ...base.adapter,
+      writeTextFile,
+      listDir: async (dir) => [...base.store.keys()].filter((p) => p.startsWith(`${dir}/`)).map((path) => ({ path, isDirectory: false })),
+      deleteItem: async (p) => void base.store.delete(p),
+    });
+    const backups = (base: ReturnType<typeof makeAdapter>) => [...base.store.keys()].filter(isBackup);
+
+    it("a file that changed while its backup was written and then needs nothing has no backup", async () => {
+      const base = makeAdapter({ "a.md": "# no frontmatter\n" });
+      // While the backup is written, the note arrives from another device — in a version that needs no conversion.
+      let arrived = false;
+      const adapter = vaultLike(base, async (p, c) => {
+        await base.adapter.writeTextFile(p, c);
+        if (isBackup(p) && !arrived) {
+          arrived = true;
+          base.store.set("a.md", NEEDS_NOTHING);
+        }
+      });
+      const report = await runOkfConversion({ adapter, scan: scanFor(["a.md"]), options: { defaultType: "Note" } });
+      expect(report.changed).toEqual([]);
+      expect(report.unchanged).toBe(1);
+      expect(backups(base)).toEqual([]);
+      // Edited after the run: an undo has nothing of this note to put back over the edit.
+      base.store.set("a.md", `${NEEDS_NOTHING}A line written after the run.\n`);
+      await rollbackOkfConversion(adapter, report.backupDir);
+      expect(base.store.get("a.md")).toBe(`${NEEDS_NOTHING}A line written after the run.\n`);
+    });
+
+    it("a file that never holds still is skipped and has no backup", async () => {
+      const base = makeAdapter({ "a.md": "# version 0\n" });
+      let n = 0;
+      const adapter = vaultLike(base, async (p, c) => {
+        await base.adapter.writeTextFile(p, c);
+        if (isBackup(p) && n < 4) base.store.set("a.md", `# version ${++n}\n`);
+      });
+      const report = await runOkfConversion({ adapter, scan: scanFor(["a.md"]), options: { defaultType: "Note" } });
+      expect(report.changed).toEqual([]);
+      expect(report.skipped.map((s) => s.path)).toEqual(["a.md"]);
+      expect(backups(base)).toEqual([]);
+      await rollbackOkfConversion(adapter, report.backupDir);
+      expect(base.store.get("a.md")).toBe("# version 4\n");
+    });
+
+    it("a file that was moved away while its backup was written is not brought back", async () => {
+      const base = makeAdapter({ "a.md": "# no frontmatter\n" });
+      const adapter = vaultLike(base, async (p, c) => {
+        await base.adapter.writeTextFile(p, c);
+        if (isBackup(p) && base.store.has("a.md")) {
+          base.store.set("Archive/a.md", base.store.get("a.md")!);
+          base.store.delete("a.md");
+        }
+      });
+      const report = await runOkfConversion({ adapter, scan: scanFor(["a.md"]), options: { defaultType: "Note" } });
+      expect(report.skipped.map((s) => s.path)).toEqual(["a.md"]);
+      expect(backups(base)).toEqual([]);
+      await rollbackOkfConversion(adapter, report.backupDir);
+      expect(base.store.has("a.md")).toBe(false);
+      expect(base.store.get("Archive/a.md")).toBe("# no frontmatter\n");
+    });
+
+    it("a write that failed after it had reached the file keeps the backup of the original", async () => {
+      const base = makeAdapter({ "a.md": "# no frontmatter\n" });
+      let failed = false;
+      const adapter = vaultLike(base, async (p, c) => {
+        await base.adapter.writeTextFile(p, c);
+        if (p === "a.md" && !failed) {
+          failed = true;
+          throw new Error("the queue refused the entry");
+        }
+      });
+      const report = await runOkfConversion({ adapter, scan: scanFor(["a.md"]), options: { defaultType: "Note" } });
+      expect(report.skipped).toEqual([{ path: "a.md", error: "the queue refused the entry" }]);
+      expect(base.store.get("a.md")).toContain("type: Note");
+      await rollbackOkfConversion(adapter, report.backupDir);
+      expect(base.store.get("a.md")).toBe("# no frontmatter\n");
+    });
+
+    it("files that cannot remove a backup get it brought to what the file reads", async () => {
+      const base = makeAdapter({ "a.md": "# no frontmatter\n" });
+      let arrived = false;
+      const files: OkfConversionAdapter = {
+        ...vaultLike(base, async (p, c) => {
+          await base.adapter.writeTextFile(p, c);
+          if (isBackup(p) && !arrived) {
+            arrived = true;
+            base.store.set("a.md", NEEDS_NOTHING);
+          }
+        }),
+        deleteItem: undefined,
+      };
+      const report = await runOkfConversion({ adapter: files, scan: scanFor(["a.md"]), options: { defaultType: "Note" } });
+      expect(report.unchanged).toBe(1);
+      expect(base.store.get(`${report.backupDir}/a.md`)).toBe(NEEDS_NOTHING);
+      await rollbackOkfConversion(files, report.backupDir);
+      expect(base.store.get("a.md")).toBe(NEEDS_NOTHING);
+    });
+
+    it("a backup that cannot be removed right now is brought to what the file reads, and nothing is reported", async () => {
+      const base = makeAdapter({ "a.md": "# no frontmatter\n" });
+      let arrived = false;
+      const files: OkfConversionAdapter = {
+        ...vaultLike(base, async (p, c) => {
+          await base.adapter.writeTextFile(p, c);
+          if (isBackup(p) && !arrived) {
+            arrived = true;
+            base.store.set("a.md", NEEDS_NOTHING);
+          }
+        }),
+        // A file written a moment ago, still held by a scanner or a sync client.
+        deleteItem: async () => {
+          throw new Error("The process cannot access the file because it is being used by another process");
+        },
+      };
+      const report = await runOkfConversion({ adapter: files, scan: scanFor(["a.md"]), options: { defaultType: "Note" } });
+      expect(report.unchanged).toBe(1);
+      expect(report.skipped).toEqual([]);
+      expect(base.store.get(`${report.backupDir}/a.md`)).toBe(NEEDS_NOTHING);
+      await rollbackOkfConversion(files, report.backupDir);
+      expect(base.store.get("a.md")).toBe(NEEDS_NOTHING);
+    });
+
+    it("a note with an open conflict is not converted, neither of its two texts — and the run goes on", async () => {
+      const base = makeAdapter({ "a.md": "# theirs\n", "a.CONFLICT-1.md": "# mine\n", "b.md": "# b\n" });
+      const adapter: OkfConversionAdapter = {
+        ...vaultLike(base, base.adapter.writeTextFile),
+        // As the vault's chain answers: the conflict by either of its two paths, and its entry for a change.
+        getConflictSession: async (p) => (p === "a.md" || p === "a.CONFLICT-1.md" ? ({ workingCopyPath: "a.CONFLICT-1.md" } as never) : null),
+        updateTextFile: async (p, change) => {
+          const before = base.store.get(p)!;
+          const next = change(before);
+          if (next !== null) base.store.set(p, next);
+          return { before, text: next ?? before, changed: next !== null && next !== before, conflict: null };
+        },
+      };
+      const scan = scanFor(["a.md", "a.CONFLICT-1.md", "b.md"]);
+      const preview = await runOkfConversion({ adapter, scan, options: { defaultType: "Note" }, dryRun: true, concurrency: 1 });
+      const report = await runOkfConversion({ adapter, scan, options: { defaultType: "Note" }, concurrency: 1 });
+      for (const run of [preview, report]) {
+        expect(run.changed).toEqual(["b.md"]);
+        expect(run.skipped.map((s) => s.path)).toEqual(["a.md", "a.CONFLICT-1.md"]);
+        expect(run.skipped[0].error).toMatch(/^The file has an open conflict; nothing was written/);
+      }
+      expect(base.store.get("a.md")).toBe("# theirs\n");
+      expect(base.store.get("a.CONFLICT-1.md")).toBe("# mine\n");
+      expect(backups(base)).toEqual([`${report.backupDir}/b.md`]);
+    });
   });
 });

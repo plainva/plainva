@@ -9,6 +9,7 @@ import {
   collectFolderIndexInfos,
   generateIndexForFolder,
   adoptFileAsIndex,
+  adoptionSummary,
   foldersMissingIndex,
   type FolderIndexInfo,
 } from "../services/indexMd";
@@ -97,22 +98,17 @@ export const IndexMdModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
             folder: info.folder,
             prepare,
           });
-          const extras: string[] = [];
-          if (result.renamedLinks > 0) extras.push(t("indexMd.resultLinks", { links: result.renamedLinks, files: result.changedFiles }));
-          if (result.preparation && (result.preparation.embeds > 0 || result.preparation.unresolved > 0)) {
-            extras.push(t("indexMd.resultPrepLeftovers", { embeds: result.preparation.embeds, unresolved: result.preparation.unresolved }));
-          }
-          lines.push({
-            folder: info.folder,
-            text: `${t("indexMd.resultAdopted", { file: action.candidatePath.split("/").pop() })}${extras.length ? ` (${extras.join("; ")})` : ""}`,
-          });
+          // One line, the words the phone's notice uses (`adoptionSummary`).
+          lines.push({ folder: info.folder, text: adoptionSummary(t, action.candidatePath.split("/").pop() ?? action.candidatePath, result) });
+          // Said as after any rename: a link that could not be followed still names the old file.
+          if (result.linkUpdateFailed) lines.push({ folder: info.folder, text: t("dialogs.renameLinksFailed"), error: true });
         }
       } catch (e) {
         lines.push({ folder: info.folder, text: e instanceof Error ? e.message : String(e), error: true });
       }
     }
     try {
-      await indexer?.indexVaultFull();
+      await indexer?.indexVaultFull("index.md generation");
       triggerFileTreeUpdate();
     } catch (e) {
       console.warn("[IndexMdModal] re-index failed", e);

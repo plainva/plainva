@@ -1,11 +1,14 @@
-import type { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, WatchEvent } from "../vault/IVaultAdapter.js";
+import type { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultWalkOptions, WatchEvent } from "../vault/IVaultAdapter.js";
 import { VaultPermissionDeniedError } from "../vault/IVaultAdapter.js";
+import { withPathMutation } from "../vault/pathMutation.js";
 import type {
   WorkspaceCapability,
   WorkspacePolicyAssignment,
   WorkspacePolicyPayload,
 } from "./documents.js";
+import { sha256Hex } from "./encoding.js";
 import { isWorkspaceLocalOnlyPath } from "./queueingVaultAdapter.js";
+import type { WorkspaceStateStore } from "./state.js";
 import { workspaceSliceCoversObject, workspaceSliceDefinitionError, type WorkspaceSliceObject } from "./slices.js";
 
 export type WorkspaceRole = "Owner" | "Admin" | "Editor" | "Commenter" | "Reader" | "Contributor";
@@ -177,6 +180,34 @@ function allowed(decision: WorkspaceAccessDecision | boolean): boolean {
 }
 
 /**
+ * Whether what lies at `path` now is what the workspace holds: a file with
+ * the bytes of its object's current revision, or nothing where no live object
+ * is either — the rule the start-up reconcile applies to every file
+ * (`initializePersonalWorkspaceMigration`). Asked under the path's lock, the
+ * one the worker writes a file and records its revision under, so it never
+ * meets the one without the other. What cannot be read is not held.
+ */
+async function workspaceHoldsPath(
+  held: WorkspaceStateStore,
+  vault: IVaultAdapter,
+  path: string,
+): Promise<boolean> {
+  return withPathMutation(held, [path], async () => {
+    try {
+      const object = await held.getObjectByPath(path);
+      const there = await vault.exists(path);
+      if (!object || object.deleted || !object.currentRevisionId) return !there;
+      if (!there) return false;
+      if (object.contentKind === "directory") return (await vault.getFileInfo(path)).isDirectory;
+      if (!object.plaintextSha256) return false;
+      return sha256Hex(await vault.readBinaryFile(path)) === object.plaintextSha256;
+    } catch {
+      return false;
+    }
+  });
+}
+
+/**
  * The single local write boundary for a protected workspace. Every app write,
  * import, restore, automation and AI action already uses IVaultAdapter, so the
  * check happens before disk mutation and the worker repeats it before signing.
@@ -184,6 +215,12 @@ function allowed(decision: WorkspaceAccessDecision | boolean): boolean {
 export class PermissionedVaultAdapter implements IVaultAdapter {
   constructor(
     private readonly inner: IVaultAdapter,
+    /**
+     * What the workspace holds: the store its worker records into — that very
+     * object, whose path lock is the worker's (`authorizeExternalChange`); a
+     * wrapper around it would hold a lock of its own.
+     */
+    private readonly held: WorkspaceStateStore,
     private readonly authorize: WorkspaceMutationAuthorizer,
     private readonly onDeniedExternalFork?: (request: WorkspaceMutationAuthorizationRequest) => Promise<void> | void,
   ) {}
@@ -207,7 +244,7 @@ export class PermissionedVaultAdapter implements IVaultAdapter {
     await (this.inner as any).setFileTimes?.(path, times);
   }
 
-  async listDirReport(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultListing> {
+  async listDirReport(path?: string, recursive?: boolean, options?: VaultWalkOptions): Promise<VaultListing> {
     return this.inner.listDirReport
       ? this.inner.listDirReport(path, recursive, options)
       : { files: await this.inner.listDir(path, recursive, options), skipped: [] };
@@ -243,8 +280,26 @@ export class PermissionedVaultAdapter implements IVaultAdapter {
     await this.inner.renameItem(oldPath, newPath);
   }
 
-  /** Watchers call this before they enqueue an out-of-process local change. */
+  /**
+   * Watchers call this before they enqueue an out-of-process local change;
+   * true when it goes into the queue.
+   *
+   * Not when the workspace already holds it (finding 2026-10-12). The index
+   * sees files, not who wrote them, and what the worker brings from another
+   * device it writes to the disk itself. Reported like any other change, it
+   * went back up as a revision of the same text; when the other device changed
+   * the note again before that revision arrived, this one kept the older text
+   * and a conflict copy of the newer, and the other one a conflict copy of the
+   * older. A member who may only read got a copy of every note somebody else
+   * changed. The answer comes
+   * from what the workspace holds, not from who wrote last, so it is the same
+   * for a report that comes late: after a restart, from a full scan.
+   *
+   * Then the policy: a change the member may not make goes nowhere, and a
+   * copy of it is kept (`onDeniedExternalFork`).
+   */
   async authorizeExternalChange(path: string, exists: boolean): Promise<boolean> {
+    if (await workspaceHoldsPath(this.held, this.inner, path)) return false;
     const request: WorkspaceMutationAuthorizationRequest = {
       action: "external",
       path,

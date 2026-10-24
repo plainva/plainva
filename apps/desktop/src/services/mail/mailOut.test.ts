@@ -39,7 +39,7 @@ describe("mail-out helpers (stage 6)", () => {
 
   it("builds a reply note addressed at the sender with the original quoted", () => {
     const content = buildReplyNoteContent(
-      { subject: "Re: Rechnung Q3", from: "Anna <anna@example.org>", text: "Hallo,\nanbei die Rechnung." },
+      { subject: "Re: Rechnung Q3", from: "Anna <anna@example.org>", text: "Hallo,\nanbei die Rechnung.", html: null },
       "2026-07-20"
     );
     expect(readFrontmatterPath(content, ["type"])).toBe("Email");
@@ -61,7 +61,7 @@ describe("mail-out helpers (stage 6)", () => {
   });
 
   it("builds a reply body: blank area on top, attribution line, quoted original", () => {
-    const body = buildReplyBody({ from: "Anna <anna@example.org>", text: "Hallo,\nanbei die Rechnung.", dateTs: Date.UTC(2026, 6, 1) });
+    const body = buildReplyBody({ from: "Anna <anna@example.org>", text: "Hallo,\nanbei die Rechnung.", html: null, dateTs: Date.UTC(2026, 6, 1) });
     expect(body.startsWith("\n\n")).toBe(true); // room to type above the quote
     expect(body).toContain("Anna <anna@example.org>:");
     expect(body).toContain("> Hallo,");
@@ -83,13 +83,13 @@ describe("mail-out helpers (stage 6)", () => {
   });
 
   it("builds a forwarded body with a header block and the quoted original (E1)", () => {
-    const body = buildForwardBody({ subject: "Rechnung", from: "Anna <anna@example.org>", text: "Hallo,\nanbei.", dateTs: Date.UTC(2026, 6, 1) });
+    const body = buildForwardBody({ subject: "Rechnung", from: "Anna <anna@example.org>", text: "Hallo,\nanbei.", html: null, dateTs: Date.UTC(2026, 6, 1) });
     expect(body).toContain("---------- Forwarded message ----------");
     expect(body).toContain("From: Anna <anna@example.org>");
     expect(body).toContain("Subject: Rechnung");
     expect(body).toContain("Hallo,\nanbei.");
     // Empty original still produces a header, no crash.
-    expect(buildForwardBody({ subject: "", from: "", text: null, dateTs: 0 })).toContain("Forwarded message");
+    expect(buildForwardBody({ subject: "", from: "", text: null, html: null, dateTs: 0 })).toContain("Forwarded message");
   });
 
   it("labels mailboxes by last hierarchy segment and drops the [Gmail] container (E1)", () => {
@@ -200,6 +200,15 @@ describe("attachment mime guessing", () => {
     expect(guessAttachmentMime("README")).toBe("application/octet-stream");
     // A dotfile has no extension to speak of; the leading dot is not one.
     expect(guessAttachmentMime(".gitignore")).toBe("application/octet-stream");
+  });
+
+  it("answers with a type for a name that is a property every object has", () => {
+    // The table was read like any object, so these names found what objects
+    // inherit — a function, or the prototype — and that became the file's
+    // type. A file's name is somebody else's choice once a forward carries it.
+    for (const name of ["constructor", "toString", "valueOf", "hasOwnProperty", "__proto__", "bericht.constructor", "notes.__proto__", "x.toString"]) {
+      expect(guessAttachmentMime(name), name).toBe("application/octet-stream");
+    }
   });
 });
 

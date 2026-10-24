@@ -108,22 +108,12 @@ test.beforeEach(async ({ page }) => {
                .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p) && p.endsWith('.base'))
                .map(p => ({ path: p.replace('/test-vault/', ''), title: null }));
            }
-           // Wiki-link resolution (Editor.openWikiTarget): exact title or path,
-           // with `.md` appended as the third candidate. Without this branch the
-           // mock answered every link with "no such note", which sent the app
-           // down the create-a-note path — so a test could never see what
-           // clicking an existing link does.
-           if (q.includes('SELECT path FROM files') && q.includes('title = ?')) {
-             const [needle, , withMd] = (args.values ?? []).map((v: any) => String(v).toLowerCase());
-             const hit = Object.keys(fs)
-               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
-               .map(p => p.replace('/test-vault/', ''))
-               .find(rel => {
-                 const base = rel.split('/').pop()!.replace(/\.md$/i, '').toLowerCase();
-                 return base === needle || rel.toLowerCase() === needle || rel.toLowerCase() === withMd;
-               });
-             return hit ? [{ path: hit }] : [];
-           }
+           // Wiki-link resolution needs no branch of its own: the app reads the
+           // link rule's corpus (`SELECT path, title, mode FROM files WHERE
+           // is_deleted …`, VaultQueryService.linkTargets) and resolves in
+           // JavaScript — the rows come from the path/title/mode branch below,
+           // so a link to a file of the mock vault opens it and any other
+           // offers to create the note.
            // Conflict lookup of the sync-error dialog (P3.11): LIKE over paths.
            if (q.includes('WHERE path LIKE')) {
              const pattern = String(args.values?.[0] ?? '');

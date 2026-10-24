@@ -18,6 +18,7 @@ import { onCompletedTap } from "./completedTap";
 import { scanTasks, setChecklistTaskDone } from "@plainva/core";
 import { minimalDocChange } from "../lib/textDiff";
 import { isLineFolded, listFoldRange, toggleFoldAtLine } from "./foldingExtension";
+import { frontmatterLines } from "./editorFrontmatter";
 
 const HIDE = Decoration.replace({});
 
@@ -29,30 +30,15 @@ export const tableLinkHandlers = Facet.define<InlineLinkHandlers, InlineLinkHand
 
 function buildFrontmatterDeco(state: EditorState, hide: boolean): DecorationSet {
   const decos = [];
-  if (state.doc.lines >= 1) {
-    const firstLine = state.doc.line(1).text;
-    if (firstLine === "---") {
-      let endLine = 0;
-      for (let i = 2; i <= state.doc.lines; i++) {
-        if (state.doc.line(i).text === "---") {
-          endLine = i;
-          break;
-        }
-      }
-      if (endLine > 0) {
-        const from = state.doc.line(1).from;
-        const to = state.doc.line(endLine).to;
-        const toWithNewline = Math.min(to + 1, state.doc.length);
-        if (from < toWithNewline) {
-          if (hide) {
-            decos.push(Decoration.replace({ block: true }).range(from, toWithNewline));
-          } else {
-            // Apply line decoration to reset styles in Source Mode
-            for (let i = 1; i <= endLine; i++) {
-              decos.push(Decoration.line({ class: "cm-frontmatter" }).range(state.doc.line(i).from));
-            }
-          }
-        }
+  const block = frontmatterLines(state.doc);
+  if (block) {
+    if (hide) {
+      // From the very start: a byte order mark in front of the fence goes with the block.
+      decos.push(Decoration.replace({ block: true }).range(0, block.end));
+    } else {
+      // Apply line decoration to reset styles in Source Mode
+      for (let i = 1; i <= block.closeLine; i++) {
+        decos.push(Decoration.line({ class: "cm-frontmatter" }).range(state.doc.line(i).from));
       }
     }
   }
@@ -77,17 +63,9 @@ export function frontmatterStateField(isLive: boolean) {
 export function frontmatterProtectPlugin(isLive: boolean): Extension {
   if (!isLive) return [];
   return EditorState.transactionFilter.of(tr => {
-    let frontmatterEnd = 0;
-    if (tr.startState.doc.lines >= 1) {
-      if (tr.startState.doc.line(1).text === "---") {
-        for (let i = 2; i <= tr.startState.doc.lines; i++) {
-          if (tr.startState.doc.line(i).text === "---") {
-            frontmatterEnd = Math.min(tr.startState.doc.line(i).to + 1, tr.startState.doc.length);
-            break;
-          }
-        }
-      }
-    }
+    // Asked on every transaction, also one that only moves the caret: the
+    // answer is kept per document (editorFrontmatter.ts).
+    const frontmatterEnd = frontmatterLines(tr.startState.doc)?.end ?? 0;
 
     if (frontmatterEnd > 0) {
       // Reject any user-initiated document changes inside the frontmatter
@@ -197,17 +175,33 @@ class TaskWidget extends WidgetType {
     box.indeterminate = this.state === "progress";
     box.className = this.state ? `cm-md-task cm-md-task--${this.state}` : "cm-md-task";
     if (this.state) box.dataset.taskState = this.state;
-    box.addEventListener("mousedown", (e) => e.preventDefault());
-    box.addEventListener("click", (e) => {
-      e.preventDefault();
+    const toggle = () => {
       const raw = view.state.doc.toString(), line = view.state.doc.lineAt(this.pos);
       const task = scanTasks(raw).find(value => value.line === line.number - 1);
       if (!task) return;
       const result = setChecklistTaskDone(raw, task.ordinal, !this.checked);
       const change = minimalDocChange(raw, result.content);
       if (change) view.dispatch({ changes: change, userEvent: "input.task" });
+    };
+    // The box sits in a span that only widens where a finger taps it (the
+    // touch density's hit area, wish 2026-10-19). A tap on that padding
+    // toggles the task itself: a label would focus the box and take the
+    // focus - and the keyboard - away from the editor.
+    const hit = document.createElement("span");
+    hit.className = "cm-md-task-hit";
+    hit.addEventListener("mousedown", (e) => e.preventDefault());
+    hit.addEventListener("click", (e) => {
+      if (e.target === box) return;
+      e.preventDefault();
+      toggle();
     });
-    return box;
+    hit.appendChild(box);
+    box.addEventListener("mousedown", (e) => e.preventDefault());
+    box.addEventListener("click", (e) => {
+      e.preventDefault();
+      toggle();
+    });
+    return hit;
   }
   ignoreEvent() { return false; }
 }
@@ -422,6 +416,15 @@ class TableWidget extends WidgetType {
         bubbleClass: "cm-anchor-bubble--cell",
       });
       cell.addEventListener("mousedown", (e) => {
+        // A press inside the open field is the field's own (GitHub issue 118): it
+        // places the caret or starts a selection there. Prevented, every
+        // click and tap after the first kept the text selected the field
+        // opened with, and only the arrow keys could move the caret.
+        // CodeMirror stays out of it all the same.
+        if (e.target instanceof Element && e.target.closest("textarea.cm-md-table-input")) {
+          e.stopPropagation();
+          return;
+        }
         if (e.button !== 0) return; // left button only; right opens the menu
         // The corner opens the card, not the cell editor (V7).
         if (e.target instanceof HTMLElement && e.target.closest(".cm-anchor-corner")) return;
@@ -643,23 +646,7 @@ export function markdownDecorationPlugin(isLive: boolean) {
           // any inline decoration inside them or it would overlap the block widget.
           const inactiveTableRanges: [number, number][] = [];
 
-          let frontmatterEnd = 0;
-          if (isLive && state.doc.lines >= 1) {
-            const firstLine = state.doc.line(1).text;
-            if (firstLine === "---") {
-              let endLine = 0;
-              for (let i = 2; i <= state.doc.lines; i++) {
-                if (state.doc.line(i).text === "---") {
-                  endLine = i;
-                  break;
-                }
-              }
-              if (endLine > 0) {
-                const to = state.doc.line(endLine).to;
-                frontmatterEnd = Math.min(to + 1, state.doc.length);
-              }
-            }
-          }
+          const frontmatterEnd = isLive ? frontmatterLines(state.doc)?.end ?? 0 : 0;
 
           for (const { from, to } of view.visibleRanges) {
             tree.iterate({

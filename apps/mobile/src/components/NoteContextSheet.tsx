@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { isHiddenPropertyKey, propertyPanelModel, tagColorAttrs, tagSegments, useKeptResolution } from "@plainva/ui";
+import { isHiddenPropertyKey, propertyPanelModel, tagColorAttrs, tagSegments, unreadablePropertiesBlock, useKeptResolution } from "@plainva/ui";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { ArrowUpDown, Check, ExternalLink, FileText, ListTree, Lock, MessageSquare, Pencil, Plus } from "lucide-react";
@@ -136,6 +136,10 @@ export function NoteContextSheet({
   // Related notes (plan KI-Harness P2b-4): the desktop section's counterpart, a tab while the AI is on.
   const related = useRelatedNotes(aiOn ? path : null);
   const [props, setProps] = useState<Array<[string, unknown]>>([]);
+  // A block that cannot be read as properties is said as such — the desktop's
+  // panel asks the same question and says the same sentence (ADR 0009,
+  // addendum 2026-10-22); the sheet showed no row at all and no word why.
+  const [unreadable, setUnreadable] = useState(false);
   const [backlinks, setBacklinks] = useState<Array<GroupedBacklink & { places: BacklinkContext[] }>>([]);
   // The reader's order (finding 2026-09-19): the list had none — the query
   // carried no ORDER BY. Title A–Z unless chosen otherwise; the same
@@ -166,7 +170,7 @@ export function NoteContextSheet({
   const propPress = useLongPress<{ key: string; value: unknown; editable: boolean }>((row) => setPropSheet(row));
 
   useEffect(() => {
-    setEdit(null); setAdding(false); setProps([]);
+    setEdit(null); setAdding(false); setProps([]); setUnreadable(false);
   }, [vault, path]);
 
   // Which database governs this note — it decides which editor a property
@@ -192,7 +196,10 @@ export function NoteContextSheet({
       const fm = extractFrontmatter(parseMarkdownAst(text));
       const raw = (fm.success && fm.data ? fm.data : {}) as Record<string, unknown>;
       const rows = (Object.entries(raw) as Array<[string, unknown]>).filter(([k]) => !isHiddenProp(k));
-      if (!stale) setProps(rows);
+      if (!stale) {
+        setProps(rows);
+        setUnreadable(unreadablePropertiesBlock(text, fm));
+      }
       const q = vault.queryService;
       if (q) {
         const links = await q.getBacklinks(path);
@@ -361,6 +368,7 @@ export function NoteContextSheet({
 
           {tab === "props" && (
             <>
+              {unreadable && <p className="m-hint" data-testid="props-unreadable">{t("properties.unreadableBlock")}</p>}
               {genericProps.map(([k, v]) => {
                 const locked = LOCKED.has(k) || !canWrite;
                 const row = { key: k, value: v, editable: !locked };

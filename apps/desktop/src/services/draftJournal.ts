@@ -153,6 +153,45 @@ export async function readDraft(
   }
 }
 
+/** When this module came up: every draft of this run of the app was journaled after it. */
+const runStartedAt = Date.now();
+const handedOver = new Set<string>();
+const leftoverKey = (vaultPath: string, notePath: string, entry: DraftEntry) =>
+  JSON.stringify([vaultPath, notePath, sessionOf(entry), entry.revision]);
+
+/**
+ * The drafts the journal holds for a note from before this run of the app —
+ * of editors that held changes when the app went —, each handed out once per
+ * run (finding 2026-10-11). A draft of this run belongs to an editor that is
+ * still open, which saves or keeps its own text.
+ *
+ * Asked by the note and vault each entry names: `pathHash` loses precision
+ * (its products pass 2^53), so notes whose paths differ only near the end —
+ * `Notes/A.md`, `Notes/B.md` — share one journal file.
+ */
+export async function takeLeftoverDrafts(vaultPath: string, notePath: string): Promise<DraftEntry[]> {
+  let entries: DraftEntry[];
+  try {
+    const file = await join(await draftsDir(), pathHash(vaultPath), `${pathHash(notePath)}.json`);
+    if (!(await exists(file))) return [];
+    entries = decodeDrafts(await readTextFile(file));
+  } catch {
+    return [];
+  }
+  return entries.filter((entry) => {
+    if (entry.vaultPath !== vaultPath || entry.notePath !== notePath) return false;
+    const key = leftoverKey(vaultPath, notePath, entry);
+    if (entry.savedAt >= runStartedAt || handedOver.has(key)) return false;
+    handedOver.add(key);
+    return true;
+  });
+}
+
+/** Drafts `takeLeftoverDrafts` handed out that could not be kept: handed out again on the next ask. */
+export function releaseLeftoverDrafts(vaultPath: string, notePath: string, drafts: DraftEntry[]): void {
+  for (const entry of drafts) handedOver.delete(leftoverKey(vaultPath, notePath, entry));
+}
+
 /**
  * Clears the journal entry — but only if no snapshot NEWER than
  * `upToRevision` was written meanwhile (latest wins). `Infinity` forces.

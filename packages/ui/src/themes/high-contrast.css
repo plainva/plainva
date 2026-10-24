@@ -110,4 +110,9 @@
   --state-focus: color-mix(in srgb, var(--accent-color) 28%, transparent);
   --state-press: color-mix(in srgb, var(--accent-color) 36%, transparent);
   --accent-container: color-mix(in srgb, var(--accent-color) 26%, var(--bg-primary));
+  /* A tint is too faint to carry a wiki link here (wish 2026-10-19): it keeps
+     its solid underline instead, and its weight. */
+  --wiki-link-bg: transparent;
+  --wiki-link-bg-hover: var(--state-hover);
+  --wiki-link-decoration: underline;
 }

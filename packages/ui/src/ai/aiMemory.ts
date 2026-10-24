@@ -10,7 +10,7 @@ import {
 import type { AiFileStore } from "./aiStores";
 
 /**
- * The vault's memory on this device (plan KI-Harness P6, ADR 0027): how a
+ * The vault's memory on this device (plan KI-Harness P6, ADR 0032): how a
  * shell reads and writes the two memory files, and the one choice that is
  * this device's own — whether the memory is used here at all.
  *

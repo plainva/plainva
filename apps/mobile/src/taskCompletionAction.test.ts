@@ -34,20 +34,36 @@ const { files, settings, adapter, saveFault } = vi.hoisted(() => ({
 }));
 
 vi.mock("./services/mobileSettings", () => ({ getMobileSettings: () => settings }));
-vi.mock("./services/vaultService", () => ({
-  getMobileVault: async () => ({ files: Object.assign(adapter, { exists: async (p: string) => files.has(p) }) }),
-  vaultOps: {
-    read: async (_v: unknown, p: string) => {
-      const c = files.get(p);
-      if (c === undefined) throw new Error(`missing ${p}`);
-      return c;
-    },
-    save: async (_v: unknown, p: string, c: string) => {
-      files.set(p, c);
-      saveFault.after?.(p, c);
-    },
-  },
-}));
+vi.mock("./services/vaultService", () => {
+  const read = async (_v: unknown, p: string) => {
+    const c = files.get(p);
+    if (c === undefined) throw new Error(`missing ${p}`);
+    return c;
+  };
+  const save = async (_v: unknown, p: string, c: string) => {
+    files.set(p, c);
+    saveFault.after?.(p, c);
+  };
+  // The phone's one way for a change of a file where it lies, over this test's
+  // store: read, change, save — what it comes to where no chain is in play.
+  const update = async (v: unknown, p: string, change: (text: string) => string | null) => {
+    const before = await read(v, p);
+    const next = change(before);
+    if (next === null || next === before) return { before, text: before, changed: false, conflict: null };
+    await save(v, p, next);
+    return { before, text: next, changed: true, conflict: null };
+  };
+  return {
+    getMobileVault: async () => ({ files: Object.assign(adapter, { exists: async (p: string) => files.has(p) }) }),
+    vaultOps: { read, save, update },
+    vaultTextFiles: (v: unknown) => ({
+      readTextFile: (p: string) => read(v, p),
+      writeTextFile: (p: string, c: string) => save(v, p, c),
+      updateTextFile: (p: string, change: (text: string) => string | null) => update(v, p, change),
+      exists: async (p: string) => files.has(p),
+    }),
+  };
+});
 
 import { setTaskDone } from "./services/taskCompletionAction";
 

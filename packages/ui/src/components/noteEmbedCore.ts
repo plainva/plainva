@@ -9,6 +9,7 @@ import {
 } from "@codemirror/view";
 import { isImageTarget, parseWikiImageTarget } from "../lib/imageTarget";
 import { syntaxTree } from "@codemirror/language";
+import { isEscapedAt, isLiteralAt } from "./literalSyntax";
 
 /**
  * Shell-neutral core of the `![[...]]` note-embed live plugin (M3E package H):
@@ -67,7 +68,9 @@ export function buildNoteEmbedCoreExtension(
       update(update: ViewUpdate) {
         // Rebuild on doc/viewport changes and when the caret crosses lines
         // (the selected line reveals its raw syntax, desktop semantics).
-        let needsRebuild = update.docChanged || update.viewportChanged;
+        // A rebuild also when the parser reaches more of the text: whether an
+        // embed stands in code is the syntax tree's answer (literalSyntax.ts).
+        let needsRebuild = update.docChanged || update.viewportChanged || syntaxTree(update.startState) !== syntaxTree(update.state);
         if (!needsRebuild && update.selectionSet) {
           const oldRanges = update.startState.selection.ranges;
           const newRanges = update.state.selection.ranges;
@@ -107,12 +110,8 @@ export function buildNoteEmbedCoreExtension(
               if (isImageTarget(parseWikiImageTarget(target).target)) continue;
               const matchFrom = line.from + match.index;
               const matchTo = matchFrom + match[0].length;
-              if (match.index > 0 && line.text[match.index - 1] === "\\") continue;
-              let literal = false;
-              for (let node = syntaxTree(view.state).resolveInner(matchFrom, 1); node; node = node.parent!) {
-                if (["FencedCode", "CodeBlock", "InlineCode", "HTMLBlock", "CommentBlock"].includes(node.name)) { literal = true; break; }
-              }
-              if (literal) continue;
+              if (isEscapedAt(line.text, match.index)) continue;
+              if (isLiteralAt(view.state, matchFrom, { html: true })) continue;
               if (hideSyntax && !isLineSelected) {
                 builder.add(
                   matchFrom,

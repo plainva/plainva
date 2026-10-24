@@ -2,15 +2,15 @@ import { trimEndChars, trimChars } from "@plainva/core";
 import { BaseSearchField, IconButton, PinboardCache, searchableCellText, baseSearchMetadata, baseSearchRevision, filterRowsBySearch, noteColorOfRow, pinboardCache, useBaseSearch, withNoteColor } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
-import { applyTemplateInteractive, parkTemplateCaret } from "../services/templateInteractive";
+import { applyTemplateInteractive } from "../services/templateInteractive";
 import { useTranslation } from "react-i18next";
 import { BaseExportDialog } from "@plainva/ui";
 import { saveBaseExport } from "../services/exportBase";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette, Check, X, FileText, Sparkles } from "lucide-react";
-import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, type WorkspaceCommentRecord } from "@plainva/core";
-import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
+import { PLAINVA_NAMESPACE_KEY, updateVaultText, type WorkspaceCommentRecord } from "@plainva/core";
+import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, rewriteNoteProperties, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isEmptyPropertyValue, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
 import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
 import { buildProposedCells, decideProposedCells, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedOutcomeWords, ProposedValuesBar, readTextShape, withProposedValue, type ProposedCell } from "@plainva/ui";
 import { fillColumnOf, FillPlanBody, FillProgressBanner, fillRows, inferColumnType, useAiSession, useBaseAi, type FillColumn, type FillPlan } from "@plainva/ui";
@@ -26,7 +26,6 @@ import {
 } from "@plainva/ui";
 import {
   baseStemOf,
-  buildNewItemContent,
   collectPrefillValues,
   getTemplateFolder,
   listTemplatesScoped,
@@ -35,7 +34,7 @@ import {
 } from "../services/newItemFlow";
 import { planPinboardEntry, pinboardDraftLedger, pinboardLabelProperty, viewPrefill, type PinboardDraft, type PinboardEntryFiles, type PinboardEntryResult } from "@plainva/ui";
 import { desktopDraftFiles } from "../services/pinboardDrafts";
-import { addTemplateForAssignment, removeTemplateForAssignment } from "@plainva/ui";
+import { addTemplateForAssignment, finalizeItemContent, parkTemplateCaret, removeTemplateForAssignment, templateAsNewNote, templateCaretInNote } from "@plainva/ui";
 import { getConfiguredNoteType } from "../services/newNote";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { resolveGoverningBase } from "../services/baseSchema";
@@ -66,6 +65,7 @@ import { applyNewItemFolder, stripPropertyFilters, combineFilters, migrateFilter
 import { baseNeedsRefresh } from "./base/baseRefreshScope";
 import { useBaseCells } from "./base/useBaseCells";
 import { BaseViewTabs } from "./base/BaseViewTabs";
+import { useNarrowHead } from "./base/baseHeadWidth";
 import { BaseConfigPanel } from "./base/BaseConfigPanel";
 import { detectMac } from "./WindowControls";
 
@@ -82,6 +82,14 @@ import { BaseBoardView } from "./base/BaseBoardView";
 import { BaseCalendarView } from "./base/BaseCalendarView";
 import { BaseTimelineView } from "./base/BaseTimelineView";
 import { BaseGraphView } from "./base/BaseGraphView";
+
+/**
+ * A change of a column that did not happen — a note cannot take the new name,
+ * the question was declined, the database could not be saved. Whoever asked
+ * has been told by then; this only ends what would have followed the change:
+ * the notes, the other database of a relation.
+ */
+class ColumnChangeNotDone extends Error {}
 
 // Orchestrator of the `.base` database viewer (structurally split per plan C3):
 // owns the file/config/query state and all .base config mutations, and wires the
@@ -291,6 +299,11 @@ export function BaseViewer({
   const [entryDraft, setEntryDraft] = useState<PinboardDraft | null>(null);
 
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const headerMenuBtnRef = useRef<HTMLButtonElement>(null);
+  const closeHeaderMenu = useCallback(() => setShowHeaderMenu(false), []);
+  // The head measures itself instead of being a size container: its menus and
+  // popovers are placed by the window (see baseHeadWidth.ts).
+  const { narrow: narrowHead, ref: headRef } = useNarrowHead();
   // Color picker for the database icon (P7): anchored under the header icon.
   const [iconColorPicker, setIconColorPicker] = useState<{ x: number; y: number } | null>(null);
   /** The colour picker of one board CARD (finding 2026-09-19) - the pinboard's, opened from the entry menu. */
@@ -398,17 +411,20 @@ export function BaseViewer({
    */
   const setEntryColor = useCallback(async (path: string, hex: string | null) => {
     if (!vaultAdapter) return;
+    let changed: boolean;
     try {
-      const fresh = await vaultAdapter.readTextFile(path);
-      const next = withNoteColor(fresh, hex);
-      if (next === fresh) return;
-      await vaultAdapter.writeTextFile(path, next);
-      if (indexer) await applyIndexChanges(indexer, { added: [path] });
-      triggerFileTreeUpdate();
+      changed = (await updateVaultText(vaultAdapter, path, (fresh) => withNoteColor(fresh, hex))).changed;
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      // Through `errorText` (finding 2026-10-12): the bare message of a block
+      // that is no YAML quotes the note's own line.
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+      return;
     }
-  }, [vaultAdapter, indexer, triggerFileTreeUpdate]);
+    if (!changed) return;
+    // The note holds the colour by now: an index that lags behind is no failed write.
+    if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch((e) => console.error("[BaseViewer] re-indexing a card's colour failed", path, e));
+    triggerFileTreeUpdate();
+  }, [vaultAdapter, indexer, triggerFileTreeUpdate, t]);
 
   const duplicateEntry = useCallback(async (path: string) => {
     if (!vaultAdapter) return;
@@ -1189,7 +1205,16 @@ export function BaseViewer({
       toast.info(t("database.embedLinkSkipped", { defaultValue: "Nicht verknüpft — bereits zugeordnet.", host: hostTitle }));
       return false;
     }
-    await writeRelationLink(vaultAdapter, queryService, hostPath, path, scopeRel.hostProperty, scopeRel.limitOne);
+    try {
+      await writeRelationLink(vaultAdapter, queryService, hostPath, path, scopeRel.hostProperty, scopeRel.limitOne);
+    } catch (e) {
+      // The entry exists; what did not reach its note is the link in the host
+      // (finding 2026-10-12). Thrown on, it ended "new entry" in a catch that
+      // only logs: the note was written and never shown, and nothing was said.
+      console.error("[BaseViewer] linking the new entry to its host failed", e);
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+      return false;
+    }
     return true;
   };
 
@@ -1217,33 +1242,27 @@ export function BaseViewer({
       // A template with questions asks them once, here, before the file is
       // written (plan Vorlagen-Engine P3 / decision E3). A template WITHOUT
       // questions never opens a dialog — "+ entry" stays a single click.
-      let caretInBody: number | null = null;
+      const noteType = await getConfiguredNoteType(vaultPath);
+      let made: { content: string; caret: number | null } | null = null;
       if (templateText !== null) {
         const answered = await applyTemplateInteractive(
           templateText,
-          {
-            title: name,
-            now: new Date(),
-            folder: path.split("/").slice(0, -1).join("/"),
-            vaultName: vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "",
-          },
+          { title: name, now: new Date(), folder: path.split("/").slice(0, -1).join("/"), vaultPath },
           t("database.templateAnswersTitle", { defaultValue: "Angaben für die Vorlage" })
         );
         if (!answered) return; // cancelled → no entry is created at all
-        templateText = answered.text;
-        caretInBody = answered.cursor;
+        // The answered template becomes a note in the builder every note from
+        // a template passes, as on the phone — and it is filled once. It went
+        // through the filler of the ways without questions a second time,
+        // which turned a `\{{date}}` that was meant as text into a date
+        // (Sammelplan § 3.97).
+        made = templateAsNewNote(answered, noteType);
       }
-      const content = buildNewItemContent({
-        templateText,
-        noteType: await getConfiguredNoteType(vaultPath),
-        title: name,
-        inheritTags: tags,
-        prefills,
-      });
+      const content = finalizeItemContent(made?.content ?? `# ${name}\n`, noteType, tags, prefills);
       await vaultAdapter.writeTextFile(path, content);
-      // The caret offset is measured in the template body; the written file
-      // carries the OKF frontmatter in front of it.
-      parkTemplateCaret(path, caretInBody, content.length - (templateText?.length ?? 0));
+      // `{{cursor}}` is measured in the builder's note; the written file carries
+      // the view's prefills in its header in front of the template's text.
+      parkTemplateCaret(path, content, made === null || made.caret === null ? null : templateCaretInNote(made.content, content, made.caret));
       await linkHostTo(path);
       // Reindex the new note (and the host note if its relation was written) —
       // no full-vault scan per new entry (Issue #9).
@@ -1286,6 +1305,7 @@ export function BaseViewer({
       ...desktopDraftFiles(vaultAdapter, indexer ?? null),
       read: (p) => vaultAdapter.readTextFile(p),
       write: (p, text) => vaultAdapter.writeTextFile(p, text),
+      update: (p, change) => updateVaultText(vaultAdapter, p, change),
       rename: async (p, stem) => {
         const result = await renameToName({ adapter: vaultAdapter, queryService: queryService ?? null, oldPath: p, newName: stem, isFolder: false });
         if (!result.ok) throw new Error(result.reason);
@@ -1340,7 +1360,7 @@ export function BaseViewer({
               }
               const answered = await applyTemplateInteractive(
                 raw,
-                { title, now: new Date(), folder, vaultName: vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "" },
+                { title, now: new Date(), folder, vaultPath },
                 t("database.templateAnswersTitle", { defaultValue: "Angaben für die Vorlage" }),
               );
               return answered ? { text: answered.text, caret: answered.cursor } : null;
@@ -1369,14 +1389,13 @@ export function BaseViewer({
     setEntryDraft(null);
     const path = result.outcome === "kept" ? result.path : null;
     void (async () => {
-      let hostLinked = false;
-      if (path) {
-        try {
-          hostLinked = await linkHostTo(path);
-        } catch (e) {
-          console.error("[BaseViewer] linking the new entry to its host failed", e);
-        }
-      }
+      // `linkHostTo` says so itself when the host note refuses the link.
+      const hostLinked = path
+        ? await linkHostTo(path).catch((e) => {
+            console.error("[BaseViewer] linking the new entry to its host failed", e);
+            return false;
+          })
+        : false;
       if (indexer && path) await applyIndexChanges(indexer, { added: hostLinked && hostPath ? [path, hostPath] : [path] }).catch(() => {});
       if (path) window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path } }));
       triggerFileTreeUpdate();
@@ -1398,7 +1417,10 @@ export function BaseViewer({
       await vaultAdapter.createDir(clean);
     } catch {
       if (!(await vaultAdapter.exists(clean).catch(() => false))) {
+        // Said, as the phone says it (finding 2026-10-21): the dialog closed
+        // and nothing happened.
         console.error("[BaseViewer] creating the storage folder failed", clean);
+        toast.error(t("database.createFolderFailed"));
         return;
       }
     }
@@ -1406,7 +1428,7 @@ export function BaseViewer({
     // source when the base had none, a tag-sourced base keeps its tags.
     const nc = applyNewItemFolder(dbConfig, clean, dlg.mode);
     if (!nc) return;
-    await saveConfig(nc);
+    if (!(await saveConfig(nc))) return;
     if (dlg.pendingEntry && dlg.pendingTemplate !== undefined) {
       await openPinboardEntry(dlg.pendingTemplate, nc, clean);
       return;
@@ -1441,24 +1463,24 @@ export function BaseViewer({
     async (templatePath: string, assign: boolean) => {
       if (!vaultAdapter) return;
       try {
-        const content = await vaultAdapter.readTextFile(templatePath);
-        let result: { content: string; changed: boolean };
-        if (assign) {
-          const rows = queryService
-            ? await queryService.db.query<{ path: string }>(`SELECT path FROM files`)
-            : [];
-          result = addTemplateForAssignment(content, activePath, rows.map((r) => r.path));
-        } else {
-          result = removeTemplateForAssignment(content, activePath);
-        }
-        if (!result.changed) return;
-        await vaultAdapter.writeTextFile(templatePath, result.content);
+        // What the link is written as is asked first; the change itself runs on the template's text alone.
+        const paths = assign && queryService
+          ? (await queryService.db.query<{ path: string }>(`SELECT path FROM files`)).map((r) => r.path)
+          : [];
+        const update = await updateVaultText(vaultAdapter, templatePath, (content) => {
+          const result = assign ? addTemplateForAssignment(content, activePath, paths) : removeTemplateForAssignment(content, activePath);
+          return result.changed ? result.content : null;
+        });
+        if (!update.changed) return;
         if (indexer) await applyIndexChanges(indexer, { added: [templatePath] }).catch(() => {});
       } catch (e) {
+        // Said, not only logged (finding 2026-10-12). The menu reads the
+        // templates again after this, so it shows what the template holds.
         console.error("[BaseViewer] toggling template assignment failed", e);
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
       }
     },
-    [vaultAdapter, queryService, indexer, activePath]
+    [vaultAdapter, queryService, indexer, activePath, t]
   );
 
   // "Neue Vorlage erstellen": a fresh OKF note in the vault's template folder,
@@ -1623,9 +1645,18 @@ export function BaseViewer({
     setLastActiveView(vaultPath, activePath, viewStateName(dbConfig.views[idx], idx));
   }, [embedded, vaultPath, activePath, activeViewIndex, dbConfig]);
 
-  const saveConfig = async (newConfig: any) => {
-    if (!vaultAdapter) return;
+  // Answers whether the database was written. A write that fails is said
+  // (finding 2026-10-12): it went to the console, the phone announced a retry
+  // that nothing makes, and the views went on showing a database no file held —
+  // so they go back to the database they showed, unless something else changed
+  // it since. `park: false` is for a change other files follow (a property
+  // renamed or removed across the notes, a relation's other database): it is
+  // not kept for a file that has moved, because what follows it would not wait.
+  const saveConfig = async (newConfig: any, { park = true }: { park?: boolean } = {}): Promise<boolean> => {
+    if (!vaultAdapter) return false;
     const newText = serializeBaseConfig(newConfig);
+    const shownConfig = dbConfig;
+    const shownText = content;
     try {
       // Optimistic UI update to prevent stuck screens
       setContent(newText);
@@ -1636,23 +1667,35 @@ export function BaseViewer({
       // deletion undone.
       await assertFileStillThere(vaultAdapter, activePath);
       await vaultAdapter.writeTextFile(activePath, newText);
-      setPendingConfig(null);
-      if (indexer) void applyIndexChanges(indexer, { added: [activePath] }).then(rememberFile, () => {});
-
-      // Re-query with new config
-      if (queryService) {
-        const data = await queryForActiveView(newConfig, activeViewIndex);
-        setDbData(data);
-      }
     } catch (e: any) {
-      if (isFileNotFound(e) && !embedded) {
+      const moved = isFileNotFound(e) && !embedded;
+      if (moved && park) {
         // The change stays here and goes with the file once it is found.
         setPendingConfig(newText);
         lookForFile();
-        return;
+        return false;
       }
+      setDbConfig((shown: any) => (shown === newConfig ? shownConfig : shown));
+      setContent((shown) => (shown === newText ? shownText : shown));
+      if (moved) lookForFile();
       console.error("Failed to save database config", e);
+      toast.error(t("editor.saveFailed"));
+      return false;
     }
+    setPendingConfig(null);
+    if (indexer) void applyIndexChanges(indexer, { added: [activePath] }).then(rememberFile, () => {});
+
+    // Re-query with new config. The database is written by now: a query that
+    // fails is no failed save.
+    if (queryService) {
+      try {
+        const data = await queryForActiveView(newConfig, activeViewIndex);
+        setDbData(data);
+      } catch (e) {
+        console.error("Failed to query the database after saving its config", e);
+      }
+    }
+    return true;
   };
 
   /** "Save here again": the reader brings the database back where it was, with the waiting change. */
@@ -1742,6 +1785,23 @@ export function BaseViewer({
     commitSetViewType(type);
   };
 
+  // What the loops over many notes say when some could not be written: one
+  // message with both counts. Each of them used to log the note to the console
+  // and then show every row as changed (finding 2026-10-09).
+  const reportRewrite = (result: { written: string[]; failed: { path: string; message: string }[] }, what: string) => {
+    for (const failure of result.failed) console.error(what, failure.path, failure.message);
+    if (result.failed.length > 0) toast.error(t("database.bulkSetPartial", { done: result.written.length, failed: result.failed.length }));
+  };
+
+  // Writes a property (empty) into the notes that lack it and answers which
+  // ones got it. A note that turns out to hold a value there — the index was
+  // behind — keeps it.
+  const fillPropertyIn = async (adapter: NonNullable<typeof vaultAdapter>, paths: string[], col: string): Promise<string[]> => {
+    const result = await rewriteNoteProperties(adapter, paths, (props) => (isEmptyPropertyValue(props[col]) ? { ...props, [col]: "" } : null));
+    reportRewrite(result, "Failed to add property to file");
+    return result.written;
+  };
+
   const applyRequirement = async (selectedColumn: string, isNew: boolean, requiredType: string, targetViewType: string, dateInput?: "date" | "datetime") => {
     const newConfig = dbConfig ? JSON.parse(JSON.stringify(dbConfig)) : {};
     if (!newConfig.columns || Array.isArray(newConfig.columns)) newConfig.columns = {};
@@ -1764,22 +1824,9 @@ export function BaseViewer({
       // Update all markdown files to include the new property
       if (vaultAdapter) {
         // Run asynchronously so we don't block the UI
-        setTimeout(async () => {
-          for (const row of dbData) {
-            if (row[selectedColumn] === undefined) {
-              try {
-                const text = await vaultAdapter.readTextFile(row['file.path']);
-                const ast = parseMarkdownAst(text);
-                const fmResult = extractFrontmatter(ast);
-                const props = fmResult.success && fmResult.data ? fmResult.data : {};
-                const newProps = { ...props, [selectedColumn]: "" };
-                const newText = updateFrontmatterString(text, newProps);
-                await vaultAdapter.writeTextFile(row['file.path'], newText);
-              } catch (e) {
-                console.error("Failed to add property to file", row['file.path'], e);
-              }
-            }
-          }
+        setTimeout(() => {
+          const missing = dbData.filter((row) => row[selectedColumn] === undefined).map((row) => String(row['file.path']));
+          void fillPropertyIn(vaultAdapter, missing, selectedColumn);
         }, 0);
       }
     }
@@ -1863,20 +1910,10 @@ export function BaseViewer({
       kind: "warning",
     });
     if (!ok) return;
-    for (const row of missing) {
-      try {
-        const text = await vaultAdapter.readTextFile(row["file.path"]);
-        const ast = parseMarkdownAst(text);
-        const fmResult = extractFrontmatter(ast);
-        const props = fmResult.success && fmResult.data ? fmResult.data : {};
-        const newText = updateFrontmatterString(text, { ...props, [col]: "" });
-        await vaultAdapter.writeTextFile(row["file.path"], newText);
-      } catch (e) {
-        console.error("Failed to add property to file", row["file.path"], e);
-      }
-    }
+    const written = new Set(await fillPropertyIn(vaultAdapter, missing.map((row) => String(row["file.path"])), col));
     // Reflect the new (empty) values right away — the re-index lags the writes.
-    setDbData((prev) => prev.map((r) => (r[col] === undefined ? { ...r, [col]: "" } : r)));
+    // Only in the notes that got one: the others still lack the property.
+    setDbData((prev) => prev.map((r) => (r[col] === undefined && written.has(String(r["file.path"])) ? { ...r, [col]: "" } : r)));
   };
 
   // Rename a property from this base (Base-UX2 follow-up): move every config
@@ -1886,15 +1923,26 @@ export function BaseViewer({
   // While the files are being rewritten, a blocking progress overlay shows the
   // counter — and prevents a second rename from interleaving with the first
   // (two concurrent loops over the same files would lose updates).
+  //
+  // Checked first (finding 2026-10-09, `renamePropertyAcrossNotes`): where a
+  // note cannot take the new name, nothing starts — the question is not asked,
+  // the database keeps its name, no note is written — and one message names
+  // the notes. Each note that failed used to be logged to the console while
+  // every row was shown as renamed, under a database already rewritten. A
+  // write that fails during the run is counted, as the other loops count.
+  // Answers whether the property carries its new name now.
   const [renameProgress, setRenameProgress] = useState<{ oldName: string; newName: string; done: number; total: number } | null>(null);
   const renameBusyRef = useRef(false);
-  const renameColumn = async (oldName: string, newName: string, schema: any) => {
-    if (!vaultAdapter || !dbConfig || renameBusyRef.current) return;
-    // Computed reverse column: its values live in OTHER notes' owning property
-    // — only this config changes; no note is touched, no confirm/progress needed.
-    const isReverseCol = !!(dbConfig.columns && !Array.isArray(dbConfig.columns) && dbConfig.columns[oldName]?.reverseOf);
-    if (isReverseCol) {
-      await saveConfig(renamePropertyInConfig(dbConfig, oldName, newName, schema));
+  const renameColumn = async (oldName: string, newName: string, schema: any): Promise<boolean> => {
+    if (!vaultAdapter || !dbConfig || renameBusyRef.current) return false;
+    // A computed column — the links back of a relation, whose values live in
+    // OTHER notes' owning property, or a rollup over one — is stored in no
+    // note: only this config changes; no note is touched, no confirm/progress
+    // needed. A rollup went through the notes (finding 2026-10-21): the index
+    // fills it on every row, so every note was asked and could stop it.
+    const computed = dbConfig.columns && !Array.isArray(dbConfig.columns) ? computedFieldKind(oldName, dbConfig.columns[oldName]) : null;
+    if (computed === "reverse" || computed === "rollup") {
+      if (!(await saveConfig(renamePropertyInConfig(dbConfig, oldName, newName, schema)))) return false;
       setDbData((prev) => prev.map((r) => {
         if (r[oldName] === undefined) return r;
         const nr = { ...r, [newName]: r[oldName] };
@@ -1902,49 +1950,45 @@ export function BaseViewer({
         return nr;
       }));
       setVisibleColumns((prev) => prev.map((c) => (c === oldName ? newName : c)));
-      return;
-    }
-    let rows: any[] = dbData;
-    if (queryService) {
-      try {
-        rows = await queryService.queryDatabaseFiles(stripPropertyFilters(dbConfig));
-      } catch (e) {
-        console.warn("[BaseViewer] source query for the property rename failed — using the visible rows", e);
-      }
-    }
-    const affected = rows.filter((r) => r[oldName] !== undefined);
-    if (affected.length > 0) {
-      const ok = await appConfirm({
-        title: t("common.confirm", { defaultValue: "Bestätigen" }),
-        message: t("database.confirmRenameProperty", "Die Eigenschaft \"{{old}}\" wird in {{count}} Dateien in \"{{new}}\" umbenannt. Fortfahren?", { old: oldName, new: newName, count: affected.length }),
-        kind: "warning",
-      });
-      if (!ok) return;
+      return true;
     }
     renameBusyRef.current = true;
-    setRenameProgress({ oldName, newName, done: 0, total: affected.length });
     try {
+      const affected = await notesCarryingProperty(queryService, dbConfig, oldName, dbData);
       // A self-relation's reverse column lives in THIS base (e.g. sub-items),
       // so retarget its reverseOf pointer here too — the sibling-base loop
       // below skips activePath. renamePropertyInConfig already carried the
       // view's subItemsProperty across, so the nesting keeps working.
       let renamed = renamePropertyInConfig(dbConfig, oldName, newName, schema);
       renamed = retargetReverseColumns(renamed, activePath, oldName, newName) ?? renamed;
-      await saveConfig(renamed);
-      for (const row of affected) {
-        const path = row["file.path"];
-        try {
-          const text = await vaultAdapter.readTextFile(path);
-          const newText = renameFrontmatterKey(text, oldName, newName);
-          if (newText !== text) await vaultAdapter.writeTextFile(path, newText);
-        } catch (e) {
-          console.error("Failed to rename property in", path, e);
-        }
-        setRenameProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+      const outcome = await renamePropertyAcrossNotes({
+        adapter: vaultAdapter,
+        paths: affected,
+        oldName,
+        newName,
+        confirm: affected.length === 0 ? undefined : () => appConfirm({
+          title: t("common.confirm", { defaultValue: "Bestätigen" }),
+          message: t("database.confirmRenameProperty", "Die Eigenschaft \"{{old}}\" wird in {{count}} Dateien in \"{{new}}\" umbenannt. Fortfahren?", { old: oldName, new: newName, count: affected.length }),
+          kind: "warning",
+        }),
+        saveConfig: async () => {
+          setRenameProgress({ oldName, newName, done: 0, total: affected.length });
+          // A database that could not be saved has said so; its notes stay.
+          if (!(await saveConfig(renamed, { park: false }))) throw new ColumnChangeNotDone();
+        },
+        onProgress: (done, total) => setRenameProgress({ oldName, newName, done, total }),
+      });
+      if (outcome.status === "refused") {
+        toast.error(renameRefusedText(oldName, outcome.refused));
+        return false;
       }
-      // Reflect immediately — the re-index lags the file writes.
+      if (outcome.status === "cancelled") return false;
+      reportRewrite(outcome.result, "Failed to rename property in");
+      // Reflect immediately — the re-index lags the file writes. Only in the
+      // notes that were renamed: another one still holds what it held.
+      const written = new Set(outcome.result.written);
       setDbData((prev) => prev.map((r) => {
-        if (r[oldName] === undefined) return r;
+        if (r[oldName] === undefined || !written.has(String(r["file.path"]))) return r;
         const nr = { ...r, [newName]: r[oldName] };
         delete nr[oldName];
         return nr;
@@ -1967,6 +2011,10 @@ export function BaseViewer({
           console.warn("[BaseViewer] repairing reverse columns after the rename failed", e);
         }
       }
+      return true;
+    } catch (e) {
+      if (e instanceof ColumnChangeNotDone) return false;
+      throw e;
     } finally {
       renameBusyRef.current = false;
       setRenameProgress(null);
@@ -1987,22 +2035,11 @@ export function BaseViewer({
   }>(null);
   const [deleteProgress, setDeleteProgress] = useState<{ column: string; done: number; total: number } | null>(null);
 
-  const sourceRows = async (): Promise<any[]> => {
-    if (queryService) {
-      try {
-        return await queryService.queryDatabaseFiles(stripPropertyFilters(dbConfig));
-      } catch (e) {
-        console.warn("[BaseViewer] source query failed — using the visible rows", e);
-      }
-    }
-    return dbData;
-  };
-
   const openDeleteColumn = async (column: string) => {
     if (!dbConfig || !vaultAdapter) return;
     const schema = dbConfig.columns && !Array.isArray(dbConfig.columns) ? dbConfig.columns[column] : undefined;
     const isReverse = !!schema?.reverseOf;
-    const affected = isReverse ? 0 : (await sourceRows()).filter((r) => r[column] !== undefined).length;
+    const affected = isReverse ? 0 : (await notesCarryingProperty(queryService, dbConfig, column, dbData)).length;
     let reverseInTarget: { base: string; name: string } | null = null;
     if (!isReverse && schema?.input === "relation" && schema.relationBase) {
       try {
@@ -2029,7 +2066,10 @@ export function BaseViewer({
       if (ask.reverseInTarget && ask.reverseInTarget.base === activePath) {
         nc = removeReverseColumnFromConfig(nc, ask.reverseInTarget.name);
       }
-      await saveConfig(nc);
+      // A database that could not be saved keeps the column, and so do its
+      // notes: the values were taken out of them all the same (finding
+      // 2026-10-21), and after a reload the column came back empty.
+      if (!(await saveConfig(nc, { park: false }))) return;
       // 2. Reverse column in ANOTHER base via the single cross-file writer.
       if (ask.reverseInTarget && ask.reverseInTarget.base !== activePath) {
         try {
@@ -2042,24 +2082,24 @@ export function BaseViewer({
         }
       }
       // 3. Frontmatter cleanup over the source scope (checkbox, default ON).
+      //    Not checked first, unlike the rename: a note that cannot be written
+      //    keeps a key this database no longer shows, and that is no reason to
+      //    keep the column. One message counts them (finding 2026-10-09: each
+      //    was logged to the console, and every row was shown as cleaned).
+      const kept = new Set<string>();
       if (cleanupFrontmatter && !ask.isReverse) {
-        const affected = (await sourceRows()).filter((r) => r[column] !== undefined);
+        const affected = await notesCarryingProperty(queryService, dbConfig, column, dbData);
         setDeleteProgress({ column, done: 0, total: affected.length });
-        for (const row of affected) {
-          const path = row["file.path"];
-          try {
-            const text = await vaultAdapter.readTextFile(path);
-            const newText = deleteFrontmatterPath(text, [column]);
-            if (newText !== text) await vaultAdapter.writeTextFile(path, newText);
-          } catch (e) {
-            console.error("Failed to remove property from", path, e);
-          }
-          setDeleteProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
-        }
+        const result = await removePropertyAcrossNotes(vaultAdapter, affected, column, {
+          onProgress: (done, total) => setDeleteProgress({ column, done, total }),
+        });
+        reportRewrite(result, "Failed to remove property from");
+        for (const failure of result.failed) kept.add(failure.path);
       }
-      // 4. Reflect immediately — the re-index lags the writes.
+      // 4. Reflect immediately — the re-index lags the writes. A note that
+      //    could not be written still holds the property; so does its row.
       setDbData((prev) => prev.map((r) => {
-        if (r[column] === undefined) return r;
+        if (r[column] === undefined || kept.has(String(r["file.path"]))) return r;
         const nr = { ...r };
         delete nr[column];
         return nr;
@@ -2089,22 +2129,34 @@ export function BaseViewer({
       relationBase: s?.relationBase as string | undefined,
       reverseIntent,
     };
-    const ok = await applyRelationWrite(vaultAdapter, write, async (foldIntoOwn) => {
-      if (newName) {
-        await renameColumn(column, newName, s);
-        if (foldIntoOwn) {
-          // renameColumn already saved — fold into the freshly written file.
-          const cfg = parseBaseConfig(await vaultAdapter.readTextFile(activePath));
-          await saveConfig(foldIntoOwn(cfg));
+    let ok: boolean;
+    try {
+      ok = await applyRelationWrite(vaultAdapter, write, async (foldIntoOwn) => {
+        if (newName) {
+          // A rename that did not happen — a note cannot take the new name,
+          // the question was declined, the database could not be saved — ends
+          // the save here: the reverse column would otherwise be written into
+          // the target base under a name this property does not carry.
+          if (!(await renameColumn(column, newName, s))) throw new ColumnChangeNotDone();
+          if (foldIntoOwn) {
+            // renameColumn already saved — fold into the freshly written file.
+            const cfg = parseBaseConfig(await vaultAdapter.readTextFile(activePath));
+            await saveConfig(foldIntoOwn(cfg));
+          }
+          return;
         }
-        return;
-      }
-      let nc = { ...dbConfig };
-      if (!nc.columns || Array.isArray(nc.columns)) nc.columns = {};
-      nc.columns = { ...nc.columns, [column]: s };
-      if (foldIntoOwn) nc = foldIntoOwn(nc);
-      await saveConfig(nc);
-    });
+        let nc = { ...dbConfig };
+        if (!nc.columns || Array.isArray(nc.columns)) nc.columns = {};
+        nc.columns = { ...nc.columns, [column]: s };
+        if (foldIntoOwn) nc = foldIntoOwn(nc);
+        // The other database of a relation follows this one: not written for
+        // a database whose own save did not land.
+        if (!(await saveConfig(nc, { park: !reverseIntent }))) throw new ColumnChangeNotDone();
+      });
+    } catch (e) {
+      if (e instanceof ColumnChangeNotDone) return;
+      throw e;
+    }
     if (!ok) console.error("[BaseViewer] applying the reverse column to the target base failed", s?.relationBase);
   };
 
@@ -2412,27 +2464,18 @@ export function BaseViewer({
     };
 
     // Rewrite the affected frontmatter values in every matching note.
+    const notConverted = new Set<string>();
     if (vaultAdapter) {
-      for (const row of dbData) {
-        const path = row['file.path'];
-        try {
-          const text = await vaultAdapter.readTextFile(path);
-          const ast = parseMarkdownAst(text);
-          const fmResult = extractFrontmatter(ast);
-          const props = fmResult.success && fmResult.data ? { ...fmResult.data } : {};
-          let changed = false;
-          for (const f of fields) {
-            const nv = convert(props[f]);
-            if (nv !== props[f]) { props[f] = nv; changed = true; }
-          }
-          if (changed) {
-            const newText = updateFrontmatterString(text, props);
-            await vaultAdapter.writeTextFile(path, newText);
-          }
-        } catch (e) {
-          console.error("Failed to convert date field type in", path, e);
+      const result = await rewriteNoteProperties(vaultAdapter, dbData.map((row) => String(row['file.path'])), (props) => {
+        let changed = false;
+        for (const f of fields) {
+          const nv = convert(props[f]);
+          if (nv !== props[f]) { props[f] = nv; changed = true; }
         }
-      }
+        return changed ? props : null;
+      });
+      reportRewrite(result, "Failed to convert date field type in");
+      for (const failure of result.failed) notConverted.add(failure.path);
     }
 
     const newConfig = JSON.parse(JSON.stringify(dbConfig));
@@ -2442,8 +2485,11 @@ export function BaseViewer({
     }
     await saveConfig(newConfig);
 
-    // The DB re-index lags the file writes; reflect the converted values right away.
+    // The DB re-index lags the file writes; reflect the converted values right
+    // away — except in a note that could not be written: its row keeps what
+    // the note says.
     setDbData(prev => prev.map(row => {
+      if (notConverted.has(String(row['file.path']))) return row;
       const updated = { ...row };
       for (const f of fields) updated[f] = convert(updated[f]);
       return updated;
@@ -2622,7 +2668,7 @@ export function BaseViewer({
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-primary)' }}>
       {/* Header */}
-      <div className="base-header-container pv-appbar pv-appbar--wrap">
+      <div ref={headRef} data-narrow={narrowHead ? "" : undefined} className="base-header-container pv-appbar pv-appbar--wrap">
         {/* While rows are selected, the strip REPLACES the toolbar rather than
             stacking on top of it: a second row would push the very rows a
             person is reading down by its own height, and a selection is what
@@ -2793,44 +2839,46 @@ export function BaseViewer({
           <SlidersHorizontal size={ICON.ui} /><span className="base-toolbar-label">{t("database.configure", "Konfigurieren")}</span>
         </button>
         <SplitButton onSplit={onSplit} activeDirection={activeSplitDirection} />
-        <div style={{ position: "relative", marginLeft: "0.5rem" }}>
+        <div style={{ marginLeft: "0.5rem" }}>
           <button
+            ref={headerMenuBtnRef}
             onClick={() => setShowHeaderMenu(!showHeaderMenu)}
             data-tip={t("editor.menu", { defaultValue: "Menu" })}
             aria-label={t("editor.menu", { defaultValue: "Menu" })}
+            aria-haspopup="menu"
+            aria-expanded={showHeaderMenu}
             className="pv-iconbtn"
           >
             <MoreVertical size={ICON.ui} />
           </button>
-          {showHeaderMenu && (
-            <>
-              <div className="base-menu-backdrop" onClick={() => setShowHeaderMenu(false)} />
-              <div className="pv-menu" style={{ position: "absolute", top: "100%", right: 0, left: "auto", marginTop: 4, minWidth: 170 }}>
-                <button
-                  onClick={() => { setShowHeaderMenu(false); onToggleBookmark?.(); }}
-                  className="pv-menu-item"
-                >
-                  <Bookmark size={ICON.ui} fill={isBookmarked ? "currentColor" : "none"} />
-                  {isBookmarked ? t("editor.removeBookmark", { defaultValue: "Lesezeichen entfernen" }) : t("editor.addBookmark", { defaultValue: "Lesezeichen hinzufügen" })}
-                </button>
-                <div className="pv-menu-sep" role="separator" />
-                <MenuItem
-                  onSelect={() => { setShowHeaderMenu(false); setShowExport(true); }}
-                  disabled={!dbConfig || isLoading || !!error}
-                  icon={<Download size={ICON.ui} />}
-                >
-                  {t("database.exportTitle")}
-                </MenuItem>
-                <button
-                  onClick={() => { setShowHeaderMenu(false); onDelete?.(); }}
-                  className="pv-menu-item pv-menu-item--danger"
-                >
-                  <Trash2 size={ICON.ui} />
-                  {t("editor.delete", { defaultValue: "Löschen" })}
-                </button>
-              </div>
-            </>
-          )}
+          {/* The menu primitive, as the editor's ⋮ menu is. Drawn by hand, with
+              an element laid over the page to catch the press beside it, this
+              menu did not close on Escape, and not on a press into a note
+              preview either: the catcher lay under the floating windows. */}
+          <MenuSurface
+            open={showHeaderMenu}
+            onClose={closeHeaderMenu}
+            anchorRef={headerMenuBtnRef}
+            align="right"
+            minWidth={170}
+            ariaLabel={t("editor.menu", { defaultValue: "Menu" })}
+          >
+            <MenuItem icon={<Bookmark size={ICON.ui} fill={isBookmarked ? "currentColor" : "none"} />} onSelect={() => onToggleBookmark?.()}>
+              {isBookmarked ? t("editor.removeBookmark", { defaultValue: "Lesezeichen entfernen" }) : t("editor.addBookmark", { defaultValue: "Lesezeichen hinzufügen" })}
+            </MenuItem>
+            <MenuSeparator />
+            <MenuItem
+              icon={<Download size={ICON.ui} />}
+              disabled={!dbConfig || isLoading || !!error}
+              onSelect={() => setShowExport(true)}
+            >
+              {t("database.exportTitle")}
+            </MenuItem>
+            <MenuSeparator />
+            <MenuItem danger icon={<Trash2 size={ICON.ui} />} onSelect={() => onDelete?.()}>
+              {t("editor.delete", { defaultValue: "Löschen" })}
+            </MenuItem>
+          </MenuSurface>
         </div>
         </>
         )}

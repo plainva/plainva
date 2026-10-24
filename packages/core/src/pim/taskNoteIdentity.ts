@@ -1,5 +1,5 @@
 import { sha256Hex, utf8Encode } from "../workspace/encoding.js";
-import { deleteFrontmatterPath, readFrontmatterPath, setFrontmatterPath } from "../frontmatter-surgical.js";
+import { deleteFrontmatterPath, noteBodyOf, readFrontmatterPath, setFrontmatterPath } from "../frontmatter-surgical.js";
 import { foldPathForCollision } from "../sync/pathIdentity.js";
 import { trimEndChars } from "../textScan.js";
 
@@ -232,7 +232,7 @@ export async function displacedTaskPath(adapter: TaskFileReader, originalPath: s
   const task = readTaskNoteIdentity(content);
   if (!task?.provider || !task.identity) throw new Error("task_identity_unverified");
   const folder = originalPath.includes("/") ? originalPath.slice(0, originalPath.lastIndexOf("/")) : "";
-  const title = firstHeadingText(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""))
+  const title = firstHeadingText(noteBodyOf(content))
     ?? originalPath.split("/").pop()!.replace(/\.md$/i, "");
   const path = await availableTaskNotePath(adapter, folder, title, task, { skip: [originalPath] });
   if (path === originalPath) throw new Error("task_source_is_destination");

@@ -1,6 +1,8 @@
 import { IVaultAdapter, VaultFileInfo, VaultListing, VaultWalkSkip } from "./IVaultAdapter.js";
 import { BatchStatement, IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
-import { hasAppleDoubleHeader, isAppleDoubleCompanion, isAppleDoubleName, isSystemJunkName } from "./systemJunk.js";
+import { hasAppleDoubleHeader, isAppleDoubleCompanion, isAppleDoubleName } from "./systemJunk.js";
+import { isInternalPath, isInternalSegment, INTERNAL_PATH_RULES, type InternalPathRules } from "./internalPath.js";
+import { createYielder } from "./yielder.js";
 import { trimChars } from "../textScan.js";
 import { runStatementsAtomic } from "../db/batch.js";
 import { escapeLikePrefix } from "../db/likeEscape.js";
@@ -9,8 +11,13 @@ import { parseMarkdownAst } from "../markdown-parser.js";
 import { extractFrontmatterLinks, extractLinksAndTags } from "../ast-scanner.js";
 import { extractFrontmatter } from "../metadata-extractor.js";
 import { isTextFile } from "../sync/fileType.js";
+import { isMarkerTakenWithoutMark, readLocalText, type LocalText } from "./localText.js";
 import { encodeIndexedProperty } from "./indexedProperty.js";
+import { indexedRowStamp, type IndexedRowStamp } from "./indexedRowStamp.js";
 import { segmentedIndexText } from "./spacelessText.js";
+
+/** U+0000, built here so that no source line has to carry the character. */
+const NUL = String.fromCharCode(0);
 
 /**
  * Minimal write sink. The cold full-scan (indexVaultFull) records its pure-write
@@ -34,43 +41,9 @@ async function sha256Bytes(bytes: Uint8Array): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/**
- * Vault-relative paths that are internal/VCS data and are never tracked or synced.
- * Matched on whole path SEGMENTS (not substrings), so legitimate user files like
- * `notes.plainva.png` or `node_modules_archive/x.png` are not excluded. `.CONFLICT`
- * copies are deliberately NOT excluded here: they are indexed so they stay visible and
- * resolvable in the tree; the sync targets already keep `.CONFLICT` local-only on push.
- */
-const INTERNAL_SEGMENTS = new Set([
-  // Plainva / vault tooling
-  ".plainva", ".obsidian", ".trash", ".smart-env",
-  // version control and package managers
-  ".git", "node_modules",
-  // language and build tooling that lives next to notes in a developer's vault
-  ".venv", "__pycache__", ".tox", ".turbo", ".cache",
-  // editor metadata
-  ".idea", ".vscode",
-]);
-
-export function isInternalPath(path: string): boolean {
-  const segments = path.replace(/\\/g, "/").split("/");
-  return segments.some((s) => {
-    if (INTERNAL_SEGMENTS.has(s)) return true;
-    // Operating-system bookkeeping (`.DS_Store`, `Thumbs.db`, `.Trashes`, …;
-    // issue #110, E10). AppleDouble `._*` is deliberately NOT decided here:
-    // this is a path-only rule, and a note may legitimately be called
-    // `._notes.md` — the indexer reads the header instead (systemJunk.ts).
-    if (isSystemJunkName(s)) return true;
-    if (s.startsWith(".stfolder")) return true;
-    // Tool caches name themselves: .mypy_cache, .pytest_cache, .ruff_cache,
-    // .rumdl_cache (issue #70) — and the next linter will follow the same shape.
-    // Deliberately anchored on a LEADING DOT: a user's own "read_cache" folder of
-    // notes is not tooling, and neither is "Build" or "Target". Only names that
-    // already declare themselves hidden are excluded by pattern.
-    if (s.length > 1 && s.startsWith(".") && s.endsWith("_cache")) return true;
-    return false;
-  });
-}
+// The internal-path rules live in internalPath.ts (as data, shared with the
+// native vault walk); re-exported so the many existing importers keep their path.
+export { isInternalPath, isInternalSegment, INTERNAL_PATH_RULES, type InternalPathRules };
 
 /** Re-exported so the many existing importers keep their path. */
 export { escapeLikePrefix };
@@ -87,10 +60,72 @@ export interface IndexScanReport {
   changed: number;
   /** Indexed files that are gone from disk and were de-indexed. */
   removed: number;
-  /** Entries the directory walk left out, with reasons (empty when the adapter cannot report them). */
+  /**
+   * Entries the directory walk left out, with reasons (empty when the adapter
+   * cannot report them), and the files the scan could not read and left out
+   * (reason `unreadable`, issue #125).
+   */
   skipped: VaultWalkSkip[];
   /** Wall-clock duration of the pass in milliseconds. */
   durationMs: number;
+  /** Files the walk saw on disk (after the internal-path filter). */
+  walked: number;
+  /**
+   * The set of folders on disk differs from what the previous full scan of
+   * this indexer saw — the one thing the tree draws from the disk rather than
+   * from the index. True on the first scan: with nothing to compare against,
+   * unknown counts as changed.
+   * Together with the three counts this tells a host whether anything needs
+   * reloading at all (issue #122: an unchanged scan must reload nothing).
+   */
+  foldersChanged: boolean;
+}
+
+/** True when a full scan left the index and the folder list exactly as they were. */
+export function scanChangedNothing(report: IndexScanReport): boolean {
+  return report.added === 0 && report.changed === 0 && report.removed === 0 && !report.foldersChanged;
+}
+
+/**
+ * What a host learns about every full scan (issue #122). A full scan is the
+ * expensive path, and until this existed it left no trace: a user whose typing
+ * stalled could not show us that a scan ran, let alone why. `trigger` is a
+ * short token chosen by the caller of `indexVaultFull` — never a path.
+ */
+export interface FullScanInfo extends IndexScanReport {
+  trigger: string;
+}
+
+/**
+ * One diagnostics line for a full scan — counts and a duration only, no file
+ * names, no paths, no vault name. Shared so both shells write the same line.
+ */
+export function formatFullScan(info: FullScanInfo): string {
+  const outcome = scanChangedNothing(info)
+    ? "nothing changed"
+    : `${info.added} added, ${info.changed} changed, ${info.removed} removed, folders ${info.foldersChanged ? "changed" : "unchanged"}`;
+  const skipped = info.skipped.length > 0 ? `, ${info.skipped.length} skipped` : "";
+  return `full scan (${info.trigger}): ${info.walked} files walked in ${Math.round(info.durationMs)} ms — ${outcome}${skipped}`;
+}
+
+/**
+ * A full scan that did not get through (issue #125): what set it off and what
+ * stopped it. The index keeps what the scan wrote before it stopped; until the
+ * host was told, nobody learned of it — on the phone, the whole index went
+ * with a scan that threw at the start of the app.
+ */
+export interface FullScanFailure {
+  trigger: string;
+  error: unknown;
+}
+
+/** The diagnostics line for a failed full scan — the kind of error only, never its message (it may name a file). */
+export function formatFullScanFailure(info: FullScanFailure): string {
+  const error = info.error as { code?: unknown; name?: unknown } | null | undefined;
+  const kind = typeof error?.code === "string" && error.code
+    ? error.code
+    : typeof error?.name === "string" && error.name ? error.name : typeof info.error;
+  return `full scan (${info.trigger}) failed: ${kind}`;
 }
 
 /** What `reconcileFolder` did (issue #110, E8). */
@@ -99,13 +134,21 @@ export interface FolderReconcileReport {
   indexed: string[];
   /** Indexed files that are gone from disk (or became excluded) and left the index. */
   removed: string[];
-  /** Entries the walk left out; nothing under them was removed. */
+  /** Entries the walk left out, and files the re-read could not read (issue #125); nothing under them was removed. */
   skipped: VaultWalkSkip[];
   /**
    * A subfolder that held indexed files is gone. The folder list the tree
    * draws from the disk changed, which a file-only refresh does not redraw.
    */
   foldersRemoved: boolean;
+  /**
+   * The folders found here differ from what the last full scan knew at this
+   * place: a subfolder appeared or went, indexed files or not. An EMPTY folder
+   * deleted outside the app leaves no file event behind — this is how its
+   * disappearance reaches the tree (issue #122). False while no full scan has
+   * run yet: there is nothing to compare with, and the scan itself reports.
+   */
+  foldersChanged?: boolean;
 }
 
 export interface VaultIndexerOptions {
@@ -132,9 +175,16 @@ export interface VaultIndexerOptions {
    * propagates instead of the file being resurrected on the next pull. The indexer no
    * longer purges `sync_state` for such files itself — that is cleaned up only after the
    * remote delete succeeds.
+   *
+   * `row` is the index row that went, where a pass found the file gone; absent
+   * where the app removed the file itself and said so (`removePathFromIndex`).
    */
-  onLocalFileDeleted?: (path: string) => void;
+  onLocalFileDeleted?: (path: string, row?: IndexedRowStamp) => void;
   onProgress?: (current: number, total: number, path: string) => void;
+  /** Called after every completed full scan, changed or not (diagnostics, issue #122). */
+  onFullScan?: (info: FullScanInfo) => void;
+  /** Called once for a full scan that failed, not for one that was cancelled (issue #125). */
+  onFullScanFailed?: (info: FullScanFailure) => void;
 }
 
 /**
@@ -144,30 +194,93 @@ export interface VaultIndexerOptions {
  * bridge. A bulk pass loads each table once and reads from these maps.
  */
 interface BulkIndexLookups {
-  fileStateById: Map<string, { sync_state: string | null; ctime: number | null }>;
+  /**
+   * The row at each path, as the index held it BEFORE this pass wrote — what
+   * decides whether a file is known, and with it whether its sync_state row
+   * is orphaned. By PATH: that is where a row is. Its id is the hash of the
+   * path it was last indexed under, and a row the app moved keeps it until a
+   * pass has read the file again (`SyncQueue.queueRename`,
+   * `relocatePathInIndex`). Asked by the id of the path it now has, a moved
+   * row was not found: the scan a folder move ends in then replaced every
+   * file's stored creation time by the file system's and dropped the mark
+   * that an upload waits (finding 2026-10-12).
+   */
+  fileStateByPath: Map<string, { sync_state: string | null; ctime: number | null }>;
+  /** Where each row sits now, by SQLite's rowid — how a scan tells a row that moved from a file that vanished (`movedAway`). */
+  pathByRow: Map<number, string>;
+  /** Where the row with each id sits — whether a path's own id is still another row's (`rowIdFor`). */
+  pathById: Map<string, string>;
   queuedPaths: Set<string>;
   syncStateByPath: Map<string, SyncState>;
-  /** Paths the index held BEFORE this pass — what decides whether a sync_state row is orphaned. */
-  knownPaths: Set<string>;
+}
+
+/**
+ * A file's content as a pass read it, ahead of indexing it: a note or a file
+ * that is text by its name (`readLocalText`), or the hash of a binary file's
+ * bytes. A pass over many files reads first and indexes after, so that a file
+ * that cannot be read is left out instead of ending the pass (`readOrLeaveOut`).
+ */
+type FileReading =
+  | { kind: "text"; read: LocalText }
+  | { kind: "bytes"; sha256: string };
+
+/**
+ * What ONE pass over the index has to say, and where it stood when it began.
+ *
+ * It belongs to the pass, not to the indexer (finding 2026-10-12). The lists
+ * used to be fields of the indexer, emptied by every pass on its way in — and
+ * passes overlap: a full scan runs for seconds and lets go in between, and a
+ * single path a save, a pull or the watcher follows comes in meanwhile. That
+ * pass emptied what the scan had found so far, even when its own transaction
+ * was refused a moment later: files the scan had discovered were not
+ * announced, so not queued for upload — a new file until the sweep of the
+ * next sync start found it, a foreign change of a known file not at all.
+ */
+interface IndexPass {
+  /**
+   * Files without an earlier sync state, announced (`onNewLocalFile`) AFTER
+   * the transaction committed: the host's handler does database work of its
+   * own (enqueueing), which must not run inside the indexer's transaction.
+   */
+  newLocalFiles: string[];
+  /** Foreign changes of known files (`onExternalModification`), announced after the transaction as well. */
+  externalMods: { path: string; oldHash: string; newHash: string }[];
+  /**
+   * Single-file route: did anything the file tree / tag tree / doc icons
+   * render change (title, mode, tags, plainva namespace)? `indexFile` hands it
+   * back so the UI can skip its app-wide refresh on pure prose edits. True
+   * until a comparison says otherwise.
+   */
+  metadataChanged: boolean;
+  /** `touchClock` when the pass began — what `stillMine` measures against. */
+  since: number;
+}
+
+/**
+ * The `meta` key that says this index is owed a full scan (`VaultIndexer.indexComplete`):
+ * set with the first rows a scan writes into an empty index, or once a scan
+ * that began on it empty failed, and taken away with the last rows of a scan
+ * that goes through.
+ */
+const INDEX_OWED_KEY = "index_scan_owed";
+
+/** A row of the index as a full scan finds it when it begins. */
+interface IndexedAtScanStart {
+  rowid?: number | null;
+  path: string;
+  mtime_local: number;
 }
 
 export class VaultIndexer {
   private readonly syncRepo: SyncStateRepository;
   /**
-   * New-file paths discovered during the current index pass. Buffered and flushed AFTER
-   * the DB transaction commits, so the host callback (which itself does DB work like
-   * enqueuing) never runs inside the indexer's transaction (no nested transactions).
+   * Ticks whenever a pass sees a file at a path it was asked about, writes a
+   * row for a path or reports a path gone; `touchedAt` holds the tick of a
+   * path's last such moment. See `stillMine`.
    */
-  private pendingNewLocalFiles: string[] = [];
-  /** External-modification events buffered during the current pass; flushed post-transaction. */
-  private pendingExternalMods: { path: string; oldHash: string; newHash: string }[] = [];
-  /**
-   * Set by the single-file index pass: did anything the file tree / tag tree /
-   * doc icons render change (title, mode, tags, plainva namespace)? Read by
-   * `indexFile`/`indexPath` so the UI can skip its app-wide refresh on pure
-   * prose edits. Defaults to true (a fresh pass with no comparison = assume changed).
-   */
-  private lastIndexMetadataChanged = true;
+  private touchClock = 0;
+  private readonly touchedAt = new Map<string, number>();
+  private openPasses = 0;
 
   constructor(
     private readonly vaultAdapter: IVaultAdapter,
@@ -177,6 +290,99 @@ export class VaultIndexer {
     this.syncRepo = new SyncStateRepository(dbAdapter);
   }
 
+  /** Runs one pass: what it finds is its own, and so is the moment it began. */
+  private async inPass<T>(work: (pass: IndexPass) => Promise<T>): Promise<T> {
+    this.openPasses++;
+    try {
+      return await work({ newLocalFiles: [], externalMods: [], metadataChanged: true, since: this.touchClock });
+    } finally {
+      // Nobody is left who read the index before one of these moments.
+      if (--this.openPasses === 0) this.touchedAt.clear();
+    }
+  }
+
+  /** A single path was asked about `path` and found a file there, a row was written for it, or it was reported gone. */
+  private touch(path: string): void {
+    // Remembered only while a pass is under way: nobody else can hold an older reading.
+    if (this.openPasses > 0) this.touchedAt.set(path, ++this.touchClock);
+  }
+
+  /**
+   * The paths of `paths` that are still this pass's to remove and to report
+   * gone (finding 2026-10-12).
+   *
+   * A pass decides from what it read when it began, and removes and reports
+   * when it is through; a full scan can be seconds away from its own reading.
+   * Two things may have happened to a path in between, and each takes it out
+   * of this pass's hands:
+   *  - Another pass removed its row and said so — the single path a pull or
+   *    the watcher followed, a folder that was reconciled, the app deleting
+   *    the file itself. Told a second time, the host queued a remote deletion
+   *    for a file the sync worker had removed itself: its "that deletion was
+   *    mine" (`OwnDeletionRegister`) answers one question and no more.
+   *  - Another pass saw a file there, or wrote a row for it. That is newer
+   *    than this pass's reading: a file that came back after the scan had
+   *    listed its folder had its fresh row removed and was reported gone
+   *    while it lay on disk.
+   * A row that is stale after all is found by the next pass, with a reading
+   * of its own.
+   */
+  private stillMine(paths: readonly string[], pass: IndexPass): string[] {
+    return paths.filter((path) => (this.touchedAt.get(path) ?? 0) <= pass.since);
+  }
+
+  /**
+   * The paths of `paths` whose row the app MOVED since the scan read the
+   * index (finding 2026-10-12): nothing sits at the path any more, and the row
+   * that was indexed under it sits at another.
+   *
+   * The scan lists the disk after it read the index. A file the app moved in
+   * between is missing at its old path — and was reported gone: a remote
+   * DELETE queued behind the MOVE that was already queued, and for a folder
+   * of some size the question whether that many files should be deleted.
+   * Nobody had touched the old path in the sense of `stillMine`: the rows
+   * move in the queue's own transaction (`SyncQueue.queueRename`), and the
+   * index hears of the move only when the shell calls `relocatePathInIndex`
+   * — on the desktop after the scan has decided, whose turn at the database
+   * comes right behind the queue's. So the scan asks the index as it is now.
+   * A move rewrites a row's path in place; the row stays the row it was, and
+   * SQLite's rowid says so. (Its `id` would not do: it is the hash of the path
+   * the row was last indexed under, and a row that moves a second time before
+   * a pass has read it still carries the id of its first path.) A row that is
+   * read again is deleted and inserted: under a new rowid, at the same path.
+   * Where a moved row is now, this scan or the next one reads the file.
+   *
+   * `known` is the scan's first reading: the row each path had when it began.
+   */
+  private movedAway(
+    paths: readonly string[],
+    known: ReadonlyMap<string, { rowid?: number | null }>,
+    lookups: BulkIndexLookups,
+  ): Set<string> {
+    const moved = new Set<string>();
+    for (const path of paths) {
+      const row = known.get(path)?.rowid;
+      if (row === undefined || row === null) continue;
+      const now = lookups.pathByRow.get(Number(row));
+      if (now !== undefined && now !== path) moved.add(path);
+    }
+    return moved;
+  }
+
+  /**
+   * Tells the host that files left the vault (`onLocalFileDeleted`), once
+   * their rows are gone. `since` is the moment the caller's knowledge is from:
+   * a path somebody touched after it is left out, as in `stillMine`. `rowOf`
+   * names the row that was removed for a path (`IndexedRowStamp`).
+   */
+  private reportRemoved(paths: readonly string[], since: number, rowOf?: (path: string) => IndexedRowStamp | undefined): void {
+    for (const path of paths) {
+      if ((this.touchedAt.get(path) ?? 0) > since) continue;
+      this.touch(path);
+      this.options?.onLocalFileDeleted?.(path, rowOf?.(path));
+    }
+  }
+
   /**
    * Generates a stable unique ID for a file based on its relative path.
    */
@@ -184,13 +390,48 @@ export class VaultIndexer {
     return await sha256Hash(path);
   }
 
-  /** Loads the three per-pass lookup tables with one query each (P2.4). */
-  private async loadBulkLookups(knownPaths: Set<string>): Promise<BulkIndexLookups> {
-    const fileRows = await this.dbAdapter.query<{ id: string; sync_state: string | null; ctime?: number | null }>(
-      `SELECT id, sync_state, ctime FROM files`
+  /**
+   * The id the row for `path` is written under: the hash of the path — unless
+   * a row the app moved away from `path` still carries it (a move keeps a
+   * row's id: `SyncQueue.queueRename`, `relocatePathInIndex`). Then a new file
+   * under the old name gets an id of its own. Written under the hash, its row
+   * took the moved file's with it, because a write first deletes the id it
+   * inserts: out of the index went the moved note, its creation time and its
+   * sync label, until a full scan announced it as new (finding 2026-10-12).
+   * An id is a key and nothing more — everything that refers to a row joins
+   * through it.
+   */
+  private async rowIdFor(path: string, lookups?: BulkIndexLookups): Promise<string> {
+    const id = await this.generateFileId(path);
+    const holder = lookups
+      ? lookups.pathById.get(id)
+      : (await this.dbAdapter.queryOne<{ path: string }>(`SELECT path FROM files WHERE id = ?`, [id]))?.path;
+    if (holder === undefined || holder === path) return id;
+    return this.generateFileId(`${path}\u0000${holder}`);
+  }
+
+  /**
+   * Loads the three per-pass lookup tables with one query each (P2.4).
+   *
+   * Called by the scan INSIDE its transaction, before its first write: one
+   * reading of index, queue and sync rows that belongs together and is as old
+   * as the scan's writes, not as its beginning. The scan used to judge a file
+   * by the paths it had read before it listed the disk — seconds earlier on a
+   * large vault — and a file the app had moved in between was unknown to that
+   * list: announced as new, for an upload nobody needed (finding 2026-10-12).
+   */
+  private async loadBulkLookups(): Promise<BulkIndexLookups> {
+    const fileRows = await this.dbAdapter.query<{ rowid?: number | null; id?: string | null; path: string; sync_state: string | null; ctime?: number | null }>(
+      `SELECT rowid, id, path, sync_state, ctime FROM files`
     );
-    const fileStateById = new Map<string, { sync_state: string | null; ctime: number | null }>();
-    for (const r of fileRows) fileStateById.set(r.id, { sync_state: r.sync_state ?? null, ctime: r.ctime ?? null });
+    const fileStateByPath = new Map<string, { sync_state: string | null; ctime: number | null }>();
+    const pathByRow = new Map<number, string>();
+    const pathById = new Map<string, string>();
+    for (const r of fileRows) {
+      fileStateByPath.set(r.path, { sync_state: r.sync_state ?? null, ctime: r.ctime ?? null });
+      if (r.rowid !== undefined && r.rowid !== null) pathByRow.set(Number(r.rowid), r.path);
+      if (r.id) pathById.set(r.id, r.path);
+    }
 
     const queueRows = await this.dbAdapter.query<{ file_path: string; new_path: string | null }>(
       `SELECT file_path, new_path FROM offline_queue`
@@ -202,7 +443,7 @@ export class VaultIndexer {
     }
 
     const syncStateByPath = await this.syncRepo.getAllStates();
-    return { fileStateById, queuedPaths, syncStateByPath, knownPaths };
+    return { fileStateByPath, pathByRow, pathById, queuedPaths, syncStateByPath };
   }
 
   /**
@@ -218,22 +459,46 @@ export class VaultIndexer {
    * An orphaned row counts as no row: the file is new, gets its baseline and
    * is announced as a new local file.
    *
+   * With one exception, and it is a matter of data safety (finding
+   * 2026-10-09): the merge base a SYNC recorded stays. A row is also without
+   * an index entry while the file it describes is alive and well — a file
+   * pulled a moment ago that no pass has looked at yet (on the phone a file
+   * that is no note waited for the next full scan), and every file of the
+   * vault once the index was dropped to be rebuilt. Writing the file's
+   * current text over that base made a local change that had not gone up yet
+   * look as if the remote already contained it: the next change from another
+   * device replaced it, without a conflict copy. `base_sha256` is written by
+   * a sync and by nothing else, so a row that carries one keeps the base text
+   * the sync stored (`keepsSyncedBase`), whatever became of the index; only
+   * the local marker is renewed. For the note that reuses a deleted note's
+   * name this is the right base too: until the deletion has reached the
+   * remote, the remote still holds the old note, and a change made to it
+   * elsewhere has to meet the new note as a conflict, not replace it.
+   *
    * `isOwnWrite` closes the other window: the app's own write reaching the
    * disk before the adapter recorded its hash — on an external folder a pass
    * runs on every note open and every return to the foreground.
+   *
+   * `markerNamesThisFile` closes a third: a marker a reader took of this very
+   * file without its byte order mark, where the base the sync recorded is the
+   * file as it lies there (`isMarkerTakenWithoutMark`, asked by the callers,
+   * which hold the text). The file is the one on record. The marker itself is
+   * left to whoever writes or opens the file next.
    */
   private judgeSyncState(
     path: string,
     sha256: string,
     oldSyncState: SyncState | null,
     knownToIndex: boolean,
-  ): { isNewLocalFile: boolean } {
+    pass: IndexPass,
+    markerNamesThisFile = false,
+  ): { isNewLocalFile: boolean; keepsSyncedBase: boolean } {
     const orphaned = !!oldSyncState && !knownToIndex;
     const differs = !!oldSyncState?.local_sha256 && oldSyncState.local_sha256 !== sha256;
-    if (differs && !orphaned && !this.options?.isOwnWrite?.(path, sha256)) {
-      this.pendingExternalMods.push({ path, oldHash: oldSyncState!.local_sha256!, newHash: sha256 });
+    if (differs && !orphaned && !markerNamesThisFile && !this.options?.isOwnWrite?.(path, sha256)) {
+      pass.externalMods.push({ path, oldHash: oldSyncState!.local_sha256!, newHash: sha256 });
     }
-    return { isNewLocalFile: !oldSyncState || orphaned };
+    return { isNewLocalFile: !oldSyncState || orphaned, keepsSyncedBase: orphaned && !!oldSyncState?.base_sha256 };
   }
 
   /**
@@ -258,25 +523,43 @@ export class VaultIndexer {
   }
 
   /**
-   * Indexes a single markdown file into the database.
+   * Indexes ONE file the caller knows was just written — a save, a restore, a
+   * pull — without asking its timestamp first (`indexPath` asks, and is the
+   * door for "something may have happened at this path").
    * Note: This method opens its own transaction.
+   *
+   * Every kind of file: a note as a note, anything else as an attachment —
+   * the split `inspectPath`, `reconcileFolder` and the full scan make. It
+   * used to take notes only and do nothing for the rest, without a word
+   * (finding 2026-10-09). The desktop's watcher passed by a moment later and
+   * covered for it; the phone has no watcher, and handed this method its
+   * databases, its tables and every file a pull or a restore wrote, none of
+   * which the index heard of before the next full scan. A path the index
+   * never holds (internalPath.ts, an AppleDouble sidecar) and a directory are
+   * left alone, as on every other route.
    *
    * Returns whether view-relevant data (title, mode, tags, plainva namespace,
    * frontmatter properties, or the file's links) changed, so the caller can
    * skip the app-wide UI refresh on pure prose edits. Links count: the
-   * backlinks panel and the graph cache key off the index version.
-   * Non-markdown / directories return false (nothing indexed).
+   * backlinks panel and the graph cache key off the index version. A file
+   * that is no note has none of these: it counts as changed exactly when the
+   * index did not know it yet. Nothing indexed returns false.
    */
   async indexFile(fileInfo: VaultFileInfo): Promise<boolean> {
-    if (fileInfo.isDirectory || !fileInfo.name.endsWith(".md")) return false;
-    this.pendingNewLocalFiles = [];
-    this.pendingExternalMods = [];
-    this.lastIndexMetadataChanged = true;
-    await this.dbAdapter.transaction(async () => {
-      await this._indexFileInternal(fileInfo);
+    if (fileInfo.isDirectory || isInternalPath(fileInfo.path)) return false;
+    if (await this.isAppleDoubleOnDisk(fileInfo)) return false;
+    return this.inPass(async (pass) => {
+      // The caller holds a file. A pass that misses it in an older listing
+      // does not report it gone, and where it has not decided yet it leaves
+      // the row too (stillMine) — also when this pass fails.
+      this.touch(fileInfo.path);
+      await this.dbAdapter.transaction(async () => {
+        if (fileInfo.name.endsWith(".md")) await this._indexFileInternal(fileInfo, pass);
+        else await this._indexAttachmentInternal(fileInfo, pass);
+      });
+      this.flushCallbacks(pass);
+      return pass.metadataChanged;
     });
-    this.flushCallbacks();
-    return this.lastIndexMetadataChanged;
   }
 
   /**
@@ -286,25 +569,39 @@ export class VaultIndexer {
    */
   private async _indexFileInternal(
     fileInfo: VaultFileInfo,
+    pass: IndexPass,
     lookups?: BulkIndexLookups,
-    writer: SqlWriter = this.dbAdapter
+    writer: SqlWriter = this.dbAdapter,
+    reading?: FileReading
   ): Promise<void> {
-    const fileId = await this.generateFileId(fileInfo.path);
-    const content = await this.vaultAdapter.readTextFile(fileInfo.path);
-    const sha256 = await sha256Hash(content);
+    // The hash is the one of the note's BYTES, and its text is a merge base
+    // only where it IS the note (`readLocalText`). A note in another encoding
+    // — Windows-1252 from an old tool, UTF-16 — is indexed from a reading with
+    // replacement characters, which is good enough to find it; kept as the
+    // merge base, that reading would be written back by the next merge (see
+    // the end of this method). A pass over many files reads first
+    // (`readOrLeaveOut`) and hands the reading in.
+    const read = reading?.kind === "text" ? reading.read : await readLocalText(this.vaultAdapter, fileInfo.path);
+    // UTF-16 read as UTF-8 carries a NUL after every character; without them
+    // the reading has the note's headings and links again.
+    const content = read.exact ? read.text : read.text.split(NUL).join("");
+    const sha256 = read.sha256;
     const existingFileState = lookups
-      ? lookups.fileStateById.get(fileId) ?? null
-      : // By id, and failing that by PATH: an in-app move or rename keeps the
-        // row's id (SyncQueue.queueRename rewrites only `path`, and
-        // relocatePathInIndex does the same), so a row sitting at this path
-        // with an older id IS this file. Looked up by id alone it read as "no
-        // row" — the move then counted as a brand-new file: its merge base
-        // was overwritten with the current text and a spurious write queued
-        // (issue 113).
+      ? lookups.fileStateByPath.get(fileInfo.path) ?? null
+      : // The row at this PATH, whatever id it carries. An in-app move or
+        // rename keeps the row's id (SyncQueue.queueRename rewrites only
+        // `path`, and relocatePathInIndex does the same), so a row sitting
+        // here with an older id IS this file. Looked up by id alone it read
+        // as "no row" — the move then counted as a brand-new file: its merge
+        // base was overwritten with the current text and a spurious write
+        // queued (issue 113). And a row that carries THIS path's id while it
+        // sits elsewhere is not this file: it is one the app moved away from
+        // here and no pass has read since. A new file under the old name used
+        // to take that row for its own — the moved file's creation time, and
+        // its title and tags to compare against (finding 2026-10-12).
         await this.dbAdapter.queryOne<{ sync_state: string | null; ctime?: number | null; title?: string | null; mode?: string | null }>(
-          `SELECT sync_state, ctime, title, mode FROM files WHERE id = ? OR path = ? COLLATE BINARY
-           ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1`,
-          [fileId, fileInfo.path, fileId]
+          `SELECT sync_state, ctime, title, mode FROM files WHERE path = ? COLLATE BINARY`,
+          [fileInfo.path]
         );
     const hasPendingQueueOp = lookups
       ? lookups.queuedPaths.has(fileInfo.path)
@@ -328,8 +625,13 @@ export class VaultIndexer {
     const oldSyncState = lookups
       ? lookups.syncStateByPath.get(fileInfo.path) ?? null
       : await this.syncRepo.getSyncState(fileInfo.path);
-    const knownToIndex = lookups ? lookups.knownPaths.has(fileInfo.path) : existingFileState !== null;
-    const { isNewLocalFile } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex);
+    const knownToIndex = existingFileState !== null;
+    const markerNamesThisFile = read.exact && await isMarkerTakenWithoutMark({ text: read.text, sha256 }, oldSyncState);
+    const { isNewLocalFile, keepsSyncedBase } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex, pass, markerNamesThisFile);
+    // A row is written for the path: a pass that read the index earlier leaves it alone (stillMine).
+    this.touch(fileInfo.path);
+    // The id the row is written under (rowIdFor), asked after the lookups above.
+    const fileId = await this.rowIdFor(fileInfo.path, lookups);
 
     try {
       const hasExtremelyLongLines = content.split('\n').some(line => line.length > 10000);
@@ -431,7 +733,7 @@ export class VaultIndexer {
             .join("\n");
           changed = oldLinkSig !== newLinkSig;
         }
-        this.lastIndexMetadataChanged = changed;
+        pass.metadataChanged = changed;
       }
 
       // Delete existing data for this file. The `OR path = ?` is not redundant:
@@ -461,9 +763,11 @@ export class VaultIndexer {
       // Update sync state ONLY if this is a newly discovered file (an orphaned
       // row counts as none, see judgeSyncState). We must not overwrite
       // local_sha256 for existing files during index, as it would destroy the
-      // knowledge of the "base text" for 3-way merges.
+      // knowledge of the "base text" for 3-way merges. A base the sync
+      // recorded is never ours to write: only the local marker is renewed.
       if (isNewLocalFile) {
-        await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, content, writer);
+        if (keepsSyncedBase) await this.syncRepo.updateLocalHash(fileInfo.path, sha256, writer);
+        else await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, content, writer);
       }
 
       // Insert links (rows built above): ONE multi-row batch — inserting row
@@ -509,10 +813,19 @@ export class VaultIndexer {
       }
     }
 
+    // What was indexed for a note in another encoding is a READING of it, not
+    // the note. Where this pass just recorded that reading as the merge base —
+    // or found one in a row an earlier file left under this name — the base
+    // text goes: such a note has the hash of its bytes and nothing to merge
+    // against (`mergeableText`).
+    if (!read.exact && (isNewLocalFile || !oldSyncState)) {
+      await this.syncRepo.clearBaseText(fileInfo.path, writer);
+    }
+
     // A brand-new local file is indexed (and visible) but was never enqueued for sync.
     // Buffer it; the host is notified after the transaction commits (see flush below).
     if (isNewLocalFile) {
-      this.pendingNewLocalFiles.push(fileInfo.path);
+      pass.newLocalFiles.push(fileInfo.path);
     }
   }
 
@@ -524,32 +837,36 @@ export class VaultIndexer {
    */
   private async _indexAttachmentInternal(
     fileInfo: VaultFileInfo,
+    pass: IndexPass,
     lookups?: BulkIndexLookups,
-    writer: SqlWriter = this.dbAdapter
+    writer: SqlWriter = this.dbAdapter,
+    reading?: FileReading
   ): Promise<void> {
-    const fileId = await this.generateFileId(fileInfo.path);
     // Text-like non-.md files (e.g. `.base`, `.canvas`) must be hashed the SAME way the
-    // conflict-aware adapter and sync worker hash them — a text hash of the decoded
-    // content — and need a base_text for 3-way merges. Hashing them as raw bytes here
-    // produced a permanent hash mismatch vs. the (text-hashing) write path, which made
-    // every save of a `.base` file create a spurious .CONFLICT. Truly binary files
-    // (images, PDFs, …) keep the byte hash and have no base_text.
+    // conflict-aware adapter and sync worker hash them, and need a base_text for 3-way
+    // merges. Hashing them as raw bytes here, next to a write path that hashed the text
+    // it had read, once produced a permanent hash mismatch, which made every save of a
+    // `.base` file create a spurious .CONFLICT. The two agree for UTF-8 text — the hash
+    // of the text IS the hash of the bytes — and `readLocalText` gives that one hash.
+    // A file that is text by its name and not by its bytes (a `.csv` in Windows-1252,
+    // a `.txt` in UTF-16) has the hash of its bytes and no base_text, like the truly
+    // binary files (images, PDFs, …).
     const textLike = isTextFile(fileInfo.path);
-    let sha256: string;
-    let textContent: string | null = null;
-    if (textLike) {
-      textContent = await this.vaultAdapter.readTextFile(fileInfo.path);
-      sha256 = await sha256Hash(textContent);
-    } else {
-      const bytes = await this.vaultAdapter.readBinaryFile(fileInfo.path);
-      sha256 = await sha256Bytes(bytes);
-    }
+    const { sha256, textContent } = await this.attachmentContent(fileInfo, textLike, reading);
 
     const existingFileState = lookups
-      ? lookups.fileStateById.get(fileId) ?? null
-      : await this.dbAdapter.queryOne<{ sync_state: string | null; ctime?: number | null }>(
-          `SELECT sync_state, ctime FROM files WHERE id = ?`,
-          [fileId]
+      ? lookups.fileStateByPath.get(fileInfo.path) ?? null
+      : // The row at this PATH, exactly as for a note (issue 113): a file
+        // moved or renamed in the app keeps the id of its old path. Asked by
+        // id alone, a database or a table that had just been moved read as
+        // unknown to the index — its sync row (which travels with the move)
+        // as orphaned, the file as brand-new: announced for an upload nobody
+        // needed, its creation time reset, and its merge base replaced by
+        // the current text (finding 2026-10-09; the fix for notes had left
+        // this route behind).
+        await this.dbAdapter.queryOne<{ sync_state: string | null; ctime?: number | null }>(
+          `SELECT sync_state, ctime FROM files WHERE path = ? COLLATE BINARY`,
+          [fileInfo.path]
         );
     const hasPendingQueueOp = lookups
       ? lookups.queuedPaths.has(fileInfo.path)
@@ -571,8 +888,15 @@ export class VaultIndexer {
     const oldSyncState = lookups
       ? lookups.syncStateByPath.get(fileInfo.path) ?? null
       : await this.syncRepo.getSyncState(fileInfo.path);
-    const knownToIndex = lookups ? lookups.knownPaths.has(fileInfo.path) : existingFileState !== null;
-    const { isNewLocalFile } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex);
+    const knownToIndex = existingFileState !== null;
+    const markerNamesThisFile = textContent !== null && await isMarkerTakenWithoutMark({ text: textContent, sha256 }, oldSyncState);
+    const { isNewLocalFile, keepsSyncedBase } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex, pass, markerNamesThisFile);
+    this.touch(fileInfo.path);
+    // The id the row is written under (rowIdFor), asked after the lookups above.
+    const fileId = await this.rowIdFor(fileInfo.path, lookups);
+    // What `indexFile` hands back: nothing a view draws from changes for a
+    // file the index already held. Only the single-file route is asked.
+    if (!lookups) pass.metadataChanged = existingFileState === null;
 
     // `OR path = ?` for the same reason as in _indexFileInternal: a renamed row
     // keeps its old id, so deleting by id alone would leave it and the INSERT
@@ -585,14 +909,21 @@ export class VaultIndexer {
     );
 
     if (isNewLocalFile) {
-      if (textLike && textContent !== null) {
+      if (textLike && textContent !== null && !keepsSyncedBase) {
         // Text-like file: store a base_text so it is mergeable, matching the write path.
         await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, textContent, writer);
       } else {
-        // Byte hash only — true binary files have no base_text.
+        // Hash only — true binary files have no base_text, and a text file the
+        // sync knows keeps the base the sync recorded (see judgeSyncState).
         await this.syncRepo.updateLocalHash(fileInfo.path, sha256, writer);
       }
-      this.pendingNewLocalFiles.push(fileInfo.path);
+      pass.newLocalFiles.push(fileInfo.path);
+    }
+
+    // Text by its name and not by its bytes: no base_text either — not even
+    // the one an earlier file under this name left in its row.
+    if (isNewLocalFile && textLike && textContent === null) {
+      await this.syncRepo.clearBaseText(fileInfo.path, writer);
     }
   }
 
@@ -604,47 +935,99 @@ export class VaultIndexer {
    * folders change many paths at once; the caller falls back to the full scan).
    */
   async indexPath(path: string): Promise<"indexed" | "removed" | "unchanged" | "needs-full-scan"> {
-    if (isInternalPath(path)) return "unchanged";
+    const outcome = await this.inspectPath(path);
+    return outcome === "directory" || outcome === "folder-gone" ? "needs-full-scan" : outcome;
+  }
 
-    let info: VaultFileInfo | null = null;
-    try {
-      info = await this.vaultAdapter.getFileInfo(path);
-    } catch {
-      info = null;
-    }
+  /**
+   * `indexPath`, but saying WHICH folder case it met instead of folding both
+   * into "needs-full-scan" (issue #122). The two are not the same thing:
+   *  - `directory` — the path is a folder that exists. Whether that needs a
+   *    full scan depends on what happened to it: created, renamed or moved in,
+   *    many paths changed at once; merely reported as modified — which Windows
+   *    does for the parent of every file written, the app's own saves
+   *    included — nothing below it moved, and a flat look at the folder is
+   *    enough. Only the caller knows the event, so it decides.
+   *  - `folder-gone` — nothing is on disk, but indexed files still live under
+   *    the path: a folder deleted or moved away outside Plainva. That always
+   *    needs the full scan, which purges the rows and reports every deletion
+   *    to the sync layer.
+   */
+  async inspectPath(path: string): Promise<"indexed" | "removed" | "unchanged" | "directory" | "folder-gone"> {
+    if (isInternalPath(path)) return "unchanged";
+    return this.inPass((pass) => this.inspectPathIn(path, pass));
+  }
+
+  private async inspectPathIn(path: string, pass: IndexPass): Promise<"indexed" | "removed" | "unchanged" | "directory" | "folder-gone"> {
+    // A look that fails throws (`lookAt`): nothing is known about the path,
+    // its row stays and nobody is told. The caller sees a pass that could not
+    // be made, as for any other failure in here; the two that follow files
+    // on their own — the desktop's watcher queue, the phone's door — come again.
+    const info = await this.lookAt(path);
 
     if (!info) {
-      // Gone from disk. Only fire the deletion flow if it was actually indexed.
-      const known = await this.dbAdapter.queryOne<{ id: string }>(
-        `SELECT id FROM files WHERE path = ?`,
-        [path]
-      );
-      if (known && (await this.isVanishedAppleDouble(path))) {
-        // An AppleDouble sidecar an older version indexed: the header can no
-        // longer be read, so the path-only rule decides (systemJunk.ts). It
-        // leaves the index without a word to the sync layer — the copy in the
-        // cloud stays where it is (E10).
-        await this.deleteIndexRows([path]);
-        return "removed";
-      }
-      if (!known) {
-        // No exact row: this may have been a FOLDER — folders never get files rows,
-        // only their contained files do. If any indexed file still lives under the
-        // vanished path, the folder was deleted externally: hand off to the full
-        // scan, which purges the stale child rows and fires onLocalFileDeleted for
-        // each (so remote deletes propagate). The trailing "/" keeps a deleted FILE
-        // named "a" from matching a sibling "a.md" or a folder "ab/".
-        const child = await this.dbAdapter.queryOne<{ id: string }>(
-          `SELECT id FROM files WHERE path LIKE ? ESCAPE '\\' LIMIT 1`,
-          [escapeLikePrefix(path) + "/%"]
+      // Gone from disk. Asked and answered in ONE transaction of this pass's
+      // own, and reported once that is through (finding 2026-10-12). On a
+      // database with a single connection — the phone's — a statement outside
+      // a transaction rides in whichever one is open. There the row's removal
+      // was reported, the sync worker's "that deletion was mine" spent — and
+      // the row back in the index when that transaction (a full scan's) was
+      // rolled back, for the next scan to report to a register that had
+      // answered already. And the question itself could be answered wrongly:
+      // a scan's own removal of the row, not committed yet, read as "nothing
+      // here", and nobody came back when that scan failed. A second
+      // transaction waits for the first in both shells (the phone's since
+      // 2026-10-12, when its adapter stopped passing the plugin's refusal on),
+      // so this pass waits its turn.
+      // The row that goes, for whoever asks whose deletion this was.
+      let gone: IndexedRowStamp | undefined;
+      const outcome = await this.dbAdapter.transaction(async (): Promise<"reported" | "removed" | "unchanged" | "folder-gone"> => {
+        // Only fire the deletion flow if it was actually indexed.
+        const known = await this.dbAdapter.queryOne<{ mtime_local: number | null }>(
+          `SELECT mtime_local FROM files WHERE path = ?`,
+          [path]
         );
-        if (child) return "needs-full-scan";
-        return "unchanged";
-      }
-      await this.removePathFromIndex(path);
+        if (known && (await this.isVanishedAppleDouble(path))) {
+          // An AppleDouble sidecar an older version indexed: the header can no
+          // longer be read, so the path-only rule decides (systemJunk.ts). It
+          // leaves the index without a word to the sync layer — the copy in the
+          // cloud stays where it is (E10).
+          await this.deleteIndexRows([path]);
+          return "removed";
+        }
+        if (!known) {
+          // No exact row: this may have been a FOLDER — folders never get files rows,
+          // only their contained files do. If any indexed file still lives under the
+          // vanished path, the folder was deleted externally: hand off to the full
+          // scan, which purges the stale child rows and fires onLocalFileDeleted for
+          // each (so remote deletes propagate). The trailing "/" keeps a deleted FILE
+          // named "a" from matching a sibling "a.md" or a folder "ab/".
+          const child = await this.dbAdapter.queryOne<{ id: string }>(
+            `SELECT id FROM files WHERE path LIKE ? ESCAPE '\\' LIMIT 1`,
+            [escapeLikePrefix(path) + "/%"]
+          );
+          return child ? "folder-gone" : "unchanged";
+        }
+        // Somebody indexed the path, or reported it, since this pass began: not this pass's any more.
+        if (this.stillMine([path], pass).length === 0) return "unchanged";
+        // The look at the disk may be seconds old by now — where a second
+        // transaction waits, this pass stood behind a full scan. A file that
+        // is back is left alone; its own event, or the next pass, indexes it.
+        // And only a file that is PROVEN gone leaves: a look that fails now
+        // throws, and "not found" proves nothing in a vault whose own folder
+        // is away. That folder is asked before AND after the look: a share
+        // that comes back or drops once in between answers one of the two
+        // (one that drops and returns between the two questions does not).
+        if (!(await this.vaultIsThere()) || (await this.lookAt(path)) || !(await this.vaultIsThere())) return "unchanged";
+        await this.deleteIndexRows([path]);
+        gone = indexedRowStamp(known.mtime_local);
+        return "reported";
+      });
+      if (outcome !== "reported") return outcome;
+      this.reportRemoved([path], pass.since, () => gone);
       return "removed";
     }
-    if (info.isDirectory) return "needs-full-scan";
+    if (info.isDirectory) return "directory";
 
     if (await this.isAppleDoubleOnDisk(info)) {
       // macOS metadata, not a note (E10). A row an older version wrote goes,
@@ -655,6 +1038,12 @@ export class VaultIndexer {
       return "removed";
     }
 
+    // The file is there. Whoever read the index before this moment and misses
+    // the file in an older listing does not report it gone, and where it has
+    // not decided yet it leaves the row too (stillMine) — also when this pass
+    // does not get to write.
+    this.touch(path);
+
     // Same mtime as indexed -> the event is an echo (our own save already
     // re-indexed the file, or a no-op touch): skip the re-parse.
     const knownRow = await this.dbAdapter.queryOne<{ mtime_local: number }>(
@@ -663,20 +1052,124 @@ export class VaultIndexer {
     );
     if (knownRow && Number(knownRow.mtime_local) === info.mtime) return "unchanged";
 
-    this.pendingNewLocalFiles = [];
-    this.pendingExternalMods = [];
     await this.dbAdapter.transaction(async () => {
       if (info!.name.endsWith(".md")) {
-        await this._indexFileInternal(info!);
+        await this._indexFileInternal(info!, pass);
       } else if (!isInternalPath(info!.path)) {
-        await this._indexAttachmentInternal(info!);
+        await this._indexAttachmentInternal(info!, pass);
       }
     });
-    this.flushCallbacks();
+    this.flushCallbacks(pass);
     return "indexed";
   }
 
-  /** De-indexes one path (files row cascades to links/tags/properties, plus FTS). */
+  /**
+   * One look at a path: the file or folder that is there, or null when the
+   * adapter says nothing is there. A look that failed throws what the adapter
+   * threw (finding 2026-10-13).
+   *
+   * Every failure used to count as "missing". The row left the index, the host
+   * was told the file had been deleted and queued its deletion on the remote:
+   * a file that was locked for a moment, sat on a share that had dropped or
+   * behind a provider that did not answer was deleted on every other device.
+   *
+   * Absent is what the adapter SAYS is absent — its not-found error, or,
+   * where the metadata call failed with something else, its existence check
+   * (the desktop adapter asks "is it there" and then reads the metadata; a
+   * file removed between the two fails with the platform's own message, and
+   * that deletion must not stay in the index for good). Where the existence
+   * check fails as well, or says the path is there, the answer is open, and
+   * the pass fails with the metadata call's error: the desktop's watcher
+   * queue and the phone's `pathReindex` try such a path again and then leave
+   * it to the full scan; a caller that indexes a path it just wrote sees the
+   * error, as it does when the file cannot be read.
+   */
+  private async lookAt(path: string): Promise<VaultFileInfo | null> {
+    try {
+      return await this.vaultAdapter.getFileInfo(path);
+    } catch (error) {
+      if ((error as { code?: unknown } | null)?.code === "FILE_NOT_FOUND") return null;
+      const there = await this.vaultAdapter.exists(path).catch(() => true);
+      if (there) throw error;
+      return null;
+    }
+  }
+
+  /** Reads a file the way its kind is indexed: as text where its name says so, else as bytes. */
+  private async readForIndex(fileInfo: VaultFileInfo): Promise<FileReading> {
+    if (fileInfo.name.endsWith(".md") || isTextFile(fileInfo.path)) {
+      return { kind: "text", read: await readLocalText(this.vaultAdapter, fileInfo.path) };
+    }
+    return { kind: "bytes", sha256: await sha256Bytes(await this.vaultAdapter.readBinaryFile(fileInfo.path)) };
+  }
+
+  /** What an attachment is indexed with: the hash of its bytes, and its text where it is one. */
+  private async attachmentContent(
+    fileInfo: VaultFileInfo,
+    textLike: boolean,
+    reading?: FileReading,
+  ): Promise<{ sha256: string; textContent: string | null }> {
+    const read = reading ?? (await this.readForIndex(fileInfo));
+    if (read.kind === "bytes") return { sha256: read.sha256, textContent: null };
+    return { sha256: read.read.sha256, textContent: textLike && read.read.exact ? read.read.text : null };
+  }
+
+  /**
+   * Reads one file for a pass over many — the full scan, a folder re-read —
+   * or leaves it out of that pass (issue #125).
+   *
+   * Such a pass used to end at the first file whose read failed, and with it
+   * everything it had found. On an iPhone one link in an iCloud vault that
+   * pointed at a folder on the user's Mac did that to every scan: the folder
+   * plugin listed the link as a file, its read failed, and the first scan of
+   * the vault never completed — the phone ran the vault without an index.
+   *
+   * A file that is there and cannot be read is now named in `unreadable` and
+   * left out; whatever the index held for it stays as it was, and the next
+   * pass tries again. A file whose read fails because it is not there any
+   * more — gone between the listing and the read, which the adapter's own
+   * existence check confirms — is left out without a word: the next pass sees
+   * it missing and says so then. Answers nobody can give count as "there".
+   * A single path is one question and keeps its answer: a read that fails
+   * fails it, and its caller comes again.
+   */
+  private async readOrLeaveOut(fileInfo: VaultFileInfo, unreadable: VaultWalkSkip[]): Promise<FileReading | null> {
+    try {
+      return await this.readForIndex(fileInfo);
+    } catch (error) {
+      const missing = (error as { code?: unknown } | null)?.code === "FILE_NOT_FOUND";
+      if (missing && !(await this.vaultAdapter.exists(fileInfo.path).catch(() => true))) return null;
+      unreadable.push({ path: fileInfo.path, reason: "unreadable" });
+      return null;
+    }
+  }
+
+  /**
+   * Whether the vault's own folder is there (`exists("")`), asked before a
+   * path's absence is taken for a deletion.
+   *
+   * Where it is not — a network drive that dropped, a removable disk, a picked
+   * folder whose provider is away — every path in it honestly answers "not
+   * found", and none of that is a deletion. Unknown counts as away. The full
+   * scan needs no such question: it judges from a listing of that folder,
+   * which fails or reports the folder unreadable.
+   *
+   * This knows the vault's own folder and nothing below it: a folder mounted
+   * or linked INTO the vault whose target dropped, or a vault that is a mount
+   * point left behind empty, still answers "not found" in a folder that is
+   * there. Nothing here can tell that from a deletion.
+   */
+  private vaultIsThere(): Promise<boolean> {
+    return this.vaultAdapter.exists("").catch(() => false);
+  }
+
+  /**
+   * De-indexes one path (files row cascades to links/tags/properties, plus FTS)
+   * and tells the host: the door for a file the app itself removed. It always
+   * reports — the caller knows the file went, row or no row. A pass that FINDS
+   * a file gone is `inspectPathIn`, which asks first whether the path is still
+   * its to judge.
+   */
   async removePathFromIndex(path: string): Promise<void> {
     // Keyed on the PATH, not on sha256(path). `path` is UNIQUE, so this hits
     // exactly the row being de-indexed — including one whose id went stale when
@@ -688,8 +1181,9 @@ export class VaultIndexer {
     // de-indexing the old path deleted a note that exists.
     await this.deleteIndexRows([path]);
     // Same contract as the full scan: sync_state stays (the remote delete must
-    // be pushed first); the host reacts via onLocalFileDeleted.
-    this.options?.onLocalFileDeleted?.(path);
+    // be pushed first); the host reacts via onLocalFileDeleted. Measured from
+    // now: the caller knows the file went, whatever a pass under way has read.
+    this.reportRemoved([path], this.touchClock);
   }
 
   /**
@@ -703,11 +1197,19 @@ export class VaultIndexer {
    * the stale record of an earlier file there and gives way. The caller
    * re-indexes the destination afterwards (indexPath or the full scan), which
    * finds the row by its path and treats it as the known file it is.
+   *
+   * Both ends of every row's way count as touched (`stillMine`): a pass that
+   * read the index before the move leaves the row at the destination alone,
+   * and does not report the source gone — the file is not gone, it moved
+   * (finding 2026-10-12). For the rows a queued rename has brought over
+   * already, the source is counted back from where they are.
    */
   async relocatePathInIndex(from: string, to: string): Promise<void> {
     if (!from || !to || from === to) return;
     const fromPrefix = from + "/";
+    const toPrefix = to + "/";
     const move = (p: string): string => (p === from ? to : to + p.substring(from.length));
+    const back = (p: string): string => (p === to ? from : from + p.substring(to.length));
     await this.dbAdapter.transaction(async () => {
       // Literal, case-sensitive prefix match — the same rule as queueRename.
       const rows = await this.dbAdapter.query<{ path: string }>(
@@ -719,6 +1221,17 @@ export class VaultIndexer {
       if (stale.length > 0) await this.deleteIndexRows(stale);
       for (const { path } of rows) {
         await this.dbAdapter.execute(`UPDATE files SET path = ?, mtime_local = 0 WHERE path = ?`, [move(path), path]);
+      }
+      // Asked only while a pass is under way: nobody else holds an older reading.
+      if (this.openPasses > 0) {
+        const arrived = await this.dbAdapter.query<{ path: string }>(
+          `SELECT path FROM files WHERE path = ? COLLATE BINARY OR substr(path, 1, length(?)) = ? COLLATE BINARY`,
+          [to, toPrefix, toPrefix]
+        );
+        for (const { path } of arrived) {
+          this.touch(back(path));
+          this.touch(path);
+        }
       }
       const ftsRows = await this.dbAdapter.query<{ path: string }>(
         `SELECT path FROM fts_notes WHERE path = ? OR substr(path, 1, length(?)) = ?`,
@@ -800,12 +1313,17 @@ export class VaultIndexer {
    * read protects everything under it, an excluded path (internal, OS junk,
    * AppleDouble) is forgotten without being reported, and only a genuinely
    * vanished file reaches `onLocalFileDeleted`. A folder that is itself gone
-   * counts as empty only when the adapter says so (`exists` is false).
+   * counts as empty only when the adapter says so (`exists` is false) and the
+   * vault's own folder is there (`vaultIsThere`).
    */
   async reconcileFolder(folder: string, opts: { recursive?: boolean } = {}): Promise<FolderReconcileReport> {
+    return this.inPass((pass) => this.reconcileFolderIn(folder, opts, pass));
+  }
+
+  private async reconcileFolderIn(folder: string, opts: { recursive?: boolean }, pass: IndexPass): Promise<FolderReconcileReport> {
     const recursive = opts.recursive ?? true;
     const root = trimChars(folder.replace(/\\/g, "/"), "/");
-    const report: FolderReconcileReport = { indexed: [], removed: [], skipped: [], foldersRemoved: false };
+    const report: FolderReconcileReport = { indexed: [], removed: [], skipped: [], foldersRemoved: false, foldersChanged: false };
     if (root && isInternalPath(root)) return report;
 
     let listing: VaultListing;
@@ -820,18 +1338,21 @@ export class VaultIndexer {
     // The folder itself could not be listed. Proven absent → it is empty (its
     // rows go); anything else → nothing here can be judged.
     if (skipped.some((s) => s.path === root || (!s.path && !root))) {
-      const gone = root !== "" && (await this.vaultAdapter.exists(root).then((e) => !e, () => false));
+      const gone = root !== "" && (await this.vaultAdapter.exists(root).then((e) => !e, () => false)) && (await this.vaultIsThere());
       if (!gone) {
         report.skipped = skipped;
         return report;
       }
       listing = { files: [], skipped: [] };
       skipped = [];
+      // The folder itself is gone, and so is its place in the folder list.
+      if (this.lastScanFolders?.delete(root)) report.foldersChanged = true;
     }
     report.skipped = skipped;
 
     const inFolder = root ? `${root}/` : "";
     const diskDirs = new Set(listing.files.filter((f) => f.isDirectory).map((f) => f.path));
+    if (this.syncScanFolders(inFolder, recursive, diskDirs, skipped)) report.foldersChanged = true;
     const diskFiles = listing.files.filter((f) => !f.isDirectory && !isInternalPath(f.path));
     const appleDouble = new Set<string>();
     for (const f of diskFiles) {
@@ -877,9 +1398,16 @@ export class VaultIndexer {
 
     const vanished: string[] = [];
     const silent: string[] = [];
-    for (const path of scoped.keys()) {
+    for (const [path, indexedAt] of scoped) {
       if (onDisk.has(path)) continue;
       if (skipped.some((s) => !s.path || s.path === path || path.startsWith(`${s.path}/`))) continue;
+      // A row the app moved here and no pass has read since — a move leaves
+      // the timestamp at 0 for exactly that — can be younger than the listing
+      // above: this pass lists the disk first and reads the index after. Such
+      // files were taken for vanished, removed from the index and reported
+      // gone under their NEW path while they lay there (finding 2026-10-12).
+      // The file itself is asked for; an answer that fails proves nothing.
+      if (indexedAt === 0 && (await this.vaultAdapter.exists(path).catch(() => true))) continue;
       const excluded = isInternalPath(path) || appleDouble.has(path)
         || (await this.isVanishedAppleDouble(path, (p) => scoped.has(p) || onDisk.has(p)));
       (excluded ? silent : vanished).push(path);
@@ -887,32 +1415,108 @@ export class VaultIndexer {
     const toIndex = [...onDisk.values()].filter((f) => scoped.get(f.path) !== f.mtime);
 
     if (vanished.length === 0 && silent.length === 0 && toIndex.length === 0) return report;
-    this.pendingNewLocalFiles = [];
-    this.pendingExternalMods = [];
-    await this.dbAdapter.transaction(async () => {
-      await this.deleteIndexRows([...vanished, ...silent]);
+    // The files this re-read indexed, and the ones that are there and could not be read (readOrLeaveOut).
+    const indexed: string[] = [];
+    const unreadable: VaultWalkSkip[] = [];
+    const mine = await this.dbAdapter.transaction(async () => {
+      // Asked as late as it can be: what another pass indexed or reported
+      // since this one began is not this one's to remove (stillMine).
+      const mine = new Set(this.stillMine([...vanished, ...silent], pass));
       for (const f of toIndex) {
-        if (f.name.endsWith(".md")) await this._indexFileInternal(f);
-        else await this._indexAttachmentInternal(f);
+        const reading = await this.readOrLeaveOut(f, unreadable);
+        if (!reading) continue;
+        if (f.name.endsWith(".md")) await this._indexFileInternal(f, pass, undefined, undefined, reading);
+        else await this._indexAttachmentInternal(f, pass, undefined, undefined, reading);
+        indexed.push(f.path);
       }
+      // The rows of what went leave last, as in the full scan: a re-read that
+      // fails on a file has not removed what it never gets to report.
+      await this.deleteIndexRows([...mine]);
+      return mine;
+    }).catch((error: unknown) => {
+      // No batches here: whatever ran is in.
+      this.announceWhatStays(pass, { news: pass.newLocalFiles.length, mods: pass.externalMods.length });
+      throw error;
     });
-    this.flushCallbacks();
-    for (const path of vanished) this.options?.onLocalFileDeleted?.(path);
-    report.indexed = toIndex.map((f) => f.path);
-    report.removed = [...vanished, ...silent];
+    this.flushCallbacks(pass);
+    this.reportRemoved(vanished.filter((path) => mine.has(path)), pass.since, (path) => indexedRowStamp(scoped.get(path)));
+    report.indexed = indexed;
+    report.removed = [...vanished, ...silent].filter((path) => mine.has(path));
+    if (unreadable.length > 0) report.skipped = [...report.skipped, ...unreadable];
     return report;
   }
 
-  /** Fires buffered new-file and external-modification callbacks (post-transaction). */
-  private flushCallbacks(): void {
+  /**
+   * Brings the folder list of the last full scan up to date with what a
+   * folder reconcile just saw below `inFolder` ("" for the root, else with a
+   * trailing slash), and says whether it differed. Flat: the folder's direct
+   * subfolders are compared, and a subfolder that is gone takes everything the
+   * list held below it along. Recursive: every folder below is compared.
+   * A folder under an entry the walk could not read is left as it is.
+   */
+  private syncScanFolders(inFolder: string, recursive: boolean, diskDirs: Set<string>, skipped: VaultWalkSkip[]): boolean {
+    const known = this.lastScanFolders;
+    if (!known) return false;
+    const unjudged = (p: string) => skipped.some((s) => !s.path || s.path === p || p.startsWith(`${s.path}/`));
+    let changed = false;
+    const gone: string[] = [];
+    for (const folder of known) {
+      if (!folder.startsWith(inFolder) || diskDirs.has(folder) || unjudged(folder)) continue;
+      const rest = folder.slice(inFolder.length);
+      if (!rest) continue;
+      if (recursive) {
+        gone.push(folder);
+        continue;
+      }
+      const slash = rest.indexOf("/");
+      const child = slash < 0 ? folder : folder.slice(0, inFolder.length + slash);
+      // Flat: a deeper folder goes only together with the direct subfolder it sits in.
+      if (!diskDirs.has(child) && !unjudged(child)) gone.push(folder);
+    }
+    for (const folder of gone) {
+      known.delete(folder);
+      changed = true;
+    }
+    for (const folder of diskDirs) {
+      if (isInternalPath(folder) || known.has(folder)) continue;
+      known.add(folder);
+      changed = true;
+    }
+    return changed;
+  }
+
+  /**
+   * What a pass that FAILED still has to say (finding 2026-10-12).
+   *
+   * Where its transaction took everything back, nothing: it wrote nothing,
+   * and the next pass finds every file as this one did. The desktop's database
+   * keeps what a failed transaction wrote
+   * (`IDatabaseAdapter.keepsWhatAFailedTransactionWrote`): the files this pass
+   * had indexed stay indexed, the next pass finds them as it left them and
+   * has nothing to say about them — a new file was not queued for upload
+   * before the sweep of the next sync start, a change another program made
+   * to a known file not at all. So what the pass found about the files it
+   * wrote is said now. `written` is how far its finds had been handed to the
+   * database when it failed; the rows of files that went are removed last by
+   * every pass and are never part of it.
+   */
+  private announceWhatStays(pass: IndexPass, written: { news: number; mods: number }): void {
+    if (!this.dbAdapter.keepsWhatAFailedTransactionWrote) return;
+    pass.newLocalFiles.length = Math.min(pass.newLocalFiles.length, written.news);
+    pass.externalMods.length = Math.min(pass.externalMods.length, written.mods);
+    this.flushCallbacks(pass);
+  }
+
+  /** Fires the new-file and external-modification callbacks of one pass (post-transaction). */
+  private flushCallbacks(pass: IndexPass): void {
     if (this.options?.onExternalModification) {
-      for (const m of this.pendingExternalMods) this.options.onExternalModification(m.path, m.oldHash, m.newHash);
+      for (const m of pass.externalMods) this.options.onExternalModification(m.path, m.oldHash, m.newHash);
     }
     if (this.options?.onNewLocalFile) {
-      for (const path of this.pendingNewLocalFiles) this.options.onNewLocalFile(path);
+      for (const path of pass.newLocalFiles) this.options.onNewLocalFile(path);
     }
-    this.pendingExternalMods = [];
-    this.pendingNewLocalFiles = [];
+    pass.externalMods = [];
+    pass.newLocalFiles = [];
   }
 
   /**
@@ -922,9 +1526,43 @@ export class VaultIndexer {
    */
   private fullScan: Promise<IndexScanReport> | null = null;
 
-  indexVaultFull(): Promise<IndexScanReport> {
+  /**
+   * The folders the previous full scan saw on disk; null before the first one.
+   * What `IndexScanReport.foldersChanged` is measured against.
+   */
+  private lastScanFolders: Set<string> | null = null;
+
+  /**
+   * `trigger` names why the scan runs, for the diagnostics line (`onFullScan`):
+   * a short token such as "open", "manual refresh" or "watcher: folder
+   * created or renamed" — never a path. A caller that joins a scan already
+   * under way gets that scan's report; its own trigger is not recorded.
+   */
+  indexVaultFull(trigger = "unspecified"): Promise<IndexScanReport> {
     if (this.fullScan) return this.fullScan;
-    const run = this.indexVaultFullInternal().finally(() => { if (this.fullScan === run) this.fullScan = null; });
+    const run = this.inPass((pass) => this.indexVaultFullInternal(pass))
+      .then((report) => {
+        // Like a failure, not said for a vault that is being closed: a scan
+        // past its last look at the signal still gets through, and its
+        // notice — or the sweep it lifts — belongs to no open vault.
+        if (this.options?.scanSignal?.aborted) return report;
+        try {
+          this.options?.onFullScan?.({ ...report, trigger });
+        } catch (e) {
+          console.warn("[VaultIndexer] onFullScan failed", e);
+        }
+        return report;
+      }, (error: unknown) => {
+        if (!this.options?.scanSignal?.aborted) {
+          try {
+            this.options?.onFullScanFailed?.({ trigger, error });
+          } catch (e) {
+            console.warn("[VaultIndexer] onFullScanFailed failed", e);
+          }
+        }
+        throw error;
+      })
+      .finally(() => { if (this.fullScan === run) this.fullScan = null; });
     this.fullScan = run;
     return run;
   }
@@ -932,16 +1570,100 @@ export class VaultIndexer {
   /** The owner closes the shared database only after an already-started commit. */
   async whenIdle(): Promise<void> { await this.fullScan?.catch(() => {}); }
 
-  private async indexVaultFullInternal(): Promise<IndexScanReport> {
+  /**
+   * Whether a full scan has gone through on this index since it was empty
+   * (issue 125). The number of rows cannot tell: on the desktop a first scan
+   * that fails keeps the rows it had written, after any failed first scan
+   * saves and the watcher write rows of their own, and the next start took
+   * that index for a whole one — the files the failed scan never reached were
+   * then announced as new before the first pull, which is what the deferral
+   * of a cold index exists to prevent. A scan that went through counts even
+   * where it left out a folder it could not read: an index owed a scan until
+   * that folder can be read would hold the task notes of a vault with one
+   * dead link back for good.
+   */
+  async indexComplete(): Promise<boolean> {
+    return !(await this.indexOwed());
+  }
+
+  /** Whether the mark that this index is owed a full scan stands (read with `query`, not a write). */
+  private async indexOwed(): Promise<boolean> {
+    const rows = await this.dbAdapter.query<{ value?: string | null }>(`SELECT value FROM meta WHERE key = ?`, [INDEX_OWED_KEY]);
+    return rows.some((row) => row.value === "1");
+  }
+
+  /**
+   * "Rebuild the index" (Maintenance, the palette) — one way for both shells
+   * (finding 2026-10-12).
+   *
+   * Every file is read again: the timestamp each row was last read at is
+   * forgotten (a move in the app leaves 0 for the same purpose), so the full
+   * scan that follows reads every file there is. What cannot be read again
+   * stays — a row's creation time (the pinboard orders the cards nobody
+   * arranged by it), its sync label, the merge base in its sync row — and a
+   * file the sync knows is no new file to announce. A row whose file is gone
+   * is removed and reported like in every scan. What belongs to no file goes:
+   * search entries, links, tags and properties of rows that are gone.
+   *
+   * The phone used to run the ordinary scan, which reads only what changed
+   * by its timestamp — a note changed under an unchanged timestamp, or
+   * indexed wrongly, stayed as it was. The desktop dropped every row first:
+   * every file came back as a new one, announced for an upload nobody
+   * needed, its creation time and sync label lost, and a row whose file had
+   * gone was forgotten without being reported.
+   *
+   * A scan under way has read the index already and is let finish first; the
+   * scan this answers with begins after the reset.
+   */
+  async rebuildIndex(trigger = "index rebuild"): Promise<IndexScanReport> {
+    await this.whenIdle();
+    await this.dbAdapter.transaction(async () => {
+      await this.dbAdapter.execute(`UPDATE files SET mtime_local = 0`);
+      await this.dbAdapter.execute(`DELETE FROM fts_notes WHERE path NOT IN (SELECT path FROM files)`);
+      await this.dbAdapter.execute(`DELETE FROM links WHERE source_id IS NULL OR source_id NOT IN (SELECT id FROM files)`);
+      await this.dbAdapter.execute(`DELETE FROM tags WHERE file_id IS NULL OR file_id NOT IN (SELECT id FROM files)`);
+      await this.dbAdapter.execute(`DELETE FROM properties WHERE file_id IS NULL OR file_id NOT IN (SELECT id FROM files)`);
+    });
+    // A scan that began before the reset read the old timestamps and would
+    // read only what changed by them; the rebuild waits it out and runs its
+    // own. One that begins after the reset reads everything.
+    await this.whenIdle();
+    return this.indexVaultFull(trigger);
+  }
+
+  private async indexVaultFullInternal(pass: IndexPass): Promise<IndexScanReport> {
     const signal = this.options?.scanSignal;
     signal?.throwIfAborted();
     const startedAt = Date.now();
-    this.pendingNewLocalFiles = [];
-    this.pendingExternalMods = [];
-    const dbFiles = await this.dbAdapter.query<{path: string, mtime_local: number}>(
-      `SELECT path, mtime_local FROM files`
+    // The row each path has as the scan begins: its timestamp decides what is
+    // read again, its rowid tells a row the app moves meanwhile (movedAway).
+    const dbFiles = await this.dbAdapter.query<IndexedAtScanStart>(
+      `SELECT rowid, path, mtime_local FROM files`
     );
-    const dbFileMap = new Map(dbFiles.map(f => [f.path, f.mtime_local]));
+    // An index is owed a full scan from the moment one begins on it empty
+    // until one goes through (indexComplete). A scan that gets to write says
+    // so with its first batch and takes it back with its last; one that does
+    // not go through says so here at the latest.
+    const startsEmpty = dbFiles.length === 0;
+    try {
+      return await this.scanFrom(pass, dbFiles, startsEmpty, startedAt);
+    } catch (error) {
+      // However far a first scan got — its walk, its lookups, a tail that was
+      // its only batch —, the rows that saves and the watcher write after it
+      // are no whole index, and the next start must not take them for one.
+      // Not when it was called off: the vault is being closed.
+      if (startsEmpty && !signal?.aborted) {
+        await this.dbAdapter.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, [INDEX_OWED_KEY])
+          .catch((e: unknown) => console.warn("[VaultIndexer] could not note that the index is owed a full scan", e));
+      }
+      throw error;
+    }
+  }
+
+  /** The full scan, against the rows the index held as it began (indexVaultFullInternal). */
+  private async scanFrom(pass: IndexPass, dbFiles: readonly IndexedAtScanStart[], startsEmpty: boolean, startedAt: number): Promise<IndexScanReport> {
+    const signal = this.options?.scanSignal;
+    const dbFileMap = new Map(dbFiles.map(f => [f.path, f]));
 
     // Prefer the reporting walk so skipped entries (link cycles, unreadable
     // folders) reach the report instead of vanishing silently.
@@ -961,30 +1683,58 @@ export class VaultIndexer {
     // used to reach the index — markdown was filtered nowhere, attachments were.
     // The adapter-side skip stays as what it is: an optimisation that avoids
     // descending into the folder at all.
-    const candidates = diskFiles.filter(f => !f.isDirectory && !isInternalPath(f.path));
+    // Everything from here to the report is plain synchronous work over every
+    // file of the vault. It shares its thread with the user's typing, so each
+    // loop lets go once it has run for a frame's worth of time (issue #122).
+    const pause = createYielder();
+    const candidates: VaultFileInfo[] = [];
+    // The folders on disk: the ones the walk listed, plus every folder a
+    // listed file sits in (for an adapter whose listing names files only).
+    const folders = new Set<string>();
+    for (const f of diskFiles) {
+      const p = pause();
+      if (p) await p;
+      if (isInternalPath(f.path)) continue;
+      if (f.isDirectory) {
+        folders.add(f.path);
+        continue;
+      }
+      candidates.push(f);
+      for (let cut = f.path.lastIndexOf("/"); cut > 0; cut = f.path.lastIndexOf("/", cut - 1)) {
+        const parent = f.path.slice(0, cut);
+        if (folders.has(parent)) break;
+        folders.add(parent);
+      }
+    }
     // AppleDouble sidecars (`._Note.md` on SMB/exFAT, E10): the header decides,
-    // read once per `._*` file — a user's own `._notes.md` stays a note.
+    // read once per `._*` file — a user's own `._notes.md` stays a note. Only a
+    // name of that shape is looked at; every other file costs nothing here.
     const appleDouble = new Set<string>();
     for (const f of candidates) {
+      if (!isAppleDoubleName(f.name)) continue;
       if (await this.isAppleDoubleOnDisk(f)) appleDouble.add(f.path);
     }
     signal?.throwIfAborted();
-    const mdFiles = candidates.filter(f => f.name.endsWith(".md") && !appleDouble.has(f.path));
-    // Non-markdown attachments (images, PDFs, …) are tracked for sync too, except
-    // internal/VCS data. Conflict copies ARE indexed (kept visible); push targets skip them.
-    const attachmentFiles = candidates.filter(f => !f.name.endsWith(".md") && !appleDouble.has(f.path));
-    const diskFilePaths = new Set([...mdFiles, ...attachmentFiles].map(f => f.path));
-    const knownOrPresent = (p: string) => dbFileMap.has(p) || diskFilePaths.has(p);
-
-    const changed = (file: VaultFileInfo) => {
-      const dbMtime = dbFileMap.get(file.path);
+    // Markdown and non-markdown attachments (images, PDFs, …) are both tracked
+    // for sync, except internal/VCS data. Conflict copies ARE indexed (kept
+    // visible); push targets skip them.
+    const diskFilePaths = new Set<string>();
+    const mdToIndex: VaultFileInfo[] = [];
+    const attachmentsToIndex: VaultFileInfo[] = [];
+    let addedCount = 0;
+    for (const file of candidates) {
+      const p = pause();
+      if (p) await p;
+      if (appleDouble.has(file.path)) continue;
+      diskFilePaths.add(file.path);
+      const dbMtime = dbFileMap.get(file.path)?.mtime_local;
       // `!==` instead of `>`: restoring an OLDER file version (Explorer copy,
       // backup restore, sync rollback) keeps the old mtime — a strictly-greater
       // check would never re-index it and the stale content would stick around.
-      return dbMtime === undefined || file.mtime !== dbMtime;
-    };
-    const mdToIndex = mdFiles.filter(changed);
-    const attachmentsToIndex = attachmentFiles.filter(changed);
+      if (dbMtime !== undefined && file.mtime === dbMtime) continue;
+      (file.name.endsWith(".md") ? mdToIndex : attachmentsToIndex).push(file);
+    }
+    const knownOrPresent = (p: string) => dbFileMap.has(p) || diskFilePaths.has(p);
     const filesToDelete: string[] = [];
 
     // Paths that are indexed but no longer on the disk listing. Two very
@@ -996,6 +1746,8 @@ export class VaultIndexer {
     // deletes for a venv and trip the mass-deletion guard on an existing vault.
     const vanishedFromDisk: string[] = [];
     for (const dbPath of dbFileMap.keys()) {
+      const p = pause();
+      if (p) await p;
       if (!diskFilePaths.has(dbPath)) {
         // An incomplete walk cannot prove a deletion. Keep the known index and
         // remote contents until this path's subtree can actually be inspected.
@@ -1008,30 +1760,64 @@ export class VaultIndexer {
         vanishedFromDisk.push(dbPath);
       }
     }
-
-    // Added vs. changed is decided against the pre-pass index snapshot: a file
-    // with no row was created outside Plainva, one with a row just moved on.
-    const isNew = (file: VaultFileInfo) => !dbFileMap.has(file.path);
-    const addedCount = mdToIndex.filter(isNew).length + attachmentsToIndex.filter(isNew).length;
-    const scannedCount = mdToIndex.length + attachmentsToIndex.length;
-    const report = (): IndexScanReport => ({
-      added: addedCount,
-      changed: scannedCount - addedCount,
-      removed: filesToDelete.length,
-      skipped,
-      durationMs: Date.now() - startedAt,
-    });
-
-    if (mdToIndex.length === 0 && attachmentsToIndex.length === 0 && filesToDelete.length === 0) {
-      return report(); // Nothing to do — but the walk still reports what it skipped.
-    }
-
-    // One-query-per-table lookups for the whole pass (P2.4) instead of three
-    // SELECT round-trips per file.
-    const lookups = await this.loadBulkLookups(new Set(dbFileMap.keys()));
     signal?.throwIfAborted();
 
+    const previousFolders = this.lastScanFolders;
+    let foldersChanged = previousFolders === null || previousFolders.size !== folders.size;
+    if (!foldersChanged) {
+      for (const folder of folders) {
+        if (!previousFolders!.has(folder)) {
+          foldersChanged = true;
+          break;
+        }
+      }
+    }
+
+    // The files this scan indexed: the ones it read (readOrLeaveOut).
+    let scannedCount = 0;
+    // Files that are there and could not be read: left out and named (issue #125).
+    const unreadable: VaultWalkSkip[] = [];
+    // The rows this scan removes: decided in its transaction (stillMine).
+    let removedRows = new Set<string>();
+    const report = (): IndexScanReport => {
+      // Remembered only by a scan that ran to its end: an aborted or failed
+      // one must not become the baseline the next scan is compared with.
+      this.lastScanFolders = folders;
+      return {
+        added: addedCount,
+        changed: scannedCount - addedCount,
+        removed: removedRows.size,
+        skipped: unreadable.length > 0 ? [...skipped, ...unreadable] : skipped,
+        durationMs: Date.now() - startedAt,
+        walked: candidates.length,
+        foldersChanged,
+      };
+    };
+
+    if (mdToIndex.length === 0 && attachmentsToIndex.length === 0 && filesToDelete.length === 0) {
+      // Nothing to do — but the walk still reports what it skipped, and an
+      // index that was owed a scan has had one now.
+      if (!startsEmpty && (await this.indexOwed())) await this.dbAdapter.execute(`DELETE FROM meta WHERE key = ?`, [INDEX_OWED_KEY]);
+      return report();
+    }
+
+    // How far this scan's finds have been handed to the database (announceWhatStays).
+    const written = { news: 0, mods: 0 };
     await this.dbAdapter.transaction(async () => {
+      // One-query-per-table lookups for the whole pass (P2.4) instead of three
+      // SELECT round-trips per file — read here, so that they are as old as
+      // the writes below and no older (loadBulkLookups).
+      const lookups = await this.loadBulkLookups();
+      // Whether an earlier scan left the index owed one (indexComplete).
+      const owedBefore = !startsEmpty && (await this.indexOwed());
+      signal?.throwIfAborted();
+      // Added vs. changed: a file with no row was created outside Plainva, one
+      // with a row just moved on. Against the index as it is now — a file
+      // whose row the app moved here since the scan began is no new file.
+      const counted = (file: VaultFileInfo) => {
+        scannedCount += 1;
+        if (!lookups.fileStateByPath.has(file.path)) addedCount += 1;
+      };
       // The cold full-scan's writes (file/fts/links/tags/properties rows + the
       // sync_state upsert for new files) are recorded into a buffer and flushed as
       // ONE atomic batch instead of one execute() — one IPC hop, one pooled
@@ -1049,30 +1835,24 @@ export class VaultIndexer {
           return Promise.resolve();
         },
       };
+      // Owed with the first rows, not only once the scan failed: on the
+      // desktop a batch that went through stays when the scan ends there —
+      // the app was closed, the process ended — and no failure is ever said.
+      if (startsEmpty) batch.push({ sql: `INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, params: [INDEX_OWED_KEY] });
       const FLUSH_AT = 4000;
+      // The flushes run inside this very transaction, and say so: where a
+      // batch is a transaction of its own (the phone's single connection), one
+      // that did not would wait for the scan it belongs to.
+      const INSIDE_THIS_SCAN = { inOpenTransaction: true } as const;
       const flushIfLarge = async () => {
         if (batch.length >= FLUSH_AT) {
-          await runStatementsAtomic(this.dbAdapter, batch);
+          await runStatementsAtomic(this.dbAdapter, batch, INSIDE_THIS_SCAN);
           batch.length = 0;
+          // Each file's finds are noted after its statements: all of them so far are in.
+          written.news = pass.newLocalFiles.length;
+          written.mods = pass.externalMods.length;
         }
       };
-
-      // Process deletions. We deliberately do NOT delete sync_state here: a file gone
-      // from disk may need a remote delete pushed first (otherwise the next pull would
-      // resurrect it). sync_state is cleaned only after the remote delete succeeds; the
-      // deletion is surfaced via onLocalFileDeleted after this transaction commits.
-      //
-      // Keyed on the PATH (issue #110, E8). It used to delete by sha256(path),
-      // but a row moved inside Plainva keeps the id of its OLD path
-      // (SyncQueue.queueRename rewrites `path` in place) — once such a file was
-      // moved again outside Plainva, the delete matched nothing and the stale
-      // row survived every full scan: a file that no longer exists stayed in
-      // the tree for good. removePathFromIndex was moved to the path for the
-      // same reason (issue #34); the full scan had been left behind.
-      if (filesToDelete.length > 0) {
-        await this.deleteIndexRows(filesToDelete, sink);
-        await flushIfLarge();
-      }
 
       // Process markdown indexing
       let i = 0;
@@ -1084,32 +1864,77 @@ export class VaultIndexer {
           // Yield to event loop to allow UI updates
           await new Promise(r => setTimeout(r, 0));
         }
-        await this._indexFileInternal(file, lookups, sink);
-        await flushIfLarge();
         i++;
+        const reading = await this.readOrLeaveOut(file, unreadable);
+        if (!reading) continue;
+        await this._indexFileInternal(file, pass, lookups, sink, reading);
+        counted(file);
+        await flushIfLarge();
       }
 
       // Process attachment registration (lightweight, no parsing/FTS)
       let j = 0;
       for (const file of attachmentsToIndex) {
         if (j % 20 === 0) await new Promise(r => setTimeout(r, 0));
-        await this._indexAttachmentInternal(file, lookups, sink);
-        await flushIfLarge();
         j++;
+        const reading = await this.readOrLeaveOut(file, unreadable);
+        if (!reading) continue;
+        await this._indexAttachmentInternal(file, pass, lookups, sink, reading);
+        counted(file);
+        await flushIfLarge();
       }
 
+      // Process deletions — LAST, with the batch that ends the scan (finding
+      // 2026-10-12). They used to lead the first batch. Where batches are
+      // committed one by one (the desktop), a scan that failed on a later
+      // file had removed the rows by then and never got to report them: the
+      // sync rows stayed, no remote deletion was queued, and the next scan
+      // no longer knew the paths. Nothing that reads a file comes after this
+      // point; a scan that fails before it leaves the rows for the next one.
+      //
+      // We deliberately do NOT delete sync_state here: a file gone from disk
+      // may need a remote delete pushed first (otherwise the next pull would
+      // resurrect it). sync_state is cleaned only after the remote delete
+      // succeeds; the deletion is surfaced via onLocalFileDeleted after this
+      // transaction commits.
+      //
+      // Keyed on the PATH (issue #110, E8). It used to delete by sha256(path),
+      // but a row moved inside Plainva keeps the id of its OLD path
+      // (SyncQueue.queueRename rewrites `path` in place) — once such a file was
+      // moved again outside Plainva, the delete matched nothing and the stale
+      // row survived every full scan: a file that no longer exists stayed in
+      // the tree for good. removePathFromIndex was moved to the path for the
+      // same reason (issue #34); the full scan had been left behind.
+      // The rows this scan removes, asked right before it removes them: a
+      // path another pass indexed or reported since this scan read the index
+      // — while it read every changed file — is not this scan's to remove
+      // (stillMine); nor is a path whose row the app has moved away meanwhile
+      // a file that vanished (movedAway).
+      const moved = this.movedAway(filesToDelete, dbFileMap, lookups);
+      removedRows = new Set(this.stillMine(filesToDelete.filter((path) => !moved.has(path)), pass));
+      if (removedRows.size > 0) await this.deleteIndexRows([...removedRows], sink);
+
+      // The scan has gone through once its last rows are in: the index owes no more.
+      if (startsEmpty || owedBefore) batch.push({ sql: `DELETE FROM meta WHERE key = ?`, params: [INDEX_OWED_KEY] });
+
       // Flush the tail (all writes when runBatch is unavailable).
-      await runStatementsAtomic(this.dbAdapter, batch);
+      await runStatementsAtomic(this.dbAdapter, batch, INSIDE_THIS_SCAN);
+    }).catch((error: unknown) => {
+      this.announceWhatStays(pass, written);
+      throw error;
     });
 
     // Fire host callbacks AFTER the transaction so their DB work (enqueue) does not nest
     // inside it.
-    this.flushCallbacks();
-    if (this.options?.onLocalFileDeleted) {
-      // Only genuinely vanished files — a newly excluded path is de-indexed
-      // silently (see the split above).
-      for (const path of vanishedFromDisk) this.options.onLocalFileDeleted(path);
-    }
+    this.flushCallbacks(pass);
+    // Only genuinely vanished files — a newly excluded path is de-indexed
+    // silently (see the split above) — and only the ones whose rows this
+    // scan removed.
+    this.reportRemoved(
+      vanishedFromDisk.filter((path) => removedRows.has(path)),
+      pass.since,
+      (path) => indexedRowStamp(dbFileMap.get(path)?.mtime_local),
+    );
     return report();
   }
 }

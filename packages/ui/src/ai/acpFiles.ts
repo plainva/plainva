@@ -7,6 +7,7 @@ import {
   acpLines,
   acpVaultPath,
   changedProperties,
+  frontmatterSpan,
   gateDecision,
   isReservedPropertyName,
   isRuleOrTrustProperty,
@@ -171,19 +172,13 @@ export async function acpReadFile(vault: AcpVaultAccess, agentId: string, reques
   return { path, content: acpLines(text, request.line, request.limit) };
 }
 
-/** The properties block at the top of a note, with its fences, exactly as written; "" where there is none. */
+/**
+ * The properties block at the top of a note, with its fences, exactly as written; "" where there is none. What a
+ * block is has one definition (`frontmatterSpan`): a byte order mark in front of it is part of what is quoted.
+ */
 export function frontmatterBlock(text: string): string {
-  const first = text.startsWith("---\r\n") ? 5 : text.startsWith("---\n") ? 4 : 0;
-  if (first === 0) return "";
-  let at = first;
-  while (at <= text.length) {
-    const end = text.indexOf("\n", at);
-    const line = (end < 0 ? text.slice(at) : text.slice(at, end)).replace(/\r$/, "");
-    if (line === "---") return end < 0 ? text : text.slice(0, end + 1);
-    if (end < 0) return "";
-    at = end + 1;
-  }
-  return "";
+  const span = frontmatterSpan(text);
+  return span ? text.slice(0, span.end) : "";
 }
 
 /** What a write of an agent would become. Nothing has happened yet. */

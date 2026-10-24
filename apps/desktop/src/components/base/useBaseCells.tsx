@@ -2,9 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { applyIndexChanges } from "../../services/fileActions";
 import { CheckSquare, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { upsertFrontmatterKeys, wikiTargetForPath, trimEndChars } from "@plainva/core";
+import { upsertFrontmatterKeys, wikiTargetChooser, wikiTargetForPath, trimEndChars } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { Button, chipClass, inferType, isEmptyPropertyValue, propertyFolder, ProposedValueChip, Rating, propertyIndexTypes, usePropertyValues, formatDateValue, groupOptions, ICON, inlineOptionsFrom, optionSwatch, parseWikiLinkValue, splitMultiValue, writeNoteProperty, toIsoDateTime, type CuratedOption, type DateDisplayFormat, type ProposedCell } from "@plainva/ui";
+import { openLink } from "../../services/openLink";
+import { Button, chipClass, errorText, inferType, propertyFolder, Rating, propertyIndexTypes, usePropertyValues, formatDateValue, groupOptions, ICON, inlineOptionsFrom, optionSwatch, parseWikiLinkValue, splitMultiValue, toast, writeNoteProperty, toIsoDateTime, type CuratedOption, type DateDisplayFormat, isEmptyPropertyValue, ProposedValueChip, type ProposedCell } from "@plainva/ui";
 import { PlainInput, SelectChip } from "../PropertyValues";
 import { InlineMultiSelect, InlineRelationEditor, type RelationSearchResult } from "../BaseInlineEditors";
 import { CustomDatePicker } from "../DatePicker";
@@ -13,6 +14,8 @@ import { formatBytes, columnLabel as sharedColumnLabel } from "./baseViewerShare
 import { segmentInlineText, safeHref, tagColorAttrs } from "@plainva/ui";
 import { FILE_DAY, parseBaseConfig } from "@plainva/ui";
 import { resolveNewItemTarget } from "@plainva/ui";
+import { isWikiTargetResolved, wikiTargetPath } from "@plainva/ui";
+import { useWikiResolver } from "../../hooks/useWikiResolver";
 import { addRelationLink, removeRelationLinksToNote } from "../../services/relations";
 import { buildNewNoteContent, getConfiguredNoteType } from "../../services/newNote";
 import { notifyFileOps } from "../../services/indexMdAutoUpdate";
@@ -76,10 +79,11 @@ export function useBaseCells({
   const { t, i18n } = useTranslation();
   const { vaultAdapter, queryService, vaultPath, indexer, fileTreeVersion, triggerFileTreeUpdate } = useVault();
 
-  // Vault-wide note index for the relation editors: lowercase titles + paths
-  // (broken-chip detection) and the raw path list (collision-safe link text).
-  // One listNotes() per index change, never per cell/chip.
-  const [noteIndex, setNoteIndex] = useState<{ titleSet: Set<string>; paths: string[] } | null>(null);
+  // Vault-wide note index for the relation editors: the raw path list and the
+  // collision-safe link text over it (the names are counted once — a list of
+  // fifty candidates asked every path of the vault fifty times). One
+  // listNotes() per index change, never per cell/chip.
+  const [noteIndex, setNoteIndex] = useState<{ paths: string[]; targetFor: (path: string) => string } | null>(null);
   useEffect(() => {
     let alive = true;
     if (!queryService) { setNoteIndex(null); return; }
@@ -87,35 +91,56 @@ export function useBaseCells({
       .listNotes()
       .then((notes) => {
         if (!alive) return;
-        const titleSet = new Set<string>();
-        const paths: string[] = [];
-        for (const n of notes) {
-          titleSet.add(n.title.toLowerCase());
-          titleSet.add(n.path.toLowerCase());
-          titleSet.add(n.path.toLowerCase().replace(/\.md$/, ""));
-          paths.push(n.path);
-        }
-        setNoteIndex({ titleSet, paths });
+        const paths = notes.map((n) => n.path);
+        setNoteIndex({ paths, targetFor: wikiTargetChooser(paths) });
       })
       .catch(() => { if (alive) setNoteIndex(null); });
     return () => { alive = false; };
   }, [queryService, fileTreeVersion]);
 
+  // Which chip is "broken" is the link rule's answer, over the lookup the
+  // editor draws its links with: a chip is marked exactly where a click finds
+  // no file. The lowercased set of titles and paths this used to keep was a
+  // rule of its own — a note with a title of its own was "broken" under its
+  // file's name, a database or an attachment always (finding 2026-10-08).
+  const linkLookup = useWikiResolver();
+  const isBrokenTarget = useCallback((target: string, fromPath?: string) => !isWikiTargetResolved(target, linkLookup, fromPath), [linkLookup]);
+  // Where a stored link leads, read from the row's note — for whoever has to
+  // know WHICH note a value means: the relation editor ("linked already") and
+  // a table that nests rows under their parent. Undefined until the lookup is
+  // there.
+  const resolveTarget = useCallback(
+    (target: string, fromPath?: string): string | null | undefined => (linkLookup ? wikiTargetPath(target, linkLookup, fromPath) : undefined),
+    [linkLookup],
+  );
+
   // Relation candidates per target `.base`, cached until the next re-index.
   const candCacheRef = useRef<{ version: number; map: Map<string, { path: string; title: string }[]> }>({ version: -1, map: new Map() });
 
   // Open a note referenced by a wikilink / internal markdown link. Resolution
-  // goes through the index (title or path, case-insensitive) like editor links
-  // do; the naive `target + ".md"` only remains as the not-indexed fallback.
-  const openNoteLink = async (target: string, ev?: React.MouseEvent) => {
+  // is the link rule's, read from the row's note (`fromPath`) as the editor
+  // reads a link from the note it stands in; the naive `target + ".md"` only
+  // remains as the not-indexed fallback.
+  const openNoteLink = async (target: string, ev?: React.MouseEvent, fromPath?: string) => {
     let path = /\.(md|base)$/i.test(target) ? target : `${target}.md`;
     try {
-      const resolved = await queryService?.resolveNotePath(target);
+      const resolved = await queryService?.resolveNotePath(target, fromPath);
       if (resolved) path = resolved;
     } catch (e) {
       console.warn("[BaseViewer] resolving a cell link failed", target, e);
     }
     onOpenNote?.(path, ev);
+  };
+
+  // A link in the free text of a cell is opened as one in the editor is
+  // (`services/openLink`), read from the row's note. Until 2026-10-22 it went
+  // through the wiki rule whatever way it was written, and where that found
+  // nothing the opener was handed `target + ".md"`: `img/shot.png.md`.
+  const openTextLink = (text: string, kind: "wiki" | "markdown", ev?: React.MouseEvent, fromPath?: string) => {
+    void openLink(
+      { text, kind, sourcePath: fromPath },
+      { queryService, vaultAdapter, onOpenPath: (path) => onOpenNote?.(path, ev), newTab: !!(ev?.ctrlKey || ev?.metaKey), t },
+    );
   };
 
   const [editingCell, setEditingCell] = useState<{path: string, col: string} | null>(null);
@@ -221,27 +246,61 @@ export function useBaseCells({
     return value;
   };
 
+  // What a cell's NOTE holds while writes to it are under way: the value the
+  // cell falls back to when one of them fails. dbData shows the value being
+  // written; this is kept beside it and advances with every write that lands.
+  const settledRef = useRef(new Map<string, { had: boolean; value: unknown; pending: number }>());
+
   // Write a final value to a note's frontmatter and reflect it in dbData. Does NOT
   // close the inline editor — used by the multi-value editors (multiselect/relation)
   // that stay open so the user can add several entries.
-  const commitCellValue = async (path: string, col: string, newValue: any) => {
-    if (!vaultAdapter) return;
+  //
+  // Answers whether the value reached the note. A write that fails — a
+  // properties block the writer refuses, an error of the vault — used to end in
+  // the console while the cell went on showing the new value (finding
+  // 2026-10-09). Now the cell takes the note's value back and a message says
+  // why; every view reads dbData, so a card goes back to its column as well.
+  const commitCellValue = async (path: string, col: string, newValue: any): Promise<boolean> => {
+    if (!vaultAdapter) return false;
+    const cell = JSON.stringify([path, col]);
+    const shown = dbData.find(row => row['file.path'] === path);
+    const settled = settledRef.current.get(cell) ?? { had: !!shown && col in shown, value: shown?.[col], pending: 0 };
+    settled.pending += 1;
+    settledRef.current.set(cell, settled);
     setDbData(prev => prev.map(row => (row['file.path'] === path ? { ...row, [col]: newValue } : row)));
     try {
       // Shared with the calendar overlay (S18) — including the casing rule.
       await writeNoteProperty(vaultAdapter, path, col, newValue);
+      settled.had = true;
+      settled.value = newValue;
+      return true;
     } catch (e) {
       console.error("Failed to update file property", e);
+      // Only where the cell still shows THIS value: a later edit of the same
+      // cell, or rows queried anew in the meantime, have already replaced it.
+      setDbData(prev => prev.map(row => {
+        if (row['file.path'] !== path || row[col] !== newValue) return row;
+        const back = { ...row };
+        if (settled.had) back[col] = settled.value;
+        else delete back[col];
+        return back;
+      }));
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+      return false;
+    } finally {
+      settled.pending -= 1;
+      if (settled.pending === 0) settledRef.current.delete(cell);
     }
   };
 
-  const handleCellSave = async (path: string, col: string, rawValue: any) => {
-    if (!vaultAdapter) return;
+  const handleCellSave = async (path: string, col: string, rawValue: any): Promise<boolean> => {
+    if (!vaultAdapter) return false;
     const newValue = coerceValue(col, rawValue);
     const row = dbData.find(r => r['file.path'] === path);
-    if (row && row[col] === newValue) { setEditingCell(null); return; }
-    await commitCellValue(path, col, newValue);
+    if (row && row[col] === newValue) { setEditingCell(null); return true; }
+    const written = await commitCellValue(path, col, newValue);
     setEditingCell(null);
+    return written;
   };
 
   // Editing a computed reverse column writes the OWNING property in the
@@ -271,29 +330,57 @@ export function useBaseCells({
         owningLimit = cfg?.columns?.[rev.property]?.relationLimit === "one" ? "one" : undefined;
       } catch { /* default: unlimited */ }
 
-      const rowLinkText = noteIndex ? wikiTargetForPath(rowPath, noteIndex.paths) : String(row["file.name"] ?? rowPath);
+      const rowLinkText = noteIndex ? noteIndex.targetFor(rowPath) : String(row["file.name"] ?? rowPath);
       const changedPaths = new Map<string, "added" | "removed">();
-      for (const [, rawValue] of added) {
+      // Every counterpart note is a write of its own. One that fails — a
+      // properties block the writer refuses, an error of the vault — is said,
+      // and the cell goes on showing what that note holds: the link it could
+      // not be given is not shown, the link it could not be relieved of stays.
+      // The writes stood in a `try … finally` without a catch (finding
+      // 2026-10-09): the first failure left the editor as an unhandled
+      // rejection, the notes behind it were never tried, nothing was said.
+      const notAdded = new Set<string>();
+      const notRemoved = new Set<string>();
+      let firstFailure: unknown = null;
+      for (const [key, rawValue] of added) {
         const target = parseWikiLinkValue(rawValue)?.target ?? rawValue.replace(/^\[\[/, "").replace(/\]\]$/, "");
-        const notePath = await queryService.resolveNotePath(target);
-        if (!notePath || notePath === rowPath) continue;
-        await addRelationLink({ adapter: vaultAdapter, queryService, notePath, propertyKey: rev.property, targetNotePath: rowPath, limit: owningLimit });
-        changedPaths.set(notePath, "added");
+        try {
+          const notePath = await queryService.resolveNotePath(target, rowPath);
+          if (!notePath || notePath === rowPath) continue;
+          await addRelationLink({ adapter: vaultAdapter, queryService, notePath, propertyKey: rev.property, targetNotePath: rowPath, limit: owningLimit });
+          changedPaths.set(notePath, "added");
+        } catch (e) {
+          console.error("Failed to add a relation link", target, e);
+          notAdded.add(key);
+          firstFailure ??= e;
+        }
       }
-      for (const [, rawValue] of removed) {
+      for (const [key, rawValue] of removed) {
         const target = parseWikiLinkValue(rawValue)?.target ?? rawValue.replace(/^\[\[/, "").replace(/\]\]$/, "");
-        const notePath = await queryService.resolveNotePath(target);
-        if (!notePath) continue;
-        await removeRelationLinksToNote({ adapter: vaultAdapter, queryService, notePath, propertyKey: rev.property, targetNotePath: rowPath });
-        changedPaths.set(notePath, "removed");
+        try {
+          const notePath = await queryService.resolveNotePath(target, rowPath);
+          if (!notePath) continue;
+          await removeRelationLinksToNote({ adapter: vaultAdapter, queryService, notePath, propertyKey: rev.property, targetNotePath: rowPath });
+          changedPaths.set(notePath, "removed");
+        } catch (e) {
+          console.error("Failed to remove a relation link", target, e);
+          notRemoved.add(key);
+          firstFailure ??= e;
+        }
       }
+      const failures = notAdded.size + notRemoved.size;
+      if (failures === 1) toast.error(t("mobile.propertyWriteFailed", { message: errorText(firstFailure) }));
+      else if (failures > 1) toast.error(t("database.bulkSetPartial", { done: changedPaths.size, failed: failures }));
+      const shown = failures === 0
+        ? nextArr
+        : [...nextArr.filter((v) => !notAdded.has(targetOf(v))), ...current.filter((v) => notRemoved.has(targetOf(v)))];
 
       // In-memory: the edited reverse cell plus visible counterpart rows'
       // owning property (self-relations show both sides in the same table).
       const rowKeys = new Set([String(row["file.name"] ?? "").toLowerCase(), rowPath.toLowerCase(), rowPath.toLowerCase().replace(/\.md$/, "")]);
       setDbData((prev) => prev.map((r) => {
         const p: string = r["file.path"];
-        if (p === rowPath) return { ...r, [col]: nextArr };
+        if (p === rowPath) return { ...r, [col]: shown };
         const change = changedPaths.get(p);
         if (!change) return r;
         if (change === "added") {
@@ -346,7 +433,7 @@ export function useBaseCells({
         .slice(0, 50)
         .map((c) => ({
           ...c,
-          linkTarget: noteIndex ? wikiTargetForPath(c.path, noteIndex.paths) : undefined,
+          linkTarget: noteIndex ? noteIndex.targetFor(c.path) : undefined,
         }));
     } catch (e) {
       console.warn("[BaseViewer] note search for the relation editor failed", e);
@@ -361,7 +448,7 @@ export function useBaseCells({
   // note lands in the target base's configured storage folder (plan Base-Neu P2:
   // `newItemFolder`, else the first folder source, else the .base file's folder)
   // and inherits the base's tag sources as frontmatter so it becomes a member.
-  const createRelationTarget = async (col: string, title: string): Promise<string | null> => {
+  const createRelationTarget = async (col: string, title: string): Promise<RelationSearchResult | null> => {
     if (!vaultAdapter || !vaultPath) return null;
     const safeTitle = title.replace(/[\\/:*?"<>|]/g, "-").trim();
     if (!safeTitle) return null;
@@ -380,9 +467,18 @@ export function useBaseCells({
       }
     }
     const path = (folder ? trimEndChars(folder, "/") + "/" : "") + safeTitle + ".md";
+    // The note as a candidate: what is written is the name that leads to THIS
+    // note — the path where another note of the vault is called the same. The
+    // bare title stood here; with a `Meier.md` elsewhere the new link led
+    // there instead of to the note just created.
+    const asCandidate: RelationSearchResult = {
+      path,
+      title: safeTitle,
+      linkTarget: noteIndex ? wikiTargetForPath(path, [...noteIndex.paths, path]) : undefined,
+    };
     try {
       await vaultAdapter.readTextFile(path);
-      return safeTitle; // already exists — just link it
+      return asCandidate; // already exists — just link it
     } catch {
       // expected: the note does not exist yet
     }
@@ -395,7 +491,7 @@ export function useBaseCells({
         triggerFileTreeUpdate();
         notifyFileOps([{ type: "create", path }]);
       }).catch(() => {});
-      return safeTitle;
+      return asCandidate;
     } catch (e) {
       console.error("[BaseViewer] creating a relation target failed", path, e);
       return null;
@@ -430,7 +526,7 @@ export function useBaseCells({
   // Render links inside free text like the editor does (plan W4/P11):
   // [[wikilinks|alias]], [label](target) and bare URLs become clickable; other
   // text stays plain. Returns the raw string when it contains no link.
-  const renderInlineString = (text: string): React.ReactNode => {
+  const renderInlineString = (text: string, rowPath?: string): React.ReactNode => {
     const segments = segmentInlineText(text);
     if (!segments.some((s) => s.type !== "text")) return text;
     const linkStyle: React.CSSProperties = { color: "var(--accent-color)", textDecoration: "underline", cursor: "pointer" };
@@ -446,9 +542,9 @@ export function useBaseCells({
             if (/^https?:\/\//.test(seg.target)) {
               return <a key={i} href={safeHref(seg.target)} target="_blank" rel="noopener noreferrer" style={linkStyle} onClick={(e) => e.stopPropagation()}>{label}</a>;
             }
-            return <span key={i} style={linkStyle} onClick={(e) => { e.stopPropagation(); openNoteLink(decodeURIComponent(seg.target), e); }}>{label}</span>;
+            return <span key={i} style={linkStyle} onClick={(e) => { e.stopPropagation(); openTextLink(seg.target, "markdown", e, rowPath); }}>{label}</span>;
           }
-          return <span key={i} style={linkStyle} onClick={(e) => { e.stopPropagation(); openNoteLink(seg.target, e); }}>{seg.display}</span>;
+          return <span key={i} style={linkStyle} onClick={(e) => { e.stopPropagation(); openTextLink(seg.target, "wiki", e, rowPath); }}>{seg.display}</span>;
         })}
       </span>
     );
@@ -457,7 +553,8 @@ export function useBaseCells({
   // Render select/status/multiselect/relation values as colored chips using the curated
   // `.base` colors, so every view shows typed values instead of raw text. Returns null
   // for columns that are not option/relation typed (caller falls back to generic display).
-  const renderTypedDisplay = (col: string, val: any): React.ReactNode | null => {
+  // `rowPath` is the note the value belongs to: a link is read from that note.
+  const renderTypedDisplay = (col: string, val: any, rowPath?: string): React.ReactNode | null => {
     if (col.startsWith("file.")) return null;
     const input = getColumnInput(col);
     const opts = getColumnOptions(col);
@@ -488,11 +585,8 @@ export function useBaseCells({
             const parsed = parseWikiLinkValue(v);
             const target = parsed?.target ?? v.replace(/^\[\[/, "").replace(/\]\]$/, "");
             const display = parsed?.display ?? target;
-            const broken =
-              noteIndex != null &&
-              !noteIndex.titleSet.has(target.toLowerCase()) &&
-              !noteIndex.titleSet.has(`${target.toLowerCase()}.md`);
-            return renderChip(display, undefined, i, (e) => openNoteLink(target, e), false, broken);
+            const broken = isBrokenTarget(target, rowPath);
+            return renderChip(display, undefined, i, (e) => openNoteLink(target, e, rowPath), false, broken);
           })}
         </span>
       );
@@ -500,12 +594,12 @@ export function useBaseCells({
     return null;
   };
 
-  const formatValueForDisplay = (val: any, col?: string) => {
+  const formatValueForDisplay = (val: any, col?: string, rowPath?: string) => {
     const isMissing = val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0);
     if (isMissing) {
       return { displayVal: <span style={{ color: "var(--text-faint)", fontStyle: "italic" }}>-</span>, isMissing: true };
     }
-    const typed = col ? renderTypedDisplay(col, val) : null;
+    const typed = col ? renderTypedDisplay(col, val, rowPath) : null;
     if (typed) return { displayVal: typed, isMissing: false };
 
     let displayVal: React.ReactNode = val;
@@ -531,7 +625,7 @@ export function useBaseCells({
     } else if (input === "text" && Array.isArray(val)) {
       // Explicit text columns never split into chips (P1): a list value shows
       // as plain readable text, links inside stay clickable.
-      displayVal = renderInlineString(val.map((v) => String(v)).join(", "));
+      displayVal = renderInlineString(val.map((v) => String(v)).join(", "), rowPath);
     } else if ((input === "email" || input === "phone") && typeof val === "string" && val.trim() !== "") {
       // Contact types (P7): the value opens the matching handler, like the
       // markdown panel's external-link button.
@@ -544,7 +638,7 @@ export function useBaseCells({
     } else if ((input === "date" || input === "datetime") && typeof val === "string") {
       displayVal = formatDateValue(val, input === "datetime", i18n.language, dateFormat);
     } else if (typeof val === 'string') {
-      displayVal = renderInlineString(val);
+      displayVal = renderInlineString(val, rowPath);
     } else if (typeof val === 'object') {
       displayVal = JSON.stringify(val);
     }
@@ -679,7 +773,7 @@ export function useBaseCells({
             value={val}
             search={(q) => searchCandidatesForBase(q, rev.base)}
             excludeTitles={[String(row['file.name'] ?? '')]}
-            brokenTitles={noteIndex?.titleSet}
+            resolveTarget={linkLookup ? (target) => resolveTarget(target, path) ?? null : undefined}
             onCommit={(arr) => commitReverseCellValue(row, col, arr)}
             onClose={() => setEditingCell(null)}
             t={t}
@@ -697,7 +791,7 @@ export function useBaseCells({
             search={(q) => searchRelationCandidates(q, col)}
             limit={limit}
             excludeTitles={[String(row['file.name'] ?? '')]}
-            brokenTitles={noteIndex?.titleSet}
+            resolveTarget={linkLookup ? (target) => resolveTarget(target, path) ?? null : undefined}
             onCreateNew={(title) => createRelationTarget(col, title)}
             onCommit={(arr) => commitCellValue(path, col, limit === 'one' ? (arr[arr.length - 1] ?? '') : arr)}
             onClose={() => setEditingCell(null)}
@@ -801,6 +895,10 @@ export function useBaseCells({
     renderStructureProposal,
     handleCellSave,
     commitCellValue,
+    commitReverseCellValue,
+    resolveTarget,
+    /** Whether `resolveTarget` has its lookup — false while the index is loading. */
+    linksReady: linkLookup !== null,
   };
 }
 

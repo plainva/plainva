@@ -131,6 +131,20 @@ test.beforeEach(async ({ page }) => {
         if (cmd === 'plugin:sql|select') {
           const query: string = args.query || '';
           const values: any[] = args.values || [];
+          // The link rule's corpus (VaultQueryService.linkTargets): the indexed
+          // notes with their titles, and every other file of the vault — the
+          // two databases — under its file name, as the indexer registers
+          // them. The cascade's "what hangs on this note" and the clean-up of
+          // a relation are resolved against these rows in JavaScript.
+          if (query.includes('FROM files WHERE is_deleted IS NULL OR is_deleted = 0')) {
+            const others = Object.keys(fs)
+              .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/\.md$/i.test(p) && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
+              .map(p => p.replace('/test-vault/', ''));
+            return [
+              ...dbFiles.map(f => ({ path: f.path, title: f.title, mode: 'obsidian' })),
+              ...others.map(path => ({ path, title: path.split('/').pop()!, mode: 'attachment' })),
+            ];
+          }
           if (query.includes('SELECT path, title, mode FROM files')) {
             return Object.keys(fs)
               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
@@ -151,13 +165,9 @@ test.beforeEach(async ({ page }) => {
           if (query.includes(`SELECT path FROM files WHERE mode != 'attachment'`)) {
             return dbFiles.map(f => ({ path: f.path }));
           }
-          if (query.includes('COLLATE NOCASE')) {
-            const target = String(values[0] ?? '').toLowerCase();
-            const hit = dbFiles.find(f =>
-              f.title.toLowerCase() === target || f.path.toLowerCase() === target || f.path.toLowerCase() === `${target}.md`
-            );
-            return hit ? [{ path: hit.path }] : [];
-          }
+          // The backlinks' link rows (`ORDER BY f.path COLLATE NOCASE …`): this
+          // fixture keeps no body links, so a note has no backlinks.
+          if (query.includes('COLLATE NOCASE')) return [];
           // Cascade edge set: every frontmatter-property link (new core query).
           if (query.includes('property_key IS NOT NULL')) {
             return dbLinks.map(l => ({ ...l }));

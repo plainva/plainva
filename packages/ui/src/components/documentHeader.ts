@@ -4,6 +4,7 @@ import type { PlainvaDocMeta } from "@plainva/core";
 import { plainvaMetaFromBlock } from "../services/docMeta";
 import { trustBadgeOf, trustSignalsFromBlock, type TrustBadge } from "../lib/trustSignals";
 import { renderDocIconDOM } from "./DocIcon";
+import { frontmatterLines, frontmatterYamlOf } from "./editorFrontmatter";
 
 /**
  * Live-mode document header (W3): a block widget above the (hidden) frontmatter
@@ -140,17 +141,10 @@ class DocumentHeaderWidget extends WidgetType {
   }
 }
 
-/** Frontmatter YAML text read straight from the document head (cheap, no full copy). */
+/** Frontmatter YAML text read straight from the document head (no full copy), or null without a block. */
 function frontmatterTextOf(state: EditorState): string | null {
-  if (state.doc.lines < 2 || state.doc.line(1).text !== "---") return null;
-  const maxLines = Math.min(state.doc.lines, 300);
-  for (let i = 2; i <= maxLines; i++) {
-    if (state.doc.line(i).text === "---") {
-      if (i === 2) return "";
-      return state.sliceDoc(state.doc.line(2).from, state.doc.line(i - 1).to);
-    }
-  }
-  return null;
+  const block = frontmatterLines(state.doc);
+  return block ? frontmatterYamlOf(state.doc, block) : null;
 }
 
 interface HeaderFieldValue {
@@ -159,12 +153,11 @@ interface HeaderFieldValue {
 }
 
 function buildValue(
-  state: EditorState,
+  fmText: string | null,
   texts: DocumentHeaderTexts,
   cb: DocumentHeaderCallbacks,
   showAddActions: boolean
 ): HeaderFieldValue {
-  const fmText = frontmatterTextOf(state);
   const meta = plainvaMetaFromBlock(fmText);
   const badge = trustBadgeOf(trustSignalsFromBlock(fmText));
   const deco = Decoration.set([
@@ -230,15 +223,21 @@ export function documentHeaderExtension(
   const showAddActions = opts?.showAddActions !== false;
   const field = StateField.define<HeaderFieldValue>({
     create(state) {
-      return buildValue(state, texts, cb, showAddActions);
+      return buildValue(frontmatterTextOf(state), texts, cb, showAddActions);
     },
     update(value, tr) {
       if (!tr.docChanged) return value;
       // Rebuild only when the frontmatter block itself changed — body edits on
-      // every keystroke must not re-parse YAML or recreate the widget.
+      // every keystroke must not re-parse YAML or recreate the widget. An edit
+      // behind the block cannot have changed it, so its text is not even read:
+      // that, and the scan every part of the editor shares, is why this field
+      // no longer stops looking for the closing fence after 300 lines. A longer
+      // block had its icon and stripe in the read view and none here.
+      const before = frontmatterLines(tr.startState.doc);
+      if (before && !tr.changes.touchesRange(0, before.closeTo)) return value;
       const fmText = frontmatterTextOf(tr.state);
       if (fmText === value.fmText) return value;
-      return buildValue(tr.state, texts, cb, showAddActions);
+      return buildValue(fmText, texts, cb, showAddActions);
     },
     provide: (f) => EditorView.decorations.from(f, (v) => v.deco),
   });

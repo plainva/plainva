@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { useVault } from "../contexts/VaultContext";
 import { Search, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ICON, useFocusTrap } from "@plainva/ui";
+import { ICON, templateInsertInEditor, useFocusTrap } from "@plainva/ui";
+import { noteBodyOf } from "@plainva/core";
 import { getTemplateFolder, listTemplates } from "../services/newItemFlow";
 import { activeDocument } from "../services/activeDocument";
-import { applyTemplateInteractive, withShellContext } from "../services/templateInteractive";
-import { makeDailyPathProvider } from "../services/dailyNotes";
+import { applyTemplateInteractive } from "../services/templateInteractive";
 
 interface TemplatePickerModalProps {
   isOpen: boolean;
@@ -81,23 +81,18 @@ export function TemplatePickerModal({ isOpen, onClose, onPick, title }: Template
       const activePath = activeDocument.get().path;
       const title = activePath ? (activePath.split("/").pop() ?? "").replace(/\.md$/i, "") : "";
       const folder = activePath ? activePath.split("/").slice(0, -1).join("/") : "";
-      const body = raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
-      const now = new Date();
+      const body = noteBodyOf(raw);
       const result = await applyTemplateInteractive(
         body,
-        await withShellContext(body, {
-          title,
-          now,
-          folder,
-          dailyPath: vaultPath ? await makeDailyPathProvider(vaultPath, now) : undefined,
-          vaultName: (vaultPath ?? "").split(/[/\\]/).filter(Boolean).pop() ?? "",
-          hostPath: activePath ?? undefined,
-        }),
+        { title, now: new Date(), folder, hostPath: activePath ?? undefined, vaultPath: vaultPath ?? null },
         t("templatePicker.answersTitle", { defaultValue: "Angaben für die Vorlage" })
       );
       if (!result) return; // cancelled → nothing is inserted
+      // What the editor takes: the text as it holds one, and the caret as a
+      // place in that text — a template from Windows counts with `\r\n`.
+      const insert = templateInsertInEditor(result);
       window.dispatchEvent(
-        new CustomEvent("plainva-insert-text", { detail: { text: result.text, cursorOffset: result.cursor ?? undefined } }),
+        new CustomEvent("plainva-insert-text", { detail: { text: insert.text, cursorOffset: insert.cursor ?? undefined } }),
       );
       onClose();
     } catch (e) {

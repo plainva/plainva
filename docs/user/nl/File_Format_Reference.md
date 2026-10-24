@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-10-09
+Laatst bijgewerkt: 2026-10-22
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -12,7 +12,7 @@ Alles hier is puur UTF-8-tekst. Notities zijn Markdown met YAML-frontmatter; dat
 2. **Notities blijven Obsidian-native.** Schrijf in notitie-frontmatter uitsluitend eenvoudige scalars en lijsten (string, getal, boolean, ISO-datum, YAML-lijst). Schrijf nooit een genest object of een "actief/geselecteerd"-vlag in een notitie.
 3. **Een `.base` gebruikt alleen Obsidians vijf top-level sleutels** (`filters`, `formulas`, `properties`, `summaries`, `views`). Obsidian begrijpt geen enkele andere top-level sleutel. Daarom staat alle Plainva-specifieke data onder geneste `plainva:`-subsleutels.
 4. **Bewaar wat je niet begrijpt.** Onbekende sleutels moeten een lees-/schrijfronde ongewijzigd doorstaan. "Ruim" geen sleutels op die je niet herkent.
-5. **Schrijf UTF-8 zonder BOM, met LF-regeleinden.**
+5. **Schrijf UTF-8. Een nieuw bestand krijgt LF-regeleinden en geen BOM; een bestand dat er al is, houdt wat het heeft.** Plainva doet hetzelfde: wat het aanmaakt, begint met LF en zonder BOM, en wat het aantreft, houdt zijn regeleinden en zijn BOM — bewerk je een notitie, dan veranderen alleen de regels die je hebt gewijzigd. Een bestand dat beide soorten regeleinden mengt, krijgt bij de eerste bewerking overal de soort die de meeste regels hebben. Een regeleinde dat alleen uit een wagenterugloop (CR) bestaat — wat oude Mac-bestanden hebben — wordt gelezen, maar niet bewaard: de eerste keer dat zo'n bestand wordt gewijzigd, slaat Plainva het op met LF (met CRLF als de meeste andere regeleinden CRLF zijn) en meldt je dat.
 
 ## De vault in vogelvlucht
 
@@ -51,6 +51,10 @@ A **bold** thought that links to [[Another Note]].
 
 - [ ] First task
 ```
+
+Een blok mag leeg zijn: `---` direct gevolgd door `---` is een blok zonder eigenschappen, niet twee scheidingslijnen — de tekst van de notitie begint op de regel erna. Plainva laat geen leeg blok achter: wordt de laatste eigenschap verwijderd, dan verdwijnen de twee `---`-regels mee. Ze blijven alleen staan als de tekst zelf met een `---`-regel begint, die anders als het begin van een blok zou worden gelezen.
+
+Een blok dat Plainva niet als eigenschappen kan lezen, blijft precies zoals het is: tekst tussen de twee `---`-regels die geen YAML is, of YAML dat een lijst is in plaats van `sleutel: waarde`-regels. **Eigenschappen** meldt dat in plaats van geen eigenschappen te tonen, en wijzig je bij zo'n notitie een eigenschap — daar, in een database, op een prikbord, in de takenlijst, of het pictogram en de kleur ervan —, dan verandert er niets, en Plainva meldt dat: **Eigenschap kon niet worden opgeslagen**, gevolgd door de reden. Corrigeer het blok in de tekst van de notitie, dan lukt de wijziging. Eén waarde in een onverwachte vorm maakt een blok niet onleesbaar: Plainva leest haar zoals ze er staat — een lege `tags:` is een notitie zonder tags, een getal tussen de tags (`- 2024`) is de tag `2024`, een getal als `title` is die titel, en een `timestamp` die een datum is, is een eigenschap als elke andere.
 
 ### OKF-frontmattervelden
 
@@ -214,7 +218,8 @@ Het bestand is een lijst onder een kop en kan worden ingekort of verwijderd. Het
 ### Links
 
 - **Wiki-link:** `[[Notitienaam]]` — vault-breed opgelost via de notitienaam. Met een kop-anker: `[[Notitie#Sectie]]` — een klik opent de notitie **bij die kop**; `[[#Sectie]]` springt binnen de huidige notitie, en een slug in GitHub-stijl (`[[Notitie#cool-header]]`) wordt ook opgelost. Met een blokverwijzing: `[[Notitie#^id]]` voor een regel die eindigt op `^id`. Met weergavetekst: `[[Notitie|getoonde tekst]]`.
-- **Markdown-link:** `[tekst](relatief/pad.md)` werkt ook. Met een fragment (`[tekst](#cool-header)`, `[tekst](andere.md#cool-header)`) landt de klik op de kop.
+- **Hoe het doel van een wiki-link wordt opgelost** — hetzelfde voor een klik, een insluiting, een relatie, de graaf en de backlinks, op de desktop en op de telefoon. In deze volgorde: (1) een expliciet pad — `/Map/Notitie` vanaf de vault-root, `./Notitie` of `../Map/Notitie` vanaf de map van de notitie met de link — en voor zo'n doel niets anders; (2) het vaultpad zoals geschreven — een bestand dat precies zo gespeld is —, daarna de notitie op dat pad (`.md`); (3) het einde van het pad van een notitie: de bestandsnaam alleen of met mappen ervoor (`Klanten/Brief` vindt `Projecten/Klanten/Brief.md`); (4) een bestand dat geen notitie is (`plan.pdf`, `Tasks.base`, `LICENSE`), via zijn pad of het einde van zijn pad — na de notities, dus een doel zonder extensie is een notitie waar er een bestaat; (5) de `title` uit de eigenschappen van een notitie. Namen worden vergeleken zonder onderscheid tussen hoofdletters en kleine letters, en de samengestelde en de ontlede schrijfwijze van een letter gelden als dezelfde naam. Passen er meerdere bestanden: eerst de schrijfwijze zoals geschreven, dan het pad gelezen vanaf de map van de notitie met de link (bij een kale naam de notitie ernaast), dan het kortste pad, dan de alfabetische volgorde. De stappen 1 tot en met 4 zijn ook de manier waarop Obsidian een bestand vindt, al kan het een ander kiezen wanneer meerdere dezelfde naam hebben; een link via `title` (stap 5) werkt alleen in Plainva — daarom schrijven de keuzelijsten van Plainva de bestandsnaam.
+- **Markdown-link:** `[tekst](doel)`. Het doel wordt eerst gelezen vanaf de map van de notitie met de link — het bestand dat precies zo gespeld is, daarna de notitie op dat pad (`.md`); ligt daar niets, dan wordt het opgelost als het doel van een wiki-link (stappen 2 tot en met 5 hierboven: het pad vanaf de vault-root, het einde van een pad, een bestand dat geen notitie is, de `title`). Een expliciet pad — `/Map/Bestand`, `./Bestand`, `../Map/Bestand` — noemt één plek, en er wordt niets anders voor geprobeerd. Een doel dat op `/` eindigt, noemt een map en leidt naar de `index.md` daarvan. De procentcodering wordt gedecodeerd (`Mijn%20brief.md`), punthaken en een titel worden gelezen zoals in CommonMark (`[x](<Mijn brief.md> "Titel")`), en de eerste `#` die er staat begint een fragment: met `[tekst](#cool-header)` of `[tekst](andere.md#cool-header)` landt de klik op de kop; een `#` die bij een bestandsnaam hoort, wordt als `%23` geschreven. Links in elk van de drie formaten van Obsidian — kortste pad, relatief pad, absoluut pad in de vault — worden zo opgelost; ligt er één bestand op het pad vanaf de map van de notitie met de link en een ander op hetzelfde pad vanaf de vault-root, dan neemt Plainva het eerste, zoals een Markdown-lezer buiten de app dat doet. Plainva zelf schrijft relatieve Markdown-links met procentcodering (mapoverzichten, voorbereide overzichten). Het antwoord is hetzelfde voor een klik, de graaf en de backlinks, op de desktop en op de telefoon.
 - **Backlinks** worden automatisch afgeleid, ook uit frontmatter-wiki-links (dat is wat relaties als backlinks laat verschijnen).
 
 ---
@@ -647,7 +652,7 @@ Regels: vastgezette paden worden niet herhaald in `pinboardOrder`. Kaarten die i
 - **Onbekende sleutels zijn heilig.** Als je een `.base` of een notitie herschrijft, draag dan elke sleutel mee die je niet van plan was te wijzigen. Plainva zelf bewaart onbekende `.base`-sleutels via een interne rauwe kopie; een externe schrijver zou hetzelfde moeten doen (parsen → alleen wijzigen wat je bedoelt → serialiseren).
 - **Waarden veranderen in de notitie, niet in de `.base`.** Om een cel te zetten, bewerk je de frontmatter van de notitie. De `.base` bepaalt alleen welke notities en kolommen worden getoond.
 - **Voeg geen top-level `.base`-sleutels toe** boven `filters` / `formulas` / `properties` / `views`.
-- **Encoding:** UTF-8 zonder BOM, LF-regeleinden, overal.
+- **Encoding:** UTF-8. Nieuwe bestanden: LF-regeleinden, geen BOM. Een notitie of tekstbestand dat al CRLF-regeleinden of een BOM heeft, houdt die — Plainva verandert ze niet, en een tool hoort dat ook niet te doen. De enige uitzondering is een `.base`: Plainva schrijft die opnieuw, met LF en zonder BOM, zodra de configuratie verandert. Een regeleinde dat alleen uit een wagenterugloop (CR) bestaat (oude Mac-bestanden), wordt gelezen, maar niet bewaard: Plainva slaat zo'n bestand met LF op zodra het dat bestand voor het eerst wijzigt.
 
 ## Zie ook
 

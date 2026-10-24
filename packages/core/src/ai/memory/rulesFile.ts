@@ -2,7 +2,7 @@ import { AGENTS_MAX_BYTES } from "../skills/sources.js";
 import { cleanMemoryText, memoryTextProblem } from "./memoryFile.js";
 
 /**
- * A rule for assistants (plan KI-Harness P6, ADR 0027): what an assistant
+ * A rule for assistants (plan KI-Harness P6, ADR 0032): what an assistant
  * should always do in this vault. That is an instruction, not a memory, so it
  * is no entry of the memory files: it becomes one more line of the vault's
  * standing instructions, `AGENTS.md` — the file every device approves for

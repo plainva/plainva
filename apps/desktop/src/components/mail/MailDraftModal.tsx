@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, ChipField, FloatingWindow, ICON, Select, TextInput, toast } from "@plainva/ui";
-import { FileText, Paperclip, SquareArrowOutUpRight, X } from "lucide-react";
+import { Banner, Button, ChipField, FloatingWindow, ICON, IconButton, Select, TextInput, templateBodyOf, toast } from "@plainva/ui";
+import { AlertTriangle, Ban, FileText, Paperclip, RefreshCw, RotateCw, SquareArrowOutUpRight, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
-import { listMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
+import { listMailAccounts, mailSendRoute, type MailAccountConfig } from "@plainva/ui/mail";
 import { listMailboxesFor } from "@plainva/ui/mail";
 import { resolveDraftsMailbox, bytesToBase64, guessAttachmentMime, mailFolderLabel, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature, type MailAttachment } from "@plainva/ui/mail";
 import { ComposeEditor } from "./ComposeEditor";
 import { TemplatePickerModal } from "../TemplatePickerModal";
-import { applyTemplateInteractive, withShellContext } from "../../services/templateInteractive";
-import { templateInsertText } from "@plainva/ui";
+import { applyTemplateInteractive } from "../../services/templateInteractive";
 import { submitDraft, submitSend } from "../../services/mail/sendQueue";
 import type { ComposeSnapshot } from "../../services/mail/composeHandoff";
+import { holdComposeDraft } from "../../services/mail/composeHost";
+import { composeChanged, splitRecipients, type ComposeContent } from "@plainva/ui/mail";
+import { carriedFailureText, carriedLimitText, carriedRowNote, leftBehindText, sendableAttachment, useCarriedFiles, type CarriedRow, type ForwardSource } from "@plainva/ui/mail";
+import { appConfirm } from "../../services/appDialogs";
+import { holdWindowClose } from "../../services/windowCloseGuard";
 import "./mail.css";
 
 /**
@@ -20,9 +24,10 @@ import "./mail.css";
  * from the bottom-right grip, non-modal (does not dim/block the app — work
  * beside it), remembers its position/size for the session, closable via X or
  * Escape. The message body is a Markdown editor with a formatting toolbar and a
- * `/` slash-command menu (see ComposeEditor). Two ways OUT: SEND directly via
- * the account's SMTP submission host, or append the message as a \Draft into
- * the mailbox for the mail program to send.
+ * `/` slash-command menu (see ComposeEditor). Two ways OUT: SEND directly by
+ * the account's route (its SMTP submission host, or Graph for a Microsoft
+ * mailbox), or append the message as a \Draft into the mailbox for the mail
+ * program to send.
  */
 
 interface MailDraftModalProps {
@@ -40,6 +45,21 @@ interface MailDraftModalProps {
    */
   initialCc?: string;
   initialBcc?: string;
+  /**
+   * The mailbox the draft is written from: the one a reply's message is in,
+   * the one that is open in the mail view (finding 2026-10-09). The composer
+   * starts with it and with its signature. Read once, when the composer
+   * opens. Where nobody names one — a note sent by mail, an invitation — or
+   * the named one is gone, it starts with the first mailbox that is stored.
+   */
+  initialAccountId?: string;
+  /**
+   * The message this composer forwards, by reference: its files are loaded
+   * here, after the window is up, and each says what is with it
+   * (`carriedFiles.ts`). A composer that changed windows brings them in
+   * `restore` instead.
+   */
+  forward?: ForwardSource;
   /**
    * How this composer is framed (multi-window P3). `floating` is the default —
    * a movable window inside the app, unchanged from before. `window` means the
@@ -63,16 +83,15 @@ interface MailDraftModalProps {
    * tells nothing — whoever opened it keeps what it had.
    */
   onDone?: (how: "sent" | "saved" | "opened") => void;
+  /**
+   * The composer waits: it keeps everything written and draws nothing
+   * (finding 2026-10-09). Set by the host while the vault under it is loaded
+   * again and the shell is replaced by the loading screen — a composer one
+   * could still send from, over a vault that is half taken apart, would be the
+   * wrong thing to leave standing, and one that was gone afterwards worse.
+   */
+  suspended?: boolean;
   onClose: () => void;
-}
-
-/** Split a recipient string into individual addresses on comma/semicolon/
- * newline only — spaces are preserved so a "Name <email>" entry stays intact. */
-function splitRecipients(s: string): string[] {
-  return s
-    .split(/[,;\n]+/)
-    .map((x) => x.trim())
-    .filter(Boolean);
 }
 
 /** The committed recipients plus a typed-but-not-yet-chipped one, comma-joined. */
@@ -80,10 +99,38 @@ function foldRecips(val: string, draft: string): string {
   return (draft.trim() ? [...splitRecipients(val), draft.trim()] : splitRecipients(val)).join(", ");
 }
 
-export function MailDraftModal({ subject: initialSubject, markdown, attachments, initialTo, initialCc, initialBcc, variant = "floating", restore, onPopOut, onDone, onClose }: MailDraftModalProps) {
-  const { t } = useTranslation();
+/**
+ * A typed-but-not-yet-chipped recipient confirmed the way its field confirms
+ * it (`ChipField`: Enter, a separator, leaving the field): parsed, and an
+ * address that is already a chip is not added a second time.
+ */
+function confirmRecips(val: string, draft: string): string {
+  return [...new Set([...splitRecipients(val), ...splitRecipients(draft)])].join(", ");
+}
+
+/**
+ * A calendar file that arrived AS an invitation ("send event by mail"): its
+ * type names the method. A calendar file that is merely on the draft — one
+ * attached by hand, one that came with a forwarded mail — is a file.
+ */
+function isInvitation(file: MailAttachment): boolean {
+  return /^text\/calendar\s*;.*\bmethod=/i.test(file.mime);
+}
+
+/** The glyph a file of the original carries: its state, never colour alone. */
+function carriedIcon(row: CarriedRow) {
+  if (row.state === "loading") return <RefreshCw size={ICON.meta} className="spin-animation" />;
+  if (row.state === "failed") return <AlertTriangle size={ICON.meta} />;
+  if (row.state === "left") return <Ban size={ICON.meta} />;
+  return <Paperclip size={ICON.meta} />;
+}
+
+export function MailDraftModal({ subject: initialSubject, markdown, attachments, initialTo, initialCc, initialBcc, initialAccountId, forward, variant = "floating", restore, onPopOut, onDone, suspended = false, onClose }: MailDraftModalProps) {
+  const { t, i18n } = useTranslation();
   const { vaultPath, vaultAdapter } = useVault();
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
+  /** False until the mailboxes were read once: an empty list is not "none yet". */
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [accountId, setAccountId] = useState(restore?.accountId ?? "");
   /** Chosen sender address within that account (an alias, or its own). */
   const [fromAddress, setFromAddress] = useState(restore?.fromAddress ?? "");
@@ -104,6 +151,140 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   const [attach, setAttach] = useState<MailAttachment[]>(restore?.attachments ?? attachments ?? []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * The files of a forwarded original. A forward used to carry the text of the
+   * original and none of its files; they are fetched here, after the window is
+   * up, and each chip says whether its file is on its way, here, did not come
+   * or stays behind. The bound a file is held against is the SENDING
+   * mailbox's, so choosing another sender can change what goes — for a file of
+   * the original and for one attached by hand alike.
+   */
+  const sender = accounts.find((a) => a.id === accountId) ?? null;
+  const carried = useCarriedFiles({
+    vaultPath,
+    source: forward,
+    restore: restore?.carried,
+    accounts: accountsLoaded ? accounts : null,
+    sender,
+    others: attach,
+  });
+  const { snapshot: carriedSnapshot } = carried;
+  /** Send and Save draft wait while a file of the original is on its way. */
+  const waiting = carried.loading;
+  /**
+   * What the composer opened with — the state the leave question measures
+   * against (finding 2026-10-09). Taken from what the fields FIRST held, so
+   * whatever a field is prefilled from is part of it by construction. Two
+   * things move it afterwards: the composer's own changes to the body (the
+   * signature it puts in, and swaps when the sender changes) are made to this
+   * body too, so the two differ exactly when a person changed something; and a
+   * composer that was popped out brings the state its first window opened
+   * with, because a draft does not become untouched by changing windows.
+   */
+  const [opened, setOpened] = useState<ComposeContent>(
+    () => restore?.opened ?? { to, cc, bcc, subject, body, attachments: attach },
+  );
+  // The shared rule, the same one the phone asks its leave guard with. A typed
+  // but not yet confirmed recipient counts: it is something someone wrote. The
+  // files of a forwarded original are named, not held: whether one has arrived
+  // yet is not a change, taking one off is.
+  const changed = composeChanged(
+    { ...opened, carried: carried.openedIndexes },
+    {
+      to: foldRecips(to, toDraft),
+      cc: foldRecips(cc, ccDraft),
+      bcc: foldRecips(bcc, bccDraft),
+      subject,
+      body,
+      attachments: attach,
+      carried: carried.indexes,
+    },
+  );
+
+  /**
+   * "Discard your input?" — asked before a changed draft is thrown away. One
+   * question at a time: a second way out taken while it stands (Escape, then
+   * the window's own close button) joins the question that is already open.
+   */
+  const asking = useRef<Promise<boolean> | null>(null);
+  const confirmDiscard = useCallback((): Promise<boolean> => {
+    asking.current ??= appConfirm({
+      title: t("mobile.leaveTitle"),
+      message: t("mobile.leaveCompose"),
+      kind: "danger",
+      confirmLabel: t("mobile.leaveDiscard"),
+    }).finally(() => {
+      asking.current = null;
+    });
+    return asking.current;
+  }, [t]);
+
+  /**
+   * The way out that discards: Escape, the close button, "Cancel". It asks when
+   * the draft was changed and only then (finding 2026-10-09) — until then all
+   * three dropped whatever stood in the composer without a word, while the
+   * phone asked. Sending, filing as a draft and popping out do not come past
+   * here: nothing is lost on those, so they call `onClose` themselves.
+   */
+  const requestClose = useCallback(() => {
+    if (!changed) {
+      onClose();
+      return;
+    }
+    void confirmDiscard().then((discard) => {
+      if (discard) onClose();
+    });
+  }, [changed, confirmDiscard, onClose]);
+
+  // The fourth way out is not the composer's own: the window around it is
+  // closed, or stops showing this vault — and with the vault goes everything
+  // that stands on it. Neither is decided here, so the changed draft is
+  // declared to the window: a second window is then asked by the central one
+  // before it is destroyed, a vault switch or close waits for the answer in
+  // whichever window it happens, and both put this same question. The central
+  // window's own close asks nobody (windowCloseGuard.ts says why).
+  useEffect(() => {
+    if (!changed) return;
+    return holdWindowClose(confirmDiscard);
+  }, [changed, confirmDiscard]);
+
+  // And a fifth way to lose a draft is another message being asked for while
+  // this one is open — "Reply" in the mail view beside it, a note sent by mail.
+  // That is its host's to decide (services/mail/composeHost.ts), so the host
+  // is told what stands here. A changed draft: it puts this same question
+  // before the new draft takes this composer's place, and replaces an
+  // untouched one without it.
+  useEffect(() => {
+    if (!changed || busy) return;
+    return holdComposeDraft(confirmDiscard);
+  }, [changed, busy, confirmDiscard]);
+
+  // A message that is being sent or filed this moment is neither. What becomes
+  // of it is not known yet, and "discard?" is the wrong question about a
+  // message on its way, so the request waits for the outcome. Sent or filed,
+  // this composer has closed by then and the new draft may come. Failed, it is
+  // still here with its error and everything in it — and stays, whether or
+  // not anyone wrote in it: the error is for the person, not for nobody.
+  const here = useRef(true);
+  useEffect(() => {
+    here.current = true;
+    return () => {
+      here.current = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (!busy) return;
+    let landed!: () => void;
+    const outcome = new Promise<void>((resolve) => (landed = resolve));
+    const release = holdComposeDraft(async () => {
+      await outcome;
+      return !here.current;
+    });
+    return () => {
+      landed();
+      release();
+    };
+  }, [busy]);
 
   /**
    * The From picker offers ADDRESSES, not accounts: an account contributes its
@@ -135,7 +316,11 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       // account ids, which meant switching between two aliases of one account
       // silently kept the first one's signature.
       if (previous?.id !== next?.id || address !== fromAddress) {
-        setBody((b) => withSignature(withoutSignature(b, previous, fromAddress), next, address));
+        const resign = (b: string) => withSignature(withoutSignature(b, previous, fromAddress), next, address);
+        setBody(resign);
+        // The untouched body is re-signed with it: a swapped signature is the
+        // composer's doing, not something the writer typed.
+        setOpened((o) => ({ ...o, body: resign(o.body) }));
       }
     },
     [accounts, accountId, fromAddress]
@@ -150,9 +335,16 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     const key = senderKey(account.id, fromAddress);
     if (signedFor.current === key) return;
     signedFor.current = key;
-    setBody((b) => withSignature(b, account, fromAddress));
+    const sign = (b: string) => withSignature(b, account, fromAddress);
+    setBody(sign);
+    // Signed along, so the signature alone never counts as unsaved work.
+    setOpened((o) => ({ ...o, body: sign(o.body) }));
   }, [accounts, accountId, fromAddress]);
 
+  // The mailbox the draft was asked for from, as it was when the composer
+  // opened — like every other prefill. A composer does not change its sender
+  // because its host rendered again.
+  const askedAccount = useRef(initialAccountId);
   useEffect(() => {
     let alive = true;
     void (async () => {
@@ -160,11 +352,17 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       const list = await listMailAccounts(vaultPath);
       if (!alive) return;
       setAccounts(list);
-      // A restored composer already knows its sender — picking the first
+      setAccountsLoaded(true);
+      // A restored composer already knows its sender — picking another
       // account here would silently switch it (and its signature).
       if (restore) return;
-      setAccountId(list[0]?.id ?? "");
-      setFromAddress(list[0] ? senderOptions(list[0])[0] ?? "" : "");
+      // A reply leaves from the mailbox its message is in, a new message from
+      // the one that is open (finding 2026-10-09): this took the first account
+      // of the list whatever the draft came from. The first one is what is
+      // left where nobody named a mailbox, or the named one is gone.
+      const start = list.find((a) => a.id === askedAccount.current) ?? list[0];
+      setAccountId(start?.id ?? "");
+      setFromAddress(start ? senderOptions(start)[0] ?? "" : "");
     })();
     return () => { alive = false; };
   }, [vaultPath, restore]);
@@ -203,10 +401,13 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   /**
    * Puts a template into the message body.
    *
-   * `templateInsertText` strips the template's OWN frontmatter — a mail body has
-   * no frontmatter, and pasting one in would send YAML to the recipient. The
-   * engine runs INTERACTIVE, so a template with questions asks them once in the
-   * collected dialog instead of leaving `{{prompt:…}}` in the text.
+   * The template's OWN frontmatter stays out — a mail body has none, and
+   * pasting one in would send YAML to the recipient — and its text is read as
+   * an editor holds it: no byte order mark in the message. The text runs through
+   * the pipeline with questions ONCE, so a template's questions are asked in
+   * the collected dialog. It was filled once before that without them: every
+   * question became nothing, its default too, and the clipboard and the week
+   * start never reached it (Sammelplan § 3.97).
    */
   const applyTemplate = useCallback(
     async (templatePath: string) => {
@@ -215,16 +416,18 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       try {
         const raw = await vaultAdapter.readTextFile(templatePath);
         const title = subject || (templatePath.split(/[/\\]/).pop() ?? "").replace(/\.md$/i, "");
-        const body0 = templateInsertText(raw, title);
-        const ctx = await withShellContext(body0, { title, now: new Date(), folder: "" });
-        const out = await applyTemplateInteractive(body0, ctx, t("mail.insertTemplate"));
+        const out = await applyTemplateInteractive(
+          templateBodyOf(raw),
+          { title, now: new Date(), folder: "", vaultPath: vaultPath ?? null },
+          t("mail.insertTemplate")
+        );
         if (!out) return; // cancelled → nothing is written
         setBody((prev) => (prev ? `${prev}\n\n${out.text}` : out.text));
       } catch {
         toast.error(t("mail.templateFailed"));
       }
     },
-    [vaultAdapter, subject, t]
+    [vaultAdapter, vaultPath, subject, t]
   );
 
   const pickFile = useCallback(async () => {
@@ -241,15 +444,37 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     }
   }, [t]);
 
+  /**
+   * Asked once before a message leaves without a file it is shown with — one
+   * that did not come, or one the sending mailbox does not take. Whoever took
+   * the file off by hand has answered already and is not asked.
+   */
+  const leaveBehind = useCallback(
+    (way: "send" | "draft"): Promise<boolean> => {
+      if (carried.left.length === 0) return Promise.resolve(true);
+      return appConfirm({
+        title: t(way === "send" ? "mail.sendWithoutTitle" : "mail.draftWithoutTitle"),
+        message: leftBehindText(carried.left, t),
+        confirmLabel: t(way === "send" ? "mail.sendWithout" : "mail.draftWithout"),
+      });
+    },
+    [carried.left, t],
+  );
+
+  /** The files a draft arrived with or a person attached, minus what the
+   *  sending mailbox does not take. */
+  const ownFiles = useMemo(() => attach.filter((_, i) => carried.othersGo[i] !== false), [attach, carried.othersGo]);
+
   const submit = useCallback(async () => {
     const account = accounts.find((a) => a.id === accountId);
-    if (!vaultPath || !account || busy) return;
+    if (!vaultPath || !account || busy || waiting) return;
     // Fold a typed-but-not-yet-chipped recipient into each list.
     const recips = foldRecips(to, toDraft);
     if (!recips || !subject.trim() || !mailbox) {
       setError(t("pim.fillAllFields", { defaultValue: "Bitte alle Felder ausfüllen." }));
       return;
     }
+    if (!(await leaveBehind("draft"))) return;
     setBusy(true);
     setError(null);
     try {
@@ -260,7 +485,8 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
         to: recips,
         subject: subject.trim(),
         body,
-        attachments: attach,
+        // An invitation is filed as the calendar file it is (`sendableAttachment`).
+        attachments: [...carried.attachments, ...ownFiles.map(sendableAttachment)],
         cc: foldRecips(cc, ccDraft),
         bcc: foldRecips(bcc, bccDraft),
       });
@@ -271,30 +497,34 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
     }
-  }, [vaultPath, accounts, accountId, busy, to, toDraft, cc, ccDraft, bcc, bccDraft, subject, mailbox, body, attach, onClose, onDone, t]);
+  }, [vaultPath, accounts, accountId, busy, waiting, to, toDraft, cc, ccDraft, bcc, bccDraft, subject, mailbox, body, carried.attachments, ownFiles, leaveBehind, onClose, onDone, t]);
 
   const send = useCallback(async () => {
     const account = accounts.find((a) => a.id === accountId);
-    if (!vaultPath || !account || busy) return;
+    if (!vaultPath || !account || busy || waiting) return;
     const recips = foldRecips(to, toDraft);
     if (!recips || !subject.trim()) {
       setError(t("pim.fillAllFields", { defaultValue: "Bitte alle Felder ausfüllen." }));
       return;
     }
+    if (!(await leaveBehind("send"))) return;
     setBusy(true);
     setError(null);
     try {
       // A text/calendar; method=… attachment (from "Termin per Mail versenden")
       // is sent as an INLINE iMIP invitation so Gmail renders it as an event.
-      const calIdx = attach.findIndex((a) => /^text\/calendar/i.test(a.mime));
+      // Only a file that ARRIVED as an invitation is lifted: until 2026-10 the
+      // first calendar file of any kind was, so a forwarded mail carrying
+      // `termin.ics` — or one attached by hand — would have invited the
+      // recipient in the forwarder's name.
+      const invite = ownFiles.find(isInvitation);
       let calendar: { ics: string; method?: string } | undefined;
-      let files = attach;
-      if (calIdx >= 0) {
-        const a = attach[calIdx];
+      let files = ownFiles;
+      if (invite) {
         try {
-          const bytes = Uint8Array.from(atob(a.contentBase64.trim()), (c) => c.charCodeAt(0));
-          calendar = { ics: new TextDecoder("utf-8").decode(bytes), method: /method=([A-Za-z-]+)/i.exec(a.mime)?.[1]?.toUpperCase() };
-          files = attach.filter((_, i) => i !== calIdx);
+          const bytes = Uint8Array.from(atob(invite.contentBase64.trim()), (c) => c.charCodeAt(0));
+          calendar = { ics: new TextDecoder("utf-8").decode(bytes), method: /method=([A-Za-z-]+)/i.exec(invite.mime)?.[1]?.toUpperCase() };
+          files = ownFiles.filter((a) => a !== invite);
         } catch { /* fall back to a normal attachment */ }
       }
       // "Undo send" (S23) is a DELAY, not a recall: once SMTP has the message
@@ -310,7 +540,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
         to: recips,
         subject: subject.trim(),
         body,
-        attachments: files,
+        attachments: [...carried.attachments, ...files.map(sendableAttachment)],
         calendar,
         cc: foldRecips(cc, ccDraft),
         bcc: foldRecips(bcc, bccDraft),
@@ -323,7 +553,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
     }
-  }, [vaultPath, accounts, accountId, fromAddress, busy, to, toDraft, cc, ccDraft, bcc, bccDraft, subject, body, attach, onClose, onDone, t]);
+  }, [vaultPath, accounts, accountId, fromAddress, busy, waiting, to, toDraft, cc, ccDraft, bcc, bccDraft, subject, body, carried.attachments, ownFiles, leaveBehind, onClose, onDone, t]);
 
   /**
    * Everything the writer has entered, ready to travel to another window.
@@ -343,8 +573,12 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       body,
       attachments: attach,
       mailbox,
+      opened,
+      // The files of a forwarded original: the reference, and the bytes that
+      // are here already. One still on its way is asked for again over there.
+      carried: carriedSnapshot(),
     }),
-    [accountId, fromAddress, to, toDraft, cc, ccDraft, bcc, bccDraft, showCc, subject, body, attach, mailbox],
+    [accountId, fromAddress, to, toDraft, cc, ccDraft, bcc, bccDraft, showCc, subject, body, attach, mailbox, opened, carriedSnapshot],
   );
 
   const popOut = useCallback(() => {
@@ -353,6 +587,32 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     onDone?.("opened");
     onClose();
   }, [onPopOut, snapshot, onClose, onDone]);
+
+  // A composer that waits (`suspended`) draws no fields, and a recipient field
+  // comes back empty. What was typed into one and not yet confirmed is
+  // confirmed first, as leaving the field would have done: "loses nothing" has
+  // to mean nothing, and a recipient the field no longer shows must not be
+  // sent to.
+  // And it comes back without reaching for the keyboard: what it waited for
+  // was started somewhere else — in the settings, which are open again in the
+  // same moment — and that is where the person is typing.
+  const [waited, setWaited] = useState(false);
+  useEffect(() => {
+    if (!suspended) return;
+    setWaited(true);
+    if (toDraft.trim()) {
+      setTo((list) => confirmRecips(list, toDraft));
+      setToDraft("");
+    }
+    if (ccDraft.trim()) {
+      setCc((list) => confirmRecips(list, ccDraft));
+      setCcDraft("");
+    }
+    if (bccDraft.trim()) {
+      setBcc((list) => confirmRecips(list, bccDraft));
+      setBccDraft("");
+    }
+  }, [suspended, toDraft, ccDraft, bccDraft]);
 
   // Recipient lists are stored as one comma-joined string (that is what the
   // send path takes); the field itself works on the split list.
@@ -376,8 +636,14 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     />
   );
 
-  const canSend = !!accounts.find((a) => a.id === accountId)?.smtpHost;
+  // Whether — and how — the chosen account sends is the shared decision the
+  // transport itself reads, not a look at the SMTP host: a Microsoft mailbox
+  // has none and sends through Graph (finding 2026-10-08).
+  const sendRoute = mailSendRoute(accounts.find((a) => a.id === accountId));
+  const canSend = sendRoute !== null;
   const title = t("mail.composeTitle", { defaultValue: "Nachricht verfassen" });
+  const failureText = carriedFailureText(carried.rows, t);
+  const limitText = carriedLimitText(carried.rows, carried.othersGo, carried.limits, t, i18n.language);
 
   const panel = (
     <>
@@ -412,7 +678,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
               </div>
               <div className="pv-mail-addr">
                 <span className="k">{t("mail.draftTo", { defaultValue: "An" })}</span>
-                {renderChips(to, setTo, setToDraft, "draft-to", "name@example.org", true)}
+                {renderChips(to, setTo, setToDraft, "draft-to", "name@example.org", !waited)}
                 {!showCc && (
                   <button type="button" className="pv-mail-cctoggle" onClick={() => setShowCc(true)} data-testid="draft-cc-toggle">
                     {t("mail.ccBcc", { defaultValue: "Cc/Bcc" })}
@@ -442,15 +708,41 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
                 data-testid="draft-body"
               />
               <div className="pv-mail-cmpattach">
-                {attach.map((a, i) => (
-                  <span key={`${a.name}-${i}`} className={/^text\/calendar/i.test(a.mime) ? "pv-mail-attach-chip pv-mail-attach-chip--ics" : "pv-mail-attach-chip"} data-testid="draft-attachments">
-                    <Paperclip size={ICON.meta} />
-                    {a.name}
-                    <button type="button" className="pv-mail-attach-remove" onClick={() => setAttach((prev) => prev.filter((_, j) => j !== i))} aria-label={t("mail.removeAttachment", { defaultValue: "Anhang entfernen" })} data-testid="draft-attach-remove">
+                {/* The files of a forwarded original, in the reader's order: one
+                    chip each, saying what is with it. A file that stays behind
+                    keeps its chip and its name — nothing is dropped without a
+                    word. */}
+                {carried.rows.map((row) => (
+                  <span key={`carried-${row.file.index}`} className={`pv-mail-attach-chip pv-mail-attach-chip--${row.state}`} data-testid="draft-carried" data-state={row.state}>
+                    {carriedIcon(row)}
+                    <span className="pv-mail-attach-name">{row.file.name}</span>
+                    <span className="pv-mail-attach-note">{carriedRowNote(row, t, i18n.language)}</span>
+                    {row.state === "failed" && (
+                      <IconButton size="sm" label={t("mail.fileRetry")} onClick={() => carried.retry(row.file.index)} data-testid="draft-carried-retry">
+                        <RotateCw size={ICON.meta} />
+                      </IconButton>
+                    )}
+                    <IconButton size="sm" label={t("mail.removeAttachment", { defaultValue: "Anhang entfernen" })} onClick={() => carried.remove(row.file.index)} data-testid="draft-carried-remove">
                       <X size={ICON.meta} />
-                    </button>
+                    </IconButton>
                   </span>
                 ))}
+                {attach.map((a, i) => {
+                  // A file the sending mailbox does not take keeps its chip and
+                  // says so: it is asked about before the message leaves.
+                  const stays = carried.othersGo[i] === false;
+                  const look = stays ? "pv-mail-attach-chip pv-mail-attach-chip--left" : /^text\/calendar/i.test(a.mime) ? "pv-mail-attach-chip pv-mail-attach-chip--ics" : "pv-mail-attach-chip";
+                  return (
+                    <span key={`${a.name}-${i}`} className={look} data-testid="draft-attachments" data-state={stays ? "left" : "ready"}>
+                      {stays ? <Ban size={ICON.meta} /> : <Paperclip size={ICON.meta} />}
+                      <span className="pv-mail-attach-name">{a.name}</span>
+                      {stays && <span className="pv-mail-attach-note">{t("mail.fileState.tooLarge")}</span>}
+                      <button type="button" className="pv-mail-attach-remove" onClick={() => setAttach((prev) => prev.filter((_, j) => j !== i))} aria-label={t("mail.removeAttachment", { defaultValue: "Anhang entfernen" })} data-testid="draft-attach-remove">
+                        <X size={ICON.meta} />
+                      </button>
+                    </span>
+                  );
+                })}
                 <Button variant="ghost" size="sm" icon={<Paperclip size={ICON.ui} />} onClick={() => void pickFile()} data-testid="draft-attach-file">
                   {t("mail.attachFile", { defaultValue: "Datei anhängen" })}
                 </Button>
@@ -462,16 +754,42 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
                   {t("mail.insertTemplate")}
                 </Button>
               </div>
+              {/* What the chips above cannot say in a word: that the buttons
+                  below wait, why a file did not come and how to ask again, and
+                  the bound a file was held against. */}
+              {waiting && (
+                <p className="pv-mail-filehint" data-testid="draft-files-loading">
+                  {t("mail.filesLoading", { count: carried.rows.filter((row) => row.state === "loading").length })} {t("mail.filesWaiting")}
+                </p>
+              )}
+              {failureText && (
+                <Banner
+                  kind="warning"
+                  rounded
+                  actions={
+                    <Button variant="ghost" size="sm" onClick={() => carried.retry()} data-testid="draft-carried-retry-all">
+                      {t("mail.fileRetry")}
+                    </Button>
+                  }
+                >
+                  <span data-testid="draft-files-failed">{failureText}</span>
+                </Banner>
+              )}
+              {limitText && (
+                <p className="pv-mail-filehint" data-testid="draft-files-limit">
+                  {limitText}
+                </p>
+              )}
               {mailboxes.length > 0 && (
                 <div>
                   <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 2 }}>{t("mail.draftMailbox", { defaultValue: "Entwurfsordner" })}</label>
                   <Select ariaLabel={t("mail.draftMailbox", { defaultValue: "Entwurfsordner" })} value={mailbox} onChange={setMailbox} options={mailboxes.map((m) => ({ value: m, label: mailFolderLabel(m, folderDelimiter) }))} />
                 </div>
               )}
-              <p style={{ margin: "var(--space-1) 0 var(--space-2)", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                {canSend
-                  ? t("mail.composeHint", { defaultValue: "„Senden“ verschickt direkt über SMTP; „Als Entwurf“ legt die Nachricht ins Postfach." })
-                  : t("mail.noSmtpHint", { defaultValue: "Für den Direktversand einen SMTP-Host im Konto hinterlegen." })}
+              <p style={{ margin: "var(--space-1) 0 var(--space-2)", fontSize: "var(--text-xs)", color: "var(--text-muted)" }} data-testid="draft-send-hint">
+                {sendRoute === "graph" && t("mail.composeHintMicrosoft")}
+                {sendRoute === "smtp" && t("mail.composeHint", { defaultValue: "„Senden“ verschickt direkt über SMTP; „Als Entwurf“ legt die Nachricht ins Postfach." })}
+                {!canSend && t("mail.noSmtpHint", { defaultValue: "Für den Direktversand einen SMTP-Host im Konto hinterlegen." })}
               </p>
             </>
           )}
@@ -490,15 +808,15 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       </div>
 
       <div className="pv-mail-winfoot">
-        <Button variant="ghost" onClick={onClose}>{t("common.cancel", { defaultValue: "Abbrechen" })}</Button>
+        <Button variant="ghost" onClick={requestClose} data-testid="draft-cancel">{t("common.cancel", { defaultValue: "Abbrechen" })}</Button>
         <span style={{ flex: 1 }} />
-        <Button variant="secondary" data-testid="draft-save" disabled={busy || accounts.length === 0} onClick={() => void submit()}>
+        <Button variant="secondary" data-testid="draft-save" disabled={busy || accounts.length === 0 || waiting} onClick={() => void submit()}>
           {t("mail.draftAction")}
         </Button>
         <Button
           variant="primary"
           data-testid="draft-send"
-          disabled={busy || accounts.length === 0 || !canSend}
+          disabled={busy || accounts.length === 0 || !canSend || waiting}
           onClick={() => void send()}
           data-tip={!canSend ? t("mail.noSmtpHint", { defaultValue: "Für den Direktversand einen SMTP-Host im Konto hinterlegen." }) : undefined}
         >
@@ -515,7 +833,13 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       defaultHeight={600}
       minHeight={360}
       ariaLabel={title}
-      onEscape={onClose}
+      // Escape is the content's first: the command menu and the sender list
+      // close on it themselves, and a key pressed in the note beside the
+      // composer is not about the message. The template picker closes on
+      // Escape without marking the key as used, so the window stands back
+      // for as long as it is open.
+      escapeScope="content"
+      onEscape={templatePicker ? undefined : requestClose}
       className="pv-mail-window"
       head={
         <>
@@ -533,7 +857,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
                 <SquareArrowOutUpRight size={ICON.ui} />
               </button>
             )}
-            <button type="button" className="pv-peek-btn" onClick={onClose} aria-label={t("common.close", { defaultValue: "Schließen" })} data-tip={t("common.close", { defaultValue: "Schließen" })}>
+            <button type="button" className="pv-peek-btn" onClick={requestClose} aria-label={t("common.close", { defaultValue: "Schließen" })} data-tip={t("common.close", { defaultValue: "Schließen" })} data-testid="draft-close">
               <X size={ICON.ui} />
             </button>
           </div>
@@ -543,6 +867,12 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       {panel}
     </FloatingWindow>
   );
+
+  // Waiting for its vault to come back: the draft lives in this component's
+  // state, so it only has to stay mounted — and the question it holds for the
+  // window stays armed, which is what the loading screen's "cancel" meets.
+  // Nothing is drawn, so nothing can be typed, sent or closed meanwhile.
+  if (suspended) return null;
 
   // As its own OS window the composer drops the floating chrome: the window
   // frame and the aux title bar above it are the chrome, and Escape belongs

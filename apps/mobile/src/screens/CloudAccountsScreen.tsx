@@ -7,7 +7,6 @@ import {
   type CloudAccountRecord,
   type CloudServiceId,
   GroupCard,
-  GmailSignInButton,
   type GuidedAccountRepairPlan,
   ICON,
   IconButton,
@@ -23,18 +22,19 @@ import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
 import { backfillMobileCalendarIdentity, backfillMobileSyncIdentity } from "../services/cloudIdentityBackfill";
-import { beginAccountLogin, canUnifyMobileAccount } from "../services/accountLogin";
+import { canUnifyMobileAccount } from "../services/accountLogin";
+import { AccessUnavailableError, beginMobileSignIn } from "../services/accountSignIn";
+import { toastConnectionFailure } from "../services/connectionToast";
 import { loadCloudAccounts } from "../services/cloudAccountsStore";
 import {
   guideMobileAccountRepair,
   loadMobileAccountRepairNeeds,
 } from "../services/accountRepair";
 import { DeviceSignInBadge } from "../components/DeviceSignInRow";
-import { AccountClientIdSheet } from "../components/AccountClientIdSheet";
+import { AccountAccessSheet } from "../components/AccountAccessSheet";
 import { mConfirm } from "../services/mobileDialogs";
 import { AppBar } from "../components/AppBar";
 import { ConnectRunSummary } from "../components/ConnectRunBanner";
-import { mobileGmailClient, signInGmail } from "../services/mail/gmailAuth";
 
 /**
  * Mobile Cloud-Konten overview (cloud-accounts plan, P4): the ACTIVE vault's
@@ -153,16 +153,19 @@ export function CloudAccountsScreen({
    * When this device holds no client id for the account, the answer is the form
    * — not the raw error this used to toast (Befund 2026-08-20). */
   const [needClient, setNeedClient] = useState<{ record: CloudAccountRecord; family: "google" | "microsoft" } | null>(null);
-  const [signingIn, setSigningIn] = useState(false);
+  const [, setSigningIn] = useState(false);
 
-  const signInAgain = (record: CloudAccountRecord, fallback?: { clientId: string; clientSecret?: string }) => {
+  const signInAgain = (record: CloudAccountRecord) => {
+    const family = record.family;
+    if (family !== "google" && family !== "microsoft") return;
     void (async () => {
       setSigningIn(true);
       try {
-        const out = await beginAccountLogin((await getActiveVaultEntry()).id, record, fallback);
-        setNeedClient(out.kind === "needsClientId" ? { record, family: out.family } : null);
+        await beginMobileSignIn((await getActiveVaultEntry()).id, { family, cardId: record.id, add: [] });
+        setNeedClient(null);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        if (e instanceof AccessUnavailableError) setNeedClient({ record, family: e.family });
+        else toastConnectionFailure(e);
       } finally {
         setSigningIn(false);
       }
@@ -219,9 +222,6 @@ export function CloudAccountsScreen({
       <div className="m-settings">
       <ConnectRunSummary />
       <p className="m-hint">{t("settings.pageDescCloudAccounts")}</p>
-      {mobileGmailClient() && <GroupCard>
-        <GmailSignInButton onSignIn={async () => { await signInGmail((await getActiveVaultEntry()).id); reload(); }} />
-      </GroupCard>}
 
       {repairNeeds.length > 0 && (
         <>
@@ -315,11 +315,10 @@ export function CloudAccountsScreen({
       </div>
 
       {needClient && (
-        <AccountClientIdSheet
-          busy={signingIn}
+        <AccountAccessSheet
           family={needClient.family}
           onCancel={() => setNeedClient(null)}
-          onSubmit={(client) => signInAgain(needClient.record, client)}
+          onSaved={() => { const { record } = needClient; setNeedClient(null); signInAgain(record); }}
         />
       )}
     </div>

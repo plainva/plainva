@@ -41,7 +41,7 @@ Three facts shape everything.
 
 7. **"Don't show again" is the device's own, and holds for the matter as it stands.** Kept in the app's data per vault, never in the vault: what a device wants to be asked is nothing a vault's writers should settle. A hint's key holds the state it was about — a file's hash, an approval's time, a run's — so it returns when the matter itself has changed. Of one kind at most three are shown; the next takes a place once one is settled.
 
-8. **Memory care is the app's one skill that drafts.** Every skill of the app reads and shows ([ADR 0020](0020-ai-skills-memory-and-script-skills.md), decision 4). Memory care names three tools — the memory's search and its two drafting tools — because what it finds is only of use as something the user can accept: one entry instead of two, an entry to take out. A draft changes nothing ([ADR 0027](0027-ai-memory-entries-and-their-rules.md), decision 14). Where two entries contradict each other it drafts nothing and asks. A test holds the exception to exactly these three tools, and every other skill of the app to tools that read and show. The skill brings no regression scenarios: a regression run is given no memory.
+8. **Memory care is the app's one skill that drafts.** Every skill of the app reads and shows ([ADR 0020](0020-ai-skills-memory-and-script-skills.md), decision 4). Memory care names three tools — the memory's search and its two drafting tools — because what it finds is only of use as something the user can accept: one entry instead of two, an entry to take out. A draft changes nothing ([ADR 0032](0032-ai-memory-entries-and-their-rules.md), decision 14). Where two entries contradict each other it drafts nothing and asks. A test holds the exception to exactly these three tools, and every other skill of the app to tools that read and show. The skill brings no regression scenarios: a regression run is given no memory.
 
 9. **Nothing tidies by itself.** No skill is switched off, no entry merged or removed, no review started, and no hint acted on without the user's step. Hints are not synced: each device computes its own from its own ledger.
 
@@ -66,4 +66,4 @@ Three facts shape everything.
 
 ## Links
 
-- ADR 0019, ADR 0020 (decisions 4 and 5), ADR 0027 (decisions 12 to 14), ADR 0028 (decisions 1, 6, 13 and 18).
+- ADR 0019, ADR 0020 (decisions 4 and 5), ADR 0032 (decisions 12 to 14), ADR 0028 (decisions 1, 6, 13 and 18).

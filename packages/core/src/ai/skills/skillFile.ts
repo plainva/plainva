@@ -1,4 +1,5 @@
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import { frontmatterSpan } from "../../frontmatter-block.js";
 import { normalizeFolder } from "../policy.js";
 import type { ToolDataClass, ToolRiskClass } from "../tools.js";
 
@@ -258,16 +259,15 @@ export function blockingProblems(problems: readonly SkillProblem[]): SkillProble
  * KI-Harness P6). The frontmatter is kept byte for byte — the name, what the
  * skill is for, its tools, folders, limits and tests —, only the Markdown
  * after it is replaced: a rewrite made this way cannot change what a skill
- * may do, whatever the new instructions say. The frontmatter ends where the
- * reader above ends it, at the second `---`. Null where there is none to
- * keep, or no instructions to write.
+ * may do, whatever the new instructions say. Where the frontmatter ends is
+ * the one definition of a properties block (`frontmatterSpan`). Null where
+ * there is none to keep, or no instructions to write.
  */
 export function rewriteSkillBody(content: string, body: string): string | null {
-  const start = content.charCodeAt(0) === 0xfeff ? 1 : 0;
-  if (!content.startsWith("---", start)) return null;
-  const close = content.indexOf("---", start + 3);
-  if (close < 0) return null;
-  const head = content.slice(0, close + 3);
+  const span = frontmatterSpan(content);
+  if (!span) return null;
+  // Up to and with the closing fence, without the line break behind it.
+  const head = content.slice(0, span.end).replace(/(?:\r\n|\r|\n)$/, "");
   const lines = body.trim().split(/\r?\n/);
   if (lines.length === 1 && lines[0] === "") return null;
   // The file's own line ends, so a rewrite does not leave it with two kinds.

@@ -38,7 +38,8 @@ import { buildPimAuthProvider } from "./pimAuth";
 export interface PimWorkerHandle {
   start(): void;
   stop(): void;
-  triggerImmediate(): Promise<void>;
+  /** `afterWrite`: see `PimWorker.triggerImmediate` - a running cycle cannot answer it (issue 119). */
+  triggerImmediate(opts?: { afterWrite?: boolean }): Promise<void>;
 }
 
 export interface PimRuntime {

@@ -14,6 +14,15 @@ describe("frontmatterBlockOf", () => {
   it("handles CRLF", () => {
     expect(frontmatterBlockOf("---\r\ntype: Note\r\n---\r\nBody")).toBe("type: Note");
   });
+
+  it("gives a block without entries as a block with no text, and nothing of the note behind it", () => {
+    // `---` on `---` read as "no block" — or, with a rule in the text, as a
+    // block that ran to that rule (finding 2026-10-07).
+    expect(frontmatterBlockOf("---\n---\n# Note\n")).toBe("");
+    expect(frontmatterBlockOf("---\r\n---\r\n# Note\r\n")).toBe("");
+    expect(frontmatterBlockOf("---\n---\nplainva:\n  icon: x\n\n---\n")).toBe("");
+    expect(plainvaMetaFromContent("---\n---\nplainva:\n  icon: x\n\n---\n")).toEqual({});
+  });
 });
 
 describe("plainvaMetaFromContent", () => {

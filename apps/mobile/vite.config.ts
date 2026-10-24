@@ -28,6 +28,10 @@ export default defineConfig({
     // See the desktop config: the suites run side by side under turbo, and a
     // real-SQLite test that takes 200 ms alone timed out at 5 s in the hook.
     testTimeout: 20_000,
+    // Setup and teardown hooks get their own, longer cap: some build a real
+    // SQLite file or a vault on disk, and the Windows release runner took more
+    // than the 10 s default for that (release 0.8.6, Sammelplan 3.149).
+    hookTimeout: 60_000,
     // See the desktop config: PLAINVA_TEST_WORKERS=<n> caps the workers on a loaded machine.
     ...(process.env.PLAINVA_TEST_WORKERS ? { maxWorkers: Number(process.env.PLAINVA_TEST_WORKERS) } : {}),
     // Same repair as the desktop's (code review B3): Node >= 25 ships an

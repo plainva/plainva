@@ -11,6 +11,7 @@ import {
 } from "react";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { cx } from "./cx";
+import { useOutsidePress } from "./useOutsidePress";
 import { ICON } from "../../lib/iconSizes";
 
 export interface SelectOption<T extends string = string> {
@@ -142,13 +143,16 @@ export function Select<T extends string = string>({
     if (open) place();
   }, [open]);
 
+  // A press beside the list dismisses it, heard at the window as every menu
+  // and popover hears it (`useOutsidePress`): the press on a handle that drags
+  // — a floating window's head, a column's grip — never becomes a `mousedown`,
+  // and a handler on the way may stop one. The trigger is not beside the list:
+  // its own click answers the press (Sammelplan § 3.100).
+  useOutsidePress(open, dismiss, listRef, triggerRef);
+
   useEffect(() => {
     if (!open) return;
     if (searchable) searchRef.current?.focus();
-    const onDown = (e: MouseEvent) => {
-      if (triggerRef.current?.contains(e.target as Node) || listRef.current?.contains(e.target as Node)) return;
-      dismiss();
-    };
     // Scrolling inside the option list must not close it; ancestor scrolls
     // re-anchor the fixed list to the trigger; only a trigger that left the
     // viewport dismisses.
@@ -164,11 +168,9 @@ export function Select<T extends string = string>({
     const onResize = () => place();
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onResize);
-    document.addEventListener("mousedown", onDown);
     return () => {
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", onResize);
-      document.removeEventListener("mousedown", onDown);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, searchable]);

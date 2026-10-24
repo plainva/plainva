@@ -1,6 +1,6 @@
 # FAQ & dépannage
 
-Dernière mise à jour : 2026-09-30
+Dernière mise à jour : 2026-10-22
 
 Réponses aux questions les plus courantes — de la compatibilité Obsidian aux fichiers en conflit et aux sauvegardes.
 
@@ -42,9 +42,9 @@ Le nouveau nom est écrit dans le frontmatter de **chaque note correspondante** 
 
 Avant toute modification, l'assistant sauvegarde le fichier dans `.plainva/backups/okf-conversion-<horodatage>/`. Le rapport final indique le dossier exact ; vous pouvez y recopier des fichiers individuels. Utilisez aussi l'**Aperçu (sans modifications)** avant de convertir.
 
-### Une ancienne note quotidienne manque dans la vue Tâches
+### Une note créée à partir d'un modèle manque dans la vue Tâches
 
-Les notes quotidiennes très anciennes peuvent avoir hérité d'un réglage de leur modèle qui masque leurs tâches. Recherchez `"tasks: false"` dans le vault — **avec** les guillemets, sinon vous trouverez aussi des notes où les deux mots apparaissent simplement par hasard. Dans les résultats, la ligne se trouve dans le frontmatter sous un bloc `plainva:` ; supprimez-y `tasks: false` (et `templateFor:` s'il est présent) et la note revient. Les notes nouvellement créées à partir d'un modèle n'en héritent plus.
+Une note que vous avez créée à partir d'un modèle jusqu'à la version 0.8.5 — y compris une note quotidienne — peut avoir hérité d'un réglage de son modèle qui masque ses tâches. Recherchez `"tasks: false"` dans le vault — **avec** les guillemets, sinon vous trouverez aussi des notes où les deux mots apparaissent simplement par hasard. Dans les résultats, la ligne se trouve dans le frontmatter sous un bloc `plainva:` ; supprimez-y `tasks: false` (et `templateFor:` s'il est présent) et la note revient. Laissez la ligne dans les modèles eux-mêmes, où elle a sa place. Les notes nouvellement créées à partir d'un modèle n'en héritent plus.
 
 ## Synchronisation
 
@@ -106,6 +106,14 @@ Plainva affiche ensuite un court rapport : combien de fichiers étaient nouveaux
 
 Plainva réconcilie en plus automatiquement dès que vous revenez à la fenêtre depuis un autre programme (au maximum toutes les 30 secondes ; le cloud au maximum toutes les 5 minutes). Si un fichier reste invisible malgré tout, utilisez **Reconstruire entièrement l'index** sous Paramètres → Vault → Maintenance.
 
+### Il manque une partie de mon vault à la recherche, aux tags ou aux bases de données
+
+En lisant le vault, Plainva suit les liens comme le fait le système : un lien vers un dossier est lu comme ce dossier, un lien vers un fichier comme ce fichier — sur l'ordinateur et dans un dossier que vous avez choisi sur l'iPhone. Ce qu'il ne peut pas lire, il le laisse de côté et le nomme : un lien vers un emplacement qui n'existe pas sur cet appareil (par exemple un dossier qui n'existe que sur un autre ordinateur et arrivé ici sous forme de lien) ou un dossier sans accès. Une notification les nomme une fois — **reste hors de l'index de recherche** — et le reste du vault est indexé comme d'habitude. Rien de ce qui se trouve sous une telle entrée n'est considéré comme supprimé, ni par l'index ni par la synchronisation d'un espace de travail chiffré.
+
+Si l'index ne peut pas du tout être mis à jour, la notification dit pourquoi (**L'index de recherche n'a pas pu être mis à jour : …**) ; le vault reste ouvert avec ce que l'index contient déjà, et à la prochaine lecture du vault Plainva réessaie. Sur le téléphone, un index de recherche qui ne peut pas être ouvert est nommé lui aussi : la recherche, les tags, les bases de données, la synchronisation et le calendrier restent alors désactivés jusqu'à ce que Plainva puisse l'ouvrir.
+
+Supprimez ou réparez l'entrée nommée par la notification, puis utilisez **Relire le vault** (sur le téléphone : tirez une liste vers le bas).
+
 ### J'ai déplacé un fichier en dehors de Plainva
 
 Plainva le suit. L'arborescence affiche le fichier à son nouvel emplacement, même si vous l'avez déplacé dans le Finder, l'Explorateur ou un autre programme. Si la note est ouverte — ou si vous l'ouvrez à son ancien emplacement, par exemple depuis un signet —, Plainva la recherche : quand exactement un fichier ailleurs a le même contenu et la même date de modification, l'onglet le suit, un court message indique le nouveau dossier, et les signets, les places sur le tableau d'affichage et les commentaires de la note suivent aussi. Les modifications non enregistrées vont avec lui au nouvel emplacement. Si ce n'est pas certain, par exemple parce que le même contenu existe à plusieurs endroits, **Déplacé ?** demande de quel fichier il s'agit, et vous choisissez le bon. Si Plainva n'en trouve aucun, l'onglet reste sur **Ce fichier n'existe plus**, et Plainva retire de lui-même l'entrée obsolète de l'index. Si vous aviez des modifications non enregistrées, elles sont conservées, et **Enregistrer ici à nouveau** recrée le fichier à son ancien emplacement — Plainva n'y écrit jamais de lui-même. Tant que la recherche parcourt encore tout le vault, **Recherche en cours ailleurs dans le vault…** l'indique.
@@ -114,7 +122,7 @@ Il en va de même pour un onglet ouvert contenant une base de données (`.base`)
 
 Sur le téléphone, rien ne surveille le dossier pendant que vous travaillez. Plainva relit plutôt le vault chaque fois que vous **revenez dans l'app** (au plus une fois par minute) et chaque fois que vous **tirez une liste vers le bas** — pour chaque vault, y compris celui de l'app, que l'app Fichiers affiche sous iOS. Une note déplacée y suit son fichier de la même façon, même ouverte ; si Plainva ne la trouve pas, **Cette note est introuvable.** s'affiche.
 
-Plainva ignore les fichiers système : `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (icônes de dossier), `.Spotlight-V100`, `.Trashes`, `.fseventsd` ainsi que les fichiers AppleDouble que macOS place à côté de chaque fichier sur les lecteurs réseau et les clés USB (`._Note.md`). Ils n'apparaissent pas dans l'arborescence et ne sont ni envoyés ni téléchargés. Une copie qu'une version antérieure a déjà envoyée reste intacte dans le cloud. Une de vos notes dont le nom commence simplement par `._` reste visible — Plainva reconnaît les fichiers AppleDouble à leur contenu, pas à leur nom.
+Plainva ignore les fichiers système : `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (icônes de dossier), `.Spotlight-V100`, `.Trashes`, `.fseventsd`, `$RECYCLE.BIN`, `System Volume Information` (tous deux à la racine d'un lecteur sous Windows) ainsi que les fichiers AppleDouble que macOS place à côté de chaque fichier sur les lecteurs réseau et les clés USB (`._Note.md`). Ils n'apparaissent pas dans l'arborescence et ne sont ni envoyés ni téléchargés. Une copie qu'une version antérieure a déjà envoyée reste intacte dans le cloud. Une de vos notes dont le nom commence simplement par `._` reste visible — Plainva reconnaît les fichiers AppleDouble à leur contenu, pas à leur nom.
 
 ### Pourquoi ne vois-je aucune animation ?
 

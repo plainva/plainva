@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { applyEventChanges, buildBlockDraft, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormFromSeed, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type EventFormValues, type ParkedEventSeed, type ResolvedBlocker } from "@plainva/ui";
-import { parseRRule, type PimBlockRef, type PimEventDraft, type PimEventRow } from "@plainva/core";
+import { applyEventChanges, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker, eventFormFromSeed, type EventFormValues, type ParkedEventSeed } from "@plainva/ui";
+import { parseRRule, uniqueBlockRefs, type PimBlockRef, type PimEventDraft, type PimEventRow } from "@plainva/core";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mActions, mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
 import {
@@ -11,6 +11,7 @@ import {
   listPimCalendars,
   openMeetingNoteFor,
   pimBlockersOf,
+  pimSeriesDeleteSubject,
   pimSeriesMaster,
   pimSourceOfBlocker,
   recordPimBlockers,
@@ -117,9 +118,12 @@ export function useEventEditor({
   };
 
   /** A write the provider refused: said once, with the way to try it again. */
-  const reportRefused = (err: unknown, retry: () => void) => {
+  const reportRefused = (err: unknown, retry: () => void, what: "save" | "delete" = "save") => {
     const reason = err instanceof Error ? err.message : String(err);
-    toast.error(t("pim.eventWriteRefused", { reason }), { label: t("pim.eventWriteRetry"), run: retry });
+    // The same line the desktop writes, so a diagnostics export says why.
+    logDiagnostic("calendar", `event ${what === "delete" ? "delete" : "write"} refused: ${reason}`);
+    // A refused deletion said "was not saved" (issue 119).
+    toast.error(t(what === "delete" ? "pim.eventDeleteRefused" : "pim.eventWriteRefused", { reason }), { label: t("pim.eventWriteRetry"), run: retry });
   };
 
   /** The names of the calendars some blockers lie in, for a sentence that names them. */
@@ -176,7 +180,7 @@ export function useEventEditor({
     const run = () => {
       void deletePimEvent(target, also).then(
         (report) => void reportBlockers(report, null),
-        (err) => reportRefused(err, run),
+        (err) => reportRefused(err, run, "delete"),
       );
     };
     run();
@@ -211,7 +215,7 @@ export function useEventEditor({
       });
       if (scope === null) return;
       if (scope === "all") {
-        const master = await pimSeriesMaster(e);
+        const master = await pimSeriesDeleteSubject(e);
         if (!master) {
           toast.error(t("pim.eventWriteFailed"));
           return;
@@ -287,12 +291,23 @@ export function useEventEditor({
         }
       },
       draft,
+      // On screen until the cache has it, as on the desktop (issue 119): the
+      // phone showed a new block only after the next cycle.
+      onCreated: (accountId, calendarId, res) =>
+        showWrittenEvents(pendingEventWrites, [{ kind: "create", row: { ...draftToRow(accountId, calendarId, res.uid, draft), etag: res.etag, href: res.href } }]),
     });
     if (ok > 0) {
       toast.info(t("pim.blocked", { n: ok, defaultValue: "In {{n}} Kalender(n) blockiert" }));
-      // The event learns of its blockers (K3): its own list at the provider.
+      // The event learns of its blockers (K3): its own list at the provider —
+      // and the loaded rows show the chain mark at once.
       await recordPimBlockers(source, created);
-      pimSyncNow();
+      showWrittenEvents(
+        pendingEventWrites,
+        rows
+          .filter((row) => row.accountId === source.accountId && row.calendarId === source.calendarId && !row.blockOf && blockLinkKey(row) === source.uid)
+          .map((row) => ({ kind: "update" as const, ref: row, patch: { blocks: uniqueBlockRefs([...(row.blocks ?? []), ...created]) } })),
+      );
+      pimSyncNow({ afterWrite: true });
     }
     if (failed.length > 0) {
       const cals = failed.map((f) => `${f.label} (${f.reason})`).join(", ");

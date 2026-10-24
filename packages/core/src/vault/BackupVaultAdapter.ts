@@ -1,10 +1,12 @@
-import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError } from "./IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError, type VaultWalkOptions } from "./IVaultAdapter.js";
 import {
   backupDirFor,
   isPlainvaInternalPath,
   makeBackupPath,
   parseBackupFileName,
 } from "./backupNaming.js";
+import { trimEndChars } from "../textScan.js";
+import { readLocalFile } from "./localText.js";
 
 export interface BackupRetentionPolicy {
   /**
@@ -252,12 +254,21 @@ export class BackupVaultAdapter implements IVaultAdapter {
 
     // We only backup files that exist.
     // If it throws VaultFileNotFoundError, it means it's a new file, so no backup needed.
+    //
+    // A snapshot is the file as it lay there. Before a text write the old
+    // state is read as text — the cheap read, and for a UTF-8 file it IS the
+    // file. Where it is not (`readLocalFile`), the bytes are the snapshot: the
+    // history held the decoded reading of a `.csv` in Windows-1252, a version
+    // that never existed, where the reader replaces what is not UTF-8 — and
+    // nothing at all where it refuses, the write going on without its
+    // snapshot (finding 2026-10-11).
     let oldContent: string | Uint8Array;
     try {
       if (isBinary) {
         oldContent = await this.inner.readBinaryFile(path);
       } else {
-        oldContent = await this.inner.readTextFile(path);
+        const old = await readLocalFile(this.inner, path);
+        oldContent = old.exact ? old.text : old.bytes ?? await this.inner.readBinaryFile(path);
       }
     } catch (err: any) {
       if (err instanceof VaultFileNotFoundError || err.code === "FILE_NOT_FOUND" || err.name === "VaultFileNotFoundError") {
@@ -268,10 +279,10 @@ export class BackupVaultAdapter implements IVaultAdapter {
 
     const ts = this.now();
     const backupPath = makeBackupPath(path, ts);
-    if (isBinary) {
-      await this.inner.writeBinaryFile(backupPath, oldContent as Uint8Array);
+    if (typeof oldContent === "string") {
+      await this.inner.writeTextFile(backupPath, oldContent);
     } else {
-      await this.inner.writeTextFile(backupPath, oldContent as string);
+      await this.inner.writeBinaryFile(backupPath, oldContent);
     }
     this.lastSnapshotAt.set(path, ts); // WP5 5a: skip the listing until the next interval
 
@@ -345,7 +356,10 @@ export class BackupVaultAdapter implements IVaultAdapter {
       } else if (recursive && this.snapshotRecursiveDeletes) {
         // S4: on a platform without a trash, the folder's children are the
         // last chance too. Snapshot each FILE below it; failures are reported
-        // per file and never hold up the deletion the user confirmed.
+        // per file and never hold up the deletion the user confirmed. By the
+        // path it is deleted by: for the one of two folders whose names differ
+        // only in their Unicode form that keeps its own bytes, `info.path`
+        // names the other one (ADR 0016).
         await this.snapshotFolderContents(path);
       }
     } catch {
@@ -354,20 +368,50 @@ export class BackupVaultAdapter implements IVaultAdapter {
     return this.inner.deleteItem(path, recursive, confirmation);
   }
 
-  /** Snapshots every file under `folder` (skipping Plainva's own directory). */
+  /**
+   * Snapshots the files under `folder` a recursive delete takes that the
+   * tree shows: the folder's own, not what a link in it points at — the
+   * delete takes the link, not its target —, and nothing under a dot-named
+   * entry (`.git`, `.obsidian`, an imported vault's own `.plainva`), which is
+   * another program's bookkeeping. One rule for every adapter, asked of the
+   * walk (it does not go into such a folder) and held here as well.
+   */
   private async snapshotFolderContents(folder: string): Promise<void> {
-    let entries: VaultFileInfo[];
+    let listing: VaultListing;
     try {
-      entries = await this.inner.listDir(folder, true);
+      // The walk that says what it could not list (issue 125): a folder below
+      // that cannot be listed is no folder whose files were covered.
+      listing = this.inner.listDirReport
+        ? await this.inner.listDirReport(folder, true, { followLinks: false, dotEntries: false })
+        : { files: await this.inner.listDir(folder, true), skipped: [] };
     } catch (error) {
       // Cannot enumerate — report once against the folder rather than
       // pretending the children were covered.
-      this.onBackupError?.(folder, error);
+      this.reportBackupError(folder, error);
       return;
     }
-    for (const entry of entries) {
+    // Said first, so that it is the notice the person sees; a report that
+    // fails costs no file its snapshot.
+    const uncovered = listing.skipped.filter((s) => s.reason === "unreadable");
+    if (uncovered.length > 0) this.reportBackupError(folder, new Error(`${uncovered.length} entr(ies) below could not be listed: ${uncovered.map((s) => s.path).join(", ")}`));
+    // What lies below the folder, however the caller spelled it (a trailing
+    // slash); where the walk names its files in another spelling, the whole
+    // path is held to the rule, and a folder the tree shows has no dot in it.
+    const root = trimEndChars(folder, "/");
+    const below = (path: string) => (root && path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path);
+    for (const entry of listing.files) {
       if (entry.isDirectory || isPlainvaInternalPath(entry.path)) continue;
+      if (below(entry.path).split("/").some((segment) => segment.startsWith("."))) continue;
       await this.safeBackup(entry.path, true, true);
+    }
+  }
+
+  /** `onBackupError`, which must not break the operation it reports on. */
+  private reportBackupError(path: string, error: unknown): void {
+    try {
+      this.onBackupError?.(path, error);
+    } catch {
+      // error reporting must not break the delete either
     }
   }
 
@@ -466,7 +510,7 @@ export class BackupVaultAdapter implements IVaultAdapter {
     await (this.inner as any).setFileTimes?.(path, times);
   }
 
-  async listDirReport(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultListing> {
+  async listDirReport(path?: string, recursive?: boolean, options?: VaultWalkOptions): Promise<VaultListing> {
     return this.inner.listDirReport
       ? this.inner.listDirReport(path, recursive, options)
       : { files: await this.inner.listDir(path, recursive, options), skipped: [] };

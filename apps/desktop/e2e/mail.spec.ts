@@ -74,7 +74,8 @@ test.beforeEach(async ({ page }) => {
         if (cmd === 'plugin:app|version') return '9.9.9';
         if (cmd === 'plugin:store|get') {
           if (args.key === 'lastVaultPath') return ['/test-vault', true];
-          if (args.key === 'recentVaults') return [['/test-vault'], true];
+          // A test that switches vaults names a second one to switch to.
+          if (args.key === 'recentVaults') return [(window as any).__recentVaults ?? ['/test-vault'], true];
           if (args.key === 'autoOpenLastVault') return [true, true];
           // Stage D remounts `App` when the shown vault arrives, which is when
           // the release dialog finally gets a vault to render over. A marker
@@ -106,17 +107,33 @@ test.beforeEach(async ({ page }) => {
           return null;
         }
         if (cmd === 'mail_check_login') {
-          // The second account localizes its folders (a Graph mailbox) and
-          // answers slowly — a stale request would have time to land first.
-          if (String(args.user || '').includes('zweit')) {
-            await new Promise((r) => setTimeout(r, 250));
-            return [{ name: 'Archiv' }, { name: 'Posteingang', role: 'inbox' }];
-          }
-          // Opt-in so the folder-count assertions of the other tests stand:
-          // most accounts here have NO junk folder, which is its own case.
-          return (window as any).__withJunk
-            ? [{ name: 'INBOX' }, { name: 'Entwürfe' }, { name: 'Sent' }, { name: 'Trash' }, { name: 'Junk' }]
-            : [{ name: 'INBOX' }, { name: 'Entwürfe' }, { name: 'Sent' }, { name: 'Trash' }];
+          // Who was asked for their folders, and who has answered: a test can
+          // tell an answer that came and was turned away from one that never came.
+          const user = String(args.user || '');
+          ((window as any).__loginAsked ||= []).push(user);
+          const folders = await (async () => {
+            // The second account localizes its folders (a Graph mailbox) and
+            // answers slowly — a stale request would have time to land first.
+            if (user.includes('zweit')) {
+              // A test can make it slower still (`__secondFolderDelay`).
+              await new Promise((r) => setTimeout(r, (window as any).__secondFolderDelay ?? 250));
+              // Opt-in, like the junk folder below: a trash folder under the
+              // name THIS mailbox gives it — not the first one's "Trash".
+              return (window as any).__secondTrash
+                ? [{ name: 'Archiv' }, { name: 'Posteingang', role: 'inbox' }, { name: 'Papierkorb', role: 'trash' }]
+                : [{ name: 'Archiv' }, { name: 'Posteingang', role: 'inbox' }];
+            }
+            // The first mailbox answers at once, unless a test says otherwise
+            // (`__firstFolderDelay`, read when the question comes).
+            if ((window as any).__firstFolderDelay) await new Promise((r) => setTimeout(r, (window as any).__firstFolderDelay));
+            // Opt-in so the folder-count assertions of the other tests stand:
+            // most accounts here have NO junk folder, which is its own case.
+            return (window as any).__withJunk
+              ? [{ name: 'INBOX' }, { name: 'Entwürfe' }, { name: 'Sent' }, { name: 'Trash' }, { name: 'Junk' }]
+              : [{ name: 'INBOX' }, { name: 'Entwürfe' }, { name: 'Sent' }, { name: 'Trash' }];
+          })();
+          ((window as any).__loginAnswered ||= []).push(user);
+          return folders;
         }
         if (cmd === 'mail_sieve_get') {
           // The active script, plus what the server announces it can do. The
@@ -138,7 +155,7 @@ test.beforeEach(async ({ page }) => {
           return null;
         }
         if (cmd === 'mail_bulk_action') {
-          ((window as any).__bulkCalls ||= []).push({ mailbox: args.mailbox, uids: args.uids, action: args.action });
+          ((window as any).__bulkCalls ||= []).push({ user: args.user, mailbox: args.mailbox, uids: args.uids, action: args.action });
           return args.uids.map((uid: number) => {
             if ((window as any).__bulkFailUid === uid) return { uid, status: 'failed', reason: 'rejected' };
             if (args.action.kind === 'seen') {
@@ -183,11 +200,41 @@ test.beforeEach(async ({ page }) => {
           // Server-side search returns the matching ENVELOPES (not just ids),
           // so hits outside the loaded page still show (P2).
           const q = String(args.query || '').toLowerCase();
+          // A search can take its time (`__slowSearch`), and says when it has
+          // been answered, so a test can act while one is on its way.
+          if ((window as any).__slowSearch) await new Promise((r) => setTimeout(r, (window as any).__slowSearch));
+          (window as any).__searchAnswered = ((window as any).__searchAnswered ?? 0) + 1;
           return envelopes.filter((e) => e.subject.toLowerCase().includes(q));
         }
+        if (cmd === 'mail_list_flagged_envelopes') {
+          // The flagged list of a folder: its first message, starred. Slow on
+          // request (`__slowFlagged`), like the search.
+          if ((window as any).__slowFlagged) await new Promise((r) => setTimeout(r, (window as any).__slowFlagged));
+          (window as any).__flaggedAnswered = ((window as any).__flaggedAnswered ?? 0) + 1;
+          return [{ ...envelopes[0], flagged: true }];
+        }
         if (cmd === 'mail_append_draft') {
-          (window as any).__appendedDraft = { mailbox: args.mailbox, to: args.to, subject: args.subject, text: args.text, html: args.html };
+          (window as any).__appendedDraft = { mailbox: args.mailbox, to: args.to, subject: args.subject, text: args.text, html: args.html, attachments: args.attachments };
           return null;
+        }
+        // The files of a message: all of them in one call (a forward brings
+        // them along), or the one the reader saves. The bytes are the test's
+        // (`__attachmentFiles`, by index); a test can let the call take its
+        // time (`__slowAttachments`) or fail a number of times first.
+        if (cmd === 'mail_fetch_attachments' || cmd === 'mail_fetch_attachment') {
+          const files: Record<number, string> = (window as any).__attachmentFiles ?? { 0: btoa('%PDF-1.7 Rechnung Q3') };
+          const asked: number[] = cmd === 'mail_fetch_attachments' ? args.indexes : [args.index];
+          ((window as any).__attachmentFetches ||= []).push({ cmd, mailbox: args.mailbox, uid: args.uid, indexes: asked });
+          if ((window as any).__slowAttachments) await new Promise((r) => setTimeout(r, (window as any).__slowAttachments));
+          if (((window as any).__attachmentFailures ?? 0) > 0) {
+            (window as any).__attachmentFailures--;
+            throw new Error('fetch failed: connection reset');
+          }
+          if (cmd === 'mail_fetch_attachment') {
+            if (files[args.index] === undefined) throw new Error('attachment not found');
+            return files[args.index];
+          }
+          return asked.filter((i) => files[i] !== undefined).map((i) => ({ index: i, contentBase64: files[i] }));
         }
         if (cmd === 'plugin:webview|create_webview_window') {
           // Multi-window P3: popping the composer out creates a real window.
@@ -196,23 +243,41 @@ test.beforeEach(async ({ page }) => {
           return null;
         }
         if (cmd === 'mail_send') {
+          // A server that refuses the message for its size, a number of times.
+          if (((window as any).__sendRefusals ?? 0) > 0) {
+            (window as any).__sendRefusals--;
+            throw new Error('smtp error (552): 5.3.4 Message size exceeds fixed maximum message size');
+          }
           (window as any).__sentMail = { host: args.host, port: args.port, from: args.from, to: args.to, cc: args.cc, bcc: args.bcc, subject: args.subject, text: args.text, html: args.html, attachments: args.attachments };
           return null;
         }
         if (cmd === 'mail_list_envelopes') {
           // An unreachable server — signed in, but nothing answers.
           if ((window as any).__listFails) throw new Error('examine failed: connection refused');
+          // Or only the lists of one mailbox (`__failUser`, a part of its address).
+          if ((window as any).__failUser && String(args.user || '').includes((window as any).__failUser)) throw new Error('examine failed: connection refused');
           if (args.pass !== 'app-pw') throw new Error('bad credentials');
           ((window as any).__loadOrder ||= []).push('network');
           ((window as any).__envCalls ||= []).push({ user: args.user, mailbox: args.mailbox });
           // A deliberately slow server, so a test can SEE what is on screen
           // while the refresh is still running.
           if ((window as any).__slowList) await new Promise((r) => setTimeout(r, (window as any).__slowList));
-          const own = String(args.user || '').includes('zweit') ? ['Archiv', 'Posteingang'] : ['INBOX', 'Entwürfe', 'Sent', 'Trash'];
+          // Or slow down the list of one folder only (`__listDelay`, by folder name).
+          const folderDelay = (window as any).__listDelay?.[String(args.mailbox)];
+          if (folderDelay) await new Promise((r) => setTimeout(r, folderDelay));
+          // Which lists have been answered, so a test knows when one has come.
+          ((window as any).__listAnswered ||= []).push({ user: args.user, mailbox: args.mailbox });
+          // A folder whose list fails on its way back (`__failFolder`, by name).
+          if ((window as any).__failFolder === String(args.mailbox)) throw new Error('examine failed: connection reset');
+          const own = String(args.user || '').includes('zweit')
+            ? ['Archiv', 'Posteingang', ...((window as any).__secondTrash ? ['Papierkorb'] : [])]
+            : ['INBOX', 'Entwürfe', 'Sent', 'Trash'];
           // The junk folder holds one message of its own (M2), where the account has one.
           if ((window as any).__withJunk && String(args.mailbox) === 'Junk') {
             return { total: 1, unseen: 1, messages: [{ uidValidity: 5, hasAttachments: false, uid: 7, subject: 'Sie haben gewonnen', from: 'Gluecksrad <gewinn@lotterie.example>', dateTs: NOW, seen: false, messageId: 'spam@x' }] };
           }
+          // A folder with nothing in it (`__emptyFolder`, by name).
+          if ((window as any).__emptyFolder === String(args.mailbox)) return { total: 0, unseen: 0, messages: [] };
           if (!own.includes(String(args.mailbox))) {
             await new Promise((r) => setTimeout(r, 400)); // a SLOW failure, like a real server
             throw new Error('examine failed: No Response: [NONEXISTENT] Unknown Mailbox: ' + args.mailbox + ' (Failure)');
@@ -220,7 +285,10 @@ test.beforeEach(async ({ page }) => {
           if (String(args.mailbox) === 'Sent') {
             // Sent behaves as it always did (the folder is not empty); the
             // conversation fixture only ADDS our own reply of the chain.
-            const sent = (window as any).__threadFixture ? [...sentEnvelopes, ...envelopes] : envelopes;
+            // A test can give your reply in Sent the number of a message of the inbox.
+            const reply = (window as any).__sentReplyUid;
+            const mine = reply ? sentEnvelopes.map((e) => (e.uid === 91 ? { ...e, uid: reply } : e)) : sentEnvelopes;
+            const sent = (window as any).__threadFixture ? [...mine, ...envelopes] : envelopes;
             return { total: sent.length, unseen: 0, messages: sent };
           }
           const box = (window as any).__threadFixture ? [threadReply, ...envelopes] : envelopes;
@@ -228,6 +296,13 @@ test.beforeEach(async ({ page }) => {
         }
         if (cmd === 'mail_fetch_message') {
           ((window as any).__loadOrder ||= []).push('network-body');
+          // WHICH message was asked for: every fetch is answered with the same
+          // body, so the reader cannot tell a test whose message it shows.
+          ((window as any).__fetchCalls ||= []).push({ user: args.user, mailbox: args.mailbox, uid: args.uid });
+          // A message that takes its time, so a test can act while it is on its
+          // way — and can tell when it has been answered.
+          if ((window as any).__slowMessage) await new Promise((r) => setTimeout(r, (window as any).__slowMessage));
+          (window as any).__fetchAnswered = ((window as any).__fetchAnswered ?? 0) + 1;
           if ((window as any).__failFetch) throw new Error('offline');
           if (String(args.mailbox) === 'Junk') {
             return {
@@ -439,6 +514,113 @@ test('mail tab lists envelopes, sandboxes the message and captures it as an anch
   await expect(page.locator('.cm-content').getByText('Rechnung Q3').first()).toBeVisible();
 });
 
+/**
+ * A message without a plain-text part (finding 2026-10-09).
+ *
+ * Microsoft Graph hands a body over as HTML, and a sender is free to write
+ * HTML only. A reply's quote, a forward and the filed note each read the text
+ * part alone: the reply quoted nothing, the forward carried its header block,
+ * the note was properties and a heading. The double answers here the way the
+ * desktop's own IMAP command does for such a mail — `text: null` — and the test
+ * holds the ends a person sees: the draft in the composer and the note on disk.
+ * The line a sender hides above the message, so that a mail list shows it as
+ * the preview, is on the reader's screen nowhere, and in none of the three.
+ * The phone holds the same in `apps/mobile/e2e-prod/mail-html-message.spec.ts`.
+ */
+test('a message without a text part: reply and forward carry its text, the filed note holds it', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__fullMessage = {
+      text: null,
+      html:
+        '<div style="display:none;max-height:0;overflow:hidden">Nur heute: 50 % Rabatt</div>' +
+        '<p>Hallo Marco,</p><p>anbei die <b>Rechnung</b> f&uuml;r Oktober.</p>',
+      // No file on it: what a forward does with one is not this test's subject.
+      attachments: [],
+    };
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await expect(page.getByTestId('mail-frame')).toBeVisible();
+
+  // Reply: the draft opens with the original quoted.
+  const body = page.getByTestId('draft-body');
+  await page.getByTestId('mail-reply').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue(/Re: Rechnung Q3/);
+  await expect(body).toContainText('Hallo Marco,');
+  await expect(body).toContainText('anbei die Rechnung für Oktober.');
+  await expect(body).not.toContainText('Rabatt');
+  // Nothing was typed: the draft closes without a question.
+  await page.getByTestId('draft-cancel').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  // Forward: the text stands under the header block.
+  await page.getByTestId('mail-forward').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue(/Fwd: Rechnung Q3/);
+  await expect(body).toContainText('Forwarded message');
+  await expect(body).toContainText('anbei die Rechnung für Oktober.');
+  await expect(body).not.toContainText('Rabatt');
+  await page.getByTestId('draft-cancel').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  // Filed as a note: the text is under the subject.
+  await page.getByTestId('mail-capture-note').click();
+  const filed = () =>
+    page.evaluate(() => {
+      const fs = (window as any).mockFs;
+      const path = Object.keys(fs).find((p) => p.startsWith('/test-vault/Mail/') && p.endsWith('.md'));
+      return path ? (fs[path] as string) : null;
+    });
+  await expect.poll(filed).toBeTruthy();
+  const note = (await filed())!;
+  expect(note).toContain('# Rechnung Q3\n\nHallo Marco,\n\nanbei die Rechnung für Oktober.\n');
+  expect(note).not.toContain('Rabatt');
+});
+
+/**
+ * A form in a message answers to the names of its controls (finding
+ * 2026-10-12). In a browser `form.nodeName` is the control of that name, and
+ * the reader's sanitizer takes a form whose properties are renamed like that
+ * out whole — nothing inside it reaches the screen. The text of the message
+ * was read off the RAW markup: asked for `nodeName`, such a form made the walk
+ * throw, the portable parser read the message instead, and the reply quoted
+ * the words of a form nobody had seen. The text is read from the markup the
+ * reader's frame is given now. No unit test sees this: the test DOM's forms do
+ * not answer to their controls, a browser's do. This is the browser.
+ */
+test('a message with a form whose control is named like a DOM property: the reply quotes what the reader shows, and no more', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__fullMessage = {
+      text: null,
+      html:
+        '<p>Hallo Marco,</p>' +
+        '<form action="https://example.org/umfrage"><input type="hidden" name="nodeName" value="1"><p>Nur im Quelltext: bis Freitag best&auml;tigen.</p></form>' +
+        '<p>Viele Gr&uuml;&szlig;e</p>',
+      attachments: [],
+    };
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  // The reader: the message is there, the form and what it holds are not.
+  const frame = page.frameLocator('[data-testid="mail-frame"]');
+  await expect(frame.locator('body')).toContainText('Viele Grüße');
+  await expect(frame.locator('body')).not.toContainText('Nur im Quelltext');
+
+  const body = page.getByTestId('draft-body');
+  await page.getByTestId('mail-reply').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(body).toContainText('Hallo Marco,');
+  await expect(body).toContainText('Viele Grüße');
+  await expect(body).not.toContainText('Nur im Quelltext');
+  await page.getByTestId('draft-cancel').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+});
+
 test('mail-client E1: folder column, new-message compose and forward', async ({ page }) => {
   await openVault(page);
   await page.getByTestId('ribbon-mail').click();
@@ -501,6 +683,225 @@ test('mail-client E3: compose sends via SMTP once the undo window is over', asyn
   expect(sent.subject).toMatch(/Fwd: Rechnung Q3/);
   expect(sent.text).toContain('Forwarded message');
   await expect(page.getByTestId('draft-form')).toHaveCount(0);
+});
+
+/**
+ * What a forward carries.
+ *
+ * Until 2026-10 a forward took the text of the original and none of its files,
+ * on either shell, while the handbook said otherwise (finding 2026-10-09). Now
+ * it brings them: the reader hands the composer a REFERENCE to the message,
+ * the composer fetches the files once its window is up — all of them in one
+ * call — and every file says what is with it.
+ *
+ * These hold the ends the handbook sentence is about
+ * (`docs/user/<lang>/Email_Capture.md`, "Composing and sending"): what the
+ * composer shows, and what the transport is handed, byte for byte. The phone
+ * holds the same in `apps/mobile/e2e-prod/mail-forward.spec.ts`.
+ */
+const PDF = '%PDF-1.7 Rechnung Q3';
+
+/** Opens the message that carries `rechnung.pdf` and forwards it. */
+async function forwardInvoice(page: any) {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  // The message has a file on it, and the reader says so.
+  await expect(page.getByTestId('mail-attachment')).toHaveText('rechnung.pdf (20 KB)');
+  await page.getByTestId('mail-forward').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Fwd: Rechnung Q3');
+}
+
+test('a forward carries the text of the original and its files', async ({ page }) => {
+  await forwardInvoice(page);
+  // The text of the original is in the draft, and so is its file — as a file
+  // of the original, not as one attached by hand.
+  await expect(page.getByTestId('draft-body')).toContainText('anbei die Rechnung.');
+  const carried = page.getByTestId('draft-carried');
+  await expect(carried).toHaveCount(1);
+  await expect(carried).toContainText('rechnung.pdf');
+  await expect(carried).toContainText('20 KB');
+  await expect(carried).toHaveAttribute('data-state', 'ready');
+  await expect(page.getByTestId('draft-attachments')).toHaveCount(0);
+  await expect(page.getByTestId('draft-files-loading')).toHaveCount(0);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('forward-files-ready.png') });
+
+  await page.getByTestId('draft-to').fill('ben@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await page.getByTestId('draft-send').click();
+  // Everything on the draft goes: there is nothing to ask.
+  await expect(page.locator('.pv-overlay--dialog')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null), { timeout: 15_000 }).toBeTruthy();
+  const sent = await page.evaluate(() => (window as any).__sentMail);
+  expect(sent.to).toBe('ben@example.org');
+  expect(sent.subject).toBe('Fwd: Rechnung Q3');
+  expect(sent.text).toContain('anbei die Rechnung.');
+  // The transport is handed the text AND the file, byte for byte.
+  expect(sent.attachments).toEqual([{ name: 'rechnung.pdf', mime: 'application/pdf', contentBase64: Buffer.from(PDF).toString('base64') }]);
+  // One call for the files of the message, to the mailbox it lies in.
+  expect(await page.evaluate(() => (window as any).__attachmentFetches)).toEqual([{ cmd: 'mail_fetch_attachments', mailbox: 'INBOX', uid: 2, indexes: [0] }]);
+});
+
+test('the files of a forward arrive after the window: Send and Save draft wait, and leaving an untouched forward asks nothing', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__slowAttachments = 2500;
+  });
+  await forwardInvoice(page);
+  const carried = page.getByTestId('draft-carried');
+  // The window is there at once; the file says it is on its way.
+  await expect(carried).toHaveAttribute('data-state', 'loading');
+  await expect(page.getByTestId('draft-files-loading')).toBeVisible();
+  await expect(page.getByTestId('draft-send')).toBeDisabled();
+  await expect(page.getByTestId('draft-save')).toBeDisabled();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('forward-files-loading.png') });
+
+  // Then it is here, and the buttons are back.
+  await expect(carried).toHaveAttribute('data-state', 'ready', { timeout: 10_000 });
+  await expect(page.getByTestId('draft-files-loading')).toHaveCount(0);
+  await expect(page.getByTestId('draft-send')).toBeEnabled();
+  await expect(page.getByTestId('draft-save')).toBeEnabled();
+
+  // A file that arrived is not something somebody typed.
+  await page.getByTestId('draft-cancel').click();
+  await expect(page.locator('.pv-overlay--dialog')).toHaveCount(0);
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  // Taking it off by hand is a change, and that one asks.
+  await page.getByTestId('mail-forward').click();
+  await expect(carried).toHaveAttribute('data-state', 'ready', { timeout: 10_000 });
+  await page.getByTestId('draft-carried-remove').click();
+  await expect(carried).toHaveCount(0);
+  await page.getByTestId('draft-cancel').click();
+  await expect(page.locator('.pv-overlay--dialog')).toBeVisible();
+});
+
+test('a file that did not come says so, is asked about before the message leaves, and comes when asked again', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__attachmentFailures = 1;
+  });
+  await forwardInvoice(page);
+  const carried = page.getByTestId('draft-carried');
+  const question = page.locator('.pv-overlay--dialog');
+  await expect(carried).toHaveAttribute('data-state', 'failed');
+  // The reason stands under the files, with the way to ask again.
+  await expect(page.getByTestId('draft-files-failed')).toContainText('connection reset');
+  await expect(page.getByTestId('draft-send')).toBeEnabled();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('forward-file-failed.png') });
+
+  // Send asks first, and names the file; "Cancel" keeps everything.
+  await page.getByTestId('draft-to').fill('ben@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await page.getByTestId('draft-send').click();
+  await expect(question).toBeVisible();
+  await expect(question).toContainText('rechnung.pdf');
+  if (process.env.PLAINVA_EVIDENCE) {
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: test.info().outputPath('forward-send-question.png') });
+  }
+  await question.locator('.pv-modal-footer button').first().click();
+  await expect(question).toHaveCount(0);
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__sentMail ?? null)).toBeNull();
+
+  // Asked again, it comes — from its own chip.
+  await page.getByTestId('draft-carried-retry').click();
+  await expect(carried).toHaveAttribute('data-state', 'ready');
+  await expect(page.getByTestId('draft-files-failed')).toHaveCount(0);
+  await page.getByTestId('draft-send').click();
+  await expect(question).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null), { timeout: 15_000 }).toBeTruthy();
+  const sent = await page.evaluate(() => (window as any).__sentMail);
+  expect(sent.attachments.map((a: any) => a.name)).toEqual(['rechnung.pdf']);
+});
+
+test('a draft is filed with the files of the original on it', async ({ page }) => {
+  await forwardInvoice(page);
+  await expect(page.getByTestId('draft-carried')).toHaveAttribute('data-state', 'ready');
+  await page.getByTestId('draft-to').fill('ben@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await page.getByTestId('draft-save').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__appendedDraft ?? null), { timeout: 15_000 }).toBeTruthy();
+  const draft = await page.evaluate(() => (window as any).__appendedDraft);
+  expect(draft.attachments).toEqual([{ name: 'rechnung.pdf', mime: 'application/pdf', contentBase64: Buffer.from(PDF).toString('base64') }]);
+});
+
+/**
+ * A received file is saved into the vault (finding 2026-10-09, § 3.59).
+ *
+ * The desktop listed attachments as text and could do nothing with them, while
+ * the phone saved them — a parity gap without a catalog entry. Both shells now
+ * save by the one rule (`saveMailAttachment`): next to the captured mail, under
+ * the file's own name, never over a file that is already there.
+ */
+test('a received attachment is saved into the vault, and a second one of that name gets a number', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  const file = page.getByTestId('mail-attachment');
+  await expect(file).toHaveText('rechnung.pdf (20 KB)');
+
+  await file.click();
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Mail/Attachments/rechnung.pdf'] ?? null)).toBe(PDF);
+  // The note says where it went.
+  await expect(page.locator('.pv-toast--success')).toContainText('Mail/Attachments/rechnung.pdf');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('attachment-saved.png') });
+
+  // Saved again, the first one stays as it is.
+  await expect(file).toBeEnabled();
+  await file.click();
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Mail/Attachments/rechnung-2.pdf'] ?? null)).toBe(PDF);
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Mail/Attachments/rechnung.pdf'])).toBe(PDF);
+  // Asked of the mailbox the message lies in, one file at a time.
+  expect(await page.evaluate(() => (window as any).__attachmentFetches)).toEqual([
+    { cmd: 'mail_fetch_attachment', mailbox: 'INBOX', uid: 2, indexes: [0] },
+    { cmd: 'mail_fetch_attachment', mailbox: 'INBOX', uid: 2, indexes: [0] },
+  ]);
+});
+
+/**
+ * A message the mail server refuses comes back.
+ *
+ * The composer is closed when the server answers, eight seconds after "Send".
+ * A refusal used to be one line of error text and the message was gone. Now it
+ * is kept: a notice says why, cannot be closed, and its action brings the
+ * message back in a compose window — where it stays held until that window
+ * has collected it.
+ */
+test('a message the mail server refuses is kept, and its notice is the way back', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__sendRefusals = 1;
+  });
+  await forwardInvoice(page);
+  await expect(page.getByTestId('draft-carried')).toHaveAttribute('data-state', 'ready');
+  await page.getByTestId('draft-to').fill('ben@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await page.getByTestId('draft-send').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  // The undo window passes, the server refuses. The notice stays, with an
+  // action and without a close button.
+  const notice = page.locator('.pv-toast--error');
+  await expect(notice).toBeVisible({ timeout: 15_000 });
+  await expect(notice.locator('.pv-toast-action')).toBeVisible();
+  await expect(notice.locator('.pv-toast-x')).toHaveCount(0);
+  // The server's words are not shown: a refusal for size is said as one.
+  await expect(notice).not.toContainText('5.3.4');
+  expect(await page.evaluate(() => (window as any).__sentMail ?? null)).toBeNull();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('send-refused-notice.png') });
+
+  // The way back is a compose window of this vault, titled with the subject.
+  await notice.locator('.pv-toast-action').click();
+  await expect
+    .poll(async () => await page.evaluate(() => ((window as any).createdWindows || []).length), { timeout: 10_000 })
+    .toBe(1);
+  const created = await page.evaluate(() => (window as any).createdWindows[0]);
+  expect(created.label).toMatch(/^compose/);
+  expect(created.url).toContain('win=compose');
+  // Asking for the window is not having the message: no second window is
+  // there to collect it in this test, so it stays held, and its notice with it.
+  await page.waitForTimeout(3000);
+  await expect(notice).toBeVisible();
 });
 
 /**
@@ -574,6 +975,134 @@ test('mail-client: Reply opens a real compose (SMTP), not a note, quoting the or
   expect(sent.to).toBe('anna@example.org');
   expect(sent.subject).toMatch(/Re: Rechnung Q3/);
   expect(sent.text).toContain('Danke, passt!');
+});
+
+/**
+ * A Microsoft mailbox can send (finding 2026-10-08).
+ *
+ * It is stored without an SMTP host — there is nothing to enter one into — and
+ * it never needed one: the message leaves through Graph. The composer asked for
+ * the host all the same, so Send stayed disabled and the line under the body
+ * told the writer to add what the account cannot have.
+ *
+ * What this test asserts is the app's side of the boundary: Send is offered,
+ * the request that leaves is `POST /me/sendMail` with the message in it, and
+ * the SMTP command is never called. The answers below are an empty mailbox and
+ * a bare 202 — enough to let the screen load. That Microsoft accepts the
+ * message is not something a fake can show; that needs a real account.
+ */
+test('a Microsoft mailbox sends from the composer: through Graph, never through SMTP', async ({ page }) => {
+  await page.addInitScript(() => {
+    // Exactly what connecting a Microsoft mailbox stores: no SMTP host.
+    (window as any).__mailAccountsOverride = [
+      { id: 'ms', kind: 'microsoft', label: 'marco@outlook.com', host: '', port: 0, user: 'marco@outlook.com', clientId: 'cid' },
+    ];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    const requests = new Map<number, { method: string; url: string; read: boolean }>();
+    let nextRequest = 1;
+    (window as any).__graphCalls = [];
+    const reply = (method: string, url: string): { status: number; json: unknown } => {
+      const path = url.replace('https://graph.microsoft.com/v1.0', '');
+      if (method === 'POST' && path === '/me/sendMail') return { status: 202, json: null };
+      if (method !== 'GET') return { status: 404, json: { error: { code: 'unexpected' } } };
+      if (path.startsWith('/me/mailFolders?')) {
+        return { status: 200, json: { value: [{ id: 'f-in', displayName: 'Posteingang', childFolderCount: 0 }, { id: 'f-dr', displayName: 'Entwürfe', childFolderCount: 0 }] } };
+      }
+      if (path.startsWith('/me/mailFolders/inbox?')) return { status: 200, json: { id: 'f-in' } };
+      if (path.startsWith('/me/mailFolders/drafts?')) return { status: 200, json: { id: 'f-dr' } };
+      if (/^\/me\/mailFolders\/[^/?]+\/messages\?/.test(path)) return { status: 200, json: { value: [], '@odata.count': 0 } };
+      if (/^\/me\/mailFolders\/f-(in|dr)\?/.test(path)) return { status: 200, json: { unreadItemCount: 0 } };
+      return { status: 404, json: { error: { code: 'ErrorItemNotFound' } } };
+    };
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      // The token relay: a refresh that answers with an access token.
+      if (cmd === 'oauth_token_request') return { status: 200, body: JSON.stringify({ access_token: 'graph-token', refresh_token: 'rt', expires_in: 3600 }) };
+      if (cmd === 'plugin:http|fetch') {
+        const cfg = args.clientConfig;
+        const id = nextRequest++;
+        requests.set(id, { method: cfg.method, url: cfg.url, read: false });
+        (window as any).__graphCalls.push({
+          method: cfg.method,
+          url: cfg.url,
+          authorization: (cfg.headers.find((h: string[]) => h[0].toLowerCase() === 'authorization') ?? [])[1] ?? null,
+          body: cfg.data ? new TextDecoder().decode(new Uint8Array(cfg.data)) : '',
+        });
+        return id;
+      }
+      if (cmd === 'plugin:http|fetch_send') {
+        const request = requests.get(args.rid)!;
+        return { status: reply(request.method, request.url).status, statusText: '', url: request.url, headers: [['content-type', 'application/json']], rid: args.rid };
+      }
+      if (cmd === 'plugin:http|fetch_read_body') {
+        const request = requests.get(args.rid)!;
+        if (request.read) return [1];
+        request.read = true;
+        const { json } = reply(request.method, request.url);
+        return [...new TextEncoder().encode(json === null ? '' : JSON.stringify(json)), 0];
+      }
+      return orig(cmd, args, options);
+    };
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+  await page.getByTestId('mail-compose').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-from')).toHaveValue('marco@outlook.com');
+
+  // Send is offered, and the line under the body says how the message leaves
+  // instead of asking for a host.
+  await expect(page.getByTestId('draft-send')).toBeEnabled();
+  await expect(page.getByTestId('draft-send-hint')).toContainText('Microsoft');
+  await expect(page.getByTestId('draft-send-hint')).not.toContainText('SMTP');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('compose-microsoft.png') });
+
+  await page.getByTestId('draft-to').fill('anna@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await page.getByTestId('draft-subject').fill('Rückfrage');
+  await page.getByTestId('draft-body').locator('.cm-content').click();
+  await page.keyboard.type('Passt der Termin?');
+  await page.getByTestId('draft-send').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  // After the undo window the message leaves — once, and through Graph.
+  const sendCalls = () => page.evaluate(() => ((window as any).__graphCalls as any[]).filter((c) => c.url.endsWith('/me/sendMail')));
+  await expect.poll(async () => (await sendCalls()).length, { timeout: 15_000 }).toBe(1);
+  const [call] = await sendCalls();
+  expect(call.method).toBe('POST');
+  expect(call.url).toBe('https://graph.microsoft.com/v1.0/me/sendMail');
+  expect(call.authorization).toBe('Bearer graph-token');
+  const sent = JSON.parse(call.body);
+  expect(sent.saveToSentItems).toBe(true);
+  expect(sent.message.subject).toBe('Rückfrage');
+  expect(sent.message.toRecipients).toEqual([{ emailAddress: { address: 'anna@example.org' } }]);
+  expect(sent.message.body.contentType).toBe('HTML');
+  expect(sent.message.body.content).toContain('Passt der Termin?');
+  // Its own address is the sender: no `from`, which Graph would check for SendAs.
+  expect(sent.message.from).toBeUndefined();
+  expect(await page.evaluate(() => (window as any).__sentMail ?? null)).toBeNull();
+});
+
+/**
+ * The counterpart: an account that really has no way to send keeps the hint.
+ * A mailbox connected for reading only (IMAP without an SMTP host) is a valid
+ * setup, and there the composer still says what is missing instead of offering
+ * a Send that can only fail.
+ */
+test('a mailbox without an SMTP host keeps Send disabled and says what is missing', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__mailAccountsOverride = [
+      { id: 'm1', label: 'marco@example.org', host: 'imap.example.org', port: 993, user: 'marco@example.org' },
+    ];
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-compose').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-send-hint')).toContainText('SMTP');
+  await expect(page.getByTestId('draft-send')).toBeDisabled();
+  // Saving as a draft needs no SMTP and stays available.
+  await expect(page.getByTestId('draft-save')).toBeEnabled();
 });
 
 test('mail-client E4: search, mark seen, and delete to Trash', async ({ page }) => {
@@ -1077,6 +1606,975 @@ test('all inboxes: one list across accounts, and every action goes to its own ma
   await expect(page.getByTestId('mail-search')).toBeVisible();
 });
 
+/**
+ * A message written from a mailbox goes out from that mailbox (finding
+ * 2026-10-09).
+ *
+ * The mail view asked for the composer with a subject, a text and a recipient
+ * — and no account, so the composer started with the first one that is stored,
+ * and with its signature. With one mailbox nobody could tell. With two, a reply
+ * to a message in the second went out under the first one's address unless
+ * "From" was changed by hand; the phone had it right all along, because there
+ * the account travels with the draft.
+ *
+ * Both ends are held for every way in: what "From" shows the moment the
+ * composer opens, with the signature that belongs to it, and what the transport
+ * is handed. The two mailboxes sign differently and carry a name of their own,
+ * so neither end can pass by showing the wrong one.
+ */
+const twoSigningMailboxes = [
+  { id: 'm1', label: 'Arbeit', host: 'imap.example.org', port: 993, user: 'marco@example.org', smtpHost: 'smtp.example.org', smtpPort: 587, signature: 'Marco\nErstes Postfach' },
+  { id: 'm2', label: 'Privat', host: 'imap.example.net', port: 993, user: 'zweit@example.net', smtpHost: 'smtp.example.net', smtpPort: 587, signature: 'Zoe\nZweites Postfach' },
+];
+
+/** The mail view with the SECOND of the two mailboxes open — chosen by hand, as a reader does. */
+async function openSecondMailbox(page: any, message?: Record<string, unknown>) {
+  await page.addInitScript(
+    (given: { list: unknown[]; message?: Record<string, unknown> }) => {
+      (window as any).__mailAccountsOverride = given.list;
+      if (given.message) (window as any).__fullMessage = given.message;
+    },
+    { list: twoSigningMailboxes, message },
+  );
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-folders')).toContainText('INBOX');
+  await page.getByRole('button', { name: /^(Konto|Account)$/ }).click();
+  await page.getByRole('option', { name: 'Privat' }).click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Posteingang/, { timeout: 10000 });
+}
+
+/** The composer as it opens: the second mailbox in "From", and its signature — not the first one's. */
+async function expectSecondMailbox(page: any) {
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-from-select')).toHaveText('zweit@example.net · Privat');
+  await expect(page.getByTestId('draft-body')).toContainText('Zweites Postfach');
+  await expect(page.getByTestId('draft-body')).not.toContainText('Erstes Postfach');
+}
+
+/** Sends, and holds the other end: the second mailbox's address, through the second mailbox's server. */
+async function sendFromSecondMailbox(page: any) {
+  await page.getByTestId('draft-send').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null), { timeout: 15_000 }).toBeTruthy();
+  const sent = await page.evaluate(() => (window as any).__sentMail);
+  expect(sent.from).toBe('zweit@example.net');
+  expect(sent.host).toBe('smtp.example.net');
+  expect(sent.text).toContain('Zweites Postfach');
+  expect(sent.text).not.toContain('Erstes Postfach');
+  return sent;
+}
+
+test('a reply goes out from the mailbox the message is in, not from the first one stored', async ({ page }) => {
+  await openSecondMailbox(page);
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+
+  await page.getByTestId('mail-reply').click();
+  await expectSecondMailbox(page);
+  if (process.env.PLAINVA_EVIDENCE) {
+    await page.screenshot({ path: test.info().outputPath('reply-from-second-mailbox.png') });
+  }
+  const sent = await sendFromSecondMailbox(page);
+  expect(sent.to).toBe('anna@example.org');
+  expect(sent.subject).toBe('Re: Rechnung Q3');
+});
+
+test('a forward goes out from the mailbox the message is in', async ({ page }) => {
+  await openSecondMailbox(page);
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+
+  await page.getByTestId('mail-forward').click();
+  await expectSecondMailbox(page);
+  await page.getByTestId('draft-to').fill('ben@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  const sent = await sendFromSecondMailbox(page);
+  expect(sent.to).toBe('ben@example.org');
+  expect(sent.subject).toBe('Fwd: Rechnung Q3');
+});
+
+test('a new message goes out from the mailbox that is open', async ({ page }) => {
+  await openSecondMailbox(page);
+
+  await page.getByTestId('mail-compose').click();
+  await expectSecondMailbox(page);
+  await page.getByTestId('draft-to').fill('ben@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await page.getByTestId('draft-subject').fill('Hallo');
+  const sent = await sendFromSecondMailbox(page);
+  expect(sent.to).toBe('ben@example.org');
+  expect(sent.subject).toBe('Hallo');
+});
+
+test('a reply to all and the message a list asks for to unsubscribe start from that mailbox too', async ({ page }) => {
+  // The second is the one that matters most: a list takes the address a
+  // request comes FROM off its roll, so asking from another mailbox leaves the
+  // subscription where it was.
+  await openSecondMailbox(page, { listUnsubscribe: '<mailto:bye@list.example?subject=unsubscribe>' });
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+
+  await page.getByTestId('mail-reply-all').click();
+  await expectSecondMailbox(page);
+  await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'anna@example.org' })).toBeVisible();
+  // Nothing was written, so it closes without a question.
+  await page.getByTestId('draft-close').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  await page.getByTestId('mail-unsubscribe').click();
+  await expectSecondMailbox(page);
+  await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'bye@list.example' })).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('unsubscribe');
+});
+
+/**
+ * Opening a row of another mailbox in "All inboxes" (finding 2026-10-11).
+ *
+ * Every row of the merged list has a mailbox of its own, and opening one that
+ * is not in the open mailbox switches the open mailbox to the row's — that
+ * switch is what makes the reader's bar act in the right place. It also took
+ * the message away again. The view emptied its list and closed the reader
+ * whenever the function that loads the list became a new one, and that
+ * function was a new one for more reasons than a new folder: the folder list
+ * of the mailbox that was left being emptied, the folder list of the new one
+ * arriving. The first run took the mark off the row the moment it was set;
+ * every run after the message took the message. What was left depended on
+ * which arrived first: a reader without a message, or a message whose row was
+ * not marked under a bar that did nothing — marking, starring, moving and
+ * deleting all ask for the open row.
+ *
+ * The two mailboxes of the fixture differ in exactly that: the second answers
+ * the question for its folders a quarter of a second late, the first at once.
+ * Both orders are held, and both ends — what the reader shows, without ever
+ * having closed on the way (a final state can hide a message that went and
+ * came back), and what the transport is asked, in whose mailbox.
+ */
+const OPEN_ROW = /(^|\s)on(\s|$)/;
+
+/** The mail view with the FIRST of the two mailboxes open, as it opens. */
+async function openFirstMailbox(page: any, knobs: Record<string, unknown> = {}) {
+  await page.addInitScript(
+    (given: { list: unknown[]; knobs: Record<string, unknown> }) => {
+      (window as any).__mailAccountsOverride = given.list;
+      Object.assign(window, given.knobs);
+    },
+    { list: twoSigningMailboxes, knobs },
+  );
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/INBOX/);
+}
+
+/** The merged list, with the two messages of either mailbox in it. */
+async function showAllInboxes(page: any) {
+  await page.getByTestId('mail-all-inboxes').click();
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(4);
+}
+
+/** A row of the merged list, by the mailbox it says it is in. */
+const rowOf = (page: any, mailbox: string, subject = 'Rechnung Q3') =>
+  page.getByTestId('mail-envelope').filter({ hasText: mailbox }).filter({ hasText: subject });
+
+const accountChooser = (page: any) => page.getByRole('button', { name: /^(Konto|Account)$/ });
+
+/**
+ * Counts, from here on, how often the open message left the reader and how
+ * often the open row lost its mark. Asked of every change to the document:
+ * the message this is about was on screen for twelve milliseconds.
+ */
+async function watchReader(page: any) {
+  await page.evaluate(() => {
+    const view = document.querySelector('[data-testid="mail-view"]')!;
+    const count = { closed: 0, unmarked: 0 };
+    (window as any).__reader = count;
+    const open = () => !!view.querySelector('[data-testid="mail-subject"]');
+    const marked = () => !!view.querySelector('[data-testid="mail-envelope"].on');
+    let wasOpen = open();
+    let wasMarked = marked();
+    new MutationObserver(() => {
+      if (wasOpen && !open()) count.closed++;
+      if (wasMarked && !marked()) count.unmarked++;
+      wasOpen = open();
+      wasMarked = marked();
+    }).observe(view, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  });
+}
+
+const readerCount = (page: any) => page.evaluate(() => (window as any).__reader);
+
+/** Confirms the question "Move to trash?". */
+const confirmDelete = (page: any) => page.locator('.pv-modal-footer button.pv-btn--primary').click();
+
+test('all inboxes: a row of another mailbox opens and stays open, its folder list arriving after the message', async ({ page }) => {
+  await openFirstMailbox(page, { __secondTrash: true });
+  await showAllInboxes(page);
+  const row = rowOf(page, 'Privat');
+  const subject = page.getByTestId('mail-subject');
+  await watchReader(page);
+
+  await row.click();
+  // The open mailbox follows the row: its folders stand in the column, a
+  // quarter of a second after the message came …
+  await expect(page.getByTestId('mail-folders')).toContainText('Posteingang');
+  await expect(accountChooser(page)).toContainText('Privat');
+  // … and the message is still there, its row is the one that is marked, and
+  // neither was taken back on the way.
+  await expect(subject).toHaveText('Rechnung Q3');
+  await expect(row).toHaveClass(OPEN_ROW);
+  expect(await readerCount(page)).toEqual({ closed: 0, unmarked: 0 });
+  // It is the row's own message that was asked for.
+  expect(await page.evaluate(() => (window as any).__fetchCalls)).toEqual([{ user: 'zweit@example.net', mailbox: 'Posteingang', uid: 2 }]);
+
+  // Left open for the reading time, it is marked read — in its own mailbox.
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__seenCalls ?? []), { timeout: 8000 })
+    .toEqual([{ user: 'zweit@example.net', mailbox: 'Posteingang', uid: 2 }]);
+  // The bar knows the row: it offers "unread" for what is read now, and stars it.
+  const seen = page.getByTestId('mail-mark-seen');
+  await expect(seen).toHaveAttribute('aria-label', /unread|ungelesen/i);
+  await seen.click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__setSeen))
+    .toEqual({ user: 'zweit@example.net', mailbox: 'Posteingang', uid: 2, seen: false });
+  await page.getByTestId('mail-flag').click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__bulkCalls.at(-1)))
+    .toEqual({ user: 'zweit@example.net', mailbox: 'Posteingang', uids: [2], action: { kind: 'flagged', value: true } });
+  // "Move to…" offers the folders of THIS mailbox …
+  await page.getByTestId('mail-move').click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Archiv', 'Papierkorb']);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menuitem')).toHaveCount(0);
+  // … and "Delete" moves the message into the trash folder this mailbox has,
+  // under the name it has there — not into the first one's "Trash".
+  await page.getByTestId('mail-delete').click();
+  await confirmDelete(page);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__moved ?? null))
+    .toEqual({ user: 'zweit@example.net', mailbox: 'Posteingang', uid: 2, target: 'Papierkorb' });
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(3);
+  await expect(subject).toHaveCount(0);
+});
+
+test('all inboxes: a row of another mailbox opens and stays open, its folder list arriving before the message — and the arrow keys walk from mailbox to mailbox', async ({ page }) => {
+  // The message takes its time here, so the folder list of the first mailbox
+  // (which comes at once) is in before it — the order the other case turns round.
+  await page.addInitScript(() => { (window as any).__slowMessage = 300; });
+  await openSecondMailbox(page);
+  await showAllInboxes(page);
+  const row = rowOf(page, 'Arbeit');
+  const subject = page.getByTestId('mail-subject');
+  const firstFolders = ['INBOX', 'Sent', 'Entwürfe', 'Trash'];
+  const lastFetch = () => page.evaluate(() => (window as any).__fetchCalls.at(-1));
+  await watchReader(page);
+
+  await row.click();
+  await expect(page.getByTestId('mail-folders')).toContainText('Sent');
+  await expect(accountChooser(page)).toContainText('Arbeit');
+  await expect(subject).toHaveText('Rechnung Q3');
+  await expect(row).toHaveClass(OPEN_ROW);
+  expect(await readerCount(page)).toEqual({ closed: 0, unmarked: 0 });
+  expect(await page.evaluate(() => (window as any).__fetchCalls)).toEqual([{ user: 'marco@example.org', mailbox: 'INBOX', uid: 2 }]);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__seenCalls ?? []), { timeout: 8000 })
+    .toEqual([{ user: 'marco@example.org', mailbox: 'INBOX', uid: 2 }]);
+
+  // The merged list alternates between the two mailboxes, so every step of
+  // the arrow keys lands on a row of the OTHER one. Down once: the second
+  // mailbox's copy, and the open mailbox follows.
+  await page.keyboard.press('ArrowDown');
+  await expect(rowOf(page, 'Privat')).toHaveClass(OPEN_ROW);
+  await expect(row).not.toHaveClass(OPEN_ROW);
+  await expect(accountChooser(page)).toContainText('Privat');
+  await expect.poll(lastFetch).toEqual({ user: 'zweit@example.net', mailbox: 'Posteingang', uid: 2 });
+  await expect(page.getByTestId('mail-folders')).toContainText('Posteingang');
+  // Down again: the first mailbox's newsletter.
+  await page.keyboard.press('ArrowDown');
+  const newsletter = rowOf(page, 'Arbeit', 'Newsletter Juli');
+  await expect(newsletter).toHaveClass(OPEN_ROW);
+  await expect(accountChooser(page)).toContainText('Arbeit');
+  await expect.poll(lastFetch).toEqual({ user: 'marco@example.org', mailbox: 'INBOX', uid: 1 });
+  await expect(page.getByTestId('mail-folder')).toHaveText(firstFolders);
+
+  // Up and down again at once: into the second mailbox and back before its
+  // folder list has arrived — it takes its time here. That list must not land
+  // in the first one's column.
+  await page.evaluate(() => { (window as any).__secondFolderDelay = 1500; });
+  const ofSecond = (key: string) => page.evaluate((k) => ((window as any)[k] ?? []).filter((u: string) => u.includes('zweit')).length, key);
+  const before = { asked: await ofSecond('__loginAsked'), answered: await ofSecond('__loginAnswered') };
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowDown');
+  await expect(newsletter).toHaveClass(OPEN_ROW);
+  await expect(accountChooser(page)).toContainText('Arbeit');
+  await expect.poll(lastFetch).toEqual({ user: 'marco@example.org', mailbox: 'INBOX', uid: 1 });
+  await expect(subject).toBeVisible();
+  await expect(page.getByTestId('mail-folder')).toHaveText(firstFolders);
+  // The second mailbox was asked on the way, and has answered by now …
+  expect(await ofSecond('__loginAsked')).toBe(before.asked + 1);
+  await expect.poll(() => ofSecond('__loginAnswered'), { timeout: 10000 }).toBe(before.answered + 1);
+  await twoFrames(page);
+  // … and its answer did not land in the first one's column.
+  await expect(page.getByTestId('mail-folder')).toHaveText(firstFolders);
+  await expect(subject).toBeVisible();
+
+  // Deleting from the reader finds the trash folder of the mailbox the open
+  // row is in.
+  await page.getByTestId('mail-delete').click();
+  await confirmDelete(page);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__moved ?? null))
+    .toEqual({ user: 'marco@example.org', mailbox: 'INBOX', uid: 1, target: 'Trash' });
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(3);
+});
+
+test('all inboxes: a reply to a row of another mailbox goes out from the mailbox of that row', async ({ page }) => {
+  // In the merged list a row is addressed by its mailbox, and the reply reads
+  // the mailbox from the message that is open — not from a place in a list,
+  // and not from the mailbox that was open when the row was clicked.
+  await openFirstMailbox(page);
+  await showAllInboxes(page);
+
+  await rowOf(page, 'Privat').click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await expect(page.getByTestId('mail-folders')).toContainText('Posteingang');
+  await page.getByTestId('mail-reply').click();
+  await expectSecondMailbox(page);
+  const sent = await sendFromSecondMailbox(page);
+  expect(sent.to).toBe('anna@example.org');
+  expect(sent.subject).toBe('Re: Rechnung Q3');
+});
+
+test('all inboxes: a reply to a row of the open mailbox starts from that mailbox', async ({ page }) => {
+  // The plain case beside the one above: the row lies in the mailbox that is
+  // open, so opening it changes nothing — and the reply still reads its
+  // mailbox from the message, not from a place in the list.
+  await openSecondMailbox(page);
+  await showAllInboxes(page);
+
+  await rowOf(page, 'Privat').click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await expect(rowOf(page, 'Privat')).toHaveClass(OPEN_ROW);
+  await page.getByTestId('mail-reply').click();
+  await expectSecondMailbox(page);
+});
+
+test('another folder and another mailbox close the reader, as they always did — from a folder and from all inboxes', async ({ page }) => {
+  // The counter-proof: a message stays open across the change of mailbox its
+  // own opening caused, and across no other.
+  await openFirstMailbox(page);
+  const rows = page.getByTestId('mail-envelope');
+  const subject = page.getByTestId('mail-subject');
+  const openRows = page.locator('[data-testid="mail-envelope"].on');
+  const openFolder = page.locator('.pv-mail-folder.on');
+  const choose = async (label: string) => {
+    await accountChooser(page).click();
+    // Exactly: a row of the merged list is an option too, and names its mailbox.
+    await page.getByRole('option', { name: label, exact: true }).click();
+  };
+
+  // In a folder: another folder closes the message that is open …
+  await rows.first().click();
+  await expect(subject).toHaveText('Rechnung Q3');
+  await page.getByTestId('mail-folder').filter({ hasText: 'Sent' }).click();
+  await expect(openFolder).toHaveText(/Sent/);
+  await expect(subject).toHaveCount(0);
+  await expect(rows).toHaveCount(2);
+  await expect(openRows).toHaveCount(0);
+  // … and so does another mailbox in the chooser.
+  await rows.first().click();
+  await expect(subject).toHaveText('Rechnung Q3');
+  await choose('Privat');
+  await expect(openFolder).toHaveText(/Posteingang/, { timeout: 10000 });
+  await expect(subject).toHaveCount(0);
+  await expect(openRows).toHaveCount(0);
+
+  // In all inboxes, with a row of the other mailbox open: the same two.
+  await showAllInboxes(page);
+  await rowOf(page, 'Arbeit').click();
+  await expect(subject).toHaveText('Rechnung Q3');
+  await expect(rowOf(page, 'Arbeit')).toHaveClass(OPEN_ROW);
+  await page.getByTestId('mail-folder').filter({ hasText: 'Sent' }).click();
+  await expect(openFolder).toHaveText(/Sent/);
+  await expect(subject).toHaveCount(0);
+  // The folder is on screen now, not the merged list.
+  await expect(page.getByTestId('mail-search')).toBeVisible();
+  await expect(rows).toHaveCount(2);
+
+  await showAllInboxes(page);
+  await rowOf(page, 'Privat').click();
+  await expect(subject).toHaveText('Rechnung Q3');
+  await expect(accountChooser(page)).toContainText('Privat');
+  await expect(rowOf(page, 'Privat')).toHaveClass(OPEN_ROW);
+  await choose('Arbeit');
+  await expect(subject).toHaveCount(0);
+  await expect(openRows).toHaveCount(0);
+  // The merged list itself stays where it was.
+  await expect(rows).toHaveCount(4);
+});
+
+test('a message that is still on its way when another folder is chosen does not open there', async ({ page }) => {
+  // The other half of the same rule: what closes the reader also turns away a
+  // message that was asked for before and arrives after. It opened in the
+  // folder that came next — with no row of its own anywhere in that list.
+  await openFirstMailbox(page, { __slowMessage: 600 });
+  const reader = page.locator('.pv-mail-read');
+  await page.getByTestId('mail-envelope').first().click();
+  await page.getByTestId('mail-folder').filter({ hasText: 'Sent' }).click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Sent/);
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(2);
+  // The reader says at once that nothing is open — it is not waiting for anything.
+  await expect(reader).toHaveText(/^(Select a message\.|Nachricht auswählen\.)$/);
+
+  // The message has been answered by now, and two frames have passed …
+  await expect.poll(() => page.evaluate(() => (window as any).__fetchAnswered ?? 0)).toBe(1);
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null)))));
+  // … and the reader is as the change of folder left it.
+  await expect(page.getByTestId('mail-subject')).toHaveCount(0);
+  await expect(reader).toHaveText(/^(Select a message\.|Nachricht auswählen\.)$/);
+});
+
+/** Two animation frames: whatever an answer that has just come in sets, is on screen. */
+const twoFrames = (page: any) => page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null)))));
+
+test('a search that is still on its way when another folder is chosen does not land there', async ({ page }) => {
+  // What a change of folder turns away is everything still on its way for the
+  // folder that was left, a search too. Its hits came in under the next folder,
+  // below an empty search field: the inbox's hits, under Sent — with numbers
+  // that name other messages there.
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  const rows = page.getByTestId('mail-envelope');
+  const search = page.getByTestId('mail-search');
+  await expect(rows).toHaveCount(2);
+  await page.evaluate(() => { (window as any).__slowSearch = 2000; });
+
+  await search.fill('Rechnung');
+  await search.press('Enter');
+  await page.getByTestId('mail-folder').filter({ hasText: 'Sent' }).click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Sent/);
+  expect(await page.evaluate(() => (window as any).__searchAnswered ?? 0), 'the search was still on its way').toBe(0);
+  await expect.poll(() => page.evaluate(() => (window as any).__searchAnswered ?? 0)).toBe(1);
+  await twoFrames(page);
+  await expect(search).toHaveValue('');
+  await expect(rows).toHaveCount(2);
+});
+
+test('a search that is cleared while it is on its way does not come back', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  const rows = page.getByTestId('mail-envelope');
+  const search = page.getByTestId('mail-search');
+  await expect(rows).toHaveCount(2);
+  await page.evaluate(() => { (window as any).__slowSearch = 2000; });
+
+  await search.fill('Rechnung');
+  await search.press('Enter');
+  await page.getByTestId('mail-search-clear').click();
+  await expect(search).toHaveValue('');
+  expect(await page.evaluate(() => (window as any).__searchAnswered ?? 0), 'the search was still on its way').toBe(0);
+  await expect.poll(() => page.evaluate(() => (window as any).__searchAnswered ?? 0)).toBe(1);
+  await twoFrames(page);
+  await expect(rows).toHaveCount(2);
+  await expect(page.getByTestId('mail-search-clear')).toHaveCount(0);
+});
+
+test('the flagged list that is still on its way when another folder is chosen does not land there', async ({ page }) => {
+  // The same for the other question a folder is asked on the server.
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  const rows = page.getByTestId('mail-envelope');
+  const flagged = page.getByTestId('mail-filter-flagged');
+  await expect(rows).toHaveCount(2);
+  await page.evaluate(() => { (window as any).__slowFlagged = 2000; });
+
+  await flagged.click();
+  await page.getByTestId('mail-folder').filter({ hasText: 'Sent' }).click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Sent/);
+  expect(await page.evaluate(() => (window as any).__flaggedAnswered ?? 0), 'the flagged list was still on its way').toBe(0);
+  await expect.poll(() => page.evaluate(() => (window as any).__flaggedAnswered ?? 0)).toBe(1);
+  await twoFrames(page);
+  await expect(flagged).toHaveAttribute('aria-pressed', 'false');
+  await expect(rows).toHaveCount(2);
+});
+
+test('the flagged list that is switched off while it is on its way does not come back', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  const rows = page.getByTestId('mail-envelope');
+  const flagged = page.getByTestId('mail-filter-flagged');
+  await expect(rows).toHaveCount(2);
+  await page.evaluate(() => { (window as any).__slowFlagged = 2000; });
+
+  await flagged.click();
+  await expect(flagged).toHaveAttribute('aria-pressed', 'true');
+  await flagged.click();
+  await expect(flagged).toHaveAttribute('aria-pressed', 'false');
+  expect(await page.evaluate(() => (window as any).__flaggedAnswered ?? 0), 'the flagged list was still on its way').toBe(0);
+  await expect.poll(() => page.evaluate(() => (window as any).__flaggedAnswered ?? 0)).toBe(1);
+  await twoFrames(page);
+  await expect(rows).toHaveCount(2);
+  // … and switched on again, it shows what it was asked for.
+  await page.evaluate(() => { (window as any).__slowFlagged = 0; });
+  await flagged.click();
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText('Rechnung Q3');
+});
+
+test('a junk folder that Plainva creates leaves the list and the search in it alone', async ({ page }) => {
+  // The folder list is not what the view shows: a new folder in it used to
+  // empty the list, drop the search and read the folder again — while the
+  // message that was being reported was still on its way out of it.
+  await openVault(page); // this account has no junk folder
+  await page.getByTestId('ribbon-mail').click();
+  const rows = page.getByTestId('mail-envelope');
+  await expect(rows).toHaveCount(2);
+  await page.getByTestId('mail-search').fill('Rechnung');
+  await page.getByTestId('mail-search').press('Enter');
+  await expect(rows).toHaveCount(1);
+  await rows.first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  const read = await page.evaluate(() => (window as any).__envCalls.length);
+
+  await page.getByTestId('mail-junk').click();
+  await page.locator('.pv-overlay--dialog').locator('.pv-btn--primary, .pv-btn--danger').first().click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__moved ?? null))
+    .toMatchObject({ mailbox: 'INBOX', uid: 2, target: 'Junk' });
+
+  // The new folder stands in the column …
+  await expect(page.getByTestId('mail-folders')).toContainText('Junk');
+  // … the search stands as it was, without the message that left …
+  await expect(page.getByTestId('mail-search')).toHaveValue('Rechnung');
+  await expect(rows).toHaveCount(0);
+  await expect(page.getByTestId('mail-list')).toContainText(/No matches in this folder|Keine Treffer in diesem Ordner/);
+  // … and the folder was not read a second time.
+  expect(await page.evaluate(() => (window as any).__envCalls.length)).toBe(read);
+});
+
+test('a list that is still on its way when another mailbox is chosen does not land under it', async ({ page }) => {
+  // The other half of what a change of mailbox turns away: the list of the
+  // folder that was left. A list waits for the folders of its account, and in
+  // that time the answer for the folder that was left came in under the new
+  // name — it stood there as the second mailbox's list until that one's own
+  // came. Here the first mailbox's junk folder answers after a second, the
+  // second mailbox's folders after one and a half.
+  await openFirstMailbox(page, { __withJunk: true, __secondFolderDelay: 1500, __listDelay: { Junk: 1000, Posteingang: 600 } });
+  const rows = page.getByTestId('mail-envelope');
+  await page.getByTestId('mail-folder').filter({ hasText: 'Junk' }).click();
+  await accountChooser(page).click();
+  await page.getByRole('option', { name: 'Privat', exact: true }).click();
+  await expect(accountChooser(page)).toContainText('Privat');
+  // Watched from here on: a row that comes and goes again is gone again by
+  // the time an assertion that waits has looked.
+  await page.evaluate(() => {
+    const view = document.querySelector('[data-testid="mail-view"]')!;
+    (window as any).__sawJunkList = false;
+    new MutationObserver(() => {
+      const shown = [...view.querySelectorAll('[data-testid="mail-envelope"]')].some((row) => row.textContent?.includes('Sie haben gewonnen'));
+      if (shown) (window as any).__sawJunkList = true;
+    }).observe(view, { childList: true, subtree: true, characterData: true });
+  });
+
+  // The junk folder's answer is in …
+  await expect
+    .poll(() => page.evaluate(() => ((window as any).__listAnswered ?? []).some((a: any) => a.mailbox === 'Junk')))
+    .toBe(true);
+  // … the second mailbox's own list follows once its folders are in …
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Posteingang/, { timeout: 10000 });
+  await expect(rows).toHaveCount(2);
+  // … and nothing of the junk folder stood under it on the way.
+  expect(await page.evaluate(() => (window as any).__sawJunkList)).toBe(false);
+  await expect(rows.filter({ hasText: 'Sie haben gewonnen' })).toHaveCount(0);
+});
+
+test('all inboxes: the list of the mailbox a row leads away from does not land under the next one', async ({ page }) => {
+  // The same, reached by the arrow keys: a row of the first mailbox opens and
+  // reads that mailbox's inbox behind the merged list; one step down is a row
+  // of the second, whose folders are still on their way — and the first
+  // inbox's list fails on its way back. Its error came in under the second
+  // mailbox: in place of the merged list, and once that was off, over the
+  // second mailbox's own folder until its list came.
+  await openSecondMailbox(page);
+  await showAllInboxes(page);
+  await page.evaluate(() => Object.assign(window as any, { __listDelay: { INBOX: 3000 }, __failFolder: 'INBOX', __secondFolderDelay: 5000 }));
+  const before = await page.evaluate(() => ({
+    lists: ((window as any).__envCalls ?? []).length,
+    answers: ((window as any).__listAnswered ?? []).length,
+  }));
+  await page.evaluate(() => {
+    const view = document.querySelector('[data-testid="mail-view"]')!;
+    (window as any).__sawListError = false;
+    new MutationObserver(() => {
+      if (view.querySelector('.pv-mail-hint--error')) (window as any).__sawListError = true;
+    }).observe(view, { childList: true, subtree: true, characterData: true });
+  });
+  const answered = (mailbox: string) =>
+    page.evaluate(([n, box]) => ((window as any).__listAnswered ?? []).slice(n as number).some((a: any) => a.mailbox === box), [before.answers, mailbox] as const);
+
+  await rowOf(page, 'Arbeit').click();
+  // The first mailbox's inbox is being read …
+  await expect
+    .poll(() => page.evaluate((n) => ((window as any).__envCalls ?? []).slice(n).some((c: any) => c.mailbox === 'INBOX'), before.lists), { intervals: [50] })
+    .toBe(true);
+  // … when the next row, the second mailbox's, is opened.
+  await page.keyboard.press('ArrowDown');
+  await expect(rowOf(page, 'Privat')).toHaveClass(OPEN_ROW);
+  // The first inbox's list has failed by now, and the merged list stands …
+  await expect.poll(() => answered('INBOX')).toBe(true);
+  await twoFrames(page);
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(4);
+  // … and off, before the second mailbox's own list has come, nothing of the
+  // first stands there either.
+  await page.getByTestId('mail-all-inboxes').click();
+  await expect.poll(() => answered('Posteingang'), { timeout: 10000 }).toBe(true);
+  await twoFrames(page);
+  expect(await page.evaluate(() => (window as any).__sawListError)).toBe(false);
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(2);
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await expect(page.locator('[data-testid="mail-envelope"].on')).toHaveCount(1);
+});
+
+test('all inboxes: back in a mailbox whose folders are asked for again, Move, Spam and Delete wait for them', async ({ page }) => {
+  // A row of the first mailbox, one step to the second and back before the
+  // second has answered: the folders of the first are asked for anew, and
+  // until they are in, the list of a moment ago is not theirs to stand in for
+  // — with an empty folder list, Delete found no trash folder and Spam offered
+  // to create a junk folder on the server.
+  await openFirstMailbox(page);
+  await showAllInboxes(page);
+  await page.evaluate(() => { (window as any).__secondFolderDelay = 4000; });
+  await rowOf(page, 'Arbeit').click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await expect(page.getByTestId('mail-delete')).toBeEnabled();
+
+  await page.keyboard.press('ArrowDown');
+  await expect(rowOf(page, 'Privat')).toHaveClass(OPEN_ROW);
+  await page.evaluate(() => { (window as any).__firstFolderDelay = 4000; });
+  await page.keyboard.press('ArrowUp');
+  await expect(rowOf(page, 'Arbeit')).toHaveClass(OPEN_ROW);
+  await expect(accountChooser(page)).toContainText('Arbeit');
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  for (const id of ['mail-move', 'mail-junk', 'mail-delete']) await expect(page.getByTestId(id)).toBeDisabled();
+  await page.keyboard.press('Delete');
+  await page.waitForTimeout(300);
+  await expect(page.locator('.pv-modal-footer')).toHaveCount(0);
+  await expect(page.locator('.pv-toast')).toHaveCount(0);
+
+  await expect(page.getByTestId('mail-folders')).toContainText('Trash', { timeout: 10000 });
+  for (const id of ['mail-move', 'mail-junk', 'mail-delete']) await expect(page.getByTestId(id)).toBeEnabled();
+  await page.getByTestId('mail-delete').click();
+  await confirmDelete(page);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__moved ?? null))
+    .toEqual({ user: 'marco@example.org', mailbox: 'INBOX', uid: 2, target: 'Trash' });
+});
+
+test('all inboxes: the open message keeps its row when the merged list is turned off and on', async ({ page }) => {
+  // The merged list names a row by its address, a folder by its number.
+  // Turned off with a message open, the folder had no row for it: none marked,
+  // the read button saying the opposite of the truth, and the reading time
+  // running out again after every write. The id changes form with the list.
+  await openFirstMailbox(page);
+  await showAllInboxes(page);
+  const allInboxes = page.getByTestId('mail-all-inboxes');
+  const openRows = page.locator('[data-testid="mail-envelope"].on');
+  const seenWrites = () => page.evaluate(() => ((window as any).__seenCalls ?? []).length);
+  const base = await seenWrites();
+  await rowOf(page, 'Privat').click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await expect(page.getByTestId('mail-folders')).toContainText('Posteingang');
+
+  // Off: the second mailbox's inbox, with the message's row marked …
+  await allInboxes.click();
+  await expect(allInboxes).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(2);
+  await expect(openRows).toHaveCount(1);
+  await expect(openRows).toContainText('Rechnung Q3');
+  // … read once — after the reading time, in the merged list or in the
+  // folder, whichever it ran out in — and the bar says so.
+  await expect.poll(seenWrites, { timeout: 8000 }).toBe(base + 1);
+  expect(await page.evaluate(() => (window as any).__seenCalls.at(-1))).toEqual({ user: 'zweit@example.net', mailbox: 'Posteingang', uid: 2 });
+  await expect(page.getByTestId('mail-mark-seen')).toHaveAttribute('aria-label', /unread|ungelesen/i);
+  // A loop would write again a reading time later.
+  await page.waitForTimeout(4000);
+  expect(await seenWrites()).toBe(base + 1);
+
+  // On again: the merged row is the open one.
+  await allInboxes.click();
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(4);
+  await expect(rowOf(page, 'Privat')).toHaveClass(OPEN_ROW);
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+});
+
+test('all inboxes: the folder a row leads into does not stand in for the merged list, nor does its error', async ({ page }) => {
+  // Opening a row of another mailbox reads that mailbox's folder behind the
+  // merged list. When that read failed, its error took the merged list's place.
+  await openFirstMailbox(page);
+  await showAllInboxes(page);
+  await page.evaluate(() => { (window as any).__failFolder = 'Posteingang'; });
+  const before = await page.evaluate(() => ((window as any).__listAnswered ?? []).length);
+  await rowOf(page, 'Privat').click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await expect
+    .poll(() => page.evaluate((n) => ((window as any).__listAnswered ?? []).slice(n).some((a: any) => a.mailbox === 'Posteingang'), before))
+    .toBe(true);
+  await twoFrames(page);
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(4);
+  await expect(page.getByTestId('mail-list').locator('.pv-mail-hint--error')).toHaveCount(0);
+  // Off, the folder's own error stands where it belongs.
+  await page.getByTestId('mail-all-inboxes').click();
+  await expect(page.getByTestId('mail-list').locator('.pv-mail-hint--error')).toContainText('connection reset');
+});
+
+test('all inboxes: off before the folders of the mailbox a row led into are in, the list makes no claim yet', async ({ page }) => {
+  // The folder's list waits for its account's folders; until they are in,
+  // "No messages." would be a claim about a list nobody has read.
+  await openFirstMailbox(page);
+  await showAllInboxes(page);
+  await page.evaluate(() => { (window as any).__secondFolderDelay = 3000; });
+  await rowOf(page, 'Privat').click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await page.evaluate(() => {
+    const list = document.querySelector('[data-testid="mail-list"]')!;
+    (window as any).__saidNoMessages = false;
+    new MutationObserver(() => {
+      if (/No messages\.|Keine Nachrichten\./.test(list.textContent ?? '')) (window as any).__saidNoMessages = true;
+    }).observe(list, { childList: true, subtree: true, characterData: true });
+  });
+  await page.getByTestId('mail-all-inboxes').click();
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(2, { timeout: 10000 });
+  expect(await page.evaluate(() => (window as any).__saidNoMessages)).toBe(false);
+});
+
+test('all inboxes: turning the merged list on and off turns away a flagged list on its way', async ({ page }) => {
+  // The flagged list asks ONE folder. The merged list dropped its rows but not
+  // its answer still on the way: it came in after the merged list was off
+  // again, and the folder showed only its starred mail with the filter off.
+  await openFirstMailbox(page);
+  const rows = page.getByTestId('mail-envelope');
+  const flagged = page.getByTestId('mail-filter-flagged');
+  const allInboxes = page.getByTestId('mail-all-inboxes');
+  await expect(rows).toHaveCount(2);
+  await page.evaluate(() => { (window as any).__slowFlagged = 5000; });
+
+  await flagged.click();
+  await allInboxes.click();
+  await expect(rows).toHaveCount(4);
+  await allInboxes.click();
+  await expect(allInboxes).toHaveAttribute('aria-pressed', 'false');
+  expect(await page.evaluate(() => (window as any).__flaggedAnswered ?? 0), 'the flagged list was still on its way').toBe(0);
+  await expect.poll(() => page.evaluate(() => (window as any).__flaggedAnswered ?? 0), { timeout: 10000 }).toBe(1);
+  await twoFrames(page);
+  await expect(flagged).toHaveAttribute('aria-pressed', 'false');
+  await expect(rows).toHaveCount(2);
+});
+
+test('conversations: the reading time does not mark a reply from Sent read in the folder the conversation stands in', async ({ page }) => {
+  // A reply of yours, read along from Sent and opened where the conversation
+  // stands, is not in the folder's list. Its read state was looked up there,
+  // found nowhere and taken as unread: after the reading time the view marked
+  // it read under its number in the OPEN folder — refused here, because that
+  // folder has no message with this number; another message where it has one —
+  // and again after every write.
+  await page.addInitScript(() => { (window as any).__threadFixture = true; });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-filter-threads').click();
+  await page.getByTestId('mail-thread-row').first().click();
+  const fromSent = page.getByTestId('mail-thread-message').filter({ has: page.getByTestId('mail-thread-folder') });
+  await fromSent.click();
+  await expect(page.getByTestId('mail-subject')).toBeVisible();
+  // A reading time and a half later: nothing was marked, nothing refused.
+  await page.waitForTimeout(4500);
+  expect(await page.evaluate(() => (window as any).__seenCalls ?? [])).toEqual([]);
+  expect(await page.evaluate(() => (window as any).__bulkCalls ?? [])).toEqual([]);
+  await expect(page.getByTestId('mail-bulk-report')).toHaveCount(0);
+});
+
+test('conversations: a reply from Sent with the number of an unread message of the open folder is not marked read there', async ({ page }) => {
+  // IMAP numbers each folder on its own, so your reply in Sent can carry the
+  // number of an unread message in the inbox. Opened where the conversation
+  // stands, the reading time found that inbox row by the number, read its
+  // state off it — unread — and marked the INBOX message read: another message.
+  await page.addInitScript(() => { (window as any).__threadFixture = true; (window as any).__sentReplyUid = 3; });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-filter-threads').click();
+  await page.getByTestId('mail-thread-row').first().click();
+  const fromSent = page.getByTestId('mail-thread-message').filter({ has: page.getByTestId('mail-thread-folder') });
+  await expect(fromSent).toHaveCount(1);
+  await fromSent.click();
+  await expect(page.getByTestId('mail-subject')).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__fetchCalls.at(-1))).toEqual({ user: 'marco@example.org', mailbox: 'Sent', uid: 3 });
+  // A reading time and a half later, nothing in the inbox was marked.
+  await page.waitForTimeout(4500);
+  expect(await page.evaluate(() => (window as any).__seenCalls ?? [])).toEqual([]);
+});
+
+test('a folder with no messages says so — again after another folder, and after a refresh', async ({ page }) => {
+  // "No messages." waits for the list of the folder that is shown; once that
+  // list is in, it must come, every time.
+  await page.addInitScript(() => { (window as any).__emptyFolder = 'Trash'; });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  const rows = page.getByTestId('mail-envelope');
+  const list = page.getByTestId('mail-list');
+  const folder = (name: string) => page.locator(`[data-testid="mail-folder"][data-tip="${name}"]`);
+  const empty = /No messages\.|Keine Nachrichten\./;
+  await expect(rows).toHaveCount(2);
+
+  await folder('Trash').click();
+  await expect(list).toContainText(empty);
+  await folder('INBOX').click();
+  await expect(rows).toHaveCount(2);
+  await expect(list).not.toContainText(empty);
+  await folder('Trash').click();
+  await expect(list).toContainText(empty);
+  const read = await page.evaluate(() => ((window as any).__envCalls ?? []).length);
+  await page.getByTestId('mail-refresh').click();
+  await expect.poll(() => page.evaluate(() => ((window as any).__envCalls ?? []).length)).toBeGreaterThan(read);
+  await twoFrames(page);
+  await expect(list).toContainText(empty);
+});
+
+test('all inboxes: the line naming a mailbox it could not reach goes with the merged list', async ({ page }) => {
+  // The merged list names a mailbox it could not reach. Left for a folder, that
+  // line stood on over the folder's own list.
+  await openFirstMailbox(page, { __failUser: 'zweit' });
+  await page.getByTestId('mail-all-inboxes').click();
+  await expect(page.getByTestId('mail-unified-error')).toHaveCount(1);
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(2);
+  await page.locator('[data-testid="mail-folder"][data-tip="Sent"]').click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Sent/);
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(2);
+  await expect(page.getByTestId('mail-unified-error')).toHaveCount(0);
+});
+
+test('all inboxes: the line saying the merged list is being read goes with it', async ({ page }) => {
+  // The merged list says it is being read. Left for a folder while it still
+  // was, that line stood on over the folder's own list until the merged read
+  // had ended.
+  await openFirstMailbox(page, { __listDelay: { Posteingang: 8000 } });
+  await page.getByTestId('mail-all-inboxes').click();
+  const reading = page.locator('p.pv-mail-hint', { hasText: /Refreshing…|Aktualisiere…/ });
+  await expect(reading).toBeVisible();
+  await page.locator('[data-testid="mail-folder"][data-tip="Sent"]').click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Sent/);
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(2);
+  // Well before the merged read ends.
+  await expect(reading).toHaveCount(0, { timeout: 2000 });
+});
+
+test('all inboxes: the status bar names the merged list, and none of the counts of the folder behind it', async ({ page }) => {
+  // The status bar names what is shown. With "All inboxes" on it went on
+  // naming the folder behind the merged list, with that folder's counts — as
+  // if they were the list's. (The phone's mailbox line shows no count there.)
+  await openFirstMailbox(page);
+  const bar = page.locator('footer[aria-label]');
+  await expect(bar).toContainText(/· \d+ (messages|Nachrichten)/);
+  await showAllInboxes(page);
+  await expect(bar).toContainText(/All inboxes|Alle Posteingänge/);
+  await expect(bar).not.toContainText(/· \d+ (messages|Nachrichten|unread|ungelesen)/);
+});
+
+test('all inboxes: rows picked in the merged list are let go when it is left for the folder behind it', async ({ page }) => {
+  // Picked in the merged list, rows carry their addresses. Left by a click on
+  // the folder that stood behind it — a click that shows no other folder, so
+  // nothing else lets the pick go — "2 selected" stood over a folder in which
+  // no row was marked, and the bar acted on the other mailbox's message.
+  await openFirstMailbox(page);
+  await showAllInboxes(page);
+  const rows = page.getByTestId('mail-envelope');
+  await rows.nth(0).click({ modifiers: ['ControlOrMeta'] });
+  await rows.nth(1).click({ modifiers: ['ControlOrMeta'] });
+  await expect(page.getByTestId('mail-bulkbar')).toBeVisible();
+  await page.locator('[data-testid="mail-folder"][data-tip="INBOX"]').click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/INBOX/);
+  await expect(rows).toHaveCount(2);
+  await expect(page.getByTestId('mail-bulkbar')).toHaveCount(0);
+});
+
+test('conversations: Open in the menu of a message from Sent opens it in Sent, where the bar acts on it', async ({ page }) => {
+  // The row menu names a message of a conversation by its address, as the
+  // merged list does, and opens it where it lives: the view follows into Sent.
+  // The reader used to close again on the way; and read where the conversation
+  // stands instead, the bar acts in the inbox on a number from Sent.
+  await page.addInitScript(() => { (window as any).__threadFixture = true; });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-filter-threads').click();
+  await page.getByTestId('mail-thread-row').first().click();
+  const fromSent = page.getByTestId('mail-thread-message').filter({ has: page.getByTestId('mail-thread-folder') });
+  await expect(fromSent).toHaveCount(1);
+  await watchReader(page);
+
+  await fromSent.click({ button: 'right' });
+  await page.getByTestId('mail-ctx-open').click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Sent/);
+  await expect(page.getByTestId('mail-subject')).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__fetchCalls.at(-1))).toEqual({ user: 'marco@example.org', mailbox: 'Sent', uid: 91 });
+  // Its row in Sent is the open one, and the reader never closed on the way …
+  const thread = page.getByTestId('mail-thread-row').filter({ hasText: 'Rechnung Q3' });
+  if ((await thread.getAttribute('aria-expanded')) !== 'true') await thread.click();
+  await expect(page.locator('[data-testid="mail-thread-message"][data-nav-id="91"]')).toHaveClass(OPEN_ROW);
+  expect((await readerCount(page)).closed).toBe(0);
+  // … and the bar acts on it there: the reply is read, so it offers "unread".
+  const seen = page.getByTestId('mail-mark-seen');
+  await expect(seen).toHaveAttribute('aria-label', /unread|ungelesen/i);
+  await seen.click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__setSeen ?? null))
+    .toEqual({ user: 'marco@example.org', mailbox: 'Sent', uid: 91, seen: false });
+});
+
+test("all inboxes: Move, Spam and Delete wait for the folders of the row's mailbox", async ({ page }) => {
+  // Each of the three goes to a folder that every account names differently.
+  // Until the second mailbox has said which folders it has, there is no trash
+  // folder to name, and the folders of the first one are the wrong place to
+  // look — the buttons wait, and so does the Delete key.
+  await openFirstMailbox(page, { __secondTrash: true });
+  await showAllInboxes(page);
+  await page.evaluate(() => { (window as any).__secondFolderDelay = 4000; });
+  await rowOf(page, 'Privat').click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  for (const id of ['mail-move', 'mail-junk', 'mail-delete']) await expect(page.getByTestId(id)).toBeDisabled();
+  await page.keyboard.press('Delete');
+  await page.waitForTimeout(300);
+  await expect(page.locator('.pv-modal-footer')).toHaveCount(0);
+  await expect(page.locator('.pv-toast')).toHaveCount(0);
+
+  // The folders are in: the trash folder is the second mailbox's own.
+  await expect(page.getByTestId('mail-folders')).toContainText('Papierkorb', { timeout: 10000 });
+  for (const id of ['mail-move', 'mail-junk', 'mail-delete']) await expect(page.getByTestId(id)).toBeEnabled();
+  await page.getByTestId('mail-delete').click();
+  await confirmDelete(page);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__moved ?? null))
+    .toEqual({ user: 'zweit@example.net', mailbox: 'Posteingang', uid: 2, target: 'Papierkorb' });
+});
+
+test('all inboxes: local rules act in the mailbox a row leads to with the folders of that mailbox', async ({ page }) => {
+  // Opening a row of another mailbox reads that mailbox's folder behind the
+  // merged list, and local rules run over what was read. A rule that deletes
+  // needs the trash folder of the account it acts in — not the one of the
+  // mailbox that was open a moment ago, and not "none" because the folder
+  // list has not arrived yet.
+  await openFirstMailbox(page, { __secondTrash: true });
+  await showAllInboxes(page);
+  // The rule is made after the first mailbox was read: it has seen none of this.
+  await page.evaluate(() => {
+    (window as any).__moved = undefined;
+    (window as any).__mailRules = [
+      { id: 'r1', name: 'Newsletter', enabled: true, match: 'all', conditions: [{ field: 'subject', op: 'contains', value: 'Newsletter' }], actions: [{ kind: 'trash' }] },
+    ];
+  });
+
+  await rowOf(page, 'Privat').click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__moved ?? null))
+    .toEqual({ user: 'zweit@example.net', mailbox: 'Posteingang', uid: 1, target: 'Papierkorb' });
+});
+
 test('signature: the field fills the settings row and is draggable in height only', async ({ page }) => {
   // Reported twice (2026-07-30): the box stayed at its content width. The
   // control column of a settings row is a centring flex row, so a control that
@@ -1546,6 +3044,459 @@ test('multi-window P3: the composer pops out into its own window, losing nothing
   // NOT the content query an aux window carries: a draft is not vault content.
   expect(created.url).not.toContain('content=');
   await expect(page.getByTestId('draft-form')).toHaveCount(0);
+});
+
+/**
+ * The vault does not leave the window over a changed draft without the
+ * question (finding 2026-10-09).
+ *
+ * The composer floats beside the vault menu, and a draft belongs to the vault
+ * it was written in — its mailboxes are that vault's. Switching to another
+ * vault or closing this one tears down everything that stands on it, so both
+ * took the message along without a word. They ask now, with the composer's own
+ * question; "Cancel" leaves vault and composer as they are, and a composer
+ * nobody wrote in is no reason to ask.
+ */
+test('switching or closing the vault asks before it takes a changed draft along, and only then', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__recentVaults = ['/test-vault', '/second-vault'];
+    const fs = (window as any).mockFs;
+    fs['/second-vault'] = { isDir: true };
+    fs['/second-vault/.plainva'] = { isDir: true };
+    fs['/second-vault/Zweite.md'] = '# Zweite';
+  });
+  await openVault(page);
+
+  const form = page.getByTestId('draft-form');
+  const question = page.locator('.pv-overlay--dialog');
+  const answer = question.locator('.pv-modal-footer button');
+  const vaultLine = (name: string) => page.getByRole('button', { name, exact: true });
+  const vaultMenu = page.locator('.pv-menu');
+  const compose = (subject: string) =>
+    page.evaluate((s) => {
+      window.dispatchEvent(new CustomEvent('plainva-compose-mail', { detail: { subject: s, markdown: '', to: 'anna@example.org' } }));
+    }, subject);
+  /** Opens the vault line's menu and takes one of its entries. */
+  const fromVaultMenu = async (current: string, entry: RegExp) => {
+    await vaultLine(current).click();
+    await vaultMenu.getByRole('menuitem', { name: entry }).click();
+  };
+  const SWITCH = /^(Vault wechseln|Switch Vault)$/;
+
+  await compose('Angebot');
+  await expect(form).toBeVisible();
+  await page.getByTestId('draft-subject').fill('Angebot, zweite Fassung');
+
+  // Another vault: the question comes first, and nothing has changed yet.
+  await fromVaultMenu('test-vault', /second-vault/);
+  await expect(question).toBeVisible();
+  await expect(form).toBeVisible();
+  await expect(vaultLine('test-vault')).toBeVisible();
+  if (process.env.PLAINVA_EVIDENCE) {
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: test.info().outputPath('vault-switch-discard-question.png') });
+  }
+  await answer.first().click();
+  await expect(question).toHaveCount(0);
+  await expect(vaultLine('test-vault')).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Angebot, zweite Fassung');
+
+  // Closing the vault ("Switch vault" leads back to the chooser): the same.
+  await fromVaultMenu('test-vault', SWITCH);
+  await expect(question).toBeVisible();
+  await answer.first().click();
+  await expect(question).toHaveCount(0);
+  await expect(vaultLine('test-vault')).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Angebot, zweite Fassung');
+
+  // "Discard" is the answer that lets the vault go, and the draft with it.
+  await fromVaultMenu('test-vault', /second-vault/);
+  await answer.last().click();
+  await expect(vaultLine('second-vault')).toBeVisible({ timeout: 20000 });
+  await expect(form).toHaveCount(0);
+  await expect(question).toHaveCount(0);
+
+  // A composer nobody wrote in: the switch does not ask.
+  await compose('Unberührt');
+  await expect(form).toBeVisible();
+  await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'anna@example.org' })).toBeVisible();
+  await fromVaultMenu('second-vault', /test-vault/);
+  await expect(vaultLine('test-vault')).toBeVisible({ timeout: 20000 });
+  await expect(question).toHaveCount(0);
+  await expect(form).toHaveCount(0);
+
+  // And no composer at all: closing the vault leads straight to the chooser.
+  await fromVaultMenu('test-vault', SWITCH);
+  await expect(page.getByRole('heading', { name: /Willkommen bei Plainva|Welcome to Plainva/ })).toBeVisible({ timeout: 20000 });
+  await expect(question).toHaveCount(0);
+});
+
+/**
+ * The composer outlives its vault being loaded again (finding 2026-10-09).
+ *
+ * The loading screen stands in place of the whole shell whenever the vault is
+ * reloaded — "Rebuild the index", but also saved credentials (a changed
+ * password, a different sync interval), locking or unlocking a workspace. The
+ * composer was part of that shell and went with it, without a word; and unlike
+ * a vault switch, most of these cannot be asked about first. So it does not
+ * ask: it is hosted beside the shell, waits while the vault loads, and stands
+ * there again with everything typed.
+ */
+test('the composer outlives the vault being loaded again: rebuilding the index, saved credentials', async ({ page }) => {
+  await openVault(page);
+  const form = page.getByTestId('draft-form');
+  const question = page.locator('.pv-overlay--dialog');
+  const tree = page.getByTestId('file-tree');
+  /** Marks the shell that is on screen now: a rebuilt shell does not carry the mark. */
+  const markShell = () => tree.evaluate((el) => el.setAttribute('data-shell-before', '1'));
+  const shellBefore = page.locator('[data-shell-before]');
+
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('plainva-compose-mail', { detail: { subject: 'Angebot', markdown: '', to: 'anna@example.org' } }));
+  });
+  await expect(form).toBeVisible();
+  await page.getByTestId('draft-subject').fill('Bleibt stehen');
+
+  // The palette is opened from the note, not from the composer's own field.
+  await tree.getByText('Todo').first().click();
+  await expect(page.locator('.cm-content').getByText('Some note content.').first()).toBeVisible();
+  await page.locator('.cm-content').filter({ hasText: 'Some note content.' }).first().focus();
+  await markShell();
+  await page.keyboard.press('Control+p');
+  const palette = page.getByTestId('command-palette');
+  await expect(palette).toBeVisible();
+  // The entry is triggered on the element, not by a pointer at its place: where
+  // the composer overlaps the palette's list it lies in front of it and would
+  // take the click. Which of the two is in front is not this test's question.
+  await palette.getByRole('button', { name: /Index vollständig neu aufbauen|Rebuild the index from scratch/ }).dispatchEvent('click');
+
+  // The shell was taken down and built again — that is what used to take the
+  // composer along …
+  await expect(page.getByText(/Index vollständig neu aufgebaut\.|Index rebuilt from scratch\./).first()).toBeVisible({ timeout: 20000 });
+  await expect(shellBefore).toHaveCount(0);
+  await expect(tree).toBeVisible();
+  // … and the composer stands there with what was typed. Nobody was asked.
+  await expect(form).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Bleibt stehen');
+  await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'anna@example.org' })).toBeVisible();
+  await expect(question).toHaveCount(0);
+
+  // The reload nobody thinks of as one: credentials were saved. It cannot be
+  // asked about — they are saved by then — and loads the whole vault again.
+  await markShell();
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('plainva-credentials-saved', { detail: { isNewConnection: false } }));
+  });
+  await expect(shellBefore).toHaveCount(0, { timeout: 20000 });
+  await expect(tree.getByText('Todo').first()).toBeVisible({ timeout: 20000 });
+  await expect(form).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Bleibt stehen');
+  await expect(question).toHaveCount(0);
+
+  // It is still the same draft: changed, so leaving it asks.
+  await page.getByTestId('draft-close').click();
+  await expect(question).toBeVisible();
+  await question.locator('.pv-modal-footer button').last().click();
+  await expect(form).toHaveCount(0);
+});
+
+/**
+ * Leaving the composer (finding 2026-10-09).
+ *
+ * Escape, the close button and "Cancel" dropped whatever stood in the composer
+ * without a word, while the phone asked. All three ask now — when the draft
+ * was changed against what the composer opened with, and only then.
+ *
+ * "Only then" is half of the test: a reply opens with a recipient, a quoted
+ * original and the account's signature, none of it written by anyone, and it
+ * runs through the real editor, which hands a body back the moment the composer
+ * signs it. A measure that takes any of that for typing asks on every reply —
+ * the question would be answered without reading within a day.
+ */
+test('the composer asks before a changed draft is discarded, and only then', async ({ page }) => {
+  await page.addInitScript(() => {
+    // A mailbox that signs its mail.
+    (window as any).__mailAccountsOverride = [
+      { id: 'm1', label: 'marco@example.org', host: 'imap.example.org', port: 993, user: 'marco@example.org', smtpHost: 'smtp.example.org', smtpPort: 587, signature: 'Marco\nPlainva' },
+    ];
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+
+  const form = page.getByTestId('draft-form');
+  const question = page.locator('.pv-overlay--dialog');
+  const answer = question.locator('.pv-modal-footer button');
+  const reply = async () => {
+    await page.getByTestId('mail-reply').click();
+    await expect(form).toBeVisible();
+    await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'anna@example.org' })).toBeVisible();
+    // The signature has landed, above the quoted original.
+    await expect(page.getByTestId('draft-body')).toContainText('Marco');
+    await expect(page.getByTestId('draft-body')).toContainText('anbei die Rechnung.');
+  };
+
+  // Untouched: each of the three ways out closes it, and none of them asks.
+  const waysOut = [
+    () => page.keyboard.press('Escape'),
+    () => page.getByTestId('draft-close').click(),
+    () => page.getByTestId('draft-cancel').click(),
+  ];
+  for (const leave of waysOut) {
+    await reply();
+    await leave();
+    await expect(form).toHaveCount(0);
+    await expect(question).toHaveCount(0);
+  }
+
+  // Changed: the same three ask, and "Cancel" in the question leaves the
+  // composer standing with what was typed.
+  await reply();
+  await page.getByTestId('draft-body').locator('.cm-content').click();
+  await page.keyboard.type('Danke, passt!');
+  for (const leave of waysOut) {
+    await leave();
+    await expect(question).toBeVisible();
+    await expect(form).toBeVisible();
+    if (process.env.PLAINVA_EVIDENCE) {
+      // The dialog fades in; a picture taken at once shows it half there.
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: test.info().outputPath('compose-discard-question.png') });
+    }
+    await answer.first().click();
+    await expect(question).toHaveCount(0);
+    await expect(form).toBeVisible();
+    await expect(page.getByTestId('draft-body')).toContainText('Danke, passt!');
+  }
+
+  // Escape belongs to the question while it stands: it answers "Cancel"
+  // instead of closing the composer underneath or asking a second time.
+  await page.keyboard.press('Escape');
+  await expect(question).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(question).toHaveCount(0);
+  await expect(page.getByTestId('draft-body')).toContainText('Danke, passt!');
+
+  // And it belongs to what is open INSIDE the composer before it is the
+  // composer's: the command menu closes, and nothing asks about the message.
+  // The floating window used to take the key first — in the capture phase —
+  // so this Escape closed the composer with everything in it.
+  await page.getByTestId('draft-body').locator('.cm-content').click();
+  await page.keyboard.type(' /');
+  const commands = page.getByTestId('compose-slash-menu');
+  await expect(commands).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(commands).toHaveCount(0);
+  await expect(question).toHaveCount(0);
+  await expect(form).toBeVisible();
+
+  // "Discard" is the one answer that lets it go.
+  await page.getByTestId('draft-close').click();
+  await answer.last().click();
+  await expect(form).toHaveCount(0);
+  await expect(question).toHaveCount(0);
+});
+
+/**
+ * What a draft ARRIVES with is not unsaved work, and filing it is not leaving
+ * it (finding 2026-10-09). A note sent as an attachment opens the composer
+ * with the file already on it: closing that composer untouched loses nothing.
+ * Taking the file off by hand is a change. And "Save as draft" closes a changed
+ * composer without the question — the message is in the mailbox, not gone.
+ */
+test('the composer: a file the draft arrived with is not unsaved work, a filed draft is not a discarded one', async ({ page }) => {
+  await openVault(page);
+  const form = page.getByTestId('draft-form');
+  const question = page.locator('.pv-overlay--dialog');
+  const sendNoteAsAttachment = () =>
+    page.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('plainva-compose-mail', {
+        detail: { subject: 'Meine Notiz', markdown: '', to: 'anna@example.org', attachments: [{ name: 'Note.md', mime: 'text/markdown', contentBase64: btoa('# Hallo') }] },
+      }));
+    });
+
+  await sendNoteAsAttachment();
+  await expect(page.getByTestId('draft-attachments')).toContainText('Note.md');
+  await page.keyboard.press('Escape');
+  await expect(form).toHaveCount(0);
+  await expect(question).toHaveCount(0);
+
+  await sendNoteAsAttachment();
+  await page.getByTestId('draft-attach-remove').click();
+  await expect(page.getByTestId('draft-attachments')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(question).toBeVisible();
+  await question.locator('.pv-modal-footer button').first().click();
+  await expect(form).toBeVisible();
+
+  // Filing the changed draft: no question, and it reaches the mailbox.
+  await page.getByTestId('draft-save').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__appendedDraft ?? null)).toBeTruthy();
+  await expect(form).toHaveCount(0);
+  await expect(question).toHaveCount(0);
+});
+
+/**
+ * The composer is a floating window to work beside — it must survive the tab
+ * it was opened from (finding 2026-10-09). The mail view rendered a composer
+ * of its own, so opening a note to look something up unmounted the view and
+ * the written message with it: no Escape, no close button, no question. The
+ * draft now lives with the window's shell.
+ */
+test('the composer outlives the mail tab it was opened from', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+  await page.getByTestId('mail-compose').click();
+  const form = page.getByTestId('draft-form');
+  await expect(form).toBeVisible();
+  await page.getByTestId('draft-subject').fill('Nicht verlieren');
+
+  // Look something up: the note replaces the mail view.
+  await page.getByTestId('file-tree').getByText('Todo').first().click();
+  await expect(page.locator('.cm-content').getByText('Some note content.').first()).toBeVisible();
+  await expect(page.getByTestId('mail-view')).toHaveCount(0);
+
+  await expect(form).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Nicht verlieren');
+
+  // Working beside it: an Escape pressed in the note is the note's. It neither
+  // closes the composer nor asks about a message nobody was thinking of. (The
+  // caret is put into the note without a click: the composer floats over the
+  // middle of the pane, and a click there would land in the composer.)
+  await page.locator('.cm-content').filter({ hasText: 'Some note content.' }).first().focus();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.pv-overlay--dialog')).toHaveCount(0);
+  await expect(form).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Nicht verlieren');
+});
+
+/**
+ * Asking for another message while the composer is open (finding 2026-10-09).
+ *
+ * The composer floats beside the mail view, so "Reply" to a second message is
+ * one click away while the first reply is still open — and that click did
+ * nothing: its host took the new draft, the composer kept showing the old one,
+ * and nothing said why. The same held for "New message", "Forward" and a note
+ * sent by mail. Now a composer nobody wrote in is replaced by the new draft,
+ * where it stands; a changed one is asked about first, and both answers do what
+ * they say.
+ */
+test('another message is asked for while the composer is open: an untouched draft is replaced, a changed one is asked about first', async ({ page }) => {
+  await page.addInitScript(() => {
+    // A mailbox that signs its mail: the signature is the composer's doing and
+    // must not make a draft count as written.
+    (window as any).__mailAccountsOverride = [
+      { id: 'm1', label: 'marco@example.org', host: 'imap.example.org', port: 993, user: 'marco@example.org', smtpHost: 'smtp.example.org', smtpPort: 587, signature: 'Marco\nPlainva' },
+    ];
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+
+  const form = page.getByTestId('draft-form');
+  const composer = page.locator('.pv-mail-window');
+  const subject = page.getByTestId('draft-subject');
+  const body = page.getByTestId('draft-body');
+  const recipient = (address: string) => page.getByTestId('draft-to-chip').filter({ hasText: address });
+  const question = page.locator('.pv-overlay--dialog');
+  const answer = question.locator('.pv-modal-footer button');
+
+  // Message A, and the reply to it.
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await page.getByTestId('mail-reply').click();
+  await expect(subject).toHaveValue('Re: Rechnung Q3');
+  await expect(recipient('anna@example.org')).toBeVisible();
+  await expect(body).toContainText('anbei die Rechnung.');
+  await expect(body).toContainText('Marco');
+
+  // Put aside the way a person does it who wants to read another message: made
+  // small by its corner, moved by its head. It opens over the middle of the
+  // window, on top of the list.
+  const openedAt = (await composer.boundingBox())!;
+  const view = page.viewportSize()!;
+  const grip = (await composer.locator('.pv-peek-resize').boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  // Up and to the left as far as the window lets it: it stops at its smallest.
+  await page.mouse.move(openedAt.x + 20, openedAt.y + 20, { steps: 6 });
+  await page.mouse.up();
+  const head = (await composer.locator('.pv-peek-head').boundingBox())!;
+  await page.mouse.move(head.x + 60, head.y + head.height / 2);
+  await page.mouse.down();
+  // Into the bottom right corner; the window stops at the edge.
+  await page.mouse.move(view.width - 20, view.height - 20, { steps: 6 });
+  await page.mouse.up();
+  const place = (await composer.boundingBox())!;
+  // Small, and in the corner: off the list and off the reader's buttons.
+  expect(place.width).toBeLessThan(openedAt.width);
+  expect(place.x).toBeGreaterThan(openedAt.x);
+  expect(place.y).toBeGreaterThan(openedAt.y);
+
+  // Message B, and "Reply" again. Nothing was written into the first reply, so
+  // nothing is asked: the composer shows the new draft, all of it.
+  await page.evaluate(() => {
+    (window as any).__fullMessage = { uid: 1, subject: 'Newsletter Juli', from: 'News <news@example.org>', text: 'Neues im Juli.\n', html: null, attachments: [] };
+  });
+  await page.getByTestId('mail-envelope').nth(1).click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Newsletter Juli');
+  await page.getByTestId('mail-reply').click();
+  await expect(subject).toHaveValue('Re: Newsletter Juli');
+  await expect(question).toHaveCount(0);
+  await expect(form).toHaveCount(1);
+  await expect(recipient('news@example.org')).toBeVisible();
+  await expect(recipient('anna@example.org')).toHaveCount(0);
+  await expect(body).toContainText('Neues im Juli.');
+  await expect(body).toContainText('Marco');
+  await expect(body).not.toContainText('anbei die Rechnung.');
+  // A new composer, in the place and at the size the old one was left in.
+  await expect.poll(() => composer.boundingBox()).toEqual(place);
+
+  // Written in. "New message" now asks first, and "Cancel" leaves the reply
+  // standing with what was typed.
+  await body.locator('.cm-content').click();
+  await page.keyboard.type('Bitte abmelden.');
+  await page.getByTestId('mail-compose').click();
+  await expect(question).toBeVisible();
+  await expect(subject).toHaveValue('Re: Newsletter Juli');
+  if (process.env.PLAINVA_EVIDENCE) {
+    // The dialog fades in; a picture taken at once shows it half there.
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: test.info().outputPath('compose-second-request-question.png') });
+  }
+  await answer.first().click();
+  await expect(question).toHaveCount(0);
+  await expect(subject).toHaveValue('Re: Newsletter Juli');
+  await expect(body).toContainText('Bitte abmelden.');
+
+  // A note sent as an attachment — the editor's request, from the note beside
+  // the composer. Asked again; "Discard" opens the new draft with its file.
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('plainva-compose-mail', {
+      detail: { subject: 'Meine Notiz', markdown: '', to: 'ben@example.org', attachments: [{ name: 'Note.md', mime: 'text/markdown', contentBase64: btoa('# Hallo') }] },
+    }));
+  });
+  await expect(question).toBeVisible();
+  await expect(subject).toHaveValue('Re: Newsletter Juli');
+  await answer.last().click();
+  await expect(question).toHaveCount(0);
+  await expect(subject).toHaveValue('Meine Notiz');
+  await expect(recipient('ben@example.org')).toBeVisible();
+  await expect(recipient('news@example.org')).toHaveCount(0);
+  await expect(page.getByTestId('draft-attachments')).toContainText('Note.md');
+  await expect(body).not.toContainText('Bitte abmelden.');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('compose-second-request-replaced.png') });
+
+  // Untouched again — the file came with the draft. "Forward" replaces it
+  // without a word, and nothing of the note's message stays behind.
+  await page.getByTestId('mail-forward').click();
+  await expect(subject).toHaveValue('Fwd: Newsletter Juli');
+  await expect(question).toHaveCount(0);
+  await expect(form).toHaveCount(1);
+  await expect(page.getByTestId('draft-to-chip')).toHaveCount(0);
+  await expect(page.getByTestId('draft-attachments')).toHaveCount(0);
+  await expect(body).toContainText('Neues im Juli.');
 });
 
 test('conversations: the arrow keys read INTO a folded conversation instead of stopping on it', async ({ page }) => {

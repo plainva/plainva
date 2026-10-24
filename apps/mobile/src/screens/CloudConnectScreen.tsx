@@ -5,6 +5,11 @@ import { useTranslation } from "react-i18next";
 import { CalendarDays, ChevronRight, Folder, Mail } from "lucide-react";
 import { accountMonogram, Button, Checkbox, type CloudProviderFamily, type CloudServiceId, FAMILY_SERVICES, GroupCard, ICON, Row, RowList, suiteProvider } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
+import { AccountAccessSheet } from "../components/AccountAccessSheet";
+import { AccessUnavailableError, beginMobileSignIn } from "../services/accountSignIn";
+import { getActiveVaultEntry } from "../services/vaultRegistry";
+import { toastConnectionFailure } from "../services/connectionToast";
+import type { OAuthFamily } from "@plainva/ui";
 
 /**
  * Connecting an account, provider first (mail feinplan G4).
@@ -58,6 +63,9 @@ export function CloudConnectScreen({
   const { t } = useTranslation();
   const [family, setFamily] = useState<CloudProviderFamily | null>(null);
   const [picked, setPicked] = useState<CloudServiceId[]>([]);
+  /** Google/Microsoft without a usable access on this phone: the sheet asks for it. */
+  const [accessFor, setAccessFor] = useState<OAuthFamily | null>(null);
+  const [starting, setStarting] = useState(false);
   // The device tile exists only on the native shells and only while no device
   // account exists (E7): the device is the source, not a login — one per phone.
   const [deviceTile, setDeviceTile] = useState(false);
@@ -68,6 +76,25 @@ export function CloudConnectScreen({
     return () => { alive = false; };
   }, [onConnectDevice]);
   const tiles: CloudProviderFamily[] = deviceTile ? ["device", ...TILES] : TILES;
+
+  const start = async () => {
+    if (!family) return;
+    if (family !== "google" && family !== "microsoft") {
+      onPickServices(picked, family);
+      return;
+    }
+    setStarting(true);
+    try {
+      const out = await beginMobileSignIn((await getActiveVaultEntry()).id, { family, add: picked });
+      // Only an app-password mailbox was ticked: no consent, the mail screen asks.
+      if (out.kind === "nothingToAsk") onPickServices(picked, family);
+    } catch (error) {
+      if (error instanceof AccessUnavailableError) setAccessFor(error.family);
+      else toastConnectionFailure(error);
+    } finally {
+      setStarting(false);
+    }
+  };
 
   const familyName = (f: CloudProviderFamily) => t(`cloudAccounts.family${f[0].toUpperCase()}${f.slice(1)}`);
   const serviceName = (s: CloudServiceId) =>
@@ -139,8 +166,8 @@ export function CloudConnectScreen({
 
       <Button
         data-testid="connect-start"
-        disabled={picked.length === 0}
-        onClick={() => onPickServices(picked, family)}
+        disabled={picked.length === 0 || starting}
+        onClick={() => void start()}
         variant="primary"
       >
         {t("cloudAccounts.connectServices", { count: picked.length })}
@@ -151,6 +178,13 @@ export function CloudConnectScreen({
       {!FAMILY_SERVICES[family].includes("files") && <p className="m-hint">{t("cloudAccounts.noFilesForFamily")}</p>}
       {suite && <p className="m-hint">{t("cloudAccounts.appPasswordHint")}</p>}
       </div>
+      {accessFor && (
+        <AccountAccessSheet
+          family={accessFor}
+          onCancel={() => setAccessFor(null)}
+          onSaved={() => { setAccessFor(null); void start(); }}
+        />
+      )}
     </div>
   );
 }

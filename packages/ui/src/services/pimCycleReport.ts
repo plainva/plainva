@@ -22,6 +22,12 @@ export function formatPimCycle(info: PimCycleInfo): string {
   const accounts = (info.accounts ?? []).map((account, index) => {
     const bits = [account.skipped ? `not asked (${account.skipped})` : `${account.events} event${account.events === 1 ? "" : "s"} read`];
     if (account.calendarErrors) bits.push(`${account.calendarErrors} calendar${account.calendarErrors === 1 ? "" : "s"} failed`);
+    // The task side in its own words (B2): a list that fails no longer ends
+    // the account's cycle, so its reason would otherwise be said nowhere.
+    if (account.taskListErrors) {
+      const why = account.taskListError ? `: ${withoutUrlPaths(account.taskListError)}` : "";
+      bits.push(`${account.taskListErrors} task list${account.taskListErrors === 1 ? "" : "s"} failed${why}`);
+    }
     if (account.error) bits.push(`error: ${withoutUrlPaths(account.error)}`);
     return `${account.provider}#${index + 1}: ${bits.join(", ")}`;
   });

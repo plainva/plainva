@@ -4,7 +4,7 @@ import { searchWords, wordScore } from "../tools.js";
 import { MEMORY_LIMITS, type MemoryEntry } from "./memoryFile.js";
 
 /**
- * What of the memory a conversation gets (plan KI-Harness P6, ADR 0027).
+ * What of the memory a conversation gets (plan KI-Harness P6, ADR 0032).
  *
  * Two questions, asked in this order. The gate: which entries may this
  * recipient have at all — an entry carries the rules of what it was made

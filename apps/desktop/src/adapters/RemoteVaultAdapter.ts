@@ -1,4 +1,4 @@
-import type { IVaultAdapter, DeletionConfirmation, VaultFileInfo, VaultListing, WatchEvent } from "@plainva/core";
+import { changeOf, readExactText, TextFileChangedError, type IVaultAdapter, type DeletionConfirmation, type TextChange, type TextFileChange, type TextFileState, type TextFileUpdate, type VaultFileInfo, type VaultListing, type WatchEvent } from "@plainva/core";
 import { bytesToBase64 } from "./TauriVaultAdapter";
 import type { WindowBus } from "../services/windowBus";
 
@@ -19,6 +19,10 @@ import type { WindowBus } from "../services/windowBus";
  * broadcasts `bus:file-changed`. An aux window that started its own watcher
  * would re-index the same events a second time.
  */
+
+/** How often a change that lost against another writer is made again before it gives up. */
+const UPDATE_ATTEMPTS = 4;
+
 export class RemoteVaultAdapter implements IVaultAdapter {
   constructor(
     private readonly reads: IVaultAdapter,
@@ -36,8 +40,15 @@ export class RemoteVaultAdapter implements IVaultAdapter {
 
   // --- reads: local, unchanged -------------------------------------------
 
+  /**
+   * The file's text, or `NotTextFileError` where its bytes are not UTF-8 — the
+   * answer the owner's adapter chain gives (`readExactText`). The reads of
+   * this window do not pass that chain, and the reader below refuses such a
+   * file with an error of its own: an auxiliary window's editor would call a
+   * `.csv` in Windows-1252 missing where the main window says what it is.
+   */
   readTextFile(path: string): Promise<string> {
-    return this.reads.readTextFile(path);
+    return readExactText(this.reads, path);
   }
 
   readBinaryFile(path: string): Promise<Uint8Array> {
@@ -76,9 +87,39 @@ export class RemoteVaultAdapter implements IVaultAdapter {
   resolveConflict(path: string, resolution: import("@plainva/core").ConflictResolution) {
     return this.bus.request("conflict-resolve", { path, resolution }, { vaultPath: this.vaultPath });
   }
+  resolveConflictBytes(path: string, resolution: import("@plainva/core").ConflictBytesResolution) {
+    return this.bus.request("conflict-resolve-bytes", { path, resolution }, { vaultPath: this.vaultPath });
+  }
 
   async writeTextFile(path: string, content: string): Promise<void> {
     await this.bus.request("write", { path, content }, { vaultPath: this.vaultPath });
+  }
+
+  /**
+   * The owner's entry for a change of a file where it lies. The change is a
+   * function and cannot travel, and this window cannot run it inside the
+   * owner's gate — so the owner hands out what the file is, the change is
+   * made here, and the owner writes it only if the file still is what the
+   * change was made of. Otherwise it is made again from what is there now: a
+   * few times, then it gives up rather than write over somebody.
+   */
+  async updateTextFile(path: string, change: TextChange): Promise<TextFileUpdate> {
+    for (let attempt = 0; attempt < UPDATE_ATTEMPTS; attempt++) {
+      const state = await this.readTextFileState(path);
+      const written = await this.writeTextFileChange(path, state, changeOf(state, change));
+      if (written) return written;
+    }
+    throw new TextFileChangedError(path);
+  }
+
+  /** The two halves of that step, as the owner serves them: what the file is … */
+  readTextFileState(path: string): Promise<TextFileState> {
+    return this.bus.request("update-read", { path }, { vaultPath: this.vaultPath });
+  }
+
+  /** … and the texts made of it, written only if the file still is that (`null`: it is not). */
+  writeTextFileChange(path: string, expected: TextFileState, next: TextFileChange): Promise<TextFileUpdate | null> {
+    return this.bus.request("update-write", { path, expected, next }, { vaultPath: this.vaultPath });
   }
 
   async writeBinaryFile(path: string, content: Uint8Array): Promise<void> {

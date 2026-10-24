@@ -52,6 +52,29 @@ describe("ContextMenuHost", () => {
     expect(writeText).toHaveBeenCalledWith("hello world");
   });
 
+  it("leaves the focus where it is over a plain text selection — WebKit clears such a selection when a button takes the focus", () => {
+    render(<ContextMenuHost />);
+    act(() => openContextMenu({ x: 12, y: 34, selection: "hello world", editable: null }));
+    expect(items()).toHaveLength(1);
+    expect(document.activeElement).not.toBe(items()[0]);
+  });
+
+  it("takes the keyboard over the editor: its first entry has the focus", () => {
+    // The attribute, not the property: jsdom has no contentEditable property.
+    const host = document.createElement("div");
+    host.setAttribute("contenteditable", "true");
+    document.body.appendChild(host);
+    render(<ContextMenuHost />);
+    act(() => openContextMenu({ x: 12, y: 34, selection: "hello", editable: findEditable(host) }));
+    expect(items().map((b) => b.textContent)).toEqual([
+      i18n.t("contextMenu.cut"),
+      i18n.t("contextMenu.copy"),
+      i18n.t("contextMenu.paste"),
+      i18n.t("shortcuts.selectAll"),
+    ]);
+    expect(document.activeElement).toBe(items()[0]);
+  });
+
   it("offers Cut/Copy/Paste over an editable field and pastes clipboard text", async () => {
     const input = Object.assign(document.createElement("input"), { type: "text", value: "ab" });
     document.body.appendChild(input);

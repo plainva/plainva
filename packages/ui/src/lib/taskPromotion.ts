@@ -1,8 +1,9 @@
-import { scanTasks, trimEndChars, wikiTargetForPath } from "@plainva/core";
+import { scanTasks, trimEndChars, updateVaultText, wikiTargetForPath, type TextUpdateFiles } from "@plainva/core";
 import { TASK_LINE_RE, FENCE_RE } from "./taskToggle";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
 import { buildNewItemContent } from "./newItemContent";
+import { withVaultContext, type TemplateVault } from "./templateContext";
 import { taskDbFileStem } from "./taskDatabase";
 import { priorityValue, resolveTaskPriorityModel } from "./taskPriority";
 import { writeRepeatRule, type RepeatRule } from "./taskRecurrence";
@@ -78,6 +79,17 @@ export interface CheckboxReplaceResult {
  * link, preserving indentation, blockquote markers and the list bullet. Fence-
  * aware, in lock-step with `scanTasks`/`toggleTaskAtIndex`. The alias is
  * appended only when it differs from the link target.
+ *
+ * The lines are the ones `scanTasks` counts — the file's, split at `\n` — so
+ * the ordinal it hands out names the same checkbox here. Counted in the text
+ * an editor holds, a carriage return of its own between two checkboxes made
+ * two lines of one, and the link replaced the checkbox after the one that was
+ * promoted (finding 2026-10-22). The replaced line keeps what ends it: it
+ * used to lose its `\r`, one line of the other kind in a note that lies there
+ * with `\r\n` (finding 2026-10-09). And what such a line holds behind a
+ * carriage return of its own — the next lines of a file from a classic Mac —
+ * stays in the note: only the checkbox is replaced. The chain that writes the
+ * note turns those line ends (`ConflictAwareVaultAdapter`).
  */
 export function replaceCheckboxWithLink(
   content: string,
@@ -101,7 +113,12 @@ export function replaceCheckboxWithLink(
       // blockquote markers + bullet + spacing), drop the "[x] text" rest.
       const prefix = lines[i].slice(0, m[1].length - 1);
       const link = alias && alias !== linkTarget ? `[[${linkTarget}|${alias}]]` : `[[${linkTarget}]]`;
-      lines[i] = `${prefix}${link}`;
+      // What follows the checkbox's own line on the same `\n`-line: from the
+      // first carriage return of its own behind the box, or the `\r` of a
+      // `\r\n`. One in front of the box is part of the prefix and stays there.
+      const inner = lines[i].slice(m[1].length).search(/\r(?!$)/);
+      const rest = inner >= 0 ? lines[i].slice(m[1].length + inner) : lines[i].endsWith("\r") ? "\r" : "";
+      lines[i] = `${prefix}${link}${rest}`;
       return { content: lines.join("\n"), changed: true };
     }
     seen++;
@@ -122,10 +139,12 @@ export function findColumnKey(
   return null;
 }
 
-/** Minimal adapter surface promotion needs (satisfied by both shells). */
-export interface TaskPromotionAdapter {
-  readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, content: string): Promise<void>;
+/**
+ * Minimal adapter surface promotion needs (satisfied by both shells): a
+ * vault's chain, or a storage with nothing above it. The new note is written,
+ * the source note is read, changed and written in one step (`updateVaultText`).
+ */
+export interface TaskPromotionAdapter extends TextUpdateFiles {
   exists(path: string): Promise<boolean>;
 }
 
@@ -143,6 +162,8 @@ export interface PromoteTaskOptions {
   allNotePaths: string[];
   /** Localized fallback title when the task text is only tags/date. */
   fallbackTitle: string;
+  /** The vault, for `{{vault}}` and `{{daily±N}}` in the database's template (Sammelplan § 3.97). */
+  templateVault?: TemplateVault | null;
 }
 
 export type PromoteTaskResult =
@@ -228,14 +249,29 @@ export async function promoteTask(opts: PromoteTaskOptions): Promise<PromoteTask
   prefills.source = `[[${wikiTargetForPath(sourcePath, allNotePaths)}]]`;
 
   const inheritTags = [...new Set([...(target.inheritTags ?? []), ...task.tags])];
-  const content = buildNewItemContent({ templateText, noteType, title, inheritTags, prefills });
+  const templateContext = await withVaultContext({ title, now: new Date(), folder: trimEndChars(target.folder, "/") }, opts.templateVault ?? null);
+  const content = buildNewItemContent({ templateText, noteType, title, inheritTags, prefills, templateContext });
   await adapter.writeTextFile(notePath, content);
 
   // Replace the checkbox with a link to the new note (alias = cleaned title so
   // the line reads naturally even when the link target is a qualified path).
+  // The source is read again where it is written: the template was read and
+  // the new note written since the guard above. The line is the task at its
+  // place — or, where lines moved meanwhile (or in the user's own version of
+  // a note with an open conflict), the one task of that wording. A text that
+  // carries no such task, or several, is left alone.
   const linkTarget = wikiTargetForPath(notePath, [...allNotePaths, notePath]);
-  const replaced = replaceCheckboxWithLink(source, task.ordinal, linkTarget, title);
-  if (replaced.changed) await adapter.writeTextFile(sourcePath, replaced.content);
+  const linked = (fresh: string): string | null => {
+    const tasks = scanTasks(fresh);
+    const same = tasks[task.ordinal]?.text === task.text ? [tasks[task.ordinal]] : tasks.filter((t) => t.text === task.text);
+    if (same.length !== 1) return null;
+    const replaced = replaceCheckboxWithLink(fresh, same[0].ordinal, linkTarget, title);
+    return replaced.changed ? replaced.content : null;
+  };
+  const update = await updateVaultText(adapter, sourcePath, linked);
+  // The task note exists either way. A source that changed under the step
+  // keeps its checkbox, and says so where somebody looks for the reason.
+  if (linked(update.before) === null) console.warn(`[taskPromotion] ${sourcePath}: the task's line was not found again; its checkbox stays beside the new note`);
 
   return { ok: true, notePath, title };
 }
@@ -265,6 +301,8 @@ export interface CreateTaskOptions {
   priority?: TaskPriority;
   /** Plainva's own recurrence (`plainva.repeat`). */
   repeat?: RepeatRule | null;
+  /** The vault, for `{{vault}}` and `{{daily±N}}` in the database's template (Sammelplan § 3.97). */
+  templateVault?: TemplateVault | null;
 }
 
 /**
@@ -336,6 +374,7 @@ export async function prepareTaskNote(
     title,
     inheritTags: [...new Set([...(target.inheritTags ?? []), ...(opts.tags ?? [])])],
     prefills,
+    templateContext: await withVaultContext({ title, now: new Date(), folder: trimEndChars(target.folder, "/") }, opts.templateVault ?? null),
   });
   const withTrailer = opts.trailer ? (built.trimEnd() + "\n") + opts.trailer : built;
   const content = opts.repeat ? writeRepeatRule(withTrailer, opts.repeat) : withTrailer;

@@ -1,5 +1,7 @@
-import { deleteFrontmatterPath, readFrontmatterPath, setFrontmatterPath } from "@plainva/core";
+import { deleteFrontmatterPath, frontmatterSpan, readFrontmatterPath, readTextShape, setFrontmatterPath, type TextChange, type TextFileUpdate } from "@plainva/core";
 import { finalizeItemContent } from "../lib/newItemContent";
+import { templateAsNewNote } from "../lib/newNoteContent";
+import { templateCaretInEditor, templateCaretInNote } from "../lib/templateCaret";
 import { resolveNewItemTarget } from "./baseRelations";
 import { viewPrefill } from "./newItemPrefill";
 import { sweepPinboardDrafts, type PinboardDraftLedger, type PinboardDraftSweepFiles } from "./pinboardDraftLedger";
@@ -64,7 +66,11 @@ export interface PinboardDraft {
   stem: string;
   /** The content as written at creation; "untouched" compares against it. */
   initial: string;
-  /** Caret offset in `initial` from the template's `{{cursor}}`, or null. */
+  /**
+   * The template's `{{cursor}}` as a place in `initial` — the file as it was
+   * written —, or null. An editor counts in its own text: `pinboardEntryCaret`
+   * and `parkTemplateCaret` convert it.
+   */
   caret: number | null;
   /** Inherited values beyond membership, shown as removable chips. */
   chips: PinboardEntryChip[];
@@ -78,6 +84,13 @@ export interface PinboardEntryFiles extends PinboardDraftSweepFiles {
   exists(path: string): Promise<boolean>;
   read(path: string): Promise<string>;
   write(path: string, content: string): Promise<void>;
+  /**
+   * The vault's entry for a change of a note where it lies (`updateTextFile`
+   * of its chain): the entry is ended in the file as it is at that moment. A
+   * shell with a vault brings it; a storage with nothing above it is read and
+   * written.
+   */
+  update?(path: string, change: TextChange): Promise<TextFileUpdate>;
   /**
    * Renames within the folder through the shell's link-safe path, so the
    * change travels as a move. Resolves to the new path.
@@ -142,18 +155,24 @@ function cleanFolder(folder: string): string {
 
 /** Offset where the body starts, after a leading frontmatter block (0 when there is none). */
 export function frontmatterEndOf(content: string): number {
-  const first = content.startsWith("---\r\n") ? 5 : content.startsWith("---\n") ? 4 : -1;
-  if (first < 0) return 0;
-  let from = first - 1;
-  for (;;) {
-    const at = content.indexOf("\n---", from);
-    if (at < 0) return 0;
-    const after = at + 4;
-    if (after === content.length) return after;
-    if (content[after] === "\n") return after + 1;
-    if (content[after] === "\r" && content[after + 1] === "\n") return after + 2;
-    from = at + 1;
-  }
+  return frontmatterSpan(content)?.end ?? 0;
+}
+
+/**
+ * Where the caret of a new entry goes in `doc`, the text its editor holds: to
+ * the template's `{{cursor}}`, else to the end — never into the properties
+ * block, which the live view hides and where it takes no keystroke.
+ *
+ * `draft.caret` counts in the file as it was written, and an editor holds that
+ * file with `\n` line ends and without its byte order mark. The desktop's
+ * entry window compared the two numbers as they were: with a template written
+ * on Windows the caret stood one character further right for every line above
+ * it, or fell to the end of the entry (finding 2026-10-09). The phone parks the
+ * same caret for its editor, through the same conversion (`parkTemplateCaret`).
+ */
+export function pinboardEntryCaret(draft: Pick<PinboardDraft, "initial" | "caret">, doc: string): number {
+  const caret = draft.caret === null ? null : templateCaretInEditor(draft.initial, draft.caret);
+  return caret !== null && caret >= frontmatterEndOf(doc) && caret <= doc.length ? caret : doc.length;
 }
 
 function listOf(value: unknown): string[] {
@@ -196,21 +215,16 @@ export async function planPinboardEntry(files: PinboardEntryFiles, opts: PlanPin
   }
   Object.assign(props, opts.extraPrefills ?? {});
 
-  const body = template?.text ?? "";
-  const initial = finalizeItemContent(body, opts.noteType, tags, props);
-  // `{{cursor}}` is measured in the template. The template's body text comes
-  // through unchanged at the END of the note — only the frontmatter in front
-  // of it is rewritten — so the caret is measured from where that text starts
-  // in the note, not from the end of the new frontmatter: writing the OKF
-  // header can put a blank line in between, and a block the frontmatter
-  // reader does not take as one ends up in front of the body as well.
-  let caret: number | null = null;
-  if (template && template.caret !== null) {
-    const bodyInTemplate = frontmatterEndOf(body);
-    const bodyText = body.slice(bodyInTemplate);
-    const bodyStart = initial.endsWith(bodyText) ? initial.length - bodyText.length : frontmatterEndOf(initial);
-    caret = Math.min(initial.length, bodyStart + Math.max(0, template.caret - bodyInTemplate));
-  }
+  // The template becomes a note in the builder every note from a template
+  // passes — there it loses what is meant for the template alone. The entry
+  // used to set the header on the template's text itself, and kept its
+  // template's task opt-out and database assignment (finding 2026-10-11).
+  const made = template ? templateAsNewNote({ text: template.text, cursor: template.caret }, opts.noteType) : null;
+  const initial = finalizeItemContent(made?.content ?? "", opts.noteType, tags, props);
+  // `{{cursor}}` is found in the builder's note and asked on behind what the
+  // tags and the view's filters wrote into the block (`templateCaretInNote`,
+  // the rule that was written here first and is every new note's now).
+  const caret = made && made.caret !== null ? templateCaretInNote(made.content, initial, made.caret) : null;
 
   // Chips only for what actually landed — a template key wins over a filter,
   // and a chip for a value the note does not carry would lie.
@@ -310,7 +324,8 @@ export function applyPinboardEntryTitle(content: string, title: string, stem: st
   } catch {
     /* unparseable frontmatter: leave it alone, the heading still carries the title */
   }
-  const bodyStart = frontmatterEndOf(next);
+  // The text begins behind the properties, or behind a byte order mark.
+  const bodyStart = frontmatterEndOf(next) || (next.charCodeAt(0) === 0xfeff ? 1 : 0);
   const head = next.slice(0, bodyStart);
   const body = next.slice(bodyStart);
   const h1 = leadingH1(body);
@@ -318,7 +333,10 @@ export function applyPinboardEntryTitle(content: string, title: string, stem: st
   if (h1 && h1.text === stem) return head + body.slice(0, h1.start) + `# ${t}` + body.slice(h1.end);
   let rest = body;
   while (rest.startsWith("\n") || rest.startsWith("\r\n")) rest = rest.slice(rest.startsWith("\r\n") ? 2 : 1);
-  return head + `# ${t}\n` + (rest.trim() ? `\n${rest}` : "");
+  // The heading that is added ends the way the note's lines end (a template
+  // from Windows): with `\n` it was one line of the other kind in such a note.
+  const eol = readTextShape(next).shape.eol;
+  return head + `# ${t}${eol}` + (rest.trim() ? `${eol}${rest}` : "");
 }
 
 /** Takes the chips the person removed off the note again. */
@@ -398,9 +416,12 @@ async function endPinboardEntry(files: PinboardEntryFiles, opts: FinalizePinboar
     await files.remove(draft.path);
     return { outcome: "removed", path: null };
   }
-  let next = removePinboardEntryChips(current, opts.removedChips ?? []);
-  next = applyPinboardEntryTitle(next, title, draft.stem);
-  if (next !== current) await files.write(draft.path, next);
+  const ended = (text: string): string => applyPinboardEntryTitle(removePinboardEntryChips(text, opts.removedChips ?? []), title, draft.stem);
+  if (files.update) await files.update(draft.path, ended);
+  else {
+    const next = ended(current);
+    if (next !== current) await files.write(draft.path, next);
+  }
 
   const name = title.trim() ? captureFileName(title, 80) : null;
   if (!name || name === draft.stem) return { outcome: "kept", path: draft.path };

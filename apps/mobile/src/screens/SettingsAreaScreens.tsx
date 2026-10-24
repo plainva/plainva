@@ -10,6 +10,7 @@ import { Browser } from "@capacitor/browser";
 import { DEFAULT_JOURNAL_HEADING, normalizeJournalHeading } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { type DefaultView } from "../services/mobileSettings";
+import { dailyNoteTypeOf, noteTypeOf } from "../services/newNote";
 import { getMobileVault, type MobileVault } from "../services/vaultService";
 import { deletionLogChecker } from "../services/syncService";
 import { AppBar } from "../components/AppBar";
@@ -78,6 +79,8 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
         />
           <Row title={t("mobile.readerAutoHide")} end={<Switch checked={settings.readerAutoHide} label={t("mobile.readerAutoHide")} onChange={(readerAutoHide) => update({ readerAutoHide })} />} />
         </RowList></GroupCard>
+        {/* A note just created opens to be written in either way (wish 2026-10-19). */}
+        <p className="m-hint">{t("mobile.defaultViewNewNotes")}</p>
 
         {/* Spell checking (plan Befunde 2026-10-06, E3): the same device switch
             as on the desktop. What checks is the keyboard and the system. */}
@@ -205,7 +208,7 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
       if (name.cancelled || !name.value.trim()) return;
       // The scaffold is the shared one, so a database created here is the same
       // file the desktop would have written — same views, same status options.
-      const path = await createTaskDatabase(vault.adapter, name.value, {
+      const path = await createTaskDatabase(vault.files, name.value, {
         viewTable: t("database.viewTable"),
         viewBoard: t("database.viewBoard"),
         viewTimeline: t("database.viewTimeline"),
@@ -217,8 +220,9 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
       }).catch(() => null);
       if (!path) return;
       update({ taskDatabase: path });
-      // The watcher indexes the new file; the tasks area should see it now.
-      void vault.indexer?.indexPath(path).catch(() => {});
+      // The phone has no watcher to find the new file: the index is told
+      // here, so the tasks area sees it now and the sync takes it along.
+      void vault.reindexPaths([path]);
     })();
   };
 
@@ -301,9 +305,16 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
                 value={settings.dailyFormat}
               />
             </SettingField>
+            {/* The two type fields save what the creation paths read
+                (`services/newNote.ts`): the name without blanks around it, and
+                the default for a field left empty — which the placeholder
+                names while it is empty. A blank used to be saved as it was
+                and written into new notes as an empty `type`. */}
             <SettingField label={t("settings.dailyNoteType")}>
               <CommittedTextInput
+                normalize={dailyNoteTypeOf}
                 onSave={(v) => update({ dailyNoteType: v })}
+                placeholder={dailyNoteTypeOf("")}
                 value={settings.dailyNoteType}
               />
             </SettingField>
@@ -327,7 +338,9 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
             </SettingField>
             <SettingField hint={t("settings.defaultNoteTypeDesc")} label={t("settings.defaultNoteType")}>
               <CommittedTextInput
+                normalize={noteTypeOf}
                 onSave={(v) => update({ defaultNoteType: v })}
+                placeholder={noteTypeOf("")}
                 value={settings.defaultNoteType}
               />
             </SettingField>

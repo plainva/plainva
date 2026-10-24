@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, BellOff, Copy, ExternalLink, FileText, Link2, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, PenLine, Reply, ReplyAll, Forward, Star, Trash2, TriangleAlert } from "lucide-react";
-import { hasEmlWikiLink } from "@plainva/core";
-import { Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, getPlatformServices, ICON, IconButton, plainvaProducer, safeFileStem, toast, useStableHandler, type LinkTarget } from "@plainva/ui";
-import type { MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
+import { hasEmlWikiLink, updateVaultText } from "@plainva/core";
+import { Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, getPlatformServices, ICON, IconButton, plainvaProducer, toast, useStableHandler, type LinkTarget } from "@plainva/ui";
+import type { ForwardSource, MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
 import { parseUnsubscribe, preferredRoute, mailErrorText } from "@plainva/ui/mail";
 import { Browser } from "@capacitor/browser";
 import {
@@ -24,6 +24,9 @@ import {
   saveEmlFile,
   mailDayKey,
   fetchAttachment,
+  forwardSource,
+  formatAttachmentSize,
+  saveMailAttachment,
   deleteMessagePermanently,
   fetchMessage,
   guessTrashMailbox,
@@ -42,14 +45,16 @@ import {
 /** No hold — hoisted so the effect below does not allocate on every render. */
 const EMPTY_HOLD: ReadonlySet<string> = new Set();
 import { mConfirm } from "../services/mobileDialogs";
+import { phoneTemplateVault } from "../services/templateVault";
 import { LONG_PRESS_MS } from "../lib/useLongPress";
 import { haptics } from "../services/haptics";
 import { runJunkAction } from "./mail/junkAction";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { getMobileSettings } from "../services/mobileSettings";
+import { configuredNoteType } from "../services/newNote";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
-import type { MobileVault } from "../services/vaultService";
+import { vaultTextFiles, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
 import { mailStatus } from "./mail/mailStatus";
 import { RowActionSheet } from "../components/RowActionSheet";
@@ -85,7 +90,9 @@ export function MailMessageScreen({
   messageId: string;
   onBack: () => void;
   onOpenNote: (path: string) => void;
-  onReply: (draft: { accountId: string; to: string; subject: string; body: string }) => void;
+  /** `forward` names the message a forward was made from, so the composer can
+   *  fetch its files — a reference, never the files themselves. */
+  onReply: (draft: { accountId: string; to: string; subject: string; body: string; forward?: ForwardSource }) => void;
   /** Envelope flag from the list — a fetched message carries none, so the star
    *  would otherwise always start empty (the reason G1 left it out). */
   flagged?: boolean;
@@ -444,23 +451,17 @@ export function MailMessageScreen({
 
   /** Saves an attachment into the vault, next to where captured mail lands —
    *  a phone has no "download folder" the app may write to, and a file inside
-   *  the vault syncs with everything else. */
+   *  the vault syncs with everything else. Where it goes and what it is called
+   *  is the shared rule (`saveMailAttachment`): the desktop saves the same file
+   *  to the same place. */
   const saveAttachment = async (index: number, name: string) => {
     if (!vaultId || !account) return;
     setBusy(true);
     try {
       const base64 = await fetchAttachment(vaultId, account, mailbox, messageId, index);
-      const folder = `${getMobileSettings().mailFolder || "Mail"}/Attachments`;
-      await vault.files.createDir(folder).catch(() => undefined);
-      const safe = safeFileStem(name.replace(/\.[^.]+$/, "")) ?? "attachment";
-      const ext = /\.([^.]+)$/.exec(name)?.[1] ?? "bin";
-      let path = `${folder}/${safe}.${ext}`;
-      // Never overwrite: two mails may carry the same file name.
-      for (let n = 2; await vault.files.exists(path); n++) path = `${folder}/${safe}-${n}.${ext}`;
-      const bin = atob(base64);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      await vault.files.writeBinaryFile(path, bytes);
+      const path = await saveMailAttachment(vault.files, getMobileSettings().mailFolder, name, base64);
+      // The index hears of the file now, not at the next full scan (finding 2026-10-12).
+      void vault.reindexPaths([path]);
       toast.success(t("mail.attachmentSaved", { name: path }));
     } catch (e) {
       toast.error(describe(e, t));
@@ -491,11 +492,14 @@ export function MailMessageScreen({
         }
         // The same creation path as a promoted checkbox and as "+ Entry", so
         // a task born from a mail is not subtly unlike the others.
+        // Through the vault's save, as the task view creates one: the index
+        // hears of the note at once (finding 2026-10-12).
         const res = await createTaskInDatabase({
-          adapter: vault.files,
+          adapter: vaultTextFiles(vault),
           dbPath,
           title: message.subject.trim() || t("mail.noSubject"),
-          noteType: getMobileSettings().defaultNoteType,
+          noteType: configuredNoteType(),
+          templateVault: await phoneTemplateVault(),
           dueDate: mailDayKey(message),
           trailer: message.from ? `\n${t("mail.fromLabel")}: ${message.from}\n` : undefined,
         });
@@ -507,7 +511,7 @@ export function MailMessageScreen({
         // it names (C4, S17). Its failures are reported; they never cost the
         // note, which is already written.
         await sendTaskToProviderList(
-          vault.files,
+          vaultTextFiles(vault),
           dbPath,
           res.notePath,
           message.subject.trim() || t("mail.noSubject"),
@@ -520,6 +524,8 @@ export function MailMessageScreen({
       // OKF 0.2 provenance (plan P3b): the capture names its producer, the
       // Message-ID becomes the note's source — same stamp as the desktop.
       const res = await captureMailAsNote({ adapter: vault.files, message, accountId: account.id, mailbox, folder, generatedBy: await plainvaProducer("mail-capture") });
+      // The index hears of what was filed now, not at the next full scan (finding 2026-10-12).
+      const filed = [res.path];
       let emlAdded = false;
       if (mode === "eml") {
         // S20: this was gated on `res.created`. Capturing the same message a
@@ -532,11 +538,12 @@ export function MailMessageScreen({
           // over the wire again, which on a phone connection is not free.
           const raw = await fetchRawMessage(vaultId, account, mailbox, messageId);
           const emlPath = await saveEmlFile(vault.files, message, raw, folder);
-          const content = res.created ? await vault.files.readTextFile(res.path) : existing;
-          await vault.files.writeTextFile(res.path, `${content.trimEnd()}\n\n[[${emlPath}]]\n`);
-          emlAdded = true;
+          filed.push(emlPath);
+          // Into the note as it lies there now: the raw copy took its time.
+          emlAdded = (await updateVaultText(vault.files, res.path, (content) => (hasEmlWikiLink(content) ? null : `${content.trimEnd()}\n\n[[${emlPath}]]\n`))).changed;
         }
       }
+      void vault.reindexPaths(filed);
       toast.success(
         res.created
           ? t("mail.captured", { name: res.path })
@@ -728,7 +735,7 @@ export function MailMessageScreen({
                     <Paperclip size={ICON.ui} />
                     <span className="m-linestack">
                       {a.name}
-                      <small>{formatSize(a.size)}</small>
+                      <small>{formatAttachmentSize(a.size, i18n.language)}</small>
                     </span>
                   </button>
                 </li>
@@ -757,6 +764,9 @@ export function MailMessageScreen({
                   to: "",
                   subject: `Fwd: ${message.subject.trim().replace(/^(fwd|wg):\s*/i, "")}`.trim(),
                   body: buildForwardBody(message),
+                  // The files of the original go along — by reference: the
+                  // composer fetches them and says for each how far it is.
+                  forward: forwardSource(accountId, mailbox, message),
                 })
               }
             >
@@ -779,10 +789,4 @@ function describe(e: unknown, t: (k: string) => string): string {
   if (isImapUnavailable(e)) return t("mail.imapMobileUnavailable");
   // See MailListScreen: the core names what it can, once, for both shells.
   return mailErrorText(e, t);
-}
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

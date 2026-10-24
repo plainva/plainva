@@ -36,6 +36,8 @@ export async function authorizeDrive(opts: {
   includeGrantedScopes?: boolean;
   /** Ephemeral proof for an account reconnect; never persisted with credentials. */
   includeAccessToken?: boolean;
+  /** The account Google preselects (signing a card in again). */
+  loginHint?: string;
 }): Promise<{ clientId: string; clientSecret: string; refreshToken: string; grantedScope?: string; accessToken?: string }> {
   const { clientId, clientSecret } = opts;
 
@@ -54,6 +56,7 @@ export async function authorizeDrive(opts: {
     state,
     scope: opts.scope,
     includeGrantedScopes: opts.includeGrantedScopes,
+    loginHint: opts.loginHint,
   });
 
   // 3. Open the system browser, then wait for the single redirect on the loopback.

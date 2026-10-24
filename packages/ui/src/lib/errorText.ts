@@ -32,8 +32,44 @@ const INPUT_REJECTIONS = new Map([
   ["HTML nesting exceeds the import limit", "htmlDepth"],
 ]);
 
+/**
+ * A properties block the writers refuse (`FrontmatterSurgicalError` in
+ * `@plainva/core`, `writableProperties` here): not parseable YAML or no YAML
+ * map — or, for a rename, a note that already carries a property of the new
+ * name. (A single value the reader could not take was a refusal of its own
+ * until 2026-10-22; the reader takes every value now, ADR 0009.)
+ *
+ * Said in the user's language, and WITHOUT what follows the first sentence of
+ * the YAML parser's message: that quotes the line it stumbled over — the
+ * note's own text, in a toast the diagnostics trail keeps a copy of. Matched
+ * by how the message begins, so a refusal that crossed a window boundary as a
+ * plain string reads the same.
+ */
+const UNREADABLE_PROPERTIES_BLOCK = ["Frontmatter is not parseable YAML", "Frontmatter is not a YAML map"];
+/**
+ * A rename onto a key the note already carries (`renameFrontmatterKey`): the
+ * message begins and ends like this, with the two names between. They are not
+ * repeated — whoever shows the sentence has just typed them.
+ */
+const PROPERTY_NAME_TAKEN = ["Cannot rename '", "': target key already exists"] as const;
+
+function propertiesErrorText(message: string): string | null {
+  const said = (key: string, fallback: string) => {
+    const translated = i18n.t(`inputRejected.${key}`, { defaultValue: fallback });
+    return typeof translated === "string" && translated.trim() ? translated : fallback;
+  };
+  if (message.startsWith(PROPERTY_NAME_TAKEN[0]) && message.endsWith(PROPERTY_NAME_TAKEN[1])) {
+    return said("propertyNameTaken", "The note already has a property with the new name.");
+  }
+  // Without a translation it is still only the beginning: never the quote.
+  const block = UNREADABLE_PROPERTIES_BLOCK.find((start) => message.startsWith(start));
+  return block ? said("propertiesBlock", block) : null;
+}
+
 /** Translate known input refusals at the shared display boundary. */
 function inputErrorText(message: string): string {
+  const properties = propertiesErrorText(message);
+  if (properties) return properties;
   const key = INPUT_REJECTIONS.get(message);
   if (!key) return message;
   const translated = i18n.t(`inputRejected.${key}`, { defaultValue: message });

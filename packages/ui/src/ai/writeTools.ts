@@ -574,7 +574,7 @@ async function addJournalEntry(deps: VaultWriteDeps, run: WriteRun, a: Record<st
 }
 
 /**
- * "Remember this" (plan P6, ADR 0027): an entry for the vault's memory, as a
+ * "Remember this" (plan P6, ADR 0032): an entry for the vault's memory, as a
  * draft. Nothing is written — the user's "Remember" on the draft is what
  * writes, and the entry then carries the rules of everything this
  * conversation rested on, so it reaches no model those notes may not reach.

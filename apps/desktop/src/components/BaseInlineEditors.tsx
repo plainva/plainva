@@ -1,18 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
-import { chipClass, ICON, optionSwatch, parseWikiLinkValue, type CuratedOption } from "@plainva/ui";
+import { chipClass, ICON, optionSwatch, parseWikiLinkValue, useOutsidePress, wikiLinkTextFor, type CuratedOption } from "@plainva/ui";
 import { Select } from "./Select";
 
 type TFn = (key: string, opts?: any) => string;
 
+/**
+ * How a cell editor is left: Escape, or a press beside it — heard at the
+ * window, as every menu and popover hears it (`useOutsidePress`). Heard as a
+ * `mousedown` at the document, the press on a column's grip or on a floating
+ * window's head never arrived, and the editor stayed open (Sammelplan § 3.100).
+ * Leaving saves nothing: the editors commit with every change.
+ */
 function useDismiss(onClose: () => void) {
   const ref = useRef<HTMLDivElement>(null);
+  useOutsidePress(true, onClose, ref);
   useEffect(() => {
-    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+    return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
   return ref;
 }
@@ -96,9 +102,11 @@ export interface RelationSearchResult {
  * Notion parity (Gesamtplan Base-Relationen, P7): `limit: "one"` makes a pick
  * REPLACE the value and close the editor; `excludeTitles` hides the row's own
  * note (no self-link); `onCreateNew` offers creating a missing note inline;
- * `brokenTitles` renders chips whose target no longer exists as muted/inert.
+ * `resolveTarget` says where a stored link leads — a chip whose target leads
+ * nowhere renders as muted/inert, and a candidate is "linked already" where a
+ * stored link leads to it, however that link names the note.
  */
-export function InlineRelationEditor({ value, search, onCommit, onClose, t, limit, excludeTitles, onCreateNew, brokenTitles }: {
+export function InlineRelationEditor({ value, search, onCommit, onClose, t, limit, excludeTitles, onCreateNew, resolveTarget }: {
   value: unknown;
   search: (q: string) => Promise<RelationSearchResult[]>;
   onCommit: (next: string[]) => void;
@@ -108,10 +116,14 @@ export function InlineRelationEditor({ value, search, onCommit, onClose, t, limi
   limit?: "one";
   /** Titles never offered as candidates (case-insensitive) — the row's own note. */
   excludeTitles?: string[];
-  /** Create a missing note in the target base's source folder; resolves to its title. */
-  onCreateNew?: (title: string) => Promise<string | null>;
-  /** Lowercase titles/paths that exist; chips outside this set render as broken. */
-  brokenTitles?: ReadonlySet<string>;
+  /** Create a missing note in the target base's source folder; resolves to the note as a candidate. */
+  onCreateNew?: (title: string) => Promise<RelationSearchResult | null>;
+  /**
+   * Where a link target leads — the link rule's answer for the row's note:
+   * the file's path, or null where it leads nowhere. Absent while the index
+   * is not loaded; the editor then compares link texts, as it used to.
+   */
+  resolveTarget?: (target: string) => string | null;
 }) {
   const ref = useDismiss(onClose);
   const [q, setQ] = useState("");
@@ -127,15 +139,13 @@ export function InlineRelationEditor({ value, search, onCommit, onClose, t, limi
 
   const displayOf = (v: string) => parseWikiLinkValue(v)?.display ?? v.replace(/^\[\[/, "").replace(/\]\]$/, "");
   const targetOf = (v: string) => parseWikiLinkValue(v)?.target ?? v.replace(/^\[\[/, "").replace(/\]\]$/, "");
-  const isBroken = (v: string) => {
-    if (!brokenTitles) return false;
-    const target = targetOf(v).toLowerCase();
-    return !brokenTitles.has(target) && !brokenTitles.has(`${target}.md`);
-  };
+  const isBroken = (v: string) => (resolveTarget ? resolveTarget(targetOf(v)) === null : false);
 
   const add = (r: RelationSearchResult) => {
-    const target = r.linkTarget ?? r.title;
-    const link = target !== r.title ? `[[${target}|${r.title}]]` : `[[${target}]]`;
+    // The file's name (the path where two notes share it), and what the note
+    // is called as the link's text where that reads otherwise — the text
+    // every writer of the app writes (`wikiLinkTextFor`).
+    const link = wikiLinkTextFor(r.path, r.title, () => r.linkTarget ?? r.title);
     if (limit === "one") { onCommit([link]); setQ(""); onClose(); return; }
     if (!selected.includes(link)) onCommit([...selected, link]);
     setQ("");
@@ -143,10 +153,17 @@ export function InlineRelationEditor({ value, search, onCommit, onClose, t, limi
   const remove = (v: string) => onCommit(selected.filter((x) => x !== v));
 
   const excluded = new Set((excludeTitles ?? []).map((x) => x.trim().toLowerCase()).filter(Boolean));
+  // "Linked already" is a question about the NOTE: a stored value may name it
+  // by file name, path or title, and the candidate's own text may have become
+  // a path since (a second note of that name). Compared by where the stored
+  // links lead; by text only while there is no index to ask.
+  const selectedPaths = new Set(resolveTarget ? selected.map((v) => resolveTarget(targetOf(v))).filter((p): p is string => p !== null) : []);
   const selectedTargets = new Set(selected.map((v) => targetOf(v).toLowerCase()));
+  const linkedAlready = (r: RelationSearchResult) =>
+    resolveTarget && r.path ? selectedPaths.has(r.path) : selectedTargets.has((r.linkTarget ?? r.title).toLowerCase()) || selectedTargets.has(r.title.toLowerCase());
   const visible = results
     .filter((r) => !excluded.has(r.title.trim().toLowerCase()))
-    .filter((r) => !selectedTargets.has((r.linkTarget ?? r.title).toLowerCase()) && !selectedTargets.has(r.title.toLowerCase()));
+    .filter((r) => !linkedAlready(r));
   const canCreate =
     !!onCreateNew &&
     q.trim() !== "" &&
@@ -159,7 +176,7 @@ export function InlineRelationEditor({ value, search, onCommit, onClose, t, limi
     setCreating(true);
     try {
       const created = await onCreateNew(title);
-      if (created) add({ path: "", title: created });
+      if (created) add(created);
     } finally {
       setCreating(false);
     }

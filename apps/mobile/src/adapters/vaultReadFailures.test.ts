@@ -13,6 +13,8 @@ vi.mock("@capacitor/filesystem", () => ({
   },
 }));
 vi.mock("../platform/atomicFile", () => ({ atomicWriteText: vi.fn(), atomicWriteBase64: vi.fn() }));
+// A phone: the container adapter reads a text file's bytes there, as the answers below hand them out (base64).
+vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => true, getPlatform: () => "ios" }, registerPlugin: () => ({}) }));
 
 const entry = { name: "note.md", isDirectory: false, size: 4, mtime: 1 };
 const plugin = { read: native.read, stat: native.stat, mkdir: native.mkdir, list: native.list } as unknown as VaultFolderNative;
@@ -67,6 +69,19 @@ for (const kind of ["sandbox", "external"] as const) {
       await expect(vault.getFileInfo("note.md")).rejects.toBe(error);
       await expect(vault.renameItem("note.md", "new.md")).rejects.toBe(error);
       await expect(vault.deleteItem("note.md")).rejects.toBe(error);
+    });
+
+    it("answers for the vault's own folder: there, absent, or not known", async () => {
+      // The index asks this before it takes a missing path for a deletion.
+      const vault = adapter();
+      native.stat.mockResolvedValue(kind === "sandbox" ? { type: "directory", size: 0, mtime: 1 } : { entry: { name: "", isDirectory: true, size: 0, mtime: 1 } });
+      expect(await vault.exists("")).toBe(true);
+      if (kind === "sandbox") native.stat.mockRejectedValue(failure("ENOENT"));
+      else native.stat.mockResolvedValue({ entry: null });
+      expect(await vault.exists("")).toBe(false);
+      const away = failure("EIO");
+      native.stat.mockRejectedValue(away);
+      await expect(vault.exists("")).rejects.toBe(away);
     });
 
     it.each(["ENOENT", "OS-PLUG-FILE-0008"])("still recognizes actual absence (%s)", async (code) => {

@@ -348,7 +348,6 @@ export class CalDavPimTarget implements IPimTarget {
         for (const vtodo of comp.getAllSubcomponents("vtodo")) {
           const uid = String(vtodo.getFirstPropertyValue("uid") ?? e.href);
           const due = vtodo.getFirstPropertyValue("due");
-          const status = String(vtodo.getFirstPropertyValue("status") ?? "");
           const lastMod = vtodo.getFirstPropertyValue("last-modified");
           tasks.push({
             uid,
@@ -356,7 +355,7 @@ export class CalDavPimTarget implements IPimTarget {
             title: String(vtodo.getFirstPropertyValue("summary") ?? ""),
             notes: str(vtodo.getFirstPropertyValue("description")),
             due: due instanceof ICAL.Time ? icalDateString(due) : undefined,
-            completed: status.toUpperCase() === "COMPLETED",
+            completed: vtodoCompleted(vtodo),
             etag: e.etag,
             updatedTs: lastMod instanceof ICAL.Time ? lastMod.toJSDate().getTime() : undefined,
             href: this.resolve(e.href),
@@ -707,9 +706,25 @@ function icalLinks(component: IcalComponent, fallback?: IcalComponent): Pick<Pim
   return { blockOf: read("x-plainva-block-of"), blocks };
 }
 
+/**
+ * Whether a VTODO is done (finding B2, 19.10.). `STATUS` says it where it is
+ * present, and then it is the answer — a client that reopens a task sets
+ * `NEEDS-ACTION` and may leave a stale `COMPLETED` stamp behind. Without
+ * `STATUS`, RFC 5545 still has two ways to say it, and clients use them: a
+ * `COMPLETED` date-time and `PERCENT-COMPLETE:100`. Both were read as "open",
+ * so a task ticked off by such a client stayed open in Plainva for good.
+ */
+export function vtodoCompleted(vtodo: InstanceType<typeof ICAL.Component>): boolean {
+  const status = vtodo.getFirstPropertyValue("status");
+  if (status != null && String(status).trim() !== "") return String(status).trim().toUpperCase() === "COMPLETED";
+  if (vtodo.getFirstProperty("completed")) return true;
+  const percent = Number(vtodo.getFirstPropertyValue("percent-complete"));
+  return Number.isFinite(percent) && percent >= 100;
+}
+
 function applyTaskDraft(vtodo: InstanceType<typeof ICAL.Component>, draft: PimTaskDraft): void {
   vtodo.updatePropertyWithValue("summary", draft.title);
-  if (draft.due) setTimeProperty(vtodo, "due", { ts: 0, date: draft.due }, true);
+  if (draft.due) setTimeProperty(vtodo, "due", { ts: 0, date: draft.due.slice(0, 10) }, true);
   else vtodo.removeAllProperties("due");
   if (draft.notes) vtodo.updatePropertyWithValue("description", draft.notes);
   else vtodo.removeAllProperties("description");

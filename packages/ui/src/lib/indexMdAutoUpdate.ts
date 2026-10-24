@@ -1,4 +1,5 @@
 import {
+  frontmatterSpan,
   hasOkfVersionKey,
   isInternalPath,
   isPlainvaManagedIndex,
@@ -97,8 +98,8 @@ export function createIndexAutoUpdater(deps: IndexAutoUpdaterDeps): IndexAutoUpd
     let value: boolean;
     try {
       const rootIndex = await deps.adapter.readTextFile("index.md");
-      const fm = rootIndex.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-      value = !!fm && hasOkfVersionKey(fm[1]);
+      const fm = frontmatterSpan(rootIndex);
+      value = !!fm && hasOkfVersionKey(fm.yaml);
     } catch {
       value = false;
     }

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "./hooks/useLeaveGuard";
 import { ChevronRight, CloudOff } from "lucide-react";
-import { Banner, Button, EmptyState, filesTargetForFamily, foldMachineText, ICON, Row, Switch, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, serviceConnectionMessage, type CloudProviderFamily } from "@plainva/ui";
+import { Banner, Button, EmptyState, accessProblemKey, filesTargetForFamily, foldMachineText, ICON, Row, Switch, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, serviceConnectionMessage, unionScope, type AccessResolution, type CloudProviderFamily, type OAuthFamily } from "@plainva/ui";
 import { mSelect } from "./services/mobileDialogs";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
 import {
@@ -15,7 +15,8 @@ import {
 } from "./services/syncService";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { beginOAuth, beginStoredFilesConnection, type OAuthProviderId } from "./services/oauthService";
-import { lookupOAuthClientForNewAccount } from "./services/pim/pimClientLookup";
+import { deviceAccess } from "./services/accountSignIn";
+import { AccountAccessSheet } from "./components/AccountAccessSheet";
 import { getPimCredentials } from "./services/pim/pimCredentials";
 import { loadCloudAccounts } from "./services/cloudAccountsStore";
 import { useConnectionRun } from "./hooks/useConnectionRun";
@@ -88,12 +89,19 @@ export function AddVaultScreen({
     // turns it off for the ones that only answer on the bucket's own host.
     forcePathStyle: true,
   });
-  // OAuth extras: folders for all three, BYO client for Google Drive.
-  const [driveClientId, setDriveClientId] = useState("");
-  // Dropbox and OneDrive ship with a central Plainva registration, so this
-  // stays optional — unlike Drive, where it is the only way in.
+  // Dropbox ships with a central Plainva registration, so its own app key
+  // stays optional. Google Drive and OneDrive sign in with this device's
+  // access, like every other sign-in (account sign-in plan K4b).
   const [ownAppId, setOwnAppId] = useState("");
-  const [driveClientSecret, setDriveClientSecret] = useState("");
+  const accessFamily: OAuthFamily | null = provider === "drive" ? "google" : provider === "onedrive" ? "microsoft" : null;
+  const [access, setAccess] = useState<AccessResolution | null>(null);
+  const [accessSheet, setAccessSheet] = useState(false);
+  useEffect(() => {
+    if (!accessFamily) return;
+    let alive = true;
+    void deviceAccess(accessFamily).then((resolved) => { if (alive) setAccess(resolved); });
+    return () => { alive = false; };
+  }, [accessFamily]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Direct providers (WebDAV/S3) browse the cloud folder BEFORE connecting
@@ -102,16 +110,13 @@ export function AddVaultScreen({
   useEffect(() => {
     let alive = true;
     setRunScope(null);
-    setDriveClientId(""); setDriveClientSecret(""); setOwnAppId("");
+    setOwnAppId("");
     void loadConnectQueue().then(async (q) => {
       if (!alive || !q) return;
       const record = q.context.cloudAccountId ? (await loadCloudAccounts(q.context.vaultId)).find(r => r.id === q.context.cloudAccountId) : undefined;
       if (!alive) return;
       setRunScope(runConsentScope(q.family, runServices(q)));
-      if (q.family === "google" || q.family === "microsoft") {
-        const client = await lookupOAuthClientForNewAccount(q.family, q.context);
-        if (alive && client) { if (q.family === "google") { setDriveClientId(client.clientId); setDriveClientSecret(client.clientSecret ?? ""); } else setOwnAppId(client.clientId); }
-      } else if (record?.services.calendar) {
+      if (q.family !== "google" && q.family !== "microsoft" && record?.services.calendar) {
         const creds = await getPimCredentials(q.context.vaultId, record.services.calendar.pimAccountId);
         if (alive && creds?.kind === "caldav") setWebdav(old => ({ ...old, user: creds.user, pass: creds.pass, url: old.url || (/\/remote\.php\/dav(?:\/|$)/.test(creds.url) ? creds.url.replace(/\/remote\.php\/dav.*$/, `/remote.php/dav/files/${encodeURIComponent(creds.user)}`) : "") }));
       }
@@ -125,7 +130,7 @@ export function AddVaultScreen({
   // navigation bar used to discard them — including a pasted S3 secret.
   useLeaveGuard(
     "vault-connect",
-    !!(webdav.url || webdav.user || webdav.pass || s3.bucket || s3.accessKeyId || s3.secretAccessKey || driveClientId || driveClientSecret || ownAppId),
+    !!(webdav.url || webdav.user || webdav.pass || s3.bucket || s3.accessKeyId || s3.secretAccessKey || ownAppId),
     t("mobile.leaveCredentials", { defaultValue: "Die eingegebenen Zugangsdaten gehen verloren." }),
   );
 
@@ -145,9 +150,23 @@ export function AddVaultScreen({
       // default scope applies, exactly as before.
       void (async () => {
         if (!createMode && connectionRun?.context && await beginStoredFilesConnection(connectionRun.context)) return;
+        if (accessFamily) {
+          const resolved = await deviceAccess(accessFamily);
+          setAccess(resolved);
+          if (!resolved.ok) { setAccessSheet(true); return; }
+          await beginOAuth(provider as OAuthProviderId, {
+            clientId: resolved.access.clientId,
+            ...(resolved.access.clientSecret ? { clientSecret: resolved.access.clientSecret } : {}),
+            // The identity scopes ride along: a new vault's sign-in becomes a card.
+            scope: runScope ?? unionScope(accessFamily, ["files"]),
+            access: resolved.access,
+            ...(createMode ? { createTemplateId } : {}),
+            serviceContext: connectionRun?.context,
+          });
+          return;
+        }
         await beginOAuth(provider as OAuthProviderId, {
-        clientId: (provider === "drive" ? driveClientId.trim() : ownAppId.trim()) || undefined,
-        clientSecret: driveClientSecret.trim() || undefined,
+        clientId: ownAppId.trim() || undefined,
         ...(runScope ? { scope: runScope } : {}),
         ...(createMode ? { createTemplateId } : {}),
         serviceContext: connectionRun?.context,
@@ -219,9 +238,7 @@ export function AddVaultScreen({
           s3.bucket.trim().length > 0 &&
           s3.accessKeyId.length > 0 &&
           s3.secretAccessKey.length > 0
-        : provider === "drive"
-          ? driveClientId.trim().length > 0
-          : true;
+        : true;
 
   return (
     <div className="m-page">
@@ -383,26 +400,20 @@ export function AddVaultScreen({
             </>
           )}
 
-          {provider === "drive" && (
-            <>
-              <label className="m-field">
-                <span>{t("mobile.syncClientId")}</span>
-                <TextInput onChange={(e) => setDriveClientId(e.target.value)} value={driveClientId} />
-              </label>
-              <label className="m-field">
-                <span>{t("connection.clientSecret")}</span>
-                <TextInput
-                  onChange={(e) => setDriveClientSecret(e.target.value)}
-                  type="password"
-                  value={driveClientSecret}
-                />
-              </label>
-            </>
+          {accessFamily && (
+            <Row
+              data-testid="vault-access"
+              title={t("accountAccess.lineLabel")}
+              subtitle={!access ? "" : access.ok ? (access.access.source === "plainva" ? t("accountAccess.plainva") : t("accountAccess.ownLine", { id: access.access.clientId })) : t(accessProblemKey(access.problem))}
+              end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+              onClick={() => setAccessSheet(true)}
+              wrap
+            />
           )}
 
-          {(provider === "dropbox" || provider === "onedrive") && (
+          {provider === "dropbox" && (
             <label className="m-field">
-              <span>{provider === "dropbox" ? t("mobile.syncOwnAppKey") : t("mobile.syncOwnClientId")}</span>
+              <span>{t("mobile.syncOwnAppKey")}</span>
               <TextInput onChange={(e) => setOwnAppId(e.target.value)} value={ownAppId} />
               <small className="m-hint">{t("mobile.syncOwnAppIdHint")}</small>
             </label>
@@ -427,6 +438,13 @@ export function AddVaultScreen({
           onClose={() => setPickFor(null)}
           onPick={(folder) => connectAt(pickFor, folder)}
           title={t("settings.browseFolders")}
+        />
+      )}
+      {accessSheet && accessFamily && (
+        <AccountAccessSheet
+          family={accessFamily}
+          onCancel={() => setAccessSheet(false)}
+          onSaved={() => { setAccessSheet(false); void deviceAccess(accessFamily).then(setAccess); }}
         />
       )}
     </div>

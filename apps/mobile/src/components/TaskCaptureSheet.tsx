@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight } from "lucide-react";
 import {
-  addDaysToKey, Button, Chip, ICON, nextPriorityWord, setCaptureWord, TaskCaptureField, TextInput,
-  type CaptureResult, type TaskCaptureApi,
+  addDaysToKey, Button, Chip, DateJumpPicker, ICON, nextPriorityWord, setCaptureWord, TaskCaptureField, TextInput,
+  useShowWeekNumbers, useWeekStartDay, weekNumbersShown, type CaptureResult, type TaskCaptureApi,
 } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 
@@ -41,6 +41,8 @@ export function TaskCaptureSheet({
   // the chip is there so a single task can stay in the vault (same as the desktop).
   const [atProvider, setAtProvider] = useState(true);
   const [busy, setBusy] = useState(false);
+  const weekStart = useWeekStartDay();
+  const [showWeeks] = useShowWeekNumbers();
 
   const quick = ({ result, vocab, submit }: TaskCaptureApi) => {
     const put = (kind: "date" | "time" | "priority" | "repeat", word: string) => setValue((v) => setCaptureWord(v, result, kind, word));
@@ -84,13 +86,18 @@ export function TaskCaptureSheet({
             </Button>
           )}
         </div>
+        {/* The day comes from the app's own calendar, as "Change due date"
+            does, not from the system's date wheel (wish 2026-10-19). */}
         {picker === "date" && (
-          <TextInput
-            aria-label={t("tasks.capturePickDate")}
-            data-testid="task-capture-date"
-            type="date"
-            value={result.due ?? ""}
-            onChange={(e) => { if (e.target.value) put("date", e.target.value); }}
+          <DateJumpPicker
+            value={result.due ?? todayKey}
+            weekStart={weekStart}
+            showWeekNumbers={weekNumbersShown(showWeeks, weekStart)}
+            size="sheet"
+            onPick={(key) => { put("date", key); setPicker(null); }}
+            onToday={() => { put("date", vocab.today[0] ?? todayKey); setPicker(null); }}
+            onClose={() => setPicker(null)}
+            testId="task-capture-date"
           />
         )}
         {picker === "time" && (

@@ -6,7 +6,7 @@ Date: 2026-10-09
 
 ## Context
 
-[ADR 0020](0020-ai-skills-memory-and-script-skills.md), decision 5, set the frame: self-improvement is proposal-first, and it may never widen capabilities, change provider or egress, activate scripts, change approvals, overwrite foreign skills, weaken tests, ask for secrets or approve an arrived skill. [ADR 0027](0027-ai-memory-entries-and-their-rules.md) built the memory those proposals can go to. This record decides how a proposal comes to be, what it can carry, and what happens once the user accepts one for a skill.
+[ADR 0020](0020-ai-skills-memory-and-script-skills.md), decision 5, set the frame: self-improvement is proposal-first, and it may never widen capabilities, change provider or egress, activate scripts, change approvals, overwrite foreign skills, weaken tests, ask for secrets or approve an arrived skill. [ADR 0032](0032-ai-memory-entries-and-their-rules.md) built the memory those proposals can go to. This record decides how a proposal comes to be, what it can carry, and what happens once the user accepts one for a skill.
 
 Three facts shape everything.
 
@@ -28,7 +28,7 @@ Three facts shape everything.
 
 5. **Suggestions become drafts.** They lie on the device with everything else an assistant wants to exist ([ADR 0019](0019-ai-tools-risk-classes-and-approvals.md)), each with its evidence, and the user decides about every one. Every text goes through what every text of a model goes through: an address the user did not type is made inert. An entry the memory holds already is left out, and so is a skill that would take the name of one that is there.
 
-6. **What a conversation may teach depends on what it read.** One that read text of strangers — a page or a search on the internet, a mail or the description of an appointment, a foreign MCP server — teaches facts for the memory and nothing else. So does one that carries a note kept from the cloud or from the internet; its entries inherit that rule ([ADR 0027](0027-ai-memory-entries-and-their-rules.md), decision 9). The reviewer is then not asked for a rule or a skill, is told about no skill, and whatever it suggests of those kinds all the same is dropped. Where the memory is switched off on the device no entry is suggested; where no kind is left, no request is made.
+6. **What a conversation may teach depends on what it read.** One that read text of strangers — a page or a search on the internet, a mail or the description of an appointment, a foreign MCP server — teaches facts for the memory and nothing else. So does one that carries a note kept from the cloud or from the internet; its entries inherit that rule ([ADR 0032](0032-ai-memory-entries-and-their-rules.md), decision 9). The reviewer is then not asked for a rule or a skill, is told about no skill, and whatever it suggests of those kinds all the same is dropped. Where the memory is switched off on the device no entry is suggested; where no kind is left, no request is made.
 
 7. **A skill's draft holds three texts and nothing else of a skill.** For a new one: its name, what it is for, its instructions. For a skill that is there: the instructions, and the hash of the main file the review read. The reviewer is given the instructions of a skill the conversation used only where a suggestion may rewrite it, and never its head.
 
@@ -77,4 +77,4 @@ Three facts shape everything.
 
 ## Links
 
-- ADR 0018 (decision 13), ADR 0019, ADR 0020 (decisions 2, 4 and 5), ADR 0023, ADR 0027; the Agent Skills specification.
+- ADR 0018 (decision 13), ADR 0019, ADR 0020 (decisions 2, 4 and 5), ADR 0023, ADR 0032; the Agent Skills specification.

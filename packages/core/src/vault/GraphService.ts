@@ -1,6 +1,6 @@
 import { foldPathNormalization } from "../sync/pathIdentity.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
-import { buildLinkTargetIndex, resolveLinkTargetIndexed } from "./LinkResolver.js";
+import { buildLinkTargetIndex, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, type LinkCorpusFile } from "./LinkResolver.js";
 import { isReservedOkfName } from "../okf-conversion.js";
 import { ftsExactTerm } from "./ftsQuery.js";
 import { isSpacelessChar, wordBoundedPattern } from "./spacelessText.js";
@@ -52,25 +52,21 @@ export interface BrokenLinkInfo {
   sourcePath: string;
   /** The raw link target text as written in the note. */
   targetRaw: string;
+  /** The target without its anchor — what the link rule was asked (`links.target_path`). */
+  target: string;
+  /**
+   * How the link is written. Whoever creates the missing note or shows the
+   * link has to know: a Markdown link is read from the linking note's folder,
+   * and it may name a file that is no note at all.
+   */
+  kind: "wikilink" | "embed" | "markdown-link";
   lineNumber: number | null;
   propertyKey: string | null;
 }
 
-/**
- * The title of the note that fixes a broken link — what the cleanup views of
- * both shells create: the target's last path segment, cut at its `#` anchor.
- *
- * The cut is `/#.*$/` by hand (plan Befunde 24.09., E6), which retried a long
- * run of `#` from each of them when a line break followed. It keeps that
- * reading: the cut falls at the first `#` after the last line break, and a
- * `#` before a line break stays.
- */
-export function brokenLinkNoteTitle(targetRaw: string): string {
-  const name = targetRaw.split(/[/\\]/).pop()!;
-  let lastBreak = name.length - 1;
-  while (lastBreak >= 0 && !"\n\r\u2028\u2029".includes(name[lastBreak])) lastBreak--;
-  const anchor = name.indexOf("#", lastBreak + 1);
-  return anchor < 0 ? name : name.slice(0, anchor);
+/** `links.link_type` as one of the three ways a link is written; anything else is a wiki link. */
+function linkKindOf(linkType: unknown): BrokenLinkInfo["kind"] {
+  return linkType === "markdown-link" || linkType === "embed" ? linkType : "wikilink";
 }
 
 export interface VaultGraph {
@@ -163,6 +159,14 @@ function mentionTermLongEnough(term: string): boolean {
   return term.length >= MENTION_MIN_TERM_LENGTH || (term.length >= 2 && Array.from(term).every(isSpacelessChar));
 }
 
+/**
+ * A template's placeholder (`{{title}}`) is no name a note is mentioned by.
+ * The index reads a template's `- {{title}}` under `aliases` since 2026-10-22
+ * (ADR 0009), and as a phrase for the full-text index it is the word inside:
+ * every note with `title` in it would mention the template.
+ */
+const PLACEHOLDER = /\{\{[^{}]*\}\}/;
+
 function folderOf(path: string): string {
   const idx = path.lastIndexOf("/");
   return idx === -1 ? "" : path.substring(0, idx);
@@ -205,18 +209,18 @@ export class GraphService {
     }
 
     const nodes = new Map<string, GraphNodeInfo>();
-    const attachmentPaths: string[] = [];
     const attachmentInfo = new Map<string, GraphNodeInfo>();
-    // .base files are never nodes, but they must stay resolvable: a link to an
-    // EXISTING database is silently dropped, not reported as broken.
-    const basePaths: string[] = [];
+    // Resolution corpus: notes + attachments (embeds resolve onto attachments)
+    // + .base files, each with the title the index holds for it — a link may
+    // name a note by the `title` of its properties (step 5 of the link rule).
+    const corpusFiles: LinkCorpusFile[] = [];
     for (const row of fileRows) {
       const path = String((row as any).path ?? (row as any).PATH ?? "");
       if (!path) continue;
-      if (path.endsWith(".base")) {
-        basePaths.push(path);
-        continue;
-      }
+      corpusFiles.push({ path, title: (row as any).title ?? (row as any).TITLE ?? null });
+      // .base files are never nodes, but they must stay resolvable: a link to an
+      // EXISTING database is silently dropped, not reported as broken.
+      if (path.endsWith(".base")) continue;
       const mode = String((row as any).mode ?? (row as any).MODE ?? "obsidian");
       const info: GraphNodeInfo = {
         path,
@@ -228,7 +232,6 @@ export class GraphService {
         ctime: (row as any).ctime ?? (row as any).CTIME ?? null,
       };
       if (mode === "attachment") {
-        attachmentPaths.push(path);
         attachmentInfo.set(path, info);
       } else {
         nodes.set(path, info);
@@ -247,10 +250,9 @@ export class GraphService {
        FROM links l JOIN files f ON f.id = l.source_id`
     );
 
-    // Resolution corpus: notes + attachments (embeds resolve onto attachments)
-    // + .base files (resolvable but dropped as edges). Built ONCE per load
-    // (P2.3) — resolving per link would rebuild it for every row.
-    const corpusIndex = buildLinkTargetIndex([...nodes.keys(), ...attachmentPaths, ...basePaths]);
+    // The corpus index (.base files resolve but are dropped as edges) is built
+    // ONCE per load (P2.3) — resolving per link would rebuild it for every row.
+    const corpusIndex = buildLinkTargetIndex(corpusFiles);
 
     const bundles = new Map<string, GraphEdgeInfo>();
     const broken: BrokenLinkInfo[] = [];
@@ -268,11 +270,26 @@ export class GraphService {
       const lineRaw = (row as any).line_number;
       const lineNumber = lineRaw == null ? null : Number(lineRaw);
       const propertyKey = ((row as any).property_key ?? null) as string | null;
-      const resolved = resolveLinkTargetIndexed(source, targetPath, corpusIndex);
+      // By the way the link was written: a Markdown link is read from the
+      // linking note's folder first (`resolveMarkdownLinkIndexed`), everything
+      // else by the wiki rule. Resolved by the wiki rule alone, a Markdown
+      // link was an edge to the note of that name at the vault's ROOT while a
+      // click opened the one beside the linking note.
+      const written: BrokenLinkInfo["kind"] = propertyKey ? "wikilink" : linkKindOf((row as any).link_type);
+      let resolved: string | null;
+      if (written === "markdown-link") {
+        const answer = resolveMarkdownLinkIndexed(source, targetPath, corpusIndex);
+        // A folder that is there and holds no `index.md` is a place to show,
+        // not a note: neither an edge nor a broken link.
+        if (answer !== null && answer.kind === "folder" && answer.index === null) continue;
+        resolved = answer === null ? null : answer.kind === "file" ? answer.path : answer.index;
+      } else resolved = resolveLinkTargetIndexed(source, targetPath, corpusIndex);
       if (!resolved) {
         broken.push({
           sourcePath: source,
           targetRaw: String((row as any).target_raw ?? (row as any).target_path ?? ""),
+          target: targetPath,
+          kind: written,
           lineNumber,
           propertyKey,
         });
@@ -641,10 +658,10 @@ export class GraphService {
     const termsFor = (node: GraphNodeInfo): string[] => {
       const terms: string[] = [];
       const title = node.title.trim();
-      if (mentionTermLongEnough(title) && /[\p{L}\p{N}]/u.test(title) && !/^\d+$/.test(title)) {
+      if (mentionTermLongEnough(title) && /[\p{L}\p{N}]/u.test(title) && !/^\d+$/.test(title) && !PLACEHOLDER.test(title)) {
         terms.push(title);
       }
-      for (const alias of aliasesByPath.get(node.path) ?? []) terms.push(alias);
+      for (const alias of aliasesByPath.get(node.path) ?? []) if (!PLACEHOLDER.test(alias)) terms.push(alias);
       return terms;
     };
 

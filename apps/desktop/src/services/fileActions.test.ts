@@ -150,8 +150,10 @@ describe("renameToName", () => {
       expect(r.newPath).toBe("New.md");
       expect(r.renamedLinks).toBe(1);
       expect(r.linkUpdateFailed).toBe(false);
-      // serializeMarkdownAst terminates the file with a newline.
-      expect(await files.readTextFile("Ref.md")).toBe("See [[New]].\n");
+      // The link is rewritten where it stands: the note gets no line end it
+      // did not have (it came back with one while the rewrite went through
+      // the Markdown serializer, finding 2026-10-09).
+      expect(await files.readTextFile("Ref.md")).toBe("See [[New]].");
     }
   });
 
@@ -186,6 +188,18 @@ describe("duplicateFile", () => {
     const copy = await duplicateFile(adapter, "img/photo.png", "Kopie");
     expect(copy).toBe("img/photo (Kopie).png");
     expect(files.get(copy)).toEqual(bytes);
+  });
+
+  it("copies a text-named file whose bytes are not UTF-8 byte for byte (finding 2026-10-11)", async () => {
+    // A `.csv` Excel saved in Windows-1252: `Grün` is 47 72 FC 6E. The double's
+    // text read refuses it as the desktop's reader does; the copy used to fail
+    // there, and was the decoded text where a reader replaces.
+    const bytes = new Uint8Array([0x47, 0x72, 0xfc, 0x6e, 0x0d, 0x0a]);
+    const { adapter, files } = makeAdapter({ "Data.csv": bytes });
+    const copy = await duplicateFile(adapter, "Data.csv", "Kopie");
+    expect(copy).toBe("Data (Kopie).csv");
+    expect(files.get(copy)).toEqual(bytes);
+    expect(files.get("Data.csv")).toEqual(bytes);
   });
 });
 
@@ -292,6 +306,12 @@ describe("carryMirroredHeading", () => {
   it("keeps frontmatter untouched and finds the heading behind it", () => {
     const src = "---\ntype: Note\nstatus: Offen\n---\n\n# Task_1\n\nBody\n";
     expect(carryMirroredHeading(src, "Task_1", "Steuer")).toBe("---\ntype: Note\nstatus: Offen\n---\n\n# Steuer\n\nBody\n");
+  });
+
+  it("finds the heading behind a block without entries, and leaves a YAML comment alone", () => {
+    expect(carryMirroredHeading("---\n---\n# Task_1\n\nBody\n", "Task_1", "Steuer")).toBe("---\n---\n# Steuer\n\nBody\n");
+    expect(carryMirroredHeading("---\n# Task_1\ntype: Note\n---\n\n# Task_1\n", "Task_1", "Steuer")).toBe("---\n# Task_1\ntype: Note\n---\n\n# Steuer\n");
+    expect(carryMirroredHeading("---\n# Task_1\ntype: Note\n---", "Task_1", "Steuer")).toBeNull();
   });
 
   it("leaves a heading the user wrote alone", () => {

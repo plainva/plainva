@@ -12,8 +12,10 @@ import {
   logDiagnostic,
   type TaskDeletionOrder,
 } from "@plainva/ui";
-import type { PimAccountRow, PimCacheRepository, IPimTarget } from "@plainva/core";
+import { updateVaultText, type PimAccountRow, type PimCacheRepository, type IPimTarget } from "@plainva/core";
 import { getMobileSettings } from "../mobileSettings";
+import { configuredNoteType } from "../newNote";
+import { phoneTemplateVault } from "../templateVault";
 import { currentDeletionJournal, firstSyncSettled } from "../syncService";
 import type { MobileVault } from "../vaultService";
 
@@ -103,6 +105,8 @@ export async function runMobileTaskSync(): Promise<void> {
       adapter: {
         readTextFile: (p) => w.vault.files.readTextFile(p),
         writeTextFile: (p, c) => w.vault.files.writeTextFile(p, c),
+        // A mirrored note takes its fields as it lies there (one step of the chain).
+        updateTextFile: (p, change) => updateVaultText(w.vault.files, p, change),
         exists: (p) => w.vault.files.exists(p),
         createDir: (p) => w.vault.files.createDir(p),
         // A note whose task a person deleted elsewhere (journal, P1) goes
@@ -115,7 +119,8 @@ export async function runMobileTaskSync(): Promise<void> {
       cache: w.cache,
       buildTarget: w.buildTarget,
       taskDbPath,
-      noteType: getMobileSettings().defaultNoteType.trim() || "Note",
+      noteType: configuredNoteType(),
+      templateVault: await phoneTemplateVault(),
       allNotePaths: (await query.listNotes()).map((n) => n.path),
       // OKF 0.2 provenance (plan P3b): the same `plainva-task-sync/<version>`
       // actor the desktop writes — one producer name for both shells.

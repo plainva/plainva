@@ -154,6 +154,17 @@ describe("task deletion window", () => {
     expect(written).toEqual([]);
   });
 
+  it("a cancelled window takes its notice with it", () => {
+    // The phone comes back from the background to whatever was on screen. A
+    // notice still counting down to a deletion that will not happen, with an
+    // "undo" that no longer brings the note back, would be two false
+    // statements — and it is persistent, so nothing else would take it down.
+    requestTaskDeletion(anchoredOf("Aufgaben/Steuern einreichen.md", ANCHORED));
+    expect(toastStore.get()).toHaveLength(1);
+    cancelInFlightTaskDeletion();
+    expect(toastStore.get()).toEqual([]);
+  });
+
   it("a second deletion carries out the first immediately", () => {
     requestTaskDeletion(anchoredOf("Aufgaben/A.md", ANCHORED));
     vi.advanceTimersByTime(1000);

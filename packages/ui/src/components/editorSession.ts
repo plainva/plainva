@@ -33,6 +33,7 @@ import { markdownFolding } from "./foldingExtension";
 import { searchPanelOpen } from "@codemirror/search";
 import { searchSetup } from "./searchSetup";
 import { blockHandles } from "./blockHandles";
+import { coveredTopMargins } from "./lineJump";
 import { minimalDocChange } from "../lib/textDiff";
 import { countWords } from "../lib/wordCount";
 import { markdownToPlainText } from "../lib/markdownToPlainText";
@@ -385,7 +386,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
         (abs) => deps.current.onOpenImage?.(abs),
       ),
       deps.current.buildNoteEmbedExtension(embedContextProps, isLive),
-      wikiLinkPlugin((target, newTab, kind, anchor) => (anchor ? deps.current.openWikiTarget(target, newTab, kind, anchor) : deps.current.openWikiTarget(target, newTab, kind)), isLive),
+      wikiLinkPlugin((target, newTab, kind, anchor) => (anchor ? deps.current.openWikiTarget(target, newTab, kind, anchor) : deps.current.openWikiTarget(target, newTab, kind)), isLive, () => deps.current.hostPath),
       // Tags as pills (finding 2026-09-19): live mode only - source mode shows
       // the note as it is written.
       isLive ? tagPillPlugin((tag) => deps.current.onOpenTag?.(tag)) : [],
@@ -492,6 +493,8 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     basicSetup({ foldGutter: false, highlightActiveLineGutter: false, searchKeymap: false }),
     keymap.of([indentWithTab]),
     EditorView.theme({ "&": { height: "100%" }, "& .cm-scroller": { height: "100% !important" } }),
+    // What a shell lays over the top edge stays out of every scroll's way.
+    coveredTopMargins,
     updateListener,
     languageComp.of([]),
     EditorView.lineWrapping,
@@ -534,6 +537,8 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     keymap.of([indentWithTab]),
     // The old host's container theme: the scroller fills the pane height.
     EditorView.theme({ "&": { height: "100%" }, "& .cm-scroller": { height: "100% !important" } }),
+    // What a shell lays over the top edge stays out of every scroll's way.
+    coveredTopMargins,
     updateListener,
     // Syntax-highlight fenced code blocks (#10/#3): codeLanguages lazy-loads
     // the matching grammar for ```lang fences.
@@ -579,10 +584,14 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     // Block handles (#7): grip per block; click opens the menu, drag reorders.
     blockHandles(),
     markdownTheme(),
-    editorCompletion({ getQueryService: () => deps.current.queryService, readNote: (path) => deps.current.readNote?.(path) ?? Promise.resolve(null) }),
+    editorCompletion({ getQueryService: () => deps.current.queryService, readNote: (path) => deps.current.readNote?.(path) ?? Promise.resolve(null), hostPath: () => deps.current.hostPath }),
     // Rendered table cells share the note-link semantics of the wiki link plugin.
     tableLinkHandlers.of({
-      onOpenNote: (target, newTab) => deps.current.openWikiTarget(target, newTab),
+      // A link in a cell says how it is written, like one in running text.
+      // Until 2026-10-22 a Markdown link was handed on without its kind and
+      // the shell took it for a wiki link: a link to a missing picture created
+      // a note `shot.png.md`, a link to a folder a note called `.md`.
+      onOpenNote: (target, newTab, kind) => deps.current.openWikiTarget(target, newTab, kind === "wiki" ? "wiki" : "markdown"),
       onOpenUrl: (url) => deps.current.openExternalUrl(url),
       onOpenTag: (tag) => deps.current.onOpenTag?.(tag),
     }),

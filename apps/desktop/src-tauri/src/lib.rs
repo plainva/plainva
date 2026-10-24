@@ -17,6 +17,8 @@ mod backup;
 mod db_batch;
 mod embedding;
 mod linux_appimage;
+#[cfg(target_os = "macos")]
+mod macos_spellcheck;
 mod mail_imap;
 mod mail_pool;
 mod mail_smtp;
@@ -25,7 +27,9 @@ mod model_store;
 mod sync_upload;
 mod tray;
 mod unzip;
+mod vault_walk;
 mod vault_watch;
+mod window_state;
 
 mod secure_store;
 mod session;
@@ -361,6 +365,11 @@ pub fn run() {
     #[cfg(target_os = "linux")]
     linux_appimage::apply();
 
+    // Before the first web view: WKWebView reads whether to check spelling
+    // once, when its text checker starts (issue #135).
+    #[cfg(target_os = "macos")]
+    macos_spellcheck::enable_continuous_spell_checking();
+
     let builder = tauri::Builder::default();
 
     // Single instance, and it has to be registered before every other plugin
@@ -404,6 +413,7 @@ pub fn run() {
         })
         .manage(atomic_write::WriteRoots::default())
         .manage(vault_watch::VaultWatchers::default())
+        .manage(vault_walk::VaultWalks::default())
         .manage(tray::TrayState::default())
         .manage(ai_egress::AiEgress::default())
         .manage(mcp::McpState::default())
@@ -411,6 +421,7 @@ pub fn run() {
         .manage(acp::AcpState::default())
         .manage(embedding::Embeddings::default())
         .manage(model_store::ModelDownloads::default())
+        .manage(window_state::WindowStateStore::default())
         .setup(|app| {
             // The isolated dev build (tauri.dev.conf.json, identifier
             // com.plainva.desktop.dev) and the Labs build of a feature branch
@@ -422,9 +433,12 @@ pub fn run() {
                     let _ = win.set_title(title);
                 }
             }
+            // The main window where it was at the last close (issue #135).
+            window_state::restore(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| {
+            window_state::track(window, event);
             // Only captured while a tray icon is actually registered — see
             // src/tray.rs. Without one, closing quits as it always has.
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -519,6 +533,8 @@ pub fn run() {
             checked_fs::checked_path_exists,
             checked_fs::checked_read_text_file,
             checked_fs::checked_read_dir,
+            vault_walk::vault_walk,
+            vault_walk::vault_walk_cancel,
             vault_watch::vault_watch_start,
             vault_watch::vault_watch_stop,
             atomic_write::set_file_times,
@@ -533,6 +549,7 @@ pub fn run() {
             mail_imap::mail_fetch_message,
             mail_imap::mail_fetch_raw,
             mail_imap::mail_fetch_attachment,
+            mail_imap::mail_fetch_attachments,
             mail_imap::mail_append_draft,
             mail_imap::mail_set_seen,
             mail_imap::mail_set_flagged,

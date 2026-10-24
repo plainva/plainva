@@ -31,7 +31,6 @@ import { noteAccountRemovedLocally } from "../mobileSettingsSync";
 import {
   accountToAdoptInto,
   adoptAccountInto,
-  buildDailyNotePath,
   calendarPickerOptions,
   createCalendarEvent,
   applyPendingEventWrites,
@@ -58,11 +57,13 @@ import {
   type VerifiedProviderProfile,
   parseMicrosoftMe,
   resolveOrCreateMeetingNote,
-  setPendingTemplateCaret,
+  markFreshNote, parkTemplateCaret,
   splitCalendarKey,
+  verifiedProviderIdentityKey,
   verifiedProviderIdentityOf,
   VERIFIED_PROVIDER_IDENTITY_KEY,
   writableCalendarsOf,
+  seriesDeleteSubject,
 } from "@plainva/ui";
 import {
   getPimStatus,
@@ -71,6 +72,7 @@ import {
   runtime,
   setPimState,
   startPimRuntime,
+  stopPim,
 } from "./pimRuntime";
 
 export {
@@ -121,6 +123,10 @@ async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<
  * DB (web dev server). */
 export async function startPim(vault: MobileVault): Promise<void> {
   wirePendingEventWrites();
+  // A calendar or mailbox that still signs in on its own hands that sign-in
+  // to its card before the calendar starts (account sign-in plan K2).
+  const { migrateVaultGrants } = await import("../accountGrantMigration");
+  await migrateVaultGrants(vault.vaultId).catch((e) => console.error("[pim] moving sign-ins to their accounts failed", e));
   return startPimRuntime(vault, {
     buildTarget: buildTargetFor,
     accountAuthRevision: async (vaultId, account) =>
@@ -164,6 +170,14 @@ export async function connectDevicePimAccount(label: string): Promise<{ ok: true
   runtime.worker.start();
   runtime.worker.triggerImmediate();
   return { ok: true };
+}
+
+/** "Check connection" (account sign-in plan E6): reads the account's calendars with what this phone holds; throws when that fails. */
+export async function checkPimAccount(vaultId: string, accountId: string): Promise<void> {
+  const row = (await listPimAccounts()).find((entry) => entry.id === accountId);
+  const target = row ? await buildTargetFor(vaultId, row) : null;
+  if (!target) throw new Error("not connected");
+  await target.listCalendars();
 }
 
 export async function listPimAccounts(): Promise<PimAccountRow[]> {
@@ -234,6 +248,30 @@ function wirePendingEventWrites(): void {
   window.addEventListener("m-pim-changed", () => void reconcilePendingEventWrites());
 }
 
+/**
+ * Restarts the runtime after accounts arrived through the settings sync — but
+ * never under a sign-in that is being stored.
+ *
+ * The import fires when the app returns to the foreground, which is exactly
+ * when Google's or Microsoft's dialog hands back: the plain stop-and-start
+ * replaced the runtime in the middle of `addPimAccount`, the connection failed
+ * with "pim runtime changed", and the screen said the target account or vault
+ * had changed. Neither had. The restart now queues behind the connection (and
+ * a connection that starts during the restart waits for the new runtime).
+ */
+export function restartPimAfterImport(vault: MobileVault): Promise<void> {
+  const restart = withAccountCredentialLock(`pim-connect:${vault.vaultId}`, async () => {
+    stopPim();
+    await startPim(vault);
+  }).finally(() => { if (pendingRestart === settled) pendingRestart = null; });
+  // What a connection awaits never rejects: a failed restart is the caller's
+  // to report, and the connection then says "not started" on its own.
+  const settled = restart.catch(() => {});
+  pendingRestart = settled;
+  return restart;
+}
+let pendingRestart: Promise<void> | null = null;
+
 let idCounter = 0;
 function newAccountId(): string {
   // Time-free (no Date.now dependency for determinism in tests); a per-boot
@@ -272,10 +310,12 @@ async function fetchVerifiedProfile(
 export async function addPimAccount(
   provider: PimStoredCredentials["kind"], label: string, creds: PimStoredCredentials, context?: ServiceConnectionContext,
 ): Promise<string> {
+  await pendingRestart;
   const owner = runtime;
   if (!owner) throw new Error("pim runtime not started");
   return withAccountCredentialLock(`pim-connect:${owner.vaultId}`, () => {
-    if (runtime !== owner) throw new Error("pim runtime changed");
+    // Another vault is a different target; the same vault restarted is not.
+    if (runtime?.vaultId !== owner.vaultId) throw new Error("pim runtime changed");
     return addPimAccountInVault(provider, label, creds, context);
   });
 }
@@ -335,9 +375,26 @@ async function addPimAccountInVault(
   assertCurrent();
   const known = await owner.cache.listAccounts();
   assertCurrent();
-  const adoptInto = accountToAdoptInto(known, {
+  let adoptInto = accountToAdoptInto(known, {
     id, provider, identity: verifiedProviderIdentityOf({ config }),
   });
+  // The account's calendar row arrived with the settings of another device and
+  // was never signed in here. "Add the calendar" for that account IS the
+  // sign-in of that row: a second row beside it was refused below as "the
+  // target account changed", which nothing had. Only a row without a
+  // credential on this device is taken over, and only when the sign-in is
+  // proven to be the account's - by its verified identity or, for a record
+  // that has none yet, by its address.
+  const boundId = source?.services.calendar?.pimAccountId;
+  if (!adoptInto && source && boundId && boundId !== id) {
+    const bound = known.find((a) => a.id === boundId && a.provider === provider);
+    const verified = verifiedProviderIdentityOf({ config });
+    const sameAccount = source.verifiedProviderIdentity
+      ? !!verified && verifiedProviderIdentityKey(verified) === verifiedProviderIdentityKey(source.verifiedProviderIdentity)
+      : source.label.includes("@") && source.label.trim().toLowerCase() === resolvedLabel.trim().toLowerCase();
+    if (bound && sameAccount && !(await getPimCredentials(owner.vaultId, bound.id))) adoptInto = bound;
+    assertCurrent();
+  }
   if (source) {
     const connectedId = adoptInto?.id ?? id;
     const records = await loadCloudAccounts(owner.vaultId);
@@ -418,6 +475,18 @@ async function addPimAccountInVault(
  * credential.
  */
 export async function reauthorizePimAccount(accountId: string, creds: PimStoredCredentials, context?: ServiceConnectionContext): Promise<void> {
+  await pendingRestart;
+  const owner = runtime;
+  if (!owner) throw new Error("pim runtime not started");
+  // Under the same lock as a new connection, so that a restart of the runtime
+  // (restartPimAfterImport) waits for a sign-in that is being stored.
+  return withAccountCredentialLock(`pim-connect:${owner.vaultId}`, () => {
+    if (runtime?.vaultId !== owner.vaultId) throw new ServiceConnectionError("accountChanged");
+    return reauthorizePimAccountInVault(accountId, creds, context);
+  });
+}
+
+async function reauthorizePimAccountInVault(accountId: string, creds: PimStoredCredentials, context?: ServiceConnectionContext): Promise<void> {
   creds = { ...creds, loginRevision: crypto.randomUUID() };
   const target = runtime;
   if (!target) throw new Error("pim runtime not started");
@@ -554,7 +623,7 @@ export async function createPimEvent(calendarKey: string, draft: PimEventDraft) 
     (written) => written.rows.map((row) => ({ kind: "create" as const, row })),
     id,
   );
-  pimSyncNow();
+  pimSyncNow({ afterWrite: true });
   return out;
 }
 
@@ -585,7 +654,7 @@ export async function updatePimEvent(
 ): Promise<FollowedWriteOutcome> {
   const move = moveToCalendarKey ? splitCalendarKey(moveToCalendarKey) : null;
   const out = await updateEventWithBlockers(followDeps(), event, draft, { moveTo: move, loaded });
-  if (out.kind !== "conflict") pimSyncNow();
+  if (out.kind !== "conflict") pimSyncNow({ afterWrite: true });
   return out;
 }
 
@@ -625,7 +694,7 @@ export async function detachPimBlocker(
 ): Promise<EventWriteOutcome> {
   const move = moveToCalendarKey ? splitCalendarKey(moveToCalendarKey) : null;
   const out = await detachBlockerAndUpdate(followDeps(), blocker, draft, { moveTo: move, source });
-  if (out.kind !== "conflict") pimSyncNow();
+  if (out.kind !== "conflict") pimSyncNow({ afterWrite: true });
   return out;
 }
 
@@ -651,6 +720,17 @@ export async function pimSeriesMaster(event: PimEventRow): Promise<PimEventRow |
   } catch {
     return null;
   }
+}
+
+/**
+ * What "delete all events" of a series is written against (issue 119): the
+ * series' own row, or - where the cache lacks it - the occurrence, except on
+ * the device's own calendars, which cannot delete a series that way.
+ */
+export async function pimSeriesDeleteSubject(event: PimEventRow): Promise<PimEventRow | null> {
+  const master = await pimSeriesMaster(event);
+  const provider = runtime ? (await runtime.cache.listAccounts().catch(() => [])).find((a) => a.id === event.accountId)?.provider : undefined;
+  return seriesDeleteSubject(event, master, provider);
 }
 
 /**
@@ -691,28 +771,24 @@ export async function openMeetingNoteFor(
       typeRules: settings.typeTemplates,
       templateFolder: settings.templateFolder || "Templates",
     },
+    // The pipeline adds the vault's pieces. `{{daily}}` in a meeting note is
+    // the daily note of the MEETING's day: the note's `now` is that day.
     resolveTemplate: (raw, ctx) => applyTemplateInteractive(raw, ctx),
-    templateContext: {
-      vaultName: (await getActiveVaultEntry()).name || "Plainva",
-      // `{{daily}}` in a meeting note is the daily note of the MEETING's day.
-      dailyPath: (offset) => {
-        const d = new Date(`${dayKey}T12:00:00`);
-        d.setDate(d.getDate() + offset);
-        return buildDailyNotePath(d, settings.dailyFormat, settings.dailyFolder).fullPath.replace(/\.md$/i, "");
-      },
-    },
+    templateContext: { vaultName: (await getActiveVaultEntry()).name || "Plainva" },
     now,
   });
   if (!res) return null;
   // `{{cursor}}` of the template: the editor picks it up when the note opens.
-  if (res.cursor !== undefined) setPendingTemplateCaret({ path: res.path, offset: res.cursor });
+  if (res.caret) parkTemplateCaret(res.path, res.caret.note, res.caret.offset);
+  // A meeting note just written opens to be written in (wish 2026-10-19).
+  if (res.created) markFreshNote(res.path);
   return { path: res.path, created: res.created };
 }
 
 /** Deletes an event and — where the user said so — the blockers that mirror it (K3). */
 export async function deletePimEvent(event: PimEventRow, blockers: readonly ResolvedBlocker[] = []): Promise<BlockFollowReport> {
   const report = await deleteEventWithBlockers(followDeps(), event, blockers);
-  pimSyncNow();
+  pimSyncNow({ afterWrite: true });
   return report;
 }
 
@@ -727,5 +803,5 @@ export async function respondToPimEvent(event: PimEventRow, response: "accepted"
   await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: event, patch: { selfResponse: response } }, () =>
     respond({ calendarId: event.calendarId, uid: event.uid, etag: event.etag, href: event.href }, response),
   );
-  pimSyncNow();
+  pimSyncNow({ afterWrite: true });
 }

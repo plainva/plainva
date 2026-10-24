@@ -101,33 +101,12 @@ test.beforeEach(async ({ page }) => {
                .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p) && p.endsWith('.base'))
                .map(p => ({ path: p.replace('/test-vault/', ''), title: null }));
            }
-           // Wiki-link resolution (Editor.openWikiTarget): exact title or path,
-           // with `.md` appended as the third candidate. Without this branch the
-           // mock answered every link with "no such note", which sent the app
-           // down the create-a-note path — so a test could never see what
-           // clicking an existing link does.
-           if (q.includes('SELECT path FROM files') && q.includes('title = ?')) {
-             const [needle, , withMd] = (args.values ?? []).map((v: any) => String(v).toLowerCase());
-             const hit = Object.keys(fs)
-               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
-               .map(p => p.replace('/test-vault/', ''))
-               .find(rel => {
-                 const base = rel.split('/').pop()!.replace(/\.md$/i, '').toLowerCase();
-                 return base === needle || rel.toLowerCase() === needle || rel.toLowerCase() === withMd;
-               });
-             return hit ? [{ path: hit }] : [];
-           }
-           // The names of all files (VaultQueryService.fileNames): what "which notes could this link mean" is
-           // asked of, by the AI's privacy gate and its source check (AI harness P5-7b). Titles as the tree
-           // branch below derives them — the mock fs keeps no index of a note's properties.
-           if (q.includes('SELECT path, title FROM files')) {
-             return Object.keys(fs)
-               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
-               .map(p => {
-                 const rel = p.replace('/test-vault/', '');
-                 return { path: rel, title: rel.split('/').pop()!.replace(/\.md$/i, '') };
-               });
-           }
+           // Wiki-link resolution needs no branch of its own: the app reads the
+           // link rule's corpus (`SELECT path, title, mode FROM files WHERE
+           // is_deleted …`, VaultQueryService.linkTargets) and resolves in
+           // JavaScript — the rows come from the path/title/mode branch below,
+           // so a link to a file of the mock vault opens it and any other
+           // offers to create the note.
            // Conflict lookup of the sync-error dialog (P3.11): LIKE over paths.
            if (q.includes('WHERE path LIKE')) {
              const pattern = String(args.values?.[0] ?? '');
@@ -280,6 +259,13 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Note Lifecycle: Edit note and persist via mock fs', async ({ page }) => {
+  // The scan at the end reads colours, and chrome that is still fading in has
+  // not reached its own yet. Twice on 2026-10-09 the scan met the tooltip of
+  // the Files tab early in its fade — the tab had come to lie under the pointer
+  // the click below leaves behind — and reported the half-transparent text as
+  // a contrast of 1.93. Reduced motion collapses the chrome durations
+  // (tokens.css), so whatever is on the page is in its final colours.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   
   // Wait for the file tree to load the mocked "Welcome.md"
@@ -703,7 +689,7 @@ const mockHas = (page: import('@playwright/test').Page, path: string) => page.ev
 const mockText = (page: import('@playwright/test').Page, path: string) => page.evaluate((p) => String((window as any).mockFs[p] ?? ''), `/test-vault/${path}`);
 async function addListView(page: import('@playwright/test').Page) {
   await page.locator('button.base-view-add').click();
-  await page.locator('.base-view-menu').getByRole('button', { name: 'List', exact: true }).click();
+  await page.getByRole('menu', { name: 'Add view' }).getByRole('menuitem', { name: 'List', exact: true }).click();
 }
 
 test('an open database follows its file when it is moved outside Plainva, and so does its bookmark (issue 110)', async ({ page }) => {
@@ -887,6 +873,47 @@ test('Document header: /icon sets an emoji icon via the picker (W3)', async ({ p
   await picker.locator('button[aria-label="rocket"]').first().click();
 
   await expect(page.locator('.pv-doc-header-icon').first()).toContainText('🚀', { timeout: 10000 });
+});
+
+test('Document header: an icon picked for a note whose block is no YAML map says why and writes nothing', async ({ page }) => {
+  // A block at the top of the note that is a YAML list: nothing an icon can be
+  // written into. The pick used to do nothing and say nothing — the refusal
+  // went to the console (finding 2026-10-09).
+  const block = '---\n- a\n- list\n---\n';
+  await page.addInitScript((head) => {
+    (window as any).mockFs['/test-vault/Icons.md'] = `${head}\nIcon test body\n`;
+  }, block);
+
+  await page.goto('/');
+  await expect(page.getByText('Icons', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByText('Icons', { exact: true }).click();
+  await expect(page.getByText('Icon test body')).toBeVisible();
+
+  const editor = page.locator('.cm-content').first();
+  await editor.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/icon');
+  await page
+    .locator('.cm-tooltip-autocomplete li', { hasText: /Dokument-Icon|Document icon/ })
+    .first()
+    .click();
+  const picker = page.getByRole('dialog');
+  await expect(picker).toBeVisible();
+  await page.keyboard.type('rocket');
+  await picker.locator('button[aria-label="rocket"]').first().click();
+
+  // One sentence says why, …
+  await expect(
+    page.locator('.pv-toast--error', { hasText: /Property could not be saved|Eigenschaft konnte nicht gespeichert werden/ }),
+  ).toHaveCount(1);
+  // … no icon is drawn that the note does not hold, …
+  await expect(page.locator('.pv-doc-header-icon', { hasText: '🚀' })).toHaveCount(0);
+  // … and the block of the note is what it was: no icon was written into it.
+  const saved = await page.evaluate(() => (window as any).mockFs['/test-vault/Icons.md'] as string);
+  expect(saved.startsWith(block)).toBe(true);
+  expect(saved).not.toContain('plainva');
+  expect(saved).not.toContain('🚀');
 });
 
 test('Emoji: /emoji inserts a Unicode emoji into the text via the picker', async ({ page }) => {
@@ -1568,6 +1595,73 @@ test('index.md read view: listing links open in-app and the managed marker stays
   await expect(page.getByRole('tab', { name: 'Alt' })).toBeVisible();
 });
 
+// --- index.md tiles: a long name stays inside its tile (finding 2026-10-19, B1) ---
+test('index.md read view: a long name ends in "…" inside its tile, the tip names it whole, a description wraps', async ({ page }) => {
+  const LONG = 'Patientenverfuegung_Und_Vorsorgevollmacht_Fuer_Den_Notfall_2026';
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.addInitScript((long) => {
+    Object.assign((window as any).mockFs, {
+      '/test-vault/P': { isDir: true },
+      '/test-vault/P/index.md': `# P\n\n* [${long}](${long}.md) - Unterschrieben_und_beim_Hausarzt_hinterlegt_Kopie_im_Ordner\n* [Kurz](Kurz.md)\n* [Mitte](Mitte.md) - eine Beschreibung\n\n<!-- plainva:index generated -->\n`,
+      [`/test-vault/P/${long}.md`]: '# Lang\n',
+      '/test-vault/P/Kurz.md': '# Kurz\n',
+      '/test-vault/P/Mitte.md': '# Mitte\n',
+    });
+  }, LONG);
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await aside.getByText('P', { exact: true }).click();
+  await aside.getByText('index', { exact: true }).click();
+
+  const tiles = page.locator('.pv-index-doc ul li');
+  await expect(tiles).toHaveCount(3);
+  const longLink = page.locator('.markdown-reader').getByRole('link', { name: LONG });
+  await expect(longLink).toBeVisible();
+
+  // No tile is wider than its column, and no text leaves its tile.
+  const geometry = await tiles.evaluateAll((items) => items.map((li) => {
+    const box = li.getBoundingClientRect();
+    const name = li.querySelector('.pv-index-link-name') as HTMLElement | null;
+    return {
+      left: box.left, right: box.right, top: box.top,
+      overflows: li.scrollWidth > li.clientWidth + 1,
+      nameRight: name?.getBoundingClientRect().right ?? 0,
+      nameCut: name ? name.scrollWidth > name.clientWidth : false,
+    };
+  }));
+  for (const tile of geometry) {
+    expect(tile.overflows).toBe(false);
+    expect(tile.nameRight).toBeLessThanOrEqual(tile.right);
+  }
+  // Side by side in one row: the first tile ends before the second begins.
+  expect(geometry[1].top).toBe(geometry[0].top);
+  expect(geometry[0].right).toBeLessThanOrEqual(geometry[1].left);
+  // The long name is cut with an ellipsis; the short ones are whole.
+  expect(geometry.map((tile) => tile.nameCut)).toEqual([true, false, false]);
+  expect(await page.locator('.pv-index-link-name').first().evaluate((el) => getComputedStyle(el).textOverflow)).toBe('ellipsis');
+
+  // The tip names the cut name whole; a whole name gets none.
+  await longLink.hover();
+  await expect(page.locator('.pv-tooltip')).toHaveText(LONG);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ animations: 'disabled', path: test.info().outputPath('index-tiles-long-name.png') });
+  await page.locator('.markdown-reader').getByRole('link', { name: 'Kurz' }).hover();
+  await expect(page.locator('.pv-tooltip')).toHaveCount(0);
+  await page.waitForTimeout(700);
+  await expect(page.locator('.pv-tooltip')).toHaveCount(0);
+
+  // The description after a long name goes to the next line and wraps there.
+  const longTile = tiles.first();
+  const lineHeight = await longTile.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
+  const linkBox = (await longLink.boundingBox())!;
+  const tileBox = (await longTile.boundingBox())!;
+  expect(tileBox.height).toBeGreaterThan(linkBox.height + lineHeight * 0.8);
+
+  // And the cut name still opens its note.
+  await longLink.click();
+  await expect(page.getByRole('tab', { name: 'Lang' }).or(page.getByRole('tab', { name: LONG }))).toBeVisible();
+});
+
 /* ---------------------------------------------------------------- Gesamtplan 2026-07-04: Splash-Standard, Vault entfernen, Vault-Templates, Settings-UX */
 
 test('Splash: shows by default despite lastVaultPath (auto-open is opt-in)', async ({ page }) => {
@@ -1693,14 +1787,8 @@ test('Table widget: cells render inline formatting and clickable links', async (
   await page.addInitScript(() => {
     (window as any).mockFs['/test-vault/Tabelle.md'] =
       '# Tabelle\n\n| Spalte A | Spalte B |\n| --- | --- |\n| **fett** und *kursiv* | [[Welcome]] mit https://example.org<br>Zeile 2 |\n';
-    // The wiki-link resolver queries files by title/path — answer for the fixture.
-    const orig = (window as any).__TAURI_INTERNALS__.invoke;
-    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
-      if (cmd === 'plugin:sql|select' && String(args?.query || '').includes('WHERE title = ?')) {
-        return String(args?.values?.[0] ?? '') === 'Welcome' ? [{ path: 'Welcome.md' }] : [];
-      }
-      return orig(cmd, args, options);
-    };
+    // `[[Welcome]]` is resolved by the link rule over the mock vault's files:
+    // Welcome.md is one of them.
   });
   await page.goto('/');
   await expect(page.getByText('Tabelle', { exact: true })).toBeVisible({ timeout: 10000 });
@@ -2695,15 +2783,8 @@ test('Settings window keeps one stable height across areas (sized by the tallest
 test('Clicking an unresolved wiki link creates and opens the note', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).mockFs['/test-vault/LinkTest.md'] = '# Link Test\n\nGo to [[Ghost]] now.\n';
-    // The wiki resolver must report "Ghost" as non-existent so the click creates it.
-    const orig = (window as any).__TAURI_INTERNALS__.invoke;
-    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
-      if (cmd === 'plugin:sql|select' && String(args?.query || '').includes('WHERE title = ?')
-        && String(args?.values?.[0] ?? '') === 'Ghost') {
-        return [];
-      }
-      return orig(cmd, args, options);
-    };
+    // No file of the mock vault is called "Ghost": the link rule finds none,
+    // so the click creates it.
   });
   await page.goto('/');
   await expect(page.getByText('LinkTest', { exact: true })).toBeVisible({ timeout: 10000 });
@@ -7159,4 +7240,34 @@ test('AI capture: a picture becomes a note the reader keeps — named by the ans
   await summary.click();
   await expect(summary).toHaveAttribute('aria-checked', 'true');
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-picnote-summary-desktop.png'), animations: 'disabled' });
+});
+
+test('List indent: a task typed anew keeps its box where the tasks around it have theirs, once the caret leaves it', async ({ page }) => {
+  // Sammelplan 3.146: Enter at the end of a task, a few words, the caret out
+  // of the line - and the new box sat about 4 px left of the boxes above and
+  // below. The hanging indent had been measured while the caret showed the raw
+  // `- [ ] ` and was never measured again once the box took its place.
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Aufgaben.md'] = '# Aufgaben\n\n- [ ] eins\n- [ ] drei\n';
+  });
+  await page.goto('/');
+  await expect(page.getByText('Aufgaben', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByText('Aufgaben', { exact: true }).click();
+  const content = page.locator('.cm-content');
+  await expect(content.getByText('eins')).toBeVisible();
+  await expect(content.locator('input.cm-md-task')).toHaveCount(2);
+
+  await content.getByText('eins').click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('zwei');
+  // The caret leaves the list (onto the heading), so every task shows its box.
+  await content.getByText('Aufgaben', { exact: true }).click();
+  await expect(content.locator('input.cm-md-task')).toHaveCount(3);
+  await page.waitForTimeout(300);
+
+  const lefts = await content.locator('input.cm-md-task').evaluateAll((boxes) => boxes.map((box) => box.getBoundingClientRect().left));
+  expect(lefts).toHaveLength(3);
+  expect(Math.abs(lefts[1] - lefts[0]), 'the new box against the one above').toBeLessThan(1);
+  expect(Math.abs(lefts[1] - lefts[2]), 'the new box against the one below').toBeLessThan(1);
 });

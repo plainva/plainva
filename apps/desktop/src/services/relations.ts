@@ -1,9 +1,10 @@
 import {
-  parseMarkdownAst,
-  extractFrontmatter,
+  readFrontmatterPath,
   upsertFrontmatterKeys,
-  resolveLinkTarget,
+  noteLinkResolver,
+  updateVaultText,
   wikiTargetForPath,
+  type TextUpdateFiles,
   type VaultQueryService,
 } from "@plainva/core";
 import { removeRelationLinksToNoteShared } from "@plainva/ui";
@@ -19,10 +20,11 @@ import { removeRelationLinksToNoteShared } from "@plainva/ui";
  * for the touched note (the Editor save pattern) so reverse lookups refresh.
  */
 
-export interface RelationWriteAdapter {
-  readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, content: string): Promise<void>;
-}
+/**
+ * The note's files: the vault's chain, or a storage with nothing above it. A
+ * note is read, changed and written in one step (`updateVaultText`).
+ */
+export type RelationWriteAdapter = TextUpdateFiles;
 
 const WIKILINK_VALUE_RE = /^\s*\[\[([^[\]]+)\]\]\s*$/;
 
@@ -40,30 +42,37 @@ function linkBaseOf(value: unknown): string | null {
   return base || null;
 }
 
-function currentValues(props: Record<string, unknown>, key: string): unknown[] {
-  const value = props[key];
+/**
+ * What the note holds under `key`, as a list — read with the reader of the
+ * writer that will set the key (finding 2026-10-12).
+ *
+ * The values used to come from the reader of the index, whose schema rejected a
+ * proper YAML map with a value it did not take (an empty `tags:`, a year
+ * among the tags; until 2026-10-22, ADR 0009). "Could not be read" passed for
+ * "holds no link", and adding ONE link replaced the list the note carried. A
+ * block the writer itself cannot read answers no values here, and the write
+ * then refuses the note.
+ */
+function currentValues(content: string, key: string): unknown[] {
+  const value = readFrontmatterPath(content, [key]);
   if (Array.isArray(value)) return value;
   if (value == null || value === "") return [];
   return [value];
 }
 
-async function loadNote(
-  adapter: RelationWriteAdapter,
-  queryService: VaultQueryService,
-  notePath: string
-): Promise<{ content: string; props: Record<string, unknown>; allFilePaths: string[] }> {
-  const [content, pathRows] = await Promise.all([
-    adapter.readTextFile(notePath),
-    queryService.db.query<{ path: string }>(`SELECT path FROM files WHERE mode != 'attachment'`),
-  ]);
-  const fm = extractFrontmatter(parseMarkdownAst(content));
-  const props: Record<string, unknown> = fm.success && fm.data ? (fm.data as Record<string, unknown>) : {};
-  return { content, props, allFilePaths: pathRows.map((r) => r.path) };
+async function linkRule(queryService: VaultQueryService): Promise<{ allFilePaths: string[]; linkedNote: LinkedNote }> {
+  // The link rule's corpus: what a stored value leads to is asked of every
+  // file, what a new link is called of the notes alone.
+  const files = await queryService.linkTargets();
+  const allFilePaths = files.filter((f) => f.mode !== "attachment").map((f) => f.path);
+  return { allFilePaths, linkedNote: noteLinkResolver(files) };
 }
 
-function resolvesToTarget(value: unknown, notePath: string, targetNotePath: string, allFilePaths: string[]): boolean {
+type LinkedNote = ReturnType<typeof noteLinkResolver>;
+
+function resolvesToTarget(value: unknown, notePath: string, targetNotePath: string, linkedNote: LinkedNote): boolean {
   const base = linkBaseOf(value);
-  return base != null && resolveLinkTarget(notePath, base, allFilePaths) === targetNotePath;
+  return base != null && linkedNote(notePath, base) === targetNotePath;
 }
 
 /**
@@ -82,27 +91,24 @@ export async function addRelationLink(opts: {
   limit?: "one";
 }): Promise<{ changed: boolean }> {
   const { adapter, queryService, notePath, propertyKey, targetNotePath, limit } = opts;
-  const { content, props, allFilePaths } = await loadNote(adapter, queryService, notePath);
-  const values = currentValues(props, propertyKey);
-
+  // What a link leads to and what a new one is called is asked first: the
+  // change itself runs on the note's text alone, as it lies there when it is
+  // written.
+  const { allFilePaths, linkedNote } = await linkRule(queryService);
   const linkText = `[[${wikiTargetForPath(targetNotePath, allFilePaths)}]]`;
 
-  if (limit === "one") {
-    const already =
-      values.length === 1 && resolvesToTarget(values[0], notePath, targetNotePath, allFilePaths);
-    if (already) return { changed: false };
-    await adapter.writeTextFile(notePath, upsertFrontmatterKeys(content, { [propertyKey]: linkText }));
-    return { changed: true };
-  }
-
-  if (values.some((v) => resolvesToTarget(v, notePath, targetNotePath, allFilePaths))) {
-    return { changed: false };
-  }
-  await adapter.writeTextFile(
-    notePath,
-    upsertFrontmatterKeys(content, { [propertyKey]: [...values, linkText] })
-  );
-  return { changed: true };
+  const linked = (content: string): string | null => {
+    const values = currentValues(content, propertyKey);
+    if (limit === "one") {
+      const already =
+        values.length === 1 && resolvesToTarget(values[0], notePath, targetNotePath, linkedNote);
+      return already ? null : upsertFrontmatterKeys(content, { [propertyKey]: linkText });
+    }
+    if (values.some((v) => resolvesToTarget(v, notePath, targetNotePath, linkedNote))) return null;
+    return upsertFrontmatterKeys(content, { [propertyKey]: [...values, linkText] });
+  };
+  const update = await updateVaultText(adapter, notePath, linked);
+  return { changed: linked(update.before) !== null };
 }
 
 /**
@@ -124,10 +130,8 @@ export async function removeRelationLinksToNote(opts: {
     {
       readTextFile: (p) => adapter.readTextFile(p),
       writeTextFile: (p, c) => adapter.writeTextFile(p, c),
-      listNotePaths: async () =>
-        (await queryService.db.query<{ path: string }>(`SELECT path FROM files WHERE mode != 'attachment'`)).map(
-          (r) => r.path
-        ),
+      updateTextFile: (p, change) => updateVaultText(adapter, p, change),
+      listLinkTargets: () => queryService.linkTargets(),
     },
     { notePath, propertyKey, targetNotePath }
   );

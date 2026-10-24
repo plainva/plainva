@@ -1,11 +1,14 @@
-import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { Capacitor } from "@capacitor/core";
+import { Directory, Filesystem } from "@capacitor/filesystem";
 import {
   VaultFileExistsError,
   VaultFileNotFoundError,
   type IVaultAdapter,
   type VaultFileInfo,
+  type VaultWalkOptions,
   trimChars,
   PathSpellings,
+  textOfFileBytes,
   withStoredSpelling,
   type SpellingSource,
 } from "@plainva/core";
@@ -91,15 +94,42 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
 
   async dispose(): Promise<void> {}
 
+  /**
+   * A file's text as every adapter hands it out: its bytes, decoded HERE, with
+   * a byte order mark as the first character where the file has one
+   * (`textOfFileBytes`).
+   *
+   * The plugin can be asked for text, and this adapter did ask until
+   * 2026-10-20. Then the system's own library decodes, and the two decide
+   * differently about a leading mark: Android's reader leaves it in the text,
+   * Foundation skips it. On an iPhone a note or a `.csv` reached the editor
+   * without its mark and was saved without it, a write beside the editor
+   * dropped it as well, the hash the index kept was not the one of the file,
+   * and the sync carried the loss to every other device (finding 2026-10-11 —
+   * read in the sources of the plugin's two libraries and of Foundation, run
+   * on no iPhone). So neither system's decoder is asked: both hand out the
+   * bytes, as base64, the way `readBinaryFile` and the folder adapter get
+   * them, and one rule makes the text of them.
+   *
+   * Bytes that are not UTF-8 come out with replacement characters, on both
+   * systems, as from the folder adapter. Nobody is handed that reading as the
+   * file: the chain above asks the bytes what such a file is and refuses it
+   * (`readExactText`, `readLocalFile` in the core), whichever kind of reader
+   * lies below. iOS' own reader used to refuse such a file outright.
+   *
+   * The browser build is the one exception: its store keeps a file as what it
+   * was GIVEN and hands that back whatever is asked for, and a text file was
+   * given as its text (`atomicWriteText`), which is no base64. There the text
+   * IS the file. Only what a fixture laid down as bytes (a Blob) is decoded,
+   * as on a phone.
+   */
   async readTextFile(path: string): Promise<string> {
     return this.stored(path, async (raw) => {
       try {
-        const res = await Filesystem.readFile({
-          path: this.full(raw),
-          directory: Directory.Data,
-          encoding: Encoding.UTF8,
-        });
-        return res.data as string;
+        const res = await Filesystem.readFile({ path: this.full(raw), directory: Directory.Data });
+        if (res.data instanceof Blob) return textOfFileBytes(new Uint8Array(await res.data.arrayBuffer()));
+        if (!Capacitor.isNativePlatform()) return res.data;
+        return textOfFileBytes(b64ToBytes(res.data));
       } catch (error) {
         if (isMissingFile(error)) throw new VaultFileNotFoundError(path);
         throw error;
@@ -186,10 +216,14 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
     return this.identities(out, "");
   }
 
-  async listDirReport(path = "", recursive = false, options?: { signal?: AbortSignal }) {
+  async listDirReport(path = "", recursive = false, options?: VaultWalkOptions) {
     const raw = await this.realPath(path);
     const files: VaultFileInfo[] = [];
-    await this.walk(raw, recursive, files, true, [], 0, options?.signal);
+    // The walk of the index lists dot-named entries; asked without them — the
+    // snapshot before a recursive delete —, it walks as the tree does
+    // (`listDir`) and never goes into such a folder. It follows no link on
+    // its own (`followLinks` has nothing to leave out here).
+    await this.walk(raw, recursive, files, options?.dotEntries !== false, [], 0, options?.signal);
     return { files: this.identities(files, raw), skipped: [] };
   }
 

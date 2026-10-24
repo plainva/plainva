@@ -1,12 +1,12 @@
-import { replaceAllInText, type FindReplaceOptions, type VaultFindResult } from "@plainva/core";
+import { replaceAllInText, updateVaultText, type FindReplaceOptions, type TextUpdateFiles, type VaultFindResult } from "@plainva/core";
 
 /**
  * The write side of vault-wide find & replace, shared by both shells.
  *
- * The rule this encodes is the one that matters: **every note is re-read from
- * disk immediately before it is written**. Between the preview and the tap on
- * "replace" a sync can have changed a note, and a stale preview must never
- * clobber newer content. If the fresh content no longer contains the query,
+ * The rule this encodes is the one that matters: **every note is read where it
+ * is written**, in one step (`updateVaultText`). Between the preview and the
+ * tap on "replace" a sync can have changed a note, and a stale preview must
+ * never clobber newer content. If the fresh content no longer contains the query,
  * the note is SKIPPED — and, unlike the original desktop modal, it is now
  * named in the result instead of quietly vanishing from the count. A note that
  * silently did not change is the one case where the user needs to know.
@@ -17,12 +17,8 @@ import { replaceAllInText, type FindReplaceOptions, type VaultFindResult } from 
  * report, the phone gains progress and a real cancel.
  */
 
-export interface VaultReplaceDeps {
-  /** Reads the note's current content from disk (never from a cache). */
-  read: (path: string) => Promise<string>;
-  /** Writes through the app's atomic + backup chain. */
-  write: (path: string, content: string) => Promise<void>;
-}
+/** The notes' files: a vault's chain (its atomic write, its backups), or a storage with nothing above it. */
+export type VaultReplaceDeps = TextUpdateFiles;
 
 export interface VaultReplaceRequest {
   /** The preview, as produced by `VaultQueryService.findInVault`. */
@@ -76,13 +72,15 @@ export async function runVaultReplace(
     const r = targets[i];
     req.onProgress?.(i + 1, targets.length, r.path);
     try {
-      // Fresh read, every time. This is the whole point of the loop.
-      const fresh = await deps.read(r.path);
-      const { content, count } = replaceAllInText(fresh, req.query, req.replacement, req.options);
-      if (count > 0 && content !== fresh) {
-        await deps.write(r.path, content);
+      // Fresh read, every time, where the note is written. This is the whole point of the loop.
+      const replaced = (fresh: string) => replaceAllInText(fresh, req.query, req.replacement, req.options);
+      const update = await updateVaultText(deps, r.path, (fresh) => {
+        const { content, count } = replaced(fresh);
+        return count > 0 ? content : null;
+      });
+      if (update.changed) {
         out.notes += 1;
-        out.hits += count;
+        out.hits += replaced(update.before).count;
       } else {
         // Matched in the preview, no longer matches on disk.
         out.skipped.push(r.path);

@@ -1,6 +1,6 @@
 # Plainva Sync Compatibility
 
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-21
 
 If a WebDAV, CalDAV or S3 service returns a sign-in page or an incomplete inventory, Plainva reports a sync error. It does not treat that response as an empty folder or calendar inventory or infer deletions from it. This applies on desktop and mobile.
 
@@ -68,5 +68,6 @@ OneDrive, Dropbox and S3-compatible storage have been directly integrated since 
 ## Deliberately not planned
 
 - **iCloud as an API integration:** Apple offers no official third-party API for iCloud Drive. Use the local iCloud folder instead (see above).
+- **Syncthing as a built-in provider:** not needed — Plainva works with any local folder that Syncthing, or Synctrain on iPhone and iPad, keeps in sync (see above).
 - **Proton Drive / Mega:** no official or only hard-to-integrate APIs (E2E encryption, C++ SDK). Kept under observation.
 - **Watchlist** (on demand): pCloud, Box, Filen, SFTP.

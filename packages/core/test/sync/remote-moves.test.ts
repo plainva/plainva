@@ -97,6 +97,8 @@ describe("renames from another device arrive as moves", () => {
         if (!files.has(p)) throw new Error(`missing ${p}`);
         return files.get(p)!;
       }),
+      // The worker reads a local file as bytes.
+      readBinaryFile: vi.fn(async (p: string) => new TextEncoder().encode(await vault.readTextFile(p))),
       writeTextFile: vi.fn(async (p: string, c: string) => void files.set(p, c)),
       deleteItem: vi.fn(async (p: string) => void files.delete(p)),
     };

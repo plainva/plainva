@@ -66,6 +66,26 @@ export interface MailAttachmentInfo {
   size: number;
 }
 
+/**
+ * Why one attachment did not come when its bytes were asked for.
+ *
+ *  - `missing`: the message has no attachment under that index (any more).
+ *  - `notAFile`: the backend lists it, but it has no bytes of its own — an
+ *    Outlook item attached to a Microsoft message, or a link to a cloud file.
+ *  - `failed`: asking for it failed (connection, server); it may come next time.
+ */
+export type AttachmentFetchFailure = "missing" | "notAFile" | "failed";
+
+/** One attachment's answer in a batch: its bytes, or why there are none. */
+export interface AttachmentFetchResult {
+  index: number;
+  /** Standard base64 of the file's bytes — present exactly when it came. */
+  contentBase64?: string;
+  failure?: AttachmentFetchFailure;
+  /** The backend's own words for a `failed` one. */
+  detail?: string;
+}
+
 export interface MailMessage {
   id: string;
   subject: string;

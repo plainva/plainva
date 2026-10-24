@@ -20,7 +20,7 @@ import {
   type PreviewSegment,
 } from "@plainva/ui";
 import type { FindReplaceOptions, VaultFindResult } from "@plainva/core";
-import { vaultOps, type MobileVault } from "../services/vaultService";
+import { vaultTextFiles, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
 
 /**
@@ -105,10 +105,7 @@ export function FindReplaceScreen({
     setBusy(true);
     setStatus(null);
     const res = await runVaultReplace(
-      {
-        read: (path) => vaultOps.read(vault, path),
-        write: (path, content) => vaultOps.save(vault, path, content),
-      },
+      vaultTextFiles(vault),
       {
         results,
         selected,

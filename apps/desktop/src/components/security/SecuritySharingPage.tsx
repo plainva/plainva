@@ -110,6 +110,9 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   // a stale projection is worse than none, because it would describe a
   // publication the publisher is no longer about to create.
   const [publicationPreview, setPublicationPreview] = useState<PublishedProjectionPreview | null>(null);
+  const [publicationPreviewError, setPublicationPreviewError] = useState<string | null>(null);
+  // The answer and the reason why there is none belong to one question, and go together.
+  const clearPublicationPreview = () => { setPublicationPreview(null); setPublicationPreviewError(null); };
   // Candidates the slice pickers choose FROM. Loaded when the wizard opens, not
   // with the page: the list walks the whole encrypted object index, and most
   // visits to this page never build a slice. `null` means "still loading".
@@ -233,11 +236,25 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
    * can run on every edit. Built from the objects the membership preview already
    * resolved, so both halves of the review page describe the same set.
    */
+  /*
+   * A failure is said in the review step, where the numbers would stand, and
+   * stays there - the phone's sheet does the same with its banner. It used to
+   * be a toast, and the step went on saying that the notes were being read:
+   * once the toast had gone, nothing on the page said that there would be no
+   * preview, or why. The reason that matters most names a note - a covered
+   * note whose block at the top cannot be read as properties is refused, and
+   * the publication's refresh would stop at it.
+   *
+   * An earlier answer goes first. It was computed for the mode and the notes of
+   * then; beside the reason why there is none it would be numbers for a
+   * publication that does not come about.
+   */
   const previewSlicePublicationNow = async () => {
-    if (form.publicationMode === "private") { setPublicationPreview(null); return; }
+    clearPublicationPreview();
+    if (form.publicationMode === "private") return;
     setBusy(true);
     try { setPublicationPreview(await previewSlicePublication({ objectIds: (slicePreview ?? []).map((entry) => entry.objectId), mode: form.publicationMode as PublishedSliceMode })); }
-    catch (error) { toast.error(publicationErrorText(error, t)); }
+    catch (error) { setPublicationPreviewError(publicationErrorText(error, t)); }
     finally { setBusy(false); }
   };
 
@@ -259,7 +276,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     void listWorkspaceSliceObjects()
       .then(setSliceObjects)
       .catch((error) => toast.error(publicationErrorText(error, t)));
-    setPublicationPreview(null);
+    clearPublicationPreview();
     setForm((current) => ({ ...current, name: "", definition: "", sliceKind: "folder", publicationMode: "private" }));
     setDialog("slice");
   };
@@ -452,8 +469,10 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
 
   const requireWorkspace = async (action: () => void | Promise<void>, allowUnconfigured = false): Promise<void> => {
     if (!isActiveVault) {
-      await openVault(selectedVault);
-      toast.info(t("workspaceSecurity.vaultOpenedContinue", { defaultValue: "Vault opened. Choose the action again to continue." }));
+      // "Vault opened" only when it was: the person may have kept a message
+      // with unsaved input, and then this window still shows the other vault.
+      const opened = await openVault(selectedVault);
+      if (opened) toast.info(t("workspaceSecurity.vaultOpenedContinue", { defaultValue: "Vault opened. Choose the action again to continue." }));
       return;
     }
     if (!hasSyncConnection) {
@@ -816,11 +835,12 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           pairPreview={pairPreview}
           slicePreview={slicePreview}
           publicationPreview={publicationPreview}
+          publicationPreviewError={publicationPreviewError}
           sliceObjects={sliceObjects}
           rotatedRecoveryCode={rotatedRecoveryCode}
           setForm={setForm}
-          onClose={() => { setDialog(null); setPairPreview(null); setSlicePreview(null); setPublicationPreview(null); setSliceObjects(null); setRotatedRecoveryCode(null); }}
-          onPreview={() => { setPublicationPreview(null); void previewSlice(); }}
+          onClose={() => { setDialog(null); setPairPreview(null); setSlicePreview(null); clearPublicationPreview(); setSliceObjects(null); setRotatedRecoveryCode(null); }}
+          onPreview={() => { clearPublicationPreview(); void previewSlice(); }}
           onPublicationPreview={() => void previewSlicePublicationNow()}
           onSubmit={() => void submitGovernanceDialog()}
         />

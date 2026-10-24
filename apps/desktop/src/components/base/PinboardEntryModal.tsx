@@ -14,6 +14,7 @@ import {
   TextInput,
   discardPinboardEntry,
   finalizePinboardEntry,
+  pinboardEntryCaret,
   toast,
   type PinboardDraft,
   type PinboardEntryChip,
@@ -211,18 +212,17 @@ export function PinboardEntryModal({
   /**
    * The caret belongs in the text, never in the hidden frontmatter: an
    * untouched editor holds it at 0, where the live view refuses every
-   * keystroke. It goes to the template's `{{cursor}}`, else to the end.
+   * keystroke. It goes to the template's `{{cursor}}`, else to the end —
+   * `pinboardEntryCaret` says where that is in the text this editor holds.
    */
   const placeBodyCaret = () => {
     const view = editorView();
     if (!view) return;
     const doc = view.state.doc.toString();
-    const bodyStart = frontmatterEndOf(doc);
     const sel = view.state.selection.main;
     const placed = sel.head > 0 || !sel.empty;
-    if (placed && sel.head >= bodyStart) return;
-    const at = draft.caret !== null && draft.caret >= bodyStart && draft.caret <= doc.length ? draft.caret : doc.length;
-    view.dispatch({ selection: { anchor: at }, scrollIntoView: true });
+    if (placed && sel.head >= frontmatterEndOf(doc)) return;
+    view.dispatch({ selection: { anchor: pinboardEntryCaret(draft, doc) }, scrollIntoView: true });
   };
   // Enter in the title moves on to the text. The editor is loaded lazily, and
   // an Enter that comes before it is there used to be lost: the focus stayed

@@ -32,16 +32,17 @@ import {
   Image as ImageIcon,
   Paperclip,
 } from "lucide-react";
-import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, isVaultPathLink, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
-import { selectNoteFragment, planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
+import { selectNoteFragment, planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, noteBodyOf, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
 import { EMBED_ROWS, scopedEmbedRows } from "./services/baseOps";
 import { ColorPickSheet } from "./components/ColorPickSheet";
 import { EmojiPickSheet } from "./components/EmojiPickSheet";
 import { TableMenuSheet, type TableMenuAction } from "./components/TableMenuSheet";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import {
+  editorDiskText,
   getLastPersistedText,
   noteSaver,
   rememberPersistedText,
@@ -49,18 +50,20 @@ import {
   vaultOps,
   type MobileVault,
 } from "./services/vaultService";
-import { Banner, decideDirtyExternalUpdate, imageExplainer, textDirectionOf, toast } from "@plainva/ui";
-import { clearConflict, getConflict, noteConflict, subscribeConflicts } from "./services/conflictState";
+import { decideDirtyExternalUpdate, textDirectionOf, toast, imageExplainer } from "@plainva/ui";
+import { getConflict, noteConflict, subscribeConflicts } from "./services/conflictState";
 import { ConflictCompareSheet } from "./components/ConflictCompareSheet";
+import { NoteConflictCard } from "./components/NoteConflictCard";
 import { syncSoon } from "./services/syncService";
-import { mActions, mConfirm } from "./services/mobileDialogs";
+import { mActions } from "./services/mobileDialogs";
+import { openLink } from "./services/openLink";
 import { applyTemplateInteractive } from "./services/templateInteractive";
 import { setEditorRangeReader, setEditorSelectionReader } from "./services/editorSelection";
 import { getMobileSettings } from "./services/mobileSettings";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { availablePhotoPath, cameraErrorMessage, isCameraCancellation, mediaResultBytes } from "./services/photoCapture";
 import { pickDeviceFiles } from "./services/pickFiles";
-import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
+import { editedNoteProperties, recallScrollTop, rememberScrollTop, withNoteColor, withNoteIcon } from "@plainva/ui";
 import { readSelectionVerbs, selectAll, SelectionToolbarSurface, type SelectionToolbarPosition } from "@plainva/ui";
 
 /**
@@ -168,22 +171,6 @@ export function EditorHost({
   // and reopening the note does not make an unresolved conflict disappear.
   const conflict = useSyncExternalStore(subscribeConflicts, () => getConflict(path));
   const [conflictDiff, setConflictDiff] = useState(false);
-  // A conflict outlives the app now (P1, Build-91 feedback): the copy may have
-  // been deleted from the file list in the meantime, and a card pointing at
-  // nothing would lie — it goes when its copy is gone.
-  useEffect(() => {
-    if (!conflict) return;
-    let stale = false;
-    vault.files
-      .exists(conflict.copyPath)
-      .then((ok) => {
-        if (!stale && !ok) clearConflict(path);
-      })
-      .catch(() => {});
-    return () => {
-      stale = true;
-    };
-  }, [conflict, path, vault]);
   // Slash-command sheets (R3.4): the shared plugin fires the same picker
   // events as on the desktop; this host renders them as bottom sheets.
   const [tableSheet, setTableSheet] = useState<{ pos: number } | null>(null);
@@ -277,7 +264,7 @@ export function EditorHost({
    */
   const importFileAtCaret = useStableHandler(async (file: File, at: number) => {
     try {
-      const { insert } = await importAttachment(
+      const { insert, path: written } = await importAttachment(
         { name: file.name || "", mime: file.type, bytes: new Uint8Array(await file.arrayBuffer()) },
         {
           configuredFolder: getMobileSettings().attachmentFolder,
@@ -292,6 +279,8 @@ export function EditorHost({
           writeBinaryFile: (p, bytes) => vault.files.writeBinaryFile(p, bytes),
         },
       );
+      // The index hears of the file now, not at the next full scan (finding 2026-10-12).
+      void vault.reindexPaths([written]);
       const view = sessionRef.current?.view;
       if (view) {
         const pos = Math.min(at, view.state.doc.length);
@@ -325,8 +314,7 @@ export function EditorHost({
       toast.warning(t("dialogs.anchorNotFoundMsg", { anchor: anchor.replace(/^#/, ""), defaultValue: "Section \"{{anchor}}\" not found." }));
       return;
     }
-    const l = view.state.doc.line(Math.min(Math.max(hit.line, 1), view.state.doc.lines));
-    view.dispatch({ selection: { anchor: l.from }, scrollIntoView: true });
+    jumpToLineTop(view, hit.line);
   });
   useEffect(() => {
     const onAnchor = (e: Event) => {
@@ -360,45 +348,13 @@ export function EditorHost({
       onOpenPath: (p) => onOpenNote(p),
       onOpenTag: (tag) => onOpenTag?.(tag),
       openWikiTarget: (rawTarget, _newTab, kind, anchorArg) => {
-        // The anchor (issue #92) either arrives split off (the wiki-link
-        // plugin) or still sits in the text; `[[#Heading]]` is a place HERE.
-        const split = splitLinkAnchor(rawTarget);
-        const anchor = anchorArg ?? split.anchor;
-        const target = split.target;
-        if (!target) {
-          if (anchor) jumpAnchor(anchor);
-          return;
-        }
-        void vaultOps.resolveWikiTarget(vault, target, path).then(async (resolved) => {
-          if (resolved) {
-            // Parked under the path: the host that mounts for the note takes it.
-            if (anchor) requestAnchorJump(resolved, anchor);
-            onOpenNote(resolved);
-            return;
-          }
-          // A relative markdown link is a PATH, and a path that resolves to
-          // nothing is a missing file — not an invitation to create a note
-          // named after it (issue #61: `../_resources/x.mp3` gained a `.md` on
-          // the desktop and hit the vault guard). Creating stays reserved for
-          // unresolved WIKI links.
-          if (kind === "markdown" && isVaultPathLink(target)) {
-            toast.warning(i18n.t("dialogs.linkNotFoundMsg", { target }));
-            return;
-          }
-          // Target note doesn't exist yet — create it (Obsidian parity,
-          // maintainer 2026-07-18), then open. Since S39 the phone honours the
-          // same "ask first" setting as the desktop; default off, so the
-          // established behaviour is unchanged for anyone who never sets it.
-          if (getMobileSettings().askBeforeCreateLink) {
-            const ok = await mConfirm({
-              title: t("settings.askBeforeCreateLink"),
-              message: target,
-            });
-            if (!ok) return;
-          }
-          const created = await vaultOps.createNoteFromWikiTarget(vault, target, path);
-          if (created) onOpenNote(created);
-        });
+        // What a tap on a link does is the phone's one opener's to say
+        // (`services/openLink`): open, show a folder, offer the note, or say
+        // that nothing is there. `[[#Heading]]` is a place HERE.
+        void openLink(
+          { text: rawTarget, kind: kind === "markdown" ? "markdown" : "wiki", sourcePath: path, anchor: anchorArg },
+          { vault, onOpenNote, onSameNoteAnchor: jumpAnchor },
+        );
       },
       openExternalUrl: (url) => {
         // Route external URLs (table-cell / embed links) through platform
@@ -507,7 +463,7 @@ export function EditorHost({
       imageLookup: () => ({
         notePath: path,
         attachmentFolder: getMobileSettings().attachmentFolder,
-        resolveByName: (name) => vaultOps.resolveWikiTarget(vault, name, path),
+        resolveByName: (name) => vaultOps.resolveWikiTarget(vault, name, path, "wiki"),
       }),
       // Note embeds (package H): the shared CM core scans ![[...]] lines;
       // mobile renders a tappable preview card — note text stripped to
@@ -519,9 +475,9 @@ export function EditorHost({
               let stale = false;
               container.classList.add("m-embed");
               void (async () => {
+                // An embed shows the file the same text opens as a link.
                 const resolvedTarget = await resolveNoteEmbed(target, path, {
-                  exists: (candidate) => vault.files.exists(candidate), db: vault.db,
-                  list: () => vault.files.listDir("", true),
+                  resolve: (name, from) => vaultOps.resolveWikiTarget(vault, name, from, "wiki"),
                 });
                 const resolved = resolvedTarget.status === "found" ? resolvedTarget.path : null;
                 if (stale) return;
@@ -552,8 +508,8 @@ export function EditorHost({
                     const fragment = selectNoteFragment(text, resolvedTarget.status === "found" ? resolvedTarget.anchor : null);
                     if (fragment.status === "found") {
                       const preview = await noteEmbedPreview(fragment.text, path0, {
-                        exists: (candidate) => vault.files.exists(candidate), db: vault.db,
-                        list: () => vault.files.listDir("", true), read: (candidate) => vaultOps.read(vault, candidate),
+                        resolve: (name, from) => vaultOps.resolveWikiTarget(vault, name, from, "wiki"),
+                        read: (candidate) => vaultOps.read(vault, candidate),
                         message: (kind, nestedTarget) => t("noteEmbed." + kind, { target: nestedTarget }),
                       });
                       if (stale) return;
@@ -718,7 +674,7 @@ export function EditorHost({
           // Let CodeMirror own its native selection while the viewport changes;
           // an unfocused DOM range is discarded by the next layout update.
           if (!editableRef.current) view.focus();
-          view.dispatch({ selection: { anchor: m.from, head: m.to }, scrollIntoView: true });
+          selectAndCenter(view, m.from, m.to);
         } else if (jump.from !== undefined) {
           toast.info(t("searchResults.changed"));
         }
@@ -726,14 +682,15 @@ export function EditorHost({
     }
     // {{cursor}} of a template a note was just created from (plan
     // Vorlagen-Engine P6). Same park-store as the desktop: the note is written
-    // and opened before this editor exists, so the offset waits here.
+    // and opened before this editor exists, so the offset waits here — as a
+    // place in the text this editor holds (`parkTemplateCaret`).
     const caret = consumePendingTemplateCaret(path);
     if (caret) {
       requestAnimationFrame(() => {
         const view = sessionRef.current?.view;
         if (!view) return;
         const at = Math.min(caret.offset, view.state.doc.length);
-        view.dispatch({ selection: { anchor: at }, scrollIntoView: true });
+        selectAndCenter(view, at);
       });
     }
 
@@ -748,10 +705,15 @@ export function EditorHost({
       let disk: string;
       try {
         disk = await vaultOps.readEditor(vault, path);
-      } catch {
+      } catch (error) {
         // Gone from under us (issue 110, E9): the screen looks for the file —
         // the text in this editor stays until it knows where it goes.
         if (!(await vault.adapter.exists(path).catch(() => true))) onVanishedRef.current?.();
+        // Still there, and no text any more: another program — or a pull —
+        // put the file there in another encoding (asked by the refusal's
+        // code). The screen says what the file is now; what was typed and not
+        // saved stays here, and its save says why it is refused.
+        else if ((error as { code?: string } | null)?.code === "NOT_TEXT_FILE") window.dispatchEvent(new CustomEvent("m-note-not-text", { detail: { vaultId: vault.vaultId, path } }));
         return;
       }
       if (sessionRef.current !== s) return;
@@ -778,7 +740,8 @@ export function EditorHost({
       // replace newer typing nor cancel the queued save that carries it.
       try {
         if (!vault.files.preserveConflict) throw new Error("Conflict-safe editing is unavailable");
-        const conflictSession = await vault.files.preserveConflict(path, draft, "editor-external");
+        // The copy is a file like the one it stands beside: in that file's shape.
+        const conflictSession = await vault.files.preserveConflict(path, editorDiskText(vault, path, draft), "editor-external");
         noteConflict(path, conflictSession.workingCopyPath, vault.vaultId, conflictSession);
       } catch (e) {
         console.error("[EditorHost] preserving conflict copy failed", e);
@@ -910,25 +873,21 @@ export function EditorHost({
     };
   }, [importFileAtCaret]);
 
-  // Desktop applyPlainvaValue/applyDocIcon contract: rewrite the plainva:
-  // frontmatter namespace on the live document (emoji icons clear a stale
-  // icon_color, exactly like the desktop's emoji pick).
-  const applyPlainva = (mutate: (base: string) => string) => {
+  // The note's icon and colour: written into the live document by the shared
+  // rules (`withNoteIcon`, `withNoteColor`), the desktop's `applyNoteProperties`
+  // contract. A note that refuses the change — a block at its top that is no
+  // YAML map — is said by `editedNoteProperties`; it used to go to the console
+  // and the pick did nothing (finding 2026-10-09).
+  const applyPlainva = (change: (text: string) => string) => {
     const view = sessionRef.current?.view;
     if (!view) return;
-    try {
-      const base = view.state.doc.toString();
-      const next = mutate(base);
-      if (next !== base) {
-        // Deliberately NO userEvent: the shared frontmatterProtectPlugin
-        // rejects user-initiated ("input") changes inside the frontmatter —
-        // this programmatic metadata write must pass the filter (the desktop
-        // properties path dispatches the same way).
-        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
-      }
-    } catch (e) {
-      console.warn("[EditorHost] updating plainva frontmatter failed", e);
-    }
+    const next = editedNoteProperties(view.state.doc.toString(), change);
+    if (next === null) return;
+    // Deliberately NO userEvent: the shared frontmatterProtectPlugin rejects
+    // user-initiated ("input") changes inside the frontmatter — this
+    // programmatic metadata write must pass the filter (the desktop
+    // properties path dispatches the same way).
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
   };
 
   const handleEmojiPick = (char: string, color?: string | null) => {
@@ -947,12 +906,7 @@ export function EditorHost({
     } else {
       // An icon may carry a tint (P4.2). Without one the stale colour is
       // cleared, exactly as the desktop's pick does.
-      applyPlainva((base) => {
-        const withIcon = setFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "icon"], char);
-        return color
-          ? setFrontmatterPath(withIcon, [PLAINVA_NAMESPACE_KEY, "icon_color"], color)
-          : deleteFrontmatterPath(withIcon, [PLAINVA_NAMESPACE_KEY, "icon_color"]);
-      });
+      applyPlainva((text) => withNoteIcon(text, char, color || null));
     }
   };
 
@@ -1044,8 +998,7 @@ export function EditorHost({
       const hit = forThisNote(e);
       const line = hit && (hit.detail.line as number | undefined);
       if (!hit || !line) return;
-      const l = hit.view.state.doc.line(Math.min(Math.max(line, 1), hit.view.state.doc.lines));
-      hit.view.dispatch({ selection: { anchor: l.from }, scrollIntoView: true });
+      jumpToLineTop(hit.view, line);
     };
     /**
      * Jump to a comment's passage (Stufe D, D6).
@@ -1063,7 +1016,7 @@ export function EditorHost({
       const from = Math.min(Math.max((hit.detail.from as number | undefined) ?? -1, 0), len);
       const to = Math.min(Math.max((hit.detail.to as number | undefined) ?? -1, from), len);
       if (from === to) return;
-      hit.view.dispatch({ selection: { anchor: from, head: to }, scrollIntoView: true });
+      selectAndCenter(hit.view, from, to);
     };
     const onSetMode = (e: Event) => {
       const hit = forThisNote(e);
@@ -1293,22 +1246,20 @@ export function EditorHost({
       // it is stripped. Every question is asked in ONE sheet (plan
       // Vorlagen-Engine P6) — the old loop asked one prompt per placeholder,
       // and cancelling the third left the first two answered with no way back.
-      const body = raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
-      const ms = getMobileSettings();
+      // The vault's pieces (`{{vault}}`, `{{daily±N}}`, the week start) and
+      // the clipboard are added by the pipeline.
+      const body = noteBodyOf(raw);
       const answered = await applyTemplateInteractive(body, {
         title: stem,
         now: new Date(),
         folder: path.split("/").slice(0, -1).join("/"),
         vaultName: (await getActiveVaultEntry()).name || "Plainva",
         hostPath: path,
-        dailyPath: (offset) => {
-          const d = new Date();
-          d.setDate(d.getDate() + offset);
-          return buildDailyNotePath(d, ms.dailyFormat, ms.dailyFolder).fullPath.replace(/\.md$/i, "");
-        },
       });
       if (!answered) return; // cancelled → nothing is inserted
-      const { text, cursor } = answered;
+      // What the editor takes: the text as it holds one, and the caret as a
+      // place in that text — a template from Windows counts with `\r\n`.
+      const { text, cursor } = templateInsertInEditor(answered);
       const view = sessionRef.current?.view;
       if (!view || at === null) return;
       const pos = Math.min(at, view.state.doc.length);
@@ -1350,12 +1301,12 @@ export function EditorHost({
         try {
           const folder = folderOf(path);
           const created = await createInlineBase(
-            vault.adapter,
+            vault.files,
             folder,
             t("editor.inlineBaseDefaultName", { defaultValue: "Datenbank" }),
             t("database.viewTable", { defaultValue: "Table" }),
           );
-          await vault.indexer?.indexPath(created);
+          await vault.reindexPaths([created]);
           embedBaseAt(created, pos);
           syncSoon();
         } catch (error) {
@@ -1414,6 +1365,7 @@ export function EditorHost({
         const bytes = await mediaResultBytes(photo, (uri) => Filesystem.readFile({ path: uri }));
         const name = await availablePhotoPath((candidate) => vault.files.exists(candidate), photo);
         await vault.files.writeBinaryFile(name, bytes);
+        void vault.reindexPaths([name]);
         run((view) => {
           const pos = Math.min(insertAt, view.state.doc.length);
           const embed = `![[${name}]]`;
@@ -1439,32 +1391,9 @@ export function EditorHost({
   return (
     <>
       {/* S5: a conflict is an END STATE, so it stays on screen until the user
-          acts on it. It used to be a toast — one per retry round, each round
-          writing another .CONFLICT file that no surface pointed at. The two
-          ways out are the two questions anyone has here: where is my text, and
-          what is different. */}
+          acts on it (`NoteConflictCard`). */}
       {conflict && (
-        <Banner
-          actions={
-            <>
-              <Button onClick={() => onOpenNote(conflict.copyPath)} size="sm" variant="ghost">
-                {t("mobile.conflictOpenCopy")}
-              </Button>
-              <Button onClick={() => setConflictDiff(true)} size="sm" variant="ghost">
-                {t("mobile.conflictShowDiff")}
-              </Button>
-            </>
-          }
-          kind="warning"
-          rounded
-        >
-          <b>{t("mobile.conflictTitle")}</b>
-          <br />
-          {t(conflict.working ? "conflict.workingCopy" : "mobile.conflictBody")}
-          {conflict.foreignCopySnapshot && <><br />{t("conflict.workingCopyChanged")}</>}
-          <br />
-          <code>{conflict.copyPath}</code>
-        </Banner>
+        <NoteConflictCard conflict={conflict} path={path} vault={vault} onOpenCopy={() => onOpenNote(conflict.copyPath)} onShowDiff={() => setConflictDiff(true)} />
       )}
       <div
         className={`m-editor${showEditToolbar ? " is-docked" : ""}`}
@@ -1752,12 +1681,7 @@ export function EditorHost({
             emojiPick === "icon"
               ? () => {
                   setEmojiPick(null);
-                  applyPlainva((base) =>
-                    deleteFrontmatterPath(
-                      deleteFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "icon"]),
-                      [PLAINVA_NAMESPACE_KEY, "icon_color"],
-                    ),
-                  );
+                  applyPlainva((text) => withNoteIcon(text, null, null));
                 }
               : undefined
           }
@@ -1771,11 +1695,11 @@ export function EditorHost({
           onClose={() => setColorPick(false)}
           onPick={(hex) => {
             setColorPick(false);
-            applyPlainva((base) => setFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "header_color"], hex));
+            applyPlainva((text) => withNoteColor(text, hex));
           }}
           onRemove={() => {
             setColorPick(false);
-            applyPlainva((base) => deleteFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "header_color"]));
+            applyPlainva((text) => withNoteColor(text, null));
           }}
         />
       )}

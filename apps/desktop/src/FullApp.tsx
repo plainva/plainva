@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Button, EmptyState, ICON, parkTreeReveal } from "@plainva/ui";
 import { FolderOpen } from "lucide-react";
 import { AppShell } from "./AppShell";
+import { MailComposeHost } from "./components/mail/MailComposeHost";
 import { useVault } from "./contexts/VaultContext";
 import { useApp } from "./contexts/AppContext";
 import { getWindowBus, type OwnerSurface } from "./services/windowBus";
@@ -160,5 +161,12 @@ export function FullApp() {
     );
   }
 
-  return <AppShell capabilities={capabilities} />;
+  // The composer stands beside the shell here as in the central window, so
+  // both windows that draw the whole app host it in one way (MailComposeHost).
+  return (
+    <>
+      <AppShell capabilities={capabilities} />
+      <MailComposeHost />
+    </>
+  );
 }

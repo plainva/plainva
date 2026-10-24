@@ -24,20 +24,19 @@ describe("readableFrontmatterSchema", () => {
     });
   });
 
-  it("coerces a bare YAML number okf_version instead of failing the whole parse", () => {
-    // `okf_version: 1` (unquoted) parses as a number; a hand-written note must
-    // not silently lose all indexed properties/tags over the missing quotes.
-    const result = readableFrontmatterSchema.parse({
-      okf_version: 1,
-      tags: ["kept"],
-      status: "active"
-    });
-    expect(result.okf_version).toBe("1");
-    expect(result).toMatchObject({ tags: ["kept"], status: "active" });
-    // Decimals keep their numeric string form.
-    expect(readableFrontmatterSchema.parse({ okf_version: 0.1 }).okf_version).toBe("0.1");
-    // Non-coercible shapes still fail (tolerance is for numbers only).
-    expect(readableFrontmatterSchema.safeParse({ okf_version: true }).success).toBe(false);
+  it("describes the reader's answer: a field with a meaning holds its reading, not what YAML says", () => {
+    // Since 2026-10-22 the schema is what the reader ANSWERS, and the reader
+    // reads every value (`metadata-extractor.test.ts`): `okf_version: 1` is
+    // the text "1", an empty `tags:` an empty list. The schema checks no note.
+    expect(readableFrontmatterSchema.safeParse({ okf_version: "1", tags: ["kept"], status: "active" }).success).toBe(true);
+    expect(readableFrontmatterSchema.safeParse({ title: null, type: null, okf_version: null, tags: [] }).success).toBe(true);
+    // A number is no reading of a text field, a text no reading of a list.
+    expect(readableFrontmatterSchema.safeParse({ okf_version: 1 }).success).toBe(false);
+    expect(readableFrontmatterSchema.safeParse({ tags: "a, b" }).success).toBe(false);
+    // The reader leaves no empty entry in a list.
+    expect(readableFrontmatterSchema.safeParse({ tags: ["a", " "] }).success).toBe(false);
+    // `resource` and `timestamp` are ordinary properties: whatever YAML says.
+    expect(readableFrontmatterSchema.safeParse({ resource: "see the book", timestamp: "2026-06-22" }).success).toBe(true);
   });
 
   it("reads the OKF v0.2 trust-signal keys tolerantly (form-checked later, never rejected)", () => {

@@ -29,7 +29,10 @@ export interface IndexerApi {
   indexPath(path: string): Promise<"indexed" | "removed" | "unchanged" | "needs-full-scan">;
   removePathFromIndex(path: string): Promise<void>;
   relocatePathInIndex(from: string, to: string): Promise<void>;
-  indexVaultFull(): Promise<IndexScanReport>;
+  inspectPath?(path: string): Promise<"indexed" | "removed" | "unchanged" | "directory" | "folder-gone">;
+  indexVaultFull(trigger?: string): Promise<IndexScanReport>;
+  /** Reads every file again and keeps what cannot be read again — "rebuild the index" (`VaultIndexer.rebuildIndex`). */
+  rebuildIndex(trigger?: string): Promise<IndexScanReport>;
   /** Reconciles one folder against the disk, removing what vanished (issue 110). */
   reconcileFolder(folder: string, opts?: { recursive?: boolean }): Promise<FolderReconcileReport>;
   whenIdle?(): Promise<void>;
@@ -41,6 +44,8 @@ const EMPTY_REPORT: IndexScanReport = {
   removed: 0,
   skipped: [],
   durationMs: 0,
+  walked: 0,
+  foldersChanged: false,
 };
 
 /** Creates the no-op indexer described above. */
@@ -59,6 +64,10 @@ export function createRemoteIndexer(): IndexerApi {
       /* the owner relocated it as part of the delegated rename */
     },
     async indexVaultFull() {
+      return EMPTY_REPORT;
+    },
+    async rebuildIndex() {
+      // The rebuild runs in the owner (ownerBus: `refresh` with scope "rebuild").
       return EMPTY_REPORT;
     },
     async reconcileFolder() {

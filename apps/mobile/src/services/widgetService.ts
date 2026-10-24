@@ -2,12 +2,9 @@ import { Preferences } from "@capacitor/preferences";
 import {
   buildWidgetSnapshot,
   calendarDay,
-  parseBaseConfig,
+  noteTaskTick,
   parseWidgetSnapshot,
-  plannerRowsFromDb,
-  resolveTaskCompletionModel,
   serializeWidgetSnapshot,
-  taskDbRows,
   toast,
   usableWidgetActions,
   WIDGET_SNAPSHOT_DAYS,
@@ -82,25 +79,16 @@ function labels(): WidgetLabels {
 }
 
 /**
- * The task database, as planner rows.
- *
- * The DATABASE only, exactly like the Today screen and the reminder scheduler:
- * a checkbox in a note has no typed due value, so there is nothing a widget
- * could put on a day. A missing or unreadable database is an empty list, never
- * a failure — the widget then shows the appointments alone.
+ * The tasks, as planner rows — both sources, exactly like the Today screen:
+ * the task database and the checkboxes in notes with a `📅` (TestFlight 136;
+ * this used to read the database alone, on the claim that a checkbox has no
+ * typed due value — it has had one since the planner). An unreadable source is
+ * an empty list, never a failure — the widget then shows what is left.
  */
 async function taskRows(): Promise<PlannerRow[]> {
-  const db = getMobileSettings().taskDatabase.trim();
-  if (!db) return [];
   try {
-    const { getMobileVault, vaultOps } = await import("./vaultService");
-    const vault = await getMobileVault();
-    if (!vault.queryService) return [];
-    const config = parseBaseConfig(await vaultOps.read(vault, db));
-    const raw = (await vault.queryService.queryDatabaseFiles(config)) as Record<string, unknown>[];
-    const rows = taskDbRows(raw, config, resolveTaskCompletionModel(config));
-    // No meta: a widget shows neither the recurrence mark nor the mirror mark.
-    return plannerRowsFromDb(rows, () => undefined);
+    const [{ getMobileVault }, { loadPhoneDueTasks }] = await Promise.all([import("./vaultService"), import("./dueTasks")]);
+    return (await loadPhoneDueTasks(await getMobileVault())).rows;
   } catch {
     return [];
   }
@@ -226,11 +214,29 @@ export async function redeemWidgetActions(): Promise<number> {
   const usable = usableWidgetActions(actions, raw ? parseWidgetSnapshot(raw) : null);
   const table = await readWidgetRefs();
 
+  const refs = usable
+    .map((action) => (table && table.writtenAt === action.snapshotAt ? table.refs[action.index] : null))
+    .filter((ref): ref is WidgetRowRef => Boolean(ref?.path));
+  // Checkboxes of one note from the bottom up: ticking a repeating one writes
+  // its successor ABOVE it, and every box below would then sit one ordinal
+  // further down than its ref says — found by its text no more, and dropped.
+  // A line inserted above line n never moves anything above it.
+  refs.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : (b.ordinal ?? -1) - (a.ordinal ?? -1)));
+
   let done = 0;
-  for (const action of usable) {
-    const ref = table && table.writtenAt === action.snapshotAt ? table.refs[action.index] : null;
-    if (!ref?.path) continue;
+  for (const ref of refs) {
     try {
+      if (ref.ordinal !== undefined) {
+        // A checkbox: its line, found again in the note as it lies there now
+        // (`noteTaskTick`) — the write the box in the app makes. A ref
+        // written before the line travelled with it cannot be trusted to
+        // name the same line any more, and falls out like a moved task.
+        if (ref.text === undefined) continue;
+        const { getMobileVault, vaultOps } = await import("./vaultService");
+        const tick = noteTaskTick({ ordinal: ref.ordinal, text: ref.text, ...(ref.taskId ? { taskId: ref.taskId } : {}) }, true);
+        if ((await vaultOps.update(await getMobileVault(), ref.path, tick)).changed) done += 1;
+        continue;
+      }
       const { setTaskDone } = await import("./taskCompletionAction");
       if ((await setTaskDone(ref.path, true)).changed) done += 1;
     } catch {

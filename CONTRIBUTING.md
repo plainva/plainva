@@ -78,7 +78,7 @@ Plainva core is licensed under AGPL-3.0-only.
 
 By contributing, you agree that your contribution is provided under the repository license unless a different license is explicitly stated for a specific file or package.
 
-Pull requests require a signed Contributor License Agreement: the CLA-Assistant bot asks for a signature on your first PR and records it in the repository. The agreement text lives in [CLA.md](CLA.md); signing is a one-time comment on the PR.
+Pull requests require a signed Contributor License Agreement: the CLA-Assistant bot asks for a signature on your first PR and records it in the repository. The signatures are kept in `signatures/version1/cla.json` on the branch `cla-signatures`, not on `main`: the bot commits them itself, and `main` only accepts commits that have passed CI. The copy of that file on `main` ends with the last signature recorded there (2026-09-19) and is no longer written. The agreement text lives in [CLA.md](CLA.md); signing is a one-time comment on the PR.
 
 Commercial exception licensing is planned as a project/business option. It is not configured through pull requests.
 

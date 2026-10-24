@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { ChevronDown, ChevronRight, FileText, Hash } from "lucide-react";
 import { pruneTagTree, type TagNode } from "./tagTreeModel";
-import { renameTagInText, isValidTagName } from "@plainva/core";
+import { renameTagInText, isValidTagName, updateVaultText } from "@plainva/core";
 import { EmptyState, ICON, normalizeRenameTarget, renameTagAcrossVault, tagColorIndex } from "@plainva/ui";
 import { appPrompt, appMessage } from "../services/appDialogs";
 
@@ -153,6 +153,7 @@ export function TagTree({ onSelectPath, filter, focusTag }: TagTreeProps) {
         findNotesWithTag: (tag) => queryService.findNotesWithTag(tag),
         readTextFile: (p) => vaultAdapter.readTextFile(p),
         writeTextFile: (p, c) => vaultAdapter.writeTextFile(p, c),
+        updateTextFile: (p, change) => updateVaultText(vaultAdapter, p, change),
         rename: renameTagInText,
       },
       fullTag,

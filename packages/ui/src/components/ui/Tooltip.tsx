@@ -11,6 +11,19 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 const SHOW_DELAY_MS = 500;
 const MARGIN = 8;
 
+/**
+ * Whether the browser counts this focus as the keyboard's (`:focus-visible`):
+ * Tab, or a script after a key, but not a press or a script after a press.
+ * An engine that cannot answer is taken at its word for every focus.
+ */
+function keyboardFocus(el: Element): boolean {
+  try {
+    return el.matches(":focus-visible");
+  } catch {
+    return true;
+  }
+}
+
 interface Pending {
   text: string;
   rect: { left: number; right: number; top: number; bottom: number; width: number };
@@ -61,7 +74,11 @@ export function TooltipHost() {
     };
     const onFocusIn = (e: FocusEvent) => {
       const el = (e.target as Element | null)?.closest?.("[data-tip]") as HTMLElement | null;
-      if (el) schedule(el);
+      // A tip on focus is the keyboard's (see the header). A focus that a press
+      // or a script put somewhere shows nothing unasked — a menu handing the
+      // focus back to its button after a pick with the mouse used to bring up
+      // the button's tip half a second later.
+      if (el && keyboardFocus(e.target as Element)) schedule(el);
     };
     const onHide = () => hide();
 

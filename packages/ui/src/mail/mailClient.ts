@@ -3,6 +3,7 @@ import { mailAccountKind, markMailAccountFetched } from "./mailAccounts";
 import { mailTransport } from "./transport";
 import { mailCredentials as creds, withMailCredentials } from "./mailCredentials";
 import type {
+  AttachmentFetchResult,
   MailboxInfo,
   MailEnvelope,
   MailEnvelopePage,
@@ -21,6 +22,7 @@ import {
   graphListEnvelopes,
   graphFetchMessage,
   graphFetchAttachment,
+  graphFetchAttachments,
   graphFetchRaw,
   graphSetSeen,
   graphMove,
@@ -48,6 +50,8 @@ export type {
   MailEnvelope,
   MailEnvelopePage,
   MailAttachmentInfo,
+  AttachmentFetchFailure,
+  AttachmentFetchResult,
   MailMessage,
 } from "./types";
 
@@ -117,6 +121,54 @@ export async function fetchAttachment(
 ): Promise<string> {
   if (mailAccountKind(account) === "microsoft") return graphFetchAttachment(vaultPath, account, mailbox, id, index);
   return withMailCredentials(vaultPath, account, credential => mailTransport().fetchAttachment(credential, { mailbox, uid: Number(id), index }));
+}
+
+/**
+ * The attachments of ONE message the caller names, in as few round trips as
+ * the backend allows — what a forward asks for when it opens.
+ *
+ * `fetchAttachment` costs the whole message per file over IMAP and two requests
+ * per file with Microsoft. Here IMAP fetches the message once for all of them,
+ * and Microsoft lists the attachments once and then asks for each.
+ *
+ * The answer has one entry per index asked, in that order: the bytes, or why
+ * there are none. A file that did not come never takes the others with it. The
+ * call itself rejects only when nothing could be asked at all — no sign-in, no
+ * connection, or a mailbox that has been renumbered since the message was read
+ * (`MAIL_MAILBOX_CHANGED`; `uidValidity` is the epoch it was read under, and
+ * means nothing to Microsoft, whose ids do not move).
+ */
+export async function fetchAttachments(
+  vaultPath: string,
+  account: MailAccountConfig,
+  mailbox: string,
+  id: string,
+  indexes: readonly number[],
+  uidValidity?: number
+): Promise<AttachmentFetchResult[]> {
+  const wanted = [...new Set(indexes)];
+  if (wanted.length === 0) return [];
+  if (mailAccountKind(account) === "microsoft") return graphFetchAttachments(vaultPath, account, mailbox, id, wanted);
+  const transport = mailTransport();
+  if (transport.fetchAttachments) {
+    const found = await withMailCredentials(vaultPath, account, credential =>
+      transport.fetchAttachments!(credential, { mailbox, uid: Number(id), indexes: wanted, uidValidity }));
+    return wanted.map((index) => {
+      const hit = found.find((f) => f.index === index);
+      return hit ? { index, contentBase64: hit.contentBase64 } : { index, failure: "missing" as const };
+    });
+  }
+  // A transport without the batch is asked file by file. Slower, and the same
+  // answer: one that fails is one that failed.
+  const answers: AttachmentFetchResult[] = [];
+  for (const index of wanted) {
+    try {
+      answers.push({ index, contentBase64: await fetchAttachment(vaultPath, account, mailbox, id, index) });
+    } catch (e) {
+      answers.push({ index, failure: "failed", detail: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  return answers;
 }
 
 // ---- Mailbox actions (mail-client E4) -------------------------------------

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat, Flag } from "lucide-react";
-import { isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
-import { errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
+import { type PimSyncProblem, isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, updateVaultText, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
+import { CalendarSyncNotice, syncProblemsFor, errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath, resolveTaskCompletionModel, applyTaskStatusOption, taskDbDueKey, taskDbRows, type TaskCompletionModel } from "../../services/taskDatabase";
 import { createTaskInDatabase, promoteTask } from "../../services/taskPromotion";
+import { templateVaultOf } from "../../services/dailyNotes";
 import { providerListLabel, sendTaskToProviderList } from "../../services/pim/taskToProvider";
 import { toggleTaskDone, writeTaskNote } from "../../services/taskCompletion";
 import { canRepeat, consumePendingNew, describeRule, isMirroredNamespace, isRecurringAtProviderNamespace, repeatFromNamespace, RowActionList, taskRowActions, writeRepeatRule, type RepeatRule, type TaskRowCaps } from "@plainva/ui";
@@ -32,7 +33,7 @@ import { formatDueLabel } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
 import { buildPlanner, isOpenState, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
-import { applyTaskDueChanges, DateJumpPicker, DateJumpPopover, formatPickedDay, overdueToDayChanges, TaskCheckButton, useWeekStartDay, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
+import { applyTaskDueChanges, DateJumpPicker, DateJumpPopover, formatPickedDay, overdueToDayChanges, TaskCheckButton, taskDueFailureText, useWeekStartDay, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
 import { TimeBlockModal } from "../pimcal/TimeBlockModal";
 
 const inlineLinkStyle: React.CSSProperties = { color: "var(--accent-color)" };
@@ -198,6 +199,38 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     setRefreshTick((x) => x + 1);
     if (pimRuntime) void pimRuntime.worker.triggerImmediate().catch(() => undefined);
   }, [pimRuntime]);
+
+  // Which accounts and task lists are not being synced, and why (B2, 19.10.):
+  // a list whose pull fails, or whose ticks cannot reach the notes, used to
+  // leave the old state on screen without a word. Read again after every
+  // cycle - the line has to go once the cause is gone.
+  const [syncProblems, setSyncProblems] = useState<PimSyncProblem[]>([]);
+  const [pimTick, setPimTick] = useState(0);
+  useEffect(() => {
+    const onCycle = (e: Event) => {
+      if ((e as CustomEvent<{ status?: string }>).detail?.status !== "syncing") setPimTick((x) => x + 1);
+    };
+    window.addEventListener("plainva-pim-status", onCycle);
+    return () => window.removeEventListener("plainva-pim-status", onCycle);
+  }, []);
+  useEffect(() => {
+    let alive = true;
+    if (!pimRuntime) {
+      setSyncProblems([]);
+      return;
+    }
+    void pimRuntime.cache
+      .listSyncProblems()
+      .then((problems) => {
+        if (alive) setSyncProblems(syncProblemsFor(problems, "tasks"));
+      })
+      .catch(() => {
+        if (alive) setSyncProblems([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [pimRuntime, refreshTick, pimTick]);
 
   useEffect(() => {
     let alive = true;
@@ -409,6 +442,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
           task,
           dbPath: db,
           noteType: await getConfiguredNoteType(vaultPath),
+          templateVault: await templateVaultOf(vaultPath),
           allNotePaths,
           fallbackTitle: t("tasks.promoteFallbackTitle", { defaultValue: "Aufgabe" }),
         });
@@ -471,6 +505,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
           dbPath: taskDb,
           title: result.title,
           noteType: await getConfiguredNoteType(vaultPath),
+          templateVault: await templateVaultOf(vaultPath),
           ...(result.due ? { dueDate: result.due, dueMinutes: result.minutes } : {}),
           tags: result.tags,
           priority: result.priority,
@@ -633,19 +668,26 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     async (task: TaskRecord, mutate: (fresh: string, ordinal: number) => ChecklistMutationResult, optimistic: (row: TaskRecord) => TaskRecord) => {
       if (!vaultAdapter) return;
       taskMutationGate.begin();
-      try {
-        const fresh = await vaultAdapter.readTextFile(task.path);
-        // Guard against a stale ordinal (the note changed since it was listed):
-        // only flip when the ordinal still points at the same task text.
+      // The line is found and changed in the note as it lies there when it is
+      // written (`updateVaultText`) — and, where the note has an open conflict,
+      // in the person's own version as well. Guard against a stale ordinal (the
+      // note changed since it was listed): only flip when the ordinal still
+      // points at the same task text.
+      const changed = (fresh: string): { found: boolean; next: string | null } => {
         const ordinal = resolveTaskOrdinal(fresh, task);
-        if (ordinal < 0) {
+        if (ordinal < 0) return { found: false, next: null };
+        const res = mutate(fresh, ordinal);
+        return { found: true, next: res.changed ? res.content : null };
+      };
+      try {
+        const update = await updateVaultText(vaultAdapter, task.path, (fresh) => changed(fresh).next);
+        const done = changed(update.before);
+        if (!done.found) {
           taskMutationGate.finish();
           setRefreshTick((x) => x + 1);
           return;
         }
-        const res = mutate(fresh, ordinal);
-        if (!res.changed) { taskMutationGate.finish(); return; }
-        await vaultAdapter.writeTextFile(task.path, res.content);
+        if (done.next === null) { taskMutationGate.finish(); return; }
         setTasks((prev) => prev.map((t2) => (t2.path === task.path && t2.ordinal === task.ordinal ? optimistic(t2) : t2)));
       } catch (error) {
         console.error("[TasksView] updating a checkbox task failed", task.path, error);
@@ -706,8 +748,13 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       try {
         await writeTaskNote(taskWriteDeps(), path, mutate);
       } catch (e) {
+        // A status, a priority, a repeat rule: each is one property of the
+        // task's note, and each gets the sentence a property write gets, with
+        // its reason (finding 2026-10-12). All three said "Could not change
+        // the status" and no more — also where the reason was the answer, as
+        // for a task that repeats at its provider.
         console.error("[TasksView] updating a task note failed", path, e);
-        toast.error(t("tasks.statusUpdateFailed", { defaultValue: "Status konnte nicht geändert werden." }));
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
       }
     },
     [vaultAdapter, taskWriteDeps, t]
@@ -739,8 +786,9 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
             toast.error(t("tasks.repeatFailed", { defaultValue: "Die nächste Aufgabe konnte nicht angelegt werden." }));
           }
         } catch (e) {
+          // The tick writes the note's completion property; see `writeDbNote`.
           console.error("[TasksView] updating a task note failed", path, e);
-          toast.error(t("tasks.statusUpdateFailed", { defaultValue: "Status konnte nicht geändert werden." }));
+          toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
         }
       })();
     },
@@ -759,27 +807,52 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   // Writes/removes the `plainva.tasks: false` opt-out marker in the note's
   // frontmatter (through the adapter's atomic + backup chain), then optimistically
   // updates the local state; a metadata re-index re-derives it from disk.
-  const setNoteExcluded = useCallback(
+  //
+  // Throws what the write throws; the two gestures below say it — one note in
+  // the sentence a property write gets, the templates in one count. It ended
+  // in the console here, for both (finding 2026-10-12).
+  const writeNoteExcluded = useCallback(
     async (path: string, excluded: boolean) => {
       if (!vaultAdapter) return;
-      try {
-        const raw = await vaultAdapter.readTextFile(path);
-        // Shared with the phone (S31): unhiding deletes the key rather than
-        // writing `true`, so never-hidden and unhidden are byte-identical.
-        const next = setNoteTaskExclusion(raw, excluded, { setFrontmatterPath, deleteFrontmatterPath });
-        if (next !== raw) await vaultAdapter.writeTextFile(path, next);
-        setTasks((prev) => prev.map((t2) => (t2.path === path ? { ...t2, excluded } : t2)));
-      } catch (e) {
-        console.error("[TasksView] toggling note exclusion failed", path, e);
-        setRefreshTick((x) => x + 1);
-      }
+      // Shared with the phone (S31): unhiding deletes the key rather than
+      // writing `true`, so never-hidden and unhidden are byte-identical.
+      await updateVaultText(vaultAdapter, path, (raw) => setNoteTaskExclusion(raw, excluded, { setFrontmatterPath, deleteFrontmatterPath }));
+      setTasks((prev) => prev.map((t2) => (t2.path === path ? { ...t2, excluded } : t2)));
     },
     [vaultAdapter, setTasks]
   );
 
+  const setNoteExcluded = useCallback(
+    async (path: string, excluded: boolean) => {
+      try {
+        await writeNoteExcluded(path, excluded);
+      } catch (e) {
+        console.error("[TasksView] toggling note exclusion failed", path, e);
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+        setRefreshTick((x) => x + 1);
+      }
+    },
+    [writeNoteExcluded, t]
+  );
+
   const hideAllTemplates = useCallback(async () => {
-    for (const p of templateNotePaths) await setNoteExcluded(p, true);
-  }, [templateNotePaths, setNoteExcluded]);
+    let hidden = 0;
+    let failed = 0;
+    for (const p of templateNotePaths) {
+      try {
+        await writeNoteExcluded(p, true);
+        hidden += 1;
+      } catch (e) {
+        // One template that cannot be written must not stop the rest.
+        console.error("[TasksView] hiding a template failed", p, e);
+        failed += 1;
+      }
+    }
+    if (failed > 0) {
+      toast.error(t("database.bulkSetPartial", { done: hidden, failed }));
+      setRefreshTick((x) => x + 1);
+    }
+  }, [templateNotePaths, writeNoteExcluded, t]);
 
   const open = useCallback(
     (task: TaskRecord) => {
@@ -811,7 +884,12 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     if (!taskDb) return;
     try {
       const { columnAdded } = await setDbTaskPriority(
-        { readTextFile: (path) => vaultAdapter.readTextFile(path), writeTextFile: (path, content) => vaultAdapter.writeTextFile(path, content), writeNote: writeDbNote },
+        {
+          readTextFile: (path) => vaultAdapter.readTextFile(path),
+          writeTextFile: (path, content) => vaultAdapter.writeTextFile(path, content),
+          updateTextFile: (path, change) => updateVaultText(vaultAdapter, path, change),
+          writeNote: writeDbNote,
+        },
         taskDb,
         target.path,
         rank,
@@ -860,10 +938,9 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       try {
         outcome = await applyTaskDueChanges(
           {
-            readTextFile: (path) => vaultAdapter.readTextFile(path),
-            writeNoteText: (path, content) => vaultAdapter.writeTextFile(path, content),
+            updateNoteText: (path, change) => updateVaultText(vaultAdapter, path, change),
             // The task-note chain of the tick: write, index, tree, provider nudge.
-            writeDbNote: async (path, mutate) => { await writeTaskNote(taskWriteDeps(), path, mutate); },
+            writeDbNote: (path, mutate) => writeTaskNote(taskWriteDeps(), path, mutate),
             dueKey: dbDueKey,
           },
           changes,
@@ -905,6 +982,10 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     const outcome = await applyDue(changes);
     if (!outcome) return;
     if (outcome.skipped > 0) toast.warning(t("tasks.dueSkipped", { count: outcome.skipped }));
+    // A note that could not be written is not one that "changed in the
+    // meantime" (finding 2026-10-12): one task says why, a section counts.
+    const failed = taskDueFailureText(outcome);
+    if (failed) toast.error(failed);
     if (outcome.moved === 0) return;
     const undo = outcome.undo;
     toast.success(announce(outcome), undo.length > 0 ? { label: t("common.undo"), run: () => void applyDue(undo) } : undefined);
@@ -1018,6 +1099,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
           <RefreshCw size={ICON.ui} />
         </IconButton>
       </div>
+      <CalendarSyncNotice problems={syncProblems} onRetry={refreshAll} />
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: "0.5rem 0.9rem", borderBottom: "1px solid var(--border-color)" }}>
         {list === "all" && (

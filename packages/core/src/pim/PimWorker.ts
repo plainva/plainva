@@ -1,6 +1,6 @@
 import type { PimCacheRepository, PimAccountRow } from "./PimCacheRepository.js";
 import { classifySyncError, isSignInFailure, type SyncErrorKind } from "../sync/errorKind.js";
-import type { IPimTarget, PimEvent, PimProviderId, PimTaskList } from "./types.js";
+import type { IPimTarget, PimCalendar, PimEvent, PimProviderId, PimTask, PimTaskList } from "./types.js";
 import { eventCalendarsOf } from "./types.js";
 import { inheritSeriesTitles } from "./seriesTitle.js";
 import { decodeEventCursor, encodeEventCursor, needsFullRefresh } from "./eventCursor.js";
@@ -89,6 +89,10 @@ export interface PimCycleAccount {
   error?: string;
   /** How many of its calendars failed or are waiting for their retry. */
   calendarErrors?: number;
+  /** How many of its task lists (and their listing) failed or are waiting. */
+  taskListErrors?: number;
+  /** The first of those failures, in the provider's own words. */
+  taskListError?: string;
   /** Not asked this cycle: parked on its sign-in, or waiting for its retry. */
   skipped?: "parked" | "waiting";
 }
@@ -204,15 +208,21 @@ export class PimWorker {
    *
    * A manual trigger also gives every parked account one more go (N1/S2): the
    * user asking is exactly the moment to stop assuming the sign-in is still
-   * dead — they may have just repaired it elsewhere. */
-  async triggerImmediate(): Promise<void> {
+   * dead — they may have just repaired it elsewhere.
+   *
+   * `afterWrite`: the request follows a write Plainva just made at a provider.
+   * No running cycle can answer it — whatever that cycle has read, it may have
+   * read before the write landed, and a cycle that lands with the event missing
+   * took it off the screen again until the next timer (issue 119). It always
+   * gets a cycle of its own. */
+  async triggerImmediate(opts: { afterWrite?: boolean } = {}): Promise<void> {
     if (this.running) {
       // The cycle that just began answers this request (TRIGGER_COALESCE_MS) —
       // provided it also gives parked accounts their go, which is half of what
       // a manual refresh promises. Before the cycle has decided whom to skip,
       // the request simply rides along (`retryParked` is read at that point);
       // afterwards only a cycle that skipped nobody may swallow it.
-      const early = this.clock() - this.cycleStartedAt <= TRIGGER_COALESCE_MS;
+      const early = !opts.afterWrite && this.clock() - this.cycleStartedAt <= TRIGGER_COALESCE_MS;
       if (early && this.parkedSkipped !== true) {
         if (this.parkedSkipped === null) this.retryParked = true;
         this.coalesced++;
@@ -361,10 +371,14 @@ export class PimWorker {
               if (!target) return false;
               const done = await this.refreshAccount(account, target, gen, retryParked);
               stat.events = done.events;
-              if (done.calendarErrors.length > 0) {
-                stat.calendarErrors = done.calendarErrors.length;
-                errors.set(account.id, `${account.label}: ${done.calendarErrors[0]}`);
+              if (done.calendarErrors.length > 0) stat.calendarErrors = done.calendarErrors.length;
+              const taskListErrors = done.taskListErrors ?? [];
+              if (taskListErrors.length > 0) {
+                stat.taskListErrors = taskListErrors.length;
+                stat.taskListError = taskListErrors[0];
               }
+              const firstFailure = done.calendarErrors[0] ?? taskListErrors[0];
+              if (firstFailure !== undefined) errors.set(account.id, `${account.label}: ${firstFailure}`);
               if (!done.superseded) this.retries.delete(account.id);
               return done.wrote;
             } catch (e) {
@@ -424,7 +438,7 @@ export class PimWorker {
     target: IPimTarget,
     gen: number,
     askEveryone: boolean
-  ): Promise<{ wrote: boolean; events: number; calendarErrors: string[]; superseded: boolean }> {
+  ): Promise<{ wrote: boolean; events: number; calendarErrors: string[]; taskListErrors?: string[]; superseded: boolean }> {
     const { cache } = this.opts;
     const { startTs, endTs } = this.windowRange;
     let wrote = false;
@@ -563,51 +577,120 @@ export class PimWorker {
       eventCount += r.events!.length;
       this.retries.delete(calKey(r.calId));
     }
-    // A sign-in that died on a calendar pull is the ACCOUNT's failure: every
-    // other calendar would answer the same way next time. What did get through
-    // is already stored; the caller parks the account.
-    if (signInError) throw new Error(signInError);
+    // The task side runs whatever happened to the calendars (finding B2,
+    // 19.10.): it used to sit behind the sign-in check below and behind every
+    // calendar, so one failure there meant no task list was asked at all —
+    // while a tick made in Plainva still reached the provider by its own way.
+    // "Ticked here goes, ticked there does not" was the result, and nothing on
+    // screen said why.
+    const tasks = await this.refreshTaskLists(account, target, collections, gen, askEveryone);
+    if (tasks === null) return stoppedHere();
+    signInError = signInError ?? tasks.signInError;
 
-    // Task lists: a failure here used to be swallowed (`.catch(() => null)`),
-    // which silently meant "this account has no task lists" — for good, and
-    // without a word to the user (issue #34). Now the previously known lists
-    // stay put and the reason is recorded for the settings UI to show.
-    let lists: PimTaskList[] | null = null;
-    try {
-      lists = await target.listTaskLists(collections);
-      await cache.setScopeState(account.id, "tasklists", { lastError: null });
-    } catch (e) {
-      await cache
-        .setScopeState(account.id, "tasklists", { lastError: e instanceof Error ? e.message : String(e) })
-        .catch(() => {});
-    }
-    if (gen !== this.generation) return stoppedHere();
-    if (lists) {
-      const fresh = lists;
-      await this.store(() => cache.replaceTaskLists(account.id, fresh));
-      for (const list of await cache.listTaskLists(account.id)) {
-        if (gen !== this.generation) return stoppedHere();
-        if (!list.selected) continue;
-        const { tasks } = await target.pullTasks(list.id);
-        if (gen !== this.generation) return stoppedHere();
-        await this.store(async () => {
-          await cache.replaceTasks(account.id, list.id, tasks);
-          await cache.setScopeState(account.id, `tasks:${list.id}`, { lastError: null });
-        });
-      }
-    }
+    // A sign-in that died on a pull is the ACCOUNT's failure: every other
+    // calendar and list would answer the same way next time. What did get
+    // through is already stored; the caller parks the account.
+    if (signInError) throw new Error(signInError);
     await this.store(() =>
       cache.setScopeState(account.id, "account", {
         // No verdict on purpose: the account itself got through. A calendar
-        // that failed is named here as the account's summary (the settings
-        // show this line) and carries its own verdict on its own row; a row
-        // WITHOUT a verdict is how `listSyncProblems` tells "one calendar"
-        // from "the account". On the clean path the repository default (null)
-        // clears the previous verdict, which matters: a cleared error that
-        // kept its kind would still read "fatal".
-        lastError: calendarErrors[0] ?? null,
+        // or task list that failed is named here as the account's summary
+        // (the settings show this line) and carries its own verdict on its
+        // own row; a row WITHOUT a verdict is how `listSyncProblems` tells
+        // "one calendar" from "the account". On the clean path the repository
+        // default (null) clears the previous verdict, which matters: a
+        // cleared error that kept its kind would still read "fatal".
+        lastError: calendarErrors[0] ?? tasks.errors[0] ?? null,
       })
     );
-    return { wrote, events: eventCount, calendarErrors, superseded: false };
+    return { wrote, events: eventCount, calendarErrors, taskListErrors: tasks.errors, superseded: false };
+  }
+
+  /**
+   * The account's task lists and the tasks of every selected one. Each list
+   * stands on its own, like a calendar (E7): a list that fails keeps what the
+   * cache holds, records why on its own row (`tasks:<list>`, which the line
+   * above the task views reads), waits out its own pause, and the lists
+   * beside it are pulled as if it were not there. Only a failed write to the
+   * local cache still ends the account's cycle — as it does for calendars.
+   *
+   * Returns null when the cycle was superseded.
+   */
+  private async refreshTaskLists(
+    account: PimAccountRow,
+    target: IPimTarget,
+    collections: PimCalendar[],
+    gen: number,
+    askEveryone: boolean
+  ): Promise<{ errors: string[]; signInError?: string } | null> {
+    const { cache } = this.opts;
+    const errors: string[] = [];
+    let signInError: string | undefined;
+    // Task lists: a failure here used to be swallowed (`.catch(() => null)`),
+    // which silently meant "this account has no task lists" — for good, and
+    // without a word to the user (issue #34). Now the previously known lists
+    // stay put and the reason is recorded, with its verdict and without
+    // touching the stamp of the last listing that got through.
+    // The listing waits out its own pause like a list does: an account that
+    // offers no task lists at all (a Google sign-in without the Tasks scope)
+    // must not be asked - and turn the status red - every two minutes.
+    const now = this.clock();
+    const listingKey = `${account.id}\ntasklists`;
+    const listingWaits = askEveryone ? null : this.waitingOn(listingKey, now);
+    let lists: PimTaskList[] | null = null;
+    if (listingWaits !== null) {
+      errors.push(listingWaits);
+    } else {
+      try {
+        lists = await target.listTaskLists(collections);
+        await this.store(() => cache.setScopeState(account.id, "tasklists", { lastError: null }));
+        this.retries.delete(listingKey);
+      } catch (e) {
+        if (e instanceof PimCacheWriteError) throw e;
+        const msg = messageOf(e);
+        errors.push(msg);
+        if (isSignInFailure(e)) signInError = msg;
+        else this.noteFailure(listingKey, msg);
+        await cache.recordScopeFailure(account.id, "tasklists", { lastError: msg, lastErrorKind: classifySyncError(e) }).catch(() => {});
+      }
+    }
+    if (gen !== this.generation) return null;
+    // A sign-in that the listing already refused refuses every list too.
+    if (signInError) return { errors, signInError };
+    if (lists) {
+      const fresh = lists;
+      await this.store(() => cache.replaceTaskLists(account.id, fresh));
+    }
+    // Even when the listing failed: the lists known from before are still
+    // selected, and their tasks can still be asked for.
+    const listKey = (listId: string) => `${account.id}\ntasks\n${listId}`;
+    for (const list of await cache.listTaskLists(account.id)) {
+      if (gen !== this.generation) return null;
+      if (!list.selected) continue;
+      const waitingOn = askEveryone ? null : this.waitingOn(listKey(list.id), now);
+      if (waitingOn !== null) {
+        errors.push(waitingOn);
+        continue;
+      }
+      let pulled: PimTask[];
+      try {
+        pulled = (await target.pullTasks(list.id)).tasks;
+      } catch (e) {
+        if (gen !== this.generation) return null;
+        const msg = messageOf(e);
+        errors.push(msg);
+        if (isSignInFailure(e)) signInError = signInError ?? msg;
+        else this.noteFailure(listKey(list.id), msg);
+        await cache.recordScopeFailure(account.id, `tasks:${list.id}`, { lastError: msg, lastErrorKind: classifySyncError(e) }).catch(() => {});
+        continue;
+      }
+      if (gen !== this.generation) return null;
+      await this.store(async () => {
+        await cache.replaceTasks(account.id, list.id, pulled);
+        await cache.setScopeState(account.id, `tasks:${list.id}`, { lastError: null });
+      });
+      this.retries.delete(listKey(list.id));
+    }
+    return { errors, ...(signInError ? { signInError } : {}) };
   }
 }

@@ -1,6 +1,7 @@
 import type { IVaultAdapter } from "@plainva/core";
 import { SHARE_LIMITS, validateShare, type PendingShare, type SharedFile, type ShareImportPlan, type ShareJournalEntry, type ShareTargetPort } from "./shareTarget";
 import { trimEndChars } from "@plainva/core";
+import { withOkfDefaults } from "@plainva/ui";
 
 const active = new Map<string, { vaultId: string; run: Promise<string> }>();
 /**
@@ -59,6 +60,15 @@ export interface ShareImportContext {
   vaultId: string;
   files: IVaultAdapter;
   folder: string;
+  /**
+   * The `type` a shared note gets: the vault's type for new notes, named by
+   * the host like the folder. The note used to be written without a
+   * properties block at all — heading, text and links — although every
+   * creation path owes a new file its `type` (ADR 0009; finding 2026-10-09).
+   * Read only while the plan is being made: a plan that exists is finished as
+   * planned. A task brings its own header, and a journal entry is no note.
+   */
+  noteType: string;
   /** Recheck the active vault and workspace lock before every read/write. */
   ensureOpen(): Promise<void>;
   signal?: AbortSignal;
@@ -85,6 +95,13 @@ export interface ShareImportContext {
    * entry. Handed in whenever a journal plan may have to be resumed.
    */
   appendJournal?(entry: ShareJournalEntry): Promise<string>;
+  /**
+   * Told of every attachment this import writes into the vault, so that the
+   * host can tell the index (`MobileVault.reindexPaths`, finding 2026-10-12):
+   * a shared photo was on disk and synced, and unknown to search and to every
+   * list drawn from the index until the next full scan.
+   */
+  onFileWritten?(path: string): void;
 }
 
 /** One durable native plan owns every path; no automatic rename after a retry. */
@@ -133,7 +150,10 @@ async function runImport(port: ShareTargetPort, incoming: PendingShare, ctx: Sha
       for (let n = 2; claimed.has(notePath.toLowerCase()) || await ctx.files.exists(notePath); n++) {
         await guard(); if (n > 100) throw new Error("SHARE_TARGET_CHANGED"); notePath = `${stem} ${n}.md`;
       }
-      const noteText = task ? task.text : ["# " + title, share.text, ...links].filter(Boolean).join("\n\n") + "\n";
+      // The header comes from the shared writer, in front of the heading; the
+      // plan's size check leaves 16 KB beyond the shared text for it, the
+      // heading and the links.
+      const noteText = task ? task.text : withOkfDefaults(["# " + title, share.text, ...links].filter(Boolean).join("\n\n") + "\n", ctx.noteType);
       return validateShare((await port.beginImport({ id: share.id, plan: { version: 1, vaultId: ctx.vaultId, notePath, noteText, files } })).entry);
     }
   });
@@ -152,6 +172,7 @@ async function runImport(port: ShareTargetPort, incoming: PendingShare, ctx: Sha
         } else {
           await ctx.files.writeBinaryFile(path, bytes);
           if (await hash(await ctx.files.readBinaryFile(path)) !== file.sha256) throw new Error("SHARE_WRITE_FAILED");
+          ctx.onFileWritten?.(path);
         }
         await port.markImported({ id: share.id, fileId: file.id });
       }

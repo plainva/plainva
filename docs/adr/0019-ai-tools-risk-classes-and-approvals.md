@@ -108,7 +108,7 @@ a write or an outside effect.
        carries the rules of what its conversation rested on. A model names
        an entry by its words, and one the gate keeps from its recipient is
        answered like one that is not there. The two tools exist in Plainva's
-       own conversations only (ADR 0027).
+       own conversations only (ADR 0032).
      - *What a review of a conversation suggests is a draft* (no tool: the
        user starts the review, and its one request carries none): an entry,
        a rule, a new skill or other instructions for a skill of the vault's
@@ -225,7 +225,7 @@ a write or an outside effect.
        mail, an appointment's description, the internet, foreign servers'
        tools, skills, the tool search, other scripts, the plans (rename,
        move, delete), the drafts of an e-mail or an appointment and the
-       memory's tools (ADR 0027) are not.
+       memory's tools (ADR 0032) are not.
    - `forbidden` — reading the keychain, raw secrets, an unbounded shell,
      direct DB or file writes outside the adapters, raw SQL. Never a tool.
 3. **A small, stable surface.** A conversation loads the tools an answer

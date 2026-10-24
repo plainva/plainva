@@ -1,3 +1,4 @@
+import { isTextFile } from "@plainva/core";
 import { isImagePath } from "../services/imageFiles";
 
 /**
@@ -100,6 +101,24 @@ export function resolveOpenAction(path: string): OpenAction {
   if (isImagePath(path)) return "image";
   if (isTextExtension(path)) return "text";
   return "external";
+}
+
+/**
+ * Whether the comparison and the version history of both shells read a file
+ * as text — the NAME half of that question (finding 2026-10-11): whatever
+ * Plainva opens as text itself (a note, a database, the list above with the
+ * vault's own additions), and whatever the sync merges as text. An image is
+ * shown as one, an SVG included: the image check runs first, as above.
+ * Whether a file IS text is asked of its bytes where it is read.
+ *
+ * The comparison asked a list of its own first, then the sync's alone; a
+ * conflict of a `.py` file an editor had saved fell outside both, and its
+ * copy was put in the file's place as bytes while its conflict stayed open.
+ */
+export function comparesAsText(path: string): boolean {
+  if (isImagePath(path)) return false;
+  const action = resolveOpenAction(path);
+  return action === "editor" || action === "base" || action === "text" || isTextFile(path);
 }
 
 /**

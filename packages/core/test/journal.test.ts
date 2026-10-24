@@ -358,6 +358,65 @@ describe("removing and restoring", () => {
   });
 });
 
+describe("a daily note that starts with a byte order mark", () => {
+  // Built at run time: the character is not typed into this file.
+  const MARK = String.fromCharCode(0xfeff);
+  const day = (eol: string) => [
+    "---", "type: Note", "---", "# 2026-10-09", "", "## Journal", "",
+    "- 09:15 first", "- [ ] 10:30 a task", "  continued", "- 12:00 third", "", "## Later", "text", "",
+  ].join(eol);
+
+  /** Every way the journal changes a note; each answers for the note it is given. */
+  const operations: Record<string, (raw: string) => { ok: boolean; content?: string; entry?: unknown; removed?: unknown }> = {
+    append: (raw) => insertJournalEntry(raw, { time: "13:45", text: "appended\nin two lines" }),
+    "append a task": (raw) => insertJournalEntry(raw, { time: "14:00", text: "to do", task: "open" }),
+    change: (raw) => replaceJournalEntry(raw, parseJournal(raw).entries[0], { text: "rewritten", time: "09:20" }),
+    "make a task": (raw) => setJournalEntryTask(raw, parseJournal(raw).entries[2], "open"),
+    tick: (raw) => toggleJournalTask(raw, parseJournal(raw).entries[1], { today: "2026-10-09" }),
+    remove: (raw) => removeJournalEntry(raw, parseJournal(raw).entries[1]),
+    "take a removal back": (raw) => {
+      const removed = removeJournalEntry(raw, parseJournal(raw).entries[0]);
+      if (!removed.ok) return removed;
+      return restoreJournalEntry(removed.content, removed.removed);
+    },
+  };
+
+  for (const [name, eol] of [["\\n", "\n"], ["\\r\\n", "\r\n"]] as const) {
+    it(`reads the same entries as in the note without one (${name})`, () => {
+      const plain = day(eol);
+      const read = parseJournal(MARK + plain);
+      expect(read.entries.map((e) => e.text)).toEqual(["first", "a task\ncontinued", "third"]);
+      // It used to read none: every block of the note was looked up one line too high.
+      expect(read).toEqual(parseJournal(plain));
+    });
+
+    it(`changes the note as it changes the one without, and leaves the mark where it is (${name})`, () => {
+      const plain = day(eol);
+      for (const [operation, run] of Object.entries(operations)) {
+        const expected = run(plain), actual = run(MARK + plain);
+        expect(expected.ok, `${operation}: the note without a mark`).toBe(true);
+        // Until 2026-10-09 the answer was "unplaceable" or "missing", and nothing was written.
+        expect(actual.ok, `${operation}: the note with a mark`).toBe(true);
+        expect(actual.content, operation).toBe(MARK + expected.content);
+        expect(actual.entry, operation).toEqual(expected.entry);
+        expect(actual.removed, operation).toEqual(expected.removed);
+      }
+    });
+  }
+
+  it("creates the section in a note that has none, behind what stands there", () => {
+    for (const note of ["# Day\n", "# Day\r\n\r\ntext\r\n", "## Journal\n", ""]) {
+      const expected = insertJournalEntry(note, { time: "08:00", text: "first of the day" });
+      const actual = insertJournalEntry(MARK + note, { time: "08:00", text: "first of the day" });
+      expect(expected.ok && actual.ok, JSON.stringify(note)).toBe(true);
+      if (expected.ok && actual.ok) {
+        expect(actual.content, JSON.stringify(note)).toBe(MARK + expected.content);
+        expect(actual.createdHeading).toBe(expected.createdHeading);
+      }
+    }
+  });
+});
+
 describe("helpers", () => {
   it("normalises what a settings field may hold", () => {
     expect(normalizeJournalHeading("  ## Tage  buch ")).toBe("Tage buch");

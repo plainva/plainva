@@ -170,8 +170,9 @@ export function isPimRuntimeReady(): boolean {
   return runtime !== null;
 }
 
-export function pimSyncNow(): void {
-  void runtime?.worker.triggerImmediate();
+/** `afterWrite`: the cycle after a write of Plainva's own, which a cycle already running cannot answer (issue 119). */
+export function pimSyncNow(opts: { afterWrite?: boolean } = {}): void {
+  void runtime?.worker.triggerImmediate(opts);
 }
 
 /**

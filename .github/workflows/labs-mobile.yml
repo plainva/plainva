@@ -180,7 +180,7 @@ jobs:
         working-directory: apps/mobile
         run: npx cap sync ios
 
-      - name: Test the share queue and the widget store
+      - name: Test the share queue, the widget store and the vault folder listing
         working-directory: apps/mobile/ios/App
         run: |
           swiftc Shared/ShareQueueStore.swift tests/ShareQueueTests.swift -o "$RUNNER_TEMP/share-queue-tests"
@@ -193,6 +193,8 @@ jobs:
           "$RUNNER_TEMP/ai-mcp-rules-tests"
           swiftc Shared/AiMcpRules.swift Shared/AiWebRules.swift Shared/AiMcpOAuthRules.swift tests/AiMcpOAuthRulesTests.swift -o "$RUNNER_TEMP/ai-mcp-oauth-rules-tests"
           "$RUNNER_TEMP/ai-mcp-oauth-rules-tests"
+          swiftc App/VaultFolderListing.swift tests/VaultFolderListingTests.swift -o "$RUNNER_TEMP/vault-folder-listing-tests"
+          "$RUNNER_TEMP/vault-folder-listing-tests"
 
       - name: Import signing certificate and the Labs profiles
         env:
