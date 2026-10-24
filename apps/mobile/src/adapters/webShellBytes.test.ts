@@ -34,4 +34,16 @@ describe("the web shell's storage and a file laid down as bytes", () => {
     native.stat.mockResolvedValue({ type: "file", size: 7, mtime: 1 });
     expect(await new CapacitorVaultAdapter("vault").readTextFile("Note.md")).toBe("# Note\n");
   });
+
+  // A file the app wrote as text, read as bytes — a skill's approval hashes them, the memory reads its files so: the
+  // read threw, and the file was missing to whoever asked (finding 2026-10-24, AI harness). Its bytes are its UTF-8.
+  it("hands a file laid down as text out as its UTF-8 bytes, and one laid down as base64 as the bytes it names", async () => {
+    native.stat.mockResolvedValue({ type: "file", size: 12, mtime: 1 });
+    const adapter = new CapacitorVaultAdapter("vault");
+    native.read.mockResolvedValue({ data: "- Grün <!-- plainva: by=user -->\n" });
+    expect(new TextDecoder().decode(await adapter.readBinaryFile(".agent/MEMORY.md"))).toBe("- Grün <!-- plainva: by=user -->\n");
+    // What a fixture or an earlier build laid down without an encoding: base64, as the plugin demands of such a write.
+    native.read.mockResolvedValue({ data: btoa("# Plan\n") });
+    expect(new TextDecoder().decode(await adapter.readBinaryFile("Plan.md"))).toBe("# Plan\n");
+  });
 });

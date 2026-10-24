@@ -31,6 +31,21 @@ function b64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
+/**
+ * Whether the browser build's store holds a string as base64. It takes a
+ * string without an encoding only when `btoa(atob(s)) === s`, and when it
+ * copies a file it asks the same to tell such a string from one it was given
+ * as text (the plugin's `isBase64String`). A string that fails it was given
+ * as text (`atomicWriteText`): its bytes are its UTF-8.
+ */
+function storedAsBase64(data: string): boolean {
+  try {
+    return btoa(atob(data)) === data;
+  } catch {
+    return false;
+  }
+}
+
 function bytesToB64(bytes: Uint8Array): string {
   let bin = "";
   const CHUNK = 0x8000;
@@ -142,6 +157,9 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
       try {
         const res = await Filesystem.readFile({ path: this.full(raw), directory: Directory.Data });
         if (res.data instanceof Blob) return new Uint8Array(await res.data.arrayBuffer());
+        // The browser build hands back what it was given: a file written as text is its text there, no base64 —
+        // read as bytes it threw, or decoded to bytes no file held. Its bytes are its UTF-8, as on a phone.
+        if (!Capacitor.isNativePlatform() && !storedAsBase64(res.data)) return new TextEncoder().encode(res.data);
         return b64ToBytes(res.data as string);
       } catch (error) {
         if (isMissingFile(error)) throw new VaultFileNotFoundError(path);

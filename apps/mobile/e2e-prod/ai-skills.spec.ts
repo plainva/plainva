@@ -25,9 +25,9 @@ const skill = (rule: string) => `---\nname: offer-check\ndescription: Checks an 
 async function writeSkill(page: Page, text: string) {
   await page.evaluate(
     async ({ path, text }) => {
-      let binary = "";
-      for (const byte of new TextEncoder().encode(text)) binary += String.fromCharCode(byte);
-      await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.writeFile({ path, data: btoa(binary), directory: "DATA", recursive: true });
+      // Bytes as the fixtures lay them down since the browser build keeps them so: a Blob, handed back as bytes
+      // to a text read too (finding 2026-10-11). A base64 string came back to a text read as that string.
+      await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.writeFile({ path, data: new Blob([new TextEncoder().encode(text)]), directory: "DATA", recursive: true });
     },
     { path: FILE, text },
   );

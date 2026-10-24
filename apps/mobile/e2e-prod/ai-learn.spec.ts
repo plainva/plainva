@@ -72,9 +72,9 @@ const DRAFTS = {
 async function writeBytes(page: Page, path: string, text: string) {
   await page.evaluate(
     async ({ path, text }) => {
-      let binary = "";
-      for (const byte of new TextEncoder().encode(text)) binary += String.fromCharCode(byte);
-      await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.writeFile({ path, data: btoa(binary), directory: "DATA", recursive: true });
+      // Bytes as the fixtures lay them down since the browser build keeps them so: a Blob, handed back as bytes
+      // to a text read too (finding 2026-10-11). A base64 string came back to a text read as that string.
+      await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.writeFile({ path, data: new Blob([new TextEncoder().encode(text)]), directory: "DATA", recursive: true });
     },
     { path, text },
   );
@@ -85,7 +85,10 @@ async function readFile(page: Page, path: string): Promise<string | null> {
   return page.evaluate(async (path) => {
     const fs = (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem;
     const file = await fs.readFile({ path, directory: "DATA" }).catch(() => null);
-    if (!file || typeof file.data !== "string") return null;
+    if (!file) return null;
+    // What the app laid down as bytes is a Blob in the browser build (finding 2026-10-11).
+    if (file.data instanceof Blob) return new TextDecoder().decode(new Uint8Array(await file.data.arrayBuffer()));
+    if (typeof file.data !== "string") return null;
     try {
       return new TextDecoder().decode(Uint8Array.from(atob(file.data), (char) => char.charCodeAt(0)));
     } catch {
