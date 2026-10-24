@@ -63,12 +63,13 @@ test("bookmarks are arranged with the grip at a row's end, and the order is the 
     // one action at its heading opens the list in which they are arranged.
     const chips = page.locator(".m-chiprow .pv-chip-open");
     await expect(chips).toHaveText(["Alpha", "Projects", "Beta", "Gamma"]);
-    await page.getByTestId("bookmarks-arrange").click();
+    await page.getByTestId("home-bookmarks-open").click();
 
     const rows = page.getByTestId("bookmarks-list").locator("[data-bookmark-row]");
     const order = () => rows.evaluateAll((els) => els.map((el) => (el as HTMLElement).dataset.bookmarkKey));
     const onDisk = () => page.evaluate(async () => (JSON.parse(String((await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readFile({ path: "vault/.plainva/bookmarks.json", directory: "DATA", encoding: "utf8" })).data)).items as Array<{ type: string; path: string }>).map((item) => `${item.type}:${item.path}`));
     await expect(rows).toHaveCount(4);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("bookmarks-list.png") });
     expect(await order()).toEqual(["file:Alpha.md", "folder:Projects", "file:Beta.md", "file:Gamma.md"]);
 
     // Every row carries a grip a finger can hit; the grip, not the row, starts the drag.

@@ -56,6 +56,7 @@ const SITES: Record<string, Site[]> = {
   ],
   "services/shareImport.ts": [["reads and writes plan.notePath in runImport", 1, `${NEW_FILE} (the note a share was planned as)`]],
   "services/vaultService.ts": [
+    ['reads and writes ".plainva/recents.json" in forgetRecent', 1, `${OWN_FILE} — "Remove from list" in the Recent list drops one entry`],
     ['reads and writes ".plainva/recents.json" in pushRecent', 1, `${OWN_FILE} — the notes opened last on this device`],
     ["reads and writes path in write", 1, EDITOR_WITHOUT_CHAIN],
   ],

@@ -1,12 +1,9 @@
 import { useEffect, useState, useRef } from "react";
-import { SheetGrip } from "../components/SheetGrip";
 import { SortSheet } from "../components/SortSheet";
-import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   MoreVertical,
-  CheckSquare,
   ChevronRight,
   Database,
   FileText,
@@ -17,16 +14,14 @@ import {
   X,
   ArrowUpDown,
 } from "lucide-react";
-import { bookmarkKey, toast, Button, conflictOriginalPath, DocIcon, EmptyState, errorText, fileRowActions, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, pickRowActions, Row, RowList, SearchField, SectionLabel, type RowActionSpec } from "@plainva/ui";
+import { Button, conflictOriginalPath, DocIcon, EmptyState, errorText, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, Row, RowList, SearchField, SectionLabel } from "@plainva/ui";
 import { matchesFolderQuery, nextFolderSort, readStoredFolderSort, resolveOpenAction, sortFolderEntries, timesAreUniform, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
-import { countFolderFiles, countVaultFiles } from "../lib/folderDeletion";
+import { countVaultFiles } from "../lib/folderDeletion";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
-import { reportMoveFailure, rereadVault, vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
-import { useLongPress } from "../lib/useLongPress";
+import { rereadVault, vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
+import { useFileRowSheet } from "../lib/useFileRowSheet";
 import { SwipeRow } from "../components/SwipeRow";
 import { SwipeHint } from "../components/SwipeHint";
-import { confirmDeleteFile } from "../lib/deleteFile";
-import { generateOverviewForFolder, overviewState, type FolderIndexState } from "../services/indexOverviews";
 import { refreshVaultAction, usePullToRefresh } from "../lib/usePullToRefresh";
 import { relTimeAt } from "../lib/relTime";
 import { AppBar } from "../components/AppBar";
@@ -64,28 +59,10 @@ export function BrowseScreen({
   onOpenAttachment: (path: string, isImage: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const [bookmarked, setBookmarked] = useState(new Set<string>());
-  useEffect(() => {
-    let alive = true;
-    const read = () => void vaultOps.getBookmarks(vault).then((entries) => { if (alive) setBookmarked(new Set(entries.map(bookmarkKey))); }).catch(() => { if (alive) toast.error(t("sidebar.bookmarkSaveFailed")); });
-    read(); window.addEventListener("m-bookmarks-changed", read);
-    return () => { alive = false; window.removeEventListener("m-bookmarks-changed", read); };
-  }, [vault, bump, t]);
   const [listing, setListing] = useState<
     Omit<FolderListing, "notes"> & { notes: Array<{ path: string; title: string; rel?: string }> }
   >({ folders: [], notes: [], bases: [], attachments: [] });
   const [docIcons, setDocIcons] = useState<Map<string, { icon: string; color?: string }>>(new Map());
-  const [sheet, setSheet] = useState<{ path: string; title: string; isFolder?: boolean; isBase?: boolean } | null>(
-    null,
-  );
-  /**
-   * Which overview action the open folder sheet offers — read when it opens,
-   * not held for the whole listing: the answer is a file read per folder, and
-   * a sheet is one folder. `null` while unknown and for a folder whose
-   * index.md is the user's own, where nothing is offered at all.
-   */
-  const [sheetIndex, setSheetIndex] = useState<FolderIndexState | null>(null);
-  const [movePick, setMovePick] = useState<{ path: string; title: string; isFolder?: boolean } | null>(null);
   const [conflicts, setConflicts] = useState<string[]>([]);
   /** Why the folder could not be read; `null` while it can be, or is being, read. */
   const [failure, setFailure] = useState<string | null>(null);
@@ -112,32 +89,16 @@ export function BrowseScreen({
   // then toggle membership and the action bar bulk-deletes with the shared
   // large-deletion double-check (>10 items OR >20% of the listing).
   const [selected, setSelected] = useState<Set<string> | null>(null);
-  // S22: holding a row opens what that row can do — on EVERY kind of row.
-  //
-  // "One gesture, one meaning" was the stated rule, and in one and the same
-  // list it was broken: holding a note began multi-select while holding a
-  // folder or a database opened its sheet. Which of the two you got depended
-  // on what you happened to be holding. Selecting several is now the sheet's
-  // first entry, so it is named rather than guessed at, and the gesture means
-  // the same thing everywhere.
-  const press = useLongPress<{ path: string; title: string }>((x) => setSheet(x));
-  const folderPress = useLongPress<{ path: string; title: string }>((x) =>
-    setSheet({ ...x, isFolder: true }),
-  );
-  const basePress = useLongPress<{ path: string; title: string }>((x) =>
-    setSheet({ ...x, isBase: true }),
-  );
-  useEffect(() => {
-    if (!sheet?.isFolder) return void setSheetIndex(null);
-    let stale = false;
-    setSheetIndex(null);
-    void overviewState(vault, sheet.path).then((state) => {
-      if (!stale) setSheetIndex(state);
-    });
-    return () => {
-      stale = true;
-    };
-  }, [sheet, vault]);
+  const { setSheet, press, folderPress, basePress, swipeFor, sheetLayer } = useFileRowSheet({
+    vault,
+    bump,
+    onOpenNote,
+    onOpenFolder,
+    onOpenBase,
+    // Selecting several is the sheet's first entry here (S22): the list owns
+    // the selection, the shared row grammar only names it.
+    onSelectMany: (path) => setSelected((prev) => (prev ? prev : new Set([path]))),
+  });
   const ptrRef = useRef<HTMLDivElement>(null);
   // The pull reads THIS folder first and lets the sync run behind it
   // (feedback round 2026-09-01, M3). The default handler ran a full resync,
@@ -248,7 +209,7 @@ export function BrowseScreen({
     // act on one row inside a set the user is still building.
     if (selected) return <div key={n.path}>{row}</div>;
     return (
-      <SwipeRow actions={asSheet(rowActionsFor(n, "note").filter((a) => a.swipe))} key={n.path}>
+      <SwipeRow actions={swipeFor(n, "note")} key={n.path}>
         {row}
       </SwipeRow>
     );
@@ -298,140 +259,6 @@ export function BrowseScreen({
       }
       setSelected(null);
     })();
-  };
-
-  const renameFolder = (target: { path: string; title: string }) => {
-    setSheet(null);
-    void (async () => {
-      const { value, cancelled } = await mPrompt({
-        title: t("mobile.vaultRename"),
-        message: t("mobile.renamePrompt"),
-        initial: target.title,
-      });
-      const trimmed = value?.trim();
-      if (cancelled || !trimmed || trimmed === target.title) return;
-      await vaultOps.renameFolder(vault, target.path, trimmed).catch(reportMoveFailure);
-    })();
-  };
-
-  const deleteFolder = (target: { path: string; title: string }) => {
-    setSheet(null);
-    void (async () => {
-      // S4/E1: count first. A phone has no trash, so the number and the
-      // sentence about what cannot be restored have to arrive BEFORE the tap —
-      // afterwards there is nowhere to walk them back.
-      const entries = await vault.files.listDir(target.path, true).catch(() => []);
-      const count = countFolderFiles(entries);
-      // An empty folder has nothing to lose, so it keeps the plain question —
-      // a warning about unrecoverable files would be noise there.
-      const ok = await mConfirm(
-        count === 0
-          ? {
-              title: t("mobile.deleteFolder"),
-              message: t("mobile.deleteFolderConfirm", { name: target.title }),
-              danger: true,
-              confirmLabel: t("common.delete"),
-            }
-          : {
-              title: t("mobile.deleteFolderTitle", { name: target.title, count }),
-              message: t("mobile.deleteFolderWarn"),
-              danger: true,
-              confirmLabel: t("mobile.deleteFilesAction", { count }),
-            },
-      );
-      if (!ok) return;
-      const total = await countVaultFiles(vault.queryService);
-      if (isLargeDeletion(count, total)) {
-        const sure = await mConfirm({
-          title: t("dialogs.deleteLargeTitle"),
-          message: t("dialogs.deleteLargeMsg", { count, total }),
-          danger: true,
-          confirmLabel: t("dialogs.deleteLargeConfirm"),
-        });
-        if (!sure) return;
-      }
-      await vaultOps.removeFolder(vault, target.path, { confirmed: true });
-    })();
-  };
-
-  // Browsable move target (2026-07-17): the FolderPickerSheet walks the live
-  // file system, so freshly created EMPTY folders are valid destinations — the
-  // old index-backed getAllFolders() list could never offer them.
-  const startMove = (target: { path: string; title: string; isFolder?: boolean }) => {
-    setSheet(null);
-    setMovePick(target);
-  };
-
-  const duplicateNote = (target: { path: string; title: string }) => {
-    setSheet(null);
-    void vaultOps.duplicateNote(vault, target.path).then((copy) => onOpenNote(copy));
-  };
-
-  /**
-   * What a row can do — the one list both shells read (Design-Runde E2). The
-   * sheet shows all of it, the swipe its `swipe` subset, the desktop's context
-   * menu the same entries in the same order. A base is a file with fewer
-   * verbs; folders also keep their overview action.
-   */
-  const rowActionsFor = (target: { path: string; title: string }, kind: "note" | "folder" | "base", index: FolderIndexState | null = null): RowActionSpec[] => {
-    const closeThen = (fn: () => void) => () => {
-      setSheet(null);
-      fn();
-    };
-    if (kind === "folder") {
-      // `index` is the sheet's own reading of the overview state (loaded when
-      // it opens); the swipe passes none and offers no overview.
-      return fileRowActions(t, {
-        isFolder: true,
-        bookmarked: bookmarked.has(bookmarkKey({ type: "folder", path: target.path })),
-        bookmark: () => bookmarkNote(target, "folder"),
-        rename: () => renameFolder(target),
-        move: () => startMove({ ...target, isFolder: true }),
-        overview: index !== null && index !== "manual" ? closeThen(() => void generateOverviewForFolder(vault, target.path)) : undefined,
-        overviewExists: index === "managed",
-        delete: () => deleteFolder(target),
-      });
-    }
-    if (kind === "base") {
-      return fileRowActions(t, { delete: closeThen(() => void confirmDeleteFile(vault, target.path, target.title, t)) });
-    }
-    return fileRowActions(t, {
-      rename: () => renameNote(target),
-      duplicate: () => duplicateNote(target),
-      move: () => startMove(target),
-      bookmarked: bookmarked.has(bookmarkKey({ type: "file", path: target.path })),
-      bookmark: () => bookmarkNote(target),
-      delete: () => deleteNote(target),
-    });
-  };
-  /** The swipe primitive wants elements, the list carries icon components. */
-  const asSheet = (list: RowActionSpec[]) =>
-    list.map((a) => ({ icon: <a.icon size={ICON.head} />, label: a.label, danger: a.danger, onClick: a.run }));
-
-  const bookmarkNote = (target: { path: string; title: string }, type: "file" | "folder" = "file") => {
-    setSheet(null);
-    void vaultOps.toggleBookmark(vault, target.path, type).catch(() => toast.error(t("sidebar.bookmarkSaveFailed")));
-  };
-
-  const renameNote = (target: { path: string; title: string }) => {
-    setSheet(null);
-    void (async () => {
-      const { value, cancelled } = await mPrompt({
-        title: t("mobile.vaultRename"),
-        message: t("mobile.renamePrompt"),
-        initial: target.title,
-      });
-      const trimmed = value?.trim();
-      if (cancelled || !trimmed || trimmed === target.title) return;
-      await vaultOps.rename(vault, target.path, trimmed).catch(reportMoveFailure);
-    })();
-  };
-
-  const deleteNote = (target: { path: string; title: string }) => {
-    setSheet(null);
-    // Cascade-aware shared delete flow (plan Kaskadenloeschung): relation
-    // targets get the cascade sheet, plain notes keep the slim confirm.
-    void confirmDeleteFile(vault, target.path, target.title, t);
   };
 
   // What this folder holds, in the header line — the mockup's picture, and the
@@ -498,7 +325,7 @@ export function BrowseScreen({
         return (
           /* The same two actions its sheet offers, in the same order — one
              definition, two ways to reach it (round 3, E3). */
-          <SwipeRow key={name} actions={asSheet(pickRowActions(rowActionsFor(target, "folder"), ["rename", "delete"]))}>
+          <SwipeRow key={name} actions={swipeFor(target, "folder")}>
             <Row
               onClick={() => {
                 if (folderPress.clicked()) onOpenFolder(full);
@@ -544,7 +371,7 @@ export function BrowseScreen({
         // is still building.
         if (selected) return <div key={b.path}>{row}</div>;
         return (
-          <SwipeRow key={b.path} actions={asSheet(rowActionsFor(b, "base").filter((a) => a.swipe))}>
+          <SwipeRow key={b.path} actions={swipeFor(b, "base")}>
             {row}
           </SwipeRow>
         );
@@ -635,58 +462,7 @@ export function BrowseScreen({
         </div>
       )}
 
-      {sheet && (
-        <div className="m-sheet-backdrop" onClick={() => setSheet(null)}>
-          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
-            <SheetGrip onClose={() => setSheet(null)} />
-            <p className="m-sheet-title">{sheet.title}</p>
-            {/* First, because it is the one action that changes what the LIST
-                does rather than what this row does — and because it used to be
-                the gesture itself, with no name anywhere (S22). */}
-            <button
-              className="m-row"
-              data-testid="sheet-select-many"
-              onClick={() => {
-                const s = sheet;
-                setSheet(null);
-                setSelected((prev) => (prev ? prev : new Set([s.path])));
-              }}
-            >
-              <CheckSquare size={ICON.head} />
-              <span>{t("mobile.selectMany", { defaultValue: "Mehrere auswählen" })}</span>
-            </button>
-            <button
-              className="m-row"
-              onClick={() => {
-                const s = sheet;
-                setSheet(null);
-                if (s.isBase) onOpenBase(s.path);
-                else if (s.isFolder) onOpenFolder(s.path);
-                else onOpenNote(s.path);
-              }}
-            >
-              {sheet.isBase ? <Database size={ICON.head} /> : sheet.isFolder ? <Folder size={ICON.head} /> : <FileText size={ICON.head} />}
-              <span>{t("mobile.sheetOpen")}</span>
-            </button>
-            {/* The row's actions, from the ONE list both shells read (Design-
-                Runde E2): the same entries, words and order as the desktop's
-                context menu and the swipe on this row. The delete sits last,
-                behind its hairline, because the list says so. */}
-            {rowActionsFor(sheet, sheet.isFolder ? "folder" : sheet.isBase ? "base" : "note", sheetIndex).map((a, i, all) => (
-              <button
-                key={a.id}
-                className={a.danger ? "m-row m-danger" : "m-row"}
-                data-sheet-sep={a.danger && !all[i - 1]?.danger ? "" : undefined}
-                data-testid={a.id === "overview" ? "sheet-overview" : `sheet-${a.id}`}
-                onClick={a.run}
-              >
-                <a.icon size={ICON.head} />
-                <span>{a.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {sheetLayer}
 
       {/* The one sort sheet of the app (finding 2026-09-19): search hits and
           backlinks open the same component. */}
@@ -719,21 +495,6 @@ export function BrowseScreen({
         />
       )}
 
-      {movePick && (
-        <FolderPickerSheet
-          vault={vault}
-          title={t("mobile.moveNoteTo", { name: movePick.title })}
-          excludePrefix={movePick.isFolder ? movePick.path : undefined}
-          onPick={(dest) => {
-            const target = movePick;
-            setMovePick(null);
-            void (target.isFolder
-              ? vaultOps.moveFolder(vault, target.path, dest ? `${dest}/${target.path.split("/").pop()}` : target.path.split("/").pop()!)
-              : vaultOps.moveNote(vault, target.path, dest)).catch(reportMoveFailure);
-          }}
-          onClose={() => setMovePick(null)}
-        />
-      )}
     </>
   );
 

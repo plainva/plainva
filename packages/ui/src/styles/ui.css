@@ -2077,6 +2077,34 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
   color: var(--accent-color);
 }
 
+/* A heading that LEADS to the whole list it heads (plan Rückmeldungen
+   2026-10-24, E8): the home screen's "Recent" and "Bookmarks" bands show a
+   few entries sideways; the heading opens all of them. It stays the heading —
+   same caps, same size — and says it is a way somewhere with the accent and a
+   chevron, the mark every row that leads somewhere carries. */
+.pv-grouplabel-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: var(--accent-color);
+  cursor: pointer;
+}
+.pv-grouplabel-link:hover { text-decoration: underline; }
+/* Under a finger the hit area grows past the text without moving the heading:
+   the label keeps its rhythm, the target reaches the touch size. */
+[data-density="touch"] .pv-grouplabel-link::after {
+  content: "";
+  position: absolute;
+  inset: calc(var(--space-3) * -1) calc(var(--space-2) * -1);
+}
+
 .pv-grouprows {
   display: flex;
   flex-direction: column;
@@ -2085,9 +2113,13 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
    itself. A row is not always the direct child — a swipeable row lives inside
    its gesture container — and a rule on the row would then draw after the last
    one and miss the one before it. Separating children needs no :last-child
-   exception at all. */
+   exception at all.
+   It draws on --border-color, the card's own outline colour (plan Rückmeldungen
+   2026-10-24, E4): on --border-color-light it all but vanished against the
+   card's fill, and a tester could not tell where one task ended. LCARS and
+   Win95 keep their own divider (themes/lcars.css, themes/win95.css). */
 .pv-grouprows > * + * {
-  border-top: 1px solid var(--border-color-light);
+  border-top: 1px solid var(--border-color);
 }
 
 .pv-grouprow {

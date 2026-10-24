@@ -39,13 +39,16 @@ describe("the shared threshold", () => {
 
 describe("all three mobile deletion paths use it", () => {
   const browse = read("..", "screens", "BrowseScreen.tsx");
+  // A folder row's actions live in the shared row hook (plan Rückmeldungen
+  // 2026-10-24, E8): every list of vault rows deletes a folder the same way.
+  const rowSheet = read("useFileRowSheet.tsx");
   const deleteFile = read("deleteFile.ts");
 
   it("the folder delete counts, warns and asks again", () => {
-    expect(browse).toContain("countFolderFiles(entries)");
-    expect(browse).toContain('t("mobile.deleteFolderWarn")');
-    expect(browse).toContain('t("mobile.deleteFilesAction", { count })');
-    expect(browse).toMatch(/isLargeDeletion\(count, total\)/);
+    expect(rowSheet).toContain("countFolderFiles(entries)");
+    expect(rowSheet).toContain('t("mobile.deleteFolderWarn")');
+    expect(rowSheet).toContain('t("mobile.deleteFilesAction", { count })');
+    expect(rowSheet).toMatch(/isLargeDeletion\(count, total\)/);
   });
 
   it("the bulk delete measures against the vault, not the open folder", () => {

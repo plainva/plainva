@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-10-23
+Laatst bijgewerkt: 2026-10-24
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -209,7 +209,7 @@ Klik in een apart of tweede volledig venster met rechts op het tabblad en kies *
 
 ## Mapbladwijzers
 
-Voeg een bladwijzer toe via het contextmenu van een bestand of map. Mapbladwijzers hebben een mapicoon: mobiel opent de map, desktop vouwt deze in de bestandsboom uit. Hernoemen en verplaatsen in Plainva werkt ook bladwijzers van onderliggende mappen en bestanden bij. Ontbrekende doelen blijven gemarkeerd staan; verwijder deze bladwijzers zelf. Om de volgorde te wijzigen sleep je een bladwijzer in de zijbalk naar zijn plaats — of druk je op `Alt+↑` / `Alt+↓` op de gefocuste rij; op de telefoon opent **Bladwijzers ordenen** naast de kop **Bladwijzers** de lijst, waar je aan de greep aan het einde van een rij sleept.
+Voeg een bladwijzer toe via het contextmenu van een bestand of map. Mapbladwijzers hebben een mapicoon: mobiel opent de map, desktop vouwt deze in de bestandsboom uit. Hernoemen en verplaatsen in Plainva werkt ook bladwijzers van onderliggende mappen en bestanden bij. Ontbrekende doelen blijven gemarkeerd staan; verwijder deze bladwijzers zelf. Om de volgorde te wijzigen sleep je een bladwijzer in de zijbalk naar zijn plaats — of druk je op `Alt+↑` / `Alt+↓` op de gefocuste rij; op de telefoon opent de kop **Bladwijzers** de lijst, waar je aan de greep aan het einde van een rij sleept.
 
 Bij het openen van een kluis importeert Plainva automatisch bestands- en mapbladwijzers uit Obsidian, inclusief groepen. Type en pad voorkomen duplicaten. Het Obsidian-bestand blijft ongewijzigd. Instellingenprofielen vervoeren mappen apart; een ouder profiel zonder mapveld behoudt bestaande mapbladwijzers.
 

@@ -75,6 +75,17 @@ describe("a row with an action can be swiped", () => {
     }
   });
 
+  it("covers the rows of the home screen's full lists (E8, 2026-10-24)", () => {
+    // "Recent" and "Bookmarks" open lists of the file list's own rows: the
+    // swipe there is the one `swipeFor` of the shared row hook.
+    for (const file of ["screens/RecentScreen.tsx", "BookmarksScreen.tsx"]) {
+      const src = read(file);
+      const at = src.indexOf("<SwipeRow");
+      expect(at, `${file}: the rows are not swipeable`).toBeGreaterThan(-1);
+      expect(src.slice(at, at + 300), `${file}: the swipe is not the shared row grammar`).toContain("swipeFor(target, kind)");
+    }
+  });
+
   it("covers both kinds of task row (S23)", () => {
     // Held back on purpose until S22 gave the row a sheet: a swipe without one
     // would have been a second definition of what the row can do rather than a
@@ -114,7 +125,8 @@ describe("a row with an action can be swiped", () => {
     // capability it hands over is deleting the whole conversation.
     const allowed = /^(swipeActions|swipeFor)\(|\.filter\(\(a\) => a\.swipe\)|pickRowActions\(|^mailRowActions\(t, \{ delete: [^,}]*\}\)/;
     let seen = 0;
-    for (const file of ["screens/TasksScreen.tsx", "screens/BrowseScreen.tsx", "screens/JournalScreen.tsx", "screens/MailListScreen.tsx"]) {
+    // The home screen's full lists (E8, 2026-10-24) swipe their rows like the file list.
+    for (const file of ["screens/TasksScreen.tsx", "screens/BrowseScreen.tsx", "screens/JournalScreen.tsx", "screens/MailListScreen.tsx", "screens/RecentScreen.tsx", "BookmarksScreen.tsx"]) {
       const src = read(file);
       for (let at = src.indexOf("<SwipeRow"); at >= 0; at = src.indexOf("<SwipeRow", at + 1)) {
         const open = src.indexOf("actions={", at) + "actions={".length;
@@ -131,7 +143,7 @@ describe("a row with an action can be swiped", () => {
         expect(expr, `${file}: a swipe row takes an unfiltered list: ${expr.slice(0, 80)}`).toMatch(allowed);
       }
     }
-    expect(seen, "the swipe rows were not found").toBeGreaterThanOrEqual(10);
+    expect(seen, "the swipe rows were not found").toBeGreaterThanOrEqual(12);
   });
 
   it("keeps the destructive action last and within three slots", () => {

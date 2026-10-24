@@ -1308,6 +1308,13 @@ textarea {
 .pv-grouprows .m-swipe-front {
   background: var(--surface-container);
 }
+/* Inside a group the gesture container is a plain slice of the card, which
+   clips the corners itself. Its own rounding bent the hairline above it down
+   at both ends — invisible on the light divider, plain to see once the line
+   took the card's outline colour (E4, 2026-10-24). */
+.pv-grouprows > .m-swipe {
+  border-radius: initial;
+}
 
 .m-slotmark {
   flex: 0 0 auto;
@@ -3751,16 +3758,21 @@ textarea {
 .m-sortdir { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text-muted); }
 /* What the second tap does, in a line under the sort card (E21). */
 .m-sortsheet-hint { margin: var(--space-2) var(--space-2) 0; }
+/* `.m-markrow` is a row of the bookmarks list, the file list's row since E8
+   (2026-10-24) — arranged by its grip like the bar's rows. */
 .m-row.is-dragging,
-.m-navrow.is-dragging {
+.m-navrow.is-dragging,
+.m-markrow.is-dragging {
   opacity: 0.55;
 }
 .m-row.is-drop-before,
-.m-navrow.is-drop-before {
+.m-navrow.is-drop-before,
+.m-markrow.is-drop-before {
   box-shadow: inset 0 2px 0 var(--accent-color);
 }
 /* A drop behind the last row of a list that is being arranged (bookmarks). */
-.m-row.is-drop-after {
+.m-row.is-drop-after,
+.m-markrow.is-drop-after {
   box-shadow: inset 0 -2px 0 var(--accent-color);
 }
 

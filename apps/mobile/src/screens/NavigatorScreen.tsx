@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowUpDown, Bookmark, Database, FileText, Sun, Folder } from "lucide-react";
-import { Chip, DocIcon, ICON, IconButton, bookmarkKey, useBookmarkTargets, toast, type BookmarkEntry, noteDisplayName, SectionLabel, Segmented, ScrollEdge} from "@plainva/ui";
+import { Bookmark, Folder } from "lucide-react";
+import { Chip, ICON, bookmarkKey, useBookmarkTargets, toast, type BookmarkEntry, noteDisplayName, SectionLabel, Segmented, ScrollEdge} from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { SyncIndicator } from "../components/SyncIndicator";
 import { useSyncSubtitle } from "../components/syncSubtitle";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { relTimeAt } from "../lib/relTime";
-import { getMobileSettings } from "../services/mobileSettings";
 import { getNavigatorTab, setNavigatorTab, type NavigatorTab } from "../services/navigatorPlace";
 import { vaultOps, type MobileVault } from "../services/vaultService";
+import { loadRecentList } from "../lib/recentList";
+import { vaultFileIcon } from "../lib/vaultFileIcon";
 import { BrowseScreen } from "./BrowseScreen";
 import { DatabasesScreen } from "./DatabasesScreen";
 import { TagsScreen } from "../TagsScreen";
@@ -46,7 +47,8 @@ export function NavigatorScreen({
   onMenu,
   onCreateDatabase,
   onCreateNote,
-  onArrangeBookmarks,
+  onOpenRecent,
+  onOpenBookmarks,
 }: {
   vault: MobileVault;
   vaultName: string;
@@ -64,12 +66,15 @@ export function NavigatorScreen({
   onCreateNote?: () => void;
   onCreateDatabase?: () => void;
   /**
-   * Opens the list in which the bookmarks are arranged (plan Befunde
-   * 2026-10-06, W6). The band below scrolls sideways, so a drag on it is a
-   * scroll; the order is changed in a list with a grip per row. That list had
-   * been a route nothing led to since the bookmarks became this band.
+   * The headings of the two bands open their whole lists (plan Rückmeldungen
+   * 2026-10-24, E8). A band scrolls sideways and shows a few entries; a tester
+   * needed too many swipes to reach its end. "Recent" opens the list by day,
+   * "Bookmarks" the list in the user's order — which is also where they are
+   * arranged (plan Befunde 2026-10-06, W6: a drag on the band is a scroll, so
+   * the order is changed in a list with a grip per row).
    */
-  onArrangeBookmarks?: () => void;
+  onOpenRecent?: () => void;
+  onOpenBookmarks?: () => void;
 }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<NavigatorTab>(getNavigatorTab);
@@ -94,22 +99,24 @@ export function NavigatorScreen({
   useEffect(() => {
     let stale = false;
     // Real MRU first; the mtime fallback covers a first run (nothing opened
-    // yet, but synced files exist).
-    void vaultOps.getRecents(vault, 8).then(async (r) => {
-      const list = r.length > 0 ? r : await vaultOps.recent(vault, 4);
+    // yet, but synced files exist). The full list behind the heading reads the
+    // same source (`loadRecentList`).
+    const readRecent = () => void loadRecentList(vault, 8, 4).then(({ entries, opened }) => {
       // Relative-time labels are computed here — effects may read the clock,
-      // render must stay pure for the React compiler.
+      // render must stay pure for the React compiler. A first-run entry shows
+      // its folder instead: "changed 3 days ago" is not "opened".
       const now = Date.now();
       if (!stale) {
         setRecent(
-          list.map((e) => ({
+          entries.map((e) => ({
             path: e.path,
             title: e.title,
-            rel: relTimeAt(now, (e as { openedAt?: number }).openedAt) ?? undefined,
+            rel: opened ? relTimeAt(now, e.at) ?? undefined : undefined,
           })),
         );
       }
     });
+    readRecent(); window.addEventListener("m-recents-changed", readRecent);
     const readMarks = () => void vaultOps.getBookmarks(vault).then((b) => {
       if (!stale) setMarks(b);
     }).catch(() => { if (!stale) toast.error(t("sidebar.bookmarkSaveFailed")); });
@@ -123,18 +130,11 @@ export function NavigatorScreen({
         .catch(() => {});
     }
     return () => {
-      stale = true; window.removeEventListener("m-bookmarks-changed", readMarks);
+      stale = true; window.removeEventListener("m-bookmarks-changed", readMarks); window.removeEventListener("m-recents-changed", readRecent);
     };
   }, [vault, bump, t]);
 
-  const caroIcon = (p: string) => {
-    const custom = docIcons.get(p);
-    if (custom) return <DocIcon color={custom.color} icon={custom.icon} size={ICON.ui} />;
-    if (/\.base$/i.test(p)) return <Database size={ICON.ui} />;
-    const daily = getMobileSettings().dailyFolder;
-    if (p.startsWith(`${daily}/`)) return <Sun size={ICON.ui} />;
-    return <FileText size={ICON.ui} />;
-  };
+  const caroIcon = (p: string) => vaultFileIcon(p, docIcons);
 
   const pick = (next: NavigatorTab) => {
     setTab(next);
@@ -152,7 +152,7 @@ export function NavigatorScreen({
           tabs, because they answer "where was I" before "what is there". */}
       {recent.length > 0 && (
         <>
-          <SectionLabel>{t("mobile.recent")}</SectionLabel>
+          <SectionLabel onOpen={onOpenRecent} openTestId="home-recent-open">{t("mobile.recent")}</SectionLabel>
           <div className="m-caro">
             {recent.map((n) => (
               <button
@@ -176,18 +176,7 @@ export function NavigatorScreen({
       )}
       {marks.length > 0 && (
         <>
-          <SectionLabel
-            end={
-              // One entry needs no order; the heading's one action appears with the second.
-              onArrangeBookmarks && marks.length > 1 ? (
-                <IconButton label={t("mobile.bookmarksArrange")} onClick={onArrangeBookmarks} data-testid="bookmarks-arrange">
-                  <ArrowUpDown size={ICON.ui} />
-                </IconButton>
-              ) : undefined
-            }
-          >
-            {t("mobile.bookmarks")}
-          </SectionLabel>
+          <SectionLabel onOpen={onOpenBookmarks} openTestId="home-bookmarks-open">{t("mobile.bookmarks")}</SectionLabel>
           <ScrollEdge axis="x" className="m-chiprow">
             {marks.map((entry) => {
               const missing = targets.get(bookmarkKey(entry)) === false;

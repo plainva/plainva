@@ -1700,7 +1700,8 @@ describe("a managed overview cannot be edited by accident", () => {
  */
 describe("the folder sheet leaves a hand-written overview alone", () => {
   it("hides the row for a manual index.md and names its effect otherwise", () => {
-    const screen = stripComments(readFileSync(join(SRC, "screens/BrowseScreen.tsx"), "utf8"));
+    // The folder sheet is the shared row hook's since E8 (2026-10-24).
+    const screen = stripComments(readFileSync(join(SRC, "lib/useFileRowSheet.tsx"), "utf8"));
     // The entry itself lives in the shared row list since the Design-Runde
     // (E2); the screen decides WHEN it exists and whether it refreshes.
     expect(screen).toMatch(/overview: index !== null && index !== "manual"/);
@@ -2046,6 +2047,18 @@ describe("the tag list and the folder list", () => {
     expect(css).toMatch(/\.pv-grouprows > \* \+ \* \{\n\s*border-top:/);
     const row = css.slice(css.indexOf(".pv-grouprow {"), css.indexOf("}", css.indexOf(".pv-grouprow {")));
     expect(row).not.toMatch(/border-bottom/);
+  });
+
+  it("draws that hairline in the card's own outline colour (E4, 2026-10-24)", () => {
+    // On --border-color-light the line all but vanished against the card's
+    // fill: a tester could not tell where one task ended. Both shells, every
+    // grouped list; LCARS and Win95 keep their own divider.
+    const css = readFileSync(join(SRC, "..", "..", "..", "packages", "ui", "src", "styles", "ui.css"), "utf8");
+    expect(css).toMatch(/\.pv-grouprows > \* \+ \* \{\n\s*border-top: 1px solid var\(--border-color\);/);
+    // A swipe row is a child of the list too; its container's own rounding must
+    // not bend the line above it at both ends.
+    const mobile = readFileSync(join(SRC, "mobile.css"), "utf8");
+    expect(mobile).toMatch(/\.pv-grouprows > \.m-swipe \{\s*border-radius: initial;/);
   });
 });
 

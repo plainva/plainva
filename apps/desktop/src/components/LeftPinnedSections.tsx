@@ -15,6 +15,7 @@ import {
   sanitizeAreaOrder,
   parkTreeReveal,
   toast,
+  RECENTS_MAX,
   type AreaOrder,
 } from "@plainva/ui";
 import { RecentsSection } from "./RecentsSection";
@@ -277,7 +278,10 @@ export function LeftPinnedSections({
               <div className="custom-scrollbar" style={{ maxHeight: "38vh", overflowY: "auto" }}>
                 {id === "recents" ? (
                   <div className="pv-side-section-rows" data-testid="recents-section">
-                    <RecentsSection recentPaths={recentPaths} activePath={activePath} onOpen={onOpen} headless onRowContextMenu={openRowMenu("recents")} />
+                    {/* The whole list, not the first five (plan Rückmeldungen 2026-10-24,
+                        E8): the phone's heading opens every entry, and the section
+                        scrolls inside its 38vh, so nothing it holds is out of reach. */}
+                    <RecentsSection recentPaths={recentPaths} activePath={activePath} onOpen={onOpen} headless limit={RECENTS_MAX} onRowContextMenu={openRowMenu("recents")} />
                   </div>
                 ) : (
                   <div className="pv-side-section-rows" data-testid="bookmarks-section">

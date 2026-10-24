@@ -79,6 +79,7 @@ import {
   importObsidianBookmarks, toggleBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, moveBookmarkOnDisk, type BookmarkEntry,
   parseRecentsFile,
   pushRecentEntry,
+  dropRecentEntry,
   renameFileWithLinkUpdates,
   serializeRecentsFile,
   parkTemplateCaret,
@@ -1163,13 +1164,13 @@ export const vaultOps = {
     window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
   },
 
-  async recent(v: MobileVault, limit: number): Promise<Array<{ path: string; title: string }>> {
+  async recent(v: MobileVault, limit: number): Promise<Array<{ path: string; title: string; mtime: number }>> {
     const all = await v.files.listDir("", true);
     return all
       .filter((e) => !e.isDirectory && /\.md$/i.test(e.name) && !e.path.startsWith("."))
       .sort((a, b) => b.mtime - a.mtime)
       .slice(0, limit)
-      .map((e) => ({ path: e.path, title: noteTitle(e.path) }));
+      .map((e) => ({ path: e.path, title: noteTitle(e.path), mtime: e.mtime }));
   },
 
   /* ---- B2: real MRU (last OPENED, .plainva/recents.json — device-local,
@@ -1213,6 +1214,17 @@ export const vaultOps = {
     // knows about — record its hash so a stale row cannot turn the first save
     // into a conflict. Never advances the merge base.
     if (v.files.acknowledgeExternalUpdate) await v.files.acknowledgeExternalUpdate(path).catch(() => {});
+  },
+
+  /**
+   * "Remove from list" on a row of the full Recent list (plan Rückmeldungen
+   * 2026-10-24, E8) — the entry the desktop's Recently opened menu has had
+   * since P4. It drops the entry, never the file.
+   */
+  async forgetRecent(v: MobileVault, path: string): Promise<void> {
+    const entries = parseRecentsFile(await v.adapter.readTextFile(".plainva/recents.json"));
+    await v.adapter.writeTextFile(".plainva/recents.json", serializeRecentsFile(dropRecentEntry(entries, path)));
+    window.dispatchEvent(new CustomEvent("m-recents-changed"));
   },
 
   async pushRecent(v: MobileVault, path: string): Promise<void> {

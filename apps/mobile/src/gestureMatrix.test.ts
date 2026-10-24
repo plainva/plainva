@@ -22,7 +22,11 @@ const read = (...p: string[]) => readFileSync(join(SRC, ...p), "utf8");
 const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 describe("holding a row means the same on every kind of row", () => {
-  const browse = strip(read("screens", "BrowseScreen.tsx"));
+  // The row grammar of vault rows lives in one hook since the home screen's
+  // full lists reuse it (plan Rückmeldungen 2026-10-24, E8); the file list
+  // owns only the selection it names.
+  const browse = strip(read("lib", "useFileRowSheet.tsx"));
+  const list = strip(read("screens", "BrowseScreen.tsx"));
 
   it("a note row opens its sheet, like a folder and a database already did", () => {
     expect(browse, "the note press must open the sheet").toMatch(
@@ -41,7 +45,10 @@ describe("holding a row means the same on every kind of row", () => {
     expect(first, "and it must come before opening the row").toBeLessThan(open);
     expect(sheet).toMatch(/mobile\.selectMany/);
     expect(sheet, "it must actually start the selection").toMatch(
-      /sheet-select-many[\s\S]{0,400}?setSelected\(/,
+      /sheet-select-many[\s\S]{0,400}?onSelectMany\(/,
+    );
+    expect(list, "the file list hands its selection to the sheet").toMatch(
+      /onSelectMany: \(path\) => setSelected\(/,
     );
   });
 

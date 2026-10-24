@@ -139,7 +139,8 @@ const SITES: Record<string, Site[]> = {
     ["handed to toggleBookmarkOnDisk", 1, BOOKMARKS],
     ["handed to moveBookmarkOnDisk", 1, BOOKMARKS],
     ["handed to removeBookmarksOnDisk", 1, BOOKMARKS],
-    ["calls writeTextFile", 1, RECENTS],
+    // pushRecent, and forgetRecent behind "Remove from list" in the Recent list (E8, 2026-10-24).
+    ["calls writeTextFile", 2, RECENTS],
   ],
 };
 

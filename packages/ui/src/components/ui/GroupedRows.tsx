@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Check } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
 import { ICON } from "../../lib/iconSizes";
 import { cx } from "./cx";
 
@@ -25,15 +25,33 @@ export function SectionLabel({
   children,
   end,
   className,
+  onOpen,
+  openTestId,
 }: {
   children: ReactNode;
   /** A count, or exactly one action. Never a second heading. */
   end?: ReactNode;
   className?: string;
+  /**
+   * The heading LEADS to the whole list it heads (plan Rückmeldungen
+   * 2026-10-24, E8): the heading text becomes a button with a chevron. For a
+   * section that shows a few entries of a longer list — the home screen's
+   * Recent and Bookmarks bands — where the way to the rest is the heading
+   * itself, not a second control beside it.
+   */
+  onOpen?: () => void;
+  openTestId?: string;
 }) {
   return (
     <p className={cx("pv-grouplabel", className)}>
-      {children}
+      {onOpen ? (
+        <button className="pv-grouplabel-link" data-testid={openTestId} onClick={onOpen} type="button">
+          {children}
+          <ChevronRight aria-hidden="true" size={ICON.meta} />
+        </button>
+      ) : (
+        children
+      )}
       {end !== undefined && end !== null && end !== "" && <span className="pv-grouplabel-end">{end}</span>}
     </p>
   );
