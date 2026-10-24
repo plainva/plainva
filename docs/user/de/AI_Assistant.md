@@ -1,6 +1,6 @@
 # KI-Assistent (Beta)
 
-Stand: 2026-10-09
+Stand: 2026-10-24
 
 Plainva kann Fragen zu Deinen Notizen mit einem KI-Modell Deiner Wahl beantworten. Es liest Deinen Vault, nennt die Notizen, auf die es sich stützt, öffnet Notizen und Ansichten für Dich und schlägt Änderungen vor — als Vorschläge an einer Notiz, als Entwürfe für Neues oder als Plan, den Du bestätigst. Eine Notiz ändert es nie selbst. Der Assistent ist **experimentell** und aus, bis Du ihn einschaltest, auf jedem Gerät für sich.
 
@@ -123,6 +123,18 @@ Der Faden geht an das Modell wie eine Frage: seine Kommentare, die Stelle, an de
 Skills sind Anleitungen für wiederkehrende Arbeit. Dreizehn kommen mit Plainva — darunter **Tagesorientierung**, **Wochenrückblick** und **Projektstatus** als Chips in einem leeren Gespräch —, eigene kannst Du schreiben oder importieren. Starte einen mit einem Klick oder frag einfach: die KI lädt einen passenden Skill selbst. Eigene Skills laufen erst, wenn Du sie auf diesem Gerät freigegeben hast. Alles dazu: [Skills](AI_Skills.md).
 
 Skripte sind kleine Programme, die Du für das schreibst, was ein Modell schlecht kann — zählen, sortieren, zusammenrechnen. Sie laufen in einem geschlossenen Kasten, lesen Deinen Vault über dieselben Werkzeuge wie die KI und erst, nachdem Du sie auf diesem Gerät freigegeben hast. Alles dazu: [Skripte](AI_Scripts.md).
+
+## Routinen
+
+Eine Routine startet einen Skill zu einer Zeit, die Du festlegst — den Morgen-Brief werktags um sieben, den Wochenrückblick am Freitagnachmittag. Du richtest eine Routine in den Einstellungen des Vaults ein, unter **KI & Automatisierung**, in der Karte **Routinen**: **Neue Routine**, dann ein Name, der **Skill**, der Satz, der ihm jedes Mal gesagt wird (leer gelassen: der eigene Auftrag des Skills), die Tage und die Uhrzeit, was geschieht, **Wenn Plainva zu der Zeit geschlossen war** — **Einmal nachholen** oder **Auslassen** —, und das **Modell**. Nur Skills, die auf diesem Gerät aktiv sind und nur lesen, können eine Routine werden.
+
+Bevor es eine Routine gibt, zeigt Plainva, was bei einem Lauf gilt, den niemand beobachtet, und erst Dein Ja — **Routine einrichten** — legt sie an. Eine Routine liest nur: kein Vorschlag, kein Entwurf, kein Internet, kein externes Werkzeug, kein Skript, kein Befehl der App. Sie hat ein kleines Budget. Ihr Ergebnis ist eine Notiz in Deinem Eingangsordner, benannt nach der Routine und dem Tag, gekennzeichnet als von der KI geschrieben, mit den Notizen, auf denen sie beruht. Bei einem Modell auf diesem Gerät verlässt nichts das Gerät. Beim Modell eines Anbieters bestätigst Du, was ein Lauf von sich aus mitgibt — die Übersicht zeigt, was das heute wäre —, und ein Lauf, der mehr als das mitgeben würde, sendet nichts und wartet auf Dich. Was das Modell danach über seine Werkzeuge liest, entscheiden Deine Datenschutzregeln, wie bei jedem Gespräch. Eine Routine liest mit dem Modell eines Anbieters keine E-Mails: Plainva fragt danach in jeder Sitzung neu, und niemand ist da, der antwortet.
+
+Eine Routine stellt nie eine Frage. Wo sie eine Antwort bräuchte — sie würde mehr mitgeben, als Du bestätigt hast; dieses Gerät fragt vor jeder Anfrage; ihr Skill wurde geändert, seit Du die Routine bestätigt hast; der Anbieter ihres Modells ist nicht mehr eingerichtet; oder ihr Modell ist nicht auf diesem Gerät, während **Voll-lokal** an ist —, sagt ihre Zeile, was sie braucht, und bietet **Ansehen** an. Dort siehst Du, was ein Lauf jetzt senden würde und was davon neu ist, und **Erneut bestätigen** lässt sie wieder laufen.
+
+Routinen laufen auf diesem Gerät, solange Plainva offen ist: kurz nachdem Du den Vault geöffnet hast, danach etwa einmal pro Minute und wenn die App in den Vordergrund zurückkehrt. Plainva hat keinen Dienst im Hintergrund und verspricht keinen genauen Zeitpunkt. Ein Lauf, der verpasst wurde, während Plainva geschlossen war, wird beim nächsten Öffnen einmal nachgeholt — gleich, wie viele es waren — oder ausgelassen, je nachdem, wie Du es eingestellt hast. Mit **Nur wenn sich etwas geändert hat** prüft das Gerät zuerst, ob sich eine Notiz geändert hat, seit die Routine zuletzt eine Notiz hinterlassen hat, und fragt sonst kein Modell. Eine Routine gehört zu dem Gerät, auf dem Du sie eingerichtet hast: Sie liegt in den Daten der App, nicht im Vault, und läuft deshalb auf keinem anderen Gerät.
+
+Während eine Routine läuft, zeigt eine Zeile im Gespräch das an, mit **Stopp**, und eine Nachricht von Dir wartet, bis der Lauf fertig ist. Der Schalter in der Zeile einer Routine pausiert sie; ihr Menü führt sie sofort aus (**Jetzt ausführen**), bearbeitet sie oder entfernt sie. Die Notizen, die sie geschrieben hat, bleiben.
 
 ## Gedächtnis
 

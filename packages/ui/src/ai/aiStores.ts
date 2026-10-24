@@ -1,11 +1,13 @@
 import {
   conversationSummaryOf,
+  parseRoutines,
   readConversationRecord,
   readInstructionApprovals,
   readSkillTests,
   readUpkeepPrefs,
   readWebSettings,
   serializeInstructionApprovals,
+  serializeRoutines,
   serializeSkillTests,
   serializeUpkeepPrefs,
   serializeWebSettings,
@@ -19,6 +21,7 @@ import {
   type LedgerEntry,
 } from "@plainva/core";
 import type { AiLedgerStore } from "./aiSession";
+import type { RoutineStore } from "./routineSession";
 
 /**
  * Where the conversations of a vault live (plan §16): in the app's data
@@ -195,6 +198,7 @@ export function createAiVaultStores(
   skillTests: SkillTestStore;
   web: WebSettingsStore;
   upkeep: UpkeepPrefStore;
+  routines: RoutineStore;
 } {
   if (!SAFE_ID.test(vaultKey)) throw new Error("invalid vault key");
   const dir = vaultKey;
@@ -291,7 +295,14 @@ export function createAiVaultStores(
     save: (value) => files.write(`${dir}/upkeep.json`, serializeUpkeepPrefs(value)),
   };
 
-  return { conversations, ledger, approvals, related, instructionApprovals, skillTests, web, upkeep };
+  // The routines of this vault on this device (plan KI-Harness P8): a standing permission of this device, so it is
+  // kept here and never in the vault. A file that is missing or damaged holds no routine.
+  const routines: RoutineStore = {
+    load: async () => parseRoutines(await files.read(`${dir}/routines.json`)),
+    save: (list) => files.write(`${dir}/routines.json`, serializeRoutines(list)),
+  };
+
+  return { conversations, ledger, approvals, related, instructionApprovals, skillTests, web, upkeep, routines };
 }
 
 /** A stable, file-name-safe handle for a vault (FNV-1a over its path or id). */

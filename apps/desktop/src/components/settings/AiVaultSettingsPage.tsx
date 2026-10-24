@@ -30,6 +30,7 @@ import { useVault } from "../../contexts/VaultContext";
 import { currentAiPolicy, getDesktopAiSession, requestMemoryView, requestSkillsView } from "../../services/ai/desktopAi";
 import { AreaHead } from "./AppPages";
 import { ExternalToolsCard } from "./ExternalToolsCard";
+import { RoutinesCard } from "./RoutinesCard";
 
 /**
  * Settings → AI & automation, VAULT world (plan KI-Harness §13.2): the privacy
@@ -271,6 +272,8 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
       <InternetCard />
       <ExternalToolsCard />
       <SkillsCard onOpenSkills={openSkills} onOpenMemory={openMemory} />
+      {/* Routines (plan KI-Harness P8): a skill at a time its user set — below the skills they are made of. */}
+      <RoutinesCard />
     </div>
   );
 }

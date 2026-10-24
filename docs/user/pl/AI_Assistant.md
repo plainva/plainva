@@ -1,6 +1,6 @@
 # Asystent AI (Beta)
 
-Stan na: 2026-10-09
+Stan na: 2026-10-24
 
 Plainva potrafi odpowiadać na pytania o notatki za pomocą wybranego modelu AI. Czyta vault, przywołuje notatki, z których korzystała, otwiera notatki oraz widoki i proponuje zmiany — jako propozycje w notatce, jako szkice czegoś nowego albo jako plan, który potwierdzasz. Sama nigdy nie zmienia notatki. Asystent jest **eksperymentalny** i wyłączony, dopóki nie zostanie włączony, osobno na każdym urządzeniu.
 
@@ -123,6 +123,18 @@ Wątek trafia do modelu tak jak pytanie: jego komentarze, fragment, do którego 
 Umiejętności to instrukcje do powtarzalnej pracy. Trzynaście jest dołączonych do Plainva — w tym **Orientacja na dziś**, **Przegląd tygodnia** i **Stan projektu** jako chipy w pustej rozmowie — a własne można pisać lub importować. Umiejętność uruchamia się jednym kliknięciem albo po prostu pytaniem: AI sama wczytuje pasującą. Własne umiejętności działają dopiero po zatwierdzeniu na tym urządzeniu. Wszystko o nich: [Umiejętności](AI_Skills.md).
 
 Skrypty to małe programy, które piszesz do tego, co model robi słabo — liczenia, sortowania, sumowania. Działają w zamkniętej piaskownicy, czytają Twój vault przez te same narzędzia co AI i uruchamiają się dopiero po zatwierdzeniu na tym urządzeniu. Wszystko o nich: [Skrypty](AI_Scripts.md).
+
+## Rutyny
+
+Rutyna uruchamia umiejętność o ustalonej przez Ciebie porze — poranny przegląd w dni robocze o siódmej, przegląd tygodnia w piątek po południu. Rutynę ustawisz w ustawieniach vaultu, w sekcji **AI & automatyzacja**, w karcie **Rutyny**: wybierz **Nowa rutyna**, a potem podaj nazwę, wskaż umiejętność w polu **Umiejętność**, wpisz zdanie, które umiejętność dostaje za każdym razem (puste: własne zapytanie umiejętności), ustaw dni i godzinę, w polu **Jeśli Plainva była wtedy zamknięta** zdecyduj, co ma się stać — **Nadrób raz** albo **Pomiń** —, a w polu **Model** wskaż model. Rutyną może stać się tylko umiejętność, która jest aktywna na tym urządzeniu i tylko czyta.
+
+Zanim rutyna powstanie, Plainva pokazuje, co obowiązuje w uruchomieniu, którego nikt nie obserwuje, a dopiero Twoje „tak” — przycisk **Skonfiguruj rutynę** — ją tworzy. Rutyna tylko czyta: żadnej propozycji, żadnego szkicu, żadnego internetu, żadnego narzędzia zewnętrznego, żadnego skryptu, żadnego polecenia aplikacji. Ma mały budżet. Jej wynikiem jest notatka w Twoim folderze skrzynki, pod nazwą wziętą z rutyny i dnia, oznaczona jako napisana przez AI, wraz z notatkami, na których się opiera. Przy modelu na tym urządzeniu nic nie opuszcza urządzenia. Przy modelu dostawcy potwierdzasz, co uruchomienie samo zabiera ze sobą — przegląd pokazuje, co to byłoby dziś —, a uruchomienie, które zabrałoby więcej, niczego nie wysyła i czeka na Ciebie. To, co model potem czyta przez swoje narzędzia, rozstrzygają Twoje zasady prywatności, tak jak w każdej rozmowie. Rutyna nie czyta e-maili dla modelu dostawcy: Plainva pyta o to od nowa w każdej sesji, a nie ma nikogo, kto by odpowiedział.
+
+Rutyna nigdy o nic nie pyta. Tam, gdzie potrzebowałaby odpowiedzi — poszłoby więcej, niż obejmuje Twoje potwierdzenie, to urządzenie pyta przed każdym zapytaniem, jej umiejętność została zmieniona od potwierdzenia rutyny, dostawca jej modelu nie jest już skonfigurowany albo jej model nie działa na tym urządzeniu, gdy włączony jest przełącznik **W pełni lokalnie** — jej wiersz mówi, czego potrzebuje, i ma przycisk **Przejrzyj**. Tam widzisz, co uruchomienie wysłałoby teraz i co z tego jest nowe, a przycisk **Potwierdź ponownie** pozwala rutynie znów działać.
+
+Rutyny działają na tym urządzeniu, dopóki Plainva jest otwarta: krótko po otwarciu vaultu, potem mniej więcej raz na minutę oraz gdy aplikacja wraca na pierwszy plan. Plainva nie ma usługi działającej w tle i nie obiecuje dokładnej godziny. Uruchomienie, które przypadło na czas, gdy Plainva była zamknięta, jest nadrabiane raz przy następnym otwarciu — bez względu na to, ile ich było — albo pomijane, zależnie od Twojego ustawienia. Przy opcji **Tylko gdy coś się zmieniło** urządzenie najpierw sprawdza, czy jakaś notatka zmieniła się od czasu, gdy rutyna ostatnio zostawiła notatkę, a jeśli nic się nie zmieniło, nie pyta żadnego modelu. Rutyna należy do urządzenia, na którym ją ustawiono: jest przechowywana w danych aplikacji, a nie w vaulcie, więc żadne inne urządzenie jej nie uruchamia.
+
+Gdy rutyna działa, wiersz w rozmowie mówi o tym i ma przycisk **Zatrzymaj**, a Twoja własna wiadomość czeka, aż rutyna skończy. Przełącznik w wierszu rutyny wstrzymuje ją, a jej menu pozwala uruchomić ją od razu (**Uruchom teraz**), edytować lub usunąć. Notatki, które napisała, zostają.
 
 ## Pamięć
 

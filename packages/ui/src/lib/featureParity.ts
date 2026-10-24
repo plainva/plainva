@@ -263,8 +263,9 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "The answer streams into the web view, and iOS and Android suspend a " +
       "backgrounded app's web view: on the phone an answer arrives only while " +
       "Plainva is open, which the handbook says. A run that outlives the app " +
-      "needs the whole loop native, the routines of plan KI-Harness P8.",
-    verified: "2026-09-24",
+      "needs the whole loop native; the routines of plan KI-Harness P8 were " +
+      "built without one (entry ai-routines-while-open).",
+    verified: "2026-10-24",
   },
   {
     id: "ai-external-agents",
@@ -362,6 +363,26 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "native bridge for less than that path already gives.",
     mobile: "yes",
     verified: "2026-10-01",
+  },
+  {
+    id: "ai-routines-while-open",
+    title: "A routine runs at its time while Plainva is open but not in front (plan KI-Harness P8, ADR 0033)",
+    area: "ai",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Routines are the same on both shells: set up, confirmed, run, caught up " +
+      "at the next opening. A desktop window that is open behind other windows " +
+      "keeps looking at the clock and runs them; iOS and Android suspend a " +
+      "backgrounded app's web view, so on the phone a routine runs only while " +
+      "Plainva is in front and catches up when it comes back - which the " +
+      "settings and the handbook say. A run while the app is suspended or " +
+      "closed needs the run loop outside the web view (WorkManager, " +
+      "BGTaskScheduler), as a closed desktop app would need an entry point " +
+      "without a window for the system's schedulers; neither is built. In the " +
+      "maintainer's open-items plan since 2026-10-24.",
+    verified: "2026-10-24",
   },
   {
     id: "ai-system-intents",

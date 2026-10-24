@@ -326,6 +326,10 @@ a write or an outside effect.
    when it is saved, not when it runs. The same set is what a paired MCP or
    ACP client receives (ADR 0022): one capability model for every run without
    a person in front of it.
+
+   Built with [ADR 0033](0033-ai-routines-a-run-nobody-watches.md), which narrows one
+   point: a routine offers no tool whose call needs an approval, so nothing
+   is parked.
 9. **The internet: three decisions, a native fetch, a reader in quarantine**
    (built with P4). The assistant reaches the internet through two tools,
    `fetch_url` and `web_search`. Both are read tools whose call is itself a

@@ -286,9 +286,12 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
       })
       .finally(() => setCapturing(null));
   };
+  // A routine runs beside this conversation (plan P8): one run at a time holds, so a message waits until it is done.
+  const routine = state.routines.running;
+  const ready = state.routines.ready;
   const send = () => {
     const text = draft.trim();
-    if (!text || running || consent || effect || !state.hasVault || rests) return;
+    if (!text || running || routine || consent || effect || !state.hasVault || rests) return;
     setDraft("");
     // Nothing sent (the overview was cancelled, or a rule held — the conversation stays on this device, the device is fully local): the words come back to the field.
     void session.send(text).then((stop) => {
@@ -677,6 +680,48 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
           </section>
         )}
         {!state.hasVault && <p className="pv-ai-working">{t("ai.empty.noVault")}</p>}
+        {/* A routine runs beside this conversation (plan P8, ADR 0033): it only reads and asks nothing — said here,
+            with STOP, because a message typed now would wait for it. */}
+        {routine && (
+          <Banner
+            kind="info"
+            rounded
+            actions={
+              <Button size="sm" variant="secondary" onClick={() => session.stop()} data-testid="ai-routine-stop">
+                {t("ai.stop")}
+              </Button>
+            }
+          >
+            <span data-testid="ai-routine-running">{t("ai.routines.running", { name: routine.name })}</span>
+          </Banner>
+        )}
+        {/* The note a routine left while the app was open: said once, with the way to it. */}
+        {ready && !routine && (
+          <Banner
+            kind="success"
+            rounded
+            actions={
+              <>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    onOpenNote(ready.note);
+                    session.dismissRoutineReady();
+                  }}
+                  data-testid="ai-routine-open"
+                >
+                  {t("ai.routines.openNote")}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => session.dismissRoutineReady()} data-testid="ai-routine-dismiss">
+                  {t("common.close")}
+                </Button>
+              </>
+            }
+          >
+            <span data-testid="ai-routine-ready">{t("ai.routines.ready", { name: ready.name })}</span>
+          </Banner>
+        )}
         {consent && (
           <AiSendOverview
             manifest={consent.manifest}
@@ -794,7 +839,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
               <Square size={touch ? ICON.touch : ICON.ui} />
             </IconButton>
           ) : (
-            <IconButton label={t("ai.send")} active={Boolean(draft.trim()) && !rests} disabled={!draft.trim() || !state.hasVault || Boolean(consent) || rests} onClick={send} data-testid="ai-send">
+            <IconButton label={t("ai.send")} active={Boolean(draft.trim()) && !rests && !routine} disabled={!draft.trim() || !state.hasVault || Boolean(consent) || rests || Boolean(routine)} onClick={send} data-testid="ai-send">
               <Send size={touch ? ICON.touch : ICON.ui} />
             </IconButton>
           )}

@@ -19,6 +19,7 @@ import {
   setImageExplainer,
   situationEvents,
   startableSkills,
+  startRoutineScheduler,
   toast,
   useStableHandler,
   type AiNavigationCommand,
@@ -27,6 +28,7 @@ import {
   type AiVaultHost,
   type AppCommand,
   watchLearnSurfaces,
+  watchRoutineReady,
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
@@ -41,6 +43,7 @@ import { providerListLabel, sendTaskToProviderList } from "../../services/pim/ta
 import { AI_MEMORY_EVENT, AI_OPEN_EVENT, AI_SKILLS_EVENT, AI_WAITING_EVENT, createDesktopVaultHost, getDesktopAiSession, requestWaitingView, type DesktopWriteHost } from "../../services/ai/desktopAi";
 import { configureMcp, listenForMcpCalls, vaultName } from "../../services/ai/mcpBridge";
 import { mcpPlans } from "../../services/ai/mcpPlans";
+import { notifyRoutineReady } from "../../services/ai/routineNotifier";
 import { AI_TAB_PATH, CALENDAR_TAB_PATH, isVirtualPath } from "../graph/virtualPaths";
 
 /**
@@ -339,6 +342,24 @@ export function useDesktopAi(input: DesktopAiInput) {
   }, [session]);
   // A plan of an app was asked of the vault that was open then: another vault, or none, and it waits no more.
   useEffect(() => () => mcpPlans.clear(), [vaultPath]);
+
+  // Routines (plan KI-Harness P8, ADR 0033): looked at shortly after the vault opened — the catch-up for what was
+  // missed while the app was closed —, then at a steady tick, and when the window comes back. Only this window has a
+  // session, so only it runs them; a window that is open in the background goes on looking.
+  useEffect(() => {
+    if (!session || !vaultPath) return;
+    return startRoutineScheduler(() => session.runDueRoutines());
+  }, [session, vaultPath]);
+  // A run left a note: said once, where the user is — and with the way to the note.
+  useEffect(() => {
+    if (!session) return;
+    return watchRoutineReady({ subscribe: session.subscribe, ready: () => session.getState().routines.ready }, (ready) =>
+      notifyRoutineReady(ready, () => {
+        latest.current.openNote(ready.note);
+        session.dismissRoutineReady();
+      }),
+    );
+  }, [session]);
   // "View" on the toast about a draft: the AI tab takes the request when it shows.
   useEffect(() => {
     const open = () => latest.current.openView(AI_TAB_PATH);

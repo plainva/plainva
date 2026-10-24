@@ -337,6 +337,10 @@ const VERBATIM_ALLOWED = new Set<string>([
   // three placeholders and their punctuation; the words they stand for are translated where they are defined.
   "ai.scripts.inputLine",
   "ai.scripts.inputLineDescribed",
+  // A routine's schedule and the line of a model it can be given (plan KI-Harness P8): placeholders and their
+  // punctuation — the days and the time, the profile, the provider and the model; the words come from what fills them.
+  "ai.routines.form.profile",
+  "ai.routines.schedule",
   // Two placeholders and a separator; there is no word in it to translate.
   "background.trayNextInVault",
   // The artifact kind and the worker's raw sentence, joined by a colon - the

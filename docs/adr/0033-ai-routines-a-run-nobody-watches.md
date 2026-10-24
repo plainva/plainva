@@ -1,0 +1,69 @@
+# ADR 0033: A routine is a skill at its time — a run nobody watches gets less, asks nobody, and leaves a note
+
+Status: Accepted
+
+Date: 2026-10-24
+
+## Context
+
+Until now a skill runs when its user starts it. The plan's last package asks for the same skill at a time the user set — the morning brief on working days at seven, the weekly review on Friday afternoon — and names what such a run must be: read-only without a per-routine approval, a smaller budget, a mandatory note, and *fail-closed* — a need for confirmation with nobody there ends the run cleanly.
+
+Four facts shape it.
+
+**Every safeguard of a conversation is a question.** The send overview asks before the first request and whenever the scope grows. A page of the internet asks. A foreign server asks every time. A plan asks. Mail asks once per recipient and session. All of them assume somebody who reads the question. A run at seven in the morning has nobody — a question would either wait for hours with a request half built, or be answered by nobody, which is no answer.
+
+**The Rule of Two has a third leg that is only safe with a person.** A run of a skill over a vault holds private data and a stranger's text at once ([ADR 0019](0019-ai-tools-risk-classes-and-approvals.md)). The third property — an effect: a proposal, a draft, a request to the outside — is what the user's yes guards. Without the user there is no yes, so there must be no effect.
+
+**The app has no service in the background.** A desktop app that is closed runs nothing; a phone suspends an app within seconds. Exact times while the app is closed would need the operating system's schedulers and an entry point without a window on the desktop, and background tasks the systems grant at their own discretion on the phones. Neither can be promised from inside the app.
+
+**A vault is synced, and a routine in it would be everybody's.** A file in the vault that says "run this at seven" would run on every device that syncs it, each writing the same note — and whoever can write the vault could give every device a standing order to ask a model.
+
+## Decision
+
+1. **A routine is a skill, a time and a model — confirmed once, per device.** It names an active skill, a sentence said to it each time (empty for the skill's own request), days of the week and a time of day, what becomes of a run that was missed, and a model. It exists only after its confirmation, which says what holds for a run nobody watches. Routines are kept per vault in the app's data on this device (`routines.json` beside the vault's other AI data), never in the vault and never synced: a routine runs on the device it was set up on. At most twenty are kept — each is a standing permission to ask a model.
+
+2. **It carries the tools that read, and nothing else.** Of the tools its skill names, a routine gets the ones whose risk class is `read` and whose call is not itself a way out (`routineTools`): no proposal, no draft, no plan, no entry in the memory, no page of the internet and no search, no command that moves the app, no tool search, no further skill. It reaches no foreign server and no script — both are found through the tool search, which it does not have. A skill that names any tool beyond those cannot be a routine at all (`routineSkillFits`): a routine does what its skill says, or it is not offered. So a routine's run never has the third property, and the Rule of Two holds without anyone to ask.
+
+3. **It asks nobody.** A routine never shows a send overview and never puts a question on screen. For a model on this device nothing leaves, and nothing has to be confirmed about what goes. For a provider's model the confirmation shows what a run would send — put together exactly as a run puts it together, and not sent — and its yes becomes the routine's own scope: this recipient, the kinds of data, the folders, the tools and the sensitive kinds the overview named, and about its size. A run then goes within that scope; where it would go beyond — a note from another folder became a candidate, a kind of sensitive text appeared, the request is several times larger — **nothing is sent** and the routine says it needs its user. The same where the device asks before every request. The routine's scope is its own: it neither uses nor widens what the user approved for their conversations in this session, and a conversation gains nothing from it.
+
+4. **Mail is not read for a provider's model.** Reading mail asks once per recipient and session, at the first call. A routine cannot ask, so for a provider's model the tools that read mail answer that nobody allowed it, and the run goes on without them; with a model on this device they read, because nothing leaves. The confirmation says so where the skill names such tools.
+
+5. **It is confirmed for the skill as it was.** A skill of the vault can change under a routine — an edit, a sync, another device. Such a skill is not active again until it was approved on this device; and even then the routine rests until its user looked at it once more, because the standing permission was given for other instructions. What a skill is, is every file of it by path and hash (`routineSkillHash`). A skill that comes with the app is the app's: an update is no change somebody else made, and what a routine may do with it stays what a routine may do.
+
+6. **What it leaves is a note.** A run that was answered writes its answer as a note the way "Keep as a note" does: into the vault's inbox folder, stamped as written by the model, with the notes it rests on as its sources and the privacy rules of what it rests on inherited. It is called after the routine and the day. In a shared workspace others read that note; the confirmation says so, and its yes covers it — the run does not ask each time, as a person's "Keep as a note" does. A routine changes nothing else in the vault. It reads the vault's memory like a conversation a person begins and never writes it: an entry of the memory is a draft the user accepts, and there is nobody to accept.
+
+7. **A smaller budget.** Eight steps, twelve tool calls and six thousand tokens of output per run (`ROUTINE_RUN_LIMITS`); a skill's own bound narrows it further. The confirmation names the numbers.
+
+8. **It runs beside the conversation on screen.** A routine's run takes over nothing: the open conversation, its drafts and its notice stay as they are. Its own conversation goes into the history under the routine's name — one per routine, the one of the last run makes room for the next unless it is on screen. One run at a time holds for routines too: while one runs, the conversation says so in a line with STOP and takes no message; while something else has the session, a routine waits for the next look. STOP ends it like any run, and nothing is written.
+
+9. **No time it cannot keep.** A routine runs at the first look after its moment while the app is open: shortly after the vault opened, then once a minute, and whenever the app comes back to the front. A moment that passed while the app was closed follows the routine's own rule — one run at the next opening for the latest missed moment, however many were missed, or none ("skip": only a moment of today still counts). A run that ended in any way counts for its moment: a routine that failed or needs its user does not try again every minute. A moment is kept as the wall-clock time it names, so seven in the morning is seven in the morning wherever the device is. No moment older than the routine, or older than the end of its last pause, is ever run. The settings say all of this where a routine is set up.
+
+10. **"Only when something changed" is a look at the index, not at a model.** Before such a run the device asks its own index whether a note changed on disk since the routine last left a note — its own note does not count. Without a change no model is asked. Where the index cannot say, the run goes ahead.
+
+11. **Fully local holds.** While the device is fully local ([ADR 0030](0030-ai-fully-local-and-models-on-this-device.md)) a routine whose model is not on it rests and says so; the session's egress would refuse the request as well.
+
+12. **The gate.** A test suite holds the rule against the real session and the host both shells build: across a provider's model and a model on this device, a routine offers only tools that read, shows no overview and asks no question; and where the scope grew, the device asks before every request, the skill is not what was confirmed, the provider's key is gone or the device is fully local, no request leaves.
+
+## Consequences
+
+- A morning brief can go to a provider's model, but the first days may stop it once or twice: each new folder among the day's candidates is a growth nobody confirmed. Looking at the routine shows what is new, and one yes adds it. A model on this device never stops for that.
+- The result of a routine is always one note per run. A user who wants a task, a draft of a mail or a changed note runs the skill themselves, where every effect is asked about.
+- A device that asks before every request runs no routine with a provider's model. That is the meaning of the setting.
+- Routines do not follow a user to another device. Setting one up again takes a minute, and confirms it for that device's model and that device's rules.
+- The list of routines is a small file the app reads once a minute while a routine exists whose moment has come; otherwise a look costs one comparison per routine.
+
+## Alternatives
+
+- **Ask when the user is back.** A run that waits for its overview until somebody opens the app is a run at the wrong time with a stale context, and a question the user answers without having started anything. Rejected: the routine says in its row what it needs, and nothing is half sent.
+- **Let a routine propose and draft — those change nothing by themselves.** True for the vault, not for the run: with private notes and a stranger's text in it, a tool that writes somewhere is the third property, and a suggestion round laid on a note at seven in the morning is read by whoever opens the note. Rejected for a run nobody watches; the plan's own rule is "never all three". ADR 0019 (decision 8) still pictured such items parked in the inbox; by its own decision 5 a run with all three properties can never be a routine, so there is nothing to park.
+- **A standing approval for the whole vault** (as search by meaning with a provider's model has). It would make a routine never stop — and would let any note of the vault that the rules allow go to a provider at night because a model asked for it in a context nobody saw. The scope of what was shown, widened by one look at a time, keeps the user's picture and the routine's reach the same.
+- **Routines as files in the vault.** They would sync, and with them the permission. Rejected (context above).
+- **The operating system's schedulers and background tasks.** They would run a routine while the app is closed — on the desktop through an entry point without a window that has to unlock the vault's index, the keys and the egress by itself; on the phones through tasks the system grants when it likes. Not built here: it is wiring that has to be built and measured on devices, and it changes what "nobody watches" means. The catalog of feature parity and the plan of open points name it.
+- **Writing the memory from a routine** (the plan's first wording). Since the memory's entries became drafts a person accepts, a routine has nobody to accept them. Rejected; a routine reads the memory.
+- **Subagents.** The plan allows them only once a single agent's success plateaus and real runs show work that can be split. Neither has been measured — there are no real runs yet. Not built.
+
+## Links
+
+- ADR 0018 (the context package and the scope), ADR 0019 (the Rule of Two; its decision 8 designed the unattended run this record builds), ADR 0020 (skills and their approval), ADR 0032 (the memory), ADR 0030 (fully local).
+- `packages/core/src/ai/routines.ts`; `packages/ui/src/ai/aiSession.ts` (`runRoutine`, `routinePreview`), `routineSession.ts`, `routineScheduler.ts`, `routineView.ts`.
+- [AI threat model](../engineering/AI_Threat_Model.md), T70 to T75.

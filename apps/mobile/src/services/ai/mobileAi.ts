@@ -35,7 +35,10 @@ import {
   situationFrom,
   spawnScriptWorker,
   startableSkills,
+  startRoutineScheduler,
+  toast,
   vaultMailSource,
+  watchRoutineReady,
   withCloudDenied,
   type AiFileStore,
   type AppCommand,
@@ -468,6 +471,30 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
     setPolicy(vaultPolicy);
     void s.attachVault(host);
   }, [s, vault, navRef]);
+
+  // Routines (plan KI-Harness P8, ADR 0033): looked at shortly after the vault opened — the catch-up for what was
+  // missed while the app was closed —, then at a steady tick, and when the app comes back to the front. A phone
+  // suspends an app it cannot see, so a routine here runs only while Plainva is in front (parity catalog,
+  // `ai-routines-while-open`).
+  useEffect(() => {
+    if (!vault) return;
+    return startRoutineScheduler(() => s.runDueRoutines());
+  }, [s, vault]);
+  // A run left a note: said once where the user is, with the way to it. The app is in front whenever a routine runs
+  // here, so the toast is the whole message.
+  useEffect(
+    () =>
+      watchRoutineReady({ subscribe: s.subscribe, ready: () => s.getState().routines.ready }, (ready) =>
+        toast.info(i18n.t("ai.routines.ready", { name: ready.name }), {
+          label: i18n.t("ai.routines.openNote"),
+          run: () => {
+            navRef.current.openNote(ready.note);
+            s.dismissRoutineReady();
+          },
+        }),
+      ),
+    [s, navRef],
+  );
 
   const enabled = Boolean(state?.loaded && state.settings.enabled);
   // "Transcribe" at every voice note (plan P1.5): the door exists while the AI is on for the open vault.

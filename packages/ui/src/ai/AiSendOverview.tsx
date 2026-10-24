@@ -67,6 +67,14 @@ export interface AiSendOverviewProps {
   external?: readonly string[];
   /** After the answer: what the run asked of foreign servers — server, tool, how it ended — as lines. */
   externalCalls?: readonly string[];
+  /**
+   * The overview stands in a confirmation of its own — a routine's (plan
+   * KI-Harness P8): it shows what a run would bring along, under the caller's
+   * title, with the folders the notes come from — the confirmation is about
+   * those, not about today's notes — and without buttons: the yes is the
+   * dialog's.
+   */
+  preview?: { title: string };
 }
 
 /** A page as a row names it: without the scheme every address shares. */
@@ -81,7 +89,7 @@ function useSkillTitle(): (id: string, name: string) => string {
   };
 }
 
-export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onRedact, onOpenNote, everyRequest, touch, coverage, web, reading, onOpenUrl, images, blind, external, externalCalls }: AiSendOverviewProps) {
+export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onRedact, onOpenNote, everyRequest, touch, coverage, web, reading, onOpenUrl, images, blind, external, externalCalls, preview }: AiSendOverviewProps) {
   const { t, i18n } = useTranslation();
   // The dispatcher is the search's other half, not a tool of its own to a reader.
   const shownTools = manifest.tools.filter((tool) => tool !== DISPATCH_TOOL);
@@ -205,14 +213,16 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
 
   const standing = manifest.standing;
   const fill = manifest.fill;
-  const title = standing
-    ? t("ai.overview.standingTitle", { provider: manifest.providerLabel })
-    : asking
-      ? t("ai.overview.title", { provider: manifest.providerLabel })
-      : t("ai.overview.sentTitle", { provider: manifest.providerLabel });
+  const title = preview
+    ? preview.title
+    : standing
+      ? t("ai.overview.standingTitle", { provider: manifest.providerLabel })
+      : asking
+        ? t("ai.overview.title", { provider: manifest.providerLabel })
+        : t("ai.overview.sentTitle", { provider: manifest.providerLabel });
 
   return (
-    <section className={cx("pv-ai-overview", asking && "pv-ai-overview--asking", touch && "pv-ai-overview--touch")} aria-label={title} data-testid={asking ? "ai-consent" : "ai-overview"}>
+    <section className={cx("pv-ai-overview", asking && "pv-ai-overview--asking", touch && "pv-ai-overview--touch")} aria-label={title} data-testid={preview ? "ai-routine-overview" : asking ? "ai-consent" : "ai-overview"}>
       <h4 className="pv-ai-overview-head">
         <ShieldCheck size={ICON.ui} aria-hidden="true" />
         <span>{title}</span>
@@ -280,10 +290,10 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
             </>
           )}
         </dd>
-        {standing && manifest.folders.length > 0 && (
+        {(standing || preview) && manifest.folders.length > 0 && (
           <>
             <dt>{t("ai.overview.folders")}</dt>
-            <dd>{manifest.folders.map((folder) => folder || "/").join(" · ")}</dd>
+            <dd data-testid="ai-overview-folders">{manifest.folders.map((folder) => folder || "/").join(" · ")}</dd>
           </>
         )}
         {classes.length > 0 && (

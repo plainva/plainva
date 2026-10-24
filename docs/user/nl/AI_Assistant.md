@@ -1,6 +1,6 @@
 # AI-assistent (Beta)
 
-Laatst bijgewerkt: 2026-10-09
+Laatst bijgewerkt: 2026-10-24
 
 Plainva kan vragen over je notities beantwoorden met een AI-model van jouw keuze. Het leest je vault, noemt de notities waarop het zich baseert, opent notities en weergaven voor je en stelt wijzigingen voor — als voorstellen bij een notitie, als concepten voor iets nieuws of als een plan dat jij bevestigt. Een notitie verandert het nooit zelf. De assistent is **experimenteel** en staat uit totdat je hem inschakelt, apart op elk apparaat.
 
@@ -123,6 +123,18 @@ De draad gaat naar het model zoals een vraag: de opmerkingen erin, de passage wa
 Vaardigheden zijn instructies voor terugkerend werk. Dertien komen met Plainva mee — waaronder **Dagoriëntatie**, **Weekoverzicht** en **Projectstatus** als chips in een leeg gesprek — en je kunt je eigen schrijven of importeren. Start er een met één klik, of vraag het gewoon: de AI laadt zelf een passende vaardigheid. Je eigen vaardigheden draaien pas nadat je ze op dit apparaat hebt goedgekeurd. Alles erover: [Vaardigheden](AI_Skills.md).
 
 Scripts zijn kleine programma's die je schrijft voor wat een model slecht kan — tellen, sorteren, optellen. Ze werken in een afgesloten ruimte, lezen je vault via dezelfde hulpmiddelen als de AI en draaien pas nadat je ze op dit apparaat hebt goedgekeurd. Alles erover: [Scripts](AI_Scripts.md).
+
+## Routines
+
+Een routine start een vaardigheid op een tijdstip dat je zelf instelt — het ochtendoverzicht op werkdagen om zeven uur, het weekoverzicht op vrijdagmiddag. Je stelt er een in via de instellingen van de vault, onder **AI & automatisering**, in de kaart **Routines**: **Nieuwe routine**, daarna een naam, de **Vaardigheid**, de zin die ze elke keer te horen krijgt (leeg gelaten: het eigen verzoek van de vaardigheid), de dagen en de tijd, wat er gebeurt **Als Plainva op dat moment gesloten was** — **Eén keer inhalen** of **Overslaan** —, en het **Model**. Alleen vaardigheden die op dit apparaat actief zijn en alleen lezen, kunnen een routine worden.
+
+Voordat een routine bestaat, toont Plainva wat er geldt voor een uitvoering waar niemand naar kijkt, en alleen jouw ja — **Routine instellen** — maakt haar aan. Een routine leest alleen: geen voorstel, geen concept, geen internet, geen extern hulpmiddel, geen script, geen opdracht van de app. Ze heeft een klein budget. Het resultaat is een notitie in je Inbox-map, met de naam van de routine en de dag, gemarkeerd als door de AI geschreven en met vermelding van de notities waarop ze berust. Bij een model op dit apparaat verlaat er niets het apparaat. Bij het model van een provider bevestig je wat een uitvoering uit zichzelf meeneemt — het overzicht toont wat dat vandaag zou zijn —, en een uitvoering die meer zou meenemen dan dat, verzendt niets en wacht op jou. Wat het model daarna via zijn hulpmiddelen leest, bepalen je privacyregels, zoals in elk gesprek. Met het model van een provider leest een routine geen e-mails: Plainva vraagt daar in elke sessie opnieuw naar, en er is niemand die antwoordt.
+
+Een routine stelt nooit een vraag. Waar ze een antwoord nodig zou hebben — er zou meer meegaan dan je hebt bevestigd, dit apparaat vraagt vóór elk verzoek, haar vaardigheid is gewijzigd sinds je de routine hebt bevestigd, de provider van haar model is niet meer ingesteld, of haar model staat niet op dit apparaat terwijl **Volledig lokaal** aan staat — zegt haar rij wat ze nodig heeft, met **Bekijken**. Daar zie je wat een uitvoering nu zou verzenden en wat daarvan nieuw is, en **Opnieuw bevestigen** laat haar weer draaien.
+
+Routines draaien op dit apparaat zolang Plainva open is: kort nadat je de vault opent, daarna ongeveer één keer per minuut en wanneer de app terugkeert naar de voorgrond. Plainva heeft geen achtergrondservice en belooft geen exact tijdstip. Een uitvoering die is gemist terwijl Plainva gesloten was, wordt bij het volgende openen één keer ingehaald — hoeveel er ook zijn gemist — of overgeslagen, zoals je het hebt ingesteld. Met **Alleen als er iets is gewijzigd** controleert het apparaat eerst of een notitie is gewijzigd sinds de routine voor het laatst een notitie heeft achtergelaten, en vraagt anders geen model. Een routine hoort bij het apparaat waarop je haar hebt ingesteld: ze wordt bewaard in de gegevens van de app, niet in de vault, dus geen ander apparaat voert haar uit.
+
+Terwijl een routine draait, staat er een regel in het gesprek die dat zegt, met **Stoppen**, en wacht een bericht dat je zelf stuurt tot de routine klaar is. De schakelaar in de rij van een routine pauzeert haar; het menu in die rij voert haar direct uit (**Nu uitvoeren**), bewerkt haar of verwijdert haar. De notities die ze heeft geschreven, blijven staan.
 
 ## Geheugen
 

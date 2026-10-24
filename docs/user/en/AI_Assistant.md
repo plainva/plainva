@@ -1,6 +1,6 @@
 # AI Assistant (Beta)
 
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-24
 
 Plainva can answer questions about your notes with an AI model of your choice. It reads your vault, cites the notes it used, opens notes and views for you and proposes changes — as suggestions on a note, as drafts of something new, or as a plan you confirm. It never changes a note itself. The assistant is **experimental** and switched off until you switch it on, separately on every device.
 
@@ -123,6 +123,18 @@ The thread goes to the model the way a question does: its comments, the passage 
 Skills are instructions for recurring work. Thirteen come with Plainva — among them **Daily orientation**, **Weekly review** and **Project status** as chips in an empty conversation — and you can write or import your own. Start one with a click, or simply ask: the AI loads a matching skill by itself. Your own skills run only after you approved them on this device. Everything about them: [Skills](AI_Skills.md).
 
 Scripts are small programs you write for what a model does badly — counting, sorting, adding up. They run in a closed box, read your vault through the same tools as the AI, and only after you approved them on this device. Everything about them: [Scripts](AI_Scripts.md).
+
+## Routines
+
+A routine starts a skill at a time you set — the morning brief on working days at seven, the weekly review on Friday afternoon. You set one up in the vault's settings under **AI & automation**, in the card **Routines**: **New routine**, then a name, the **Skill**, the sentence it is told each time (left empty: the skill's own request), the days and the time, what happens **If Plainva was closed at that time** — **Catch up once** or **Skip** —, and the **Model**. Only skills that are active on this device and only read can become a routine.
+
+Before a routine exists, Plainva shows what holds for a run nobody watches, and only your yes — **Set up routine** — makes it. A routine only reads: no suggestion, no draft, no internet, no external tool, no script, no command of the app. It has a small budget. Its result is a note in your inbox folder, called after the routine and the day, marked as written by the AI, with the notes it rests on. With a model on this device nothing leaves it. With a provider's model you confirm what a run brings along by itself — the overview shows what that would be today —, and a run that would bring along more than that sends nothing and waits for you. What the model then reads through its tools is decided by your privacy rules, as in every conversation. A routine does not read e-mails for a provider's model: Plainva asks about that anew in every session, and nobody is there to answer.
+
+A routine never asks a question. Where it would need an answer — more would go than you confirmed, this device asks before every request, its skill was changed since you confirmed the routine, the provider of its model is no longer set up, or its model is not on this device while **Fully local** is on — its row says what it needs, with **Look at it**. There you see what a run would send now and what of it is new, and **Confirm again** lets it run again.
+
+Routines run on this device while Plainva is open: shortly after you open the vault, then about once a minute, and when the app comes back to the front. Plainva has no service in the background and promises no exact time. A run that was missed while Plainva was closed is caught up once at the next opening — however many were missed — or skipped, as you set it. With **Only when something changed** the device first checks whether a note changed since the routine last left a note, and asks no model otherwise. A routine belongs to the device you set it up on: it is kept in the app's data, not in the vault, so no other device runs it.
+
+While a routine runs, a line in the conversation says so, with **Stop**, and a message of your own waits until it is done. The switch in its row pauses a routine; its menu runs it at once (**Run now**), edits it or removes it. The notes it wrote stay.
 
 ## Memory
 

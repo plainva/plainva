@@ -304,6 +304,21 @@ it uses both (it "riassunto" beside "sintesi", pl "podsumowanie" beside "streszc
 | zh-CN | 在此设备上为转写稿生成摘要 | 摘要： | 要点 | 整理成笔记 |
 | ja | 文字起こしをこの端末で要約する | 要約: | 要旨 | ノートにする |
 
+Routines (`ai.routines.*`, AI harness P8-1): a **routine** is a skill at a time its user set — the household word for what one does regularly, in every language the word people use for a morning routine; not "job", not "schedule", not "automation" (the settings area's name), and not the word for a task. A run the app was closed for is **caught up** — once, which the label says — or **skipped**; never "missed runs are queued" or "retried". A routine that cannot run says so with one of two beginnings: it **rests** where a setting of the device holds it back (the word "Fully local" uses for what it leaves alone), and it **needs you** where only its user can let it go on. **Look at it** opens what holds for the routine again, with what a run would send now; it is not a "review" as of code and not "fix". **Run now** is the hand's way to start one; it does not use up the routine's next time. Where a language's word for "paused" would be the word for "rests", the switch's state takes another one (pl "Wyłączona").
+
+| Language | Routines | New routine | Run now | Catch up once | Skip | Only when something changed | Look at it | Paused |
+|---|---|---|---|---|---|---|---|---|
+| en | Routines | New routine | Run now | Catch up once | Skip | Only when something changed | Look at it | Paused |
+| de | Routinen | Neue Routine | Jetzt ausführen | Einmal nachholen | Auslassen | Nur wenn sich etwas geändert hat | Ansehen | Pausiert |
+| fr | Routines | Nouvelle routine | Exécuter maintenant | Rattraper une fois | Ignorer | Seulement si quelque chose a changé | Examiner | En pause |
+| es | Rutinas | Nueva rutina | Ejecutar ahora | Recuperar una vez | Omitir | Solo cuando algo ha cambiado | Revisar | En pausa |
+| pt-BR | Rotinas | Nova rotina | Executar agora | Recuperar uma vez | Ignorar | Somente quando algo mudou | Revisar | Pausada |
+| it | Routine | Nuova routine | Esegui ora | Recupera una volta | Salta | Solo se qualcosa è cambiato | Controlla | Sospesa |
+| nl | Routines | Nieuwe routine | Nu uitvoeren | Eén keer inhalen | Overslaan | Alleen als er iets is gewijzigd | Bekijken | Gepauzeerd |
+| pl | Rutyny | Nowa rutyna | Uruchom teraz | Nadrób raz | Pomiń | Tylko gdy coś się zmieniło | Przejrzyj | Wyłączona |
+| zh-CN | 例程 | 新建例程 | 立即运行 | 补运行一次 | 跳过 | 仅在有内容更改时 | 查看 | 已暂停 |
+| ja | ルーティン | 新しいルーティン | 今すぐ実行 | 遅れて1回だけ実行 | スキップ | 変更があったときだけ | 内容を見る | 一時停止中 |
+
 ## Daily note and journal (zh-CN)
 
 The daily note (one note per day, named by the vault's date format) and the

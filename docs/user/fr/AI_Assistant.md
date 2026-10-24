@@ -1,6 +1,6 @@
 # Assistant IA (Bêta)
 
-Dernière mise à jour : 2026-10-09
+Dernière mise à jour : 2026-10-24
 
 Plainva peut répondre à des questions sur vos notes avec un modèle d'IA de votre choix. Il lit votre vault, cite les notes sur lesquelles il s'appuie, ouvre des notes et des vues pour vous et propose des modifications — sous forme de propositions sur une note, de brouillons pour ce qui est nouveau, ou d'un plan que vous confirmez. Il ne modifie jamais une note lui-même. L'assistant est **expérimental** et désactivé jusqu'à ce que vous l'activiez, séparément sur chaque appareil.
 
@@ -123,6 +123,18 @@ Le fil part vers le modèle comme une question : ses commentaires, le passage au
 Les compétences sont des instructions pour un travail récurrent. Treize sont fournies avec Plainva — dont **Orientation du jour**, **Bilan de la semaine** et **État du projet** sous forme de puces dans une conversation vide — et vous pouvez écrire ou importer les vôtres. Lancez-en une en un clic, ou demandez simplement : l'IA charge d'elle-même une compétence adaptée. Vos propres compétences ne s'exécutent qu'après votre approbation sur cet appareil. Tout à leur sujet : [Compétences](AI_Skills.md).
 
 Les scripts sont de petits programmes que vous écrivez pour ce qu'un modèle fait mal — compter, trier, additionner. Ils s'exécutent dans une boîte fermée et lisent votre vault avec les mêmes outils que l'IA, mais seulement après que vous les avez approuvés sur cet appareil. Tout ce qui les concerne : [Scripts](AI_Scripts.md).
+
+## Routines
+
+Une routine lance une compétence à un moment que vous fixez — le point du matin en semaine à sept heures, le bilan de la semaine le vendredi après-midi. Vous en configurez une dans les paramètres du vault, sous **IA & automatisation**, dans la carte **Routines** : **Nouvelle routine**, puis un nom, la **Compétence**, la phrase qu'on lui dit à chaque fois (laissée vide : la demande propre à la compétence), les jours et l'heure, ce qui se passe **Si Plainva était fermé à ce moment-là** — **Rattraper une fois** ou **Ignorer** —, et le **Modèle**. Seules les compétences qui sont actives sur cet appareil et qui ne font que lire peuvent devenir une routine.
+
+Avant qu'une routine n'existe, Plainva montre ce qui vaut pour une exécution que personne ne surveille, et seul votre oui — **Configurer la routine** — la crée. Une routine ne fait que lire : ni proposition, ni brouillon, ni Internet, ni outil externe, ni script, ni commande de l'application. Elle dispose d'un petit budget. Son résultat est une note dans le dossier de la boîte de réception de votre vault, intitulée d'après la routine et le jour, marquée comme rédigée par l'IA, avec les notes sur lesquelles elle repose. Avec un modèle sur cet appareil, rien n'en sort. Avec le modèle d'un fournisseur, vous confirmez ce qu'une exécution apporte d'elle-même — l'aperçu montre ce que ce serait aujourd'hui —, et une exécution qui apporterait davantage n'envoie rien et vous attend. Ce que le modèle lit ensuite via ses outils est décidé par vos règles de confidentialité, comme dans chaque conversation. Une routine ne lit pas les e-mails pour le modèle d'un fournisseur : Plainva repose la question à chaque session, et personne n'est là pour répondre.
+
+Une routine ne pose jamais de question. Là où elle aurait besoin d'une réponse — elle enverrait plus que ce que vous avez confirmé, cet appareil demande avant chaque requête, sa compétence a été modifiée depuis que vous avez confirmé la routine, le fournisseur de son modèle n'est plus configuré, ou son modèle n'est pas sur cet appareil alors que l'interrupteur **Entièrement local** est activé — sa ligne indique ce dont elle a besoin, avec **Examiner**. Vous y voyez ce qu'une exécution enverrait maintenant et ce qui, dans cet envoi, est nouveau, et **Confirmer de nouveau** lui permet de s'exécuter à nouveau.
+
+Les routines s'exécutent sur cet appareil tant que Plainva est ouvert : peu après l'ouverture du vault, puis environ une fois par minute, et quand l'application revient au premier plan. Plainva n'a aucun service en arrière-plan et ne promet aucune heure exacte. Une exécution manquée pendant que Plainva était fermé est rattrapée une fois à la prochaine ouverture — quel que soit le nombre d'exécutions manquées — ou ignorée, comme vous l'avez défini. Avec **Seulement si quelque chose a changé**, l'appareil vérifie d'abord si une note a changé depuis la dernière note laissée par la routine, et n'interroge aucun modèle dans le cas contraire. Une routine appartient à l'appareil sur lequel vous l'avez configurée : elle est conservée dans les données de l'application, pas dans le vault, donc aucun autre appareil ne l'exécute.
+
+Pendant qu'une routine s'exécute, une ligne de la conversation l'indique, avec **Arrêter**, et un message de votre part attend qu'elle ait terminé. L'interrupteur de la ligne d'une routine la met en pause ; son menu permet de l'exécuter tout de suite (**Exécuter maintenant**), de la modifier ou de la retirer. Les notes qu'elle a écrites restent.
 
 ## Mémoire
 

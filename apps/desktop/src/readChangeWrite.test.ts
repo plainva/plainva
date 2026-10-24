@@ -54,6 +54,7 @@ const APP_DATA =
 type Site = [what: string, times: number, why: string];
 
 const SITES: Record<string, Site[]> = {
+  "apps/desktop/src/ai/routineSessionHarness.ts": [["a pair of read and write without the entry, in write", 1, `${NEW_FILE} (a test's stand-in for the shell's capture: the note a routine leaves)`]],
   "packages/ui/src/ai/acpStores.ts": [["reads and writes path in run", 1, `${APP_DATA} (the log of an external agent's sessions)`]],
   "packages/ui/src/ai/mcpStores.ts": [["reads and writes audit in run", 1, `${APP_DATA} (what foreign MCP servers were asked)`]],
   "packages/ui/src/base/pinboardEntry.ts": [["reads and writes draft.path in endPinboardEntry", 1, NO_CHAIN_FALLBACK]],

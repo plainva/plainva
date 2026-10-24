@@ -281,7 +281,31 @@ import {
   type ScriptDefinition,
   type ScriptOutcome,
   type ScriptProblem,
+  dueMoment,
+  FOLDER_LOG_FIRST_LOOK_MS,
+  FOLDER_LOG_LIMITS,
+  FOLDER_LOG_NOTES_MAX,
+  FOLDER_LOG_REQUEST_TOKENS,
+  folderLogPath,
+  localStamp,
+  logFolder,
+  MAIL_TOOL_NAMES,
+  ROUTINE_RUN_LIMITS,
+  routineDays,
+  routineDraftProblems,
+  routineFailureOf,
+  routineNoteTitle,
+  routineSkillFits,
+  routineSkillHash,
+  routineTools,
+  type Routine,
+  type RoutineDraft,
+  type RoutineNeed,
+  type RoutineRun,
 } from "@plainva/core";
+import { skillView } from "./aiSkills";
+import { logEntryText, logMaterial, type FolderLogHost, type LogMaterial } from "./folderLogRun";
+import { AiRoutines, type AiRoutinesState, type RoutineStore } from "./routineSession";
 import { AiAcp, type AcpDrafts, type AcpVaultSide, type AiAcpHost, type AiAcpState } from "./acpSession";
 import { AiMcp, type AiMcpHost, type AiMcpState, type McpPromptReview, type McpPromptStart } from "./mcpSession";
 import type { McpPromptLook } from "./mcpRuntime";
@@ -449,6 +473,21 @@ export interface AiVaultHost {
   skillTests?: SkillTestStore;
   /** The upkeep hints this device was told not to show again (plan P6-3); absent, every hint comes back. */
   upkeep?: UpkeepPrefStore;
+  /** The routines of this vault on this device (plan KI-Harness P8, ADR 0033); absent, this vault keeps none here. */
+  routines?: RoutineStore;
+  /**
+   * Whether a note changed on disk since an instant — other than the ones
+   * named (plan P8, a routine's "only when something changed"). Asked of this
+   * device's index. Absent where there is none: nobody can tell then, which
+   * is not "nothing changed".
+   */
+  changedSince?(since: number, except: readonly string[]): Promise<boolean>;
+  /**
+   * A folder's log (plan KI-Harness P8-2): which notes of a folder changed,
+   * what a note said before, and the one file such a routine writes. Absent
+   * where this shell keeps none.
+   */
+  log?: FolderLogHost;
   /**
    * The vault's own instructions — skills in `.agent/skills/` and a root
    * `AGENTS.md` — and their approvals on this device (plan KI-Harness P3);
@@ -852,6 +891,8 @@ export interface AiState {
   learnLog: boolean;
   /** What this device noticed by itself about the skills and the memory (plan P6-3) — without the hints it was told not to show again. */
   upkeep: AiUpkeepState;
+  /** The routines of this vault on this device (plan P8): the list, the one that runs right now, and the note a run left. */
+  routines: AiRoutinesState;
 }
 
 /**
@@ -1017,12 +1058,86 @@ interface DetachedStart {
   limits?: RunLimits;
 }
 
+/**
+ * A run nobody watches (plan KI-Harness P8, ADR 0033): a routine. A
+ * conversation of its own, bound to its skill, with the tools that read and
+ * nothing else — and no question on the way. Where a person's run would show
+ * the send overview, this one compares what it would bring along with what
+ * was confirmed for the routine (`scope`): within it, it goes; beyond it,
+ * nothing is sent and the run ends with what it needs. `preview`: put
+ * together what a run would send and stop there — the confirmation shows it.
+ */
+interface RoutineStart {
+  title: string;
+  limits: RunLimits;
+  /** What was confirmed to go to the routine's model; null where nothing was — a model on this device needs none. */
+  scope: ApprovedScope | null;
+  preview?: boolean;
+  /**
+   * A folder's log (plan P8-2): the run brings its own material — the notes
+   * that changed, with what to write — and names it in the overview. It has
+   * no tools, no skill, no memory and nothing else of the vault.
+   */
+  log?: { lead: TextPart; disclose(manifest: EgressManifest): EgressManifest };
+}
+
 /** How a run ended; with the conversation it left and the answer's text once a request went out. */
 interface RunOutcome {
   stop: RunStop;
   record?: ConversationRecord;
   answer?: string;
+  /** A routine's run that ended without sending: what it needs from its user. */
+  need?: RoutineNeed;
+  /** A routine's preview: what a run would send, and what it may spend. */
+  manifest?: EgressManifest;
+  limits?: RunLimits;
 }
+
+/**
+ * What the confirmation of a routine shows (plan KI-Harness P8): put
+ * together like a run, and never sent.
+ */
+export interface RoutinePreview {
+  /** The skill, and what it is right now (`routineSkillHash`): the routine is confirmed for this. */
+  skill: { id: string; hash: string };
+  /** Who would read: the provider's name and the model. */
+  provider: string;
+  model: string;
+  /** The model runs on this device: nothing leaves it, and nothing has to be confirmed about what goes. */
+  here: boolean;
+  /** What a run would bring along today. */
+  manifest: EgressManifest;
+  /** On a second look: what would go now beyond what was confirmed for this routine. */
+  growth: ScopeGrowth[];
+  limits: RunLimits;
+  /** The folder its note goes to ("" for the top of the vault), and what today's would be called. */
+  folder: string;
+  noteTitle: string;
+  /** A shared workspace: others read what the routine writes. */
+  shared: boolean;
+  /** The device asks before every request and the model is not on it: this routine would rest. */
+  everyRequest: boolean;
+  /** Its skill names tools that read e-mails and the model is not on this device: a routine does not read them there. */
+  noMail: boolean;
+  /** A folder's log instead of a skill (plan P8-2): the folder, its file, how many notes today's entry would name, and how many one entry names at most. */
+  log?: { folder: string; file: string; notes: number; max: number };
+}
+
+/**
+ * Why no confirmation could be shown: the AI is off or the vault keeps no routines, or the skill, the model or the
+ * device stands in the way; `rules`: the user's rules keep the folder of a log from its model.
+ */
+export type RoutinePreviewRefusal = "off" | "skill" | "model" | "local" | "rules" | "failed";
+export type RoutinePreviewOutcome = { kind: "preview"; preview: RoutinePreview } | { kind: "refused"; reason: RoutinePreviewRefusal };
+/** Whether a confirmed routine is stored now; `full`: the device keeps no more of them. */
+export type RoutineSaved = "saved" | "full" | "failed";
+/** A run of a routine, or why none began. */
+export type RoutineRunOutcome = { kind: "ran"; run: RoutineRun } | { kind: "refused"; reason: "off" | "busy" | "gone" | "not-due" };
+/** How one run of a routine ended, with the conversation it left in the history. */
+/** `coveredAt`: for a folder's log, the instant its changes were read — the next entry looks from there. */
+type RoutineEnd = Omit<RoutineRun, "scheduledFor" | "at"> & { conversationId?: string; coveredAt?: string };
+
+const sameChoice = (a: ModelChoice, b: ModelChoice) => a.providerId === b.providerId && a.model === b.model;
 
 /**
  * A reply in a comment thread is a few sentences after, at most, a few looks
@@ -1103,6 +1218,8 @@ export class AiSession {
   readonly agents: AiAcp;
   /** Scripts (plan P5.5): this device's key for their approvals, and the run the workshop started. */
   readonly scripts: AiScripts;
+  /** Routines (plan P8): the list this device keeps for the open vault, and which of them runs. */
+  private readonly routines: AiRoutines;
 
   /**
    * The one egress of this session (plan P7, ADR 0030): whatever it sends to
@@ -1123,6 +1240,7 @@ export class AiSession {
     this.mcp = new AiMcp(host.mcp, { now: () => host.now(), newId: () => host.newId() }, (mcp) => this.set({ mcp }), resting);
     this.agents = new AiAcp(host.acp, { now: () => host.now() }, (key, vars) => host.label?.(key, vars) ?? key, (agents) => this.set({ agents }), resting);
     this.scripts = new AiScripts(host.scripts, (scripts) => this.set({ scripts }));
+    this.routines = new AiRoutines((routines) => this.set({ routines }));
     this.state = {
       loaded: false,
       settings: host.defaults,
@@ -1155,6 +1273,7 @@ export class AiSession {
       learning: null,
       learnLog: false,
       upkeep: EMPTY_UPKEEP_STATE,
+      routines: this.routines.state,
     };
   }
 
@@ -1434,6 +1553,9 @@ export class AiSession {
     this.learnAbort?.abort();
     // A script the workshop started ran on the vault that is gone: it ends here, and what it showed goes with it.
     this.scripts.clear();
+    // Another vault's routines are not this one's: its own list is read from this device's data. A routine that was
+    // running ran on the vault that is gone — the stop above ended it.
+    this.routines.attach(vault?.routines ?? null);
     // The same for foreign servers: which this vault uses is its own choice, and the connections of the last one end here.
     this.mcp.attach(vault?.mcp ?? null);
     // And for an external agent: its session belongs to the vault it was started in, and ends with it. A note it
@@ -3212,6 +3334,395 @@ export class AiSession {
     }
   }
 
+  // ---------------------------------------------------------------- routines
+
+  /** Something else has the session right now: a run, a review that learns, a column being filled, a note being kept, a routine. */
+  private occupied(): boolean {
+    return Boolean(this.state.live || this.sending || this.learnAbort || this.fillAbort || this.filtering || this.capturing || this.routines.state.running);
+  }
+
+  /** What a routine says to its skill: its own sentence, or the skill's own request. */
+  private routineRequest(request: string, entry: InstructionEntry): string {
+    const own = request.trim();
+    if (own) return own;
+    return skillView((key, vars) => this.host.label?.(key, vars as Record<string, string> | undefined) ?? key, entry).start;
+  }
+
+  /** The skill a routine names, when it can be one right now: active on this device, and one that only reads. */
+  private routineSkill(entries: readonly InstructionEntry[], id: string): InstructionEntry | null {
+    const entry = entries.find((candidate) => candidate.source.id === id);
+    return entry && entry.status === "active" && entry.source.kind === "skill" && entry.source.skill && routineSkillFits(entry.source.skill) ? entry : null;
+  }
+
+  /**
+   * What the confirmation of a routine shows (plan KI-Harness P8, ADR 0033):
+   * who would read, what a run would bring along today — put together exactly
+   * as a run puts it together, and never sent —, what it may spend, and where
+   * its note goes. For a routine that exists (`id`), `growth` names what would
+   * go now beyond what was confirmed: the reason it stopped.
+   */
+  async routinePreview(draft: RoutineDraft, id?: string): Promise<RoutinePreviewOutcome> {
+    const refused = (reason: RoutinePreviewRefusal): RoutinePreviewOutcome => ({ kind: "refused", reason });
+    const vault = this.vault;
+    const capture = vault?.capture;
+    // A routine leaves a note, a folder's log an entry in its file: without the one it needs, this vault keeps none here.
+    if (!this.state.settings.enabled || !vault || !this.routines.available() || (draft.log ? !vault.log : !capture)) return refused("off");
+    const choice = draft.choice;
+    const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : undefined;
+    if (!choice || !provider) return refused("model");
+    if (this.state.settings.localOnly && !runsOnDevice(provider)) return refused("local");
+    if (draft.log) return this.logPreview(draft, vault, choice, provider, id);
+    if (!capture) return refused("off");
+    try {
+      const { entries } = await this.instructionEntries(vault);
+      const entry = this.routineSkill(entries, draft.skill);
+      if (!entry) return refused("skill");
+      const outcome = await this.runMessage(this.routineRequest(draft.request, entry), vault, choice, {
+        skills: { entries, bind: draft.skill },
+        routine: { title: "", limits: ROUTINE_RUN_LIMITS, scope: null, preview: true },
+      });
+      const manifest = outcome?.manifest;
+      if (!manifest || this.vault !== vault) return refused("failed");
+      // What was confirmed before counts for the same skill and the same model only.
+      const existing = id ? this.routines.state.list.find((routine) => routine.id === id) : undefined;
+      const confirmed = existing && existing.skill === draft.skill && sameChoice(existing.choice, choice) ? existing.scope : null;
+      return {
+        kind: "preview",
+        preview: {
+          skill: { id: draft.skill, hash: routineSkillHash(entry.source) },
+          provider: provider.label,
+          model: choice.model,
+          here: manifest.local,
+          manifest,
+          growth: confirmed ? scopeGrowth(manifest, confirmed) : [],
+          limits: outcome.limits ?? ROUTINE_RUN_LIMITS,
+          folder: await capture.folder().catch(() => ""),
+          noteTitle: routineNoteTitle(draft.name.trim(), this.host.now()),
+          shared: Boolean(vault.encrypted?.()),
+          everyRequest: this.state.settings.confirmEveryRequest && !manifest.local,
+          noMail: !manifest.local && manifest.tools.some((name) => MAIL_TOOL_NAMES.includes(name)),
+        },
+      };
+    } catch {
+      return refused("failed");
+    }
+  }
+
+  /**
+   * The yes under a routine's confirmation: from here on it exists — or, for
+   * one that existed, it is what was confirmed now. What may go to a provider
+   * is what the shown overview named, added to what was confirmed before for
+   * the same skill and the same model; another skill or another model starts
+   * from nothing. A run that needed its user is answered by this: its moment
+   * is open again.
+   */
+  async saveRoutine(draft: RoutineDraft, preview: RoutinePreview, id?: string): Promise<RoutineSaved> {
+    const choice = draft.choice;
+    if (!choice || routineDraftProblems(draft).length > 0 || !this.routines.available()) return "failed";
+    // A folder's log names no skill: its folder is what it is confirmed for.
+    const folder = draft.log ? logFolder(draft.log.folder) : null;
+    const skill = draft.log ? "" : draft.skill;
+    // What was shown belongs to the draft it was made for.
+    if (preview.skill.id !== skill || (preview.log?.folder ?? null) !== folder || preview.manifest.providerId !== choice.providerId || preview.manifest.model !== choice.model) return "failed";
+    const existing = id ? await this.routines.fresh(id).catch(() => null) : null;
+    if (id && !existing) return "failed";
+    const kept = existing && existing.skill === skill && (existing.log?.folder ?? null) === folder && sameChoice(existing.choice, choice) ? existing.scope : null;
+    const confirmed = preview.here ? null : widenScope(kept, preview.manifest);
+    const routine: Routine = {
+      id: existing?.id ?? `r-${this.host.newId()}`,
+      name: draft.name.trim(),
+      skill,
+      skillHash: preview.skill.hash,
+      request: draft.log ? "" : draft.request.trim(),
+      schedule: { days: routineDays(draft.days), time: draft.time },
+      missed: draft.missed,
+      onlyWhenChanged: draft.log ? true : draft.onlyWhenChanged,
+      choice: { providerId: choice.providerId, model: choice.model },
+      // The confirmation of a log covers what one request of it can carry at most: a busy day is no growth.
+      scope: confirmed && folder !== null ? { ...confirmed, maxTokens: Math.max(confirmed.maxTokens, FOLDER_LOG_REQUEST_TOKENS) } : confirmed,
+      paused: existing?.paused ?? false,
+      createdAt: existing?.createdAt ?? this.host.now().toISOString(),
+      ...(existing?.resumedAt ? { resumedAt: existing.resumedAt } : {}),
+      ...(existing?.answeredAt ? { answeredAt: existing.answeredAt } : {}),
+      ...(existing?.conversationId ? { conversationId: existing.conversationId } : {}),
+      ...(existing?.last && existing.last.outcome !== "needs-you" ? { last: existing.last } : {}),
+      ...(folder !== null ? { log: { folder } } : {}),
+    };
+    const list = await this.routines.put(routine).catch(() => null);
+    return list ? "saved" : existing ? "failed" : "full";
+  }
+
+  /** Pauses a routine, or lets it run again — from now on: what was paused is not caught up. */
+  async pauseRoutine(id: string, paused: boolean): Promise<void> {
+    const now = this.host.now().toISOString();
+    await this.routines.patch(id, (routine) => ({ ...routine, paused, ...(paused ? {} : { resumedAt: now }) })).catch(() => null);
+  }
+
+  /** Removes a routine. The notes it wrote stay; so does the conversation of its last run, until the history lets it go. */
+  async removeRoutine(id: string): Promise<void> {
+    await this.routines.remove(id).catch(() => null);
+    if (this.routines.state.ready?.id === id) this.routines.setReady(null);
+  }
+
+  /** The note a run left was seen. */
+  dismissRoutineReady(): void {
+    this.routines.setReady(null);
+  }
+
+  /**
+   * Runs what is due (plan KI-Harness P8): each routine whose moment has
+   * come, one after the other, each at most once. Called by the shell's
+   * scheduler — shortly after the vault opened, at its tick, and when the app
+   * comes back to the front. While something else has the session, a routine
+   * waits for the next look.
+   */
+  async runDueRoutines(): Promise<number> {
+    if (!this.state.loaded || !this.state.settings.enabled || !this.vault || !this.routines.available()) return 0;
+    // Nothing due by what is on screen: the device's own copy is not read for it.
+    const first = this.host.now();
+    if (!this.routines.state.list.some((routine) => dueMoment(routine, first))) return 0;
+    let ran = 0;
+    const tried = new Set<string>();
+    for (;;) {
+      if (this.occupied()) break;
+      const now = this.host.now();
+      const next = (await this.routines.reload()).find((routine) => !tried.has(routine.id) && dueMoment(routine, now));
+      if (!next) break;
+      tried.add(next.id);
+      const outcome = await this.runRoutine(next.id, "due");
+      if (outcome.kind === "ran") ran += 1;
+      else if (outcome.reason === "busy" || outcome.reason === "off") break;
+    }
+    return ran;
+  }
+
+  /**
+   * One run of a routine (plan KI-Harness P8, §20; ADR 0033) — at its time
+   * (`due`), or because its user said "Run now" (`hand`). Nobody watches it,
+   * so it gets less than a run a person starts: the tools that read, a small
+   * budget, and no question — where it would need a yes, it ends without
+   * sending and says what it needs. It runs beside the conversation on
+   * screen and leaves that alone; its result is a note.
+   */
+  async runRoutine(id: string, how: "hand" | "due" = "hand"): Promise<RoutineRunOutcome> {
+    const refused = (reason: Extract<RoutineRunOutcome, { kind: "refused" }>["reason"]): RoutineRunOutcome => ({ kind: "refused", reason });
+    const vault = this.vault;
+    if (!this.state.loaded || !this.state.settings.enabled || !vault || !this.routines.available()) return refused("off");
+    if (this.occupied()) return refused("busy");
+    // Set at once: a tick and a click never start two runs.
+    this.sending = true;
+    try {
+      const routine = await this.routines.fresh(id);
+      if (!routine || this.vault !== vault) return refused("gone");
+      const started = this.host.now();
+      const moment = how === "hand" ? started : dueMoment(routine, started);
+      if (!moment) return refused("not-due");
+      this.routines.setRunning({ id: routine.id, name: routine.name });
+      const ended = await this.routineRun(vault, routine).catch((): RoutineEnd => ({ outcome: "failed", failure: "other" }));
+      const { conversationId, coveredAt, ...result } = ended;
+      const at = this.host.now().toISOString();
+      const run: RoutineRun = { scheduledFor: localStamp(moment), at, ...result };
+      await this.routines
+        .patch(routine.id, (stored) => ({
+          ...stored,
+          last: run,
+          // A folder's log is written up to the instant its changes were read — also where there were none.
+          ...(coveredAt ? { answeredAt: coveredAt } : run.outcome === "answered" ? { answeredAt: at } : {}),
+          ...(conversationId ? { conversationId } : {}),
+        }))
+        .catch(() => null);
+      if (run.outcome === "answered" && run.note && this.vault === vault) this.routines.setReady({ id: routine.id, name: routine.name, note: run.note, title: run.noteTitle ?? routine.name });
+      return { kind: "ran", run };
+    } catch {
+      return refused("gone");
+    } finally {
+      this.abort = null;
+      this.sending = false;
+      if (this.routines.state.running) this.routines.setRunning(null);
+    }
+  }
+
+  /** What became of one run: how it ended, and the conversation it left in the history. */
+  private async routineRun(vault: AiVaultHost, routine: Routine): Promise<RoutineEnd> {
+    const needs = (need: RoutineNeed): RoutineEnd => ({ outcome: "needs-you", need });
+    const settings = this.state.settings;
+    const provider = providerById(routine.choice.providerId, settings.custom);
+    if (!provider || (provider.endpoint.needsKey && !this.state.keys[provider.id])) return needs("model");
+    if (settings.localOnly && !runsOnDevice(provider)) return needs("local");
+    if (routine.log) return this.logRun(vault, routine, provider);
+    const { entries } = await this.instructionEntries(vault);
+    const entry = this.routineSkill(entries, routine.skill);
+    // Confirmed for the skill as it was: one that changed since rests its routine until somebody looked.
+    if (!entry || routineSkillHash(entry.source) !== routine.skillHash) return needs("skill");
+    // "Only when something changed": asked of the index on this device. Where it cannot say, the run goes ahead.
+    if (routine.onlyWhenChanged && routine.answeredAt && vault.changedSince) {
+      const changed = await vault.changedSince(new Date(routine.answeredAt).getTime(), routine.last?.note ? [routine.last.note] : []).catch(() => null);
+      if (changed === false) return { outcome: "unchanged" };
+    }
+    const title = this.host.label?.("ai.routines.conversation", { name: routine.name }) ?? routine.name;
+    const outcome = await this.runMessage(this.routineRequest(routine.request, entry), vault, routine.choice, {
+      skills: { entries, bind: routine.skill },
+      routine: { title, limits: ROUTINE_RUN_LIMITS, scope: routine.scope },
+    });
+    // The vault went away under it.
+    if (!outcome) return { outcome: "stopped" };
+    if (outcome.need) return needs(outcome.need);
+    const record = outcome.record;
+    const left = record ? { conversationId: record.id } : {};
+    // The history keeps one conversation per routine: the one of its last run makes room — unless it is on screen.
+    if (record && routine.conversationId && routine.conversationId !== record.id && this.state.active?.id !== routine.conversationId) {
+      await this.remove(routine.conversationId).catch(() => undefined);
+    }
+    const stop = outcome.stop;
+    if (stop.kind === "cancelled") return { outcome: "stopped", ...left };
+    // Switched to fully local while it ran: the request was not handed on.
+    if (stop.kind === "failed" && stop.failure.kind === "local_only") return { ...needs("local"), ...left };
+    if (stop.kind !== "answered" || !record) return { outcome: "failed", failure: routineFailureOf(stop), ...left };
+    // The mandatory note: the answer as "Keep as a note" writes it — stamped, with its sources and the rules of what
+    // it rests on —, called after the routine and the day. A shared workspace was named when the routine was confirmed.
+    const kept = await this.captureFrom(vault, record, record.runs[0]?.userTurn ?? 0, { title: routineNoteTitle(routine.name, this.host.now()), standing: true });
+    if (kept.kind !== "captured") return { outcome: "failed", failure: "note", ...left };
+    return { outcome: "answered", note: kept.path, noteTitle: kept.title, ...left };
+  }
+
+  // ------------------------------------------------------------ a folder's log
+
+  /** The instant a folder's log looks back to: where its last entry ended — or, before its first, a day before it was set up. */
+  private logSince(routine: Pick<Routine, "answeredAt" | "createdAt"> | undefined, now: Date): number {
+    const answered = routine?.answeredAt ? new Date(routine.answeredAt).getTime() : Number.NaN;
+    if (Number.isFinite(answered)) return answered;
+    const made = routine ? new Date(routine.createdAt).getTime() : Number.NaN;
+    return (Number.isFinite(made) ? made : now.getTime()) - FOLDER_LOG_FIRST_LOOK_MS;
+  }
+
+  /** What a run of a folder's log brings along, as the start of its conversation. */
+  private logStart(material: LogMaterial): { lead: TextPart; disclose(manifest: EgressManifest): EgressManifest } {
+    return { lead: { type: "text", text: material.request, context: [] }, disclose: material.disclose };
+  }
+
+  /** What stands in the user's place in such a run: one sentence; the request's own words follow it. */
+  private logAsk(): string {
+    return this.host.label?.("ai.routines.log.ask") ?? "Write the entry for this folder's log.";
+  }
+
+  /** The notes of a folder that changed since `since`, as far as this recipient and the place of the log allow. */
+  private logFound(vault: AiVaultHost, log: FolderLogHost, folder: string, since: number, choice: ModelChoice, provider: ProviderInfo, evenEmpty: boolean) {
+    const price = this.priceOf(choice);
+    return logMaterial(
+      { policy: vault.policy, readNote: (path) => vault.readNote(path), log },
+      {
+        folder,
+        since,
+        recipient: recipientOf(provider, choice.model),
+        language: this.host.language(),
+        now: this.host.now().getTime(),
+        ...(price ? { price: price.input } : {}),
+        ...(evenEmpty ? { evenEmpty: true } : {}),
+      },
+    );
+  }
+
+  /**
+   * The confirmation of a folder's log (plan KI-Harness P8-2): what a run
+   * would bring along now — the notes that changed since its last entry —,
+   * put together like a run and not sent.
+   */
+  private async logPreview(draft: RoutineDraft, vault: AiVaultHost, choice: ModelChoice, provider: ProviderInfo, id?: string): Promise<RoutinePreviewOutcome> {
+    const refused = (reason: RoutinePreviewRefusal): RoutinePreviewOutcome => ({ kind: "refused", reason });
+    const log = vault.log;
+    const folder = draft.log ? logFolder(draft.log.folder) : null;
+    if (!log || folder === null) return refused("failed");
+    try {
+      const existing = id ? this.routines.state.list.find((routine) => routine.id === id) : undefined;
+      // What was confirmed before, and where the last entry ended, count for the same folder only.
+      const same = existing && existing.log?.folder === folder ? existing : undefined;
+      const found = await this.logFound(vault, log, folder, this.logSince(same, this.host.now()), choice, provider, true);
+      if (found.kind === "rules") return refused("rules");
+      if (found.kind !== "material") return refused("failed");
+      const outcome = await this.runMessage(this.logAsk(), vault, choice, { routine: { title: "", limits: FOLDER_LOG_LIMITS, scope: null, preview: true, log: this.logStart(found.material) } });
+      const manifest = outcome?.manifest;
+      if (!manifest || this.vault !== vault) return refused("failed");
+      const confirmed = same && sameChoice(same.choice, choice) ? same.scope : null;
+      return {
+        kind: "preview",
+        preview: {
+          skill: { id: "", hash: "" },
+          provider: provider.label,
+          model: choice.model,
+          here: manifest.local,
+          manifest,
+          growth: confirmed ? scopeGrowth(manifest, confirmed) : [],
+          limits: outcome.limits ?? FOLDER_LOG_LIMITS,
+          folder,
+          noteTitle: folderLogPath(folder),
+          shared: Boolean(vault.encrypted?.()),
+          everyRequest: this.state.settings.confirmEveryRequest && !manifest.local,
+          noMail: false,
+          log: { folder, file: folderLogPath(folder), notes: found.material.items.length, max: FOLDER_LOG_NOTES_MAX },
+        },
+      };
+    } catch {
+      return refused("failed");
+    }
+  }
+
+  /**
+   * One run of a folder's log (plan KI-Harness P8-2): the notes that changed
+   * since its last entry are found on this device; a model is shown what each
+   * gained and finds one sentence per note — in one request, without a tool —;
+   * and the app writes the entry into the folder's `log.md`. Where nothing
+   * changed, no model is asked and nothing is written.
+   */
+  private async logRun(vault: AiVaultHost, routine: Routine, provider: ProviderInfo): Promise<RoutineEnd> {
+    const needs = (need: RoutineNeed): RoutineEnd => ({ outcome: "needs-you", need });
+    const log = vault.log;
+    const folder = routine.log ? logFolder(routine.log.folder) : null;
+    if (!log || folder === null) return { outcome: "failed", failure: "other" };
+    const found = await this.logFound(vault, log, folder, this.logSince(routine, this.host.now()), routine.choice, provider, false);
+    if (found.kind === "rules") return needs("rules");
+    if (found.kind === "nothing") return { outcome: "unchanged", coveredAt: new Date(found.asOf).toISOString() };
+    const material = found.material;
+    const title = this.host.label?.("ai.routines.conversation", { name: routine.name }) ?? routine.name;
+    const outcome = await this.runMessage(this.logAsk(), vault, routine.choice, { routine: { title, limits: FOLDER_LOG_LIMITS, scope: routine.scope, log: this.logStart(material) } });
+    // The vault went away under it.
+    if (!outcome) return { outcome: "stopped" };
+    if (outcome.need) return needs(outcome.need);
+    const record = outcome.record;
+    const left = record ? { conversationId: record.id } : {};
+    // The history keeps one conversation per routine: the one of its last run makes room — unless it is on screen.
+    if (record && routine.conversationId && routine.conversationId !== record.id && this.state.active?.id !== routine.conversationId) {
+      await this.remove(routine.conversationId).catch(() => undefined);
+    }
+    const stop = outcome.stop;
+    if (stop.kind === "cancelled") return { outcome: "stopped", ...left };
+    if (stop.kind === "failed" && stop.failure.kind === "local_only") return { ...needs("local"), ...left };
+    if (stop.kind !== "answered") return { outcome: "failed", failure: routineFailureOf(stop), ...left };
+    // The entry is the app's to write: each note's link from the index, the day from the clock, and of the model's
+    // answer one sentence per note — every other line of it is dropped.
+    const path = folderLogPath(folder);
+    try {
+      // Named `t`: the locale guard finds keys by their `t(` call (localeParity.test.ts).
+      const t = (key: string, vars?: Record<string, string>) => this.host.label?.(key, vars) ?? key;
+      // Merged into the log as it lies there at the moment of writing: an entry another device wrote meanwhile stays.
+      const entry = {
+        folder,
+        material,
+        answer: outcome.answer ?? "",
+        day: this.host.now(),
+        title: folder ? t("ai.routines.log.fileTitle", { folder: folder.slice(folder.lastIndexOf("/") + 1) }) : t("ai.routines.log.fileTitleVault"),
+        words: {
+          fresh: t("ai.routines.log.entryNew"),
+          changed: t("ai.routines.log.entryChanged"),
+          ...(material.more ? { more: t("ai.routines.log.entryMore", { count: String(material.more) }) } : {}),
+        },
+      };
+      await log.update(path, (current) => logEntryText(current, entry));
+    } catch {
+      return { outcome: "failed", failure: "note", ...left };
+    }
+    return { outcome: "answered", note: path, noteTitle: path, coveredAt: new Date(material.asOf).toISOString(), ...left };
+  }
+
   /**
    * The tools and the system prompt's blocks of a new conversation: the
    * vault's AGENTS.md when it is active here; a bound skill with its grant —
@@ -4099,15 +4610,31 @@ export class AiSession {
    * inside a shared workspace the user is asked first, each time.
    */
   async captureAnswer(userTurn: number): Promise<CaptureOutcome> {
-    const refused = (reason: Extract<CaptureOutcome, { kind: "refused" }>["reason"], message?: string): CaptureOutcome => ({ kind: "refused", reason, ...(message ? { message } : {}) });
+    const refused = (reason: Extract<CaptureOutcome, { kind: "refused" }>["reason"]): CaptureOutcome => ({ kind: "refused", reason });
     const vault = this.vault;
     const record = this.state.active;
     if (!this.state.settings.enabled || !vault) return refused("off");
     if (!vault.capture) return refused("unavailable");
     // One at a time, and not while a run is on: a run that ends answers every open question with no.
     if (this.capturing || this.state.live || this.sending) return refused("busy");
-    const run = record?.runs.find((candidate) => candidate.userTurn === userTurn);
-    if (!record || !run || run.stop !== "answered") return refused("nothing");
+    if (!record) return refused("nothing");
+    return this.captureFrom(vault, record, userTurn);
+  }
+
+  /**
+   * The note of one answer of a conversation — what "Keep as a note" writes
+   * for the conversation on screen, and what a routine leaves of its run
+   * (plan P8). `title`: the note is called this, whatever the answer or the
+   * question says. `standing`: in a shared workspace nobody is asked — that
+   * others read the note was said and confirmed where the routine was set
+   * up; a person's "Keep as a note" asks each time.
+   */
+  private async captureFrom(vault: AiVaultHost, record: ConversationRecord, userTurn: number, options: { title?: string; standing?: boolean } = {}): Promise<CaptureOutcome> {
+    const refused = (reason: Extract<CaptureOutcome, { kind: "refused" }>["reason"], message?: string): CaptureOutcome => ({ kind: "refused", reason, ...(message ? { message } : {}) });
+    const capture = vault.capture;
+    if (!capture) return refused("unavailable");
+    const run = record.runs.find((candidate) => candidate.userTurn === userTurn);
+    if (!run || run.stop !== "answered") return refused("nothing");
     const turns = record.conversation.turns;
     const next = record.runs.map((other) => other.userTurn).filter((turn) => turn > userTurn).sort((a, b) => a - b)[0] ?? turns.length;
     const mine = turns.slice(userTurn, next);
@@ -4165,8 +4692,8 @@ export class AiSession {
     // A conversation a skill started opens with the skill's own request, the same words every time: such a note is
     // called after the skill and the note that was open — or the day —, never after a sentence the user did not write.
     const bound = record.instructions?.skill;
-    let named: string | undefined;
-    if (bound && userTurn === Math.min(...record.runs.map((other) => other.userTurn))) {
+    let named: string | undefined = options.title;
+    if (!named && bound && userTurn === Math.min(...record.runs.map((other) => other.userTurn))) {
       const app = appSkillOf(bound.id);
       const skill = app ? t(`ai.skills.${app.key}.title`) : bound.name;
       const open = (run.manifest?.sources ?? []).find((source) => source.reasons.includes("active") && !source.image && source.audioBytes === undefined);
@@ -4194,8 +4721,8 @@ export class AiSession {
 
     this.capturing = true;
     try {
-      const folder = await vault.capture.folder();
-      if (vault.encrypted?.()) {
+      const folder = await capture.folder();
+      if (vault.encrypted?.() && !options.standing) {
         // Members of the workspace read what lands in it: that is asked, here and each time.
         const asked = new AbortController();
         const answerTo = await this.askEffect({ id: `capture-${this.host.newId()}`, kind: "write", audience: "members", title: note.title, folder }, asked.signal);
@@ -4205,7 +4732,7 @@ export class AiSession {
       // Written into the note only where the place it lands in would allow more than its sources do.
       const place = await vault.policy.policyOf(capturedNotePath(folder, note.stem), "").catch(() => null);
       const rules = AI_POLICY_DIMENSIONS.filter((dimension) => inherited.has(dimension) && place?.policy[dimension] !== "deny");
-      const path = await vault.capture.write(folder, note.stem, withInheritedRules(note.content, rules));
+      const path = await capture.write(folder, note.stem, withInheritedRules(note.content, rules));
       return { kind: "captured", path, title: note.title, ...(rules.length ? { inherited: rules } : {}) };
     } catch (error) {
       return refused("failed", error instanceof Error ? error.message : String(error));
@@ -4476,7 +5003,8 @@ export class AiSession {
     pins: readonly string[],
     turns: ConversationRecord["conversation"]["turns"],
     // `carried`: the tokens the request takes before this message's notes, where a window is known (plan P7).
-    conversation: { tools: readonly string[]; more?: readonly string[]; instructions?: ManifestInstructions; memory?: ManifestMemory; withoutActive?: boolean; web?: boolean; carried?: number },
+    // `bare`: the request brings its own material (a folder's log, plan P8-2) — no situation and no candidates.
+    conversation: { tools: readonly string[]; more?: readonly string[]; instructions?: ManifestInstructions; memory?: ManifestMemory; withoutActive?: boolean; web?: boolean; carried?: number; bare?: boolean },
   ) {
     const recipient: EgressRecipient = recipientOf(provider, choice.model);
     // The system's own model takes no tools, and a small window a smaller package (plan P2c).
@@ -4489,9 +5017,9 @@ export class AiSession {
     const budget = contextBudgetFor(this.windowOf(provider, choice.model), platform ? undefined : conversation.carried);
     // The tools the conversation carries — what the model may call, as the overview lists them.
     const tools = toolless ? [] : conversation.tools;
-    const situation = await vault.situation().catch(() => this.bareSituation());
+    const situation = conversation.bare ? this.bareSituation() : await vault.situation().catch(() => this.bareSituation());
     const seen = this.state.excludeActive || conversation.withoutActive ? { ...situation, active: null } : situation;
-    const candidates = await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null, recipient).catch(() => [] as Candidate[][]);
+    const candidates = conversation.bare ? [] : await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null, recipient).catch(() => [] as Candidate[][]);
     const gists = vault.gists?.() ?? null;
     const build = async (leaveOut: ReadonlySet<string>, redact: ReadonlySet<string>): Promise<{ pack: ContextPackage; manifest: EgressManifest }> => {
       const pack = await buildContextPackage(
@@ -4658,22 +5186,23 @@ export class AiSession {
     message: string,
     vault: AiVaultHost,
     choice: ModelChoice,
-    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart; detached?: DetachedStart } = {},
+    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart; detached?: DetachedStart; routine?: RoutineStart } = {},
   ): Promise<RunOutcome | null> {
-    const { skills, door, detached } = options;
+    const { skills, door, detached, routine } = options;
     // Started apart from the composer: a conversation of its own, with none of the composer's drafts.
-    const apart = door ?? detached ?? null;
+    const apart = door ?? detached ?? routine ?? null;
     const provider = providerById(choice.providerId, this.state.settings.custom);
     if (!provider) {
       const stop: RunStop = { kind: "failed", failure: { kind: "unknown_endpoint", message: choice.providerId } };
-      this.set({ notice: { conversationId: this.state.active?.id ?? "", stop } });
+      // A routine runs beside the conversation on screen and puts no notice into it: its own row says how it ended.
+      if (!routine) this.set({ notice: { conversationId: this.state.active?.id ?? "", stop } });
       return { stop };
     }
     // Fully local (plan P7, ADR 0030): a model that is not on this device is not asked — said before anything is
     // built, asked or sent. The egress would refuse the request as well; this is the same answer, earlier.
     if (this.state.settings.localOnly && !runsOnDevice(provider)) {
       const stop: RunStop = { kind: "failed", failure: { kind: "local_only" } };
-      this.set({ notice: { conversationId: this.state.active?.id ?? "", stop } });
+      if (!routine) this.set({ notice: { conversationId: this.state.active?.id ?? "", stop } });
       return { stop };
     }
     const recipient: EgressRecipient = recipientOf(provider, choice.model);
@@ -4711,15 +5240,21 @@ export class AiSession {
       const withWeb = !apart && this.state.web.enabled && !this.state.settings.localOnly && (skills?.bind ? skillWeb : this.state.draftWeb);
       // The vault's memory (plan P6, ADR 0032): what this recipient may have of it goes into the system prompt of a
       // conversation the user began — never of a door, which answers one question where it was asked, nor of a
-      // regression run, which measures a skill and not what the user happens to have kept.
-      const memory = apart ? null : await this.memoryStart(vault, recipient, withWeb);
-      // A door answers where it was asked: it reads the vault, it does not move the app — and it looks for no further tool.
-      const served = this.offeredTools(vault, provider, recipient, withWeb).filter((name) => !door || name !== "run_command");
+      // regression run, which measures a skill and not what the user happens to have kept. A routine reads it like a
+      // conversation its user begins (plan P8): what it is told about them holds at seven in the morning too. It has
+      // no tool that writes it.
+      const memory = door || detached || routine?.log ? null : await this.memoryStart(vault, recipient, withWeb);
+      // A door answers where it was asked: it reads the vault, it does not move the app — and it looks for no further
+      // tool. A routine carries the tools that read, and nothing else (ADR 0033): no call of it is an effect.
+      const all = this.offeredTools(vault, provider, recipient, withWeb);
+      // A folder's log carries no tool at all (plan P8-2): what it is shown, the app found for it.
+      const served = routine ? (routine.log ? [] : routineTools(all)) : all.filter((name) => !door || name !== "run_command");
       // The tool that looks into the long-term memory is carried where there is something in it for this recipient — and tools at all.
       const offered = memory?.lookup && served.length ? [...served, MEMORY_SEARCH_TOOL] : served;
-      const further = door ? [] : await this.furtherTools(vault, provider, recipient, !detached && !skills?.bind, entries);
+      const reachable = door || routine?.log ? [] : await this.furtherTools(vault, provider, recipient, !detached && !routine && !skills?.bind, entries);
+      const further = routine ? routineTools(reachable) : reachable;
       // A door runs without skills (plan P3-6): the vault's standing instructions still apply, the catalog does not.
-      const start = this.conversationStart(door ? entries.filter((e) => e.source.kind === "agents") : entries, offered, skills?.bind, further);
+      const start = this.conversationStart(door || routine?.log ? entries.filter((e) => e.source.kind === "agents") : entries, offered, skills?.bind, further);
       // A skill the conversation is bound to may leave the tool out: what the prompt says of it follows the list.
       const lookup = start.tools.includes(MEMORY_SEARCH_TOOL);
       const memoryPrompt = memory && (memory.text || lookup) ? { memory: { text: memory.text, lookup } } : {};
@@ -4736,7 +5271,7 @@ export class AiSession {
         conversation: startConversation(id, assistantSystemPrompt({ language: this.host.language(), today: this.host.today(), tools: start.tools, more: start.more, ...start.prompt, ...memoryPrompt }), start.tools, start.more),
         usage: EMPTY_USAGE,
         runs: [],
-        pins: door ? door.pins : detached ? [] : this.state.draftPins,
+        pins: door ? door.pins : detached || routine ? [] : this.state.draftPins,
         ...(instructions ? { instructions } : {}),
         // Begun for a reader on this device: what it is given from the first message on was never checked for a cloud.
         ...(isCloudRecipient(recipient) ? {} : { onDevice: true as const }),
@@ -4824,8 +5359,11 @@ export class AiSession {
           {
             egress: this.out,
             reader: () => this.quarantineReader(provider, choice),
-            // A regression run has nobody to ask: what this session has not allowed yet does not happen in it.
-            approve: (dataClass, tool, call, signal) => this.approveData(dataClass, tool, call, { provider, choice, recipient, signal, ...(detached ? { silent: true } : {}) }),
+            // A regression run has nobody to ask: what this session has not allowed yet does not happen in it. A
+            // routine has nobody to ask either, and what its user allowed in a conversation of this session is not
+            // the routine's (ADR 0033): mail is read for a model on this device, where nothing leaves, and for no other.
+            approve: (dataClass, tool, call, signal) =>
+              routine ? Promise.resolve(!isCloudRecipient(recipient)) : this.approveData(dataClass, tool, call, { provider, choice, recipient, signal, ...(detached ? { silent: true } : {}) }),
             newRequestId: () => `ai-${this.host.newId()}`,
             now: () => this.host.now().toISOString(),
           },
@@ -4881,10 +5419,12 @@ export class AiSession {
     const tools = scripted ? { names: toolNames, executor: createSkillExecutor(scripted, this.skillRuntime(vault, record), toolNames, skillState, moreNames) } : null;
     // A skill's own budget narrows whatever limits the start brings; it never widens them.
     const own = bound?.maxOutputTokens;
+    // A regression run and a routine bring their own, smaller bounds.
+    const fixed = detached?.limits ?? routine?.limits;
     const limits: RunLimits | undefined =
       door?.limits ??
-      (detached?.limits
-        ? { ...detached.limits, maxOutputTokens: Math.min(detached.limits.maxOutputTokens, own ?? detached.limits.maxOutputTokens) }
+      (fixed
+        ? { ...fixed, maxOutputTokens: Math.min(fixed.maxOutputTokens, own ?? fixed.maxOutputTokens) }
         : own
           ? { ...DEFAULT_RUN_LIMITS, maxOutputTokens: own }
           : undefined);
@@ -4899,8 +5439,10 @@ export class AiSession {
       instructions: manifestInstructionsOf(record.instructions),
       ...(carriedMemory ? { memory: carriedMemory } : {}),
       ...(carried !== undefined ? { carried } : {}),
-      // A regression run measures the skill, not whatever note happens to be open.
-      ...(detached ? { withoutActive: true } : {}),
+      // A regression run measures the skill, not whatever note happens to be open — and a routine runs whatever is open.
+      ...(detached || routine ? { withoutActive: true } : {}),
+      // A folder's log brings its own material: nothing of where the user is, and no note a question would find.
+      ...(routine?.log ? { bare: true } : {}),
       web,
     });
     const { seen } = context;
@@ -4911,30 +5453,45 @@ export class AiSession {
     // What a door brings goes into the overview with everything else: the user sees it before it is sent.
     const build = async (out: ReadonlySet<string>, red: ReadonlySet<string>) => {
       const built = await context.build(out, red);
-      return door ? { pack: built.pack, manifest: door.disclose(built.manifest) } : built;
+      const brought = door ?? routine?.log;
+      return brought ? { pack: built.pack, manifest: brought.disclose(built.manifest) } : built;
     };
     const leaveOut = new Set<string>(apart ? [] : this.state.leaveOutNext);
     let { pack, manifest } = await build(leaveOut, redact);
     // A picture the door brings is shown in the overview as it would go (plan P4-5).
     const pictures = door ? { images: imagesOf(door.lead), ...(door.blind ? { blind: true } : {}) } : null;
-    // The send overview as the scope approval (E25): on the first request, when the scope grows, or always for the strict.
-    // Once the user reviews the overview, it stays until they send or cancel:
-    // leaving a note out never sends on its own.
-    let reviewing = false;
-    for (;;) {
-      const growth = scopeGrowth(manifest, this.scope);
-      if (!reviewing && growth.length === 0 && !(this.state.settings.confirmEveryRequest && !manifest.local)) break;
-      const answer = await this.askConsent(manifest, growth, pictures);
-      if (this.vault !== vault || answer === "cancel") return null;
-      if (answer === "send") break;
-      reviewing = true;
-      if ("leaveOut" in answer) leaveOut.add(answer.leaveOut);
-      else if (redact.has(answer.redact)) redact.delete(answer.redact);
-      else redact.add(answer.redact);
-      ({ pack, manifest } = await build(leaveOut, redact));
+    if (routine) {
+      // What a run would send, for the routine's confirmation: put together exactly as a run does it, and not sent.
+      if (routine.preview) return { stop: { kind: "cancelled" }, manifest, ...(limits ? { limits } : {}) };
+      // Nobody is there to answer an overview (plan P8, ADR 0033). Within what was confirmed for this routine the
+      // request goes; where it would bring along more — or where this device asks before every request — nothing is
+      // sent, and the run ends with what it needs. A model on this device is sent nothing that leaves.
+      if (!manifest.local) {
+        if (this.state.settings.confirmEveryRequest) return { stop: { kind: "cancelled" }, need: "confirm" };
+        if (scopeGrowth(manifest, routine.scope).length > 0) return { stop: { kind: "cancelled" }, need: "scope" };
+      }
+    } else {
+      // The send overview as the scope approval (E25): on the first request, when the scope grows, or always for the
+      // strict. Once the user reviews the overview, it stays until they send or cancel: leaving a note out never
+      // sends on its own.
+      let reviewing = false;
+      for (;;) {
+        const growth = scopeGrowth(manifest, this.scope);
+        if (!reviewing && growth.length === 0 && !(this.state.settings.confirmEveryRequest && !manifest.local)) break;
+        const answer = await this.askConsent(manifest, growth, pictures);
+        if (this.vault !== vault || answer === "cancel") return null;
+        if (answer === "send") break;
+        reviewing = true;
+        if ("leaveOut" in answer) leaveOut.add(answer.leaveOut);
+        else if (redact.has(answer.redact)) redact.delete(answer.redact);
+        else redact.add(answer.redact);
+        ({ pack, manifest } = await build(leaveOut, redact));
+      }
     }
     if (redact.size || record.redact) record = { ...record, redact: [...redact] };
-    if (!manifest.local) this.scope = widenScope(this.scope, manifest);
+    // What the user approved for their conversations grows with what they send — never with what a routine sends:
+    // that was confirmed for the routine, and a conversation gains nothing from it.
+    if (!manifest.local && !routine) this.scope = widenScope(this.scope, manifest);
     // What this message carries counts as read from here on: a call to a foreign server in this very run looks at it too.
     sending.sources = manifest.sources.map((source) => ({ path: source.path, ...(source.image ? { image: true } : {}) }));
     return this.execute({
@@ -4944,12 +5501,14 @@ export class AiSession {
       record,
       pack,
       manifest,
-      parts: [pack.part, ...(door?.lead ?? []), { type: "text" as const, text: message }],
+      parts: [pack.part, ...(door?.lead ?? (routine?.log ? [routine.log.lead] : [])), { type: "text" as const, text: message }],
       executor: tools?.executor ?? null,
       // Rule of Two (§13.4): vault text is private and untrusted at once.
-      carriesVault: Boolean(door) || pack.refs.length > 0 || pack.dataClasses.length > 1 || Boolean(seen.active),
+      carriesVault: Boolean(door) || Boolean(routine?.log) || pack.refs.length > 0 || pack.dataClasses.length > 1 || Boolean(seen.active),
       // A message typed in the composer used the drafts; a door or a regression run leaves them for the next one.
       usedDrafts: !apart,
+      // A routine runs beside the conversation on screen and takes nothing over (plan P8).
+      ...(routine ? { background: true } : {}),
       skillState,
       ...(limits ? { limits } : {}),
       ...(webLog ? { web: webLog } : {}),
@@ -5199,6 +5758,12 @@ export class AiSession {
     executor: ToolExecutor | null;
     carriesVault: boolean;
     usedDrafts: boolean;
+    /**
+     * The run takes nothing on screen over (plan P8, a routine): the open
+     * conversation, the live line and the notice stay as they are. Its record
+     * and the ledger are written like any run's.
+     */
+    background?: boolean;
     /** The skills of the run (plan KI-Harness P3): what the model loaded, for the measurement. */
     skillState?: SkillRunState;
     limits?: RunLimits;
@@ -5232,7 +5797,7 @@ export class AiSession {
     const toolLog: LedgerEntry["tools"] = [];
     // A message typed in the composer used the drafts; an action at a selection leaves them for the next one.
     const drafts = input.usedDrafts ? { draftPins: [], draftRedact: [], draftChoice: null, draftWeb: false, excludeActive: false, leaveOutNext: [], originalsNext: [] } : {};
-    this.set({ active: record, ...drafts, notice: null, live: { conversationId: record.id, text: "", tools: [], steps: 0 } });
+    if (!input.background) this.set({ active: record, ...drafts, notice: null, live: { conversationId: record.id, text: "", tools: [], steps: 0 } });
 
     const carriesVault = input.carriesVault;
     const result = await runAgent({
@@ -5269,6 +5834,9 @@ export class AiSession {
       newRequestId: () => `ai-${this.host.newId()}`,
       now: () => this.host.now().toISOString(),
       onEvent: (event) => {
+        // What the run did is recorded whoever watches: a routine runs beside the conversation on screen (plan P8).
+        if (event.type === "tool_done") toolLog.push({ name: event.call.name, ok: !event.outcome.isError, ms: event.ms });
+        else if (event.type === "turn") record = { ...record, conversation: event.conversation };
         const live = this.state.live;
         if (!live || live.conversationId !== record.id) return;
         if (event.type === "model" && event.event.type === "text") {
@@ -5276,11 +5844,9 @@ export class AiSession {
         } else if (event.type === "tool_start") {
           this.set({ live: { ...live, tools: [...live.tools, { id: event.call.id, name: event.call.name, state: "running" }] } });
         } else if (event.type === "tool_done") {
-          toolLog.push({ name: event.call.name, ok: !event.outcome.isError, ms: event.ms });
           const state = !event.outcome.isError ? ("done" as const) : event.outcome.content === EFFECT_DECLINED ? ("declined" as const) : ("failed" as const);
           this.set({ live: { ...live, tools: live.tools.map((t) => (t.id === event.call.id ? { ...t, state } : t)) } });
         } else if (event.type === "turn") {
-          record = { ...record, conversation: event.conversation };
           this.set({ active: this.state.active?.id === record.id ? record : this.state.active, live: { ...live, text: "", steps: live.steps + 1 } });
         }
       },
@@ -5375,6 +5941,11 @@ export class AiSession {
     if (input.usedDrafts && skillsUsed.length) await this.countObserved(vault, record, skillsUsed, result.stop.kind).catch(() => undefined);
     const answer = lastAnswerText(result.conversation);
     if (this.vault !== vault) return { stop: result.stop, record, answer };
+    if (input.background) {
+      // The history gains the run's conversation; what is on screen stays as it was.
+      this.set({ summaries: sortSummaries([conversationSummaryOf(record), ...this.state.summaries.filter((s) => s.id !== record.id)]) });
+      return { stop: result.stop, record, answer };
+    }
     const shown = this.state.active?.id === record.id || !this.state.active;
     this.set({
       active: shown ? record : this.state.active,

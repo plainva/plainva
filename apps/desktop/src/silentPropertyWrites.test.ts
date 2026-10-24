@@ -758,7 +758,7 @@ const STRETCHES: Stretch[] = [
     never: THROWN_ON, passesOn: ["withInheritedRules"],
   },
   {
-    file: "packages/ui/src/ai/aiSession.ts", at: "const path = await vault.capture.write(folder, note.stem, withInheritedRules(", span: 300, calls: { withInheritedRules: 1 },
+    file: "packages/ui/src/ai/aiSession.ts", at: "const path = await capture.write(folder, note.stem, withInheritedRules(", span: 300, calls: { withInheritedRules: 1 },
     how: "a NEW note an answer is kept as, its block the app's own (captureNote): a failure leaves the keeping, which answers it as failed",
     says: [/\} catch \(error\) \{\s*return refused\("failed", /],
   },

@@ -1,6 +1,6 @@
 # Assistente de IA (Beta)
 
-Última revisão: 2026-10-09
+Última revisão: 2026-10-24
 
 O Plainva pode responder perguntas sobre suas notas com um modelo de IA da sua escolha. Ele lê seu vault, cita as notas que usou, abre notas e visualizações para você e propõe alterações — como sugestões em uma nota, como rascunhos de algo novo ou como um plano que você confirma. Ele nunca muda uma nota sozinho. O assistente é **experimental** e fica desligado até você ativá-lo, separadamente em cada dispositivo.
 
@@ -123,6 +123,18 @@ O tópico vai para o modelo como uma pergunta: seus comentários, o trecho ao qu
 Habilidades são instruções para trabalho recorrente. Treze vêm com o Plainva — entre elas **Orientação do dia**, **Revisão semanal** e **Status do projeto** como chips em uma conversa vazia — e você pode escrever ou importar as suas. Inicie uma com um clique ou simplesmente pergunte: a IA carrega sozinha uma habilidade adequada. Suas próprias habilidades só rodam depois que você as aprova neste dispositivo. Tudo sobre elas: [Habilidades](AI_Skills.md).
 
 Scripts são pequenos programas que você escreve para o que um modelo faz mal — contar, ordenar, somar. Eles rodam em uma caixa fechada e leem o seu vault pelas mesmas ferramentas da IA, mas só depois de você os aprovar neste dispositivo. Tudo sobre eles: [Scripts](AI_Scripts.md).
+
+## Rotinas
+
+Uma rotina inicia uma habilidade em um horário que você define — o resumo da manhã nos dias úteis às sete, a revisão semanal na sexta-feira à tarde. Você configura uma rotina nas configurações do vault, em **IA e automação**, no cartão **Rotinas**: **Nova rotina**, depois um nome, a **Habilidade**, a frase que a habilidade recebe a cada vez (se ficar vazia: o pedido da própria habilidade), os dias e o horário, o que acontece **Se o Plainva estava fechado nesse horário** — **Recuperar uma vez** ou **Ignorar** — e o **Modelo**. Somente habilidades ativas neste dispositivo e que apenas leem podem se tornar uma rotina.
+
+Antes de uma rotina existir, o Plainva mostra o que vale para uma execução que ninguém acompanha, e só o seu sim — **Configurar rotina** — a cria. Uma rotina só lê: sem sugestões, sem rascunhos, sem internet, sem ferramentas externas, sem scripts, sem comandos do app. Ela tem um orçamento pequeno. O resultado dela é uma nota na sua pasta de entrada, com o nome da rotina e do dia, marcada como escrita pela IA, com as notas em que se baseia. Com um modelo neste dispositivo, nada sai dele. Com o modelo de um provedor, você confirma o que uma execução leva junto por conta própria — o resumo mostra o que isso seria hoje —, e uma execução que levaria mais do que isso não envia nada e espera por você. O que o modelo lê depois, por meio das ferramentas dele, é decidido por suas regras de privacidade, como em toda conversa. Uma rotina não lê e-mails para o modelo de um provedor: o Plainva pergunta sobre isso de novo a cada sessão, e não há ninguém para responder.
+
+Uma rotina nunca faz perguntas. Onde ela precisaria de uma resposta — seria enviado mais do que você confirmou, este dispositivo pergunta antes de cada solicitação, a habilidade dela foi alterada desde que você confirmou a rotina, o provedor do modelo dela não está mais configurado ou o modelo dela não está neste dispositivo enquanto **Totalmente local** está ativado —, a linha dela diz do que precisa, com **Revisar**. Ali você vê o que uma execução enviaria agora e o que disso é novo, e **Confirmar de novo** permite que ela volte a rodar.
+
+As rotinas rodam neste dispositivo enquanto o Plainva está aberto: pouco depois de você abrir o vault, depois cerca de uma vez por minuto e quando o app volta ao primeiro plano. O Plainva não tem nenhum serviço em segundo plano e não promete um horário exato. Uma execução perdida enquanto o Plainva estava fechado é recuperada uma vez na próxima abertura — não importa quantas tenham sido perdidas — ou ignorada, conforme você definiu. Com **Somente quando algo mudou**, o dispositivo verifica primeiro se alguma nota mudou desde a última vez que a rotina deixou uma nota e, caso contrário, não consulta nenhum modelo. Uma rotina pertence ao dispositivo em que você a configurou: ela fica nos dados do app, não no vault, e por isso nenhum outro dispositivo a executa.
+
+Enquanto uma rotina roda, uma linha na conversa diz isso, com **Parar**, e uma mensagem sua espera até ela terminar. O interruptor na linha dela pausa a rotina; o menu dela a executa imediatamente (**Executar agora**), a edita ou a remove. As notas que ela escreveu permanecem.
 
 ## Memória
 

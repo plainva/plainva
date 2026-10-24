@@ -1,6 +1,6 @@
 # Assistente IA (Beta)
 
-Ultimo aggiornamento: 2026-10-09
+Ultimo aggiornamento: 2026-10-24
 
 Plainva può rispondere a domande sulle tue note con un modello IA di tua scelta. Legge il tuo vault, cita le note su cui si basa, apre note e viste per te e propone modifiche — come proposte su una nota, come bozze di qualcosa di nuovo o come un piano che confermi tu. Non cambia mai una nota da solo. L'assistente è **sperimentale** ed è disattivato finché non lo attivi, singolarmente su ogni dispositivo.
 
@@ -123,6 +123,18 @@ Il thread va al modello come una domanda: i suoi commenti, il passaggio a cui è
 Le competenze sono istruzioni per lavori ricorrenti. Tredici sono incluse in Plainva — tra cui **Orientamento del giorno**, **Riepilogo settimanale** e **Stato del progetto** come chip in una conversazione vuota — e puoi scriverne o importarne di tue. Avviane una con un clic, oppure chiedi semplicemente: l'IA carica da sola una competenza adatta. Le tue competenze si eseguono solo dopo che le hai approvate su questo dispositivo. Tutto su di esse: [Competenze](AI_Skills.md).
 
 Gli script sono piccoli programmi che scrivi tu per ciò che un modello fa male — contare, ordinare, sommare. Si eseguono in un ambiente chiuso e leggono il tuo vault con gli stessi strumenti dell'IA, ma solo dopo che li hai approvati su questo dispositivo. Tutto su di essi: [Script](AI_Scripts.md).
+
+## Routine
+
+Una routine avvia una competenza a un orario che stabilisci tu — il riepilogo del mattino nei giorni lavorativi alle sette, il riepilogo settimanale il venerdì pomeriggio. Configuri una routine nelle impostazioni del vault, sotto **IA e automazione**, nella scheda **Routine**: **Nuova routine**, poi un nome, la **Competenza**, la frase che le viene detta ogni volta (se la lasci vuota: la richiesta propria della competenza), i giorni e l'ora, che cosa succede **Se Plainva era chiuso a quell'ora** — **Recupera una volta** oppure **Salta** —, e il **Modello**. Possono diventare una routine solo le competenze attive su questo dispositivo e che si limitano a leggere.
+
+Prima che una routine esista, Plainva mostra che cosa vale per un'esecuzione che nessuno tiene d'occhio, e solo il tuo sì — **Configura routine** — la crea. Una routine si limita a leggere: nessuna proposta, nessuna bozza, nessun accesso a Internet, nessuno strumento esterno, nessuno script, nessun comando dell'app. Ha un piccolo budget. Il suo risultato è una nota nella tua cartella Inbox, con un nome ricavato dalla routine e dal giorno, contrassegnata come scritta dall'IA, con le note su cui si basa. Con un modello su questo dispositivo nulla lo lascia. Con il modello di un provider confermi ciò che un'esecuzione porta con sé da sola — il riepilogo mostra di che cosa si tratterebbe oggi —, e un'esecuzione che porterebbe con sé più di questo non invia nulla e aspetta il tuo intervento. Ciò che il modello legge poi attraverso i suoi strumenti lo decidono le tue regole sulla privacy, come in ogni conversazione. Con il modello di un provider una routine non legge le e-mail: Plainva lo chiede di nuovo a ogni sessione e non c'è nessuno che risponda.
+
+Una routine non fa mai domande. Dove le servirebbe una risposta — partirebbe più di quanto hai confermato, questo dispositivo chiede prima di ogni richiesta, la sua competenza è stata modificata da quando hai confermato la routine, il provider del suo modello non è più configurato oppure il suo modello non è su questo dispositivo mentre **Completamente locale** è attivo — la sua riga dice che cosa le serve, con **Controlla**. Lì vedi che cosa invierebbe ora un'esecuzione e che cosa di questo è nuovo, e **Conferma di nuovo** permette alla routine di essere eseguita ancora.
+
+Le routine vengono eseguite su questo dispositivo mentre Plainva è aperto: poco dopo che hai aperto il vault, poi circa una volta al minuto e quando l'app torna in primo piano. Plainva non ha alcun servizio in background e non promette un orario esatto. Un'esecuzione mancata mentre Plainva era chiuso viene recuperata una volta alla prossima apertura — per quante ne siano state perse — oppure saltata, come hai impostato. Con **Solo se qualcosa è cambiato** il dispositivo controlla prima se una nota è cambiata dall'ultima volta che la routine ha lasciato una nota, e altrimenti non interpella alcun modello. Una routine appartiene al dispositivo su cui l'hai configurata: è conservata nei dati dell'app, non nel vault, quindi nessun altro dispositivo la esegue.
+
+Mentre una routine viene eseguita, una riga nella conversazione lo dice, con **Interrompi**, e un tuo messaggio resta in attesa finché la routine non ha finito. L'interruttore nella riga di una routine la mette in pausa; dal suo menu la esegui subito (**Esegui ora**), la modifichi o la rimuovi. Le note che ha scritto restano.
 
 ## Memoria
 

@@ -181,6 +181,7 @@ function settingsAreaScreen(id: string, ctx: RouteContext): ReactNode {
             ctx.push({ kind: "aihistory", path: "skills" });
           }}
           onOpenMemory={() => ctx.push({ kind: "aihistory", path: "memory" })}
+          onOpenNote={ctx.openNote}
         />
       );
     // An unknown id is a bug, not a screen. It used to render About, which

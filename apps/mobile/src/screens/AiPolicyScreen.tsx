@@ -26,6 +26,7 @@ import {
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { ExternalAddSheet, ExternalReviewSheet } from "../components/ExternalToolsSheets";
+import { MobileRoutinesSection } from "../components/MobileRoutinesSection";
 import { currentMobileAiPolicy, getMobileAiSession } from "../services/ai/mobileAi";
 import { mActions, mPrompt, mSelect, mTargets } from "../services/mobileDialogs";
 import type { MobileVault } from "../services/vaultService";
@@ -35,7 +36,19 @@ import type { MobileVault } from "../services/vaultService";
  * the privacy rules that travel with this vault, written as `.agent/policy.yml`
  * — the same file the desktop edits.
  */
-export function AiPolicyScreen({ vault, onBack, onOpenSkills, onOpenMemory }: { vault: MobileVault; onBack: () => void; onOpenSkills: (review?: string) => void; onOpenMemory: () => void }) {
+export function AiPolicyScreen({
+  vault,
+  onBack,
+  onOpenSkills,
+  onOpenMemory,
+  onOpenNote,
+}: {
+  vault: MobileVault;
+  onBack: () => void;
+  onOpenSkills: (review?: string) => void;
+  onOpenMemory: () => void;
+  onOpenNote: (path: string) => void;
+}) {
   const { t } = useTranslation();
   // Skills and memory (plan KI-Harness P3-5): the summary, what waits, and the way into the workshop.
   const session = getMobileAiSession();
@@ -236,6 +249,8 @@ export function AiPolicyScreen({ vault, onBack, onOpenSkills, onOpenMemory }: { 
           </RowList>
         </GroupCard>
         <p className="m-hint">{t("ai.workshop.settingsDesc")}</p>
+        {/* Routines (plan KI-Harness P8): a skill at a time its user set — below the skills they are made of, as on the desktop. */}
+        <MobileRoutinesSection onOpenNote={onOpenNote} />
       </div>
       {external === "add" && <ExternalAddSheet onClose={() => setExternal(null)} onAdded={(id) => setExternal({ review: id })} />}
       {external !== null && external !== "add" && <ExternalReviewSheet vault={vault} serverId={external.review} onClose={() => setExternal(null)} />}

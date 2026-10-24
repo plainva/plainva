@@ -1,6 +1,6 @@
 # Asistente de IA (Beta)
 
-Última actualización: 2026-10-09
+Última actualización: 2026-10-24
 
 Plainva puede responder preguntas sobre tus notas con un modelo de IA de tu elección. Lee tu vault, cita las notas que usó, abre notas y vistas por ti y propone cambios — como sugerencias en una nota, como borradores de algo nuevo o como un plan que tú confirmas. Nunca cambia una nota por sí mismo. El asistente es **experimental** y está desactivado hasta que lo actives, por separado en cada dispositivo.
 
@@ -123,6 +123,18 @@ El hilo va al modelo como una pregunta: sus comentarios, el pasaje al que está 
 Las habilidades son instrucciones para trabajo recurrente. Trece vienen con Plainva —entre ellas **Orientación del día**, **Repaso semanal** y **Estado del proyecto** como chips en una conversación vacía— y puedes escribir o importar las tuyas. Inicia una con un clic o simplemente pregunta: la IA carga por sí misma una habilidad que encaje. Tus propias habilidades solo se ejecutan después de que las apruebes en este dispositivo. Todo sobre ellas: [Habilidades](AI_Skills.md).
 
 Los scripts son programas pequeños que escribes para lo que un modelo hace mal —contar, ordenar, sumar—. Se ejecutan en un entorno aislado, leen tu vault con las mismas herramientas que la IA y solo lo hacen después de que los apruebes en este dispositivo. Todo sobre ellos: [Scripts](AI_Scripts.md).
+
+## Rutinas
+
+Una rutina inicia una habilidad a la hora que fijes: el resumen de la mañana, de lunes a viernes a las siete; el repaso semanal, el viernes por la tarde. Creas una rutina en la configuración del vault, bajo **IA y automatización**, en la tarjeta **Rutinas**: **Nueva rutina**, luego un nombre, la **Habilidad**, la frase que se le dice cada vez (si la dejas vacía, se usa la petición propia de la habilidad), los días y la hora, qué ocurre **Si Plainva estaba cerrado a esa hora** —**Recuperar una vez** u **Omitir**— y el **Modelo**. Solo pueden convertirse en una rutina las habilidades que están activas en este dispositivo y que únicamente leen.
+
+Antes de que exista una rutina, Plainva muestra lo que rige para una ejecución que nadie supervisa, y solo tu sí —**Configurar rutina**— la crea. Una rutina solo lee: sin sugerencias, sin borradores, sin Internet, sin herramientas externas, sin scripts, sin comandos de la aplicación. Tiene un presupuesto pequeño. Su resultado es una nota en tu carpeta de entrada, con un nombre tomado de la rutina y del día, marcada como escrita por la IA y con las notas en las que se basa. Con un modelo en este dispositivo, nada sale de él. Con el modelo de un proveedor confirmas lo que una ejecución lleva consigo por sí misma —el resumen previo al envío muestra lo que sería hoy—, y una ejecución que llevaría más que eso no envía nada y espera a que decidas tú. Lo que el modelo lee después a través de sus herramientas lo deciden tus reglas de privacidad, como en cada conversación. Una rutina no lee correos con el modelo de un proveedor: Plainva vuelve a preguntarlo en cada sesión, y no hay nadie que responda.
+
+Una rutina nunca pregunta nada. Donde necesitaría una respuesta —se enviaría más de lo que confirmaste, este dispositivo pregunta antes de cada solicitud, su habilidad se cambió desde que confirmaste la rutina, el proveedor de su modelo ya no está configurado o su modelo no está en este dispositivo mientras **Totalmente local** esté activado—, su fila dice lo que necesita y ofrece **Revisar**. Allí ves lo que enviaría ahora una ejecución y qué parte de ello es nueva, y **Confirmar de nuevo** permite que vuelva a ejecutarse.
+
+Las rutinas se ejecutan en este dispositivo mientras Plainva esté abierto: poco después de abrir el vault, luego aproximadamente una vez por minuto y cuando la aplicación vuelve al primer plano. Plainva no tiene ningún servicio en segundo plano ni promete una hora exacta. Una ejecución que se perdió mientras Plainva estaba cerrado se recupera una vez al volver a abrirlo —por muchas que se hayan perdido— o se omite, según lo hayas configurado. Con **Solo cuando algo ha cambiado**, el dispositivo comprueba primero si ha cambiado alguna nota desde la última vez que la rutina dejó una nota y, en caso contrario, no consulta a ningún modelo. Una rutina pertenece al dispositivo en el que la configuraste: se guarda en los datos de la aplicación, no en el vault, así que ningún otro dispositivo la ejecuta.
+
+Mientras se ejecuta una rutina, una línea en la conversación lo indica y ofrece **Detener**, y un mensaje tuyo espera hasta que termine. El interruptor de su fila pone una rutina en pausa; su menú permite ejecutarla de inmediato (**Ejecutar ahora**), editarla o quitarla. Las notas que escribió se conservan.
 
 ## Memoria
 

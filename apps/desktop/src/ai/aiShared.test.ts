@@ -9,6 +9,7 @@ import {
   createAiVaultStores,
   createVaultPolicy,
   EMPTY_MEMORY_STATE,
+  EMPTY_ROUTINES_STATE,
   NO_ACP,
   NO_MCP,
   transcriptOf,
@@ -246,6 +247,7 @@ describe("the settings model", () => {
     learning: null,
     learnLog: false,
     upkeep: { skills: [], memory: [] },
+    routines: EMPTY_ROUTINES_STATE,
     ...patch,
   });
 

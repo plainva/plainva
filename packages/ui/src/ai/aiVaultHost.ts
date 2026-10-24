@@ -384,6 +384,17 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     situation: input.situation,
     candidates: (question, activePath, recipient) => (input.retrieval ? gatherCandidates(input.retrieval, question, activePath, recipient) : Promise.resolve([])),
     ...(input.retrieval?.noteSizes ? { noteSizes: input.retrieval.noteSizes.bind(input.retrieval) } : {}),
+    // "Only when something changed" of a routine (plan P8): the newest change on disk the index knows — a sync counts
+    // as one —, other than the notes named. Asked of this device's own index; no model is involved.
+    ...(input.retrieval
+      ? {
+          changedSince: async (since: number, except: readonly string[]) => {
+            const retrieval = input.retrieval!;
+            const newest = (await retrieval.recentlyChanged(except.length + 1)).find((note) => !except.includes(note.path));
+            return newest ? newest.mtime > since : false;
+          },
+        }
+      : {}),
     policy: input.policy,
     ...(input.keepOnDevice ? { keepOnDevice: input.keepOnDevice } : {}),
     ...(input.gists ? { gists: input.gists } : {}),

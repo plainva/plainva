@@ -7271,3 +7271,132 @@ test('List indent: a task typed anew keeps its box where the tasks around it hav
   expect(Math.abs(lefts[1] - lefts[0]), 'the new box against the one above').toBeLessThan(1);
   expect(Math.abs(lefts[1] - lefts[2]), 'the new box against the one below').toBeLessThan(1);
 });
+
+// Routines (AI harness P8-1): a skill at a time its user set. One is set up in
+// two steps — the form, then what holds for a run nobody watches — and exists
+// only after the yes. Run by hand here (the clock is the scheduler's own
+// business, held by unit tests): it runs beside the conversation, carries only
+// tools that read, asks nothing, and what it leaves is a note. The model is
+// the scripted `ai_http` of a server on this computer; the vault is the mock
+// file system.
+test('AI routines: one is set up in two steps and confirmed for a run nobody watches; run now, it reads, asks nothing and leaves a note', async ({ page }) => {
+  const chunk = (data: unknown) => `data: ${JSON.stringify(data)}\n\n`;
+  const localSays = (text: string) =>
+    `${chunk({ choices: [{ delta: { content: text } }] })}${chunk({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 300, completion_tokens: 40 } })}data: [DONE]\n\n`;
+  const BRIEF = 'Nothing is due today. The welcome note is the only one that changed lately.';
+  await page.addInitScript(({ local }) => {
+    // The profile "Local" names a model on a server of this computer: a routine with it sends nothing anywhere.
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['ollama'], profiles: { local: { providerId: 'ollama', model: 'granite3.3:8b' } } } };
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return false;
+      if (cmd === 'ai_http') {
+        const tools = (Array.isArray(args.request.body.tools) ? args.request.body.tools : []).map((tool: any) => String(tool?.function?.name ?? tool?.name ?? ''));
+        (window as any).__aiRequests.push({ endpoint: String(args.request.endpointId), tools });
+        const text = local.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { local: [localSays(BRIEF)] });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as Array<{ endpoint: string; tools: string[] }>);
+  const kept = () => page.evaluate(() => Object.entries((window as any).mockFs as Record<string, unknown>).filter(([path, value]) => path.startsWith('/test-vault/Inbox/') && typeof value === 'string').map(([path, text]) => ({ path, text: String(text) })));
+
+  // 1. The vault's AI settings hold the routines: none yet, and a word about when they run.
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+  const settings = dialog.getByTestId('settings-ai-vault');
+  await expect(settings).toContainText('Routines run on this device while Plainva is open.');
+  await expect(settings).toContainText('No routine yet.');
+  await expect(settings.getByTestId('settings-ai-routine')).toHaveCount(0);
+  const add = settings.getByTestId('settings-ai-routine-add');
+  await add.scrollIntoViewIfNeeded();
+  await add.click();
+
+  // 2. The form: a name, the skill, the days and the time, what becomes of a missed run, and the model. It starts with
+  //    the working days at seven; nothing can go on without a name.
+  const form = page.getByTestId('ai-routine-form');
+  await expect(form).toBeVisible();
+  await expect(form.getByTestId('ai-routine-next')).toBeDisabled();
+  await form.getByTestId('ai-routine-name').fill('Morning brief');
+  for (const day of [1, 2, 3, 4, 5]) await expect(form.getByTestId(`ai-routine-day-${day}`)).toHaveAttribute('aria-pressed', 'true');
+  for (const day of [0, 6]) await expect(form.getByTestId(`ai-routine-day-${day}`)).toHaveAttribute('aria-pressed', 'false');
+  await expect(form.getByTestId('ai-routine-time')).toHaveValue('07:00');
+  await expect(form.getByTestId('ai-routine-model')).toContainText('Local — Ollama · granite3.3:8b');
+  await expect(form).toContainText('Only skills that are active on this device and only read.');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-routine-form-desktop.png'), animations: 'disabled' });
+  await form.getByTestId('ai-routine-next').click();
+
+  // 3. What holds for a run nobody watches — and only this yes makes the routine. Nothing was sent to put it together.
+  const confirm = page.getByTestId('ai-routine-confirm');
+  await expect(confirm).toBeVisible();
+  await expect(confirm).toContainText('“Morning brief” runs without you — so this holds for it');
+  await expect(confirm).toContainText('No suggestion, no draft, no internet, no external tool, no script, no command of the app.');
+  await expect(confirm.getByTestId('ai-routine-budget')).toHaveText('At most 8 steps, 12 tool calls and 6,000 tokens of output per run.');
+  await expect(confirm.getByTestId('ai-routine-who')).toHaveText('Ollama · granite3.3:8b — a model on this device. Nothing leaves it.');
+  await expect(confirm.getByTestId('ai-routine-result')).toContainText('A note in the folder “Inbox”, called “Morning brief – ');
+  // The time of day is written the way the language writes it ("07:00", "07:00 AM").
+  await expect(confirm.getByTestId('ai-routine-when')).toHaveText(/^Weekdays 0?7:00(\sAM)?, while Plainva is open\. If it was closed: once at the next opening\.$/);
+  // A model on this device: no overview of what goes, because nothing goes.
+  await expect(confirm.getByTestId('ai-consent')).toHaveCount(0);
+  await expect(confirm.getByTestId('ai-overview')).toHaveCount(0);
+  expect(await requests()).toEqual([]);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-routine-confirm-desktop.png'), animations: 'disabled' });
+  await confirm.getByTestId('ai-routine-save').click();
+  await expect(confirm).toHaveCount(0);
+
+  // 4. The list: what it does and when, that it has not run, and when it will.
+  const row = settings.getByTestId('settings-ai-routine');
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText('Morning brief');
+  await expect(row).toContainText(/Weekdays 0?7:00(\sAM)? · “Daily orientation” · Ollama · granite3\.3:8b/);
+  await expect(row.getByTestId('settings-ai-routine-status')).toContainText('Not run yet');
+  await expect(row.getByTestId('settings-ai-routine-status')).toContainText('Next run:');
+  await expect(row.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
+  await expect(settings).not.toContainText('No routine yet.');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-routine-list-desktop.png'), animations: 'disabled' });
+
+  // 5. "Run now": one request to the model on this computer, with tools that read and none that does anything else —
+  //    and no question on the way.
+  await row.getByTestId('settings-ai-routine-more').click();
+  await page.getByTestId('settings-ai-routine-run').click();
+  await expect.poll(async () => (await kept()).length).toBe(1);
+  const sent = await requests();
+  expect(sent).toHaveLength(1);
+  expect(sent[0].endpoint).toBe('ollama');
+  expect(sent[0].tools.length).toBeGreaterThan(0);
+  expect(sent[0].tools).toEqual(expect.arrayContaining(['read_note', 'search_vault']));
+  for (const never of ['run_command', 'find_tools', 'call_tool', 'use_skill', 'fetch_url', 'web_search', 'propose_edit', 'create_note', 'create_task', 'remember']) expect(sent[0].tools).not.toContain(never);
+
+  // 6. What it left: a note in the inbox, called after the routine and the day, marked as the model's. The row says so.
+  const [note] = await kept();
+  expect(note.path).toMatch(/^\/test-vault\/Inbox\/Morning brief – \d{4}-\d{2}-\d{2}\.md$/);
+  expect(note.text).toContain(BRIEF);
+  expect(note.text).toMatch(/generated:\s*\n\s+by: "?plainva-ai\/granite3\.3:8b/);
+  await expect(row.getByTestId('settings-ai-routine-status')).toContainText(/Last today .+ — note “Morning brief – \d{4}-\d{2}-\d{2}”/);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-routine-ran-desktop.png'), animations: 'disabled' });
+
+  // 7. The switch pauses it, and the row says so.
+  await row.getByRole('switch').click();
+  await expect(row.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
+  await expect(row.getByTestId('settings-ai-routine-status')).toContainText('Paused');
+
+  // 8. In the conversation the result is announced once, with the way to the note; the history holds the run.
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await expect(companion.getByTestId('ai-routine-ready')).toContainText('“Morning brief” is ready.');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-routine-ready-desktop.png'), animations: 'disabled' });
+  await companion.getByTestId('ai-routine-open').click();
+  await expect(companion.getByTestId('ai-routine-ready')).toHaveCount(0);
+  await expect(page.locator('.cm-content').first()).toContainText(BRIEF);
+});
