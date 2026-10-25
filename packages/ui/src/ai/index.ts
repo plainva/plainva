@@ -80,6 +80,7 @@ export * from "./noteHintsHost";
 export * from "./noteHintsStore";
 export * from "./NoteHints";
 export * from "./AiRoutineConfirm";
+export * from "./runReplay";
 export * from "./UpkeepParts";
 export * from "./writeTools";
 export * from "./AiWriteCards";

@@ -57,6 +57,43 @@
       "move_note": "移動の計画を提示",
       "delete_note": "ノートの削除を依頼"
     },
+    "snapshot": {
+      "asked": "質問日時",
+      "read": "ツールが読んだもの",
+      "readHit": "検索で見つかったもの",
+      "readMore_other": "ほか {{count}} 件",
+      "readBeyond": "さらに、履歴に残らなかった分も",
+      "version": "バージョン {{hash}}",
+      "state": {
+        "same": "変更なし",
+        "changed": "その後に変更",
+        "gone": "もう存在しない"
+      },
+      "skills": "スキルのバージョン",
+      "used": "使ったツール",
+      "toolCount": "{{tool}} ×{{count}}",
+      "result": "結果",
+      "resultAnswer": "回答",
+      "resultRounds_other": "{{count}} 件の提案",
+      "resultDrafts_other": "{{count}} 件の下書き",
+      "resultPlans_other": "{{count}} 件の計画",
+      "replay": "別のモデルに質問…",
+      "replayMenu": "別のモデルに質問",
+      "replayHint": "同じ質問を、同じノートを添えて新しい会話で尋ねます。送られる内容は、送信前の概要で確認できます。",
+      "replayChanged_other": "そのうち {{count}} 件は、その後に変更されており、今の状態のまま送られます。",
+      "replayNone": "この端末には、ほかに設定されているモデルがありません。",
+      "refused": {
+        "later": "もう一度尋ねられるのは、会話の最初の質問だけです。後の質問は、それ以前のやり取りを前提にしているためです。",
+        "material": "この質問には、ノート以外のもの（選択範囲、画像、録音、コメントのスレッド、データベースの列、フォルダーのログの変更）も含まれていました。新しい会話には、それらは引き継がれません。",
+        "empty": "ここには、もう一度尋ねられる質問がありません。"
+      }
+    },
+    "replay": {
+      "title": "{{title}} · {{model}}",
+      "head": "「{{title}}」（{{when}}、{{model}}）と同じ質問を、同じノートを添えて尋ねています。",
+      "headChanged_other": "そのうち {{count}} 件は、その後に変更されていました。",
+      "open": "元の会話を開く"
+    },
     "stopped": {
       "cancelled": "停止しました。",
       "limit": "この実行は上限に達したため停止しました。",

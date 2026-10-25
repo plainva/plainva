@@ -61,6 +61,55 @@
       "move_note": "Sta presentando un piano per spostare",
       "delete_note": "Sta chiedendo di eliminare una nota"
     },
+    "snapshot": {
+      "asked": "Domanda posta",
+      "read": "Letto dagli strumenti",
+      "readHit": "trovata da una ricerca",
+      "readMore_one": "e {{count}} altra",
+      "readMore_many": "e altre {{count}}",
+      "readMore_other": "e altre {{count}}",
+      "readBeyond": "e più di quante ne conserva la cronologia",
+      "version": "versione {{hash}}",
+      "state": {
+        "same": "invariata",
+        "changed": "modificata da allora",
+        "gone": "non esiste più"
+      },
+      "skills": "Versione della competenza",
+      "used": "Strumenti usati",
+      "toolCount": "{{tool}} ×{{count}}",
+      "result": "Risultato",
+      "resultAnswer": "la risposta",
+      "resultRounds_one": "{{count}} proposta",
+      "resultRounds_many": "{{count}} di proposte",
+      "resultRounds_other": "{{count}} proposte",
+      "resultDrafts_one": "{{count}} bozza",
+      "resultDrafts_many": "{{count}} di bozze",
+      "resultDrafts_other": "{{count}} bozze",
+      "resultPlans_one": "{{count}} piano",
+      "resultPlans_many": "{{count}} di piani",
+      "resultPlans_other": "{{count}} piani",
+      "replay": "Chiedi a un altro modello…",
+      "replayMenu": "Chiedi a un altro modello",
+      "replayHint": "La stessa domanda con le stesse note, in una nuova conversazione; il riepilogo prima dell'invio mostra cosa parte.",
+      "replayChanged_one": "{{count}} di esse è cambiata da allora e parte così com'è ora.",
+      "replayChanged_many": "{{count}} di esse sono cambiate da allora e partono così come sono ora.",
+      "replayChanged_other": "{{count}} di esse sono cambiate da allora e partono così come sono ora.",
+      "replayNone": "Su questo dispositivo non è configurato nessun altro modello.",
+      "refused": {
+        "later": "Si può chiedere di nuovo solo la prima domanda di una conversazione: una successiva si basa su ciò che è stato detto prima.",
+        "material": "Questa domanda portava con sé più delle sole note — una selezione, un'immagine, una registrazione, una discussione nei commenti, le colonne di un database o le modifiche del registro di una cartella —, e una nuova conversazione non porta tutto questo con sé.",
+        "empty": "Qui non c'è nessuna domanda da ripetere."
+      }
+    },
+    "replay": {
+      "title": "{{title}} · {{model}}",
+      "head": "La stessa domanda di «{{title}}» ({{when}}, {{model}}), con le stesse note.",
+      "headChanged_one": "{{count}} di esse era cambiata da allora.",
+      "headChanged_many": "{{count}} di esse erano cambiate da allora.",
+      "headChanged_other": "{{count}} di esse erano cambiate da allora.",
+      "open": "Apri l'originale"
+    },
     "stopped": {
       "cancelled": "Interrotto.",
       "limit": "Questa esecuzione ha raggiunto il suo limite e si è interrotta.",

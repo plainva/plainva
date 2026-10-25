@@ -191,9 +191,10 @@ export interface ToolScope {
    * rules deny — it passed because this run does not concern them (a note
    * kept from the cloud read by a model on this device, a note kept from the
    * internet in a conversation without it). What is made of the run's answer
-   * inherits them (plan KI-Harness P4-6).
+   * inherits them (plan KI-Harness P4-6). `text`: the note's text where the
+   * tool was given it whole — the run keeps its version (plan P9-2).
    */
-  passed?(path: string, rules: readonly AiPolicyDimension[]): void;
+  passed?(path: string, rules: readonly AiPolicyDimension[], text?: string): void;
 }
 
 /** The tools a new conversation carries; a conversation's own list never changes afterwards. */
@@ -351,7 +352,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
       decision = { ok: gateDecision(effective, run).allowed, rules: AI_POLICY_DIMENSIONS.filter((dimension) => effective.policy[dimension] === "deny") };
       decisions.set(path, decision);
     }
-    if (decision.ok) scope?.passed?.(path, decision.rules);
+    if (decision.ok) scope?.passed?.(path, decision.rules, text);
     return decision.ok;
   };
   /**

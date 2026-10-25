@@ -61,6 +61,55 @@
       "move_note": "Plan de déplacement",
       "delete_note": "Demande de suppression d'une note"
     },
+    "snapshot": {
+      "asked": "Question posée",
+      "read": "Lu par les outils",
+      "readHit": "trouvée par une recherche",
+      "readMore_one": "et {{count}} autre",
+      "readMore_many": "et {{count}} d'autres",
+      "readMore_other": "et {{count}} autres",
+      "readBeyond": "et plus que ce que l'historique conserve",
+      "version": "version {{hash}}",
+      "state": {
+        "same": "inchangée",
+        "changed": "modifiée depuis",
+        "gone": "n'existe plus"
+      },
+      "skills": "Version de la compétence",
+      "used": "Outils utilisés",
+      "toolCount": "{{tool}} ×{{count}}",
+      "result": "Résultat",
+      "resultAnswer": "la réponse",
+      "resultRounds_one": "{{count}} proposition",
+      "resultRounds_many": "{{count}} de propositions",
+      "resultRounds_other": "{{count}} propositions",
+      "resultDrafts_one": "{{count}} brouillon",
+      "resultDrafts_many": "{{count}} de brouillons",
+      "resultDrafts_other": "{{count}} brouillons",
+      "resultPlans_one": "{{count}} plan",
+      "resultPlans_many": "{{count}} de plans",
+      "resultPlans_other": "{{count}} plans",
+      "replay": "Demander à un autre modèle…",
+      "replayMenu": "Demander à un autre modèle",
+      "replayHint": "La même question avec les mêmes notes, dans une nouvelle conversation ; l'aperçu avant l'envoi montre ce qui part.",
+      "replayChanged_one": "{{count}} d'entre elles a changé depuis et part dans son état actuel.",
+      "replayChanged_many": "{{count}} d'entre elles ont changé depuis et partent dans leur état actuel.",
+      "replayChanged_other": "{{count}} d'entre elles ont changé depuis et partent dans leur état actuel.",
+      "replayNone": "Aucun autre modèle n'est configuré sur cet appareil.",
+      "refused": {
+        "later": "Seule la première question d'une conversation peut être posée de nouveau : une question ultérieure s'appuie sur ce qui a été dit avant.",
+        "material": "Cette question apportait plus que des notes — une sélection, une image, un enregistrement, un fil de commentaires, les colonnes d'une base de données ou les modifications du registre d'un dossier —, ce qu'une nouvelle conversation n'emporte pas.",
+        "empty": "Il n'y a ici aucune question à poser de nouveau."
+      }
+    },
+    "replay": {
+      "title": "{{title}} · {{model}}",
+      "head": "La même question que dans « {{title}} » ({{when}}, {{model}}), avec les mêmes notes.",
+      "headChanged_one": "{{count}} d'entre elles avait changé depuis.",
+      "headChanged_many": "{{count}} d'entre elles avaient changé depuis.",
+      "headChanged_other": "{{count}} d'entre elles avaient changé depuis.",
+      "open": "Ouvrir l'original"
+    },
     "stopped": {
       "cancelled": "Arrêté.",
       "limit": "Cette exécution a atteint sa limite et s'est arrêtée.",

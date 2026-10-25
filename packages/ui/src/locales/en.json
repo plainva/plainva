@@ -59,6 +59,49 @@
       "move_note": "Laying out a plan to move",
       "delete_note": "Asking to delete a note"
     },
+    "snapshot": {
+      "asked": "Asked",
+      "read": "Read by the tools",
+      "readHit": "found by a search",
+      "readMore_one": "and {{count}} more",
+      "readMore_other": "and {{count}} more",
+      "readBeyond": "and more than the record keeps",
+      "version": "version {{hash}}",
+      "state": {
+        "same": "unchanged",
+        "changed": "changed since",
+        "gone": "no longer there"
+      },
+      "skills": "Skill version",
+      "used": "Tools it used",
+      "toolCount": "{{tool}} ×{{count}}",
+      "result": "Result",
+      "resultAnswer": "the answer",
+      "resultRounds_one": "{{count}} suggestion",
+      "resultRounds_other": "{{count}} suggestions",
+      "resultDrafts_one": "{{count}} draft",
+      "resultDrafts_other": "{{count}} drafts",
+      "resultPlans_one": "{{count}} plan",
+      "resultPlans_other": "{{count}} plans",
+      "replay": "Ask another model…",
+      "replayMenu": "Ask another model",
+      "replayHint": "The same question with the same notes, in a new conversation; the send overview shows what goes.",
+      "replayChanged_one": "{{count}} of them changed since and goes as it is now.",
+      "replayChanged_other": "{{count}} of them changed since and go as they are now.",
+      "replayNone": "No other model is set up on this device.",
+      "refused": {
+        "later": "Only the first question of a conversation can be asked again: a later one rests on what was said before.",
+        "material": "This question brought more than notes along — a selection, a picture, a recording, a comment thread, a database's columns or a log's changes —, which a new conversation does not take along.",
+        "empty": "There is no question here to ask again."
+      }
+    },
+    "replay": {
+      "title": "{{title}} · {{model}}",
+      "head": "The same question as in “{{title}}” ({{when}}, {{model}}), with the same notes.",
+      "headChanged_one": "{{count}} of them had changed since.",
+      "headChanged_other": "{{count}} of them had changed since.",
+      "open": "Open the original"
+    },
     "stopped": {
       "cancelled": "Stopped.",
       "limit": "This run reached its limit and stopped.",

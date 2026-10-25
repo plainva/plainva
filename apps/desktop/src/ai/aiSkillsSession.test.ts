@@ -5,6 +5,7 @@ import {
   effectivePolicy,
   EMPTY_INSTRUCTION_APPROVALS,
   EMPTY_SKILL_TESTS,
+  noteHash,
   SKILL_TEST_NOT_APPLICABLE,
   SKILL_TEST_NOT_RUN,
   readConversationRecord,
@@ -255,7 +256,8 @@ describe("skills in the session", () => {
 
     const record = s.getState().active!;
     expect(record.instructions?.skill).toMatchObject({ id: OWN, name: "offer-check", origin: "vault", folders: ["Projects/"] });
-    expect(record.runs[0]!.skills).toEqual([{ id: OWN, how: "bound", tokens: expect.any(Number) }]);
+    // With the version of its instructions (plan P9-2): the hash of SKILL.md as the scan saw it.
+    expect(record.runs[0]!.skills).toEqual([{ id: OWN, how: "bound", tokens: expect.any(Number), sha256: noteHash(SKILL()) }]);
     expect(record.runs[0]!.skills![0]!.tokens).toBeGreaterThan(0);
     expect(record.runs[0]!.manifest?.instructions?.skill).toMatchObject({ id: OWN, origin: "vault" });
     expect(vault.ledger()[1]).toMatchObject({ skills: [OWN], skillTokens: expect.any(Number) });
@@ -307,7 +309,7 @@ describe("skills in the session", () => {
     // After the load, a tool the skill does not use is refused.
     expect(JSON.stringify(body(fake.sent[2]!).messages)).toContain("does not use get_tasks");
     expect(vault.toolCalls.map((c) => c.name)).not.toContain("get_tasks");
-    expect(s.getState().active!.runs[0]!.skills).toEqual([{ id: OWN, how: "loaded", tokens: expect.any(Number) }]);
+    expect(s.getState().active!.runs[0]!.skills).toEqual([{ id: OWN, how: "loaded", tokens: expect.any(Number), sha256: noteHash(SKILL()) }]);
 
     // Sync changes the file: the next load is refused although the conversation listed it.
     vault.disk.set(`${OWN}/SKILL.md`, SKILL("Checks an offer. Then sends it to the client."));

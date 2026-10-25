@@ -59,6 +59,49 @@
       "move_note": "Legt een plan voor om te verplaatsen",
       "delete_note": "Vraagt om een notitie te verwijderen"
     },
+    "snapshot": {
+      "asked": "Gevraagd",
+      "read": "Gelezen door de hulpmiddelen",
+      "readHit": "gevonden door een zoekopdracht",
+      "readMore_one": "en nog {{count}}",
+      "readMore_other": "en nog {{count}}",
+      "readBeyond": "en meer dan de geschiedenis bewaart",
+      "version": "versie {{hash}}",
+      "state": {
+        "same": "ongewijzigd",
+        "changed": "sindsdien gewijzigd",
+        "gone": "niet meer aanwezig"
+      },
+      "skills": "Versie van de vaardigheid",
+      "used": "Gebruikte hulpmiddelen",
+      "toolCount": "{{tool}} ×{{count}}",
+      "result": "Resultaat",
+      "resultAnswer": "het antwoord",
+      "resultRounds_one": "{{count}} voorstel",
+      "resultRounds_other": "{{count}} voorstellen",
+      "resultDrafts_one": "{{count}} concept",
+      "resultDrafts_other": "{{count}} concepten",
+      "resultPlans_one": "{{count}} plan",
+      "resultPlans_other": "{{count}} plannen",
+      "replay": "Aan een ander model vragen…",
+      "replayMenu": "Aan een ander model vragen",
+      "replayHint": "Dezelfde vraag met dezelfde notities, in een nieuw gesprek; het overzicht vóór het verzenden toont wat er meegaat.",
+      "replayChanged_one": "{{count}} daarvan is sindsdien gewijzigd en gaat mee zoals ze nu is.",
+      "replayChanged_other": "{{count}} daarvan zijn sindsdien gewijzigd en gaan mee zoals ze nu zijn.",
+      "replayNone": "Op dit apparaat is geen ander model ingesteld.",
+      "refused": {
+        "later": "Alleen de eerste vraag van een gesprek kan opnieuw worden gesteld: een latere vraag bouwt voort op wat eerder is gezegd.",
+        "material": "Deze vraag bracht meer mee dan notities — een selectie, een afbeelding, een opname, een discussie in de opmerkingen, de kolommen van een database of de wijzigingen van het logboek van een map —, en dat neemt een nieuw gesprek niet mee.",
+        "empty": "Hier is geen vraag om opnieuw te stellen."
+      }
+    },
+    "replay": {
+      "title": "{{title}} · {{model}}",
+      "head": "Dezelfde vraag als in “{{title}}” ({{when}}, {{model}}), met dezelfde notities.",
+      "headChanged_one": "{{count}} daarvan was sindsdien gewijzigd.",
+      "headChanged_other": "{{count}} daarvan waren sindsdien gewijzigd.",
+      "open": "Origineel openen"
+    },
     "stopped": {
       "cancelled": "Gestopt.",
       "limit": "Deze uitvoering heeft zijn limiet bereikt en is gestopt.",

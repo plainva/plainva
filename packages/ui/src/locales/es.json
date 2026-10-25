@@ -61,6 +61,55 @@
       "move_note": "Presentando un plan para mover",
       "delete_note": "Pidiendo eliminar una nota"
     },
+    "snapshot": {
+      "asked": "Preguntado",
+      "read": "Leído por las herramientas",
+      "readHit": "encontrada en una búsqueda",
+      "readMore_one": "y {{count}} más",
+      "readMore_many": "y {{count}} más",
+      "readMore_other": "y {{count}} más",
+      "readBeyond": "y más de las que guarda el historial",
+      "version": "versión {{hash}}",
+      "state": {
+        "same": "sin cambios",
+        "changed": "cambió desde entonces",
+        "gone": "ya no está"
+      },
+      "skills": "Versión de la habilidad",
+      "used": "Herramientas usadas",
+      "toolCount": "{{tool}} ×{{count}}",
+      "result": "Resultado",
+      "resultAnswer": "la respuesta",
+      "resultRounds_one": "{{count}} sugerencia",
+      "resultRounds_many": "{{count}} de sugerencias",
+      "resultRounds_other": "{{count}} sugerencias",
+      "resultDrafts_one": "{{count}} borrador",
+      "resultDrafts_many": "{{count}} de borradores",
+      "resultDrafts_other": "{{count}} borradores",
+      "resultPlans_one": "{{count}} plan",
+      "resultPlans_many": "{{count}} de planes",
+      "resultPlans_other": "{{count}} planes",
+      "replay": "Preguntar a otro modelo…",
+      "replayMenu": "Preguntar a otro modelo",
+      "replayHint": "La misma pregunta con las mismas notas, en una conversación nueva; el resumen previo al envío muestra lo que se envía.",
+      "replayChanged_one": "{{count}} de ellas cambió desde entonces y se envía como está ahora.",
+      "replayChanged_many": "{{count}} de ellas cambiaron desde entonces y se envían como están ahora.",
+      "replayChanged_other": "{{count}} de ellas cambiaron desde entonces y se envían como están ahora.",
+      "replayNone": "No hay ningún otro modelo configurado en este dispositivo.",
+      "refused": {
+        "later": "Solo se puede volver a hacer la primera pregunta de una conversación: una posterior se apoya en lo que se dijo antes.",
+        "material": "Esta pregunta llevó más que notas — una selección, una imagen, una grabación, un hilo de comentarios, las columnas de una base de datos o los cambios del registro de una carpeta —, y una conversación nueva no se lleva nada de eso.",
+        "empty": "Aquí no hay ninguna pregunta que se pueda volver a hacer."
+      }
+    },
+    "replay": {
+      "title": "{{title}} · {{model}}",
+      "head": "La misma pregunta que en «{{title}}» ({{when}}, {{model}}), con las mismas notas.",
+      "headChanged_one": "{{count}} de ellas había cambiado desde entonces.",
+      "headChanged_many": "{{count}} de ellas habían cambiado desde entonces.",
+      "headChanged_other": "{{count}} de ellas habían cambiado desde entonces.",
+      "open": "Abrir el original"
+    },
     "stopped": {
       "cancelled": "Detenido.",
       "limit": "Esta ejecución alcanzó su límite y se detuvo.",

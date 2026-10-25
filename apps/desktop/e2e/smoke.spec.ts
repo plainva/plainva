@@ -7712,3 +7712,99 @@ test('AI history analysis: a look back lists what changed from the index — a n
   expect(second, 'the whole request').not.toContain('93k');
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-history-desktop.png'), animations: 'disabled' });
 });
+
+// A run's snapshot and "Ask another model…" (AI harness P9-2): the line under an answer, opened, keeps the version
+// of what the run read and says what changed since; asked again, the same question goes to another model in a new
+// conversation, through the send overview, and that conversation names the one it comes from. The model is scripted.
+test('AI snapshot: an answer keeps the version of what it read and says what changed since — and the same question goes to another model', async ({ page }) => {
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const calls = (name: string, input: unknown) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: 'call-1', name, input: {} } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify(input) } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const script = [calls('read_note', { path: 'Projects/Offer.md' }), says('The offer names a day rate of 1,800 euros.'), says('A day rate of 1,800 euros, says the offer.')];
+  await page.addInitScript(({ script }) => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' }, fast: { providerId: 'anthropic', model: 'm-2' } } } };
+    Object.assign((window as any).mockFs, {
+      '/test-vault/Projects': { isDir: true },
+      '/test-vault/Projects/Offer.md': '# Offer\n\nThe day rate is 1,800 euros.\n',
+    });
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+
+  // 1. A question; the model reads the offer with a tool and answers.
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await companion.getByTestId('ai-input').fill('What day rate does the offer name?');
+  await companion.getByTestId('ai-send').click();
+  await companion.getByTestId('ai-consent-send').click();
+  await expect(companion.getByText('The offer names a day rate of 1,800 euros.')).toBeVisible();
+
+  // 2. Its line, opened: the version of what the tool read, unchanged; the tool it used; what it left.
+  const line = companion.getByRole('button', { name: /^sent to Anthropic/ }).first();
+  await line.click();
+  const read = companion.getByTestId('ai-snapshot-read');
+  await expect(read).toContainText('Offer');
+  await expect(read).toContainText(/version [0-9a-f]{7}/);
+  await expect(read).toContainText('unchanged');
+  await expect(companion.getByTestId('ai-snapshot-used')).toHaveText('Reading a note ×1');
+  await expect(companion.getByTestId('ai-snapshot-result')).toHaveText('the answer');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-snapshot-desktop.png'), animations: 'disabled' });
+
+  // 3. The offer changes; opened again, the line says so — asked on this device, nothing sent.
+  const before = (await requests()).length;
+  await page.evaluate(() => { (window as any).mockFs['/test-vault/Projects/Offer.md'] = '# Offer\n\nThe day rate is 1,900 euros.\n'; });
+  await line.click();
+  await line.click();
+  await expect(companion.getByTestId('ai-snapshot-read')).toContainText('changed since');
+  expect(await requests()).toHaveLength(before);
+
+  // 4. The same question to another model: the profiles of this device, not the one that answered; the send overview asks.
+  await companion.getByTestId('ai-snapshot-replay-open').click();
+  const menu = page.getByRole('menu', { name: 'Ask another model' });
+  await expect(menu.getByRole('menuitem')).toHaveCount(1);
+  await menu.getByRole('menuitem', { name: /Fast/ }).click();
+  await companion.getByTestId('ai-consent-send').click();
+  await expect(companion.getByText('A day rate of 1,800 euros, says the offer.')).toBeVisible();
+  const head = companion.getByTestId('ai-replay-head');
+  await expect(head).toContainText('The same question as in');
+  await expect(head).toContainText('m-1');
+  const replay = (await requests()).at(-1)!;
+  expect(replay).toContain('"model":"m-2"');
+  expect(replay).toContain('What day rate does the offer name?');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-replay-desktop.png'), animations: 'disabled' });
+
+  // 5. The way back to the original.
+  await head.getByTestId('ai-replay-original').click();
+  await expect(companion.getByText('The offer names a day rate of 1,800 euros.')).toBeVisible();
+  await expect(companion.getByTestId('ai-replay-head')).toHaveCount(0);
+});

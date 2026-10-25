@@ -47,6 +47,8 @@ export interface ManifestSource {
    * entries.
    */
   columns?: number;
+  /** The version of the note that went (plan KI-Harness P9-2): the SHA-256 of its text, never the text. */
+  hash?: string;
 }
 
 export interface EgressManifest {
@@ -162,6 +164,7 @@ export function manifestOf(
     ...(ref.gist ? { gist: true } : {}),
     ...(ref.sensitive ? { sensitive: ref.sensitive } : {}),
     ...(ref.redacted ? { redacted: ref.redacted } : {}),
+    ...(ref.hash ? { hash: ref.hash } : {}),
     reasons: ref.reasons,
   }));
   const folders = [...new Set(pack.refs.map((ref) => topFolder(ref.path)))].sort();

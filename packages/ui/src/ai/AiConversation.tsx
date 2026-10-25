@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, Check, CircleAlert, Eye, FilePlus2, FileText, Globe, GraduationCap, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plug, Plus, Scissors, Send, Sparkles, Square } from "lucide-react";
+import { ArrowLeftRight, Ban, Check, CircleAlert, Eye, FilePlus2, FileText, Globe, GraduationCap, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plug, Plus, Scissors, Send, Sparkles, Square } from "lucide-react";
 import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, choiceOnDevice, comparableAddress, hasImages, hasWebTools, knownAddresses, localAnswerer, providerById, runsOnDevice, type AnswerCoverage, type ModelFailure, type RunMeta, type RunStop } from "@plainva/core";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
@@ -20,6 +20,7 @@ import { AiPicture } from "./AiPicture";
 import { AI_TRANSLATE_LANGUAGES, askMessage, runSuggestAction, type AiSuggestAction, type SelectionReader } from "./aiSelectionActions";
 import { startableSkills } from "./aiSkills";
 import { AiSendOverview } from "./AiSendOverview";
+import { AiRunOverview } from "./AiRunOverview";
 import { AiRunWrites, useDraftActions } from "./AiWriteCards";
 import { openLearnSurface } from "./aiLearn";
 import { aiFailureText, failureRecipient } from "./aiSettingsModel";
@@ -172,6 +173,12 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   const requested = useMemo(() => new Set((active?.runs ?? []).flatMap((run) => (run.web?.pages ?? []).map((page) => comparableAddress(page.url) ?? page.url))), [active]);
   const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
   const money = useMemo(() => new Intl.NumberFormat(i18n.language, { style: "currency", currency: "USD", maximumFractionDigits: 4 }), [i18n.language]);
+  const replayDate = useMemo(() => new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }), [i18n.language]);
+  /** When the run a replay asks again was asked, in the reader's language. */
+  const replayWhen = (iso: string) => {
+    const date = new Date(iso);
+    return Number.isNaN(date.getTime()) ? iso : replayDate.format(date);
+  };
 
   // Follow the answer while it streams, the way a reader would scroll.
   const liveText = state?.live?.text ?? "";
@@ -489,8 +496,11 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
                 {t("ai.learn.action")}
               </Button>
             )}
-            {open && manifest && (
-              <AiSendOverview
+            {/* Opened, the line is the run's snapshot too (plan P9-2): versions, tools, result — and the same question to another model. */}
+            {open && manifest && active && (
+              <AiRunOverview
+                record={active}
+                run={item.run}
                 manifest={manifest}
                 onOpenNote={onOpenNote}
                 touch={touch}
@@ -555,6 +565,23 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         </div>
       ) : (
       <div className="pv-ai-thread" ref={threadRef} aria-busy={running}>
+        {/* A replay says where it comes from (plan P9-2): the question of which conversation, when and on which model — and how many of its notes changed since. */}
+        {active?.replayOf && (
+          <Banner
+            kind="info"
+            rounded
+            icon={ArrowLeftRight}
+            testId="ai-replay-head"
+            actions={
+              <Button size="sm" variant="ghost" onClick={() => void session.open(active.replayOf!.conversationId)} data-testid="ai-replay-original">
+                {t("ai.replay.open")}
+              </Button>
+            }
+          >
+            {t("ai.replay.head", { title: active.replayOf.title, model: active.replayOf.model, when: replayWhen(active.replayOf.at) })}
+            {active.replayOf.changed > 0 ? ` ${t("ai.replay.headChanged", { count: active.replayOf.changed })}` : ""}
+          </Banner>
+        )}
         {items.length === 0 && !live && (
           <EmptyState icon={<Sparkles size={ICON.empty} />} title={t("ai.empty.startTitle")}>
             {t("ai.empty.startBody")}

@@ -2,6 +2,7 @@ import type { Conversation } from "./conversation.js";
 import type { EgressManifest } from "./context/manifest.js";
 import { isSensitiveKind, type SensitiveKind } from "./context/sensitiveHints.js";
 import { AI_POLICY_DIMENSIONS, type AiPolicyDimension } from "./policy.js";
+import { NOTE_HASH } from "./runSnapshot.js";
 import { checkWebUrl } from "./web/rules.js";
 import { parseMissingLinks } from "./writes/links.js";
 
@@ -75,8 +76,12 @@ export interface RunMeta {
   costUsd?: number;
   /** The send overview of this run: what went where, by path and section — never content. */
   manifest?: EgressManifest;
-  /** Skills the run used: the one the conversation runs ("bound") and the ones the model loaded, with their tokens (plan KI-Harness P3). */
-  skills?: { id: string; how: "bound" | "loaded"; tokens: number }[];
+  /**
+   * Skills the run used: the one the conversation runs ("bound") and the ones
+   * the model loaded, with their tokens (plan KI-Harness P3) and the version
+   * of their instructions, the SHA-256 of `SKILL.md` (plan P9-2).
+   */
+  skills?: { id: string; how: "bound" | "loaded"; tokens: number; sha256?: string }[];
   /** The catalog the request carried: how many skills, how many tokens. */
   skillCatalog?: { count: number; tokens: number };
   /** What the run asked of the internet; absent when it asked nothing. */
@@ -102,6 +107,13 @@ export interface RunMeta {
    */
   read?: string[];
   readMore?: boolean;
+  /**
+   * The versions of the notes the run's tools read whole (plan KI-Harness
+   * P9-2): the SHA-256 of the text a tool was given, by path — never the
+   * text. A note that was only a hit of a search has none. At most
+   * `RUN_READ_CAP`, like `read`.
+   */
+  readHashes?: { path: string; hash: string }[];
   /** What the run asked of foreign servers; absent when it asked nothing. */
   mcp?: RunMcp;
   /** What the run laid down for the user to decide (plan KI-Harness P5); absent when it laid down nothing. */
@@ -228,6 +240,25 @@ export interface ConversationRecord {
    * may see what no cloud may. It goes on with a model on this device only.
    */
   onDevice?: true;
+  /** The run this conversation asks again of another model, where it is a replay (plan KI-Harness P9-2). */
+  replayOf?: ReplayOf;
+}
+
+/**
+ * Where a replay comes from (plan KI-Harness P9-2, ADR 0034): the
+ * conversation and the run it asks again — by id and the run's user turn —,
+ * what its head says of it (that conversation's title, when the run was and
+ * on which model), and how many of the run's sources had changed by the time
+ * it was asked again.
+ */
+export interface ReplayOf {
+  conversationId: string;
+  userTurn: number;
+  title: string;
+  at: string;
+  providerId: string;
+  model: string;
+  changed: number;
 }
 
 export interface ConversationSummary {
@@ -289,7 +320,16 @@ export function readConversationRecord(raw: unknown): ConversationRecord | null 
     ...(Array.isArray(r.redact) ? { redact: r.redact.filter((p): p is string => typeof p === "string") } : {}),
     ...(readInstructions(r.instructions) ? { instructions: readInstructions(r.instructions)! } : {}),
     ...(r.onDevice === true ? { onDevice: true as const } : {}),
+    ...(readReplayOf(r.replayOf) ? { replayOf: readReplayOf(r.replayOf)! } : {}),
   };
+}
+
+/** Where a replay comes from, field by field; a record that does not read whole is left out. */
+function readReplayOf(raw: unknown): ReplayOf | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<ReplayOf>;
+  if (typeof r.conversationId !== "string" || typeof r.title !== "string" || typeof r.at !== "string" || typeof r.providerId !== "string" || typeof r.model !== "string") return null;
+  return { conversationId: r.conversationId, userTurn: count(r.userTurn), title: r.title, at: r.at, providerId: r.providerId, model: r.model, changed: count(r.changed) };
 }
 
 const ORIGINS = ["plainva", "vault"] as const;
@@ -371,7 +411,9 @@ function readRun(raw: unknown): RunMeta[] {
       ...(Array.isArray(r.skills)
         ? {
             skills: r.skills.flatMap((x) =>
-              x && typeof x === "object" && typeof x.id === "string" && (x.how === "bound" || x.how === "loaded") ? [{ id: x.id, how: x.how, tokens: count(x.tokens) }] : [],
+              x && typeof x === "object" && typeof x.id === "string" && (x.how === "bound" || x.how === "loaded")
+                ? [{ id: x.id, how: x.how, tokens: count(x.tokens), ...(typeof x.sha256 === "string" && NOTE_HASH.test(x.sha256) ? { sha256: x.sha256 } : {}) }]
+                : [],
             ),
           }
         : {}),
@@ -382,11 +424,28 @@ function readRun(raw: unknown): RunMeta[] {
       ...(strings(r.read).length ? { read: strings(r.read).slice(0, RUN_READ_CAP) } : {}),
       // More than the record keeps — or more than it may keep: either way not everything is known by path.
       ...(r.readMore === true || strings(r.read).length > RUN_READ_CAP ? { readMore: true } : {}),
+      ...(readHashesOf(r.readHashes).length ? { readHashes: readHashesOf(r.readHashes) } : {}),
       ...(readRunMcp(r.mcp) ? { mcp: readRunMcp(r.mcp)! } : {}),
       ...(readRunWrites(r.writes) ? { writes: readRunWrites(r.writes)! } : {}),
       ...(readRunScripts(r.scripts) ? { scripts: readRunScripts(r.scripts)! } : {}),
     },
   ];
+}
+
+/** The versions of what a run's tools read, by path: a path once, a hash as it looks, bounded like `read`. */
+function readHashesOf(raw: unknown): { path: string; hash: string }[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: { path: string; hash: string }[] = [];
+  for (const x of raw) {
+    if (out.length >= RUN_READ_CAP) break;
+    if (!x || typeof x !== "object") continue;
+    const { path, hash } = x as { path?: unknown; hash?: unknown };
+    if (typeof path !== "string" || typeof hash !== "string" || !NOTE_HASH.test(hash) || seen.has(path)) continue;
+    seen.add(path);
+    out.push({ path, hash });
+  }
+  return out;
 }
 
 /** A run's record of the scripts it started, read defensively: names, outcomes and counts, bounded. */
@@ -513,6 +572,8 @@ function readManifest(raw: unknown): EgressManifest | null {
               ...(s.gist ? { gist: true } : {}),
               ...(kinds(s.sensitive).length ? { sensitive: kinds(s.sensitive) } : {}),
               ...(count(s.redacted) ? { redacted: count(s.redacted) } : {}),
+              // The version of the note that went (plan P9-2): a hash as it looks, nothing else.
+              ...(typeof s.hash === "string" && NOTE_HASH.test(s.hash) ? { hash: s.hash } : {}),
             },
           ]
         : [],

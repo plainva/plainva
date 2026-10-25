@@ -341,6 +341,10 @@ const VERBATIM_ALLOWED = new Set<string>([
   // punctuation — the days and the time, the profile, the provider and the model; the words come from what fills them.
   "ai.routines.form.profile",
   "ai.routines.schedule",
+  // A run's snapshot and its replay (plan KI-Harness P9-2): a tool's (translated) name and how often it was called,
+  // and the title of a replay — the original's title and the model, a separator between. No word to translate.
+  "ai.snapshot.toolCount",
+  "ai.replay.title",
   // Two placeholders and a separator; there is no word in it to translate.
   "background.trayNextInVault",
   // The artifact kind and the worker's raw sentence, joined by a colon - the

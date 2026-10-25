@@ -82,6 +82,8 @@ If you want to see the overview before every request, switch on **Ask before eve
 
 The line under each answer opens the overview of what went with it. If an answer cites none of the notes that were sent, a notice above that line says so; check the answer against the notes. Where notes went along, the line also names the coverage: **coverage high** when nearly every statement of the answer names a note, **coverage partial** or **coverage low** when fewer do.
 
+**What made an answer.** Opened, the line also keeps what the answer rests on: when you asked, each note with the version that went — a short code — and whether it is **unchanged**, **changed since** or **no longer there**, the notes the assistant's tools read, the tools it used, the version of the skill it ran with, and what it left for you to decide. Plainva keeps paths and versions, never the text; whether a note changed, this device checks when you open the line. **Ask another model…** asks the same question with the same notes in a new conversation: nothing a search would find is added, the note you have open now stays out, and so does what your privacy rules keep from that model now. The send overview shows what goes, as for every request, and the new conversation names the one it comes from. This works for the first question of a conversation — a later one rests on what was said before — and for questions that brought nothing but notes along.
+
 ## View context
 
 The eye below the input, **View context**, shows what the next request would carry — before it goes, for the model chosen now. For every note: why it was chosen (open now, pinned, matches your words, close in meaning, linked, due soon …), which part goes and roughly how many tokens. For each note you can

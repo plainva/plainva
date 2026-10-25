@@ -1,22 +1,27 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Minus, ShieldAlert, ShieldCheck } from "lucide-react";
+import { ArrowLeftRight, Minus, ShieldAlert, ShieldCheck } from "lucide-react";
 import {
   DISPATCH_TOOL,
   isMcpExposedToolName,
   MAIL_TOOL_NAMES,
   REDACTABLE,
+  shortHash,
   SITUATION_SOURCE,
   type AnswerCoverage,
   type EgressManifest,
   type ImagePart,
   type ManifestSource,
+  type ModelChoice,
   type RunReading,
   type RunWeb,
   type ScopeGrowth,
   type SensitiveKind,
+  type SnapshotState,
 } from "@plainva/core";
 import { Button } from "../components/ui/Button";
+import { Chip } from "../components/ui/Chip";
+import { MenuItem, MenuSurface } from "../components/ui/Menu";
 import { IconButton } from "../components/ui/IconButton";
 import { Switch } from "../components/ui/Switch";
 import { cx } from "../components/ui/cx";
@@ -27,6 +32,39 @@ import { AiPicture } from "./AiPicture";
 import { useSensitiveKinds } from "./sensitiveKinds";
 import { appSkillOf } from "./appSkills";
 import { scriptToolLabel } from "./scriptsWorkshop";
+import type { ReplayRefusal, RunSnapshotStates } from "./runReplay";
+
+/**
+ * A past run's snapshot as its opened line shows it (plan KI-Harness P9-2,
+ * ADR 0034): paths and versions, never a text.
+ */
+export interface RunSnapshotView {
+  /** When the question was asked (ISO). */
+  at: string;
+  /** How the sources, the notes the tools read and the skills read now; null while that is being asked. */
+  states: RunSnapshotStates | null;
+  /** The notes the run's tools read, with their version where a tool was given them whole. */
+  read: { path: string; title: string; hash?: string }[];
+  /** More was read than the run's record keeps. */
+  readMore: boolean;
+  /** The tools the run called, each with how often. */
+  tools: { name: string; count: number }[];
+  /** The skills it ran with, by the version of their instructions. */
+  skills: { id: string; name: string; hash: string }[];
+  /** What it left for the user to decide. */
+  result: { rounds: number; drafts: number; plans: number };
+  /** The same question to another model: the models to choose from, or why there is none. */
+  replay: { choices: { key: string; label: string; hint: string; choice: ModelChoice }[]; onReplay(choice: ModelChoice): void } | { refused: ReplayRefusal };
+}
+
+/** How a version's state reads as a chip: unchanged quietly, a change and a gone note as what they are. */
+const STATE_TONE: Record<SnapshotState, "muted" | "warning" | "removal"> = { same: "muted", changed: "warning", gone: "removal" };
+
+/** How many notes the tools read an opened line names; the rest is counted. */
+const SNAPSHOT_READ_SHOWN = 8;
+
+/** How many of a run's sources read otherwise now than the version that went. */
+const changedSources = (snapshot: RunSnapshotView): number => Object.values(snapshot.states?.sources ?? {}).filter((state) => state !== "same").length;
 
 /**
  * The send overview (plan §13.3): what goes where, before it goes — and,
@@ -75,6 +113,8 @@ export interface AiSendOverviewProps {
    * dialog's.
    */
   preview?: { title: string };
+  /** After the answer: the run's snapshot (plan KI-Harness P9-2) — versions, tools, result, and the way to ask another model. */
+  snapshot?: RunSnapshotView;
 }
 
 /** A page as a row names it: without the scheme every address shares. */
@@ -89,8 +129,18 @@ function useSkillTitle(): (id: string, name: string) => string {
   };
 }
 
-export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onRedact, onOpenNote, everyRequest, touch, coverage, web, reading, onOpenUrl, images, blind, external, externalCalls, preview }: AiSendOverviewProps) {
+export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onRedact, onOpenNote, everyRequest, touch, coverage, web, reading, onOpenUrl, images, blind, external, externalCalls, preview, snapshot }: AiSendOverviewProps) {
   const { t, i18n } = useTranslation();
+  const replayButton = useRef<HTMLButtonElement>(null);
+  const [replayOpen, setReplayOpen] = useState(false);
+  /** A version and how it reads now, as a source's row shows it beside its form. */
+  const versionChip = (state: SnapshotState | undefined) =>
+    state ? (
+      <Chip size="sm" tone={STATE_TONE[state]} testId="ai-snapshot-state">
+        {t(`ai.snapshot.state.${state}`)}
+      </Chip>
+    ) : null;
+  const versionText = (hash: string | undefined) => (hash ? t("ai.snapshot.version", { hash: shortHash(hash) }) : "");
   // The dispatcher is the search's other half, not a tool of its own to a reader.
   const shownTools = manifest.tools.filter((tool) => tool !== DISPATCH_TOOL);
   const further = manifest.more ?? [];
@@ -114,6 +164,12 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
   const skillTitle = useSkillTitle();
   const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
   const money = useMemo(() => new Intl.NumberFormat(i18n.language, { style: "currency", currency: "USD", maximumFractionDigits: 4 }), [i18n.language]);
+  const when = useMemo(() => new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }), [i18n.language]);
+  /** When a run was asked, in the reader's language; a date that does not read stays as it was stored. */
+  const askedAt = (iso: string) => {
+    const date = new Date(iso);
+    return Number.isNaN(date.getTime()) ? iso : when.format(date);
+  };
   const asking = Boolean(onSend);
 
   const why = (g: ScopeGrowth) => {
@@ -238,6 +294,12 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
         </ul>
       )}
       <dl className="pv-ai-overview-list">
+        {snapshot && (
+          <>
+            <dt>{t("ai.snapshot.asked")}</dt>
+            <dd data-testid="ai-snapshot-asked">{askedAt(snapshot.at)}</dd>
+          </>
+        )}
         <dt>{t("ai.overview.goesTo")}</dt>
         <dd>
           {manifest.providerLabel} · {manifest.model}
@@ -260,7 +322,9 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
                   ) : (
                     <span className="pv-ai-overview-note">{source.title}</span>
                   )}
-                  <span className="pv-ai-overview-form">{form(source)}</span>
+                  <span className="pv-ai-overview-form">{snapshot && source.hash ? `${form(source)} · ${versionText(source.hash)}` : form(source)}</span>
+                  {/* After the answer (plan P9-2): whether the note still reads as the version that went. */}
+                  {snapshot && source.hash && versionChip(snapshot.states?.sources[source.path])}
                   {/* The thread, the picture, or a database's columns are what was asked about: they go, or the request is cancelled. */}
                   {onLeaveOut && source.comments === undefined && !source.image && source.columns === undefined && (
                     <IconButton size="sm" label={t("ai.overview.leaveOut", { note: source.title })} onClick={() => onLeaveOut(source.path)}>
@@ -290,6 +354,31 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
             </>
           )}
         </dd>
+        {/* After the answer (plan P9-2): the notes the run's tools read, by the version a tool was given. */}
+        {snapshot && snapshot.read.length > 0 && (
+          <>
+            <dt>{t("ai.snapshot.read")}</dt>
+            <dd data-testid="ai-snapshot-read">
+              <ul className="pv-ai-overview-sources">
+                {snapshot.read.slice(0, SNAPSHOT_READ_SHOWN).map((note) => (
+                  <li key={note.path}>
+                    {onOpenNote ? (
+                      <Button size="sm" variant="ghost" className="pv-ai-overview-note" onClick={() => onOpenNote(note.path)}>
+                        {note.title}
+                      </Button>
+                    ) : (
+                      <span className="pv-ai-overview-note">{note.title}</span>
+                    )}
+                    <span className="pv-ai-overview-form">{note.hash ? versionText(note.hash) : t("ai.snapshot.readHit")}</span>
+                    {note.hash && versionChip(snapshot.states?.read[note.path])}
+                  </li>
+                ))}
+              </ul>
+              {snapshot.read.length > SNAPSHOT_READ_SHOWN && <span className="pv-ai-overview-hint">{t("ai.snapshot.readMore", { count: snapshot.read.length - SNAPSHOT_READ_SHOWN })}</span>}
+              {snapshot.readMore && <span className="pv-ai-overview-hint">{t("ai.snapshot.readBeyond")}</span>}
+            </dd>
+          </>
+        )}
         {(standing || preview) && manifest.folders.length > 0 && (
           <>
             <dt>{t("ai.overview.folders")}</dt>
@@ -326,10 +415,34 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
             </dd>
           </>
         )}
+        {/* After the answer (plan P9-2): the version of each skill the run used, and whether it is still that one. */}
+        {snapshot && snapshot.skills.length > 0 && (
+          <>
+            <dt>{t("ai.snapshot.skills")}</dt>
+            <dd data-testid="ai-snapshot-skills">
+              <ul className="pv-ai-overview-sources">
+                {snapshot.skills.map((skill) => (
+                  <li key={skill.id}>
+                    <span className="pv-ai-overview-note">{skillTitle(skill.id, skill.name)}</span>
+                    <span className="pv-ai-overview-form">{versionText(skill.hash)}</span>
+                    {versionChip(snapshot.states?.skills[skill.id])}
+                  </li>
+                ))}
+              </ul>
+            </dd>
+          </>
+        )}
         {shownTools.length > 0 && (
           <>
             <dt>{t("ai.overview.tools")}</dt>
             <dd>{shownTools.map(toolWord).join(" · ")}</dd>
+          </>
+        )}
+        {/* After the answer (plan P9-2): the tools the run called, and how often. */}
+        {snapshot && snapshot.tools.length > 0 && (
+          <>
+            <dt>{t("ai.snapshot.used")}</dt>
+            <dd data-testid="ai-snapshot-used">{snapshot.tools.map((tool) => t("ai.snapshot.toolCount", { tool: toolWord(tool.name), count: tool.count })).join(" · ")}</dd>
           </>
         )}
         {/* What the tool search reaches (ADR 0019): in the conversation's reach, but not approved here — each kind asks first. */}
@@ -412,7 +525,53 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
             <dd data-testid="ai-coverage">{`${t(`ai.coverage.${coverage.level}`)} — ${t("ai.coverage.detail", { cited: number.format(coverage.cited), total: number.format(coverage.statements) })}`}</dd>
           </>
         )}
+        {/* After the answer (plan P9-2): what the run left — the answer, and what waits for the user's decision. */}
+        {snapshot && (
+          <>
+            <dt>{t("ai.snapshot.result")}</dt>
+            <dd data-testid="ai-snapshot-result">
+              {[
+                t("ai.snapshot.resultAnswer"),
+                snapshot.result.rounds ? t("ai.snapshot.resultRounds", { count: snapshot.result.rounds }) : "",
+                snapshot.result.drafts ? t("ai.snapshot.resultDrafts", { count: snapshot.result.drafts }) : "",
+                snapshot.result.plans ? t("ai.snapshot.resultPlans", { count: snapshot.result.plans }) : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </dd>
+          </>
+        )}
       </dl>
+      {/* The same question to another model (plan P9-2): a new conversation with the same notes, through the send overview. */}
+      {snapshot && (
+        <div className="pv-ai-overview-actions" data-testid="ai-snapshot-replay">
+          {"refused" in snapshot.replay ? (
+            <span className="pv-ai-overview-hint" data-testid="ai-snapshot-replay-refused">
+              {t(`ai.snapshot.refused.${snapshot.replay.refused}`)}
+            </span>
+          ) : snapshot.replay.choices.length === 0 ? (
+            <span className="pv-ai-overview-hint">{t("ai.snapshot.replayNone")}</span>
+          ) : (
+            <>
+              <span className="pv-ai-overview-hint">
+                {t("ai.snapshot.replayHint")}
+                {changedSources(snapshot) > 0 ? ` ${t("ai.snapshot.replayChanged", { count: changedSources(snapshot) })}` : ""}
+              </span>
+              <Button ref={replayButton} size="sm" variant="secondary" onClick={() => setReplayOpen(true)} aria-haspopup="menu" data-testid="ai-snapshot-replay-open">
+                <ArrowLeftRight size={ICON.meta} aria-hidden="true" />
+                {t("ai.snapshot.replay")}
+              </Button>
+              <MenuSurface open={replayOpen} onClose={() => setReplayOpen(false)} anchorRef={replayButton} ariaLabel={t("ai.snapshot.replayMenu")}>
+                {snapshot.replay.choices.map((option) => (
+                  <MenuItem key={option.key} hint={option.hint} onSelect={() => (snapshot.replay as { onReplay(choice: ModelChoice): void }).onReplay(option.choice)}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </MenuSurface>
+            </>
+          )}
+        </div>
+      )}
       {asking && (
         <div className="pv-ai-overview-actions">
           {everyRequest && (

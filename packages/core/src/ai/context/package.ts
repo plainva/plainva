@@ -4,6 +4,7 @@ import { gateDecision, isCloudRecipient, type EgressRecipient, type GateDecision
 import { fenceUntrusted, payload } from "../trust.js";
 import { isAiHiddenPath } from "../hiddenPaths.js";
 import { chunkNote } from "../embeddings/chunks.js";
+import { noteHash } from "../runSnapshot.js";
 import { mergeCandidates, rankCandidates, urgencySignal, type Candidate, type CandidateSignal, type RankedCandidate } from "./ranking.js";
 import { cardText, contextCard } from "./cards.js";
 import { checkGist, gistKey } from "./gists.js";
@@ -183,6 +184,12 @@ export interface PackageRef {
   sensitive?: SensitiveKind[];
   /** Spans of it sent redacted, at the reader's choice. */
   redacted?: number;
+  /**
+   * The version of the note this source was taken from (plan KI-Harness
+   * P9-2): the SHA-256 of its text as the package read it, never the text.
+   * Absent for a handle of the map, which reads no note.
+   */
+  hash?: string;
 }
 
 /** What the patterns saw in a source's text, and how much of it went redacted (plan P2b-6). */
@@ -408,6 +415,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       continue;
     }
     if (!(await allowedText(candidate.path, read.text))) continue;
+    const hash = noteHash(read.text);
     const body = noteBody(read.text);
     const room = budget.evidenceChars - evidenceChars;
     let text: string;
@@ -470,6 +478,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
         section,
         unchanged: true,
         noteChars: body.length,
+        hash,
         ...(input.redact?.has(candidate.path) ? hintOf(screened) : {}),
       });
       blocks.push(`[[${title}]] (${candidate.path}): unchanged since it was sent earlier in this conversation.`);
@@ -492,6 +501,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       chars: text.length,
       ...(whole ? {} : { section: section ?? "" }),
       noteChars: body.length,
+      hash,
       ...hintOf(screened),
     });
   }
@@ -514,6 +524,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     }
     // The gate on the text that would go, as for evidence (the editor may hold an unsaved rule).
     if (!(await allowedText(candidate.path, read.text))) continue;
+    const hash = noteHash(read.text);
     const title = read.title || candidate.title;
     const found = cardSource(read.text, title, candidate, terms);
     // Cleaned line by line before it is cut: a place stamp is a line of its own, and a card joins its lines.
@@ -550,6 +561,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       chars: text.length,
       section: found.chain,
       noteChars: noteBody(read.text).length,
+      hash,
       ...(gisted ? { gist: true } : {}),
       ...hintOf(screened),
     });

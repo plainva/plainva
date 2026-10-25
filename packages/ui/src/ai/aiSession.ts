@@ -6,6 +6,7 @@ import { createPrivateDataExecutor, newRunReading, readSomething, type Quarantin
 import type { PreparedImage, PrepareFailure } from "./aiImage";
 import { capturedNotePath, captureNote, captureStamp, withInheritedRules } from "./aiCapture";
 import { createSkillExecutor, newSkillRunState, skillScope, type SkillRunState } from "./skillRuntime";
+import { replayRequest, replaySources, type RunSnapshotStates } from "./runReplay";
 import {
   PASSAGE_ONLY,
   passageOf,
@@ -263,8 +264,12 @@ import {
   mcpPromptText,
   mcpRecipient,
   mcpServerStanding,
+  noteHash,
   RUN_READ_CAP,
+  snapshotState,
   type GateRun,
+  type ReplayOf,
+  type SnapshotState,
   type McpToolEffect,
   type RunMcp,
   instructionStatus,
@@ -1072,6 +1077,23 @@ interface DoorStart {
 interface DetachedStart {
   title: string;
   limits?: RunLimits;
+}
+
+/**
+ * A run asked again of another model (plan KI-Harness P9-2, ADR 0034): a
+ * conversation of its own, begun as the user would begin it — the vault's
+ * memory, its tools, the skill the original was bound to —, with the
+ * original run's sources pinned and nothing a search would find besides
+ * them, and without the note that happens to be open. The gate holds as it
+ * holds now; the send overview asks as for every request.
+ */
+interface ReplayStart {
+  title: string;
+  /** The original run's notes: they go along, and nothing else of the vault does by itself. */
+  pins: string[];
+  of: ReplayOf;
+  /** The original conversation carried the internet's tools: the replay does where the vault allows it now. */
+  web: boolean;
 }
 
 /**
@@ -3182,6 +3204,87 @@ export class AiSession {
     }
   }
 
+  // ------------------------------------------------- a run's snapshot and its replay
+
+  /**
+   * How a run's sources and skills read now (plan KI-Harness P9-2, ADR 0034):
+   * each note its context carried and each one a tool read whole, by the
+   * version the run used against its text now; each skill by its `SKILL.md`
+   * now. Asked on this device when the snapshot is looked at — nothing is
+   * sent, and nothing of a text is kept.
+   */
+  async snapshotStates(run: RunMeta): Promise<RunSnapshotStates> {
+    const vault = this.vault;
+    const states: RunSnapshotStates = { sources: {}, read: {}, skills: {} };
+    if (!vault) return states;
+    const stateOf = async (path: string, hash: string): Promise<SnapshotState> => snapshotState(hash, (await vault.readNote(path).catch(() => null))?.text ?? null);
+    for (const source of run.manifest?.sources ?? []) if (source.hash && !(source.path in states.sources)) states.sources[source.path] = await stateOf(source.path, source.hash);
+    for (const read of run.readHashes ?? []) states.read[read.path] = await stateOf(read.path, read.hash);
+    const versioned = (run.skills ?? []).filter((skill) => skill.sha256);
+    if (versioned.length) {
+      const { entries } = await this.instructionEntries(vault).catch(() => ({ entries: [] as InstructionEntry[] }));
+      for (const skill of versioned) {
+        const now = entries.find((entry) => entry.source.id === skill.id)?.source.files.find((file) => /^skill\.md$/i.test(file.path))?.sha256;
+        states.skills[skill.id] = now === undefined ? "gone" : now === skill.sha256 ? "same" : "changed";
+      }
+    }
+    if (this.vault !== vault) return { sources: {}, read: {}, skills: {} };
+    return states;
+  }
+
+  /**
+   * Asks a run again of another model (plan KI-Harness P9-2, ADR 0034): the
+   * same words, the same notes as the run's context read them — pinned, with
+   * nothing a search would find besides them —, the skill the conversation
+   * was bound to where it is still active, in a new conversation that says
+   * where it comes from and how many of those notes changed since. The gate
+   * holds as it holds now, and the send overview asks as for every request.
+   * Only the first question of a conversation, and only one that brought
+   * nothing but its context beside the user's words (`replayRequest`).
+   */
+  async replay(conversationId: string, userTurn: number, choice: ModelChoice): Promise<RunStop | null> {
+    const vault = this.vault;
+    if (!vault || this.state.live || this.sending || !this.state.settings.enabled) return null;
+    const record = this.state.active?.id === conversationId ? this.state.active : await vault.conversations.load(conversationId).catch(() => null);
+    const run = record?.runs.find((candidate) => candidate.userTurn === userTurn);
+    if (!record || !run) return null;
+    const request = replayRequest(record, run);
+    if (!request.ok) return null;
+    this.sending = true;
+    try {
+      const states = await this.snapshotStates(run);
+      const { entries } = await this.instructionEntries(vault);
+      if (this.vault !== vault) return null;
+      this.set({ skills: { entries, omitted: skillCatalog(entries).omitted } });
+      const bound = record.instructions?.skill;
+      const bind = bound && entries.some((entry) => entry.source.id === bound.id && entry.status === "active" && entry.source.skill) ? bound.id : undefined;
+      const turn = record.conversation.turns[userTurn];
+      const replay: ReplayStart = {
+        title: this.host.label?.("ai.replay.title", { title: record.title, model: choice.model }) ?? `${record.title} · ${choice.model}`,
+        pins: replaySources(run),
+        of: {
+          conversationId: record.id,
+          userTurn,
+          title: record.title,
+          at: turn?.at ?? record.createdAt,
+          providerId: run.providerId,
+          model: run.model,
+          changed: Object.values(states.sources).filter((state) => state !== "same").length,
+        },
+        web: hasWebTools(record.conversation.tools),
+      };
+      this.set({ active: null, excludeActive: false, notice: null });
+      return (await this.runMessage(request.words, vault, choice, { skills: { entries, ...(bind ? { bind } : {}) }, replay }))?.stop ?? null;
+    } catch (error) {
+      this.abort = null;
+      const stop: RunStop = { kind: "failed", failure: { kind: "offline", message: error instanceof Error ? error.message : String(error) } };
+      this.set({ live: null, notice: { conversationId: this.state.active?.id ?? "", stop } });
+      return stop;
+    } finally {
+      this.sending = false;
+    }
+  }
+
   // ------------------------------------------------- skills: the regression run
 
   /** The provider and model a new conversation starts with — what a skill started from the workshop runs on. */
@@ -5148,7 +5251,18 @@ export class AiSession {
     turns: ConversationRecord["conversation"]["turns"],
     // `carried`: the tokens the request takes before this message's notes, where a window is known (plan P7).
     // `bare`: the request brings its own material (a folder's log, plan P8-2) — no situation and no candidates.
-    conversation: { tools: readonly string[]; more?: readonly string[]; instructions?: ManifestInstructions; memory?: ManifestMemory; withoutActive?: boolean; web?: boolean; carried?: number; bare?: boolean },
+    // `pinsOnly`: the notes pinned to it and nothing a search would find besides them (a replay, plan P9-2).
+    conversation: {
+      tools: readonly string[];
+      more?: readonly string[];
+      instructions?: ManifestInstructions;
+      memory?: ManifestMemory;
+      withoutActive?: boolean;
+      web?: boolean;
+      carried?: number;
+      bare?: boolean;
+      pinsOnly?: boolean;
+    },
   ) {
     const recipient: EgressRecipient = recipientOf(provider, choice.model);
     // The system's own model takes no tools, and a small window a smaller package (plan P2c).
@@ -5163,7 +5277,8 @@ export class AiSession {
     const tools = toolless ? [] : conversation.tools;
     const situation = conversation.bare ? this.bareSituation() : await vault.situation().catch(() => this.bareSituation());
     const seen = this.state.excludeActive || conversation.withoutActive ? { ...situation, active: null } : situation;
-    const candidates = conversation.bare ? [] : await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null, recipient).catch(() => [] as Candidate[][]);
+    const candidates =
+      conversation.bare || conversation.pinsOnly ? [] : await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null, recipient).catch(() => [] as Candidate[][]);
     const gists = vault.gists?.() ?? null;
     const build = async (leaveOut: ReadonlySet<string>, redact: ReadonlySet<string>): Promise<{ pack: ContextPackage; manifest: EgressManifest }> => {
       const pack = await buildContextPackage(
@@ -5330,11 +5445,11 @@ export class AiSession {
     message: string,
     vault: AiVaultHost,
     choice: ModelChoice,
-    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart; detached?: DetachedStart; routine?: RoutineStart } = {},
+    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart; detached?: DetachedStart; routine?: RoutineStart; replay?: ReplayStart } = {},
   ): Promise<RunOutcome | null> {
-    const { skills, door, detached, routine } = options;
+    const { skills, door, detached, routine, replay } = options;
     // Started apart from the composer: a conversation of its own, with none of the composer's drafts.
-    const apart = door ?? detached ?? routine ?? null;
+    const apart = door ?? detached ?? routine ?? replay ?? null;
     const provider = providerById(choice.providerId, this.state.settings.custom);
     if (!provider) {
       const stop: RunStop = { kind: "failed", failure: { kind: "unknown_endpoint", message: choice.providerId } };
@@ -5380,8 +5495,9 @@ export class AiSession {
       // conversation, and the overview says so. No other skill reaches the internet, and a regression run never does.
       const boundSkill = skills?.bind ? entries.find((entry) => entry.source.id === skills.bind && entry.status === "active")?.source.skill : undefined;
       const skillWeb = Boolean(boundSkill && skillNamesWeb(boundSkill));
-      // Fully local (plan P7): the internet rests, whoever chose it.
-      const withWeb = !apart && this.state.web.enabled && !this.state.settings.localOnly && (skills?.bind ? skillWeb : this.state.draftWeb);
+      // Fully local (plan P7): the internet rests, whoever chose it. A replay takes the original's choice, where the vault allows it now (plan P9-2).
+      const withWeb =
+        this.state.web.enabled && !this.state.settings.localOnly && (replay ? replay.web : !apart && (skills?.bind ? skillWeb : this.state.draftWeb));
       // The vault's memory (plan P6, ADR 0032): what this recipient may have of it goes into the system prompt of a
       // conversation the user began — never of a door, which answers one question where it was asked, nor of a
       // regression run, which measures a skill and not what the user happens to have kept. A routine reads it like a
@@ -5415,8 +5531,9 @@ export class AiSession {
         conversation: startConversation(id, assistantSystemPrompt({ language: this.host.language(), today: this.host.today(), tools: start.tools, more: start.more, ...start.prompt, ...memoryPrompt }), start.tools, start.more),
         usage: EMPTY_USAGE,
         runs: [],
-        pins: door ? door.pins : detached || routine ? [] : this.state.draftPins,
+        pins: door ? door.pins : replay ? replay.pins : detached || routine ? [] : this.state.draftPins,
         ...(instructions ? { instructions } : {}),
+        ...(replay ? { replayOf: replay.of } : {}),
         // Begun for a reader on this device: what it is given from the first message on was never checked for a cloud.
         ...(isCloudRecipient(recipient) ? {} : { onDevice: true as const }),
       };
@@ -5436,15 +5553,17 @@ export class AiSession {
     const restricted = new Set<AiPolicyDimension>();
     // The notes this run's tools read, by path (plan P4.5): a foreign server gets a call only when everything the
     // conversation has read lies where the user allowed it. More than the record keeps is remembered as "more".
-    const reads = { paths: new Set<string>(), more: false };
+    // Of a note a tool was given whole, the version too (plan P9-2): the hash of that text, for the run's snapshot.
+    const reads = { paths: new Set<string>(), more: false, hashes: new Map<string, string>() };
     const scope: ToolScope = {
       ...skillScope(bound?.folders, skillState),
-      passed: (path, rules) => {
+      passed: (path, rules, text) => {
         for (const rule of rules) restricted.add(rule);
         // An entry of the memory (plan P6) is no note that was read: its rules count, its file is no source of anything.
         if (isAiHiddenPath(path)) return;
         if (reads.paths.size < RUN_READ_CAP) reads.paths.add(path);
         else if (!reads.paths.has(path)) reads.more = true;
+        if (text !== undefined && reads.paths.has(path)) reads.hashes.set(path, noteHash(text));
       },
     };
     // The tools of foreign servers this run may find (plan P4.5): of the names its conversation was started with, the
@@ -5584,9 +5703,12 @@ export class AiSession {
       ...(carriedMemory ? { memory: carriedMemory } : {}),
       ...(carried !== undefined ? { carried } : {}),
       // A regression run measures the skill, not whatever note happens to be open — and a routine runs whatever is open.
-      ...(detached || routine ? { withoutActive: true } : {}),
+      // A replay asks what the original asked, with its sources: the note open now is none of them (plan P9-2).
+      ...(detached || routine || replay ? { withoutActive: true } : {}),
       // A folder's log brings its own material: nothing of where the user is, and no note a question would find.
       ...(routine?.log ? { bare: true } : {}),
+      // A replay's sources are the original's, pinned: nothing a search would find besides them.
+      ...(replay ? { pinsOnly: true } : {}),
       web,
     });
     const { seen } = context;
@@ -5918,7 +6040,7 @@ export class AiSession {
     /** The rules of notes that passed the run's tools although they restrict them elsewhere (plan P4-6), gathered while it runs. */
     restricted?: ReadonlySet<AiPolicyDimension>;
     /** The notes the run's tools read, by path (plan P4.5), gathered while it runs. */
-    reads?: { paths: ReadonlySet<string>; more: boolean };
+    reads?: { paths: ReadonlySet<string>; more: boolean; hashes?: ReadonlyMap<string, string> };
     /** The tools of foreign servers this run may find, and what it asked of them (plan P4.5). */
     foreign?: readonly ToolManifest[];
     mcp?: RunMcp;
@@ -6014,8 +6136,10 @@ export class AiSession {
     // What the skills cost (gate "token cost of skill selection measurable"): the bound one, the loaded ones, the catalog.
     const instructions = record.instructions;
     const skillsUsed: NonNullable<RunMeta["skills"]> = [
-      ...(instructions?.skill ? [{ id: instructions.skill.id, how: "bound" as const, tokens: instructions.skillTokens ?? 0 }] : []),
-      ...(input.skillState?.loads ?? []).map((load) => ({ id: load.id, how: "loaded" as const, tokens: load.tokens })),
+      ...(instructions?.skill
+        ? [{ id: instructions.skill.id, how: "bound" as const, tokens: instructions.skillTokens ?? 0, ...(instructions.skill.sha256 ? { sha256: instructions.skill.sha256 } : {}) }]
+        : []),
+      ...(input.skillState?.loads ?? []).map((load) => ({ id: load.id, how: "loaded" as const, tokens: load.tokens, ...(load.sha256 ? { sha256: load.sha256 } : {}) })),
     ];
     const skillCatalogMeta = instructions?.catalog?.length ? { count: instructions.catalog.length, tokens: instructions.catalogTokens ?? 0 } : null;
     const skillTokens = skillsUsed.reduce((sum, s) => sum + s.tokens, 0) + (skillCatalogMeta?.tokens ?? 0);
@@ -6038,6 +6162,7 @@ export class AiSession {
       ...(input.restricted?.size ? { restricted: AI_POLICY_DIMENSIONS.filter((dimension) => input.restricted!.has(dimension)) } : {}),
       ...(input.reads?.paths.size ? { read: [...input.reads.paths] } : {}),
       ...(input.reads?.more ? { readMore: true } : {}),
+      ...(input.reads?.hashes?.size ? { readHashes: [...input.reads.hashes].map(([path, hash]) => ({ path, hash })) } : {}),
       ...(input.mcp?.calls.length ? { mcp: input.mcp } : {}),
       ...(input.writes && (input.writes.rounds.length || input.writes.drafts.length || input.writes.plans.length) ? { writes: input.writes } : {}),
       ...(input.scriptLog?.runs.length ? { scripts: input.scriptLog } : {}),

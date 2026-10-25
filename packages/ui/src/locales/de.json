@@ -59,6 +59,49 @@
       "move_note": "Legt einen Plan zum Verschieben vor",
       "delete_note": "Bittet darum, eine Notiz zu löschen"
     },
+    "snapshot": {
+      "asked": "Gefragt",
+      "read": "Von Werkzeugen gelesen",
+      "readHit": "als Treffer einer Suche",
+      "readMore_one": "und {{count}} weitere",
+      "readMore_other": "und {{count}} weitere",
+      "readBeyond": "und mehr, als der Verlauf festhält",
+      "version": "Fassung {{hash}}",
+      "state": {
+        "same": "unverändert",
+        "changed": "seither geändert",
+        "gone": "nicht mehr da"
+      },
+      "skills": "Fassung des Skills",
+      "used": "Benutzte Werkzeuge",
+      "toolCount": "{{tool}} ×{{count}}",
+      "result": "Ergebnis",
+      "resultAnswer": "die Antwort",
+      "resultRounds_one": "{{count}} Vorschlag",
+      "resultRounds_other": "{{count}} Vorschläge",
+      "resultDrafts_one": "{{count}} Entwurf",
+      "resultDrafts_other": "{{count}} Entwürfe",
+      "resultPlans_one": "{{count}} Plan",
+      "resultPlans_other": "{{count}} Pläne",
+      "replay": "Mit anderem Modell fragen …",
+      "replayMenu": "Mit anderem Modell fragen",
+      "replayHint": "Dieselbe Frage mit denselben Notizen, in einem neuen Gespräch; die Sende-Übersicht zeigt, was mitgeht.",
+      "replayChanged_one": "{{count}} davon hat sich seither geändert und geht so mit, wie sie jetzt ist.",
+      "replayChanged_other": "{{count}} davon haben sich seither geändert und gehen so mit, wie sie jetzt sind.",
+      "replayNone": "Auf diesem Gerät ist kein anderes Modell eingerichtet.",
+      "refused": {
+        "later": "Neu fragen lässt sich nur die erste Frage eines Gesprächs: eine spätere baut auf dem auf, was davor gesagt wurde.",
+        "material": "Diese Frage brachte mehr als Notizen mit — eine Auswahl, ein Bild, eine Aufnahme, einen Kommentar-Faden, die Spalten einer Datenbank oder die Änderungen eines Logs —, das ein neues Gespräch nicht wieder mitnimmt.",
+        "empty": "Hier gibt es keine Frage, die sich neu stellen ließe."
+      }
+    },
+    "replay": {
+      "title": "{{title}} · {{model}}",
+      "head": "Dieselbe Frage wie in „{{title}}“ ({{when}}, {{model}}), mit denselben Notizen.",
+      "headChanged_one": "{{count}} davon hatte sich seither geändert.",
+      "headChanged_other": "{{count}} davon hatten sich seither geändert.",
+      "open": "Zum Original"
+    },
     "stopped": {
       "cancelled": "Angehalten.",
       "limit": "Dieser Lauf hat seine Grenze erreicht und angehalten.",

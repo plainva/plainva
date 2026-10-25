@@ -14,9 +14,12 @@ import type { ToolScope } from "./vaultTools";
 export interface SkillRunState {
   /** The skill loaded last in this run and what it narrows to. */
   loaded: { id: string; name: string; tools: readonly string[]; folders: readonly string[] | null } | null;
-  /** Every load of the run, for its measurement. */
-  loads: { id: string; tokens: number }[];
+  /** Every load of the run, for its measurement — and the version of the skill it loaded, its `SKILL.md` (plan P9-2). */
+  loads: { id: string; tokens: number; sha256?: string }[];
 }
+
+/** The version of a skill as a run names it: the hash of its `SKILL.md` as the scan saw it. */
+const versionOf = (entry: InstructionEntry): string | undefined => entry.source.files.find((f) => /^skill\.md$/i.test(f.path))?.sha256;
 
 export const newSkillRunState = (): SkillRunState => ({ loaded: null, loads: [] });
 
@@ -74,7 +77,8 @@ export function createSkillExecutor(inner: ToolExecutor, runtime: SkillRuntime, 
         if (text === null) return { content: `The file "${rel}" of the skill "${key}" cannot be read now.`, isError: true };
         const clipped = text.length > SKILL_FILE_MAX_CHARS ? `${text.slice(0, SKILL_FILE_MAX_CHARS)}\n…` : text;
         const content = `File ${rel} of the skill "${key}":\n\n${stripInvisible(clipped).text}`;
-        state.loads.push({ id: listed.id, tokens: estimateTokens(content) });
+        const version = versionOf(entry);
+        state.loads.push({ id: listed.id, tokens: estimateTokens(content), ...(version ? { sha256: version } : {}) });
         return { content };
       }
 
@@ -91,7 +95,8 @@ export function createSkillExecutor(inner: ToolExecutor, runtime: SkillRuntime, 
       if (grant.folders) lines.push(`It works only with notes in: ${grant.folders.join(", ") || "no folder"}.`);
       if (files.length) lines.push(`Files of this skill, to load with use_skill and file: ${files.join(", ")}.`);
       const content = lines.join("\n\n");
-      state.loads.push({ id: listed.id, tokens: estimateTokens(content) });
+      const version = versionOf(entry);
+      state.loads.push({ id: listed.id, tokens: estimateTokens(content), ...(version ? { sha256: version } : {}) });
       return { content };
     },
   };

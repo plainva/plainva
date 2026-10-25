@@ -57,6 +57,43 @@
       "move_note": "正在提交移动计划",
       "delete_note": "正在请求删除笔记"
     },
+    "snapshot": {
+      "asked": "提问时间",
+      "read": "工具读取的内容",
+      "readHit": "通过搜索找到",
+      "readMore_other": "另有{{count}}条笔记",
+      "readBeyond": "以及历史记录没有保留的更多笔记",
+      "version": "版本 {{hash}}",
+      "state": {
+        "same": "未更改",
+        "changed": "此后已更改",
+        "gone": "已不存在"
+      },
+      "skills": "技能版本",
+      "used": "使用的工具",
+      "toolCount": "{{tool}} ×{{count}}",
+      "result": "结果",
+      "resultAnswer": "回答",
+      "resultRounds_other": "{{count}}条建议",
+      "resultDrafts_other": "{{count}}份草稿",
+      "resultPlans_other": "{{count}}个计划",
+      "replay": "向另一个模型提问…",
+      "replayMenu": "向另一个模型提问",
+      "replayHint": "用同样的笔记提出同一个问题，放在一段新对话中；发送前的概览会显示将发送什么。",
+      "replayChanged_other": "其中{{count}}条此后已更改，将按现在的状态发送。",
+      "replayNone": "此设备上没有设置其他模型。",
+      "refused": {
+        "later": "只有对话中的第一个问题可以再问一次：后面的问题建立在之前所说内容的基础上。",
+        "material": "这个问题带上的不只是笔记，还有选中的内容、图片、录音、评论讨论、数据库的列或文件夹更改记录的变更，新对话不会再带上这些。",
+        "empty": "这里没有可以再问一次的问题。"
+      }
+    },
+    "replay": {
+      "title": "{{title}} · {{model}}",
+      "head": "与“{{title}}”（{{when}}，{{model}}）中的问题相同，使用相同的笔记。",
+      "headChanged_other": "其中{{count}}条此后已更改。",
+      "open": "打开原对话"
+    },
     "stopped": {
       "cancelled": "已停止。",
       "limit": "本次运行已达到上限并停止。",
