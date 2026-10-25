@@ -2,7 +2,7 @@ import { sha256Hex, utf8Encode } from "../../workspace/encoding.js";
 import { SCRIPTS_FOLDER, type ScriptDefinition, type ScriptProblem } from "../scripts/manifest.js";
 import { scanScriptFolder } from "../scripts/scan.js";
 import type { PublisherCheck } from "../scripts/seal.js";
-import { stripInvisible } from "../trust.js";
+import { hiddenCharacters, stripInvisible } from "../trust.js";
 import { isSkillEntryLeftOut, walkInstructionFolder, type InstructionIO } from "./entries.js";
 import { parseSkillFile, SKILL_FILE, type SkillDefinition, type SkillProblem } from "./skillFile.js";
 
@@ -28,7 +28,26 @@ const SKILL_MAX_DEPTH = 4;
 export { isSkillEntryLeftOut, type InstructionIO } from "./entries.js";
 
 export type InstructionKind = "skill" | "agents" | "script";
-export type InstructionOrigin = "plainva" | "vault";
+/** `server`: a skill a connected MCP server serves (plan P9-4b) — never the vault's, never the app's. */
+export type InstructionOrigin = "plainva" | "vault" | "server";
+
+/**
+ * Where a skill of a connected MCP server comes from (plan P9-4b, MCP skills
+ * extension): the server as this device knows it and the address of the
+ * skill's `SKILL.md` — together its identity; its name is a label.
+ */
+export interface ServerSkillOrigin {
+  /** The id the user gave the server on this device: the host's label, never what the server calls itself. */
+  serverId: string;
+  /** The user's name for the server. */
+  label: string;
+  /** The address of its `SKILL.md`. */
+  uri: string;
+  /** SHA-256 of the frontmatter as the server lists it (canonical JSON): what an approval binds besides the files. */
+  frontmatter: string;
+  /** The tools its `allowed-tools` names — which count for nothing in a server's skill; the review says so. */
+  namedTools?: string[];
+}
 
 export interface InstructionFile {
   /** Relative to the source's root folder (`SKILL.md`, `references/terms.md`); for `AGENTS.md` its own name. */
@@ -69,6 +88,14 @@ export interface InstructionSource {
   /** The script's JavaScript, exactly as it would run; null when it is missing, too large or no text. */
   code?: string | null;
   signature?: PublisherCheck | { state: "none" };
+  /**
+   * For a skill a server serves (plan P9-4b): where it comes from. Its
+   * `files` are the server's manifest — path, size and digest of every file —
+   * and nothing of them is read before it is needed: `text` stays null, and
+   * `skill` is read from the frontmatter the server lists, without
+   * instructions, until the skill is loaded and its `SKILL.md` checked.
+   */
+  server?: ServerSkillOrigin;
 }
 
 const decoder = new TextDecoder("utf-8", { fatal: false });
@@ -117,7 +144,8 @@ export async function scanSkillFolder(io: InstructionIO, folder: string): Promis
   if (main.length > SKILL_MAIN_MAX_BYTES) return { ...source, tooLarge: true };
   const text = decoder.decode(main);
   const parsed = parseSkillFile(text, folder);
-  const invisible = stripInvisible(text).removed;
+  // What cannot be seen in its text — and in the names of its files, which its review shows and a model is told.
+  const invisible = stripInvisible(text).removed + paths.reduce((sum, rel) => sum + hiddenCharacters(rel), 0);
   return { ...source, text, skill: parsed.skill, problems: parsed.problems, ...(invisible ? { invisible } : {}) };
 }
 

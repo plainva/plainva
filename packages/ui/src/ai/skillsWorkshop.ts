@@ -1,4 +1,8 @@
 import {
+  approvalSeen,
+  MCP_SKILL_LIMITS,
+  serverSkillKey,
+  stripInvisible,
   blockingProblems,
   grantChanges,
   nameOf,
@@ -29,7 +33,8 @@ import {
 } from "@plainva/core";
 import { compareLines, type CompareLine } from "../lib/compareVersions";
 import { appSkillOf } from "./appSkills";
-import type { SkillTestOutcome, SkillTestPlan } from "./aiSession";
+import type { AiServerSkills, AiSkillsState, ServerSkillText, SkillTestOutcome, SkillTestPlan } from "./aiSession";
+import type { McpCheck, McpSkillAdd } from "./mcpRuntime";
 import { aiFailureText } from "./aiSettingsModel";
 import { skillView } from "./aiSkills";
 import { SKILL_TOOL_NAMES } from "./vaultTools";
@@ -58,6 +63,9 @@ export interface WorkshopSections {
 }
 
 const WAITING: ReadonlySet<InstructionStatus> = new Set(["new", "changed", "invalid", "too-large"]);
+
+/** Whether an entry waits for a look rather than standing on or off: arrived, changed, or not runnable at all. */
+export const workshopWaits = (entry: InstructionEntry): boolean => WAITING.has(entry.status);
 
 export function workshopSections(entries: readonly InstructionEntry[]): WorkshopSections {
   const vault = entries.filter((e) => e.source.origin === "vault");
@@ -110,7 +118,8 @@ export interface ApprovalFacts {
   changes: CompareLine[] | null;
   /** Its instructions as they are now, for a new one (and on request). */
   text: string | null;
-  files: { path: string; size: string }[];
+  /** Each file with its size — and, for a server's skill, the start of the digest its manifest names. */
+  files: { path: string; size: string; digest?: string }[];
   /** Where it lies and what this device knows about it. */
   origin: string[];
   /** What the user should know before approving; empty when nothing. */
@@ -118,8 +127,23 @@ export interface ApprovalFacts {
   /** The format's problems, in words; a source with any cannot be approved. */
   problems: string[];
   canApprove: boolean;
-  /** Path → SHA-256 of every file shown: exactly what an approval binds. */
+  /** Path → SHA-256 of every file shown: exactly what an approval binds — for a server's skill its listed frontmatter too. */
   seen: Record<string, string>;
+  /**
+   * A skill a connected server serves (plan P9-4b): the server as the user
+   * named it, where it is reached, the key the AI loads the skill by, and
+   * what the server writes about the skill — its words, shown as its quote.
+   * Its instructions are read only when the user asks (`serverSkillText`).
+   */
+  server?: { label: string; place: string; key: string; said: string };
+  /**
+   * A server's skill that changed since this device approved it: which files
+   * are new, changed or gone, and whether its description changed — in words,
+   * from the manifests alone, nothing read.
+   */
+  serverChanges?: string[];
+  /** The instructions the user read when approving a server's skill, where they were kept: what a new version is held against. */
+  approvedText?: string;
 }
 
 
@@ -262,7 +286,137 @@ export function grantChangeLines(t: Translate, changes: GrantChanges, language: 
   ];
 }
 
-export function approvalFacts(t: Translate, entry: InstructionEntry, language: string): ApprovalFacts {
+/** Where a server is reached, in words: the host of its address, or a program on this device. */
+export function serverPlaceText(t: Translate, place: AiServerSkills["place"]): string {
+  return place.kind === "program" ? t("ai.workshop.server.program") : place.host;
+}
+
+/**
+ * A skill a connected server serves, before it may be used here (plan
+ * P9-4b, mockup chapter 28): where it comes from, what the server writes
+ * about it — quoted —, every file of its manifest with its size and digest,
+ * and what it may use in words. What it names for itself counts for
+ * nothing, and the review says so. Nothing of its files was read; its
+ * instructions are read only when the user asks.
+ */
+function serverSkillFacts(t: Translate, entry: InstructionEntry, language: string, context: ApprovalContext): ApprovalFacts {
+  const { source, approval } = entry;
+  const server = source.server!;
+  const skill = source.skill;
+  const name = skill?.name || nameOf(source);
+  const origin = [t("ai.workshop.server.origin", { server: server.label }), t("ai.workshop.server.address", { uri: server.uri })];
+  if (approval) {
+    const when = new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" }).format(new Date(approval.at));
+    origin.push(t(`ai.workshop.approvedHow.${approval.how}`, { when }));
+  } else {
+    origin.push(t("ai.workshop.neverApproved"));
+  }
+  const key = serverSkillKey(server.serverId, name);
+  const warnings: string[] = [];
+  if (source.tooLarge) warnings.push(t("ai.workshop.tooLarge"));
+  if (source.invisible) warnings.push(t("ai.workshop.invisible", { count: source.invisible }));
+  if (server.namedTools?.length) warnings.push(t("ai.workshop.server.namedTools", { tools: server.namedTools.join(", ") }));
+  // A name a skill of the vault or the app has too — compared as a key folds it: shown, never a reason for one to stand for the other.
+  const folded = name.normalize("NFKC").toLowerCase();
+  const same = (context.others ?? []).find((other) => other.source.kind === "skill" && other.source.skill?.name.normalize("NFKC").toLowerCase() === folded);
+  if (same) warnings.push(t("ai.workshop.server.sameName", { title: workshopTitle(t, same), key }));
+  // Approvable while its server waits — the approval is bound to the content —, and the review says that it then waits.
+  if (context.ready === false) warnings.push(t("ai.workshop.server.notReadyReview"));
+  const serverChanges: string[] = [];
+  if (entry.status === "changed" && approval) {
+    for (const file of source.files) {
+      const before = approval.files[file.path];
+      if (before === undefined) serverChanges.push(t("ai.workshop.server.fileAdded", { path: file.path }));
+      else if (before !== file.sha256) serverChanges.push(t("ai.workshop.server.fileChanged", { path: file.path }));
+    }
+    for (const path of Object.keys(approval.files)) if (!source.files.some((file) => file.path === path)) serverChanges.push(t("ai.workshop.server.fileRemoved", { path }));
+    if (approval.frontmatter !== server.frontmatter) serverChanges.push(t("ai.workshop.server.descriptionChanged"));
+  }
+  const problems = blockingProblems(source.problems).map((p) => problemText(t, p));
+  return {
+    title: name,
+    kind: "skill",
+    status: entry.status,
+    may: [t("ai.workshop.server.may", { server: server.label }), t("ai.workshop.server.mayNot")],
+    changes: null,
+    text: null,
+    files: source.files.map((f) => ({ path: f.path, size: size(f.bytes, language), digest: f.sha256.slice(0, 7) })),
+    origin,
+    warnings,
+    problems,
+    canApprove: !source.tooLarge && problems.length === 0 && Boolean(skill) && (entry.status === "new" || entry.status === "changed"),
+    seen: approvalSeen(source),
+    server: { label: server.label, place: context.place ? serverPlaceText(t, context.place) : "", key, said: skill ? stripInvisible(skill.description).text.trim() : "" },
+    ...(serverChanges.length ? { serverChanges } : {}),
+    ...(approval?.text !== undefined ? { approvedText: approval.text } : {}),
+  };
+}
+
+/** What a review knows besides the entry: the vault's and the app's skills (for a name two share), where a server is reached, and whether it is ready. */
+export interface ApprovalContext {
+  others?: readonly InstructionEntry[];
+  place?: AiServerSkills["place"];
+  ready?: boolean;
+}
+
+/** The context a review of an entry gets from where the entry stands. */
+export function approvalContextOf(skills: Pick<AiSkillsState, "entries">, group: AiServerSkills | null): ApprovalContext {
+  return { others: skills.entries, ...(group ? { place: group.place, ready: group.ready } : {}) };
+}
+
+/** An entry of the workshop by its id — the vault's and the app's, or a server's with its group (plan P9-4b). */
+export function findWorkshopEntry(skills: Pick<AiSkillsState, "entries" | "servers">, id: string): { entry: InstructionEntry; group: AiServerSkills | null } | null {
+  const own = skills.entries.find((e) => e.source.id === id);
+  if (own) return { entry: own, group: null };
+  for (const group of skills.servers) {
+    const entry = group.entries.find((e) => e.source.id === id);
+    if (entry) return { entry, group };
+  }
+  return null;
+}
+
+/**
+ * A row of the group "From servers": the server, the skill's state where it
+ * is not simply active, why an active one waits, and how many files it has.
+ */
+export function serverSkillRowDescription(t: Translate, entry: InstructionEntry, group: AiServerSkills): string {
+  const status = entry.status === "active" ? null : t(`ai.workshop.status.${entry.status}`);
+  const waits = entry.status === "active" && !group.ready ? t("ai.workshop.server.notReady") : null;
+  const files = entry.source.files.length ? t("ai.workshop.server.files", { count: entry.source.files.length }) : null;
+  return [group.label, status, waits, files].filter(Boolean).join(" · ");
+}
+
+/** The line under one server's skills: when its list was read, and what stands in the way. */
+export function serverSkillGroupNote(t: Translate, group: AiServerSkills, language: string): string {
+  const when = new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" }).format(new Date(group.at));
+  return [
+    group.failed ? t("ai.workshop.server.listFailed", { when }) : t("ai.workshop.server.listAt", { when }),
+    group.clipped ? t("ai.workshop.server.clipped") : null,
+    group.ready ? null : t("ai.workshop.server.notReadyGroup"),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/** Why "Read again" brought nothing new, in words; null where the server was read. */
+export function serverSkillRefreshText(t: Translate, check: McpCheck): string | null {
+  if (check.ok) return null;
+  return t(`ai.workshop.server.addProblem.${check.reason}`);
+}
+
+/** What adding a skill by its address answered, in words; null where it worked. */
+export function serverSkillAddText(t: Translate, result: McpSkillAdd): string | null {
+  if (result.ok) return null;
+  return t(`ai.workshop.server.addProblem.${result.reason}`, { max: MCP_SKILL_LIMITS.added });
+}
+
+/** Why a server skill's instructions are not shown, in words. */
+export function serverSkillTextProblem(t: Translate, reason: Exclude<ServerSkillText, { ok: true }>["reason"]): string {
+  return t(`ai.workshop.server.viewFailed.${reason}`);
+}
+
+export function approvalFacts(t: Translate, entry: InstructionEntry, language: string, context: ApprovalContext = {}): ApprovalFacts {
+  if (entry.source.origin === "server" && entry.source.server) return serverSkillFacts(t, entry, language, context);
   if (entry.source.kind === "script") return scriptFacts(t, entry, language);
   const { source, approval } = entry;
   const app = appSkillOf(source.id);

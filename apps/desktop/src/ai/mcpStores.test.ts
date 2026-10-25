@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { approveMcpListing, EMPTY_MCP_GRANT, readMcpListing, type McpListing } from "@plainva/core";
+import { approveMcpListing, EMPTY_MCP_GRANT, MCP_SKILL_LIMITS, readMcpListing, storedMcpSkillEntry, type McpListing, type McpSkillEntry } from "@plainva/core";
 import {
   createMcpDeviceStore,
   createMcpVaultStore,
+  fitMcpSkillsRecord,
   MCP_AUDIT_CAP,
+  MCP_SKILLS_RECORD_LIMIT,
   mcpSnapshotFits,
   mcpVaultEntryFor,
   readMcpServerRecords,
@@ -67,6 +69,52 @@ describe("the device's record of servers", () => {
   it("says when a listing is too large to keep", () => {
     expect(mcpSnapshotFits(listing)).toBe(true);
     expect(mcpSnapshotFits({ ...listing, instructions: "x".repeat(1_000_001) })).toBe(false);
+  });
+});
+
+describe("what a device keeps of a server's skills (plan P9-4b)", () => {
+  /** An entry with `files` files besides its SKILL.md, each address `uriLength` characters longer than the shortest. */
+  const entry = (name: string, files = 0, uriLength = 0): McpSkillEntry => {
+    const root = `skill://${name}`;
+    const more = Array.from({ length: files }, (_, i) => {
+      const path = `references/${String(i).padStart(4, "0")}-${"x".repeat(uriLength)}.md`;
+      return { path, uri: `${root}/${path}`, sha256: "b".repeat(64), size: 1 };
+    });
+    return { uri: `${root}/SKILL.md`, root, name, frontmatter: { name, description: "d" }, files: [{ path: "SKILL.md", uri: `${root}/SKILL.md`, sha256: "a".repeat(64), size: 10 }, ...more], problem: null };
+  };
+  const skills = (entries: McpSkillEntry[]) => ({ at: "2026-10-25T09:00:00.000Z", failed: false, clipped: false, entries, added: [] as string[] });
+
+  it("keeps an entry too large to keep on its own as \"too large\", without its manifest — it pushes no other out", () => {
+    const fitted = fitMcpSkillsRecord(skills([entry("big", 400, 1500), entry("small"), entry("other")]));
+    expect(fitted.entries.map((e) => [e.name, e.problem, e.files.length])).toEqual([
+      ["big", "too-large", 0],
+      ["small", null, 1],
+      ["other", null, 1],
+    ]);
+    expect(fitted.clipped).toBe(false);
+  });
+
+  it("lets the last entries go beyond what is kept of a server, and says the list is clipped", () => {
+    const many = Array.from({ length: 10 }, (_, i) => entry(`s${i}`, 250, 1600));
+    const fitted = fitMcpSkillsRecord(skills(many));
+    expect(fitted.clipped).toBe(true);
+    expect(fitted.entries.map((e) => e.name)).toEqual(many.slice(0, 9).map((e) => e.name));
+    expect(serializeMcpServerRecords({ tracker: { ...approved(), skills: fitted } }).length).toBeLessThan(MCP_SKILLS_RECORD_LIMIT + 10_000);
+    // What fits is kept as it is.
+    const few = skills([entry("one"), entry("two")]);
+    expect(fitMcpSkillsRecord(few)).toBe(few);
+  });
+
+  it("reads what was kept with the checks a listing gets — a time that does not read is no list, an address that is none is not kept", () => {
+    const record = { ...approved(), skills: { ...skills([entry("review", 1)]), added: ["skill://review/SKILL.md"] } };
+    expect(readMcpServerRecords(serializeMcpServerRecords({ tracker: record })).tracker).toEqual(record);
+    const kept = (raw: unknown) => readMcpServerRecords(JSON.stringify({ version: 1, servers: { tracker: { ...approved(), skills: raw } } })).tracker!.skills;
+    expect(kept({ ...record.skills, at: "yesterday" })).toBeUndefined();
+    expect(kept({ ...record.skills, added: ["skill://a/SKILL.md", " skill://a/SKILL.md ", "skill://b/README.md", "skill://c d/SKILL.md", 7] })!.added).toEqual(["skill://a/SKILL.md"]);
+    expect(kept({ ...record.skills, added: Array.from({ length: 20 }, (_, i) => `skill://s${i}/SKILL.md`) })!.added).toHaveLength(MCP_SKILL_LIMITS.added);
+    // An entry kept as "too large" is read as one, without a manifest to approve.
+    const large = { ...entry("big"), files: [], problem: "too-large" as const };
+    expect(kept({ ...record.skills, entries: [storedMcpSkillEntry(large)] })!.entries).toEqual([large]);
   });
 });
 

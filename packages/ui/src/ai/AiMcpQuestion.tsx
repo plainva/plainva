@@ -33,11 +33,11 @@ export interface AiMcpQuestionProps {
   touch?: boolean;
 }
 
-/** The server's words, framed and attributed: a quote inside Plainva's card. */
-function ServerSaid({ server, text }: { server: string; text: string }) {
+/** The server's words, framed and attributed: a quote inside Plainva's card — or Plainva's review of a server's skill (plan P9-4b). */
+export function ServerSaid({ server, text, testId = "ai-question-said" }: { server: string; text: string; testId?: string }) {
   const { t } = useTranslation();
   return (
-    <blockquote className="pv-ai-said" data-testid="ai-question-said">
+    <blockquote className="pv-ai-said" data-testid={testId}>
       <span className="pv-ai-said-by">{t("ai.ext.question.writes", { server })}</span>
       <span>{text}</span>
     </blockquote>

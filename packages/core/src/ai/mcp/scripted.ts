@@ -1,4 +1,5 @@
-import { fromBase64 } from "../../workspace/encoding.js";
+import { fromBase64, sha256Hex, utf8Encode } from "../../workspace/encoding.js";
+import { parseSkillFile } from "../skills/skillFile.js";
 import { mcpParamHeaders, readMcpHeaderParams } from "./headerValues.js";
 import type { McpPromptDescriptor, McpToolDescriptor } from "./listing.js";
 import {
@@ -9,6 +10,7 @@ import {
   MCP_META_SERVER,
   MCP_META_VERSION,
   MCP_MODERN_VERSION,
+  MCP_SKILLS_EXTENSION,
   type McpEra,
   type McpHttpChunk,
   type McpHttpFailureCode,
@@ -49,6 +51,35 @@ export interface ScriptedMcpOptions {
   quiet?: boolean;
   /** The credential the server wants over HTTP. */
   bearer?: string;
+  /** Skills it serves (plan P9-4b): with any, it declares resources and the skills extension. */
+  skills?: ScriptedSkill[];
+}
+
+/** A skill the scripted server serves (plan P9-4b): its folder and its files as text. */
+export interface ScriptedSkill {
+  /** The skill's folder, as an address without `/SKILL.md`: `skill://code-review`. */
+  root: string;
+  /** Path relative to the folder → text; `SKILL.md` among them. */
+  files: Record<string, string>;
+  /** What the listing says of its frontmatter; left out, what its `SKILL.md` says. */
+  frontmatter?: Record<string, unknown>;
+  /** What the listing says of its files; left out, the true manifest of `files`. */
+  resources?: unknown;
+  /** Not in `skills/list`: only `skills/get` finds it. */
+  unlisted?: boolean;
+}
+
+/** A skill's entry as the scripted server lists it: the true manifest of its files unless the script says otherwise. */
+export function scriptedSkillEntry(skill: ScriptedSkill): Record<string, unknown> {
+  const main = skill.files["SKILL.md"] ?? "";
+  const frontmatter = skill.frontmatter ?? parseSkillFile(main).frontmatter ?? {};
+  const resources =
+    skill.resources ??
+    Object.entries(skill.files).map(([path, text]) => {
+      const bytes = utf8Encode(text);
+      return { uri: `${skill.root}/${path}`, digest: `sha256:${sha256Hex(bytes)}`, size: bytes.length };
+    });
+  return { uri: `${skill.root}/SKILL.md`, frontmatter, resources };
 }
 
 export interface ScriptedReply {
@@ -74,6 +105,16 @@ export interface ScriptedMcpServer {
   onCall: (name: string, args: Record<string, unknown>, count: number, params: Record<string, unknown>) => Record<string, unknown>;
   /** What a prompt expands to. */
   onPrompt: (name: string, args: Record<string, unknown>, count: number, params: Record<string, unknown>) => Record<string, unknown>;
+  /** The skills it serves (plan P9-4b); rewrite them to script a server that changes one. */
+  skills: ScriptedSkill[];
+  /**
+   * What `resources/read` returns for an address; `text` is the file's as
+   * the skills hold it, null where none has that address. Replace it to
+   * script a server that serves other bytes than its manifest names.
+   */
+  onRead: (uri: string, text: string | null, count: number) => Record<string, unknown> | null;
+  /** Every address read, in order: what a test holds against "nothing is read ahead". */
+  readonly reads: string[];
   readonly calls: { name: string; args: Record<string, unknown> }[];
   /** Every method received, in order. */
   readonly methods: string[];
@@ -113,6 +154,9 @@ export function createScriptedMcpServer(options: ScriptedMcpOptions = {}): Scrip
     challenge: 'Bearer realm="mcp"',
     onCall: (name, args) => ({ content: [{ type: "text", text: `${name} ${JSON.stringify(args)}` }] }),
     onPrompt: (name) => ({ messages: [{ role: "user", content: { type: "text", text: `Prompt ${name}` } }] }),
+    skills: options.skills ?? [],
+    onRead: (uri, text) => (text === null ? null : { contents: [{ uri, mimeType: "text/markdown", text }] }),
+    reads: [],
     calls: [],
     methods: [],
     dropSessions: () => sessions.clear(),
@@ -161,6 +205,7 @@ export function createScriptedMcpServer(options: ScriptedMcpOptions = {}): Scrip
         if (headers) {
           if (headers["mcp-protocol-version"] !== MCP_MODERN_VERSION || headers["mcp-method"] !== method) return error(400, MCP_ERROR_HEADER_MISMATCH, "Header mismatch");
           if ((method === "tools/call" || method === "prompts/get") && decodeHeader(headers["mcp-name"]) !== params.name) return error(400, MCP_ERROR_HEADER_MISMATCH, "Header mismatch: Mcp-Name");
+          if (method === "resources/read" && decodeHeader(headers["mcp-name"]) !== params.uri) return error(400, MCP_ERROR_HEADER_MISMATCH, "Header mismatch: Mcp-Name");
         }
       } else {
         if (method === "initialize") {
@@ -189,7 +234,7 @@ export function createScriptedMcpServer(options: ScriptedMcpOptions = {}): Scrip
           if (!modern) return error(200, MCP_ERROR_METHOD_NOT_FOUND, "Method not found");
           return result({
             supportedVersions: [MCP_MODERN_VERSION],
-            capabilities: { tools: {}, prompts: {} },
+            capabilities: { tools: {}, prompts: {}, ...(server.skills.length ? { resources: {}, extensions: { [MCP_SKILLS_EXTENSION]: {} } } : {}) },
             ...(server.instructions ? { instructions: server.instructions } : {}),
             _meta: { [MCP_META_SERVER]: info },
             ...fresh,
@@ -217,6 +262,24 @@ export function createScriptedMcpServer(options: ScriptedMcpOptions = {}): Scrip
           const prompt = server.prompts.find((p) => p.name === params.name);
           if (!prompt) return error(200, -32602, `Unknown prompt: ${String(params.name)}`);
           return result(server.onPrompt(prompt.name, args, ++promptCount, params));
+        }
+        case "skills/list":
+          if (!modern || !server.skills.length) return error(modern ? 404 : 200, MCP_ERROR_METHOD_NOT_FOUND, "Method not found");
+          return page(server.skills.filter((skill) => !skill.unlisted).map(scriptedSkillEntry), "skills");
+        case "skills/get": {
+          if (!modern || !server.skills.length) return error(modern ? 404 : 200, MCP_ERROR_METHOD_NOT_FOUND, "Method not found");
+          const skill = server.skills.find((candidate) => `${candidate.root}/SKILL.md` === params.uri);
+          if (!skill) return error(200, -32602, `Unknown skill: ${String(params.uri)}`);
+          return result({ skill: scriptedSkillEntry(skill), ttlMs: server.ttlMs ?? 0, cacheScope: "private" });
+        }
+        case "resources/read": {
+          const uri = typeof params.uri === "string" ? params.uri : "";
+          server.reads.push(uri);
+          const owner = server.skills.find((skill) => uri.startsWith(`${skill.root}/`));
+          const text = owner?.files[uri.slice((owner?.root.length ?? 0) + 1)] ?? null;
+          const read = server.onRead(uri, text, server.reads.length);
+          if (!read) return error(200, -32602, `Unknown resource: ${uri}`);
+          return result({ ...read, ...fresh });
         }
         default:
           return error(modern ? 404 : 200, MCP_ERROR_METHOD_NOT_FOUND, "Method not found");

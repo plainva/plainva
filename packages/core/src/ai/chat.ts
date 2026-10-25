@@ -4,7 +4,7 @@ import { LINK_CANDIDATE_LIMIT } from "./linkNames.js";
 import { isMcpExposedToolName } from "./mcp/names.js";
 import type { EffectivePolicy } from "./policy.js";
 import { DISPATCH_TOOL, FIND_TOOL, hasWebTools, MAIL_TOOL_NAMES, WRITE_TOOL_NAMES } from "./tools.js";
-import { fenceUntrusted, payload, stripInvisible, UNTRUSTED_DATA_RULE } from "./trust.js";
+import { BLOCK_TAG_NAMES, defuseTags, fenceUntrusted, payload, stripInvisible, UNTRUSTED_DATA_RULE } from "./trust.js";
 
 /**
  * The chat of the first package (plan §21, P1a): the system prompt, and the
@@ -123,12 +123,13 @@ function furtherTools(more: readonly string[]): string | null {
 /**
  * Approved instructions as one delimited block (plan KI-Harness P3): tier 1,
  * not fenced as data — but invisible characters go (the user approved what
- * they could see), and the block's own closing tag inside the text is
- * defused so the text cannot end the block early.
+ * they could see), and a tag of the blocks inside the text — opening or
+ * closing, with blanks or without — is escaped, as the data fence escapes
+ * its own: the text can neither end its block early nor open another.
  */
 export function instructionBlock(tag: "skill" | "vault_instructions", attribute: string, text: string): string {
   const visible = stripInvisible(text).text.trim();
-  const defused = visible.replace(/<\/(skill|vault_instructions)/gi, "<\\/$1");
+  const defused = defuseTags(visible, BLOCK_TAG_NAMES);
   return `<${tag} ${attribute}>\n${defused}\n</${tag}>`;
 }
 

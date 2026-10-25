@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { test, expect, type Locator } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { segmentedIndexText } from '../../../packages/core/src/vault/spacelessText';
 
@@ -6325,6 +6326,165 @@ test('AI external tools: a server the vault lets ask asks through Plainva\'s car
   sent = (await mcp()).calls;
   expect(sent[5]).toMatchObject({ query: 'private', answers: { q: { action: 'decline' } } });
   await expect(card).toHaveCount(0);
+});
+
+// Skills a connected server serves (AI harness P9-4b, MCP skills extension). The server stands in at the native command
+// as above; everything the test looks at is the app's own: the review that counts the skills, the workshop's group
+// "From servers", the approval of exactly the files a manifest names, and a conversation that loads the skill checked.
+test('AI external tools: a server\'s skill waits under "From servers", is approved for exactly its files after a look at its instructions, and loads checked', async ({ page }) => {
+  const ADDRESS = 'https://tracker.example.com/mcp';
+  const MAIN = "---\nname: code-review\ndescription: Review code using the team's checklist.\n---\n\n# Code review\n\nRead `references/checklist.md`, then review the diff.\n";
+  const CHECKLIST = '# Review checklist\n\nCheck correctness, tests, and compatibility.\n';
+  const files: Record<string, string> = { 'SKILL.md': MAIN, 'references/checklist.md': CHECKLIST };
+  const manifest = Object.entries(files).map(([path, text]) => ({ uri: `skill://code-review/${path}`, digest: `sha256:${createHash('sha256').update(text, 'utf8').digest('hex')}`, size: Buffer.byteLength(text, 'utf8') }));
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const calls = (id: string, name: string, input: unknown) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id, name, input: {} } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify(input) } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const script = [
+    calls('call-1', 'use_skill', { name: 'mcp_tracker/code-review' }),
+    calls('call-2', 'use_skill', { name: 'mcp_tracker/code-review', file: 'references/checklist.md' }),
+    says('Three points of the checklist stand out.'),
+  ];
+  await page.addInitScript(({ script, files, manifest }) => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    (window as any).__aiRequests = [];
+    const mcp = ((window as any).__mcp = {
+      registry: [] as any[],
+      reads: [] as string[],
+      methods: [] as string[],
+      tools: [{ name: 'search_issues', title: 'Search issues', description: "Searches the tracker's issues.", inputSchema: { type: 'object', properties: { query: { type: 'string' } } }, annotations: { readOnlyHint: true } }],
+    });
+    const entry = { uri: 'skill://code-review/SKILL.md', frontmatter: { name: 'code-review', description: "Review code using the team's checklist." }, resources: manifest };
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      if (cmd === 'mcp_client_servers') return mcp.registry;
+      if (cmd === 'mcp_client_add_http') { mcp.registry.push({ id: args.serverId, kind: 'http', url: args.url, args: [], env: [], sandbox: false, stored: [] }); return true; }
+      if (cmd === 'mcp_client_remove' || cmd === 'mcp_client_secret_set' || cmd === 'mcp_client_secret_delete' || cmd === 'mcp_client_cancel') return null;
+      if (cmd === 'mcp_client_secret_present') return false;
+      if (cmd === 'mcp_client_sandbox') return { kind: 'none', works: false };
+      if (cmd === 'mcp_client_log') return '';
+      if (cmd === 'mcp_client_http') {
+        const message = JSON.parse(args.request.body);
+        mcp.methods.push(message.method);
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        const answer = (status: number, payload: unknown) => { send({ type: 'open', status, contentType: 'application/json' }); send({ type: 'data', text: JSON.stringify({ jsonrpc: '2.0', id: message.id, ...(payload as object) }) }); send({ type: 'done' }); };
+        const result = (value: object) => answer(200, { result: { resultType: 'complete', ...value } });
+        if (message.method === 'server/discover') result({ supportedVersions: ['2026-07-28'], capabilities: { tools: {}, resources: {}, extensions: { 'io.modelcontextprotocol/skills': {} } }, _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'Tracker MCP', version: '1.0.0' } } });
+        else if (message.method === 'tools/list') result({ tools: mcp.tools });
+        else if (message.method === 'prompts/list') result({ prompts: [] });
+        else if (message.method === 'skills/list') result({ skills: [entry], ttlMs: 0, cacheScope: 'private' });
+        else if (message.method === 'resources/read') {
+          const uri = message.params.uri as string;
+          mcp.reads.push(uri);
+          const text = uri.startsWith('skill://code-review/') ? files[uri.slice('skill://code-review/'.length)] : undefined;
+          if (text === undefined) answer(200, { error: { code: -32602, message: 'Unknown resource' } });
+          else result({ contents: [{ uri, mimeType: 'text/markdown', text }], ttlMs: 0, cacheScope: 'private' });
+        } else answer(404, { error: { code: -32601, message: 'Method not found' } });
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script, files, manifest });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const mcp = () => page.evaluate(() => { const m = (window as any).__mcp; return { reads: m.reads as string[], methods: m.methods as string[] }; });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+  const shot = async (name: string) => {
+    if (!process.env.PLAINVA_EVIDENCE) return;
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: test.info().outputPath(`${name}.png`), animations: 'disabled' });
+  };
+
+  // 1. The review counts the skills the server serves; each is approved on its own, in the workshop. Nothing of them is read.
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+  await dialog.getByTestId('settings-ai-ext-add').click();
+  const add = page.getByTestId('ai-ext-add');
+  await add.getByTestId('ai-ext-add-name').fill('Tracker');
+  await add.getByTestId('ai-ext-add-url').fill(ADDRESS);
+  await add.getByTestId('ai-ext-add-submit').click();
+  const review = page.getByTestId('ai-ext-review');
+  await expect(review.getByTestId('ai-ext-skills')).toHaveText(/^(It serves 1 skill\. You approve each one under AI → Skills, “From servers”\.|Er bietet 1 Skill an\. Jeden gibst Du einzeln frei, unter KI → Skills, „Von Servern“\.)$/);
+  await review.getByTestId('ai-ext-tool').first().check();
+  await review.getByTestId('ai-ext-approve').click();
+  await expect(review).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  expect((await mcp()).methods).toContain('skills/list');
+  expect((await mcp()).reads).toEqual([]);
+
+  // 2. The workshop: the skill waits in the group of its server, apart from the vault's own and the app's.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-skills')));
+  await page.getByTestId('ai-tab-skills').click();
+  const workshop = page.getByTestId('ai-skills-workshop');
+  const group = workshop.getByRole('group', { name: /^(From servers|Von Servern)$/ });
+  await expect(group).toBeVisible();
+  const row = group.locator('.pv-setrow').filter({ hasText: 'code-review' });
+  await expect(row).toContainText(/Tracker · (new|neu) · 2 (files|Dateien)/);
+  await expect(group).toContainText(/(Read again|Neu lesen)/);
+  await shot('ai-server-skill-workshop-desktop');
+
+  // 3. The review of the skill: its server, the key the AI loads it by, the server's words as its quote, each file with its
+  //    digest — and its instructions and each file a model may read, read only on the click, each checked.
+  await row.getByTestId('ai-server-skill-review').click();
+  const approval = page.getByTestId('ai-skill-approval');
+  await expect(approval.getByRole('heading')).toHaveText(/^(Approve a skill of Tracker\?|Skill von Tracker freigeben\?)$/);
+  await expect(approval.getByTestId('ai-server-skill-facts')).toContainText('Tracker · tracker.example.com');
+  await expect(approval.getByTestId('ai-server-skill-facts')).toContainText('mcp_tracker/code-review');
+  await expect(approval.getByTestId('ai-server-skill-said')).toContainText("Review code using the team's checklist.");
+  await expect(approval.getByTestId('ai-skill-files')).toContainText(manifest[0]!.digest.slice(7, 14));
+  await expect(approval.getByTestId('ai-skill-text')).toHaveCount(0);
+  expect((await mcp()).reads).toEqual([]);
+  await approval.getByTestId('ai-server-skill-view').click();
+  await expect(approval.getByTestId('ai-skill-text')).toContainText('Read `references/checklist.md`, then review the diff.');
+  await expect(approval.getByTestId('ai-server-skill-file')).toContainText('references/checklist.md');
+  await expect(approval.getByTestId('ai-server-skill-file')).toContainText('Check correctness, tests, and compatibility.');
+  expect((await mcp()).reads).toEqual(['skill://code-review/SKILL.md', 'skill://code-review/references/checklist.md']);
+  await shot('ai-server-skill-review-desktop');
+  await approval.getByTestId('ai-skill-approve').click();
+  await expect(approval).toHaveCount(0);
+  await expect(row.getByRole('switch')).toBeChecked();
+
+  // 4. A conversation: the catalog carries the skill in its own fence, the model loads it, and its file — each checked.
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await companion.getByTestId('ai-input').fill("Review yesterday's diff.");
+  await companion.getByTestId('ai-send').click();
+  await companion.getByTestId('ai-consent-send').click();
+  await expect(companion.getByText('Three points of the checklist stand out.')).toBeVisible();
+  const toModel = await requests();
+  expect(toModel[0]).toContain('<server_skills>');
+  expect(toModel[0]).toContain('mcp_tracker/code-review');
+  expect(toModel[1]).toContain('origin=\\"server\\" server=\\"tracker\\"');
+  expect(toModel[2]).toContain('Check correctness, tests, and compatibility.');
+  // Both came from what was checked at the review, kept in memory: nothing was read again. The file stood in the fence.
+  expect(toModel[2]).toContain('<untrusted_data origin=\\"tool:tracker/use_skill\\"');
+  expect((await mcp()).reads).toEqual(['skill://code-review/SKILL.md', 'skill://code-review/references/checklist.md']);
 });
 
 // Signing in to a remote server (AI harness P4.5). The sign-in is native: the Rust side makes the verifier, exchanges

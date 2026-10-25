@@ -225,6 +225,8 @@ Asystent może korzystać z narzędzi serwerów podłączanych samodzielnie, prz
 
 **Prompty.** Serwer może oferować prompty — gotowe zapytania. Znajdują się pod pustą rozmową i uruchamia je wyłącznie użytkownik. Za pierwszym razem Plainva pokazuje, w co prompt się rozwija, zanim zostanie wysłany jako Twoja wiadomość; od tej pory dokładnie ten tekst idzie bez pytania, a inny tekst blokuje serwer.
 
+**Umiejętności.** Serwer może też wnosić umiejętności — przewodniki po swoich narzędziach. Każda czeka w **Umiejętności**, **Z serwerów**, aż ją tam zatwierdzisz; zobacz [Umiejętności](AI_Skills.md).
+
 **Co przechowuje Plainva.** Adres albo polecenie jest zapamiętywane na tym urządzeniu, zapisane wartości — w jego bezpiecznym magazynie; zatwierdzenie leży we własnych danych Plainva, nigdy w vaulcie — kto może pisać w vaulcie, nie może więc zatwierdzić serwera. W sekcji **Ostatnie wywołania w tym vaulcie** sprawdzenie wymienia, kiedy wywołano narzędzie, które i jak się to skończyło — nigdy to, co zostało powiedziane. **Usuń serwer** usuwa serwer z tego urządzenia, dla każdego vaultu.
 
 Rozmowa rozpoczęta przez umiejętność, działanie na zaznaczeniu i odpowiedź w wątku komentarzy nie sięgają po narzędzia zewnętrzne, podobnie jak model systemowy na telefonie.

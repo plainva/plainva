@@ -20,6 +20,7 @@ import {
 import { flattenInertLinks } from "./aiCapture";
 import { defuseNewAddresses } from "./aiWriteLint";
 import { readSomething } from "./privateData";
+import { serversLoadedIn } from "./skillRuntime";
 
 /**
  * Learning from a conversation, on the app's side of the request (plan
@@ -98,12 +99,17 @@ export type LearnOutcome =
 /**
  * Whether a conversation read text of strangers: a page or a search on the
  * internet, a mail or the description of an appointment, a foreign MCP
- * server. Such text can say anything, also "from now on always …" — and a
- * review would hand it back as a rule. So what a conversation of this kind
- * teaches is facts, which are data wherever they go.
+ * server — its calls, or a skill it serves (plan P9-4b). Such text can say
+ * anything, also "from now on always …" — and a review would hand it back as
+ * a rule. So what a conversation of this kind teaches is facts, which are
+ * data wherever they go.
  */
-export function readStrangersText(record: Pick<ConversationRecord, "runs">): boolean {
-  return record.runs.some((run) => Boolean(run.web && (run.web.pages.length || run.web.searches.length)) || Boolean(run.reading && readSomething(run.reading)) || Boolean(run.mcp?.calls.length));
+export function readStrangersText(record: Pick<ConversationRecord, "runs" | "conversation" | "instructions">): boolean {
+  return (
+    record.runs.some((run) => Boolean(run.web && (run.web.pages.length || run.web.searches.length)) || Boolean(run.reading && readSomething(run.reading)) || Boolean(run.mcp?.calls.length)) ||
+    // A server's skill, loaded — read as the bound of a later run reads it (plan P9-4b).
+    serversLoadedIn(record).length > 0
+  );
 }
 
 /** The ids of the skills a conversation used: the one it was bound to, and each one a run loaded. */

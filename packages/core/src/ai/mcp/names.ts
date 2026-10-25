@@ -165,3 +165,8 @@ export function withheldMcpTools(serverId: string, issues: readonly McpNameIssue
 export function isMcpExposedToolName(name: string): boolean {
   return name.startsWith(PREFIX) && TOOL_NAME_PATTERN.test(name);
 }
+
+/** Whether a tool's name is one of this server's: a server id has no underscore, so `mcp_<id>_` belongs to one server alone. */
+export function isMcpToolOf(serverId: string, name: string): boolean {
+  return isMcpExposedToolName(name) && name.startsWith(`${PREFIX}${serverId}_`);
+}

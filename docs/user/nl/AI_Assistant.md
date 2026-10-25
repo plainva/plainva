@@ -225,6 +225,8 @@ De assistent kan hulpmiddelen gebruiken van servers die je zelf koppelt, via het
 
 **Prompts.** Een server kan prompts aanbieden — kant-en-klare verzoeken. Ze staan onder een leeg gesprek, en alleen jij start ze. De eerste keer toont Plainva waartoe een prompt uitgroeit voordat hij als jouw bericht wordt verstuurd; daarna gaat precies die tekst zonder te vragen, en een andere tekst blokkeert de server.
 
+**Vaardigheden.** Een server kan ook vaardigheden meebrengen — handleidingen voor zijn hulpmiddelen. Elke vaardigheid wacht onder **Vaardigheden**, **Van servers**, tot je haar daar goedkeurt; zie [Vaardigheden](AI_Skills.md).
+
 **Wat Plainva bewaart.** Het adres of de opdracht wordt op dit apparaat onthouden, de opgeslagen waarden in zijn beveiligde opslag; jouw goedkeuring staat in de eigen gegevens van Plainva, nooit in de vault — wie in de vault kan schrijven, kan dus geen server goedkeuren. Onder **Recente aanroepen in deze vault** somt de controle op wanneer een hulpmiddel is aangeroepen, welk en hoe het afliep — nooit wat er is gezegd. **Server verwijderen** verwijdert de server van dit apparaat, voor elke vault.
 
 Een gesprek dat door een vaardigheid is gestart, een actie op een selectie en een antwoord in een draad met opmerkingen bereiken geen externe hulpmiddelen, en het eigen model van het systeem op de telefoon evenmin.

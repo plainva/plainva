@@ -102,11 +102,37 @@ export const NOTES: Record<string, string> = {
   "Health/Results.md": "---\nplainva:\n  ai:\n    cloud: deny\n---\n# Results\n\nPrivate.",
 };
 
-/** A vault whose tools are the real ones, over `NOTES`; its choices about servers live in `files` under `vaultKey`. */
-export function vaultHost(files: ReturnType<typeof memoryFiles>, vaultKey = "vault-one") {
-  const io: InstructionIO = { list: async () => [], read: async () => null };
+/** A vault's own instruction files (`.agent/skills/<name>/SKILL.md`, `AGENTS.md`), listed and read as a shell does. */
+function instructionFiles(files: Readonly<Record<string, string>>): InstructionIO {
+  const disk = new Map(Object.entries(files));
+  return {
+    async list(folder) {
+      const prefix = `${folder}/`;
+      const names = new Map<string, boolean>();
+      for (const path of disk.keys()) {
+        if (!path.startsWith(prefix)) continue;
+        const rest = path.slice(prefix.length);
+        const slash = rest.indexOf("/");
+        names.set(slash < 0 ? rest : rest.slice(0, slash), slash >= 0);
+      }
+      return [...names].map(([name, folder]) => ({ name, folder }));
+    },
+    async read(path) {
+      const text = disk.get(path);
+      return text === undefined ? null : new TextEncoder().encode(text);
+    },
+  };
+}
+
+/**
+ * A vault whose tools are the real ones, over `NOTES`; its choices about
+ * servers live in `files` under `vaultKey`, its own skills in `skills`.
+ */
+export function vaultHost(files: ReturnType<typeof memoryFiles>, vaultKey = "vault-one", skills: Readonly<Record<string, string>> = {}) {
+  const io = instructionFiles(skills);
   const saved = new Map<string, ConversationRecord>();
   let ledger: LedgerEntry[] = [];
+  let approvals = EMPTY_INSTRUCTION_APPROVALS;
   const policyOf: VaultToolDeps["policyOf"] = async (path, text) => {
     const t = text ?? NOTES[path] ?? "";
     return effectivePolicy(path, notePolicyFrom(t.includes("cloud: deny") ? { plainva: { ai: { cloud: "deny" } } } : {}), []);
@@ -173,11 +199,14 @@ export function vaultHost(files: ReturnType<typeof memoryFiles>, vaultKey = "vau
       scan: () => scanVaultInstructions(io),
       scanOne: (id) => scanInstruction(io, id),
       readFile: (source, rel) => readInstructionFile(io, source, rel),
+      // Kept in memory: a server's skill is approved here like any other (plan P9-4b).
       approvals: {
         async load() {
-          return EMPTY_INSTRUCTION_APPROVALS;
+          return approvals;
         },
-        async save() {},
+        async save(next) {
+          approvals = next;
+        },
       },
     },
   };
@@ -194,6 +223,8 @@ export interface McpSessionOptions {
   profiles?: Record<string, ModelChoice>;
   /** Further servers: a remote one by its address, a program by its command line. */
   others?: Record<string, ScriptedMcpServer>;
+  /** The vault's own skill files, by their path (`.agent/skills/<name>/SKILL.md`). */
+  skills?: Record<string, string>;
   /** The shell starts programs, as the desktop does. */
   programs?: boolean;
   /** The sign-in the tracker has, where it wants one. */
@@ -210,7 +241,7 @@ export async function mcpSession(script: EgressChunk[][], options: McpSessionOpt
     oauth: (url) => (url === TRACKER_URL ? (options.oauth ?? null) : null),
   });
   const files = memoryFiles();
-  const vault = vaultHost(files);
+  const vault = vaultHost(files, "vault-one", options.skills);
   const fake = fakeEgress(script);
   /** The session's clock: a test moves it by hand. */
   const clock = { at: Date.parse("2026-10-07T10:00:00Z") };

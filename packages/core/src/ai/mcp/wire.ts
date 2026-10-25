@@ -114,6 +114,9 @@ export type McpFailure =
 /** The one request a server may make of the user, where it was offered (plan P9-4a). */
 export const MCP_ELICIT_METHOD = "elicitation/create";
 
+/** The extension under which a server serves skills (plan P9-4b, SEP-2640). */
+export const MCP_SKILLS_EXTENSION = "io.modelcontextprotocol/skills";
+
 /** True where a failure is about questions to the user and nothing else. Read defensively: one without its list of methods is not. */
 export function mcpAskedOnlyUser(failure: McpFailure): boolean {
   return failure.kind === "input-required" && Array.isArray(failure.methods) && failure.methods.length > 0 && failure.methods.every((method) => method === MCP_ELICIT_METHOD);
@@ -307,6 +310,12 @@ export interface McpOpened {
   instructions: string;
   tools: boolean;
   prompts: boolean;
+  /**
+   * It serves skills (plan P9-4b): it declares resources and the skills
+   * extension, in the stateless revision — the extension is defined for no
+   * other.
+   */
+  skills: boolean;
   /** The server's hint for how long this stays fresh, in milliseconds; null when it gave none. */
   ttlMs: number | null;
 }
@@ -323,9 +332,10 @@ export function mcpTtl(raw: unknown): number | null {
   return typeof raw === "number" && Number.isFinite(raw) && raw >= 0 ? raw : null;
 }
 
-function capabilities(raw: unknown): { tools: boolean; prompts: boolean } {
+function capabilities(raw: unknown): { tools: boolean; prompts: boolean; skills: boolean } {
   const all = isRecord(raw) ? raw : {};
-  return { tools: isRecord(all.tools), prompts: isRecord(all.prompts) };
+  const extensions = isRecord(all.extensions) ? all.extensions : {};
+  return { tools: isRecord(all.tools), prompts: isRecord(all.prompts), skills: isRecord(all.resources) && isRecord(extensions[MCP_SKILLS_EXTENSION]) };
 }
 
 /** Reads a `server/discover` result. */
@@ -341,7 +351,7 @@ export function readMcpDiscover(result: Record<string, unknown>): McpOpened {
   };
 }
 
-/** Reads an `initialize` result of an earlier revision. */
+/** Reads an `initialize` result of an earlier revision: it serves no skills, whatever it declares. */
 export function readMcpInitialize(result: Record<string, unknown>, version: string): McpOpened {
   return {
     era: "legacy",
@@ -349,6 +359,7 @@ export function readMcpInitialize(result: Record<string, unknown>, version: stri
     serverInfo: serverInfo(result.serverInfo),
     instructions: typeof result.instructions === "string" ? result.instructions : "",
     ...capabilities(result.capabilities),
+    skills: false,
     ttlMs: null,
   };
 }

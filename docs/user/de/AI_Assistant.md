@@ -225,6 +225,8 @@ Der Assistent kann Werkzeuge von Servern nutzen, die Du selbst anbindest, über 
 
 **Prompts.** Ein Server kann Prompts anbieten — fertige Anfragen. Sie stehen unter einem leeren Gespräch, und nur Du startest sie. Beim ersten Mal zeigt Plainva, wozu ein Prompt wird, bevor er als Deine Nachricht gesendet wird; von da an geht genau dieser Text ohne Nachfrage, und ein anderer Text sperrt den Server.
 
+**Skills.** Ein Server kann auch Skills mitbringen — Anleitungen für seine Werkzeuge. Jeder wartet unter **Skills**, **Von Servern**, bis Du ihn dort freigibst; siehe [Skills](AI_Skills.md).
+
 **Was Plainva aufbewahrt.** Die Adresse oder der Befehl wird auf diesem Gerät gemerkt, die gespeicherten Werte in seinem sicheren Speicher; Deine Freigabe liegt in Plainvas eigenen Daten, nie im Vault — wer den Vault schreiben kann, kann also keinen Server freigeben. Unter **Letzte Aufrufe in diesem Vault** listet die Prüfung auf, wann ein Werkzeug aufgerufen wurde, welches und wie es ausging — nie, was gesagt wurde. **Server entfernen** löscht den Server von diesem Gerät, für jeden Vault.
 
 Ein Gespräch, das ein Skill begonnen hat, eine Aktion an einer Auswahl und eine Antwort im Kommentar-Faden erreichen keine externen Werkzeuge, ebenso wenig das Modell des Systems am Telefon.

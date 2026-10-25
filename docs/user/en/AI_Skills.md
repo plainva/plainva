@@ -57,6 +57,16 @@ A skill in your vault that is new or changed — through sync, an import, or an 
 
 The same holds for an `AGENTS.md` at the top of your vault: once approved, its standing instructions go into every new conversation. Neither a skill nor `AGENTS.md` can lift your privacy rules, and a skill never gets more than a conversation has — it can only narrow it. A rule you add in the memory, or accept from the AI, is one more line of this file; see [Memory](AI_Memory.md).
 
+## Skills of your servers
+
+A server you connect under **External tools (MCP)** can bring skills of its own: guides for its tools, written by whoever runs it. They stand under **Skills** in the group **From servers**, each with the name of its server — never among your own and never in place of one: the AI loads such a skill under a name of its own, such as `mcp_tracker/code-review`. A server's skills are offered only in a vault that uses the server.
+
+**Review and approve** shows the server and where it is reached, the skill's name, what the server writes about it — as its quote —, every file with its size and the start of its checksum, and what the skill may use. Plainva reads none of its files to show you this; **Show instructions** reads its `SKILL.md` now, and each file the AI may read of it, and checks every one first. The approval holds on this device for exactly these files and this description: if the server changes one of them, the skill waits again, and its review lists what changed — and, if you read its instructions before you approved it, compares the new ones with them line by line.
+
+A server's skill may use Plainva's tools that only read or show, and the tools of its own server that the vault allows — every call is asked as always. Whatever tools it names, it gets none of Plainva's tools that change anything and none of the app's commands, no internet, no script, and never the tools of another server. Once such a skill — its instructions or one of its files — is part of a conversation, the rest of that conversation keeps to these limits, whichever skill is loaded after it. The AI loads it in a conversation you start yourself, when your question matches; a conversation a skill started, a routine and a test run do not offer it, and neither does a device that is fully local. Each file is read from its server only when it is needed and checked against what you approved; a file that differs is not used, and the files beside its `SKILL.md` reach the AI as the server's data, never as instructions.
+
+**Read again** asks the server for its list now. **Add by address…** takes a skill the server offers without listing it, by the address of its `SKILL.md`; it then waits for your approval like any other. **Remove server** under **External tools (MCP)** takes the approvals of its skills in this vault along.
+
 ## Testing skills with a model
 
 A skill can bring test scenarios: a message that starts it, and what a good run does. The skills that come with Plainva have them; for your own, write them into `tests/scenarios.json` in the skill's folder:

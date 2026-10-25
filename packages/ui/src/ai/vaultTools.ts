@@ -849,8 +849,9 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const commands = left("run_command") ? deps.commands().map((c) => ({ id: c.id, label: c.label })) : [];
           const note = mail && !connected ? "\n\nNo mail account is connected in this vault, so there are no mail tools." : "";
           // The tools of foreign servers (plan P4.5): what a server says of them is a stranger's text, so that part
-          // of the answer — and only that part — stands in the data fence. A loaded skill leaves none of them.
-          const foreign = foreignToolsText(String(a.query ?? ""), narrowed ? [] : (further?.foreign?.() ?? []));
+          // of the answer — and only that part — stands in the data fence. What narrows the run leaves only those it
+          // names: a skill of the vault none, a server's skill its own server's (plan P9-4b).
+          const foreign = foreignToolsText(String(a.query ?? ""), (further?.foreign?.() ?? []).filter((tool) => left(tool.name)));
           const services = foreign ? `${FOREIGN_TOOLS_HEAD}\n${fenceUntrusted(payload(foreign, { kind: "tool", tool: "find_tools" }))}` : "";
           // The vault's scripts (plan P5.5): the ones that match, or all of them where none does — they are few, and
           // what a script is for is said in its own words. A loaded skill leaves none of them.

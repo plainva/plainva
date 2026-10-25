@@ -1,11 +1,41 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { Fragment, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, CodeXml, Download, FlaskConical, Plus } from "lucide-react";
+import { ChevronRight, CodeXml, Download, FlaskConical, Link2, Plus, RefreshCw } from "lucide-react";
 import { LEARN_LOG_FILE, type InstructionEntry, type SkillImport } from "@plainva/core";
-import { Button, GroupCard, ICON, observedFailures, openLearnSurface, Row, RowList, SectionLabel, skillRestoreRefusalText, skillRowActions, skillRowDescription, skillTestOverview, skillTestPlanFor, skillView, Switch, takeSharedUpkeepStep, toast, useSkillTestPlan, useUpkeepRows, workshopSections, workshopTitle, type SkillRowCaps, type UpkeepRow } from "@plainva/ui";
+import {
+  Button,
+  GroupCard,
+  ICON,
+  observedFailures,
+  openLearnSurface,
+  Row,
+  RowList,
+  SectionLabel,
+  serverSkillGroupNote,
+  serverSkillRefreshText,
+  serverSkillRowDescription,
+  skillRestoreRefusalText,
+  skillRowActions,
+  skillRowDescription,
+  skillTestOverview,
+  skillTestPlanFor,
+  skillView,
+  Switch,
+  takeSharedUpkeepStep,
+  toast,
+  useSkillTestPlan,
+  useUpkeepRows,
+  workshopSections,
+  workshopTitle,
+  workshopWaits,
+  type AiServerSkills,
+  type SkillRowCaps,
+  type UpkeepRow,
+} from "@plainva/ui";
 import { MobileUpkeepGroup } from "./MobileUpkeepGroup";
 import { RowActionSheet } from "./RowActionSheet";
 import { NewSkillSheet } from "./NewSkillSheet";
+import { ServerSkillAddSheet } from "./ServerSkillAddSheet";
 import { ScriptFormSheet } from "./ScriptFormSheet";
 import { ScriptRunSheet } from "./ScriptRunSheet";
 import { SkillApprovalSheet } from "./SkillApprovalSheet";
@@ -43,6 +73,8 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
   const plan = useSkillTestPlan(session, state);
   /** The two skills a hint asked to see side by side. */
   const [comparing, setComparing] = useState<{ a: string; b: string } | null>(null);
+  /** The server whose skill is added by its address (plan P9-4b). */
+  const [adding, setAdding] = useState<AiServerSkills | null>(null);
   // What this phone noticed by itself about the skills (plan P6-3): no model is asked for any of it.
   const upkeep = useUpkeepRows(session, state, "skills", plan);
 
@@ -62,6 +94,10 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
     });
   };
   const capsFor = (entry: InstructionEntry): SkillRowCaps => {
+    // A server's skill (plan P9-4b): looked at and approved here, never edited, copied or started — its words are its server's.
+    if (entry.source.origin === "server") {
+      return { showInstructions: () => setOpen(entry.source.id), ...(entry.approval ? { revoke: () => void session.revokeInstruction(entry.source.id) } : {}) };
+    }
     if (entry.source.kind === "script") {
       const readable = Boolean(entry.source.script) && typeof entry.source.code === "string";
       return {
@@ -104,6 +140,13 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
       ...(vault && entry.approval ? { revoke: () => void session.revokeInstruction(entry.source.id) } : {}),
       ...(vault ? { delete: () => remove(entry, "ai.workshop.deleteConfirm") } : {}),
     };
+  };
+  // "Read again" (plan P9-4b): what came of it shows in the group's line; why nothing came of it, here.
+  const readAgain = (serverId: string) => {
+    void session.refreshServerSkills(serverId).then((check) => {
+      const problem = serverSkillRefreshText(t, check);
+      if (problem) toast.error(problem);
+    });
   };
   // A version that came from a proposal and had a run that failed (plan P6-2): the way back is offered, never taken.
   const failures = observedFailures(t, state.skills.entries);
@@ -220,6 +263,37 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
           </GroupCard>
         </>
       )}
+      {state.skills.servers.length > 0 && (
+        <>
+          <SectionLabel>{t("ai.workshop.server.group")}</SectionLabel>
+          {state.skills.servers.map((group) => (
+            <Fragment key={group.serverId}>
+              <GroupCard>
+                <RowList>
+                  {group.entries.map((entry) =>
+                    workshopWaits(entry) ? (
+                      <Row key={entry.source.id} title={titleOf(entry)} subtitle={serverSkillRowDescription(t, entry, group)} onClick={() => setOpen(entry.source.id)} end={<ChevronRight size={ICON.ui} />} data-testid="ai-server-skill-review" />
+                    ) : (
+                      <Row
+                        key={entry.source.id}
+                        controls
+                        title={titleOf(entry)}
+                        subtitle={serverSkillRowDescription(t, entry, group)}
+                        onClick={() => setSheet({ title: titleOf(entry), caps: capsFor(entry) })}
+                        data-testid="ai-skill-row"
+                        end={<Switch checked={entry.status === "active"} label={t("ai.workshop.switchLabel", { title: titleOf(entry) })} onChange={(on) => void session.switchInstruction(entry.source.id, on)} />}
+                      />
+                    ),
+                  )}
+                  <Row title={t("ai.workshop.server.refresh")} subtitle={`${group.label} · ${serverSkillGroupNote(t, group, i18n.language)}`} wrap onClick={() => readAgain(group.serverId)} end={<RefreshCw size={ICON.ui} />} data-testid="ai-server-skills-refresh" />
+                  <Row title={t("ai.workshop.server.add")} onClick={() => setAdding(group)} end={<Link2 size={ICON.ui} />} data-testid="ai-server-skill-add" />
+                </RowList>
+              </GroupCard>
+            </Fragment>
+          ))}
+          <p className="m-hint">{t("ai.workshop.server.note")}</p>
+        </>
+      )}
       <SectionLabel>{t("ai.workshop.app")}</SectionLabel>
       <GroupCard>
         <RowList>{sections.app.map(switchRow)}</RowList>
@@ -253,6 +327,7 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
       {open && <SkillApprovalSheet id={open} onClose={() => setOpen(null)} />}
       {comparing && <SkillCompareSheet a={comparing.a} b={comparing.b} onClose={() => setComparing(null)} />}
       {creating && <NewSkillSheet onClose={() => setCreating(false)} />}
+      {adding && <ServerSkillAddSheet serverId={adding.serverId} label={adding.label} onClose={() => setAdding(null)} />}
       {scriptForm && <ScriptFormSheet id={scriptForm.id} onClose={() => setScriptForm(null)} />}
       {running && <ScriptRunSheet id={running} onClose={() => setRunning(null)} onOpenNote={onOpenNote} />}
       {importing && <SkillImportSheet label={importing.label} imported={importing.imported} onClose={() => setImporting(null)} />}

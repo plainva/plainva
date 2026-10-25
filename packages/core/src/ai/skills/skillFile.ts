@@ -1,6 +1,7 @@
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { frontmatterSpan } from "../../frontmatter-block.js";
 import { normalizeFolder } from "../policy.js";
+import { hiddenCharacters } from "../trust.js";
 import type { ToolDataClass, ToolRiskClass } from "../tools.js";
 
 /**
@@ -26,6 +27,8 @@ export type SkillProblemCode =
   | "frontmatter-unclosed"
   | "frontmatter-yaml"
   | "frontmatter-not-map"
+  // `---` inside a line of the frontmatter (plan P9-4b): other tools end it there and read its fields otherwise.
+  | "frontmatter-dashes"
   | "field-unknown"
   | "name-missing"
   | "name-too-long"
@@ -38,7 +41,13 @@ export type SkillProblemCode =
   | "compatibility-too-long"
   | "field-not-text"
   | "metadata-not-map"
-  | "plainva-value";
+  | "plainva-value"
+  // A skill a server serves (plan P9-4b): what its listing says against it.
+  | "server-dynamic"
+  | "server-manifest"
+  | "server-address"
+  | "server-frontmatter"
+  | "server-same-name";
 
 /** A finding about a skill file; `detail` names the field or value, never more of the file. */
 export interface SkillProblem {
@@ -88,6 +97,12 @@ export interface ParsedSkillFile {
   /** Null when the file cannot be a skill at all; with problems a skill is not run. */
   skill: SkillDefinition | null;
   problems: SkillProblem[];
+  /**
+   * The frontmatter as YAML read it, every field: what a skill a server
+   * serves is held against, field by field (plan P9-4b). Absent where there
+   * is no frontmatter map to read.
+   */
+  frontmatter?: Record<string, unknown>;
 }
 
 const RISKS: readonly SkillRisk[] = ["read", "ui"];
@@ -111,7 +126,8 @@ export function skillNameProblems(raw: string, folder?: string): SkillProblem[] 
   if ([...name].length > SKILL_NAME_MAX) problems.push({ code: "name-too-long", detail: name });
   if (name !== name.toLowerCase()) problems.push({ code: "name-uppercase", detail: name });
   if (name.startsWith("-") || name.endsWith("-") || name.includes("--")) problems.push({ code: "name-hyphen", detail: name });
-  if (!/^[\p{L}\p{N}-]+$/u.test(name)) problems.push({ code: "name-characters", detail: name });
+  // Letters of any script and digits — and none a person cannot see: some fillers count as letters (plan P9-4b).
+  if (!/^[\p{L}\p{N}-]+$/u.test(name) || hiddenCharacters(name) > 0) problems.push({ code: "name-characters", detail: name });
   if (folder !== undefined && folder.normalize("NFKC") !== name) problems.push({ code: "name-folder", detail: folder });
   return problems;
 }
@@ -185,14 +201,16 @@ function plainvaMeta(metadata: Record<string, string>, problems: SkillProblem[])
  * name must equal it); without it that check is skipped. Never throws.
  */
 export function parseSkillFile(content: string, folder?: string): ParsedSkillFile {
-  const problems: SkillProblem[] = [];
-  const source = content.replace(/^\uFEFF/, "");
-  if (!source.startsWith("---")) return { skill: null, problems: [{ code: "frontmatter-missing" }] };
-  // As the reference parser splits it: the first two `---` delimit the frontmatter.
-  const parts = source.split("---");
-  if (parts.length < 3) return { skill: null, problems: [{ code: "frontmatter-unclosed" }] };
-  const front = parts[1]!;
-  const body = parts.slice(2).join("---").trim();
+  // The frontmatter is the file's properties block, found as every one is (`frontmatterSpan`): it opens on the first
+  // line and closes on the next line that is `---` and nothing else. A `---` inside a line ends nothing — what a
+  // person sees as the frontmatter is what is read as it (plan P9-4b: the review of a server's skill shows the file).
+  const span = frontmatterSpan(content);
+  if (!span) return { skill: null, problems: [{ code: /^\uFEFF?---[ \t]*(?:\r|\n|$)/.test(content) ? "frontmatter-unclosed" : "frontmatter-missing" }] };
+  const front = span.yaml;
+  // A `---` inside a line of it: other tools — the format's reference parser among them — end the frontmatter there and
+  // read other fields than Plainva would. Such a file is not read either way; an approval of it never meant both readings.
+  if (front.includes("---")) return { skill: null, problems: [{ code: "frontmatter-dashes" }] };
+  const body = content.slice(span.end).trim();
   let doc: unknown;
   try {
     doc = parseYaml(front);
@@ -201,6 +219,17 @@ export function parseSkillFile(content: string, folder?: string): ParsedSkillFil
   }
   if (!doc || typeof doc !== "object" || Array.isArray(doc)) return { skill: null, problems: [{ code: "frontmatter-not-map" }] };
   const fields = doc as Record<string, unknown>;
+  return { ...readSkillFields(fields, body, folder), frontmatter: fields };
+}
+
+/**
+ * A skill from the fields of its frontmatter and its instructions — what a
+ * file says, read the way the format reads it. `parseSkillFile` reads a file
+ * with it; a skill a server lists before anyone read its file is read from
+ * the fields it lists (plan P9-4b), with no instructions yet.
+ */
+export function readSkillFields(fields: Readonly<Record<string, unknown>>, body: string, folder?: string): ParsedSkillFile {
+  const problems: SkillProblem[] = [];
   for (const key of Object.keys(fields)) if (!(SKILL_FIELDS as readonly string[]).includes(key)) problems.push({ code: "field-unknown", detail: key });
 
   const name = text(fields.name)?.trim().normalize("NFKC") ?? "";

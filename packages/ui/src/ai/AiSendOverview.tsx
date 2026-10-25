@@ -206,6 +206,8 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
             ? t("ai.overview.catalogVault", { count: instructions.catalog.count, vault: instructions.catalog.vault.length })
             : t("ai.overview.catalog", { count: instructions.catalog.count })
           : null,
+        // What connected servers wrote about their skills goes with the list too (plan P9-4b): their words, counted.
+        instructions.catalog?.servers ? t("ai.overview.catalogServers", { count: instructions.catalog.servers }) : null,
         instructions.vault ? t("ai.overview.vaultInstructions") : null,
       ].filter((line): line is string => Boolean(line))
     : [];

@@ -4361,6 +4361,13 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 /* A notice above the facts of a dialog stands clear of them, and of a second notice (a sheet spaces its own children). */
 .pv-modal-body > .pv-banner + .pv-skill-facts,
 .pv-modal-body > .pv-banner + .pv-banner { margin-top: var(--space-3); }
+/* A skill a connected server serves (AI harness P9-4b, mockup chapter 28): the
+   key the AI loads it by, quiet under its name. */
+.pv-skill-key { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-faint); }
+/* A file of a server's skill under its instructions, shown on request: its path, then its text or why it is not shown —
+   set off by a quiet rule, so that nobody reads it as more of the instructions. */
+.pv-skill-file { display: grid; gap: var(--space-1); min-width: 0; margin-top: var(--space-1); padding-top: var(--space-2); border-top: 1px solid var(--border-color-light); }
+.pv-skill-file > code { font-size: var(--text-xs); color: var(--text-muted); overflow-wrap: anywhere; }
 /* A scenario's verdict in the skills' regression run (AI harness P3-8): a mark
    and words. The mark carries the tone through tokens; a scenario that did not
    run or does not apply here is quiet. */

@@ -57,6 +57,16 @@ Umiejętność w vaulcie, która jest nowa lub zmieniona — przez synchronizacj
 
 To samo dotyczy pliku `AGENTS.md` na najwyższym poziomie vaultu: po zatwierdzeniu jego stałe instrukcje trafiają do każdej nowej rozmowy. Ani umiejętność, ani `AGENTS.md` nie może uchylić reguł prywatności, a umiejętność nigdy nie dostaje więcej, niż ma rozmowa — może to tylko zawęzić. Reguła dodana w pamięci albo zaakceptowana ze szkicu AI to kolejny wiersz tego pliku; zob. [Pamięć](AI_Memory.md).
 
+## Umiejętności Twoich serwerów
+
+Serwer, który łączysz w **Narzędzia zewnętrzne (MCP)**, może wnosić własne umiejętności: przewodniki po swoich narzędziach, napisane przez tego, kto go prowadzi. Stoją w **Umiejętności** w grupie **Z serwerów**, każda z nazwą swojego serwera — nigdy wśród Twoich własnych i nigdy zamiast jednej z nich: AI wczytuje taką umiejętność pod własną nazwą, np. `mcp_tracker/code-review`. Umiejętności serwera są oferowane tylko w vaulcie, który korzysta z tego serwera.
+
+**Sprawdź i zatwierdź** pokazuje serwer i to, gdzie jest osiągalny, nazwę umiejętności, to, co serwer o niej pisze — jako jego cytat —, każdy plik z jego rozmiarem i początkiem sumy kontrolnej oraz to, z czego umiejętność może korzystać. Aby to pokazać, Plainva nie czyta żadnego z jej plików; **Pokaż instrukcje** czyta dopiero teraz jej `SKILL.md` i każdy plik, który AI może z niej czytać, i najpierw sprawdza każdy z nich. Zatwierdzenie obowiązuje na tym urządzeniu dokładnie dla tych plików i tego opisu: jeśli serwer zmieni którykolwiek z nich, umiejętność znów czeka, a jej przegląd pokazuje, co się zmieniło — i jeśli przeczytałeś jej instrukcje przed zatwierdzeniem, porównuje z nimi nowe wiersz po wierszu.
+
+Umiejętność serwera może korzystać z narzędzi Plainva, które tylko czytają lub pokazują, oraz z narzędzi własnego serwera, na które pozwala vault — każde wywołanie jest jak zawsze poprzedzone pytaniem. Jakiekolwiek narzędzia wymienia, nie dostaje żadnego z narzędzi Plainva, które coś zmieniają, żadnych poleceń aplikacji, ani internetu, ani skryptu, i nigdy narzędzi innego serwera. Gdy tylko taka umiejętność — jej instrukcje lub jeden z jej plików — staje się częścią rozmowy, reszta tej rozmowy trzyma się tych granic, jakakolwiek umiejętność zostanie wczytana później. AI wczytuje ją w rozmowie, którą zaczynasz sam, gdy Twoje pytanie do niej pasuje; rozmowa uruchomiona przez umiejętność, rutyna i przebieg testowy jej nie oferują, podobnie jak urządzenie działające w pełni lokalnie. Każdy plik jest czytany ze swojego serwera dopiero wtedy, gdy jest potrzebny, i sprawdzany z tym, co zatwierdziłeś; plik, który się różni, nie jest używany, a pliki obok jej `SKILL.md` docierają do AI jako dane serwera, nigdy jako instrukcje.
+
+**Odczytaj ponownie** prosi teraz serwer o jego listę. **Dodaj według adresu…** przyjmuje umiejętność, którą serwer udostępnia, nie wymieniając jej, przez adres jej pliku `SKILL.md`; potem czeka ona jak każda inna na Twoje zatwierdzenie. **Usuń serwer** w **Narzędzia zewnętrzne (MCP)** zabiera ze sobą zatwierdzenia jego umiejętności w tym vaulcie.
+
 ## Sprawdzanie umiejętności z modelem
 
 Umiejętność może mieć scenariusze testowe: wiadomość, która ją uruchamia, i to, co robi dobre uruchomienie. Dołączone umiejętności je mają; dla własnych zapisz je w `tests/scenarios.json` w folderze umiejętności:

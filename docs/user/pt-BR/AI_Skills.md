@@ -57,6 +57,16 @@ Uma habilidade do seu vault que é nova ou foi alterada — pela sincronização
 
 O mesmo vale para um `AGENTS.md` no topo do seu vault: depois de aprovado, suas instruções permanentes vão em toda nova conversa. Nem uma habilidade nem o `AGENTS.md` podem suspender suas regras de privacidade, e uma habilidade nunca recebe mais do que uma conversa tem — ela só pode restringir. Uma regra que você adiciona na memória, ou aceita da IA, é mais uma linha deste arquivo; veja [Memória](AI_Memory.md).
 
+## As habilidades dos seus servidores
+
+Um servidor que você conecta em **Ferramentas externas (MCP)** pode trazer habilidades próprias: guias para as ferramentas dele, escritos por quem o mantém. Elas ficam em **Habilidades**, no grupo **De servidores**, cada uma com o nome do seu servidor — nunca entre as suas e nunca no lugar de uma delas: a IA carrega uma habilidade assim com um nome próprio, como `mcp_tracker/code-review`. As habilidades de um servidor só são oferecidas num vault que usa esse servidor.
+
+**Revisar e aprovar** mostra o servidor e onde ele é acessado, o nome da habilidade, o que o servidor escreve sobre ela — como citação dele —, cada arquivo com o tamanho e o começo da soma de verificação, e o que a habilidade pode usar. Para mostrar isso o Plainva não lê nenhum dos arquivos dela; **Ver instruções** lê na hora o `SKILL.md` dela e cada arquivo que a IA pode ler dela, e confere cada um antes. A aprovação vale neste dispositivo exatamente para estes arquivos e esta descrição: se o servidor alterar algum deles, a habilidade volta a aguardar, e a revisão dela mostra o que mudou — e, se você leu as instruções dela antes de aprová-la, compara as novas com elas linha por linha.
+
+Uma habilidade de um servidor pode usar as ferramentas do Plainva que só leem ou mostram, e as ferramentas do próprio servidor que o vault permite — cada chamada é perguntada como sempre. Sejam quais forem as ferramentas que ela cite, não recebe nenhuma ferramenta do Plainva que altere algo, nenhum comando do aplicativo, nem internet, nem script, e nunca as ferramentas de outro servidor. Assim que uma habilidade dessas — as instruções dela ou um dos arquivos dela — faz parte de uma conversa, o resto dessa conversa se mantém nesses limites, seja qual for a habilidade carregada depois. A IA a carrega numa conversa que você mesmo começa, quando a sua pergunta combina; uma conversa iniciada por uma habilidade, uma rotina e um teste não a oferecem, nem um dispositivo totalmente local. Cada arquivo é lido do servidor só quando é necessário e conferido com o que você aprovou; um arquivo diferente não é usado, e os arquivos ao lado do `SKILL.md` dela chegam à IA como dados do servidor, nunca como instruções.
+
+**Ler de novo** pede agora a lista ao servidor. **Adicionar pelo endereço…** pega uma habilidade que o servidor oferece sem listar, pelo endereço do `SKILL.md` dela; depois ela aguarda a sua aprovação como qualquer outra. **Remover servidor** em **Ferramentas externas (MCP)** leva junto as aprovações das habilidades dele neste vault.
+
 ## Testar habilidades com um modelo
 
 Uma habilidade pode trazer cenários de teste: uma mensagem que a inicia e o que uma boa execução faz. As habilidades incluídas os têm; para as suas, escreva-os em `tests/scenarios.json`, na pasta da habilidade:

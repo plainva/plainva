@@ -282,7 +282,7 @@ describe("messages and failures", () => {
     expect([modern.tools, modern.prompts, modern.ttlMs]).toEqual([true, false, 1000]);
 
     const legacy = readMcpInitialize({ protocolVersion: "2025-06-18", capabilities: { prompts: { listChanged: true } }, serverInfo: { name: "Old", version: 3 } }, "2025-06-18");
-    expect(legacy).toEqual({ era: "legacy", version: "2025-06-18", serverInfo: { name: "Old", version: "" }, instructions: "", tools: false, prompts: true, ttlMs: null });
+    expect(legacy).toEqual({ era: "legacy", version: "2025-06-18", serverInfo: { name: "Old", version: "" }, instructions: "", tools: false, prompts: true, skills: false, ttlMs: null });
     expect(readMcpDiscover({}).serverInfo).toBeNull();
     expect(readMcpDiscover({ ttlMs: -5 }).ttlMs).toBeNull();
   });

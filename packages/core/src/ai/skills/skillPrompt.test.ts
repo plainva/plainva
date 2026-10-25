@@ -14,7 +14,7 @@ describe("approved instructions in the system prompt", () => {
     expect(block.startsWith('<skill name="offer-check">\n')).toBe(true);
     expect(block.endsWith("\n</skill>")).toBe(true);
     expect(block.match(/<\/skill>/g)).toHaveLength(1);
-    expect(block).toContain("<\\/skill>");
+    expect(block).toContain("&lt;/skill>");
     expect(block).not.toMatch(/[\u200B\u2066]/);
   });
 

@@ -73,7 +73,7 @@ describe("a server of the stateless revision over HTTP", () => {
   it("is asked what it speaks, with the revision and the client in every request", async () => {
     const { wire, port, server } = wired({ name: "Tracker", version: "2.1", ttlMs: 60_000 });
     const hello = await wire.open();
-    expect(hello).toEqual({ era: "modern", version: "2026-07-28", serverInfo: { name: "Tracker", version: "2.1" }, instructions: "Use the search first.", tools: true, prompts: true, ttlMs: 60_000 });
+    expect(hello).toEqual({ era: "modern", version: "2026-07-28", serverInfo: { name: "Tracker", version: "2.1" }, instructions: "Use the search first.", tools: true, prompts: true, skills: false, ttlMs: 60_000 });
     expect(server.methods).toEqual(["server/discover"]);
     const { request } = port.requests[0]!;
     expect(request.method).toBe("POST");
@@ -156,7 +156,7 @@ describe("a server of an earlier revision over HTTP", () => {
   it("is found by its answer to the modern question, greeted, and spoken to the old way from then on", async () => {
     const { wire, port, server } = wired({ era: "legacy", legacyVersion: "2025-06-18", name: "Old" });
     const hello = await wire.open();
-    expect(hello).toEqual({ era: "legacy", version: "2025-06-18", serverInfo: { name: "Old", version: "1.0.0" }, instructions: "Use the search first.", tools: true, prompts: true, ttlMs: null });
+    expect(hello).toEqual({ era: "legacy", version: "2025-06-18", serverInfo: { name: "Old", version: "1.0.0" }, instructions: "Use the search first.", tools: true, prompts: true, skills: false, ttlMs: null });
     expect(server.methods).toEqual(["server/discover", "initialize", "notifications/initialized"]);
     const greeting = JSON.parse(port.requests[1]!.request.body) as { params: Record<string, unknown> };
     expect(greeting.params).toEqual({ protocolVersion: "2025-11-25", capabilities: {}, clientInfo: client });

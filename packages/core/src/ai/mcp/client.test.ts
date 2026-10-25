@@ -42,7 +42,7 @@ async function failureOf(run: Promise<unknown>): Promise<McpFailure> {
 /** A wire answered by hand, for lists no scripted server would send. */
 function handWire(answer: (method: string, params: Record<string, unknown>) => Record<string, unknown>, hello: Partial<McpOpened> = {}) {
   const asked: { method: string; params: Record<string, unknown> }[] = [];
-  const opened: McpOpened = { era: "modern", version: "2026-07-28", serverInfo: null, instructions: "", tools: true, prompts: false, ttlMs: null, ...hello };
+  const opened: McpOpened = { era: "modern", version: "2026-07-28", serverInfo: null, instructions: "", tools: true, prompts: false, skills: false, ttlMs: null, ...hello };
   const wire: McpWire = {
     transport: "http",
     open: () => Promise.resolve(opened),

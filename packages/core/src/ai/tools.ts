@@ -458,8 +458,8 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
       "Loads the instructions of one of the listed skills, to follow them for the current request. With `file`, loads one file of that skill instead (a path from the list the instructions end with).",
     risk: "read",
     input: z.object({
-      name: z.string().min(1).max(80).describe("The skill's name as the list writes it"),
-      file: z.string().min(1).max(256).optional().describe("A file of the skill, e.g. references/terms.md"),
+      name: z.string().min(1).max(160).describe("The skill's name as the list writes it"),
+      file: z.string().min(1).max(2048).optional().describe("A file of the skill, e.g. references/terms.md"),
     }),
     dataClasses: [],
     // Approved instructions, not data: the result is tier 1 (plan KI-Harness P3).

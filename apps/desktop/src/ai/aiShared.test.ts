@@ -235,7 +235,7 @@ describe("the settings model", () => {
     dress: null,
     hasVault: true,
     consent: null,
-    skills: { entries: [], omitted: [] },
+    skills: { entries: [], omitted: [], servers: [] },
     skillTests: { records: [], running: null },
     web: { enabled: false, allow: [] },
     draftWeb: false,

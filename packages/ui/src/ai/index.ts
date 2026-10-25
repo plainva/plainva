@@ -33,6 +33,7 @@ export * from "./aiSkills";
 export * from "./appSkills";
 export * from "./skillRuntime";
 export * from "./skillsWorkshop";
+export * from "./ServerSkillParts";
 export * from "./SkillTestParts";
 export * from "./aiTranscribe";
 export * from "./aiImage";

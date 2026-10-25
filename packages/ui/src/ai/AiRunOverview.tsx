@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AI_PROFILE_IDS, choiceOnDevice, providerById, type ConversationRecord, type EgressManifest, type ModelChoice, type RunMeta } from "@plainva/core";
+import { AI_PROFILE_IDS, choiceOnDevice, mcpSkillIdLabel, providerById, type ConversationRecord, type EgressManifest, type ModelChoice, type RunMeta } from "@plainva/core";
 import { AiSendOverview, type AiSendOverviewProps, type RunSnapshotView } from "./AiSendOverview";
 import { replayRequest, runToolCalls, type RunSnapshotStates } from "./runReplay";
 import { useAiSession, useAiState } from "./useAiSession";
@@ -60,7 +60,8 @@ export function AiRunOverview({ record, run, manifest, ...overview }: AiRunOverv
       read: (run.read ?? []).map((path) => ({ path, title: titleOf(path), ...(hashes.get(path) ? { hash: hashes.get(path) } : {}) })),
       readMore: run.readMore === true,
       tools: runToolCalls(record, run),
-      skills: (run.skills ?? []).flatMap((skill) => (skill.sha256 ? [{ id: skill.id, name: skill.id.slice(skill.id.indexOf(":") + 1), hash: skill.sha256 }] : [])),
+      // A server's skill (plan P9-4b) by the key the AI loaded it by, never its raw id.
+      skills: (run.skills ?? []).flatMap((skill) => (skill.sha256 ? [{ id: skill.id, name: mcpSkillIdLabel(skill.id) ?? skill.id.slice(skill.id.indexOf(":") + 1), hash: skill.sha256 }] : [])),
       result: { rounds: run.writes?.rounds.length ?? 0, drafts: run.writes?.drafts.length ?? 0, plans: run.writes?.plans.length ?? 0 },
       replay: request.ok ? { choices, onReplay: (choice) => void session.replay(record.id, run.userTurn, choice) } : { refused: request.reason },
     };

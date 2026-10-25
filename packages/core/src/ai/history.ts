@@ -196,7 +196,8 @@ export interface ConversationSkill {
 export interface ConversationInstructions {
   skill?: ConversationSkill;
   /** The catalog's entries: the name the model calls, the source's id and its origin. */
-  catalog?: { key: string; id: string; origin: "plainva" | "vault" }[];
+  /** `server`: a skill a connected server serves (plan P9-4b). */
+  catalog?: { key: string; id: string; origin: "plainva" | "vault" | "server" }[];
   catalogTokens?: number;
   skillTokens?: number;
   /** The vault owner's AGENTS.md went in, this many tokens. */
@@ -363,6 +364,8 @@ function readReplayOf(raw: unknown): ReplayOf | null {
 
 const ORIGINS = ["plainva", "vault"] as const;
 const originOf = (v: unknown): "plainva" | "vault" | null => (ORIGINS as readonly unknown[]).includes(v) ? (v as "plainva" | "vault") : null;
+/** A catalog lists a server's skills too (plan P9-4b); a conversation is never bound to one. */
+const catalogOriginOf = (v: unknown): "plainva" | "vault" | "server" | null => (v === "server" ? "server" : originOf(v));
 
 /** A conversation's instructions, field by field; what does not read is left out. */
 function readInstructions(raw: unknown): ConversationInstructions | null {
@@ -384,7 +387,7 @@ function readInstructions(raw: unknown): ConversationInstructions | null {
   if (Array.isArray(r.catalog)) {
     out.catalog = r.catalog.flatMap((e) => {
       const x = e as Record<string, unknown> | null;
-      return x && typeof x.key === "string" && typeof x.id === "string" && originOf(x.origin) ? [{ key: x.key, id: x.id, origin: originOf(x.origin)! }] : [];
+      return x && typeof x.key === "string" && typeof x.id === "string" && catalogOriginOf(x.origin) ? [{ key: x.key, id: x.id, origin: catalogOriginOf(x.origin)! }] : [];
     });
   }
   if (count(r.catalogTokens)) out.catalogTokens = count(r.catalogTokens);
@@ -671,7 +674,8 @@ function readManifestInstructions(raw: unknown): EgressManifest["instructions"] 
     out.skill = { id: s.id, name: s.name, origin: originOf(s.origin)!, tokens: count(s.tokens), ...(s.localPreferred === true ? { localPreferred: true } : {}) };
   }
   const c = r.catalog as Record<string, unknown> | undefined;
-  if (c && typeof c === "object") out.catalog = { count: count(c.count), vault: Array.isArray(c.vault) ? c.vault.filter((v): v is string => typeof v === "string") : [], tokens: count(c.tokens) };
+  if (c && typeof c === "object")
+    out.catalog = { count: count(c.count), vault: Array.isArray(c.vault) ? c.vault.filter((v): v is string => typeof v === "string") : [], tokens: count(c.tokens), ...(count(c.servers) ? { servers: count(c.servers) } : {}) };
   const v = r.vault as Record<string, unknown> | undefined;
   if (v && typeof v === "object") out.vault = { tokens: count(v.tokens) };
   return Object.keys(out).length ? out : null;

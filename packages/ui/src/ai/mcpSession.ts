@@ -20,8 +20,8 @@ import {
   type McpSignInProblem,
   type ToolManifest,
 } from "@plainva/core";
-import { McpRuntime, type McpAddResult, type McpCheck, type McpInspection, type McpPromptLook } from "./mcpRuntime";
-import { mcpVaultEntryFor, type McpAuditEntry, type McpDeviceStore, type McpServerRecord, type McpVaultStore } from "./mcpStores";
+import { McpRuntime, type McpAddResult, type McpCheck, type McpInspection, type McpPromptLook, type McpSkillAdd, type McpSkillRead } from "./mcpRuntime";
+import { mcpVaultEntryFor, type McpAuditEntry, type McpDeviceStore, type McpServerRecord, type McpSkillsRecord, type McpVaultStore } from "./mcpStores";
 
 /**
  * Foreign MCP servers in the assistant's session (plan KI-Harness P4.5): the
@@ -59,6 +59,8 @@ export interface AiMcpServer extends McpServerState {
   registered: McpRegisteredServer;
   addedAt: string;
   seen?: McpServerRecord["seen"];
+  /** The skills it serves, as it listed them last (plan P9-4b); absent where it serves none. */
+  skills?: McpSkillsRecord;
 }
 
 export interface AiMcpState {
@@ -120,6 +122,8 @@ export class AiMcp {
      * What is registered and approved stays as it is.
      */
     private readonly resting: () => boolean = () => false,
+    /** A server was removed from this device: what the open vault approved of its skills goes with it (plan P9-4b). */
+    private readonly removed: (id: string) => Promise<void> = async () => undefined,
   ) {
     this.runtime = host
       ? new McpRuntime({
@@ -179,6 +183,7 @@ export class AiMcp {
         registered,
         addedAt: record.addedAt,
         ...(record.seen ? { seen: record.seen } : {}),
+        ...(record.skills ? { skills: record.skills } : {}),
       };
     });
   }
@@ -232,6 +237,7 @@ export class AiMcp {
 
   async remove(id: string): Promise<void> {
     await this.runtime?.remove(id);
+    await this.removed(id).catch(() => undefined);
     await this.refresh();
   }
 
@@ -347,6 +353,30 @@ export class AiMcp {
 
   async pinPrompt(id: string, key: string, body: unknown): Promise<void> {
     await this.runtime?.pinPrompt(id, key, body);
+  }
+
+  /* ---- skills a server serves (plan P9-4b) ---------------------------------------------------- */
+
+  /** Reads a server's skills again now; like every look, it compares the listing with the approved one. */
+  async refreshSkills(id: string, signal?: AbortSignal): Promise<McpCheck> {
+    if (!this.runtime || this.resting()) return { ok: false, reason: "not-approved" };
+    const result = await this.runtime.refreshSkills(id, signal);
+    await this.refresh();
+    return result;
+  }
+
+  /** A skill by its address, kept with the server on this device. */
+  async addSkill(id: string, uri: string, signal?: AbortSignal): Promise<McpSkillAdd> {
+    if (!this.runtime || this.resting()) return { ok: false, reason: "not-approved" };
+    const result = await this.runtime.addSkill(id, uri, signal);
+    await this.refresh();
+    return result;
+  }
+
+  /** One file of a skill, checked against its manifest; nothing of it while the device is fully local. */
+  readSkillFile(id: string, skillUri: string, file: { uri: string; bytes: number; sha256: string }, signal?: AbortSignal): Promise<McpSkillRead> {
+    if (!this.runtime || this.resting()) return Promise.resolve({ ok: false, reason: "not-approved" });
+    return this.runtime.readSkillFile(id, skillUri, file, signal);
   }
 
   /** One line for this vault's log of calls. */

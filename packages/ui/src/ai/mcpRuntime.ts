@@ -1,5 +1,6 @@
 import {
   McpError,
+  MCP_SKILL_LIMITS,
   NEW_MCP_SERVER,
   approveMcpListing,
   asMcpError,
@@ -12,9 +13,14 @@ import {
   mcpOnDeviceHost,
   mcpPromptBody,
   mcpPromptKey,
+  mcpResourceBytes,
   mcpServerIdProblem,
   mcpServerTarget,
+  mcpSkillFileMatches,
   planMcpSignIn,
+  combineMcpSkillEntries,
+  readMcpSkillEntries,
+  readMcpSkillEntry,
   reviewMcpListing,
   reviewMcpPromptBody,
   runMcpSignIn,
@@ -38,8 +44,9 @@ import {
   type McpServerReview,
   type McpSignInPlan,
   type McpSignInProblem,
+  type McpSkillEntry,
 } from "@plainva/core";
-import { mcpSnapshotFits, type McpDeviceStore, type McpServerRecord } from "./mcpStores";
+import { fitMcpSkillsRecord, mcpSkillAddress, mcpSnapshotFits, type McpDeviceStore, type McpServerRecord, type McpSkillsRecord } from "./mcpStores";
 
 /**
  * Foreign MCP servers on this device (plan KI-Harness P4.5): what is
@@ -103,7 +110,47 @@ export interface McpInspection {
   tooLarge: boolean;
   /** Where the server stands after this look: `blocked` when the listing differs from the approved one. */
   review: McpServerReview;
+  /** How many skills it serves (plan P9-4b) — each is approved on its own, in the workshop; null where it serves none. */
+  skills: number | null;
 }
+
+/** What reading a server's skills brought (plan P9-4b). */
+interface SkillsRead {
+  entries: McpSkillEntry[];
+  clipped: boolean;
+  /** Something could not be read: what is shown of it is what was read before. */
+  failed: boolean;
+  /** The list itself could not be read: the entries are the ones read before, and so is the time they were read. */
+  listFailed: boolean;
+  /** Addresses the user added that the server no longer knows. */
+  gone: string[];
+}
+
+export type McpSkillAdd =
+  | { ok: true }
+  /** Not an address of a skill's `SKILL.md`, or the server answered with another skill. */
+  | { ok: false; reason: "invalid" }
+  /** The server knows no skill at that address. */
+  | { ok: false; reason: "unknown" }
+  /** It serves no skills at all. */
+  | { ok: false; reason: "no-skills" }
+  /** Already as many addresses as are kept for one server. */
+  | { ok: false; reason: "full" }
+  | { ok: false; reason: "not-approved" | "blocked" }
+  | { ok: false; reason: "failed"; failure: McpFailure };
+
+export type McpSkillRead =
+  | { ok: true; bytes: Uint8Array }
+  /** Other bytes than the manifest names: not used, and the entry was read again. */
+  | { ok: false; reason: "digest" }
+  | { ok: false; reason: "not-approved" | "blocked" }
+  | { ok: false; reason: "failed"; failure: McpFailure };
+
+/** What is kept of read files of skills, at most: verified bytes, in memory, never on the disk. */
+export const MCP_SKILL_CACHE_BYTES = 32 * 1024 * 1024;
+
+/** A failure that says the server knows nothing at the address asked for. */
+const unknownAddress = (failure: McpFailure) => failure.kind === "rpc" && failure.code === -32602;
 
 export type McpAddProblem =
   /** No usable name is left of the label, or every variant of it is taken. */
@@ -168,6 +215,9 @@ export class McpRuntime {
   private readonly links = new Map<string, Link>();
   private lane: Promise<unknown> = Promise.resolve();
   private info: Promise<McpClientInfo> | null = null;
+  /** Files of skills that were read and checked (plan P9-4b), by server, address and digest: what the digest names, nothing else. */
+  private readonly skillFiles = new Map<string, Uint8Array>();
+  private skillFileBytes = 0;
 
   constructor(private readonly host: McpRuntimeHost) {}
 
@@ -267,6 +317,7 @@ export class McpRuntime {
 
   async remove(id: string): Promise<void> {
     this.drop(id);
+    this.forgetSkillFiles(id);
     await this.host.native.remove(id);
     await this.change((records) => {
       delete records[id];
@@ -434,12 +485,97 @@ export class McpRuntime {
       const link = await this.link(server);
       const hello = await link.client.open(signal);
       const loaded = await link.client.listing(signal);
+      // Where it serves skills — as the answer this listing was made with says —, what it lists of them comes along
+      // (plan P9-4b), never a file of them.
+      const skills = loaded.skills ? await this.readSkills(server, link, signal) : null;
       link.freshUntil = this.host.now().getTime() + loaded.freshForMs;
       link.stale = false;
-      return { hello, ...loaded };
+      return { hello, ...loaded, skills };
     } catch (error) {
       throw this.failed(server.id, error);
     }
+  }
+
+  /**
+   * What a server lists of its skills now, and the entries of the addresses
+   * the user added that the list does not carry. A reading that fails keeps
+   * what was read before — of this registration only: another one's skills
+   * are another server's.
+   */
+  private async readSkills(server: McpRegisteredServer, link: Link, signal?: AbortSignal): Promise<SkillsRead> {
+    const record = (await this.host.store.load())[server.id];
+    const before = record && record.target === mcpServerTarget(server) ? record.skills : undefined;
+    const added = before?.added ?? [];
+    const kept = (uri: string) => before?.entries.find((entry) => entry.uri === uri) ?? null;
+    let listed: McpSkillEntry[];
+    let clipped: boolean;
+    let listFailed = false;
+    try {
+      const answer = await link.client.skills(signal);
+      listed = readMcpSkillEntries(answer.items);
+      clipped = answer.clipped;
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      listFailed = true;
+      clipped = before?.clipped ?? false;
+      listed = (before?.entries ?? []).filter((entry) => !added.includes(entry.uri));
+    }
+    let failed = listFailed;
+    const gone: string[] = [];
+    // The addresses the user added come first: a long list never pushes one of them out.
+    const fromAdded: McpSkillEntry[] = [];
+    for (const uri of added) {
+      const inList = listed.find((entry) => entry.uri === uri);
+      if (inList) {
+        fromAdded.push(inList);
+        continue;
+      }
+      try {
+        const entry = readMcpSkillEntry(await link.client.skill(uri, signal));
+        // An answer about another address is no answer about this one: what was read of it before stays.
+        if (entry?.uri === uri) fromAdded.push(entry);
+        else {
+          failed = true;
+          const before = kept(uri);
+          if (before) fromAdded.push(before);
+        }
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        if (unknownAddress(asMcpError(error).failure)) {
+          gone.push(uri);
+          continue;
+        }
+        failed = true;
+        const before = kept(uri);
+        if (before) fromAdded.push(before);
+      }
+    }
+    return { entries: combineMcpSkillEntries([...fromAdded, ...listed]), clipped, failed, listFailed, gone };
+  }
+
+  /**
+   * What is kept of a server's skills after a reading. A server that does not
+   * say it serves skills keeps none — only the addresses the user added, for
+   * the day it serves them again. An address added while the reading ran is
+   * kept with what was read of it.
+   */
+  private skillsAfter(record: McpServerRecord, skills: SkillsRead | null, now: Date): void {
+    const before = record.skills;
+    if (!skills) {
+      if (before?.added.length) record.skills = { at: before.at, failed: false, clipped: false, entries: [], added: before.added };
+      else delete record.skills;
+      return;
+    }
+    const added = (before?.added ?? []).filter((uri) => !skills.gone.includes(uri));
+    const meanwhile = (before?.entries ?? []).filter((entry) => added.includes(entry.uri) && !skills.entries.some((read) => read.uri === entry.uri));
+    record.skills = fitMcpSkillsRecord({
+      // A list that could not be read is shown as of when it was read.
+      at: skills.listFailed && before ? before.at : now.toISOString(),
+      failed: skills.failed,
+      clipped: skills.clipped,
+      entries: combineMcpSkillEntries([...meanwhile, ...skills.entries]),
+      added,
+    });
   }
 
   /**
@@ -450,20 +586,23 @@ export class McpRuntime {
   async inspect(id: string, signal?: AbortSignal): Promise<McpInspection> {
     const server = await this.registered(id);
     const target = mcpServerTarget(server);
-    const { hello, listing, clipped } = await this.load(server, signal);
+    const { hello, listing, clipped, skills } = await this.load(server, signal);
     const now = this.host.now();
     const review = await this.change((records) => {
       const record = (records[id] ??= { ...BLANK, label: id, addedAt: now.toISOString() });
-      // A registration other than the approved one voids the approval: its texts were another server's.
+      // A registration other than the approved one voids the approval: its texts were another server's — and its skills.
       if (record.target !== target) {
         record.review = NEW_MCP_SERVER;
         record.snapshot = null;
+        delete record.skills;
+        this.forgetSkillFiles(id);
       }
       record.review = reviewMcpListing(record.review, listing, now);
       record.seen = { name: hello.serverInfo?.name ?? "", era: hello.era, version: hello.version, at: now.toISOString(), clipped: clipped.tools || clipped.prompts };
+      this.skillsAfter(record, skills, now);
       return record.review;
     });
-    return { hello, listing, clipped, tooLarge: !mcpSnapshotFits(listing), review };
+    return { hello, listing, clipped, tooLarge: !mcpSnapshotFits(listing), review, skills: skills ? skills.entries.length : null };
   }
 
   /** The user looked at this listing and allowed it. The only way out of "new" and "blocked". */
@@ -498,8 +637,9 @@ export class McpRuntime {
     const existing = this.links.get(id);
     if (existing && existing.target === record.target && !existing.stale && this.host.now().getTime() < existing.freshUntil) return { ok: true };
     let listing: McpListing;
+    let skills: SkillsRead | null;
     try {
-      ({ listing } = await this.load(server, signal));
+      ({ listing, skills } = await this.load(server, signal));
     } catch (error) {
       return { ok: false, reason: "failed", failure: asMcpError(error).failure };
     }
@@ -508,6 +648,7 @@ export class McpRuntime {
       const current = records[id];
       if (!current) return NEW_MCP_SERVER;
       current.review = reviewMcpListing(current.review, listing, now);
+      if (current.target === record.target) this.skillsAfter(current, skills, now);
       return current.review;
     });
     if (review.status === "blocked") return { ok: false, reason: "blocked" };
@@ -575,6 +716,139 @@ export class McpRuntime {
       bodies.push([key, mcpHash(body)]);
       record.review = { status: "approved", pin: { ...record.review.pin, promptBodies: Object.fromEntries(bodies.slice(-MCP_PROMPT_PINS_MAX)) } };
     });
+  }
+
+  /* ---- skills a server serves (plan P9-4b) ---------------------------------------------------- */
+
+  /**
+   * Reads a server's skills again, now: the next look at it is not left to
+   * the server's own hint of freshness — and like every look it compares
+   * the listing with the approved one.
+   */
+  refreshSkills(id: string, signal?: AbortSignal): Promise<McpCheck> {
+    const link = this.links.get(id);
+    if (link) link.stale = true;
+    return this.check(id, signal);
+  }
+
+  /**
+   * A skill by its address (`skills/get`): one the server serves without
+   * listing it, or one the user wants to be sure of. Kept with the server on
+   * this device, and asked for at every reading of its skills from then on.
+   */
+  async addSkill(id: string, uri: string, signal?: AbortSignal): Promise<McpSkillAdd> {
+    const address = mcpSkillAddress(uri);
+    if (!address) return { ok: false, reason: "invalid" };
+    const checked = await this.check(id, signal);
+    if (!checked.ok) return checked.reason === "failed" ? { ok: false, reason: "failed", failure: checked.failure } : { ok: false, reason: checked.reason };
+    const server = await this.registered(id);
+    let asked: { serves: false } | { serves: true; raw: unknown };
+    try {
+      asked = await this.running(server, signal, async (link, stop) =>
+        // Asked only of a server that said it serves skills.
+        (await link.client.open(stop)).skills ? { serves: true as const, raw: await link.client.skill(address, stop) } : { serves: false as const },
+      );
+    } catch (error) {
+      const failure = this.failed(id, error).failure;
+      return unknownAddress(failure) ? { ok: false, reason: "unknown" } : { ok: false, reason: "failed", failure };
+    }
+    if (!asked.serves) return { ok: false, reason: "no-skills" };
+    const raw = asked.raw;
+    if (readMcpSkillEntry(raw)?.uri !== address) return { ok: false, reason: "invalid" };
+    const now = this.host.now();
+    const target = mcpServerTarget(server);
+    return this.change((records): McpSkillAdd => {
+      const record = records[id];
+      if (!record || record.target !== target) return { ok: false, reason: "not-approved" };
+      const before: McpSkillsRecord = record.skills ?? { at: now.toISOString(), failed: false, clipped: false, entries: [], added: [] };
+      if (!before.added.includes(address) && before.added.length >= MCP_SKILL_LIMITS.added) return { ok: false, reason: "full" };
+      const entry = readMcpSkillEntry(raw)!;
+      const next = fitMcpSkillsRecord({
+        ...before,
+        entries: combineMcpSkillEntries([entry, ...before.entries.filter((other) => other.uri !== address)]),
+        added: before.added.includes(address) ? before.added : [...before.added, address],
+      });
+      // "Added" is said only of what is kept.
+      if (!next.entries.some((other) => other.uri === address)) return { ok: false, reason: "full" };
+      record.skills = next;
+      return { ok: true };
+    });
+  }
+
+  /**
+   * One file of a skill, checked: the bytes its manifest names — size and
+   * SHA-256 —, read from this server and no other, after the same look at
+   * the server as before any use. Bytes that differ are not used, and the
+   * skill's entry is read again (`skills/get`), so that what changed is
+   * shown as changed. What passed is kept in memory, by its digest.
+   */
+  async readSkillFile(id: string, skillUri: string, file: { uri: string; bytes: number; sha256: string }, signal?: AbortSignal): Promise<McpSkillRead> {
+    const checked = await this.check(id, signal);
+    if (!checked.ok) return checked.reason === "failed" ? { ok: false, reason: "failed", failure: checked.failure } : { ok: false, reason: checked.reason };
+    const key = `${id}\n${file.uri}\n${file.sha256}`;
+    const kept = this.skillFiles.get(key);
+    if (kept) return { ok: true, bytes: kept };
+    const server = await this.registered(id);
+    let result: Record<string, unknown>;
+    try {
+      result = await this.running(server, signal, (link, stop) => link.client.readResource(file.uri, stop));
+    } catch (error) {
+      return { ok: false, reason: "failed", failure: this.failed(id, error).failure };
+    }
+    const bytes = mcpResourceBytes(result, file.uri);
+    if (!bytes || !mcpSkillFileMatches(file, bytes)) {
+      await this.refreshSkillEntry(server, skillUri, signal).catch(() => undefined);
+      return { ok: false, reason: "digest" };
+    }
+    this.keepSkillFile(key, bytes);
+    return { ok: true, bytes };
+  }
+
+  /** One skill's entry read again, after its bytes did not match: kept as the server lists it now, or gone where it knows it no more. */
+  private async refreshSkillEntry(server: McpRegisteredServer, uri: string, signal?: AbortSignal): Promise<void> {
+    let raw: unknown = null;
+    let gone = false;
+    try {
+      raw = await this.running(server, signal, (link, stop) => link.client.skill(uri, stop));
+    } catch (error) {
+      if (!unknownAddress(asMcpError(error).failure)) return;
+      gone = true;
+    }
+    if (!gone && readMcpSkillEntry(raw)?.uri !== uri) return;
+    const target = mcpServerTarget(server);
+    await this.change((records) => {
+      const record = records[server.id];
+      if (!record?.skills || record.target !== target) return;
+      const fresh = gone ? null : readMcpSkillEntry(raw);
+      const entries = record.skills.entries.flatMap((entry) => (entry.uri !== uri ? [entry] : fresh ? [fresh] : []));
+      record.skills = fitMcpSkillsRecord({
+        ...record.skills,
+        entries: combineMcpSkillEntries(fresh && !entries.includes(fresh) ? [fresh, ...entries] : entries),
+        added: gone ? record.skills.added.filter((address) => address !== uri) : record.skills.added,
+      });
+    });
+  }
+
+  private keepSkillFile(key: string, bytes: Uint8Array): void {
+    // Two readings of one file that ended together: the first one is kept, the bytes are the same.
+    if (this.skillFiles.has(key) || bytes.length > MCP_SKILL_CACHE_BYTES) return;
+    // The oldest go first, until the new one fits.
+    for (const [old, value] of this.skillFiles) {
+      if (this.skillFileBytes + bytes.length <= MCP_SKILL_CACHE_BYTES) break;
+      this.skillFiles.delete(old);
+      this.skillFileBytes -= value.length;
+    }
+    this.skillFiles.set(key, bytes);
+    this.skillFileBytes += bytes.length;
+  }
+
+  /** What was kept of a server's skills goes with the server — removed, or registered anew. */
+  private forgetSkillFiles(id: string): void {
+    for (const [key, value] of this.skillFiles) {
+      if (!key.startsWith(`${id}\n`)) continue;
+      this.skillFiles.delete(key);
+      this.skillFileBytes -= value.length;
+    }
   }
 
   /** Ends every connection: the vault closed, or the app does. */

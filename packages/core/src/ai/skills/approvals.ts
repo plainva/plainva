@@ -71,7 +71,20 @@ export interface InstructionApproval {
   signature?: string;
   /** Set while this version is watched: it came from a proposal the user took over. Gone with the next approval. */
   observe?: ApprovalObservation;
+  /**
+   * For a skill a server serves (plan P9-4b): SHA-256 of the frontmatter the
+   * server listed when it was approved. The catalog describes the skill with
+   * what the server lists — a description that changed is a skill that
+   * changed, whatever its files say.
+   */
+  frontmatter?: string;
 }
+
+/** The key under which what an approval sees holds a server skill's frontmatter: no file's path begins with "#". */
+export const SEEN_FRONTMATTER = "#frontmatter";
+
+/** The ids of a server's skills begin with this (`mcp:<server>:…`, plan P9-4b). */
+export const SERVER_SKILL_PREFIX = "mcp:";
 
 export interface InstructionApprovals {
   approved: InstructionApproval[];
@@ -130,6 +143,7 @@ export function readInstructionApprovals(raw: string | null): InstructionApprova
       ...(from ? { from: { label: from.label.slice(0, 200), ...(isText(from.sha256) && HEX64.test(from.sha256) ? { sha256: from.sha256 } : {}) } } : {}),
       ...(isText(a.signature) && a.signature.length <= 128 ? { signature: a.signature } : {}),
       ...(observe ? { observe } : {}),
+      ...(isText(a.frontmatter) && HEX64.test(a.frontmatter) ? { frontmatter: a.frontmatter } : {}),
     });
   }
   const off = (Array.isArray(value.off) ? value.off : []).filter((id): id is string => isText(id) && id.length > 0);
@@ -144,6 +158,24 @@ export function serializeInstructionApprovals(approvals: InstructionApprovals): 
 export function sameFiles(approved: Record<string, string>, files: readonly InstructionFile[]): boolean {
   const keys = Object.keys(approved);
   return keys.length === files.length && files.every((f) => approved[f.path] === f.sha256);
+}
+
+/**
+ * What a review shows of a source and an approval binds: every file by its
+ * path and hash — and, for a skill a server serves, the frontmatter it lists
+ * (plan P9-4b), under `SEEN_FRONTMATTER`.
+ */
+export function approvalSeen(source: Pick<InstructionSource, "files" | "server">): Record<string, string> {
+  const seen: Record<string, string> = Object.fromEntries(source.files.map((f) => [f.path, f.sha256]));
+  if (source.server) seen[SEEN_FRONTMATTER] = source.server.frontmatter;
+  return seen;
+}
+
+/** True when a source is still exactly what a review showed: nothing added, nothing gone, nothing changed. */
+export function sameSeen(source: Pick<InstructionSource, "files" | "server">, seen: Readonly<Record<string, string>>): boolean {
+  const now = approvalSeen(source);
+  const keys = Object.keys(now);
+  return keys.length === Object.keys(seen).length && keys.every((key) => seen[key] === now[key]);
 }
 
 export function approvalOf(approvals: InstructionApprovals, id: string): InstructionApproval | null {
@@ -170,10 +202,12 @@ export function instructionStatus(source: InstructionSource, approvals: Instruct
   if (source.tooLarge) return "too-large";
   if (source.kind === "skill" && (!source.skill || blockingProblems(source.problems).length)) return "invalid";
   if (source.kind === "script" && (!source.script || source.code === null || source.code === undefined || (source.scriptProblems?.length ?? 0) > 0)) return "invalid";
-  if (source.origin === "vault") {
+  if (source.origin === "vault" || source.origin === "server") {
     const approval = approvalOf(approvals, source.id);
     if (!approval) return "new";
     if (!sameFiles(approval.files, source.files)) return "changed";
+    // A server's skill: what it lists of itself is bound too (plan P9-4b) — a new description is a new skill to look at.
+    if (source.origin === "server" && approval.frontmatter !== source.server?.frontmatter) return "changed";
     if (source.kind === "script" && !(approval.signature && signed?.(source, approval))) return "new";
   }
   return approvals.off.includes(source.id) ? "off" : "active";
@@ -195,6 +229,7 @@ export function approveInstruction(approvals: InstructionApprovals, source: Inst
     ...(source.text !== null ? { text: source.text.slice(0, APPROVED_TEXT_MAX) } : {}),
     ...(from ? { from } : {}),
     ...(source.kind === "script" && signature ? { signature } : {}),
+    ...(source.origin === "server" && source.server ? { frontmatter: source.server.frontmatter } : {}),
   };
   return { ...approvals, approved: [...approvals.approved.filter((a) => a.id !== source.id), entry] };
 }
@@ -265,8 +300,18 @@ export function switchInstruction(approvals: InstructionApprovals, id: string, o
   return { ...approvals, off: on ? off : [...off, id] };
 }
 
-/** Forgets approvals and switches of sources that no longer exist (the folder was deleted or renamed). */
+/**
+ * Forgets approvals and switches of sources that no longer exist (the folder
+ * was deleted or renamed). A vault's scan says nothing about a server's
+ * skills (plan P9-4b): theirs go with the server (`pruneServerSkillApprovals`).
+ */
 export function pruneInstructionApprovals(approvals: InstructionApprovals, existing: ReadonlySet<string>): InstructionApprovals {
-  const keep = (id: string) => existing.has(id) || id.startsWith("plainva:");
+  const keep = (id: string) => existing.has(id) || id.startsWith("plainva:") || id.startsWith(SERVER_SKILL_PREFIX);
   return { approved: approvals.approved.filter((a) => keep(a.id)), off: approvals.off.filter(keep) };
+}
+
+/** Forgets the approvals and switches of one server's skills: the user removed the server from this device. */
+export function pruneServerSkillApprovals(approvals: InstructionApprovals, serverId: string): InstructionApprovals {
+  const theirs = (id: string) => id.startsWith(`${SERVER_SKILL_PREFIX}${serverId}:`);
+  return { approved: approvals.approved.filter((a) => !theirs(a.id)), off: approvals.off.filter((id) => !theirs(id)) };
 }

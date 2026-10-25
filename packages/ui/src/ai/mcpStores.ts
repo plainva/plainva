@@ -1,15 +1,20 @@
 import {
   EMPTY_MCP_GRANT,
   MCP_SERVER_ID_PATTERN,
+  MCP_SKILL_LIMITS,
+  mcpSkillUriReadable,
   NEW_MCP_SERVER,
   capMcpText,
   readMcpListing,
   readMcpServerGrant,
   readMcpServerReview,
+  readStoredMcpSkillEntries,
+  storedMcpSkillEntry,
   type McpEra,
   type McpListing,
   type McpServerGrant,
   type McpServerReview,
+  type McpSkillEntry,
 } from "@plainva/core";
 import type { AiFileStore } from "./aiStores";
 
@@ -38,7 +43,30 @@ export interface McpServerRecord {
   snapshot: McpListing | null;
   /** What the server called itself and spoke at the last look. For display. */
   seen?: { name: string; era: McpEra; version: string; at: string; clipped: boolean };
+  /**
+   * The skills it serves, as it listed them last (plan P9-4b), with the
+   * addresses the user added by hand. Nothing of their files: those are read
+   * when a skill is needed, and checked against the manifest kept here.
+   * Absent for a server that serves none.
+   */
+  skills?: McpSkillsRecord;
 }
+
+/** What this device keeps of a server's skills (plan P9-4b). */
+export interface McpSkillsRecord {
+  /** When the list was read last (ISO 8601). */
+  at: string;
+  /** The last reading failed: the entries are the ones before it. */
+  failed: boolean;
+  /** The server lists more than Plainva reads or keeps; the rest is not offered. */
+  clipped: boolean;
+  entries: McpSkillEntry[];
+  /** Addresses the user added by hand: asked for with `skills/get` at every reading. */
+  added: string[];
+}
+
+/** What is kept of one server's skills, at most, as JSON: beyond it the last entries are not kept, and the list says it is clipped. */
+export const MCP_SKILLS_RECORD_LIMIT = 4_000_000;
 
 export interface McpDeviceStore {
   load(): Promise<Record<string, McpServerRecord>>;
@@ -107,6 +135,56 @@ function readSeen(raw: unknown): McpServerRecord["seen"] | undefined {
   return { name: capMcpText(raw.name, 80).text, era: raw.era, version: capMcpText(raw.version, 32).text, at: raw.at, clipped: raw.clipped === true };
 }
 
+/** An address the user may add by hand: one of a skill's `SKILL.md`, no longer than any address is read, hiding nothing (`mcpSkillUriReadable`). */
+export function mcpSkillAddress(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const uri = raw.trim();
+  return uri.length > 0 && uri.length <= MCP_SKILL_LIMITS.uri && uri.endsWith("/SKILL.md") && mcpSkillUriReadable(uri) ? uri : null;
+}
+
+/** What was kept of a server's skills, read with the checks a listing gets: a kept entry is never more than a listed one. */
+export function readMcpSkillsRecord(raw: unknown): McpSkillsRecord | undefined {
+  // A time that does not read is no time a list was read at.
+  if (!isRecord(raw) || typeof raw.at !== "string" || !Number.isFinite(Date.parse(raw.at))) return undefined;
+  const added = (Array.isArray(raw.added) ? raw.added : []).map(mcpSkillAddress).filter((uri): uri is string => uri !== null);
+  return {
+    at: raw.at,
+    failed: raw.failed === true,
+    clipped: raw.clipped === true,
+    entries: readStoredMcpSkillEntries(raw.entries),
+    added: [...new Set(added)].slice(0, MCP_SKILL_LIMITS.added),
+  };
+}
+
+/** A server's skills as they are written: each entry in the server's own shape. */
+function storedSkills(skills: McpSkillsRecord): Record<string, unknown> {
+  return { at: skills.at, failed: skills.failed, clipped: skills.clipped, entries: skills.entries.map(storedMcpSkillEntry), added: skills.added };
+}
+
+/** One entry may take at most this share of what is kept: beyond it, it is kept as "too large" — without its manifest. */
+const MCP_SKILL_ENTRY_LIMIT = MCP_SKILLS_RECORD_LIMIT / 8;
+
+/**
+ * A server's skills cut to what is kept. An entry too large to keep on its
+ * own stays, as "too large" without its manifest — it never pushes the others
+ * out —; then the last entries go first, and the list says it is clipped.
+ */
+export function fitMcpSkillsRecord(skills: McpSkillsRecord): McpSkillsRecord {
+  let changed = false;
+  let entries = skills.entries.map((entry) => {
+    if (JSON.stringify(storedMcpSkillEntry(entry)).length <= MCP_SKILL_ENTRY_LIMIT) return entry;
+    changed = true;
+    return { ...entry, files: [], problem: "too-large" as const };
+  });
+  let clipped = skills.clipped;
+  while (entries.length && JSON.stringify(storedSkills({ ...skills, entries })).length > MCP_SKILLS_RECORD_LIMIT) {
+    entries = entries.slice(0, -1);
+    clipped = true;
+    changed = true;
+  }
+  return changed ? { ...skills, entries, clipped } : skills;
+}
+
 /** Reads the device's file. A record that cannot be read is a server nobody approved — never an approved one. */
 export function readMcpServerRecords(raw: string | null): Record<string, McpServerRecord> {
   const out: Record<string, McpServerRecord> = {};
@@ -123,6 +201,7 @@ export function readMcpServerRecords(raw: string | null): Record<string, McpServ
     const snapshot = isRecord(entry.snapshot) ? readMcpListing(entry.snapshot) : null;
     const review = snapshot ? readMcpServerReview(entry.review) : NEW_MCP_SERVER;
     const seen = readSeen(entry.seen);
+    const skills = readMcpSkillsRecord(entry.skills);
     out[id] = {
       label: capMcpText(entry.label, 60).text || id,
       addedAt: typeof entry.addedAt === "string" ? entry.addedAt : "",
@@ -130,13 +209,15 @@ export function readMcpServerRecords(raw: string | null): Record<string, McpServ
       review,
       snapshot: review.status === "new" ? null : snapshot,
       ...(seen ? { seen } : {}),
+      ...(skills ? { skills } : {}),
     };
   }
   return out;
 }
 
 export function serializeMcpServerRecords(servers: Record<string, McpServerRecord>): string {
-  return JSON.stringify({ version: 1, servers });
+  const written = Object.fromEntries(Object.entries(servers).map(([id, record]) => [id, record.skills ? { ...record, skills: storedSkills(record.skills) } : record]));
+  return JSON.stringify({ version: 1, servers: written });
 }
 
 /** Whether a listing is small enough to be stored and so to be approved. */

@@ -1,6 +1,7 @@
 import { mcpElicitCapabilities, mcpElicitReply, readMcpElicitation, MCP_ELICIT_LIMITS, type McpElicitResult, type McpQuestions } from "./elicitation.js";
 import { mcpParamHeaders, readMcpHeaderParams } from "./headerValues.js";
 import { capMcpText, readMcpListing, MCP_MAX_PROMPTS, MCP_MAX_TOOLS, type McpListing } from "./listing.js";
+import { MCP_SKILL_LIMITS } from "./skills.js";
 import {
   McpError,
   mcpTtl,
@@ -37,6 +38,15 @@ export interface McpHello {
   serverInfo: { name: string; version: string } | null;
   tools: boolean;
   prompts: boolean;
+  /** It serves skills (plan P9-4b): resources and the skills extension, in the stateless revision. */
+  skills: boolean;
+}
+
+/** What a server lists of its skills, raw (plan P9-4b): every entry of every page, up to the bound. */
+export interface McpSkillsLoad {
+  items: unknown[];
+  /** The server lists more than Plainva reads; the rest is not offered. */
+  clipped: boolean;
 }
 
 export interface McpListingLoad {
@@ -45,6 +55,8 @@ export interface McpListingLoad {
   freshForMs: number;
   /** The server has more than the client reads; the rest is not offered. */
   clipped: { tools: boolean; prompts: boolean };
+  /** It serves skills, as the answer this listing was made with says (plan P9-4b). */
+  skills: boolean;
 }
 
 export interface McpCallOptions {
@@ -63,6 +75,16 @@ export interface McpClient {
   callTool(name: string, args: Record<string, unknown>, options?: McpCallOptions): Promise<Record<string, unknown>>;
   /** What a prompt expands to, raw: this is what `checkMcpPromptBody` compares. `questions` as for a call. */
   getPrompt(name: string, args: Record<string, string>, signal?: AbortSignal, questions?: McpQuestions): Promise<Record<string, unknown>>;
+  /** The skills it lists (`skills/list`), raw — asked only of a server whose `open` said it serves skills. */
+  skills(signal?: AbortSignal): Promise<McpSkillsLoad>;
+  /** One skill's entry by its address (`skills/get`), raw; a server that knows no skill there answers -32602. */
+  skill(uri: string, signal?: AbortSignal): Promise<unknown>;
+  /**
+   * One file (`resources/read`), raw: what `mcpResourceBytes` reads. Nothing
+   * is offered on the way — a file of a skill is the bytes its manifest
+   * names, and nobody is asked anything to get them.
+   */
+  readResource(uri: string, signal?: AbortSignal): Promise<Record<string, unknown>>;
   close(): Promise<void>;
 }
 
@@ -212,7 +234,7 @@ export function createMcpClient(wire: McpWire, options: { timeouts?: Partial<Mcp
   return {
     async open(signal) {
       const hello = await wire.open(signal);
-      return { era: hello.era, version: hello.version, serverInfo: hello.serverInfo, tools: hello.tools, prompts: hello.prompts };
+      return { era: hello.era, version: hello.version, serverInfo: hello.serverInfo, tools: hello.tools, prompts: hello.prompts, skills: hello.skills };
     },
 
     async listing(signal) {
@@ -227,6 +249,7 @@ export function createMcpClient(wire: McpWire, options: { timeouts?: Partial<Mcp
         listing: readMcpListing({ instructions: hello.instructions, tools: tools.items, prompts: prompts.items }),
         freshForMs: Number.isFinite(fresh) ? Math.min(fresh, MCP_MAX_FRESH_MS) : 0,
         clipped: { tools: tools.clipped, prompts: prompts.clipped },
+        skills: hello.skills,
       };
     },
 
@@ -243,6 +266,21 @@ export function createMcpClient(wire: McpWire, options: { timeouts?: Partial<Mcp
 
     getPrompt(name, args, signal, questions) {
       return roundTrip("prompts/get", { name, arguments: args }, { name, timeoutMs: timeouts.prompt, ...(signal ? { signal } : {}) }, questions);
+    },
+
+    async skills(signal) {
+      const listed = await pages("skills/list", "skills", MCP_SKILL_LIMITS.skills, signal);
+      return { items: listed.items, clipped: listed.clipped };
+    },
+
+    async skill(uri, signal) {
+      const result = await roundTrip("skills/get", { uri }, { timeoutMs: timeouts.list, ...(signal ? { signal } : {}) });
+      return result.skill;
+    },
+
+    readResource(uri, signal) {
+      // Over HTTP the address goes as the request's name too, as the transport asks of `resources/read`.
+      return roundTrip("resources/read", { uri }, { name: uri, timeoutMs: timeouts.call, ...(signal ? { signal } : {}) });
     },
 
     close: () => wire.close(),

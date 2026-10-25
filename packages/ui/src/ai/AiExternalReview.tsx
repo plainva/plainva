@@ -249,6 +249,12 @@ export function AiExternalReview({ review, vaultFolders }: AiExternalReviewProps
               </Checkbox>
             ))}
             {clipped && <p className="pv-ext-note">{t("ai.ext.review.clipped")}</p>}
+            {/* Skills it serves (plan P9-4b) are approved one by one, where skills are: this look only counts them. */}
+            {look.state === "ready" && look.inspection.skills !== null && (
+              <p className="pv-ext-note" data-testid="ai-ext-skills">
+                {t("ai.ext.review.skills", { count: look.inspection.skills })}
+              </p>
+            )}
           </fieldset>
           {listing.prompts.length > 0 && (
             <fieldset className="pv-ext-group">

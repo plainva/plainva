@@ -158,11 +158,12 @@ const listing = readMcpListing({
 const registered: McpRegisteredServer = { id: "tracker", kind: "http", url: "https://mcp.example.com/mcp", args: [], env: [], sandbox: false, stored: [] };
 const fresh: AiMcpServer = { id: "tracker", label: "Tracker", transport: "http", target: TARGET, reviewedTarget: "", review: { status: "new" }, snapshot: null, enabled: false, grant: EMPTY_MCP_GRANT, registered, addedAt: "2026-10-07T08:00:00.000Z" };
 const inspection = (review: McpInspection["review"] = { status: "new" }): McpInspection => ({
-  hello: { era: "modern", version: "2026-07-28", serverInfo: { name: "Tracker MCP", version: "1.2.0" }, tools: true, prompts: true },
+  hello: { era: "modern", version: "2026-07-28", serverInfo: { name: "Tracker MCP", version: "1.2.0" }, tools: true, prompts: true, skills: false },
   listing,
   clipped: { tools: false, prompts: false },
   tooLarge: false,
   review,
+  skills: null,
 });
 
 /** The review's model as the hook would hand it over, with the calls it takes recorded. */

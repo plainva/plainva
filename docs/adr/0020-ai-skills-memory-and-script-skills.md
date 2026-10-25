@@ -214,6 +214,21 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
   activates nothing.
 - A test result does not travel: each device tests against the model it uses,
   and pays for it there.
+- Skills a connected MCP server serves (plan P9-4b) go through the same
+  approval store, bound to every file of the server's manifest and to the
+  frontmatter it lists — and to nothing they could choose for themselves:
+  their `allowed-tools` and their `plainva.` metadata count for nothing, what
+  they may use follows from where they come from. They stand apart from the
+  vault's and the app's skills; [ADR 0024](0024-mcp-client-foreign-servers.md),
+  second addendum. Since then a skill's frontmatter is found as every
+  properties block is (`frontmatterSpan`): fences on lines of their own, and a
+  `---` inside a line of it makes the file unreadable — other tools end the
+  frontmatter there and read other fields, and an approval never meant both
+  readings —, so what a review shows as the header is what is read as it.
+  A skill's name that hides characters is refused; a file whose name hides
+  characters or writes markup is neither listed to a model nor readable by
+  it, and what it hides counts in the review's warning. A skill's description
+  writes no tag of a block into the catalog.
 - Scripts are the same on the desktop and on the phone from their first
   version: there is one sandbox, so there is no "desktop only".
 - The desktop's content security policy allows WebAssembly to be compiled

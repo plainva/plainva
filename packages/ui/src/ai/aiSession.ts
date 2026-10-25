@@ -5,7 +5,7 @@ import { createWebExecutor, newRunWeb, webToolNames } from "./webTools";
 import { createPrivateDataExecutor, newRunReading, readSomething, type QuarantineReader } from "./privateData";
 import type { PreparedImage, PrepareFailure } from "./aiImage";
 import { capturedNotePath, captureNote, captureStamp, withInheritedRules } from "./aiCapture";
-import { createSkillExecutor, newSkillRunState, skillScope, type SkillRunState } from "./skillRuntime";
+import { createSkillExecutor, newSkillRunState, serverSkillCeiling, serversLoadedIn, skillFileReadable, skillRunTools, skillScope, type SkillRunState } from "./skillRuntime";
 import { replayRequest, replaySources, type RunSnapshotStates } from "./runReplay";
 import {
   PASSAGE_ONLY,
@@ -26,6 +26,18 @@ import type { PropertyFilterRule } from "../base/filterExpr";
 import { safeFileStem } from "../lib/fileStem";
 import type { SuggestionChunk } from "../components/suggestMode";
 import {
+  approvalSeen,
+  MCP_SKILL_LIMITS,
+  mcpSkillRegistration,
+  mcpSkillRegistrationKey,
+  stripInvisible,
+  pruneServerSkillApprovals,
+  checkMcpSkillFile,
+  checkMcpSkillMain,
+  mcpSkillSource,
+  readMcpSkillSourceId,
+  sameSeen,
+  type SkillDefinition,
   appendLearnLog,
   approvalOf,
   countObservedRun,
@@ -331,8 +343,8 @@ import { EMPTY_NOTE_HINTS_PREFS, type NoteHintsPrefs, type NoteHintsStore } from
 import type { BrokenLinkToCreate } from "../services/graphActions";
 import { AiRoutines, type AiRoutinesState, type RoutineStore } from "./routineSession";
 import { AiAcp, type AcpDrafts, type AcpVaultSide, type AiAcpHost, type AiAcpState } from "./acpSession";
-import { AiMcp, type AiMcpHost, type AiMcpState, type McpPromptReview, type McpPromptStart } from "./mcpSession";
-import type { McpPromptLook } from "./mcpRuntime";
+import { AiMcp, type AiMcpHost, type AiMcpServer, type AiMcpState, type McpPromptReview, type McpPromptStart } from "./mcpSession";
+import type { McpCheck, McpPromptLook, McpSkillAdd } from "./mcpRuntime";
 import type { McpVaultStore } from "./mcpStores";
 import { createMcpExecutor, newRunMcp, type McpCallQuestion, type McpQuestionSource } from "./mcpTools";
 import { AiScripts, type AiScriptsHost, type AiScriptsState, type ScriptApprovalRefusal } from "./scriptSession";
@@ -621,7 +633,67 @@ export interface AiSkillsState {
   entries: InstructionEntry[];
   /** Active skills the catalog had no room for — still startable by hand. */
   omitted: string[];
+  /**
+   * The skills connected servers serve (plan P9-4b), one group per server
+   * this vault uses — apart from `entries` on purpose: what reads the
+   * vault's and the app's skills (routines, doors, regression runs, learning,
+   * the hints, the chips and the palette) never sees a server's.
+   */
+  servers: AiServerSkills[];
 }
+
+/** The skills one connected server serves, as this vault and this device stand to them (plan P9-4b). */
+export interface AiServerSkills {
+  serverId: string;
+  /** The user's name for the server. */
+  label: string;
+  /** Where it is reached, for the review: the host of its address, or a program on this device. */
+  place: { kind: "http"; host: string } | { kind: "program" };
+  /** It can be used in this vault now; otherwise its skills wait — blocked, registered anew, or the device fully local. */
+  ready: boolean;
+  /** When its list was read last (ISO 8601); whether that failed; whether it lists more than is kept. */
+  at: string;
+  failed: boolean;
+  clipped: boolean;
+  /** Addresses the user added by hand. */
+  added: number;
+  entries: InstructionEntry[];
+}
+
+/** One file of a server skill as its review shows it on request: its text, or why it is not shown. */
+export interface ServerSkillFileView {
+  path: string;
+  text: string | null;
+  /**
+   * `large`: larger than a file of a skill is read; `digest`: other bytes
+   * than the manifest names; `text`: no UTF-8; `unavailable`: the server
+   * could not be asked for it now; `more`: beyond what one look shows
+   * (`SERVER_SKILL_REVIEW_LIMITS`).
+   */
+  problem?: "large" | "digest" | "text" | "unavailable" | "more";
+}
+
+/**
+ * What one look at a server skill's files reads and shows, at most: so many
+ * files, so many bytes of them together. A skill may carry 512 files and
+ * 16 MiB; one click reads no more than a person reads at once.
+ */
+export const SERVER_SKILL_REVIEW_LIMITS = { files: 20, bytes: 1_048_576 } as const;
+
+/**
+ * What a review shows of a server skill when the user asks for it (plan
+ * P9-4b): its instructions and each file a model may read of it, every one
+ * checked; `invisible` counts the hidden characters in all of them.
+ */
+export type ServerSkillText =
+  | { ok: true; text: string; invisible: number; files: ServerSkillFileView[] }
+  /**
+   * `digest`, `text`, `frontmatter`, `invalid`: what the server sent is not
+   * what its manifest names, so it is not shown (`checkMcpSkillMain`);
+   * `changed`: the skill is no longer the one the review shows — it is
+   * looked at anew; `unavailable`: the server cannot be asked now.
+   */
+  | { ok: false; reason: "digest" | "text" | "frontmatter" | "invalid" | "unavailable" | "changed" };
 
 /** A skill as the regression run sees it (plan KI-Harness P3-8). */
 export interface SkillTestTarget {
@@ -1079,7 +1151,8 @@ function manifestInstructionsOf(instructions: ConversationInstructions | undefin
   const skill = instructions.skill;
   if (skill) out.skill = { id: skill.id, name: skill.name, origin: skill.origin, tokens: instructions.skillTokens ?? 0, ...(skill.localPreferred ? { localPreferred: true } : {}) };
   if (instructions.catalog?.length) {
-    out.catalog = { count: instructions.catalog.length, vault: instructions.catalog.filter((e) => e.origin === "vault").map((e) => e.id), tokens: instructions.catalogTokens ?? 0 };
+    const servers = instructions.catalog.filter((e) => e.origin === "server").length;
+    out.catalog = { count: instructions.catalog.length, vault: instructions.catalog.filter((e) => e.origin === "vault").map((e) => e.id), tokens: instructions.catalogTokens ?? 0, ...(servers ? { servers } : {}) };
   }
   if (instructions.vaultTokens) out.vault = { tokens: instructions.vaultTokens };
   return Object.keys(out).length ? out : undefined;
@@ -1268,6 +1341,24 @@ const THREAD_REPLY_RULES =
 
 const APP_ENTRIES = (): InstructionEntry[] => resolveInstructions(APP_SKILL_SOURCES, EMPTY_INSTRUCTION_APPROVALS);
 
+/** The skills of the servers that can be used now (plan P9-4b): what a conversation's catalog may list of them. */
+export function readyServerSkills(servers: readonly AiServerSkills[]): InstructionEntry[] {
+  return servers.filter((group) => group.ready).flatMap((group) => group.entries);
+}
+
+/** Where a server is reached, for the review of its skills: the host of its address, or a program on this device. */
+/** The byte order mark, which a decoder drops from the front of a text it reads. */
+const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
+
+function serverPlace(server: Pick<AiMcpServer, "registered">): AiServerSkills["place"] {
+  if (server.registered.kind !== "http") return { kind: "program" };
+  try {
+    return { kind: "http", host: new URL(server.registered.url ?? "").host };
+  } catch {
+    return { kind: "http", host: "" };
+  }
+}
+
 /** How many notes a run that got no answer shows instead (plan §19.4). */
 const RELATED_ON_FAILURE = 6;
 
@@ -1358,7 +1449,17 @@ export class AiSession {
     });
     // Foreign servers and external agents rest while the device is fully local: each has a way out of its own.
     const resting = () => this.state.settings.localOnly;
-    this.mcp = new AiMcp(host.mcp, { now: () => host.now(), newId: () => host.newId() }, (mcp) => this.set({ mcp }), resting);
+    this.mcp = new AiMcp(
+      host.mcp,
+      { now: () => host.now(), newId: () => host.newId() },
+      (mcp) => {
+        this.set({ mcp });
+        // What the settings did to a server — approved, switched, blocked — shows in the workshop's groups too.
+        this.refreshServerGroups();
+      },
+      resting,
+      (id) => this.forgetServerSkills(id),
+    );
     this.agents = new AiAcp(host.acp, { now: () => host.now() }, (key, vars) => host.label?.(key, vars) ?? key, (agents) => this.set({ agents }), resting);
     this.scripts = new AiScripts(host.scripts, (scripts) => this.set({ scripts }));
     this.routines = new AiRoutines((routines) => this.set({ routines }));
@@ -1380,7 +1481,7 @@ export class AiSession {
       dress: null,
       hasVault: false,
       consent: null,
-      skills: { entries: APP_ENTRIES(), omitted: [] },
+      skills: { entries: APP_ENTRIES(), omitted: [], servers: [] },
       skillTests: { records: [], running: null },
       web: DEFAULT_WEB_SETTINGS,
       draftWeb: false,
@@ -1468,6 +1569,7 @@ export class AiSession {
     if (settings.localOnly !== before.localOnly) {
       // Switched on: this side's check holds from the line above on, and what rests ends before the choice is even stored.
       if (settings.localOnly) this.restForLocalOnly();
+      this.refreshServerGroups();
       await this.tellNative(settings.localOnly);
     }
     await this.host.saveSettings(settings);
@@ -1659,7 +1761,7 @@ export class AiSession {
       draftChoice: null,
       notice: null,
       hasVault: Boolean(vault),
-      skills: { entries: APP_ENTRIES(), omitted: [] },
+      skills: { entries: APP_ENTRIES(), omitted: [], servers: [] },
       skillTests: { records: [], running: null },
       // Another vault's switch says nothing about this one: off until its own settings are read.
       web: DEFAULT_WEB_SETTINGS,
@@ -2335,13 +2437,164 @@ export class AiSession {
   async refreshSkills(): Promise<InstructionEntry[]> {
     const vault = this.vault;
     if (!vault) return this.state.skills.entries;
-    const { entries } = await this.instructionEntries(vault);
+    const [{ entries }, servers] = await Promise.all([this.instructionEntries(vault), this.serverSkills(vault)]);
     // What the regression runs found goes with the list: the workshop shows both.
     const tests = vault.skillTests ? await vault.skillTests.load().catch(() => EMPTY_SKILL_TESTS) : EMPTY_SKILL_TESTS;
     // Whether there is a learning log to offer: the file, not a guess from the approvals — a rule leaves a line too.
     const learnLog = vault.instructions?.readText ? (await vault.instructions.readText(LEARN_LOG_FILE).catch(() => null)) !== null : false;
-    if (this.vault === vault) this.set({ skills: { entries, omitted: skillCatalog(entries).omitted }, skillTests: { ...this.state.skillTests, records: tests.records }, learnLog });
+    if (this.vault === vault) this.set({ skills: this.skillsState(entries, servers), skillTests: { ...this.state.skillTests, records: tests.records }, learnLog });
     return entries;
+  }
+
+  /** The skills slice: what the catalog has no room for is measured as a conversation would carry it, the servers' skills included. */
+  private skillsState(entries: InstructionEntry[], servers: AiServerSkills[]): AiSkillsState {
+    return { entries, omitted: skillCatalog(entries, readyServerSkills(servers)).omitted, servers };
+  }
+
+  /**
+   * The skills connected servers serve (plan P9-4b), for this vault: one
+   * group per server it uses whose approval belongs to what is registered
+   * now, read from what this device kept of each listing — no server is
+   * asked for it. Each skill's state comes from this vault's approvals on
+   * this device, as an own skill's does.
+   */
+  private async serverSkills(vault: AiVaultHost): Promise<AiServerSkills[]> {
+    const host = vault.instructions;
+    if (!host || !this.mcp.state.available) return [];
+    const [servers, approvals] = await Promise.all([this.mcp.servers().catch(() => [] as AiMcpServer[]), host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS)]);
+    const resting = this.state.settings.localOnly;
+    return servers
+      .filter((server) => server.enabled && server.skills && (server.skills.entries.length > 0 || server.skills.added.length > 0) && server.target !== null && server.target === server.reviewedTarget)
+      .map((server) => {
+        const skills = server.skills!;
+        const registration = mcpSkillRegistration(server.target!, server.addedAt);
+        const sources = skills.entries.map((entry) => mcpSkillSource({ id: server.id, label: server.label, registration }, entry));
+        return {
+          serverId: server.id,
+          label: server.label,
+          place: serverPlace(server),
+          ready: mcpServerStanding(server) === "ready" && !resting,
+          at: skills.at,
+          failed: skills.failed,
+          clipped: skills.clipped,
+          added: skills.added.length,
+          entries: resolveInstructions(sources, approvals),
+        };
+      });
+  }
+
+  /** One server skill as it stands now, with its group; null where it is gone. */
+  private async serverSkill(vault: AiVaultHost, id: string): Promise<{ group: AiServerSkills; entry: InstructionEntry } | null> {
+    for (const group of await this.serverSkills(vault)) {
+      const entry = group.entries.find((candidate) => candidate.source.id === id);
+      if (entry) return { group, entry };
+    }
+    return null;
+  }
+
+  /**
+   * A server skill with its instructions (plan P9-4b): its `SKILL.md` read
+   * from its server and checked — the bytes its manifest names, a skill the
+   * format accepts, a frontmatter that says what the server listed. What
+   * fails is not used; where the bytes were not the manifest's, the entry
+   * was read again and the workshop shows what changed.
+   */
+  private async readServerSkill(entry: InstructionEntry, signal?: AbortSignal): Promise<{ ok: true; text: string; skill: SkillDefinition; invisible: number } | { ok: false; reason: Exclude<ServerSkillText, { ok: true }>["reason"] }> {
+    const origin = entry.source.server;
+    const main = entry.source.files.find((file) => file.path === "SKILL.md");
+    if (!origin || !main || !entry.source.skill) return { ok: false, reason: "unavailable" };
+    const read = await this.mcp.readSkillFile(origin.serverId, origin.uri, { uri: origin.uri, bytes: main.bytes, sha256: main.sha256 }, signal);
+    if (!read.ok) {
+      if (read.reason === "digest") void this.refreshSkills();
+      return { ok: false, reason: read.reason === "digest" ? "digest" : "unavailable" };
+    }
+    const checked = checkMcpSkillMain({ files: entry.source.files, server: origin, name: entry.source.skill.name }, read.bytes);
+    return checked.ok ? checked : { ok: false, reason: checked.reason };
+  }
+
+  /**
+   * A server skill for its review, read when the user asks for it and checked
+   * like a load: its instructions and each file a model may read of it.
+   * `expected` is what the review shows (`approvalSeen`): a skill that is no
+   * longer that one is not read; and since reading looks at the server again,
+   * what it lists is read anew afterwards — a skill that changed meanwhile is
+   * not shown as the one the review shows.
+   */
+  async serverSkillText(id: string, expected?: Readonly<Record<string, string>>): Promise<ServerSkillText> {
+    const vault = this.vault;
+    const found = vault ? await this.serverSkill(vault, id) : null;
+    if (!vault || !found) return { ok: false, reason: "unavailable" };
+    if (expected && !sameSeen(found.entry.source, expected)) {
+      await this.refreshSkills();
+      return { ok: false, reason: "changed" };
+    }
+    const read = await this.readServerSkill(found.entry);
+    if (!read.ok) return read;
+    const files: ServerSkillFileView[] = [];
+    let invisible = read.invisible;
+    let shown = 0;
+    let bytes = 0;
+    for (const file of found.entry.source.files) {
+      if (!skillFileReadable(file.path)) continue;
+      if (file.bytes > MCP_SKILL_LIMITS.readable) {
+        files.push({ path: file.path, text: null, problem: "large" });
+        continue;
+      }
+      if (shown >= SERVER_SKILL_REVIEW_LIMITS.files || bytes + file.bytes > SERVER_SKILL_REVIEW_LIMITS.bytes) {
+        files.push({ path: file.path, text: null, problem: "more" });
+        continue;
+      }
+      shown += 1;
+      bytes += file.bytes;
+      const got = await this.serverSkillFileRead(found.entry, file.path);
+      if (!got.ok) files.push({ path: file.path, text: null, problem: got.problem });
+      else {
+        invisible += stripInvisible(got.text).removed;
+        files.push({ path: file.path, text: got.text });
+      }
+    }
+    await this.refreshSkills();
+    const now = this.vault === vault ? await this.serverSkill(vault, id) : null;
+    if (!now || !sameSeen(now.entry.source, approvalSeen(found.entry.source))) return { ok: false, reason: "changed" };
+    return { ok: true, text: read.text, invisible, files };
+  }
+
+  /**
+   * The servers' groups read again — when the settings changed a server, a
+   * look at a server read its skills, or the device turned fully local or
+   * back. Nothing is asked of a server for it.
+   */
+  private refreshServerGroups(): void {
+    const vault = this.vault;
+    if (!vault) return;
+    void this.serverSkills(vault).then(
+      (servers) => {
+        if (this.vault === vault) this.set({ skills: this.skillsState(this.state.skills.entries, servers) });
+      },
+      () => undefined,
+    );
+  }
+
+  /** A server left this device: the approvals and switches of its skills in the open vault go with it. */
+  private async forgetServerSkills(serverId: string): Promise<void> {
+    const host = this.vault?.instructions;
+    if (!host) return;
+    await host.approvals.save(pruneServerSkillApprovals(await host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS), serverId));
+    await this.refreshSkills();
+  }
+
+  /** Reads one server's skills again, now. */
+  async refreshServerSkills(serverId: string): Promise<McpCheck> {
+    const result = await this.mcp.refreshSkills(serverId);
+    await this.refreshSkills();
+    return result;
+  }
+
+  /** A skill of a server by its address (`skills/get`), kept with the server on this device. */
+  async addServerSkill(serverId: string, uri: string): Promise<McpSkillAdd> {
+    const result = await this.mcp.addSkill(serverId, uri);
+    await this.refreshSkills();
+    return result;
   }
 
   /**
@@ -2359,10 +2612,31 @@ export class AiSession {
    * device's keychain gave no key to sign its approval with (plan P5.5).
    * Null when it is approved.
    */
-  async approveSource(id: string, seen: Readonly<Record<string, string>>): Promise<ScriptApprovalRefusal | null> {
+  async approveSource(id: string, seen: Readonly<Record<string, string>>, viewed?: string): Promise<ScriptApprovalRefusal | null> {
     const vault = this.vault;
     const host = vault?.instructions;
     if (!vault || !host) return "unavailable";
+    // A server's skill (plan P9-4b): approved as the review showed it — every file of its manifest and the frontmatter it lists.
+    if (readMcpSkillSourceId(id)) {
+      const found = await this.serverSkill(vault, id);
+      if (!found || !sameSeen(found.entry.source, seen)) {
+        await this.refreshSkills();
+        return "changed";
+      }
+      if (found.entry.status !== "new" && found.entry.status !== "changed") {
+        await this.refreshSkills();
+        return "unavailable";
+      }
+      // The instructions the user read, where they are exactly the approved SKILL.md: kept with the approval, so that a
+      // later version can be held against them.
+      const main = seen["SKILL.md"];
+      const matches = viewed !== undefined && main !== undefined && [viewed, `${BYTE_ORDER_MARK}${viewed}`].some((candidate) => instructionFileHash(utf8Encode(candidate)) === main);
+      const text = matches ? viewed! : null;
+      const approvals = await host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS);
+      await host.approvals.save(approveInstruction(approvals, { ...found.entry.source, text }, this.host.now().toISOString(), "review"));
+      await this.refreshSkills();
+      return null;
+    }
     const source = await host.scanOne(id).catch(() => null);
     const same = Boolean(source) && source!.files.length === Object.keys(seen).length && source!.files.every((f) => seen[f.path] === f.sha256);
     let refusal: ScriptApprovalRefusal | null = same ? null : "changed";
@@ -3515,7 +3789,7 @@ export class AiSession {
     try {
       const { entries } = await this.instructionEntries(vault);
       if (this.vault !== vault) return null;
-      this.set({ skills: { entries, omitted: skillCatalog(entries).omitted } });
+      this.set({ skills: this.skillsState(entries, this.state.skills.servers) });
       const entry = entries.find((e) => e.source.id === id);
       if (!entry || entry.status !== "active" || !entry.source.skill) return null;
       this.set({ active: null, excludeActive: false, notice: null });
@@ -3548,7 +3822,9 @@ export class AiSession {
     for (const read of run.readHashes ?? []) states.read[read.path] = await stateOf(read.path, read.hash);
     const versioned = (run.skills ?? []).filter((skill) => skill.sha256);
     if (versioned.length) {
-      const { entries } = await this.instructionEntries(vault).catch(() => ({ entries: [] as InstructionEntry[] }));
+      const { entries: own } = await this.instructionEntries(vault).catch(() => ({ entries: [] as InstructionEntry[] }));
+      // A server's skill by the SKILL.md its server lists now (plan P9-4b) — what this device kept, no server asked.
+      const entries = [...own, ...(await this.serverSkills(vault).catch(() => [] as AiServerSkills[])).flatMap((group) => group.entries)];
       for (const skill of versioned) {
         const now = entries.find((entry) => entry.source.id === skill.id)?.source.files.find((file) => /^skill\.md$/i.test(file.path))?.sha256;
         states.skills[skill.id] = now === undefined ? "gone" : now === skill.sha256 ? "same" : "changed";
@@ -3581,7 +3857,7 @@ export class AiSession {
       const states = await this.snapshotStates(run);
       const { entries } = await this.instructionEntries(vault);
       if (this.vault !== vault) return null;
-      this.set({ skills: { entries, omitted: skillCatalog(entries).omitted } });
+      this.set({ skills: this.skillsState(entries, this.state.skills.servers) });
       const bound = record.instructions?.skill;
       const bind = bound && entries.some((entry) => entry.source.id === bound.id && entry.status === "active" && entry.source.skill) ? bound.id : undefined;
       const turn = record.conversation.turns[userTurn];
@@ -4310,7 +4586,7 @@ export class AiSession {
    * further ones among them — which is what the workshop showed when the
    * skill was approved (`SKILL_TOOL_NAMES`).
    */
-  private conversationStart(entries: readonly InstructionEntry[], offered: readonly string[], bind?: string, further: readonly string[] = []): ConversationStart {
+  private conversationStart(entries: readonly InstructionEntry[], offered: readonly string[], bind?: string, further: readonly string[] = [], servers: readonly InstructionEntry[] = []): ConversationStart {
     const prompt: ConversationStart["prompt"] = {};
     const instructions: ConversationInstructions = {};
     const agents = entries.find((e) => e.source.kind === "agents" && e.status === "active" && e.source.text);
@@ -4319,7 +4595,7 @@ export class AiSession {
       instructions.vaultTokens = estimateTokens(agents.source.text);
     }
     const result = (tools: string[], more: string[] = []): ConversationStart => ({ tools, more, prompt, instructions: Object.keys(instructions).length ? instructions : null });
-    const bound = bind ? entries.find((e) => e.source.id === bind && e.status === "active" && e.source.skill) : undefined;
+    const bound = bind ? entries.find((e) => e.source.id === bind && e.status === "active" && e.source.skill && e.source.origin !== "server") : undefined;
     if (bound?.source.skill) {
       const skill = bound.source.skill;
       const grant = skillGrant(skill, [...offered, ...further.filter((name) => !offered.includes(name))], DEFAULT_RUN_LIMITS.maxOutputTokens);
@@ -4327,7 +4603,8 @@ export class AiSession {
       instructions.skill = {
         id: bound.source.id,
         name: skill.name,
-        origin: bound.source.origin,
+        // Never a server's skill (plan P9-4b): its words are not the system prompt's.
+        origin: bound.source.origin === "plainva" ? "plainva" : "vault",
         sha256: bound.source.files.find((f) => /^skill\.md$/i.test(f.path))?.sha256 ?? "",
         ...(grant.folders ? { folders: grant.folders } : {}),
         ...(grant.maxOutputTokens !== null ? { maxOutputTokens: grant.maxOutputTokens } : {}),
@@ -4339,10 +4616,11 @@ export class AiSession {
     // Further tools need the two that reach them — and something to reach.
     const more = offered.length ? further.filter((name) => !offered.includes(name)) : [];
     const own = more.length ? [...offered, ...META_TOOL_NAMES] : [...offered];
-    const catalog = offered.length ? skillCatalog(entries) : null;
+    // The skills of connected servers (plan P9-4b), where the caller gives them — a conversation the user began — in their own part.
+    const catalog = offered.length ? skillCatalog(entries, servers) : null;
     if (catalog?.entries.length) {
       prompt.skillCatalog = catalog.text;
-      instructions.catalog = catalog.entries.map((e) => ({ key: e.key, id: e.id, origin: e.id.startsWith("plainva:") ? ("plainva" as const) : ("vault" as const) }));
+      instructions.catalog = catalog.entries.map((e) => ({ key: e.key, id: e.id, origin: e.origin }));
       instructions.catalogTokens = catalog.tokens;
       return result([...own, "use_skill"], more);
     }
@@ -4353,8 +4631,16 @@ export class AiSession {
   private skillRuntime(vault: AiVaultHost, record: ConversationRecord) {
     return {
       catalog: record.instructions?.catalog ?? [],
-      entry: async (id: string): Promise<InstructionEntry | null> => {
+      entry: async (id: string, signal?: AbortSignal): Promise<InstructionEntry | null> => {
         if (id.startsWith("plainva:")) return APP_ENTRIES().find((e) => e.source.id === id) ?? null;
+        // A server's skill (plan P9-4b): approved at what its server lists now, the server ready, its SKILL.md read and checked.
+        if (readMcpSkillSourceId(id)) {
+          const found = await this.serverSkill(vault, id);
+          if (!found || !found.group.ready || found.entry.status !== "active") return null;
+          const read = await this.readServerSkill(found.entry, signal);
+          if (!read.ok) return null;
+          return { ...found.entry, source: { ...found.entry.source, text: read.text, skill: read.skill, ...(read.invisible ? { invisible: read.invisible } : {}) } };
+        }
         const host = vault.instructions;
         if (!host) return null;
         const [source, approvals] = await Promise.all([host.scanOne(id).catch(() => null), host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS)]);
@@ -4362,8 +4648,32 @@ export class AiSession {
         // The app's switches count for the app's skills too; read them with the vault's approvals.
         return resolveInstructions([source], approvals)[0] ?? null;
       },
-      file: async (entry: InstructionEntry, rel: string): Promise<string | null> => (entry.source.origin === "vault" && vault.instructions ? vault.instructions.readFile(entry.source, rel) : null),
+      file: async (entry: InstructionEntry, rel: string, signal?: AbortSignal): Promise<string | null> => {
+        if (entry.source.origin === "server") return this.serverSkillFile(entry, rel, signal);
+        return entry.source.origin === "vault" && vault.instructions ? vault.instructions.readFile(entry.source, rel) : null;
+      },
     };
+  }
+
+  /** One file of a loaded server skill: only a path of its manifest, from its own server, its bytes the manifest's — as UTF-8 text. */
+  private async serverSkillFile(entry: InstructionEntry, rel: string, signal?: AbortSignal): Promise<string | null> {
+    const got = await this.serverSkillFileRead(entry, rel, signal);
+    return got.ok ? got.text : null;
+  }
+
+  /** A file of a server's skill, read from its server and checked — or why it was not: other bytes, no text, no answer now. */
+  private async serverSkillFileRead(entry: InstructionEntry, rel: string, signal?: AbortSignal): Promise<{ ok: true; text: string } | { ok: false; problem: "large" | "digest" | "text" | "unavailable" }> {
+    const origin = entry.source.server;
+    const file = entry.source.files.find((candidate) => candidate.path === rel);
+    if (!origin || !file) return { ok: false, problem: "unavailable" };
+    if (file.bytes > MCP_SKILL_LIMITS.readable) return { ok: false, problem: "large" };
+    const read = await this.mcp.readSkillFile(origin.serverId, origin.uri, { uri: `${entry.source.root}/${rel}`, bytes: file.bytes, sha256: file.sha256 }, signal);
+    if (!read.ok) {
+      if (read.reason === "digest") void this.refreshSkills();
+      return { ok: false, problem: read.reason === "digest" ? "digest" : "unavailable" };
+    }
+    const checked = checkMcpSkillFile(file, read.bytes);
+    return checked.ok ? checked : { ok: false, problem: checked.reason };
   }
 
   async remove(id: string): Promise<void> {
@@ -5527,7 +5837,8 @@ export class AiSession {
     const fresh = record ? null : await this.memoryStart(vault, recipient, withWeb);
     // Put together the way a send does it: the memory's lookup among the tools, the vault's scripts among the further ones.
     const served = record ? [] : this.offeredTools(vault, provider, recipient, withWeb);
-    const start = record ? null : this.conversationStart(entries, fresh?.lookup && served.length ? [...served, MEMORY_SEARCH_TOOL] : served, undefined, await this.furtherTools(vault, provider, recipient, true, entries));
+    const fromServers = record ? [] : readyServerSkills(await this.serverSkills(vault));
+    const start = record ? null : this.conversationStart(entries, fresh?.lookup && served.length ? [...served, MEMORY_SEARCH_TOOL] : served, undefined, await this.furtherTools(vault, provider, recipient, true, entries), fromServers);
     const tools = record ? record.conversation.tools : (start?.tools ?? []);
     const lookup = tools.includes(MEMORY_SEARCH_TOOL);
     const memory = record ? manifestMemoryOf(record.instructions) : fresh ? { entries: fresh.record.entries, withheld: fresh.record.withheld, tokens: fresh.record.tokens, lookup } : undefined;
@@ -5851,8 +6162,10 @@ export class AiSession {
       const offered = memory?.lookup && served.length ? [...served, MEMORY_SEARCH_TOOL] : served;
       const reachable = door || routine?.log ? [] : await this.furtherTools(vault, provider, recipient, !detached && !routine && !skills?.bind, entries);
       const further = routine ? routineTools(reachable) : reachable;
+      // A server's skills (plan P9-4b) only where its tools could be: a conversation the user began, not bound to a skill — never a door, a routine or a regression run.
+      const fromServers = !door && !detached && !routine && !skills?.bind ? readyServerSkills(await this.serverSkills(vault)) : [];
       // A door runs without skills (plan P3-6): the vault's standing instructions still apply, the catalog does not.
-      const start = this.conversationStart(door || routine?.log ? entries.filter((e) => e.source.kind === "agents") : entries, offered, skills?.bind, further);
+      const start = this.conversationStart(door || routine?.log ? entries.filter((e) => e.source.kind === "agents") : entries, offered, skills?.bind, further, fromServers);
       // A skill the conversation is bound to may leave the tool out: what the prompt says of it follows the list.
       const lookup = start.tools.includes(MEMORY_SEARCH_TOOL);
       const memoryPrompt = memory && (memory.text || lookup) ? { memory: { text: memory.text, lookup } } : {};
@@ -5896,6 +6209,14 @@ export class AiSession {
     const webLog = web ? newRunWeb() : null;
     // The conversation's further tools (ADR 0019), as fixed as its own.
     const moreNames = toolless ? [] : (record.conversation.more ?? []);
+    // A server's skill that a run of this conversation loaded keeps bounding it (plan P9-4b): its words are still in it.
+    // A server registered anew under its id since is another: its tools are none of that skill's.
+    const servedBefore = serversLoadedIn(record);
+    if (servedBefore.length) {
+      const now = new Map((await this.mcp.servers().catch(() => [] as AiMcpServer[])).map((server) => [server.id, server.target ? mcpSkillRegistrationKey(mcpSkillRegistration(server.target, server.addedAt)) : null]));
+      const owners = servedBefore.map((loaded) => (loaded.registration !== null && now.get(loaded.serverId) === loaded.registration ? loaded.serverId : null));
+      skillState.ceiling = serverSkillCeiling([...toolNames, ...moreNames], owners);
+    }
     // What passes the tools here although a rule restricts it elsewhere (plan P4-6) — a note kept from the cloud read by a
     // model on this device, a note kept from the internet in a conversation without it: the run's record keeps the rule,
     // never the path, and a note made of its answer inherits it.
@@ -5964,7 +6285,7 @@ export class AiSession {
             clock: () => clockOf(this.host.now()),
           }
         : undefined;
-    const base = toolNames.length ? vault.tools(recipient, scope, redact, web, () => skillState.loaded?.tools ?? null, () => foreign, writing, () => scriptTools) : null;
+    const base = toolNames.length ? vault.tools(recipient, scope, redact, web, () => skillRunTools(skillState), () => foreign, writing, () => scriptTools) : null;
     // Mail and the descriptions of appointments (plan P4-4): a kind of data no overview named asks first, and raw text goes to a reader without tools.
     const reading = newRunReading();
     const guarded = base
@@ -6347,8 +6668,9 @@ export class AiSession {
   ): Promise<boolean> {
     // Switched off for the vault, or the device fully local (plan P7): nothing goes out, so nobody is asked.
     if (!this.state.web.enabled || this.state.settings.localOnly) return true;
-    const loaded = run.skillState?.loaded;
-    if (loaded && !loaded.tools.includes(tool.name)) return true;
+    // What a loaded skill — or a server's skill loaded earlier in the conversation — leaves out is refused, never asked.
+    const bound = run.skillState ? skillRunTools(run.skillState) : null;
+    if (bound && !bound.includes(tool.name)) return true;
     const args = (call.args ?? {}) as { url?: unknown; question?: unknown; query?: unknown };
     if (tool.name === "fetch_url") {
       const checked = checkWebUrl(typeof args.url === "string" ? args.url : "");
@@ -6433,7 +6755,8 @@ export class AiSession {
       endpoint: provider.endpoint,
       model: choice.model,
       executor: input.executor ?? { execute: async () => ({ content: "This conversation has no tools.", isError: true }) },
-      context: { privateContext: carriesVault, untrustedContext: carriesVault },
+      // A server's skill the conversation may load is a stranger's words (plan P9-4b), whatever else the run carries.
+      context: { privateContext: carriesVault, untrustedContext: carriesVault || Boolean(record.instructions?.catalog?.some((entry) => entry.origin === "server")) },
       signal: controller.signal,
       ...(input.limits ? { limits: input.limits } : {}),
       ...(input.foreign?.length ? { foreign: input.foreign } : {}),

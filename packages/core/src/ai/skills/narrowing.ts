@@ -1,3 +1,4 @@
+import { isMcpExposedToolName, isMcpToolOf } from "../mcp/names.js";
 import { toolByName, WEB_TOOL_NAMES, type ToolRiskClass } from "../tools.js";
 import type { SkillDefinition } from "./skillFile.js";
 
@@ -58,6 +59,31 @@ export function skillGrant(skill: SkillDefinition, available: readonly string[],
     unknownTools: (listed ?? []).filter((name) => !toolByName(name)),
   };
 }
+
+/**
+ * What a skill a connected server serves may use (plan KI-Harness P9-4b).
+ * What it names counts for nothing — a host MUST ignore the `allowed-tools`
+ * of a skill from MCP, and Plainva ignores its own fields in `metadata` as
+ * well —, so where it comes from decides: of the conversation's tools,
+ * Plainva's that only read or show — none that writes or proposes, none of
+ * the internet, no script —, and the tools of its own server that the vault
+ * granted, each call asked as always. Never another server's: a skill one
+ * server serves does not drive calls to another. `serverId` null: the skill's
+ * server is no longer registered as it was when the skill was loaded — a
+ * server registered anew under its id is another, and gets none.
+ */
+export function serverSkillGrant(available: readonly string[], serverId: string | null): SkillGrant {
+  const tools = available.filter((name) => {
+    if (isMcpExposedToolName(name)) return serverId !== null && isMcpToolOf(serverId, name);
+    const tool = toolByName(name);
+    if (!tool || WEB_TOOL_NAMES.includes(name)) return false;
+    // Showing is opening a note; running one of the app's commands is acting in the app, which a stranger's words do not start.
+    return tool.risk === "read" || (tool.risk === "ui" && name !== RUN_COMMAND);
+  });
+  return { tools, folders: null, maxOutputTokens: null, unknownTools: [] };
+}
+
+const RUN_COMMAND = "run_command";
 
 /**
  * How one version of a skill differs from another in what it may use (plan

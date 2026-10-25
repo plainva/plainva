@@ -225,6 +225,8 @@ O assistente pode usar ferramentas de servidores que você mesmo conecta, pelo M
 
 **Prompts.** Um servidor pode oferecer prompts — solicitações prontas. Eles ficam sob uma conversa vazia, e só você os inicia. Na primeira vez, o Plainva mostra no que um prompt se transforma antes de ser enviado como sua mensagem; a partir daí, exatamente esse texto vai sem perguntar, e outro texto bloqueia o servidor.
 
+**Habilidades.** Um servidor também pode trazer habilidades — guias para as ferramentas dele. Cada uma aguarda em **Habilidades**, **De servidores**, até você aprová-la lá; veja [Habilidades](AI_Skills.md).
+
 **O que o Plainva guarda.** O endereço ou o comando é lembrado neste dispositivo, os valores armazenados no armazenamento seguro dele; a sua aprovação fica nos dados do próprio Plainva, nunca no vault — assim, quem pode gravar no vault não pode aprovar um servidor. Em **Chamadas recentes neste vault**, a revisão lista quando uma ferramenta foi chamada, qual e como terminou — nunca o que foi dito. **Remover servidor** exclui o servidor deste dispositivo, para todos os vaults.
 
 Uma conversa iniciada por uma habilidade, uma ação em uma seleção e uma resposta em um tópico de comentários não alcançam as ferramentas externas, e o modelo do próprio sistema no celular também não.

@@ -225,6 +225,8 @@ The assistant can use tools of servers you connect yourself, over the Model Cont
 
 **Prompts.** A server can offer prompts — ready-made requests. They stand under an empty conversation, and only you start them. The first time, Plainva shows what a prompt expands to before it is sent as your message; from then on exactly that text goes without asking, and another text blocks the server.
 
+**Skills.** A server can also bring skills — guides for its tools. Each one waits under **Skills**, **From servers**, until you approve it there; see [Skills](AI_Skills.md).
+
 **What Plainva keeps.** The address or the command is remembered on this device, the stored values in its secure store; your approval lies in Plainva's own data, never in the vault — so whoever can write the vault cannot approve a server. Under **Recent calls in this vault** the review lists when a tool was called, which one and how it ended — never what was said. **Remove server** deletes the server from this device, for every vault.
 
 A conversation a skill started, an action on a selection and a reply in a comment thread do not reach external tools, and neither does the system's own model on the phone.

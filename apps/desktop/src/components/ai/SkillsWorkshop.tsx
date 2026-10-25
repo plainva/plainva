@@ -1,6 +1,6 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import { Fragment, useEffect, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { CodeXml, Download, FlaskConical, MoreHorizontal, Plus } from "lucide-react";
+import { CodeXml, Download, FlaskConical, Link2, MoreHorizontal, Plus, RefreshCw } from "lucide-react";
 import { LEARN_LOG_FILE, type InstructionEntry, type SkillImport } from "@plainva/core";
 import {
   Button,
@@ -10,6 +10,10 @@ import {
   MenuSurface,
   observedFailures,
   openLearnSurface,
+  serverSkillGroupNote,
+  serverSkillRefreshText,
+  serverSkillRowDescription,
+  workshopWaits,
   RowActionList,
   SettingCard,
   SettingCardNote,
@@ -29,12 +33,14 @@ import {
   useUpkeepRows,
   workshopSections,
   workshopTitle,
+  type AiServerSkills,
   type SkillRowCaps,
   type UpkeepRow,
 } from "@plainva/ui";
 import { appConfirm } from "../../services/appDialogs";
 import { pickSkillArchive } from "../../services/ai/skillImport";
 import { NewSkillModal } from "./NewSkillModal";
+import { ServerSkillAddModal } from "./ServerSkillAddModal";
 import { ScriptFormModal } from "./ScriptFormModal";
 import { ScriptRunModal } from "./ScriptRunModal";
 import { SkillApprovalModal } from "./SkillApprovalModal";
@@ -74,6 +80,8 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
   const plan = useSkillTestPlan(session, state);
   /** The two skills a hint asked to see side by side. */
   const [comparing, setComparing] = useState<{ a: string; b: string } | null>(null);
+  /** The server whose skill is added by its address (plan P9-4b). */
+  const [adding, setAdding] = useState<AiServerSkills | null>(null);
   // What this device noticed by itself about the skills (plan P6-3): no model is asked for any of it.
   const upkeep = useUpkeepRows(session, state, "skills", plan);
 
@@ -101,6 +109,10 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
     });
   };
   const capsFor = (entry: InstructionEntry): SkillRowCaps => {
+    // A server's skill (plan P9-4b): looked at and approved here, never edited, copied or started — its words are its server's.
+    if (entry.source.origin === "server") {
+      return { showInstructions: () => setOpen(entry.source.id), ...(entry.approval ? { revoke: () => void session.revokeInstruction(entry.source.id) } : {}) };
+    }
     if (entry.source.kind === "script") {
       const readable = Boolean(entry.source.script) && typeof entry.source.code === "string";
       return {
@@ -142,6 +154,13 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
       ...(vault && entry.approval ? { revoke: () => void session.revokeInstruction(entry.source.id) } : {}),
       ...(vault ? { delete: () => remove(entry, "ai.workshop.deleteConfirm") } : {}),
     };
+  };
+  // "Read again" (plan P9-4b): what came of it shows in the group's line; why nothing came of it, here.
+  const readAgain = (serverId: string) => {
+    void session.refreshServerSkills(serverId).then((check) => {
+      const problem = serverSkillRefreshText(t, check);
+      if (problem) toast.error(problem);
+    });
   };
   // A version that came from a proposal and had a run that failed (plan P6-2): the way back is offered, never taken.
   const failures = observedFailures(t, state.skills.entries);
@@ -266,6 +285,36 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
           </SettingRow>
         </SettingCard>
       )}
+      {state.skills.servers.length > 0 && (
+        <SettingCard label={t("ai.workshop.server.group")}>
+          {state.skills.servers.map((group) => (
+            <Fragment key={group.serverId}>
+              {group.entries.map((entry) => (
+                <SettingRow key={entry.source.id} label={titleOf(entry)} desc={serverSkillRowDescription(t, entry, group)}>
+                  {workshopWaits(entry) ? (
+                    <Button size="sm" variant="tonal" onClick={() => setOpen(entry.source.id)} data-testid="ai-server-skill-review">
+                      {entry.status === "new" || entry.status === "changed" ? t("ai.workshop.review") : t("ai.workshop.showInstructions")}
+                    </Button>
+                  ) : (
+                    switchable(entry)
+                  )}
+                </SettingRow>
+              ))}
+              <SettingRow label={group.label} desc={serverSkillGroupNote(t, group, i18n.language)}>
+                <div className="pv-ai-rowactions">
+                  <Button size="sm" variant="ghost" icon={<RefreshCw size={ICON.ui} />} onClick={() => readAgain(group.serverId)} data-testid="ai-server-skills-refresh">
+                    {t("ai.workshop.server.refresh")}
+                  </Button>
+                  <Button size="sm" variant="ghost" icon={<Link2 size={ICON.ui} />} onClick={() => setAdding(group)} data-testid="ai-server-skill-add">
+                    {t("ai.workshop.server.add")}
+                  </Button>
+                </div>
+              </SettingRow>
+            </Fragment>
+          ))}
+          <SettingCardNote>{t("ai.workshop.server.note")}</SettingCardNote>
+        </SettingCard>
+      )}
       <SettingCard label={t("ai.workshop.app")}>
         {sections.app.map((entry) => (
           <SettingRow key={entry.source.id} label={titleOf(entry)} desc={describe(entry)}>
@@ -294,6 +343,7 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
       {open && <SkillApprovalModal id={open} onClose={() => setOpen(null)} />}
       {comparing && <SkillCompareModal a={comparing.a} b={comparing.b} onClose={() => setComparing(null)} />}
       {creating && <NewSkillModal onClose={() => setCreating(false)} />}
+      {adding && <ServerSkillAddModal serverId={adding.serverId} label={adding.label} onClose={() => setAdding(null)} />}
       {scriptForm && <ScriptFormModal id={scriptForm.id} onClose={() => setScriptForm(null)} />}
       {running && <ScriptRunModal id={running} onClose={() => setRunning(null)} onOpenNote={onOpenFile} />}
       {importing && <SkillImportModal label={importing.label} imported={importing.imported} onClose={() => setImporting(null)} />}

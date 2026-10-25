@@ -10,7 +10,8 @@
  * `oauthRules` (what the native side decides, written down once more).
  * `scripted` is a server in a script and `scriptedOAuth` a sign-in in one,
  * for tests in every package. A question a server asks the user, where it
- * may, is read and its answer checked in `elicitation`. See
+ * may, is read and its answer checked in `elicitation`; the skills a server
+ * serves, and every byte read of one, in `skills`. See
  * docs/engineering/MCP_Client_Architecture.md.
  */
 export * from "./listing.js";
@@ -26,6 +27,7 @@ export * from "./httpWire.js";
 export * from "./stdioWire.js";
 export * from "./client.js";
 export * from "./elicitation.js";
+export * from "./skills.js";
 export * from "./native.js";
 export * from "./offer.js";
 export * from "./oauth.js";

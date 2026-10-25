@@ -225,6 +225,8 @@ L'assistente può usare strumenti di server che colleghi tu stesso, tramite il M
 
 **Prompt.** Un server può offrire prompt — richieste già pronte. Si trovano sotto una conversazione vuota, e li avvii solo tu. La prima volta, Plainva mostra in che cosa si trasforma un prompt prima che venga inviato come tuo messaggio; da allora esattamente quel testo parte senza chiedere, e un altro testo blocca il server.
 
+**Competenze.** Un server può portare anche competenze — guide ai suoi strumenti. Ognuna attende in **Competenze**, **Dai server**, finché non la approvi lì; vedi [Competenze](AI_Skills.md).
+
 **Che cosa conserva Plainva.** L'indirizzo o il comando viene ricordato su questo dispositivo, i valori salvati nel suo archivio sicuro; la tua approvazione si trova nei dati di Plainva, mai nel vault — così chi può scrivere nel vault non può approvare un server. Sotto **Chiamate recenti in questo vault** il controllo indica quando uno strumento è stato chiamato, quale e come è finita — mai che cosa è stato detto. **Rimuovi server** elimina il server da questo dispositivo, per ogni vault.
 
 Una conversazione avviata da una competenza, un'azione su una selezione e una risposta in un thread di commenti non raggiungono gli strumenti esterni, e nemmeno il modello del sistema sul telefono.

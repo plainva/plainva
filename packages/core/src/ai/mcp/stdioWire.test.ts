@@ -35,7 +35,7 @@ describe("a program of the stateless revision", () => {
   it("is asked what it speaks, and gets the revision and the client with every request", async () => {
     const { wire, port } = wired({ name: "Local", ttlMs: 1000 });
     const hello = await wire.open();
-    expect(hello).toEqual({ era: "modern", version: "2026-07-28", serverInfo: { name: "Local", version: "1.0.0" }, instructions: "Use the search first.", tools: true, prompts: true, ttlMs: 1000 });
+    expect(hello).toEqual({ era: "modern", version: "2026-07-28", serverInfo: { name: "Local", version: "1.0.0" }, instructions: "Use the search first.", tools: true, prompts: true, skills: false, ttlMs: 1000 });
     const result = await wire.request("tools/call", { name: "search_issues", arguments: { query: "x" } }, { name: "search_issues", headers: { "Mcp-Param-Region": "eu" } });
     expect(result.content).toEqual([{ type: "text", text: 'search_issues {"query":"x"}' }]);
     const lines = written(port);

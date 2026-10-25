@@ -127,8 +127,8 @@ export interface EgressManifest {
 export interface ManifestInstructions {
   /** The skill the conversation runs. */
   skill?: { id: string; name: string; origin: "plainva" | "vault"; tokens: number; localPreferred?: boolean };
-  /** The skills the model may load; `vault` names the vault's own among them by id. */
-  catalog?: { count: number; vault: string[]; tokens: number };
+  /** The skills the model may load; `vault` names the vault's own among them by id, `servers` counts those connected servers serve (plan P9-4b). */
+  catalog?: { count: number; vault: string[]; tokens: number; servers?: number };
   /** The vault owner's `AGENTS.md`. */
   vault?: { tokens: number };
 }
