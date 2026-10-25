@@ -1718,6 +1718,16 @@
       "overviewTools": "tools of {{server}} ({{n}}) — every call asks first",
       "overviewOther": "other external tools ({{n}})",
       "overviewCalls": "External calls",
+      "questions": {
+        "answered_one": "{{count}} question answered",
+        "answered_other": "{{count}} questions answered",
+        "declined_one": "{{count}} question declined",
+        "declined_other": "{{count}} questions declined",
+        "cancelled_one": "{{count}} question cancelled",
+        "cancelled_other": "{{count}} questions cancelled",
+        "refused_one": "{{count}} question blocked by Plainva",
+        "refused_other": "{{count}} questions blocked by Plainva"
+      },
       "status": {
         "ready": "In use in this vault",
         "off": "Not used in this vault",
@@ -1750,12 +1760,51 @@
         "empty": "The prompt contains no text.",
         "unavailable": "This prompt is not available right now."
       },
+      "question": {
+        "title": "{{server}} has a question",
+        "pageTitle": "{{server}} would like you to open a page",
+        "refusedTitle": "Plainva blocked a question from {{server}}",
+        "during": "For",
+        "prompt": "the prompt “{{name}}”",
+        "writes": "{{server}} writes:",
+        "optional": "optional",
+        "choose": "Choose…",
+        "range": "from {{min}} to {{max}}",
+        "rangeMin": "at least {{min}}",
+        "rangeMax": "at most {{max}}",
+        "problem": {
+          "required": "Fill this in.",
+          "short": "This is too short.",
+          "long": "This is too long.",
+          "format": "This does not fit what is asked.",
+          "range": "This lies outside the allowed range.",
+          "count": "Choose a different number of entries."
+        },
+        "hint": "Plainva gives your answer to {{server}} alone, not to the AI — though what the server sends back may mention it. Never enter a password or a key here: a server may not ask for one this way.",
+        "answer": "Answer",
+        "confirm": "Confirm",
+        "decline": "Decline",
+        "pageHint": "Plainva opens the page in your browser. What you enter there, neither Plainva nor the AI sees. Afterwards you continue here.",
+        "pageOpened": "The page is open in your browser. When you are done there, continue here.",
+        "openFailed": "The page could not be opened.",
+        "punycode": "The address contains characters of another script that can look like familiar letters. Check the domain carefully before you enter anything there.",
+        "ipAddress": "The address is a bare IP address, not a name. Check where it leads before you enter anything there.",
+        "open": "Open in browser",
+        "continue": "Continue",
+        "refused": {
+          "secret": "The server asked for something that looks like a password, a key or payment data: “{{field}}”. Plainva does not pass such things on — for a sign-in, a server has to let you open a page of its own.",
+          "secretAsked": "The server asked for something that looks like a password, a key or payment data. Plainva does not pass such things on — for a sign-in, a server has to let you open a page of its own.",
+          "shape": "The server asked in a way Plainva cannot show. It got no answer.",
+          "address": "The server wanted you to open an address Plainva does not open: only secure addresses (https), none on this device unless the server runs here, and none with a sign-in of its own."
+        }
+      },
       "outcome": {
         "answered": "answered",
         "tool-error": "the tool reported an error",
         "declined": "not allowed by you",
         "refused": "held back by a rule",
         "blocked": "server blocked",
+        "questions-off": "wanted to ask you something — not allowed for this server",
         "failed": "no answer"
       },
       "review": {
@@ -1801,6 +1850,9 @@
         "foldersAll": "The whole vault",
         "foldersEmpty": "This vault has no folders.",
         "foldersHint": "A call goes out only if every note the conversation has read lies in what you allow here. A note you keep from the cloud never goes with one.",
+        "questions": "Let {{server}} ask you questions",
+        "questionsHint": "During a call or a prompt, the server may ask you for a detail or to open a page. You answer or decline; Plainva gives the answer to it alone, not to the AI. It may not ask for passwords or keys this way.",
+        "questionsRevision": "This server speaks an earlier version of MCP, in which Plainva answers no questions.",
         "log": "What the program wrote",
         "logEmpty": "Nothing so far.",
         "calls": "Recent calls in this vault",
@@ -1835,6 +1887,9 @@
         "version": "The server speaks no version of MCP that Plainva knows.",
         "tooLarge": "The answer of the server was too large.",
         "exited": "The program ended.",
+        "questionsOff": "The server wanted to ask you something, and questions from this server are off in this vault. You can allow them in its settings.",
+        "questionsRevision": "The server wanted to ask you something, but it speaks an earlier version of MCP, in which Plainva answers no questions.",
+        "questionsKind": "The server wanted to ask you something in a way Plainva cannot show here.",
         "rpc": "The server reported an error ({{code}}).",
         "programMoved": "The program is no longer where it was when you added it. Remove the server and add it again.",
         "sandboxUnavailable": "The sandbox it was to run in is not available on this computer.",

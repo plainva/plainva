@@ -53,7 +53,7 @@ const settled = (call: Promise<McpResponse>): Promise<Settled> =>
 
 export function createMcpStdioWire(port: McpStdioPort, options: McpStdioWireOptions): McpWire {
   const timeouts = { ...MCP_TIMEOUTS, ...options.timeouts };
-  const meta = () => mcpRequestMeta(options.client);
+  const meta = (capabilities?: Readonly<Record<string, unknown>>) => mcpRequestMeta(options.client, capabilities);
   const pending = new Map<number, Pending>();
   let nextId = 1;
   let started = false;
@@ -284,7 +284,7 @@ export function createMcpStdioWire(port: McpStdioPort, options: McpStdioWireOpti
     async request(method, params, request = {}) {
       const current = await open(request.signal);
       const modern = current.era === "modern";
-      const response = await call(method, modern ? { ...params, _meta: meta() } : params, request.timeoutMs ?? timeouts.call, request.signal, true);
+      const response = await call(method, modern ? { ...params, _meta: meta(request.capabilities) } : params, request.timeoutMs ?? timeouts.call, request.signal, true);
       return answerOf(response, modern);
     },
     async close() {

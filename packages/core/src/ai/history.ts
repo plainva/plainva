@@ -162,7 +162,19 @@ export const RUN_READ_CAP = 200;
  * server, which tool, how it ended — never an argument or a word of a result.
  */
 export interface RunMcp {
-  calls: { server: string; tool: string; outcome: string }[];
+  calls: { server: string; tool: string; outcome: string; questions?: RunMcpQuestions }[];
+}
+
+/**
+ * What a server asked the user during one call (plan KI-Harness P9-4a), by
+ * how each question went: answered, declined, stopped, or refused by
+ * Plainva. Only numbers — what was asked and what was answered is never kept.
+ */
+export interface RunMcpQuestions {
+  answered: number;
+  declined: number;
+  cancelled: number;
+  refused: number;
 }
 
 /** The skill a conversation runs, bound when it started (plan KI-Harness P3). */
@@ -514,10 +526,24 @@ function readRunMcp(raw: unknown): RunMcp | null {
   if (!raw || typeof raw !== "object" || !Array.isArray((raw as { calls?: unknown }).calls)) return null;
   const text = (v: unknown) => (typeof v === "string" ? v.slice(0, 128) : "");
   const calls = ((raw as { calls: unknown[] }).calls as unknown[])
-    .flatMap((c) => (c && typeof c === "object" ? [{ server: text((c as { server?: unknown }).server), tool: text((c as { tool?: unknown }).tool), outcome: text((c as { outcome?: unknown }).outcome) }] : []))
+    .flatMap((c) => {
+      if (!c || typeof c !== "object") return [];
+      const call = c as { server?: unknown; tool?: unknown; outcome?: unknown; questions?: unknown };
+      const questions = readRunMcpQuestions(call.questions);
+      return [{ server: text(call.server), tool: text(call.tool), outcome: text(call.outcome), ...(questions ? { questions } : {}) }];
+    })
     .filter((c) => c.server && c.tool)
     .slice(0, 64);
   return calls.length ? { calls } : null;
+}
+
+/** How a call's questions went, read defensively: four small numbers, or nothing where none was asked. */
+function readRunMcpQuestions(raw: unknown): RunMcpQuestions | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<Record<keyof RunMcpQuestions, unknown>>;
+  const n = (v: unknown) => (typeof v === "number" && Number.isSafeInteger(v) && v > 0 ? Math.min(v, 99) : 0);
+  const questions = { answered: n(r.answered), declined: n(r.declined), cancelled: n(r.cancelled), refused: n(r.refused) };
+  return questions.answered + questions.declined + questions.cancelled + questions.refused > 0 ? questions : null;
 }
 
 /** The rules a run's notes carried, read defensively: only the dimensions there are, each once, in their order. */

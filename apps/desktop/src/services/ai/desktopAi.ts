@@ -67,7 +67,7 @@ import { isOwnerWindow } from "../windowContext";
 import { createDesktopAcpHost } from "./desktopAcp";
 import { createDesktopAiEgress, setDesktopLocalOnly } from "./desktopAiEgress";
 import { createDesktopWebFetcher } from "./desktopAiWeb";
-import { createDesktopMcpBrowser, createDesktopMcpHost } from "./desktopMcp";
+import { createDesktopMcpBrowser, createDesktopMcpHost, openDesktopMcpPage } from "./desktopMcp";
 import { mcpStatus } from "./mcpBridge";
 
 /**
@@ -227,6 +227,7 @@ export function getDesktopAiSession(defaults: AiAppSettings = aiDefaultSettings(
         native: createDesktopMcpHost(),
         // Signing in to a remote server: the system's browser, and back through a port on this computer.
         browser: createDesktopMcpBrowser(),
+        openPage: openDesktopMcpPage,
         clientDocument: MCP_OAUTH_CLIENT_DOCUMENT,
         store: createMcpDeviceStore(desktopAiFiles),
         version: async () => (await getPlatformServices().appVersion?.()) ?? "",

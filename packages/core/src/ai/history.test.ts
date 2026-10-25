@@ -191,6 +191,20 @@ describe("conversation records", () => {
     }
   });
 
+  it("keeps how a call's questions to the user went as four numbers — never what was asked or answered (plan P9-4a)", () => {
+    const r = record();
+    const questions = { answered: 2, declined: 0, cancelled: 1, refused: 1 };
+    r.runs[0] = { ...r.runs[0]!, mcp: { calls: [{ server: "tracker", tool: "search_issues", outcome: "answered", questions }] } };
+    expect(readConversationRecord(JSON.parse(JSON.stringify(r)))!.runs[0]!.mcp!.calls[0]!.questions).toEqual(questions);
+    const tampered = JSON.parse(JSON.stringify(r));
+    tampered.runs[0].mcp.calls[0].questions = { answered: 1.5, declined: -2, cancelled: "3", refused: 1e9, asked: "Which project?", content: { project: "hk" } };
+    expect(readConversationRecord(tampered)!.runs[0]!.mcp!.calls[0]!.questions).toEqual({ answered: 0, declined: 0, cancelled: 0, refused: 99 });
+    for (const none of [{ answered: 0, declined: 0, cancelled: 0, refused: 0 }, "all", null, []]) {
+      tampered.runs[0].mcp.calls[0].questions = none;
+      expect(readConversationRecord(tampered)!.runs[0]!.mcp!.calls[0]).not.toHaveProperty("questions");
+    }
+  });
+
   it("keeps a picture with the turn that sent it, and its size with the run's overview", () => {
     const r = record();
     const picture = { type: "image" as const, mime: "image/jpeg" as const, data: "QUJDRA==", name: "Whiteboard.jpg", width: 1568, height: 1045, path: "Assets/Whiteboard.jpg" };

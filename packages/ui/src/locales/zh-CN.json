@@ -1659,6 +1659,12 @@
       "overviewTools": "{{server}}的工具（{{n}}）——每次调用都会先询问",
       "overviewOther": "其他外部工具（{{n}}）",
       "overviewCalls": "外部调用",
+      "questions": {
+        "answered_other": "已回答{{count}}个问题",
+        "declined_other": "已拒绝{{count}}个问题",
+        "cancelled_other": "已中止{{count}}个问题",
+        "refused_other": "Plainva已拦截{{count}}个问题"
+      },
       "status": {
         "ready": "正在此仓库中使用",
         "off": "未在此仓库中使用",
@@ -1691,12 +1697,51 @@
         "empty": "这个提示词不含任何文字。",
         "unavailable": "这个提示词目前不可用。"
       },
+      "question": {
+        "title": "{{server}}有一个问题",
+        "pageTitle": "{{server}}请你打开一个页面",
+        "refusedTitle": "Plainva拦截了来自{{server}}的一个问题",
+        "during": "用于",
+        "prompt": "提示词“{{name}}”",
+        "writes": "{{server}}写道：",
+        "optional": "可选",
+        "choose": "选择…",
+        "range": "{{min}}至{{max}}",
+        "rangeMin": "至少{{min}}",
+        "rangeMax": "最多{{max}}",
+        "problem": {
+          "required": "请填写此项。",
+          "short": "太短了。",
+          "long": "太长了。",
+          "format": "与所要求的内容不符。",
+          "range": "超出了允许的范围。",
+          "count": "请选择其他数量。"
+        },
+        "hint": "Plainva只把你的回答交给{{server}}，不会交给AI——不过服务器返回的内容可能会提到它。切勿在此输入密码或密钥：服务器不得以这种方式索取。",
+        "answer": "回答",
+        "confirm": "确认",
+        "decline": "拒绝",
+        "pageHint": "Plainva会在你的浏览器中打开该页面。你在那里输入的内容，Plainva和AI都看不到。完成后在这里继续。",
+        "pageOpened": "页面已在你的浏览器中打开。在那里完成后，请在这里继续。",
+        "openFailed": "无法打开该页面。",
+        "punycode": "该地址包含另一种文字的字符，可能看起来像熟悉的字母。在那里输入任何内容之前，请仔细检查域名。",
+        "ipAddress": "该地址是一个裸IP地址，而不是名称。在那里输入任何内容之前，请确认它指向哪里。",
+        "open": "在浏览器中打开",
+        "continue": "继续",
+        "refused": {
+          "secret": "服务器索取的内容看起来像密码、密钥或支付信息：“{{field}}”。Plainva不会转交这类内容——如需登录，服务器必须让你打开它自己的页面。",
+          "secretAsked": "服务器索取的内容看起来像密码、密钥或支付信息。Plainva不会转交这类内容——如需登录，服务器必须让你打开它自己的页面。",
+          "shape": "服务器的提问方式Plainva无法显示。它没有收到回答。",
+          "address": "服务器想让你打开一个Plainva不会打开的地址：只打开安全地址（https）；除非服务器在本设备上运行，否则不打开本设备上的地址；也不打开带有自身登录信息的地址。"
+        }
+      },
       "outcome": {
         "answered": "已应答",
         "tool-error": "工具报告了错误",
         "declined": "你未允许",
         "refused": "被规则拦下",
         "blocked": "服务器已阻止",
+        "questions-off": "想向你提问——此服务器不被允许",
         "failed": "无应答"
       },
       "review": {
@@ -1742,6 +1787,9 @@
         "foldersAll": "整个仓库",
         "foldersEmpty": "此仓库没有文件夹。",
         "foldersHint": "只有当对话读过的每一条笔记都在你此处允许的范围内时，调用才会发出。你设为不发往云端的笔记永远不会随之发送。",
+        "questions": "允许{{server}}向你提问",
+        "questionsHint": "在调用或使用提示词的过程中，服务器可以向你索取某项信息或请你打开一个页面。你可以回答或拒绝；Plainva只把回答交给它，不会交给AI。它不得以这种方式索取密码或密钥。",
+        "questionsRevision": "此服务器使用较早版本的MCP，在该版本中Plainva不回答提问。",
         "log": "程序输出的内容",
         "logEmpty": "目前还没有。",
         "calls": "此仓库中最近的调用",
@@ -1776,6 +1824,9 @@
         "version": "服务器使用的MCP版本都不是Plainva所支持的。",
         "tooLarge": "服务器的应答太大。",
         "exited": "程序已结束。",
+        "questionsOff": "服务器想向你提问，但此仓库中已关闭该服务器的提问。你可以在其设置中允许。",
+        "questionsRevision": "服务器想向你提问，但它使用较早版本的MCP，在该版本中Plainva不回答提问。",
+        "questionsKind": "服务器想以Plainva在此无法显示的方式向你提问。",
         "rpc": "服务器报告了错误（{{code}}）。",
         "programMoved": "程序已不在你添加它时所在的位置。请移除服务器后重新添加。",
         "sandboxUnavailable": "它本应在其中运行的沙盒在此电脑上不可用。",

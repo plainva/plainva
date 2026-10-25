@@ -73,7 +73,7 @@ export interface ScriptedMcpServer {
   /** What a call returns; `count` is the number of this call, from 1. Replace it to script a behaviour. */
   onCall: (name: string, args: Record<string, unknown>, count: number, params: Record<string, unknown>) => Record<string, unknown>;
   /** What a prompt expands to. */
-  onPrompt: (name: string, args: Record<string, unknown>, count: number) => Record<string, unknown>;
+  onPrompt: (name: string, args: Record<string, unknown>, count: number, params: Record<string, unknown>) => Record<string, unknown>;
   readonly calls: { name: string; args: Record<string, unknown> }[];
   /** Every method received, in order. */
   readonly methods: string[];
@@ -216,7 +216,7 @@ export function createScriptedMcpServer(options: ScriptedMcpOptions = {}): Scrip
         case "prompts/get": {
           const prompt = server.prompts.find((p) => p.name === params.name);
           if (!prompt) return error(200, -32602, `Unknown prompt: ${String(params.name)}`);
-          return result(server.onPrompt(prompt.name, args, ++promptCount));
+          return result(server.onPrompt(prompt.name, args, ++promptCount, params));
         }
         default:
           return error(modern ? 404 : 200, MCP_ERROR_METHOD_NOT_FOUND, "Method not found");
@@ -224,6 +224,32 @@ export function createScriptedMcpServer(options: ScriptedMcpOptions = {}): Scrip
     },
   };
   return server;
+}
+
+/**
+ * An answer that is not finished: the server asks the user (plan P9-4a) — a
+ * form, or a page to open — and wants the request again with the answers
+ * under these keys, and with `state` where it gives one. What `onCall` or
+ * `onPrompt` return for a round of questions.
+ */
+export function scriptedQuestions(questions: Record<string, Record<string, unknown>>, state?: string): Record<string, unknown> {
+  return {
+    resultType: "input_required",
+    inputRequests: Object.fromEntries(Object.entries(questions).map(([key, params]) => [key, { method: "elicitation/create", params }])),
+    ...(state !== undefined ? { requestState: state } : {}),
+  };
+}
+
+/** The answers a request brought back to the scripted server, by key; null where it brought none. */
+export function scriptedAnswers(params: Record<string, unknown>): Record<string, { action: string; content?: Record<string, unknown> }> | null {
+  return isRecord(params.inputResponses) ? (params.inputResponses as Record<string, { action: string; content?: Record<string, unknown> }>) : null;
+}
+
+/** What a request offered the server in the stateless revision: its capabilities as `_meta` names them. */
+export function scriptedCapabilities(params: Record<string, unknown>): Record<string, unknown> | null {
+  const meta = isRecord(params._meta) ? params._meta : null;
+  const capabilities = meta?.["io.modelcontextprotocol/clientCapabilities"];
+  return isRecord(capabilities) ? capabilities : null;
 }
 
 export interface ScriptedHttpOptions {

@@ -9,6 +9,7 @@ import {
   createMcpHttpWire,
   createMcpStdioWire,
   mcpHash,
+  mcpOnDeviceHost,
   mcpPromptBody,
   mcpPromptKey,
   mcpServerIdProblem,
@@ -29,7 +30,9 @@ import {
   type McpOAuthBrowser,
   type McpOAuthRedirect,
   type McpOAuthStatus,
+  type McpElicitResult,
   type McpProgramSpec,
+  type McpQuestions,
   type McpRegisteredServer,
   type McpSandboxInfo,
   type McpServerReview,
@@ -137,6 +140,26 @@ interface Link {
   stale: boolean;
   /** Calls off the end that waits for this connection while nobody uses it. */
   idle: (() => void) | null;
+  /**
+   * The calls and prompts that run on this connection right now, each by
+   * what stops it: ending the connection stops them, and while one runs —
+   * a call that waits for the user's answer to the server's question — the
+   * connection is not ended for being idle.
+   */
+  running: Set<AbortController>;
+}
+
+/** At most this many approved prompt expansions per server: the oldest goes first, and is shown again before its next use. */
+export const MCP_PROMPT_PINS_MAX = 200;
+
+/** A server on this device — a program, or an address on this device: only such a server may send the user to a page on it (plan P9-4a). */
+export function mcpServerOnDevice(server: McpRegisteredServer): boolean {
+  if (server.kind !== "http") return true;
+  try {
+    return mcpOnDeviceHost(new URL(server.url ?? "").hostname);
+  } catch {
+    return false;
+  }
 }
 
 const BLANK: McpServerRecord = { label: "", addedAt: "", target: "", review: NEW_MCP_SERVER, snapshot: null };
@@ -321,16 +344,46 @@ export class McpRuntime {
     if (!link) return;
     link.idle?.();
     this.links.delete(id);
+    // What still runs on it ends with it: a call that waited for an answer does not go out again on a new connection.
+    for (const stop of link.running) stop.abort();
     void link.client.close().catch(() => undefined);
   }
 
-  /** A use of a connection: it stays for another while. */
+  /** A use of a connection: it stays for another while — and for as long as something runs on it. */
   private used(id: string, link: Link): Link {
     link.idle?.();
-    link.idle = (this.host.later ?? platformLater)(() => {
-      if (this.links.get(id) === link) this.drop(id);
+    // A timer that was called off does nothing, even where it fires after all.
+    let live = true;
+    const cancel = (this.host.later ?? platformLater)(() => {
+      if (!live || this.links.get(id) !== link) return;
+      if (link.running.size > 0) this.used(id, link);
+      else this.drop(id);
     }, MCP_IDLE_MS);
+    link.idle = () => {
+      live = false;
+      cancel();
+    };
     return link;
+  }
+
+  /**
+   * Runs one request on a server's connection, stoppable by the caller and by
+   * the end of the connection; the connection is marked used before and after.
+   */
+  private async running<T>(server: McpRegisteredServer, signal: AbortSignal | undefined, run: (link: Link, signal: AbortSignal) => Promise<T>): Promise<T> {
+    const link = await this.link(server);
+    const stop = new AbortController();
+    const onAbort = () => stop.abort();
+    if (signal?.aborted) stop.abort();
+    else signal?.addEventListener("abort", onAbort, { once: true });
+    link.running.add(stop);
+    try {
+      return await run(link, stop.signal);
+    } finally {
+      link.running.delete(stop);
+      signal?.removeEventListener("abort", onAbort);
+      if (this.links.get(server.id) === link) this.used(server.id, link);
+    }
   }
 
   private async link(server: McpRegisteredServer): Promise<Link> {
@@ -364,7 +417,7 @@ export class McpRuntime {
         }),
       );
     }
-    const link: Link = { client, target, freshUntil: 0, stale: false, idle: null };
+    const link: Link = { client, target, freshUntil: 0, stale: false, idle: null, running: new Set() };
     this.links.set(server.id, link);
     return this.used(server.id, link);
   }
@@ -461,11 +514,16 @@ export class McpRuntime {
     return review.status === "approved" ? { ok: true } : { ok: false, reason: "not-approved" };
   }
 
-  /** One call. Whether it may go out was decided before; `check` ran before it. */
-  async call(id: string, tool: string, args: Record<string, unknown>, inputSchema: unknown, signal?: AbortSignal): Promise<Record<string, unknown>> {
+  /**
+   * One call. Whether it may go out was decided before; `check` ran before
+   * it. `questions` where the vault lets this server ask the user something
+   * on the way (plan P9-4a); left out, it may not.
+   */
+  async call(id: string, tool: string, args: Record<string, unknown>, inputSchema: unknown, signal?: AbortSignal, questions?: McpQuestions): Promise<Record<string, unknown>> {
     const server = await this.registered(id);
+    const asking = questions && { ...questions, local: mcpServerOnDevice(server) };
     try {
-      return await (await this.link(server)).client.callTool(tool, args, { inputSchema, ...(signal ? { signal } : {}) });
+      return await this.running(server, signal, (link, stop) => link.client.callTool(tool, args, { inputSchema, signal: stop, ...(asking ? { questions: asking } : {}) }));
     } catch (error) {
       throw this.failed(id, error);
     }
@@ -475,16 +533,27 @@ export class McpRuntime {
    * What a prompt expands to, compared with the pin at the moment it is
    * used. An expansion that differs from the approved one blocks the server.
    */
-  async prompt(id: string, name: string, args: Readonly<Record<string, string>>, signal?: AbortSignal): Promise<McpPromptLook> {
+  async prompt(id: string, name: string, args: Readonly<Record<string, string>>, signal?: AbortSignal, questions?: McpQuestions): Promise<McpPromptLook> {
     const server = await this.registered(id);
+    // What went to the server on the way — every answer, the ones nobody was asked for included — is part of what the
+    // expansion is pinned under: as a hash, kept with the approval on this device.
+    const answers: McpElicitResult[] = [];
+    const asking: McpQuestions | undefined = questions && {
+      ...questions,
+      local: mcpServerOnDevice(server),
+      replied: (reply) => {
+        answers.push(reply);
+        questions.replied?.(reply);
+      },
+    };
     let raw: Record<string, unknown>;
     try {
-      raw = await (await this.link(server)).client.getPrompt(name, { ...args }, signal);
+      raw = await this.running(server, signal, (link, stop) => link.client.getPrompt(name, { ...args }, stop, asking));
     } catch (error) {
       throw this.failed(id, error);
     }
     const body = mcpPromptBody(raw);
-    const key = mcpPromptKey(name, args);
+    const key = mcpPromptKey(name, args, answers.length ? mcpHash(answers) : undefined);
     const now = this.host.now();
     const standing = await this.change((records) => {
       const record = records[id];
@@ -501,7 +570,10 @@ export class McpRuntime {
     await this.change((records) => {
       const record = records[id];
       if (record?.review.status !== "approved") return;
-      record.review = { status: "approved", pin: { ...record.review.pin, promptBodies: { ...record.review.pin.promptBodies, [key]: mcpHash(body) } } };
+      // The newest at the end; beyond the bound the oldest go — an expansion that is no longer pinned is shown first again.
+      const bodies = Object.entries(record.review.pin.promptBodies).filter(([known]) => known !== key);
+      bodies.push([key, mcpHash(body)]);
+      record.review = { status: "approved", pin: { ...record.review.pin, promptBodies: Object.fromEntries(bodies.slice(-MCP_PROMPT_PINS_MAX)) } };
     });
   }
 

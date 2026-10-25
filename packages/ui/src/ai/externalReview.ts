@@ -217,6 +217,8 @@ export interface ExternalReviewModel {
   toggleTool(name: string, on: boolean): void;
   setFolders(choice: ExternalFolders): void;
   toggleFolder(folder: string, on: boolean): void;
+  /** Lets the server ask the user something during a call or a prompt in this vault, or no longer (plan P9-4a). */
+  setQuestions(on: boolean): void;
   /** What is shown has to be approved before anything of this server is offered. */
   needsApproval: boolean;
   /** It can be approved: the server answered, and what it lists can be kept. */
@@ -378,7 +380,11 @@ export function useExternalReview(session: AiSession, servers: readonly AiMcpSer
   const effectsOf = (value: McpServerGrant) => Object.entries(value.effects ?? {}).map(([name, effect]) => `${name}=${effect}`);
   const dirty =
     server !== null &&
-    (enabled !== server.enabled || !sameList(grant.tools, server.grant.tools) || !sameList(effectsOf(grant), effectsOf(server.grant)) || !sameList(grant.folders, server.grant.folders));
+    (enabled !== server.enabled ||
+      !sameList(grant.tools, server.grant.tools) ||
+      !sameList(effectsOf(grant), effectsOf(server.grant)) ||
+      !sameList(grant.folders, server.grant.folders) ||
+      Boolean(grant.questions) !== Boolean(server.grant.questions));
 
 
   const save = async (): Promise<boolean> => {
@@ -395,6 +401,8 @@ export function useExternalReview(session: AiSession, servers: readonly AiMcpSer
       const kept: McpServerGrant = { ...grant, tools: grant.tools.filter((name) => names.has(name)) };
       if (Object.keys(effects).length) kept.effects = effects;
       else delete kept.effects;
+      // A no to questions is the default: it is stored as the absence of a yes.
+      if (kept.questions !== true) delete kept.questions;
       await session.mcp.setVault(server.id, { enabled, grant: kept });
       setEdit({});
       return true;
@@ -430,6 +438,7 @@ export function useExternalReview(session: AiSession, servers: readonly AiMcpSer
       const kept = on ? [...ticked, folder] : ticked;
       setEdit((before) => ({ ...before, choice: "some", kept, grant: withExternalFolders(grant, "some", kept) }));
     },
+    setQuestions: (on) => setEdit((before) => ({ ...before, grant: { ...grant, questions: on } })),
     needsApproval,
     canApprove,
     dirty,

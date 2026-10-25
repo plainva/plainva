@@ -36,6 +36,13 @@ export interface McpServerGrant {
   dataClasses: ToolDataClass[];
   /** Hosts a remote server may be reached at; a stdio server has none. */
   hosts: string[];
+  /**
+   * The server may ask the user something during a call or a prompt (plan
+   * KI-Harness P9-4a): a form to fill in, or a page to open. Left out or
+   * false — the default, and every grant from before — it may not: Plainva
+   * does not offer it, and a server that asks anyway is not followed.
+   */
+  questions?: boolean;
 }
 
 export const EMPTY_MCP_GRANT: McpServerGrant = { tools: [], folders: [], dataClasses: [], hosts: [] };
@@ -159,5 +166,7 @@ export function readMcpServerGrant(raw: unknown): McpServerGrant {
     folders: texts(raw.folders, 1024),
     dataClasses: texts(raw.dataClasses, 32).filter((c): c is ToolDataClass => (DATA_CLASSES as readonly string[]).includes(c)),
     hosts: texts(raw.hosts, 255),
+    // Only a yes that was written as one: anything else is the default, no.
+    ...(raw.questions === true ? { questions: true } : {}),
   };
 }

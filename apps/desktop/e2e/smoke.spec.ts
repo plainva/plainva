@@ -6144,6 +6144,189 @@ test('AI external tools: a tool that changes something at its service is ticked 
   expect((await sentCalls()).map((call) => ({ name: call.name, arguments: call.arguments }))).toEqual([{ name: 'close_issue', arguments: { id: 12 } }]);
 });
 
+// A foreign server's questions to the user (AI harness P9-4a). The server is played at the native commands as in the
+// tests above, and asks the way the current revision asks: an unfinished result with its questions, answered by the
+// same request again. Everything from the review to the card above the composer is the app's own code — the card is
+// Plainva's, the server's words are its quote, the answer goes to the server and to no model, a page opens on the
+// user's click in the system's browser, and a question for a key is never shown as a question.
+test('AI external tools: a server the vault lets ask asks through Plainva\'s card — a form, a page to open, and a question for a key Plainva blocks', async ({ page }) => {
+  const ADDRESS = 'https://tracker.example.com/mcp';
+  const SEARCH = 'mcp_tracker_search_issues';
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const calls = (id: string, name: string, input: unknown) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id, name, input: {} } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify(input) } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const script = [
+    calls('call-1', 'call_tool', { name: SEARCH, args: { query: 'mixing' } }),
+    says('Two mixing issues are open.'),
+    calls('call-2', 'call_tool', { name: SEARCH, args: { query: 'github' } }),
+    says('GitHub is connected now.'),
+    calls('call-3', 'call_tool', { name: SEARCH, args: { query: 'private' } }),
+    says('The tracker could not reach GitHub without a key.'),
+  ];
+  await page.addInitScript(({ script }) => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    (window as any).__aiRequests = [];
+    const mcp = ((window as any).__mcp = {
+      registry: [] as any[],
+      calls: [] as any[],
+      opened: [] as string[],
+      tools: [{ name: 'search_issues', title: 'Search issues', description: "Searches the tracker's issues.", inputSchema: { type: 'object', properties: { query: { type: 'string' } } }, annotations: { readOnlyHint: true } }],
+    });
+    const asks: Record<string, unknown> = {
+      mixing: {
+        mode: 'form',
+        message: 'Which project should I search? Without one, I search all 14.',
+        requestedSchema: { type: 'object', properties: { project: { type: 'string', title: 'Project', oneOf: [{ const: 'hk', title: 'Hafenkante' }, { const: 'ws', title: 'Werkstatt' }] }, closed: { type: 'boolean', title: 'Also closed issues', default: true } }, required: ['project'] },
+      },
+      github: { mode: 'url', message: 'Connect your GitHub account so that I can read the issues.', url: 'https://tracker.example.com/connect/github?state=7f3a', elicitationId: 'e-1' },
+      private: { mode: 'form', message: 'One more thing.', requestedSchema: { type: 'object', properties: { value: { type: 'string', title: 'API-Schlüssel für GitHub' } } } },
+    };
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      // The system's browser: what was opened, and nothing else happens.
+      if (cmd === 'plugin:opener|open_url') { mcp.opened.push(args?.url); return null; }
+      if (cmd === 'mcp_client_servers') return mcp.registry;
+      if (cmd === 'mcp_client_add_http') { mcp.registry.push({ id: args.serverId, kind: 'http', url: args.url, args: [], env: [], sandbox: false, stored: [] }); return true; }
+      if (cmd === 'mcp_client_remove' || cmd === 'mcp_client_secret_set' || cmd === 'mcp_client_secret_delete' || cmd === 'mcp_client_cancel') return null;
+      if (cmd === 'mcp_client_secret_present') return false;
+      if (cmd === 'mcp_client_sandbox') return { kind: 'none', works: false };
+      if (cmd === 'mcp_client_log') return '';
+      if (cmd === 'mcp_client_http') {
+        const message = JSON.parse(args.request.body);
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        const answer = (status: number, payload: unknown) => { send({ type: 'open', status, contentType: 'application/json' }); send({ type: 'data', text: JSON.stringify({ jsonrpc: '2.0', id: message.id, ...(payload as object) }) }); send({ type: 'done' }); };
+        const result = (value: object) => answer(200, { result: { resultType: 'complete', ...value } });
+        if (message.method === 'server/discover') result({ supportedVersions: ['2026-07-28'], capabilities: { tools: {} }, _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'Tracker MCP', version: '1.0.0' } } });
+        else if (message.method === 'tools/list') result({ tools: mcp.tools });
+        else if (message.method === 'prompts/list') result({ prompts: [] });
+        else if (message.method === 'tools/call') {
+          const query = message.params.arguments.query;
+          mcp.calls.push({ query, offered: message.params._meta?.['io.modelcontextprotocol/clientCapabilities'], answers: message.params.inputResponses ?? null, state: message.params.requestState ?? null });
+          // The first time it asks; the second time, with the answers, it answers.
+          if (!message.params.inputResponses) result({ resultType: 'input_required', requestState: `state-${query}`, inputRequests: { q: { method: 'elicitation/create', params: asks[query] } } });
+          else result({ content: [{ type: 'text', text: `Done: ${query}.` }] });
+        } else answer(404, { error: { code: -32601, message: 'Method not found' } });
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const mcp = () => page.evaluate(() => { const m = (window as any).__mcp; return { calls: m.calls as any[], opened: m.opened as string[] }; });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+
+  // 1. The review: questions to the user are off until the vault says otherwise, for this server alone.
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+  await dialog.getByTestId('settings-ai-ext-add').click();
+  const add = page.getByTestId('ai-ext-add');
+  await add.getByTestId('ai-ext-add-name').fill('Tracker');
+  await add.getByTestId('ai-ext-add-url').fill(ADDRESS);
+  await add.getByTestId('ai-ext-add-submit').click();
+  const review = page.getByTestId('ai-ext-review');
+  await review.getByTestId('ai-ext-tool').first().check();
+  const questions = review.getByTestId('ai-ext-questions');
+  await expect(questions).not.toBeChecked();
+  await questions.check();
+  await expect(review).toContainText(/Plainva gives the answer to it alone, not to the AI|Plainva gibt die Antwort nur an ihn, nicht an die KI/);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-question-setting-desktop.png'), animations: 'disabled' });
+  await review.getByTestId('ai-ext-approve').click();
+  await expect(review).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+
+  // 2. A form. The call is asked first, as every call; then the server's question stands as Plainva's card, its words a quote.
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await companion.getByTestId('ai-input').fill('Which mixing issues are open?');
+  await companion.getByTestId('ai-send').click();
+  await companion.getByTestId('ai-consent-send').click();
+  await companion.getByTestId('ai-effect-once').click();
+  const card = companion.getByTestId('ai-question');
+  await expect(card).toHaveAttribute('data-kind', 'form');
+  await expect(card.locator('h4')).toHaveText(/^(Tracker has a question|Tracker fragt nach)$/);
+  await expect(card.getByTestId('ai-question-said')).toContainText('Which project should I search? Without one, I search all 14.');
+  await expect(card.getByTestId('ai-question-during')).toHaveText('Search issues (search_issues)');
+  // A yes or no starts as the server's default; nothing is sent before the answer.
+  await expect(card.locator('[data-name="closed"] input')).toBeChecked();
+  await card.getByTestId('ai-question-answer').click();
+  await expect(card.getByTestId('ai-question-problem')).toHaveText(/^(Fill this in\.|Bitte ausfüllen\.)$/);
+  expect((await mcp()).calls).toHaveLength(1);
+  await card.locator('[data-name="project"] [data-testid="ai-question-input"]').click();
+  await page.getByRole('option', { name: 'Werkstatt' }).click();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-question-form-desktop.png'), animations: 'disabled' });
+  await card.getByTestId('ai-question-answer').click();
+  await expect(companion.getByText('Two mixing issues are open.')).toBeVisible();
+  let sent = (await mcp()).calls;
+  expect(sent.map((call) => call.offered)).toEqual([{ elicitation: { form: {}, url: {} } }, { elicitation: { form: {}, url: {} } }]);
+  expect(sent[1]).toMatchObject({ state: 'state-mixing', answers: { q: { action: 'accept', content: { project: 'ws', closed: true } } } });
+  // The model got the result of the call; the question and the answer went to no model.
+  const toModel = (await requests()).join('\n');
+  expect(toModel).toContain('Done: mixing.');
+  expect(toModel).not.toContain('Which project should I search');
+  expect(toModel).not.toContain('Werkstatt');
+
+  // 3. A page to open: shown whole with its host apart; opened only on the click, in the system's browser; and the
+  //    server hears yes only on Continue.
+  await companion.getByTestId('ai-input').fill('Connect GitHub.');
+  await companion.getByTestId('ai-send').click();
+  await companion.getByTestId('ai-effect-once').click();
+  await expect(card).toHaveAttribute('data-kind', 'url');
+  await expect(card.getByTestId('ai-question-host')).toHaveText('tracker.example.com');
+  await expect(card.getByTestId('ai-question-url')).toContainText('https://tracker.example.com/connect/github?state=7f3a');
+  expect((await mcp()).opened).toEqual([]);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-question-page-desktop.png'), animations: 'disabled' });
+  await card.getByTestId('ai-question-open').click();
+  await expect(card).toHaveAttribute('data-opened', 'true');
+  expect((await mcp()).opened).toEqual(['https://tracker.example.com/connect/github?state=7f3a']);
+  expect((await mcp()).calls).toHaveLength(3);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-question-opened-desktop.png'), animations: 'disabled' });
+  await card.getByTestId('ai-question-continue').click();
+  await expect(companion.getByText('GitHub is connected now.')).toBeVisible();
+  expect((await mcp()).calls[3]).toMatchObject({ query: 'github', answers: { q: { action: 'accept' } } });
+
+  // 4. A question for a key: not shown as a question. The card says what was asked and why there is no answer.
+  await companion.getByTestId('ai-input').fill('And the private issues?');
+  await companion.getByTestId('ai-send').click();
+  await companion.getByTestId('ai-effect-once').click();
+  await expect(card).toHaveAttribute('data-kind', 'refused');
+  await expect(card).toHaveAttribute('data-reason', 'secret');
+  await expect(card.getByTestId('ai-question-why')).toContainText('API-Schlüssel für GitHub');
+  await expect(card.locator('input')).toHaveCount(0);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-question-refused-desktop.png'), animations: 'disabled' });
+  await card.getByTestId('ai-question-close').click();
+  await expect(companion.getByText('The tracker could not reach GitHub without a key.')).toBeVisible();
+  sent = (await mcp()).calls;
+  expect(sent[5]).toMatchObject({ query: 'private', answers: { q: { action: 'decline' } } });
+  await expect(card).toHaveCount(0);
+});
+
 // Signing in to a remote server (AI harness P4.5). The sign-in is native: the Rust side makes the verifier, exchanges
 // the code and keeps the tokens. This test stands in for it at the commands — and answers what they answer: a document,
 // what an authorization server offers, an address to open, the id of a server. Everything above is the app's own code:

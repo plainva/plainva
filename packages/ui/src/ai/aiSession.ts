@@ -279,6 +279,10 @@ import {
   type ReplayOf,
   type SnapshotState,
   type McpToolEffect,
+  type McpElicitation,
+  type McpElicitMode,
+  type McpElicitResult,
+  type McpQuestions,
   type RunMcp,
   instructionStatus,
   isScriptToolName,
@@ -330,7 +334,7 @@ import { AiAcp, type AcpDrafts, type AcpVaultSide, type AiAcpHost, type AiAcpSta
 import { AiMcp, type AiMcpHost, type AiMcpState, type McpPromptReview, type McpPromptStart } from "./mcpSession";
 import type { McpPromptLook } from "./mcpRuntime";
 import type { McpVaultStore } from "./mcpStores";
-import { createMcpExecutor, newRunMcp, type McpCallQuestion } from "./mcpTools";
+import { createMcpExecutor, newRunMcp, type McpCallQuestion, type McpQuestionSource } from "./mcpTools";
 import { AiScripts, type AiScriptsHost, type AiScriptsState, type ScriptApprovalRefusal } from "./scriptSession";
 import { createScriptExecutor, newRunScripts, type ActiveScript } from "./scriptTools";
 import { EMPTY_MEMORY_STATE, readMemory, type AiMemoryHost, type AiMemoryState } from "./aiMemory";
@@ -823,6 +827,30 @@ export type EffectRequest =
   | { id: string; kind: "plan"; question: PlanQuestion };
 
 /**
+ * A question a foreign server puts to the user during a call or before a
+ * prompt (plan KI-Harness P9-4a), shown above the composer as Plainva's own
+ * card. `question` is what the server wrote, read and cleaned; the card
+ * shows it as the server's words, never as a title or a button. The answer
+ * goes to that server alone.
+ *
+ * `opened`: the page of a question that asks to open one was opened, and
+ * the card waits for "Continue". `opening`: it is being opened right now.
+ * `openFailed`: it could not be opened.
+ */
+export interface McpQuestionRequest {
+  id: string;
+  serverId: string;
+  /** The user's name for the server. */
+  server: string;
+  /** What the server is in the middle of: a call of one of its tools, or a prompt the user started. */
+  during: { kind: "tool"; tool: string; title: string } | { kind: "prompt"; name: string };
+  question: McpElicitation;
+  opened: boolean;
+  opening?: boolean;
+  openFailed?: boolean;
+}
+
+/**
  * The user's answer. To a request to the internet: this once, from now on for
  * pages of this site that a source named, or not at all. To a kind of data:
  * `always` allows it for this recipient until the app closes.
@@ -907,6 +935,8 @@ export interface AiState {
   draftWeb: boolean;
   /** A page or a search waiting for the user's answer. */
   effect: EffectRequest | null;
+  /** A question of a foreign server waiting for the user's answer (plan P9-4a). */
+  question: McpQuestionRequest | null;
   /** The foreign MCP servers of this device as they stand for this vault (plan P4.5): what the settings show. */
   mcp: AiMcpState;
   /** The external agents of this device and the session one of them has in this vault (plan P4.6). */
@@ -1288,6 +1318,12 @@ export class AiSession {
   private consentAnswer: ((answer: ConsentAnswer) => void) | null = null;
   /** The request to the internet that waits for an answer, if one does. */
   private effectAnswer: ((answer: EffectAnswer) => void) | null = null;
+  /** The question of a foreign server that waits for an answer, if one does (plan P9-4a). */
+  private questionAnswer: ((answer: McpElicitResult) => void) | null = null;
+  /** Questions of servers come one at a time: the next one waits here until the one before is answered. */
+  private questionLane: Promise<unknown> = Promise.resolve();
+  /** Ends the prompt of a server that is being started, with whatever it waits for (plan P9-4a). */
+  private promptAbort: AbortController | null = null;
   /** The lane of changes to the list of drafts (plan P5). */
   private draftLane: Promise<unknown> = Promise.resolve();
   private creatingDraft = false;
@@ -1349,6 +1385,7 @@ export class AiSession {
       web: DEFAULT_WEB_SETTINGS,
       draftWeb: false,
       effect: null,
+      question: null,
       mcp: this.mcp.state,
       agents: this.agents.state,
       drafts: EMPTY_WRITE_DRAFTS,
@@ -1451,6 +1488,8 @@ export class AiSession {
   private restForLocalOnly(): void {
     this.out.rest();
     this.settleEffect("deny");
+    this.promptAbort?.abort();
+    this.settleQuestion({ action: "cancel" });
     this.answerConsent(false);
     const draft = this.state.draftChoice;
     this.set({ draftWeb: false, ...(draft && !choiceOnDevice(this.state.settings, draft) ? { draftChoice: null } : {}) });
@@ -1689,6 +1728,8 @@ export class AiSession {
    */
   private dropWriteQuestion(): void {
     if (this.state.effect?.kind === "write") this.settleEffect("deny");
+    // A prompt of a server the user started here belongs to this conversation, and its questions with it (plan P9-4a).
+    this.promptAbort?.abort();
   }
 
   // ----------------------------------------------------------------- drafts
@@ -2041,24 +2082,53 @@ export class AiSession {
     const vault = this.vault;
     // Fully local (plan P7): no server is asked for anything.
     if (!vault || this.state.live || !this.state.settings.enabled || this.state.settings.localOnly) return { kind: "unavailable" };
-    const server = (await this.mcp.servers().catch(() => [])).find((entry) => entry.id === serverId);
-    if (!server || mcpServerStanding(server) !== "ready" || !server.snapshot?.prompts.some((prompt) => prompt.name === name)) return { kind: "unavailable" };
-    // The listing again before the server is asked for a text: a server that changed is blocked here already.
-    const check = await this.mcp.check(serverId);
-    if (!check.ok) return check.reason === "failed" ? { kind: "failed", failure: check.failure } : { kind: check.reason === "blocked" ? "blocked" : "unavailable" };
-    let look: McpPromptLook;
+    // The prompt belongs to the conversation it is started in, from its first step: STOP, another conversation, another
+    // vault or the device turning fully local end it, and then nothing of it is sent anywhere (plan P9-4a).
+    this.promptAbort?.abort();
+    const stop = new AbortController();
+    this.promptAbort = stop;
+    const conversation = this.state.active?.id ?? null;
+    const left = () => stop.signal.aborted || this.vault !== vault || (this.state.active?.id ?? null) !== conversation;
     try {
-      look = await this.mcp.prompt(serverId, name, args);
-    } catch (error) {
-      return { kind: "failed", failure: asMcpError(error).failure };
+      const server = (await this.mcp.servers().catch(() => [])).find((entry) => entry.id === serverId);
+      if (left()) return { kind: "cancelled" };
+      if (!server || mcpServerStanding(server) !== "ready" || !server.snapshot?.prompts.some((prompt) => prompt.name === name)) return { kind: "unavailable" };
+      // The listing again before the server is asked for a text: a server that changed is blocked here already.
+      const check = await this.mcp.check(serverId, stop.signal);
+      if (left()) return { kind: "cancelled" };
+      if (!check.ok) return check.reason === "failed" ? { kind: "failed", failure: check.failure } : { kind: check.reason === "blocked" ? "blocked" : "unavailable" };
+      // A server the vault lets ask may ask the user before its prompt expands. A stop of the user ends the prompt; after
+      // a no, its expansion is read before it goes, never sent unread.
+      let stopped = false;
+      let declined = false;
+      const questions: McpQuestions | undefined = server.grant.questions
+        ? {
+            modes: this.questionModes(),
+            ask: async (question, signal) => {
+              const answer = await this.askQuestion({ id: this.host.newId(), serverId, server: server.label, during: { kind: "prompt", name }, question }, signal);
+              if (question.kind !== "refused" && answer.action === "cancel") stopped = true;
+              if (question.kind !== "refused" && answer.action === "decline") declined = true;
+              return answer;
+            },
+          }
+        : undefined;
+      let look: McpPromptLook;
+      try {
+        look = await this.mcp.prompt(serverId, name, args, stop.signal, questions);
+      } catch (error) {
+        const failure = asMcpError(error).failure;
+        return stopped || left() || failure.kind === "cancelled" ? { kind: "cancelled" } : { kind: "failed", failure };
+      }
+      if (stopped || left()) return { kind: "cancelled" };
+      if (look.standing === "changed") return { kind: "blocked" };
+      const { text, dropped, truncated } = mcpPromptText(look.body);
+      if (!text) return { kind: "empty" };
+      if (look.standing === "unpinned" || declined) return { kind: "review", review: { serverId, server: server.label, name, key: look.key, body: look.body, text, dropped, truncated } };
+      await this.send(text);
+      return { kind: "sent" };
+    } finally {
+      if (this.promptAbort === stop) this.promptAbort = null;
     }
-    if (this.vault !== vault) return { kind: "unavailable" };
-    if (look.standing === "changed") return { kind: "blocked" };
-    const { text, dropped, truncated } = mcpPromptText(look.body);
-    if (!text) return { kind: "empty" };
-    if (look.standing === "unpinned") return { kind: "review", review: { serverId, server: server.label, name, key: look.key, body: look.body, text, dropped, truncated } };
-    await this.send(text);
-    return { kind: "sent" };
   }
 
   /** The user read what a server's prompt expanded to, and sends it: from now on this expansion is the approved one. */
@@ -2128,6 +2198,91 @@ export class AiSession {
   /** The user's answer to a page or a search that waits. */
   answerEffect(answer: EffectAnswer): void {
     this.settleEffect(answer);
+  }
+
+  /**
+   * The user's answer to a server's question (plan P9-4a): what they filled
+   * in, a no, or a stop. The client checks a form's answer once more before
+   * it goes; an answer to a page carries nothing.
+   */
+  answerQuestion(id: string, answer: McpElicitResult): void {
+    const current = this.state.question;
+    // An answer is for the card it was given on: one that arrives after its card made way for another goes nowhere.
+    if (!current || current.id !== id) return;
+    // A page is said yes to only once it was opened.
+    if (answer.action === "accept" && current.question.kind === "url" && !current.opened) return;
+    this.settleQuestion(answer);
+  }
+
+  /**
+   * Opens the page a server asked the user to open — on their click, in the
+   * system's browser. The card then waits for "Continue", which answers yes;
+   * nothing is sent to the server before.
+   */
+  async openQuestionPage(id: string): Promise<void> {
+    const current = this.state.question;
+    const open = this.mcp.openPage;
+    // Opened once at a time: a second click while the browser comes up opens nothing more.
+    if (!current || current.id !== id || current.question.kind !== "url" || current.opening || !open) return;
+    this.set({ question: { ...current, opening: true } });
+    const opened = await open(current.question.url).then(
+      () => true,
+      () => false,
+    );
+    const now = this.state.question;
+    if (now?.id !== id) return;
+    this.set({ question: { ...now, opening: false, opened: opened || now.opened, openFailed: !opened } });
+  }
+
+  private settleQuestion(answer: McpElicitResult): void {
+    const settle = this.questionAnswer;
+    this.questionAnswer = null;
+    if (this.state.question) this.set({ question: null });
+    settle?.(answer);
+  }
+
+  /**
+   * One question of a server, shown and waited for. A question Plainva
+   * refused is shown as well — the user hears that the server asked and why
+   * it got no answer —, and whatever comes back for it, the server gets no.
+   */
+  private askQuestion(request: Omit<McpQuestionRequest, "opened" | "opening" | "openFailed">, signal?: AbortSignal): Promise<McpElicitResult> {
+    // One question at a time: a second one waits until the first is answered — it never takes the first one's place.
+    const turn = this.questionLane.then(() => this.showQuestion(request, signal));
+    this.questionLane = turn.catch(() => undefined);
+    return turn;
+  }
+
+  private showQuestion(request: Omit<McpQuestionRequest, "opened" | "opening" | "openFailed">, signal?: AbortSignal): Promise<McpElicitResult> {
+    return new Promise((resolve) => {
+      if (signal?.aborted) return resolve({ action: "cancel" });
+      // STOP is a stop of whatever waits — of this card, not of one that came after it.
+      const onAbort = () => {
+        if (this.state.question?.id === request.id) this.settleQuestion({ action: "cancel" });
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+      this.questionAnswer = (answer) => {
+        signal?.removeEventListener("abort", onAbort);
+        resolve(answer);
+      };
+      this.set({ question: { ...request, opened: false } });
+      // Asked while no conversation is on screen: the shell shows one, or nobody could answer.
+      if (this.surfaces === 0) this.reveal?.();
+    });
+  }
+
+  /** The kinds of question this shell can show: a form always, a page where it can open one in the system's browser. */
+  private questionModes(): McpElicitMode[] {
+    return this.mcp.openPage ? ["form", "url"] : ["form"];
+  }
+
+  /** Where a server may ask the user during a call of one of its tools (plan P9-4a): Plainva's card. */
+  private mcpToolQuestions(source: McpQuestionSource): McpQuestions {
+    return {
+      modes: this.questionModes(),
+      ask: (question, signal) =>
+        this.askQuestion({ id: this.host.newId(), serverId: source.serverId, server: source.serverLabel, during: { kind: "tool", tool: source.tool, title: source.title }, question }, signal),
+    };
   }
 
   private settleEffect(answer: EffectAnswer): void {
@@ -5544,8 +5699,10 @@ export class AiSession {
 
   stop(): void {
     this.abort?.abort();
+    this.promptAbort?.abort();
     this.answerConsent(false);
     this.settleEffect("deny");
+    this.settleQuestion({ action: "cancel" });
   }
 
   /** The user's answer to the send overview: send within the shown scope, or send nothing. */
@@ -5867,7 +6024,8 @@ export class AiSession {
                 Boolean(startedWith.instructions?.memory?.restricted.includes("cloud")) ||
                 Boolean(startedWith.instructions?.style?.restricted.includes("cloud")),
               ask: (question, signal) => this.askMcp(question, signal),
-              call: (serverId, tool, args, inputSchema, signal) => this.mcp.call(serverId, tool, args, inputSchema, signal),
+              call: (serverId, tool, args, inputSchema, signal, questions) => this.mcp.call(serverId, tool, args, inputSchema, signal, questions),
+              questions: (source) => this.mcpToolQuestions(source),
               log: (entry) => this.mcp.log({ ...entry, at: this.host.now().toISOString(), conversation: startedWith.id }),
             },
             mcpLog,
@@ -6323,6 +6481,7 @@ export class AiSession {
     if (this.abort === controller) this.abort = null;
     // Whatever still waits for an answer belongs to a run that is over.
     this.settleEffect("deny");
+    if (this.state.question?.during.kind === "tool") this.settleQuestion({ action: "cancel" });
 
     // The calls that read pages and searched are part of what the run cost.
     const web = input.web && (input.web.pages.length || input.web.searches.length) ? input.web : null;

@@ -58,7 +58,7 @@ import { mConfirm } from "../mobileDialogs";
 import { createMobileAiEgress, setMobileLocalOnly } from "../../platform/aiNet";
 import { createMobileWebFetcher } from "../../platform/aiWeb";
 import { createMobileMcpHost } from "../../platform/aiMcp";
-import { createMobileMcpBrowser } from "./mobileMcpBrowser";
+import { createMobileMcpBrowser, openMobileMcpPage } from "./mobileMcpBrowser";
 import { vaultOps, type MobileVault } from "../vaultService";
 import { readEditorSelection } from "../editorSelection";
 import { getMobileSettings } from "../mobileSettings";
@@ -156,6 +156,7 @@ export function getMobileAiSession(): AiSession {
         native: createMobileMcpHost(),
         // Signing in to a remote server: the browser of the system, and back through the app's own address.
         browser: createMobileMcpBrowser(),
+        openPage: openMobileMcpPage,
         clientDocument: MCP_OAUTH_CLIENT_DOCUMENT,
         store: createMcpDeviceStore(mobileAiFiles),
         version: async () => (await getPlatformServices().appVersion?.()) ?? "",

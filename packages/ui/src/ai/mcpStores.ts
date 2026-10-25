@@ -70,7 +70,9 @@ export type McpAuditOutcome =
   /** The server's listing had changed: it was blocked instead. */
   | "blocked"
   /** The call went out and no answer came back. */
-  | "failed";
+  | "failed"
+  /** The server wanted to ask the user something during the call, and may not in this vault (plan P9-4a). */
+  | "questions-off";
 
 /** One call, as the log of a vault keeps it: who, what, how it ended, how much — never what was said. */
 export interface McpAuditEntry {
@@ -98,7 +100,7 @@ const MCP_MAX_SERVERS = 32;
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const isId = (value: string) => MCP_SERVER_ID_PATTERN.test(value);
-const OUTCOMES: readonly McpAuditOutcome[] = ["answered", "tool-error", "declined", "refused", "blocked", "failed"];
+const OUTCOMES: readonly McpAuditOutcome[] = ["answered", "tool-error", "declined", "refused", "blocked", "failed", "questions-off"];
 
 function readSeen(raw: unknown): McpServerRecord["seen"] | undefined {
   if (!isRecord(raw) || (raw.era !== "modern" && raw.era !== "legacy") || typeof raw.at !== "string") return undefined;

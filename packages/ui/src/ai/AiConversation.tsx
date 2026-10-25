@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeftRight, Ban, Check, CircleAlert, Eye, FilePlus2, FileText, Globe, GraduationCap, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plug, Plus, Scissors, Send, Signature, Sparkles, Square } from "lucide-react";
-import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, choiceOnDevice, comparableAddress, hasImages, hasWebTools, knownAddresses, localAnswerer, providerById, runsOnDevice, type AnswerCoverage, type ModelFailure, type RunMeta, type RunStop } from "@plainva/core";
+import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, choiceOnDevice, comparableAddress, hasImages, hasWebTools, knownAddresses, localAnswerer, providerById, runsOnDevice, type AnswerCoverage, type ModelFailure, type RunMcpQuestions, type RunMeta, type RunStop } from "@plainva/core";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";
@@ -16,6 +16,7 @@ import { AiAnswer } from "./AiAnswer";
 import { AiContextLens } from "./AiContextLens";
 import { AiEffectApproval } from "./AiEffectApproval";
 import { AiExternalPrompt } from "./AiExternalPrompt";
+import { AiMcpQuestion } from "./AiMcpQuestion";
 import { AiPicture } from "./AiPicture";
 import { AI_TRANSLATE_LANGUAGES, askMessage, runSuggestAction, type AiSuggestAction, type SelectionReader } from "./aiSelectionActions";
 import { startableSkills } from "./aiSkills";
@@ -185,7 +186,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   useEffect(() => {
     const el = threadRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [items.length, liveText, state?.live?.tools.length, state?.consent, state?.effect]);
+  }, [items.length, liveText, state?.live?.tools.length, state?.consent, state?.effect, state?.question]);
 
   // The send overview is answered here: a door outside the conversation relies on the session knowing one is on screen.
   useEffect(() => session?.mountSurface(), [session]);
@@ -243,6 +244,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
 
   const consent = state.consent;
   const effect = state.effect;
+  // A foreign server's question to the user (plan P9-4a): while it stands, nothing else is asked or sent.
+  const question = state.question;
   // The internet (plan P4): what a new conversation could do on it, and whether the open one carries it.
   const webOffer = session.webOffer();
   // While the device is fully local the internet rests, also for a conversation that was started with it.
@@ -307,7 +310,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   const ready = state.routines.ready;
   const send = () => {
     const text = draft.trim();
-    if (!text || running || routine || consent || effect || !state.hasVault || rests) return;
+    if (!text || running || routine || consent || effect || question || !state.hasVault || rests) return;
     setDraft("");
     // Nothing sent (the overview was cancelled, or a rule held — the conversation stays on this device, the device is fully local): the words come back to the field.
     void session.send(text).then((stop) => {
@@ -354,9 +357,25 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   };
   // A tool of a foreign server is named by the user's name for the server and the tool's own (plan P4.5); a script by its own name (plan P5.5).
   const toolLabel = (name: string) => externalToolLabel(t, name, state.mcp.servers) ?? scriptToolLabel(t, name) ?? t(`ai.tool.${name}`, { defaultValue: t("ai.tool.unknown") });
-  /** What a run asked of foreign servers, as lines: who, what, how it ended. */
+  /** How the questions of one call went (plan P9-4a): numbers, never what was asked or answered. */
+  const questionsOf = (questions: RunMcpQuestions | undefined): string =>
+    questions
+      ? [
+          questions.answered ? t("ai.ext.questions.answered", { count: questions.answered }) : "",
+          questions.declined ? t("ai.ext.questions.declined", { count: questions.declined }) : "",
+          questions.cancelled ? t("ai.ext.questions.cancelled", { count: questions.cancelled }) : "",
+          questions.refused ? t("ai.ext.questions.refused", { count: questions.refused }) : "",
+        ]
+          .filter(Boolean)
+          .join(", ")
+      : "";
+  /** What a run asked of foreign servers, as lines: who, what, how it ended — and how its questions to the user went. */
   const externalCallsOf = (run: RunMeta) =>
-    (run.mcp?.calls ?? []).map((call) => `${state.mcp.servers.find((server) => server.id === call.server)?.label ?? call.server} · ${call.tool} · ${t(`ai.ext.outcome.${call.outcome}`, { defaultValue: call.outcome })}`);
+    (run.mcp?.calls ?? []).map((call) => {
+      const line = `${state.mcp.servers.find((server) => server.id === call.server)?.label ?? call.server} · ${call.tool} · ${t(`ai.ext.outcome.${call.outcome}`, { defaultValue: call.outcome })}`;
+      const asked = questionsOf(call.questions);
+      return asked ? `${line} · ${asked}` : line;
+    });
   /** Starts a prompt of a foreign server: at once where its text was approved before, else its text is shown first. */
   const startExternalPrompt = (prompt: ExternalPrompt, args: Record<string, string>) => {
     setExtBusy(true);
@@ -371,6 +390,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         if (result.kind === "blocked") toast.error(t("ai.ext.prompt.blocked", { server: prompt.server }));
         else if (result.kind === "empty") toast.error(t("ai.ext.prompt.empty"));
         else if (result.kind === "unavailable") toast.error(t("ai.ext.prompt.unavailable"));
+        // Stopped on purpose — at a question of the server, by STOP, by leaving the conversation: nothing to say.
         else if (result.kind === "failed") toast.error(externalFailureText(t, result.failure));
       })
       .finally(() => setExtBusy(false));
@@ -651,7 +671,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
               </div>
             ) : (
               // While a page or a search waits for its answer, nothing is being thought: the question below is the state.
-              !effect && (
+              !effect &&
+              !question && (
                 // Each step waits anew: the line of a model on this device starts to count from its first second.
                 <AiWorkingLine key={live.steps} here={runsOnDevice(provider)} />
               )
@@ -784,8 +805,10 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         )}
         {/* One page or one search waits for an answer (plan P4): asked where the send overview is asked. */}
         {effect && <AiEffectApproval request={effect} onAnswer={(answer) => session.answerEffect(answer)} touch={touch} />}
+        {/* A foreign server asks the user something during a call or before a prompt (plan P9-4a): Plainva's card, the server's words quoted in it. */}
+        {question && <AiMcpQuestion request={question} onAnswer={(answer) => session.answerQuestion(question.id, answer)} onOpenPage={() => void session.openQuestionPage(question.id)} touch={touch} />}
         {/* A prompt of a foreign server on its way in (plan P4.5): its values, then — the first time — its text, before anything is sent. */}
-        {extPrompt && !consent && !effect && (
+        {extPrompt && !consent && !effect && !question && (
           <AiExternalPrompt
             prompt={extPrompt.prompt}
             review={extPrompt.review}

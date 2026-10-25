@@ -415,6 +415,9 @@ describe("what a server may be asked", () => {
   it("reads a stored grant defensively", () => {
     expect(readMcpServerGrant(null)).toEqual(EMPTY_MCP_GRANT);
     expect(readMcpServerGrant({ tools: ["a", 5, "a"], folders: "all", dataClasses: ["notes", "secrets"], hosts: ["h"] })).toEqual({ tools: ["a"], folders: [], dataClasses: ["notes"], hosts: ["h"] });
+    // Questions to the user (plan P9-4a): only a yes written as one; a grant from before has none.
+    expect(readMcpServerGrant({ tools: [], questions: true }).questions).toBe(true);
+    for (const questions of ["yes", 1, false, null]) expect("questions" in readMcpServerGrant({ tools: [], questions }), String(questions)).toBe(false);
   });
 });
 

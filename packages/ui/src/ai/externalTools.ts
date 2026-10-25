@@ -5,7 +5,9 @@ import {
   isMcpExposedToolName,
   mcpExposedToolName,
   mcpIssuesOf,
+  mcpAskedOnlyUser,
   mcpOfferedTools,
+  mcpQuestionsOff,
   mcpServerStanding,
   mcpToolEffect,
   mcpToolStanding,
@@ -134,6 +136,10 @@ export function externalFailureText(t: T, failure: McpFailure): string {
     case "too-large":
       return t("ai.ext.failure.tooLarge");
     case "input-required":
+      // A server that wanted to ask the user and may not in this vault (plan P9-4a): where that is allowed, not a broken server.
+      if (mcpQuestionsOff(failure)) return t("ai.ext.failure.questionsOff");
+      if (mcpAskedOnlyUser(failure) && failure.unoffered === "revision") return t("ai.ext.failure.questionsRevision");
+      if (mcpAskedOnlyUser(failure) && failure.unoffered === "kind") return t("ai.ext.failure.questionsKind");
       return t("ai.ext.failure.protocol");
     default:
       return t(`ai.ext.failure.${failure.kind}`);

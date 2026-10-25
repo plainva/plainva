@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createScriptedMcpServer, McpError, scriptedMcpOAuth, MCP_OAUTH_CLIENT_DOCUMENT, type McpClientInfo, type ScriptedMcpServer, type ScriptedOAuth, type ScriptedStdioPort } from "@plainva/core";
-import { createMcpDeviceStore, MCP_IDLE_MS, McpRuntime } from "@plainva/ui";
+import { createScriptedMcpServer, McpError, scriptedMcpOAuth, scriptedQuestions, MCP_OAUTH_CLIENT_DOCUMENT, type McpClientInfo, type McpQuestions, type ScriptedMcpServer, type ScriptedOAuth, type ScriptedStdioPort } from "@plainva/core";
+import { createMcpDeviceStore, MCP_IDLE_MS, MCP_PROMPT_PINS_MAX, McpRuntime } from "@plainva/ui";
 import { CONFIRM, memoryFiles, scriptedNative } from "./mcpTestHost";
 
 /**
@@ -297,6 +297,51 @@ describe("a call and a prompt", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(current.stopped).toBe(true);
     expect(t.timers.every((timer) => timer.off)).toBe(true);
+  });
+
+  it("keeps a connection while a call waits for the user's answer to the server's question — and stops the call when the connections end (plan P9-4a)", async () => {
+    const t = setup({ programs: true });
+    t.behind.set("npx -y tracker-mcp", t.server);
+    await t.runtime.addProgram("Local", { program: "npx", args: ["-y", "tracker-mcp"], env: [], sandbox: false }, {}, CONFIRM);
+    expect(await t.runtime.approve("local", (await t.runtime.inspect("local")).listing)).toBe(true);
+    t.server.onCall = () => scriptedQuestions({ p: { mode: "form", message: "Which project?", requestedSchema: { type: "object", properties: { project: { type: "string" } } } } });
+    let shown!: () => void;
+    const asked = new Promise<void>((resolve) => (shown = resolve));
+    const questions: McpQuestions = {
+      modes: ["form"],
+      ask: (_question, signal) => {
+        shown();
+        // The user takes their time; only the end of the request ends the wait.
+        return new Promise((resolve) => signal?.addEventListener("abort", () => resolve({ action: "cancel" }), { once: true }));
+      },
+    };
+    const call = t.runtime.call("local", "search_issues", { query: "a" }, search.inputSchema, undefined, questions);
+    await asked;
+    const port = t.host.ports.get("local") as ScriptedStdioPort;
+    // Ten idle minutes pass while the question stands: the connection stays.
+    t.timers.filter((timer) => !timer.off).forEach((timer) => timer.run());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(port.stopped).toBe(false);
+    // The device goes fully local, or the vault closes: what waits ends, and nothing is sent again on a new connection.
+    t.runtime.dispose();
+    await expect(call).rejects.toMatchObject({ failure: { kind: "cancelled" } });
+    expect(t.server.calls).toHaveLength(1);
+    expect(port.stopped).toBe(true);
+  });
+
+  it("keeps at most so many approved prompt expansions per server, the oldest going first (plan P9-4a)", async () => {
+    const t = await approved();
+    for (let i = 0; i < MCP_PROMPT_PINS_MAX + 2; i++) await t.runtime.pinPrompt(t.id, `standup\u0000{"n":${i}}`, { messages: [i] });
+    // Pinned again, an old one moves to the end instead of going.
+    await t.runtime.pinPrompt(t.id, `standup\u0000{"n":2}`, { messages: [2] });
+    const record = (await createMcpDeviceStore(t.files).load())[t.id]!;
+    if (record.review.status !== "approved") throw new Error("not approved");
+    const keys = Object.keys(record.review.pin.promptBodies);
+    expect(keys).toHaveLength(MCP_PROMPT_PINS_MAX);
+    expect(keys).not.toContain(`standup\u0000{"n":0}`);
+    expect(keys).not.toContain(`standup\u0000{"n":1}`);
+    expect(keys).toContain(`standup\u0000{"n":3}`);
+    expect(keys[keys.length - 1]).toBe(`standup\u0000{"n":2}`);
   });
 
   it("removes a server with its record and its credential", async () => {

@@ -1718,6 +1718,16 @@
       "overviewTools": "Werkzeuge von {{server}} ({{n}}) — jeder Aufruf fragt vorher",
       "overviewOther": "weitere externe Werkzeuge ({{n}})",
       "overviewCalls": "Externe Aufrufe",
+      "questions": {
+        "answered_one": "{{count}} Rückfrage beantwortet",
+        "answered_other": "{{count}} Rückfragen beantwortet",
+        "declined_one": "{{count}} Rückfrage abgelehnt",
+        "declined_other": "{{count}} Rückfragen abgelehnt",
+        "cancelled_one": "{{count}} Rückfrage abgebrochen",
+        "cancelled_other": "{{count}} Rückfragen abgebrochen",
+        "refused_one": "{{count}} Rückfrage von Plainva gesperrt",
+        "refused_other": "{{count}} Rückfragen von Plainva gesperrt"
+      },
       "status": {
         "ready": "Wird in diesem Vault genutzt",
         "off": "In diesem Vault nicht genutzt",
@@ -1750,12 +1760,51 @@
         "empty": "Der Prompt enthält keinen Text.",
         "unavailable": "Dieser Prompt ist gerade nicht verfügbar."
       },
+      "question": {
+        "title": "{{server}} fragt nach",
+        "pageTitle": "{{server}} möchte, dass Du eine Seite öffnest",
+        "refusedTitle": "Plainva hat eine Rückfrage von {{server}} gesperrt",
+        "during": "Für",
+        "prompt": "den Prompt „{{name}}“",
+        "writes": "{{server}} schreibt:",
+        "optional": "freiwillig",
+        "choose": "Auswählen …",
+        "range": "von {{min}} bis {{max}}",
+        "rangeMin": "mindestens {{min}}",
+        "rangeMax": "höchstens {{max}}",
+        "problem": {
+          "required": "Bitte ausfüllen.",
+          "short": "Das ist zu kurz.",
+          "long": "Das ist zu lang.",
+          "format": "Das passt nicht zu dem, was gefragt ist.",
+          "range": "Das liegt außerhalb des erlaubten Bereichs.",
+          "count": "Wähle eine andere Anzahl."
+        },
+        "hint": "Plainva gibt Deine Antwort nur an {{server}}, nicht an die KI — was der Server zurückschickt, kann sie aber erwähnen. Gib hier nie ein Passwort oder einen Schlüssel ein: Ein Server darf so nicht danach fragen.",
+        "answer": "Antworten",
+        "confirm": "Bestätigen",
+        "decline": "Ablehnen",
+        "pageHint": "Plainva öffnet die Seite in Deinem Browser. Was Du dort eingibst, sehen weder Plainva noch die KI. Danach geht es hier weiter.",
+        "pageOpened": "Die Seite ist in Deinem Browser offen. Bist Du dort fertig, geht es hier weiter.",
+        "openFailed": "Die Seite ließ sich nicht öffnen.",
+        "punycode": "Die Adresse enthält Zeichen einer anderen Schrift, die vertrauten Buchstaben gleichen können. Prüfe die Domain genau, bevor Du dort etwas eingibst.",
+        "ipAddress": "Die Adresse ist eine bloße IP-Adresse, kein Name. Prüfe, wohin sie führt, bevor Du dort etwas eingibst.",
+        "open": "Im Browser öffnen",
+        "continue": "Weiter",
+        "refused": {
+          "secret": "Der Server fragte nach etwas, das wie ein Passwort, ein Schlüssel oder Zahlungsdaten aussieht: „{{field}}“. Plainva gibt so etwas nicht weiter — für eine Anmeldung muss ein Server Dich eine eigene Seite öffnen lassen.",
+          "secretAsked": "Der Server fragte nach etwas, das wie ein Passwort, ein Schlüssel oder Zahlungsdaten aussieht. Plainva gibt so etwas nicht weiter — für eine Anmeldung muss ein Server Dich eine eigene Seite öffnen lassen.",
+          "shape": "Der Server fragte auf eine Weise, die Plainva nicht anzeigen kann. Er bekam keine Antwort.",
+          "address": "Der Server wollte, dass Du eine Adresse öffnest, die Plainva nicht öffnet: nur sichere Adressen (https), keine auf diesem Gerät, außer der Server läuft hier, und keine mit eigener Anmeldung darin."
+        }
+      },
       "outcome": {
         "answered": "beantwortet",
         "tool-error": "das Werkzeug hat einen Fehler gemeldet",
         "declined": "von Dir nicht erlaubt",
         "refused": "von einer Regel zurückgehalten",
         "blocked": "Server gesperrt",
+        "questions-off": "wollte Dich etwas fragen — für diesen Server nicht erlaubt",
         "failed": "keine Antwort"
       },
       "review": {
@@ -1801,6 +1850,9 @@
         "foldersAll": "Der ganze Vault",
         "foldersEmpty": "Dieser Vault hat keine Ordner.",
         "foldersHint": "Ein Aufruf geht nur hinaus, wenn jede Notiz, die das Gespräch gelesen hat, in dem liegt, was Du hier erlaubst. Eine Notiz, die Du von der Cloud fernhältst, geht nie mit.",
+        "questions": "{{server}} darf Dir Rückfragen stellen",
+        "questionsHint": "Während eines Aufrufs oder eines Prompts darf der Server Dich nach einer Angabe fragen oder bitten, eine Seite zu öffnen. Du antwortest oder lehnst ab; Plainva gibt die Antwort nur an ihn, nicht an die KI. Nach Passwörtern oder Schlüsseln darf er so nicht fragen.",
+        "questionsRevision": "Dieser Server spricht eine frühere Fassung von MCP, in der Plainva keine Rückfragen beantwortet.",
         "log": "Was das Programm geschrieben hat",
         "logEmpty": "Bisher nichts.",
         "calls": "Letzte Aufrufe in diesem Vault",
@@ -1835,6 +1887,9 @@
         "version": "Der Server spricht keine MCP-Version, die Plainva kennt.",
         "tooLarge": "Die Antwort des Servers war zu groß.",
         "exited": "Das Programm hat sich beendet.",
+        "questionsOff": "Der Server wollte Dich etwas fragen, und Rückfragen dieses Servers sind in diesem Vault aus. Du kannst sie in seinen Einstellungen erlauben.",
+        "questionsRevision": "Der Server wollte Dich etwas fragen, spricht aber eine frühere Fassung von MCP, in der Plainva keine Rückfragen beantwortet.",
+        "questionsKind": "Der Server wollte Dich etwas auf eine Weise fragen, die Plainva hier nicht anzeigen kann.",
         "rpc": "Der Server hat einen Fehler gemeldet ({{code}}).",
         "programMoved": "Das Programm liegt nicht mehr dort, wo es beim Hinzufügen lag. Entferne den Server und füge ihn neu hinzu.",
         "sandboxUnavailable": "Die Sandbox, in der es laufen sollte, ist auf diesem Rechner nicht verfügbar.",

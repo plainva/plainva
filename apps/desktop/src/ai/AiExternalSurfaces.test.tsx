@@ -183,6 +183,7 @@ function model(change: Partial<ExternalReviewModel> = {}) {
     toggleTool: (name, on) => calls.push(`tool ${name} ${on}`),
     setFolders: (choice) => calls.push(`folders ${choice}`),
     toggleFolder: (folder, on) => calls.push(`folder ${folder} ${on}`),
+    setQuestions: (on) => calls.push(`questions ${on}`),
     needsApproval: true,
     canApprove: true,
     dirty: true,
@@ -260,6 +261,29 @@ describe("the review of a server", () => {
     act(() => root?.unmount());
     const none = mount(<AiExternalReview review={model().review} vaultFolders={["Clients"]} />);
     expect(none.querySelector('[data-testid="ai-ext-folder"]')).toBeNull();
+  });
+
+  it("lets the vault allow the server's questions to the user — off until it does (plan P9-4a)", () => {
+    const { review, calls } = model();
+    const container = mount(<AiExternalReview review={review} vaultFolders={[]} />);
+    const box = container.querySelector<HTMLInputElement>('[data-testid="ai-ext-questions"]')!;
+    expect(box.checked).toBe(false);
+    expect(box.closest("label")!.textContent).toContain("Let Tracker ask you questions");
+    expect(box.closest("label")!.textContent).toContain("Plainva gives the answer to it alone, not to the AI");
+    click(box);
+    expect(calls).toEqual(["questions true"]);
+    act(() => root?.unmount());
+    const allowed = mount(<AiExternalReview review={model({ grant: { ...EMPTY_MCP_GRANT, questions: true } }).review} vaultFolders={[]} />);
+    expect(allowed.querySelector<HTMLInputElement>('[data-testid="ai-ext-questions"]')!.checked).toBe(true);
+    act(() => root?.unmount());
+    // A server of an earlier revision cannot ask within a request: the box says so and cannot be changed.
+    const earlier = { ...inspection(), hello: { ...inspection().hello, era: "legacy" as const, version: "2025-06-18" } };
+    const legacy = mount(<AiExternalReview review={model({ grant: { ...EMPTY_MCP_GRANT, questions: true }, look: { state: "ready", inspection: earlier } }).review} vaultFolders={[]} />);
+    const box2 = legacy.querySelector<HTMLInputElement>('[data-testid="ai-ext-questions"]')!;
+    // A yes stored before stays visible — and stays a yes nobody can use until the server speaks the current revision.
+    expect(box2.disabled).toBe(true);
+    expect(box2.checked).toBe(true);
+    expect(box2.closest("label")!.textContent).toContain("an earlier version of MCP, in which Plainva answers no questions");
   });
 
   it("says what differs when the server is blocked", () => {

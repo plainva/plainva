@@ -1,9 +1,11 @@
+import { mcpElicitCapabilities, mcpElicitReply, readMcpElicitation, MCP_ELICIT_LIMITS, type McpElicitResult, type McpQuestions } from "./elicitation.js";
 import { mcpParamHeaders, readMcpHeaderParams } from "./headerValues.js";
 import { capMcpText, readMcpListing, MCP_MAX_PROMPTS, MCP_MAX_TOOLS, type McpListing } from "./listing.js";
 import {
   McpError,
   mcpTtl,
   MCP_MAX_FRESH_MS,
+  MCP_ELICIT_METHOD,
   MCP_MAX_INPUT_ROUNDS,
   MCP_MAX_PAGES,
   MCP_TIMEOUTS,
@@ -19,11 +21,13 @@ import {
  * is, what it offers, one call, one prompt.
  *
  * This is the reading half and nothing else. It declares no capability, so a
- * server has nothing to ask of it; it follows no instruction a server sends;
- * and it decides nothing. What it returns is raw: `listing()` is compared
- * with the pin before anyone reads it (`pin.ts`), a call's result becomes one
- * fenced text (`results.ts`), and whether a call may go out at all was
- * settled before it got here (`grants.ts`).
+ * server has nothing to ask of it — except where a call or a prompt brings
+ * `questions` (plan KI-Harness P9-4a): then that one request offers the
+ * server to ask the user, and the client asks through them. It follows no
+ * instruction a server sends, and it decides nothing. What it returns is raw:
+ * `listing()` is compared with the pin before anyone reads it (`pin.ts`), a
+ * call's result becomes one fenced text (`results.ts`), and whether a call
+ * may go out at all was settled before it got here (`grants.ts`).
  */
 
 export interface McpHello {
@@ -47,6 +51,8 @@ export interface McpCallOptions {
   signal?: AbortSignal;
   /** The tool's input schema as the server listed it: over HTTP, arguments it marks travel as headers too. */
   inputSchema?: unknown;
+  /** Where the server may ask the user something during this call; left out, it may not. */
+  questions?: McpQuestions;
 }
 
 export interface McpClient {
@@ -55,8 +61,8 @@ export interface McpClient {
   listing(signal?: AbortSignal): Promise<McpListingLoad>;
   /** One call. Returns the raw result; see `mcpResultView`. */
   callTool(name: string, args: Record<string, unknown>, options?: McpCallOptions): Promise<Record<string, unknown>>;
-  /** What a prompt expands to, raw: this is what `checkMcpPromptBody` compares. */
-  getPrompt(name: string, args: Record<string, string>, signal?: AbortSignal): Promise<Record<string, unknown>>;
+  /** What a prompt expands to, raw: this is what `checkMcpPromptBody` compares. `questions` as for a call. */
+  getPrompt(name: string, args: Record<string, string>, signal?: AbortSignal, questions?: McpQuestions): Promise<Record<string, unknown>>;
   close(): Promise<void>;
 }
 
@@ -129,20 +135,76 @@ export function createMcpClient(wire: McpWire, options: { timeouts?: Partial<Mcp
     return { items: items.slice(0, max), ttl, clipped };
   };
 
-  /** One request that the server may answer with "come back with this state" — and may not answer with a question. */
-  const roundTrip = async (method: string, params: Record<string, unknown>, request: McpRequestOptions): Promise<Record<string, unknown>> => {
+  /**
+   * One request that the server may answer with "come back with this state"
+   * — and, where `questions` lets it, with questions to the user (MCP
+   * 2026-07-28, multi round-trip requests): each is asked, one at a time, and
+   * the request goes again with the answers under the server's keys and its
+   * state as it gave it. After a "no" or a stop of the user, the further
+   * questions of this request get the same answer without being shown.
+   */
+  const roundTrip = async (method: string, params: Record<string, unknown>, request: McpRequestOptions, questions?: McpQuestions): Promise<Record<string, unknown>> => {
     let state: string | undefined;
+    // The answers of a round as pairs: a key the server chose is never a property name of the object they go in.
+    let answers: [string, McpElicitResult][] | undefined;
+    let settled: McpElicitResult | null = null;
+    // One card that says Plainva refused a question is enough for one request; the next refusals go unshown.
+    let refusedShown = false;
+    // Only the stateless revision asks within a request; an earlier one would ask on a stream of its own, which is not offered.
+    const era = (await wire.open(request.signal)).era;
+    const offered = questions && questions.modes.length > 0 && era === "modern" ? questions : undefined;
+    // Why a question of the server goes unasked, where it asks one anyway: its revision first — there nothing can allow it.
+    const unoffered = era !== "modern" ? "revision" : !questions ? "vault" : "kind";
+    const options: McpRequestOptions = offered ? { ...request, capabilities: mcpElicitCapabilities(offered.modes) } : request;
+    const unfollowed = (methods: string[]) => new McpError({ kind: "input-required", methods: methods.slice(0, 5), ...(methods.every((name) => name === MCP_ELICIT_METHOD) ? { unoffered } : {}) });
+    const reply = (value: McpElicitResult) => {
+      offered?.replied?.(value);
+      return value;
+    };
     for (let round = 0; round <= MCP_MAX_INPUT_ROUNDS; round++) {
-      const result = await wire.request(method, state === undefined ? params : { ...params, requestState: state }, request);
-      if (result.resultType !== "input_required") return result;
-      const asked = isRecord(result.inputRequests) ? Object.values(result.inputRequests) : [];
-      if (asked.length > 0) {
-        // Plainva declared no capability: a server that asks anyway is not followed, and what it asked is not shown.
-        const methods = [...new Set(asked.map((entry) => (isRecord(entry) && typeof entry.method === "string" ? entry.method.slice(0, 64) : "unknown")))];
-        throw new McpError({ kind: "input-required", methods: methods.slice(0, 5) });
+      const sent = { ...params, ...(answers ? { inputResponses: Object.fromEntries(answers) } : {}), ...(state !== undefined ? { requestState: state } : {}) };
+      let result: Record<string, unknown>;
+      try {
+        result = await wire.request(method, sent, options);
+      } catch (error) {
+        // A server that said it cannot go on without being able to ask (-32021): the same as asking where nothing was offered.
+        if (error instanceof McpError && error.failure.kind === "input-required") throw unfollowed(error.failure.methods);
+        throw error;
       }
-      if (typeof result.requestState !== "string") throw new McpError({ kind: "protocol", detail: "an unfinished result without a state" });
-      state = result.requestState;
+      if (result.resultType !== "input_required") return result;
+      const asked = isRecord(result.inputRequests) ? Object.entries(result.inputRequests) : [];
+      state = typeof result.requestState === "string" ? result.requestState : undefined;
+      answers = undefined;
+      if (asked.length === 0) {
+        if (state === undefined) throw new McpError({ kind: "protocol", detail: "an unfinished result without a state" });
+        continue;
+      }
+      const methods = [...new Set(asked.map(([, entry]) => (isRecord(entry) && typeof entry.method === "string" ? entry.method.slice(0, 64) : "unknown")))];
+      // What this request did not offer is not followed, and none of what the server asked is shown.
+      if (!offered || methods.some((name) => name !== MCP_ELICIT_METHOD)) throw unfollowed(methods);
+      if (asked.length > MCP_ELICIT_LIMITS.perRound) throw new McpError({ kind: "protocol", detail: "too many questions at once" });
+      // Nobody is asked what could not be sent any more.
+      if (round === MCP_MAX_INPUT_ROUNDS) break;
+      answers = [];
+      for (const [key, entry] of asked) {
+        if (settled) {
+          answers.push([key, reply(settled)]);
+          continue;
+        }
+        const question = readMcpElicitation(isRecord(entry) ? entry.params : undefined, { modes: offered.modes, local: offered.local === true });
+        if (question.kind === "refused" && refusedShown) {
+          answers.push([key, reply({ action: "decline" })]);
+          continue;
+        }
+        // Whoever asks the user cannot fail the request: a side that could not ask has nothing to say, which is a stop.
+        const given = await offered.ask(question, request.signal).catch((): McpElicitResult => ({ action: "cancel" }));
+        if (request.signal?.aborted) throw new McpError({ kind: "cancelled" });
+        const answer = mcpElicitReply(question, given);
+        // A question Plainva refused is not the user's "no": the next one is asked.
+        if (question.kind === "refused") refusedShown = true;
+        else if (answer.action !== "accept") settled = answer;
+        answers.push([key, reply(answer)]);
+      }
     }
     throw new McpError({ kind: "protocol", detail: "the server kept asking to come back" });
   };
@@ -176,11 +238,11 @@ export function createMcpClient(wire: McpWire, options: { timeouts?: Partial<Mcp
         if (!marked.ok) throw new McpError({ kind: "refused", detail: `x-mcp-header: ${marked.problem}` });
         headers = mcpParamHeaders(marked.params, args);
       }
-      return roundTrip("tools/call", { name, arguments: args }, { name, headers, timeoutMs: timeouts.call, ...(call.signal ? { signal: call.signal } : {}) });
+      return roundTrip("tools/call", { name, arguments: args }, { name, headers, timeoutMs: timeouts.call, ...(call.signal ? { signal: call.signal } : {}) }, call.questions);
     },
 
-    getPrompt(name, args, signal) {
-      return roundTrip("prompts/get", { name, arguments: args }, { name, timeoutMs: timeouts.prompt, ...(signal ? { signal } : {}) });
+    getPrompt(name, args, signal, questions) {
+      return roundTrip("prompts/get", { name, arguments: args }, { name, timeoutMs: timeouts.prompt, ...(signal ? { signal } : {}) }, questions);
     },
 
     close: () => wire.close(),

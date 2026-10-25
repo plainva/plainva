@@ -18,6 +18,7 @@ export * from "./aiPolicyEditor";
 export * from "./aiSituation";
 export * from "./AiSendOverview";
 export * from "./AiEffectApproval";
+export * from "./AiMcpQuestion";
 export * from "./webTools";
 export * from "./aiCommands";
 export * from "./mailTools";

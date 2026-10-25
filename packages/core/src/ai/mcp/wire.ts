@@ -66,15 +66,17 @@ export interface McpClientInfo {
 
 /**
  * What every request of the stateless revision carries. The capabilities are
- * empty on purpose: Plainva offers a server no folders, no model calls, no
- * log channel and no questions to the user — and a server must not ask for
- * what it was not offered.
+ * empty unless a request says otherwise: Plainva offers a server no folders,
+ * no model calls and no log channel — and a server must not ask for what it
+ * was not offered. The one thing a request may offer is questions to the
+ * user (plan KI-Harness P9-4a), and only a call or a prompt of a server the
+ * vault lets ask: `capabilities` is then what `mcpElicitCapabilities` makes.
  */
-export function mcpRequestMeta(client: McpClientInfo): Record<string, unknown> {
+export function mcpRequestMeta(client: McpClientInfo, capabilities: Readonly<Record<string, unknown>> = {}): Record<string, unknown> {
   return {
     [MCP_META_VERSION]: MCP_MODERN_VERSION,
     [MCP_META_CLIENT]: { name: client.name, version: client.version },
-    [MCP_META_CAPABILITIES]: {},
+    [MCP_META_CAPABILITIES]: { ...capabilities },
   };
 }
 
@@ -98,8 +100,36 @@ export type McpFailure =
   | { kind: "exited"; code: number | null }
   /** The server answered with an error of its own. `message` is the server's text: cut, and data like every other. */
   | { kind: "rpc"; code: number; message: string }
-  /** The server asked for something Plainva does not offer: a question to the user, a model call, folders. */
-  | { kind: "input-required"; methods: string[] };
+  /**
+   * The server asked for something Plainva did not offer in this request: a
+   * model call, folders — or a question to the user (`methods` then names
+   * `elicitation/create`). It asked within its result, or it said with
+   * `-32021` that it cannot go on without. `unoffered`, for a question:
+   * why none was offered — the vault does not let this server ask, the
+   * server speaks an earlier revision, or it wants a kind of question this
+   * client cannot show.
+   */
+  | { kind: "input-required"; methods: string[]; unoffered?: "vault" | "revision" | "kind" };
+
+/** The one request a server may make of the user, where it was offered (plan P9-4a). */
+export const MCP_ELICIT_METHOD = "elicitation/create";
+
+/** True where a failure is about questions to the user and nothing else. Read defensively: one without its list of methods is not. */
+export function mcpAskedOnlyUser(failure: McpFailure): boolean {
+  return failure.kind === "input-required" && Array.isArray(failure.methods) && failure.methods.length > 0 && failure.methods.every((method) => method === MCP_ELICIT_METHOD);
+}
+
+/**
+ * True for a failure that says only this: the server wanted to ask the user
+ * something, and the vault does not let that server ask — which the user can
+ * change in the server's settings.
+ */
+export function mcpQuestionsOff(failure: McpFailure): boolean {
+  return mcpAskedOnlyUser(failure) && failure.kind === "input-required" && failure.unoffered === "vault";
+}
+
+/** The request a capability a client may declare stands for: what a server wants of it. */
+const CAPABILITY_METHODS: Readonly<Record<string, string>> = { elicitation: MCP_ELICIT_METHOD, sampling: "sampling/createMessage", roots: "roots/list" };
 
 /** A failure in plain words — for a log line and for a model that should know why a tool did not answer. */
 export function mcpFailureText(failure: McpFailure): string {
@@ -127,6 +157,9 @@ export function mcpFailureText(failure: McpFailure): string {
     case "rpc":
       return `The server answered with an error (${failure.code}).`;
     case "input-required":
+      if (mcpQuestionsOff(failure)) return "The server wanted to ask the user something, and this server may not ask questions in this vault. The user can allow it in the server's settings in Plainva.";
+      if (mcpAskedOnlyUser(failure) && failure.unoffered === "revision") return "The server wanted to ask the user something, but it speaks an earlier version of MCP, in which Plainva answers no questions.";
+      if (mcpAskedOnlyUser(failure) && failure.unoffered === "kind") return "The server wanted to ask the user something in a way Plainva cannot show here.";
       return "The server asked for input that Plainva does not provide.";
   }
 }
@@ -231,8 +264,20 @@ export function readMcpMessage(raw: unknown): McpMessage | null {
   return null;
 }
 
-/** A server's own error as a failure. Its text is cut and cleaned: it may be shown, and it is not the app's. */
+/**
+ * A server's own error as a failure. Its text is cut and cleaned: it may be
+ * shown, and it is not the app's. A server that cannot go on without a
+ * capability the request did not declare (`-32021`) names it in
+ * `data.requiredCapabilities`: that is a request for input like an
+ * unfinished result, and is read as one.
+ */
 export function mcpRpcFailure(error: McpRpcError): McpFailure {
+  if (error.code === MCP_ERROR_MISSING_CAPABILITY && isRecord(error.data)) {
+    const required = error.data.requiredCapabilities;
+    const names = isRecord(required) ? Object.keys(required) : Array.isArray(required) ? required.filter((name): name is string => typeof name === "string") : [];
+    const methods = [...new Set(names.map((name) => (Object.prototype.hasOwnProperty.call(CAPABILITY_METHODS, name) ? CAPABILITY_METHODS[name]! : capMcpText(name, 64).text)))].filter(Boolean).slice(0, 5);
+    if (methods.length) return { kind: "input-required", methods };
+  }
   return { kind: "rpc", code: error.code, message: capMcpText(error.message, MCP_ERROR_TEXT_LIMIT).text };
 }
 
@@ -315,6 +360,8 @@ export interface McpRequestOptions {
   name?: string;
   /** `tools/call` over HTTP: the `Mcp-Param-*` headers of the call, ready to send. */
   headers?: Readonly<Record<string, string>>;
+  /** What this one request offers the server, in the stateless revision (`mcpRequestMeta`); an earlier revision is offered nothing. */
+  capabilities?: Readonly<Record<string, unknown>>;
 }
 
 /** One server, whatever its generation and transport. Every method rejects with an `McpError`. */

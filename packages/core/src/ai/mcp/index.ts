@@ -9,7 +9,9 @@
  * to a remote server is `oauth` (what the web view does of it) and
  * `oauthRules` (what the native side decides, written down once more).
  * `scripted` is a server in a script and `scriptedOAuth` a sign-in in one,
- * for tests in every package. See docs/engineering/MCP_Client_Architecture.md.
+ * for tests in every package. A question a server asks the user, where it
+ * may, is read and its answer checked in `elicitation`. See
+ * docs/engineering/MCP_Client_Architecture.md.
  */
 export * from "./listing.js";
 export * from "./pin.js";
@@ -23,6 +25,7 @@ export * from "./headerValues.js";
 export * from "./httpWire.js";
 export * from "./stdioWire.js";
 export * from "./client.js";
+export * from "./elicitation.js";
 export * from "./native.js";
 export * from "./offer.js";
 export * from "./oauth.js";

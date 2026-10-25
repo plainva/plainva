@@ -159,6 +159,8 @@ export function AiExternalReview({ review, vaultFolders }: AiExternalReviewProps
   const secrets = externalSecrets(server);
   const calls = externalAuditLines(t, review.audit, server.id, i18n.language);
   const clipped = look.state === "ready" && (look.inspection.clipped.tools || look.inspection.clipped.prompts);
+  // A server of an earlier revision of MCP cannot ask within a request (plan P9-4a).
+  const earlier = (look.state === "ready" ? look.inspection.hello.era : server.seen?.era) === "legacy";
   return (
     <>
       {look.state === "loading" && (
@@ -264,6 +266,18 @@ export function AiExternalReview({ review, vaultFolders }: AiExternalReviewProps
             <legend>{t("ai.ext.review.vault")}</legend>
             <Checkbox checked={review.enabled} onChange={(event) => review.setEnabled(event.target.checked)} data-testid="ai-ext-use">
               {t("ai.ext.use", { server: server.label })}
+            </Checkbox>
+            {/* Questions to the user (plan P9-4a): off until the user says otherwise, for this server in this vault. A server of an
+                earlier revision would ask on a stream of its own, which Plainva does not answer: there the box says so and cannot be changed —
+                a yes stored before stays visible, so that nobody is surprised by it once the server speaks the current revision. */}
+            <Checkbox
+              checked={review.grant.questions === true}
+              disabled={earlier}
+              onChange={(event) => review.setQuestions(event.target.checked)}
+              data-testid="ai-ext-questions"
+            >
+              {t("ai.ext.review.questions", { server: server.label })}
+              <span>{earlier ? t("ai.ext.review.questionsRevision") : t("ai.ext.review.questionsHint")}</span>
             </Checkbox>
             <p className="pv-ext-note">{t("ai.ext.review.folders")}</p>
             <Segmented<ExternalFolders>

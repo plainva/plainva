@@ -57,6 +57,18 @@ const oauth: McpOAuthHost = {
 };
 
 /**
+ * Opens a page a foreign server asked the user to open (plan KI-Harness
+ * P9-4a), in the system's browser — on the user's click, never in the app's
+ * web view. The session checked the address before (https, or http on this
+ * device, no sign-in in it); this side opens nothing that is no web address
+ * either.
+ */
+export async function openDesktopMcpPage(url: string): Promise<void> {
+  if (!/^https?:\/\//i.test(url)) throw new Error("page-address");
+  await openUrl(url);
+}
+
+/**
  * The browser of a sign-in, and the way back from it: the system's browser
  * and a port on this computer — the listener every account sign-in of the
  * app comes back through (`oauth_loopback_*`). What arrives there is handed

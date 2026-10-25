@@ -192,7 +192,7 @@ function exchange(port: McpHttpPort, requestId: string, request: McpHttpRequest,
 
 export function createMcpHttpWire(port: McpHttpPort, options: McpHttpWireOptions): McpWire {
   const timeouts = { ...MCP_TIMEOUTS, ...options.timeouts };
-  const meta = () => mcpRequestMeta(options.client);
+  const meta = (capabilities?: Readonly<Record<string, unknown>>) => mcpRequestMeta(options.client, capabilities);
   let nextId = 1;
   let opened: McpOpened | null = null;
   let session: string | undefined;
@@ -215,7 +215,7 @@ export function createMcpHttpWire(port: McpHttpPort, options: McpHttpWireOptions
   const modern = (method: string, params: Record<string, unknown>, request: McpRequestOptions, timeoutMs: number) => {
     const id = nextId++;
     return post(
-      { jsonrpc: "2.0", id, method, params: { ...params, _meta: meta() } },
+      { jsonrpc: "2.0", id, method, params: { ...params, _meta: meta(request.capabilities) } },
       {
         "MCP-Protocol-Version": MCP_MODERN_VERSION,
         "Mcp-Method": method,

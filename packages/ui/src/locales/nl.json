@@ -1718,6 +1718,16 @@
       "overviewTools": "hulpmiddelen van {{server}} ({{n}}) — elke aanroep vraagt eerst",
       "overviewOther": "andere externe hulpmiddelen ({{n}})",
       "overviewCalls": "Externe aanroepen",
+      "questions": {
+        "answered_one": "{{count}} vraag beantwoord",
+        "answered_other": "{{count}} vragen beantwoord",
+        "declined_one": "{{count}} vraag afgewezen",
+        "declined_other": "{{count}} vragen afgewezen",
+        "cancelled_one": "{{count}} vraag afgebroken",
+        "cancelled_other": "{{count}} vragen afgebroken",
+        "refused_one": "{{count}} vraag geblokkeerd door Plainva",
+        "refused_other": "{{count}} vragen geblokkeerd door Plainva"
+      },
       "status": {
         "ready": "In gebruik in deze vault",
         "off": "Niet gebruikt in deze vault",
@@ -1750,12 +1760,51 @@
         "empty": "De prompt bevat geen tekst.",
         "unavailable": "Deze prompt is nu niet beschikbaar."
       },
+      "question": {
+        "title": "{{server}} heeft een vraag",
+        "pageTitle": "{{server}} wil dat je een pagina opent",
+        "refusedTitle": "Plainva heeft een vraag van {{server}} geblokkeerd",
+        "during": "Voor",
+        "prompt": "de prompt “{{name}}”",
+        "writes": "{{server}} schrijft:",
+        "optional": "optioneel",
+        "choose": "Kiezen…",
+        "range": "van {{min}} tot {{max}}",
+        "rangeMin": "minstens {{min}}",
+        "rangeMax": "hoogstens {{max}}",
+        "problem": {
+          "required": "Vul dit in.",
+          "short": "Dit is te kort.",
+          "long": "Dit is te lang.",
+          "format": "Dit past niet bij wat er gevraagd wordt.",
+          "range": "Dit valt buiten het toegestane bereik.",
+          "count": "Kies een ander aantal."
+        },
+        "hint": "Plainva geeft je antwoord alleen aan {{server}}, niet aan de AI — al kan wat de server terugstuurt het noemen. Voer hier nooit een wachtwoord of een sleutel in: een server mag daar op deze manier niet om vragen.",
+        "answer": "Antwoorden",
+        "confirm": "Bevestigen",
+        "decline": "Afwijzen",
+        "pageHint": "Plainva opent de pagina in je browser. Wat je daar invoert, zien Plainva noch de AI. Daarna ga je hier verder.",
+        "pageOpened": "De pagina is open in je browser. Ben je daar klaar, ga dan hier verder.",
+        "openFailed": "De pagina kon niet worden geopend.",
+        "punycode": "Het adres bevat tekens uit een ander schrift die op bekende letters kunnen lijken. Controleer het domein goed voordat je daar iets invoert.",
+        "ipAddress": "Het adres is een kaal IP-adres, geen naam. Controleer waar het naartoe leidt voordat je daar iets invoert.",
+        "open": "Openen in browser",
+        "continue": "Verder",
+        "refused": {
+          "secret": "De server vroeg om iets dat eruitziet als een wachtwoord, een sleutel of betaalgegevens: “{{field}}”. Plainva geeft zoiets niet door — voor een aanmelding moet een server je een eigen pagina laten openen.",
+          "secretAsked": "De server vroeg om iets dat eruitziet als een wachtwoord, een sleutel of betaalgegevens. Plainva geeft zoiets niet door — voor een aanmelding moet een server je een eigen pagina laten openen.",
+          "shape": "De server vroeg iets op een manier die Plainva niet kan tonen. Hij kreeg geen antwoord.",
+          "address": "De server wilde dat je een adres opent dat Plainva niet opent: alleen veilige adressen (https), geen op dit apparaat tenzij de server hier draait, en geen met een eigen aanmelding erin."
+        }
+      },
       "outcome": {
         "answered": "beantwoord",
         "tool-error": "het hulpmiddel meldde een fout",
         "declined": "door jou niet toegestaan",
         "refused": "tegengehouden door een regel",
         "blocked": "server geblokkeerd",
+        "questions-off": "wilde je iets vragen — niet toegestaan voor deze server",
         "failed": "geen antwoord"
       },
       "review": {
@@ -1801,6 +1850,9 @@
         "foldersAll": "De hele vault",
         "foldersEmpty": "Deze vault heeft geen mappen.",
         "foldersHint": "Een aanroep vertrekt alleen als elke notitie die het gesprek heeft gelezen binnen valt wat je hier toestaat. Een notitie die je uit de cloud houdt, gaat nooit mee.",
+        "questions": "{{server}} mag je vragen stellen",
+        "questionsHint": "Tijdens een aanroep of een prompt mag de server je om een gegeven vragen of je vragen een pagina te openen. Je antwoordt of wijst af; Plainva geeft het antwoord alleen aan de server, niet aan de AI. Om wachtwoorden of sleutels mag hij zo niet vragen.",
+        "questionsRevision": "Deze server spreekt een eerdere versie van MCP, waarin Plainva geen vragen beantwoordt.",
         "log": "Wat het programma heeft geschreven",
         "logEmpty": "Tot nu toe niets.",
         "calls": "Recente aanroepen in deze vault",
@@ -1835,6 +1887,9 @@
         "version": "De server spreekt geen versie van MCP die Plainva kent.",
         "tooLarge": "Het antwoord van de server was te groot.",
         "exited": "Het programma is gestopt.",
+        "questionsOff": "De server wilde je iets vragen, en vragen van deze server staan in deze vault uit. Je kunt ze toestaan in de instellingen van de server.",
+        "questionsRevision": "De server wilde je iets vragen, maar spreekt een eerdere versie van MCP, waarin Plainva geen vragen beantwoordt.",
+        "questionsKind": "De server wilde je iets vragen op een manier die Plainva hier niet kan tonen.",
         "rpc": "De server meldde een fout ({{code}}).",
         "programMoved": "Het programma staat niet meer waar het stond toen je het toevoegde. Verwijder de server en voeg hem opnieuw toe.",
         "sandboxUnavailable": "De sandbox waarin het moest draaien is op deze computer niet beschikbaar.",

@@ -240,6 +240,7 @@ describe("the settings model", () => {
     web: { enabled: false, allow: [] },
     draftWeb: false,
     effect: null,
+    question: null,
     mcp: NO_MCP,
     agents: NO_ACP,
     drafts: { drafts: [], done: [] },

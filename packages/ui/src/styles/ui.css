@@ -4717,6 +4717,24 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 /* The approval of one page or one search (AI harness P4) is built from the overview's parts; its warning names an address the model composed. */
 .pv-ai-effect-warn { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--text-xs); color: var(--warning-text); }
 .pv-ai-effect-warn > svg { flex: none; }
+/* A foreign server's question (AI harness P9-4a): its words framed and attributed inside Plainva's card, never a title or a button. */
+.pv-ai-said { display: grid; gap: var(--space-1); margin: 0; padding: var(--space-2) var(--space-3); border-inline-start: 3px solid var(--border-color); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: var(--bg-secondary); color: var(--text-main); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.pv-ai-said-by { font-size: var(--text-xs); color: var(--text-faint); }
+.pv-ai-question-fields { display: grid; gap: var(--space-3); min-width: 0; margin: 0; padding-inline-start: var(--space-3); border-inline-start: 3px solid var(--border-color); }
+.pv-ai-question-field { display: grid; gap: var(--space-1); min-width: 0; }
+.pv-ai-question-field > label,
+.pv-ai-question-name { font-size: var(--text-sm); }
+.pv-ai-question-label { color: var(--text-muted); font-style: italic; overflow-wrap: anywhere; }
+.pv-ai-question-optional { color: var(--text-faint); font-size: var(--text-xs); }
+.pv-ai-question-desc { font-size: var(--text-xs); color: var(--text-faint); overflow-wrap: anywhere; }
+.pv-ai-question-problem { font-size: var(--text-xs); color: var(--error-text); }
+.pv-ai-question-choices { display: grid; gap: var(--space-1); min-width: 0; margin: 0; padding: 0; border: 0; }
+.pv-ai-question-choices > legend { margin-bottom: var(--space-1); padding: 0; font-size: var(--text-sm); }
+.pv-ai-question-url { display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3); border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-primary); overflow-wrap: anywhere; }
+.pv-ai-question-host { font-weight: 600; color: var(--text-main); }
+.pv-ai-question-address { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+.pv-ai-question-address b { color: var(--text-main); }
+.pv-ai-question-why { margin: 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
 .pv-ai-overview--touch .pv-ai-overview-list { grid-template-columns: minmax(0, 1fr); }
 .pv-ai-overview--touch .pv-ai-overview-list dd { margin-bottom: var(--space-1); }
 /* "View context" (plan §13.3): what the next request would carry, before it goes. */

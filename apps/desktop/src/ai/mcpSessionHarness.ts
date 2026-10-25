@@ -16,13 +16,14 @@ import {
   type HttpRequestSpec,
   type InstructionIO,
   type LedgerEntry,
+  type McpElicitResult,
   type McpServerGrant,
   type ModelChoice,
   type ScriptedMcpServer,
   type ScriptedOAuth,
   type ToolResultPart,
 } from "@plainva/core";
-import { AiSession, CHAT_TOOL_NAMES, createMcpDeviceStore, createMcpVaultStore, createVaultToolExecutor, furtherToolNames, type AiVaultHost, type EffectRequest, type VaultToolDeps } from "@plainva/ui";
+import { AiSession, CHAT_TOOL_NAMES, createMcpDeviceStore, createMcpVaultStore, createVaultToolExecutor, furtherToolNames, type AiVaultHost, type EffectRequest, type McpQuestionRequest, type VaultToolDeps } from "@plainva/ui";
 import { CONFIRM, memoryFiles, scriptedNative } from "./mcpTestHost";
 
 /**
@@ -197,6 +198,8 @@ export interface McpSessionOptions {
   programs?: boolean;
   /** The sign-in the tracker has, where it wants one. */
   oauth?: ScriptedOAuth;
+  /** The shell opens a page a server asks the user to open (plan P9-4a); left out, it cannot. */
+  openPage?: (url: string) => Promise<void>;
 }
 
 /** A session in an open vault, with the scripted model's answers and a scripted server behind the native side. */
@@ -226,7 +229,14 @@ export async function mcpSession(script: EgressChunk[][], options: McpSessionOpt
     today: () => "2026-10-07",
     now: () => new Date(clock.at),
     newId: () => `id${++ids}`,
-    mcp: { native: native.native, browser: native.browser, clientDocument: MCP_OAUTH_CLIENT_DOCUMENT, store: createMcpDeviceStore(files), version: async () => "0.9.0" },
+    mcp: {
+      native: native.native,
+      browser: native.browser,
+      clientDocument: MCP_OAUTH_CLIENT_DOCUMENT,
+      store: createMcpDeviceStore(files),
+      version: async () => "0.9.0",
+      ...(options.openPage ? { openPage: options.openPage } : {}),
+    },
   });
   // The send overview is approved as it comes; what these tests are about is the question about a call.
   s.subscribe(() => {
@@ -261,6 +271,25 @@ export function answering(s: AiSession, answer: (effect: EffectRequest) => "once
     if (effect && !seen.includes(effect)) {
       seen.push(effect);
       s.answerEffect(answer(effect));
+    }
+  });
+  return seen;
+}
+
+/**
+ * Answers every question of a server as its card comes up (plan P9-4a) and
+ * keeps each state of the card that was shown — a page's card twice, before
+ * and after it was opened. `"open"` opens the page; null leaves it standing.
+ */
+export function questioning(s: AiSession, answer: (question: McpQuestionRequest) => McpElicitResult | "open" | null): McpQuestionRequest[] {
+  const seen: McpQuestionRequest[] = [];
+  s.subscribe(() => {
+    const question = s.getState().question;
+    if (question && !seen.includes(question)) {
+      seen.push(question);
+      const given = answer(question);
+      if (given === "open") void s.openQuestionPage(question.id);
+      else if (given) s.answerQuestion(question.id, given);
     }
   });
   return seen;

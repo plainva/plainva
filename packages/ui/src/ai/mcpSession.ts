@@ -11,6 +11,7 @@ import {
   type McpOAuthRedirect,
   type McpOAuthStatus,
   type McpProgramSpec,
+  type McpQuestions,
   type McpRegisteredServer,
   type McpSandboxInfo,
   type McpServerGrant,
@@ -38,6 +39,13 @@ export interface AiMcpHost {
   native: McpNativeHost;
   /** The browser a sign-in to a remote server is made in, and the way back from it. */
   browser: McpOAuthBrowser;
+  /**
+   * Opens a page a server asked the user to open (plan KI-Harness P9-4a) —
+   * in the system's browser, never in the app's web view: what the user
+   * types there is for the server's service alone. Absent where a shell
+   * cannot, and then no server is offered to ask for one.
+   */
+  openPage?(url: string): Promise<void>;
   /** The address of Plainva's own description as a client of an authorization server; null where this build has none. */
   clientDocument: string | null;
   /** The device's record of servers and approvals, in the app's data. */
@@ -90,6 +98,8 @@ export type McpPromptStart =
   | { kind: "empty" }
   /** The server is not ready in this vault, or does not list this prompt. */
   | { kind: "unavailable" }
+  /** It was stopped — by the user at a question of the server, by STOP, or by leaving its conversation: nothing was sent. */
+  | { kind: "cancelled" }
   | { kind: "failed"; failure: McpFailure };
 
 export class AiMcp {
@@ -124,7 +134,12 @@ export class AiMcp {
         })
       : null;
     this.current = host ? { available: true, programs: host.native.programs !== null, loaded: false, servers: [] } : NO_MCP;
+    const openPage = host?.openPage;
+    this.openPage = openPage ? (url) => openPage.call(host, url) : null;
   }
+
+  /** Opens a page a server asked the user to open, in the system's browser; null where this shell cannot (plan P9-4a). */
+  readonly openPage: ((url: string) => Promise<void>) | null;
 
   get state(): AiMcpState {
     return this.current;
@@ -315,17 +330,17 @@ export class AiMcp {
     return result;
   }
 
-  call(id: string, tool: string, args: Record<string, unknown>, inputSchema: unknown, signal?: AbortSignal): Promise<Record<string, unknown>> {
+  call(id: string, tool: string, args: Record<string, unknown>, inputSchema: unknown, signal?: AbortSignal, questions?: McpQuestions): Promise<Record<string, unknown>> {
     if (!this.runtime || this.resting()) return Promise.reject(new Error("unavailable"));
-    return this.runtime.call(id, tool, args, inputSchema, signal);
+    return this.runtime.call(id, tool, args, inputSchema, signal, questions);
   }
 
-  /** What a prompt of a server expands to, compared with what was approved. */
-  async prompt(id: string, name: string, args: Readonly<Record<string, string>>, signal?: AbortSignal): Promise<McpPromptLook> {
+  /** What a prompt of a server expands to, compared with what was approved. `questions` as for a call. */
+  async prompt(id: string, name: string, args: Readonly<Record<string, string>>, signal?: AbortSignal, questions?: McpQuestions): Promise<McpPromptLook> {
     // A resting server is asked nothing; the session does not get here while the device is fully local.
     if (this.resting()) throw new Error("unavailable");
     if (!this.runtime) return { standing: "changed" };
-    const look = await this.runtime.prompt(id, name, args, signal);
+    const look = await this.runtime.prompt(id, name, args, signal, questions);
     if (look.standing === "changed") void this.refresh();
     return look;
   }

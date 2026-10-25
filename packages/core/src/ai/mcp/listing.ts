@@ -89,12 +89,19 @@ export function capMcpText(raw: unknown, limit: number = MCP_TEXT_LIMIT): McpCap
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const isName = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= MCP_NAME_LIMIT;
 
-/** The identity of one prompt expansion: its name and the arguments it was asked with. */
-export function mcpPromptKey(name: string, args: Readonly<Record<string, string>> = {}): string {
+/**
+ * The identity of one prompt expansion: its name and the arguments it was
+ * asked with — and, where the server asked the user something on the way
+ * (plan KI-Harness P9-4a), `answered`: a hash of what the user answered.
+ * Another answer may expand to another text, which is then shown first like
+ * any expansion nobody approved yet, instead of blocking the server. What
+ * the user answered is never part of a key, only its hash.
+ */
+export function mcpPromptKey(name: string, args: Readonly<Record<string, string>> = {}, answered?: string): string {
   const sorted = Object.keys(args)
     .sort()
     .map((key) => `${JSON.stringify(key)}:${JSON.stringify(args[key])}`);
-  return `${name}\u0000{${sorted.join(",")}}`;
+  return `${name}\u0000{${sorted.join(",")}}${answered ? `\u0000${answered}` : ""}`;
 }
 
 /**

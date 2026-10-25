@@ -27,6 +27,18 @@ interface Waiter {
 
 let waiting: Waiter | null = null;
 
+/**
+ * Opens a page a foreign server asked the user to open (plan KI-Harness
+ * P9-4a), in the system's own browser view (Safari's, Chrome's) — on the
+ * user's tap, never in the app's web view, where the app could read what is
+ * typed. The session checked the address before; this side opens nothing
+ * that is no web address either.
+ */
+export async function openMobileMcpPage(url: string): Promise<void> {
+  if (!/^https?:\/\//i.test(url)) throw new Error("page-address");
+  await Browser.open({ url });
+}
+
 export function createMobileMcpBrowser(): McpOAuthBrowser {
   return {
     prepare: () => Promise.resolve({}),

@@ -2,15 +2,20 @@ import {
   EFFECT_DECLINED,
   asMcpError,
   mcpCallDecision,
+  mcpElicitOutcome,
+  mcpElicitReply,
   mcpFailureText,
   mcpIssuesOf,
   mcpOfferedTools,
+  mcpQuestionsOff,
   mcpResultView,
   mcpServerStanding,
   type McpCallRefusal,
+  type McpQuestions,
   type McpServerState,
   type McpToolEffect,
   type RunMcp,
+  type RunMcpQuestions,
   type ToolExecutor,
   type ToolOutcome,
 } from "@plainva/core";
@@ -34,6 +39,15 @@ import type { McpAuditOutcome } from "./mcpStores";
  *
  * What comes back is a stranger's text: one bounded piece of data, fenced.
  */
+
+/** One call a server may ask the user something during (plan KI-Harness P9-4a): what Plainva's card names it by. */
+export interface McpQuestionSource {
+  callId: string;
+  serverId: string;
+  serverLabel: string;
+  tool: string;
+  title: string;
+}
 
 /** The arguments of one call, as JSON; larger is no question a person could read. */
 export const MCP_ARGUMENTS_LIMIT = 32_000;
@@ -68,7 +82,14 @@ export interface McpToolsHost {
   keptByRule?(): boolean;
   /** Shows the call and waits for the user. False when declined, or when nobody is there to ask. */
   ask(question: McpCallQuestion, signal?: AbortSignal): Promise<boolean>;
-  call(serverId: string, tool: string, args: Record<string, unknown>, inputSchema: unknown, signal?: AbortSignal): Promise<Record<string, unknown>>;
+  call(serverId: string, tool: string, args: Record<string, unknown>, inputSchema: unknown, signal?: AbortSignal, questions?: McpQuestions): Promise<Record<string, unknown>>;
+  /**
+   * Where the user can be asked what a server asks during a call (plan
+   * P9-4a): Plainva's card, one question at a time. Used only for a server
+   * the vault lets ask; absent where nobody can be asked, and then no server
+   * is offered to.
+   */
+  questions?(source: McpQuestionSource): McpQuestions;
   /** One line for the vault's log of calls: who, what, how it ended, how much — never what was said. */
   log(entry: { server: string; tool: string; outcome: McpAuditOutcome; sent: number; received: number }): void;
 }
@@ -99,8 +120,11 @@ export function createMcpExecutor(inner: ToolExecutor, host: McpToolsHost, log: 
       if (!foreign) return inner.execute(tool, args, call, signal);
       const input = (args ?? {}) as Record<string, unknown>;
       const sent = JSON.stringify(input).length;
+      // How the server's questions to the user went, if it asked any: numbers only.
+      const asked: RunMcpQuestions = { answered: 0, declined: 0, cancelled: 0, refused: 0 };
       const done = (outcome: McpAuditOutcome, received: number, result: ToolOutcome): ToolOutcome => {
-        log.calls.push({ server: foreign.server, tool: foreign.tool, outcome });
+        const questions = asked.answered + asked.declined + asked.cancelled + asked.refused > 0 ? { questions: { ...asked } } : {};
+        log.calls.push({ server: foreign.server, tool: foreign.tool, outcome, ...questions });
         host.log({ server: foreign.server, tool: foreign.tool, outcome, sent, received });
         return result;
       };
@@ -145,11 +169,26 @@ export function createMcpExecutor(inner: ToolExecutor, host: McpToolsHost, log: 
       const question: McpCallQuestion = { callId: call.id, serverId: server.id, serverLabel: server.label, tool: offered.name, title: offered.title, args: input, effect: offered.effect };
       if (!(await host.ask(question, signal))) return done("declined", 0, { content: EFFECT_DECLINED, isError: true, declined: true });
 
+      // 5. Questions on the way (plan P9-4a): only where this vault lets the server ask, and only through Plainva's card.
+      const asking = server.grant.questions && host.questions ? host.questions({ callId: call.id, serverId: server.id, serverLabel: server.label, tool: offered.name, title: offered.title }) : undefined;
+      const questions: McpQuestions | undefined = asking && {
+        modes: asking.modes,
+        ask: async (question, waiting) => {
+          const answer = await asking.ask(question, waiting);
+          asked[mcpElicitOutcome(question, mcpElicitReply(question, answer))]++;
+          return answer;
+        },
+      };
+
       let result: Record<string, unknown>;
       try {
-        result = await host.call(server.id, offered.name, input, offered.descriptor.inputSchema, signal);
+        result = await host.call(server.id, offered.name, input, offered.descriptor.inputSchema, signal, questions);
       } catch (error) {
         const failure = asMcpError(error).failure;
+        // A server that wanted to ask the user and may not: the model learns where the user can allow it.
+        if (mcpQuestionsOff(failure)) {
+          return done("questions-off", 0, { content: mcpFailureText(failure), isError: true });
+        }
         // A server's own error text is a stranger's words: behind the app's sentence, and in the fence with it.
         if (failure.kind === "rpc" && failure.message) {
           return done("failed", failure.message.length, { content: `${mcpFailureText(failure)}\n${failure.message}`, isError: true, origin: { kind: "tool", tool: offered.name, server: server.id } });

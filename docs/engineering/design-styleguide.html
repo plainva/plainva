@@ -1263,6 +1263,30 @@
         <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Don't call</button><button class="pvbtn secondary">Run it</button></div>
       </section>
     </div>
+    <p class="sec-sub">AI harness P9-4a (2026-10-25): a foreign server's question to the user, where the vault lets that server ask. The same card above the composer: the head, the row “For”, the hint and the buttons are Plainva's; what the server wrote stands inside as its quote (<code>.pv-ai-said</code>) — never a title, a button or a link. A form's fields are the primitives behind the same line (<code>.pv-ai-question-fields</code>), a field's title the server's in italics; a page to open shows its host alone and the whole address (<code>.pv-ai-question-url</code>), and opens only on “Open in browser”.</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Tracker has a question">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">⏚</span><span>Tracker has a question</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>For</dt>
+          <dd>Search issues (search_issues)</dd>
+        </dl>
+        <blockquote class="pv-ai-said"><span class="pv-ai-said-by">Tracker writes:</span><span>Which project should I search? Without one, I search all 14.</span></blockquote>
+        <div class="pv-ai-question-fields">
+          <div class="pv-ai-question-field"><label><span class="pv-ai-question-label">Project</span></label><select class="pv-field"><option>Werkstatt</option></select></div>
+          <div class="pv-ai-question-field"><label class="pv-checkrow"><input type="checkbox" class="pv-check" checked><span><span class="pv-ai-question-label">Also closed issues</span></span></label></div>
+        </div>
+        <span class="pv-ai-overview-hint">Your answer goes to Tracker only, not to the AI. Never enter a password or a key here — a server may not ask for one this way.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Cancel</button><button class="pvbtn secondary">Decline</button><button class="pvbtn primary">Answer</button></div>
+      </section>
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Tracker would like you to open a page">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">🌐</span><span>Tracker would like you to open a page</span></h4>
+        <blockquote class="pv-ai-said"><span class="pv-ai-said-by">Tracker writes:</span><span>Connect your GitHub account so that I can read the issues.</span></blockquote>
+        <div class="pv-ai-question-url"><span class="pv-ai-question-host">tracker.example.com</span><span class="pv-ai-question-address">https://<b>tracker.example.com</b>/connect/github?state=7f3a</span></div>
+        <span class="pv-ai-overview-hint">Plainva opens the page in your browser. What you enter there, neither Plainva nor the AI sees. Afterwards you continue here.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Cancel</button><button class="pvbtn secondary">Decline</button><button class="pvbtn primary">Open in browser</button></div>
+      </section>
+    </div>
     <p class="sec-sub">AI harness P4-6 (2026-10-06): “Keep as a note”. Under a finished answer, beside the run's line, a ghost Button of size sm with the file-plus mark (<code>.pv-ai-capture</code>): the user's own step — a press writes the note into the vault's inbox folder and opens it. In a shared workspace the press first asks, in the same card as a page, a search or mail (<code>AiEffectApproval</code>, <code>data-kind="write"</code>): the note's name, the folder, who reads it. One yes is for one note.</p>
     <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
       <div class="pv-ai-run"><span class="pv-ai-runline">2 notes · ~1,240 tokens · coverage high</span> <button class="pv-btn pv-btn--ghost pv-btn--sm pv-ai-runline pv-ai-capture"><span aria-hidden="true">＋</span>Keep as a note</button></div>
