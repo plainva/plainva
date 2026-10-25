@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-10-23
+Stan na: 2026-10-25
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -102,7 +102,7 @@ Gdy wiadomość niesie nagłówek `List-Unsubscribe`, Plainva pokazuje w czytnik
 
 ## Odkładanie
 
-Bywa poczta, która nie jest pilna, ale też nie jest załatwiona. **Odłóż** usuwa wiadomość z listy do wybranego momentu — później dzisiaj, jutro rano, w weekend albo w przyszłym tygodniu. Na komputerze pozycja jest w menu kontekstowym wiersza, na telefonie dodatkowo jako gest przesunięcia. Przycisk **Odłożone** przywraca je do widoku; stamtąd **Przywróć teraz** natychmiast wraca wiadomość na listę.
+Bywa poczta, która nie jest pilna, ale też nie jest załatwiona. **Odłóż** usuwa wiadomość z listy do wybranego momentu — później dzisiaj, jutro rano, w weekend albo w przyszłym tygodniu. Przyszły tydzień to pierwszy dzień następnego tygodnia według ustawienia **Początek tygodnia** — ten sam dzień co przy terminie zadania. Na komputerze pozycja jest w menu kontekstowym wiersza, na telefonie dodatkowo jako gest przesunięcia. Przycisk **Odłożone** przywraca je do widoku; stamtąd **Przywróć teraz** natychmiast wraca wiadomość na listę.
 
 Dwie rzeczy warto powiedzieć wprost. Po pierwsze, odkładanie to **własny znacznik Plainvy**, nie funkcja serwera: ani IMAP, ani Microsoft czegoś takiego nie mają. Znacznik podróżuje z synchronizacją ustawień, więc wiadomość odłożona na telefonie odpoczywa też na komputerze — w innym programie pocztowym leży normalnie w skrzynce odbiorczej. Po drugie, odkładanie ukrywa tylko **listę tego folderu**, w którym to zrobiłeś: wyszukiwanie i „Wszystkie skrzynki" nadal pokazują wiadomość. Odłożone znaczy „nie na drodze", a nie „zniknęło".
 

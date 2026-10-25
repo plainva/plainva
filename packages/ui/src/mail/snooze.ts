@@ -1,3 +1,8 @@
+import type { WeekStartDay } from "../lib/calendarGrid";
+import { dueQuickDay } from "../lib/dueQuickChoices";
+import { addDaysToKey } from "../lib/taskPlanner";
+import { calendarDay } from "../lib/today";
+
 /**
  * Putting a message aside until later (S22, plan P12).
  *
@@ -57,7 +62,7 @@ export const SNOOZE_PRESETS: readonly SnoozePreset[] = [
 ];
 
 export interface SnoozeClock {
-  /** Hour of the morning "tomorrow" and "next week" wake up at. */
+  /** Hour of the morning "tomorrow", "this weekend" and "next week" wake up at. */
   morningHour: number;
   /** Hours "later today" adds. */
   laterHours: number;
@@ -65,42 +70,46 @@ export interface SnoozeClock {
 
 export const DEFAULT_SNOOZE_CLOCK: SnoozeClock = { morningHour: 8, laterHours: 3 };
 
+/** The morning of a day key (`YYYY-MM-DD`), local time. */
+function morningOf(dayKey: string, clock: SnoozeClock): number {
+  const [y, m, d] = dayKey.split("-").map(Number);
+  return new Date(y, m - 1, d, clock.morningHour, 0, 0, 0).getTime();
+}
+
 /**
  * When a preset falls due, measured from `now`.
+ *
+ * "Tomorrow" and "Next week" ask the same question as the due picker's quick
+ * choices and quick capture, so they take their DAY from the one definition
+ * (`dueQuickDay`): next week begins where the week-start setting says a week
+ * begins (Monday, Sunday or Saturday) — never today. The snooze adds only its
+ * time of day, the morning.
  *
  * Two rules that keep a preset from producing a time in the past:
  *
  *  - "Later today" that would cross midnight becomes the next morning instead —
  *    three hours added at 23:00 is 02:00, which is not "later today".
- *  - "This weekend" on a Saturday or Sunday means the NEXT weekend, not this
- *    morning, which has already happened.
+ *  - "This weekend" on a Saturday or Sunday means the NEXT weekend's Saturday.
+ *    That one is deliberately NOT the due picker's "This weekend", which
+ *    answers "today" on a weekend day: a due DAY of today is still ahead, a
+ *    snooze to this weekend's morning has (mostly) already happened.
  */
-export function snoozeUntil(preset: SnoozePreset, now: Date, clock: SnoozeClock = DEFAULT_SNOOZE_CLOCK): number {
-  const morning = (d: Date, addDays: number): Date => {
-    const out = new Date(d);
-    out.setDate(out.getDate() + addDays);
-    out.setHours(clock.morningHour, 0, 0, 0);
-    return out;
-  };
+export function snoozeUntil(preset: SnoozePreset, now: Date, weekStart: WeekStartDay, clock: SnoozeClock = DEFAULT_SNOOZE_CLOCK): number {
+  const today = calendarDay(now);
 
   if (preset === "laterToday") {
     const later = new Date(now.getTime() + clock.laterHours * 3600_000);
     // The cap is MIDNIGHT, not the morning hour: three hours added at 23:00
     // lands at 02:00, which is a different day and therefore not "later
     // today" — however much of the night is still ahead.
-    return later.getDate() === now.getDate() ? later.getTime() : morning(now, 1).getTime();
+    return later.getDate() === now.getDate() ? later.getTime() : morningOf(dueQuickDay("tomorrow", today, weekStart), clock);
   }
-  if (preset === "tomorrow") return morning(now, 1).getTime();
-  if (preset === "nextWeek") {
-    // The coming Monday; on a Monday that means the one after this.
-    const day = now.getDay(); // 0 = Sunday
-    const ahead = ((8 - day) % 7) || 7;
-    return morning(now, ahead).getTime();
-  }
+  if (preset === "tomorrow") return morningOf(dueQuickDay("tomorrow", today, weekStart), clock);
+  if (preset === "nextWeek") return morningOf(dueQuickDay("nextWeek", today, weekStart), clock);
   // thisWeekend: the coming Saturday; on Sat/Sun the next one.
   const day = now.getDay();
   const ahead = ((6 - day) % 7) || 7;
-  return morning(now, ahead).getTime();
+  return morningOf(addDaysToKey(today, ahead), clock);
 }
 
 /** Adds or replaces an entry. Snoozing an already-snoozed message re-times it. */

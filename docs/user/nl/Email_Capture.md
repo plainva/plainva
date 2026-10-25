@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-10-23
+Laatst bijgewerkt: 2026-10-25
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -102,7 +102,7 @@ Draagt een bericht de kopregel `List-Unsubscribe`, dan toont Plainva in de lezer
 
 ## Uitstellen
 
-Sommige post is niet dringend, maar ook niet afgehandeld. **Uitstellen** haalt een bericht uit de lijst tot een moment dat je kiest — later vandaag, morgenochtend, dit weekend of volgende week. Op de computer staat de optie in het contextmenu van de rij, op de telefoon is het bovendien een veegactie. De knop **Uitgesteld** brengt ze weer in beeld; van daaruit zet **Nu terughalen** een bericht meteen terug in de lijst.
+Sommige post is niet dringend, maar ook niet afgehandeld. **Uitstellen** haalt een bericht uit de lijst tot een moment dat je kiest — later vandaag, morgenochtend, dit weekend of volgende week. Volgende week is de eerste dag van de volgende week zoals ingesteld bij **Week begint op** — dezelfde dag als bij de vervaldatum van een taak. Op de computer staat de optie in het contextmenu van de rij, op de telefoon is het bovendien een veegactie. De knop **Uitgesteld** brengt ze weer in beeld; van daaruit zet **Nu terughalen** een bericht meteen terug in de lijst.
 
 Twee dingen die eerlijk gezegd moeten worden. Ten eerste is uitstellen een **eigen markering van Plainva**, geen serverfunctie: IMAP noch Microsoft kent zoiets. De markering reist mee met de instellingensynchronisatie, dus een op de telefoon uitgesteld bericht rust ook op de computer — in een ander mailprogramma staat het gewoon in het postvak IN. Ten tweede verbergt uitstellen alleen de **lijst van de map** waarin je het deed: zoeken en "Alle postvakken" tonen het bericht nog steeds. Uitgesteld betekent "niet in de weg", niet "weg".
 

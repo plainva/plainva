@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-10-23
+Stand: 2026-10-25
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -102,7 +102,7 @@ Trägt eine Nachricht die Kopfzeile `List-Unsubscribe`, zeigt Plainva im Leser e
 
 ## Zurückstellen
 
-Manche Post ist nicht dringend, aber auch nicht erledigt. **Zurückstellen** nimmt eine Nachricht bis zu einem Zeitpunkt aus der Liste — später heute, morgen früh, am Wochenende oder nächste Woche. Am Rechner steht der Punkt im Rechtsklickmenü der Zeile, am Telefon zusätzlich als Wischaktion. Der Knopf **Zurückgestellte** holt sie sichtbar zurück; von dort bringt **Jetzt zurückholen** eine Nachricht sofort in die Liste.
+Manche Post ist nicht dringend, aber auch nicht erledigt. **Zurückstellen** nimmt eine Nachricht bis zu einem Zeitpunkt aus der Liste — später heute, morgen früh, am Wochenende oder nächste Woche. Nächste Woche ist der erste Tag der nächsten Woche, wie unter **Wochenbeginn** eingestellt — derselbe Tag wie bei der Fälligkeit einer Aufgabe. Am Rechner steht der Punkt im Rechtsklickmenü der Zeile, am Telefon zusätzlich als Wischaktion. Der Knopf **Zurückgestellte** holt sie sichtbar zurück; von dort bringt **Jetzt zurückholen** eine Nachricht sofort in die Liste.
 
 Zwei Dinge dazu, die ehrlich gesagt sein wollen. Erstens ist Zurückstellen **Plainvas eigener Merker**, keine Server-Funktion: weder IMAP noch Microsoft kennen so etwas. Der Merker reist über die Einstellungs-Synchronisation mit, also ruht eine am Telefon zurückgestellte Nachricht auch am Rechner — in einem anderen Mailprogramm liegt sie dagegen ganz normal im Posteingang. Zweitens versteckt Zurückstellen nur die **Liste des Ordners**, in dem Du es getan hast: die Suche und „Alle Posteingänge" zeigen die Nachricht weiterhin. Zurückgestellt heißt „nicht im Weg", nicht „weg".
 

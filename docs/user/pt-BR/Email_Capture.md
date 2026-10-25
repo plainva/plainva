@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-10-23
+Última revisão: 2026-10-25
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -102,7 +102,7 @@ Quando uma mensagem traz o cabeçalho `List-Unsubscribe`, o Plainva mostra no le
 
 ## Adiar
 
-Há correio que não é urgente nem está resolvido. **Adiar** tira uma mensagem da lista até um momento que você escolhe — mais tarde hoje, amanhã de manhã, no fim de semana ou na semana que vem. No computador a opção fica no menu de contexto da linha; no celular é também um gesto de deslizar. O botão **Adiados** os traz de volta à vista; a partir dali, **Trazer agora** devolve a mensagem à lista imediatamente.
+Há correio que não é urgente nem está resolvido. **Adiar** tira uma mensagem da lista até um momento que você escolhe — mais tarde hoje, amanhã de manhã, no fim de semana ou na semana que vem. A semana que vem é o primeiro dia da próxima semana conforme **Início da semana** — o mesmo dia do prazo de uma tarefa. No computador a opção fica no menu de contexto da linha; no celular é também um gesto de deslizar. O botão **Adiados** os traz de volta à vista; a partir dali, **Trazer agora** devolve a mensagem à lista imediatamente.
 
 Duas coisas que merecem ser ditas com clareza. Primeiro, adiar é um **marcador do próprio Plainva**, não um recurso do servidor: nem IMAP nem Microsoft têm algo assim. O marcador viaja com a sincronização de configurações, então uma mensagem adiada no celular também descansa no computador — em outro programa de e-mail ela está na caixa de entrada como sempre. Segundo, adiar esconde apenas a **lista da pasta** em que você fez isso: a busca e "Todas as caixas de entrada" continuam mostrando a mensagem. Adiado significa "fora do caminho", não "sumiu".
 

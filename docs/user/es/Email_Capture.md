@@ -1,6 +1,6 @@
 # Captura de correo
 
-Última actualización: 2026-10-23
+Última actualización: 2026-10-25
 
 Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu vault, y — desde la 0.4.0 — también redactar y enviar correo. El foco sigue en la **captura** de mensajes como notas; un buzón conectado por **IMAP** solo se lee para la captura (nada en él cambia, ni siquiera las marcas de no leído) mientras no configures el envío.
 
@@ -102,7 +102,7 @@ Cuando un mensaje trae la cabecera `List-Unsubscribe`, Plainva muestra un botón
 
 ## Posponer
 
-Hay correo que no es urgente pero tampoco está resuelto. **Posponer** saca un mensaje de la lista hasta un momento que elijas: más tarde hoy, mañana por la mañana, el fin de semana o la próxima semana. En el escritorio la opción está en el menú contextual de la fila; en el teléfono es además una acción de deslizamiento. El botón **Pospuestos** los vuelve a mostrar; desde ahí, **Traer ahora** devuelve un mensaje a la lista de inmediato.
+Hay correo que no es urgente pero tampoco está resuelto. **Posponer** saca un mensaje de la lista hasta un momento que elijas: más tarde hoy, mañana por la mañana, el fin de semana o la próxima semana. La próxima semana es el primer día de la semana siguiente según **Inicio de semana**: el mismo día que en el vencimiento de una tarea. En el escritorio la opción está en el menú contextual de la fila; en el teléfono es además una acción de deslizamiento. El botón **Pospuestos** los vuelve a mostrar; desde ahí, **Traer ahora** devuelve un mensaje a la lista de inmediato.
 
 Dos cosas que conviene decir con claridad. Primero, posponer es un **marcador propio de Plainva**, no una función del servidor: ni IMAP ni Microsoft tienen algo así. El marcador viaja con la sincronización de ajustes, así que un mensaje pospuesto en el teléfono también descansa en el escritorio — en otro programa de correo aparece en la bandeja de entrada como siempre. Segundo, posponer solo oculta la **lista de la carpeta** en la que lo hiciste: la búsqueda y «Todas las bandejas» siguen mostrando el mensaje. Pospuesto significa «no en mi camino», no «desaparecido».
 

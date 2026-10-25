@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useTranslation } from "react-i18next";
 import { Ban, CheckSquare, ChevronDown, Folder, FolderInput, Mail, MailOpen, MessagesSquare, Paperclip, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
 import { firstAngleValue } from "@plainva/core";
-import { Banner, Button, EmptyState, Fab, ICON, IconButton, mailRowActions, plainvaProducer, SearchField, toast, useStableHandler } from "@plainva/ui";
+import { Banner, Button, EmptyState, Fab, ICON, IconButton, mailRowActions, plainvaProducer, SearchField, toast, useStableHandler, useWeekStartDay } from "@plainva/ui";
 import { addSnooze, filterSnoozed, parseSnoozeState, pruneSnoozes, SNOOZE_PRESETS, snoozeUntil, type SnoozeEntry, type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
 import { applyMailBulk, MailBulkReport, type MailBulkReportItem, type MailBulkAction } from "@plainva/ui/mail";
 import { mailListView } from "./mail/mailListView";
@@ -120,6 +120,8 @@ export function MailListScreen({
   onCompose: (accountId: string) => void;
 }) {
   const { t, i18n } = useTranslation();
+  // "Next week" begins where the week-start setting says (snoozeUntil).
+  const weekStart = useWeekStartDay();
   const vaultObj = vault_;
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   // Seeded from the remembered pair (B1), so a rebuild after the reader closes
@@ -1084,7 +1086,7 @@ export function MailListScreen({
       options: SNOOZE_PRESETS.map((p) => ({ value: p, label: t(`mail.snooze_${p}`) })),
     })) as SnoozePreset | null;
     if (!chosenPreset) return;
-    const until = snoozeUntil(chosenPreset, new Date());
+    const until = snoozeUntil(chosenPreset, new Date(), weekStart);
     const next = addSnooze(snoozed, { account: account.id, id: m.id, folder: mailbox ?? "", until });
     setSnoozed(next);
     patchRows((prev) => prev.filter((r) => r.id !== m.id));

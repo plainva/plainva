@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-10-23
+Last reviewed: 2026-10-25
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -102,7 +102,7 @@ When a message carries a `List-Unsubscribe` header, Plainva shows an **Unsubscri
 
 ## Snoozing
 
-Some mail is not urgent and not done either. **Snooze** takes a message out of the list until a moment you pick — later today, tomorrow morning, this weekend or next week. On the desktop the entry sits in the row's context menu, on the phone it is a swipe action as well. The **Snoozed** button brings them back into view; from there **Bring back now** returns a message to the list immediately.
+Some mail is not urgent and not done either. **Snooze** takes a message out of the list until a moment you pick — later today, tomorrow morning, this weekend or next week. Next week is the first day of next week as set under **Week starts on** — the same day a task's due date means by it. On the desktop the entry sits in the row's context menu, on the phone it is a swipe action as well. The **Snoozed** button brings them back into view; from there **Bring back now** returns a message to the list immediately.
 
 Two things about it that deserve saying plainly. First, snoozing is **Plainva's own marker**, not a server feature: neither IMAP nor Microsoft has such a thing. The marker travels with the settings sync, so a message snoozed on the phone rests on the desktop too — in another mail program it sits in the inbox as usual. Second, snoozing only hides the **list of the folder** you did it in: search and "All inboxes" still show the message. Snoozed means "not in my way", not "gone".
 
