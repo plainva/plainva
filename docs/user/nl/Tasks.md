@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-10-24
+Laatst bijgewerkt: 2026-10-25
 
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
@@ -29,7 +29,7 @@ De vier filters van de desktopbalk verschijnen op de telefoon als chips boven de
 
 Taken zijn gegroepeerd per notitie; de notitietitel is een kop waarop je kunt klikken om de notitie te openen. Elke taak toont het selectievakje en de tekst, doorgestreept zodra de taak is voltooid. Een **vervaldatum**, geschreven als `📅 2026-08-01` in de taakregel, verschijnt als klein label.
 
-Een link in de tekst van een taak staat er als zijn tekst: `[[Alexander Gaas|Alex]]` toont **Alex**, `[[Mensen/Anna]]` toont **Anna**, in het uiterlijk van een link. Klikken of tikken op de link opent die notitie; klikken op de rest van de regel opent de taak. Dit geldt voor elke takenlijst, op de desktop en op de telefoon.
+Een link in de tekst van een taak staat er als zijn tekst: `[[Alexander Gaas|Alex]]` toont **Alex**, `[[Mensen/Anna]]` toont **Anna**, in het uiterlijk van een link. Klikken of tikken op de link opent die notitie; klikken op de rest van de regel opent de taak. Dit geldt voor elke takenlijst, op de desktop en op de telefoon. Een link naar een notitie die nog niet bestaat, ziet eruit als in de editor — gedempt en gestreept — en een klik erop maakt de notitie aan.
 
 ## Filteren
 

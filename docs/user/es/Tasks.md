@@ -1,6 +1,6 @@
 # Tareas
 
-Última actualización: 2026-10-24
+Última actualización: 2026-10-25
 
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 
@@ -29,7 +29,7 @@ Los cuatro filtros de la barra de escritorio aparecen en el teléfono como chips
 
 Las tareas se agrupan por nota; el título de la nota es un encabezado en el que puedes hacer clic para abrir la nota. Cada tarea muestra su casilla y su texto, con un tachado una vez que está hecha. Una **fecha límite** escrita como `📅 2026-08-01` en la línea de la tarea aparece como una pequeña insignia.
 
-Un enlace en el texto de una tarea se lee como su texto: `[[Alexander Gaas|Alex]]` muestra **Alex**, `[[Personas/Anna]]` muestra **Anna**, con el aspecto de un enlace. Hacer clic o tocar el enlace abre esa nota; hacer clic en el resto de la línea abre la tarea. Esto vale para toda lista de tareas, en el escritorio y en el teléfono.
+Un enlace en el texto de una tarea se lee como su texto: `[[Alexander Gaas|Alex]]` muestra **Alex**, `[[Personas/Anna]]` muestra **Anna**, con el aspecto de un enlace. Hacer clic o tocar el enlace abre esa nota; hacer clic en el resto de la línea abre la tarea. Esto vale para toda lista de tareas, en el escritorio y en el teléfono. Un enlace a una nota que todavía no existe se ve como en el editor —atenuado y discontinuo— y al hacer clic en él se crea la nota.
 
 ## Filtrar
 

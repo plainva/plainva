@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-10-24
+Dernière mise à jour : 2026-10-25
 
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
@@ -29,7 +29,7 @@ Les quatre filtres de la barre de bureau apparaissent sur le téléphone sous fo
 
 Les tâches sont regroupées par note ; le titre de la note est un en-tête sur lequel vous pouvez cliquer pour ouvrir la note. Chaque tâche affiche sa case à cocher et son texte, barré une fois qu'elle est terminée. Une **date d'échéance** écrite sous la forme `📅 2026-08-01` dans la ligne de tâche apparaît comme un petit badge.
 
-Un lien dans le texte d'une tâche s'affiche comme son texte : `[[Alexander Gaas|Alex]]` affiche **Alex**, `[[Personnes/Anna]]` affiche **Anna**, avec l'aspect d'un lien. Un clic ou un appui sur le lien ouvre cette note ; un clic sur le reste de la ligne ouvre la tâche. Cela vaut pour chaque liste de tâches, sur le bureau comme sur le téléphone.
+Un lien dans le texte d'une tâche s'affiche comme son texte : `[[Alexander Gaas|Alex]]` affiche **Alex**, `[[Personnes/Anna]]` affiche **Anna**, avec l'aspect d'un lien. Un clic ou un appui sur le lien ouvre cette note ; un clic sur le reste de la ligne ouvre la tâche. Cela vaut pour chaque liste de tâches, sur le bureau comme sur le téléphone. Un lien vers une note qui n'existe pas encore a l'aspect qu'il a dans l'éditeur — atténué et en pointillés —, et un clic dessus crée la note.
 
 ## Filtrer
 

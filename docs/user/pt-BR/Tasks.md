@@ -1,6 +1,6 @@
 # Tarefas
 
-Última revisão: 2026-10-24
+Última revisão: 2026-10-25
 
 A visualização de Tarefas reúne todas as caixas de seleção do seu vault em um só lugar: todos os itens de lista `- [ ]` e `- [x]` de todas as suas notas, agrupados pela nota a que pertencem. É a visualização "o que ainda preciso fazer?" sobre Markdown puro — sem plugin, sem arquivo especial.
 
@@ -29,7 +29,7 @@ Os quatro filtros da barra do desktop aparecem no telefone como chips acima da l
 
 As tarefas são agrupadas por nota; o título da nota é um cabeçalho no qual você pode clicar para abrir a nota. Cada tarefa mostra sua caixa de seleção e seu texto, ficando tachada assim que é concluída. Uma **data de vencimento** escrita como `📅 2026-08-01` na linha da tarefa aparece como um pequeno emblema.
 
-Um link no texto de uma tarefa aparece como o seu texto: `[[Alexander Gaas|Alex]]` mostra **Alex**, `[[Pessoas/Anna]]` mostra **Anna**, com a aparência de um link. Clicar ou tocar no link abre essa nota; clicar no resto da linha abre a tarefa. Isso vale para toda lista de tarefas, no desktop e no telefone.
+Um link no texto de uma tarefa aparece como o seu texto: `[[Alexander Gaas|Alex]]` mostra **Alex**, `[[Pessoas/Anna]]` mostra **Anna**, com a aparência de um link. Clicar ou tocar no link abre essa nota; clicar no resto da linha abre a tarefa. Isso vale para toda lista de tarefas, no desktop e no telefone. Um link para uma nota que ainda não existe aparece como no editor — esmaecido e tracejado — e clicar nele cria a nota.
 
 ## Filtragem
 

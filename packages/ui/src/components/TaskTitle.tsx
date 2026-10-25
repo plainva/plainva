@@ -1,6 +1,8 @@
 import { useMemo, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { parseInlineMarkdown, type InlineLinkHandlers, type InlineNode } from "../lib/inlineMarkdown";
 import { wikiLinkLabel } from "../lib/taskTitle";
+import { isWikiTargetResolved, type WikiTargetSet } from "../lib/wikiResolver";
 
 /**
  * The title of a task in a task list (TestFlight wish of 2026-10-24, E3) —
@@ -15,6 +17,12 @@ import { wikiLinkLabel } from "../lib/taskTitle";
  *
  * A link is read from the note the task stands in (`notePath`), as the editor
  * reads it there: of two notes with one name, the one beside it comes first.
+ *
+ * A wiki link to a note that does not exist yet reads as it does in the
+ * editor and the reading view (`.pv-wiki-link--unresolved`, muted and dashed):
+ * the same question (`isWikiTargetResolved`, the link rule of ADR 0027) asked
+ * of the same lookup the shell feeds its editor. Without `linkLookup` — or
+ * while the index is loading — every link counts as resolved, as there.
  */
 export interface TaskTitleProps {
   /** The title as Markdown — `taskDisplayText` of a checkbox, the name of a database entry. */
@@ -22,11 +30,14 @@ export interface TaskTitleProps {
   /** The note the task stands in. */
   notePath: string;
   links?: InlineLinkHandlers;
+  /** The vault's link targets (`buildWikiTargetSet`), to draw a link to a missing note as unresolved. */
+  linkLookup?: WikiTargetSet | null;
 }
 
-export function TaskTitle({ text, notePath, links }: TaskTitleProps) {
+export function TaskTitle({ text, notePath, links, linkLookup }: TaskTitleProps) {
+  const { t } = useTranslation();
   const nodes = useMemo(() => parseInlineMarkdown(text), [text]);
-  const link = (key: string, label: string, className: string, open: ((newTab: boolean) => void) | undefined): ReactNode => {
+  const link = (key: string, label: string, className: string, open: ((newTab: boolean) => void) | undefined, tip?: string): ReactNode => {
     if (!open) return <span key={key} className={className}>{label}</span>;
     const activate = (e: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>) => {
       e.preventDefault();
@@ -37,6 +48,7 @@ export function TaskTitle({ text, notePath, links }: TaskTitleProps) {
       <a
         key={key}
         className={className}
+        data-tip={tip}
         role="link"
         tabIndex={0}
         data-testid="task-title-link"
@@ -79,7 +91,11 @@ export function TaskTitle({ text, notePath, links }: TaskTitleProps) {
           const open = links?.onOpenNote;
           // The anchor keeps its mark; the link rule reads it from the text.
           const target = n.target + (n.anchor ?? "");
-          return link(key, wikiLinkLabel(n), "pv-wiki-link", open ? (newTab) => open(target, newTab, "wiki", notePath) : undefined);
+          // A press on a missing note creates it, as in the editor — and says so there too.
+          const unresolved = !isWikiTargetResolved(target, linkLookup, notePath);
+          const className = unresolved ? "pv-wiki-link pv-wiki-link--unresolved" : "pv-wiki-link";
+          const tip = unresolved ? t("editor.unresolvedLinkTip") : undefined;
+          return link(key, wikiLinkLabel(n), className, open ? (newTab) => open(target, newTab, "wiki", notePath) : undefined, tip);
         }
         case "link": {
           if (n.external) {

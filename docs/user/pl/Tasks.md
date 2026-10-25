@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-10-24
+Stan na: 2026-10-25
 
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
@@ -29,7 +29,7 @@ Cztery filtry paska na komputerze pojawiają się na telefonie jako chipy nad li
 
 Zadania są pogrupowane według notatki; tytuł notatki to nagłówek, który można kliknąć, aby otworzyć notatkę. Każde zadanie pokazuje swoje pole wyboru i tekst, przekreślony po ukończeniu. **Termin** zapisany jako `📅 2026-08-01` w linii zadania pojawia się jako mała plakietka.
 
-Link w tekście zadania widać jako jego tekst: `[[Alexander Gaas|Alex]]` pokazuje **Alex**, `[[Osoby/Anna]]` pokazuje **Anna**, w wyglądzie linku. Kliknięcie lub dotknięcie linku otwiera tę notatkę; kliknięcie reszty wiersza otwiera zadanie. Dotyczy to każdej listy zadań, na komputerze i na telefonie.
+Link w tekście zadania widać jako jego tekst: `[[Alexander Gaas|Alex]]` pokazuje **Alex**, `[[Osoby/Anna]]` pokazuje **Anna**, w wyglądzie linku. Kliknięcie lub dotknięcie linku otwiera tę notatkę; kliknięcie reszty wiersza otwiera zadanie. Dotyczy to każdej listy zadań, na komputerze i na telefonie. Link do notatki, która jeszcze nie istnieje, wygląda jak w edytorze — przygaszony i przerywany — a kliknięcie go tworzy notatkę.
 
 ## Filtrowanie
 

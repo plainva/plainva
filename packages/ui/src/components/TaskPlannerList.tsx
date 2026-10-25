@@ -8,6 +8,7 @@ import { isOpenState, type PlannerRow, type PlannerSection } from "../lib/taskPl
 import { nestPlannerRows, type PlannerTreeNode } from "../lib/taskPlannerTree";
 import { taskPlainTitle } from "../lib/taskTitle";
 import type { InlineLinkHandlers } from "../lib/inlineMarkdown";
+import type { WikiTargetSet } from "../lib/wikiResolver";
 import { IconButton } from "./ui/IconButton";
 import { TaskDoneFold, useDoneFold } from "./TaskDoneFold";
 import { TaskTitle } from "./TaskTitle";
@@ -55,6 +56,8 @@ export interface TaskPlannerListProps {
    * the task. Absent: links are drawn and do nothing.
    */
   links?: InlineLinkHandlers;
+  /** The vault's link targets: a link to a missing note reads as unresolved (`TaskTitle`). */
+  linkLookup?: WikiTargetSet | null;
   /**
    * Subtasks under their task (E6): every row the view knows, where a task's
    * subtasks are looked up. Absent: every row stands on its own.
@@ -78,7 +81,7 @@ function clock(minutes: number, locale: string): string {
   return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date(2000, 0, 1, Math.floor(minutes / 60), minutes % 60));
 }
 
-export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle, onOpen, onMenu, wrapRow, rowProps, onDue, canDue, onOverdueToToday, links, subtasks, details, doneToday }: TaskPlannerListProps) {
+export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle, onOpen, onMenu, wrapRow, rowProps, onDue, canDue, onOverdueToToday, links, linkLookup, subtasks, details, doneToday }: TaskPlannerListProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
   // Which tasks show their subtasks folded away — for as long as the list is
@@ -159,7 +162,7 @@ export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle,
         title={
           <span className={closed ? "pv-planner-closed" : undefined}>
             <TaskPriorityFlag rank={row.priority} />
-            {row.source === "database" ? noteDisplayName(row.title) : <TaskTitle text={row.title} notePath={row.path} links={links} />}
+            {row.source === "database" ? noteDisplayName(row.title) : <TaskTitle text={row.title} notePath={row.path} links={links} linkLookup={linkLookup} />}
           </span>
         }
         subtitle={

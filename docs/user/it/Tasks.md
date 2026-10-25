@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-10-24
+Ultimo aggiornamento: 2026-10-25
 
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
@@ -29,7 +29,7 @@ I quattro filtri della barra desktop appaiono sul telefono come chip sopra l'ele
 
 Le attività sono raggruppate per nota; il titolo della nota compare come intestazione su cui puoi fare clic per aprire la nota. Ogni attività mostra la sua casella di controllo e il suo testo, barrato una volta completata. Una **scadenza** scritta come `📅 2026-08-01` nella riga dell'attività compare come un piccolo badge.
 
-Un link nel testo di un'attività si legge come il suo testo: `[[Alexander Gaas|Alex]]` mostra **Alex**, `[[Persone/Anna]]` mostra **Anna**, con l'aspetto di un link. Un clic o un tocco sul link apre quella nota; un clic sul resto della riga apre l'attività. Vale per ogni elenco di attività, su desktop e su telefono.
+Un link nel testo di un'attività si legge come il suo testo: `[[Alexander Gaas|Alex]]` mostra **Alex**, `[[Persone/Anna]]` mostra **Anna**, con l'aspetto di un link. Un clic o un tocco sul link apre quella nota; un clic sul resto della riga apre l'attività. Vale per ogni elenco di attività, su desktop e su telefono. Un link a una nota che non esiste ancora appare come nell'editor — attenuato e tratteggiato — e un clic su di esso crea la nota.
 
 ## Filtrare
 

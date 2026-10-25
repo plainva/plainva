@@ -25,6 +25,7 @@ import { TaskDuplicatesSheet } from "../components/TaskDuplicatesSheet";
 import { TaskNamesNotice } from "../components/TaskNamesNotice";
 import { TaskCaptureSheet } from "../components/TaskCaptureSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
+import { useLinkTargetLookup } from "../lib/useLinkTargetLookup";
 import { getMobileSettings } from "../services/mobileSettings";
 import { configuredNoteType } from "../services/newNote";
 import { phoneTemplateVault } from "../services/templateVault";
@@ -663,6 +664,8 @@ export function TasksScreen({
     },
     onOpenUrl: (url: string) => { void Browser.open({ url }).catch(() => undefined); },
   }), [vault, onOpenNote]);
+  // A link to a note that does not exist yet reads as unresolved, as in the editor.
+  const linkLookup = useLinkTargetLookup(vault, bump);
   const overdueToToday = () => {
     const overdue = planner.sections("today").find((section) => section.kind === "overdue")?.rows ?? [];
     const changes = overdueToDayChanges(overdue, todayKey, (row) => taskOfRow(row));
@@ -812,6 +815,7 @@ export function TasksScreen({
             canDue={(row) => plannerActs(row)?.due !== undefined}
             onOverdueToToday={overdueToToday}
             links={titleLinks}
+            linkLookup={linkLookup}
             subtasks={subtasks ? plannerRows : undefined}
             details={details}
             doneToday={list === "today" ? doneToday : undefined}
@@ -1011,7 +1015,7 @@ export function TasksScreen({
                     title={
                       <span className={isOpenTaskState(task.state) ? undefined : "m-task-done"}>
                         <TaskPriorityFlag rank={task.priority} />
-                        <TaskTitle text={prow.title} notePath={task.path} links={titleLinks} />
+                        <TaskTitle text={prow.title} notePath={task.path} links={titleLinks} linkLookup={linkLookup} />
                       </span>
                     }
                     subtitle={

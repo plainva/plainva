@@ -1,6 +1,6 @@
 # Aufgaben
 
-Stand: 2026-10-24
+Stand: 2026-10-25
 
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
@@ -29,7 +29,7 @@ Die vier Filter der Desktop-Leiste stehen mobil als Chips über der Liste: **Ord
 
 Aufgaben sind nach Notiz gruppiert; der Notiztitel ist eine Überschrift, die Du anklicken kannst, um die Notiz zu öffnen. Jede Aufgabe zeigt ihre Checkbox und ihren Text, durchgestrichen, sobald sie erledigt ist. Eine **Fälligkeit**, die als `📅 2026-08-01` in der Aufgabenzeile steht, erscheint als kleines Abzeichen.
 
-Ein Link im Text einer Aufgabe steht als sein Text da: `[[Alexander Gaas|Alex]]` zeigt **Alex**, `[[Personen/Anna]]` zeigt **Anna**, im Aussehen eines Links. Ein Klick oder Tipp auf den Link öffnet diese Notiz, ein Klick auf den Rest der Zeile die Aufgabe. Das gilt für jede Aufgabenliste, am Desktop wie am Telefon.
+Ein Link im Text einer Aufgabe steht als sein Text da: `[[Alexander Gaas|Alex]]` zeigt **Alex**, `[[Personen/Anna]]` zeigt **Anna**, im Aussehen eines Links. Ein Klick oder Tipp auf den Link öffnet diese Notiz, ein Klick auf den Rest der Zeile die Aufgabe. Das gilt für jede Aufgabenliste, am Desktop wie am Telefon. Ein Link auf eine Notiz, die es noch nicht gibt, sieht aus wie im Editor — gedämpft und gestrichelt —, und ein Klick darauf legt die Notiz an.
 
 ## Filtern
 

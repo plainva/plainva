@@ -35,6 +35,7 @@ import { convertDueColumnToDateTime, setDbTaskPriority, TaskPriorityFlag, TaskSt
 import { buildPlanner, doneTasksOnDay, isOpenState, plannerRowsForTree, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, TaskTitle, useTodayKey, type CaptureResult, type InlineLinkHandlers, type PlannerRow } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { openLink } from "../../services/openLink";
+import { useWikiResolver } from "../../hooks/useWikiResolver";
 import { applyTaskDueChanges, DateJumpPopover, DuePicker, dueTimeOf, offerDueTimeColumn, overdueToDayChanges, TaskCheckButton, taskDueFailureText, taskDueMovedText, useWeekStartDay, type DuePick, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
 import { TimeBlockModal } from "../pimcal/TimeBlockModal";
 
@@ -625,6 +626,8 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     },
     onOpenUrl: (url) => { void openUrl(url).catch((error) => toast.error(errorText(error))); },
   }), [onOpenPath, queryService, vaultAdapter, t]);
+  // A link to a note that does not exist yet reads as unresolved, as in the editor.
+  const linkLookup = useWikiResolver();
   const openCount = useMemo(() => plannerRows.filter((r) => isOpenState(r.state)).length, [plannerRows]);
   /** The tags that occur most among the open tasks — the rail's one-click filters. */
   const railTags = useMemo(() => {
@@ -1178,6 +1181,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
               canDue={(row) => plannerDueChange(row) !== null}
               onOverdueToToday={overdueToToday}
               links={titleLinks}
+              linkLookup={linkLookup}
               subtasks={subtasks ? plannerRows : undefined}
               details={details}
               doneToday={list === "today" ? doneToday : undefined}
@@ -1412,7 +1416,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
                       >
                         <TaskPriorityFlag rank={task.priority} />
                         <span style={{ textDecoration: isOpenTaskState(task.state) ? "none" : "line-through" }}>
-                          {stripTaskMeta(task.text) || task.text ? <TaskTitle text={stripTaskMeta(task.text) || task.text} notePath={task.path} links={titleLinks} /> : t("tasks.empty", { defaultValue: "Keine Aufgaben" })}
+                          {stripTaskMeta(task.text) || task.text ? <TaskTitle text={stripTaskMeta(task.text) || task.text} notePath={task.path} links={titleLinks} linkLookup={linkLookup} /> : t("tasks.empty", { defaultValue: "Keine Aufgaben" })}
                         </span>
                         <TaskMetadataDetails task={task} />
                       </span>

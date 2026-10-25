@@ -19,6 +19,7 @@ import {
   taskPlainTitle,
   taskRowActions,
   TaskTitle,
+  buildWikiTargetSet,
   wikiLinkLabel,
   type PlannerRow,
   type PlannerTreeNode,
@@ -153,6 +154,55 @@ describe("a link in a task's title reads as its text (E3)", () => {
     expect(host.textContent).toBe("Call Bob");
     expect(all(host, "task-title-link")).toHaveLength(0);
     expect(host.querySelector(".pv-wiki-link")?.textContent).toBe("Bob");
+  });
+
+  // A link to a note that does not exist reads as it does in the editor
+  // (remaining point of the wishes plan): the editor's question
+  // (`isWikiTargetResolved`, ADR 0027) asked of the lookup the shell feeds it.
+  const lookup = buildWikiTargetSet([
+    { path: "People/Alexander Gaas.md", title: "Alexander Gaas" },
+    { path: "Plan.md", title: "Plan" },
+    { path: "Work/Sibling.md", title: "Sibling" },
+    { path: "Notes/2026-10-01 Kickoff.md", title: "Kickoff" },
+  ]);
+  const linkClasses = (host: HTMLElement) => [...host.querySelectorAll<HTMLElement>(".pv-wiki-link")].map((el) => [el.textContent, el.className, el.getAttribute("data-tip")]);
+
+  it("draws a link to a missing note as unresolved — by name, path, heading, relative path and title, as the editor does", async () => {
+    const host = await mount(
+      <TaskTitle
+        text="[[Alexander Gaas|Alex]] [[Plan#Budget]] [[./Sibling]] [[Kickoff]] [[Nobody]] [[Plan/Missing]] [[Ghost#Part|G]]"
+        notePath="Work/Home.md"
+        links={{ onOpenNote: () => {} }}
+        linkLookup={lookup}
+      />,
+    );
+    const tip = "Note doesn't exist yet — click to create";
+    expect(linkClasses(host)).toEqual([
+      ["Alex", "pv-wiki-link", null],
+      ["Plan", "pv-wiki-link", null],
+      ["Sibling", "pv-wiki-link", null],
+      ["Kickoff", "pv-wiki-link", null],
+      ["Nobody", "pv-wiki-link pv-wiki-link--unresolved", tip],
+      ["Missing", "pv-wiki-link pv-wiki-link--unresolved", tip],
+      ["G", "pv-wiki-link pv-wiki-link--unresolved", tip],
+    ]);
+  });
+
+  it("counts every link as resolved while there is no lookup — the index loading, as in the editor", async () => {
+    for (const linkLookup of [undefined, null]) {
+      const host = await mount(<TaskTitle text="[[Nobody]]" notePath="a.md" links={{ onOpenNote: () => {} }} linkLookup={linkLookup} />);
+      expect(linkClasses(host)).toEqual([["Nobody", "pv-wiki-link", null]]);
+    }
+  });
+
+  it("a drawn-only link is unresolved too, without the press hint; the planner hands its lookup on", async () => {
+    const drawn = await mount(<TaskTitle text="[[Nobody]]" notePath="a.md" linkLookup={lookup} />);
+    expect(linkClasses(drawn)).toEqual([["Nobody", "pv-wiki-link pv-wiki-link--unresolved", null]]);
+    const rows = plannerRowsFromTasks(noteTasks("Work/Home.md", "- [ ] [[Nobody]] and [[Plan]] 📅 2026-10-24\n"));
+    const host = await mount(
+      <TaskPlannerList sections={buildPlanner(rows, TODAY).sections("today")} emptyLabel="-" databaseLabel="Tasks" onToggle={() => {}} onOpen={() => {}} links={{ onOpenNote: () => {} }} linkLookup={lookup} />,
+    );
+    expect(all(host, "task-title-link").map((el) => el.className)).toEqual(["pv-wiki-link pv-wiki-link--unresolved", "pv-wiki-link"]);
   });
 });
 

@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2026-10-24
+Last updated: 2026-10-25
 
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
@@ -29,7 +29,7 @@ The desktop bar's four filters appear on the phone as chips above the list: **Fo
 
 Tasks are grouped by note; the note title is a heading you can click to open the note. Each task shows its checkbox and its text, with a strike-through once it is done. A **due date** written as `📅 2026-08-01` in the task line appears as a small badge.
 
-A link in a task's text reads as its text: `[[Alexander Gaas|Alex]]` shows **Alex**, `[[People/Anna]]` shows **Anna**, in the look of a link. Clicking or tapping the link opens that note; clicking the rest of the line opens the task. This holds for every task list, on the desktop and on the phone.
+A link in a task's text reads as its text: `[[Alexander Gaas|Alex]]` shows **Alex**, `[[People/Anna]]` shows **Anna**, in the look of a link. Clicking or tapping the link opens that note; clicking the rest of the line opens the task. This holds for every task list, on the desktop and on the phone. A link to a note that does not exist yet looks as it does in the editor — muted and dashed — and clicking it creates the note.
 
 ## Filtering
 

@@ -12,6 +12,7 @@ import { isoOf } from "../lib/dates";
 import { listShownPimEvents } from "../services/pim/pimService";
 import { getMobileSettings } from "../services/mobileSettings";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
+import { useLinkTargetLookup } from "../lib/useLinkTargetLookup";
 import { useLongPress } from "../lib/useLongPress";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { SwipeRow } from "../components/SwipeRow";
@@ -183,6 +184,8 @@ export function TodayScreen({
     },
     onOpenUrl: (url: string) => { void Browser.open({ url }).catch(() => undefined); },
   }), [vault, onOpenNote]);
+  // A link to a note that does not exist yet reads as unresolved, as in the editor.
+  const linkLookup = useLinkTargetLookup(vault, bump);
   /** One task row of Due — open, late or (in the fold) finished. */
   const taskRow = (row: PlannerRow, overdue: boolean, keyPrefix = "") => {
     const closed = !isOpenState(row.state);
@@ -231,7 +234,7 @@ export function TodayScreen({
           }
           title={
             <span className={closed ? "pv-planner-closed" : undefined}>
-              {row.source === "database" ? noteDisplayName(row.title) : <TaskTitle text={row.title} notePath={row.path} links={titleLinks} />}
+              {row.source === "database" ? noteDisplayName(row.title) : <TaskTitle text={row.title} notePath={row.path} links={titleLinks} linkLookup={linkLookup} />}
             </span>
           }
           wrap
