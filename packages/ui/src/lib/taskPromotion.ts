@@ -1,5 +1,5 @@
-import { scanTasks, trimEndChars, updateVaultText, wikiTargetForPath, type TextUpdateFiles } from "@plainva/core";
-import { TASK_LINE_RE, FENCE_RE } from "./taskToggle";
+import { createFenceTracker, scanTasks, trimEndChars, updateVaultText, wikiTargetForPath, type TextUpdateFiles } from "@plainva/core";
+import { TASK_LINE_RE } from "./taskToggle";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
 import { buildNewItemContent } from "./newItemContent";
@@ -20,7 +20,7 @@ import type { TaskPriority } from "./taskPlanner";
  * and the note links back to its source via a `source` wiki link.
  *
  * Ordinal counting MUST stay in lock-step with `scanTasks`/`toggleTaskAtIndex`
- * (shared `TASK_LINE_RE`/`FENCE_RE`), otherwise a promotion would rewrite the
+ * (shared `TASK_LINE_RE`, one fence rule `createFenceTracker`), otherwise a promotion would rewrite the
  * wrong line.
  */
 
@@ -98,14 +98,10 @@ export function replaceCheckboxWithLink(
   alias?: string
 ): CheckboxReplaceResult {
   const lines = content.split("\n");
-  let inFence = false;
+  const fence = createFenceTracker();
   let seen = 0;
   for (let i = 0; i < lines.length; i++) {
-    if (FENCE_RE.test(lines[i])) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) continue;
+    if (fence.step(lines[i]) !== null) continue;
     const m = lines[i].match(TASK_LINE_RE);
     if (!m) continue;
     if (seen === ordinal) {

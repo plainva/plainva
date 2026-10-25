@@ -9,14 +9,16 @@ import { embedKindOf } from "./imageTarget";
  * everything else (tables, math, embeds) to a labeled placeholder plus a short
  * raw preview for fenced code. Clicking a card opens the full note anyway.
  *
- * Task ORDINALS count exactly like `toggleTaskAtIndex` (same TASK_LINE/FENCE
- * regexes): a rendered checkbox flips precisely its own line, even when other
- * task lines hide inside quotes or code fences.
+ * Task ORDINALS count exactly like `toggleTaskAtIndex` (same TASK_LINE regex,
+ * the one fence rule `createFenceTracker`): a rendered checkbox flips precisely
+ * its own line, even when other task lines hide inside quotes or code fences —
+ * a fence inside a callout included (finding 2026-10-25).
  */
 
 import * as yaml from "yaml";
 import { parseInlineMarkdown, type InlineNode } from "./inlineMarkdown";
-import { FENCE_RE, TASK_LINE_RE } from "./taskToggle";
+import { createFenceTracker, readQuoteDepth, stripQuoteMarkers } from "@plainva/core";
+import { TASK_LINE_RE } from "./taskToggle";
 
 export type NoteCardBlock =
   | { kind: "heading"; depth: number; inline: InlineNode[] }
@@ -123,6 +125,8 @@ export function parseNoteCard(
 
   // Task ordinals: count EXACTLY like toggleTaskAtIndex (fence-aware, whole doc).
   let taskOrdinal = 0;
+  const fence = createFenceTracker();
+  let fenceDepth = 0;
   let inFence = false;
   let inMath = false;
   let fenceLines: string[] = [];
@@ -143,23 +147,27 @@ export function parseNoteCard(
   };
 
   for (const line of body) {
-    // Fence toggling mirrors taskToggle (the fence line itself never counts).
-    if (FENCE_RE.test(line)) {
-      if (!inFence) {
-        flushPara();
-        tableOpen = false;
-        inFence = true;
-        fenceLines = [];
-      } else {
-        inFence = false;
-        push({ kind: "code", lines: fenceLines.slice(0, CODE_PREVIEW_LINES), truncated: fenceLines.length > CODE_PREVIEW_LINES });
-      }
+    // The one fence rule (the fence lines themselves never count). A fence
+    // also ends with the quote it stood in: then this line is no code at all.
+    const kind = fence.step(line);
+    if (inFence && kind !== "code") {
+      inFence = false;
+      push({ kind: "code", lines: fenceLines.slice(0, CODE_PREVIEW_LINES), truncated: fenceLines.length > CODE_PREVIEW_LINES });
+    }
+    if (kind === "open") {
+      flushPara();
+      tableOpen = false;
+      inFence = true;
+      fenceDepth = readQuoteDepth(line).depth;
+      fenceLines = [];
       continue;
     }
-    if (inFence) {
-      fenceLines.push(line);
+    if (kind === "code") {
+      // The code without the quote markers of the quote the fence stands in.
+      fenceLines.push(stripQuoteMarkers(line, fenceDepth));
       continue;
     }
+    if (kind === "close") continue;
 
     const taskMatch = line.match(TASK_LINE_RE);
     if (taskMatch) {

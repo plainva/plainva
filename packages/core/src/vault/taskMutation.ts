@@ -1,5 +1,6 @@
 import { sha256Hex, utf8Encode } from "../workspace/encoding.js";
-import { GFM_TASK_FENCE, GFM_TASK_LINE, scanTasks, taskBoxChar, type ScannedTask, type TaskBoxState } from "./taskScan.js";
+import { createFenceTracker } from "../markdownFence.js";
+import { GFM_TASK_LINE, scanTasks, taskBoxChar, type ScannedTask, type TaskBoxState } from "./taskScan.js";
 import { nextTasksDates, readTasksMetadata, setTasksField, setTasksPriority, tasksDayNumber } from "./taskMetadata.js";
 import { htmlInputTagRanges, readHtmlCheckbox, withHtmlCheckboxChecked } from "./htmlCheckbox.js";
 
@@ -130,17 +131,16 @@ export function setChecklistTaskState(content: string, index: number, state: Tas
  * These boxes have an ordinal space of their OWN: they carry no task
  * metadata, no due date and no recurrence, so mixing them into the GFM
  * ordinals would make every later task line address the wrong row. Fenced
- * code is skipped, exactly as the GFM scan skips it. Finding the tags and
+ * code is skipped, by the same fence rule as the GFM scan (`markdownFence.ts`). Finding the tags and
  * reading them is `htmlCheckbox.ts` — one linear tokenizer for reader and
  * writer (plan Befunde 24.09., E6).
  */
 export function setHtmlCheckboxChecked(content: string, index: number, checked: boolean): ChecklistMutationResult {
   const lines = content.split("\n");
   let ordinal = 0;
-  let inFence = false;
+  const fence = createFenceTracker();
   for (let i = 0; i < lines.length; i++) {
-    if (GFM_TASK_FENCE.test(lines[i])) { inFence = !inFence; continue; }
-    if (inFence) continue;
+    if (fence.step(lines[i]) !== null) continue;
     const line = lines[i];
     for (const range of htmlInputTagRanges(line)) {
       const tag = line.slice(range.from, range.to);

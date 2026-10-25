@@ -130,6 +130,7 @@ export * from "./textScan.js";
 export * from "./textFileShape.js";
 export * from "./markdownListItem.js";
 export * from "./markdownBlockLine.js";
+export * from "./markdownFence.js";
 export * from "./mailText.js";
 export * from "./vault/filterComparison.js";
 export * from "./linkScan.js";

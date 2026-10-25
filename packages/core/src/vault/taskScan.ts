@@ -1,10 +1,11 @@
 /**
  * Vault-wide task scanning (B4). Finds GFM task list items (`- [ ]` / `- [x]`,
- * also `*`/`+`/ordered, nested, inside blockquotes, never in fenced code) and
+ * also `*`/`+`/ordered, nested, inside blockquotes, never in fenced code — the
+ * one fence rule of `markdownFence.ts`, a fence inside a quote included) and
  * returns each with the SAME document-order ordinal that `@plainva/ui`'s
  * `toggleTaskAtIndex` counts — so a vault-wide Tasks view can flip a checkbox
- * back through that helper. The `TASK_LINE`/`FENCE` regexes here MUST stay in
- * lock-step with the toggle; an alignment test cross-checks both.
+ * back through that helper. Every writer that finds a box by its ordinal
+ * counts through this scan; an alignment test cross-checks the toggle.
  */
 
 /**
@@ -30,11 +31,11 @@ export function taskBoxChar(state: TaskBoxState): string {
 
 /** In progress still counts as open; cancelled counts as closed. */
 export const isOpenTaskState = (state: TaskBoxState): boolean => state === "open" || state === "progress";
-export const GFM_TASK_FENCE = /^\s*(?:```|~~~)/;
-const TASK_LINE = GFM_TASK_LINE, FENCE = GFM_TASK_FENCE;
+const TASK_LINE = GFM_TASK_LINE;
 import { readTasksMetadata, readTasksPriority } from "./taskMetadata.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
 import { findInlineTagsInLine } from "../tagRule.js";
+import { createFenceTracker } from "../markdownFence.js";
 
 export interface ScannedTask {
   /** 0-based line index of the task in the content. */
@@ -98,7 +99,7 @@ function lineIndent(line: string): number {
 export function scanTasks(content: string): ScannedTask[] {
   const lines = content.split("\n");
   const out: ScannedTask[] = [];
-  let inFence = false;
+  const fence = createFenceTracker();
   let ordinal = 0;
   let nativeRecurrenceOwner: boolean | undefined;
   // The list items above the current line that are still open, innermost
@@ -107,12 +108,10 @@ export function scanTasks(content: string): ScannedTask[] {
   // the next sibling); a blank line ends nothing.
   const open: Array<{ indent: number; task: ScannedTask | null }> = [];
   for (let i = 0; i < lines.length; i++) {
-    if (FENCE.test(lines[i])) {
-      inFence = !inFence;
+    if (fence.step(lines[i]) !== null) {
       open.length = 0;
       continue;
     }
-    if (inFence) continue;
     if (!lines[i].trim()) continue;
     const indent = lineIndent(lines[i]);
     while (open.length > 0 && open[open.length - 1].indent >= indent) open.pop();

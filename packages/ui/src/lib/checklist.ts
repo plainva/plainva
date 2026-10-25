@@ -8,14 +8,14 @@
  * as a progress bar and, unfolded, the lines themselves with a checkbox that
  * flips exactly its own line through `toggleTaskAtIndex`. Ordinals therefore
  * count the way that toggle counts: list items, nested, inside quotes — never
- * inside fenced code.
+ * inside fenced code, by the one fence rule (`createFenceTracker`).
  *
  * Adding a sub-task appends a line after the last checkbox of the note, in
  * the same list style, or at the end when the note has none. Editing the
  * wording is what the note is for.
  */
-import { editInShape, taskBoxState, type TaskBoxState } from "@plainva/core";
-import { FENCE_RE, TASK_LINE_RE } from "./taskToggle";
+import { createFenceTracker, editInShape, taskBoxState, type TaskBoxState } from "@plainva/core";
+import { TASK_LINE_RE } from "./taskToggle";
 
 export interface TaskProgress {
   done: number;
@@ -48,14 +48,10 @@ export interface TaskLine {
 export function listTaskLines(content: string): TaskLine[] {
   const lines = content.split("\n");
   const out: TaskLine[] = [];
-  let inFence = false;
+  const fence = createFenceTracker();
   let ordinal = 0;
   for (let i = 0; i < lines.length; i++) {
-    if (FENCE_RE.test(lines[i])) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) continue;
+    if (fence.step(lines[i]) !== null) continue;
     const m = lines[i].match(TASK_LINE_RE);
     if (!m) continue;
     const marker = m[1].length + 1 + m[3].length;
@@ -78,14 +74,10 @@ export function appendTaskLine(content: string, text: string): string {
   if (!clean) return content;
   return editInShape(content, (body) => {
     const lines = body.split("\n");
-    let inFence = false;
+    const fence = createFenceTracker();
     let last: { index: number; prefix: string } | null = null;
     for (let i = 0; i < lines.length; i++) {
-      if (FENCE_RE.test(lines[i])) {
-        inFence = !inFence;
-        continue;
-      }
-      if (inFence) continue;
+      if (fence.step(lines[i]) !== null) continue;
       const m = lines[i].match(TASK_LINE_RE);
       if (m) last = { index: i, prefix: m[1].slice(0, -1) };
     }

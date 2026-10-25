@@ -14,6 +14,8 @@
  * issue number stays a number.
  */
 
+import { createFenceTracker } from "./markdownFence.js";
+
 /** The characters a tag name is made of, as a character-class body. */
 const NAME_CHARS = "\\p{L}\\p{N}_/-";
 
@@ -180,7 +182,6 @@ export function findInlineTagsInLine(line: string): InlineTag[] {
   return collect(masked, new RegExp(`(^|\\s[*~=]{0,3}|^[*~=]{1,3})#([${NAME_CHARS}]+)`, "gu"));
 }
 
-const FENCE = /^\s*(?:>\s*)*(?:```|~~~)/;
 
 /**
  * Tags in a Markdown BODY (the frontmatter already cut off), with offsets into
@@ -190,15 +191,12 @@ const FENCE = /^\s*(?:>\s*)*(?:```|~~~)/;
 export function findInlineTagsInSource(body: string): InlineTag[] {
   const out: InlineTag[] = [];
   let offset = 0;
-  let inFence = false;
+  const fence = createFenceTracker();
   let inComment = false;
   for (const raw of body.split("\n")) {
     const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
     let scan = line;
-    if (FENCE.test(line)) {
-      inFence = !inFence;
-      scan = "";
-    } else if (inFence) {
+    if (fence.step(line) !== null) {
       scan = "";
     } else if (inComment) {
       const end = line.indexOf("-->");
