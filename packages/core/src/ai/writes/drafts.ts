@@ -125,6 +125,11 @@ export interface WriteDraft {
    * conversation gives for each thing it proposes. Shown under the draft, written nowhere.
    */
   why?: string;
+  /**
+   * Laid down in a conversation that carried the user's writing style (plan P9-3, ADR 0035): the card says so, and
+   * that it is the model's draft all the same. Written nowhere else — the note made of it is signed as every other.
+   */
+  style?: true;
 }
 
 export const WRITE_DRAFT_LIMITS = { drafts: 100, title: 200, content: 200_000, text: 2_000, properties: 40, sources: 50, recipients: 50, subject: 300, place: 300, description: 20_000, skillBody: 20_000, why: 400 } as const;
@@ -306,6 +311,7 @@ export function parseWriteDraft(raw: unknown): WriteDraft | null {
     ...(missing.length ? { missing } : {}),
     ...(withheld.length ? { withheld } : {}),
     ...(why ? { why } : {}),
+    ...(raw.style === true ? { style: true as const } : {}),
   };
 }
 

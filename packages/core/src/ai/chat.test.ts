@@ -276,3 +276,28 @@ describe("the vault's memory in the system prompt (plan P6, ADR 0032)", () => {
     expect(assistantSystemPrompt({ ...base, memory: { text: "  ", lookup: false } })).toBe(assistantSystemPrompt(base));
   });
 });
+
+describe("the user's writing style in the system prompt (plan P9-3, ADR 0035)", () => {
+  const base = { language: "German", today: "2026-10-25", tools: ["search_vault"] };
+  const LINES = ["Sentences: short, about 9 words each.", 'Addresses people informally (in German: "du", not "Sie").'];
+
+  it("is the app's own lines, after the memory, with where the style is used and where not", () => {
+    const prompt = assistantSystemPrompt({ ...base, memory: { text: "- Harbour Studio pays within 14 days.", lookup: false }, style: { lines: LINES } });
+    const memory = prompt.indexOf("Harbour Studio");
+    const chosen = prompt.indexOf("the user chose to have what you write for them follow their own writing style");
+    expect(chosen).toBeGreaterThan(memory);
+    expect(prompt).toContain("- Sentences: short, about 9 words each.\n- Addresses people informally");
+    expect(prompt).toContain("Do not use it on your own for an e-mail, an invitation, a comment or anything else another person will read");
+    expect(prompt).toContain("it is not a person to imitate");
+    expect(prompt).toContain("never say or suggest that the user wrote it");
+    // Not fenced as data: Plainva wrote these lines itself — every fence before them is closed, and none opens in them.
+    const before = prompt.slice(0, chosen);
+    expect(before.split("<untrusted_data origin=").length).toBe(before.split("</untrusted_data>").length);
+    expect(prompt.slice(chosen)).not.toContain("<untrusted_data origin=");
+  });
+
+  it("says nothing of a style the conversation was not given", () => {
+    expect(assistantSystemPrompt(base)).not.toContain("writing style");
+    expect(assistantSystemPrompt({ ...base, style: { lines: [] } })).toBe(assistantSystemPrompt(base));
+  });
+});

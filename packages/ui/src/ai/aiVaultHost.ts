@@ -40,6 +40,7 @@ import type { AcpVaultAccess } from "./acpFiles";
 import { createAcpVaultStore } from "./acpStores";
 import { notesEmbedding } from "./aiImage";
 import { createMemoryHost, createMemoryPrefStore, readMemory } from "./aiMemory";
+import { createStylePrefStore } from "./aiStyle";
 import type { AiInstructionsHost, AiVaultHost, InstructionVersions } from "./aiSession";
 import { createAiVaultStores, type AiFileStore, type InstructionApprovalStore } from "./aiStores";
 import { createMcpVaultStore } from "./mcpStores";
@@ -439,6 +440,8 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     key: input.vaultKey,
     // This vault's choices about foreign MCP servers (plan P4.5): beside its other AI data, never in the vault.
     mcp: createMcpVaultStore(input.files, input.vaultKey),
+    // The user's writing style (plan P9-3): its examples and what was taken out, beside the vault's other AI data.
+    style: createStylePrefStore(input.files, input.vaultKey),
     // An external agent's session in this vault (plan P4.6), and the vault's log of such sessions — beside its other AI data too.
     ...(input.agents ? { agents: { ...input.agents, store: createAcpVaultStore(input.files, input.vaultKey) } } : {}),
     activeNote: input.activeNote,

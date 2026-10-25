@@ -150,7 +150,7 @@ Neben der offenen Notiz zeigt Plainva bis zu drei Dinge, die ihm selbst auffalle
 
 ## Gedächtnis
 
-Was die KI über Dich wissen soll, ohne dass Du es wieder sagst — was Du machst, wie Du Antworten magst —, steht im Gedächtnis des Vaults: zwei Dateien, die Du lesen und bearbeiten kannst. Was unter **Immer dabei** steht, geht in jedes neue Gespräch, der Rest wird nachgeschlagen, wenn eine Frage ihn braucht, und nichts kommt ohne Dein Ja hinein. Siehe [Gedächtnis](AI_Memory.md).
+Was die KI über Dich wissen soll, ohne dass Du es wieder sagst — was Du machst, wie Du Antworten magst —, steht im Gedächtnis des Vaults: zwei Dateien, die Du lesen und bearbeiten kannst. Was unter **Immer dabei** steht, geht in jedes neue Gespräch, der Rest wird nachgeschlagen, wenn eine Frage ihn braucht, und nichts kommt ohne Dein Ja hinein. Siehe [Gedächtnis](AI_Memory.md). Dort steht auch Dein Schreibstil: **Mein Stil** unter dem Eingabefeld gibt einem Gespräch, was dieses Gerät an Notizen gemessen hat, die Du gewählt hast.
 
 ## Aus einem Gespräch lernen
 

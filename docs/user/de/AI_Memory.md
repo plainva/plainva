@@ -1,6 +1,6 @@
 # Gedächtnis (Beta)
 
-Stand: 2026-10-09
+Stand: 2026-10-25
 
 Das Gedächtnis hält fest, was die KI über Dich und Deine Arbeit wissen soll, ohne dass Du es wieder sagst: was Du machst, wie Du Antworten magst, wer Deine Kunden sind. Es sind zwei Dateien in Deinem Vault. Nichts kommt ohne Dein Ja hinein, und Du kannst jeden Eintrag lesen, ändern und löschen.
 
@@ -39,6 +39,16 @@ Wie alle Anweisungen muss die Datei auf jedem Gerät freigegeben sein, bevor sie
 Ein Gedächtnis, das gewachsen ist, wiederholt sich. Unter **Aufräumen** nennt die Gedächtnis-Ansicht, was dieses Gerät von selbst bemerkt hat, ohne ein Modell zu fragen: zwei Einträge, die fast dasselbe sagen, einen Eintrag, der älter als ein Jahr ist, und Einträge von **Immer dabei**, die nicht mehr passen. **Vergleichen** zeigt die zwei Einträge zusammen, jeden mit allem, was sein Menü kann.
 
 Für einen genaueren Blick gibt es einen Skill. **Gedächtnis pflegen** liest die Einträge mit dem Modell eines Gesprächs und entwirft, was zusammengehört und was gehen kann; die Zeile **Das Gedächtnis durchsehen lassen** startet ihn. Was er vorschlägt, sind Entwürfe wie alle anderen: nichts ändert sich, bevor Du es annimmst, und wo zwei Einträge sich widersprechen, fragt er, statt zu entscheiden.
+
+## Schreibstil
+
+Ein Entwurf der KI klingt nach der KI. Der Abschnitt **Schreibstil** beschreibt, wie Du schreibst, damit ein Entwurf nach Dir klingen kann — gemessen an Notizen, die Du selbst wählst.
+
+**Beispiele wählen …** öffnet die Notiz-Auswahl von **Notiz anheften …**; wähle bis zu acht Notizen, die Du selbst geschrieben hast. Dieses Gerät misst darin, ohne Modell und ohne etwas zu senden: wie lang Deine Sätze und Absätze sind, Listen oder Fließtext, Überschriften, wie Du Leute ansprichst (im Deutschen „du“ oder „Sie“, im Französischen „tu“ oder „vous“ — wo eine Sprache es an ihren Wörtern zeigt), Fettdruck, Emojis, Ausrufezeichen und Gedankenstriche. Eigenschaften, Code und Zitate zählen nicht. Jedes Merkmal steht mit den Zahlen da, auf denen es beruht, und sein ✕ nimmt es einzeln heraus; **Zurückholen** holt zurück, was Du herausgenommen hast. Kein Wort und keine Wendung Deiner Notizen wird festgehalten: das Gerät behält die Pfade der Beispiele und was Du herausgenommen hast, und misst neu, sobald der Stil gezeigt oder benutzt wird.
+
+Benutzt wird der Stil nur, wo Du ihn wählst: **Mein Stil**, der Knopf neben dem Globus unter dem Eingabefeld, gibt ihn dem Gespräch, das Du als Nächstes beginnst — wie das Internet, fest ab seiner ersten Nachricht. Das Gespräch sagt dann **Mit Deinem Schreibstil**, die Sende-Übersicht hat eine Zeile **Schreibstil**, und ein Entwurf aus einem solchen Gespräch sagt, dass er mit Deinem Schreibstil entworfen wurde; er bleibt ein Entwurf der KI, gezeichnet mit ihrem Modell. Die KI folgt dem Stil in dem, was Du für Dich behältst — einer Notiz, einem Journal-Eintrag, einer Überarbeitung Deines Textes —, nicht von selbst in einer E-Mail, einer Einladung oder einem Kommentar; bitte sie dort darum, dann tut sie es.
+
+Der Stil liegt auf diesem Gerät, nicht im Vault: auf einem anderen Gerät wählst Du seine Beispiele dort. Ein Beispiel, das Deine Datenschutzregeln einem Modell vorenthalten, gibt diesem Modell keines seiner Merkmale — die Sende-Übersicht zählt es unter **Zurückgehalten** —, und was ein Modell auf diesem Gerät mit Merkmalen einer solchen Notiz schreibt, behält die Regeln der Notiz.
 
 ## Datenschutz
 

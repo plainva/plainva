@@ -1,10 +1,11 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { BookMarked, FileText, MoreHorizontal, Plus, Scale } from "lucide-react";
-import { memoryFileOf, type MemoryPlace } from "@plainva/core";
+import { BookMarked, CloudOff, FileText, MoreHorizontal, Plus, Scale, X } from "lucide-react";
+import { memoryFileOf, STYLE_EXAMPLES_MAX, type MemoryPlace } from "@plainva/core";
 import {
   Banner,
   Button,
+  Chip,
   cx,
   EmptyState,
   filterMemoryRows,
@@ -23,6 +24,7 @@ import {
   SettingCardNote,
   SettingRow,
   skillView,
+  styleView,
   Switch,
   toast,
   useAiSession,
@@ -57,12 +59,15 @@ export function MemoryView({
   onOpenWaiting,
   onReviewRules,
   onRun,
+  onPickExample,
 }: {
   onOpenFile: (path: string) => void;
   onOpenWaiting: () => void;
   onReviewRules: (id: string) => void;
   /** A skill was started from here: the shell shows its conversation. */
   onRun: () => void;
+  /** Picks a note as an example of the writing style (plan P9-3): the shell's note picker, as for pinning one. */
+  onPickExample?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const session = useAiSession();
@@ -80,6 +85,8 @@ export function MemoryView({
   useEffect(() => {
     void session?.refreshMemory();
     void session?.refreshSkills();
+    // The writing style is measured again whenever it is shown: its examples may have changed since.
+    void session?.refreshStyle();
   }, [session]);
 
   if (!session || !state) return null;
@@ -97,6 +104,8 @@ export function MemoryView({
   const waiting = state.drafts.drafts.filter((draft) => draft.body.kind === "memory" || draft.body.kind === "forget" || draft.body.kind === "rule").length;
   const agents = workshopSections(state.skills.entries).agents;
   const shownLong = filterMemoryRows(groups.long, query);
+  // The writing style (plan P9-3, mockup chapter 27): this device's examples and what it measures in them.
+  const style = styleView(t, state.style, i18n.language);
 
   const remove = (row: MemoryRow) => {
     void appConfirm({ title: t("ai.memory.deleteConfirm"), message: `${row.text}\n\n${t("ai.memory.deleteBody")}`, confirmLabel: t("ai.memory.action.delete") }).then((ok) => {
@@ -250,6 +259,69 @@ export function MemoryView({
         {memory.cut.includes("long") && <SettingCardNote>{t("ai.memory.cut")}</SettingCardNote>}
         {fileOf("long")}
       </SettingCard>
+      {state.style.available && (
+        <SettingCard label={t("ai.style.title")}>
+          <div className="pv-setrow" data-testid="ai-style-examples">
+            <div className="pv-setrow-main">
+              <div className="pv-setrow-label">{t("ai.style.examples")}</div>
+              <div className="pv-setrow-desc">{t("ai.style.examplesHint", { max: STYLE_EXAMPLES_MAX })}</div>
+              {style.examples.length > 0 && (
+                <div className="pv-memory-marks">
+                  {style.examples.map((example) => (
+                    <Chip
+                      key={example.path}
+                      size="sm"
+                      icon={example.deny.includes("cloud") ? <CloudOff size={ICON.meta} /> : <FileText size={ICON.meta} />}
+                      tone={example.missing ? "muted" : "default"}
+                      // What keeps an example from some readers, in the words the memory marks an entry with: `ai.memory.mark.cloud`, `.web`.
+                      tip={[example.path, ...example.deny.map((rule) => t(`ai.memory.mark.${rule}`))].join(" · ")}
+                      onRemove={() => void session.removeStyleExample(example.path)}
+                      removeLabel={t("ai.style.removeExample", { name: example.title })}
+                      testId="ai-style-example"
+                    >
+                      {example.missing ? `${example.title} · ${t("ai.style.missing")}` : example.title}
+                    </Chip>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="pv-setrow-ctrl">
+              <Button size="sm" variant="tonal" icon={<Plus size={ICON.ui} />} disabled={!onPickExample || style.full} onClick={onPickExample} data-testid="ai-style-pick">
+                {t("ai.style.pick")}
+              </Button>
+            </div>
+          </div>
+          {style.empty ? (
+            <SettingCardNote>{style.empty}</SettingCardNote>
+          ) : (
+            style.rows.map((row) => (
+              <div key={row.key} className="pv-setrow" data-testid="ai-style-feature" data-key={row.key}>
+                <div className="pv-setrow-main">
+                  <div className="pv-setrow-label">{row.label}</div>
+                  <div className="pv-setrow-desc">{row.desc}</div>
+                </div>
+                <div className="pv-setrow-ctrl">
+                  <IconButton size="sm" label={t("ai.style.removeFeature", { name: row.label })} onClick={() => void session.removeStyleFeature(row.key)} data-testid="ai-style-remove">
+                    <X size={ICON.ui} />
+                  </IconButton>
+                </div>
+              </div>
+            ))
+          )}
+          <SettingCardNote>
+            {t("ai.style.measured")}
+            {style.removed.length > 0 && (
+              <span className="pv-memory-marks" data-testid="ai-style-removed">
+                {t("ai.style.removed", { names: style.removed.join(", ") })}
+                <Button size="sm" variant="ghost" onClick={() => void session.restoreStyleFeatures()} data-testid="ai-style-restore">
+                  {t("ai.style.restore")}
+                </Button>
+              </span>
+            )}
+          </SettingCardNote>
+        </SettingCard>
+      )}
+      {state.style.available && <p className="pv-memory-foot">{t("ai.style.device")}</p>}
       <SettingCard label={t("ai.memory.rules.title")}>
         {/* The file's standing on this device comes first where there is one: a rule in a file that waits is not in effect. */}
         <SettingRow label={t("ai.workshop.vault")} desc={agents ? `AGENTS.md · ${t(`ai.workshop.status.${agents.status}`)} · ${t("ai.memory.rules.desc")}` : t("ai.memory.rules.desc")}>

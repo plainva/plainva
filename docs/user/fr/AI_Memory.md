@@ -1,6 +1,6 @@
 # Mémoire (Bêta)
 
-Dernière mise à jour : 2026-10-09
+Dernière mise à jour : 2026-10-25
 
 La mémoire conserve ce que l'IA doit savoir sur vous et votre travail sans qu'on ait à le lui répéter : ce que vous faites, comment vous voulez qu'on vous réponde, qui sont vos clients. Elle se compose de deux fichiers dans votre vault. Rien n'y entre sans votre oui, et vous pouvez lire, modifier et supprimer chaque entrée.
 
@@ -39,6 +39,16 @@ Comme toutes les instructions, le fichier doit être approuvé sur chaque appare
 Une mémoire qui a grandi se répète. Sous **Ranger**, la vue de la mémoire signale ce que cet appareil a remarqué de lui-même, sans interroger de modèle : deux entrées qui disent presque la même chose, une entrée vieille de plus d'un an et des entrées de **Toujours inclus** qui ne tiennent plus. **Comparer** montre les deux entrées ensemble, chacune avec tout ce que son menu permet de faire.
 
 Pour y regarder de plus près, il existe une compétence. **Entretenir la mémoire** lit les entrées avec le modèle d'une conversation et prépare des brouillons de ce qui peut être regroupé et de ce qui peut disparaître ; la ligne **Faire examiner la mémoire** la lance. Ce qu'elle propose, ce sont des brouillons comme les autres : rien ne change avant que vous ne les acceptiez, et lorsque deux entrées se contredisent, elle pose la question au lieu de trancher.
+
+## Style d'écriture
+
+Un brouillon de l'IA sonne comme l'IA. La section **Style d'écriture** décrit votre façon d'écrire, pour qu'un brouillon puisse sonner comme vous — mesurée sur des notes que vous choisissez vous-même.
+
+**Choisir des exemples…** ouvre le sélecteur de notes de **Épingler une note…** ; choisissez jusqu'à huit notes que vous avez écrites vous-même. Cet appareil y mesure, sans modèle et sans rien envoyer : la longueur de vos phrases et de vos paragraphes, listes ou texte suivi, titres, la manière dont vous vous adressez aux gens (en allemand « du » ou « Sie », en français « tu » ou « vous » — là où une langue le montre dans ses mots), gras, emojis, points d'exclamation et tirets. Les propriétés, le code et les citations ne comptent pas. Chaque trait s'affiche avec les chiffres sur lesquels il repose, et son ✕ le retire à lui seul ; **Rétablir** remet ce que vous avez retiré. Aucun mot ni aucune tournure de vos notes n'est conservé : l'appareil garde les chemins des exemples et ce que vous avez retiré, et mesure à nouveau chaque fois que le style est affiché ou utilisé.
+
+Le style n'est utilisé que là où vous le choisissez : **Mon style**, le bouton à côté du globe sous le champ de message, le donne à la conversation que vous commencez ensuite — comme Internet, il est fixé dès son premier message. La conversation indique alors **Avec votre style d'écriture**, le récapitulatif d'envoi a une ligne **Style d'écriture**, et un brouillon issu d'une telle conversation indique qu'il a été rédigé avec votre style d'écriture ; il reste un brouillon de l'IA, signé de son modèle. L'IA suit le style dans ce que vous gardez pour vous — une note, une entrée du journal, une réécriture de votre texte —, mais pas d'elle-même dans un e-mail, une invitation ou un commentaire ; demandez-le-lui là, et elle le fera.
+
+Le style est conservé sur cet appareil, pas dans le vault : sur un autre appareil, vous choisissez ses exemples sur place. Un exemple que vos règles de confidentialité réservent face à un modèle ne donne à ce modèle aucun de ses traits — le récapitulatif d'envoi le compte sous **Retenu** —, et ce qu'un modèle de cet appareil écrit avec les traits d'une telle note garde les règles de la note.
 
 ## Confidentialité
 

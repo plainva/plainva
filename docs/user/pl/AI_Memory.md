@@ -1,6 +1,6 @@
 # Pamięć (Beta)
 
-Stan na: 2026-10-09
+Stan na: 2026-10-25
 
 Pamięć przechowuje to, co AI powinna wiedzieć o Tobie i Twojej pracy bez przypominania: czym się zajmujesz, jakie odpowiedzi lubisz, kim są Twoi klienci. To dwa pliki w Twoim vaulcie. Nic nie trafia do pamięci bez Twojego „tak”, a każdy wpis możesz przeczytać, zmienić i usunąć.
 
@@ -39,6 +39,16 @@ Podobnie jak wszystkie instrukcje, plik musi zostać zatwierdzony na każdym urz
 Pamięć, która się rozrosła, zaczyna się powtarzać. W sekcji **Porządkowanie** widok pamięci wymienia rzeczy, które to urządzenie zauważyło samo, bez pytania modelu: dwa wpisy, które mówią prawie to samo, wpis starszy niż rok oraz wpisy w sekcji **Zawsze dołączane**, które już się nie mieszczą. **Porównaj** pokazuje oba wpisy razem, każdy ze wszystkimi działaniami ze swojego menu.
 
 Do dokładniejszego przyjrzenia się pamięci służy umiejętność. **Dbanie o pamięć** czyta wpisy za pomocą modelu rozmowy i szkicuje, co do siebie należy, a co można usunąć; uruchamia ją wiersz **Zleć przejrzenie pamięci**. To, co proponuje, to szkice jak każde inne: nic się nie zmienia, dopóki ich nie zaakceptujesz, a gdy dwa wpisy są ze sobą sprzeczne, pyta zamiast rozstrzygać.
+
+## Styl pisania
+
+Szkic AI brzmi jak AI. Sekcja **Styl pisania** opisuje, jak piszesz, żeby szkic mógł brzmieć jak Ty — zmierzone w notatkach, które sam wybierasz.
+
+**Wybierz przykłady…** otwiera wybór notatek z **Przypnij notatkę…**; wybierz do ośmiu własnych notatek. To urządzenie mierzy w nich, bez modelu i bez wysyłania czegokolwiek: jak długie są Twoje zdania i akapity, listy czy ciągły tekst, nagłówki, jak zwracasz się do ludzi (po niemiecku „du” czy „Sie”, po francusku „tu” czy „vous” — tam, gdzie język pokazuje to w słowach), pogrubienie, emoji, wykrzykniki i myślniki. Właściwości, kod i cytaty się nie liczą. Każda cecha stoi z liczbami, na których się opiera, a jej ✕ wyłącza ją osobno; **Przywróć** przywraca to, co wyłączyłeś. Nie zachowuje się żadnego słowa ani zwrotu z Twoich notatek: urządzenie zachowuje ścieżki przykładów i to, co wyłączyłeś, i mierzy od nowa, ilekroć styl jest pokazywany lub używany.
+
+Styl jest używany tylko tam, gdzie go wybierzesz: **Mój styl**, przycisk obok globusa pod polem wiadomości, daje go rozmowie, którą zaczniesz jako następną — tak jak internet, ustalony od pierwszej wiadomości. Rozmowa pokazuje wtedy **Z Twoim stylem pisania**, podsumowanie wysyłki ma wiersz **Styl pisania**, a szkic z takiej rozmowy mówi, że powstał z Twoim stylem pisania; pozostaje szkicem AI, podpisanym jej modelem. AI trzyma się stylu w tym, co zachowujesz dla siebie — w notatce, wpisie dziennika, przeróbce Twojego tekstu — ale nie sama z siebie w e-mailu, zaproszeniu czy komentarzu; poproś o to tam, a to zrobi.
+
+Styl jest zapisany na tym urządzeniu, nie w vaulcie: na innym urządzeniu wybierasz przykłady na miejscu. Przykład, który Twoje zasady prywatności zatrzymują przed modelem, nie daje temu modelowi żadnej ze swoich cech — podsumowanie wysyłki liczy go w **Zatrzymano** — a to, co model na tym urządzeniu pisze z cechami takiej notatki, zachowuje jej zasady.
 
 ## Prywatność
 

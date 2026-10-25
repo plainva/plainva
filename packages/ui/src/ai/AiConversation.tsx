@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeftRight, Ban, Check, CircleAlert, Eye, FilePlus2, FileText, Globe, GraduationCap, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plug, Plus, Scissors, Send, Sparkles, Square } from "lucide-react";
+import { ArrowLeftRight, Ban, Check, CircleAlert, Eye, FilePlus2, FileText, Globe, GraduationCap, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plug, Plus, Scissors, Send, Signature, Sparkles, Square } from "lucide-react";
 import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, choiceOnDevice, comparableAddress, hasImages, hasWebTools, knownAddresses, localAnswerer, providerById, runsOnDevice, type AnswerCoverage, type ModelFailure, type RunMeta, type RunStop } from "@plainva/core";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
@@ -252,6 +252,15 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     if (active) toast.info(t("ai.web.fixed"));
     else session.setDraftWeb(!state.draftWeb);
   };
+  // The writing style (plan P9-3): offered where the user keeps one on this device; chosen per conversation, fixed from
+  // its first message like the internet — the system prompt carries it.
+  const styleFeatures = active ? (active.instructions?.style?.features ?? 0) : state.style.features.length;
+  const withStyle = active ? styleFeatures > 0 : state.draftStyle && styleFeatures > 0;
+  const styleShown = withStyle || state.style.features.length > 0;
+  const toggleStyle = () => {
+    if (active) toast.info(t("ai.style.fixed"));
+    else session.setDraftStyle(!state.draftStyle);
+  };
   /** An address the model put together itself: it stood nowhere before the model wrote it. */
   const composed = (url: string) => (known ? addressOrigin(url, known) === "model" && !requested.has(comparableAddress(url) ?? "") : false);
   const urlNote = (url: string) => (composed(url) ? t("ai.linkBuilt") : null);
@@ -331,6 +340,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     if (pictures) parts.push(t("ai.image.sentLine", { count: pictures }));
     // The entries of the memory that went along (plan P6): how many, never which.
     if (run.manifest?.memory?.entries) parts.push(t("ai.memory.sentLine", { count: run.manifest.memory.entries }));
+    // The writing style that went along (plan P9-3): how many features, never which examples.
+    if (run.manifest?.style?.features) parts.push(t("ai.style.sentLine", { count: run.manifest.style.features }));
     if (run.web?.pages.length) parts.push(t("ai.web.runPages", { count: run.web.pages.length }));
     if (run.web?.searches.length) parts.push(t("ai.web.runSearches", { count: run.web.searches.length }));
     // What it read of the user's mail (plan P4-4): a number, never a subject.
@@ -540,6 +551,12 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         {active && withWeb && (
           <span className="pv-ai-marking-web" data-testid="ai-web-marking">
             {t("ai.web.marking")}
+          </span>
+        )}
+        {/* And one that carries the user's writing style (plan P9-3): what it writes is the model's draft all the same. */}
+        {active && withStyle && (
+          <span className="pv-ai-marking-web" data-testid="ai-style-marking">
+            {t("ai.style.marking", { count: styleFeatures })}
           </span>
         )}
         {/* Fully local (plan P7): said for as long as it holds, wherever a conversation is shown. */}
@@ -889,6 +906,20 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
               data-testid="ai-web-toggle"
             >
               <Globe size={touch ? ICON.ui : ICON.meta} />
+            </IconButton>
+          )}
+          {/* Only where this device keeps a writing style with something in it: nobody who chose no examples sees it. */}
+          {styleShown && (
+            <IconButton
+              size="sm"
+              label={active ? (withStyle ? t("ai.style.activeOn") : t("ai.style.activeOff")) : withStyle ? t("ai.style.toggleOn") : t("ai.style.toggleOff")}
+              active={withStyle}
+              aria-pressed={withStyle}
+              disabled={running}
+              onClick={toggleStyle}
+              data-testid="ai-style-toggle"
+            >
+              <Signature size={touch ? ICON.ui : ICON.meta} />
             </IconButton>
           )}
           <Button ref={modelButton} size="sm" variant="ghost" onClick={() => setMenuOpen(true)} aria-haspopup="menu" disabled={running}>

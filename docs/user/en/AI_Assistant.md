@@ -150,7 +150,7 @@ Beside the open note, Plainva shows up to three things it notices by itself — 
 
 ## Memory
 
-What the AI should know about you without being told again — what you do, how you like your answers — is kept in the vault's memory: two files you can read and edit. What stands under **Always included** goes into every new conversation, the rest is looked up when a question needs it, and nothing gets into it without your yes. See [Memory](AI_Memory.md).
+What the AI should know about you without being told again — what you do, how you like your answers — is kept in the vault's memory: two files you can read and edit. What stands under **Always included** goes into every new conversation, the rest is looked up when a question needs it, and nothing gets into it without your yes. See [Memory](AI_Memory.md). There, too, is your writing style: **My style** under the message field gives one conversation what this device measured in notes you chose.
 
 ## Learning from a conversation
 

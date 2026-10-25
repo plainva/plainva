@@ -255,9 +255,13 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
     manifest.withheld.sensitive ? t("ai.overview.keptSensitive", { count: manifest.withheld.sensitive }) : null,
     // Entries of the memory a rule keeps from this recipient (plan P6): counted, never named.
     manifest.memory?.withheld ? t("ai.overview.keptMemory", { count: manifest.memory.withheld }) : null,
+    // Examples of the writing style a rule keeps from this recipient (plan P9-3): none of their features go.
+    manifest.style?.withheld ? t("ai.overview.keptStyle", { count: manifest.style.withheld }) : null,
   ].filter((line): line is string => Boolean(line));
+  // The writing style has a row of its own (plan P9-3): how many features go, measured from how many examples.
+  const style = manifest.style && manifest.style.features > 0 ? manifest.style : null;
   // The memory has a row of its own, with how much of it goes.
-  const classes = manifest.dataClasses.filter((c) => c !== "notes" && c !== "memory");
+  const classes = manifest.dataClasses.filter((c) => c !== "notes" && c !== "memory" && c !== "style");
   const memory = manifest.memory;
   const memoryLine = memory
     ? [memory.entries > 0 ? t("ai.overview.memoryEntries", { count: memory.entries }) : null, memory.lookup ? t("ai.overview.memoryLookup") : null].filter((line): line is string => Boolean(line)).join(" · ")
@@ -398,6 +402,14 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
           <>
             <dt>{t("ai.overview.memory")}</dt>
             <dd data-testid="ai-overview-memory">{memoryLine}</dd>
+          </>
+        )}
+        {style && (
+          <>
+            <dt>{t("ai.style.title")}</dt>
+            <dd data-testid="ai-overview-style">
+              {[t("ai.style.featuresCount", { count: style.features }), t("ai.style.examplesCount", { count: style.examples })].join(" · ")}
+            </dd>
           </>
         )}
         {kept.length > 0 && (

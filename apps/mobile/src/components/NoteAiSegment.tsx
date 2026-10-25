@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { AiConversation, AiSessionContext, noteDisplayName } from "@plainva/ui";
-import { focusAiNote, getMobileAiSession, openAiLink, openAiNoteTarget, openAiSettings } from "../services/ai/mobileAi";
+import { focusAiNote, getMobileAiSession, openAiLink, openAiNotePick, openAiNoteTarget, openAiSettings } from "../services/ai/mobileAi";
 import type { MobileVault } from "../services/vaultService";
 import { editorSelectionReader } from "../services/editorSelection";
 
@@ -24,6 +24,7 @@ export function NoteAiSegment({ vault, path, onOpenNote }: { vault: MobileVault;
           onOpenNote={(target) => openAiNoteTarget(vault, target, onOpenNote)}
           onOpenUrl={openAiLink}
           onOpenSettings={openAiSettings}
+          onPickNote={() => openAiNotePick("pin")}
         />
       </div>
     </AiSessionContext.Provider>

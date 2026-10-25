@@ -142,6 +142,16 @@ test.beforeEach(async ({ page }) => {
                });
              return result;
            }
+           // The quick switcher's names (QuickSwitcher, read once per open): every file of the mock vault, as the
+           // index holds them — the AI's note picker is the same switcher (AI harness P9-3).
+           if (q.includes('SELECT path, title FROM files')) {
+             return Object.keys(fs)
+               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder|\.agent)/.test(p))
+               .map(p => {
+                 const rel = p.replace('/test-vault/', '');
+                 return { path: rel, title: rel.split('/').pop()!.replace(/\.md$/i, '') };
+               });
+           }
            // The vault-wide search (findInVault) and the tag rename read the
            // FTS table: every note with its content, straight from the mock fs.
            if (q.includes('FROM fts_notes')) {
@@ -7807,4 +7817,113 @@ test('AI snapshot: an answer keeps the version of what it read and says what cha
   await head.getByTestId('ai-replay-original').click();
   await expect(companion.getByText('The offer names a day rate of 1,800 euros.')).toBeVisible();
   await expect(companion.getByTestId('ai-replay-head')).toHaveCount(0);
+});
+
+test('AI writing style: measured from notes the user chose, carried only where "My style" is chosen, each feature taken out on its own — and no word of a note goes', async ({ page }) => {
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const weekly = [
+    '# Weekly 41', '',
+    'Ich habe heute mit dem Studio gesprochen. Du kannst die Termine morgen prüfen.', '',
+    'Das Budget steht noch nicht fest. Wir warten auf die Zahlen vom Verleih.', '',
+    '## Offen', '- Termine für den zweiten Block klären', '- Budget mit dir abstimmen', '- Tonmischung: wer bezahlt das?', '- Drehplan für den Winter schreiben', '',
+    'Ich schicke dir die Liste am Abend. Dann sehen wir weiter, z. B. am 3. März im Büro.', '',
+    'Kannst du mir sagen, ob das passt? Ich brauche die Antwort bis Freitag.', '',
+    '## Notizen', 'Der Kunde will mehr Bilder vom Hafen. Das ist gut für uns. Wir haben genug Material.', '',
+    'Die Kamera ist noch beim Verleih. Ich hole sie morgen ab, wenn du Zeit hast.', '',
+    '- Kamera abholen', '- Akkus laden', '- Speicherkarten prüfen', '',
+    'Am Ende des Tages ist alles fertig. Ich bin zufrieden mit dem Stand. Du auch?', '',
+  ].join('\n');
+  const script = [says('Hier ist ein Entwurf, kurz und in Listen.')];
+  await page.addInitScript(({ script, weekly }) => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    Object.assign((window as any).mockFs, {
+      '/test-vault/Journal': { isDir: true },
+      '/test-vault/Journal/Weekly 41.md': weekly,
+      '/test-vault/Journal/Weekly 42.md': weekly.replace('41', '42'),
+    });
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script, weekly });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+
+  // 1. The memory's section: nothing chosen yet, and nothing in any conversation.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-memory')));
+  await page.getByTestId('ai-tab-memory').click();
+  const memory = page.getByTestId('ai-memory');
+  await expect(memory.getByTestId('ai-style-examples')).toBeVisible();
+  await expect(memory).toContainText('No examples yet.');
+
+  // 2. Two examples, through the note picker pinning uses: the device measures them — no model, nothing sent.
+  //    The picker reads the index's names when it opens: asked again until the index has the notes.
+  for (const name of ['Weekly 41', 'Weekly 42']) {
+    await expect(async () => {
+      if (await page.locator('.pv-palette-input').isVisible()) await page.keyboard.press('Escape');
+      await memory.getByTestId('ai-style-pick').click();
+      await page.locator('.pv-palette-input').fill(name);
+      await expect(page.locator('.pv-palette').getByText(name, { exact: true }).first()).toBeVisible({ timeout: 1500 });
+    }).toPass({ timeout: 20000 });
+    await page.keyboard.press('Enter');
+    await expect(memory.getByTestId('ai-style-example').filter({ hasText: name })).toBeVisible();
+  }
+  const address = memory.locator('[data-testid="ai-style-feature"][data-key="address"]');
+  await expect(address).toContainText('Addresses people as “du”');
+  await expect(address).toContainText('“du” 12 times, “Sie” never');
+  await expect(memory.locator('[data-testid="ai-style-feature"][data-key="sentences"]')).toContainText('Short sentences');
+  expect(await requests()).toHaveLength(0);
+
+  // 3. One feature out on its own, and back.
+  await address.getByTestId('ai-style-remove').click();
+  await expect(address).toHaveCount(0);
+  await expect(memory.getByTestId('ai-style-removed')).toContainText('Taken out: Form of address');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-style-memory-desktop.png'), animations: 'disabled' });
+  await memory.getByTestId('ai-style-restore').click();
+  await expect(address).toBeVisible();
+
+  // 4. A conversation chooses it: "My style" beside the globe, the send overview names it, the request carries the lines.
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  const toggle = companion.getByTestId('ai-style-toggle');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await companion.getByTestId('ai-input').fill('Draft a short agenda for the kickoff.');
+  await companion.getByTestId('ai-send').click();
+  await expect(companion.getByTestId('ai-overview-style')).toContainText('2 examples');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-style-overview-desktop.png'), animations: 'disabled' });
+  await companion.getByTestId('ai-consent-send').click();
+  await expect(companion.getByText('Hier ist ein Entwurf, kurz und in Listen.')).toBeVisible();
+  await expect(companion.getByTestId('ai-style-marking')).toContainText('With your writing style');
+  const sent = (await requests()).at(-1)!;
+  expect(sent).toContain('follow their own writing style');
+  expect(sent).toContain('Addresses people informally (in German: \\"du\\", not \\"Sie\\").');
+  for (const word of ['Studio', 'Verleih', 'Kamera', 'Hafen']) expect(sent).not.toContain(word);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-style-conversation-desktop.png'), animations: 'disabled' });
+
+  // 5. Fixed from the first message: the open conversation keeps it, whatever is tapped.
+  await toggle.click();
+  await expect(page.getByText('Whether a conversation carries your writing style is decided when it starts.', { exact: false })).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
 });

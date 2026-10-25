@@ -42,6 +42,7 @@ import {
   spawnScriptWorker,
   startableSkills,
   startRoutineScheduler,
+  styleOutcomeText,
   toast,
   vaultMailSource,
   watchRoutineReady,
@@ -208,6 +209,31 @@ export function runMobileAiSkill(id: string): void {
   if (skill) void session.runSkill(skill.id, skill.start);
 }
 
+/**
+ * What a note is picked for when the AI asks for one (plan KI-Harness P9-3): to pin it to the conversation, or as an
+ * example of the writing style. The phone's form of the desktop's quick switcher: one sheet, opened by an event from
+ * wherever a conversation or the memory shows, rendered once in the AI shell.
+ */
+export type AiNotePick = "pin" | "style";
+const PICK_EVENT = "plainva-ai-pick";
+
+export function openAiNotePick(purpose: AiNotePick): void {
+  window.dispatchEvent(new CustomEvent(PICK_EVENT, { detail: { purpose } }));
+}
+
+/** A note was picked: pinned, or chosen as an example — why one was not taken is said; a taken one shows in the memory. */
+export function pickedForAi(purpose: AiNotePick, path: string): void {
+  const session = getMobileAiSession();
+  if (purpose === "pin") {
+    void session.pin(path);
+    return;
+  }
+  void session.addStyleExample(path).then((outcome) => {
+    const refused = styleOutcomeText((key, vars) => i18n.t(key, vars), outcome);
+    if (refused) toast.error(refused);
+  });
+}
+
 /** Opens the KI sheet over a note (the note's ⋮ menu, the palette). */
 export function openAiSheet(path: string | null): void {
   sheetNote = path;
@@ -293,6 +319,7 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
   const s = getMobileAiSession();
   const state = useSyncExternalStore(s.subscribe, s.getState);
   const [sheet, setSheet] = useState<{ path: string | null } | null>(null);
+  const [pick, setPick] = useState<AiNotePick | null>(null);
   const [policy, setPolicy] = useState<VaultPolicyHost | null>(null);
   // Search by meaning (plan KI-Harness P2a-4/5) follows the same per-device settings; an own provider goes through this session's egress.
   const embeddings = useMobileEmbeddings(vault, state.loaded ? state.settings : null, { session: s, files: mobileAiFiles });
@@ -310,6 +337,14 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
     const onSheet = (event: Event) => setSheet({ path: (event as CustomEvent<{ path: string | null }>).detail?.path ?? null });
     window.addEventListener(SHEET_EVENT, onSheet);
     return () => window.removeEventListener(SHEET_EVENT, onSheet);
+  }, []);
+  useEffect(() => {
+    const onPick = (event: Event) => {
+      const purpose = (event as CustomEvent<{ purpose?: unknown }>).detail?.purpose;
+      if (purpose === "pin" || purpose === "style") setPick(purpose);
+    };
+    window.addEventListener(PICK_EVENT, onPick);
+    return () => window.removeEventListener(PICK_EVENT, onPick);
   }, []);
   // A door outside the conversation ("Transcribe" at a voice note, "@AI" in a
   // comment thread) may need the send overview while no conversation shows:
@@ -594,7 +629,10 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
   const skills = useMemo(() => startableSkills((key, vars) => i18n.t(key, vars), state.skills.entries), [state.skills]);
   // What the palette gets of the assistant, about the note the shell names for a command.
   const palette = aiPaletteCommands({ enabled, skills }, paletteNote);
-  return { session: s, enabled, sheet: enabled ? sheet : null, closeSheet, policy, navRef, embeddings, gists, skills, palette };
+  // The note picker (plan P9-3): over whatever shows, for the vault that is open.
+  const notePick = enabled && vault && pick ? { purpose: pick, vault } : null;
+  const closePick = () => setPick(null);
+  return { session: s, enabled, sheet: enabled ? sheet : null, closeSheet, notePick, closePick, policy, navRef, embeddings, gists, skills, palette };
 }
 
 /**

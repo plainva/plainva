@@ -44,8 +44,11 @@ import { questionTerms } from "./terms.js";
  * `memory`: entries of the vault's memory for assistants (plan P6, ADR 0032) — what the user kept
  * about themselves and their work. They go with a conversation's system prompt, not with the
  * package; the overview names them because they are vault text all the same.
+ * `style`: the user's writing style (plan P9-3, ADR 0035) — lines the app wrote from what it
+ * measured in the user's examples, in a conversation where the user chose it. No word of a note,
+ * but measured from notes all the same: the overview names it, and a rule of an example holds.
  */
-export type DataClass = "situation" | "notes" | "selection" | "tasks" | "calendar" | "audio" | "searches" | "comments" | "images" | "memory";
+export type DataClass = "situation" | "notes" | "selection" | "tasks" | "calendar" | "audio" | "searches" | "comments" | "images" | "memory" | "style";
 
 export interface SituationTask {
   title: string;

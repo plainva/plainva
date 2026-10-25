@@ -44,6 +44,7 @@ export function AiTabView({
   onOpenUrl,
   onOpenSettings,
   onPickNote,
+  onPickStyleExample,
   onOpenPath,
 }: {
   activeNote: { path: string; title: string } | null;
@@ -52,6 +53,8 @@ export function AiTabView({
   onOpenUrl: (url: string, composed?: boolean) => void;
   onOpenSettings: () => void;
   onPickNote?: () => void;
+  /** Picks a note as an example of the writing style (plan P9-3): the same picker as for pinning one. */
+  onPickStyleExample?: () => void;
   /** Opens a file of the vault in a tab — a skill's SKILL.md from the workshop. */
   onOpenPath: (path: string) => void;
 }) {
@@ -216,6 +219,7 @@ export function AiTabView({
           ) : view === "memory" ? (
             <MemoryView
               onOpenFile={onOpenPath}
+              {...(onPickStyleExample ? { onPickExample: onPickStyleExample } : {})}
               onRun={() => setView("chats")}
               onOpenWaiting={() => setView("open")}
               onReviewRules={(id) => {

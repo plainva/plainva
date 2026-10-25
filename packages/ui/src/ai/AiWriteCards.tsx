@@ -267,6 +267,12 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
         </span>
       )}
       {draft.inherited.length > 0 && (body.kind === "note" || body.kind === "entry") && <span className="pv-ai-overview-hint">{t("ai.write.draft.inherits")}</span>}
+      {/* Laid down in a conversation with the user's writing style (plan P9-3): said, and that it is the model's draft. */}
+      {draft.style && (
+        <span className="pv-ai-overview-hint" data-testid="ai-draft-style">
+          {t("ai.write.draft.style")}
+        </span>
+      )}
       {/* The memory's drafts (plan P6): an entry takes the rules of what its conversation rested on with it — said,
           because it decides which models will ever be told it —, and a rule is no memory. */}
       {draft.inherited.length > 0 && body.kind === "memory" && (

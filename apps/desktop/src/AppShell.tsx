@@ -66,7 +66,7 @@ import { appConfirm } from "./services/appDialogs";
 import { getConfiguredNoteType, buildNewNoteContent } from "./services/newNote";
 import { markFreshNote, wikiTargetToPath } from "@plainva/ui";
 import { getAskBeforeCreateLink } from "./services/linkCreatePrompt";
-import { toast } from "@plainva/ui";
+import { styleOutcomeText, toast } from "@plainva/ui";
 import { requestSaveFlush } from "./services/saveFlush";
 import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
@@ -256,7 +256,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   };
   const [quickSwitcherNewTab, setQuickSwitcherNewTab] = useState(false);
   /** Set while the switcher picks a note for the AI context instead of opening it. */
-  const [aiPinPick, setAiPinPick] = useState(false);
+  // What the quick switcher picks a note for, when the AI asked it to (plan KI-Harness P9-3): to pin it, or as an example of the writing style.
+  const [aiPick, setAiPick] = useState<"pin" | "style" | null>(null);
   const newBtnRef = useRef<HTMLButtonElement>(null);
   const [recentPaths, setRecentPaths] = useState<string[]>([]);
   const { bookmarks, toggleBookmark, moveBookmark } = useWindowBookmarks(vaultAdapter, vaultPath);
@@ -658,6 +659,13 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const navBack = useStableHandler(() => navigateTab(layout.activePaneIndex, -1));
   const navForward = useStableHandler(() => navigateTab(layout.activePaneIndex, 1));
   const openNewTabPrompt = useStableHandler(() => { setQuickSwitcherNewTab(true); setShowQuickSwitcher(true); });
+  // A note picked as an example of the writing style (plan KI-Harness P9-3): why one was not taken is said; a taken one stands in the memory view.
+  const pickStyleExample = useStableHandler((path: string) => {
+    void ai.session?.addStyleExample(path).then((outcome) => {
+      const refused = styleOutcomeText(t, outcome);
+      if (refused) toast.error(refused);
+    });
+  });
   const dispatchNewNote = useStableHandler(() => window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind: "file" } })));
   const toggleReadEdit = useStableHandler(() => window.dispatchEvent(new CustomEvent("plainva-toggle-view-mode", { detail: { axis: "read" } })));
   const toggleSourceMode = useStableHandler(() => window.dispatchEvent(new CustomEvent("plainva-toggle-view-mode", { detail: { axis: "source" } })));
@@ -1796,7 +1804,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                           onOpenNote={ai.openNoteTarget}
                           onOpenUrl={ai.openUrl}
                           onOpenSettings={() => capabilities.openSettings()}
-                          onPickNote={() => { setAiPinPick(true); setShowQuickSwitcher(true); }}
+                          onPickNote={() => { setAiPick("pin"); setShowQuickSwitcher(true); }}
+                          onPickStyleExample={() => { setAiPick("style"); setShowQuickSwitcher(true); }}
                           onOpenPath={(p) => openTab(i, p, true)}
                         />
                       </Suspense>
@@ -1938,7 +1947,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                   onOpenUrl: ai.openUrl,
                   onOpenSettings: () => capabilities.openSettings(),
                   onPickNote: () => {
-                    setAiPinPick(true);
+                    setAiPick("pin");
                     setShowQuickSwitcher(true);
                   },
                 }
@@ -2011,7 +2020,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               onOpenCreated={(path) => openInFocusedPane(path, true)}
               onOpenUrl={ai.openUrl}
               onOpenSettings={() => capabilities.openSettings()}
-              onPickNote={() => { setAiPinPick(true); setShowQuickSwitcher(true); }}
+              onPickNote={() => { setAiPick("pin"); setShowQuickSwitcher(true); }}
             />
           </Suspense>
         )}
@@ -2034,8 +2043,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       <CascadeDeleteHost onDeleted={handleCascadeDeleted} />
       <QuickSwitcher
         isOpen={showQuickSwitcher}
-        onClose={() => { setShowQuickSwitcher(false); setQuickSwitcherNewTab(false); setAiPinPick(false); normalizeNow(); }}
-        onOpenPath={(p) => { if (aiPinPick) void ai.session?.pin(p); else openInFocusedPane(p, quickSwitcherNewTab); }}
+        onClose={() => { setShowQuickSwitcher(false); setQuickSwitcherNewTab(false); setAiPick(null); normalizeNow(); }}
+        onOpenPath={(p) => { if (aiPick === "pin") void ai.session?.pin(p); else if (aiPick === "style") pickStyleExample(p); else openInFocusedPane(p, quickSwitcherNewTab); }}
         recentPaths={recentPaths}
       />
       {tabMenu && (() => {

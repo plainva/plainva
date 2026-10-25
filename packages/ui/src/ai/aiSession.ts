@@ -68,6 +68,14 @@ import {
   replaceMemoryEntry,
   type ConversationMemory,
   type ManifestMemory,
+  measureStyle,
+  styleFeaturesWithout,
+  styleLine,
+  STYLE_EXAMPLES_MAX,
+  type ConversationStyle,
+  type EffectivePolicy,
+  type ManifestStyle,
+  type StyleFeatureKey,
   type MemoryChange,
   type MemoryEntry,
   type MemoryPlace,
@@ -326,6 +334,7 @@ import { createMcpExecutor, newRunMcp, type McpCallQuestion } from "./mcpTools";
 import { AiScripts, type AiScriptsHost, type AiScriptsState, type ScriptApprovalRefusal } from "./scriptSession";
 import { createScriptExecutor, newRunScripts, type ActiveScript } from "./scriptTools";
 import { EMPTY_MEMORY_STATE, readMemory, type AiMemoryHost, type AiMemoryState } from "./aiMemory";
+import { EMPTY_STYLE_PREFS, EMPTY_STYLE_STATE, type AiStyleState, type StyleExample, type StyleOutcome, type StylePrefs, type StylePrefStore, type StyleRefusal } from "./aiStyle";
 import { canRewriteSkill, draftsFromLearnings, learnTargets, readStrangersText, skillsUsedBy, takenSkillNames, type LearnLimit, type LearnOutcome, type LearnPlanOutcome, type LearnRefusal, type LearnTarget } from "./aiLearn";
 import type { MemoryProblem } from "./memoryView";
 
@@ -519,6 +528,12 @@ export interface AiVaultHost {
    * read the hidden agent area.
    */
   memory?: AiMemoryHost;
+  /**
+   * The user's writing style for this vault on this device (plan KI-Harness
+   * P9-3, ADR 0035): which notes are its examples and which features the user
+   * took out, in the app's data. Absent where the shell keeps none.
+   */
+  style?: StylePrefStore;
   /** The drafts of this vault on this device (plan KI-Harness P5): what an assistant wants to exist, until the user decides. */
   drafts?: WriteDraftStore;
   /** How this shell makes what a draft describes — a note, a task, a line in the journal — through the app's own ways. Absent where it cannot. */
@@ -904,6 +919,10 @@ export interface AiState {
   scripts: AiScriptsState;
   /** The vault's memory for assistants (plan P6): its entries as its two files hold them, and this device's switch. */
   memory: AiMemoryState;
+  /** The user's writing style on this device (plan P9-3): its examples and what this device measured in them. */
+  style: AiStyleState;
+  /** The next new conversation carries the writing style. Chosen per conversation in the composer, never kept as a default. */
+  draftStyle: boolean;
   /** The conversation a review is learning from right now (plan P6-2), by its id; null while none runs. */
   learning: string | null;
   /** The vault has a learning log (plan P6-2): something was taken over from a proposal, and the workshop offers the file. */
@@ -1042,6 +1061,11 @@ function manifestMemoryOf(instructions: ConversationInstructions | undefined): M
   return memory ? { entries: memory.entries, withheld: memory.withheld, tokens: memory.tokens, lookup: memory.lookup } : undefined;
 }
 
+/** The writing style a conversation was started with, as the overview names it (plan P9-3). */
+function manifestStyleOf(style: ConversationStyle | undefined): ManifestStyle | undefined {
+  return style ? { features: style.features, examples: style.examples, withheld: style.withheld, tokens: style.tokens } : undefined;
+}
+
 /** What a new conversation starts with: its tools, the blocks of its system prompt, and the record of both. */
 interface ConversationStart {
   tools: string[];
@@ -1094,6 +1118,8 @@ interface ReplayStart {
   of: ReplayOf;
   /** The original conversation carried the internet's tools: the replay does where the vault allows it now. */
   web: boolean;
+  /** The user chose the writing style for the original (plan P9-3): the replay carries it, measured for its own reader. */
+  style: boolean;
 }
 
 /**
@@ -1329,6 +1355,8 @@ export class AiSession {
       fill: null,
       scripts: this.scripts.state,
       memory: EMPTY_MEMORY_STATE,
+      style: EMPTY_STYLE_STATE,
+      draftStyle: false,
       learning: null,
       learnLog: false,
       upkeep: EMPTY_UPKEEP_STATE,
@@ -1603,6 +1631,9 @@ export class AiSession {
       fill: null,
       // Another vault's memory is not this one's: empty until this vault's own files are read.
       memory: EMPTY_MEMORY_STATE,
+      // Nor its writing style: this vault's examples are read from this device's data for it.
+      style: { ...EMPTY_STYLE_STATE, available: Boolean(vault?.style) },
+      draftStyle: false,
       // A review that was learning from a conversation of the vault that is gone ends with it.
       learning: null,
       learnLog: false,
@@ -1628,6 +1659,7 @@ export class AiSession {
     void this.loadWebSettings(vault);
     void this.loadDrafts(vault);
     void this.refreshMemory();
+    void this.refreshStyle();
     void this.loadHintPrefs(vault);
     const summaries: ConversationSummary[] = await vault.conversations.list().catch(() => []);
     const old = expiredConversations(summaries, this.state.settings.historyDays, this.host.now());
@@ -1647,7 +1679,7 @@ export class AiSession {
   newConversation(): void {
     if (this.state.live) return;
     this.dropWriteQuestion();
-    this.set({ active: null, excludeActive: false, draftPins: [], draftRedact: [], draftChoice: null, draftWeb: false, notice: null });
+    this.set({ active: null, excludeActive: false, draftPins: [], draftRedact: [], draftChoice: null, draftWeb: false, draftStyle: false, notice: null });
   }
 
   /**
@@ -2828,6 +2860,145 @@ export class AiSession {
     await this.refreshMemory();
   }
 
+  // ---------------------------------------------------------- writing style
+
+  /** One lane for the style's file: two choices in quick succession never write over each other. */
+  private styleLane: Promise<unknown> = Promise.resolve();
+  private inStyleLane<T>(work: () => Promise<T>): Promise<T> {
+    const run = this.styleLane.catch(() => undefined).then(work);
+    this.styleLane = run;
+    return run;
+  }
+
+  /**
+   * The examples as they are now: each note's title and text, and its rules;
+   * a note that is gone has no text. A rule that cannot be looked up is null
+   * — which keeps the note from every reader.
+   */
+  private async readStyleExamples(vault: AiVaultHost, prefs: StylePrefs): Promise<{ example: StyleExample; text: string | null; effective: EffectivePolicy | null }[]> {
+    return Promise.all(
+      prefs.examples.map(async (path) => {
+        const note = isAiHiddenPath(path) ? null : await vault.readNote(path).catch(() => null);
+        const name = path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
+        if (!note) return { example: { path, title: name, missing: true, deny: [] }, text: null, effective: null };
+        const effective = await vault.policy.policyOf(path, note.text).catch(() => null);
+        const deny = effective ? AI_POLICY_DIMENSIONS.filter((dimension) => effective.policy[dimension] === "deny") : [...AI_POLICY_DIMENSIONS];
+        return { example: { path, title: note.title || name, missing: false, deny }, text: note.text, effective };
+      }),
+    );
+  }
+
+  /**
+   * Reads the writing style into the state (plan KI-Harness P9-3, ADR 0035):
+   * this device's examples for the vault, and what this device measures in
+   * them now — without a model; nothing is sent, nothing of a note is kept.
+   */
+  async refreshStyle(): Promise<void> {
+    const vault = this.vault;
+    const store = vault?.style;
+    if (!vault || !store) {
+      if (this.vault === vault) this.set({ style: EMPTY_STYLE_STATE, draftStyle: false });
+      return;
+    }
+    const prefs = await store.load().catch(() => EMPTY_STYLE_PREFS);
+    const read = await this.readStyleExamples(vault, prefs);
+    if (this.vault !== vault) return;
+    const measure = measureStyle(read.flatMap((entry) => (entry.text === null ? [] : [entry.text])));
+    const features = styleFeaturesWithout(measure.features, prefs.removed);
+    this.set({
+      style: { available: true, examples: read.map((entry) => entry.example), measured: measure.features, removed: prefs.removed, features, tooShort: measure.tooShort, words: measure.words },
+      // A choice for the next conversation holds while there is something to carry.
+      draftStyle: this.state.draftStyle && features.length > 0,
+    });
+  }
+
+  /** Changes this device's choices for the style, through its one lane, and reads the style again. */
+  private async changeStyle(change: (prefs: StylePrefs) => StylePrefs | StyleRefusal): Promise<StyleOutcome> {
+    const store = this.vault?.style;
+    if (!store) return { ok: false, reason: "no-vault" };
+    const outcome = await this.inStyleLane(async (): Promise<StyleOutcome> => {
+      const prefs = await store.load().catch(() => EMPTY_STYLE_PREFS);
+      const next = change(prefs);
+      if (typeof next === "string") return { ok: false, reason: next };
+      await store.save(next);
+      return { ok: true };
+    }).catch((): StyleOutcome => ({ ok: false, reason: "failed" }));
+    await this.refreshStyle();
+    return outcome;
+  }
+
+  /** Chooses a note as an example of the writing style: a note of the vault that is there, at most `STYLE_EXAMPLES_MAX` of them. */
+  async addStyleExample(path: string): Promise<StyleOutcome> {
+    const vault = this.vault;
+    if (!vault) return { ok: false, reason: "no-vault" };
+    if (!/\.md$/i.test(path) || isAiHiddenPath(path) || !(await vault.readNote(path).catch(() => null))) return { ok: false, reason: "not-note" };
+    return this.changeStyle((prefs) =>
+      prefs.examples.includes(path) ? "duplicate" : prefs.examples.length >= STYLE_EXAMPLES_MAX ? "full" : { ...prefs, examples: [...prefs.examples, path] },
+    );
+  }
+
+  removeStyleExample(path: string): Promise<StyleOutcome> {
+    return this.changeStyle((prefs) => ({ ...prefs, examples: prefs.examples.filter((example) => example !== path) }));
+  }
+
+  /** Takes one feature out: it goes into no conversation until the user brings it back. */
+  removeStyleFeature(key: StyleFeatureKey): Promise<StyleOutcome> {
+    return this.changeStyle((prefs) => (prefs.removed.includes(key) ? prefs : { ...prefs, removed: [...prefs.removed, key] }));
+  }
+
+  /** Brings back every feature the user took out. */
+  restoreStyleFeatures(): Promise<StyleOutcome> {
+    return this.changeStyle((prefs) => ({ ...prefs, removed: [] }));
+  }
+
+  /** Starts the next new conversation with the writing style, or without. An open conversation keeps what it started with. */
+  setDraftStyle(on: boolean): void {
+    if (this.state.active) return;
+    this.set({ draftStyle: on && this.state.style.features.length > 0 });
+  }
+
+  /**
+   * What a conversation carries of the writing style (plan P9-3, ADR 0035):
+   * the features of the examples this recipient may have — in a conversation
+   * with the internet, of those the internet may meet —, measured now, as the
+   * lines the app writes; and the rules of the examples that went, for what is
+   * made of it. An example a rule keeps from this recipient gives it nothing.
+   * Null where the user keeps no examples on this device.
+   */
+  private async styleStart(vault: AiVaultHost, recipient: EgressRecipient, web: boolean): Promise<{ lines: string[]; record: ConversationStyle } | null> {
+    const store = vault.style;
+    if (!store) return null;
+    const prefs = await store.load().catch(() => EMPTY_STYLE_PREFS);
+    if (!prefs.examples.length) return null;
+    const run: GateRun = { recipient, webTools: web };
+    const texts: string[] = [];
+    const rules = new Set<AiPolicyDimension>();
+    let withheld = 0;
+    for (const entry of await this.readStyleExamples(vault, prefs)) {
+      if (entry.text === null) continue;
+      // A rule that cannot be looked up says no.
+      if (!entry.effective || !gateDecision(entry.effective, run).allowed) {
+        withheld += 1;
+        continue;
+      }
+      for (const dimension of AI_POLICY_DIMENSIONS) if (entry.effective.policy[dimension] === "deny") rules.add(dimension);
+      texts.push(entry.text);
+    }
+    const features = styleFeaturesWithout(measureStyle(texts).features, prefs.removed);
+    const lines = features.map(styleLine);
+    return {
+      lines,
+      record: {
+        features: features.length,
+        examples: features.length ? texts.length : 0,
+        withheld,
+        tokens: lines.length ? estimateTokens(lines.join("\n")) : 0,
+        // What went although a rule restricts it elsewhere: what is made of the conversation inherits it, as it does a note's.
+        restricted: features.length ? AI_POLICY_DIMENSIONS.filter((dimension) => rules.has(dimension)) : [],
+      },
+    };
+  }
+
   /**
    * Changes one of the two memory files: the file is read at this moment,
    * changed as text and written back as a whole — through the vault's own
@@ -3272,6 +3443,7 @@ export class AiSession {
           changed: Object.values(states.sources).filter((state) => state !== "same").length,
         },
         web: hasWebTools(record.conversation.tools),
+        style: Boolean(record.instructions?.style),
       };
       this.set({ active: null, excludeActive: false, notice: null });
       return (await this.runMessage(request.words, vault, choice, { skills: { entries, ...(bind ? { bind } : {}) }, replay }))?.stop ?? null;
@@ -4911,8 +5083,10 @@ export class AiSession {
     // this device made from a note that must never reach a cloud must not reach one as a note either. A rule that
     // cannot be looked up counts as one that says no.
     const inherited = new Set<AiPolicyDimension>();
-    // The entries of the memory the conversation began with (plan P6) stand behind every answer of it.
+    // The entries of the memory the conversation began with (plan P6) stand behind every answer of it — and so do the
+    // examples its writing style was measured from (plan P9-3).
     for (const rule of record.instructions?.memory?.restricted ?? []) inherited.add(rule);
+    for (const rule of record.instructions?.style?.restricted ?? []) inherited.add(rule);
     const carried = new Set<string>(record.pins);
     let unknown = false;
     for (const earlier of record.runs) {
@@ -5202,6 +5376,9 @@ export class AiSession {
     const tools = record ? record.conversation.tools : (start?.tools ?? []);
     const lookup = tools.includes(MEMORY_SEARCH_TOOL);
     const memory = record ? manifestMemoryOf(record.instructions) : fresh ? { entries: fresh.record.entries, withheld: fresh.record.withheld, tokens: fresh.record.tokens, lookup } : undefined;
+    // And the writing style, where the user chose it for the next conversation (plan P9-3): measured as its first message would.
+    const freshStyle = record || !this.state.draftStyle ? null : await this.styleStart(vault, recipient, withWeb);
+    const style = record ? manifestStyleOf(record.instructions?.style) : manifestStyleOf(freshStyle?.record);
     // What the request carries before this message's notes (plan P7): the conversation as it stands, or the one a first message would start.
     const carried = this.carriedTokens(
       provider,
@@ -5217,6 +5394,7 @@ export class AiSession {
               more: start?.more ?? [],
               ...(start?.prompt ?? {}),
               ...(fresh && (fresh.text || lookup) ? { memory: { text: fresh.text, lookup } } : {}),
+              ...(freshStyle?.lines.length ? { style: { lines: freshStyle.lines } } : {}),
             }),
             start?.tools ?? [],
             start?.more ?? [],
@@ -5227,6 +5405,7 @@ export class AiSession {
       more: record ? (record.conversation.more ?? []) : (start?.more ?? []),
       instructions: manifestInstructionsOf(record ? record.instructions : (start?.instructions ?? undefined)),
       ...(memory ? { memory } : {}),
+      ...(style ? { style } : {}),
       ...(carried !== undefined ? { carried } : {}),
       web: hasWebTools(tools),
     });
@@ -5257,6 +5436,7 @@ export class AiSession {
       more?: readonly string[];
       instructions?: ManifestInstructions;
       memory?: ManifestMemory;
+      style?: ManifestStyle;
       withoutActive?: boolean;
       web?: boolean;
       carried?: number;
@@ -5316,6 +5496,7 @@ export class AiSession {
         ...(conversation.instructions ? { instructions: conversation.instructions } : {}),
         // A model without tools gets the memory too; what the overview says of the lookup follows the tools it has.
         ...(conversation.memory ? { memory: toolless ? { ...conversation.memory, lookup: false } : conversation.memory } : {}),
+        ...(conversation.style ? { style: conversation.style } : {}),
         ...(this.priceOf(choice) ? { priceUsdPerMillionInput: this.priceOf(choice)!.input } : {}),
       });
       return { pack, manifest };
@@ -5518,7 +5699,13 @@ export class AiSession {
       // A skill the conversation is bound to may leave the tool out: what the prompt says of it follows the list.
       const lookup = start.tools.includes(MEMORY_SEARCH_TOOL);
       const memoryPrompt = memory && (memory.text || lookup) ? { memory: { text: memory.text, lookup } } : {};
-      const instructions: ConversationInstructions | null = memory ? { ...(start.instructions ?? {}), memory: { ...memory.record, lookup } } : start.instructions;
+      // The user's writing style (plan P9-3, ADR 0035): only in a conversation the user began after choosing "My style"
+      // — never in a door, a regression run or a routine; a replay takes the original's choice. What this reader may
+      // have of it, measured now. Recorded also where a rule kept every example back: the overview says why none went.
+      const style = (replay ? replay.style : !apart && this.state.draftStyle) ? await this.styleStart(vault, recipient, withWeb) : null;
+      const stylePrompt = style?.lines.length ? { style: { lines: style.lines } } : {};
+      const withMemory: ConversationInstructions | null = memory ? { ...(start.instructions ?? {}), memory: { ...memory.record, lookup } } : start.instructions;
+      const instructions: ConversationInstructions | null = style && (style.record.features > 0 || style.record.withheld > 0) ? { ...(withMemory ?? {}), style: style.record } : withMemory;
       const id = this.host.newId();
       record = {
         version: 1 as const,
@@ -5528,7 +5715,12 @@ export class AiSession {
         updatedAt: now,
         providerId: choice.providerId,
         model: choice.model,
-        conversation: startConversation(id, assistantSystemPrompt({ language: this.host.language(), today: this.host.today(), tools: start.tools, more: start.more, ...start.prompt, ...memoryPrompt }), start.tools, start.more),
+        conversation: startConversation(
+          id,
+          assistantSystemPrompt({ language: this.host.language(), today: this.host.today(), tools: start.tools, more: start.more, ...start.prompt, ...memoryPrompt, ...stylePrompt }),
+          start.tools,
+          start.more,
+        ),
         usage: EMPTY_USAGE,
         runs: [],
         pins: door ? door.pins : replay ? replay.pins : detached || routine ? [] : this.state.draftPins,
@@ -5605,6 +5797,8 @@ export class AiSession {
                 // and links to notes the rules kept from this run. Kept with the draft for its card; never sent.
                 ...(input.missing?.length ? { missing: [...input.missing] } : {}),
                 ...(input.withheld?.length ? { withheld: [...input.withheld] } : {}),
+                // Written in a conversation that carried the user's writing style (plan P9-3): the card says so.
+                ...(record.instructions?.style?.features ? { style: true as const } : {}),
               });
             },
             ask: (question: PlanQuestion, callId?: string) => this.askPlan(question, callId),
@@ -5666,7 +5860,12 @@ export class AiSession {
               keptFromCloud: (serverId, paths) => this.keptFromCloud(vault, serverId, paths),
               // What no path names (plan P6): an entry of the memory that is kept from every cloud, given to a model
               // on this device. A foreign server is a cloud recipient; such a conversation calls none.
-              keptByRule: () => restricted.has("cloud") || startedWith.runs.some((earlier) => earlier.restricted?.includes("cloud")) || Boolean(startedWith.instructions?.memory?.restricted.includes("cloud")),
+              // The same for an example of the writing style (plan P9-3): its features went to this model and to no cloud.
+              keptByRule: () =>
+                restricted.has("cloud") ||
+                startedWith.runs.some((earlier) => earlier.restricted?.includes("cloud")) ||
+                Boolean(startedWith.instructions?.memory?.restricted.includes("cloud")) ||
+                Boolean(startedWith.instructions?.style?.restricted.includes("cloud")),
               ask: (question, signal) => this.askMcp(question, signal),
               call: (serverId, tool, args, inputSchema, signal) => this.mcp.call(serverId, tool, args, inputSchema, signal),
               log: (entry) => this.mcp.log({ ...entry, at: this.host.now().toISOString(), conversation: startedWith.id }),
@@ -5694,6 +5893,7 @@ export class AiSession {
 
     // The context of this message: what "View context" showed, without the notes left out there.
     const carriedMemory = manifestMemoryOf(record.instructions);
+    const carriedStyle = manifestStyleOf(record.instructions?.style);
     // What the request carries before this message's notes (plan P7): a small window's package is made smaller by it.
     const carried = this.carriedTokens(provider, choice.model, record.conversation);
     const context = await this.contextOf(message, vault, choice, provider, record.pins, record.conversation.turns, {
@@ -5701,6 +5901,7 @@ export class AiSession {
       more: moreNames,
       instructions: manifestInstructionsOf(record.instructions),
       ...(carriedMemory ? { memory: carriedMemory } : {}),
+      ...(carriedStyle ? { style: carriedStyle } : {}),
       ...(carried !== undefined ? { carried } : {}),
       // A regression run measures the skill, not whatever note happens to be open — and a routine runs whatever is open.
       // A replay asks what the original asked, with its sources: the note open now is none of them (plan P9-2).
@@ -5855,8 +6056,10 @@ export class AiSession {
   ): Promise<AiPolicyDimension[]> {
     const inherited = new Set<AiPolicyDimension>(restricted);
     for (const run of record.runs) for (const rule of run.restricted ?? []) inherited.add(rule);
-    // The entries of the memory the conversation was started with (plan P6) are part of what it rests on.
+    // The entries of the memory the conversation was started with (plan P6) are part of what it rests on, and the
+    // examples of its writing style (plan P9-3).
     for (const rule of record.instructions?.memory?.restricted ?? []) inherited.add(rule);
+    for (const rule of record.instructions?.style?.restricted ?? []) inherited.add(rule);
     const carried = await this.carriedBy(vault, record, sending, reads);
     if (carried.more) return [...AI_POLICY_DIMENSIONS];
     for (const path of carried.paths) {
@@ -6062,7 +6265,7 @@ export class AiSession {
     this.abort = controller;
     const toolLog: LedgerEntry["tools"] = [];
     // A message typed in the composer used the drafts; an action at a selection leaves them for the next one.
-    const drafts = input.usedDrafts ? { draftPins: [], draftRedact: [], draftChoice: null, draftWeb: false, excludeActive: false, leaveOutNext: [], originalsNext: [] } : {};
+    const drafts = input.usedDrafts ? { draftPins: [], draftRedact: [], draftChoice: null, draftWeb: false, draftStyle: false, excludeActive: false, leaveOutNext: [], originalsNext: [] } : {};
     if (!input.background) this.set({ active: record, ...drafts, notice: null, live: { conversationId: record.id, text: "", tools: [], steps: 0 } });
 
     const carriesVault = input.carriesVault;

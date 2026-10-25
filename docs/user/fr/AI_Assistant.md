@@ -150,7 +150,7 @@ Un registre ne dit rien de ce que les règles propres à une note retiennent. Le
 
 ## Mémoire
 
-Ce que l'IA doit savoir sur vous sans qu'on ait à le lui répéter — ce que vous faites, comment vous voulez qu'on vous réponde — est conservé dans la mémoire du vault : deux fichiers que vous pouvez lire et modifier. Ce qui figure sous **Toujours inclus** accompagne chaque nouvelle conversation, le reste est consulté quand une question en a besoin, et rien n'y entre sans votre oui. Voir [Mémoire](AI_Memory.md).
+Ce que l'IA doit savoir sur vous sans qu'on ait à le lui répéter — ce que vous faites, comment vous voulez qu'on vous réponde — est conservé dans la mémoire du vault : deux fichiers que vous pouvez lire et modifier. Ce qui figure sous **Toujours inclus** accompagne chaque nouvelle conversation, le reste est consulté quand une question en a besoin, et rien n'y entre sans votre oui. Voir [Mémoire](AI_Memory.md). Vous y trouvez aussi votre style d'écriture : **Mon style** sous le champ de message donne à une conversation ce que cet appareil a mesuré dans des notes que vous avez choisies.
 
 ## Apprendre d'une conversation
 

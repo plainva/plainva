@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { History, SquarePen } from "lucide-react";
 import { AiConversation, AiSessionContext, ICON, IconButton } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
-import { getMobileAiSession, openAiLink } from "../services/ai/mobileAi";
+import { getMobileAiSession, openAiLink, openAiNotePick } from "../services/ai/mobileAi";
 
 /**
  * The KI screen (plan KI-Harness §19.1, dress C on the phone): the ninth area
@@ -43,7 +43,7 @@ export function AiScreen({
             </>
           }
         />
-        <AiConversation dress="screen" activeNote={null} onOpenNote={onOpenNote} onOpenUrl={openAiLink} onOpenSettings={onOpenSettings} />
+        <AiConversation dress="screen" activeNote={null} onOpenNote={onOpenNote} onOpenUrl={openAiLink} onOpenSettings={onOpenSettings} onPickNote={() => openAiNotePick("pin")} />
       </div>
     </AiSessionContext.Provider>
   );

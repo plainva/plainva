@@ -1,6 +1,6 @@
 # Memory (Beta)
 
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-25
 
 The memory holds what the AI should know about you and your work without being told again: what you do, how you like your answers, who your clients are. It is two files in your vault. Nothing gets into it without your yes, and you can read, change and delete every entry.
 
@@ -39,6 +39,16 @@ Like all instructions, the file has to be approved on each device before it coun
 A memory that has grown repeats itself. Under **Tidy up**, the memory view names what this device noticed by itself, without asking a model: two entries that say almost the same, an entry that is more than a year old, and entries of **Always included** that no longer fit. **Compare** shows the two entries together, each with everything its menu can do.
 
 For a closer look there is a skill. **Memory care** reads the entries with the model of a conversation and drafts what belongs together and what can go; the row **Have the memory looked through** starts it. What it suggests are drafts like any other: nothing changes before you accept it, and where two entries contradict each other it asks instead of deciding.
+
+## Writing style
+
+A draft of the AI sounds like the AI. The section **Writing style** describes how you write, so that a draft can sound like you — measured from notes you choose yourself.
+
+**Choose examples…** opens the note picker of **Pin a note…**; choose up to eight notes you wrote yourself. This device measures in them, without a model and without sending anything: how long your sentences and paragraphs are, lists or running text, headings, how you address people (in German “du” or “Sie”, in French “tu” or “vous” — where a language shows it in its words), bold, emojis, exclamation marks and dashes. Properties, code and quotes do not count. Every feature stands there with the numbers it rests on, and its ✕ takes it out on its own; **Bring back** brings back what you took out. No word and no phrase of your notes is kept: the device keeps the paths of the examples and what you took out, and measures again whenever the style is shown or used.
+
+The style is used only where you choose it: **My style**, the button beside the globe under the message field, gives it to the conversation you start next — like the internet, fixed from its first message. The conversation then says **With your writing style**, the send overview has a row **Writing style**, and a draft from such a conversation says that it was drafted with your writing style; it remains the AI's draft, signed with its model. The AI follows the style in what you keep for yourself — a note, a journal entry, a rewrite of your text —, not on its own in an e-mail, an invitation or a comment; ask for it there, and it does.
+
+The style lies on this device, not in the vault: on another device you choose its examples there. An example your privacy rules keep from a model gives that model none of its features — the send overview counts it under **Kept back** —, and what a model on this device writes with features of such a note keeps the note's rules.
 
 ## Privacy
 

@@ -108,6 +108,14 @@ export interface EgressManifest {
    */
   memory?: ManifestMemory;
   /**
+   * The user's writing style as the conversation carries it (plan KI-Harness
+   * P9-3, ADR 0035): how many features go, measured from how many examples,
+   * and how many examples a rule kept from this recipient. Lines the app
+   * wrote from numbers — the first time they go to a cloud, the scope grows
+   * by the kind `style`.
+   */
+  style?: ManifestStyle;
+  /**
    * A run that fills a column of a database (plan KI-Harness P5-4): the notes
    * in `sources` go one at a time, each in a request of its own with nothing
    * of another, and the estimate is the run's as a whole. `column` is the
@@ -133,6 +141,15 @@ export interface ManifestMemory {
   lookup: boolean;
 }
 
+export interface ManifestStyle {
+  features: number;
+  /** The examples the features were measured from: those this recipient may have. */
+  examples: number;
+  /** Examples a rule kept from this recipient: none of their features go. */
+  withheld: number;
+  tokens: number;
+}
+
 /** The ids of the vault's own instructions a request carries — what the scope counts. */
 export function vaultInstructionIds(instructions: ManifestInstructions | undefined): string[] {
   if (!instructions) return [];
@@ -152,7 +169,17 @@ export function manifestOf(
   pack: ContextPackage,
   provider: { id: string; label: string; local: boolean },
   model: string,
-  options: { tools: readonly string[]; more?: readonly string[]; web?: boolean; webHosts?: readonly string[]; priceUsdPerMillionInput?: number; questionChars?: number; instructions?: ManifestInstructions; memory?: ManifestMemory },
+  options: {
+    tools: readonly string[];
+    more?: readonly string[];
+    web?: boolean;
+    webHosts?: readonly string[];
+    priceUsdPerMillionInput?: number;
+    questionChars?: number;
+    instructions?: ManifestInstructions;
+    memory?: ManifestMemory;
+    style?: ManifestStyle;
+  },
 ): EgressManifest {
   const sources: ManifestSource[] = pack.refs.map((ref) => ({
     path: ref.path,
@@ -171,8 +198,11 @@ export function manifestOf(
   const instructionTokens = (options.instructions?.skill?.tokens ?? 0) + (options.instructions?.catalog?.tokens ?? 0) + (options.instructions?.vault?.tokens ?? 0);
   // Entries of the memory go with every request of the conversation: they are a kind of data the overview names.
   const memory = options.memory && (options.memory.entries > 0 || options.memory.withheld > 0 || options.memory.lookup) ? options.memory : null;
-  const dataClasses = memory && memory.entries > 0 && !pack.dataClasses.includes("memory") ? [...pack.dataClasses, "memory" as const] : pack.dataClasses;
-  const estimatedTokens = pack.estimatedTokens + Math.ceil((options.questionChars ?? 0) / 3.5) + instructionTokens + (memory?.tokens ?? 0);
+  // So do the lines of the user's writing style (plan P9-3): a kind of its own, named in the overview with what a rule kept.
+  const style = options.style && (options.style.features > 0 || options.style.withheld > 0) ? options.style : null;
+  const classes = memory && memory.entries > 0 && !pack.dataClasses.includes("memory") ? [...pack.dataClasses, "memory" as const] : pack.dataClasses;
+  const dataClasses = style && style.features > 0 && !classes.includes("style") ? [...classes, "style" as const] : classes;
+  const estimatedTokens = pack.estimatedTokens + Math.ceil((options.questionChars ?? 0) / 3.5) + instructionTokens + (memory?.tokens ?? 0) + (style?.tokens ?? 0);
   return {
     providerId: provider.id,
     providerLabel: provider.label,
@@ -199,6 +229,7 @@ export function manifestOf(
     ...(options.web && options.webHosts?.length ? { webHosts: [...options.webHosts] } : {}),
     ...(options.instructions && (options.instructions.skill || options.instructions.catalog || options.instructions.vault) ? { instructions: options.instructions } : {}),
     ...(memory ? { memory } : {}),
+    ...(style ? { style } : {}),
   };
 }
 

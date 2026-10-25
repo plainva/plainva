@@ -1,13 +1,14 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, Plus } from "lucide-react";
-import { memoryFileOf } from "@plainva/core";
+import { ChevronRight, CloudOff, FileText, Plus, X } from "lucide-react";
+import { memoryFileOf, STYLE_EXAMPLES_MAX } from "@plainva/core";
 import {
   Banner,
   Button,
   filterMemoryRows,
   GroupCard,
   ICON,
+  IconButton,
   memoryGroups,
   MEMORY_SEARCH_FROM,
   MemoryMeter,
@@ -17,6 +18,7 @@ import {
   SearchField,
   SectionLabel,
   skillView,
+  styleView,
   Switch,
   toast,
   useUpkeepRows,
@@ -30,7 +32,7 @@ import { MemoryRuleSheet } from "./MemoryRuleSheet";
 import { MobileUpkeepGroup } from "./MobileUpkeepGroup";
 import { RowActionSheet } from "./RowActionSheet";
 import { SheetGrip } from "./SheetGrip";
-import { getMobileAiSession } from "../services/ai/mobileAi";
+import { getMobileAiSession, openAiNotePick } from "../services/ai/mobileAi";
 import { mConfirm } from "../services/mobileDialogs";
 
 /** The skill that looks through the memory with a model, when the user starts it (plan P6-3). */
@@ -70,6 +72,8 @@ export function MobileMemoryView({
   useEffect(() => {
     void session.refreshMemory();
     void session.refreshSkills();
+    // The writing style is measured again whenever it is shown: its examples may have changed since.
+    void session.refreshStyle();
   }, [session]);
 
   const memory = state.memory;
@@ -84,6 +88,8 @@ export function MobileMemoryView({
   const waiting = state.drafts.drafts.filter((draft) => draft.body.kind === "memory" || draft.body.kind === "forget" || draft.body.kind === "rule").length;
   const agents = workshopSections(state.skills.entries).agents;
   const shownLong = filterMemoryRows(groups.long, query);
+  // The writing style (plan P9-3, mockup chapter 27): this phone's examples and what it measures in them.
+  const style = styleView(t, state.style, i18n.language);
   /** A group's name with how many entries it holds — "Always included · 4"; the name alone while it is empty. */
   const counted = (name: string, count: number) => (count > 0 ? `${name} · ${count}` : name);
 
@@ -206,6 +212,69 @@ export function MobileMemoryView({
         </GroupCard>
       )}
       {memory.cut.includes("long") && <p className="m-hint">{t("ai.memory.cut")}</p>}
+      {state.style.available && (
+        <>
+          <SectionLabel>{t("ai.style.title")}</SectionLabel>
+          <p className="m-hint">{t("ai.style.examplesHint", { max: STYLE_EXAMPLES_MAX })}</p>
+          <GroupCard>
+            <RowList>
+              {style.examples.map((example) => (
+                <Row
+                  key={example.path}
+                  controls
+                  icon={example.deny.includes("cloud") ? <CloudOff size={ICON.ui} /> : <FileText size={ICON.ui} />}
+                  title={example.title}
+                  // What keeps an example from some readers, in the words the memory marks an entry with: `ai.memory.mark.cloud`, `.web`.
+                  subtitle={[...(example.missing ? [t("ai.style.missing")] : []), ...example.deny.map((rule) => t(`ai.memory.mark.${rule}`))].join(" · ") || example.path}
+                  wrap
+                  end={
+                    <IconButton label={t("ai.style.removeExample", { name: example.title })} onClick={() => void session.removeStyleExample(example.path)} data-testid="ai-style-example-remove">
+                      <X size={ICON.ui} />
+                    </IconButton>
+                  }
+                  data-testid="ai-style-example"
+                />
+              ))}
+              <Row title={t("ai.style.pick")} disabled={style.full} onClick={() => openAiNotePick("style")} end={<Plus size={ICON.ui} />} data-testid="ai-style-pick" />
+            </RowList>
+          </GroupCard>
+          {/* Nothing measured yet is a sentence on the page's edge, not a card: a card's edge belongs to its rows. */}
+          {style.empty ? (
+            <p className="m-hint">{style.empty}</p>
+          ) : (
+            <GroupCard>
+              <RowList>
+                {style.rows.map((row) => (
+                  <Row
+                    key={row.key}
+                    controls
+                    title={row.label}
+                    subtitle={row.desc}
+                    wrap
+                    end={
+                      <IconButton label={t("ai.style.removeFeature", { name: row.label })} onClick={() => void session.removeStyleFeature(row.key)} data-testid="ai-style-remove">
+                        <X size={ICON.ui} />
+                      </IconButton>
+                    }
+                    data-testid="ai-style-feature"
+                    data-key={row.key}
+                  />
+                ))}
+              </RowList>
+            </GroupCard>
+          )}
+          <p className="m-hint">{t("ai.style.measured")}</p>
+          {style.removed.length > 0 && (
+            <div className="m-hint" data-testid="ai-style-removed">
+              {t("ai.style.removed", { names: style.removed.join(", ") })}{" "}
+              <Button size="sm" variant="ghost" onClick={() => void session.restoreStyleFeatures()} data-testid="ai-style-restore">
+                {t("ai.style.restore")}
+              </Button>
+            </div>
+          )}
+          <p className="m-hint">{t("ai.style.device")}</p>
+        </>
+      )}
       <SectionLabel>{t("ai.memory.rules.title")}</SectionLabel>
       <GroupCard>
         <RowList>

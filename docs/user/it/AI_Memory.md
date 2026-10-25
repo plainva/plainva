@@ -1,6 +1,6 @@
 # Memoria (Beta)
 
-Ultimo aggiornamento: 2026-10-09
+Ultimo aggiornamento: 2026-10-25
 
 La memoria contiene ciò che l'IA deve sapere su di te e sul tuo lavoro senza che tu glielo ripeta: che cosa fai, come preferisci ricevere le risposte, chi sono i tuoi clienti. Sono due file nel tuo vault. Nulla entra nella memoria senza il tuo sì, e puoi leggere, modificare ed eliminare ogni voce.
 
@@ -39,6 +39,16 @@ Come tutte le istruzioni, il file va approvato su ogni dispositivo prima di aver
 Una memoria che è cresciuta si ripete. Sotto **Riordino**, la vista della memoria segnala ciò che questo dispositivo ha notato da sé, senza chiedere a un modello: due voci che dicono quasi la stessa cosa, una voce che ha più di un anno e voci di **Sempre incluso** che non trovano più posto. **Confronta** mostra le due voci insieme, ciascuna con tutto ciò che il suo menu permette di fare.
 
 Per uno sguardo più attento c'è una competenza. **Curare la memoria** legge le voci con il modello di una conversazione e prepara bozze di ciò che va unito e di ciò che si può togliere; si avvia dalla riga **Far rileggere la memoria**. Ciò che propone sono bozze come tutte le altre: nulla cambia finché non lo accetti e, dove due voci si contraddicono, chiede invece di decidere.
+
+## Stile di scrittura
+
+Una bozza dell'IA suona come l'IA. La sezione **Stile di scrittura** descrive come scrivi, perché una bozza possa suonare come te: misurato su note che scegli tu.
+
+**Scegli esempi…** apre il selettore di note di **Fissa una nota…**; scegli fino a otto note scritte da te. Questo dispositivo vi misura, senza modello e senza inviare nulla: quanto sono lunghe le tue frasi e i tuoi paragrafi, elenchi o testo continuo, titoli, come ti rivolgi alle persone (in tedesco «du» o «Sie», in francese «tu» o «vous», dove una lingua lo mostra nelle sue parole), grassetto, emoji, punti esclamativi e trattini. Proprietà, codice e citazioni non contano. Ogni tratto compare con i numeri su cui si basa, e la sua ✕ lo toglie da solo; **Ripristina** riporta ciò che hai tolto. Nessuna parola e nessuna espressione delle tue note viene conservata: il dispositivo tiene i percorsi degli esempi e ciò che hai tolto, e misura di nuovo ogni volta che lo stile viene mostrato o usato.
+
+Lo stile viene usato solo dove lo scegli: **Il mio stile**, il pulsante accanto al globo sotto il campo del messaggio, lo dà alla conversazione che inizi subito dopo; come Internet, resta fisso dal suo primo messaggio. La conversazione dice allora **Con il tuo stile di scrittura**, il riepilogo d'invio ha una riga **Stile di scrittura**, e una bozza nata in una conversazione così dice di essere stata scritta con il tuo stile di scrittura; resta una bozza dell'IA, firmata con il suo modello. L'IA segue lo stile in ciò che tieni per te (una nota, una voce del diario, una riscrittura del tuo testo), non di sua iniziativa in un'e-mail, un invito o un commento; chiediglielo lì e lo farà.
+
+Lo stile resta su questo dispositivo, non nel vault: su un altro dispositivo ne scegli lì gli esempi. Un esempio che le tue regole sulla privacy tengono lontano da un modello non dà a quel modello nessuno dei suoi tratti (il riepilogo d'invio lo conta sotto **Trattenuto**), e ciò che un modello su questo dispositivo scrive con i tratti di una nota così mantiene le regole della nota.
 
 ## Privacy
 

@@ -65,6 +65,7 @@ export * from "./scriptTools";
 export * from "./scriptsWorkshop";
 export * from "./ScriptParts";
 export * from "./aiMemory";
+export * from "./aiStyle";
 export * from "./memoryView";
 export * from "./MemoryParts";
 export * from "./aiLearn";

@@ -150,7 +150,7 @@ Accanto alla nota aperta, Plainva mostra fino a tre cose che nota da sé — sul
 
 ## Memoria
 
-Ciò che l'IA deve sapere su di te senza che tu glielo ripeta — che cosa fai, come preferisci ricevere le risposte — è conservato nella memoria del vault: due file che puoi leggere e modificare. Ciò che sta sotto **Sempre incluso** va in ogni nuova conversazione, il resto viene cercato quando una domanda lo richiede, e nulla entra nella memoria senza il tuo sì. Vedi [Memoria](AI_Memory.md).
+Ciò che l'IA deve sapere su di te senza che tu glielo ripeta — che cosa fai, come preferisci ricevere le risposte — è conservato nella memoria del vault: due file che puoi leggere e modificare. Ciò che sta sotto **Sempre incluso** va in ogni nuova conversazione, il resto viene cercato quando una domanda lo richiede, e nulla entra nella memoria senza il tuo sì. Vedi [Memoria](AI_Memory.md). Lì c'è anche il tuo stile di scrittura: **Il mio stile** sotto il campo del messaggio dà a una conversazione ciò che questo dispositivo ha misurato in note scelte da te.
 
 ## Imparare da una conversazione
 

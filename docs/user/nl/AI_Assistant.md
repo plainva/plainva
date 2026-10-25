@@ -150,7 +150,7 @@ Naast de open notitie toont Plainva hooguit drie dingen die het zelf opmerkt —
 
 ## Geheugen
 
-Wat de AI over jou moet weten zonder dat je het opnieuw hoeft te vertellen — wat je doet, hoe je je antwoorden het liefst wilt hebben — wordt bewaard in het geheugen van de vault: twee bestanden die je kunt lezen en bewerken. Wat onder **Altijd erbij** staat, gaat mee in elk nieuw gesprek, de rest wordt opgezocht wanneer een vraag het nodig heeft, en er komt niets in zonder jouw ja. Zie [Geheugen](AI_Memory.md).
+Wat de AI over jou moet weten zonder dat je het opnieuw hoeft te vertellen — wat je doet, hoe je je antwoorden het liefst wilt hebben — wordt bewaard in het geheugen van de vault: twee bestanden die je kunt lezen en bewerken. Wat onder **Altijd erbij** staat, gaat mee in elk nieuw gesprek, de rest wordt opgezocht wanneer een vraag het nodig heeft, en er komt niets in zonder jouw ja. Zie [Geheugen](AI_Memory.md). Daar staat ook je schrijfstijl: **Mijn stijl** onder het invoerveld geeft een gesprek wat dit apparaat heeft gemeten aan notities die je koos.
 
 ## Leren van een gesprek
 

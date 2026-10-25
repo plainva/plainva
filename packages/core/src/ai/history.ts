@@ -191,6 +191,23 @@ export interface ConversationInstructions {
   vaultTokens?: number;
   /** What of the vault's memory went in (plan KI-Harness P6): data in a fence, never an instruction. */
   memory?: ConversationMemory;
+  /** The user's writing style, where they chose it for this conversation (plan KI-Harness P9-3). */
+  style?: ConversationStyle;
+}
+
+/**
+ * The user's writing style as a conversation was started with it (ADR 0035).
+ * The lines themselves are in the system prompt; this is what the record and
+ * the overview say about them — how many features went, from how many
+ * examples, how many examples a rule kept back —, and the rules the examples
+ * that went carry: what is made of the conversation inherits them.
+ */
+export interface ConversationStyle {
+  features: number;
+  examples: number;
+  withheld: number;
+  tokens: number;
+  restricted: AiPolicyDimension[];
 }
 
 /**
@@ -371,6 +388,17 @@ function readInstructions(raw: unknown): ConversationInstructions | null {
       // A rule that does not read is no rule here; what cannot be read at all keeps every rule.
       restricted: Array.isArray(m.restricted) ? AI_POLICY_DIMENSIONS.filter((dimension) => (m.restricted as unknown[]).includes(dimension)) : [...AI_POLICY_DIMENSIONS],
       lookup: m.lookup === true,
+    };
+  }
+  const st = r.style as Record<string, unknown> | undefined;
+  if (st && typeof st === "object") {
+    out.style = {
+      features: count(st.features),
+      examples: count(st.examples),
+      withheld: count(st.withheld),
+      tokens: count(st.tokens),
+      // As the memory's: a rule that does not read is no rule here; what cannot be read at all keeps every rule.
+      restricted: Array.isArray(st.restricted) ? AI_POLICY_DIMENSIONS.filter((dimension) => (st.restricted as unknown[]).includes(dimension)) : [...AI_POLICY_DIMENSIONS],
     };
   }
   return Object.keys(out).length ? out : null;
@@ -601,6 +629,9 @@ function readManifest(raw: unknown): EgressManifest | null {
     ...(readManifestInstructions(m.instructions) ? { instructions: readManifestInstructions(m.instructions)! } : {}),
     ...(m.memory && typeof m.memory === "object"
       ? { memory: { entries: count(m.memory.entries), withheld: count(m.memory.withheld), tokens: count(m.memory.tokens), lookup: m.memory.lookup === true } }
+      : {}),
+    ...(m.style && typeof m.style === "object"
+      ? { style: { features: count(m.style.features), examples: count(m.style.examples), withheld: count(m.style.withheld), tokens: count(m.style.tokens) } }
       : {}),
   };
 }

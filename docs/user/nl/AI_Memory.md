@@ -1,6 +1,6 @@
 # Geheugen (Beta)
 
-Laatst bijgewerkt: 2026-10-09
+Laatst bijgewerkt: 2026-10-25
 
 Het geheugen bewaart wat de AI over jou en je werk moet weten zonder dat je het opnieuw hoeft te vertellen: wat je doet, hoe je je antwoorden het liefst wilt hebben, wie je klanten zijn. Het zijn twee bestanden in je vault. Er komt niets in zonder jouw ja, en je kunt elk item lezen, wijzigen en verwijderen.
 
@@ -39,6 +39,16 @@ Zoals alle instructies moet het bestand op elk apparaat worden goedgekeurd voord
 Een geheugen dat is gegroeid, herhaalt zichzelf. Onder **Opruimen** noemt de geheugenweergave wat dit apparaat zelf heeft opgemerkt, zonder een model te raadplegen: twee items die bijna hetzelfde zeggen, een item dat meer dan een jaar oud is, en items van **Altijd erbij** die niet meer passen. **Vergelijken** toont de twee items samen, elk met alles wat zijn menu kan.
 
 Voor een nadere blik is er een vaardigheid. **Geheugen onderhouden** leest de items met het model van een gesprek en stelt een concept op van wat bij elkaar hoort en wat weg kan; de rij **Het geheugen laten doornemen** start haar. Wat ze voorstelt, zijn concepten zoals alle andere: niets verandert voordat je het overneemt, en waar twee items elkaar tegenspreken, vraagt ze het je in plaats van te beslissen.
+
+## Schrijfstijl
+
+Een concept van de AI klinkt als de AI. Het onderdeel **Schrijfstijl** beschrijft hoe je schrijft, zodat een concept als jij kan klinken — gemeten aan notities die je zelf kiest.
+
+**Voorbeelden kiezen…** opent de notitiekiezer van **Notitie vastzetten…**; kies tot acht notities die je zelf hebt geschreven. Dit apparaat meet daarin, zonder model en zonder iets te versturen: hoe lang je zinnen en alinea's zijn, lijsten of lopende tekst, koppen, hoe je mensen aanspreekt (in het Duits ‘du’ of ‘Sie’, in het Frans ‘tu’ of ‘vous’ — waar een taal het in haar woorden laat zien), vet, emoji's, uitroeptekens en gedachtestreepjes. Eigenschappen, code en citaten tellen niet mee. Elk kenmerk staat er met de getallen waarop het berust, en zijn ✕ haalt het afzonderlijk weg; **Terughalen** haalt terug wat je weghaalde. Geen woord en geen uitdrukking van je notities wordt bewaard: het apparaat bewaart de paden van de voorbeelden en wat je weghaalde, en meet opnieuw zodra de stijl wordt getoond of gebruikt.
+
+De stijl wordt alleen gebruikt waar je hem kiest: **Mijn stijl**, de knop naast de wereldbol onder het invoerveld, geeft hem aan het gesprek dat je als volgende begint — net als internet vast vanaf het eerste bericht. Het gesprek zegt dan **Met je schrijfstijl**, het verzendoverzicht heeft een regel **Schrijfstijl**, en een concept uit zo'n gesprek zegt dat het met je schrijfstijl is opgesteld; het blijft een concept van de AI, ondertekend met zijn model. De AI volgt de stijl in wat je voor jezelf houdt — een notitie, een journaalitem, een herschrijving van je tekst —, niet uit zichzelf in een e-mail, een uitnodiging of een opmerking; vraag het daar, dan doet hij het.
+
+De stijl staat op dit apparaat, niet in de vault: op een ander apparaat kies je daar de voorbeelden. Een voorbeeld dat je privacyregels voor een model achterhouden, geeft dat model geen van zijn kenmerken — het verzendoverzicht telt het onder **Achtergehouden** —, en wat een model op dit apparaat met kenmerken van zo'n notitie schrijft, houdt de regels van die notitie.
 
 ## Privacy
 

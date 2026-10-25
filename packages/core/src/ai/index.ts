@@ -42,3 +42,4 @@ export * from "./folderLog.js";
 export * from "./noteHints.js";
 export * from "./noteHistory.js";
 export * from "./runSnapshot.js";
+export * from "./writingStyle.js";

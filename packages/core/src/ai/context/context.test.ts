@@ -289,4 +289,40 @@ describe("the send overview", () => {
     )!;
     expect(stored.runs[0]!.manifest).toMatchObject({ web: true, webHosts: ["example.org"] });
   });
+
+  it("names the user's writing style as a kind of its own, with what a rule kept — and asks when it is new (plan P9-3)", async () => {
+    const pack = await buildContextPackage({ question: "hourly rate", recipient: cloud, situation: situation(), candidates: [], pins: [] }, host());
+    const provider = { id: "p", label: "Provider", local: false };
+    const without = manifestOf(pack, provider, "m", { tools: ["search_vault"] });
+    const styled = manifestOf(pack, provider, "m", { tools: ["search_vault"], style: { features: 5, examples: 3, withheld: 1, tokens: 120 } });
+    expect(styled.style).toEqual({ features: 5, examples: 3, withheld: 1, tokens: 120 });
+    expect(styled.dataClasses).toEqual([...without.dataClasses, "style"]);
+    expect(styled.estimatedTokens).toBe(without.estimatedTokens + 120);
+    expect(scopeGrowth(styled, widenScope(null, without))).toEqual([{ kind: "dataClass", dataClass: "style" }]);
+    // Every example kept back: nothing goes, and the overview still says why there is no style.
+    const kept = manifestOf(pack, provider, "m", { tools: ["search_vault"], style: { features: 0, examples: 0, withheld: 2, tokens: 0 } });
+    expect([kept.style, kept.dataClasses.includes("style")]).toEqual([{ features: 0, examples: 0, withheld: 2, tokens: 0 }, false]);
+    expect(manifestOf(pack, provider, "m", { tools: ["search_vault"], style: { features: 0, examples: 0, withheld: 0, tokens: 0 } }).style).toBeUndefined();
+    // The record keeps the run's overview and the conversation's style — a rule that does not read keeps every rule.
+    const stored = readConversationRecord(
+      JSON.parse(
+        JSON.stringify({
+          version: 1,
+          id: "c1",
+          title: "t",
+          createdAt: "2026-10-25T10:00:00Z",
+          updatedAt: "2026-10-25T10:00:00Z",
+          providerId: "p",
+          model: "m",
+          conversation: { id: "c1", system: "s", tools: [], turns: [] },
+          instructions: { style: { features: 5, examples: 3, withheld: 1, tokens: 120, restricted: ["cloud", "nonsense"] } },
+          runs: [{ userTurn: 0, providerId: "p", model: "m", sent: [], kept: [], steps: 1, stop: "answered", manifest: styled }],
+        }),
+      ),
+    )!;
+    expect(stored.instructions?.style).toEqual({ features: 5, examples: 3, withheld: 1, tokens: 120, restricted: ["cloud"] });
+    expect(stored.runs[0]!.manifest?.style).toEqual({ features: 5, examples: 3, withheld: 1, tokens: 120 });
+    const unreadable = readConversationRecord(JSON.parse(JSON.stringify({ ...JSON.parse(JSON.stringify(stored)), instructions: { style: { features: 2 } } })))!;
+    expect(unreadable.instructions?.style?.restricted).toEqual(["cloud", "web"]);
+  });
 });

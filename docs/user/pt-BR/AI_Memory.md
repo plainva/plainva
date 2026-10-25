@@ -1,6 +1,6 @@
 # Memória (Beta)
 
-Última revisão: 2026-10-09
+Última revisão: 2026-10-25
 
 A memória guarda o que a IA deve saber sobre você e o seu trabalho sem que você precise repetir: o que você faz, como prefere as respostas, quem são seus clientes. São dois arquivos no seu vault. Nada entra nela sem o seu sim, e você pode ler, alterar e excluir cada entrada.
 
@@ -39,6 +39,16 @@ Como todas as instruções, o arquivo precisa ser aprovado em cada dispositivo a
 Uma memória que cresceu acaba se repetindo. Em **Arrumar**, a visualização da memória aponta o que este dispositivo notou por conta própria, sem consultar um modelo: duas entradas que dizem quase o mesmo, uma entrada com mais de um ano e entradas em **Sempre incluído** que não cabem mais. **Comparar** mostra as duas entradas juntas, cada uma com tudo o que o menu dela permite fazer.
 
 Para olhar mais de perto, há uma habilidade. **Cuidar da memória** lê as entradas com o modelo de uma conversa e prepara rascunhos do que pode ser unido e do que pode ser retirado; a linha **Pedir uma revisão da memória** a inicia. O que ela sugere são rascunhos como todos os outros: nada muda antes de você aceitar, e quando duas entradas se contradizem ela pergunta em vez de decidir.
+
+## Estilo de escrita
+
+Um rascunho da IA soa como a IA. A seção **Estilo de escrita** descreve como você escreve, para que um rascunho possa soar como você — medido em notas que você mesmo escolhe.
+
+**Escolher exemplos…** abre o seletor de notas de **Fixar nota…**; escolha até oito notas escritas por você. Este dispositivo mede nelas, sem modelo e sem enviar nada: o tamanho das suas frases e parágrafos, listas ou texto corrido, títulos, como você se dirige às pessoas (em alemão “du” ou “Sie”, em francês “tu” ou “vous” — onde uma língua mostra isso nas palavras), negrito, emojis, pontos de exclamação e travessões. Propriedades, código e citações não contam. Cada traço aparece com os números em que se baseia, e o ✕ dele o retira sozinho; **Trazer de volta** traz de volta o que você retirou. Nenhuma palavra ou expressão das suas notas é guardada: o dispositivo guarda os caminhos dos exemplos e o que você retirou, e mede de novo sempre que o estilo é mostrado ou usado.
+
+O estilo só é usado onde você o escolhe: **Meu estilo**, o botão ao lado do globo sob o campo de mensagem, o dá à conversa que você começar em seguida — como a internet, fixado desde a primeira mensagem. A conversa passa a mostrar **Com o seu estilo de escrita**, o resumo de envio ganha uma linha **Estilo de escrita**, e um rascunho de uma conversa assim diz que foi escrito com o seu estilo de escrita; ele continua sendo um rascunho da IA, assinado com o modelo dela. A IA segue o estilo no que você guarda para si — uma nota, uma entrada do diário, uma reescrita do seu texto —, mas não por conta própria em um e-mail, um convite ou um comentário; peça isso ali, e ela o fará.
+
+O estilo fica neste dispositivo, não no vault: em outro dispositivo, você escolhe os exemplos lá. Um exemplo que suas regras de privacidade reservam diante de um modelo não dá a esse modelo nenhum dos seus traços — o resumo de envio o conta em **Retido** —, e o que um modelo neste dispositivo escreve com traços de uma nota assim mantém as regras da nota.
 
 ## Privacidade
 

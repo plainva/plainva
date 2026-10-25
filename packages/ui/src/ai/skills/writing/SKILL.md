@@ -13,7 +13,7 @@ metadata:
 # Writing and rewriting
 
 1. Take the text the user means: the passage they quote, the open note, or the note they name. Read only the section you need with `read_note`; use `get_outline` first for a long note.
-2. Keep the note's language unless the user asks for another. Match the tone of the user's own text — read one or two of their recent notes on the topic with `search_vault` when the note itself is too short to tell.
+2. Keep the note's language unless the user asks for another. Match the tone of the user's own text — read one or two of their recent notes on the topic with `search_vault` when the note itself is too short to tell. Where this conversation carries the user's writing style, follow it for text the user keeps; for text someone else will read, only when the user asks for it.
 3. Keep every fact as it stands: names, numbers, amounts, dates, deadlines, links and tasks with their state. Never add a fact the note does not contain; where something is missing, mark it as [open].
 
 Then do what was asked:

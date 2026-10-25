@@ -150,7 +150,7 @@ Obok otwartej notatki Plainva pokazuje najwyżej trzy rzeczy, które sama zauwa�
 
 ## Pamięć
 
-To, co AI powinna o Tobie wiedzieć bez przypominania — czym się zajmujesz, jakie odpowiedzi lubisz — jest zapisane w pamięci vaultu: w dwóch plikach, które możesz czytać i edytować. Zawartość miejsca **Zawsze dołączane** trafia do każdej nowej rozmowy, resztę AI sprawdza, gdy pytanie tego wymaga, a bez Twojego „tak” nic nie trafia do pamięci. Zob. [Pamięć](AI_Memory.md).
+To, co AI powinna o Tobie wiedzieć bez przypominania — czym się zajmujesz, jakie odpowiedzi lubisz — jest zapisane w pamięci vaultu: w dwóch plikach, które możesz czytać i edytować. Zawartość miejsca **Zawsze dołączane** trafia do każdej nowej rozmowy, resztę AI sprawdza, gdy pytanie tego wymaga, a bez Twojego „tak” nic nie trafia do pamięci. Zob. [Pamięć](AI_Memory.md). Tam jest też Twój styl pisania: **Mój styl** pod polem wiadomości daje rozmowie to, co to urządzenie zmierzyło w wybranych przez Ciebie notatkach.
 
 ## Uczenie się z rozmowy
 

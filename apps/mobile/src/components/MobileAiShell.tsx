@@ -1,9 +1,12 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { STYLE_EXAMPLES_MAX } from "@plainva/core";
 import { AiSheet } from "./AiSheet";
 import { LearnSheets } from "./LearnSheets";
+import { NotePickSheet } from "./NotePickSheet";
 import { pushEntry, SCREEN_ENTRY, tapTab, type NavEntry, type NavState } from "../navigation";
 import { draftPath } from "../screens/mail/mailNavRefs";
-import { MobileAiNavigation, openAiNoteTarget, type useMobileAi } from "../services/ai/mobileAi";
+import { MobileAiNavigation, openAiNoteTarget, pickedForAi, type useMobileAi } from "../services/ai/mobileAi";
 import { leaveThen } from "../services/leaveQuestion";
 import { tabTapped } from "../services/tabTap";
 import type { MobileVault } from "../services/vaultService";
@@ -102,11 +105,12 @@ export function MobileAiShell({
   onOpenScreen,
   onOpenNote,
 }: {
-  ai: Pick<ReturnType<typeof useMobileAi>, "navRef" | "sheet" | "closeSheet">;
+  ai: Pick<ReturnType<typeof useMobileAi>, "navRef" | "sheet" | "closeSheet" | "notePick" | "closePick">;
   nav: MobileAiNavigation;
   onOpenScreen: () => void;
   onOpenNote: (target: string) => void;
 }) {
+  const { t } = useTranslation();
   useIntentNavigation(nav);
   const leaving = (go: () => void) => () => {
     ai.closeSheet();
@@ -122,6 +126,16 @@ export function MobileAiShell({
           onOpenNote={(target) => leaving(() => onOpenNote(target))()}
           onOpenScreen={leaving(onOpenScreen)}
           onOpenSettings={leaving(() => nav.openSettings?.())}
+        />
+      )}
+      {/* The note the AI asked for (plan P9-3): to pin it, or as an example of the writing style — over whatever shows. */}
+      {ai.notePick && (
+        <NotePickSheet
+          vault={ai.notePick.vault}
+          title={ai.notePick.purpose === "pin" ? t("ai.pinNote") : t("ai.style.pick")}
+          {...(ai.notePick.purpose === "style" ? { hint: t("ai.style.examplesHint", { max: STYLE_EXAMPLES_MAX }) } : {})}
+          onPick={(path) => pickedForAi(ai.notePick!.purpose, path)}
+          onClose={ai.closePick}
         />
       )}
       {/* Learning's sheets (plan P6-2): opened from a conversation, a draft or a skill, wherever those are shown. */}
