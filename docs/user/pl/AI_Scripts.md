@@ -1,6 +1,6 @@
 # Skrypty (Beta)
 
-Stan na: 2026-10-08
+Stan na: 2026-10-25
 
 Skrypt to mały program do tego, co model robi słabo, a program wykonuje za każdym razem tak samo: liczenia, sortowania, porównywania, sumowania. Pisze się go w JavaScript. Działa w zamkniętej piaskownicy wewnątrz Plainva: nie może otworzyć pliku, sięgnąć do sieci ani czekać na późniejszą chwilę. Wywołuje tylko te narzędzia, które są dla niego zaznaczone: czytają one Twój vault tak samo jak narzędzia AI albo zostawiają propozycję, o której decydujesz Ty. Skrypt sam niczego nie zmienia.
 
@@ -61,6 +61,8 @@ Językiem jest JavaScript w wersji ES2020. Nie ma `fetch`, timera, `import` ani 
 | `get_backlinks` — **Czytanie linków zwrotnych** | `path`; opcjonalnie `limit` (do 50), `cursor` | `path`; `notes`: lista obiektów `{ title, path, links, places }`; `next` |
 | `graph_neighborhood` — **Podążanie za linkami** | `path`; opcjonalnie `depth` (1 lub 2), `limit` (do 50) | `path`; `notes`: lista obiektów `{ title, path, fromHere, toHere, via }` |
 | `get_recent` — **Przeglądanie ostatnich notatek** | opcjonalnie `kind` (`opened` lub `edited`), `limit` (do 20) | `kind`; `notes`: lista obiektów `{ title, path, at }` |
+| `get_changes` — **Przeglądanie zmian** | `since` jako `YYYY-MM-DD`; opcjonalnie `until`, `folder`, `limit` (do 20) | `since`, `until`; `notes`: lista obiektów `{ path, title, kind, made, last, added, removed, gained }` |
+| `get_note_history` — **Śledzenie rozwoju notatki** | `path`; opcjonalnie `since` i `until` jako `YYYY-MM-DD` | `path`, `since`, `until`, `made`; `days`: lista obiektów `{ day, added, removed, gained }` |
 | `get_calendar` — **Czytanie spotkań** | `from` i `to` jako `YYYY-MM-DD`; opcjonalnie `details`, `limit` (do 100) | `events`: lista obiektów `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Korzystanie z aplikacji** | `id`, polecenie aplikacji, np. `open-note`, `show-in-graph` lub `open-calendar`; opcjonalnie `args` z `path`, `section` lub `date` | `done`, `command` |
 | `propose_edit` — **Proponowanie zmian w notatce** | `path`; `edits`, czyli lista obiektów `{ find, replace }`, albo `append`; opcjonalnie `section`, `note` | `proposed`, `path`, `passages` |

@@ -1,6 +1,6 @@
 # AI-assistent (Beta)
 
-Laatst bijgewerkt: 2026-10-24
+Laatst bijgewerkt: 2026-10-25
 
 Plainva kan vragen over je notities beantwoorden met een AI-model van jouw keuze. Het leest je vault, noemt de notities waarop het zich baseert, opent notities en weergaven voor je en stelt wijzigingen voor — als voorstellen bij een notitie, als concepten voor iets nieuws of als een plan dat jij bevestigt. Een notitie verandert het nooit zelf. De assistent is **experimenteel** en staat uit totdat je hem inschakelt, apart op elk apparaat.
 
@@ -57,7 +57,7 @@ Een zesde plek, **Embeddings**, bevat het model waarmee zoeken op betekenis reke
 - **Telefoon:** **AI vragen** in het ⋮-menu van een notitie opent het AI-blad over die notitie. Het onderdeel **AI** (in het onderdelenblad, of in de navigatiebalk als je het daar neerzet) toont het gesprek op volledig scherm; **Gesprekken** toont de eerdere gesprekken.
 - **Naast de notitie:** op de desktop is hetzelfde gesprek de laatste sectie van de rechterzijbalk, **AI**. Op een telefoon of tablet is het het tabblad **AI** in de context van de notitie — naast **Eigenschappen** en **Backlinks** —, die een tablet naast de notitie toont.
 
-De notitie die je open hebt staan, gaat automatisch mee; verwijder haar met het kruisje ✕ uit de context als je wilt. **Notitie vastzetten…** voegt nog meer notities toe. De assistent kan ook zelf dingen opzoeken: hij doorzoekt de vault, leest notities en de secties ervan, databases, backlinks en gelinkte notities, somt taken, afspraken en de onlangs geopende of gewijzigde notities op en opent notities en weergaven. Zelf kan hij niets veranderen, aanmaken of verwijderen; wat hij in plaats daarvan kan voorstellen, staat verderop onder ‘Wijzigingen voorstellen’.
+De notitie die je open hebt staan, gaat automatisch mee; verwijder haar met het kruisje ✕ uit de context als je wilt. **Notitie vastzetten…** voegt nog meer notities toe. De assistent kan ook zelf dingen opzoeken: hij doorzoekt de vault, leest notities en de secties ervan, databases, backlinks en gelinkte notities, somt taken, afspraken en de onlangs geopende of gewijzigde notities op en opent notities en weergaven. Voor een terugblik — wat er in een periode veranderde, hoe een notitie zich ontwikkelde — leest hij de versiegeschiedenis op dit apparaat; een regel die je hebt verwijderd, kan hij tellen, maar nooit lezen. Zelf kan hij niets veranderen, aanmaken of verwijderen; wat hij in plaats daarvan kan voorstellen, staat verderop onder ‘Wijzigingen voorstellen’.
 
 De assistent kan je ook dingen laten zien: een notitie openen bij een kop, een notitie in de graaf tonen, de kalender op een dag zetten, weergaven openen, de zijbalken tonen en verbergen. Hij gebruikt daarvoor de opdrachten van het opdrachtenpalet — en daarvan alleen die iets tonen: wat iets aanmaakt, wijzigt, verwijdert, exporteert of een venster opent, kan hij niet in gang zetten.
 

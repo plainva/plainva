@@ -44,6 +44,8 @@
       "get_event": "Odczytywanie spotkania",
       "search_mail": "Przeszukiwanie e-maili",
       "read_mail": "Odczytywanie wiadomości",
+      "get_changes": "Przeglądanie zmian",
+      "get_note_history": "Śledzenie rozwoju notatki",
       "search_memory": "Przeszukiwanie pamięci",
       "find_tools": "Szukanie dodatkowych narzędzi",
       "call_tool": "Korzystanie z dodatkowego narzędzia",
@@ -661,6 +663,11 @@
         "prompt": "Jaki jest stan projektu w otwartej notatce? Cel, co zostało zrobione, co jest otwarte, co go blokuje i następny krok — każdy punkt ze źródłem. Jeśli otwarta notatka nie dotyczy projektu, zapytaj, o który projekt chodzi.",
         "promptFor": "Jaki jest stan projektu „{{project}}”? Cel, co zostało zrobione, co jest otwarte, co go blokuje i następny krok — każdy punkt ze źródłem.",
         "argument": "Projekt: nazwa jego notatki lub folderu."
+      },
+      "history": {
+        "title": "Analiza historii",
+        "description": "Co się zmieniło w danym okresie, jak rozwijały się projekty i co jest wciąż otwarte.",
+        "prompt": "Spójrz wstecz na ostatnie siedem dni: czego dotyczyła moja praca, jak rozwijały się moje projekty, które decyzje zostały zapisane lub zmienione, które tematy wracały i co jest wciąż otwarte. Podaj notatki i dni jako źródła."
       },
       "meeting": {
         "title": "Przygotowanie spotkania",

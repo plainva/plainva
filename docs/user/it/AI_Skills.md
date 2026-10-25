@@ -1,8 +1,8 @@
 # Competenze (Beta)
 
-Ultimo aggiornamento: 2026-10-09
+Ultimo aggiornamento: 2026-10-25
 
-Una competenza è un insieme di istruzioni per un lavoro che ritorna: preparare una riunione, ordinare le tue attività, un riepilogo settimanale. Plainva ne include tredici e puoi scriverne di tue. Le competenze usano il formato aperto Agent Skills — una cartella con uno `SKILL.md` — e quindi funzionano anche in altre app di IA che leggono questo formato.
+Una competenza è un insieme di istruzioni per un lavoro che ritorna: preparare una riunione, ordinare le tue attività, un riepilogo settimanale. Plainva ne include quattordici e puoi scriverne di tue. Le competenze usano il formato aperto Agent Skills — una cartella con uno `SKILL.md` — e quindi funzionano anche in altre app di IA che leggono questo formato.
 
 ## Usare una competenza
 
@@ -17,6 +17,7 @@ Puoi anche semplicemente chiedere. In ogni conversazione l'IA conosce i nomi e l
 | **Orientamento del giorno** | Cosa conta oggi: attività in scadenza, appuntamenti e ciò su cui hai lavorato di recente. |
 | **Riepilogo settimanale** | Gli ultimi sette giorni e la settimana che arriva, con tre suggerimenti. |
 | **Stato del progetto** | Obiettivo, avanzamento, punti aperti e prossimo passo di un progetto. |
+| **Analisi della cronologia** | Ripercorre un periodo: cosa è cambiato, come si sono sviluppati i progetti, quali decisioni hai annotato o rivisto e cosa è ancora aperto — a partire da ciò che si è aggiunto alle tue note giorno dopo giorno. Una riga che hai eliminato viene contata, mai mostrata. |
 | **Preparare una riunione** | Prepara una riunione da note precedenti e punti aperti, oppure la riassume dopo. |
 | **Smistare le attività** | Ordina le tue attività aperte: cosa ora, cosa può aspettare, cosa togliere. |
 | **Documentarsi** | Si documenta su una domanda, sia sul web sia nelle tue note, con ogni fonte citata. |

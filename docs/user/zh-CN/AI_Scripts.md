@@ -1,6 +1,6 @@
 # 脚本（测试版）
 
-更新日期：2026-10-08
+更新日期：2026-10-25
 
 脚本是一个小程序，用来完成模型不擅长、而程序每次都能做得一模一样的事：计数、排序、比较、求和。你用JavaScript来编写它。它在Plainva内部的一个封闭沙盒中运行：不能打开文件，不能访问网络，也不能等到以后再执行。它只会调用你为它勾选的工具：这些工具要么像AI的工具那样读取你的仓库，要么留下一条由你决定是否采纳的建议。脚本不会自行更改任何内容。
 
@@ -61,6 +61,8 @@ return { tag: input.tag, count: notes.length, notes };
 | `get_backlinks` — **正在读取反向链接** | `path`；可选：`limit`（最多50）、`cursor` | `path`；`notes`：由`{ title, path, links, places }`组成的列表；`next` |
 | `graph_neighborhood` — **正在追踪链接** | `path`；可选：`depth`（1或2）、`limit`（最多50） | `path`；`notes`：由`{ title, path, fromHere, toHere, via }`组成的列表 |
 | `get_recent` — **正在查看最近的笔记** | 可选：`kind`（`opened`或`edited`）、`limit`（最多20） | `kind`；`notes`：由`{ title, path, at }`组成的列表 |
+| `get_changes` — **正在查看有什么变化** | `since`，格式为`YYYY-MM-DD`；可选：`until`、`folder`、`limit`（最多20） | `since`、`until`；`notes`：由`{ path, title, kind, made, last, added, removed, gained }`组成的列表 |
+| `get_note_history` — **正在追溯笔记的演变** | `path`；可选：`since`和`until`，格式为`YYYY-MM-DD` | `path`、`since`、`until`、`made`；`days`：由`{ day, added, removed, gained }`组成的列表 |
 | `get_calendar` — **正在读取日程** | `from`和`to`，格式为`YYYY-MM-DD`；可选：`details`、`limit`（最多100） | `events`：由`{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`组成的列表；`more` |
 | `run_command` — **正在操作应用** | `id`，即应用的某个命令，例如`open-note`、`show-in-graph`或`open-calendar`；可选：`args`，其中可含`path`、`section`或`date` | `done`、`command` |
 | `propose_edit` — **正在为笔记提出修改建议** | `path`；`edits`（由`{ find, replace }`组成的列表）或`append`；可选：`section`、`note` | `proposed`、`path`、`passages` |

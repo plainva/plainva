@@ -42,6 +42,8 @@
       "get_event": "Lendo um compromisso",
       "search_mail": "Pesquisando no e-mail",
       "read_mail": "Lendo uma mensagem",
+      "get_changes": "Olhando o que mudou",
+      "get_note_history": "Acompanhando a evolução de uma nota",
       "search_memory": "Pesquisando na memória",
       "find_tools": "Procurando outras ferramentas",
       "call_tool": "Usando outra ferramenta",
@@ -637,6 +639,11 @@
         "prompt": "Qual é o status do projeto da nota aberta? Objetivo, o que está feito, o que está em aberto, o que o bloqueia e o próximo passo — cada ponto com sua fonte. Se a nota aberta não for sobre um projeto, pergunte qual projeto eu quero dizer.",
         "promptFor": "Qual é o status do projeto “{{project}}”? Objetivo, o que está feito, o que está em aberto, o que o bloqueia e o próximo passo — cada ponto com sua fonte.",
         "argument": "O projeto: o nome da nota ou pasta dele."
+      },
+      "history": {
+        "title": "Análise do histórico",
+        "description": "O que mudou em um período, como os projetos evoluíram e o que ainda está em aberto.",
+        "prompt": "Faça uma retrospectiva dos últimos sete dias: em que trabalhei, como meus projetos evoluíram, quais decisões anotei ou revisei, quais temas voltaram a aparecer e o que ainda está em aberto. Cite as notas e os dias."
       },
       "meeting": {
         "title": "Preparar reunião",

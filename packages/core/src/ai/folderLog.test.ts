@@ -92,6 +92,17 @@ describe("what a note gained", () => {
     expect(logItem({ path: "P/One.md", title: "One", fresh: true, text: "x".repeat(5_000), before: null }).shown).toHaveLength(FOLDER_LOG_NOTE_CHARS);
   });
 
+  it("compares what a note says, never its properties — the mood and the app's own settings are no line of it", () => {
+    const before = "---\nmood: 4\nstatus: open\nplainva:\n  ai:\n    web: deny\n---\n# Day\n\nCalled the studio.\n";
+    const now = "---\nmood: 1\nstatus: done\nplainva:\n  ai:\n    web: allow\n---\n# Day\n\nCalled the studio.\nThe offer went out.\n";
+    const item = logItem({ path: "J/Day.md", title: "Day", fresh: false, text: now, before });
+    expect(item).toEqual({ path: "J/Day.md", title: "Day", kind: "changed", shown: "The offer went out.", added: 1, removed: 0 });
+    // Only a property changed: the note says what it said.
+    const onlyProperties = logItem({ path: "J/Day.md", title: "Day", fresh: false, text: now.replace("The offer went out.\n", ""), before });
+    expect(onlyProperties).toMatchObject({ shown: "", added: 0, removed: 0 });
+    expect(logItemSaysSomething(onlyProperties)).toBe(false);
+  });
+
   it("takes a file that was touched without a changed line for no news", () => {
     const touched = logItem({ path: "P/Same.md", title: "Same", fresh: false, text: "a\nb\n", before: "b\na" });
     expect(touched).toMatchObject({ added: 0, removed: 0 });

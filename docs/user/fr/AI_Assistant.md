@@ -1,6 +1,6 @@
 # Assistant IA (Bêta)
 
-Dernière mise à jour : 2026-10-24
+Dernière mise à jour : 2026-10-25
 
 Plainva peut répondre à des questions sur vos notes avec un modèle d'IA de votre choix. Il lit votre vault, cite les notes sur lesquelles il s'appuie, ouvre des notes et des vues pour vous et propose des modifications — sous forme de propositions sur une note, de brouillons pour ce qui est nouveau, ou d'un plan que vous confirmez. Il ne modifie jamais une note lui-même. L'assistant est **expérimental** et désactivé jusqu'à ce que vous l'activiez, séparément sur chaque appareil.
 
@@ -57,7 +57,7 @@ Un sixième emplacement, **Embeddings**, contient le modèle avec lequel la rech
 - **Téléphone :** **Demander à l'IA** dans le menu ⋮ d'une note ouvre la feuille IA au-dessus de cette note. La rubrique **IA** (dans « Rubriques », ou dans la barre de navigation si vous l'y placez) affiche la conversation en plein écran ; **Conversations** liste les précédentes.
 - **À côté de la note :** sur l'ordinateur, la même conversation est la dernière section de la barre latérale droite, **IA**. Sur un téléphone ou une tablette, c'est l'onglet **IA** du contexte de la note — à côté de **Propriétés** et **Backlinks** —, qu'une tablette affiche à côté de la note.
 
-La note que vous avez ouverte est jointe automatiquement ; retirez-la du contexte avec son ✕ si vous le souhaitez. **Épingler une note…** ajoute d'autres notes. L'assistant peut aussi chercher par lui-même : il parcourt le vault, lit des notes et leurs sections, des bases de données, des backlinks et des notes liées, liste des tâches, des rendez-vous et les notes ouvertes ou modifiées récemment, et ouvre des notes et des vues. Il ne peut rien modifier, créer ou supprimer lui-même ; ce qu'il peut proposer à la place est décrit plus bas, sous « Proposer des modifications ».
+La note que vous avez ouverte est jointe automatiquement ; retirez-la du contexte avec son ✕ si vous le souhaitez. **Épingler une note…** ajoute d'autres notes. L'assistant peut aussi chercher par lui-même : il parcourt le vault, lit des notes et leurs sections, des bases de données, des backlinks et des notes liées, liste des tâches, des rendez-vous et les notes ouvertes ou modifiées récemment, et ouvre des notes et des vues. Pour un regard en arrière — ce qui a changé sur une période, comment une note a évolué —, il lit l'historique des versions de cet appareil ; une ligne que vous avez supprimée, il peut la compter, mais jamais la lire. Il ne peut rien modifier, créer ou supprimer lui-même ; ce qu'il peut proposer à la place est décrit plus bas, sous « Proposer des modifications ».
 
 L'assistant peut aussi vous montrer des choses : ouvrir une note à un titre, afficher une note dans le graphe, placer le calendrier sur un jour, ouvrir des vues, afficher et masquer les barres latérales. Il utilise pour cela les commandes de la palette de commandes — et, parmi elles, seulement celles qui montrent quelque chose : il ne peut pas déclencher celles qui créent, modifient, suppriment, exportent ou ouvrent une fenêtre.
 

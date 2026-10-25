@@ -1,6 +1,6 @@
 # AI Assistant (Beta)
 
-Last reviewed: 2026-10-24
+Last reviewed: 2026-10-25
 
 Plainva can answer questions about your notes with an AI model of your choice. It reads your vault, cites the notes it used, opens notes and views for you and proposes changes — as suggestions on a note, as drafts of something new, or as a plan you confirm. It never changes a note itself. The assistant is **experimental** and switched off until you switch it on, separately on every device.
 
@@ -57,7 +57,7 @@ A sixth slot, **Embeddings**, holds the model search by meaning computes with wh
 - **Phone:** **Ask AI** in a note's ⋮ menu opens the AI sheet over that note. The **AI** area (in the areas sheet, or in the navigation bar if you put it there) shows the conversation full screen; **Conversations** lists the earlier ones.
 - **Beside the note:** on the desktop the same conversation is the last section of the right sidebar, **AI**. On a phone or tablet it is the **AI** tab of the note's context — next to **Properties** and **Backlinks** — which a tablet shows beside the note.
 
-The note you have open goes along automatically; remove it from the context with its ✕ if you want to. **Pin a note…** adds further notes. The assistant can also look things up itself: it searches the vault, reads notes and their sections, databases, backlinks and linked notes, lists tasks, appointments and the notes opened or changed lately, and opens notes and views. It cannot change, create or delete anything itself; what it can propose instead is described under “Proposing changes” below.
+The note you have open goes along automatically; remove it from the context with its ✕ if you want to. **Pin a note…** adds further notes. The assistant can also look things up itself: it searches the vault, reads notes and their sections, databases, backlinks and linked notes, lists tasks, appointments and the notes opened or changed lately, and opens notes and views. For a look back — what changed in a period, how a note developed — it reads the version history on this device; a line you deleted it can count, but never read. It cannot change, create or delete anything itself; what it can propose instead is described under “Proposing changes” below.
 
 The assistant can also show you things: open a note at a heading, show a note in the graph, turn the calendar to a day, open views, show and hide the sidebars. It uses the commands of the command palette for that — and of those only the ones that show something: whatever creates, changes, deletes, exports or opens a window is not its to trigger.
 

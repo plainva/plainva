@@ -7616,3 +7616,99 @@ test('AI hints: beside the open note a link that leads nowhere and two TODO line
   // No model was asked, by anything of it.
   expect(await page.evaluate(() => (window as any).__aiRequests)).toEqual([]);
 });
+
+// A look back (AI harness P9-1): the skill "History analysis" asks what changed in the last days, and the device
+// answers from its own index — a note made two days ago and one changed yesterday. The vault's rules keep a third
+// note from the provider: it is not listed and not counted. What a note's properties say — the mood of a day — is
+// no line of it. The model is scripted: it calls `get_changes` once and answers.
+test('AI history analysis: a look back lists what changed from the index — a note the rules keep back and the mood of a day stay home', async ({ page }) => {
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const calls = (name: string, input: unknown) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: 'call-1', name, input: {} } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify(input) } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const dayKey = (offset: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const ANSWER = 'This week the kick-off for Monday was planned in [[Kick-off]], and the budget was agreed in [[Budget]].';
+  const script = [calls('get_changes', { since: dayKey(-6) }), says(ANSWER)];
+  await page.addInitScript(({ script }) => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    const now = Date.now();
+    const day = 86_400_000;
+    Object.assign((window as any).mockFs, {
+      '/test-vault/.agent': { isDir: true },
+      '/test-vault/.agent/policy.yml': 'folders:\n  Private/:\n    cloud: deny\n',
+      '/test-vault/Projects': { isDir: true },
+      '/test-vault/Projects/Kick-off.md': '---\nmood: 2\n---\n# Kick-off\n\nMonday at ten, with Tom.\n',
+      '/test-vault/Projects/Budget.md': '# Budget\n\n12,000 € — agreed.\n',
+      '/test-vault/Private': { isDir: true },
+      '/test-vault/Private/Salary.md': '# Salary\n\nsalary review: 93k\n',
+    });
+    // What the index knows of them: the kick-off made two days ago; the budget and the salary note older, changed yesterday.
+    Object.assign((window as any).mockFileTimes, {
+      'Projects/Kick-off.md': { mtime_local: now - 2 * day, ctime: now - 2 * day },
+      'Projects/Budget.md': { mtime_local: now - day, ctime: now - 90 * day },
+      'Private/Salary.md': { mtime_local: now - day + 1000, ctime: now - 90 * day },
+    });
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+
+  // 1. The skill, started from the skills of the AI tab: bound to the tools it names, the two of a look back among them.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-skills')));
+  await page.getByTestId('ai-tab-chats').click();
+  const tab = page.getByTestId('ai-tab');
+  await tab.getByTestId('ai-tab-skill-history').click();
+  await tab.getByTestId('ai-consent-send').click();
+  await expect(tab.getByText(/the kick-off for Monday was planned/)).toBeVisible();
+  const [first, second] = await requests();
+  expect(first).toContain('"name":"get_changes"');
+  expect(first).toContain('"name":"get_note_history"');
+  expect(first).not.toMatch(/"name":"(run_command|fetch_url|web_search|find_tools)"/);
+
+  // 2. What the device answered, from its index: the new note by its beginning, the changed one by its beginning
+  //    (this vault keeps no version of it) — and of the note the rules keep from the provider, and of a mood, nothing.
+  //    The tool's result alone: the skill's own instructions speak of moods.
+  const told = JSON.stringify(
+    (JSON.parse(second).messages as any[]).flatMap((message) => (Array.isArray(message.content) ? message.content : [])).filter((part: any) => part.type === 'tool_result'),
+  );
+  expect(told).toContain('Notes created or changed from');
+  expect(told).toContain('[[Kick-off]] (Projects/Kick-off.md) — new on');
+  expect(told).toContain('Monday at ten, with Tom.');
+  expect(told).toContain('[[Budget]] (Projects/Budget.md) — changed');
+  expect(told).toContain('A line that was deleted is counted, never shown.');
+  for (const word of ['Salary', '93k', 'mood']) expect(told, word).not.toContain(word);
+  expect(second, 'the whole request').not.toContain('93k');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-history-desktop.png'), animations: 'disabled' });
+});

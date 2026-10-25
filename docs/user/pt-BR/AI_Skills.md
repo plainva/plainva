@@ -1,8 +1,8 @@
 # Habilidades (Beta)
 
-Última revisão: 2026-10-09
+Última revisão: 2026-10-25
 
-Uma habilidade é um conjunto de instruções para um trabalho que se repete: preparar uma reunião, organizar suas tarefas, uma revisão semanal. O Plainva traz treze, e você pode escrever as suas. As habilidades usam o formato aberto Agent Skills — uma pasta com um `SKILL.md` — e por isso também funcionam em outros apps de IA que leem esse formato.
+Uma habilidade é um conjunto de instruções para um trabalho que se repete: preparar uma reunião, organizar suas tarefas, uma revisão semanal. O Plainva traz quatorze, e você pode escrever as suas. As habilidades usam o formato aberto Agent Skills — uma pasta com um `SKILL.md` — e por isso também funcionam em outros apps de IA que leem esse formato.
 
 ## Usar uma habilidade
 
@@ -17,6 +17,7 @@ Você também pode simplesmente perguntar. Em toda conversa a IA conhece os nome
 | **Orientação do dia** | O que importa hoje: tarefas com prazo, compromissos e o que você fez por último. |
 | **Revisão semanal** | Os últimos sete dias e a semana que vem, com três sugestões. |
 | **Status do projeto** | Objetivo, progresso, pontos em aberto e o próximo passo de um projeto. |
+| **Análise do histórico** | Faz uma retrospectiva de um período: o que mudou, como os projetos evoluíram, quais decisões você anotou ou revisou e o que ainda está em aberto — a partir do que foi acrescentado às suas notas dia após dia. Uma linha que você excluiu é contada, nunca mostrada. |
 | **Preparar reunião** | Prepara uma reunião a partir de notas anteriores e pontos em aberto, ou a resume depois. |
 | **Triagem de tarefas** | Organiza suas tarefas abertas: o que agora, o que pode esperar, o que descartar. |
 | **Investigar** | Investiga uma pergunta na web e nas suas notas, com cada fonte citada. |

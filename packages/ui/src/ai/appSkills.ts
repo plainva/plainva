@@ -1,5 +1,5 @@
 import { appSkillSource, type InstructionSource } from "@plainva/core";
-import { BookOpenCheck, CalendarCheck, CalendarClock, CalendarRange, Feather, FolderKanban, Inbox, Link2, ListOrdered, PenLine, ShieldCheck, Sprout, Telescope, type LucideIcon } from "lucide-react";
+import { BookOpenCheck, CalendarCheck, CalendarClock, CalendarRange, Feather, FolderKanban, History, Inbox, Link2, ListOrdered, PenLine, ShieldCheck, Sprout, Telescope, type LucideIcon } from "lucide-react";
 
 /**
  * The skills that come with the app (plan KI-Harness P3, §14.2): each a
@@ -35,6 +35,8 @@ export const APP_SKILLS: readonly AppSkill[] = [
   { name: "daily-orientation", key: "daily", icon: CalendarCheck, featured: true, mcp: true },
   { name: "weekly-review", key: "weekly", icon: CalendarRange, featured: true, mcp: true },
   { name: "project-status", key: "project", icon: FolderKanban, featured: true, mcp: true },
+  // How notes developed (plan P9-1): from the index and the version history of this device, so no prompt of the MCP server.
+  { name: "history-analysis", key: "history", icon: History },
   { name: "meeting-prep", key: "meeting", icon: CalendarClock, mcp: true },
   { name: "task-triage", key: "triage", icon: ListOrdered, mcp: true },
   // The one skill that names the internet's tools (plan P4-6): started by the user, it brings them along where the vault allows the internet.

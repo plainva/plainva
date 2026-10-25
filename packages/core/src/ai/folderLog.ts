@@ -141,13 +141,19 @@ export interface LogItem {
   removed: number | null;
 }
 
+/**
+ * What a note says, and what it gained: its text without its properties
+ * block — by the one definition of that block —, now and before. A changed
+ * property is no line of the note: the block carries the app's own settings
+ * and the mood of a day, which no tool shows a model (`read_note` reads the
+ * text alone); a note whose only change was a property is no news.
+ */
 export function logItem(note: LogNote): LogItem {
-  // What a note says, without its properties block — by the one definition of that block.
   const body = noteBodyOf(note.text);
   const beginning = () => cutAtLine(linesOf(body).join("\n"), FOLDER_LOG_NOTE_CHARS);
   if (note.fresh) return { path: note.path, title: note.title, kind: "new", shown: beginning(), added: null, removed: null };
   if (note.before === null) return { path: note.path, title: note.title, kind: "changed", shown: beginning(), added: null, removed: null };
-  const delta = linesGained(note.before, note.text);
+  const delta = linesGained(noteBodyOf(note.before), body);
   return { path: note.path, title: note.title, kind: "changed", shown: cutAtLine(delta.added.join("\n"), FOLDER_LOG_NOTE_CHARS), added: delta.added.length, removed: delta.removed };
 }
 

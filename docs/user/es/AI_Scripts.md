@@ -1,6 +1,6 @@
 # Scripts (Beta)
 
-Última actualización: 2026-10-08
+Última actualización: 2026-10-25
 
 Un script es un programa pequeño para lo que un modelo hace mal y un programa hace siempre igual: contar, ordenar, comparar, sumar. Lo escribes en JavaScript. Se ejecuta en un entorno aislado dentro de Plainva: no puede abrir un archivo, llegar a la red ni esperar hasta más tarde. Solo llama a las herramientas que marcaste para él: estas leen tu vault igual que las herramientas de la IA o dejan una sugerencia sobre la que decides tú. Un script no cambia nada por sí solo.
 
@@ -61,6 +61,8 @@ El lenguaje es JavaScript en su versión ES2020. No hay `fetch`, temporizador, `
 | `get_backlinks` — **Leyendo retroenlaces** | `path`; opcionalmente `limit` (hasta 50), `cursor` | `path`; `notes`: una lista de `{ title, path, links, places }`; `next` |
 | `graph_neighborhood` — **Siguiendo enlaces** | `path`; opcionalmente `depth` (1 o 2), `limit` (hasta 50) | `path`; `notes`: una lista de `{ title, path, fromHere, toHere, via }` |
 | `get_recent` — **Mirando notas recientes** | opcionalmente `kind` (`opened` o `edited`), `limit` (hasta 20) | `kind`; `notes`: una lista de `{ title, path, at }` |
+| `get_changes` — **Mirando qué cambió** | `since` como `YYYY-MM-DD`; opcionalmente `until`, `folder`, `limit` (hasta 20) | `since`, `until`; `notes`: una lista de `{ path, title, kind, made, last, added, removed, gained }` |
+| `get_note_history` — **Siguiendo la evolución de una nota** | `path`; opcionalmente `since` y `until` como `YYYY-MM-DD` | `path`, `since`, `until`, `made`; `days`: una lista de `{ day, added, removed, gained }` |
 | `get_calendar` — **Leyendo citas** | `from` y `to` como `YYYY-MM-DD`; opcionalmente `details`, `limit` (hasta 100) | `events`: una lista de `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Usando la aplicación** | `id`, un comando de la app como `open-note`, `show-in-graph` u `open-calendar`; opcionalmente `args` con `path`, `section` o `date` | `done`, `command` |
 | `propose_edit` — **Sugiriendo cambios en una nota** | `path`; `edits`, una lista de `{ find, replace }`, o `append`; opcionalmente `section`, `note` | `proposed`, `path`, `passages` |

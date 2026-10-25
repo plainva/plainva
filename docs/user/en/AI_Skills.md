@@ -1,8 +1,8 @@
 # Skills (Beta)
 
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-25
 
-A skill is a set of instructions for work that comes back: preparing a meeting, sorting your tasks, a weekly review. Plainva comes with thirteen of them, and you can write your own. Skills use the open Agent Skills format — a folder with a `SKILL.md` — so they also work in other AI apps that read the format.
+A skill is a set of instructions for work that comes back: preparing a meeting, sorting your tasks, a weekly review. Plainva comes with fourteen of them, and you can write your own. Skills use the open Agent Skills format — a folder with a `SKILL.md` — so they also work in other AI apps that read the format.
 
 ## Using a skill
 
@@ -17,6 +17,7 @@ You can also simply ask. In every conversation the AI knows the names and descri
 | **Daily orientation** | What matters today: due tasks, appointments and what you worked on lately. |
 | **Weekly review** | The past seven days and the week ahead, with three suggestions. |
 | **Project status** | Goal, progress, open points and the next step of a project. |
+| **History analysis** | Looks back over a period: what changed, how projects developed, which decisions you wrote down or revised, and what is still open — from what your notes gained day by day. A line you deleted is counted, never shown. |
 | **Meeting preparation** | Prepares a meeting from earlier notes and open points, or writes one up afterwards. |
 | **Task triage** | Sorts your open tasks: what now, what can wait, what to drop. |
 | **Research** | Researches a question on the web and in your notes, with every source named. |

@@ -40,3 +40,4 @@ export * from "./upkeep/index.js";
 export * from "./routines.js";
 export * from "./folderLog.js";
 export * from "./noteHints.js";
+export * from "./noteHistory.js";

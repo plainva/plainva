@@ -65,9 +65,23 @@ Four facts shape it.
 - **Writing the memory from a routine** (the plan's first wording). Since the memory's entries became drafts a person accepts, a routine has nobody to accept them. Rejected; a routine reads the memory.
 - **Subagents.** The plan allows them only once a single agent's success plateaus and real runs show work that can be split. Neither has been measured — there are no real runs yet. Not built.
 
+## Addendum 2026-10-25 (how notes developed: a look back in a conversation)
+
+Plan P9-1 ("history analysis") reads what a folder's log reads — what notes gained, from the index and the version history — for a person who asks in a conversation: "what did I work on last week, and how did my projects develop?"
+
+1. **Two tools that read, found rather than carried.** `get_changes` lists the notes made or changed in a period of days, in the whole vault or a folder, each with what it gained by the period's end; `get_note_history` tells one note day by day, at most 31 days in one call. Neither goes along with every request: the tool search finds them where the shell has an index — both shells have one —, and a skill may name them. A script may read with them too.
+2. **A note at a moment.** A kept state is the text before the write it was taken for, so a note's text at a moment is the first state kept after it — or its text now, where none was kept after it. A period starts at the state of its beginning, or, where none was kept after that, at the newest one kept before it (the rule of decision 13). A note the index first saw within the period is new, and before that moment it had no text; where a state kept earlier than the index's moment shows that the note was there already, the index is not believed (`madeAt`).
+3. **What a note says, not its properties — here and in a folder's log.** The lines compared are the note's text without its properties block, by the one definition of that block. The block carries the app's own settings and the mood of a day, which no tool shows a model (`read_note` reads the text alone, `get_outline` names properties without the mood and without Plainva's namespace); a change of a property alone is no change. This amends decision 13: a folder's log compares in the same way.
+4. **A deleted line is a number**, as in decision 13: a tool says how many lines a note lost, never which, and every answer ends on that sentence, so that a model does not ask for what it cannot have.
+5. **The gate of every read.** A note the rules keep from the recipient is not there: not listed, not counted, its history answered like that of a note that does not exist. What a note gained passes the same withholding as `read_note`: place stamps, links to notes that are kept back, a provider's redaction of what the reader marked.
+6. **The skill says what the notes say.** "History analysis" asks for the topics of the period, the steps of a project in the order of the days, the decisions the user wrote down, recurring themes and open loops — and worries only as the user wrote them, quoted, with the day. It never diagnoses, labels a mood or claims an inner state; a line that was replaced is "revised", and what stood there is not guessed.
+
+How far back a look reaches depends on the version history, which keeps a state at most every two minutes and only on the device that wrote it: a vault without a history answers with each changed note's beginning, and says so.
+
 ## Links
 
 - ADR 0018 (the context package and the scope), ADR 0019 (the Rule of Two; its decision 8 designed the unattended run this record builds), ADR 0020 (skills and their approval), ADR 0032 (the memory), ADR 0030 (fully local).
 - `packages/core/src/ai/routines.ts`; `packages/ui/src/ai/aiSession.ts` (`runRoutine`, `routinePreview`), `routineSession.ts`, `routineScheduler.ts`, `routineView.ts`.
 - A folder's log: `packages/core/src/ai/folderLog.ts` (what counts, what a note gained, the request, the answer, the entry), `packages/ui/src/ai/folderLogRun.ts` (what a run brings along under the rules), `folderLogHost` in `packages/ui/src/ai/aiVaultHost.ts`, `VaultQueryService.getNotesChangedIn`.
-- [AI threat model](../engineering/AI_Threat_Model.md), T70 to T75.
+- How notes developed (addendum 2026-10-25): `packages/core/src/ai/noteHistory.ts` (a note at a moment, its days), the tools `get_changes` and `get_note_history` in `packages/ui/src/ai/vaultTools.ts`, `noteHistorySource` in `packages/ui/src/ai/aiVaultHost.ts`, `VaultQueryService.getNoteCreated`; the skill `packages/ui/src/ai/skills/history-analysis/`.
+- [AI threat model](../engineering/AI_Threat_Model.md), T70 to T78 and T81.

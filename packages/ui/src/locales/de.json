@@ -40,6 +40,8 @@
       "get_event": "Liest einen Termin",
       "search_mail": "Durchsucht E-Mails",
       "read_mail": "Liest eine E-Mail",
+      "get_changes": "Sieht nach, was sich geändert hat",
+      "get_note_history": "Verfolgt, wie sich eine Notiz entwickelt hat",
       "search_memory": "Schlägt im Gedächtnis nach",
       "find_tools": "Sucht weitere Werkzeuge",
       "call_tool": "Nutzt ein weiteres Werkzeug",
@@ -613,6 +615,11 @@
         "prompt": "Wie steht das Projekt in der offenen Notiz? Ziel, was erledigt ist, was offen ist, was es blockiert und der nächste Schritt — jeder Punkt mit seiner Quelle. Wenn es in der offenen Notiz um kein Projekt geht, frag mich, welches Projekt ich meine.",
         "promptFor": "Wie steht das Projekt „{{project}}“? Ziel, was erledigt ist, was offen ist, was es blockiert und der nächste Schritt — jeder Punkt mit seiner Quelle.",
         "argument": "Das Projekt: der Name seiner Notiz oder seines Ordners."
+      },
+      "history": {
+        "title": "Verlaufsanalyse",
+        "description": "Was sich in einem Zeitraum geändert hat, wie sich Projekte entwickelt haben und was offen ist.",
+        "prompt": "Blick mit mir auf die letzten sieben Tage: woran ich gearbeitet habe, wie sich meine Projekte entwickelt haben, welche Entscheidungen ich festgehalten oder überarbeitet habe, welche Themen wiederkamen und was noch offen ist. Nenne die Notizen und die Tage."
       },
       "meeting": {
         "title": "Meeting vorbereiten",

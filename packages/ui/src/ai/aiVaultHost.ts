@@ -48,7 +48,7 @@ import type { FolderLogHost } from "./folderLogRun";
 import type { NoteHintsHost } from "./noteHintsHost";
 import { createNoteHintsStore } from "./noteHintsStore";
 import type { WriteRun } from "./writeTools";
-import { CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, unmarkSnippet, withoutBrokenLinks, type ToolScope, type VaultToolDeps } from "./vaultTools";
+import { CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, unmarkSnippet, withoutBrokenLinks, type ToolScope, type VaultToolDeps, type NoteHistorySource } from "./vaultTools";
 
 /**
  * The vault side of the AI session, built the same way in both shells: the
@@ -295,6 +295,29 @@ export function adapterInstructionVersions(adapter: IVaultAdapter, backup: () =>
     },
     list: async (path) => (await history.listVersions(path)).map((version) => ({ id: version.backupPath, at: version.timestamp, size: version.size })),
     read: (id) => history.readVersionText(id).catch(() => null),
+  };
+}
+
+/**
+ * Where the tools on how notes developed read from (plan KI-Harness P9-1), as
+ * a shell keeps it: which notes changed and when one was made, from its
+ * index; the states of a note, from the vault's version history — none where
+ * the vault keeps none. The same index question and the same history as a
+ * folder's log.
+ */
+export function noteHistorySource(input: {
+  index: {
+    getNotesChangedIn(folder: string, since: number, limit?: number): Promise<{ path: string; title: string; mtime: number; created: number | null }[]>;
+    getNoteCreated(path: string): Promise<number | null>;
+  };
+  versions: Pick<InstructionVersions, "list" | "read"> | null;
+}): NoteHistorySource {
+  const { index, versions } = input;
+  return {
+    changedIn: (folder, since, limit) => index.getNotesChangedIn(folder, since, limit),
+    created: (path) => index.getNoteCreated(path),
+    versions: async (path) => (versions ? (await versions.list(path)).map((version) => ({ id: version.id, at: version.at })) : []),
+    readVersion: (id) => (versions ? versions.read(id) : Promise.resolve(null)),
   };
 }
 

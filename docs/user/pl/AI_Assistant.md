@@ -1,6 +1,6 @@
 # Asystent AI (Beta)
 
-Stan na: 2026-10-24
+Stan na: 2026-10-25
 
 Plainva potrafi odpowiadać na pytania o notatki za pomocą wybranego modelu AI. Czyta vault, przywołuje notatki, z których korzystała, otwiera notatki oraz widoki i proponuje zmiany — jako propozycje w notatce, jako szkice czegoś nowego albo jako plan, który potwierdzasz. Sama nigdy nie zmienia notatki. Asystent jest **eksperymentalny** i wyłączony, dopóki nie zostanie włączony, osobno na każdym urządzeniu.
 
@@ -57,7 +57,7 @@ W **Ustawienia → AI & automatyzacja** (część aplikacji) sekcja **Tryb pracy
 - **Telefon:** **Zapytaj AI** w menu ⋮ notatki otwiera arkusz AI nad tą notatką. Obszar **AI** (w arkuszu obszarów albo na pasku nawigacji, jeśli zostanie tam umieszczony) pokazuje rozmowę na pełnym ekranie; **Rozmowy** pokazują wcześniejsze.
 - **Obok notatki:** na komputerze ta sama rozmowa jest ostatnią sekcją prawego paska bocznego, **AI**. Na telefonie lub tablecie to karta **AI** w kontekście notatki — obok **Właściwości** i **Linki zwrotne** — który tablet pokazuje obok notatki.
 
-Otwarta notatka jest dołączana automatycznie; można ją usunąć z kontekstu jej ✕, jeśli trzeba. **Przypnij notatkę…** dodaje kolejne notatki. Asystent potrafi też sam czegoś poszukać: przeszukuje vault, czyta notatki i ich sekcje, bazy danych, linki zwrotne i powiązane notatki, wyświetla listę zadań, spotkań oraz notatek niedawno otwartych lub zmienionych, a także otwiera notatki i widoki. Sam nie potrafi niczego zmienić, utworzyć ani usunąć; to, co może zamiast tego zaproponować, opisano niżej, w części „Proponowanie zmian”.
+Otwarta notatka jest dołączana automatycznie; można ją usunąć z kontekstu jej ✕, jeśli trzeba. **Przypnij notatkę…** dodaje kolejne notatki. Asystent potrafi też sam czegoś poszukać: przeszukuje vault, czyta notatki i ich sekcje, bazy danych, linki zwrotne i powiązane notatki, wyświetla listę zadań, spotkań oraz notatek niedawno otwartych lub zmienionych, a także otwiera notatki i widoki. Przy spojrzeniu wstecz — co zmieniło się w danym okresie, jak rozwijała się notatka — czyta historię wersji na tym urządzeniu; usunięty wiersz może policzyć, ale nigdy go nie przeczyta. Sam nie potrafi niczego zmienić, utworzyć ani usunąć; to, co może zamiast tego zaproponować, opisano niżej, w części „Proponowanie zmian”.
 
 Asystent potrafi też coś Ci pokazać: otworzyć notatkę przy nagłówku, pokazać notatkę na grafie, ustawić kalendarz na wybrany dzień, otworzyć widoki, pokazać i ukryć paski boczne. Korzysta w tym celu z poleceń z palety poleceń — i to tylko z tych, które coś pokazują: tych, które tworzą, zmieniają, usuwają, eksportują albo otwierają okno, wywołać nie może.
 

@@ -18,6 +18,8 @@ const vault: Record<string, string> = {
 };
 const rules = parsePolicyFile("folders:\n  Private/:\n    cloud: deny\n").rules;
 const at = new Date(2026, 8, 28, 9, 5).getTime();
+/** When the notes of a look back changed (plan P9-1): the day before "today" of these tests. */
+const changed = new Date(2026, 8, 23, 10, 0).getTime();
 
 function deps(): VaultToolDeps {
   return {
@@ -69,6 +71,17 @@ function deps(): VaultToolDeps {
         { "file.name": "Client", "file.path": "Private/Client.md", status: "open" },
       ];
     },
+    // A look back (plan P9-1): the offer changed with an earlier state kept — a mood in it —, the day note was made, the client's note is kept back.
+    history: {
+      changedIn: async () => [
+        { path: "Private/Client.md", title: "Client", mtime: changed + 2000, created: changed - 86_400_000 },
+        { path: "Projects/Offer.md", title: "Offer", mtime: changed, created: new Date(2026, 8, 1).getTime() },
+        { path: "Journal/Monday.md", title: "Monday", mtime: changed - 1000, created: changed - 1000 },
+      ],
+      created: async (path) => (path === "Journal/Monday.md" ? changed - 1000 : new Date(2026, 8, 1).getTime()),
+      versions: async (path) => (path === "Projects/Offer.md" ? [{ id: "offer-1", at: changed }] : path === "Private/Client.md" ? [{ id: "client-1", at: changed + 2000 }] : []),
+      readVersion: async (id) => (id === "offer-1" ? "---\nstatus: draft\nmood: 2\n---\n# Offer\n\nIntro\n" : id === "client-1" ? "# Client\n" : null),
+    },
     events: async () =>
       situationEvents([
         {
@@ -104,6 +117,8 @@ const CALLS: [string, Record<string, unknown>][] = [
   ["graph_neighborhood", { path: "Projects/Offer.md", depth: 2, limit: 30 }],
   ["get_recent", { kind: "opened", limit: 10 }],
   ["get_recent", { kind: "edited", limit: 10 }],
+  ["get_changes", { since: "2026-09-21", limit: 10 }],
+  ["get_note_history", { path: "Projects/Offer.md", since: "2026-09-21", until: "2026-09-24" }],
   ["get_calendar", { from: "2026-09-29", to: "2026-09-29", details: true, limit: 50 }],
   ["run_command", { id: "open-graph" }],
 ];
@@ -145,6 +160,20 @@ describe("the read tools' results as values", () => {
     expect(JSON.stringify((await run("get_outline", { path: "Projects/Offer.md" }, device)).data)).not.toContain("mood");
   });
 
+  it("a look back: the notes and the days as the text names them — a note kept back in neither, a link to it withheld", async () => {
+    const changes = await run("get_changes", { since: "2026-09-21", limit: 10 });
+    const notes = (changes.data as { notes: { path: string; kind: string; made: string | null; gained: string }[] }).notes;
+    expect(notes.map((note) => [note.path, note.kind, note.made])).toEqual([
+      ["Projects/Offer.md", "changed", null],
+      ["Journal/Monday.md", "new", "2026-09-23"],
+    ]);
+    for (const note of notes) expect(changes.content).toContain(`(${note.path})`);
+    expect(notes[0]!.gained).toContain("Rates as in ⟦withheld note⟧.");
+    expect(changes.content).toContain("  > Rates as in ⟦withheld note⟧.");
+    const history = await run("get_note_history", { path: "Projects/Offer.md", since: "2026-09-21", until: "2026-09-24" });
+    expect((history.data as { days: { day: string; added: number }[] }).days.map((day) => [day.day, day.added])).toEqual([["2026-09-23", 5]]);
+  });
+
   it("a note that is not there for the reader is an error without any value", async () => {
     for (const [name, args] of [
       ["read_note", { path: "Private/Client.md", maxChars: 8000 }],
@@ -152,6 +181,7 @@ describe("the read tools' results as values", () => {
       ["get_backlinks", { path: "Private/Client.md", limit: 20 }],
       ["graph_neighborhood", { path: "Private/Client.md", depth: 1, limit: 30 }],
       ["query_base", { base: "Private/Board.base", limit: 20 }],
+      ["get_note_history", { path: "Private/Client.md", since: "2026-09-21" }],
     ] as [string, Record<string, unknown>][]) {
       const denied = await run(name, args);
       expect(denied.isError, name).toBe(true);

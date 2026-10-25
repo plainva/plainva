@@ -42,6 +42,8 @@
       "get_event": "Lecture d'un rendez-vous",
       "search_mail": "Recherche dans les e-mails",
       "read_mail": "Lecture d'un message",
+      "get_changes": "Consultation de ce qui a changé",
+      "get_note_history": "Suivi de l'évolution d'une note",
       "search_memory": "Recherche dans la mémoire",
       "find_tools": "Recherche d'autres outils",
       "call_tool": "Utilisation d'un autre outil",
@@ -637,6 +639,11 @@
         "prompt": "Où en est le projet de la note ouverte ? Objectif, ce qui est fait, ce qui reste ouvert, ce qui bloque et la prochaine étape — chaque point avec sa source. Si la note ouverte ne porte pas sur un projet, demandez-moi de quel projet je parle.",
         "promptFor": "Où en est le projet « {{project}} » ? Objectif, ce qui est fait, ce qui reste ouvert, ce qui bloque et la prochaine étape — chaque point avec sa source.",
         "argument": "Le projet : le nom de sa note ou de son dossier."
+      },
+      "history": {
+        "title": "Analyse de l'historique",
+        "description": "Ce qui a changé sur une période, comment les projets ont évolué et ce qui reste ouvert.",
+        "prompt": "Revenez sur les sept derniers jours : ce sur quoi j'ai travaillé, comment mes projets ont évolué, quelles décisions j'ai notées ou révisées, quels thèmes sont revenus et ce qui reste ouvert. Citez les notes et les jours."
       },
       "meeting": {
         "title": "Préparer une réunion",

@@ -1,8 +1,8 @@
 # Skills (Beta)
 
-Stand: 2026-10-09
+Stand: 2026-10-25
 
-Ein Skill ist eine Anleitung für Arbeit, die wiederkommt: ein Meeting vorbereiten, die Aufgaben sortieren, ein Wochenrückblick. Plainva bringt dreizehn davon mit, und Du kannst eigene schreiben. Skills nutzen das offene Format Agent Skills — ein Ordner mit einer `SKILL.md` — und funktionieren deshalb auch in anderen KI-Apps, die das Format lesen.
+Ein Skill ist eine Anleitung für Arbeit, die wiederkommt: ein Meeting vorbereiten, die Aufgaben sortieren, ein Wochenrückblick. Plainva bringt vierzehn davon mit, und Du kannst eigene schreiben. Skills nutzen das offene Format Agent Skills — ein Ordner mit einer `SKILL.md` — und funktionieren deshalb auch in anderen KI-Apps, die das Format lesen.
 
 ## Einen Skill benutzen
 
@@ -17,6 +17,7 @@ Du kannst auch einfach fragen. In jedem Gespräch kennt die KI Namen und Beschre
 | **Tagesorientierung** | Was heute wichtig ist: fällige Aufgaben, Termine und woran Du zuletzt gearbeitet hast. |
 | **Wochenrückblick** | Die letzten sieben Tage und die Woche, die kommt, mit drei Vorschlägen. |
 | **Projektstatus** | Ziel, Fortschritt, offene Punkte und der nächste Schritt eines Projekts. |
+| **Verlaufsanalyse** | Blickt auf einen Zeitraum zurück: was sich geändert hat, wie sich Projekte entwickelt haben, welche Entscheidungen Du festgehalten oder überarbeitet hast und was offen ist — aus dem, was Deine Notizen Tag für Tag dazugewonnen haben. Eine gelöschte Zeile wird gezählt, nie gezeigt. |
 | **Meeting vorbereiten** | Bereitet ein Meeting aus früheren Notizen und offenen Punkten vor oder fasst es hinterher zusammen. |
 | **Aufgaben sichten** | Ordnet Deine offenen Aufgaben: was jetzt, was warten kann, was weg kann. |
 | **Recherche** | Recherchiert eine Frage im Web und in Deinen Notizen, mit jeder Quelle beim Namen. |

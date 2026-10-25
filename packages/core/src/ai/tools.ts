@@ -93,6 +93,9 @@ export const META_TOOL_NAMES: readonly string[] = [FIND_TOOL, DISPATCH_TOOL];
 /** The tools that read the user's mail; found with `find_tools` where a mail account is connected. */
 export const MAIL_TOOL_NAMES: readonly string[] = ["search_mail", "read_mail"];
 
+/** How notes developed (plan KI-Harness P9-1): found, where the shell keeps an index and a version history. */
+export const HISTORY_TOOL_NAMES: readonly string[] = ["get_changes", "get_note_history"];
+
 /**
  * The tools that write (plan KI-Harness P5, ADR 0019 §2) — none of them
  * changes the vault. A proposal lays something down that waits for the user:
@@ -364,6 +367,43 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
     surfaces: ["harness", "mcp"],
     native: null,
     pageLimit: 20,
+  },
+  // How notes developed (plan KI-Harness P9-1): from the index and the version history this device keeps. Found, not
+  // loaded; only in Plainva's own conversations — the history of a note is no part of what other apps read.
+  {
+    name: "get_changes",
+    description:
+      "Lists the notes created or changed in a period (days as YYYY-MM-DD), each with the lines its text gained by the period's end and how many it lost; properties are not compared, and a deleted line is a number, never a text. Use it for what the user worked on and how things developed.",
+    risk: "read",
+    input: z.object({
+      since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("First day, YYYY-MM-DD"),
+      until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Last day, YYYY-MM-DD; today when omitted"),
+      folder: z.string().max(1024).optional().describe("Only notes in this folder and below"),
+      limit: limit(20, 10),
+    }),
+    dataClasses: ["notes"],
+    untrustedResult: true,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 20,
+  },
+  {
+    name: "get_note_history",
+    description:
+      "How one note developed, day by day in a period of at most 31 days: on each day its text changed, the lines it gained and how many it lost, from the version history kept on this device; a note made in the period begins empty. A deleted line is a number, never a text.",
+    risk: "read",
+    input: z.object({
+      path,
+      since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("First day, YYYY-MM-DD; 30 days before the last when omitted"),
+      until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Last day, YYYY-MM-DD; today when omitted"),
+    }),
+    dataClasses: ["notes"],
+    untrustedResult: true,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 1,
   },
   {
     name: "search_mail",

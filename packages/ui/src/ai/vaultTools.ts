@@ -5,6 +5,19 @@ import {
   findToolsText,
   foreignToolsText,
   gateDecision,
+  dayChanges,
+  daysBetween,
+  endOfLocalDay,
+  HISTORY_TOOL_NAMES,
+  lastKeptWithin,
+  localDay,
+  logItem,
+  madeAt,
+  logItemSaysSomething,
+  NOTE_HISTORY_DAYS_MAX,
+  startOfLocalDay,
+  stateBefore,
+  stateHolding,
   isAiHiddenPath,
   isCloudRecipient,
   isNotePath,
@@ -100,6 +113,13 @@ export interface VaultToolDeps {
   recentlyOpened?(): Promise<{ path: string; openedAt: number }[]>;
   /** Changed lately (file time), newest first. */
   recentlyChanged?(limit: number): Promise<{ path: string; title: string; mtime: number }[]>;
+  /**
+   * How notes developed (plan KI-Harness P9-1): the index's notes changed
+   * after an instant, and the states the version history keeps of a note —
+   * each the text before the write it was taken for. Absent where the shell
+   * has no index; `versions` answers nothing where it keeps no history.
+   */
+  history?: NoteHistorySource;
   /** Appointments between two instants, from the connected calendars. */
   events?(from: Date, to: Date): Promise<SituationEventInput[]>;
   /** Rows of a database query (`queryDatabaseFiles`). */
@@ -116,6 +136,18 @@ export interface VaultToolDeps {
    * Absent where the shell does not reach the agent area.
    */
   memory?(): Promise<VaultMemory | null>;
+}
+
+/** Where the tools on how notes developed read from (plan KI-Harness P9-1). */
+export interface NoteHistorySource {
+  /** Notes changed after `since` (epoch milliseconds), in `folder` and below or in the whole vault (""), newest first. */
+  changedIn(folder: string, since: number, limit: number): Promise<{ path: string; title: string; mtime: number; created: number | null }[]>;
+  /** When the index first saw a note (epoch milliseconds); null where it does not know. */
+  created(path: string): Promise<number | null>;
+  /** The states kept of a note, in any order. */
+  versions(path: string): Promise<{ id: string; at: number }[]>;
+  /** A kept state's text; null where it cannot be read. */
+  readVersion(id: string): Promise<string | null>;
 }
 
 /** Both memory files, read and parsed: their entries, and each file's text for its own rules. */
@@ -184,9 +216,9 @@ export const CHAT_TOOL_NAMES = [
  * search, never part of a conversation's own list. Mail, where the shell has
  * a mail client — whether an account is connected is asked when it is used.
  */
-export function furtherToolNames(deps: Pick<VaultToolDeps, "mail" | "writes" | "memory">): string[] {
+export function furtherToolNames(deps: Pick<VaultToolDeps, "mail" | "writes" | "memory" | "history">): string[] {
   // The writing tools first: "change", "create" and "rename" are what a tool search is asked for most.
-  return [...writeToolNames(deps.writes, Boolean(deps.memory)), ...(deps.mail ? MAIL_TOOL_NAMES : [])];
+  return [...writeToolNames(deps.writes, Boolean(deps.memory)), ...(deps.mail ? MAIL_TOOL_NAMES : []), ...(deps.history ? HISTORY_TOOL_NAMES : [])];
 }
 
 /**
@@ -195,9 +227,19 @@ export function furtherToolNames(deps: Pick<VaultToolDeps, "mail" | "writes" | "
  * the skill may do — so a skill that names a mail tool, or names none and
  * leaves everything, is approved with mail in view.
  */
-export const SKILL_TOOL_NAMES: readonly string[] = [...CHAT_TOOL_NAMES, MEMORY_SEARCH_TOOL, ...MAIL_TOOL_NAMES, ...WRITE_TOOL_NAMES];
+export const SKILL_TOOL_NAMES: readonly string[] = [...CHAT_TOOL_NAMES, MEMORY_SEARCH_TOOL, ...MAIL_TOOL_NAMES, ...HISTORY_TOOL_NAMES, ...WRITE_TOOL_NAMES];
 
 const NOT_FOUND = "No note is available at this path.";
+/** What every answer on how notes developed says about the lines a note lost. */
+const LOST_LINES = "A line that was deleted is counted, never shown.";
+/** Lines of a note in a result: each quoted, so none reads as a line of the result itself. */
+const quoted = (text: string) =>
+  text
+    .split("\n")
+    .filter((line) => line.trim() !== "")
+    .map((line) => `  > ${line}`)
+    .join("\n");
+const linesWord = (n: number, word: string) => `${n} ${n === 1 ? "line" : "lines"} ${word}`;
 
 /** How a read that was cut at its limit ends: where the model reads on. */
 const readContinues = (cursor: number) => `\n\n[The note continues: call read_note again with cursor "${cursor}".]`;
@@ -625,6 +667,132 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             }
           }
           return result(tool.name, lines.length ? lines.join("\n") : kind === "opened" ? "Nothing opened on this device yet." : "No notes changed lately.", { kind, notes: recent });
+        }
+        case "get_changes": {
+          const history = deps.history;
+          if (!history) return unavailable(tool);
+          const sinceDay = startOfLocalDay(String(a.since ?? ""));
+          const untilKey = typeof a.until === "string" && a.until ? a.until : deps.todayKey();
+          const untilDay = startOfLocalDay(untilKey);
+          if (!sinceDay || !untilDay || untilDay < sinceDay) return { content: "Give since (and until) as days, YYYY-MM-DD; until not before since.", isError: true };
+          const folderText = typeof a.folder === "string" ? withoutTrailingSlashes(a.folder.trim()) : "";
+          const folder = folderText ? safeRelPath(folderText) : "";
+          if (folder === null) return { content: "No folder is available at this path.", isError: true };
+          const limit = Math.min(Number(a.limit) || 10, tool.pageLimit);
+          const since = sinceDay.getTime();
+          const end = endOfLocalDay(untilDay).getTime();
+          const reads = new Map<string, Promise<string | null>>();
+          const readState = (id: string) => {
+            let read = reads.get(id);
+            if (!read) {
+              read = history.readVersion(id).catch(() => null);
+              reads.set(id, read);
+            }
+            return read;
+          };
+          const asked = Math.min(200, limit * 5);
+          const rows = await history.changedIn(folder, since, asked);
+          const lines: string[] = [];
+          const notes: { path: string; title: string; kind: "new" | "changed"; made: string | null; last: string | null; added: number | null; removed: number | null; gained: string }[] = [];
+          let looked = 0;
+          for (const row of rows) {
+            if (notes.length >= limit) break;
+            looked += 1;
+            const path = safeRelPath(row.path);
+            if (!path || !isNotePath(path)) continue;
+            if (row.created !== null && row.created > end) continue;
+            const now = await deps.readNote(path);
+            if (now === null || !(await allowed(path, now))) continue;
+            const kept = await history.versions(path).catch(() => []);
+            // The note at the end of the period: the state kept after it, or the text now.
+            const holding = stateHolding(kept, end);
+            const atEnd = holding ? ((await readState(holding.id)) ?? now) : now;
+            const start = stateBefore(kept, since);
+            const before = start ? await readState(start.id) : null;
+            // Made in the period (as far as its history agrees): new, shown by its beginning.
+            const madeTime = madeAt(row.created, kept);
+            const made = madeTime !== null && madeTime > since ? localDay(new Date(madeTime)) : null;
+            const fresh = made !== null;
+            // Without any earlier state, a change after the period cannot be told from one in it.
+            if (!fresh && before === null && row.mtime > end) continue;
+            const item = logItem({ path, title: row.title || titleOf(path), fresh, text: atEnd, before });
+            if (!logItemSaysSomething(item)) continue;
+            const lastWrite = row.mtime <= end ? row.mtime : lastKeptWithin(kept, since, end);
+            const last = lastWrite === null ? null : localDay(new Date(lastWrite));
+            const gained = item.shown ? await withhold(item.shown, path) : "";
+            const what =
+              made !== null
+                ? `new on ${made}${last && last !== made ? `, last changed on ${last}` : ""}`
+                : item.added === null
+                  ? `changed${last ? `, last on ${last}` : ""}; no earlier state is kept on this device, its beginning:`
+                  : `changed${last ? `, last on ${last}` : ""}: ${linesWord(item.added, "gained")}, ${linesWord(item.removed ?? 0, "lost")}`;
+            lines.push(`- [[${item.title}]] (${path}) — ${what}${gained ? `\n${quoted(gained)}` : ""}`);
+            notes.push({ path, title: item.title, kind: item.kind, made, last, added: item.added, removed: item.removed, gained });
+          }
+          const sinceKey = localDay(sinceDay);
+          const untilText = localDay(untilDay);
+          const head = `Notes created or changed from ${sinceKey} to ${untilText}${folder ? ` in ${folder}` : ""}:`;
+          // The index was asked for no more, or the answer stopped at its limit: there may be more.
+          const more = rows.length === asked || looked < rows.length ? "\n\nMore may have changed: ask for a shorter period or a folder." : "";
+          const content = notes.length ? `${head}\n${lines.join("\n")}\n\n${LOST_LINES}${more}` : `No note was created or changed from ${sinceKey} to ${untilText}${folder ? ` in ${folder}` : ""}.`;
+          return result(tool.name, content, { since: sinceKey, until: untilText, notes });
+        }
+        case "get_note_history": {
+          const history = deps.history;
+          if (!history) return unavailable(tool);
+          const note = await readAllowed(a.path);
+          if (!note) return { content: NOT_FOUND, isError: true };
+          const untilKey = typeof a.until === "string" && a.until ? a.until : deps.todayKey();
+          const untilDay = startOfLocalDay(untilKey);
+          const sinceDay =
+            typeof a.since === "string" && a.since ? startOfLocalDay(a.since) : untilDay ? new Date(untilDay.getFullYear(), untilDay.getMonth(), untilDay.getDate() - 30) : null;
+          if (!sinceDay || !untilDay || untilDay < sinceDay) return { content: "Give since and until as days, YYYY-MM-DD; until not before since.", isError: true };
+          const days = daysBetween(sinceDay, untilDay);
+          if (!days) return { content: `At most ${NOTE_HISTORY_DAYS_MAX} days per call: give a later since.`, isError: true };
+          const kept = await history.versions(note.path).catch(() => []);
+          // Where its history begins: before the note was made, it had no text.
+          const madeTime = madeAt(await history.created(note.path).catch(() => null), kept);
+          const made = madeTime === null ? null : localDay(new Date(madeTime));
+          if (kept.length === 0) {
+            const madeLine = made ? ` It was made on ${made}.` : "";
+            return result(tool.name, `${note.path}\n\nThis device keeps no earlier versions of this note; read_note has it as it is now.${madeLine}`, {
+              path: note.path,
+              since: days[0],
+              until: days[days.length - 1],
+              made,
+              days: [],
+            });
+          }
+          const reads = new Map<string, Promise<string | null>>();
+          const textAt = async (t: number): Promise<string> => {
+            if (madeTime !== null && t <= madeTime) return "";
+            const state = stateHolding(kept, t);
+            if (!state) return note.text;
+            let read = reads.get(state.id);
+            if (!read) {
+              read = history.readVersion(state.id).catch(() => null);
+              reads.set(state.id, read);
+            }
+            return (await read) ?? note.text;
+          };
+          const start = await textAt(sinceDay.getTime());
+          const points: { day: string; text: string }[] = [];
+          for (const day of days) points.push({ day, text: await textAt(endOfLocalDay(startOfLocalDay(day)!).getTime()) });
+          const changes = dayChanges(start, points);
+          const listed: { day: string; added: number; removed: number; gained: string }[] = [];
+          const lines: string[] = [];
+          for (const change of changes) {
+            const gained = change.shown ? await withhold(change.shown, note.path) : "";
+            lines.push(`- ${change.day}: ${linesWord(change.added, "gained")}, ${linesWord(change.removed, "lost")}${gained ? `\n${quoted(gained)}` : ""}`);
+            listed.push({ day: change.day, added: change.added, removed: change.removed, gained });
+          }
+          const span = `from ${days[0]} to ${days[days.length - 1]}`;
+          // Made in the span: its first day is where it began, not lines it gained over something that was there.
+          const madeIn = made !== null && madeTime !== null && madeTime > sinceDay.getTime() ? ` (made on ${made})` : "";
+          const content = listed.length
+            ? `${note.path}\n\nHow it developed ${span}${madeIn}, from the version history on this device:\n${lines.join("\n")}\n\n${LOST_LINES}`
+            : `${note.path}\n\nNo change ${span}${madeIn}.`;
+          return result(tool.name, content, { path: note.path, since: days[0], until: days[days.length - 1], made, days: listed });
         }
         case "get_calendar": {
           if (!deps.events) return unavailable(tool);

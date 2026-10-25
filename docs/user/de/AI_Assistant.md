@@ -1,6 +1,6 @@
 # KI-Assistent (Beta)
 
-Stand: 2026-10-24
+Stand: 2026-10-25
 
 Plainva kann Fragen zu Deinen Notizen mit einem KI-Modell Deiner Wahl beantworten. Es liest Deinen Vault, nennt die Notizen, auf die es sich stützt, öffnet Notizen und Ansichten für Dich und schlägt Änderungen vor — als Vorschläge an einer Notiz, als Entwürfe für Neues oder als Plan, den Du bestätigst. Eine Notiz ändert es nie selbst. Der Assistent ist **experimentell** und aus, bis Du ihn einschaltest, auf jedem Gerät für sich.
 
@@ -57,7 +57,7 @@ Ein sechster Platz, **Einbettungen**, hält das Modell, mit dem die Suche nach B
 - **Telefon:** **KI fragen** im ⋮-Menü einer Notiz öffnet das KI-Blatt über dieser Notiz. Der Bereich **KI** (im Bereiche-Blatt oder in der Navigationsleiste, wenn Du ihn dort hinlegst) zeigt das Gespräch im Vollbild; **Gespräche** listet die früheren.
 - **Neben der Notiz:** am Desktop ist dasselbe Gespräch die letzte Sektion der rechten Seitenleiste, **KI**. Am Telefon oder Tablet ist es der Reiter **KI** im Kontext der Notiz — neben **Eigenschaften** und **Backlinks** —, den ein Tablet neben der Notiz zeigt.
 
-Die Notiz, die Du offen hast, geht automatisch mit; nimm sie mit ihrem ✕ aus dem Kontext, wenn Du willst. **Notiz anheften …** fügt weitere Notizen hinzu. Der Assistent kann auch selbst nachsehen: er durchsucht den Vault, liest Notizen und ihre Abschnitte, Datenbanken, Backlinks und verlinkte Notizen, listet Aufgaben, Termine und die zuletzt geöffneten oder geänderten Notizen und öffnet Notizen und Ansichten. Ändern, anlegen oder löschen kann er selbst nichts; was er stattdessen vorschlagen kann, steht unten unter „Änderungen vorschlagen“.
+Die Notiz, die Du offen hast, geht automatisch mit; nimm sie mit ihrem ✕ aus dem Kontext, wenn Du willst. **Notiz anheften …** fügt weitere Notizen hinzu. Der Assistent kann auch selbst nachsehen: er durchsucht den Vault, liest Notizen und ihre Abschnitte, Datenbanken, Backlinks und verlinkte Notizen, listet Aufgaben, Termine und die zuletzt geöffneten oder geänderten Notizen und öffnet Notizen und Ansichten. Für einen Rückblick — was sich in einem Zeitraum geändert hat, wie sich eine Notiz entwickelt hat — liest er den Versionsverlauf auf diesem Gerät; eine Zeile, die Du gelöscht hast, kann er zählen, aber nie lesen. Ändern, anlegen oder löschen kann er selbst nichts; was er stattdessen vorschlagen kann, steht unten unter „Änderungen vorschlagen“.
 
 Der Assistent kann Dir auch etwas zeigen: eine Notiz an einer Überschrift öffnen, eine Notiz im Graphen zeigen, den Kalender auf einen Tag stellen, Ansichten öffnen, die Seitenleisten ein- und ausblenden. Er benutzt dafür die Befehle der Befehlspalette — und davon nur die, die etwas zeigen: was anlegt, ändert, löscht, exportiert oder ein Fenster öffnet, kann er nicht auslösen.
 

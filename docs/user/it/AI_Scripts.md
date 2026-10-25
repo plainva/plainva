@@ -1,6 +1,6 @@
 # Script (Beta)
 
-Ultimo aggiornamento: 2026-10-08
+Ultimo aggiornamento: 2026-10-25
 
 Uno script è un piccolo programma per ciò che un modello fa male e che un programma fa ogni volta allo stesso modo: contare, ordinare, confrontare, sommare. Lo scrivi in JavaScript. Gira in un ambiente chiuso dentro Plainva: non può aprire un file, raggiungere la rete né rimandare qualcosa a più tardi. Chiama solo gli strumenti che hai spuntato per lui: questi leggono il tuo vault come fanno gli strumenti dell'IA, oppure lasciano una proposta su cui decidi tu. Da solo, uno script non cambia nulla.
 
@@ -61,6 +61,8 @@ Nel modulo, **Che cosa restituisce uno strumento** apre questa pagina. Ogni stru
 | `get_backlinks` — **Lettura dei backlink** | `path`; facoltativi `limit` (fino a 50), `cursor` | `path`; `notes`: un elenco di `{ title, path, links, places }`; `next` |
 | `graph_neighborhood` — **Seguo i collegamenti** | `path`; facoltativi `depth` (1 o 2), `limit` (fino a 50) | `path`; `notes`: un elenco di `{ title, path, fromHere, toHere, via }` |
 | `get_recent` — **Guardo le note recenti** | facoltativi `kind` (`opened` o `edited`), `limit` (fino a 20) | `kind`; `notes`: un elenco di `{ title, path, at }` |
+| `get_changes` — **Guardo cosa è cambiato** | `since` come `YYYY-MM-DD`; facoltativi `until`, `folder`, `limit` (fino a 20) | `since`, `until`; `notes`: un elenco di `{ path, title, kind, made, last, added, removed, gained }` |
+| `get_note_history` — **Seguo l'evoluzione di una nota** | `path`; facoltativi `since` e `until` come `YYYY-MM-DD` | `path`, `since`, `until`, `made`; `days`: un elenco di `{ day, added, removed, gained }` |
 | `get_calendar` — **Lettura degli appuntamenti** | `from` e `to` come `YYYY-MM-DD`; facoltativi `details`, `limit` (fino a 100) | `events`: un elenco di `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Sta usando l'app** | `id`, un comando dell'app come `open-note`, `show-in-graph` o `open-calendar`; facoltativo `args` con `path`, `section` o `date` | `done`, `command` |
 | `propose_edit` — **Sta proponendo modifiche a una nota** | `path`; `edits`, un elenco di `{ find, replace }`, o `append`; facoltativi `section`, `note` | `proposed`, `path`, `passages` |

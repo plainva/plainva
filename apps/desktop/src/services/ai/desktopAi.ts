@@ -30,6 +30,7 @@ import {
   entryPlaceOf,
   flushPendingSave,
   folderLogHost,
+  noteHistorySource,
   getPlatformServices,
   journalToday,
   noteDisplayName,
@@ -675,6 +676,8 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       moodKey,
       // The vault's mail accounts (plan KI-Harness P4-4): found through the tool search, asked for at the first call.
       mail: vaultMailSource(input.vaultPath, input.db),
+      // How notes developed (plan KI-Harness P9-1): the index and the version history, as a folder's log reads them.
+      history: noteHistorySource({ index: input.query, versions }),
       ...(writeDeps ? { writes: writeDeps } : {}),
     },
   });

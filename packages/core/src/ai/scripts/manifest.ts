@@ -50,6 +50,9 @@ export const SCRIPT_READ_TOOL_NAMES: readonly string[] = [
   "get_backlinks",
   "graph_neighborhood",
   "get_recent",
+  // How notes developed (plan KI-Harness P9-1): from the index and the version history, a deleted line only counted.
+  "get_changes",
+  "get_note_history",
   "get_calendar",
   "run_command",
 ];

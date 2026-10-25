@@ -40,6 +40,8 @@
       "get_event": "Reading an appointment",
       "search_mail": "Searching mail",
       "read_mail": "Reading a message",
+      "get_changes": "Looking at what changed",
+      "get_note_history": "Following how a note developed",
       "search_memory": "Looking in the memory",
       "find_tools": "Looking for further tools",
       "call_tool": "Using a further tool",
@@ -613,6 +615,11 @@
         "prompt": "What is the status of the project in the open note? Goal, what is done, what is open, what blocks it and the next step — each point with its source. If the open note is not about a project, ask me which project I mean.",
         "promptFor": "What is the status of the project “{{project}}”? Goal, what is done, what is open, what blocks it and the next step — each point with its source.",
         "argument": "The project: the name of its note or folder."
+      },
+      "history": {
+        "title": "History analysis",
+        "description": "What changed over a period, how projects developed and what is still open.",
+        "prompt": "Look back over the last seven days: what I worked on, how my projects developed, which decisions I wrote down or revised, the themes that came back and what is still open. Cite the notes and the days."
       },
       "meeting": {
         "title": "Meeting preparation",

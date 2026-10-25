@@ -1,8 +1,8 @@
 # Compétences (Bêta)
 
-Dernière mise à jour : 2026-10-09
+Dernière mise à jour : 2026-10-25
 
-Une compétence est un ensemble d'instructions pour un travail qui revient : préparer une réunion, trier vos tâches, un bilan de la semaine. Plainva en fournit treize, et vous pouvez écrire les vôtres. Les compétences utilisent le format ouvert Agent Skills — un dossier avec un `SKILL.md` — et fonctionnent donc aussi dans d'autres apps d'IA qui lisent ce format.
+Une compétence est un ensemble d'instructions pour un travail qui revient : préparer une réunion, trier vos tâches, un bilan de la semaine. Plainva en fournit quatorze, et vous pouvez écrire les vôtres. Les compétences utilisent le format ouvert Agent Skills — un dossier avec un `SKILL.md` — et fonctionnent donc aussi dans d'autres apps d'IA qui lisent ce format.
 
 ## Utiliser une compétence
 
@@ -17,6 +17,7 @@ Vous pouvez aussi simplement demander. Dans chaque conversation, l'IA connaît l
 | **Orientation du jour** | Ce qui compte aujourd'hui : tâches à échéance, rendez-vous et ce sur quoi vous avez travaillé récemment. |
 | **Bilan de la semaine** | Les sept derniers jours et la semaine à venir, avec trois suggestions. |
 | **État du projet** | Objectif, avancement, points ouverts et prochaine étape d'un projet. |
+| **Analyse de l'historique** | Revient sur une période : ce qui a changé, comment les projets ont évolué, quelles décisions vous avez notées ou révisées et ce qui reste ouvert — à partir de ce qui s'est ajouté à vos notes jour après jour. Une ligne supprimée est comptée, jamais montrée. |
 | **Préparer une réunion** | Prépare une réunion à partir de notes antérieures et de points ouverts, ou en fait le compte rendu ensuite. |
 | **Trier les tâches** | Classe vos tâches ouvertes : maintenant, plus tard, à abandonner. |
 | **Se documenter** | Se documente sur une question, sur le web comme dans vos notes, en citant chaque source. |

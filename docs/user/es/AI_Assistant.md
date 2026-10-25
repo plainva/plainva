@@ -1,6 +1,6 @@
 # Asistente de IA (Beta)
 
-Última actualización: 2026-10-24
+Última actualización: 2026-10-25
 
 Plainva puede responder preguntas sobre tus notas con un modelo de IA de tu elección. Lee tu vault, cita las notas que usó, abre notas y vistas por ti y propone cambios — como sugerencias en una nota, como borradores de algo nuevo o como un plan que tú confirmas. Nunca cambia una nota por sí mismo. El asistente es **experimental** y está desactivado hasta que lo actives, por separado en cada dispositivo.
 
@@ -57,7 +57,7 @@ Un sexto espacio, **Embeddings**, guarda el modelo con el que calcula la búsque
 - **Teléfono:** **Preguntar a la IA** en el menú ⋮ de una nota abre la hoja de IA sobre esa nota. El área **IA** (en la hoja de áreas, o en la barra de navegación si la colocas ahí) muestra la conversación a pantalla completa; **Conversaciones** enumera las anteriores.
 - **Junto a la nota:** en el escritorio, la misma conversación es la última sección de la barra lateral derecha, **IA**. En un teléfono o una tableta es la pestaña **IA** del contexto de la nota —junto a **Propiedades** y **Retroenlaces**—, que una tableta muestra al lado de la nota.
 
-La nota que tienes abierta se incluye automáticamente; quítala del contexto con su ✕ si quieres. **Fijar una nota…** añade más notas. El asistente también puede buscar por su cuenta: busca en el vault, lee notas y sus secciones, bases de datos, retroenlaces y notas enlazadas, enumera tareas, citas y las notas abiertas o cambiadas hace poco, y abre notas y vistas. Por sí mismo no puede cambiar, crear ni eliminar nada; lo que puede proponer en su lugar se describe más abajo, en «Proponer cambios».
+La nota que tienes abierta se incluye automáticamente; quítala del contexto con su ✕ si quieres. **Fijar una nota…** añade más notas. El asistente también puede buscar por su cuenta: busca en el vault, lee notas y sus secciones, bases de datos, retroenlaces y notas enlazadas, enumera tareas, citas y las notas abiertas o cambiadas hace poco, y abre notas y vistas. Para mirar atrás —qué cambió en un periodo, cómo evolucionó una nota— lee el historial de versiones de este dispositivo; una línea que borraste puede contarla, pero nunca leerla. Por sí mismo no puede cambiar, crear ni eliminar nada; lo que puede proponer en su lugar se describe más abajo, en «Proponer cambios».
 
 El asistente también puede mostrarte cosas: abrir una nota en un encabezado, mostrar una nota en el grafo, llevar el calendario a un día, abrir vistas, mostrar y ocultar las barras laterales. Para ello usa los comandos de la paleta de comandos — y de ellos solo los que muestran algo: no puede activar los que crean, cambian, eliminan, exportan o abren una ventana.
 

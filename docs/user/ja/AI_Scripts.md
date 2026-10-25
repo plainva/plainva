@@ -1,6 +1,6 @@
 # スクリプト（ベータ版）
 
-最終更新: 2026-10-08
+最終更新: 2026-10-25
 
 スクリプトは小さなプログラムで、数える、並べ替える、比べる、合計するといった、モデルは苦手でもプログラムなら毎回同じようにこなせる作業に向いています。JavaScriptで書きます。Plainvaの中の閉じた環境で動き、ファイルを開くことも、ネットワークに接続することも、時間を置いて待つこともできません。呼び出せるのは、チェックを入れたツールだけです。それらのツールは、AIが使うツールと同じ方法で保管庫を読むか、提案を残します。提案を適用するかどうかは、あなたが決めます。スクリプトが自分で何かを変更することはありません。
 
@@ -61,6 +61,8 @@ return { tag: input.tag, count: notes.length, notes };
 | `get_backlinks`——**バックリンクを読んでいます** | `path`、任意で`limit`（最大50）、`cursor` | `path`、`notes`: `{ title, path, links, places }`のリスト、`next` |
 | `graph_neighborhood`——**リンクをたどっています** | `path`、任意で`depth`（1または2）、`limit`（最大50） | `path`、`notes`: `{ title, path, fromHere, toHere, via }`のリスト |
 | `get_recent`——**最近のノートを見ています** | 任意で`kind`（`opened`または`edited`）、`limit`（最大20） | `kind`、`notes`: `{ title, path, at }`のリスト |
+| `get_changes`——**変更点を見ています** | `since`（`YYYY-MM-DD`の形式）、任意で`until`、`folder`、`limit`（最大20） | `since`、`until`、`notes`: `{ path, title, kind, made, last, added, removed, gained }`のリスト |
+| `get_note_history`——**ノートの経過をたどっています** | `path`、任意で`since`と`until`（`YYYY-MM-DD`の形式） | `path`、`since`、`until`、`made`、`days`: `{ day, added, removed, gained }`のリスト |
 | `get_calendar`——**予定を読んでいます** | `from`と`to`（`YYYY-MM-DD`の形式）、任意で`details`、`limit`（最大100） | `events`: `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`のリスト、`more` |
 | `run_command`——**アプリの操作** | `id`（`open-note`、`show-in-graph`、`open-calendar`などのアプリのコマンド）、任意で`args`（`path`、`section`、`date`） | `done`、`command` |
 | `propose_edit`——**ノートへの変更を提案** | `path`、`edits`（`{ find, replace }`のリスト）または`append`、任意で`section`、`note` | `proposed`、`path`、`passages` |

@@ -1,6 +1,6 @@
 # Skripte (Beta)
 
-Stand: 2026-10-08
+Stand: 2026-10-25
 
 Ein Skript ist ein kleines Programm für das, was ein Modell schlecht kann und ein Programm jedes Mal gleich macht: zählen, sortieren, vergleichen, zusammenrechnen. Du schreibst es in JavaScript. Es läuft in einem geschlossenen Kasten in Plainva: es kann keine Datei öffnen, nicht ins Netz und nicht auf später warten. Es ruft nur die Werkzeuge auf, die Du ihm angekreuzt hast: sie lesen Deinen Vault so, wie die Werkzeuge der KI es tun, oder hinterlassen einen Vorschlag, über den Du entscheidest. Von sich aus ändert ein Skript nichts.
 
@@ -61,6 +61,8 @@ Die Sprache ist JavaScript auf dem Stand von ES2020. Es gibt kein `fetch`, keine
 | `get_backlinks` — **Liest Backlinks** | `path`; wahlweise `limit` (bis 50), `cursor` | `path`; `notes`: eine Liste aus `{ title, path, links, places }`; `next` |
 | `graph_neighborhood` — **Folgt Links** | `path`; wahlweise `depth` (1 oder 2), `limit` (bis 50) | `path`; `notes`: eine Liste aus `{ title, path, fromHere, toHere, via }` |
 | `get_recent` — **Sieht zuletzt benutzte Notizen an** | wahlweise `kind` (`opened` oder `edited`), `limit` (bis 20) | `kind`; `notes`: eine Liste aus `{ title, path, at }` |
+| `get_changes` — **Sieht nach, was sich geändert hat** | `since` als `YYYY-MM-DD`; wahlweise `until`, `folder`, `limit` (bis 20) | `since`, `until`; `notes`: eine Liste aus `{ path, title, kind, made, last, added, removed, gained }` |
+| `get_note_history` — **Verfolgt, wie sich eine Notiz entwickelt hat** | `path`; wahlweise `since` und `until` als `YYYY-MM-DD` | `path`, `since`, `until`, `made`; `days`: eine Liste aus `{ day, added, removed, gained }` |
 | `get_calendar` — **Liest Termine** | `from` und `to` als `YYYY-MM-DD`; wahlweise `details`, `limit` (bis 100) | `events`: eine Liste aus `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Bedient die App** | `id`, ein Befehl der App wie `open-note`, `show-in-graph` oder `open-calendar`; wahlweise `args` mit `path`, `section` oder `date` | `done`, `command` |
 | `propose_edit` — **Schlägt Änderungen an einer Notiz vor** | `path`; `edits`, eine Liste aus `{ find, replace }`, oder `append`; wahlweise `section`, `note` | `proposed`, `path`, `passages` |

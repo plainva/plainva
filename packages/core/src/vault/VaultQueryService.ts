@@ -455,6 +455,23 @@ export class VaultQueryService {
   }
 
   /**
+   * When a note was made, as the index knows it (`files.ctime`, index v3:
+   * the time it first saw the file, which a save never changes), in epoch
+   * milliseconds; null for a note it does not know and for a row from before
+   * v3. Where the history of a note begins (AI harness P9-1).
+   */
+  async getNoteCreated(path: string): Promise<number | null> {
+    const variants = [...new Set([path.normalize("NFC"), path.normalize("NFD")])];
+    const rows = await this.db.query<{ ctime: number | null }>(
+      `SELECT ctime FROM files WHERE path IN (${variants.map(() => "?").join(", ")}) AND (is_deleted IS NULL OR is_deleted = 0) LIMIT 1`,
+      variants,
+    );
+    const ctime = rows[0]?.ctime;
+    const created = ctime == null ? 0 : epochMs(ctime);
+    return created > 0 ? created : null;
+  }
+
+  /**
    * The notes linked with one note, both ways — who links here and where it
    * links, resolved as the graph resolves them. One entry per note with both
    * counts, the busiest first. The graph source of the AI's context package.

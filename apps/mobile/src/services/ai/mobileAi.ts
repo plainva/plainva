@@ -22,6 +22,7 @@ import {
   eventStartDayKey,
   flushPendingSave,
   folderLogHost,
+  noteHistorySource,
   getPlatformServices,
   journalToday,
   meetingsWithoutNote,
@@ -527,6 +528,8 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         moodKey,
         // The vault's mail accounts (plan KI-Harness P4-4): found through the tool search, asked for at the first call.
         mail: vaultMailSource(vault.vaultId, () => vault.db),
+        // How notes developed (plan KI-Harness P9-1): the index and the version history, as a folder's log reads them.
+        history: noteHistorySource({ index: query, versions }),
         // The writing tools (plan P5): a proposal, a draft, or a plan the phone's own operation carries out.
         writes: mobileWriteDeps(vault, query, read),
       },

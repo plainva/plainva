@@ -1,8 +1,8 @@
 # Umiejętności (Beta)
 
-Stan na: 2026-10-09
+Stan na: 2026-10-25
 
-Umiejętność to zestaw instrukcji do pracy, która się powtarza: przygotowanie spotkania, porządkowanie zadań, przegląd tygodnia. Plainva ma trzynaście wbudowanych, a własne można pisać samodzielnie. Umiejętności korzystają z otwartego formatu Agent Skills — folderu z plikiem `SKILL.md` — dlatego działają też w innych aplikacjach AI, które czytają ten format.
+Umiejętność to zestaw instrukcji do pracy, która się powtarza: przygotowanie spotkania, porządkowanie zadań, przegląd tygodnia. Plainva ma czternaście wbudowanych, a własne można pisać samodzielnie. Umiejętności korzystają z otwartego formatu Agent Skills — folderu z plikiem `SKILL.md` — dlatego działają też w innych aplikacjach AI, które czytają ten format.
 
 ## Korzystanie z umiejętności
 
@@ -17,6 +17,7 @@ Można też po prostu zapytać. W każdej rozmowie AI zna nazwy i opisy aktywnyc
 | **Orientacja na dziś** | Co jest dziś ważne: zadania z terminem, spotkania i ostatnio zmieniane notatki. |
 | **Przegląd tygodnia** | Ostatnie siedem dni i nadchodzący tydzień, z trzema propozycjami. |
 | **Stan projektu** | Cel, postęp, otwarte punkty i następny krok projektu. |
+| **Analiza historii** | Spogląda wstecz na dany okres: co się zmieniło, jak rozwijały się projekty, jakie decyzje zostały zapisane lub zmienione i co jest wciąż otwarte — na podstawie tego, co do notatek doszło dzień po dniu. Usunięty wiersz jest liczony, ale nigdy nie jest pokazywany. |
 | **Przygotowanie spotkania** | Przygotowuje spotkanie na podstawie wcześniejszych notatek i otwartych punktów albo podsumowuje je po fakcie. |
 | **Przegląd zadań** | Porządkuje otwarte zadania: co teraz, co może poczekać, co odpuścić. |
 | **Badanie tematu** | Bada pytanie w internecie i w Twoich notatkach, z podaniem każdego źródła. |

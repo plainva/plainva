@@ -1,8 +1,8 @@
 # Vaardigheden (Beta)
 
-Laatst bijgewerkt: 2026-10-09
+Laatst bijgewerkt: 2026-10-25
 
-Een vaardigheid is een set instructies voor werk dat terugkomt: een vergadering voorbereiden, je taken ordenen, een weekoverzicht. Plainva levert er dertien mee, en je kunt je eigen schrijven. Vaardigheden gebruiken het open formaat Agent Skills — een map met een `SKILL.md` — en werken daardoor ook in andere AI-apps die dat formaat lezen.
+Een vaardigheid is een set instructies voor werk dat terugkomt: een vergadering voorbereiden, je taken ordenen, een weekoverzicht. Plainva levert er veertien mee, en je kunt je eigen schrijven. Vaardigheden gebruiken het open formaat Agent Skills — een map met een `SKILL.md` — en werken daardoor ook in andere AI-apps die dat formaat lezen.
 
 ## Een vaardigheid gebruiken
 
@@ -17,6 +17,7 @@ Je kunt ook gewoon vragen. In elk gesprek kent de AI de namen en beschrijvingen 
 | **Dagoriëntatie** | Wat vandaag telt: taken die aflopen, afspraken en waar je laatst aan werkte. |
 | **Weekoverzicht** | De afgelopen zeven dagen en de week die komt, met drie voorstellen. |
 | **Projectstatus** | Doel, voortgang, open punten en de volgende stap van een project. |
+| **Geschiedenisanalyse** | Blikt terug op een periode: wat er is veranderd, hoe projecten zich hebben ontwikkeld, welke besluiten je hebt vastgelegd of herzien en wat er nog openstaat — op basis van wat er dag na dag bij je notities is bijgekomen. Een regel die je hebt verwijderd, wordt geteld maar nooit getoond. |
 | **Vergadering voorbereiden** | Bereidt een vergadering voor uit eerdere notities en open punten, of werkt haar achteraf uit. |
 | **Taken ordenen** | Ordent je open taken: wat nu, wat kan wachten, wat kan weg. |
 | **Onderzoek** | Onderzoekt een vraag op het web en in je notities, met elke bron genoemd. |

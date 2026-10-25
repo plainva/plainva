@@ -1,6 +1,6 @@
 # Scripts (Beta)
 
-Last reviewed: 2026-10-08
+Last reviewed: 2026-10-25
 
 A script is a small program for what a model does badly and a program does the same way every time: counting, sorting, comparing, adding up. You write it in JavaScript. It runs in a closed box inside Plainva: it cannot open a file, reach the network or wait for later. It only calls the tools you ticked for it: they read your vault the way the AI's tools do, or leave a suggestion that you decide about. A script changes nothing by itself.
 
@@ -61,6 +61,8 @@ The language is JavaScript as of ES2020. There is no `fetch`, no timer, no `impo
 | `get_backlinks` — **Reading backlinks** | `path`; optional `limit` (up to 50), `cursor` | `path`; `notes`: a list of `{ title, path, links, places }`; `next` |
 | `graph_neighborhood` — **Following links** | `path`; optional `depth` (1 or 2), `limit` (up to 50) | `path`; `notes`: a list of `{ title, path, fromHere, toHere, via }` |
 | `get_recent` — **Looking at recent notes** | optional `kind` (`opened` or `edited`), `limit` (up to 20) | `kind`; `notes`: a list of `{ title, path, at }` |
+| `get_changes` — **Looking at what changed** | `since` as `YYYY-MM-DD`; optional `until`, `folder`, `limit` (up to 20) | `since`, `until`; `notes`: a list of `{ path, title, kind, made, last, added, removed, gained }` |
+| `get_note_history` — **Following how a note developed** | `path`; optional `since` and `until` as `YYYY-MM-DD` | `path`, `since`, `until`, `made`; `days`: a list of `{ day, added, removed, gained }` |
 | `get_calendar` — **Reading appointments** | `from` and `to` as `YYYY-MM-DD`; optional `details`, `limit` (up to 100) | `events`: a list of `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Using the app** | `id`, a command of the app such as `open-note`, `show-in-graph` or `open-calendar`; optional `args` with `path`, `section` or `date` | `done`, `command` |
 | `propose_edit` — **Suggesting changes to a note** | `path`; `edits`, a list of `{ find, replace }`, or `append`; optional `section`, `note` | `proposed`, `path`, `passages` |

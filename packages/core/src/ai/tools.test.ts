@@ -114,7 +114,7 @@ describe("tool manifests", () => {
   });
 
   it("results with vault or third-party content are marked untrusted", () => {
-    for (const name of ["search_vault", "read_note", "get_outline", "query_base", "get_tasks", "get_backlinks", "get_calendar", "get_event", "get_recent", "search_mail", "read_mail"]) {
+    for (const name of ["search_vault", "read_note", "get_outline", "query_base", "get_tasks", "get_backlinks", "get_calendar", "get_event", "get_recent", "get_changes", "get_note_history", "search_mail", "read_mail"]) {
       expect(toolByName(name)?.untrustedResult, name).toBe(true);
     }
   });

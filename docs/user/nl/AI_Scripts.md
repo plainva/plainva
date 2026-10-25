@@ -1,6 +1,6 @@
 # Scripts (Beta)
 
-Laatst bijgewerkt: 2026-10-08
+Laatst bijgewerkt: 2026-10-25
 
 Een script is een klein programma voor wat een model slecht kan en een programma elke keer op dezelfde manier doet: tellen, sorteren, vergelijken, optellen. Je schrijft het in JavaScript. Het draait in een afgesloten ruimte binnen Plainva: het kan geen bestand openen, niet het netwerk op en niet wachten tot later. Het roept alleen de hulpmiddelen aan die je ervoor hebt aangevinkt: ze lezen je vault zoals de hulpmiddelen van de AI dat doen, of leggen een voorstel neer waarover jij beslist. Een script verandert zelf niets.
 
@@ -61,6 +61,8 @@ De taal is JavaScript op het niveau van ES2020. Er is geen `fetch`, geen timer, 
 | `get_backlinks` — **Backlinks lezen** | `path`; optioneel `limit` (hoogstens 50), `cursor` | `path`; `notes`: een lijst van `{ title, path, links, places }`; `next` |
 | `graph_neighborhood` — **Links volgen** | `path`; optioneel `depth` (1 of 2), `limit` (hoogstens 50) | `path`; `notes`: een lijst van `{ title, path, fromHere, toHere, via }` |
 | `get_recent` — **Recente notities bekijken** | optioneel `kind` (`opened` of `edited`), `limit` (hoogstens 20) | `kind`; `notes`: een lijst van `{ title, path, at }` |
+| `get_changes` — **Wijzigingen bekijken** | `since` als `YYYY-MM-DD`; optioneel `until`, `folder`, `limit` (hoogstens 20) | `since`, `until`; `notes`: een lijst van `{ path, title, kind, made, last, added, removed, gained }` |
+| `get_note_history` — **De ontwikkeling van een notitie volgen** | `path`; optioneel `since` en `until` als `YYYY-MM-DD` | `path`, `since`, `until`, `made`; `days`: een lijst van `{ day, added, removed, gained }` |
 | `get_calendar` — **Afspraken lezen** | `from` en `to` als `YYYY-MM-DD`; optioneel `details`, `limit` (hoogstens 100) | `events`: een lijst van `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Gebruikt de app** | `id`, een opdracht van de app zoals `open-note`, `show-in-graph` of `open-calendar`; optioneel `args` met `path`, `section` of `date` | `done`, `command` |
 | `propose_edit` — **Stelt wijzigingen in een notitie voor** | `path`; `edits`, een lijst van `{ find, replace }`, of `append`; optioneel `section`, `note` | `proposed`, `path`, `passages` |

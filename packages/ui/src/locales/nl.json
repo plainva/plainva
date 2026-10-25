@@ -40,6 +40,8 @@
       "get_event": "Leest een afspraak",
       "search_mail": "Zoekt in je e-mail",
       "read_mail": "Leest een bericht",
+      "get_changes": "Wijzigingen bekijken",
+      "get_note_history": "De ontwikkeling van een notitie volgen",
       "search_memory": "Zoekt in het geheugen",
       "find_tools": "Zoekt andere hulpmiddelen",
       "call_tool": "Gebruikt een ander hulpmiddel",
@@ -613,6 +615,11 @@
         "prompt": "Hoe staat het project in de geopende notitie ervoor? Doel, wat klaar is, wat open is, wat het blokkeert en de volgende stap — elk punt met zijn bron. Gaat de geopende notitie niet over een project, vraag me dan welk project ik bedoel.",
         "promptFor": "Hoe staat het project “{{project}}” ervoor? Doel, wat klaar is, wat open is, wat het blokkeert en de volgende stap — elk punt met zijn bron.",
         "argument": "Het project: de naam van zijn notitie of map."
+      },
+      "history": {
+        "title": "Geschiedenisanalyse",
+        "description": "Wat er in een periode is veranderd, hoe projecten zich hebben ontwikkeld en wat er nog openstaat.",
+        "prompt": "Kijk terug op de afgelopen zeven dagen: waar ik aan werkte, hoe mijn projecten zich ontwikkelden, welke besluiten ik vastlegde of herzag, welke onderwerpen terugkwamen en wat er nog openstaat. Noem de notities en de dagen."
       },
       "meeting": {
         "title": "Vergadering voorbereiden",
