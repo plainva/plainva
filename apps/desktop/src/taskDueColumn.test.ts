@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { convertDueColumnToDateTime, dayOnlyDueColumn, parseBaseConfig, shouldOfferDueTimeColumn } from "@plainva/ui";
+import { shippedSources } from "./test-sourceTree";
 
 /**
  * Plan Aufgaben-Oberfläche, E9: a task database from before tasks had times
@@ -59,5 +60,15 @@ describe("due column and the time of day", () => {
     const before = files["Aufgaben.base"];
     expect(await convertDueColumnToDateTime(adapter, "Aufgaben.base")).toBeNull();
     expect(files["Aufgaben.base"]).toBe(before);
+  });
+
+  it("is made in one place: no shipped file asks or words the offer by itself", () => {
+    // The quick capture of both shells and the due picker make the same
+    // offer (wishes 2026-10-24, remaining point); `offerDueTimeColumn` is that offer.
+    const HOME = "packages/ui/src/lib/taskDueColumn.ts";
+    const offenders = shippedSources()
+      .filter(({ rel, text }) => rel !== HOME && /\bshouldOfferDueTimeColumn\s*\(|["'`]tasks\.dueTime(Offer|OfferAction|Converted)["'`]/.test(text))
+      .map(({ rel }) => rel);
+    expect(offenders).toEqual([]);
   });
 });

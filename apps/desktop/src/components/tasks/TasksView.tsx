@@ -31,7 +31,7 @@ import { createTaskTimeBlock } from "../../services/pim/taskTimeBlock";
 import { calendarDay } from "@plainva/ui";
 import { formatDueLabel } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
-import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
+import { convertDueColumnToDateTime, setDbTaskPriority, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
 import { buildPlanner, doneTasksOnDay, isOpenState, plannerRowsForTree, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, TaskTitle, useTodayKey, type CaptureResult, type InlineLinkHandlers, type PlannerRow } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { openLink } from "../../services/openLink";
@@ -499,23 +499,18 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
         toast.success(t("tasks.captureCreated", { name: result.title }), { label: t("tasks.captureOpen"), run: () => onOpenPath(res.notePath, false) });
         // A database from before tasks had times types its due column as a day:
         // the time is in the note and the planner shows it, the database's own
-        // table does not. Offered once per database, never done unasked (E9).
+        // table does not. Offered once per database, never done unasked (E9) —
+        // the one offer the due picker makes too (`offerDueTimeColumn`).
         if (result.minutes !== null) {
-          const dayOnly = await shouldOfferDueTimeColumn((path) => vaultAdapter.readTextFile(path), vaultPath, taskDb);
-          if (dayOnly) {
-            toast.info(t("tasks.dueTimeOffer", { name: dayOnly }), {
-              label: t("tasks.dueTimeOfferAction"),
-              run: () => {
-                void convertDueColumnToDateTime(vaultAdapter, taskDb)
-                  .then(async (key) => {
-                    if (!key) return;
-                    if (indexer) await applyIndexChanges(indexer, { added: [taskDb] }).catch(() => undefined);
-                    toast.info(t("tasks.dueTimeConverted", { name: key }));
-                  })
-                  .catch((e) => toast.error(errorText(e)));
-              },
-            });
-          }
+          await offerDueTimeColumn({
+            readTextFile: (path) => vaultAdapter.readTextFile(path),
+            vault: vaultPath,
+            dbPath: taskDb,
+            convert: () => convertDueColumnToDateTime(vaultAdapter, taskDb),
+            converted: async () => {
+              if (indexer) await applyIndexChanges(indexer, { added: [taskDb] }).catch(() => undefined);
+            },
+          }).catch(() => undefined);
         }
         return true;
       } catch (e) {

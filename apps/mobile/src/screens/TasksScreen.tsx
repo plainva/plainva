@@ -4,7 +4,7 @@ import { consumePendingNew } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { Banner, CalendarSyncNotice, errorText, syncProblemsFor, useTaskDuplicates } from "@plainva/ui";
 import type { PimSyncProblem } from "@plainva/core";
-import { convertDueColumnToDateTime, shouldOfferDueTimeColumn, TaskPriorityFlag } from "@plainva/ui";
+import { convertDueColumnToDateTime, offerDueTimeColumn, TaskPriorityFlag } from "@plainva/ui";
 import { buildPlanner, doneTasksOnDay, isOpenState, plannerRowsForTree, plannerRowsFromDb, plannerRowsFromTasks, TaskPlannerList, TaskPlannerNav, TaskTitle, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarClock, CalendarPlus, Database, RefreshCw, Repeat, Table, Eye, EyeOff} from "lucide-react";
@@ -537,23 +537,16 @@ export function TasksScreen({
       toast.success(t("tasks.captureCreated", { name: result.title }), { label: t("tasks.captureOpen"), run: () => onOpenNote(res.notePath) });
       // A database from before tasks had times types its due column as a day;
       // retyping it is offered once per database, never done unasked (E9). The
-      // desktop makes the same offer in TasksView.
+      // desktop makes the same offer in TasksView, the due picker in
+      // taskDueAction — all through the one `offerDueTimeColumn`.
       if (result.minutes !== null) {
-        const dayOnly = await shouldOfferDueTimeColumn((path) => vaultOps.read(vault, path), vault.vaultId, taskDb);
-        if (dayOnly) {
-          toast.info(t("tasks.dueTimeOffer", { name: dayOnly }), {
-            label: t("tasks.dueTimeOfferAction"),
-            run: () => {
-              void convertDueColumnToDateTime(vaultTextFiles(vault), taskDb)
-                .then((key) => {
-                  if (!key) return;
-                  syncSoon();
-                  toast.info(t("tasks.dueTimeConverted", { name: key }));
-                })
-                .catch((e) => toast.error(errorText(e)));
-            },
-          });
-        }
+        await offerDueTimeColumn({
+          readTextFile: (path) => vaultOps.read(vault, path),
+          vault: vault.vaultId,
+          dbPath: taskDb,
+          convert: () => convertDueColumnToDateTime(vaultTextFiles(vault), taskDb),
+          converted: () => syncSoon(),
+        }).catch(() => undefined);
       }
     },
     [taskDb, promotionAdapter, onOpenNote, vault, t]
