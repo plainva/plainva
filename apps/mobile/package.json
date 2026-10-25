@@ -35,8 +35,8 @@
     "@plainva/ui": "workspace:*",
     "date-fns": "^4.4.0",
     "fflate": "^0.8.3",
-    "i18next": "^26.5.3",
-    "lucide-react": "^1.60.0",
+    "i18next": "^26.5.4",
+    "lucide-react": "^1.61.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-i18next": "^17.1.0",
@@ -50,7 +50,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "typescript": "~6.0.3",
-    "vite": "^8.3.4",
+    "vite": "^8.3.5",
     "vitest": "^5.0.5",
     "webdav-server": "^2.6.3"
   }
