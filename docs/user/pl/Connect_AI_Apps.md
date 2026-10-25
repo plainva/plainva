@@ -1,6 +1,6 @@
 # Łączenie aplikacji AI (beta)
 
-Stan na: 2026-10-07
+Stan na: 2026-10-26
 
 Aplikacje AI na Twoim komputerze — Claude Code, Claude Desktop, Cursor, VS Code i inne, które mówią protokołem Model Context Protocol (MCP) — mogą czytać Twój vault przez Plainva: przeszukiwać go, czytać notatki i ich sekcje, konspekty, linki zwrotne, bazy danych, zadania i ostatnie notatki oraz otwierać notatkę w Plainva. Same niczego nie zmieniają: aplikacja, której na to pozwolisz, może proponować zmiany, a te czekają, aż zdecydujesz (zob. niżej). To część eksperymentalnych funkcji AI i działa tylko na komputerze.
 
@@ -18,7 +18,7 @@ Plainva instaluje obok aplikacji mały program pomocniczy, `plainva-mcp`. Aplika
 2. Włącz **Pozwól aplikacjom AI na tym komputerze czytać ten vault**.
 3. Skonfiguruj aplikację (zob. niżej). Przy pierwszym połączeniu Plainva pyta, jaka to aplikacja, jaki program ją uruchomił i które foldery może czytać. Nic nie jest zaznaczone: wybierz foldery albo **Cały vault**, potem **Zezwól**. **Odmów** odprawia aplikację, a Plainva przez dziesięć minut nie pyta o nią ponownie. Pod folderami znajduje się **Może proponować zmiany** — wyłączone, dopóki tego nie zaznaczysz; na co pozwala, opisano niżej.
 
-Aplikacja przechowuje sekret w pęku kluczy systemu na następny raz. Foldery przyznaje się dla każdej aplikacji i każdego vaultu osobno: w innym vaulcie aplikacja pyta ponownie.
+Aplikacja przechowuje sekret w pęku kluczy systemu na następny raz. Foldery przyznaje się dla każdej aplikacji i każdego vaultu osobno: w innym vaulcie aplikacja pyta ponownie. Gdy otworzysz inny vault, aplikacje połączone z poprzednim zostają rozłączone; nowy odczytają dopiero po ponownym połączeniu.
 
 ## Konfiguracja aplikacji
 
@@ -36,7 +36,7 @@ Oprócz narzędzi Plainva udostępnia swoje trzy umiejętności jako prompty, w 
 
 ## Pozwalanie aplikacji na proponowanie zmian
 
-Czytanie nigdy nie jest zgodą na pisanie. To, czy aplikacja może także proponować zmiany, jest osobną odpowiedzią: **Może proponować zmiany** w pytaniu przy pierwszym połączeniu albo później przełącznik **… może proponować zmiany** w ustawieniach — dla każdej aplikacji i każdego vaultu osobno, wyłączony, dopóki go nie włączysz. Obowiązuje od następnego zapytania aplikacji; dodatkowe narzędzia pojawiają się w aplikacji, gdy połączy się ponownie.
+Czytanie nigdy nie jest zgodą na pisanie. To, czy aplikacja może także proponować zmiany, jest osobną odpowiedzią: **Może proponować zmiany** w pytaniu przy pierwszym połączeniu albo później przełącznik **… może proponować zmiany** w ustawieniach — dla każdej aplikacji i każdego vaultu osobno, wyłączony, dopóki go nie włączysz. Obowiązuje od następnego zapytania aplikacji; Plainva od razu informuje połączoną aplikację, że jej narzędzia się zmieniły — czy aplikacja na to zareaguje i pokaże je bez ponownego połączenia, zależy od niej.
 
 Aplikacja, której na to pozwolono, dostaje sześć dodatkowych narzędzi i żadne z nich nie zmienia vaultu:
 

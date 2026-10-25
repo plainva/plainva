@@ -22,13 +22,15 @@ use rmcp::model::{
     ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource, ResourceContents, Role, ServerCapabilities,
     ServerConfig, Tool, ToolAnnotations,
 };
-use rmcp::service::RequestContext;
+use rmcp::model::SubscriptionFilter;
+use rmcp::service::{RequestContext, SubscriptionContext};
+use tokio::sync::broadcast;
 use rmcp::{ErrorData as McpError, RoleServer, ServerHandler};
 use tauri::{AppHandle, Manager, Runtime};
 
 use super::paths;
 use super::store::{AuditEntry, ClientRecord};
-use super::{now_iso, CallExtra, McpState, PendingPlan, ToolKind};
+use super::{now_iso, CallExtra, CallFrom, ListChange, McpState, PendingPlan, ToolKind, CHANGED};
 
 /// The key of the one input request a plan sends: the note that it waits in Plainva.
 pub(crate) const CONFIRM_KEY: &str = "confirm";
@@ -72,8 +74,25 @@ pub struct PlainvaMcp<R: Runtime> {
     pub app: AppHandle<R>,
     pub client: ClientRecord,
     pub vault_key: String,
+    /// The folder of the vault this connection was admitted for: its paths are checked there, never in a vault opened
+    /// since (ADR 0022).
+    pub root: std::path::PathBuf,
     /// The server generation this connection was admitted in (see `McpState::generation`).
     pub generation: u64,
+    /// The subscriptions open on this connection (plan P9-5): a few at most.
+    pub listening: std::sync::atomic::AtomicUsize,
+}
+
+/// How many subscriptions one connection holds at once: one per list is what a client needs.
+const LISTENS_MAX: usize = 4;
+
+/// Counts a subscription for as long as it runs.
+struct Listening<'a>(&'a std::sync::atomic::AtomicUsize);
+
+impl Drop for Listening<'_> {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+    }
 }
 
 impl<R: Runtime> PlainvaMcp<R> {
@@ -96,7 +115,7 @@ impl<R: Runtime> PlainvaMcp<R> {
             notes,
             note: note.map(str::to_string),
         };
-        let _ = state.store(&self.app).map(|store| store.append_audit(&self.vault_key, &entry));
+        let _ = state.edit_store(&self.app, |store| store.append_audit(&self.vault_key, &entry));
     }
 
     /// Whether this request can do the round trip a plan needs: the protocol
@@ -131,7 +150,9 @@ impl<R: Runtime> PlainvaMcp<R> {
 impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
     fn get_info(&self) -> ServerConfig {
         let server = Implementation::new("plainva", env!("CARGO_PKG_VERSION")).with_title("Plainva");
-        ServerConfig::new(ServerCapabilities::builder().enable_tools().enable_resources().enable_prompts().build())
+        // The lists of tools and of prompts change while a client is connected — its grant, the app's own lists — and
+        // the client hears it (plan P9-5). The one resource does not change.
+        ServerConfig::new(ServerCapabilities::builder().enable_tools().enable_resources().enable_prompts().enable_tool_list_changed().enable_prompts_list_changed().build())
             .with_server_info(server)
             .with_instructions(
                 "Access to the user's Plainva vault: notes are Markdown files; cite a note as [[Title]]. \
@@ -143,6 +164,9 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
 
     async fn list_tools(&self, _request: Option<PaginatedRequestParams>, context: RequestContext<RoleServer>) -> Result<ListToolsResult, McpError> {
         let state = self.app.state::<McpState>();
+        if state.generation() != self.generation {
+            return Err(McpError::invalid_request(CHANGED, None));
+        }
         // What a client may do is asked when it asks: a grant the user took back is gone from its next list,
         // and a client whose access was taken back has no tools at all.
         let (folders, writes) = state.grant(&self.app, &self.vault_key, &self.client.id);
@@ -181,7 +205,7 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
         let name = request.name.to_string();
         // Switched off, or another vault opened since this client was admitted: it asks again.
         if state.generation() != self.generation {
-            return Ok(Self::refuse("Plainva's settings or its open vault changed. Restart the connection."));
+            return Ok(Self::refuse(CHANGED));
         }
         // What this client may do here is asked at this call, whatever it was admitted with and whatever
         // list it still holds: its folders, and whether it may propose changes.
@@ -232,9 +256,8 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
             }
         }
         let args = request.arguments.unwrap_or_default();
-        let Some(root) = state.vault_root() else {
-            return Ok(Self::refuse("Plainva has no vault open."));
-        };
+        // Paths are checked in the vault this connection was admitted for, whatever is open now.
+        let root = &self.root;
         // The first wall: a path outside the client's folders — also by way of
         // a link — never reaches the web view.
         for key in &spec.path_args {
@@ -246,21 +269,28 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
                     Some(raw) => paths::allowed(raw, &folders),
                     None => None,
                 };
-                if !inside.is_some_and(|rel| rel.is_empty() || paths::real_inside(&root, &rel, &folders)) {
+                if !inside.is_some_and(|rel| rel.is_empty() || paths::real_inside(root, &rel, &folders)) {
                     self.audit(&name, false, 0);
                     return Ok(Self::refuse(NOT_AVAILABLE));
                 }
             }
         }
-        let answer = match state.forward_call(&self.app, &self.client, &name, serde_json::Value::Object(args), &folders, extra).await {
+        // The call names the vault it is for: the main window runs it only while that vault is open.
+        let from = CallFrom { client: &self.client, vault_key: &self.vault_key, generation: self.generation };
+        let answer = match state.forward_call(&self.app, from, &name, serde_json::Value::Object(args), &folders, extra).await {
             Ok(answer) => answer,
             Err(message) => {
                 self.audit(&name, false, 0);
                 return Ok(Self::refuse(&message));
             }
         };
+        // The vault or the settings changed while the main window ran the call: what it found is withheld.
+        if state.generation() != self.generation {
+            self.audit(&name, false, 0);
+            return Ok(Self::refuse(CHANGED));
+        }
         // The second wall: an answer that names a note outside the folders is refused whole.
-        let real = answer.paths.iter().all(|p| paths::real_inside(&root, p, &folders));
+        let real = answer.paths.iter().all(|p| paths::real_inside(root, p, &folders));
         if !paths::result_paths_allowed(&answer.paths, &folders) || !real {
             self.audit(&name, false, 0);
             return Ok(Self::refuse("The answer could not be checked and was withheld."));
@@ -291,10 +321,60 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
         Ok(result.into())
     }
 
+    /// What a client of 2026-07-28 may hear on a subscription (plan P9-5): that its tools or its prompts changed.
+    fn accepted_subscription_filter(&self, requested: &SubscriptionFilter) -> Option<SubscriptionFilter> {
+        let mut accepted = SubscriptionFilter::new();
+        accepted.tools_list_changed = requested.tools_list_changed;
+        accepted.prompts_list_changed = requested.prompts_list_changed;
+        Some(accepted)
+    }
+
+    /// One subscription, until the client ends it or the connection is over: what changed in what this client sees.
+    async fn listen(&self, context: SubscriptionContext) -> Result<(), McpError> {
+        let state = self.app.state::<McpState>();
+        // A connection of an earlier vault or setting answers nothing any more: its subscription ends at once.
+        if state.generation() != self.generation {
+            return Ok(());
+        }
+        // One that holds as many subscriptions as a client needs gets no more.
+        if self.listening.fetch_add(1, std::sync::atomic::Ordering::SeqCst) >= LISTENS_MAX {
+            self.listening.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+            return Ok(());
+        }
+        let _counted = Listening(&self.listening);
+        let mut changes = state.changes();
+        loop {
+            let change = tokio::select! {
+                _ = context.cancelled() => return Ok(()),
+                change = changes.recv() => match change {
+                    Ok(change) => change,
+                    Err(broadcast::error::RecvError::Lagged(_)) => ListChange::everything(),
+                    Err(broadcast::error::RecvError::Closed) => return Ok(()),
+                },
+            };
+            // A connection of an earlier vault or setting answers nothing any more: its subscription ends.
+            if state.generation() != self.generation {
+                return Ok(());
+            }
+            if !change.concerns(&self.client.id) {
+                continue;
+            }
+            let accepted = context.accepted();
+            if change.tools && accepted.tools_list_changed == Some(true) && context.sink().notify_tool_list_changed().await.is_err() {
+                return Ok(());
+            }
+            if change.prompts && accepted.prompts_list_changed == Some(true) && context.sink().notify_prompt_list_changed().await.is_err() {
+                return Ok(());
+            }
+        }
+    }
+
     async fn list_prompts(&self, _request: Option<PaginatedRequestParams>, _context: RequestContext<RoleServer>) -> Result<ListPromptsResult, McpError> {
-        let prompts = self
-            .app
-            .state::<McpState>()
+        let state = self.app.state::<McpState>();
+        if state.generation() != self.generation {
+            return Err(McpError::invalid_request(CHANGED, None));
+        }
+        let prompts = state
             .prompts()
             .into_iter()
             .map(|spec| {
@@ -302,13 +382,14 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
                 Prompt::new(spec.name, Some(spec.description), arguments).with_title(spec.title)
             })
             .collect();
-        Ok(ListPromptsResult::with_all_items(prompts))
+        // Like the tools: a client may keep the list for a while, and hears when it changes (plan P9-5).
+        Ok(ListPromptsResult::with_all_items(prompts).with_ttl_ms(60_000))
     }
 
     async fn get_prompt(&self, request: GetPromptRequestParams, _context: RequestContext<RoleServer>) -> Result<GetPromptResponse, McpError> {
         let state = self.app.state::<McpState>();
         if state.generation() != self.generation {
-            return Err(McpError::invalid_request("Plainva's settings or its open vault changed. Restart the connection.", None));
+            return Err(McpError::invalid_request(CHANGED, None));
         }
         let Some(spec) = state.prompts().into_iter().find(|p| p.name == request.name) else {
             return Err(McpError::invalid_params(format!("There is no prompt called {}.", request.name), None));

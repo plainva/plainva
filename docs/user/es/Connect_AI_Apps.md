@@ -1,6 +1,6 @@
 # Conectar apps de IA (Beta)
 
-Última actualización: 2026-10-07
+Última actualización: 2026-10-26
 
 Las apps de IA de tu ordenador —Claude Code, Claude Desktop, Cursor, VS Code y otras que hablan el Model Context Protocol (MCP)— pueden leer tu vault a través de Plainva: buscar en ella, leer notas y sus secciones, esquemas, retroenlaces, bases de datos, tareas y notas recientes, y abrir una nota en Plainva. Por sí solas no cambian nada: una app a la que se lo permitas puede sugerir cambios, y esos esperan hasta que decidas (ver más abajo). Forma parte de las funciones experimentales de IA y solo funciona en el escritorio.
 
@@ -18,7 +18,7 @@ Plainva incluye junto a la app un pequeño programa auxiliar, `plainva-mcp`. Una
 2. Activa **Permitir que las apps de IA de este ordenador lean este vault**.
 3. Configura la app (ver más abajo). La primera vez que se conecta, Plainva pregunta qué app es, qué programa la inició y qué carpetas puede leer. No hay nada marcado: elige carpetas o **Todo el vault** y luego **Permitir**. **Rechazar** aparta la app, y Plainva no vuelve a preguntar por ella durante diez minutos. Debajo de las carpetas está **Puede sugerir cambios**, desactivado mientras no lo marques; lo que permite se describe más abajo.
 
-La app guarda un secreto en el llavero del sistema para la próxima vez. Las carpetas se conceden por app y por vault: en otro vault, la app vuelve a preguntar.
+La app guarda un secreto en el llavero del sistema para la próxima vez. Las carpetas se conceden por app y por vault: en otro vault, la app vuelve a preguntar. Si abres otro vault, las apps conectadas al anterior se desconectan; solo leen el nuevo cuando vuelven a conectarse.
 
 ## Configurar una app
 
@@ -36,7 +36,7 @@ Además de las herramientas, Plainva ofrece sus tres habilidades como prompts, e
 
 ## Dejar que una app sugiera cambios
 
-Leer nunca es un permiso para escribir. Que una app pueda además sugerir cambios es una respuesta aparte: **Puede sugerir cambios** en la pregunta de su primera conexión, o más tarde el interruptor **… puede sugerir cambios** en la configuración; por app y por vault, y desactivado hasta que lo actives. Vale desde la siguiente solicitud de la app; las herramientas adicionales aparecen en la app cuando vuelve a conectarse.
+Leer nunca es un permiso para escribir. Que una app pueda además sugerir cambios es una respuesta aparte: **Puede sugerir cambios** en la pregunta de su primera conexión, o más tarde el interruptor **… puede sugerir cambios** en la configuración; por app y por vault, y desactivado hasta que lo actives. Vale desde la siguiente solicitud de la app; Plainva avisa al momento a una app conectada de que sus herramientas cambiaron; que la app lo atienda y las muestre sin volver a conectarse depende de ella.
 
 Una app a la que se lo permitiste recibe seis herramientas más, y ninguna cambia el vault:
 

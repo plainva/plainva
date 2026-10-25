@@ -5378,7 +5378,7 @@ test('AI apps on this computer: an app the user allowed proposes and drafts unde
     internals.invoke = async (cmd: string, args: any, options: any) => {
       if (cmd === 'plugin:event|listen') { listeners.set(String(args.event), Number(args.handler)); return Number(args.handler); }
       if (cmd === 'plugin:event|unlisten') return null;
-      if (cmd === 'mcp_configure') { server.configured.push({ enabled: args.enabled, tools: args.tools }); return null; }
+      if (cmd === 'mcp_configure') { server.configured.push({ enabled: args.enabled, tools: args.tools, vault: args.vault }); return null; }
       if (cmd === 'mcp_status') return { running: true, helperPath: 'C:/Program Files/Plainva/plainva-mcp.exe', identifier: 'com.plainva.labs', clients: server.clients, audit: server.audit };
       if (cmd === 'mcp_pair_answer') {
         server.pairAnswers.push({ requestId: args.requestId, allow: args.allow, folders: args.folders, writes: args.writes });
@@ -5405,7 +5405,9 @@ test('AI apps on this computer: an app the user allowed proposes and drafts unde
   /** One call of the app as the native side forwards it — its folders and its grant checked there —, and the answer it gets. */
   const call = async (tool: string, args: unknown, extra: Record<string, unknown> = {}) => {
     const requestId = `call-${++sent}`;
-    expect(await emit('mcp-call', { requestId, clientId: 'c1', client: 'Claude Code', tool, args, folders: ['Projects'], writes: true, ...extra })).toBe(true);
+    // The vault the app was admitted for: the one the main window told the native side to serve.
+    const vaultKey = (await server()).configured.filter((entry) => entry.vault).pop()?.vault.key;
+    expect(await emit('mcp-call', { requestId, clientId: 'c1', client: 'Claude Code', vaultKey, tool, args, folders: ['Projects'], writes: true, ...extra })).toBe(true);
     await expect.poll(async () => (await server()).answers.some((answer) => answer.requestId === requestId), { timeout: 15000 }).toBe(true);
     return (await server()).answers.find((answer) => answer.requestId === requestId);
   };
@@ -5434,6 +5436,10 @@ test('AI apps on this computer: an app the user allowed proposes and drafts unde
 
   // 3. A change the app asks for is a suggestion on the note, signed with the app's id and the name it was paired
   //    under: the note is what it was, and the user hears of it where they work — the note, never the text.
+  // A call made for another vault — one opened since the app was admitted, of which the native side has not heard
+  // yet — is answered by nothing of this one.
+  const elsewhere = await call('propose_edit', { path: 'Projects/Offer.md', edits: [{ find: '1,800 euros', replace: '1,900 euros' }] }, { vaultKey: 'v0000000000000000' });
+  expect(elsewhere).toMatchObject({ isError: true, paths: [], content: "Plainva's settings or its open vault changed. Restart the connection." });
   const proposed = await call('propose_edit', { path: 'Projects/Offer.md', edits: [{ find: '1,800 euros', replace: '1,900 euros' }], note: 'New rate' });
   expect(proposed).toMatchObject({ isError: false, paths: ['Projects/Offer.md'], content: 'Proposed on Projects/Offer.md: 1 change. Nothing in the vault has changed. The user accepts or declines each change in Plainva.' });
   expect(await fileAt('/test-vault/Projects/Offer.md')).toBe(OFFER);

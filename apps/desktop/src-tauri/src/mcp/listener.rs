@@ -6,8 +6,46 @@
 
 use std::io;
 use std::path::PathBuf;
+use std::time::Duration;
 
-use tauri::AppHandle;
+use tauri::{AppHandle, Runtime};
+use tokio::sync::OwnedMutexGuard;
+
+/// The pauses after a connection that could not be taken: the listener goes on after them (see `serve`).
+const ACCEPT_PAUSE_MIN: Duration = Duration::from_millis(50);
+const ACCEPT_PAUSE_MAX: Duration = Duration::from_secs(2);
+
+/// How many connections in a row may fail to be taken: a listener that cannot take any ends, and the status says so
+/// (`McpState::listening`); the next settings that keep the server on start another.
+const ACCEPT_FAILURES_MAX: u32 = 10;
+
+/// The connections that could not be taken in a row, and the pause after the next one.
+struct Streak {
+    pause: Duration,
+    failures: u32,
+}
+
+impl Streak {
+    fn new() -> Self {
+        Self { pause: ACCEPT_PAUSE_MIN, failures: 0 }
+    }
+
+    /// One was taken: the next failure starts anew.
+    fn taken(&mut self) {
+        *self = Self::new();
+    }
+
+    /// One more could not be taken: the pause before the listener goes on, or `None` once too many failed in a row.
+    fn failed(&mut self) -> Option<Duration> {
+        self.failures += 1;
+        if self.failures >= ACCEPT_FAILURES_MAX {
+            return None;
+        }
+        let pause = self.pause;
+        self.pause = (self.pause * 2).min(ACCEPT_PAUSE_MAX);
+        Some(pause)
+    }
+}
 
 /// The helper program next to the app's executable, when it is there.
 pub fn helper_path() -> Option<PathBuf> {
@@ -18,22 +56,59 @@ pub fn helper_path() -> Option<PathBuf> {
     path.is_file().then_some(path)
 }
 
+/// The longest pause between two tries to take the pipe name (see `serve`).
 #[cfg(windows)]
-pub async fn serve(app: AppHandle, endpoint: String) -> io::Result<()> {
-    use tokio::net::windows::named_pipe::ServerOptions;
+const NAME_PAUSE_MAX: Duration = Duration::from_secs(1);
 
+/// Serves the endpoint until the task that runs it is ended. `held` is the
+/// endpoint's own lock — one listener at a time (`McpState::start_listener`);
+/// `bound` is called once the endpoint is taken and a client can reach it.
+#[cfg(windows)]
+pub async fn serve<R: Runtime>(app: AppHandle<R>, endpoint: String, held: OwnedMutexGuard<()>, bound: impl FnOnce() + Send) -> io::Result<()> {
+    use tokio::net::windows::named_pipe::ServerOptions;
+    const ERROR_ACCESS_DENIED: i32 = 5;
+
+    let _held = held;
     let name = format!(r"\\.\pipe\{endpoint}");
     let security = security::OwnerOnly::new()?;
-    // `first_pipe_instance`: if another process already created this name, it
-    // is not Plainva — refuse to serve beside it rather than share its clients.
-    let mut server = unsafe {
-        ServerOptions::new()
-            .first_pipe_instance(true)
-            .reject_remote_clients(true)
-            .create_with_security_attributes_raw(&name, security.as_ptr())?
+    // `first_pipe_instance`: while any instance of this name is open, Plainva
+    // does not serve beside it — another program's, which is not Plainva and
+    // whose clients it does not share, or one of its own that is still
+    // closing: a connection of the listener before this one (the server
+    // switched off and on) whose app has not let go yet. It tries again until
+    // the name is free.
+    let mut pause = Duration::from_millis(50);
+    let mut server = loop {
+        let created = unsafe {
+            ServerOptions::new()
+                .first_pipe_instance(true)
+                .reject_remote_clients(true)
+                .create_with_security_attributes_raw(&name, security.as_ptr())
+        };
+        match created {
+            Ok(server) => break server,
+            Err(error) if error.raw_os_error() == Some(ERROR_ACCESS_DENIED) => {
+                tokio::time::sleep(pause).await;
+                pause = (pause * 2).min(NAME_PAUSE_MAX);
+            }
+            Err(error) => return Err(error),
+        }
     };
+    bound();
+    let mut streak = Streak::new();
     loop {
-        server.connect().await?;
+        if let Err(error) = server.connect().await {
+            // A connection that failed on its way in ends nothing but itself: a new instance waits for the next one.
+            // An instance that cannot be made, or too many failures in a row, end the listener (the status says so).
+            eprintln!("mcp: a connection could not be taken: {error}");
+            let Some(pause) = streak.failed() else {
+                return Err(error);
+            };
+            server = unsafe { ServerOptions::new().reject_remote_clients(true).create_with_security_attributes_raw(&name, security.as_ptr())? };
+            tokio::time::sleep(pause).await;
+            continue;
+        }
+        streak.taken();
         let connected = server;
         server = unsafe { ServerOptions::new().reject_remote_clients(true).create_with_security_attributes_raw(&name, security.as_ptr())? };
         let app = app.clone();
@@ -41,8 +116,10 @@ pub async fn serve(app: AppHandle, endpoint: String) -> io::Result<()> {
     }
 }
 
+/// Serves the endpoint until the task that runs it is ended (see the Windows
+/// version for `held` and `bound`).
 #[cfg(unix)]
-pub async fn serve(app: AppHandle, endpoint: String) -> io::Result<()> {
+pub async fn serve<R: Runtime>(app: AppHandle<R>, endpoint: String, held: OwnedMutexGuard<()>, bound: impl FnOnce() + Send) -> io::Result<()> {
     let path = socket_path(&endpoint)?;
     // A socket left by a crashed run: remove it only when it is a socket and ours.
     if let Ok(meta) = std::fs::symlink_metadata(&path) {
@@ -54,12 +131,36 @@ pub async fn serve(app: AppHandle, endpoint: String) -> io::Result<()> {
         }
     }
     let listener = bind_private(&path)?;
-    let _cleanup = RemoveOnDrop(path);
+    let _cleanup = RemoveOnDrop { path, _held: held };
+    bound();
+    let mut streak = Streak::new();
     loop {
-        let (stream, _) = listener.accept().await?;
-        let app = app.clone();
-        tauri::async_runtime::spawn(async move { super::serve_connection(app, stream).await });
+        match listener.accept().await {
+            Ok((stream, _)) => {
+                streak.taken();
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move { super::serve_connection(app, stream).await });
+            }
+            // A connection that could not be taken — out of file handles, gone before it was taken — ends nothing but
+            // itself: the listener waits a moment and goes on. Any other failure, or too many in a row, end it, and
+            // the status says so.
+            Err(error) if passes(&error) => {
+                eprintln!("mcp: a connection could not be taken: {error}");
+                let Some(pause) = streak.failed() else {
+                    return Err(error);
+                };
+                tokio::time::sleep(pause).await;
+            }
+            Err(error) => return Err(error),
+        }
     }
+}
+
+/// Whether a failure to take a connection is one of the moment, after which the listener goes on (Unix).
+#[cfg(unix)]
+fn passes(error: &io::Error) -> bool {
+    matches!(error.kind(), io::ErrorKind::ConnectionAborted | io::ErrorKind::Interrupted)
+        || matches!(error.raw_os_error(), Some(libc::EMFILE | libc::ENFILE | libc::ENOBUFS | libc::ENOMEM | libc::EPROTO))
 }
 
 /// The socket itself: bound, then closed to everyone but the user.
@@ -71,13 +172,19 @@ pub fn bind_private(path: &std::path::Path) -> io::Result<tokio::net::UnixListen
     Ok(listener)
 }
 
+/// A listener's socket, removed when the listener ends. The endpoint's lock
+/// is let go only after that: the next listener binds a socket of its own at
+/// the same path then, and never loses it to this one's removal.
 #[cfg(unix)]
-struct RemoveOnDrop(PathBuf);
+struct RemoveOnDrop {
+    path: PathBuf,
+    _held: OwnedMutexGuard<()>,
+}
 
 #[cfg(unix)]
 impl Drop for RemoveOnDrop {
     fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.0);
+        let _ = std::fs::remove_file(&self.path);
     }
 }
 
@@ -213,5 +320,42 @@ mod tests {
         }
         let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600);
+    }
+}
+
+#[cfg(all(test, unix))]
+mod accept_tests {
+    use std::io;
+
+    /// A connection that could not be taken ends nothing but itself; a listener that cannot take any more ends.
+    #[test]
+    fn a_connection_that_could_not_be_taken_ends_nothing_but_itself() {
+        for passing in [io::Error::from_raw_os_error(libc::EMFILE), io::Error::from_raw_os_error(libc::ENFILE), io::Error::from(io::ErrorKind::ConnectionAborted)] {
+            assert!(super::passes(&passing), "{passing}");
+        }
+        for ending in [io::Error::from_raw_os_error(libc::EBADF), io::Error::from_raw_os_error(libc::EINVAL)] {
+            assert!(!super::passes(&ending), "{ending}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod streak_tests {
+    use super::{Streak, ACCEPT_FAILURES_MAX, ACCEPT_PAUSE_MAX, ACCEPT_PAUSE_MIN};
+
+    /// Failures in a row wait longer each time, up to a bound; too many end the listener; one taken starts anew.
+    #[test]
+    fn a_streak_of_connections_not_taken_ends_the_listener_and_one_taken_starts_it_anew() {
+        let mut streak = Streak::new();
+        let mut pauses = Vec::new();
+        while let Some(pause) = streak.failed() {
+            pauses.push(pause);
+        }
+        assert_eq!(pauses.len() as u32, ACCEPT_FAILURES_MAX - 1);
+        assert_eq!(pauses[0], ACCEPT_PAUSE_MIN);
+        assert!(pauses.windows(2).all(|pair| pair[1] >= pair[0]));
+        assert_eq!(*pauses.last().unwrap(), ACCEPT_PAUSE_MAX);
+        streak.taken();
+        assert_eq!(streak.failed(), Some(ACCEPT_PAUSE_MIN));
     }
 }

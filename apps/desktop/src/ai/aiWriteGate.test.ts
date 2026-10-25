@@ -556,10 +556,12 @@ describe("gate: what a text claims to rest on", () => {
 describe("gate: a program at Plainva's MCP server", () => {
   async function paired(vault: GateVault) {
     const { s } = await gateSession([], vault);
+    // The vault the client was admitted for, as the native side names it in every call.
+    vault.host.key = "gate-vault";
     const plans = new McpPlans();
     let n = 0;
     const call = (tool: string, args: unknown, over: Record<string, unknown> = {}) =>
-      runMcpCall(vault.host, { requestId: `r${++n}`, clientId: "c1", client: "Test client", tool, args, folders: ["Projects"], writes: true, ...over }, { session: s, plans, left: () => {}, waitMs: 10 });
+      runMcpCall(vault.host, { requestId: `r${++n}`, clientId: "c1", client: "Test client", vaultKey: "gate-vault", tool, args, folders: ["Projects"], writes: true, ...over }, { session: s, plans, left: () => {}, waitMs: 10 });
     return { s, plans, call };
   }
 

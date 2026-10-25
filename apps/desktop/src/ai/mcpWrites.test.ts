@@ -98,6 +98,7 @@ function mcpVault(options: { sealed?: boolean; deletes?: boolean } = {}) {
   /** How every call reached the gate: an outside program is a cloud that may reach the internet. */
   const gates: { kind: string; web: boolean }[] = [];
   const host = {
+    key: "vault-key",
     conversations: { list: async () => [], load: async () => null, save: async () => undefined, remove: async () => undefined, removeAll: async () => undefined },
     ledger: { load: async () => [], save: async () => undefined },
     activeNote: async () => null,
@@ -142,7 +143,7 @@ async function window(options: Parameters<typeof mcpVault>[0] = {}) {
   const left: unknown[] = [];
   let n = 0;
   const call = (tool: string, args: unknown, over: Partial<CallRequest> = {}, waitMs = 10) =>
-    runMcpCall(vault.host, { requestId: `r${++n}`, clientId: "c1", client: "Test client", tool, args, folders: ["Projects"], writes: true, ...over }, { session: s, plans, left: (what) => void left.push(what), waitMs });
+    runMcpCall(vault.host, { requestId: `r${++n}`, clientId: "c1", client: "Test client", vaultKey: "vault-key", tool, args, folders: ["Projects"], writes: true, ...over }, { session: s, plans, left: (what) => void left.push(what), waitMs });
   return { ...vault, s, plans, left, call };
 }
 
@@ -181,7 +182,7 @@ describe("a program the user allowed to propose changes", () => {
     expect(await w.call("propose_edit", edit, { writes: false })).toEqual(none);
     expect(await w.call("propose_edit", edit, { writes: undefined })).toEqual(none);
     // A window that brings nothing to write with serves none either.
-    expect(await runMcpCall(w.host, { requestId: "r", clientId: "c1", client: "Test client", tool: "propose_edit", args: edit, folders: ["Projects"], writes: true })).toEqual(none);
+    expect(await runMcpCall(w.host, { requestId: "r", clientId: "c1", client: "Test client", vaultKey: "vault-key", tool: "propose_edit", args: edit, folders: ["Projects"], writes: true })).toEqual(none);
     expect(await w.call("rename_note", { path: "Projects/Offer.md", title: "Offer 2027" }, { writes: false })).toEqual({ ...none, content: "There is no tool called rename_note." });
     expect(w.proposed).toEqual([]);
     expect(w.plans.current()).toBeNull();

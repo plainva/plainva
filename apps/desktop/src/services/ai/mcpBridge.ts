@@ -62,6 +62,8 @@ export interface McpCallRequest {
   requestId: string;
   clientId: string;
   client: string;
+  /** The vault the client's connection was admitted for (`aiVaultKey`): the call runs only while that vault is open. */
+  vaultKey: string;
   tool: string;
   args: unknown;
   folders: string[];
@@ -162,9 +164,15 @@ function planNote(question: McpPlanQuestion, again: boolean): string {
 
 const stable = (value: unknown): string => JSON.stringify(value, (_key, item: unknown) => (item && typeof item === "object" && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) : item));
 
-/** Runs one forwarded call against the open vault. */
+/** What a client is told when its call was made for a vault that is not the one open (ADR 0022). */
+export const MCP_VAULT_CHANGED = "Plainva's settings or its open vault changed. Restart the connection.";
+
+/** Runs one forwarded call against the open vault — only the vault the client's connection was admitted for. */
 export async function runMcpCall(host: AiVaultHost | null, request: McpCallRequest, writing?: McpWriting): Promise<McpCallAnswer> {
   if (!host) return failed("Plainva has no vault open.");
+  // Another vault opened since the client was admitted, and the native side has not heard of it yet: nothing of
+  // this vault answers a call made for the one before.
+  if (!host.key || host.key !== request.vaultKey) return failed(MCP_VAULT_CHANGED);
   const tool = toolByName(request.tool);
   if (!tool || !tool.surfaces.includes("mcp")) return failed(noTool(request.tool));
   const kind = mcpToolKind(tool);

@@ -106,11 +106,13 @@ the part that follows (§10).*
 - **Endpoint.** Windows: `\\.\pipe\plainva-mcp-<identifier>`, created with
   `first_pipe_instance` (no one else may hold the name), `reject_remote_clients`
   and a DACL that grants only the signed-in user. macOS/Linux: a socket
-  `plainva-mcp-<identifier>.sock` in a per-user folder (`0700`; the per-user
-  temporary folder on macOS, `/run/user/<uid>` or `/tmp/plainva-mcp-<uid>` on
-  Linux), the socket itself `0600`. Nothing listens until the user switches the
-  server on (Settings → AI & automation), and it closes with the switch or when
-  another vault opens (older connections then stop answering).
+  `plainva-mcp-<identifier>.sock` in a per-user folder (`0700`;
+  `plainva-mcp` in the per-user temporary folder on macOS,
+  `/run/user/<uid>/plainva-mcp` or `/tmp/plainva-mcp-<uid>` on Linux), the
+  socket itself `0600`. Nothing listens until the user switches the
+  server on (Settings → AI & automation), and it closes with the switch; when
+  another vault opens, the connections of the one before end (see the
+  implementation of lists that change, 2026-10-25, below).
 - **Pairing and grants.** The app keeps `mcp/clients.json` (name, program,
   SHA-256 of the secret, last use) and `mcp/grants-<vault>.json` (folders per
   client and vault) in its data folder, never in the vault; the helper keeps
@@ -190,6 +192,71 @@ the part that follows (§10).*
   rule that the place of its proposal could lack.
 - **The record.** A line of the audit may carry one fixed word — `asked` (a
   plan waits for the user) or `declined` — and still never a path or a text.
+
+### Implementation (lists that change, 2026-10-25)
+
+Plan P9-5. What a client sees can change while it is connected — its
+folders, its grant to propose changes, its access taken back, the app's own
+lists of tools and prompts (another language). The server declares
+`listChanged` for tools and for prompts and tells the client so, instead of
+leaving it to the next connection or to the list's time to live:
+
+- **A session with a handshake** (`initialize`: 2025-11-25 and earlier)
+  hears `notifications/tools/list_changed` or
+  `notifications/prompts/list_changed` on its own stream.
+- **A client of 2026-07-28** has no session: it hears them on the
+  subscription it opened (`subscriptions/listen`), and only what it asked
+  for — tools, prompts; the one resource does not change. A connection holds
+  four subscriptions at most.
+- **What is news:** a grant whose effect on the client's list changed —
+  reading or not, proposing or not, by the settings or by a pairing (the
+  same app in a second window) —, access taken back, and the app's lists
+  differing from the ones before while the vault stays; that last one is
+  told to every connection, whatever part of the lists a client sees.
+  Another client's change is no news for this one, and a grant change that
+  leaves the client's list as it was is not said.
+- **Nothing more is said.** A notification carries no list, no folder and no
+  name: the client asks for its list as before, and every request is still
+  checked against the grants of that moment. A connection that fell behind is
+  told that both lists may have changed.
+- **A connection belongs to one vault.** Its vault, the server's
+  generation and whether the server is on are read together the moment it is
+  taken, and checked again after the user was asked; a vault switch — or the
+  server switched off — ends every open connection wherever it is (while its
+  hello is read, in the handshake, serving, with a subscription open) and a
+  question that waits for the user, in the main window too, and serves nobody
+  for the vault that is gone; a change after a client's grant was saved ends
+  its connection right after the ok line. A client is kept, and its grant
+  saved, only while that vault and those settings hold — read again and
+  written as one step with every other change of the store (clients, grants,
+  the audit), so that what the user changed while a client was asked stays.
+- **A call belongs to it too.** It carries the vault its connection was
+  admitted for: the main window runs it only while that vault is open, its
+  paths are checked in that vault's folder, a call still waiting for the main
+  window is not waited for after a change, and an answer that comes back after
+  one is withheld. (Until this stage an admission read the vault twice: a
+  switch while the user was asked could let a connection read the new vault
+  under a grant saved for the old one; a connection that had not begun its
+  handshake stayed open; and a call under way during a switch was answered
+  from the vault open then.)
+- **The listener stays through a vault switch** and serves the vault that is
+  open when a client comes; only the switch stops it. Switched off and on,
+  the next listener takes the endpoint once the one before is gone — its
+  socket removed, its pipe instance closed. On Windows `first_pipe_instance`
+  refuses the name while any instance of it is open: a connection of the
+  listener before whose app has not let go yet, or another program's. The
+  listener tries again until the name is free and never serves beside it;
+  `mcp_status` counts it as running only while it holds the endpoint. A
+  connection that could not be taken — out of file handles, gone before it
+  was taken — ends nothing but itself: the listener goes on after a pause;
+  ten in a row end it, and the status says so.
+  (Until this stage a vault switch restarted the listener, and on Windows the
+  restart failed while an app was connected: nothing listened any more, and
+  the status still said it did.)
+- Both lists carry a `ttlMs` of 60 s: a client that ignores the
+  notification sees the change at its next list after that. A change in the
+  instant between a subscription's acknowledgment and its start is not sent;
+  the time to live covers it.
 
 ## Consequences
 

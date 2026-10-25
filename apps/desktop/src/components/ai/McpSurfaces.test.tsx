@@ -32,6 +32,17 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({ save: vi.fn(async () => null) }));
 vi.mock("../../contexts/VaultContext", () => ({ useVault: () => vaultContext }));
 vi.mock("../../services/appDialogs", () => ({ appConfirm }));
 
+// The bridge imports the event module each time it listens, and of two such imports at the same moment — the pairing
+// dialog listens for two events — vitest hands the second one the real module. Here the bridge's listener goes
+// straight to the events of this test; the listener itself is tested in `src/ai/mcpBridge.test.ts`.
+vi.mock("../../services/ai/mcpBridge", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../services/ai/mcpBridge")>()),
+  listenQuietly: (name: string, handler: (payload: unknown) => void) => {
+    events.handlers.set(name, (event) => handler(event.payload));
+    return () => undefined;
+  },
+}));
+
 const { McpPairing } = await import("./McpPairing");
 const { McpPlanDialog } = await import("./McpPlanDialog");
 const { McpSettingsCard } = await import("../settings/McpSettingsCard");
@@ -109,6 +120,19 @@ describe("the pairing dialog", () => {
     const deny = Array.from($("mcp-pairing")!.querySelectorAll("button")).find((button) => button.textContent === "Deny");
     click(deny);
     expect(calls("mcp_pair_answer")[1]).toEqual({ requestId: "pair-3", allow: false, folders: [], writes: false });
+  });
+
+  it("goes when the native side ended its question — the vault changed, or nobody answered in time — and only then", async () => {
+    await mount(<McpPairing />);
+    await asked("pair-4");
+    await until(() => events.handlers.has("mcp-pair-ended"));
+    // The end of another question leaves this one standing.
+    act(() => events.handlers.get("mcp-pair-ended")!({ payload: "pair-0" }));
+    expect($("mcp-pairing")).not.toBeNull();
+    // Its own end closes it, and nothing is answered for what is gone.
+    act(() => events.handlers.get("mcp-pair-ended")!({ payload: "pair-4" }));
+    expect($("mcp-pairing")).toBeNull();
+    expect(calls("mcp_pair_answer")).toEqual([]);
   });
 });
 

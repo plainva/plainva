@@ -1,6 +1,6 @@
 # KI-Apps verbinden (Beta)
 
-Stand: 2026-10-07
+Stand: 2026-10-26
 
 KI-Apps auf Deinem Rechner — Claude Code, Claude Desktop, Cursor, VS Code und andere, die das Model Context Protocol (MCP) sprechen — können Deinen Vault über Plainva lesen: ihn durchsuchen, Notizen und ihre Abschnitte lesen, Gliederungen, Backlinks, Datenbanken, Aufgaben und zuletzt benutzte Notizen, und eine Notiz in Plainva öffnen. Von sich aus ändern sie nichts: eine App, der Du es erlaubst, darf Änderungen vorschlagen, und die warten, bis Du entscheidest (siehe unten). Das gehört zu den experimentellen KI-Funktionen und geht nur am Desktop.
 
@@ -18,7 +18,7 @@ Plainva bringt neben der App ein kleines Hilfsprogramm mit, `plainva-mcp`. Eine 
 2. Schalte **KI-Apps auf diesem Rechner diesen Vault lesen lassen** ein.
 3. Richte die App ein (siehe unten). Beim ersten Verbinden fragt Plainva, welche App es ist, welches Programm sie gestartet hat und welche Ordner sie lesen darf. Nichts ist vorausgewählt: wähle Ordner oder **Der ganze Vault**, dann **Erlauben**. **Ablehnen** weist die App ab, und Plainva fragt zehn Minuten lang nicht erneut nach ihr. Unter den Ordnern steht **Darf Änderungen vorschlagen** — aus, solange Du den Haken nicht setzt; was er erlaubt, steht weiter unten.
 
-Die App bewahrt für das nächste Mal ein Geheimnis im Schlüsselbund des Systems auf. Ordner gelten je App und je Vault: in einem anderen Vault fragt die App erneut.
+Die App bewahrt für das nächste Mal ein Geheimnis im Schlüsselbund des Systems auf. Ordner gelten je App und je Vault: in einem anderen Vault fragt die App erneut. Öffnest Du einen anderen Vault, trennt Plainva die Apps, die mit dem vorigen verbunden waren; den neuen lesen sie erst, wenn sie sich wieder verbinden.
 
 ## Eine App einrichten
 
@@ -36,7 +36,7 @@ Neben den Werkzeugen bietet Plainva seine drei Skills als Prompts an, in der Spr
 
 ## Eine App Änderungen vorschlagen lassen
 
-Lesen ist nie eine Erlaubnis zu schreiben. Ob eine App auch Änderungen vorschlagen darf, ist eine eigene Antwort: **Darf Änderungen vorschlagen** in der Frage beim ersten Verbinden oder später der Schalter **… darf Änderungen vorschlagen** in den Einstellungen — je App und je Vault, und aus, bis Du ihn setzt. Er gilt ab der nächsten Anfrage der App; die zusätzlichen Werkzeuge zeigt die App, sobald sie sich neu verbindet.
+Lesen ist nie eine Erlaubnis zu schreiben. Ob eine App auch Änderungen vorschlagen darf, ist eine eigene Antwort: **Darf Änderungen vorschlagen** in der Frage beim ersten Verbinden oder später der Schalter **… darf Änderungen vorschlagen** in den Einstellungen — je App und je Vault, und aus, bis Du ihn setzt. Er gilt ab der nächsten Anfrage der App; Plainva sagt einer verbundenen App sofort, dass sich ihre Werkzeuge geändert haben — ob die App darauf hört und sie ohne neues Verbinden zeigt, liegt an der App.
 
 Eine App, der Du es erlaubt hast, bekommt sechs weitere Werkzeuge, und keines davon ändert den Vault:
 

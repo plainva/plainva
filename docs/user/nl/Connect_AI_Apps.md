@@ -1,6 +1,6 @@
 # AI-apps koppelen (bèta)
 
-Laatst bijgewerkt: 2026-10-07
+Laatst bijgewerkt: 2026-10-26
 
 AI-apps op je computer — Claude Code, Claude Desktop, Cursor, VS Code en andere die het Model Context Protocol (MCP) spreken — kunnen je vault via Plainva lezen: erin zoeken, notities en hun secties lezen, structuren, backlinks, databases, taken en recente notities, en een notitie in Plainva openen. Uit zichzelf wijzigen ze niets: een app die je dat toestaat mag wijzigingen voorstellen, en die wachten tot je beslist (zie hieronder). Dit hoort bij de experimentele AI-functies en werkt alleen op de desktop.
 
@@ -18,7 +18,7 @@ Plainva levert naast de app een klein hulpprogramma mee, `plainva-mcp`. Een AI-a
 2. Zet **AI-apps op deze computer deze vault laten lezen** aan.
 3. Stel de app in (zie hieronder). Bij de eerste verbinding vraagt Plainva welke app het is, welk programma haar startte en welke mappen ze mag lezen. Er is niets aangevinkt: kies mappen of **De hele vault**, dan **Toestaan**. **Weigeren** wijst de app af, en Plainva vraagt tien minuten lang niet opnieuw naar haar. Onder de mappen staat **Mag wijzigingen voorstellen** — uit zolang je het niet aanvinkt; wat het toestaat, staat verderop.
 
-De app bewaart voor de volgende keer een geheim in de sleutelhanger van het systeem. Mappen gelden per app en per vault: in een andere vault vraagt de app opnieuw.
+De app bewaart voor de volgende keer een geheim in de sleutelhanger van het systeem. Mappen gelden per app en per vault: in een andere vault vraagt de app opnieuw. Open je een andere vault, dan worden de apps die met de vorige verbonden waren losgekoppeld; de nieuwe lezen ze pas als ze opnieuw verbinden.
 
 ## Een app instellen
 
@@ -36,7 +36,7 @@ Naast de tools biedt Plainva zijn drie vaardigheden aan als prompts, in de taal 
 
 ## Een app wijzigingen laten voorstellen
 
-Lezen is nooit een toestemming om te schrijven. Of een app ook wijzigingen mag voorstellen, is een apart antwoord: **Mag wijzigingen voorstellen** in de vraag bij de eerste verbinding, of later de schakelaar **… mag wijzigingen voorstellen** in de instellingen — per app en per vault, en uit totdat je hem aanzet. Hij geldt vanaf het volgende verzoek van de app; de extra hulpmiddelen verschijnen in de app zodra ze opnieuw verbinding maakt.
+Lezen is nooit een toestemming om te schrijven. Of een app ook wijzigingen mag voorstellen, is een apart antwoord: **Mag wijzigingen voorstellen** in de vraag bij de eerste verbinding, of later de schakelaar **… mag wijzigingen voorstellen** in de instellingen — per app en per vault, en uit totdat je hem aanzet. Hij geldt vanaf het volgende verzoek van de app; Plainva laat een verbonden app meteen weten dat haar hulpmiddelen zijn veranderd — of de app daarnaar luistert en ze zonder opnieuw verbinden toont, ligt aan de app.
 
 Een app die je het hebt toegestaan krijgt zes extra hulpmiddelen, en geen daarvan wijzigt de vault:
 

@@ -10,7 +10,8 @@ import { listenQuietly, mcpAnswerPairing, topLevelFolders, type McpPairRequest }
  * asks to read the vault. It names the app and the program that started it,
  * and the user picks the folders it may read — nothing is ticked by default,
  * so allowing needs a choice. Closing the dialog is a refusal; so is waiting
- * too long (the native side gives up after two minutes).
+ * too long (the native side gives up after two minutes, and the dialog goes
+ * with it — as it goes when the vault changes while it asks).
  *
  * Stage 2: whether the app may also propose changes is a second answer in
  * the same dialog, and it is off until the user ticks it — reading is never
@@ -33,6 +34,10 @@ export function McpPairing() {
       }),
     [],
   );
+
+  // The native side ended the question — the vault changed, or nobody answered in time: an answer would belong to
+  // what is gone, so the dialog goes (plan P9-5).
+  useEffect(() => listenQuietly<string>("mcp-pair-ended", (requestId) => setRequest((open) => (open?.requestId === requestId ? null : open))), []);
 
   useEffect(() => {
     if (!request || !queryService) return;

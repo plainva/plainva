@@ -12,7 +12,7 @@ vi.mock("@tauri-apps/api/event", () => ({
   }),
 }));
 
-const { insideFolders, listenQuietly, mcpToolSpecs, runMcpCall, topLevelFolders, claudeCodeCommand, mcpClientConfig, vaultName } = await import("../services/ai/mcpBridge");
+const { MCP_VAULT_CHANGED, insideFolders, listenQuietly, mcpToolSpecs, runMcpCall, topLevelFolders, claudeCodeCommand, mcpClientConfig, vaultName } = await import("../services/ai/mcpBridge");
 
 const files: Record<string, string> = {
   "Projects/Offer.md": "# Offer\n\nRates as in [[Finance/Salaries]] and [[Projects/Plan]].",
@@ -45,6 +45,7 @@ function host(): AiVaultHost {
     commands: () => [{ id: "open-note", label: "Open a note", run: () => true }],
   };
   return {
+    key: "vault-key",
     // The bridge says how a call stands at the gate; the host passes it on as every shell's does.
     tools: (recipient: EgressRecipient, scope?: ToolScope, _redact?: unknown, web?: boolean) => {
       gates.push(web === true);
@@ -55,7 +56,7 @@ function host(): AiVaultHost {
 /** Whether each call was made as one that may reach the internet. */
 const gates: boolean[] = [];
 
-const call = (tool: string, args: unknown, folders = ["Projects"]) => runMcpCall(host(), { requestId: "r1", clientId: "c1", client: "Test client", tool, args, folders });
+const call = (tool: string, args: unknown, folders = ["Projects"]) => runMcpCall(host(), { requestId: "r1", clientId: "c1", client: "Test client", vaultKey: "vault-key", tool, args, folders });
 
 describe("the MCP bridge", () => {
   it("a folder grants itself and below, never a sibling that shares its prefix", () => {
@@ -115,8 +116,16 @@ describe("the MCP bridge", () => {
     expect((await call("run_command", { id: "open-graph" })).isError).toBe(true);
     expect((await call("write_note", { path: "Projects/Offer.md" })).isError).toBe(true);
     expect((await call("read_note", { path: 42 })).isError).toBe(true);
-    const none = await runMcpCall(null, { requestId: "r", clientId: "c", client: "x", tool: "read_note", args: { path: "a.md" }, folders: [""] });
+    const none = await runMcpCall(null, { requestId: "r", clientId: "c", client: "x", vaultKey: "vault-key", tool: "read_note", args: { path: "a.md" }, folders: [""] });
     expect(none).toEqual({ content: "Plainva has no vault open.", isError: true, paths: [] });
+  });
+
+  it("answers nothing of this vault to a call made for another — opened since the client was admitted", async () => {
+    gates.length = 0;
+    const other = await runMcpCall(host(), { requestId: "r2", clientId: "c1", client: "Test client", vaultKey: "another-vault", tool: "read_note", args: { path: "Projects/Offer.md" }, folders: ["Projects"] });
+    expect(other).toEqual({ content: MCP_VAULT_CHANGED, isError: true, paths: [] });
+    // Not even the gate was asked: nothing of this vault was looked at.
+    expect(gates).toEqual([]);
   });
 
   it("opens a note in the app only through the gate", async () => {

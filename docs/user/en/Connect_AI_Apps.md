@@ -1,6 +1,6 @@
 # Connecting AI apps (Beta)
 
-Last reviewed: 2026-10-07
+Last reviewed: 2026-10-26
 
 AI apps on your computer — Claude Code, Claude Desktop, Cursor, VS Code and others that speak the Model Context Protocol (MCP) — can read your vault through Plainva: search it, read notes and their sections, outlines, backlinks, databases, tasks and recent notes, and open a note in Plainva. They change nothing by themselves: where you allow it, an app may propose changes, and those wait until you decide (see below). This is part of the experimental AI features and works on the desktop only.
 
@@ -18,7 +18,7 @@ Plainva ships a small helper program, `plainva-mcp`, next to the app. An AI app 
 2. Switch on **Let AI apps on this computer read this vault**.
 3. Set the app up (see below). The first time it connects, Plainva asks which app it is, which program started it and which folders it may read. Nothing is ticked: choose folders or **The whole vault**, then **Allow**. **Deny** turns the app away, and Plainva does not ask about it again for ten minutes. Below the folders stands **May suggest changes** — off unless you tick it; what it allows is described further down.
 
-The app keeps a secret in the system keychain for the next time. Folders are granted per app and per vault: in another vault, the app asks again.
+The app keeps a secret in the system keychain for the next time. Folders are granted per app and per vault: in another vault, the app asks again. When you open another vault, the apps connected to the one before are disconnected; they read the new one only once they connect again.
 
 ## Setting an app up
 
@@ -36,7 +36,7 @@ Besides the tools, Plainva offers its three skills as prompts, in the language o
 
 ## Letting an app propose changes
 
-Reading is never a leave to write. Whether an app may also propose changes is an answer of its own: **May suggest changes** in the question at its first connection, or later the switch **… may suggest changes** in the settings — per app and per vault, and off until you set it. It holds from the app's next request; the additional tools show in the app once it reconnects.
+Reading is never a leave to write. Whether an app may also propose changes is an answer of its own: **May suggest changes** in the question at its first connection, or later the switch **… may suggest changes** in the settings — per app and per vault, and off until you set it. It holds from the app's next request; Plainva tells a connected app at once that its tools changed — whether the app listens and shows them without reconnecting is up to the app.
 
 An app you allowed gets six more tools, and none of them changes the vault:
 

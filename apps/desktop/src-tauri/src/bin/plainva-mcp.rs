@@ -98,6 +98,7 @@ async fn run(identifier: &str) -> Result<(), String> {
             Some("no-vault") => "Plainva has no vault open.",
             Some("busy") => "Plainva is asking about another client right now. Try again in a moment.",
             Some("version") => "This helper does not match the running Plainva. Update Plainva.",
+            Some("changed") => "Plainva's open vault or its settings changed while it was asking. Start the connection again.",
             _ => "Plainva could not admit this client.",
         };
         return refuse(&mut stdout, &request_id, message).await;
