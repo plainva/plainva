@@ -63,6 +63,7 @@ export * from "./sync/SyncQueue.js";
 export * from "./sync/ISyncTarget.js";
 export * from "./sync/fileType.js";
 export * from "./sync/WebDavSyncTarget.js";
+export * from "./sync/folderIdentity.js";
 export * from "./sync/DriveSyncTarget.js";
 export * from "./sync/DriveAuth.js";
 export * from "./sync/oauthRefresh.js";

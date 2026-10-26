@@ -17,6 +17,8 @@ const state = vi.hoisted(() => ({
   filesOff: false,
   pausedHere: false,
   gate: null as null | { reached: boolean; release: () => void; promise: Promise<boolean> },
+  /** Holds an encrypted workspace's join, where the start shows "syncing". */
+  joinGate: null as null | { reached: boolean; release: () => void; promise: Promise<boolean> },
   workers: [] as Array<{ running: boolean }>,
   pass: "p",
   signedOutHere: false,
@@ -46,6 +48,12 @@ vi.mock("@plainva/core", async (original) => {
   return {
     ...await original<typeof import("@plainva/core")>(),
     SyncWorker: FakeWorker,
+    EncryptedWorkspaceWorker: FakeWorker,
+    initializePersonalWorkspaceMigration: async () => {
+      if (!state.joinGate) return;
+      state.joinGate.reached = true;
+      await state.joinGate.promise;
+    },
     SettingsOnlySync: FakeSettingsOnly,
     SyncEngine: class {},
     DeletionJournal: class {},
@@ -135,12 +143,14 @@ beforeEach(() => {
   state.settings.clear();
   state.log.length = 0;
   state.gate = null;
+  state.joinGate = null;
   state.workers.length = 0;
   state.settingsOnly.length = 0;
 });
 
 afterEach(async () => {
   state.gate?.release();
+  state.joinGate?.release();
   await stopSyncAndDrain();
 });
 
@@ -234,5 +244,25 @@ describe("the sync state belongs to the folder, not the account (third review, f
     state.url = "https://dav.example.test/another-vault";
     await startSyncIfConfigured(vault);
     expect(state.log).toEqual(["worker", "clear queue", "clear records", "worker"]);
+  });
+});
+
+describe("an encrypted workspace's start that a stop overtakes (fourth review, finding 3)", () => {
+  it("does not leave the status on syncing", async () => {
+    let release = () => {};
+    const promise = new Promise<boolean>((resolve) => { release = () => resolve(false); });
+    state.joinGate = { reached: false, release, promise };
+    const workspaceVault = { ...vault, workspaceRuntime: {}, workspaceState: {} } as unknown as MobileVault;
+    const starting = startSyncIfConfigured(workspaceVault);
+    await vi.waitFor(() => expect(state.joinGate?.reached).toBe(true));
+    expect(getSyncStatus().status).toBe("syncing");
+
+    // The vault is closed, or switched, while the join still runs.
+    await stopSyncAndDrain();
+    state.joinGate.release();
+    await starting;
+
+    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+    expect(getSyncStatus().status).not.toBe("syncing");
   });
 });

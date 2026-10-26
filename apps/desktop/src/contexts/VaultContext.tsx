@@ -1561,10 +1561,10 @@ export const VaultProvider: React.FC<{
                 : syncProvider === "onedrive" || syncProvider === "dropbox" ? { path: await readSyncRootFolder(path, syncProvider) } : undefined,
               identity: await filesIdentityForVault(path, syncProvider!),
             });
-            if ((await bindVaultSyncState(path, binding, { queue: syncQueue, records: syncRepo })) === "reset" && "allowRootCreation" in target) {
-              // Nothing has synced against this folder yet.
-              (target as { allowRootCreation: boolean }).allowRootCreation = true;
-            }
+            // A reset never allows creating the folder: that stays a decision of
+            // its own (a new vault, a new folder chosen in the wizard), and the
+            // 2026-09-20 protection for a known vault holds (fourth review, 1c).
+            await bindVaultSyncState(path, binding, { queue: syncQueue, records: syncRepo });
             // Large writes stream from disk instead of travelling through the
             // IPC boundary as a number array (issue #48). The resolver only
             // answers for files past the threshold, and only targets that can

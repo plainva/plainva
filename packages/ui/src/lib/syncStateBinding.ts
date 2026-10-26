@@ -1,4 +1,11 @@
-import { sameStoredValue } from "@plainva/core";
+import {
+  driveFolderIdentity,
+  dropboxFolderIdentity,
+  oneDriveFolderIdentity,
+  s3LocationIdentity,
+  sameStoredValue,
+  webDavFolderIdentity,
+} from "@plainva/core";
 import type { VerifiedProviderIdentity } from "./accountProfile";
 
 /**
@@ -14,35 +21,28 @@ import type { VerifiedProviderIdentity } from "./accountProfile";
  * another folder's state. So they are not tied to the account but to the
  * target, and checked when a file sync is about to start: the same target
  * keeps both, another target drops both - before any worker runs.
+ *
+ * A wrong "another target" costs data - queued deletions are lost, newer local
+ * edits become conflict copies - so (fourth review, finding 1):
+ * - the folder is named in the form the TARGET resolves it to, through the
+ *   identity function next to each target in core; nothing here restates a
+ *   default, a slash rule or which providers ignore case;
+ * - a reset needs both sides to name different targets positively; what is
+ *   missing or cannot be read keeps.
  */
 export interface SyncStateBinding {
+  /** Form of the binding; one stored in another form is taken again, never compared. */
+  v: 2;
   provider: string;
-  /** The folder as a path or address: server URL, bucket and prefix, folder path. */
-  root: string;
+  /** The folder in its canonical form; absent when it could not be read. */
+  root?: string;
   /** The provider's own id of the folder, where one is known (Google Drive). */
   rootId?: string;
   /** The account on the provider, where the device knows it. */
   account?: string;
 }
 
-/** Providers whose paths do not distinguish upper and lower case. */
-const CASE_INSENSITIVE = new Set(["onedrive", "dropbox"]);
-
-/** Without slashes at the ends; a loop, not a pattern, so no input can make it slow. */
-function trimSlashes(value: string, ends: "both" | "end" = "both"): string {
-  const text = value.trim();
-  let start = 0;
-  let end = text.length;
-  if (ends === "both") while (start < end && text[start] === "/") start += 1;
-  while (end > start && text[end - 1] === "/") end -= 1;
-  return text.slice(start, end);
-}
-
-/**
- * The binding of a file target, from what each shell knows about it. The
- * defaults are the ones the targets use, so a vault whose folder setting is
- * empty and one that names the default folder are the same target.
- */
+/** The binding of a file target, from what each shell knows about it. */
 export function syncStateBindingFor(input: {
   provider: string;
   /** WebDAV: the server address and user. */
@@ -55,55 +55,68 @@ export function syncStateBindingFor(input: {
   identity?: VerifiedProviderIdentity;
 }): SyncStateBinding {
   const identity = input.identity ? `${input.identity.issuer}:${input.identity.subject}` : undefined;
+  const withAccount = (binding: SyncStateBinding): SyncStateBinding => (identity && !binding.account ? { ...binding, account: identity } : binding);
   switch (input.provider) {
     case "webdav": {
-      const url = trimSlashes(input.webdav?.url ?? "", "end");
-      const user = input.webdav?.user?.trim();
-      return { provider: "webdav", root: url, ...(user ? { account: user } : {}) };
+      const found = input.webdav ? webDavFolderIdentity(input.webdav.url, input.webdav.user) : undefined;
+      return { v: 2, provider: "webdav", ...(found ? { root: found.root } : {}), ...(found?.account ? { account: found.account } : {}) };
     }
     case "s3": {
-      const endpoint = trimSlashes(input.s3?.endpoint ?? "", "end");
-      return { provider: "s3", root: `${endpoint}/${(input.s3?.bucket ?? "").trim()}/${trimSlashes(input.s3?.prefix ?? "")}` };
+      const root = input.s3 ? s3LocationIdentity(input.s3) : undefined;
+      return { v: 2, provider: "s3", ...(root ? { root } : {}) };
     }
-    default: {
-      const fallback = input.provider === "dropbox" ? "" : "Plainva";
-      let root = trimSlashes(input.folder?.path ?? "") || fallback;
-      if (CASE_INSENSITIVE.has(input.provider)) root = root.toLowerCase();
-      return {
-        provider: input.provider,
-        root: root.normalize("NFC"),
-        ...(input.folder?.id ? { rootId: input.folder.id } : {}),
-        ...(identity ? { account: identity } : {}),
-      };
+    case "drive": {
+      const found = driveFolderIdentity(input.folder?.path, input.folder?.id);
+      return withAccount({ v: 2, provider: "drive", root: found.root, ...(found.rootId ? { rootId: found.rootId } : {}) });
     }
+    case "onedrive":
+      return withAccount({ v: 2, provider: "onedrive", root: oneDriveFolderIdentity(input.folder?.path) });
+    case "dropbox":
+      return withAccount({ v: 2, provider: "dropbox", root: dropboxFolderIdentity(input.folder?.path) });
+    default:
+      // A provider this rule does not know: nothing to compare, so nothing is ever reset for it.
+      return { v: 2, provider: input.provider };
   }
 }
 
-/** Whether the queue and records made against `a` hold for `b`. */
+/**
+ * Whether the queue and records made against `a` hold for `b`. "No" only where
+ * both name different targets: another provider, two known accounts that
+ * differ, two known folder ids that differ, or - without both ids - two known
+ * folders that differ.
+ */
 export function sameSyncTarget(a: SyncStateBinding, b: SyncStateBinding): boolean {
   if (a.provider !== b.provider) return false;
   // Two accounts may each have a folder of the same name: another account is another target.
   if (a.account && b.account && a.account !== b.account) return false;
   // A folder id is the folder; a name only stands in while the id is unknown on one side.
   if (a.rootId && b.rootId) return a.rootId === b.rootId;
+  if (a.root === undefined || b.root === undefined) return true;
   return a.root === b.root;
 }
 
 /**
- * - `adopt`: nothing was recorded yet (the first start since this rule): the
- *   state that is there is taken as this target's, as every build before did;
+ * - `adopt`: nothing comparable was recorded (the first start since this rule,
+ *   or a binding of another form): the state that is there is taken as this
+ *   target's, as every build before did;
  * - `keep`: the same target - queue and records stay;
  * - `reset`: another target - queue and records go before the sync starts.
  */
 export type SyncStateBindingDecision = "adopt" | "keep" | "reset";
 
-export function syncStateBindingDecision(stored: SyncStateBinding | null | undefined, current: SyncStateBinding): SyncStateBindingDecision {
-  if (!stored || typeof stored !== "object" || typeof stored.provider !== "string" || typeof stored.root !== "string") return "adopt";
+function comparable(stored: unknown): stored is SyncStateBinding {
+  if (!stored || typeof stored !== "object") return false;
+  const binding = stored as Partial<SyncStateBinding>;
+  return binding.v === 2 && typeof binding.provider === "string" && binding.provider.length > 0;
+}
+
+export function syncStateBindingDecision(stored: unknown, current: SyncStateBinding): SyncStateBindingDecision {
+  if (!comparable(stored)) return "adopt";
   return sameSyncTarget(stored, current) ? "keep" : "reset";
 }
 
 export interface SyncStateBindingPorts {
-  load(): Promise<SyncStateBinding | null>;
+  load(): Promise<unknown>;
   save(binding: SyncStateBinding): Promise<void>;
   /** Empties the vault's sync queue and its per-file sync records. */
   clear(): Promise<void>;
@@ -113,16 +126,25 @@ export interface SyncStateBindingPorts {
  * Binds the vault's sync state to the target about to start, as the one step
  * both shells take right before a file sync worker is built. The binding is
  * saved after the reset, never before: an interrupted reset is repeated on the
- * next start rather than forgotten. A kept binding takes what is known now (a
- * Drive folder id learned since), so the next comparison uses it.
+ * next start rather than forgotten. A kept binding takes what is known now and
+ * keeps what was known before (a Drive folder id, an account), so the next
+ * comparison uses the most that either side knew.
+ *
+ * A reset changes nothing about the target itself: whether a missing folder may
+ * be created stays the explicit decision it is (a new vault, a folder chosen
+ * in the wizard), never a consequence of this one.
  */
 export async function bindSyncState(ports: SyncStateBindingPorts, current: SyncStateBinding): Promise<SyncStateBindingDecision> {
   const stored = await ports.load().catch(() => null);
   const decision = syncStateBindingDecision(stored, current);
   if (decision === "reset") await ports.clear();
-  const merged: SyncStateBinding = decision === "keep" && stored
-    ? { ...current, ...(current.rootId ?? stored.rootId ? { rootId: current.rootId ?? stored.rootId } : {}), ...(current.account ?? stored.account ? { account: current.account ?? stored.account } : {}) }
-    : current;
-  if (!stored || !sameStoredValue(stored, merged)) await ports.save(merged);
+  let merged: SyncStateBinding = current;
+  if (decision === "keep" && comparable(stored)) {
+    const root = current.root ?? stored.root;
+    const rootId = current.rootId ?? stored.rootId;
+    const account = current.account ?? stored.account;
+    merged = { v: 2, provider: current.provider, ...(root !== undefined ? { root } : {}), ...(rootId ? { rootId } : {}), ...(account ? { account } : {}) };
+  }
+  if (!sameStoredValue(stored, merged)) await ports.save(merged);
   return decision;
 }

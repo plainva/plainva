@@ -275,12 +275,17 @@ export async function saveMailAccount(vaultPath: string, account: MailAccountCon
 }
 
 async function commitMailAccount(vaultPath: string, account: MailAccountConfig, secret: { pass: string } | { refreshToken: string }): Promise<void> {
+  let added = false;
   await withAccountCredentialLock(mailAccountsKey(vaultPath), async () => {
     const store = await getPlatformServices().loadSettings();
     const credentials = getPlatformServices().credentials;
     const slot = mailSecretKey(vaultPath, account.id);
     const previousSecret = await readSlot(credentials, slot, legacyMailSecretKey(vaultPath, account.id));
     const list = await listMailAccounts(vaultPath);
+    // An add is a mailbox this device does not have - a new one, or one coming
+    // back after its removal here took it out. Saving one that is here (a new
+    // password, a changed server) is an edit (fourth review, finding 2).
+    added = !list.some(a => a.id === account.id);
     const next = [...list.filter(a => a.id !== account.id), account];
     // Both checks and both rollbacks compare CONTENT (`sameStoredValue`): the
     // desktop store hands objects back with sorted keys, and a text comparison
@@ -302,8 +307,10 @@ async function commitMailAccount(vaultPath: string, account: MailAccountConfig, 
   });
   // Added (again): a tombstone this id still carries must not drop it on the
   // next profile import - here or on any other device (second review of plan
-  // "Verbinden", B1; a Gmail mailbox keeps one id across connections).
-  await getPlatformServices().noteAccountAdded?.(vaultPath, "mail", account.id).catch(() => undefined);
+  // "Verbinden", B1; a Gmail mailbox keeps one id across connections). An edit
+  // records nothing: on a device that has not yet heard of a removal made
+  // elsewhere, it would bring the mailbox back everywhere (fourth review, 2).
+  if (added) await getPlatformServices().noteAccountAdded?.(vaultPath, "mail", account.id).catch(() => undefined);
 }
 
 /** Accounts stamped in this run — a stale account object must not re-stamp. */

@@ -12,7 +12,7 @@ import {
   type AccountImportPorts,
   type ProfileAccountMap,
 } from "@plainva/ui";
-import { saveMailAccount, type MailAccountConfig } from "@plainva/ui/mail";
+import { mailAccountsKey, saveMailAccount, type MailAccountConfig } from "@plainva/ui/mail";
 
 /**
  * Second review of plan "Verbinden", B1: a Gmail mailbox keeps ONE id across
@@ -189,5 +189,44 @@ describe("adding a mailbox", () => {
     });
     await saveMailAccount("/v", { ...gmail, kind: undefined, id: "imap-1" }, "app-password");
     expect(added).toEqual([["/v", "mail", "imap-1"]]);
+  });
+
+  it("records nothing for a new password of a mailbox that is here: a removal made elsewhere still wins (fourth review, finding 2)", async () => {
+    const phone = device([gmail], "phone");
+    const desktop = device([gmail], "desktop");
+    const imap: MailAccountConfig = { ...gmail, kind: undefined, id: "imap-1" };
+    phone.state.mail = [imap];
+    desktop.state.mail = [imap];
+    // The phone's store holds the mailbox the edit is about.
+    const settings = new Map<string, unknown>([[mailAccountsKey("/v"), [imap]]]);
+    const secrets = new Map<string, unknown>();
+    setPlatformServices({
+      loadSettings: async () => ({
+        get: async <T,>(key: string) => (settings.get(key) as T | undefined) ?? null,
+        set: async (key: string, value: unknown) => { settings.set(key, value); },
+        delete: async (key: string) => settings.delete(key),
+        keys: async () => [...settings.keys()],
+        save: async () => undefined,
+      }),
+      credentials: {
+        readSecret: async <T,>(key: string) => (secrets.get(key) as T | undefined) ?? null,
+        writeSecret: async (key: string, value: unknown) => { secrets.set(key, value); },
+        removeSecret: async (key: string) => { secrets.delete(key); },
+      },
+      openExternal: async () => undefined,
+      // The phone's hook, as the shell wires it: an add becomes an act in its map.
+      noteAccountAdded: async (_vault, kind, id) => { phone.state.map = forgetRemovedLocalAccount(phone.state.map, kind, id, at(1), "phone"); },
+    });
+
+    // Removed on the desktop; the phone has not imported it yet.
+    desktop.state.mail = [];
+    desktop.state.map = rememberRemovedAccount(desktop.state.map, "mail", imap.id, at(3), "desktop");
+    // On the phone the person types a new password into the mailbox that is still there.
+    await saveMailAccount("/v", imap, "new-password");
+
+    await importAccountMetadata(desktop.publish(), phone.ports);
+    expect(phone.state.mail).toEqual([]);
+    await importAccountMetadata(phone.publish(), desktop.ports);
+    expect(desktop.state.mail).toEqual([]);
   });
 });

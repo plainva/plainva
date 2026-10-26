@@ -29,7 +29,7 @@ import type { StoredAccountToken } from "@plainva/ui";
 import { authorizeNativeGoogle, forgetNativeGoogleTokens } from "./googleNativeAuthorization";
 import i18n from "@plainva/ui/i18n";
 import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
-import { mobileSyncStart } from "./fileSyncAccess";
+import { mobileSyncStart, type MobileSyncStart } from "./fileSyncAccess";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 import { mConfirm } from "./mobileDialogs";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
@@ -290,15 +290,7 @@ async function startSyncDecided(v: MobileVault): Promise<void> {
   if (worker || settingsOnlySync || !syncPossible(v)) return;
   const generation = startGeneration;
   watchFilesSwitch();
-  const entry = await getVaultEntry(v.vaultId);
-  const filesOff = await filesOffForVault(v.vaultId);
-  const stored = entry?.pausedHere ? null : await getStoredProvider(v.vaultId);
-  // "Off" and "configured but unreachable here" used to look the same, and
-  // the second one is the one worth saying (finding 2026-08-19): the card
-  // reads the registry, so it kept claiming a connection while nothing came
-  // through. A paused vault is a decision, not a failure; one signed out on
-  // this phone starts no worker at all (review of plan "Verbinden", finding 3).
-  const decision = mobileSyncStart({ pausedHere: entry?.pausedHere, filesOff, entryProvider: entry?.provider, stored });
+  const { decision, stored } = await decideStart(v);
   if (!decision.start || !stored) {
     // Standing still is no reason to forget what changes here (review finding
     // 4): a vault with a provider queues its changes while files are off, so
@@ -306,12 +298,7 @@ async function startSyncDecided(v: MobileVault): Promise<void> {
     // must not queue every file as new before the first pull has looked.
     if (!decision.start && decision.queueLocalChanges) v.enableSyncEnqueue();
     else v.markFirstSyncComplete();
-    setState(decision.start ? { status: "off", message: null } : {
-      status: decision.status,
-      message: decision.messageKey ? i18n.t(decision.messageKey) : null,
-      // Signed out on this phone: the vault screen leads to the sign-in (finding 3).
-      ...(decision.signInNeeded ? { errorKind: "signed-out" as const } : {}),
-    });
+    setState(standingStatus(decision));
     return;
   }
   if (decision.settingsOnly) {
@@ -319,6 +306,41 @@ async function startSyncDecided(v: MobileVault): Promise<void> {
     return;
   }
   await startWorker(v, stored, generation);
+}
+
+/**
+ * The one decision whether the vault's sync starts here, and with what.
+ * "Off" and "configured but unreachable here" used to look the same, and the
+ * second one is the one worth saying (finding 2026-08-19): the card reads the
+ * registry, so it kept claiming a connection while nothing came through. A
+ * paused vault is a decision, not a failure; one signed out on this phone
+ * starts no worker at all (review of plan "Verbinden", finding 3).
+ */
+async function decideStart(v: MobileVault): Promise<{ decision: MobileSyncStart; stored: MobileSyncProvider | null }> {
+  const entry = await getVaultEntry(v.vaultId);
+  const filesOff = await filesOffForVault(v.vaultId);
+  const stored = entry?.pausedHere ? null : await getStoredProvider(v.vaultId);
+  return { decision: mobileSyncStart({ pausedHere: entry?.pausedHere, filesOff, entryProvider: entry?.provider, stored }), stored };
+}
+
+/** What the status says while nothing runs, as the decision has it. */
+function standingStatus(decision: MobileSyncStart): Parameters<typeof setState>[0] {
+  return decision.start ? { status: "off", message: null } : {
+    status: decision.status,
+    message: decision.messageKey ? i18n.t(decision.messageKey) : null,
+    // Signed out on this phone: the vault screen leads to the sign-in (finding 3).
+    ...(decision.signInNeeded ? { errorKind: "signed-out" as const } : {}),
+  };
+}
+
+/**
+ * A start that a stop overtook while it showed "syncing" (the encrypted
+ * workspace's join): the status goes back to what the decision says now, not
+ * "syncing" for a worker that never came (fourth review, finding 3).
+ */
+async function settleCancelledStart(v: MobileVault): Promise<void> {
+  if (worker || settingsOnlySync) return;
+  setState(standingStatus((await decideStart(v)).decision));
 }
 
 /** Files switched off for the vault (plan "Verbinden", E3) - on every device, carried in the settings profile. */
@@ -1099,7 +1121,11 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     // freeze (package F1, Punkt 14).
     setState({ status: "syncing", message: null });
     await initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.backup ?? v.adapter, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString(), onProgress: (done, total) => setProgress({ current: done, total }) });
-    if (generation !== startGeneration) return; // stopped meanwhile (finding 4)
+    if (generation !== startGeneration) {
+      // Stopped meanwhile (finding 4): no worker, and no "syncing" left standing.
+      await settleCancelledStart(v);
+      return;
+    }
     const encrypted = new EncryptedWorkspaceWorker(objectStore, v.workspaceState, v.backup ?? v.adapter, v.workspaceRuntime, {
       intervalMs: syncIntervalMs(),
       // The workspace worker runs its sideband AFTER pull and push, so the
@@ -1148,10 +1174,10 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   // Smaller download windows than the desktop (P3.3): phones have tighter
   // memory budgets, and a batch of large attachments must not balloon RAM.
   // The queue and the records belong to the folder they were made with (finding 1).
-  if ((await bindMobileSyncState(v, p)) === "reset" && "allowRootCreation" in rawTarget) {
-    // Nothing has synced against this folder yet.
-    (rawTarget as { allowRootCreation: boolean }).allowRootCreation = true;
-  }
+  // A reset never allows creating the folder: that stays a decision of its own
+  // (a new vault, a new folder chosen in the wizard), and the 2026-09-20
+  // protection for a known vault holds (fourth review, finding 1c).
+  await bindMobileSyncState(v, p);
   if (generation !== startGeneration) return; // stopped meanwhile (finding 4)
   firstCycleSettled = false;
   // Deletion journal (feedback round 2026-09-01, P1): the deletions a person

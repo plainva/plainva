@@ -11,8 +11,10 @@ import {
   SyncQueue,
   SyncStateRepository,
   SyncWorker,
+  dropboxFolderIdentity,
+  dropboxRootPath,
 } from "@plainva/core";
-import { sameSyncTarget, syncStateBindingDecision, syncStateBindingFor } from "@plainva/ui";
+import { syncStateBindingDecision, syncStateBindingFor } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 
@@ -186,23 +188,91 @@ describe("the sync state belongs to the folder, not the account (third review, f
   });
 });
 
-describe("one target or another", () => {
-  it("is the folder id where both sides know one, else the folder", () => {
-    const named = syncStateBindingFor({ provider: "drive", folder: { path: "Plainva" } });
-    const withId = syncStateBindingFor({ provider: "drive", folder: { path: "Plainva", id: "f1" } });
-    const otherId = syncStateBindingFor({ provider: "drive", folder: { path: "Plainva", id: "f2" } });
-    expect(sameSyncTarget(named, withId)).toBe(true);
-    expect(sameSyncTarget(withId, otherId)).toBe(false);
-    // An empty setting is the default folder.
-    expect(sameSyncTarget(syncStateBindingFor({ provider: "onedrive", folder: { path: "" } }), syncStateBindingFor({ provider: "onedrive", folder: { path: "/plainva/" } }))).toBe(true);
+describe("a Dropbox vault reopened after its default folder was written out (fourth review, finding 1)", () => {
+  it("is the same target: no conflict copies, and the queued deletion is sent", async () => {
+    const vault = await syncedVault();
+    // First start: the folder setting is still empty, the target uses /Plainva.
+    expect(await bindVaultSyncState("/v", syncStateBindingFor({ provider: "dropbox", folder: { path: "" } }), { queue: vault.queue, records: vault.repo })).toBe("adopt");
+    // Meanwhile: C deleted here, B changed here, A changed on another device.
+    await vault.app.deleteItem("C.md");
+    await vault.app.writeTextFile("B.md", "two\nfrom here\n");
+    vault.folderA.set("A.md", { text: "one\nfrom elsewhere\n", etag: '"e2"' });
+
+    // The wizard (or the migration in readSyncRootFolder) wrote the default out.
+    expect(await bindVaultSyncState("/v", syncStateBindingFor({ provider: "dropbox", folder: { path: "/Plainva" } }), { queue: vault.queue, records: vault.repo })).toBe("keep");
+    const pushes = await vault.cycle(vault.folderA);
+
+    expect(await vault.conflictCopies()).toEqual([]);
+    expect(pushes).toContain("delete C.md");
+    expect(vault.folderA.has("C.md")).toBe(false);
+    expect(await vault.raw.exists("C.md")).toBe(false);
+    expect(vault.folderA.get("B.md")?.text).toBe("two\nfrom here\n");
+    expect(await vault.raw.readTextFile("A.md")).toBe("one\nfrom elsewhere\n");
+  });
+});
+
+/** Two spellings of one target, per provider: every row has to keep. */
+const SAME_TARGET: Array<[string, Parameters<typeof syncStateBindingFor>[0], Parameters<typeof syncStateBindingFor>[0]]> = [
+  ["Dropbox: empty and the written-out default", { provider: "dropbox", folder: { path: "" } }, { provider: "dropbox", folder: { path: "/Plainva" } }],
+  ["Dropbox: no setting and the default without a slash", { provider: "dropbox" }, { provider: "dropbox", folder: { path: "Plainva" } }],
+  ["Dropbox: slashes and case", { provider: "dropbox", folder: { path: "/Notes/Vault/" } }, { provider: "dropbox", folder: { path: "notes//VAULT" } }],
+  ["Dropbox: backslashes", { provider: "dropbox", folder: { path: "\\Notes\\Vault" } }, { provider: "dropbox", folder: { path: "/Notes/Vault" } }],
+  ["OneDrive: empty and the default", { provider: "onedrive", folder: { path: "" } }, { provider: "onedrive", folder: { path: "Plainva" } }],
+  ["OneDrive: slashes and case", { provider: "onedrive", folder: { path: "/Plainva/" } }, { provider: "onedrive", folder: { path: "plainva" } }],
+  ["OneDrive: nested with doubled slashes", { provider: "onedrive", folder: { path: "Notes/Vault" } }, { provider: "onedrive", folder: { path: "notes//vault/" } }],
+  ["Drive: empty and the default", { provider: "drive", folder: { path: "" } }, { provider: "drive", folder: { path: "Plainva" } }],
+  ["Drive: slashes", { provider: "drive", folder: { path: "/Notes/Vault/" } }, { provider: "drive", folder: { path: "Notes//Vault" } }],
+  ["Drive: the folder id learned since", { provider: "drive", folder: { path: "Plainva" } }, { provider: "drive", folder: { path: "Plainva", id: "f1" } }],
+  ["Drive: the same id under a renamed folder", { provider: "drive", folder: { path: "Old", id: "f1" } }, { provider: "drive", folder: { path: "New", id: "f1" } }],
+  ["S3: endpoint case, default port and slash", { provider: "s3", s3: { endpoint: "HTTPS://S3.Example.com:443/", bucket: "notes", prefix: "vault" } }, { provider: "s3", s3: { endpoint: "https://s3.example.com", bucket: "notes", prefix: "/vault/" } }],
+  ["S3: an empty prefix and a slash", { provider: "s3", s3: { endpoint: "http://127.0.0.1:9000", bucket: "notes", prefix: "" } }, { provider: "s3", s3: { endpoint: "http://127.0.0.1:9000/", bucket: "notes", prefix: "/" } }],
+  ["WebDAV: scheme and host case, default port, trailing slash", { provider: "webdav", webdav: { url: "HTTPS://Cloud.Example.com:443/files/vault/", user: "anna" } }, { provider: "webdav", webdav: { url: "https://cloud.example.com/files/vault", user: "anna" } }],
+  ["WebDAV: user case", { provider: "webdav", webdav: { url: "https://cloud.example.com/dav/", user: "Anna" } }, { provider: "webdav", webdav: { url: "https://cloud.example.com/dav/", user: "anna" } }],
+  ["WebDAV: the two Nextcloud endpoints of one files root", { provider: "webdav", webdav: { url: "https://cloud.example.com/remote.php/webdav/Vault/", user: "Anna" } }, { provider: "webdav", webdav: { url: "https://cloud.example.com/remote.php/dav/files/anna/Vault", user: "anna" } }],
+  ["WebDAV: the dav endpoint without a user given", { provider: "webdav", webdav: { url: "https://cloud.example.com/remote.php/dav/files/Anna/Vault/" } }, { provider: "webdav", webdav: { url: "https://cloud.example.com/remote.php/webdav/Vault", user: "anna" } }],
+  ["WebDAV: an encoded and a plain space", { provider: "webdav", webdav: { url: "https://cloud.example.com/remote.php/webdav/My%20Vault", user: "anna" } }, { provider: "webdav", webdav: { url: "https://cloud.example.com/remote.php/webdav/My Vault/", user: "anna" } }],
+];
+
+/** Two targets that really differ: these, and only these, reset. */
+const OTHER_TARGET: Array<[string, Parameters<typeof syncStateBindingFor>[0], Parameters<typeof syncStateBindingFor>[0]]> = [
+  ["Dropbox: another folder", { provider: "dropbox", folder: { path: "/Plainva" } }, { provider: "dropbox", folder: { path: "/Other" } }],
+  ["Drive: another folder id", { provider: "drive", folder: { path: "Plainva", id: "f1" } }, { provider: "drive", folder: { path: "Plainva", id: "f2" } }],
+  ["Drive: case is a name in Drive", { provider: "drive", folder: { path: "Plainva" } }, { provider: "drive", folder: { path: "plainva" } }],
+  ["Drive: another account, same folder name", { provider: "drive", folder: { path: "Plainva" }, identity: { issuer: "google", subject: "anna" } }, { provider: "drive", folder: { path: "Plainva" }, identity: { issuer: "google", subject: "bert" } }],
+  ["S3: another bucket", { provider: "s3", s3: { endpoint: "https://s3.example.com", bucket: "notes" } }, { provider: "s3", s3: { endpoint: "https://s3.example.com", bucket: "other" } }],
+  ["WebDAV: another server", { provider: "webdav", webdav: { url: "https://cloud.example.com/dav/", user: "anna" } }, { provider: "webdav", webdav: { url: "https://other.example.com/dav/", user: "anna" } }],
+  ["WebDAV: another user", { provider: "webdav", webdav: { url: "https://cloud.example.com/remote.php/webdav/", user: "anna" } }, { provider: "webdav", webdav: { url: "https://cloud.example.com/remote.php/webdav/", user: "bert" } }],
+  ["another provider", { provider: "dropbox" }, { provider: "onedrive" }],
+];
+
+describe("one target or another (fourth review, finding 1)", () => {
+  it.each(SAME_TARGET)("keeps - %s", (_name, a, b) => {
+    expect(syncStateBindingDecision(syncStateBindingFor(a), syncStateBindingFor(b))).toBe("keep");
+    expect(syncStateBindingDecision(syncStateBindingFor(b), syncStateBindingFor(a))).toBe("keep");
   });
 
-  it("is another target for another account with a folder of the same name, or another provider", () => {
-    const anna = syncStateBindingFor({ provider: "drive", folder: { path: "Plainva" }, identity: { issuer: "google", subject: "anna" } });
-    const bert = syncStateBindingFor({ provider: "drive", folder: { path: "Plainva" }, identity: { issuer: "google", subject: "bert" } });
-    expect(syncStateBindingDecision(anna, bert)).toBe("reset");
-    expect(syncStateBindingDecision(anna, { ...anna, provider: "onedrive" })).toBe("reset");
-    expect(syncStateBindingDecision(null, anna)).toBe("adopt");
-    expect(syncStateBindingDecision(anna, anna)).toBe("keep");
+  it.each(OTHER_TARGET)("resets - %s", (_name, a, b) => {
+    expect(syncStateBindingDecision(syncStateBindingFor(a), syncStateBindingFor(b))).toBe("reset");
+  });
+
+  it("keeps where a side cannot name its folder, and takes a binding of another form again", () => {
+    const known = syncStateBindingFor({ provider: "webdav", webdav: { url: "https://cloud.example.com/dav/", user: "anna" } });
+    const unreadable = syncStateBindingFor({ provider: "webdav", webdav: { url: "not a url", user: "anna" } });
+    expect(syncStateBindingDecision(known, unreadable)).toBe("keep");
+    expect(syncStateBindingDecision(unreadable, known)).toBe("keep");
+    expect(syncStateBindingDecision({ provider: "webdav" }, known)).toBe("adopt");
+    expect(syncStateBindingDecision({ v: 2, provider: "webdav" }, known)).toBe("keep");
+    expect(syncStateBindingDecision(null, known)).toBe("adopt");
+  });
+
+  it("names the folder the way the target resolves it", () => {
+    expect(syncStateBindingFor({ provider: "dropbox", folder: { path: "" } }).root).toBe(dropboxFolderIdentity("/Plainva"));
+    expect(dropboxRootPath("")).toBe("/Plainva");
+  });
+
+  it("never lets a reset allow creating the folder", () => {
+    const vault = readFileSync(join(__dirname, "..", "contexts", "VaultContext.tsx"), "utf8");
+    const phone = readFileSync(join(__dirname, "..", "..", "..", "mobile", "src", "services", "syncService.ts"), "utf8");
+    for (const source of [vault, phone]) expect(source).not.toMatch(/allowRootCreation = true/);
   });
 });

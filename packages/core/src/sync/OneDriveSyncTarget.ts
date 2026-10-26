@@ -1,4 +1,5 @@
 import { syncHttpError, SyncRootMissingError } from "./errorKind.js";
+import { folderIdentity } from "./folderIdentity.js";
 import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
 import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence, RemoteChangedError, type ExpectedRemote } from "./ISyncTarget.js";
 import { ConditionalWrites } from "./conditionalWrite.js";
@@ -24,6 +25,16 @@ export interface OneDriveCredentials {
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
 const DEFAULT_ROOT = "Plainva";
+
+/** The folder a OneDrive target works in, resolved exactly as the target does (default "Plainva"). */
+export function oneDriveRootName(rootFolderName?: string): string {
+  return rootFolderName || DEFAULT_ROOT;
+}
+
+/** Canonical identity of that folder; OneDrive paths ignore case (fourth review of plan "Verbinden", finding 1). */
+export function oneDriveFolderIdentity(rootFolderName?: string): string {
+  return folderIdentity(oneDriveRootName(rootFolderName), { caseInsensitive: true }) || folderIdentity(DEFAULT_ROOT, { caseInsensitive: true });
+}
 /** Path-based simple upload limit; larger bodies go through an upload session. */
 const SIMPLE_UPLOAD_LIMIT = 4 * 1024 * 1024;
 /** Upload-session chunk size: must be a multiple of 320 KiB; 16×320 KiB = 5 MiB. */
@@ -102,7 +113,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
   }
 
   private get rootName(): string {
-    return this.creds.rootFolderName || DEFAULT_ROOT;
+    return oneDriveRootName(this.creds.rootFolderName);
   }
 
   /** Encoded drive path for the colon syntax; "" -> root folder itself. */

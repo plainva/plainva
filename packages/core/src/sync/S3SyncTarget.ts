@@ -9,6 +9,25 @@ import { streamUpload } from "./streamUpload.js";
 import { signS3Request, sha256Hex, encodeS3Key, rfc3986Encode } from "./sigv4.js";
 import { parseListingRoot } from "./xmlListing.js";
 import { trimChars } from "../textScan.js";
+import { folderIdentity } from "./folderIdentity.js";
+
+/**
+ * Canonical identity of the place an S3 target works in (fourth review of
+ * plan "Verbinden", finding 1): the endpoint's origin (scheme and host in
+ * lower case, a default port dropped), the bucket, and the prefix as the
+ * target trims it. Undefined when the endpoint cannot be read - then nothing
+ * can be compared, and the caller keeps what it has.
+ */
+export function s3LocationIdentity(creds: { endpoint: string; bucket: string; prefix?: string }): string | undefined {
+  let origin: string;
+  try {
+    origin = new URL(creds.endpoint.trim()).origin.toLowerCase();
+  } catch {
+    return undefined;
+  }
+  const prefix = folderIdentity(trimChars((creds.prefix ?? "").replace(/\\/g, "/"), "/"), { caseInsensitive: false });
+  return `${origin}/${creds.bucket.trim()}/${prefix}`;
+}
 
 /**
  * Credentials/config for an S3-compatible object store (AWS S3, Cloudflare R2,

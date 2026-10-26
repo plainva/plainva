@@ -103,7 +103,10 @@ describe("every way a sync starts on the phone (second review, B2)", () => {
     expect(source.match(/await startSettingsOnly\(/g)).toHaveLength(1);
     expect(decided).toMatch(/await startWorker\(v, stored, generation\)/);
     expect(decided).toMatch(/await startSettingsOnly\(v, stored, generation\)/);
-    expect(decided).toMatch(/mobileSyncStart\(/);
+    expect(decided).toMatch(/await decideStart\(v\)/);
+    const decide = source.slice(source.indexOf("async function decideStart("), source.indexOf("\n}\n", source.indexOf("async function decideStart(")));
+    expect(decide).toMatch(/mobileSyncStart\(/);
+    expect(source.match(/mobileSyncStart\(/g)).toHaveLength(1);
     // Nothing else in the app builds a sync worker of its own.
     const others = ["vaultService.ts", "accountPassword.ts", "accountSignIn.ts", "serviceSwitches.ts"].map((file) => readFileSync(join(__dirname, file), "utf8"));
     for (const other of others) expect(other).not.toMatch(/new (SyncWorker|EncryptedWorkspaceWorker|SettingsOnlySync)\(/);
