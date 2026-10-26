@@ -336,7 +336,9 @@ export interface ConversationRepository {
   list(): Promise<ConversationSummary[]>;
   load(id: string): Promise<ConversationRecord | null>;
   save(record: ConversationRecord): Promise<void>;
+  /** What is not there counts as removed: only a store that cannot remove it rejects. */
   remove(id: string): Promise<void>;
+  /** As `remove`, for every conversation of the vault. */
   removeAll(): Promise<void>;
 }
 

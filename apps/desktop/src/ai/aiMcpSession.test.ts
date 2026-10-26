@@ -281,6 +281,54 @@ describe("a prompt of a server", () => {
     expect(fake.sent).toHaveLength(2);
   });
 
+  it("sends nothing where the user left the conversation while the prompt was being kept", async () => {
+    const { s, fake } = await mcpSession([turn({ text: "Yesterday: the login fix." })]);
+    await connect(s);
+    const first = await s.startMcpPrompt("tracker", "standup", {});
+    if (first.kind !== "review") throw new Error("unexpected");
+    // Keeping the prompt held; meanwhile another conversation begun (step 8).
+    const pin = s.mcp.pinPrompt.bind(s.mcp);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const pinning = new Promise<void>((resolve) => (reached = resolve));
+    s.mcp.pinPrompt = async (...args: Parameters<typeof pin>) => {
+      reached();
+      await gate;
+      return pin(...args);
+    };
+    const sending = s.sendMcpPrompt(first.review);
+    await pinning;
+    s.newConversation();
+    release();
+    await sending;
+    expect(fake.sent).toHaveLength(0);
+  });
+
+  it("sends nothing where the whole history was deleted while the prompt was being kept", async () => {
+    const { s, fake } = await mcpSession([turn({ text: "Yesterday: the login fix." })]);
+    await connect(s);
+    const first = await s.startMcpPrompt("tracker", "standup", {});
+    if (first.kind !== "review") throw new Error("unexpected");
+    // Keeping the prompt held; meanwhile the whole history deleted (step 8).
+    const pin = s.mcp.pinPrompt.bind(s.mcp);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const pinning = new Promise<void>((resolve) => (reached = resolve));
+    s.mcp.pinPrompt = async (...args: Parameters<typeof pin>) => {
+      reached();
+      await gate;
+      return pin(...args);
+    };
+    const sending = s.sendMcpPrompt(first.review);
+    await pinning;
+    await s.removeAll();
+    release();
+    await sending;
+    expect(fake.sent).toHaveLength(0);
+  });
+
   it("blocks the server when it expands to another text than the approved one, and sends nothing", async () => {
     const { s, fake, server } = await mcpSession([turn({ text: "Yesterday: the login fix." })]);
     await connect(s);

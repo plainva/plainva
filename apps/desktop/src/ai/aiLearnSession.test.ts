@@ -82,6 +82,151 @@ function cutOff(): EgressChunk[] {
   return [{ type: "open", status: 200 }, { type: "data", text: events.map(([event, data]) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`).join("") }, { type: "done" }];
 }
 
+describe("learning from a conversation that is deleted meanwhile (strand 6, step 8)", () => {
+  /** Holds the n-th look at the vault's instructions (from 1) until the test lets it go. */
+  function heldScan(vault: MemoryVault, nth: number) {
+    const instructions = vault.host.instructions!;
+    const scan = instructions.scan.bind(instructions);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const waiting = new Promise<void>((resolve) => (reached = resolve));
+    let count = 0;
+    instructions.scan = async () => {
+      count += 1;
+      if (count === nth) {
+        reached();
+        await gate;
+      }
+      return scan();
+    };
+    return { waiting, release };
+  }
+
+  it("asks nothing where the conversation is deleted while the review is put together", async () => {
+    const vault = memoryVault({ [ACTIVE_MEMORY_FILE]: PLAIN_MEMORY });
+    const { s, fake } = await memorySession([turn({ text: "They are billed per episode." }), turn({ text: `Here:\n${proposals([MEMORY])}` })], vault);
+    expect(await s.send("How is Harbour Studio billed? They pay per episode, I think.")).toEqual({ kind: "answered" });
+    const id = s.getState().active!.id;
+    const hold = heldScan(vault, 1);
+    const learning = s.learnFrom(id);
+    await hold.waiting;
+    await s.remove(id);
+    hold.release();
+    // Deleting it cut the review off before anything went.
+    expect(await learning).toMatchObject({ kind: "refused", reason: "cancelled" });
+    expect(fake.sent).toHaveLength(1);
+  });
+
+  it("lays down nothing where the conversation is deleted after the review's answer came", async () => {
+    const vault = memoryVault({ [ACTIVE_MEMORY_FILE]: PLAIN_MEMORY });
+    const { s } = await memorySession([turn({ text: "They are billed per episode." }), turn({ text: `Here:\n${proposals([MEMORY, RULE, NEW_SKILL])}` })], vault);
+    expect(await s.send("How is Harbour Studio billed? They pay per episode, I think.")).toEqual({ kind: "answered" });
+    const id = s.getState().active!.id;
+    // The second look at the instructions is the one after the answer: the skills' names as they are now.
+    const hold = heldScan(vault, 2);
+    const learning = s.learnFrom(id);
+    await hold.waiting;
+    await s.remove(id);
+    hold.release();
+    expect(await learning).toMatchObject({ kind: "refused", reason: "gone" });
+    expect(drafts(s)).toEqual([]);
+  });
+
+  it("lays down nothing where the whole history is deleted after the review's answer came", async () => {
+    const vault = memoryVault({ [ACTIVE_MEMORY_FILE]: PLAIN_MEMORY });
+    const { s } = await memorySession([turn({ text: "They are billed per episode." }), turn({ text: `Here:\n${proposals([MEMORY, RULE, NEW_SKILL])}` })], vault);
+    expect(await s.send("How is Harbour Studio billed? They pay per episode, I think.")).toEqual({ kind: "answered" });
+    const id = s.getState().active!.id;
+    // Not on screen: nothing marks it, only the count of Delete alls tells.
+    s.newConversation();
+    const hold = heldScan(vault, 2);
+    const learning = s.learnFrom(id);
+    await hold.waiting;
+    await s.removeAll();
+    hold.release();
+    expect(await learning).toMatchObject({ kind: "refused", reason: "gone" });
+    expect(drafts(s)).toEqual([]);
+  });
+
+  it("cuts the review off where the conversation is deleted while its request is on its way", async () => {
+    const vault = memoryVault({ [ACTIVE_MEMORY_FILE]: PLAIN_MEMORY });
+    const { s, fake } = await memorySession([turn({ text: "They are billed per episode." }), turn({ text: `Here:\n${proposals([MEMORY])}` })], vault);
+    expect(await s.send("How is Harbour Studio billed? They pay per episode, I think.")).toEqual({ kind: "answered" });
+    const id = s.getState().active!.id;
+    // The review's request held at the model.
+    const send = fake.egress.send.bind(fake.egress);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const asked = new Promise<void>((resolve) => (reached = resolve));
+    fake.egress.send = async (requestId, spec, onChunk) => {
+      reached();
+      await gate;
+      return send(requestId, spec, onChunk);
+    };
+    const learning = s.learnFrom(id);
+    await asked;
+    await s.remove(id);
+    release();
+    expect(await learning).toMatchObject({ kind: "refused", reason: "cancelled" });
+  });
+
+  it("cuts the review off where the whole history is deleted while its request is on its way", async () => {
+    const vault = memoryVault({ [ACTIVE_MEMORY_FILE]: PLAIN_MEMORY });
+    const { s, fake } = await memorySession([turn({ text: "They are billed per episode." }), turn({ text: `Here:\n${proposals([MEMORY])}` })], vault);
+    expect(await s.send("How is Harbour Studio billed? They pay per episode, I think.")).toEqual({ kind: "answered" });
+    const id = s.getState().active!.id;
+    s.newConversation();
+    const send = fake.egress.send.bind(fake.egress);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const asked = new Promise<void>((resolve) => (reached = resolve));
+    fake.egress.send = async (requestId, spec, onChunk) => {
+      reached();
+      await gate;
+      return send(requestId, spec, onChunk);
+    };
+    const learning = s.learnFrom(id);
+    await asked;
+    await s.removeAll();
+    release();
+    expect(await learning).toMatchObject({ kind: "refused", reason: "cancelled" });
+    expect(drafts(s)).toEqual([]);
+  });
+
+  it("lays down nothing where the whole history is deleted while a draft waits its turn", async () => {
+    const vault = memoryVault({ [ACTIVE_MEMORY_FILE]: PLAIN_MEMORY });
+    const { s } = await memorySession([turn({ text: "They are billed per episode." }), turn({ text: `Here:\n${proposals([MEMORY, RULE, NEW_SKILL])}` })], vault);
+    expect(await s.send("How is Harbour Studio billed? They pay per episode, I think.")).toEqual({ kind: "answered" });
+    const id = s.getState().active!.id;
+    s.newConversation();
+    // The list of drafts is read slowly: the first draft waits its turn there.
+    const store = vault.host.drafts!;
+    const load = store.load.bind(store);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const reading = new Promise<void>((resolve) => (reached = resolve));
+    let first = true;
+    store.load = async () => {
+      if (first) {
+        first = false;
+        reached();
+        await gate;
+      }
+      return load();
+    };
+    const learning = s.learnFrom(id);
+    await reading;
+    await s.removeAll();
+    release();
+    expect(await learning).toMatchObject({ kind: "refused", reason: "gone" });
+    expect(drafts(s)).toEqual([]);
+  });
+});
+
 describe("learning from a conversation: the request", () => {
   it("goes once more to the model that led it, without a tool, and comes back as drafts", async () => {
     const vault = memoryVault({ [ACTIVE_MEMORY_FILE]: PLAIN_MEMORY });

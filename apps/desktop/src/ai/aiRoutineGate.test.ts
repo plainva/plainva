@@ -159,6 +159,46 @@ describe("a run nobody watches", () => {
     expect(titles(h).filter((title) => title === "Routine: Morning brief")).toHaveLength(1);
   });
 
+  it("keeps its note and moves on to its new conversation where the previous one cannot be deleted", async () => {
+    const vault = routineVault(NOTES);
+    const h = await routineSession([chat({ text: "Friday." }), chat({ text: "Wednesday." })], vault, { model: LOCAL });
+    await h.setUp();
+    h.go(at(9, 7, 1));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    const previous = routineOf(h).conversationId!;
+    // From now on the store refuses to delete anything (step 8).
+    vault.host.conversations.remove = async () => {
+      throw new Error("locked");
+    };
+    h.go(at(14, 12, 0));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    expect(routineOf(h).last).toMatchObject({ scheduledFor: "2026-10-14T07:00", outcome: "answered" });
+    expect(vault.kept).toEqual(["Inbox/Morning brief – 2026-10-09.md", "Inbox/Morning brief – 2026-10-14.md"]);
+    expect([routineOf(h).conversationId === previous, h.s.getState().summaries.some((summary) => summary.id === previous)]).toEqual([false, true]);
+  });
+
+  it("drops the previous run's conversation in its own vault, also where the shell made a new host for it during the run", async () => {
+    const vault = routineVault(NOTES);
+    let swap: (() => void) | null = null;
+    const h = await routineSession([chat({ text: "Friday." }), chat({ text: "Wednesday." })], vault, {
+      model: LOCAL,
+      onSend: (count) => {
+        if (count === 2) swap?.();
+      },
+    });
+    await h.setUp();
+    h.go(at(9, 7, 1));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    const previous = routineOf(h).conversationId!;
+    expect(h.s.getState().summaries.some((summary) => summary.id === previous)).toBe(true);
+    // The second run's request goes out; at that moment the shell hands a new host for the same vault (step 8).
+    swap = () => void h.s.attachVault({ ...vault.host });
+    h.go(at(14, 12, 0));
+    await h.s.runDueRoutines();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(h.s.getState().summaries.some((summary) => summary.id === previous)).toBe(false);
+  });
+
   it("with a provider's model: runs within what was confirmed, without an overview", async () => {
     const vault = routineVault(NOTES);
     vault.touch("Projects/Offer.md", NOTES["Projects/Offer.md"], at(8, 18).getTime());

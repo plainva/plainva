@@ -1147,6 +1147,35 @@ function clockOf(now: Date): string {
   return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
+/** What of a conversation is the user's to choose (strand 6, step 8): the rest is what its runs bring. */
+type ConversationChoices = Pick<ConversationRecord, "title" | "pins" | "providerId" | "model" | "redact">;
+
+/** The user's choices of a conversation, as they travel with a run (strand 6, step 8). */
+function choicesOf(record: ConversationChoices): ConversationChoices {
+  return { title: record.title, pins: record.pins, providerId: record.providerId, model: record.model, ...(record.redact ? { redact: record.redact } : {}) };
+}
+
+/**
+ * `record` with the user's choices of `from` (strand 6, step 8): its title,
+ * its pins, what goes redacted and the model of its next message. Everything
+ * else — the turns, the usage, the runs — stays `record`'s.
+ */
+function withChoicesOf(record: ConversationRecord, from: ConversationChoices): ConversationRecord {
+  const next: ConversationRecord = { ...record, title: from.title, pins: from.pins, providerId: from.providerId, model: from.model };
+  if (from.redact) next.redact = from.redact;
+  else delete next.redact;
+  return next;
+}
+
+/**
+ * Which vault's data a host stands for (strand 6, step 8): its data key where
+ * it has one — a shell hands a new host for the same vault when what it is
+ * made of changes —, else the host itself.
+ */
+function vaultOf(vault: AiVaultHost): unknown {
+  return vault.key ?? vault;
+}
+
 /** What the send overview shows of a conversation's instructions (plan KI-Harness P3). */
 function manifestInstructionsOf(instructions: ConversationInstructions | undefined): ManifestInstructions | undefined {
   if (!instructions) return undefined;
@@ -1395,6 +1424,55 @@ export class AiSession {
   private readonly listeners = new Set<Listener>();
   private vault: AiVaultHost | null = null;
   private abort: AbortController | null = null;
+  /**
+   * What a run and the user write of a conversation (strand 6, step 8): the
+   * run its turns, its usage and its record, when it ends; the user its title,
+   * its pins, what goes redacted and its model, whenever they choose. While a
+   * run is on its way, a choice goes onto the conversation as it was stored
+   * before the run (`stored`; `null` where the run began it and it is in
+   * no storage yet), never onto the run's unfinished turns, and the latest one
+   * travels with the run (`choices`) — also where its conversation is on no
+   * screen by the time the run ends. From the run's end until its end is
+   * decided, `stored` is the conversation with the run's turns and record in
+   * it, so that a choice then goes onto those — whatever the screen shows
+   * meanwhile. A run that broke wrote nothing: its entry stays until the
+   * conversation's next run, and a choice still goes onto the conversation as
+   * it was stored. `vault`: the vault the run belongs to.
+   */
+  private readonly running = new Map<string, { vault: AiVaultHost; stored: ConversationRecord | null; choices: ConversationChoices | null }>();
+  /**
+   * Each conversation's writes and its deletions, one after the other, with
+   * the vault they go to: a later one is never overtaken by an earlier one.
+   */
+  private readonly writing = new Map<string, { vault: AiVaultHost; done: Promise<void> }>();
+  /** How many writes and deletions of each conversation were asked for: a read knows whether one came while it read. */
+  private readonly changes = new Map<string, number>();
+  /** A "Delete all" on its way, per vault (`vaultOf`): every write and read of that vault's conversations waits for it. */
+  private readonly clearings = new Map<unknown, Promise<void>>();
+  /** How many times "Delete all" was asked for, per vault: a read knows whether one came while it read. */
+  private readonly clears = new Map<unknown, number>();
+  /**
+   * The deletions of each conversation on their way (strand 6, step 8): one
+   * that fails takes back only itself, never another of the same
+   * conversation. Asked for — done or not yet —, a conversation comes on
+   * screen through no run's end; an opening reads it once the deletion is
+   * through.
+   */
+  private readonly deleting = new Map<string, number>();
+  /** Conversations whose deletion is done: no write that comes afterwards writes them back. */
+  private readonly deleted = new Set<string>();
+  /**
+   * Counts on whenever the user leaves what a message of the composer is put
+   * together for — another conversation opened, a new one begun, the one on
+   * screen deleted, a vault attached (strand 6, step 8): such a message goes
+   * nowhere. A "Delete all" is counted apart (`clears`); a message whose vault
+   * went goes nowhere by that alone.
+   */
+  private screens = 0;
+  /** Counts on whenever a run begins on screen (step 8): an opening that comes back after one does not take the screen. */
+  private started = 0;
+  /** The send overview that is open asks about a message of the composer. */
+  private composerConsent = false;
   /** Set synchronously on send: two quick presses never start two runs. */
   private sending = false;
   /** Recordings being transcribed now: one run per file. */
@@ -1759,6 +1837,8 @@ export class AiSession {
 
   async attachVault(vault: AiVaultHost | null): Promise<void> {
     this.stop();
+    // The screen begins anew: a message of the composer goes nowhere, also where the vault is the same.
+    this.leaveComposerMessage();
     this.answerConsent(false);
     this.vault = vault;
     this.set({
@@ -1812,25 +1892,135 @@ export class AiSession {
     void this.refreshMemory();
     void this.refreshStyle();
     void this.loadHintPrefs(vault);
-    const summaries: ConversationSummary[] = await vault.conversations.list().catch(() => []);
-    const old = expiredConversations(summaries, this.state.settings.historyDays, this.host.now());
-    for (const id of old) await vault.conversations.remove(id).catch(() => undefined);
-    if (this.vault !== vault) return;
-    this.set({ summaries: sortSummaries(summaries.filter((s) => !old.includes(s.id))) });
+    // What a "Delete all" of this vault leaves (step 8): read once such a clearing is through, and again where a Delete
+    // all came meanwhile.
+    let listed: ConversationSummary[];
+    for (;;) {
+      const clears = this.clearsOf(vault);
+      await this.clearings.get(vaultOf(vault));
+      // What is in use as the list is read, and how often each conversation was written by then: one written since may
+      // be newer than the list says, and waits for the next attaching.
+      const used = new Set([...this.writing.keys(), ...this.running.keys()]);
+      const writes = new Map(this.changes);
+      listed = await vault.conversations.list().catch(() => [] as ConversationSummary[]);
+      // Expired ones go like any deletion, after their writes — none in use when the list was read (being written or
+      // run), none on screen now, and none written since — a run that began since is on screen until its end writes it.
+      for (const id of expiredConversations(listed, this.state.settings.historyDays, this.host.now())) {
+        const inUse = used.has(id) || this.state.active?.id === id;
+        if (!inUse && (this.changes.get(id) ?? 0) === (writes.get(id) ?? 0)) await this.deleteStored(vault, id).catch(() => undefined);
+      }
+      if (this.vault !== vault) return;
+      if (this.clearsOf(vault) === clears) break;
+    }
+    // Nothing whose deletion is done; one whose deletion is still on its way stays listed — the deletion takes it off
+    // once it is through, and one that fails leaves it.
+    this.set({ summaries: sortSummaries(listed.filter((s) => !this.deleted.has(s.id))) });
   }
 
   async open(id: string): Promise<void> {
     const vault = this.vault;
     if (!vault || this.state.live) return;
     this.dropWriteQuestion();
-    const record = await vault.conversations.load(id);
-    if (record && this.vault === vault) this.set({ active: record, excludeActive: false, notice: null });
+    if (this.state.active?.id !== id) this.leaveComposerMessage();
+    const screen = this.screens;
+    const started = this.started;
+    const record = await this.loaded(vault, id);
+    // A later step on screen — another conversation, a new one, a deletion of the one on screen — wins over a reading
+    // that comes late, and so does a run that began since; one deleted meanwhile is read as gone (`loaded`).
+    if (!record || this.vault !== vault || this.screens !== screen || this.started !== started) return;
+    // The screen changes only now: a message of the composer begun since the click goes nowhere either.
+    if (this.state.active?.id !== id) this.leaveComposerMessage();
+    this.set({ active: record, excludeActive: false, notice: null });
   }
 
   newConversation(): void {
     if (this.state.live) return;
     this.dropWriteQuestion();
+    // Its drafts begin anew: a message of the composer that waits in its overview goes nowhere.
+    this.leaveComposerMessage();
     this.set({ active: null, excludeActive: false, draftPins: [], draftRedact: [], draftChoice: null, draftWeb: false, draftStyle: false, notice: null });
+  }
+
+  /**
+   * Leaving what a message of the composer is put together for (strand 6,
+   * step 8) — another conversation opened, a new one begun, the one on screen
+   * deleted, a vault attached — is a no to that message, as Cancel is: it
+   * would go with what the screen no longer is. Its words come back to the
+   * field. Its overview, where one is open, closes at once; a message still
+   * being put together finds the screen changed before it goes. A "Delete
+   * all" says no to it by its own count (`clears`).
+   */
+  private leaveComposerMessage(): void {
+    this.screens++;
+    if (this.composerConsent) this.answerConsent(false);
+  }
+
+  /**
+   * A conversation as it is stored, once every write of it and a "Delete
+   * all" asked for before have landed (strand 6, step 8) — read again where
+   * one more was asked for while it was read.
+   */
+  private async loaded(vault: AiVaultHost, id: string): Promise<ConversationRecord | null> {
+    for (;;) {
+      const changes = this.changes.get(id) ?? 0;
+      const clears = this.clears.get(vaultOf(vault)) ?? 0;
+      await this.writing.get(id)?.done;
+      await this.clearings.get(vaultOf(vault));
+      const record = await vault.conversations.load(id);
+      if ((this.changes.get(id) ?? 0) === changes && (this.clears.get(vaultOf(vault)) ?? 0) === clears) return record;
+    }
+  }
+
+  /** How many times "Delete all" was asked for of this vault: an action that began before one goes nowhere (step 8). */
+  private clearsOf(vault: AiVaultHost): number {
+    return this.clears.get(vaultOf(vault)) ?? 0;
+  }
+
+  /** Whether a conversation's deletion was asked for — done, or still on its way (strand 6, step 8). */
+  private gone(id: string): boolean {
+    return this.deleted.has(id) || this.deleting.has(id);
+  }
+
+  /** One more deletion of a conversation on its way. */
+  private askDeletion(id: string): void {
+    this.deleting.set(id, (this.deleting.get(id) ?? 0) + 1);
+  }
+
+  /** A deletion of a conversation through: done — or failed, and then it takes back only itself. */
+  private settleDeletion(id: string, done: boolean): void {
+    const left = (this.deleting.get(id) ?? 1) - 1;
+    if (left > 0) this.deleting.set(id, left);
+    else this.deleting.delete(id);
+    if (done) this.deleted.add(id);
+  }
+
+  /**
+   * Deletes a conversation from storage (strand 6, step 8): after every write
+   * of it, counted. Once it is deleted, it leaves the history and the screen —
+   * an id names one conversation on this device —, also where an attaching
+   * listed it while the deletion was on its way, or the shell made a new host
+   * meanwhile; a notice about it goes with it. One that cannot be deleted
+   * stays where it is.
+   */
+  private async deleteStored(vault: AiVaultHost, id: string): Promise<void> {
+    // A review that learns from it is cut off.
+    if (this.state.learning === id) this.learnAbort?.abort();
+    this.askDeletion(id);
+    await this.queued(vault, id, async () => {
+      try {
+        await vault.conversations.remove(id);
+      } catch (error) {
+        // Not deleted after all: what was or is written of it lands as before.
+        this.settleDeletion(id, false);
+        throw error;
+      }
+      this.settleDeletion(id, true);
+      this.set({
+        summaries: this.state.summaries.filter((s) => s.id !== id),
+        ...(this.state.active?.id === id ? { active: null } : {}),
+        ...(this.state.notice?.conversationId === id ? { notice: null } : {}),
+      });
+    });
   }
 
   /**
@@ -1930,10 +2120,18 @@ export class AiSession {
    * Leaves a draft in a vault's list (plan KI-Harness P5): something an
    * assistant wants to exist. Nothing is created; the list never drops a
    * waiting draft to make room, so the writer hears when it is full.
+   * `unless` is asked where the list is read (strand 6, step 8): where it
+   * says the draft's reason went while it waited its turn, none is laid down.
    */
-  async leaveDraft(vault: AiVaultHost, draft: WriteDraft): Promise<{ ok: true; id: string } | { ok: false; problem: "full" | "invalid" }> {
-    let problem: "full" | "invalid" = "invalid";
+  leaveDraft(vault: AiVaultHost, draft: WriteDraft): Promise<{ ok: true; id: string } | { ok: false; problem: "full" | "invalid" }>;
+  leaveDraft(vault: AiVaultHost, draft: WriteDraft, unless: () => boolean): Promise<{ ok: true; id: string } | { ok: false; problem: "full" | "invalid" | "gone" }>;
+  async leaveDraft(vault: AiVaultHost, draft: WriteDraft, unless?: () => boolean): Promise<{ ok: true; id: string } | { ok: false; problem: "full" | "invalid" | "gone" }> {
+    let problem: "full" | "invalid" | "gone" = "invalid";
     const next = await this.changeDrafts(vault, (state) => {
+      if (unless?.()) {
+        problem = "gone";
+        return null;
+      }
       const added = withWriteDraft(state.drafts, draft);
       if (!added.ok) {
         problem = added.problem === "full" ? "full" : "invalid";
@@ -2245,8 +2443,14 @@ export class AiSession {
 
   /** The user read what a server's prompt expanded to, and sends it: from now on this expansion is the approved one. */
   async sendMcpPrompt(review: McpPromptReview): Promise<void> {
-    if (!this.vault || this.state.live) return;
+    const vault = this.vault;
+    if (!vault || this.state.live) return;
+    // From where Send was pressed (step 8): a step on screen — another vault attached is one — or a Delete all while the
+    // prompt is kept sends nothing.
+    const screen = this.screens;
+    const since = this.clearsOf(vault);
     await this.mcp.pinPrompt(review.serverId, review.key, review.body);
+    if (this.screens !== screen || this.clearsOf(vault) !== since) return;
     await this.send(review.text);
   }
 
@@ -2788,7 +2992,9 @@ export class AiSession {
     const vault = this.vault;
     if (!this.state.settings.enabled) return no("off");
     if (!vault) return no("no-vault");
-    const record = this.state.active?.id === conversationId ? this.state.active : await vault.conversations.load(conversationId).catch(() => null);
+    // Read as it is stored once its writes have landed; nothing is learnt from a conversation being deleted (step 8).
+    if (this.gone(conversationId)) return no("gone");
+    const record = this.state.active?.id === conversationId ? this.state.active : await this.loaded(vault, conversationId).catch(() => null);
     if (!record) return no("gone");
     const last = record.runs[record.runs.length - 1];
     const transcript = learnTranscript(record);
@@ -2870,6 +3076,9 @@ export class AiSession {
   async learnFrom(conversationId: string): Promise<LearnOutcome> {
     const refused = (reason: LearnRefusal): LearnOutcome => ({ kind: "refused", reason });
     if (this.learnAbort || this.filtering || this.fillAbort || this.state.live || this.sending) return refused("busy");
+    const since = this.vault ? this.clearsOf(this.vault) : 0;
+    // Deleted — the conversation, or the whole history — since the review began: nothing more of it goes or is laid down (step 8).
+    const forgotten = (vault: AiVaultHost) => this.gone(conversationId) || this.clearsOf(vault) !== since;
     const controller = new AbortController();
     this.learnAbort = controller;
     this.set({ learning: conversationId });
@@ -2908,7 +3117,7 @@ export class AiSession {
       const drafts: string[] = [];
       let full = false;
       for (const draft of made.drafts) {
-        const left = await this.leaveDraft(vault, {
+        const next: WriteDraft = {
           id: `d-${this.host.newId()}`,
           createdAt: this.host.now().toISOString(),
           author,
@@ -2920,8 +3129,12 @@ export class AiSession {
           sources: [],
           defused: draft.defused,
           ...(draft.why ? { why: draft.why } : {}),
-        });
+        };
+        // Laid down only where neither its conversation nor the whole history went meanwhile — asked where the list of
+        // drafts is read, so that a draft waiting its turn there lays nothing down either (step 8).
+        const left = await this.leaveDraft(vault, next, () => forgotten(vault));
         if (left.ok) drafts.push(left.id);
+        else if (left.problem === "gone") return refused("gone");
         else if (left.problem === "full") {
           full = true;
           break;
@@ -3796,14 +4009,18 @@ export class AiSession {
     const message = text.trim();
     if (!message || !vault || !choice || this.state.live || this.sending || !this.state.settings.enabled) return null;
     this.sending = true;
+    const screen = this.screens;
+    const since = this.clearsOf(vault);
     try {
       const { entries } = await this.instructionEntries(vault);
-      if (this.vault !== vault) return null;
+      // Left while the skill was looked up — a step on screen, another vault, a Delete all (step 8): it starts nothing,
+      // and the screen stays as the user made it.
+      if (this.screens !== screen || this.clearsOf(vault) !== since) return null;
       this.set({ skills: this.skillsState(entries, this.state.skills.servers) });
       const entry = entries.find((e) => e.source.id === id);
       if (!entry || entry.status !== "active" || !entry.source.skill) return null;
       this.set({ active: null, excludeActive: false, notice: null });
-      return (await this.runMessage(message, vault, this.choice() ?? choice, { skills: { entries, bind: id } }))?.stop ?? null;
+      return (await this.runMessage(message, vault, this.choice() ?? choice, { skills: { entries, bind: id }, since }))?.stop ?? null;
     } catch (error) {
       this.abort = null;
       const stop: RunStop = { kind: "failed", failure: { kind: "offline", message: error instanceof Error ? error.message : String(error) } };
@@ -3857,16 +4074,24 @@ export class AiSession {
   async replay(conversationId: string, userTurn: number, choice: ModelChoice): Promise<RunStop | null> {
     const vault = this.vault;
     if (!vault || this.state.live || this.sending || !this.state.settings.enabled) return null;
-    const record = this.state.active?.id === conversationId ? this.state.active : await vault.conversations.load(conversationId).catch(() => null);
-    const run = record?.runs.find((candidate) => candidate.userTurn === userTurn);
-    if (!record || !run) return null;
-    const request = replayRequest(record, run);
-    if (!request.ok) return null;
+    const since = this.clearsOf(vault);
+    const screen = this.screens;
+    // Nothing is asked again of a conversation being deleted (step 8).
+    if (this.gone(conversationId)) return null;
+    // Taken at once: a message sent while the conversation is read would be a second run.
     this.sending = true;
     try {
+      // One not on screen is read once its writes have landed.
+      const record = this.state.active?.id === conversationId ? this.state.active : await this.loaded(vault, conversationId).catch(() => null);
+      const run = record?.runs.find((candidate) => candidate.userTurn === userTurn);
+      if (!record || !run) return null;
+      const request = replayRequest(record, run);
+      if (!request.ok) return null;
       const states = await this.snapshotStates(run);
       const { entries } = await this.instructionEntries(vault);
-      if (this.vault !== vault) return null;
+      // Left while it was put together — a step on screen, another vault, a Delete all, its original deleted (step 8):
+      // it starts nothing, and the screen stays as the user made it.
+      if (this.screens !== screen || this.clearsOf(vault) !== since || this.gone(conversationId)) return null;
       this.set({ skills: this.skillsState(entries, this.state.skills.servers) });
       const bound = record.instructions?.skill;
       const bind = bound && entries.some((entry) => entry.source.id === bound.id && entry.status === "active" && entry.source.skill) ? bound.id : undefined;
@@ -3887,7 +4112,7 @@ export class AiSession {
         style: Boolean(record.instructions?.style),
       };
       this.set({ active: null, excludeActive: false, notice: null });
-      return (await this.runMessage(request.words, vault, choice, { skills: { entries, ...(bind ? { bind } : {}) }, replay }))?.stop ?? null;
+      return (await this.runMessage(request.words, vault, choice, { skills: { entries, ...(bind ? { bind } : {}) }, replay, since }))?.stop ?? null;
     } catch (error) {
       this.abort = null;
       const stop: RunStop = { kind: "failed", failure: { kind: "offline", message: error instanceof Error ? error.message : String(error) } };
@@ -3995,7 +4220,10 @@ export class AiSession {
     if (!choice || !providerById(choice.providerId, this.state.settings.custom)) return { kind: "refused", reason: "no-model" };
     if (this.state.live || this.sending) return { kind: "refused", reason: "busy" };
     this.sending = true;
+    const since = this.clearsOf(vault);
     const before = this.state.active;
+    // A step of the user's on screen while it runs keeps what the screen shows at its end (step 8).
+    const screen = this.screens;
     let ran = 0;
     let passed = 0;
     let stopped: null | "ceiling" | "cancelled" | "failed" = null;
@@ -4030,11 +4258,12 @@ export class AiSession {
           this.set({ skillTests: { ...this.state.skillTests, running: { skill: target.id, scenario: scenario.id, done: ran, total } } });
           // The history keeps one conversation per scenario: the one of its last run makes room.
           const old = previous?.scenarios.find((s) => s.id === scenario.id)?.conversationId;
-          if (old) await this.remove(old).catch(() => undefined);
+          if (old) await this.dropOwn(vault, old);
           this.set({ active: null, notice: null });
           const outcome = await this.runMessage(scenario.message, vault, choice, {
             skills: { entries, bind: target.id },
             detached: { title: t("ai.workshop.test.conversation", { skill: title, scenario: scenario.id }), limits: SKILL_TEST_RUN_LIMITS },
+            since,
           });
           // Stopped by the user, the send overview declined, the vault gone — or the request itself failed, which
           // says nothing about the skill: the run ends here, and the unfinished scenario leaves no conversation.
@@ -4042,7 +4271,7 @@ export class AiSession {
           if (this.vault !== vault || !outcome || !outcome.record || outcome.stop.kind === "cancelled" || broke) {
             stopped = broke ? "failed" : "cancelled";
             if (broke) failure = broke;
-            if (outcome?.record && this.vault === vault) await this.remove(outcome.record.id).catch(() => undefined);
+            if (outcome?.record) await this.dropOwn(vault, outcome.record.id);
             results.push(scenarioNotRun(scenario));
             continue;
           }
@@ -4082,13 +4311,25 @@ export class AiSession {
       if (this.state.live) this.set({ live: null });
       return { kind: "done", ran, passed, failed: ran - passed, stopped: "failed", failure: { kind: "offline", message: error instanceof Error ? error.message : String(error) } };
     } finally {
+      if (this.vault === vault) this.set({ notice: null, skillTests: { ...this.state.skillTests, running: null } });
+      // The conversation that was open before is open again, as it is now (step 8) — unless the user went elsewhere
+      // since; the scenarios' own are in the history. Nothing is sent before it is back.
+      const back = before && this.state.summaries.some((s) => s.id === before.id) ? await this.loaded(vault, before.id).catch(() => null) : null;
+      if (this.vault === vault && this.screens === screen) this.set({ active: back });
       this.sending = false;
-      if (this.vault === vault) {
-        // The conversation that was open before is open again; the scenarios' own are in the history.
-        const kept = before && this.state.summaries.some((s) => s.id === before.id) ? before : null;
-        this.set({ active: kept, notice: null, skillTests: { ...this.state.skillTests, running: null } });
-      }
     }
+  }
+
+  /**
+   * Deletes a conversation a run of the app made itself (step 8) — a
+   * regression run's scenario, a routine's previous run —: from the storage of
+   * its own vault, and with that from the history and the screen. No step of
+   * the user's, so what was open before comes back after a regression run;
+   * one that cannot be deleted stays, and what the run is for goes on — the
+   * routine keeps its note, the regression run its scenarios.
+   */
+  private async dropOwn(vault: AiVaultHost, id: string): Promise<void> {
+    await this.deleteStored(vault, id).catch(() => undefined);
   }
 
   // ---------------------------------------------------------------- routines
@@ -4268,6 +4509,7 @@ export class AiSession {
     if (this.occupied()) return refused("busy");
     // Set at once: a tick and a click never start two runs.
     this.sending = true;
+    const since = this.clearsOf(vault);
     try {
       const routine = await this.routines.fresh(id);
       if (!routine || this.vault !== vault) return refused("gone");
@@ -4275,7 +4517,7 @@ export class AiSession {
       const moment = how === "hand" ? started : dueMoment(routine, started);
       if (!moment) return refused("not-due");
       this.routines.setRunning({ id: routine.id, name: routine.name, ...(routine.log ? { log: true } : {}) });
-      const ended = await this.routineRun(vault, routine).catch((): RoutineEnd => ({ outcome: "failed", failure: "other" }));
+      const ended = await this.routineRun(vault, routine, since).catch((): RoutineEnd => ({ outcome: "failed", failure: "other" }));
       const { conversationId, coveredAt, ...result } = ended;
       const at = this.host.now().toISOString();
       const run: RoutineRun = { scheduledFor: localStamp(moment), at, ...result };
@@ -4300,13 +4542,13 @@ export class AiSession {
   }
 
   /** What became of one run: how it ended, and the conversation it left in the history. */
-  private async routineRun(vault: AiVaultHost, routine: Routine): Promise<RoutineEnd> {
+  private async routineRun(vault: AiVaultHost, routine: Routine, since: number): Promise<RoutineEnd> {
     const needs = (need: RoutineNeed): RoutineEnd => ({ outcome: "needs-you", need });
     const settings = this.state.settings;
     const provider = providerById(routine.choice.providerId, settings.custom);
     if (!provider || (provider.endpoint.needsKey && !this.state.keys[provider.id])) return needs("model");
     if (settings.localOnly && !runsOnDevice(provider)) return needs("local");
-    if (routine.log) return this.logRun(vault, routine, provider);
+    if (routine.log) return this.logRun(vault, routine, provider, since);
     const { entries } = await this.instructionEntries(vault);
     const entry = this.routineSkill(entries, routine.skill);
     // Confirmed for the skill as it was: one that changed since rests its routine until somebody looked.
@@ -4320,6 +4562,7 @@ export class AiSession {
     const outcome = await this.runMessage(this.routineRequest(routine.request, entry), vault, routine.choice, {
       skills: { entries, bind: routine.skill },
       routine: { title, limits: ROUTINE_RUN_LIMITS, scope: routine.scope },
+      since,
     });
     // The vault went away under it.
     if (!outcome) return { outcome: "stopped" };
@@ -4328,7 +4571,7 @@ export class AiSession {
     const left = record ? { conversationId: record.id } : {};
     // The history keeps one conversation per routine: the one of its last run makes room — unless it is on screen.
     if (record && routine.conversationId && routine.conversationId !== record.id && this.state.active?.id !== routine.conversationId) {
-      await this.remove(routine.conversationId).catch(() => undefined);
+      await this.dropOwn(vault, routine.conversationId);
     }
     const stop = outcome.stop;
     if (stop.kind === "cancelled") return { outcome: "stopped", ...left };
@@ -4430,7 +4673,7 @@ export class AiSession {
    * and the app writes the entry into the folder's `log.md`. Where nothing
    * changed, no model is asked and nothing is written.
    */
-  private async logRun(vault: AiVaultHost, routine: Routine, provider: ProviderInfo): Promise<RoutineEnd> {
+  private async logRun(vault: AiVaultHost, routine: Routine, provider: ProviderInfo, since: number): Promise<RoutineEnd> {
     const needs = (need: RoutineNeed): RoutineEnd => ({ outcome: "needs-you", need });
     const log = vault.log;
     const folder = routine.log ? logFolder(routine.log.folder) : null;
@@ -4440,7 +4683,7 @@ export class AiSession {
     if (found.kind === "nothing") return { outcome: "unchanged", coveredAt: new Date(found.asOf).toISOString() };
     const material = found.material;
     const title = this.host.label?.("ai.routines.conversation", { name: routine.name }) ?? routine.name;
-    const outcome = await this.runMessage(this.logAsk(), vault, routine.choice, { routine: { title, limits: FOLDER_LOG_LIMITS, scope: routine.scope, log: this.logStart(material) } });
+    const outcome = await this.runMessage(this.logAsk(), vault, routine.choice, { routine: { title, limits: FOLDER_LOG_LIMITS, scope: routine.scope, log: this.logStart(material) }, since });
     // The vault went away under it.
     if (!outcome) return { outcome: "stopped" };
     if (outcome.need) return needs(outcome.need);
@@ -4448,7 +4691,7 @@ export class AiSession {
     const left = record ? { conversationId: record.id } : {};
     // The history keeps one conversation per routine: the one of its last run makes room — unless it is on screen.
     if (record && routine.conversationId && routine.conversationId !== record.id && this.state.active?.id !== routine.conversationId) {
-      await this.remove(routine.conversationId).catch(() => undefined);
+      await this.dropOwn(vault, routine.conversationId);
     }
     const stop = outcome.stop;
     if (stop.kind === "cancelled") return { outcome: "stopped", ...left };
@@ -4690,34 +4933,75 @@ export class AiSession {
     const vault = this.vault;
     if (!vault) return;
     if (this.state.live?.conversationId === id) this.stop();
-    if (this.state.active?.id === id) this.dropWriteQuestion();
-    await vault.conversations.remove(id);
-    this.set({
-      summaries: this.state.summaries.filter((s) => s.id !== id),
-      active: this.state.active?.id === id ? null : this.state.active,
-    });
+    if (this.state.active?.id === id) {
+      this.dropWriteQuestion();
+      this.leaveComposerMessage();
+    }
+    await this.deleteStored(vault, id);
   }
 
   async removeAll(): Promise<void> {
     const vault = this.vault;
     if (!vault) return;
     this.stop();
-    await vault.conversations.removeAll();
-    this.set({ summaries: [], active: null, notice: null });
+    // A review that learns from one of them is cut off (step 8). A message of the composer on its way goes nowhere:
+    // it counts this Delete all (`since`).
+    this.learnAbort?.abort();
+    // Every conversation of this vault goes. Marked as deleted are the ones something could still write — on screen,
+    // a run on its way for it, a write of it —: what was written of them lands first, and nothing that comes after
+    // writes them back. A read of any other waits for the clearing, and so does what is written meanwhile.
+    const key = vaultOf(vault);
+    const listed = new Set(this.state.summaries.map((summary) => summary.id));
+    const ids = new Set([
+      ...(this.state.active ? [this.state.active.id] : []),
+      ...[...this.running].filter(([, run]) => vaultOf(run.vault) === key).map(([id]) => id),
+      ...[...this.writing].filter(([, entry]) => vaultOf(entry.vault) === key).map(([id]) => id),
+    ]);
+    for (const id of ids) this.askDeletion(id);
+    this.clears.set(key, (this.clears.get(key) ?? 0) + 1);
+    const before = [...this.writing.values()].filter((entry) => vaultOf(entry.vault) === key).map((entry) => entry.done);
+    const clearing = Promise.all([this.clearings.get(key), ...before]).then(async () => {
+      try {
+        await vault.conversations.removeAll();
+      } catch (error) {
+        for (const id of ids) this.settleDeletion(id, false);
+        throw error;
+      }
+      for (const id of ids) this.settleDeletion(id, true);
+    });
+    const settled = clearing.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.clearings.set(key, settled);
+    void settled.then(() => {
+      if (this.clearings.get(key) === settled) this.clearings.delete(key);
+    });
+    await clearing;
+    // What was deleted leaves the screen — where its vault is still the one on screen —; a conversation begun meanwhile
+    // stays on it, and so does a notice about anything else.
+    if (!this.vault || vaultOf(this.vault) !== key) return;
+    const notice = this.state.notice;
+    this.set({
+      summaries: [],
+      ...(this.state.active && ids.has(this.state.active.id) ? { active: null } : {}),
+      ...(notice && (ids.has(notice.conversationId) || listed.has(notice.conversationId)) ? { notice: null } : {}),
+    });
   }
 
   async rename(id: string, title: string): Promise<void> {
     const vault = this.vault;
     const clean = title.trim();
     if (!vault || !clean) return;
-    const record = this.state.active?.id === id ? this.state.active : await vault.conversations.load(id);
+    const record = this.state.active?.id === id ? this.state.active : await this.loaded(vault, id);
     if (!record) return;
     const next = { ...record, title: clean };
-    await vault.conversations.save(next);
+    // What is on screen first: a run of this conversation that ends meanwhile takes the title from there.
     this.set({
       active: this.state.active?.id === id ? next : this.state.active,
       summaries: this.state.summaries.map((s) => (s.id === id ? { ...s, title: clean } : s)),
     });
+    await this.storeChoice(vault, next);
   }
 
   /** Ids of the conversations whose title or text contains the query (history search, §16). */
@@ -4756,6 +5040,7 @@ export class AiSession {
     if (!choice) return { kind: "refused", reason: "no-model" };
     if (this.state.live || this.sending) return { kind: "refused", reason: "busy" };
     if (vault.encrypted?.()) return { kind: "refused", reason: "encrypted" };
+    const since = this.clearsOf(vault);
     const { range, action } = request;
     if (!range.text.trim()) return { kind: "refused", reason: "empty" };
     if (range.text.length > SELECTION_MAX_CHARS) return { kind: "refused", reason: "too-long" };
@@ -4773,7 +5058,8 @@ export class AiSession {
       ? await withholdDeniedLinks(range.text, range.path, vault.policy, async (path) => gateDecision(await vault.policy.policyOf(path), run).allowed)
       : { text: range.text };
     if (places.withheld > 0 || links.text !== range.text) return { kind: "refused", reason: "withheld" };
-
+    // Something else began while the passage was looked at (step 8): one run at a time.
+    if (this.state.live || this.sending) return { kind: "refused", reason: "busy" };
     this.sending = true;
     try {
       const title = range.path.slice(range.path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
@@ -4820,6 +5106,8 @@ export class AiSession {
         const answer = await this.askConsent(manifest, growth);
         if (this.vault !== vault || answer !== "send") return { kind: "refused", reason: "cancelled" };
       }
+      // A passage whose vault went, or whose history was cleared, while it was looked at goes nowhere (step 8).
+      if (this.vault !== vault || this.clearsOf(vault) !== since) return { kind: "refused", reason: "cancelled" };
       if (!manifest.local) this.scope = widenScope(this.scope, manifest);
 
       const now = this.host.now().toISOString();
@@ -4849,6 +5137,7 @@ export class AiSession {
         executor: null,
         carriesVault: true,
         usedDrafts: false,
+        created: true,
       });
       if (stop.kind !== "answered") return { kind: "refused", reason: stop.kind === "cancelled" ? "cancelled" : "failed" };
       const text = passageOf(answer);
@@ -5408,6 +5697,7 @@ export class AiSession {
     const refused = (reason: Refusal["reason"], extra: Omit<Refusal, "kind" | "reason"> = {}): ImageOutcome => ({ kind: "refused", reason, ...extra });
     const vault = this.vault;
     if (!this.state.settings.enabled || !vault) return refused("off");
+    const since = this.clearsOf(vault);
     // A door starts a conversation of its own: with the model a new one would get, not the open one's.
     const choice = this.newConversationChoice();
     const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : undefined;
@@ -5475,6 +5765,7 @@ export class AiSession {
       const stem = name.replace(/\.[^.]+$/, "") || name;
       const outcome = await this.runMessage(asNote ? t("ai.image.noteAsk") : t("ai.image.ask"), vault, choice, {
         door: { title: asNote ? t("ai.image.noteTitle", { name: stem }) : t("ai.image.title", { name }), pins: [], lead: [lead, picture], disclose, ...(listed === false ? { blind: true } : {}) },
+        since,
       });
       if (!outcome) return refused("cancelled");
       conversationId = outcome.record?.id;
@@ -5660,6 +5951,7 @@ export class AiSession {
     const vault = this.vault;
     if (!this.state.settings.enabled || !vault || !vault.reply) return refused("off");
     if (vault.encrypted?.()) return refused("encrypted");
+    const since = this.clearsOf(vault);
     const choice = this.choice();
     const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : undefined;
     if (!choice || !provider) return refused("no-model");
@@ -5722,6 +6014,7 @@ export class AiSession {
       };
       const outcome = await this.runMessage(question || "Answer the question this comment thread asks.", vault, choice, {
         door: { title: t("ai.thread.title", { note: title }), pins: [request.path], lead: [lead], disclose, limits: THREAD_REPLY_LIMITS },
+        since,
       });
       if (!outcome) return refused("cancelled");
       conversationId = outcome.record?.id;
@@ -6005,7 +6298,102 @@ export class AiSession {
 
   private async saveActive(record: ConversationRecord): Promise<void> {
     this.set({ active: record });
-    await this.vault?.conversations.save(record);
+    const vault = this.vault;
+    if (vault) await this.storeChoice(vault, record);
+  }
+
+  /**
+   * Stores a choice of the user's — a title, pins, what goes redacted, a
+   * model — with its conversation (strand 6, step 8). While a run of it is on
+   * its way, onto the conversation as it was stored before the run: the run's
+   * unfinished turns are the run's to write, when it ends, and it takes the
+   * choice along then — also for a conversation it began, which is stored
+   * only then. Whether the conversation was deleted is asked when the write
+   * comes.
+   */
+  private storeChoice(vault: AiVaultHost, record: ConversationRecord): Promise<void> {
+    const run = this.running.get(record.id);
+    if (!run) return this.write(vault, record);
+    run.choices = choicesOf(record);
+    if (!run.stored) return Promise.resolve();
+    run.stored = withChoicesOf(run.stored, record);
+    return this.write(vault, run.stored);
+  }
+
+  /**
+   * Writes a conversation after every write of it made before — unless its
+   * deletion is done by the time the write comes: one whose deletion failed
+   * is written as before.
+   */
+  private write(vault: AiVaultHost, record: ConversationRecord): Promise<void> {
+    return this.queued(vault, record.id, async () => {
+      if (!this.deleted.has(record.id)) await vault.conversations.save(record);
+    });
+  }
+
+  /** One write or deletion of a conversation, after every one of it before and after a "Delete all" on its way. */
+  private queued(vault: AiVaultHost, id: string, write: () => Promise<void>): Promise<void> {
+    this.changes.set(id, (this.changes.get(id) ?? 0) + 1);
+    const done = Promise.all([this.writing.get(id)?.done, this.clearings.get(vaultOf(vault))]).then(write);
+    const settled = done.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.writing.set(id, { vault, done: settled });
+    void settled.then(() => {
+      if (this.writing.get(id)?.done === settled) this.writing.delete(id);
+    });
+    return done;
+  }
+
+  /**
+   * A run's conversation as the user has it now (strand 6, step 8): the run
+   * brings its turns, its usage and its record; the title, the pins, what goes
+   * redacted and the model of the next message are the user's — also where
+   * they were chosen while the run was on its way: the latest choice the
+   * run carries. Every choice goes through `storeChoice` the moment it is
+   * made, on screen or from the history, so the run carries the latest; one
+   * that carries none has them as the user left them when it started.
+   */
+  private withUserChoices(record: ConversationRecord, run: { choices: ConversationChoices | null } | undefined): ConversationRecord {
+    return run?.choices ? withChoicesOf(record, run.choices) : record;
+  }
+
+  /**
+   * What the user chose on screen while a message was put together and its
+   * send overview was open (strand 6, step 8): the message goes as the
+   * overview showed it; the conversation goes on with the title, the pins and
+   * the model as they are on screen now — the composer's, for a conversation
+   * the message begins — and with what goes redacted as the screen has it,
+   * with what the overview took in or out on top (`redactFrom`: as the
+   * overview began). `begun`: a message of the composer that begins its
+   * conversation — the drafts are its choices.
+   */
+  private withScreenChoices(record: ConversationRecord, redactFrom: readonly string[] | undefined, begun: boolean): ConversationRecord {
+    const shown = this.state.active?.id === record.id ? this.state.active : null;
+    const { draftPins, draftRedact } = this.state;
+    // The model as the next new conversation would take it: under "Fully local", only one on this device (plan P7).
+    const draft = this.draftChoice();
+    const screen: ConversationChoices | null =
+      shown ??
+      (begun
+        ? {
+            title: record.title,
+            pins: draftPins,
+            providerId: draft?.providerId ?? record.providerId,
+            model: draft?.model ?? record.model,
+            ...(draftRedact.length ? { redact: draftRedact } : {}),
+          }
+        : null);
+    if (!screen) return record;
+    const next = withChoicesOf(record, screen);
+    if (!redactFrom) return next;
+    const before = new Set(redactFrom);
+    const sent = new Set(record.redact ?? []);
+    const added = [...sent].filter((path) => !before.has(path));
+    const removed = new Set([...before].filter((path) => !sent.has(path)));
+    if (!added.length && !removed.size) return next;
+    return { ...next, redact: [...new Set([...(next.redact ?? []), ...added])].filter((path) => !removed.has(path)) };
   }
 
   // -------------------------------------------------------------------- run
@@ -6049,14 +6437,16 @@ export class AiSession {
   private settleConsent(answer: ConsentAnswer): void {
     const settle = this.consentAnswer;
     this.consentAnswer = null;
+    this.composerConsent = false;
     if (this.state.consent) this.set({ consent: null });
     settle?.(answer);
   }
 
-  private askConsent(manifest: EgressManifest, growth: ScopeGrowth[], pictures: { images: readonly ImagePart[]; blind?: boolean } | null = null): Promise<ConsentAnswer> {
+  private askConsent(manifest: EgressManifest, growth: ScopeGrowth[], pictures: { images: readonly ImagePart[]; blind?: boolean } | null = null, composer = false): Promise<ConsentAnswer> {
     this.settleConsent("cancel");
     return new Promise((resolve) => {
       this.consentAnswer = resolve;
+      this.composerConsent = composer;
       this.set({ consent: { manifest, growth, ...(pictures?.images.length ? { images: pictures.images, ...(pictures.blind ? { blind: true } : {}) } : {}) } });
       // Asked from a door while no conversation is on screen: the shell shows one, or nobody could answer.
       if (this.surfaces === 0) this.reveal?.();
@@ -6090,6 +6480,8 @@ export class AiSession {
     const vault = this.vault;
     const choice = this.choice();
     if (!message || !vault || !choice || this.state.live || this.sending || !this.state.settings.enabled) return null;
+    // A conversation whose deletion was asked for takes no more messages (step 8).
+    if (this.state.active && this.gone(this.state.active.id)) return null;
     this.sending = true;
     try {
       return (await this.runMessage(message, vault, choice))?.stop ?? null;
@@ -6109,11 +6501,18 @@ export class AiSession {
     message: string,
     vault: AiVaultHost,
     choice: ModelChoice,
-    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart; detached?: DetachedStart; routine?: RoutineStart; replay?: ReplayStart } = {},
+    // `since`: how many Delete alls of the vault were asked for when the action that sends this began (step 8).
+    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart; detached?: DetachedStart; routine?: RoutineStart; replay?: ReplayStart; since?: number } = {},
   ): Promise<RunOutcome | null> {
     const { skills, door, detached, routine, replay } = options;
     // Started apart from the composer: a conversation of its own, with none of the composer's drafts.
     const apart = door ?? detached ?? routine ?? replay ?? null;
+    // A message of the composer goes nowhere once the user left what it is put together for, and a message of any kind
+    // once a "Delete all" of its vault was asked for (step 8).
+    // A run asked again goes nowhere once its original's deletion was asked for.
+    const screen = this.screens;
+    const since = options.since ?? this.clearsOf(vault);
+    const left = () => (!apart && this.screens !== screen) || this.clearsOf(vault) !== since || Boolean(replay && this.gone(replay.of.conversationId));
     const provider = providerById(choice.providerId, this.state.settings.custom);
     if (!provider) {
       const stop: RunStop = { kind: "failed", failure: { kind: "unknown_endpoint", message: choice.providerId } };
@@ -6139,6 +6538,7 @@ export class AiSession {
     // One set for both: a choice in the overview below reaches the tools of this run too.
     // A door starts a conversation of its own: what the composer's next message was given is not its to use.
     const redact = new Set<string>(apart ? [] : this.state.active ? (this.state.active.redact ?? []) : this.state.draftRedact);
+    const redactFrom = [...redact];
     // The system's own model takes no tools (plan P2c), nor does one on this device whose user said so (plan P7).
     const toolless = this.toolless(provider, choice.model);
     // What a request to this model is told about it: a stated window holds for the page it reads as well.
@@ -6146,9 +6546,15 @@ export class AiSession {
     const now = this.host.now().toISOString();
 
     let record: ConversationRecord;
+    // A message of the composer that begins its conversation (step 8): the drafts on screen are its choices.
+    let begun = false;
+    // A conversation this run creates: in no storage until the run ends.
+    let created = false;
     if (this.state.active && !apart) {
       record = this.state.active;
     } else {
+      created = true;
+      begun = !apart;
       // A new conversation: its system prompt and its tools are fixed from here on (append-only).
       // The internet is chosen for one conversation, in the composer, where the vault allows it — never by a door,
       // a regression run or a run bound to a skill. Fixed like every tool: a conversation that began without it
@@ -6292,7 +6698,7 @@ export class AiSession {
             inherited,
             draft: async (input: { title: string; body: WriteDraftBody; defused: number; missing?: readonly string[]; withheld?: readonly string[] }) => {
               const carried = await this.carriedBy(vault, record, sending.sources, reads).catch(() => ({ paths: [] as string[], more: false }));
-              return this.leaveDraft(vault, {
+              const next: WriteDraft = {
                 id: `d-${this.host.newId()}`,
                 createdAt: this.host.now().toISOString(),
                 author: { id: writer.id, label: writer.displayName },
@@ -6309,7 +6715,10 @@ export class AiSession {
                 ...(input.withheld?.length ? { withheld: [...input.withheld] } : {}),
                 // Written in a conversation that carried the user's writing style (plan P9-3): the card says so.
                 ...(record.instructions?.style?.features ? { style: true as const } : {}),
-              });
+              };
+              // Laid down only while its conversation stands (step 8): one deleted meanwhile — a Delete all marks the
+              // run's own as well — gets no draft whose turn in the list comes after; a call on its way is not stopped.
+              return this.leaveDraft(vault, next, () => this.gone(record.id));
             },
             ask: (question: PlanQuestion, callId?: string) => this.askPlan(question, callId),
             writes: writesLog,
@@ -6457,7 +6866,10 @@ export class AiSession {
       for (;;) {
         const growth = scopeGrowth(manifest, this.scope);
         if (!reviewing && growth.length === 0 && !(this.state.settings.confirmEveryRequest && !manifest.local)) break;
-        const answer = await this.askConsent(manifest, growth, pictures);
+        // No overview — first or again — for a message whose vault went, or whose screen the user left, meanwhile.
+        if (this.vault !== vault || left()) return null;
+        // A message of the composer: leaving its conversation while the overview is open is a no (step 8).
+        const answer = await this.askConsent(manifest, growth, pictures, !apart);
         if (this.vault !== vault || answer === "cancel") return null;
         if (answer === "send") break;
         reviewing = true;
@@ -6468,6 +6880,8 @@ export class AiSession {
       }
     }
     if (redact.size || record.redact) record = { ...record, redact: [...redact] };
+    // Nor is it sent: a message whose vault went, or whose screen the user left while it was put together, goes nowhere.
+    if (this.vault !== vault || left()) return null;
     // What the user approved for their conversations grows with what they send — never with what a routine sends:
     // that was confirmed for the routine, and a conversation gains nothing from it.
     if (!manifest.local && !routine) this.scope = widenScope(this.scope, manifest);
@@ -6486,6 +6900,9 @@ export class AiSession {
       carriesVault: Boolean(door) || Boolean(routine?.log) || pack.refs.length > 0 || pack.dataClasses.length > 1 || Boolean(seen.active),
       // A message typed in the composer used the drafts; a door or a regression run leaves them for the next one.
       usedDrafts: !apart,
+      begun,
+      created,
+      redactFrom,
       // A routine runs beside the conversation on screen and takes nothing over (plan P8).
       ...(routine ? { background: true } : {}),
       skillState,
@@ -6740,6 +7157,12 @@ export class AiSession {
     executor: ToolExecutor | null;
     carriesVault: boolean;
     usedDrafts: boolean;
+    /** What went redacted as the send overview began (step 8): what it changed of that counts for the conversation too. */
+    redactFrom?: readonly string[];
+    /** A message of the composer that begins its conversation (step 8): the drafts are its choices. */
+    begun?: boolean;
+    /** The run creates its conversation (step 8): it is in no storage until the run ends. */
+    created?: boolean;
     /**
      * The run takes nothing on screen over (plan P8, a routine): the open
      * conversation, the live line and the notice stay as they are. Its record
@@ -6771,6 +7194,13 @@ export class AiSession {
     const { vault, choice, provider, pack, manifest } = input;
     const now = this.host.now().toISOString();
     let record = input.record;
+    // What goes redacted as this run sends it: its context and its tools follow it, whatever is chosen meanwhile (P9-6).
+    const sentRedact = record.redact;
+    // What the user chose on screen while the message was put together and its overview was open (step 8).
+    record = this.withScreenChoices(record, input.redactFrom, input.begun === true);
+    // The conversation as it is stored before this run (step 8): a choice made while the run is on its way goes onto it —
+    // none where the run creates it.
+    this.running.set(record.id, { vault, stored: input.created ? null : record, choices: null });
     const userTurn = record.conversation.turns.length;
     record = { ...record, conversation: appendTurn(record.conversation, { role: "user", parts: input.parts, at: now }), updatedAt: now };
 
@@ -6779,7 +7209,11 @@ export class AiSession {
     const toolLog: LedgerEntry["tools"] = [];
     // A message typed in the composer used the drafts; an action at a selection leaves them for the next one.
     const drafts = input.usedDrafts ? { draftPins: [], draftRedact: [], draftChoice: null, draftWeb: false, draftStyle: false, excludeActive: false, leaveOutNext: [], originalsNext: [] } : {};
-    if (!input.background) this.set({ active: record, ...drafts, notice: null, live: { conversationId: record.id, text: "", tools: [], steps: 0 } });
+    if (!input.background) {
+      // An opening that comes back after this does not take the screen from the run (step 8).
+      this.started++;
+      this.set({ active: record, ...drafts, notice: null, live: { conversationId: record.id, text: "", tools: [], steps: 0 } });
+    }
 
     const carriesVault = input.carriesVault;
     const result = await runAgent({
@@ -6830,7 +7264,7 @@ export class AiSession {
           const state = !event.outcome.isError ? ("done" as const) : event.outcome.content === EFFECT_DECLINED ? ("declined" as const) : ("failed" as const);
           this.set({ live: { ...live, tools: live.tools.map((t) => (t.id === event.call.id ? { ...t, state } : t)) } });
         } else if (event.type === "turn") {
-          this.set({ active: this.state.active?.id === record.id ? record : this.state.active, live: { ...live, text: "", steps: live.steps + 1 } });
+          this.set({ active: this.state.active?.id === record.id ? this.withUserChoices(record, this.running.get(record.id)) : this.state.active, live: { ...live, text: "", steps: live.steps + 1 } });
         }
       },
     });
@@ -6910,73 +7344,106 @@ export class AiSession {
       ...(input.reads?.more ? { readMore: true } : {}),
       ...(input.reads?.hashes?.size ? { readHashes: [...input.reads.hashes].map(([path, hash]) => ({ path, hash })) } : {}),
       // The conversation's choice of what goes redacted, as this run sent it: its context and its tools followed it (P9-6).
-      ...(record.redact?.length ? { redact: [...record.redact] } : {}),
+      ...(sentRedact?.length ? { redact: [...sentRedact] } : {}),
       ...(input.reads?.changed?.size ? { readChanged: [...input.reads.changed] } : {}),
       ...(input.reads?.unhashed ? { readUnhashed: true as const } : {}),
       ...(input.mcp?.calls.length ? { mcp: input.mcp } : {}),
       ...(input.writes && (input.writes.rounds.length || input.writes.drafts.length || input.writes.plans.length) ? { writes: input.writes } : {}),
       ...(input.scriptLog?.runs.length ? { scripts: input.scriptLog } : {}),
     };
-    record = {
-      ...record,
-      conversation: result.conversation,
-      usage: addUsage(record.usage, usage),
-      updatedAt: this.host.now().toISOString(),
-      runs: [...record.runs, run],
-    };
+    // The conversation as the user has it now, with what this run brings (step 8). Until its end is decided, a choice
+    // goes onto this — with the run's turns and record in it, whatever the screen shows meanwhile.
+    const entry = this.running.get(record.id) ?? { vault, stored: null, choices: null };
+    record = this.withUserChoices(
+      {
+        ...record,
+        conversation: result.conversation,
+        usage: addUsage(record.usage, usage),
+        updatedAt: this.host.now().toISOString(),
+        runs: [...record.runs, run],
+      },
+      entry,
+    );
+    entry.stored = record;
+    this.running.set(record.id, entry);
     try {
-      await vault.conversations.save(record);
-      const ledger = await vault.ledger.load();
-      await vault.ledger.save(
-        appendAiLedgerEntry(ledger, {
-          at: record.updatedAt,
-          conversationId: record.id,
-          providerId: choice.providerId,
-          model: choice.model,
-          stop: result.stop.kind,
-          steps: result.usage.steps,
-          tools: toolLog,
-          usage,
-          ...(costUsd !== undefined ? { costUsd } : {}),
-          ...(result.stop.kind === "failed" ? { failure: result.stop.failure.kind } : {}),
-          ...(skillsUsed.length ? { skills: [...new Set(skillsUsed.map((s) => s.id))] } : {}),
-          ...(skillTokens ? { skillTokens } : {}),
-          // Numbers only: which pages and which words is the conversation's to say, never the audit's.
-          ...(web ? { web: { pages: web.pages.length, searches: web.searches.length, inputTokens: web.inputTokens, outputTokens: web.outputTokens } } : {}),
-          ...(reading
-            ? { reading: { mailSearches: reading.mailSearches, messages: reading.messages, descriptions: reading.descriptions, onDevice: reading.reader === "device", inputTokens: reading.inputTokens, outputTokens: reading.outputTokens } }
-            : {}),
-          // How many pictures the message brought — never which.
-          ...(imagesOf(input.parts).length ? { images: imagesOf(input.parts).length } : {}),
-          // A door's answer, an action at a note, a regression run: nobody typed it, and no habit shows in it (plan P6-3).
-          ...(input.usedDrafts ? {} : { aside: true as const }),
-          // Numbers only: what the month saved is summed from them (plan P9-6).
-          ...(saved ? { context: saved, ...(savedUsd !== undefined ? { savedUsd } : {}) } : {}),
-        }),
-      );
-    } catch {
-      // The answer stays on screen even when app data cannot be written.
+      // On screen at once — unless its deletion was asked for —: a choice made while it is written goes onto the
+      // conversation with this run in it.
+      if (!this.gone(record.id) && this.state.active?.id === record.id) this.set({ active: record });
+      try {
+        // After any deletion asked for before: where that is done by then, nothing is written, and the ledger keeps the run.
+        await this.write(vault, record);
+        const ledger = await vault.ledger.load();
+        await vault.ledger.save(
+          appendAiLedgerEntry(ledger, {
+            at: record.updatedAt,
+            conversationId: record.id,
+            providerId: choice.providerId,
+            model: choice.model,
+            stop: result.stop.kind,
+            steps: result.usage.steps,
+            tools: toolLog,
+            usage,
+            ...(costUsd !== undefined ? { costUsd } : {}),
+            ...(result.stop.kind === "failed" ? { failure: result.stop.failure.kind } : {}),
+            ...(skillsUsed.length ? { skills: [...new Set(skillsUsed.map((s) => s.id))] } : {}),
+            ...(skillTokens ? { skillTokens } : {}),
+            // Numbers only: which pages and which words is the conversation's to say, never the audit's.
+            ...(web ? { web: { pages: web.pages.length, searches: web.searches.length, inputTokens: web.inputTokens, outputTokens: web.outputTokens } } : {}),
+            ...(reading
+              ? { reading: { mailSearches: reading.mailSearches, messages: reading.messages, descriptions: reading.descriptions, onDevice: reading.reader === "device", inputTokens: reading.inputTokens, outputTokens: reading.outputTokens } }
+              : {}),
+            // How many pictures the message brought — never which.
+            ...(imagesOf(input.parts).length ? { images: imagesOf(input.parts).length } : {}),
+            // A door's answer, an action at a note, a regression run: nobody typed it, and no habit shows in it (plan P6-3).
+            ...(input.usedDrafts ? {} : { aside: true as const }),
+            // Numbers only: what the month saved is summed from them (plan P9-6).
+            ...(saved ? { context: saved, ...(savedUsd !== undefined ? { savedUsd } : {}) } : {}),
+          }),
+        );
+      } catch {
+        // The answer stays on screen even when app data cannot be written.
+      }
+      // A version of a skill that came from a proposal is watched (plan P6-2): a run of the user's own that used it
+      // is counted — a door's run and a regression run are no use of it.
+      if (input.usedDrafts && skillsUsed.length) await this.countObserved(vault, record, skillsUsed, result.stop.kind).catch(() => undefined);
+      const answer = lastAnswerText(result.conversation);
+      // Deleted also while its end was written: nothing of it comes back on screen or into the history. Whether it is
+      // gone is known once every deletion asked of it — and a "Delete all" on its way — is through.
+      for (;;) {
+        await this.writing.get(record.id)?.done;
+        await this.clearings.get(vaultOf(vault));
+        if (!this.deleting.has(record.id)) break;
+        // One on its way where neither waits for it — a Delete all through another host of the vault —: the next turn.
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      }
+      const gone = this.deleted.has(record.id);
+      // Its turns and record, with what the user chose meanwhile.
+      const latest = this.withUserChoices(record, entry);
+      if (this.vault !== vault || gone) {
+        // What this run put on screen as running goes with it.
+        if (this.state.live?.conversationId === record.id) this.set({ live: null });
+        return { stop: result.stop, record: latest, answer };
+      }
+      if (input.background) {
+        // The history gains the run's conversation; what is on screen stays as it was.
+        this.set({ summaries: sortSummaries([conversationSummaryOf(latest), ...this.state.summaries.filter((s) => s.id !== record.id)]) });
+        return { stop: result.stop, record: latest, answer };
+      }
+      const shown = this.state.active?.id === record.id || !this.state.active;
+      this.set({
+        active: shown ? latest : this.state.active,
+        live: null,
+        // No answer from the model is never a dead end (plan §19.4): the notes that match the question best go with the notice.
+        notice:
+          result.stop.kind === "answered" ? null : { conversationId: record.id, stop: result.stop, ...(result.stop.kind === "failed" && input.related?.length ? { related: input.related } : {}) },
+        summaries: sortSummaries([conversationSummaryOf(latest), ...this.state.summaries.filter((s) => s.id !== record.id)]),
+      });
+      return { stop: result.stop, record: latest, answer };
+    } finally {
+      // Its end is decided: a choice from here on goes onto the conversation as it is stored.
+      if (this.running.get(record.id) === entry) this.running.delete(record.id);
     }
-    // A version of a skill that came from a proposal is watched (plan P6-2): a run of the user's own that used it
-    // is counted — a door's run and a regression run are no use of it.
-    if (input.usedDrafts && skillsUsed.length) await this.countObserved(vault, record, skillsUsed, result.stop.kind).catch(() => undefined);
-    const answer = lastAnswerText(result.conversation);
-    if (this.vault !== vault) return { stop: result.stop, record, answer };
-    if (input.background) {
-      // The history gains the run's conversation; what is on screen stays as it was.
-      this.set({ summaries: sortSummaries([conversationSummaryOf(record), ...this.state.summaries.filter((s) => s.id !== record.id)]) });
-      return { stop: result.stop, record, answer };
-    }
-    const shown = this.state.active?.id === record.id || !this.state.active;
-    this.set({
-      active: shown ? record : this.state.active,
-      live: null,
-      // No answer from the model is never a dead end (plan §19.4): the notes that match the question best go with the notice.
-      notice:
-        result.stop.kind === "answered" ? null : { conversationId: record.id, stop: result.stop, ...(result.stop.kind === "failed" && input.related?.length ? { related: input.related } : {}) },
-      summaries: sortSummaries([conversationSummaryOf(record), ...this.state.summaries.filter((s) => s.id !== record.id)]),
-    });
-    return { stop: result.stop, record, answer };
   }
 
   private priceOf(choice: ModelChoice): { input: number; output: number } | undefined {

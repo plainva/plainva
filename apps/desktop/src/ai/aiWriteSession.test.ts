@@ -509,6 +509,34 @@ describe("a draft of a run", () => {
     expect(vault.created).toHaveLength(1);
   });
 
+  it("lays nothing down for a run whose conversation is deleted while its draft waits its turn (strand 6, step 8)", async () => {
+    const vault = writeVault({ active: "Projects/Offer.md" });
+    const { s } = await session([turn({ calls: [viaDispatch("c1", "create_note", { title: "Kick-off", content: "Agenda" })] }), turn({ text: "Drafted." })], vault);
+    // The list of drafts is read slowly: the run's draft waits its turn there.
+    const store = vault.host.drafts!;
+    const load = store.load.bind(store);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const reading = new Promise<void>((resolve) => (reached = resolve));
+    let first = true;
+    store.load = async () => {
+      if (first) {
+        first = false;
+        reached();
+        await gate;
+      }
+      return load();
+    };
+    const run = s.send("Draft a kick-off note.");
+    await reading;
+    await s.remove(s.getState().active!.id);
+    release();
+    await run;
+    const stored = vault.files.files.get("vault-a/drafts.json");
+    expect([s.getState().drafts.drafts, stored ? (JSON.parse(stored) as { drafts: unknown[] }).drafts : []]).toEqual([[], []]);
+  });
+
   it("keeps two drafts of one run both, creates a task through the app's own way and discards the other", async () => {
     const vault = writeVault();
     const { s } = await session([turn({ calls: [viaDispatch("c1", "create_task", { text: "Buy nails tomorrow" }), viaDispatch("c2", "add_journal_entry", { text: "Met Anna" })] }), turn({ text: "Both wait for you." })], vault);

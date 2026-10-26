@@ -189,8 +189,12 @@ export interface WriteRun {
   userTexts(): readonly string[];
   /** The rules of everything this conversation has read or carried: a place that takes a proposal of it has to have them too. */
   inherited(): Promise<readonly AiPolicyDimension[]>;
-  /** Leaves a draft; the reason where the list does not take it. `missing` and `withheld`: what the source check found (`LinkCheckResult`). */
-  draft(input: { title: string; body: WriteDraftBody; defused: number; missing?: readonly string[]; withheld?: readonly string[] }): Promise<{ ok: true; id: string } | { ok: false; problem: "full" | "invalid" }>;
+  /**
+   * Leaves a draft; the reason where the list does not take it — `gone` where
+   * the run's conversation was deleted meanwhile. `missing` and `withheld`:
+   * what the source check found (`LinkCheckResult`).
+   */
+  draft(input: { title: string; body: WriteDraftBody; defused: number; missing?: readonly string[]; withheld?: readonly string[] }): Promise<{ ok: true; id: string } | { ok: false; problem: "full" | "invalid" | "gone" }>;
   /** Asks the user about a plan. `nobody`: this run has no one to ask (a door, a regression run). */
   ask(question: PlanQuestion, callId?: string): Promise<"yes" | "no" | "nobody">;
   /** What the run laid down, gathered for its record. */

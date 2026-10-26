@@ -1,3 +1,7 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import {
   CONTEXT_NOTE_LIMIT,
@@ -13,6 +17,8 @@ import {
   type EgressChunk,
   type HttpRequestSpec,
   type LedgerEntry,
+  EMPTY_INSTRUCTION_APPROVALS,
+  EMPTY_SKILL_TESTS,
 } from "@plainva/core";
 import { AiSession, CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, type AiVaultHost, type VaultToolDeps } from "@plainva/ui";
 import { TRANSCRIPTION_MAX_BYTES } from "@plainva/core";
@@ -819,6 +825,21 @@ describe("an AI action at a selection", () => {
   const range = { path: "Contract.md", from: at, to: at + passage.length, text: passage, doc: contract };
   type Round = Parameters<NonNullable<AiVaultHost["propose"]>>[0];
 
+  /** Holds every request until the test lets them go. */
+  function held(fake: ReturnType<typeof fakeEgress>) {
+    const send = fake.egress.send.bind(fake.egress);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const waiting = new Promise<void>((resolve) => (reached = resolve));
+    fake.egress.send = async (id, spec, onChunk) => {
+      reached();
+      await gate;
+      return send(id, spec, onChunk);
+    };
+    return { waiting, release };
+  }
+
   function proposing(active: string | null = "Contract.md") {
     const vault = vaultHost(active);
     const rounds: Round[] = [];
@@ -827,6 +848,111 @@ describe("an AI action at a selection", () => {
     };
     return { vault, rounds };
   }
+
+  it("sends nothing for a vault that went while the passage was looked at", async () => {
+    const { s, fake } = session([answer("```\nThe contract runs on.\n```"), answer("```\nThe contract runs on.\n```")]);
+    await s.load();
+    const { vault } = proposing();
+    await s.attachVault(vault.host);
+    // A first proposal: from here on a passage of this note goes within what was approved, without an overview.
+    await s.proposeForSelection({ action: "rewrite", range });
+    // The gate's look at the note held; meanwhile another vault.
+    const policyOf = vault.host.policy.policyOf.bind(vault.host.policy);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const asking = new Promise<void>((resolve) => (reached = resolve));
+    vault.host.policy.policyOf = async (path, text) => {
+      reached();
+      await gate;
+      return policyOf(path, text);
+    };
+    const outcome = s.proposeForSelection({ action: "rewrite", range });
+    await asking;
+    await s.attachVault(vaultHost(null).host);
+    release();
+    expect(await outcome).toMatchObject({ kind: "refused", reason: "cancelled" });
+    expect([fake.sent.length, s.getState().live, s.getState().active]).toEqual([1, null, null]);
+  });
+
+  it("proposes nothing for a passage whose history Delete all cleared while it was looked at", async () => {
+    const { s, fake } = session([answer("```\nThe contract runs on.\n```"), answer("```\nThe contract runs on.\n```")]);
+    await s.load();
+    const { vault } = proposing();
+    await s.attachVault(vault.host);
+    // A first proposal: from here on a passage of this note goes within what was approved, without an overview.
+    await s.proposeForSelection({ action: "rewrite", range });
+    const policyOf = vault.host.policy.policyOf.bind(vault.host.policy);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const asking = new Promise<void>((resolve) => (reached = resolve));
+    let first = true;
+    vault.host.policy.policyOf = async (path, text) => {
+      if (first) {
+        first = false;
+        reached();
+        await gate;
+      }
+      return policyOf(path, text);
+    };
+    const outcome = s.proposeForSelection({ action: "rewrite", range });
+    await asking;
+    await s.removeAll();
+    release();
+    expect(await outcome).toMatchObject({ kind: "refused", reason: "cancelled" });
+    expect([fake.sent.length, vault.saved.size]).toEqual([1, 0]);
+  });
+
+  it("stores the conversation of an action at a selection only when its run ends", async () => {
+    const { s, fake } = session([answer("```\nThe contract runs on.\n```")]);
+    await s.load();
+    const { vault } = proposing();
+    await s.attachVault(vault.host);
+    const request = held(fake);
+    const outcome = s.proposeForSelection({ action: "rewrite", range });
+    await request.waiting;
+    // A pin on its conversation while it runs: the conversation is in no storage before its end.
+    await s.pin("Offer.md");
+    const id = s.getState().active!.id;
+    expect(vault.saved.has(id)).toBe(false);
+    request.release();
+    await outcome;
+    expect(vault.saved.get(id)?.pins).toEqual(["Offer.md"]);
+  });
+
+  it("proposes nothing for a passage while a message that began meanwhile is on its way", async () => {
+    const { s, fake } = session([answer("Going."), answer("```\nThe contract runs on.\n```")]);
+    await s.load();
+    const { vault } = proposing();
+    await s.attachVault(vault.host);
+    // The gate's look at the note held; meanwhile a message of the composer goes, and its answer is on its way.
+    const policyOf = vault.host.policy.policyOf.bind(vault.host.policy);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const asking = new Promise<void>((resolve) => (reached = resolve));
+    let first = true;
+    vault.host.policy.policyOf = async (path, text) => {
+      if (first) {
+        first = false;
+        reached();
+        await gate;
+      }
+      return policyOf(path, text);
+    };
+    const outcome = s.proposeForSelection({ action: "rewrite", range });
+    await asking;
+    const request = held(fake);
+    const sending = s.send("Meanwhile");
+    await request.waiting;
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    request.release();
+    expect(await outcome).toMatchObject({ kind: "refused", reason: "busy" });
+    await sending;
+    expect(fake.sent.length).toBe(1);
+  });
 
   it("sends the passage alone, without tools, and proposes the answer as a round authored by the model", async () => {
     const { s, fake } = session([answer("```\nThe contract runs until the end of the year; then it renews itself.\n```")]);
@@ -1309,5 +1435,2304 @@ describe("answering in a comment thread", () => {
     expect(revealed).toBe(1);
     s.answerConsent(false);
     await pending;
+  });
+});
+
+/** Strand 6, step 8: what the user changes of a conversation while a run of it is on its way. */
+describe("a conversation changed while a run of it is on its way", () => {
+  /** Holds the provider's answer until the test lets it go. */
+  function held(fake: ReturnType<typeof fakeEgress>) {
+    const send = fake.egress.send.bind(fake.egress);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const waiting = new Promise<void>((resolve) => (reached = resolve));
+    fake.egress.send = async (id, spec, onChunk) => {
+      reached();
+      await gate;
+      return send(id, spec, onChunk);
+    };
+    return { waiting, release };
+  }
+
+  /** Holds the first write of a conversation until the test lets it go. */
+  function heldWrite(vault: ReturnType<typeof vaultHost>) {
+    const save = vault.host.conversations.save.bind(vault.host.conversations);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const waiting = new Promise<void>((resolve) => (reached = resolve));
+    let first = true;
+    vault.host.conversations.save = async (record) => {
+      if (first) {
+        first = false;
+        reached();
+        await gate;
+      }
+      return save(record);
+    };
+    return { waiting, release };
+  }
+
+  it("keeps the title, the pins and the redaction chosen meanwhile, and the run says what it went with", async () => {
+    const { s, fake } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    const hold = held(fake);
+    const run = s.send("Hello");
+    await hold.waiting;
+    const id = s.getState().active!.id;
+    await s.pin("Offer.md");
+    await s.toggleRedact("Plan.md");
+    // The title is on screen at once, before it is stored: a run that writes back meanwhile takes it from there.
+    const renaming = s.rename(id, "Mine");
+    expect(s.getState().active!.title).toBe("Mine");
+    await renaming;
+    // A conversation the run began is in no storage before the run ends.
+    expect(vault.saved.has(id)).toBe(false);
+    hold.release();
+    await run;
+    const active = s.getState().active!;
+    expect([active.title, active.pins, active.redact]).toEqual(["Mine", ["Offer.md"], ["Plan.md"]]);
+    expect(vault.saved.get(id)).toMatchObject({ title: "Mine", pins: ["Offer.md"], redact: ["Plan.md"] });
+    expect(s.getState().summaries.find((summary) => summary.id === id)!.title).toBe("Mine");
+    expect(active.conversation.turns.map((turn) => turn.role)).toEqual(["user", "assistant"]);
+    // The run went without the redaction chosen after it was sent, and its record says so (P9-6).
+    expect(active.runs[0]!.redact).toBeUndefined();
+  });
+
+  it("stores a choice made meanwhile onto the conversation as it was stored, never onto the run's unfinished turns", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    const hold = held(fake);
+    const run = s.send("Second");
+    await hold.waiting;
+    await s.pin("Offer.md");
+    // On screen: the message on its way, with the pin.
+    expect(s.getState().active!.conversation.turns.map((turn) => turn.role)).toEqual(["user", "assistant", "user"]);
+    expect(s.getState().active!.pins).toEqual(["Offer.md"]);
+    // Stored: the conversation before this run, with the pin — not the message on its way.
+    const meanwhile = vault.saved.get(id)!;
+    expect([meanwhile.conversation.turns.length, meanwhile.runs.length, meanwhile.pins]).toEqual([2, 1, ["Offer.md"]]);
+    hold.release();
+    await run;
+    const after = vault.saved.get(id)!;
+    expect([after.conversation.turns.length, after.runs.length, after.pins]).toEqual([4, 2, ["Offer.md"]]);
+  });
+
+  it("keeps the model chosen meanwhile for the next message, and the run says which model it asked", async () => {
+    const { s, fake } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    const hold = held(fake);
+    const run = s.send("Hello");
+    await hold.waiting;
+    await s.setChoice({ providerId: "openai", model: "gpt-x" });
+    hold.release();
+    await run;
+    const active = s.getState().active!;
+    expect([active.providerId, active.model]).toEqual(["openai", "gpt-x"]);
+    expect([active.runs[0]!.providerId, active.runs[0]!.model]).toEqual(["anthropic", "m-1"]);
+    expect([vault.saved.get(active.id)!.providerId, vault.saved.get(active.id)!.model]).toEqual(["openai", "gpt-x"]);
+    expect(s.getState().summaries.find((summary) => summary.id === active.id)!.model).toBe("gpt-x");
+  });
+
+  it("keeps a choice made while the run's end is written, and writes it after", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    const hold = heldWrite(vault);
+    const run = s.send("Hello");
+    await hold.waiting;
+    const id = s.getState().active!.id;
+    // While it is written, the conversation is on screen with the run in it; the pin goes onto that.
+    expect([s.getState().active!.conversation.turns.length, s.getState().active!.runs.length]).toEqual([2, 1]);
+    const pinning = s.pin("Offer.md");
+    hold.release();
+    await Promise.all([run, pinning]);
+    const stored = vault.saved.get(id)!;
+    expect([stored.conversation.turns.length, stored.runs.length, stored.pins]).toEqual([2, 1, ["Offer.md"]]);
+    expect([s.getState().active!.runs.length, s.getState().active!.pins]).toEqual([1, ["Offer.md"]]);
+  });
+
+  it("keeps what is chosen beside the open send overview for the next message, and the message goes as the overview showed it", async () => {
+    const { s } = session([answer("One.")], { approve: false });
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    let asked = consentAsked(s);
+    const run = s.send("Hello");
+    await asked;
+    // Beside the overview, in the context view: a note pinned, one redacted.
+    await s.pin("Offer.md");
+    await s.toggleRedact("Contract.md");
+    // In the overview: the open note redacted for this message.
+    asked = consentAsked(s);
+    s.redactInConsent("Plan.md");
+    await asked;
+    s.answerConsent(true);
+    await run;
+    const active = s.getState().active!;
+    // The message went as the overview showed it.
+    expect(active.runs[0]!.redact).toEqual(["Plan.md"]);
+    expect(active.runs[0]!.sent).not.toContain("Offer.md");
+    // The conversation goes on with all three choices.
+    expect(active.pins).toEqual(["Offer.md"]);
+    expect([...(active.redact ?? [])].sort()).toEqual(["Contract.md", "Plan.md"]);
+    expect(vault.saved.get(active.id)).toMatchObject({ pins: ["Offer.md"] });
+    expect([...(vault.saved.get(active.id)!.redact ?? [])].sort()).toEqual(["Contract.md", "Plan.md"]);
+  });
+
+  it("keeps a title and a model chosen while the overview of a later message is open", async () => {
+    const { s } = session([answer("One."), answer("Two.")], { approve: false });
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    let asked = consentAsked(s);
+    const first = s.send("First");
+    await asked;
+    s.answerConsent(true);
+    await first;
+    const id = s.getState().active!.id;
+    await s.updateSettings((settings) => ({ ...settings, confirmEveryRequest: true }));
+    asked = consentAsked(s);
+    const second = s.send("Second");
+    await asked;
+    await s.rename(id, "Mine");
+    await s.setChoice({ providerId: "anthropic", model: "m-2" });
+    s.answerConsent(true);
+    await second;
+    const active = s.getState().active!;
+    expect([active.title, active.model, active.runs[1]!.model]).toEqual(["Mine", "m-2", "m-1"]);
+    expect(vault.saved.get(id)).toMatchObject({ title: "Mine", model: "m-2" });
+  });
+
+  it("leaves a conversation the user deleted meanwhile deleted", async () => {
+    const { s, fake } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    const hold = held(fake);
+    const run = s.send("Hello");
+    await hold.waiting;
+    const id = s.getState().active!.id;
+    const removing = s.remove(id);
+    hold.release();
+    await Promise.all([run, removing]);
+    expect(vault.saved.has(id)).toBe(false);
+    expect(s.getState().summaries.some((summary) => summary.id === id)).toBe(false);
+    expect([s.getState().active, s.getState().live]).toEqual([null, null]);
+    // The month's usage still counts what was asked.
+    expect(vault.ledger()).toHaveLength(1);
+  });
+
+  it("writes no choice back into a conversation that is being deleted", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    // The pin comes while the deletion is on its way: the conversation is still on screen, and stays gone.
+    const removing = s.remove(id);
+    const pinning = s.pin("Offer.md");
+    await Promise.all([removing, pinning]);
+    expect(vault.saved.has(id)).toBe(false);
+  });
+
+  it("sends nothing of a message whose conversation the user leaves while its overview is open", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")], { approve: false });
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    // A new conversation's message with a note pinned and one redacted; while its overview is open, a new conversation.
+    await s.pin("Contract.md");
+    await s.toggleRedact("Plan.md");
+    let asked = consentAsked(s);
+    let run = s.send("Hello");
+    await asked;
+    s.newConversation();
+    expect(s.getState().consent).toBeNull();
+    expect(await run).toBeNull();
+    expect([fake.sent.length, vault.saved.size]).toEqual([0, 0]);
+    // An existing conversation's next message, and while its overview is open the conversation is deleted.
+    asked = consentAsked(s);
+    const first = s.send("First");
+    await asked;
+    s.answerConsent(true);
+    await first;
+    const id = s.getState().active!.id;
+    await s.updateSettings((settings) => ({ ...settings, confirmEveryRequest: true }));
+    asked = consentAsked(s);
+    run = s.send("Second");
+    await asked;
+    await s.remove(id);
+    expect(s.getState().consent).toBeNull();
+    expect(await run).toBeNull();
+    expect([fake.sent.length, vault.saved.has(id), s.getState().active]).toEqual([1, false, null]);
+  });
+
+  it("takes nothing back when a deletion fails, and keeps one that comes while the run's end is written", async () => {
+    const { s } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    const remove = vault.host.conversations.remove.bind(vault.host.conversations);
+    vault.host.conversations.remove = async () => {
+      throw new Error("locked");
+    };
+    await expect(s.remove(id)).rejects.toThrow("locked");
+    // Not deleted: a choice is written as before.
+    await s.pin("Offer.md");
+    expect(vault.saved.get(id)!.pins).toEqual(["Offer.md"]);
+    vault.host.conversations.remove = remove;
+    // Deleted while the run's end is written — its conversation stored, its ledger entry on the way —: it stays gone,
+    // on screen and in the history too.
+    const saveLedger = vault.host.ledger.save.bind(vault.host.ledger);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const ending = new Promise<void>((resolve) => (reached = resolve));
+    vault.host.ledger.save = async (entries) => {
+      reached();
+      await gate;
+      return saveLedger(entries);
+    };
+    const run = s.send("Second");
+    await ending;
+    expect(vault.saved.get(id)!.runs).toHaveLength(2);
+    await s.remove(id);
+    release();
+    await run;
+    expect([vault.saved.has(id), s.getState().active, s.getState().summaries.some((summary) => summary.id === id)]).toEqual([false, null, false]);
+  });
+
+  it("carries the latest choice with a run whose conversation is on no screen when it ends", async () => {
+    const { s, fake } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    const hold = held(fake);
+    const run = s.send("Hello");
+    await hold.waiting;
+    const id = s.getState().active!.id;
+    await s.pin("Offer.md");
+    await s.toggleRedact("Contract.md");
+    // Another vault: the screen forgets the conversation; the run still ends in its own vault, with the pin and the redaction.
+    await s.attachVault(vaultHost("Plan.md").host);
+    hold.release();
+    await run;
+    expect(vault.saved.get(id)).toMatchObject({ pins: ["Offer.md"], redact: ["Contract.md"] });
+  });
+
+  it("reads a conversation that is not on screen only after its writes, so that a rename keeps a pin still being written", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    const hold = heldWrite(vault);
+    const pinning = s.pin("Offer.md");
+    await hold.waiting;
+    s.newConversation();
+    const renaming = s.rename(id, "Mine");
+    hold.release();
+    await Promise.all([pinning, renaming]);
+    expect(vault.saved.get(id)).toMatchObject({ title: "Mine", pins: ["Offer.md"] });
+  });
+
+  /** Holds the first reading of the situation — what a message is put together from — until the test lets it go. */
+  function heldSituation(vault: ReturnType<typeof vaultHost>) {
+    const situation = vault.host.situation.bind(vault.host);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const waiting = new Promise<void>((resolve) => (reached = resolve));
+    let first = true;
+    vault.host.situation = async () => {
+      if (first) {
+        first = false;
+        reached();
+        await gate;
+      }
+      return situation();
+    };
+    return { waiting, release };
+  }
+
+  it("asks and sends nothing of a message whose screen the user left while it was put together", async () => {
+    const { s, fake } = session([answer("One."), answer("Two."), answer("Three.")], { approve: false });
+    // Every overview that comes is counted and approved: a message that is to go nowhere would go.
+    let asked = 0;
+    s.subscribe(() => {
+      if (s.getState().consent) {
+        asked += 1;
+        s.answerConsent(true);
+      }
+    });
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Second");
+    const b = s.getState().active!.id;
+    const before = [fake.sent.length, asked];
+    // The next message of a conversation, within the approved scope, so no overview asks — and each way of leaving
+    // its screen while its context is put together.
+    const ways: [string, string, () => unknown][] = [
+      ["a new conversation begun", b, () => s.newConversation()],
+      ["another conversation opened", b, () => s.open(a)],
+      ["the conversation deleted", b, () => s.remove(b)],
+      ["the vault attached again", a, () => s.attachVault(vault.host)],
+      ["the whole history deleted", a, () => s.removeAll()],
+    ];
+    for (const [way, from, leave] of ways) {
+      await s.open(from);
+      const hold = heldSituation(vault);
+      const run = s.send("Next");
+      await hold.waiting;
+      await leave();
+      hold.release();
+      expect(await run, way).toBeNull();
+    }
+    // Where every request asks first, its overview does not come.
+    await s.updateSettings((settings) => ({ ...settings, confirmEveryRequest: true }));
+    const hold = heldSituation(vault);
+    const run = s.send("Last");
+    await hold.waiting;
+    s.newConversation();
+    hold.release();
+    expect(await run).toBeNull();
+    expect([fake.sent.length, asked]).toEqual(before);
+  });
+
+  it("asks nothing again and sends nothing of a message whose screen the user left while its overview was built again", async () => {
+    const { s, fake } = session([answer("One.")], { approve: false });
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    const shown = consentAsked(s);
+    const run = s.send("Hello");
+    await shown;
+    // A note left out — the overview is built again —, and meanwhile another conversation begun.
+    s.leaveOutOfConsent("Plan.md");
+    s.newConversation();
+    // Were the overview to come again, it would be approved.
+    let again = 0;
+    s.subscribe(() => {
+      if (s.getState().consent) {
+        again += 1;
+        s.answerConsent(true);
+      }
+    });
+    expect(await run).toBeNull();
+    expect([fake.sent.length, vault.saved.size, again]).toEqual([0, 0, 0]);
+  });
+
+  it("sends nothing of a message whose overview is open when the user opens another conversation, and keeps what was chosen there", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")], { approve: false });
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    // Every request asks: each message here has its overview.
+    await s.updateSettings((settings) => ({ ...settings, confirmEveryRequest: true }));
+    const approved = async (text: string) => {
+      const asked = consentAsked(s);
+      const run = s.send(text);
+      await asked;
+      s.answerConsent(true);
+      await run;
+    };
+    await approved("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    await approved("Second");
+    const b = s.getState().active!.id;
+    await s.open(a);
+    const asked = consentAsked(s);
+    const third = s.send("Third");
+    await asked;
+    // Beside the overview: a note redacted in the context view, stored with the conversation at once.
+    await s.toggleRedact("Plan.md");
+    await s.open(b);
+    expect(s.getState().consent).toBeNull();
+    expect(await third).toBeNull();
+    expect([fake.sent.length, vault.saved.get(a)!.redact, vault.saved.get(a)!.conversation.turns.length]).toEqual([2, ["Plan.md"], 2]);
+  });
+
+  it("loses nothing chosen before, during or after a deletion that fails", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    // Before: a pin still being written, and a redaction waiting for it.
+    const hold = heldWrite(vault);
+    const pinning = s.pin("Offer.md");
+    await hold.waiting;
+    const redacting = s.toggleRedact("Plan.md");
+    vault.host.conversations.remove = async () => {
+      throw new Error("locked");
+    };
+    const removing = s.remove(id).catch((error: Error) => error.message);
+    // During: a new title, while the deletion is on its way.
+    const renaming = s.rename(id, "Kept");
+    hold.release();
+    expect(await removing).toBe("locked");
+    await Promise.all([pinning, redacting, renaming]);
+    // After: another pin.
+    await s.pin("Contract.md");
+    expect(vault.saved.get(id)).toMatchObject({ pins: ["Offer.md", "Contract.md"], redact: ["Plan.md"], title: "Kept" });
+  });
+
+  it("puts a run's end on screen and into storage where a deletion asked for meanwhile fails, with a choice made while it waited", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    const hold = held(fake);
+    const run = s.send("Second");
+    await hold.waiting;
+    let fail!: (error: Error) => void;
+    let started!: () => void;
+    const deleting = new Promise<void>((resolve) => (started = resolve));
+    vault.host.conversations.remove = () =>
+      new Promise<void>((_, reject) => {
+        fail = reject;
+        started();
+      });
+    const removing = s.remove(id).catch(() => "failed");
+    await deleting;
+    hold.release();
+    // While the deletion is on its way, the run's end does not come on screen.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(s.getState().active?.runs.length).toBe(1);
+    // A pin now goes onto the run's end, not onto what the screen still shows.
+    const pinning = s.pin("Offer.md");
+    fail(new Error("locked"));
+    expect(await removing).toBe("failed");
+    await Promise.all([run, pinning]);
+    const active = s.getState().active;
+    expect([active?.id, active?.runs.length, active?.pins, vault.saved.get(id)!.runs.length, vault.saved.get(id)!.pins]).toEqual([id, 2, ["Offer.md"], 2, ["Offer.md"]]);
+  });
+
+  it("deletes with Delete all only the conversations of the vault on screen", async () => {
+    for (const moment of ["on its way", "being written"] as const) {
+      const { s, fake } = session([answer("One.")]);
+      await s.load();
+      const first = vaultHost("Plan.md");
+      await s.attachVault(first.host);
+      const hold = moment === "on its way" ? held(fake) : heldWrite(first);
+      const run = s.send("Hello");
+      await hold.waiting;
+      const id = s.getState().active!.id;
+      // Another vault, and all of its conversations deleted while the first vault's conversation is still on its way
+      // or being written.
+      await s.attachVault(vaultHost("Plan.md").host);
+      await s.removeAll();
+      hold.release();
+      await run;
+      // Back in the first vault, it is there: on screen when opened, and a title chosen now is stored.
+      await s.attachVault(first.host);
+      await s.open(id);
+      await s.rename(id, "Kept");
+      expect([s.getState().active?.title, first.saved.get(id)?.title], moment).toEqual(["Kept", "Kept"]);
+    }
+  });
+
+  it("asks and sends nothing of a message whose vault went while it was put together, nor of a run asked again", async () => {
+    const { s, fake } = session([answer("One."), answer("Two."), answer("Three.")], { approve: false });
+    // Every overview that comes is counted and approved: a message that is to go nowhere would go.
+    let asked = 0;
+    s.subscribe(() => {
+      if (s.getState().consent) {
+        asked += 1;
+        s.answerConsent(true);
+      }
+    });
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    // A message of the composer, the first of this session: its overview would ask.
+    let hold = heldSituation(vault);
+    const run = s.send("Hello");
+    await hold.waiting;
+    await s.attachVault(vaultHost("Plan.md").host);
+    hold.release();
+    expect(await run).toBeNull();
+    expect([fake.sent.length, asked, s.getState().live, s.getState().active]).toEqual([0, 0, null, null]);
+    // A run asked again of a model (plan P9-2) starts apart from the composer, so only its vault decides — where the
+    // overview would not ask, and where it would.
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    const before = [fake.sent.length, asked];
+    for (const strict of [false, true]) {
+      await s.updateSettings((settings) => ({ ...settings, confirmEveryRequest: strict }));
+      await s.attachVault(vault.host);
+      hold = heldSituation(vault);
+      const replay = s.replay(id, 0, { providerId: "anthropic", model: "m-1" });
+      await hold.waiting;
+      await s.attachVault(vaultHost("Plan.md").host);
+      hold.release();
+      expect(await replay, strict ? "the overview would ask" : "nothing would ask").toBeNull();
+    }
+    expect([fake.sent.length, asked]).toEqual(before);
+  });
+
+  it("keeps a conversation deleted when another deletion of it fails, whichever comes first", async () => {
+    // The two deletions in the order they are asked for, and which of them the store refuses.
+    const cases: [string, ("remove" | "all")[], number][] = [
+      ["a second deletion of it fails", ["remove", "remove"], 1],
+      ["Delete all fails after it", ["remove", "all"], 1],
+      ["the first deletion fails, a second succeeds", ["remove", "remove"], 0],
+      ["it fails, Delete all succeeds", ["remove", "all"], 0],
+      ["Delete all fails, a deletion of it succeeds", ["all", "remove"], 0],
+    ];
+    for (const [name, order, failing] of cases) {
+      const { s, fake } = session([answer("One."), answer("Two.")]);
+      await s.load();
+      const vault = vaultHost("Plan.md");
+      await s.attachVault(vault.host);
+      await s.send("First");
+      const id = s.getState().active!.id;
+      // A run of it on its way, which ends once both deletions are through.
+      const hold = held(fake);
+      const run = s.send("Second");
+      await hold.waiting;
+      const remove = vault.host.conversations.remove.bind(vault.host.conversations);
+      const removeAll = vault.host.conversations.removeAll.bind(vault.host.conversations);
+      let asked = 0;
+      const refused = () => (asked += 1) - 1 === failing;
+      vault.host.conversations.remove = async (target) => {
+        if (refused()) throw new Error("locked");
+        return remove(target);
+      };
+      vault.host.conversations.removeAll = async () => {
+        if (refused()) throw new Error("locked");
+        return removeAll();
+      };
+      const outcomes = await Promise.all(order.map((kind) => (kind === "remove" ? s.remove(id) : s.removeAll()).then(() => "done", () => "failed")));
+      expect(outcomes, name).toEqual(order.map((_, index) => (index === failing ? "failed" : "done")));
+      hold.release();
+      await run;
+      // Nothing of it comes back: not on screen, not in the history, not in storage, not through a choice made now.
+      await s.rename(id, "Back");
+      expect([s.getState().active, s.getState().summaries.some((summary) => summary.id === id), vault.saved.has(id)], name).toEqual([null, false, false]);
+    }
+  });
+
+  it("loses nothing when Delete all fails: a conversation opens as before, what is chosen afterwards is stored, and a run's end comes on screen", async () => {
+    const { s } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    vault.host.conversations.removeAll = async () => {
+      throw new Error("locked");
+    };
+    expect(await s.removeAll().catch((error: Error) => error.message)).toBe("locked");
+    s.newConversation();
+    await s.open(id);
+    await s.rename(id, "Kept");
+    expect([s.getState().active?.id, s.getState().active?.title, vault.saved.get(id)?.title]).toEqual([id, "Kept", "Kept"]);
+    await s.send("Again");
+    expect([s.getState().active?.runs.length, s.getState().summaries.some((summary) => summary.id === id), vault.saved.get(id)?.runs.length]).toEqual([2, true, 2]);
+  });
+
+  /** Holds the vault's "Delete all" until the test lets it go; `begun` once it was asked of the vault. */
+  function heldClearing(vault: ReturnType<typeof vaultHost>) {
+    const removeAll = vault.host.conversations.removeAll.bind(vault.host.conversations);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let started!: () => void;
+    const begun = new Promise<void>((resolve) => (started = resolve));
+    vault.host.conversations.removeAll = async () => {
+      started();
+      await gate;
+      return removeAll();
+    };
+    return { begun, release };
+  }
+
+  /** Reads a conversation at once but hands the first reading back only once the test lets it go; `reading` once it was read. */
+  function slowRead(vault: ReturnType<typeof vaultHost>) {
+    const load = vault.host.conversations.load.bind(vault.host.conversations);
+    let read!: () => void;
+    const reading = new Promise<void>((resolve) => (read = resolve));
+    let reply!: () => void;
+    const replied = new Promise<void>((resolve) => (reply = resolve));
+    let first = true;
+    vault.host.conversations.load = async (id) => {
+      const record = await load(id);
+      if (first) {
+        first = false;
+        read();
+        await replied;
+      }
+      return record;
+    };
+    return { reading, reply };
+  }
+
+  /** Holds the writes of conversations with these numbers (the first after this call is 1) until the test lets each go. */
+  function heldSaves(vault: ReturnType<typeof vaultHost>, numbers: readonly number[]) {
+    const save = vault.host.conversations.save.bind(vault.host.conversations);
+    const gates = new Map(
+      numbers.map((n) => {
+        let release!: () => void;
+        const gate = new Promise<void>((resolve) => (release = resolve));
+        let reached!: () => void;
+        const waiting = new Promise<void>((resolve) => (reached = resolve));
+        return [n, { gate, release, reached, waiting }] as const;
+      }),
+    );
+    let count = 0;
+    vault.host.conversations.save = async (record) => {
+      const hold = gates.get((count += 1));
+      if (hold) {
+        hold.reached();
+        await hold.gate;
+      }
+      return save(record);
+    };
+    return { waiting: (n: number) => gates.get(n)!.waiting, release: (n: number) => gates.get(n)!.release() };
+  }
+
+  /** A conversation another window wrote, which this session does not list — and which reads. */
+  function writtenElsewhere(vault: ReturnType<typeof vaultHost>, like: string) {
+    const written = vault.saved.get(like)!;
+    vault.saved.set("elsewhere", { ...written, id: "elsewhere", conversation: { ...written.conversation, id: "elsewhere" } });
+  }
+
+  it("clears the history only once the writes on their way have landed", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    // A pin still being written when Delete all comes: it lands before the history is cleared, never after.
+    const hold = heldWrite(vault);
+    const pinning = s.pin("Offer.md");
+    await hold.waiting;
+    const clearing = s.removeAll();
+    // Whatever does not wait for the pin has happened by now.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    hold.release();
+    await Promise.all([pinning, clearing]);
+    expect(vault.saved.size).toBe(0);
+  });
+
+  it("writes a conversation begun while the history is cleared after the clearing, so that it stays", async () => {
+    const { s } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const first = s.getState().active!.id;
+    const hold = heldClearing(vault);
+    const clearing = s.removeAll();
+    await hold.begun;
+    // While the history is cleared: a new conversation's message, answered, and its end on screen.
+    const ended = new Promise<void>((resolve) => {
+      const off = s.subscribe(() => {
+        const active = s.getState().active;
+        if (active && active.id !== first && active.runs.length === 1) {
+          off();
+          resolve();
+        }
+      });
+    });
+    s.newConversation();
+    const sending = s.send("Meanwhile");
+    await ended;
+    // Whatever does not wait for the clearing has happened by now.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    hold.release();
+    await Promise.all([clearing, sending]);
+    const id = s.getState().active!.id;
+    expect([id !== first, vault.saved.has(id), vault.saved.has(first)]).toEqual([true, true, false]);
+    expect(s.getState().summaries.map((summary) => summary.id)).toEqual([id]);
+  });
+
+  it("reads a conversation opened while the history is cleared only after the clearing", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    // A conversation another window wrote meanwhile, which this one does not list — and which reads.
+    const written = vault.saved.get(s.getState().active!.id)!;
+    vault.saved.set("elsewhere", { ...written, id: "elsewhere", conversation: { ...written.conversation, id: "elsewhere" } });
+    expect(await vault.host.conversations.load("elsewhere")).not.toBeNull();
+    const hold = heldClearing(vault);
+    const clearing = s.removeAll();
+    await hold.begun;
+    const slow = slowRead(vault);
+    const opening = s.open("elsewhere");
+    hold.release();
+    await clearing;
+    slow.reply();
+    await opening;
+    expect([s.getState().active, vault.saved.size]).toEqual([null, 0]);
+  });
+
+  it("shows no conversation that was read for opening just before it was deleted", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    s.newConversation();
+    const slow = slowRead(vault);
+    const opening = s.open(id);
+    await slow.reading;
+    await s.remove(id);
+    slow.reply();
+    await opening;
+    expect([s.getState().active, vault.saved.has(id)]).toEqual([null, false]);
+  });
+
+  it("lists a conversation whose deletion, asked for while its first run's end was written, fails", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    // The run's end held at its ledger entry: its conversation is written by then.
+    const saveLedger = vault.host.ledger.save.bind(vault.host.ledger);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const ending = new Promise<void>((resolve) => (reached = resolve));
+    vault.host.ledger.save = async (entries) => {
+      reached();
+      await gate;
+      return saveLedger(entries);
+    };
+    const run = s.send("Hello");
+    await ending;
+    const id = s.getState().active!.id;
+    // A deletion asked for now, which fails a moment later.
+    let fail!: (error: Error) => void;
+    vault.host.conversations.remove = () => new Promise<void>((_, reject) => (fail = reject));
+    const removing = s.remove(id).catch(() => "failed");
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fail(new Error("locked"));
+    expect(await removing).toBe("failed");
+    await run;
+    expect([s.getState().active?.id, s.getState().summaries.map((summary) => summary.id), vault.saved.has(id)]).toEqual([id, [id], true]);
+  });
+
+  it("keeps the overview of a run asked again open when the user begins a new conversation", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")], { approve: false });
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    let shown = consentAsked(s);
+    const first = s.send("First");
+    await shown;
+    s.answerConsent(true);
+    await first;
+    const id = s.getState().active!.id;
+    await s.updateSettings((settings) => ({ ...settings, confirmEveryRequest: true }));
+    shown = consentAsked(s);
+    const replay = s.replay(id, 0, { providerId: "anthropic", model: "m-1" });
+    await shown;
+    // A run asked again is no message of the composer: leaving the screen leaves its overview open.
+    s.newConversation();
+    expect(s.getState().consent).not.toBeNull();
+    s.answerConsent(true);
+    expect(await replay).toEqual({ kind: "answered" });
+    expect(fake.sent.length).toBe(2);
+  });
+
+  it("takes off the screen with Delete all only what it deleted: a conversation begun meanwhile stays", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const clearingHold = heldClearing(vault);
+    const clearing = s.removeAll();
+    await clearingHold.begun;
+    // While the history is cleared: a new conversation's message on its way.
+    s.newConversation();
+    const request = held(fake);
+    const sending = s.send("Meanwhile");
+    await request.waiting;
+    const id = s.getState().active!.id;
+    clearingHold.release();
+    await clearing;
+    expect([s.getState().active?.id, s.getState().live?.conversationId]).toEqual([id, id]);
+    request.release();
+    await sending;
+    expect([s.getState().active?.id, vault.saved.has(id)]).toEqual([id, true]);
+  });
+
+  it("lists a conversation whose first run's end was written when a Delete all that then fails was asked", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    // The run's end held at its ledger entry: its conversation is written by then.
+    const saveLedger = vault.host.ledger.save.bind(vault.host.ledger);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const ending = new Promise<void>((resolve) => (reached = resolve));
+    vault.host.ledger.save = async (entries) => {
+      reached();
+      await gate;
+      return saveLedger(entries);
+    };
+    const run = s.send("Hello");
+    await ending;
+    const id = s.getState().active!.id;
+    // Delete all now, which fails a moment later.
+    let fail!: (error: Error) => void;
+    vault.host.conversations.removeAll = () => new Promise<void>((_, reject) => (fail = reject));
+    const clearing = s.removeAll().catch(() => "failed");
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fail(new Error("locked"));
+    expect(await clearing).toBe("failed");
+    await run;
+    expect([s.getState().active?.id, s.getState().summaries.map((summary) => summary.id), vault.saved.has(id)]).toEqual([id, [id], true]);
+  });
+
+  it("clears with Delete all also what a run of the vault writes through the host it began with", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    vault.host.key = "vault-1";
+    await s.attachVault(vault.host);
+    const hold = heldWrite(vault);
+    const run = s.send("Hello");
+    await hold.waiting;
+    // The shell hands a new host for the same vault — the same data key —, and all its conversations are deleted.
+    await s.attachVault({ ...vault.host });
+    const clearing = s.removeAll();
+    // Whatever does not wait for the write has happened by now.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    hold.release();
+    await Promise.all([clearing, run]);
+    expect(vault.saved.size).toBe(0);
+  });
+
+  it("keeps a conversation begun while a second Delete all is on its way", async () => {
+    const { s } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const first = s.getState().active!.id;
+    // Two Delete alls in a row; the second held in the store.
+    const removeAll = vault.host.conversations.removeAll.bind(vault.host.conversations);
+    let calls = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const second = new Promise<void>((resolve) => (reached = resolve));
+    vault.host.conversations.removeAll = async () => {
+      calls += 1;
+      if (calls === 2) {
+        reached();
+        await gate;
+      }
+      return removeAll();
+    };
+    const clearing = Promise.all([s.removeAll(), s.removeAll()]);
+    await second;
+    // While the second is on its way: a new conversation's message, answered, and its end on screen.
+    const ended = new Promise<void>((resolve) => {
+      const off = s.subscribe(() => {
+        const active = s.getState().active;
+        if (active && active.id !== first && active.runs.length === 1) {
+          off();
+          resolve();
+        }
+      });
+    });
+    s.newConversation();
+    const sending = s.send("Meanwhile");
+    await ended;
+    // Whatever does not wait for the clearing has happened by now.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    release();
+    await Promise.all([clearing, sending]);
+    const id = s.getState().active!.id;
+    expect([id !== first, vault.saved.has(id)]).toEqual([true, true]);
+    expect(s.getState().summaries.map((summary) => summary.id)).toEqual([id]);
+  });
+
+  it("renames nothing that Delete all took while it was read", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    writtenElsewhere(vault, s.getState().active!.id);
+    expect(await vault.host.conversations.load("elsewhere")).not.toBeNull();
+    // Read for a rename, then Delete all, then the reading comes back.
+    const slow = slowRead(vault);
+    const renaming = s.rename("elsewhere", "Back");
+    await slow.reading;
+    await s.removeAll();
+    slow.reply();
+    await renaming;
+    expect(vault.saved.size).toBe(0);
+  });
+
+  it("opens a conversation renamed from the history while it was read as it is now", async () => {
+    const { s } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Second");
+    // The first opened from the history and read slowly; meanwhile renamed there.
+    const slow = slowRead(vault);
+    const opening = s.open(a);
+    await slow.reading;
+    await s.rename(a, "New");
+    slow.reply();
+    await opening;
+    expect([s.getState().active?.id, s.getState().active?.title]).toEqual([a, "New"]);
+    // A choice made now keeps the new title.
+    await s.pin("Offer.md");
+    expect(vault.saved.get(a)).toMatchObject({ title: "New", pins: ["Offer.md"] });
+  });
+
+  it("sends nothing of a message begun after another conversation was clicked, once that one comes on screen", async () => {
+    const { s, fake } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Second");
+    const b = s.getState().active!.id;
+    await s.open(a);
+    // The second conversation clicked; it is read slowly.
+    const slow = slowRead(vault);
+    const opening = s.open(b);
+    await slow.reading;
+    // Still looking at the first: a message, and a pin.
+    const situation = heldSituation(vault);
+    const run = s.send("Still here");
+    await situation.waiting;
+    await s.pin("Offer.md");
+    slow.reply();
+    await opening;
+    situation.release();
+    expect(await run).toBeNull();
+    expect([s.getState().active?.id, fake.sent.length, vault.saved.get(a)?.pins]).toEqual([b, 2, ["Offer.md"]]);
+  });
+
+  it("shows the conversation clicked last, whichever reading comes back first", async () => {
+    const { s } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Second");
+    const b = s.getState().active!.id;
+    s.newConversation();
+    // Both read slowly; the one clicked first comes back first.
+    const load = vault.host.conversations.load.bind(vault.host.conversations);
+    const gates = new Map<string, () => void>();
+    const waits = new Map<string, Promise<void>>();
+    for (const id of [a, b]) waits.set(id, new Promise<void>((resolve) => gates.set(id, resolve)));
+    vault.host.conversations.load = async (id) => {
+      const record = await load(id);
+      await waits.get(id);
+      return record;
+    };
+    const first = s.open(a);
+    const second = s.open(b);
+    gates.get(a)!();
+    await first;
+    gates.get(b)!();
+    await second;
+    expect(s.getState().active?.id).toBe(b);
+  });
+
+  it("leaves a slow opening behind a later step on screen", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    const slow = slowRead(vault);
+    const opening = s.open(a);
+    await slow.reading;
+    s.newConversation();
+    slow.reply();
+    await opening;
+    expect(s.getState().active).toBeNull();
+  });
+
+  it("goes on with a message whose overview is open while its own conversation is opened again or another is deleted", async () => {
+    const { s, fake } = session([answer("One."), answer("Two."), answer("Three.")], { approve: false });
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.updateSettings((settings) => ({ ...settings, confirmEveryRequest: true }));
+    const approved = async (text: string) => {
+      const asked = consentAsked(s);
+      const run = s.send(text);
+      await asked;
+      s.answerConsent(true);
+      await run;
+    };
+    await approved("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    await approved("Second");
+    const b = s.getState().active!.id;
+    await s.open(a);
+    const asked = consentAsked(s);
+    const third = s.send("Third");
+    await asked;
+    // Neither leaves the conversation the message is for.
+    await s.open(a);
+    await s.remove(b);
+    expect(s.getState().consent).not.toBeNull();
+    s.answerConsent(true);
+    expect(await third).toEqual({ kind: "answered" });
+    expect([fake.sent.length, vault.saved.has(b), vault.saved.get(a)!.runs.length]).toEqual([3, false, 2]);
+  });
+
+  it("takes a redaction back for the conversation where its overview took it back", async () => {
+    const { s } = session([answer("One."), answer("Two.")], { approve: false });
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    let asked = consentAsked(s);
+    const first = s.send("First");
+    await asked;
+    s.answerConsent(true);
+    await first;
+    const id = s.getState().active!.id;
+    await s.toggleRedact("Plan.md");
+    await s.updateSettings((settings) => ({ ...settings, confirmEveryRequest: true }));
+    asked = consentAsked(s);
+    const second = s.send("Second");
+    await asked;
+    // In the overview the redaction is taken back: the overview is built again and asks again.
+    asked = consentAsked(s);
+    s.redactInConsent("Plan.md");
+    await asked;
+    s.answerConsent(true);
+    await second;
+    expect([s.getState().active?.redact ?? [], vault.saved.get(id)!.redact ?? []]).toEqual([[], []]);
+  });
+
+  it("keeps each later write behind the one before it, also once an earlier one landed", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    const saves = heldSaves(vault, [1, 2]);
+    const pinning = s.pin("Offer.md");
+    await saves.waiting(1);
+    const pinningMore = s.pin("Contract.md");
+    saves.release(1);
+    await saves.waiting(2);
+    // The third comes while the second is in the store.
+    const redacting = s.toggleRedact("Plan.md");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    saves.release(2);
+    await Promise.all([pinning, pinningMore, redacting]);
+    expect(vault.saved.get(id)).toMatchObject({ pins: ["Offer.md", "Contract.md"], redact: ["Plan.md"] });
+  });
+
+  it("starts nothing of a skill whose screen the user left while it was looked up", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    // The vault's instructions are read slowly; meanwhile the first conversation is opened again.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const scanning = new Promise<void>((resolve) => (reached = resolve));
+    vault.host.instructions = {
+      async scan() {
+        reached();
+        await gate;
+        return [];
+      },
+      scanOne: async () => null,
+      readFile: async () => null,
+      approvals: { load: async () => EMPTY_INSTRUCTION_APPROVALS, save: async () => undefined },
+    };
+    const starting = s.runSkill("plainva:writing", "Summarise it.");
+    await scanning;
+    await s.open(a);
+    release();
+    expect(await starting).toBeNull();
+    expect([fake.sent.length, s.getState().active?.id]).toEqual([1, a]);
+  });
+
+  it("opens again after a skill's regression run the conversation that was open, as it is now", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    // A scenario on its way; meanwhile the conversation renamed from the history.
+    const hold = held(fake);
+    const testing = s.testSkills(["plainva:task-triage"], { maxCostUsd: null });
+    await hold.waiting;
+    await s.rename(id, "Kept");
+    hold.release();
+    await testing;
+    expect([s.getState().active?.id, s.getState().active?.title]).toEqual([id, "Kept"]);
+  });
+
+  it("leaves the screen as the user made it after a skill's regression run", async () => {
+    const { s } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Second");
+    const b = s.getState().active!.id;
+    await s.open(a);
+    // The scenario's result being saved; meanwhile the user goes to the second conversation.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const saving = new Promise<void>((resolve) => (reached = resolve));
+    vault.host.skillTests = {
+      load: async () => EMPTY_SKILL_TESTS,
+      async save() {
+        reached();
+        await gate;
+      },
+    };
+    const testing = s.testSkills(["plainva:task-triage"], { maxCostUsd: null });
+    await saving;
+    await s.open(b);
+    release();
+    await testing;
+    expect(s.getState().active?.id).toBe(b);
+  });
+
+  it("keeps a run's end off the screen while a deletion of it is on its way — beside one that failed, or a Delete all", async () => {
+    for (const second of ["remove", "all"] as const) {
+      const { s, fake } = session([answer("One."), answer("Two.")]);
+      await s.load();
+      const vault = vaultHost("Plan.md");
+      await s.attachVault(vault.host);
+      await s.send("First");
+      const id = s.getState().active!.id;
+      const hold = held(fake);
+      const run = s.send("Second");
+      await hold.waiting;
+      // A first deletion the store refuses at once — only for a deletion beside it —, a second one it holds.
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      const remove = vault.host.conversations.remove.bind(vault.host.conversations);
+      const removeAll = vault.host.conversations.removeAll.bind(vault.host.conversations);
+      let removes = 0;
+      vault.host.conversations.remove = async (target) => {
+        removes += 1;
+        if (removes === 1 && second === "remove") throw new Error("locked");
+        await gate;
+        return remove(target);
+      };
+      vault.host.conversations.removeAll = async () => {
+        await gate;
+        return removeAll();
+      };
+      const first = second === "remove" ? s.remove(id).catch(() => "failed") : Promise.resolve("none");
+      const other = second === "remove" ? s.remove(id) : s.removeAll();
+      expect(await first, second).toBe(second === "remove" ? "failed" : "none");
+      hold.release();
+      // The run's end is through its answer while the deletion is still on its way: it does not come on screen.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(s.getState().active?.runs.length, second).toBe(1);
+      release();
+      await Promise.all([other, run]);
+      expect([s.getState().active, vault.saved.has(id)], second).toEqual([null, false]);
+    }
+  });
+
+  /** Holds every deletion of a conversation in the store until the test lets it go, then deletes it. */
+  function heldDeletion(vault: ReturnType<typeof vaultHost>) {
+    const remove = vault.host.conversations.remove.bind(vault.host.conversations);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const waiting = new Promise<void>((resolve) => (reached = resolve));
+    vault.host.conversations.remove = async (id) => {
+      reached();
+      await gate;
+      return remove(id);
+    };
+    return { waiting, release };
+  }
+
+  /** Holds the run's ledger entry until the test lets it go; `reached` once the run's end is there — its conversation written. */
+  function heldLedger(vault: ReturnType<typeof vaultHost>) {
+    const save = vault.host.ledger.save.bind(vault.host.ledger);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let arrived!: () => void;
+    const reached = new Promise<void>((resolve) => (arrived = resolve));
+    vault.host.ledger.save = async (entries) => {
+      arrived();
+      await gate;
+      return save(entries);
+    };
+    return { reached, release };
+  }
+
+  it("takes no message into a conversation whose deletion was asked for", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    // The deletion on its way in a slow store; the conversation is still on screen.
+    const deletion = heldDeletion(vault);
+    const removing = s.remove(id);
+    await deletion.waiting;
+    expect(s.getState().active?.id).toBe(id);
+    const into = s.send("Into it");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect([fake.sent.length, s.getState().live]).toEqual([1, null]);
+    deletion.release();
+    expect(await into).toBeNull();
+    await removing;
+    expect([fake.sent.length, s.getState().active, vault.saved.has(id)]).toEqual([1, null, false]);
+  });
+
+  it("keeps a run's end in storage when deletions asked for while it ended fail, with the choices made meanwhile", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    const hold = held(fake);
+    const run = s.send("Second");
+    await hold.waiting;
+    // Every deletion fails, each when the test says so.
+    const fails: ((error: Error) => void)[] = [];
+    let asked!: () => void;
+    let deletion = new Promise<void>((resolve) => (asked = resolve));
+    vault.host.conversations.remove = () =>
+      new Promise<void>((_, reject) => {
+        fails.push(reject);
+        asked();
+      });
+    const ledger = heldLedger(vault);
+    const first = s.remove(id).catch(() => "failed");
+    await deletion;
+    hold.release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fails[0]!(new Error("locked"));
+    expect(await first).toBe("failed");
+    // The run's end is written; while its ledger entry is held, a pin goes onto it — its write held in the store.
+    await ledger.reached;
+    const saves = heldSaves(vault, [1]);
+    const pinning = s.pin("Offer.md");
+    await saves.waiting(1);
+    ledger.release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // The run's end now waits for the pin's write; a second deletion comes behind it, and fails too.
+    deletion = new Promise<void>((resolve) => (asked = resolve));
+    const second = s.remove(id).catch(() => "failed");
+    saves.release(1);
+    await deletion;
+    fails[1]!(new Error("locked"));
+    expect(await second).toBe("failed");
+    await Promise.all([run, pinning]);
+    // A choice after the run's end goes onto the run's end.
+    await s.pin("Contract.md");
+    expect([vault.saved.get(id)!.runs.length, vault.saved.get(id)!.pins]).toEqual([2, ["Offer.md", "Contract.md"]]);
+  });
+
+  it("lists nothing of a conversation's first run while a deletion asked for after its end was written is on its way", async () => {
+    const { s, fake } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    const ledger = heldLedger(vault);
+    const run = s.send("Hello");
+    await ledger.reached;
+    const id = s.getState().active!.id;
+    // A pin while the ledger is held, its write held in the store; then the end goes on and waits for it.
+    const saves = heldSaves(vault, [1]);
+    const pinning = s.pin("Offer.md");
+    await saves.waiting(1);
+    ledger.release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // Deleted now, in a slow store, behind the pin's write.
+    const deletion = heldDeletion(vault);
+    const removing = s.remove(id);
+    saves.release(1);
+    await deletion.waiting;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(s.getState().summaries.some((summary) => summary.id === id)).toBe(false);
+    deletion.release();
+    await Promise.all([removing, run, pinning]);
+    expect([s.getState().summaries.some((summary) => summary.id === id), s.getState().active, vault.saved.has(id), fake.sent.length]).toEqual([false, null, false, 1]);
+  });
+
+  it("asks nothing again of a conversation that Delete all takes while the replay is put together", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    const hold = heldSituation(vault);
+    const replay = s.replay(id, 0, { providerId: "anthropic", model: "m-1" });
+    await hold.waiting;
+    await s.removeAll();
+    hold.release();
+    expect(await replay).toBeNull();
+    expect([fake.sent.length, vault.saved.size, s.getState().summaries]).toEqual([1, 0, []]);
+  });
+
+  it("starts nothing again of a conversation not on screen that is deleted while the replay is put together", async () => {
+    const { s, fake } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Second");
+    const b = s.getState().active!.id;
+    // Asked again of the first, which is not on screen; its notes read slowly, and meanwhile it is deleted.
+    const readNote = vault.host.readNote.bind(vault.host);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const reading = new Promise<void>((resolve) => (reached = resolve));
+    let first = true;
+    vault.host.readNote = async (path) => {
+      if (first) {
+        first = false;
+        reached();
+        await gate;
+      }
+      return readNote(path);
+    };
+    const replay = s.replay(a, 0, { providerId: "anthropic", model: "m-1" });
+    await reading;
+    await s.remove(a);
+    release();
+    expect(await replay).toBeNull();
+    // The screen stays as the user made it.
+    expect([fake.sent.length, s.getState().active?.id]).toEqual([2, b]);
+  });
+
+  it("keeps a notice about another conversation when one is deleted", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    // The next conversation's request gets no answer: a notice on that one.
+    await s.send("Second");
+    const notice = s.getState().notice;
+    expect([notice !== null, notice?.conversationId === a]).toEqual([true, false]);
+    await s.remove(a);
+    expect(s.getState().notice).toBe(notice);
+  });
+
+  it("takes a notice about a conversation off the screen with the conversation", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    // The next request gets no answer: a notice on the conversation.
+    await s.send("Second");
+    expect(s.getState().notice?.conversationId).toBe(id);
+    await s.remove(id);
+    expect([s.getState().active, s.getState().notice]).toEqual([null, null]);
+  });
+
+  it("runs a regression run's scenarios where the conversation of their last run cannot be deleted", async () => {
+    const { s } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    // The results are kept on this device: the next run knows the conversation of the last one.
+    let records = EMPTY_SKILL_TESTS;
+    vault.host.skillTests = {
+      load: async () => records,
+      save: async (next) => void (records = next),
+    };
+    expect(await s.testSkills(["plainva:task-triage"], { maxCostUsd: null })).toMatchObject({ kind: "done", ran: 1 });
+    const last = records.records.find((record) => record.id === "plainva:task-triage")?.scenarios[0]?.conversationId;
+    expect(last && vault.saved.has(last)).toBe(true);
+    // From now on the store refuses to delete anything.
+    vault.host.conversations.remove = async () => {
+      throw new Error("locked");
+    };
+    expect(await s.testSkills(["plainva:task-triage"], { maxCostUsd: null })).toMatchObject({ kind: "done", ran: 1, stopped: null });
+    expect(vault.saved.has(last!)).toBe(true);
+  });
+
+  it("asks nothing again of a conversation deleted from the history while the replay's request is put together", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    const hold = heldSituation(vault);
+    const replay = s.replay(id, 0, { providerId: "anthropic", model: "m-1" });
+    await hold.waiting;
+    // The replay has the screen by now: the original, deleted from the history, is no step on it.
+    expect(s.getState().active).toBeNull();
+    await s.remove(id);
+    hold.release();
+    expect(await replay).toBeNull();
+    expect([fake.sent.length, vault.saved.size]).toEqual([1, 0]);
+  });
+
+  it("asks nothing again of, and learns nothing from, a conversation whose deletion was asked for", async () => {
+    const { s, fake } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    const deletion = heldDeletion(vault);
+    const removing = s.remove(id);
+    await deletion.waiting;
+    let reads = 0;
+    const readNote = vault.host.readNote.bind(vault.host);
+    vault.host.readNote = async (path) => {
+      reads += 1;
+      return readNote(path);
+    };
+    expect(await s.replay(id, 0, { providerId: "anthropic", model: "m-1" })).toBeNull();
+    expect(await s.learnFrom(id)).toMatchObject({ kind: "refused", reason: "gone" });
+    // Refused at once: the screen stays as it is, and nothing the conversation rests on is read for it.
+    expect([s.getState().active?.id, reads]).toEqual([id, 0]);
+    deletion.release();
+    await removing;
+    expect(fake.sent.length).toBe(1);
+  });
+
+  it("keeps the screen on a run that began after another conversation was clicked", async () => {
+    const { s, fake } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Second");
+    const b = s.getState().active!.id;
+    await s.open(a);
+    const slow = slowRead(vault);
+    const opening = s.open(b);
+    await slow.reading;
+    // Still on the first: a message goes, and its answer is on its way when the second's reading comes back.
+    const hold = held(fake);
+    const run = s.send("Still here");
+    await hold.waiting;
+    slow.reply();
+    await opening;
+    expect(s.getState().active?.id).toBe(a);
+    hold.release();
+    await run;
+    expect(s.getState().active?.id).toBe(a);
+  });
+
+  it("deletes a conversation only once a write of it on its way has landed", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    const hold = heldWrite(vault);
+    const pinning = s.pin("Offer.md");
+    await hold.waiting;
+    const removing = s.remove(id);
+    // Whatever does not wait for the pin's write has happened by now.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    hold.release();
+    await Promise.all([pinning, removing]);
+    expect(vault.saved.has(id)).toBe(false);
+  });
+
+  it("leaves another vault's history alone when a Delete all of the vault before ends", async () => {
+    const { s } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const first = vaultHost("Plan.md");
+    await s.attachVault(first.host);
+    await s.send("First");
+    const hold = heldClearing(first);
+    const clearing = s.removeAll();
+    await hold.begun;
+    // Another vault, with a conversation of its own.
+    const second = vaultHost("Plan.md");
+    await s.attachVault(second.host);
+    await s.send("Second");
+    const listed = s.getState().summaries.map((summary) => summary.id);
+    expect(listed).toHaveLength(1);
+    hold.release();
+    await clearing;
+    expect(s.getState().summaries.map((summary) => summary.id)).toEqual(listed);
+  });
+
+  it("keeps a notice about anything Delete all did not take", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const hold = heldClearing(vault);
+    const clearing = s.removeAll();
+    await hold.begun;
+    // While the history is cleared: a new conversation's message under Fully local, to a model that is not on this device.
+    s.newConversation();
+    await s.updateSettings((settings) => ({ ...settings, localOnly: true }));
+    await s.send("Meanwhile");
+    const notice = s.getState().notice;
+    expect(notice).not.toBeNull();
+    hold.release();
+    await clearing;
+    expect(s.getState().notice).toEqual(notice);
+  });
+
+  it("lists on attaching a vault what a deletion on its way leaves, and nothing a Delete all on its way takes", async () => {
+    const { s } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const a = s.getState().active!.id;
+    // A deletion on its way, and the vault attached again: its list waits for it — and lists the conversation where it failed.
+    const remove = vault.host.conversations.remove.bind(vault.host.conversations);
+    for (const fails of [true, false]) {
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      let reached!: () => void;
+      const waiting = new Promise<void>((resolve) => (reached = resolve));
+      vault.host.conversations.remove = async (id) => {
+        reached();
+        await gate;
+        if (fails) throw new Error("locked");
+        return remove(id);
+      };
+      const removing = s.remove(a).then(() => "done", () => "failed");
+      await waiting;
+      const attaching = s.attachVault(vault.host);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      release();
+      await Promise.all([removing, attaching]);
+      expect(s.getState().summaries.some((summary) => summary.id === a), fails ? "failed" : "done").toBe(fails);
+    }
+    vault.host.conversations.remove = remove;
+    s.newConversation();
+    await s.send("Second");
+    s.newConversation();
+    // A Delete all on its way, and the vault attached again: its list is read once the clearing is through.
+    const hold = heldClearing(vault);
+    const clearing = s.removeAll();
+    await hold.begun;
+    const list = vault.host.conversations.list.bind(vault.host.conversations);
+    let listed!: () => void;
+    const answered = new Promise<void>((resolve) => (listed = resolve));
+    vault.host.conversations.list = async () => {
+      const rows = await list();
+      await answered;
+      return rows;
+    };
+    const attaching = s.attachVault(vault.host);
+    hold.release();
+    await clearing;
+    listed();
+    await attaching;
+    expect(s.getState().summaries).toEqual([]);
+  });
+
+  it("expires no conversation that is being written", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    await s.updateSettings((settings) => ({ ...settings, historyDays: 30 }));
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    // Last changed long ago, as the store says — and a pin of it on its way when the vault is attached again.
+    vault.saved.set(id, { ...vault.saved.get(id)!, updatedAt: "2020-01-01T00:00:00.000Z" });
+    const hold = heldWrite(vault);
+    const pinning = s.pin("Offer.md");
+    await hold.waiting;
+    const attaching = s.attachVault(vault.host);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    hold.release();
+    await Promise.all([pinning, attaching]);
+    expect(vault.saved.get(id)?.pins).toEqual(["Offer.md"]);
+  });
+
+  it("gives a conversation begun under Fully local the model it ran on, not one the device may not ask", async () => {
+    const { s } = session([platformAnswer("One.")]);
+    await s.load();
+    await s.updateSettings((settings) => ({ ...settings, localOnly: true, profiles: { ...settings.profiles, balanced: { providerId: "apple", model: "on-device" } } }));
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    // A cloud model chosen in the composer: Fully local leaves it resting.
+    await s.setChoice({ providerId: "anthropic", model: "m-2" });
+    expect(await s.send("Hello")).toEqual({ kind: "answered" });
+    const active = s.getState().active!;
+    expect([active.providerId, active.model, active.runs[0]!.providerId]).toEqual(["apple", "on-device", "apple"]);
+  });
+
+  it("opens again after a regression run whose scenario failed the conversation that was open", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    // The scenario's request gets no answer.
+    const outcome = await s.testSkills(["plainva:task-triage"], { maxCostUsd: null });
+    expect(outcome).toMatchObject({ kind: "done", stopped: "failed" });
+    expect(s.getState().active?.id).toBe(id);
+  });
+
+  it("takes no message while a regression run brings back the conversation that was open", async () => {
+    const { s, fake } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    const hold = held(fake);
+    const testing = s.testSkills(["plainva:task-triage"], { maxCostUsd: null });
+    await hold.waiting;
+    // The conversation is read back slowly; meanwhile a message is typed.
+    const slow = slowRead(vault);
+    hold.release();
+    await slow.reading;
+    expect(await s.send("Now")).toBeNull();
+    slow.reply();
+    await testing;
+    expect([fake.sent.length, s.getState().active?.id]).toEqual([2, id]);
+  });
+
+  it("expires no conversation whose run is on its way", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    await s.updateSettings((settings) => ({ ...settings, historyDays: 30 }));
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    // Last changed long ago, as the store says — and a run of it on its way when the vault is attached again.
+    vault.saved.set(id, { ...vault.saved.get(id)!, updatedAt: "2020-01-01T00:00:00.000Z" });
+    const hold = held(fake);
+    const run = s.send("Second");
+    await hold.waiting;
+    const attaching = s.attachVault(vault.host);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    hold.release();
+    await Promise.all([run, attaching]);
+    expect(vault.saved.get(id)?.runs.length).toBe(2);
+  });
+
+  it("expires no conversation the user opened while the vault was being attached", async () => {
+    const { s } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    await s.updateSettings((settings) => ({ ...settings, historyDays: 30 }));
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Second");
+    const b = s.getState().active!.id;
+    // Both last changed long ago; the first one's deletion held while the second is opened.
+    for (const id of [a, b]) vault.saved.set(id, { ...vault.saved.get(id)!, updatedAt: "2020-01-01T00:00:00.000Z" });
+    const deletion = heldDeletion(vault);
+    const attaching = s.attachVault(vault.host);
+    await deletion.waiting;
+    await s.open(b);
+    deletion.release();
+    await attaching;
+    expect([vault.saved.has(a), vault.saved.has(b), s.getState().active?.id]).toEqual([false, true, b]);
+    // The one it expired is not listed either.
+    expect(s.getState().summaries.some((summary) => summary.id === a)).toBe(false);
+  });
+
+  it("lists again on attaching a vault where a Delete all came while it listed and expired", async () => {
+    const { s } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    await s.updateSettings((settings) => ({ ...settings, historyDays: 30 }));
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const old = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Second");
+    const older = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Third");
+    s.newConversation();
+    // The first two expired; the first one's deletion held while Delete all is asked for, the second's behind it.
+    for (const id of [old, older]) vault.saved.set(id, { ...vault.saved.get(id)!, updatedAt: "2020-01-01T00:00:00.000Z" });
+    const deletion = heldDeletion(vault);
+    const attaching = s.attachVault(vault.host);
+    await deletion.waiting;
+    const clearing = s.removeAll();
+    deletion.release();
+    await Promise.all([clearing, attaching]);
+    expect([s.getState().summaries, vault.saved.size]).toEqual([[], 0]);
+  });
+
+  it("clears with Delete all a notice about a conversation it took", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    // The next request gets no answer: a notice on the conversation.
+    await s.send("Second");
+    expect(s.getState().notice?.conversationId).toBe(id);
+    await s.removeAll();
+    expect(s.getState().notice).toBeNull();
+  });
+
+  it("asks nothing again of a conversation deleted while the replay was put together", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    // The run's notes read slowly for its snapshot; meanwhile the conversation is deleted.
+    const readNote = vault.host.readNote.bind(vault.host);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const reading = new Promise<void>((resolve) => (reached = resolve));
+    let first = true;
+    vault.host.readNote = async (path) => {
+      if (first) {
+        first = false;
+        reached();
+        await gate;
+      }
+      return readNote(path);
+    };
+    const replay = s.replay(id, 0, { providerId: "anthropic", model: "m-1" });
+    await reading;
+    await s.remove(id);
+    release();
+    expect(await replay).toBeNull();
+    expect([fake.sent.length, vault.saved.size]).toEqual([1, 0]);
+  });
+
+  it("asks nothing again of a conversation when Delete all came while the replay was put together", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const id = s.getState().active!.id;
+    s.newConversation();
+    const readNote = vault.host.readNote.bind(vault.host);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const reading = new Promise<void>((resolve) => (reached = resolve));
+    let first = true;
+    vault.host.readNote = async (path) => {
+      if (first) {
+        first = false;
+        reached();
+        await gate;
+      }
+      return readNote(path);
+    };
+    s.setExcludeActive(true);
+    const replay = s.replay(id, 0, { providerId: "anthropic", model: "m-1" });
+    await reading;
+    await s.removeAll();
+    release();
+    expect(await replay).toBeNull();
+    // Nothing of it reached the screen either: what the user set there stays.
+    expect([fake.sent.length, vault.saved.size, s.getState().summaries, s.getState().excludeActive]).toEqual([1, 0, [], true]);
+  });
+
+  it("asks again of a conversation as it is now, also while a write of it is on its way", async () => {
+    const { s } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Second");
+    // The first renamed from the history, its write held; then asked again of a model.
+    const hold = heldWrite(vault);
+    const renaming = s.rename(a, "New");
+    await hold.waiting;
+    const replay = s.replay(a, 0, { providerId: "anthropic", model: "m-1" });
+    hold.release();
+    await Promise.all([renaming, replay]);
+    expect(s.getState().active?.title).toContain("New");
+  });
+
+  it("opens nothing after a run began and ended since the click", async () => {
+    const { s } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Second");
+    const b = s.getState().active!.id;
+    await s.open(a);
+    const slow = slowRead(vault);
+    const opening = s.open(b);
+    await slow.reading;
+    // Still on the first: a message goes, and its answer comes, before the second's reading is back.
+    expect(await s.send("Still here")).toEqual({ kind: "answered" });
+    slow.reply();
+    await opening;
+    expect([s.getState().active?.id, s.getState().active?.runs.length]).toEqual([a, 2]);
+  });
+
+  it("keeps a regression run's conversation in the history where it cannot be deleted", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    // The scenario gets no answer, and its conversation cannot be deleted.
+    vault.host.conversations.remove = async () => {
+      throw new Error("locked");
+    };
+    const before = new Set(vault.saved.keys());
+    await s.testSkills(["plainva:task-triage"], { maxCostUsd: null });
+    const scenario = [...vault.saved.keys()].find((id) => !before.has(id))!;
+    expect([Boolean(scenario), s.getState().summaries.some((summary) => summary.id === scenario)]).toEqual([true, true]);
+  });
+
+  it("deletes a regression run's cancelled scenario in its own vault after a switch", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const before = new Set(vault.saved.keys());
+    const hold = held(fake);
+    const testing = s.testSkills(["plainva:task-triage"], { maxCostUsd: null });
+    await hold.waiting;
+    await s.attachVault(vaultHost("Plan.md").host);
+    hold.release();
+    await testing;
+    expect([...vault.saved.keys()].filter((id) => !before.has(id))).toEqual([]);
+  });
+
+  it("passes the moment each action began to every run it starts, taken before its first await", () => {
+    // Each run but a message of the composer and a preview starts after awaits of its own: a Delete all asked for
+    // since the action began must reach it (step 8). Read as TypeScript reads it: no string, comment or pattern hides
+    // a call or an await.
+    const path = join(fileURLToPath(new URL(".", import.meta.url)), "../../../../packages/ui/src/ai/aiSession.ts");
+    const file = ts.createSourceFile(path, readFileSync(path, "utf8"), ts.ScriptTarget.Latest, true);
+    /** A function written here runs later: what it awaits, the code around it does not. */
+    const later = (node: ts.Node) => ts.isArrowFunction(node) || ts.isFunctionExpression(node) || ts.isFunctionDeclaration(node);
+    /** Whether `node` is or holds a call of the session's own method `name`. */
+    const calls = (node: ts.Node, name: string): boolean =>
+      (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.expression.kind === ts.SyntaxKind.ThisKeyword && node.expression.name.text === name) ||
+      node.getChildren(file).some((child) => calls(child, name));
+    const runs: ts.CallExpression[] = [];
+    const takers: { method: string; awaits: number }[] = [];
+    let removes = 0;
+    const visit = (node: ts.Node) => {
+      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.expression.kind === ts.SyntaxKind.ThisKeyword) {
+        if (node.expression.name.text === "runMessage") runs.push(node);
+        if (node.expression.name.text === "remove") removes += 1;
+      }
+      if (ts.isMethodDeclaration(node) && node.body) {
+        const body = node.body;
+        // Where a method takes the count — `since`, from `clearsOf` —, the awaits of its own before.
+        const look = (inner: ts.Node) => {
+          if (ts.isVariableDeclaration(inner) && ts.isIdentifier(inner.name) && inner.name.text === "since" && inner.initializer && calls(inner.initializer, "clearsOf")) {
+            const at = inner.getStart(file);
+            let awaits = 0;
+            const before = (step: ts.Node) => {
+              if (step.getStart(file) >= at || later(step)) return;
+              if (ts.isAwaitExpression(step)) awaits += 1;
+              ts.forEachChild(step, before);
+            };
+            ts.forEachChild(body, before);
+            takers.push({ method: node.name.getText(file), awaits });
+          }
+          if (!later(inner)) ts.forEachChild(inner, look);
+        };
+        ts.forEachChild(body, look);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(file);
+    /** Whether `node` is or holds the property `name: true`. */
+    const holdsTrue = (node: ts.Node, name: string): boolean =>
+      (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && node.name.text === name && node.initializer.kind === ts.SyntaxKind.TrueKeyword) ||
+      node.getChildren(file).some((child) => holdsTrue(child, name));
+    // What a run gets is the count its action took, `since` — never one counted where the call is made.
+    const kinds = runs.map((run) => {
+      if (run.arguments.map((arg) => arg.getText(file)).join(", ") === "message, vault, choice") return "message";
+      const options = run.arguments[3];
+      if (!options || !ts.isObjectLiteralExpression(options)) return "missing";
+      if (holdsTrue(options, "preview")) return "preview";
+      const since = options.properties.find((property) => property.name !== undefined && ts.isIdentifier(property.name) && property.name.text === "since");
+      const taken = since && (ts.isShorthandPropertyAssignment(since) || (ts.isPropertyAssignment(since) && ts.isIdentifier(since.initializer) && since.initializer.text === "since"));
+      return taken ? "since" : "missing";
+    });
+    expect(kinds.filter((kind) => kind === "missing")).toEqual([]);
+    expect(kinds.filter((kind) => kind === "since").length).toBeGreaterThanOrEqual(7);
+    // Where an action takes it, nothing of the action is awaited before.
+    expect(takers.length).toBeGreaterThanOrEqual(7);
+    expect(takers.filter((taker) => taker.awaits > 0)).toEqual([]);
+    // The app's own deletions go through the path that keeps to their vault, never through the user's `remove`.
+    expect(removes).toBe(0);
+  });
+
+  it("keeps a choice on screen through every step of the run", async () => {
+    const { s, fake } = session([callsTool("read_note", { path: "Plan.md" }), answer("Done.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    withTools(vault.host);
+    await s.attachVault(vault.host);
+    // Each request held until the test lets it go.
+    const send = fake.egress.send.bind(fake.egress);
+    const gates: (() => void)[] = [];
+    const reached: (() => void)[] = [];
+    const waits = [0, 1].map((n) => new Promise<void>((resolve) => (reached[n] = resolve)));
+    let count = 0;
+    fake.egress.send = async (id, spec, onChunk) => {
+      const n = count++;
+      reached[n]?.();
+      await new Promise<void>((resolve) => (gates[n] = resolve));
+      return send(id, spec, onChunk);
+    };
+    const run = s.send("Hello");
+    await waits[0];
+    await s.pin("Offer.md");
+    gates[0]!();
+    // The first step — a tool call — is through and the second request on its way: the pin is still on screen.
+    await waits[1];
+    expect(s.getState().active?.pins).toEqual(["Offer.md"]);
+    gates[1]!();
+    await run;
+    expect(s.getState().active?.pins).toEqual(["Offer.md"]);
+  });
+
+  it("expires no conversation whose run ended while the vault was being attached through a new host", async () => {
+    const { s, fake } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    await s.updateSettings((settings) => ({ ...settings, historyDays: 30 }));
+    const vault = vaultHost("Plan.md");
+    vault.host.key = "vault-1";
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const x = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Second");
+    const c = s.getState().active!.id;
+    // Both last changed long ago, as the store says; the first listed first.
+    for (const id of [x, c]) vault.saved.set(id, { ...vault.saved.get(id)!, updatedAt: "2020-01-01T00:00:00.000Z" });
+    // A run of the second on its way when the shell hands a new host for the vault; the first one's expiry slow.
+    const hold = held(fake);
+    const run = s.send("Third");
+    await hold.waiting;
+    const deletion = heldDeletion(vault);
+    const attaching = s.attachVault({ ...vault.host });
+    await deletion.waiting;
+    // The run ends — its conversation written now — before the expiry comes to it.
+    hold.release();
+    await run;
+    deletion.release();
+    await attaching;
+    expect([vault.saved.has(x), vault.saved.get(c)?.runs.length]).toEqual([false, 2]);
+  });
+
+  it("expires no conversation whose write began before the vault was listed and landed before its expiry", async () => {
+    const { s } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    await s.updateSettings((settings) => ({ ...settings, historyDays: 30 }));
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const x = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Second");
+    const c = s.getState().active!.id;
+    for (const id of [x, c]) vault.saved.set(id, { ...vault.saved.get(id)!, updatedAt: "2020-01-01T00:00:00.000Z" });
+    // A pin of the second on its way when the vault is attached again; the first one's expiry slow.
+    const write = heldWrite(vault);
+    const pinning = s.pin("Offer.md");
+    await write.waiting;
+    const deletion = heldDeletion(vault);
+    const attaching = s.attachVault(vault.host);
+    await deletion.waiting;
+    // The pin lands before the expiry comes to the second.
+    write.release();
+    await pinning;
+    deletion.release();
+    await attaching;
+    expect([vault.saved.has(x), vault.saved.get(c)?.pins]).toEqual([false, ["Offer.md"]]);
+  });
+
+  it("expires no conversation the user changed while the vault was being attached", async () => {
+    const { s } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    await s.updateSettings((settings) => ({ ...settings, historyDays: 30 }));
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const x = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Second");
+    const c = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Third");
+    const d = s.getState().active!.id;
+    for (const id of [x, c]) vault.saved.set(id, { ...vault.saved.get(id)!, updatedAt: "2020-01-01T00:00:00.000Z" });
+    // The first one's expiry slow; meanwhile the second is opened, pinned, and left for another.
+    const deletion = heldDeletion(vault);
+    const attaching = s.attachVault(vault.host);
+    await deletion.waiting;
+    await s.open(c);
+    await s.pin("Offer.md");
+    await s.open(d);
+    deletion.release();
+    await attaching;
+    expect([vault.saved.has(x), vault.saved.get(c)?.pins]).toEqual([false, ["Offer.md"]]);
+  });
+
+  it("leaves a history the user cleared meanwhile cleared", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const hold = held(fake);
+    const run = s.send("Second");
+    await hold.waiting;
+    const clearing = s.removeAll();
+    hold.release();
+    await Promise.all([run, clearing]);
+    expect(vault.saved.size).toBe(0);
+    expect([s.getState().active, s.getState().live, s.getState().summaries]).toEqual([null, null, []]);
+    expect(vault.ledger()).toHaveLength(2);
+  });
+
+  it("lists no conversation an earlier attaching deleted, also where the shell made a new host meanwhile", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    await s.updateSettings((settings) => ({ ...settings, historyDays: 30 }));
+    const vault = vaultHost("Plan.md");
+    vault.host.key = "vault-1";
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const x = s.getState().active!.id;
+    s.newConversation();
+    vault.saved.set(x, { ...vault.saved.get(x)!, updatedAt: "2020-01-01T00:00:00.000Z" });
+    // The vault attached again, its expiry slow; meanwhile the shell hands a new host, which lists the conversation
+    // whose deletion is on its way.
+    const deletion = heldDeletion(vault);
+    const first = s.attachVault(vault.host);
+    await deletion.waiting;
+    await s.attachVault({ ...vault.host });
+    expect(s.getState().summaries.map((summary) => summary.id)).toEqual([x]);
+    deletion.release();
+    await first;
+    expect([vault.saved.has(x), s.getState().summaries]).toEqual([false, []]);
+  });
+
+  it("keeps listed on attaching a conversation whose deletion was on its way and then failed", async () => {
+    const { s } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const x = s.getState().active!.id;
+    s.newConversation();
+    // Its deletion on its way while the vault is attached again — and then it fails.
+    let fail!: () => void;
+    const gate = new Promise<void>((resolve) => (fail = resolve));
+    let reached!: () => void;
+    const waiting = new Promise<void>((resolve) => (reached = resolve));
+    vault.host.conversations.remove = async () => {
+      reached();
+      await gate;
+      throw new Error("locked");
+    };
+    const removing = s.remove(x).catch(() => undefined);
+    await waiting;
+    await s.attachVault(vault.host);
+    fail();
+    await removing;
+    expect([vault.saved.has(x), s.getState().summaries.map((summary) => summary.id)]).toEqual([true, [x]]);
+  });
+
+  it("starts nothing of a skill where the whole history was deleted while it was looked up", async () => {
+    const { s, fake } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    // The vault's instructions are read slowly; meanwhile the whole history is deleted.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const scanning = new Promise<void>((resolve) => (reached = resolve));
+    vault.host.instructions = {
+      async scan() {
+        reached();
+        await gate;
+        return [];
+      },
+      scanOne: async () => null,
+      readFile: async () => null,
+      approvals: { load: async () => EMPTY_INSTRUCTION_APPROVALS, save: async () => undefined },
+    };
+    s.setExcludeActive(true);
+    const starting = s.runSkill("plainva:writing", "Summarise it.");
+    await scanning;
+    await s.removeAll();
+    release();
+    expect(await starting).toBeNull();
+    // Nothing of it reached the screen either: what the user set there stays.
+    expect([fake.sent.length, s.getState().excludeActive]).toEqual([0, true]);
+  });
+
+  it("starts nothing again where the user left the screen while the replay was put together", async () => {
+    const { s, fake } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    await s.send("Second");
+    const b = s.getState().active!.id;
+    await s.open(a);
+    // The notes its run read are looked at slowly; meanwhile the second conversation is opened.
+    const readNote = vault.host.readNote.bind(vault.host);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const reading = new Promise<void>((resolve) => (reached = resolve));
+    let first = true;
+    vault.host.readNote = async (path) => {
+      if (first) {
+        first = false;
+        reached();
+        await gate;
+      }
+      return readNote(path);
+    };
+    const replay = s.replay(a, 0, { providerId: "anthropic", model: "m-1" });
+    await reading;
+    await s.open(b);
+    release();
+    expect(await replay).toBeNull();
+    expect([fake.sent.length, s.getState().active?.id]).toEqual([2, b]);
+  });
+
+  it("takes no message while a replay reads its conversation", async () => {
+    const { s, fake } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const a = s.getState().active!.id;
+    s.newConversation();
+    const slow = slowRead(vault);
+    const replay = s.replay(a, 0, { providerId: "anthropic", model: "m-1" });
+    await slow.reading;
+    expect(await s.send("Now")).toBeNull();
+    slow.reply();
+    await replay;
+    expect(fake.sent).toHaveLength(2);
+  });
+
+  it("runs no scenario of a regression run where Delete all came while it was put together", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    // The vault's instructions are read slowly; meanwhile the whole history is deleted.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const scanning = new Promise<void>((resolve) => (reached = resolve));
+    vault.host.instructions = {
+      async scan() {
+        reached();
+        await gate;
+        return [];
+      },
+      scanOne: async () => null,
+      readFile: async () => null,
+      approvals: { load: async () => EMPTY_INSTRUCTION_APPROVALS, save: async () => undefined },
+    };
+    const testing = s.testSkills(["plainva:task-triage"], { maxCostUsd: null });
+    await scanning;
+    await s.removeAll();
+    release();
+    await testing;
+    expect([fake.sent.length, vault.saved.size]).toEqual([1, 0]);
   });
 });
