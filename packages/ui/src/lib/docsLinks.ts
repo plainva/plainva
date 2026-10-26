@@ -24,6 +24,24 @@ const DOCS_BASE = "https://plainva.com";
 export const GDRIVE_BYO_GUIDE = "Google_Drive_BYO_Guide.md";
 export const ONEDRIVE_DROPBOX_BYO_GUIDE = "OneDrive_and_Dropbox_BYO_Guide.md";
 
+/**
+ * The section of the Google guide that explains the phone's client type
+ * ("iOS", also on Android). Its heading is the same in every language, so the
+ * website's heading id is too; `docsLinks.test.ts` checks the heading.
+ */
+export const GOOGLE_PHONE_CLIENT_ANCHOR = "google-oauth--desktop--android--ios";
+
+/**
+ * Where a user's own Google client is explained for this device: the
+ * step-by-step guide (a "Desktop app" client) on a computer, its phone section
+ * (an "iOS" client) on Android and iPhone (issue 142: the phone linked no
+ * guide at all, and a Desktop-type client fails there with redirect_uri_mismatch).
+ */
+export function googleClientGuideUrl(platform: "desktop" | "ios" | "android", language = i18n.language): string {
+  const page = userGuideUrl(GDRIVE_BYO_GUIDE, language);
+  return platform === "desktop" ? page : `${page}#${GOOGLE_PHONE_CLIENT_ANCHOR}`;
+}
+
 /** Handbook file name → website slug. `README.md` is the section index. */
 export function docsSlug(page: string): string {
   const base = page.replace(/\.md$/i, "");

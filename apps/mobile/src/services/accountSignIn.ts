@@ -1,4 +1,4 @@
-import { Capacitor } from "@capacitor/core";
+import { devicePlatform } from "./devicePlatform";
 import {
   adoptFilesSignIn,
   bindSignedInAccount,
@@ -14,7 +14,6 @@ import {
   SignInNothingGrantedError,
   SignInWrongAccountError,
   validClientId,
-  type AccessPlatform,
   type AccessResolution,
   type CloudAccountRecord,
   type CloudServiceId,
@@ -63,10 +62,7 @@ export class AccessUnavailableError extends Error {
 
 const env = (): Record<string, unknown> => import.meta.env as unknown as Record<string, unknown>;
 
-/** The phone's platform for the access rules; the web build signs in like an iPhone, through the browser. */
-export function devicePlatform(): AccessPlatform {
-  return Capacitor.getPlatform() === "android" ? "android" : "ios";
-}
+export { devicePlatform };
 
 export async function readDeviceAccess(family: OAuthFamily, vaultId?: string): Promise<StoredOAuthAccess | null> {
   const credentials = getPlatformServices().credentials;

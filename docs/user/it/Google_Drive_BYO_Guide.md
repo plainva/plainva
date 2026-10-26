@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione con Google Drive (Bring Your Own Credentials)
 
-Ultimo aggiornamento: 2026-10-23
+Ultimo aggiornamento: 2026-10-26
 
 Plainva accede a Google con **Accesso su questo dispositivo**. Quando la tua build include l'**Accesso standard** per Google, non inserisci nulla e questa pagina non ti serve. Altrimenti — o se preferisci un progetto tutto tuo — usi le tue credenziali API di Google: questo approccio **Bring Your Own Credentials (BYO)** offre un modo sicuro per sincronizzare i tuoi file privati.
 
@@ -66,7 +66,7 @@ Il tuo vault ora si sincronizza in sicurezza con Google Drive tramite le tue cre
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-Le istruzioni per desktop qui sopra richiedono un client desktop con ID client e relativo secret. Sul telefono, su Android come su iOS, Plainva accede a Google nel browser: crea nel tuo progetto Google un client OAuth di tipo **iOS**, anche per Android, con l’ID bundle `com.plainva.app`. Plainva ritorna tramite `com.plainva.app:/oauth2redirect`; non c’è un client secret. Inserisci l’ID client sul telefono in **Accesso su questo dispositivo** → **ID client personale**. Non creare un client di tipo Android: Google accetta il nome del pacchetto e l’impronta del certificato della versione Play in un solo progetto al mondo e rifiuta tutti gli altri («il nome del pacchetto Android e l’impronta sono già in uso»). Un client Android configurato per Plainva 0.8.3 o 0.8.4 non funziona per un nuovo accesso; gli account che hanno già effettuato l’accesso continuano a funzionare. Un client desktop non sostituisce la registrazione mobile. Per i calendari abilita anche Google Calendar API e Google Tasks API.
+Le istruzioni per desktop qui sopra richiedono un client desktop con ID client e relativo secret. Sul telefono, su Android come su iOS, Plainva accede a Google nel browser: crea nel tuo progetto Google un client OAuth di tipo **iOS**, anche per Android, con l’ID bundle `com.plainva.app`. Plainva ritorna tramite `com.plainva.app:/oauth2redirect`; non c’è un client secret. Inserisci l’ID client sul telefono in **Accesso su questo dispositivo** → **ID client personale**. Non creare un client di tipo Android: Google accetta il nome del pacchetto e l’impronta del certificato della versione Play in un solo progetto al mondo e rifiuta tutti gli altri («il nome del pacchetto Android e l’impronta sono già in uso»). Un client Android configurato per Plainva 0.8.3 o 0.8.4 non funziona per un nuovo accesso; gli account che hanno già effettuato l’accesso continuano a funzionare. Un client desktop non sostituisce la registrazione mobile. Per i calendari abilita anche Google Calendar API e Google Tasks API. Se sul telefono Google mostra “Errore 400: redirect_uri_mismatch”, l’ID client è di tipo “App desktop”: crea un client di tipo **iOS** come descritto qui e inserisci invece il suo ID client. Sotto il campo dell’ID client, **Apri la guida di Google** porta a questa sezione.
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 

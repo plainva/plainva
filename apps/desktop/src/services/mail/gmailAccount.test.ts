@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GOOGLE_MAIL_SCOPES, googlePublicClient, type CloudAccountRecord, type StoredAccountToken } from "@plainva/ui";
+import { GOOGLE_MAIL_SCOPES, plainvaGoogleClient, type CloudAccountRecord, type StoredAccountToken } from "@plainva/ui";
 const state = vi.hoisted(() => ({ mailboxes: [] as import("@plainva/ui/mail").MailAccountConfig[], saveMail: vi.fn(), check: vi.fn() }));
 vi.mock("../../../../../packages/ui/src/mail/mailAccounts", () => ({ listMailAccounts: async () => state.mailboxes, saveBrokerMailAccount: state.saveMail }));
 vi.mock("../../../../../packages/ui/src/mail/transport", () => ({ mailTransport: () => ({ checkLogin: state.check }) }));
@@ -58,11 +58,14 @@ describe("Gmail account adoption", () => {
     const replay = await completeGmailSignIn("vault", token, "access", p, source);
     expect(replay.services).toEqual(first.services);
   });
-  it("enables only an explicitly configured native test registration", () => {
-    const env = { VITE_PLAINVA_GOOGLE_MAIL_STATE: "testing", VITE_PLAINVA_GOOGLE_IOS_CLIENT_ID: "123-test.apps.googleusercontent.com" };
-    expect(googlePublicClient(env, "ios")?.state).toBe("testing");
-    expect(googlePublicClient(env, "android")).toBeNull();
-    expect(googlePublicClient({ ...env, VITE_PLAINVA_GOOGLE_MAIL_STATE: "production" }, "ios")).toBeNull();
-    expect(googlePublicClient({}, "desktop")).toBeNull();
+  it("ships a client exactly when the build is configured with one, whatever the publishing state", () => {
+    const env = { VITE_PLAINVA_GOOGLE_IOS_CLIENT_ID: "123-test.apps.googleusercontent.com" };
+    for (const state of [undefined, "testing", "production"]) {
+      expect(plainvaGoogleClient({ ...env, VITE_PLAINVA_GOOGLE_MAIL_STATE: state }, "ios")).toEqual({ clientId: "123-test.apps.googleusercontent.com" });
+    }
+    expect(plainvaGoogleClient(env, "android")).toBeNull();
+    expect(plainvaGoogleClient({ ...env, VITE_PLAINVA_GOOGLE_IOS_CLIENT_ID: "" }, "ios")).toBeNull();
+    expect(plainvaGoogleClient({ VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_ID: "d.apps.googleusercontent.com" }, "desktop"), "a Desktop client needs its secret").toBeNull();
+    expect(plainvaGoogleClient({}, "desktop")).toBeNull();
   });
 });

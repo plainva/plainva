@@ -4715,7 +4715,10 @@
     "googleUnreachable": "无法连接到 Google。请检查网络连接后重试。",
     "googleAccountNotOnDevice": "Google 表示此账号未在本设备上登录。请在 Android 设置的账号中检查，然后重试。",
     "googlePlayServicesFailed": "Google Play 服务无法完成登录(代码 {{code}})。请重试。如果问题仍然存在，请更新 Google Play 服务。",
-    "googleClientUnsupported": "Google 注册配置与此设备的返回路径不匹配。请在 Google 指南中检查客户端类型和移动端设置。"
+    "googleClientUnsupported": "Google 注册配置与此设备的返回路径不匹配。请在 Google 指南中检查客户端类型和移动端设置。",
+    "googleClientWrongType": "Google 在此设备上拒绝了此客户端ID（redirect_uri_mismatch）。电脑上需要类型为“桌面应用”的客户端，手机上（Android 和 iPhone）需要类型为“iOS”、Bundle ID 为 com.plainva.app 的客户端。",
+    "googleClientWrongTypePhone": "Google 在手机上拒绝了此客户端ID（redirect_uri_mismatch）：它的类型不是“iOS”，很可能是只能在电脑上使用的“桌面应用”。手机上需要类型为“iOS”、Bundle ID 为 com.plainva.app 的客户端。",
+    "googleClientWrongTypeDesktop": "Google 在电脑上拒绝了此客户端ID（redirect_uri_mismatch）：它的类型不是“桌面应用”；类型为“iOS”的客户端只能在手机上使用。电脑上需要类型为“桌面应用”并带有客户端密钥的客户端。"
   },
   "connectionFailure": {
     "TLS_CERTIFICATE_EXPIRED": "服务器证书已过期。请在服务器上更新证书。",
@@ -4923,6 +4926,10 @@
     "ownDesc": {
       "google": "来自你自己 Google 项目的客户端。",
       "microsoft": "来自你自己 Microsoft 账户的应用注册。"
+    },
+    "ownTypeMismatch": {
+      "desktop": "如果 Google 显示“错误 400：redirect_uri_mismatch”，说明该客户端的类型不是“桌面应用”；类型为“iOS”的客户端只能在手机上使用。",
+      "ios": "如果 Google 显示“错误 400：redirect_uri_mismatch”，说明该客户端的类型是只能在电脑上使用的“桌面应用”；手机上需要类型为“iOS”的客户端。"
     },
     "ownType": {
       "desktop": "类型选“桌面应用”：在 Google Cloud Console 的“凭据”中创建；客户端ID和客户端密钥从那里获取。",

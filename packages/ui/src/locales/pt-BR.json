@@ -4837,7 +4837,10 @@
     "googleUnreachable": "Não foi possível acessar o Google. Verifique a conexão com a internet e tente de novo.",
     "googleAccountNotOnDevice": "O Google informa que esta conta não está conectada neste dispositivo. Confira nas configurações do Android, em contas, e tente de novo.",
     "googlePlayServicesFailed": "O Google Play Services não conseguiu concluir o login (código {{code}}). Tente de novo. Se o erro continuar, atualize o Google Play Services.",
-    "googleClientUnsupported": "O registro do Google não corresponde ao retorno deste dispositivo. Confira o tipo de cliente e a configuração móvel no guia do Google."
+    "googleClientUnsupported": "O registro do Google não corresponde ao retorno deste dispositivo. Confira o tipo de cliente e a configuração móvel no guia do Google.",
+    "googleClientWrongType": "O Google recusa este Client ID neste dispositivo (redirect_uri_mismatch). No computador é preciso um cliente do tipo “App para computador”; no celular (Android e iPhone), um do tipo “iOS” com o ID do pacote com.plainva.app.",
+    "googleClientWrongTypePhone": "O Google recusa este Client ID no celular (redirect_uri_mismatch): ele não é do tipo “iOS”, e sim provavelmente do tipo “App para computador”, que só funciona no computador. No celular é preciso um cliente do tipo “iOS” com o ID do pacote com.plainva.app.",
+    "googleClientWrongTypeDesktop": "O Google recusa este Client ID no computador (redirect_uri_mismatch): ele não é do tipo “App para computador”; um cliente do tipo “iOS” só funciona no celular. No computador é preciso um cliente do tipo “App para computador” com o seu Client Secret."
   },
   "connectionFailure": {
     "TLS_CERTIFICATE_EXPIRED": "O certificado do servidor expirou. Renove-o no servidor.",
@@ -5049,6 +5052,10 @@
     "ownDesc": {
       "google": "Um cliente do seu próprio projeto do Google.",
       "microsoft": "Um registro de aplicativo da sua própria conta Microsoft."
+    },
+    "ownTypeMismatch": {
+      "desktop": "Se o Google mostrar “Erro 400: redirect_uri_mismatch”, o cliente não é do tipo “App para computador”; um cliente do tipo “iOS” só funciona no celular.",
+      "ios": "Se o Google mostrar “Erro 400: redirect_uri_mismatch”, o cliente é do tipo “App para computador”, que só funciona no computador; no celular é preciso um do tipo “iOS”."
     },
     "ownType": {
       "desktop": "Tipo “App para computador”: crie-o no Google Cloud Console, em “Credenciais”; o Client ID e o Client Secret vêm de lá.",

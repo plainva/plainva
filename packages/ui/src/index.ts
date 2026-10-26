@@ -68,7 +68,6 @@ export * from "./lib/tokenBroker";
 export * from "./lib/accountCredentials";
 export * from "./lib/accountGrantMigration";
 export * from "./lib/oauthScopes";
-export * from "./lib/googlePublicClient";
 export * from "./lib/oauthAccess";
 export * from "./lib/accountSignIn";
 export * from "./lib/accountCheck";

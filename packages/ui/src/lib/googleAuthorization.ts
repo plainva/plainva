@@ -29,8 +29,8 @@
  *
  * The browser sign-in with the user's own client ID is the way that works for
  * everyone, and it is the default again. Play services is used only
- *   - with the client this build ships (`builtInClientId`, gated by
- *     `googlePublicClient`), or
+ *   - with the client this build ships (`builtInClientId`, from
+ *     `plainvaGoogleClient` in oauthAccess.ts), or
  *   - to sign an account in again that already holds a Play-services grant
  *     with this very client — it works for that account, and moving it to the
  *     browser unasked would break it.

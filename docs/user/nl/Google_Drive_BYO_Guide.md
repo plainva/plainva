@@ -1,6 +1,6 @@
 # Google Drive Sync instellen (Bring Your Own Credentials)
 
-Laatst bijgewerkt: 2026-10-23
+Laatst bijgewerkt: 2026-10-26
 
 Plainva meldt zich aan bij Google met **Aanmelding op dit apparaat**. Als je build de **Standaardaanmelding** voor Google bevat, voer je niets in en heb je deze pagina niet nodig. Anders — of als je liever een eigen project gebruikt — gebruik je je eigen Google API-toegangsgegevens ("credentials"): deze **Bring Your Own Credentials (BYO)**-aanpak biedt een veilige manier om je privébestanden te synchroniseren.
 
@@ -66,7 +66,7 @@ Je vault synchroniseert nu veilig met Google Drive via je eigen credentials.
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-De desktopinstructies hierboven vereisen een desktopclient met client-ID en bijbehorend clientgeheim. Op de telefoon, op Android net als op iOS, meldt Plainva zich in de browser aan bij Google: maak in je Google-project een OAuth-client van het type **iOS**, ook voor Android, met de bundel-ID `com.plainva.app`. Plainva keert terug via `com.plainva.app:/oauth2redirect`; er is geen clientgeheim. Voer de client-ID op de telefoon in onder **Aanmelding op dit apparaat** → **Eigen client-ID**. Maak geen client van het type Android: Google staat de pakketnaam en de certificaatvingerafdruk van de Play-build wereldwijd in precies één project toe en weigert elk ander (‘de Android-pakketnaam en vingerafdruk zijn al in gebruik’). Een Android-client die voor Plainva 0.8.3 of 0.8.4 is ingericht, werkt niet voor een nieuwe aanmelding; accounts die al zijn aangemeld blijven werken. Een desktopclient vervangt de mobiele registratie niet. Schakel voor agenda's ook Google Calendar API en Google Tasks API in.
+De desktopinstructies hierboven vereisen een desktopclient met client-ID en bijbehorend clientgeheim. Op de telefoon, op Android net als op iOS, meldt Plainva zich in de browser aan bij Google: maak in je Google-project een OAuth-client van het type **iOS**, ook voor Android, met de bundel-ID `com.plainva.app`. Plainva keert terug via `com.plainva.app:/oauth2redirect`; er is geen clientgeheim. Voer de client-ID op de telefoon in onder **Aanmelding op dit apparaat** → **Eigen client-ID**. Maak geen client van het type Android: Google staat de pakketnaam en de certificaatvingerafdruk van de Play-build wereldwijd in precies één project toe en weigert elk ander (‘de Android-pakketnaam en vingerafdruk zijn al in gebruik’). Een Android-client die voor Plainva 0.8.3 of 0.8.4 is ingericht, werkt niet voor een nieuwe aanmelding; accounts die al zijn aangemeld blijven werken. Een desktopclient vervangt de mobiele registratie niet. Schakel voor agenda's ook Google Calendar API en Google Tasks API in. Toont Google op de telefoon “Fout 400: redirect_uri_mismatch”, dan is de client-ID van het type “Desktop-app”: maak zoals hier beschreven een client van het type **iOS** aan en voer in plaats daarvan diens client-ID in. Onder het veld voor de client-ID leidt **Google-gids openen** naar dit gedeelte.
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 

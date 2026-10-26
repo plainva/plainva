@@ -4715,7 +4715,10 @@
     "googleUnreachable": "Googleに接続できませんでした。インターネット接続を確認して、もう一度お試しください。",
     "googleAccountNotOnDevice": "Googleによると、このアカウントはこのデバイスでサインインされていません。Androidの設定のアカウントで確認してから、もう一度お試しください。",
     "googlePlayServicesFailed": "Google Play開発者サービスがサインインを完了できませんでした(コード {{code}})。もう一度お試しください。解消しない場合はGoogle Play開発者サービスを更新してください。",
-    "googleClientUnsupported": "Googleの登録設定がこのデバイスの戻り先に対応していません。Googleの手順でクライアントの種類とモバイル設定を確認してください。"
+    "googleClientUnsupported": "Googleの登録設定がこのデバイスの戻り先に対応していません。Googleの手順でクライアントの種類とモバイル設定を確認してください。",
+    "googleClientWrongType": "Google はこのデバイスでこのクライアントIDを拒否しました（redirect_uri_mismatch）。パソコンでは種類「デスクトップ アプリ」のクライアントが、スマートフォン（Android と iPhone）ではバンドルID com.plainva.app を持つ種類「iOS」のクライアントが必要です。",
+    "googleClientWrongTypePhone": "Google はスマートフォンでこのクライアントIDを拒否しました（redirect_uri_mismatch）。このクライアントは種類「iOS」ではなく、おそらくパソコンでしか使えない種類「デスクトップ アプリ」です。スマートフォンでは、バンドルID com.plainva.app を持つ種類「iOS」のクライアントが必要です。",
+    "googleClientWrongTypeDesktop": "Google はパソコンでこのクライアントIDを拒否しました（redirect_uri_mismatch）。このクライアントは種類「デスクトップ アプリ」ではありません。種類「iOS」のクライアントはスマートフォンでしか使えません。パソコンでは、クライアントシークレット付きの種類「デスクトップ アプリ」のクライアントが必要です。"
   },
   "connectionFailure": {
     "TLS_CERTIFICATE_EXPIRED": "サーバー証明書の有効期限が切れています。サーバーで更新してください。",
@@ -4923,6 +4926,10 @@
     "ownDesc": {
       "google": "ご自身の Google プロジェクトのクライアントです。",
       "microsoft": "ご自身の Microsoft アカウントでのアプリの登録です。"
+    },
+    "ownTypeMismatch": {
+      "desktop": "Google に「エラー 400: redirect_uri_mismatch」と表示される場合、そのクライアントは種類「デスクトップ アプリ」ではありません。種類「iOS」のクライアントはスマートフォンでしか使えません。",
+      "ios": "Google に「エラー 400: redirect_uri_mismatch」と表示される場合、そのクライアントはパソコンでしか使えない種類「デスクトップ アプリ」です。スマートフォンでは種類「iOS」のクライアントが必要です。"
     },
     "ownType": {
       "desktop": "種類は「デスクトップ アプリ」です。Google Cloud Console の「認証情報」で作成し、クライアントIDとクライアントシークレットをそこから取得します。",

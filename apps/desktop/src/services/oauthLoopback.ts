@@ -37,5 +37,6 @@ export async function cancelOAuthLoopback(): Promise<void> {
  * word for word, framed as the provider's answer.
  */
 export function oauthErrorText(err: unknown): string {
-  return serviceConnectionMessage(err, (key, options) => i18n.t(key, options ?? {}));
+  // A wrong Google client type reads as "needs a Desktop app client" here (issue 142).
+  return serviceConnectionMessage(err, (key, options) => i18n.t(key, options ?? {}), { platform: "desktop" });
 }

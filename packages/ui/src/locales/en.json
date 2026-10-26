@@ -4776,7 +4776,10 @@
     "googleUnreachable": "Google could not be reached. Check the internet connection and try again.",
     "googleAccountNotOnDevice": "Google reports that this account is not signed in on this device. Check it in the Android settings under accounts, then try again.",
     "googlePlayServicesFailed": "Google Play services could not complete the sign-in (code {{code}}). Try again. If it keeps failing, update Google Play services.",
-    "googleClientUnsupported": "The Google registration does not match this device’s return path. Check the client type and mobile setup in the Google guide."
+    "googleClientUnsupported": "The Google registration does not match this device’s return path. Check the client type and mobile setup in the Google guide.",
+    "googleClientWrongType": "Google refused this client ID on this device (redirect_uri_mismatch). On a computer it needs a client of type “Desktop app”, on a phone (Android and iPhone) one of type “iOS” with the bundle ID com.plainva.app.",
+    "googleClientWrongTypePhone": "Google refused this client ID on the phone (redirect_uri_mismatch): it is not of type “iOS” — most likely of type “Desktop app”, which only works on a computer. On a phone it needs a client of type “iOS” with the bundle ID com.plainva.app.",
+    "googleClientWrongTypeDesktop": "Google refused this client ID on the computer (redirect_uri_mismatch): it is not of type “Desktop app” — a client of type “iOS” only works on a phone. On a computer it needs a client of type “Desktop app” with its client secret."
   },
   "connectionFailure": {
     "TLS_CERTIFICATE_EXPIRED": "The server certificate has expired. Renew it on the server.",
@@ -4986,6 +4989,10 @@
     "ownDesc": {
       "google": "A client from your own Google project.",
       "microsoft": "An app registration from your own Microsoft account."
+    },
+    "ownTypeMismatch": {
+      "desktop": "If Google shows “Error 400: redirect_uri_mismatch”, the client is not of type “Desktop app”; a client of type “iOS” only works on a phone.",
+      "ios": "If Google shows “Error 400: redirect_uri_mismatch”, the client is of type “Desktop app”, which only works on a computer; on a phone it needs one of type “iOS”."
     },
     "ownType": {
       "desktop": "Type “Desktop app”: create it in the Google Cloud Console under “Credentials”; client ID and client secret come from there.",

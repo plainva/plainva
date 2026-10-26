@@ -13,6 +13,16 @@ import {
   type StoredOAuthAccess,
 } from "../../lib/oauthAccess";
 import type { OAuthFamily } from "../../lib/oauthScopes";
+import { googleClientGuideUrl, ONEDRIVE_DROPBOX_BYO_GUIDE, userGuideUrl } from "../../lib/docsLinks";
+import { getPlatformServices } from "../../platform/services";
+
+/**
+ * The guide for an own client of this family on this device: the Google page
+ * (and on a phone its "iOS" section), or the Microsoft one.
+ */
+export function ownAccessGuideUrl(family: OAuthFamily, platform: AccessPlatform): string {
+  return family === "google" ? googleClientGuideUrl(platform) : userGuideUrl(ONEDRIVE_DROPBOX_BYO_GUIDE);
+}
 
 /**
  * Which client this device signs in with (account sign-in plan E3, mockup
@@ -81,6 +91,19 @@ export function OAuthAccessEditor({
             </SettingRow>
           )}
           <SettingCardNote>{typeHint}</SettingCardNote>
+          {/* issue 142: Google answers a client of the wrong type on its own error
+              page, which never reaches Plainva — so the editor says it first. */}
+          {family === "google" && <SettingCardNote>{t(`accountAccess.ownTypeMismatch.${needs.clientType}`)}</SettingCardNote>}
+          <div>
+            <Button
+              variant="ghost"
+              size="sm"
+              data-testid={`oauth-access-${family}-guide`}
+              onClick={() => void getPlatformServices().openExternal(ownAccessGuideUrl(family, platform)).catch(() => undefined)}
+            >
+              {t("cloudAccounts.providerHelp", { provider: family === "google" ? "Google" : "Microsoft" })}
+            </Button>
+          </div>
           {idInvalid && <Banner kind="warning" rounded>{t("accountAccess.problem.ownClientInvalid")}</Banner>}
         </>
       )}

@@ -1,7 +1,7 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import {
-  chooseGoogleSignInFlow, GoogleAuthorizationError, googleAuthorizationDiagnostic, googleOrphanResultDiagnostic, googlePublicClient, googleServicesOfScope, logDiagnostic,
-  oauthScopesCover, parseGoogleUserInfo, readGoogleAuthorizationFailure, verifiedProviderIdentityKey, withAccountCredentialLock,
+  chooseGoogleSignInFlow, GoogleAuthorizationError, googleAuthorizationDiagnostic, googleOrphanResultDiagnostic, googleServicesOfScope, logDiagnostic,
+  oauthScopesCover, parseGoogleUserInfo, plainvaGoogleClient, readGoogleAuthorizationFailure, verifiedProviderIdentityKey, withAccountCredentialLock,
   type GoogleAuthorizationFailure, type StoredAccountToken,
 } from "@plainva/ui";
 import { webdavFetch } from "../adapters/webdavHttp";
@@ -33,7 +33,12 @@ export function googleSignInFlow(clientId: string, nativeGrantClientIds: readonl
   return chooseGoogleSignInFlow({
     playServices,
     clientId,
-    builtInClientId: playServices ? googlePublicClient(import.meta.env, "android")?.clientId : null,
+    // The one rule for "does this build ship Plainva's Android client" — the
+    // same one the account card's standard sign-in reads (oauthAccess.ts). It
+    // asks whether the client is configured, not Google's publishing state:
+    // the earlier gate on VITE_PLAINVA_GOOGLE_MAIL_STATE === "testing" would
+    // have hidden the system sign-in the day the project went to production.
+    builtInClientId: playServices ? plainvaGoogleClient(import.meta.env, "android")?.clientId : null,
     nativeGrantClientIds,
   });
 }
