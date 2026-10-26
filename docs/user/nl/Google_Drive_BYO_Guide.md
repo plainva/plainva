@@ -39,7 +39,7 @@ Om Plainva je credentials te laten gebruiken, moet een toestemmingsscherm ("OAut
    - Voer precies het Google-e-mailadres in dat je later voor sync in Plainva zult gebruiken.
    - Klik op **Opslaan en doorgaan**, ga dan terug naar het dashboard.
 
-*Belangrijk: je hoeft de app NIET te publiceren — in de status "Testing" werkt ze volledig. Houd er dan wel rekening mee dat Google de aanmelding na **7 dagen** laat verlopen, en wel definitief: in deze modus verloopt ook het vernieuwingstoken, Plainva kan het op de achtergrond dus niet verversen. Plainva zegt je dat dan in gewone taal ("Aanmelding verlopen"), en **Opnieuw aanmelden** in de accountdetails herstelt haar in één doorloop voor alle diensten van dit account.*
+*Belangrijk: je hoeft de app NIET te publiceren — in de status "Testing" werkt ze volledig. Houd er dan wel rekening mee dat Google de aanmelding na **7 dagen** laat verlopen, en wel definitief: in deze modus verloopt ook het vernieuwingstoken, Plainva kan het op de achtergrond dus niet verversen. Plainva zegt je dat dan in gewone taal ("Aanmelding verlopen"), en **Opnieuw verbinden** in de accountdetails herstelt haar in één doorloop voor alle diensten van dit account.*
 
 **In productie** verwijdert de vaste vervaltijd van de testmodus. Dit garandeert geen blijvende aanmelding: Google kan toegang nog steeds laten verlopen of intrekken. De eisen voor publicatie en verificatie hangen af van het gebruik en de gevraagde rechten. [Google: vervallen van vernieuwingstokens](https://developers.google.com/identity/protocols/oauth2#expiration).
 

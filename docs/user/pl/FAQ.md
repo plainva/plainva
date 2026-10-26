@@ -1,6 +1,6 @@
 # FAQ i rozwiązywanie problemów
 
-Stan na: 2026-10-22
+Stan na: 2026-10-26
 
 Odpowiedzi na najczęstsze pytania — od zgodności z Obsidian, przez pliki konfliktów, po kopie zapasowe.
 
@@ -70,7 +70,7 @@ Aby to rozwiązać, **Porównaj wersje** (prawy przycisk na pliku konfliktu, ban
 
 ### Moje logowanie do Google ciągle wygasa
 
-Przy konfiguracji „Bring Your Own” Twój projekt Google pozostaje w trybie testowym; Google kończy wtedy sesję po 7 dniach. Plainva odnawia tokeny automatycznie w tle, ale po wygaśnięciu pomaga **Połącz ponownie** w ustawieniach synchronizacji. Szczegóły: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
+Przy konfiguracji „Bring Your Own” Twój projekt Google pozostaje w trybie testowym; Google kończy wtedy sesję po 7 dniach. Plainva odnawia tokeny automatycznie w tle, ale po wygaśnięciu pomaga **Zaloguj się ponownie** na stronie konta w sekcji **Konta w chmurze**. Szczegóły: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
 ### Mój vault znajduje się w folderze OneDrive/Dropbox/iCloud i Plainva zachowuje się dziwnie
 
@@ -82,7 +82,7 @@ Są zapisywane lokalnie jak zwykle i gromadzone w kolejce; gdy tylko połączeni
 
 ### Pasek stanu pokazuje Offline, mimo że mam internet
 
-Wtedy sama synchronizacja jest zerwana — często dlatego, że logowanie wygasło lub zmieniły się dane dostępowe (np. w Google Drive). Kliknij **Offline** na pasku stanu lub trójkąt ostrzegawczy obok nazwy vaultu: okno dialogowe pokazuje dokładny komunikat błędu, a **Otwórz ustawienia synchronizacji** prowadzi bezpośrednio do właściwego formularza dostawcy, gdzie ponownie nawiązujesz połączenie (np. **Połącz ponownie**). Każde kliknięcie od razu uruchamia też nową próbę synchronizacji.
+Wtedy sama synchronizacja jest zerwana — często dlatego, że logowanie wygasło lub zmieniły się dane dostępowe (np. w Google Drive). Kliknij **Offline** na pasku stanu lub trójkąt ostrzegawczy obok nazwy vaultu: okno dialogowe pokazuje dokładny komunikat błędu, a **Otwórz ustawienia synchronizacji** prowadzi do ustawień synchronizacji; strona konta w sekcji **Konta w chmurze** pokazuje jego stan i oferuje **Zaloguj się** lub **Zaloguj się ponownie** wprost w swoim nagłówku. Każde kliknięcie od razu uruchamia też nową próbę synchronizacji.
 
 ### Dlaczego brakuje dostawcy X (Proton, Tuta, iCloud Drive …)?
 

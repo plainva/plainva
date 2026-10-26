@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-10-22
+Last reviewed: 2026-10-26
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
@@ -70,7 +70,7 @@ To resolve it, **Compare versions** (right-click on the conflict file, the banne
 
 ### My Google sign-in keeps expiring
 
-With the "Bring Your Own" setup, your Google project stays in testing mode; Google then ends the session after 7 days. Plainva renews tokens automatically in the background, but once expired, use **Reconnect** in the sync settings. Details: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
+With the "Bring Your Own" setup, your Google project stays in testing mode; Google then ends the session after 7 days. Plainva renews tokens automatically in the background, but once expired, use **Sign in again** on the account's page under **Cloud accounts**. Details: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
 ### My vault lives in a OneDrive/Dropbox/iCloud folder and Plainva behaves strangely
 
@@ -82,7 +82,7 @@ They are saved locally as usual and collected in a queue; as soon as the connect
 
 ### The status bar says Offline even though I have internet
 
-Then the sync connection itself is broken — often because the sign-in expired or the credentials changed (e.g. with Google Drive). Click **Offline** in the status bar or the warning triangle next to the vault name: the dialog shows the exact error message, and **Open sync settings** takes you straight to the matching provider form where you reconnect (e.g. **Reconnect**). Every click also triggers an immediate sync retry.
+Then the sync connection itself is broken — often because the sign-in expired or the credentials changed (e.g. with Google Drive). Click **Offline** in the status bar or the warning triangle next to the vault name: the dialog shows the exact error message, and **Open sync settings** takes you to the sync settings; the account's page under **Cloud accounts** shows its state and offers **Sign in** or **Sign in again** right in its head. Every click also triggers an immediate sync retry.
 
 ### Why is provider X missing (Proton, Tuta, iCloud Drive …)?
 

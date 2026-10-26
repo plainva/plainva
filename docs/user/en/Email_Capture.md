@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-10-25
+Last reviewed: 2026-10-26
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -16,9 +16,9 @@ Plainva can read your mailbox to get knowledge out of email and into your vault,
 
 Connecting validates the login before anything is saved; the credentials go into your operating system's keychain. The connected mailboxes and the capture settings then live in the **Email** area: the **Mail folder** setting chooses where captured emails are stored (default `Mail`).
 
-**Signing in on a second device.** When a mailbox travels with the settings sync, its password does not come along automatically — sign-ins are only transferred if you switch the credentials sync on yourself. Such a mailbox shows a **Sign in on this device** button in the **Email** area: type the password, and Plainva checks it with the provider before storing it in the keychain. For a Microsoft mailbox the same button leads to **Cloud accounts**, because that is where the browser sign-in happens. When this leaves the message list empty, the same notice and the same button appear there as well — you do not have to go looking for the settings yourself.
+**Signing in on a second device.** When a mailbox travels with the settings sync, its password does not come along automatically — sign-ins are only transferred if you switch the credentials sync on yourself. Such a mailbox shows a **Sign in** button in the **Email** area: type the password, and Plainva checks it with the provider before storing it in the keychain. For a Microsoft mailbox the same button leads to **Cloud accounts**, because that is where the browser sign-in happens. When this leaves the message list empty, the same notice and the same button appear there as well — you do not have to go looking for the settings yourself.
 
-**Email accounts without a password.** A setup that failed while saving could leave an entry without a password behind (Plainva 0.8.3 on the desktop). The **Email** area points out, once, the accounts that have no password on this device and have never fetched mail here. **View** shows the list. If you use such an account on another device, choose **Sign in on this device** — that is the right way then. **Remove** deletes the entry after asking, on every device that syncs this vault's settings, never mail or files. **Later** hides the notice. Plainva never removes anything on its own.
+**Email accounts without a password.** A setup that failed while saving could leave an entry without a password behind (Plainva 0.8.3 on the desktop). The **Email** area points out, once, the accounts that have no password on this device and have never fetched mail here. **View** shows the list. If you use such an account on another device, choose **Sign in** — that is the right way then. **Remove** deletes the entry after asking, on every device that syncs this vault's settings, never mail or files. **Later** hides the notice. Plainva never removes anything on its own.
 
 ## Reading mail
 

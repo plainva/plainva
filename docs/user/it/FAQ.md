@@ -1,6 +1,6 @@
 # FAQ e risoluzione dei problemi
 
-Ultimo aggiornamento: 2026-10-22
+Ultimo aggiornamento: 2026-10-26
 
 Risposte alle domande più comuni — dalla compatibilità con Obsidian ai file in conflitto e ai backup.
 
@@ -70,7 +70,7 @@ Per risolverlo, **Confronta versioni** (clic destro sul file di conflitto, l’a
 
 ### Il mio accesso Google scade continuamente
 
-Con la configurazione "Bring Your Own", il tuo progetto Google resta in modalità di test; Google termina quindi la sessione dopo 7 giorni. Plainva rinnova i token automaticamente in background, ma una volta scaduti, usa **Riconnetti** nelle impostazioni di sincronizzazione. Dettagli: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
+Con la configurazione "Bring Your Own", il tuo progetto Google resta in modalità di test; Google termina quindi la sessione dopo 7 giorni. Plainva rinnova i token automaticamente in background, ma una volta scaduti, usa **Riconnetti** nella pagina dell'account sotto **Account cloud**. Dettagli: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
 ### Il mio vault vive in una cartella OneDrive/Dropbox/iCloud e Plainva si comporta in modo strano
 
@@ -82,7 +82,7 @@ Vengono salvate localmente come al solito e raccolte in una coda; non appena tor
 
 ### La barra di stato mostra Offline anche se ho internet
 
-Allora è la connessione di sincronizzazione stessa a essere interrotta — spesso perché l'accesso è scaduto o le credenziali sono cambiate (ad es. con Google Drive). Clicca su **Offline** nella barra di stato o sul triangolo di avviso accanto al nome del vault: il dialogo mostra il messaggio di errore esatto, e **Apri le impostazioni di sincronizzazione** ti porta direttamente al modulo del provider corrispondente dove ristabilisci la connessione (ad es. **Riconnetti**). Ogni clic avvia anche subito un nuovo tentativo di sincronizzazione.
+Allora è la connessione di sincronizzazione stessa a essere interrotta — spesso perché l'accesso è scaduto o le credenziali sono cambiate (ad es. con Google Drive). Clicca su **Offline** nella barra di stato o sul triangolo di avviso accanto al nome del vault: il dialogo mostra il messaggio di errore esatto, e **Apri le impostazioni di sincronizzazione** ti porta alle impostazioni di sincronizzazione; la pagina dell'account sotto **Account cloud** mostra il suo stato e offre **Accedi** o **Riconnetti** direttamente nella sua intestazione. Ogni clic avvia anche subito un nuovo tentativo di sincronizzazione.
 
 ### Perché manca il provider X (Proton, Tuta, iCloud Drive …)?
 

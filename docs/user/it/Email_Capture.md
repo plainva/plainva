@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-10-25
+Ultimo aggiornamento: 2026-10-26
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -16,9 +16,9 @@ Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mai
 
 Il collegamento verifica l'accesso prima che venga salvato qualcosa; le credenziali finiscono nel portachiavi del sistema operativo. Le caselle collegate e le impostazioni di cattura si trovano poi nell'area **E-mail**: l'impostazione **Cartella e-mail** sceglie dove vengono salvate le e-mail catturate (predefinita `Mail`).
 
-**Accedere su un secondo dispositivo.** Quando una casella arriva tramite la sincronizzazione delle impostazioni, la sua password non la segue automaticamente: gli accessi vengono trasferiti solo se attivi tu la sincronizzazione delle credenziali. Una casella così mostra il pulsante **Accedi su questo dispositivo** nell'area **E-mail**: digita la password e Plainva la verifica presso il provider prima di salvarla nel portachiavi. Per una casella Microsoft lo stesso pulsante porta a **Account cloud**, perché è lì che avviene l'accesso nel browser. Se questo lascia vuoto l'elenco dei messaggi, lo stesso avviso con lo stesso pulsante compare anche lì — non devi cercare le impostazioni da solo.
+**Accedere su un secondo dispositivo.** Quando una casella arriva tramite la sincronizzazione delle impostazioni, la sua password non la segue automaticamente: gli accessi vengono trasferiti solo se attivi tu la sincronizzazione delle credenziali. Una casella così mostra il pulsante **Accedi** nell'area **E-mail**: digita la password e Plainva la verifica presso il provider prima di salvarla nel portachiavi. Per una casella Microsoft lo stesso pulsante porta a **Account cloud**, perché è lì che avviene l'accesso nel browser. Se questo lascia vuoto l'elenco dei messaggi, lo stesso avviso con lo stesso pulsante compare anche lì — non devi cercare le impostazioni da solo.
 
-**Account e-mail senza password.** Una configurazione fallita durante il salvataggio poteva lasciare una voce senza password (Plainva 0.8.3 su desktop). L’area **E-mail** segnala una volta gli account che su questo dispositivo non hanno password e qui non hanno mai scaricato e-mail. **Vedi** mostra l’elenco. Se usi un account del genere su un altro dispositivo, scegli **Accedi su questo dispositivo**: in quel caso è la strada giusta. **Rimuovi** elimina la voce dopo una conferma, su tutti i dispositivi che sincronizzano le impostazioni di questo vault, mai e-mail o file. **Più tardi** nasconde l’avviso. Plainva non rimuove mai nulla da solo.
+**Account e-mail senza password.** Una configurazione fallita durante il salvataggio poteva lasciare una voce senza password (Plainva 0.8.3 su desktop). L’area **E-mail** segnala una volta gli account che su questo dispositivo non hanno password e qui non hanno mai scaricato e-mail. **Vedi** mostra l’elenco. Se usi un account del genere su un altro dispositivo, scegli **Accedi**: in quel caso è la strada giusta. **Rimuovi** elimina la voce dopo una conferma, su tutti i dispositivi che sincronizzano le impostazioni di questo vault, mai e-mail o file. **Più tardi** nasconde l’avviso. Plainva non rimuove mai nulla da solo.
 
 ## Leggere le e-mail
 

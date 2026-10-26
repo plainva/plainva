@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-10-25
+Stand: 2026-10-26
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -16,9 +16,9 @@ Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen
 
 Beim Verbinden wird die Anmeldung geprüft, bevor irgendetwas gespeichert wird; die Zugangsdaten landen im Schlüsselbund Deines Betriebssystems. Die verbundenen Postfächer und die Ablage-Einstellungen findest Du danach im Bereich **E-Mail**: die Einstellung **E-Mail-Ordner** bestimmt, wo abgelegte E-Mails gespeichert werden (Standard `Mail`).
 
-**Auf einem zweiten Gerät anmelden.** Reist ein Postfach über die Einstellungs-Synchronisation mit, kommt sein Passwort nicht automatisch mit — Anmeldungen werden nur übertragen, wenn Du den Zugangsdaten-Sync ausdrücklich einschaltest. Ein solches Postfach zeigt im Bereich **E-Mail** den Knopf **Auf diesem Gerät anmelden**: Passwort eingeben, Plainva prüft es beim Anbieter und legt es erst danach im Schlüsselbund ab. Bei einem Microsoft-Postfach führt derselbe Knopf zu **Cloud-Konten**, weil dort die Anmeldung im Browser läuft. Bleibt die Nachrichtenliste deswegen leer, steht derselbe Hinweis mit demselben Knopf auch dort — Du musst die Einstellungen dafür nicht selbst suchen.
+**Auf einem zweiten Gerät anmelden.** Reist ein Postfach über die Einstellungs-Synchronisation mit, kommt sein Passwort nicht automatisch mit — Anmeldungen werden nur übertragen, wenn Du den Zugangsdaten-Sync ausdrücklich einschaltest. Ein solches Postfach zeigt im Bereich **E-Mail** den Knopf **Anmelden**: Passwort eingeben, Plainva prüft es beim Anbieter und legt es erst danach im Schlüsselbund ab. Bei einem Microsoft-Postfach führt derselbe Knopf zu **Cloud-Konten**, weil dort die Anmeldung im Browser läuft. Bleibt die Nachrichtenliste deswegen leer, steht derselbe Hinweis mit demselben Knopf auch dort — Du musst die Einstellungen dafür nicht selbst suchen.
 
-**E-Mail-Konten ohne Passwort.** Eine Einrichtung, die beim Speichern scheiterte, konnte einen Eintrag ohne Passwort zurücklassen (Plainva 0.8.3 am Desktop). Der Bereich **E-Mail** weist einmal auf Konten hin, die auf diesem Gerät kein Passwort haben und hier noch nie Mails abgerufen haben. **Ansehen** zeigt die Liste. Nutzt Du ein solches Konto auf einem anderen Gerät, wähle **Auf diesem Gerät anmelden** — das ist dann der richtige Weg. **Entfernen** löscht den Eintrag nach einer Rückfrage auf allen Geräten, die die Einstellungen dieses Vaults abgleichen, nie Mails oder Dateien. **Später** blendet den Hinweis aus. Von sich aus entfernt Plainva nichts.
+**E-Mail-Konten ohne Passwort.** Eine Einrichtung, die beim Speichern scheiterte, konnte einen Eintrag ohne Passwort zurücklassen (Plainva 0.8.3 am Desktop). Der Bereich **E-Mail** weist einmal auf Konten hin, die auf diesem Gerät kein Passwort haben und hier noch nie Mails abgerufen haben. **Ansehen** zeigt die Liste. Nutzt Du ein solches Konto auf einem anderen Gerät, wähle **Anmelden** — das ist dann der richtige Weg. **Entfernen** löscht den Eintrag nach einer Rückfrage auf allen Geräten, die die Einstellungen dieses Vaults abgleichen, nie Mails oder Dateien. **Später** blendet den Hinweis aus. Von sich aus entfernt Plainva nichts.
 
 ## Mails lesen
 
