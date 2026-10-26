@@ -82,7 +82,7 @@ Du musst nicht aus Plainva heraus senden. Das hier funktioniert an jeder Notiz u
 
 ## Signatur und Absender-Adressen
 
-Unter **Einstellungen → E-Mail → Senden** hat jedes Postfach zwei eigene Einstellungen:
+Auf der E-Mail-Seite seines Kontos — **Cloud-Konten** → das Konto → **E-Mail**, oder die Zeile des Postfachs im Bereich **E-Mail** — hat jedes Postfach zwei eigene Einstellungen:
 
 - **Signatur** — Markdown, wird beim Verfassen unter Deinen Text gesetzt (und über einem zitierten oder weitergeleiteten Original, wo ein Leser sie erwartet). Wechselst Du im Verfassen-Fenster den Absender, wird die Signatur ausgetauscht statt eine zweite anzuhängen. Das Feld ist derselbe Editor wie im Verfassen-Fenster — Du siehst die Signatur also so, wie sie verschickt wird.
 - **Signatur je Adresse** — hast Du weitere Absender-Adressen hinterlegt, erscheint über dem Feld die Auswahl **Signatur für**. „Standard (alle Adressen)" ist die Signatur des Kontos; wählst Du eine Adresse, schreibst Du eine eigene nur für sie. Adressen ohne eigene Signatur nutzen weiter die Standard-Signatur, und ein Wechsel des Absenders im Verfassen-Fenster tauscht die richtige ein — auch zwischen zwei Adressen desselben Kontos. Leerst Du das Feld einer Adresse, fällt sie auf den Standard zurück.

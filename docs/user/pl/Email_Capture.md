@@ -82,7 +82,7 @@ Nie musisz wysyłać z poziomu Plainva. To działa dla dowolnej notatki i nie wy
 
 ## Podpis i adresy nadawcy
 
-W **Ustawieniach → E-mail → Wysyłanie** każda skrzynka ma dwa własne ustawienia:
+Na stronie poczty swojego konta — **Konta w chmurze** → konto → **E-mail**, albo w wierszu skrzynki w obszarze **E-mail** — każda skrzynka ma dwa własne ustawienia:
 
 - **Podpis** — w Markdownie, dodawany pod Twoim tekstem podczas pisania (i nad cytowanym lub przekazanym oryginałem, gdzie czytelnik się go spodziewa). Zmiana nadawcy w oknie tworzenia wiadomości podmienia podpis, zamiast doklejać drugi. Pole to ten sam edytor co okno tworzenia wiadomości, więc widzisz podpis dokładnie w takiej postaci, w jakiej zostanie wysłany.
 - **Podpis dla adresu** — gdy masz dodatkowe adresy nadawcy, nad polem pojawia się wybór **Podpis dla**. „Domyślny (wszystkie adresy)” to podpis konta; wybierz adres, aby napisać podpis tylko dla niego. Adresy bez własnego podpisu nadal używają domyślnego, a zmiana nadawcy podczas pisania wstawia właściwy — także między dwoma adresami tego samego konta. Gdy opróżnisz pole adresu, wróci on do domyślnego.

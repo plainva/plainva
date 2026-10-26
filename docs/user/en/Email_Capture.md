@@ -82,7 +82,7 @@ You don't have to send from within Plainva. These work on any note and need no S
 
 ## Signature and sender addresses
 
-Under **Settings → E-Mail → Sending** each mailbox carries two settings of its own:
+On the mail page of its account — **Cloud accounts** → the account → **Email**, or the mailbox's row in the **Email** area — each mailbox carries two settings of its own:
 
 - **Signature** — Markdown, added below what you write when composing (and above a quoted or forwarded original, where a reader expects it). Switching sender in the compose window swaps the signature instead of stacking a second one. The field is the same editor as the compose window, so you see the signature the way it will be sent.
 - **Signature per address** — once you have additional sender addresses, a **Signature for** selector appears above the field. “Default (all addresses)” is the account signature; pick an address to write one just for it. Addresses without their own signature keep using the default, and switching sender while composing swaps in the right one — including between two addresses of the same account. Empty an address's field and it falls back to the default.

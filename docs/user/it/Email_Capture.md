@@ -82,7 +82,7 @@ Non devi inviare dall'interno di Plainva. Questo funziona con qualsiasi nota e n
 
 ## Firma e indirizzi mittente
 
-In **Impostazioni → E-mail → Invio** ogni casella ha due impostazioni proprie:
+Nella pagina e-mail del suo account — **Account cloud** → l'account → **E-mail**, oppure la riga della casella nell'area **E-mail** — ogni casella ha due impostazioni proprie:
 
 - **Firma** — in Markdown, aggiunta sotto il tuo testo quando scrivi (e sopra un originale citato o inoltrato, dove il lettore se la aspetta). Cambiando mittente nella finestra di composizione la firma viene sostituita invece di accumularne una seconda. Il campo usa lo stesso editor della finestra di composizione, quindi vedi la firma come verrà inviata.
 - **Firma per indirizzo** — quando hai altri indirizzi mittente, sopra il campo compare la scelta **Firma per**. «Predefinita (tutti gli indirizzi)» è la firma dell'account; scegli un indirizzo per scriverne una solo per lui. Gli indirizzi senza firma propria continuano a usare quella predefinita, e cambiare mittente mentre scrivi inserisce quella giusta — anche tra due indirizzi dello stesso account. Se svuoti il campo di un indirizzo, torna alla predefinita.
