@@ -274,9 +274,10 @@ export async function replaceMailAccounts(vaultPath: string, accounts: MailAccou
  * Why a mailbox is saved, said by the caller (fifth review of plan "Verbinden",
  * finding 1). `connect`: the person connects or signs in the mailbox - the add
  * wizard, Gmail through Google, Microsoft, a password connect, the E7
- * replacement, a vault transfer; that is an add, also for a mailbox this
- * device still holds, because elsewhere it may have been removed meanwhile.
- * `edit`: a change on the mailbox page, or putting back what was there; no
+ * replacement; that is an add, also for a mailbox this device still holds,
+ * because elsewhere it may have been removed meanwhile.
+ * `edit`: a change on the mailbox page, putting back what was there, or a
+ * mailbox moved with its vault into another one; no
  * add - on a device that has not yet heard of a removal made elsewhere it
  * would bring the mailbox back everywhere. Acts that never saw each other are
  * decided by counter, then time (`laterAccountAct`).
