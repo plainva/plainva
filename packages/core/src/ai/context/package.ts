@@ -9,7 +9,7 @@ import { mergeCandidates, rankCandidates, urgencySignal, type Candidate, type Ca
 import { cardText, contextCard } from "./cards.js";
 import { checkGist, gistKey } from "./gists.js";
 import { areaOf } from "./gistWriter.js";
-import { firstLineWith, noteBody, outlineOf, sectionAt } from "./sections.js";
+import { atxHeading, firstLineWith, noteBody, outlineOf, sectionAt } from "./sections.js";
 import { withholdPlaces, withoutSensitiveProperties } from "./sensitive.js";
 import { goingKinds, redactSensitive, SENSITIVE_KINDS, sensitiveFindings, sensitiveKinds, SITUATION_SOURCE, type SensitiveKind } from "./sensitiveHints.js";
 import { questionTerms } from "./terms.js";
@@ -22,9 +22,10 @@ import { questionTerms } from "./terms.js";
  *   database, the selection and the section around the cursor, the note's
  *   core properties, open tabs, today's daily note, due tasks, the next
  *   appointments;
- * - tier 3 evidence: a few sections of the best candidates, never a whole
- *   note unless the user pinned it (the open note gets a strong bonus, but is
- *   not sent in full automatically, §7);
+ * - tier 3 evidence: a few sections of the best candidates — a whole note
+ *   only where the user pinned it, where the open note is short, or where the
+ *   section found is all the note says (the open note gets a strong bonus,
+ *   but a long one is not sent in full automatically, §7);
  * - tier 1 cards: title, path, section and why, with the section's context
  *   card — its first sentence and every sentence that carries a number, a
  *   date, a task, a negation or a link, verbatim (P2b-2, `cards.ts`);
@@ -96,9 +97,10 @@ export interface ContextBuildHost extends ContextPolicyHost {
   /** The note's current text: the open note as the editor holds it, any other as saved. */
   readNote(path: string): Promise<{ title: string; text: string } | null>;
   /**
-   * The size of notes as the index knows it (bytes, about one character
-   * each), for what a naive request would have sent (plan P2b-5); absent, the
-   * comparison is left out.
+   * The size of notes as the index knows it, in bytes of UTF-8, for what a
+   * naive request would have sent (plan P2b-5) — set against the bytes of
+   * what went, never against characters (P9-6); absent, the comparison is
+   * left out.
    */
   noteSizes?(paths: readonly string[]): Promise<Map<string, number>>;
   /**
@@ -143,7 +145,13 @@ export interface ContextBuildInput {
   candidates: readonly (readonly Candidate[])[];
   /** Notes pinned to the conversation. */
   pins: readonly string[];
-  /** Stamps (`path#hash`) the conversation already carries: those sections are named, not repeated. */
+  /**
+   * Stamps (`path#hash`) of parts of notes the conversation carries, where
+   * every view of the note's text the runs record since has the version the
+   * part went in and the same choice to send it redacted, and no later turn
+   * carried the part otherwise (`sentStamps`): those parts are named, not
+   * repeated.
+   */
   alreadySent?: ReadonlySet<string>;
   /** Notes the user left out in the send overview: not denied, just not wanted for this message. */
   leaveOut?: ReadonlySet<string>;
@@ -193,6 +201,18 @@ export interface PackageRef {
    * Absent for a handle of the map, which reads no note.
    */
   hash?: string;
+  /**
+   * What of the note this context left out (plan KI-Harness P9-6), in
+   * characters: the rest of a note of which only a section or its key
+   * sentences went — verbatim or as a gist —, up to the most Plainva sends of
+   * one note. The list of sections an open note's text begins with counts as
+   * part of what went: it is a cost of the shortening. Absent for a note that
+   * went whole, whatever a redaction did to its length, for one named again
+   * unchanged, for a card with no sentence or a section with no text beyond
+   * its heading, for a section that holds all the note says whose whole did
+   * not fit, and for a handle in the map.
+   */
+  left?: number;
 }
 
 /** What the patterns saw in a source's text, and how much of it went redacted (plan P2b-6). */
@@ -202,15 +222,28 @@ export interface SourceHint {
 }
 
 /**
- * What a package saves (plan P2b-5, "View context"): the characters it sends
- * of its sources, the whole of those notes, and — when the host knows note
- * sizes — the whole of every note the sources proposed that passed the gate:
- * what sending without a selection would have cost.
+ * What a package saves for "View context" (plan P2b-5, P9-6): the characters
+ * it sends of its sources and the whole of those notes; and — when the host
+ * knows the sizes of notes — the bytes of every note the sources proposed
+ * that passed the gate, set against the bytes of what went: what sending
+ * without a selection would have cost. Characters are counted against
+ * characters and bytes against bytes, a note the package read by its body:
+ * a note in a script of several bytes a character, or one with properties,
+ * does not look shortened when it went whole. What one run saved is counted
+ * per source (`PackageRef.left`).
  */
 export interface PackageMaterial {
   sentChars: number;
   sourceChars: number;
-  candidateChars: number | null;
+  sentBytes: number;
+  candidateBytes: number | null;
+}
+
+const utf8 = new TextEncoder();
+
+/** The bytes a text takes in UTF-8, as a file on the disk and the index count it. */
+export function utf8Length(text: string): number {
+  return utf8.encode(text).length;
 }
 
 export interface ContextPackage {
@@ -268,7 +301,32 @@ const REASON_WORDS: Record<CandidateSignal, string> = {
 
 /** Rough tokens for a text: about 3.5 characters per token across the app's languages. */
 export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 3.5);
+  return estimateTokensOfChars(text.length);
+}
+
+/**
+ * Rough tokens for a number of characters, by the rule of `estimateTokens` — the one estimate of the send overview,
+ * the context view and what the month saved (plan KI-Harness P9-6).
+ */
+export function estimateTokensOfChars(chars: number): number {
+  return Math.ceil(chars / 3.5);
+}
+
+/**
+ * What sending every proposed note whole would have cost, set against what
+ * goes ("View context", plan P2b-5, P9-6): the share the selection saves —
+ * bytes against bytes, as the index knows the notes — and the tokens it would
+ * have been, its bytes counted at the characters a byte of what goes stands
+ * for. Null without the sizes of notes, when nothing of the notes goes, or
+ * when the selection saves nothing.
+ */
+export function naiveComparison(material: Pick<PackageMaterial, "sentChars" | "sentBytes" | "candidateBytes">): { share: number; tokens: number } | null {
+  const { candidateBytes, sentBytes, sentChars } = material;
+  if (candidateBytes === null || !(sentBytes > 0) || !(candidateBytes > sentBytes)) return null;
+  const share = 1 - sentBytes / candidateBytes;
+  // A share that rounds to nothing is no saving to show.
+  if (share < 0.005) return null;
+  return { share, tokens: estimateTokensOfChars(Math.round((candidateBytes * sentChars) / sentBytes)) };
 }
 
 function titleFromPath(path: string): string {
@@ -296,10 +354,33 @@ function cardSource(text: string, title: string, candidate: RankedCandidate, ter
     const chunk = chunkNote(title, text).find((c) => c.ordinal === candidate.chunk!.ordinal);
     if (chunk && chunk.to > chunk.from) return { chain: chunk.chain, text: text.slice(chunk.from, chunk.to) };
   }
+  return openingSection(body);
+}
+
+/** A note's opening: the text before its first heading — or, where that is blank, its first heading's section. */
+function openingSection(body: string): { chain: string; text: string } {
   const first = sectionAt(body, 0);
   if (first.text.trim()) return first;
   const heading = outlineOf(body)[0];
   return heading ? sectionAt(body, heading.line) : first;
+}
+
+/**
+ * Where a part found in a note holds all the note says (P9-6): the note's
+ * whole text where it fits — the same text however the part was found, by a
+ * word or by meaning, and as a pinned or open note goes whole —, "" where it
+ * does not fit (its headings and blank lines take the room), null where the
+ * rest of the note says something.
+ */
+function wholeOf(body: string, part: string, limit: number): string | null {
+  if (saysSomething(body.replace(part, ""))) return null;
+  const all = clip(body, limit);
+  return all.clipped ? "" : all.text;
+}
+
+/** Whether a text of a note says something beyond its headings: a line that is neither blank nor a heading as the outline reads one. */
+function saysSomething(text: string): boolean {
+  return text.split("\n").some((line) => line.trim() !== "" && !atxHeading(line));
 }
 
 /**
@@ -402,6 +483,21 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   const blocks: string[] = [];
   const stamps: string[] = [];
   let evidenceChars = 0;
+  /** The bytes of what goes of the notes, in UTF-8 as the index counts the notes (P9-6). */
+  let sentBytes = 0;
+  /** The bytes of the body of every note the package read: what "whole" means for the naive comparison (P9-6). */
+  const bodyBytes = new Map<string, number>();
+  /**
+   * The most Plainva sends of one note (a pinned one): what a note is counted
+   * at for what the context left out of it (P9-6) — the rest beyond it would
+   * not have gone anyway.
+   */
+  const noteCeiling = Math.min(CONTEXT_NOTE_LIMIT, Math.max(budget.evidenceChars, 4_000));
+  /** What a note would have gone with whole — cut as Plainva cuts it, at its last line before the ceiling — less what went. */
+  const leftOf = (body: string, chars: number): { left?: number } => {
+    const left = clip(body, noteCeiling).text.length - chars;
+    return left > 0 ? { left } : {};
+  };
   const missing = new Set<string>();
   const strong = (c: RankedCandidate) =>
     (c.signals.active ?? 0) > 0 || (c.signals.pinned ?? 0) > 0 || (c.signals.lexical ?? 0) >= 0.3 || (c.signals.semantic ?? 0) >= 0.5;
@@ -420,13 +516,22 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     if (!(await allowedText(candidate.path, read.text))) continue;
     const hash = noteHash(read.text);
     const body = noteBody(read.text);
+    bodyBytes.set(candidate.path, utf8Length(body));
     const room = budget.evidenceChars - evidenceChars;
     let text: string;
     let section: string | undefined;
     let whole = false;
+    /**
+     * A section that holds all the note says, whose whole did not fit (P9-6): its headings are a rest one can read —
+     * a heading can carry what a reader wants —, but nothing the note says was left out, so nothing counts as saved.
+     */
+    let nothingElse = false;
+    /** What of the note was chosen, without the list of sections an open note's text may begin with (P9-6). */
+    let fromNote: string;
     if ((candidate.signals.pinned ?? 0) > 0) {
       const clipped = clip(body, Math.min(CONTEXT_NOTE_LIMIT, Math.max(room, 4_000)));
       text = clipped.text;
+      fromNote = text;
       whole = !clipped.clipped;
     } else if ((candidate.signals.active ?? 0) > 0) {
       const line = firstLineWith(body, terms);
@@ -434,10 +539,12 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       if (line >= 0 && body.length > budget.activeChars) {
         const found = sectionAt(body, line);
         section = found.chain;
-        text = `${outline.length ? `Sections:\n${outline.join("\n")}\n\n` : ""}${clip(found.text, Math.min(budget.activeChars, room)).text}`;
+        fromNote = clip(found.text, Math.min(budget.activeChars, room)).text;
+        text = `${outline.length ? `Sections:\n${outline.join("\n")}\n\n` : ""}${fromNote}`;
       } else {
         const clipped = clip(body, Math.min(budget.activeChars, room));
         text = clipped.text;
+        fromNote = text;
         whole = !clipped.clipped;
         if (clipped.clipped && outline.length) text = `Sections:\n${outline.join("\n")}\n\n${text}`;
       }
@@ -446,14 +553,35 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       // Found by meaning and not by a word: the section the meaning came from, not the note's beginning.
       const chunk = line < 0 && candidate.chunk ? chunkNote(read.title || candidate.title, read.text).find((c) => c.ordinal === candidate.chunk!.ordinal) : undefined;
       if (chunk && chunk.to > chunk.from) {
-        section = chunk.chain;
-        text = clip(read.text.slice(chunk.from, chunk.to).trim(), Math.min(budget.sectionChars, room)).text;
+        const clipped = clip(read.text.slice(chunk.from, chunk.to).trim(), Math.min(budget.sectionChars, room));
+        // As for a section found by a word: a passage that holds all the note says is the whole note (P9-6).
+        const all = clipped.clipped ? null : wholeOf(body, clipped.text, Math.min(budget.sectionChars, room));
+        if (all) whole = true;
+        else {
+          section = chunk.chain;
+          nothingElse = all === "";
+        }
+        text = all || clipped.text;
+        fromNote = text;
       } else {
-        const found = sectionAt(body, Math.max(line, 0));
-        section = found.chain;
-        text = clip(found.text, Math.min(budget.sectionChars, room)).text;
+        // Where no line holds a word of the question: the note's opening — its first section where the opening is blank.
+        const found = line >= 0 ? sectionAt(body, line) : openingSection(body);
+        const clipped = clip(found.text, Math.min(budget.sectionChars, room));
+        // A section that holds all the note says is the whole note: nothing outside it says anything (P9-6) — and the
+        // model is not told that read_note gives a rest there is not.
+        const all = clipped.clipped ? null : wholeOf(body, found.text, Math.min(budget.sectionChars, room));
+        if (all) whole = true;
+        else {
+          section = found.chain;
+          nothingElse = all === "";
+        }
+        text = all || clipped.text;
+        fromNote = text;
       }
     }
+    // What was chosen, before the vault's text is cleaned for its recipient: the measure of what was left out (P9-6) —
+    // a place stamp or a link that is withheld is no part of a note that was left out.
+    const chosenChars = text.length;
     text = await clean(text, candidate.path);
     // The same words, however the lines end: a copied section is one source.
     const sameText = contextStamp(text.replace(/\s+/g, " ").trim());
@@ -467,8 +595,13 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     // Screened after the duplicate check: a redacted copy must not turn its unredacted twin into a new source.
     const screened = screen(text, candidate.path);
     text = screened.text;
-    const stamp = `${candidate.path}#${contextStamp(text)}`;
+    // "The whole note" says something of all its text: its stamp covers that text too, so a note that went whole and
+    // changed since goes again — also where only a section of it goes now, whose own text may be what went before
+    // (P9-6). What the part is goes into the hash, so a stamp of the older form, which did not say it, never matches.
+    // One hash token: a stamp's path is what stands before its last "#".
+    const stamp = `${candidate.path}#${contextStamp(`${whole ? "whole" : "part"}\n${text}`)}${whole ? contextStamp(body) : ""}`;
     const title = read.title || candidate.title;
+    const label = whole ? "the whole note" : section ? `section "${section}"` : "the beginning";
     if (input.alreadySent?.has(stamp)) {
       // Nothing of it goes again; the hint stays only where the reader redacts it, so the choice can be taken back.
       refs.push({
@@ -478,22 +611,25 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
         reasons: candidate.reasons,
         score: candidate.score,
         chars: 0,
-        section,
+        // The part as the sent entry names it: the beginning is "", the whole note has none.
+        ...(whole ? {} : { section: section ?? "" }),
         unchanged: true,
         noteChars: body.length,
         hash,
         ...(input.redact?.has(candidate.path) ? hintOf(screened) : {}),
       });
-      blocks.push(`[[${title}]] (${candidate.path}): unchanged since it was sent earlier in this conversation.`);
+      // It names the part it vouches for — not the note, of which another part may have changed —, and as the vault's
+      // text: a title and a heading are a stranger's words.
+      blocks.push(fenceUntrusted(payload(`${title} (${candidate.path}), ${label}: unchanged since it was sent earlier in this conversation.`, { kind: "vault", path: candidate.path, ...(section ? { section } : {}) })));
       stamps.push(stamp);
       continue;
     }
-    const label = whole ? "the whole note" : section ? `section "${section}"` : "the beginning";
     blocks.push(
       fenceUntrusted(payload(`${title} (${candidate.path}), ${label}:\n\n${text}${whole ? "" : "\n\n[…read_note gives the rest]"}`, { kind: "vault", path: candidate.path, ...(section ? { section } : {}) })),
     );
     stamps.push(stamp);
     evidenceChars += text.length;
+    sentBytes += utf8Length(text);
     went(screened);
     refs.push({
       path: candidate.path,
@@ -502,7 +638,8 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       reasons: candidate.reasons,
       score: candidate.score,
       chars: text.length,
-      ...(whole ? {} : { section: section ?? "" }),
+      // A section that says nothing beyond its heading sent nothing of the note: no part of it was left out by a choice.
+      ...(whole ? {} : { section: section ?? "", ...(saysSomething(fromNote) && !nothingElse ? leftOf(body, chosenChars) : {}) }),
       noteChars: body.length,
       hash,
       ...hintOf(screened),
@@ -529,6 +666,8 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     if (!(await allowedText(candidate.path, read.text))) continue;
     const hash = noteHash(read.text);
     const title = read.title || candidate.title;
+    const body = noteBody(read.text);
+    bodyBytes.set(candidate.path, utf8Length(body));
     const found = cardSource(read.text, title, candidate, terms);
     // Cleaned line by line before it is cut: a place stamp is a line of its own, and a card joins its lines.
     let text = cardText(contextCard(await clean(found.text, candidate.path), found.chain)).replace(/\s+/g, " ").trim();
@@ -550,9 +689,12 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       continue;
     }
     cardTexts.add(same);
+    // What the card is, before a redaction the reader chose: the measure of what was left out (P9-6).
+    const cardChars = text.length;
     const screened = screen(text, candidate.path);
     text = screened.text;
     went(screened);
+    sentBytes += utf8Length(text);
     const why = candidate.reasons.slice(0, 2).map((r) => REASON_WORDS[r]).join(", ");
     cards.push(`- [[${title}]] (${candidate.path})${found.chain ? ` › ${found.chain}` : ""} — ${why}${text ? `: ${gisted ? "(gist) " : ""}${text}` : ""}`);
     refs.push({
@@ -563,7 +705,9 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       score: candidate.score,
       chars: text.length,
       section: found.chain,
-      noteChars: noteBody(read.text).length,
+      noteChars: body.length,
+      // A card with no sentence named the note and sent nothing of it: no part of it was left out by a choice.
+      ...(cardChars > 0 ? leftOf(body, cardChars) : {}),
       hash,
       ...(gisted ? { gist: true } : {}),
       ...hintOf(screened),
@@ -580,6 +724,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     const gist = screened.text;
     if (gist) mapGists++;
     went(screened);
+    sentBytes += utf8Length(gist);
     map.push(`- [[${candidate.title}]] (${candidate.path})${gist ? ` — (gist) ${gist}` : ""}`);
     refs.push({ path: candidate.path, title: candidate.title, tier: "map", reasons: candidate.reasons, score: candidate.score, chars: gist.length, ...(gist ? { gist: true } : {}), ...hintOf(screened) });
   }
@@ -669,20 +814,22 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   if (map.length) parts.push(fenceUntrusted(payload(`Further notes that may matter:\n${map.join("\n")}`, { kind: "app" })));
   if (areaLines.length) parts.push(fenceUntrusted(payload(`Where these notes sit (gists by a model on the user's computer):\n${areaLines.join("\n")}`, { kind: "app" })));
   const text = parts.join("\n\n");
-  // What it saves: its sources against the whole of them, and the whole of everything proposed (P2b-5).
-  let candidateChars: number | null = null;
+  // What it saves: its sources against the whole of them, and the whole of everything proposed (P2b-5) — the last in
+  // bytes, as the index knows the notes, against the bytes of what went.
+  let candidateBytes: number | null = null;
   if (host.noteSizes) {
     try {
       const sizes = await host.noteSizes(ranked.map((c) => c.path));
-      candidateChars = ranked.reduce((sum, c) => sum + (sizes.get(c.path) ?? 0), 0);
+      candidateBytes = ranked.reduce((sum, c) => sum + (bodyBytes.get(c.path) ?? sizes.get(c.path) ?? 0), 0);
     } catch {
-      candidateChars = null;
+      candidateBytes = null;
     }
   }
   const material: PackageMaterial = {
     sentChars: refs.reduce((sum, r) => sum + r.chars, 0),
     sourceChars: refs.reduce((sum, r) => sum + (r.unchanged ? 0 : (r.noteChars ?? 0)), 0),
-    candidateChars,
+    sentBytes,
+    candidateBytes,
   };
 
   return {
@@ -698,12 +845,132 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   };
 }
 
-/** The evidence stamps a conversation already carries, from every earlier context part. */
-export function sentStamps(turns: readonly { role: string; parts: readonly { type: string; context?: readonly string[] }[] }[]): Set<string> {
-  const out = new Set<string>();
-  for (const turn of turns) {
+/**
+ * What the conversation already carries of its notes, for "unchanged" (plan
+ * KI-Harness P2b, P9-6): the stamps (`path#hash`) of the parts its turns sent
+ * where every view of the note's text the runs record since has the version
+ * the part went in — the context's evidence or card, or a note a tool read
+ * (`RunMeta.readHashes`) —, the conversation's choice to send the note
+ * redacted was the same at each of them (`RunMeta.redact`), and no later turn
+ * carried the same part with another text (less room). A note that changed
+ * and changed back is not "unchanged" against a part while a view in between
+ * showed it otherwise, nor is a part that went plain while a view since went
+ * redacted, or the other way round; another section of the same version in
+ * between keeps the earlier one. A view whose version is not known keeps
+ * nothing earlier of its note: a note's gist in the map, a note a tool read
+ * at two versions in one run (`readChanged`), and every note after a run
+ * whose reads went past its record (`readUnhashed`). What the record does not
+ * know as a view of a note's text is none: a search hit's line, a task's
+ * line, the situation's due tasks and selection, a database's values.
+ * Without the runs' record of the versions (older conversations), only the
+ * latest turn that carried a note counts, and only while nothing was seen of
+ * the note after it — on the side of sending, never of a false "unchanged".
+ */
+export function sentStamps(
+  turns: readonly { role: string; parts: readonly { type: string; context?: readonly string[] }[] }[],
+  runs: readonly StampRun[] = [],
+): Set<string> {
+  // Every view of every note the runs record: where in the conversation (a turn's context, then its tools) and of
+  // which version — null where it is not known.
+  // Each view also says whether the conversation had chosen to send the note redacted when its run ran — the choice a
+  // cloud's context and tools both followed.
+  const views = new Map<string, { at: number; version: string | null; redacted: boolean }[]>();
+  let unknownAt = -1;
+  const view = (path: string, at: number, version: string | null, redacted: boolean) => {
+    const seen = { at, version, redacted };
+    const list = views.get(path);
+    if (list) list.push(seen);
+    else views.set(path, [seen]);
+  };
+  const chose = (run: StampRun | undefined, path: string) => run?.redact?.includes(path) === true;
+  const byTurn = new Map<number, StampRun>();
+  for (const run of runs) {
+    byTurn.set(run.userTurn, run);
+    const at = run.userTurn * 2;
+    for (const source of run.manifest?.sources ?? []) {
+      if (source.tier === "map") {
+        if (source.gist) view(source.path, at, null, chose(run, source.path));
+      } else if (source.hash && (source.chars > 0 || source.unchanged)) view(source.path, at, source.hash, chose(run, source.path));
+    }
+    for (const read of run.readHashes ?? []) view(read.path, at + 1, read.hash, chose(run, read.path));
+    for (const path of run.readChanged ?? []) view(path, at + 1, null, chose(run, path));
+    if (run.readUnhashed) unknownAt = Math.max(unknownAt, at + 1);
+  }
+  // What the turns carried of each note as evidence: which part (a section by its chain; null, the whole note) under
+  // which stamp. The same part carried later with another text — a redaction taken back, less room — is a view that
+  // says otherwise, whatever the version.
+  const parts = new Map<string, { at: number; part: string | null; stamp: string }[]>();
+  for (let i = 0; i < turns.length; i++) {
+    const turn = turns[i]!;
     if (turn.role !== "user") continue;
-    for (const part of turn.parts) if (part.type === "text" && part.context) for (const stamp of part.context) out.add(stamp);
+    const sources = byTurn.get(i)?.manifest?.sources ?? [];
+    for (const part of turn.parts) {
+      if (part.type !== "text" || !part.context) continue;
+      for (const stamp of part.context) {
+        const path = contextStampPath(stamp);
+        const source = sources.find((entry) => entry.path === path && entry.tier === "evidence");
+        if (!source) continue;
+        const list = parts.get(path);
+        const carried = { at: i * 2, part: source.section ?? null, stamp };
+        if (list) list.push(carried);
+        else parts.set(path, [carried]);
+      }
+    }
+  }
+  const out = new Set<string>();
+  const later = new Set<string>();
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const turn = turns[i]!;
+    if (turn.role !== "user") continue;
+    const at = i * 2;
+    const sources = byTurn.get(i)?.manifest?.sources ?? [];
+    const carried = new Set<string>();
+    for (const part of turn.parts) {
+      if (part.type !== "text" || !part.context) continue;
+      for (const stamp of part.context) {
+        const path = contextStampPath(stamp);
+        carried.add(path);
+        if (unknownAt > at) continue;
+        const since = (views.get(path) ?? []).filter((seen) => seen.at >= at);
+        const source = sources.find((entry) => entry.path === path && entry.tier === "evidence");
+        const version = source?.hash;
+        // Every view of the note since the part went — its own among them — has its version, and no later turn carried
+        // that part otherwise: nothing says otherwise.
+        if (version) {
+          const part = source.section ?? null;
+          const otherwise = (parts.get(path) ?? []).some((carried) => carried.at > at && carried.part === part && carried.stamp !== stamp);
+          // A view since under another choice to redact the note — another part of it, a card of it, a tool's read —
+          // showed its words otherwise: a redaction taken back, or made, is no "unchanged" against them.
+          const redacted = chose(byTurn.get(i), path);
+          if (!otherwise && since.every((seen) => seen.version === version && seen.redacted === redacted)) out.add(stamp);
+          continue;
+        }
+        // Without a record of this turn's version: only the latest turn that carried the note, and nothing seen since.
+        if (!later.has(path) && since.length === 0) out.add(stamp);
+      }
+    }
+    for (const path of carried) later.add(path);
   }
   return out;
+}
+
+/**
+ * What a run recorded of the notes it showed the model, by version (plan
+ * KI-Harness P9-2, P9-6): its context's sources and the texts its tools gave
+ * — `RunMeta` as the record keeps it.
+ */
+export interface StampRun {
+  userTurn: number;
+  manifest?: { sources: readonly { path: string; tier: string; chars: number; section?: string; hash?: string; unchanged?: boolean; gist?: boolean }[] };
+  /** The sources the conversation chose to send redacted when the run ran (`RunMeta.redact`). */
+  redact?: readonly string[];
+  readHashes?: readonly { path: string; hash: string }[];
+  readChanged?: readonly string[];
+  readUnhashed?: boolean;
+}
+
+/** The note a stamp (`path#hash`) stands for: what stands before its last "#" — a path may hold one itself. */
+export function contextStampPath(stamp: string): string {
+  const cut = stamp.lastIndexOf("#");
+  return cut > 0 ? stamp.slice(0, cut) : stamp;
 }

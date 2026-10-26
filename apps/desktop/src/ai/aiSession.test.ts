@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  CONTEXT_NOTE_LIMIT,
   DEFAULT_AI_APP_SETTINGS,
+  DEFAULT_CONTEXT_BUDGET,
   effectivePolicy,
+  estimateTokensOfChars,
   notePolicyFrom,
+  noteHash,
   readConversationRecord,
   type AiEgress,
   type ConversationRecord,
@@ -10,7 +14,7 @@ import {
   type HttpRequestSpec,
   type LedgerEntry,
 } from "@plainva/core";
-import { AiSession, type AiVaultHost } from "@plainva/ui";
+import { AiSession, CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, type AiVaultHost, type VaultToolDeps } from "@plainva/ui";
 import { TRANSCRIPTION_MAX_BYTES } from "@plainva/core";
 
 /** An Anthropic-shaped answer: text only. */
@@ -33,6 +37,34 @@ function platformAnswer(text: string): EgressChunk[] {
     { type: "data", text: `data: ${JSON.stringify({ text })}\n\ndata: ${JSON.stringify({ stop: "end" })}\n\n` },
     { type: "done" },
   ];
+}
+
+/** An answer of a server on this computer, as its chat endpoint streams it — with what it received. */
+function serverAnswer(text: string): EgressChunk[] {
+  const line = (data: unknown) => `data: ${JSON.stringify(data)}\n\n`;
+  return [
+    { type: "open", status: 200 },
+    { type: "data", text: `${line({ choices: [{ delta: { content: text } }] })}${line({ choices: [{ delta: {}, finish_reason: "stop" }], usage: { prompt_tokens: 900, completion_tokens: 40 } })}data: [DONE]\n\n` },
+    { type: "done" },
+  ];
+}
+
+/** An Anthropic answer that calls tools, one after the other. */
+function callsTools(calls: { name: string; args: unknown }[]): EgressChunk[] {
+  const events: Array<[string, unknown]> = [["message_start", { type: "message_start", message: { usage: { input_tokens: 50 } } }]];
+  calls.forEach((call, index) => {
+    events.push(["content_block_start", { type: "content_block_start", index, content_block: { type: "tool_use", id: `call-${index + 1}`, name: call.name, input: {} } }]);
+    events.push(["content_block_delta", { type: "content_block_delta", index, delta: { type: "input_json_delta", partial_json: JSON.stringify(call.args) } }]);
+    events.push(["content_block_stop", { type: "content_block_stop", index }]);
+  });
+  events.push(["message_delta", { type: "message_delta", delta: { stop_reason: "tool_use" }, usage: { output_tokens: 7 } }]);
+  events.push(["message_stop", { type: "message_stop" }]);
+  return [{ type: "open", status: 200 }, { type: "data", text: events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join("") }, { type: "done" }];
+}
+
+/** An Anthropic answer that calls one tool. */
+function callsTool(name: string, args: unknown): EgressChunk[] {
+  return callsTools([{ name, args }]);
 }
 
 function fakeEgress(script: EgressChunk[][]) {
@@ -67,6 +99,10 @@ const files: Record<string, string> = {
   "Plan.md": "# Plan",
   "Contract.md": "# Contract\n\nThe contract runs until the end of the year and renews itself.\n\nRates follow.\n",
   "Journal/2026-09-24.md": "# Thursday\n\n- 08:12 ![[Voice 2026-09-24 0812.m4a]]\n- 09:30 Call back\n",
+  // A note of which a question about the rate gets only a section (plan P9-6): the rest is what choosing saves.
+  "Handbook.md": `# Handbook\n\n## Intro\n\n${"Long background. ".repeat(1200).trim()}\n\n## Rates\n\nThe rate is 95 EUR per hour.\n`,
+  // A template: the rates only as an empty heading, the notes long below it (plan P9-6).
+  "Template.md": `# Template\n\n## Rates\n\n## Next\n\n${"Notes to come. ".repeat(1000)}`,
 };
 
 function vaultHost(active: string | null) {
@@ -136,6 +172,25 @@ function vaultHost(active: string | null) {
   return { host, saved, ledger: () => ledger };
 }
 
+/** The vault's real tools over `files`, as a shell hands them to a run — with the search a test gives, and what else it changes. */
+function withTools(host: AiVaultHost, search: VaultToolDeps["search"] = async () => [], more: Partial<VaultToolDeps> = {}): void {
+  const deps: VaultToolDeps = {
+    search,
+    readNote: async (path) => files[path] ?? null,
+    resolveLink: async () => null,
+    policyOf: (path, text) => host.policy.policyOf(path, text),
+    taskRows: async () => [],
+    todayKey: () => "2026-09-24",
+    commands: () => [],
+    events: async () => [],
+    ...more,
+  };
+  host.tools = (recipient, scope, redact, web, narrowed, foreign) => {
+    const more = furtherToolNames(deps);
+    return { names: CHAT_TOOL_NAMES, more, executor: createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope, redact, { more, ...(narrowed ? { narrowed } : {}), ...(foreign ? { foreign } : {}) }) };
+  };
+}
+
 /** Resolves when the send overview asks for an answer. */
 function consentAsked(s: AiSession): Promise<void> {
   return new Promise((resolve) => {
@@ -148,10 +203,10 @@ function consentAsked(s: AiSession): Promise<void> {
   });
 }
 
-function session(script: EgressChunk[][], options: { approve?: boolean } = {}) {
+function session(script: EgressChunk[][], options: { approve?: boolean; prices?: Record<string, { input: number; output: number }> } = {}) {
   const fake = fakeEgress(script);
   let ids = 0;
-  let stored: unknown = { ...DEFAULT_AI_APP_SETTINGS, enabled: true, profiles: { balanced: { providerId: "anthropic", model: "m-1" } } };
+  let stored: unknown = { ...DEFAULT_AI_APP_SETTINGS, enabled: true, profiles: { balanced: { providerId: "anthropic", model: "m-1" } }, ...(options.prices ? { prices: options.prices } : {}) };
   const s = new AiSession({
     egress: fake.egress,
     async loadSettings() {
@@ -201,6 +256,232 @@ describe("the AI session", () => {
     expect(JSON.stringify(vault.ledger())).not.toContain("offer");
   });
 
+  /** The most Plainva sends of one note, with the budget the models of these tests get. */
+  const CEILING = Math.min(CONTEXT_NOTE_LIMIT, Math.max(DEFAULT_CONTEXT_BUDGET.evidenceChars, 4_000));
+
+  it("records what choosing and shortening saved — the rest of a note of which a section went, up to the most Plainva sends of one note, in tokens and at the model's price — and the month sums it (plan P9-6)", async () => {
+    const { s } = session([answer("95 EUR per hour.")], { prices: { "anthropic/m-1": { input: 3, output: 15 } } });
+    await s.load();
+    const vault = vaultHost("Handbook.md");
+    // The index would call the notes large: what nobody chose is no saving, whatever its size.
+    vault.host.noteSizes = async (paths) => new Map(paths.map((path) => [path, 1_000_000]));
+    await s.attachVault(vault.host);
+    await s.send("What is the rate?");
+    const source = s.getState().active!.runs[0]!.manifest!.sources[0]!;
+    expect(source).toMatchObject({ path: "Handbook.md", section: "Handbook > Rates" });
+    // Longer than Plainva ever sends of one note: the rest beyond that would not have gone either.
+    expect(files["Handbook.md"]!.length).toBeGreaterThan(CEILING);
+    const saved = estimateTokensOfChars(CEILING - source.chars);
+    expect(saved).toBeGreaterThan(3000);
+    const entry = vault.ledger()[0]!;
+    expect(entry.context).toEqual({ savedTokens: saved });
+    expect(entry.savedUsd).toBeCloseTo((saved * 3) / 1_000_000, 12);
+    // Numbers only: nothing of the note in the record of the run.
+    expect(JSON.stringify(entry)).not.toContain("background");
+    expect(await s.savings("2026-09")).toEqual({ savedTokens: saved, runs: 1, savedUsd: entry.savedUsd });
+    expect(await s.savings("2026-08")).toEqual({ savedTokens: 0, runs: 0 });
+  });
+
+  it("records no saving where every note went whole, nor for a request no model received (plan P9-6)", async () => {
+    const whole = session([answer("It is in [[Offer]].")]);
+    await whole.s.load();
+    const offer = vaultHost("Offer.md");
+    offer.host.noteSizes = async (paths) => new Map(paths.map((path) => [path, 35_000]));
+    await whole.s.attachVault(offer.host);
+    // The open note went whole and nothing else was proposed: nothing was saved.
+    await whole.s.send("Where is the offer?");
+    expect(offer.ledger()[0]!.context).toBeUndefined();
+    // The network failed before any model saw the request: what its context left out saved nothing.
+    const failed = session([]);
+    await failed.s.load();
+    const handbook = vaultHost("Handbook.md");
+    await failed.s.attachVault(handbook.host);
+    expect((await failed.s.send("What is the rate?"))?.kind).toBe("failed");
+    expect(handbook.ledger()).toHaveLength(1);
+    expect(handbook.ledger()[0]!.context).toBeUndefined();
+    expect(await failed.s.savings("2026-09")).toEqual({ savedTokens: 0, runs: 0 });
+  });
+
+  it("counts a version of a note once in a conversation: another section of it saves nothing more, a changed note counts again (plan P9-6)", async () => {
+    const { s } = session([answer("95 EUR."), answer("Background."), answer("Still 95 EUR.")]);
+    await s.load();
+    const vault = vaultHost("Handbook.md");
+    await s.attachVault(vault.host);
+    await s.send("What is the rate?");
+    await s.send("What is in the intro?");
+    const runs = s.getState().active!.runs;
+    // The second turn sent another section of the same note …
+    expect(runs[1]!.manifest!.sources[0]).toMatchObject({ path: "Handbook.md", section: "Handbook > Intro" });
+    expect(runs[1]!.manifest!.sources[0]!.hash).toBe(runs[0]!.manifest!.sources[0]!.hash);
+    // … and saved nothing more: had the note gone whole, the second turn would not have sent it again.
+    expect(vault.ledger()[0]!.context!.savedTokens).toBeGreaterThan(0);
+    expect(vault.ledger()[1]!.context).toBeUndefined();
+    // A changed note is another version: it counts again.
+    const before = files["Handbook.md"]!;
+    try {
+      files["Handbook.md"] = `${before}The rate rises in May.\n`;
+      await s.send("What is the rate now?");
+    } finally {
+      files["Handbook.md"] = before;
+    }
+    expect(vault.ledger()[2]!.context!.savedTokens).toBeGreaterThan(0);
+    expect(await s.savings("2026-09")).toEqual({ savedTokens: vault.ledger()[0]!.context!.savedTokens + vault.ledger()[2]!.context!.savedTokens, runs: 2 });
+  });
+
+  it("counts nothing for a note a tool of the run looked at anyway (plan P9-6)", async () => {
+    const { s } = session([callsTool("read_note", { path: "Handbook.md" }), answer("95 EUR per hour.")]);
+    await s.load();
+    const vault = vaultHost("Handbook.md");
+    withTools(vault.host);
+    await s.attachVault(vault.host);
+    await s.send("What is the rate?");
+    const run = s.getState().active!.runs[0]!;
+    // The context sent a section, and the model read the note itself: nothing of it was left out.
+    expect(run.manifest!.sources[0]).toMatchObject({ path: "Handbook.md", section: "Handbook > Rates" });
+    expect(run.read).toEqual(["Handbook.md"]);
+    expect(vault.ledger()[0]!.context).toBeUndefined();
+  });
+
+  it("still counts a note a search only listed, and leaves out one read after the run's record of paths is full (plan P9-6)", async () => {
+    // The search lists the note the context sent a section of: its text did not go, so the rest still counts.
+    const listed = session([callsTool("search_vault", { query: "rate" }), answer("95 EUR per hour.")]);
+    await listed.s.load();
+    const one = vaultHost("Handbook.md");
+    withTools(one.host, async () => [{ path: "Handbook.md", title: "Handbook", snippet: null }]);
+    await listed.s.attachVault(one.host);
+    await listed.s.send("What is the rate?");
+    expect(listed.s.getState().active!.runs[0]!.read).toEqual(["Handbook.md"]);
+    expect(one.ledger()[0]!.context!.savedTokens).toBeGreaterThan(3000);
+    // Eight pages of a search over other notes fill the record of paths; the note read after them is still one the
+    // model read.
+    const pages = Array.from({ length: 8 }, (_, page) => ({ name: "search_vault", args: { query: "other", limit: 25, cursor: String(page * 25) } }));
+    const full = session([callsTools([...pages, { name: "read_note", args: { path: "Handbook.md" } }]), answer("95 EUR per hour.")]);
+    await full.s.load();
+    const two = vaultHost("Handbook.md");
+    withTools(two.host, async (_query, limit, offset) => Array.from({ length: limit }, (_, i) => ({ path: `Other ${offset + i}.md`, title: `Other ${offset + i}`, snippet: null })));
+    await full.s.attachVault(two.host);
+    await full.s.send("What is the rate?");
+    const run = full.s.getState().active!.runs[0]!;
+    expect(run.readMore).toBe(true);
+    expect(run.read).not.toContain("Handbook.md");
+    expect(two.ledger()[0]!.context).toBeUndefined();
+  });
+
+  it("still counts a note whose outline a tool gave the model — its headings are no text of it (plan P9-6)", async () => {
+    const { s } = session([callsTool("get_outline", { path: "Handbook.md" }), answer("95 EUR per hour.")]);
+    await s.load();
+    const vault = vaultHost("Handbook.md");
+    withTools(vault.host);
+    await s.attachVault(vault.host);
+    await s.send("What is the rate?");
+    expect(s.getState().active!.runs[0]!.read).toEqual(["Handbook.md"]);
+    expect(vault.ledger()[0]!.context!.savedTokens).toBeGreaterThan(3000);
+  });
+
+  it("takes an answer of the system's own model with nothing in it as a request it received (plan P9-6)", async () => {
+    const { s } = session([platformAnswer("")], { approve: false });
+    await s.load();
+    const vault = vaultHost("Handbook.md");
+    await s.attachVault(vault.host);
+    await s.setChoice({ providerId: "apple", model: "on-device" });
+    await s.send("What is the rate?");
+    const run = s.getState().active!.runs[0]!;
+    expect(run.stop).toBe("answered");
+    expect(run.unreached).toBeUndefined();
+    expect(vault.ledger()[0]!.context!.savedTokens).toBeGreaterThan(0);
+  });
+
+  it("counts every turn with the system's own model, whose request sends the notes anew (plan P9-6)", async () => {
+    const { s } = session([platformAnswer("95 EUR."), platformAnswer("Background.")], { approve: false });
+    await s.load();
+    const vault = vaultHost("Handbook.md");
+    await s.attachVault(vault.host);
+    await s.setChoice({ providerId: "apple", model: "on-device" });
+    await s.send("What is the rate?");
+    await s.send("What is in the intro?");
+    expect(vault.ledger().map((entry) => entry.context?.savedTokens ?? 0).every((tokens) => tokens > 0)).toBe(true);
+    expect(vault.ledger()).toHaveLength(2);
+  });
+
+  it("does not count a note less after a run no model received (plan P9-6)", async () => {
+    const { s } = session([[{ type: "failed", code: "network", message: "offline" }], answer("Background.")]);
+    await s.load();
+    const vault = vaultHost("Handbook.md");
+    await s.attachVault(vault.host);
+    await s.send("What is the rate?");
+    const lost = s.getState().active!.runs[0]!;
+    expect(lost).toMatchObject({ stop: "failed", unreached: true });
+    expect(vault.ledger()[0]!.context).toBeUndefined();
+    // The lost run counts for nothing: another section of the same note that the next question takes counts. (The
+    // same section asked again goes along as the conversation's earlier turn and is not counted — on the low side.)
+    await s.send("What is in the intro?");
+    expect(s.getState().active!.runs[1]!.unreached).toBeUndefined();
+    expect(vault.ledger()[1]!.context!.savedTokens).toBeGreaterThan(0);
+  });
+
+  it("counts another part of a note after the same part was asked again following a lost request (plan P9-6)", async () => {
+    const { s } = session([[{ type: "failed", code: "network", message: "offline" }], answer("95 EUR."), answer("Background.")]);
+    await s.load();
+    const vault = vaultHost("Handbook.md");
+    await s.attachVault(vault.host);
+    await s.send("What is the rate?");
+    // Asked again: the section goes along as the lost turn, named here unchanged — not counted, on the low side.
+    await s.send("What is the rate?");
+    expect(s.getState().active!.runs[1]!.manifest!.sources[0]).toMatchObject({ path: "Handbook.md", unchanged: true });
+    expect(vault.ledger()[1]!.context).toBeUndefined();
+    // A name carried no part of the note: another part of it counts.
+    await s.send("What is in the intro?");
+    expect(vault.ledger()[2]!.context!.savedTokens).toBeGreaterThan(0);
+  });
+
+  it("counts a note that an earlier turn only named in a card with no sentence (plan P9-6)", async () => {
+    const { s } = session([answer("No rates yet."), answer("Notes to come.")]);
+    await s.load();
+    const vault = vaultHost(null);
+    await s.attachVault(vault.host);
+    vault.host.candidates = async () => [[{ path: "Template.md", title: "Template", signals: { edited: 0.1 } }]];
+    await s.send("What are the rates?");
+    expect(s.getState().active!.runs[0]!.manifest!.sources[0]).toMatchObject({ path: "Template.md", tier: "card", chars: 0 });
+    expect(vault.ledger()[0]!.context).toBeUndefined();
+    vault.host.candidates = async () => [[{ path: "Template.md", title: "Template", signals: { lexical: 1 } }]];
+    await s.send("Which notes are to come?");
+    expect(s.getState().active!.runs[1]!.manifest!.sources[0]).toMatchObject({ path: "Template.md", tier: "evidence" });
+    expect(vault.ledger()[1]!.context!.savedTokens).toBeGreaterThan(0);
+  });
+
+  it("counts a saving on this device at no dollars — also for the system's own model, which reports no tokens —, and gives none for a model without a price (plan P9-6)", async () => {
+    const { s } = session([serverAnswer("95 EUR per hour."), answer("95 EUR per hour.")]);
+    await s.load();
+    const vault = vaultHost("Handbook.md");
+    await s.attachVault(vault.host);
+    await s.setChoice({ providerId: "ollama", model: "granite3.3:8b" });
+    await s.send("What is the rate?");
+    const local = vault.ledger()[0]!;
+    expect(local).toMatchObject({ providerId: "ollama", savedUsd: 0 });
+    expect(local.context!.savedTokens).toBeGreaterThan(3000);
+    expect(await s.savings("2026-09")).toEqual({ savedTokens: local.context!.savedTokens, runs: 1, savedUsd: 0 });
+    // The same question to a cloud model without a known price: tokens, and no dollars for the month either.
+    s.newConversation();
+    await s.setChoice({ providerId: "anthropic", model: "m-1" });
+    await s.send("What is the rate?");
+    const cloud = vault.ledger()[1]!;
+    expect(cloud.providerId).toBe("anthropic");
+    expect(cloud.context).toEqual(local.context);
+    expect(cloud.savedUsd).toBeUndefined();
+    expect(await s.savings("2026-09")).toEqual({ savedTokens: local.context!.savedTokens * 2, runs: 2 });
+    // The system's own model says nothing of tokens; that it answered says the request reached it.
+    const device = session([platformAnswer("95 EUR per hour.")], { approve: false });
+    await device.s.load();
+    const phone = vaultHost("Handbook.md");
+    await device.s.attachVault(phone.host);
+    await device.s.setChoice({ providerId: "apple", model: "on-device" });
+    expect(await device.s.send("What is the rate?")).toEqual({ kind: "answered" });
+    const own = phone.ledger()[0]!;
+    expect(own.usage.inputTokens).toBe(0);
+    expect(own.context!.savedTokens).toBeGreaterThan(0);
+    expect(own.savedUsd).toBe(0);
+  });
+
   it("keeps a denied open note back entirely and says so in the run", async () => {
     const { s, fake } = session([answer("I cannot see it.")]);
     await s.load();
@@ -225,6 +506,95 @@ describe("the AI session", () => {
     // The situation goes again; the notes it already sent are named, not repeated.
     expect(texts[0]).toContain("unchanged since it was sent earlier");
     expect(texts[0]).not.toContain("Rates as in");
+  });
+
+  it("names a section unchanged only where every view of the note since has the version it went in (plan P9-6)", async () => {
+    const { s } = session([answer("95 EUR."), callsTool("read_note", { path: "Handbook.md" }), answer("It rises in May."), answer("95 EUR."), answer("Still 95 EUR.")]);
+    await s.load();
+    const vault = vaultHost("Handbook.md");
+    withTools(vault.host);
+    await s.attachVault(vault.host);
+    await s.send("What is the rate?");
+    const before = files["Handbook.md"]!;
+    try {
+      // The note changes; in a turn without it in the context the model reads it itself — the changed version.
+      files["Handbook.md"] = `${before}The rate rises in May.\n`;
+      s.setExcludeActive(true);
+      await s.send("Read the handbook again.");
+      expect(s.getState().active!.runs[1]!.readHashes?.map((read) => read.path)).toEqual(["Handbook.md"]);
+    } finally {
+      files["Handbook.md"] = before;
+    }
+    // Back as it was: the section the first turn sent is the one that goes now, but the model saw the note otherwise
+    // since — so it goes again.
+    s.setExcludeActive(false);
+    await s.send("What is the rate?");
+    const third = s.getState().active!.runs[2]!.manifest!.sources.find((source) => source.path === "Handbook.md")!;
+    expect(third).toMatchObject({ section: "Handbook > Rates" });
+    expect(third.unchanged).toBeUndefined();
+    // Now the model's latest view is that section at this version: named, not sent.
+    await s.send("What is the rate?");
+    expect(s.getState().active!.runs[3]!.manifest!.sources.find((source) => source.path === "Handbook.md")).toMatchObject({ unchanged: true });
+  });
+
+  it("names a section unchanged after a run that listed many notes, and still knows a note such a run read (plan P9-6)", async () => {
+    const pages = Array.from({ length: 9 }, (_, page) => ({ name: "search_vault", args: { query: "other", limit: 25, cursor: String(page * 25) } }));
+    const { s } = session([
+      answer("95 EUR."),
+      callsTools(pages),
+      answer("Many notes."),
+      answer("95 EUR."),
+      callsTools([...pages, { name: "read_note", args: { path: "Handbook.md" } }]),
+      answer("It rises in May."),
+      answer("95 EUR."),
+    ]);
+    await s.load();
+    const vault = vaultHost("Handbook.md");
+    withTools(vault.host, async (_query, limit, offset) => Array.from({ length: limit }, (_, i) => ({ path: `Other ${offset + i}.md`, title: `Other ${offset + i}`, snippet: null })));
+    await s.attachVault(vault.host);
+    await s.send("What is the rate?");
+    // A turn without the note in its context lists more notes than the run's record of paths keeps.
+    s.setExcludeActive(true);
+    await s.send("List the other notes.");
+    expect(s.getState().active!.runs[1]!.readMore).toBe(true);
+    s.setExcludeActive(false);
+    await s.send("What is the rate?");
+    // A listing is no view of the note: the section is named, not sent again.
+    expect(s.getState().active!.runs[2]!.manifest!.sources.find((source) => source.path === "Handbook.md")).toMatchObject({ unchanged: true });
+    // The same listing, and then the model reads the note — changed: its version is known although the paths were full.
+    const before = files["Handbook.md"]!;
+    try {
+      files["Handbook.md"] = `${before}The rate rises in May.\n`;
+      s.setExcludeActive(true);
+      await s.send("List them again and read the handbook.");
+      expect(s.getState().active!.runs[3]!.readHashes?.map((read) => read.path)).toContain("Handbook.md");
+    } finally {
+      files["Handbook.md"] = before;
+    }
+    s.setExcludeActive(false);
+    await s.send("What is the rate?");
+    expect(s.getState().active!.runs[4]!.manifest!.sources.find((source) => source.path === "Handbook.md")!.unchanged).toBeUndefined();
+  });
+
+  it("knows no version of a note a run read at two versions, and sends its section again (plan P9-6)", async () => {
+    const twice = [{ name: "read_note", args: { path: "Handbook.md" } }, { name: "read_note", args: { path: "Handbook.md" } }];
+    const { s } = session([answer("95 EUR."), callsTools(twice), answer("Read twice."), answer("95 EUR.")]);
+    await s.load();
+    const vault = vaultHost("Handbook.md");
+    // The note changes between the two reads of one run: the second read finds another text, and afterwards it is back.
+    let reads = 0;
+    withTools(vault.host, undefined, { readNote: async (path) => (path === "Handbook.md" && ++reads === 2 ? `${files[path]}The rate rises in May.\n` : (files[path] ?? null)) });
+    await s.attachVault(vault.host);
+    await s.send("What is the rate?");
+    s.setExcludeActive(true);
+    await s.send("Read the handbook twice.");
+    const run = s.getState().active!.runs[1]!;
+    expect(run.readChanged).toEqual(["Handbook.md"]);
+    // The run's snapshot shows the last version read; for "unchanged" the note has none.
+    expect(run.readHashes).toEqual([{ path: "Handbook.md", hash: noteHash(`${files["Handbook.md"]}The rate rises in May.\n`) }]);
+    s.setExcludeActive(false);
+    await s.send("What is the rate?");
+    expect(s.getState().active!.runs[2]!.manifest!.sources.find((source) => source.path === "Handbook.md")!.unchanged).toBeUndefined();
   });
 
   it("asks with the send overview first and whenever the scope grows; a declined overview sends nothing", async () => {
@@ -315,6 +685,8 @@ describe("the AI session", () => {
       expect(JSON.stringify(fake.sent[0]!.body)).toContain("⟦withheld account⟧");
       expect(s.getState().active!.redact).toEqual(["Bank.md"]);
       expect(s.getState().draftRedact).toEqual([]);
+      // The run keeps the choice it was sent with: what a later "unchanged" is measured against (plan P9-6).
+      expect(s.getState().active!.runs[0]!.redact).toEqual(["Bank.md"]);
 
       // The next message keeps the choice without asking; the conversation stores it.
       await s.send("And the deposit?");

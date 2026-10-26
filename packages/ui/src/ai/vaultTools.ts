@@ -195,6 +195,15 @@ export interface ToolScope {
    * tool was given it whole — the run keeps its version (plan P9-2).
    */
   passed?(path: string, rules: readonly AiPolicyDimension[], text?: string): void;
+  /**
+   * A note whose text the model was given: `read_note` — the note, a page or
+   * a section of it (plan KI-Harness P9-6). What the run saved leaves it out.
+   * A snippet of a search, the lines around a backlink, a list of headings,
+   * the beginning of a changed note or the lines a day gained is no such
+   * text — those are what the model asked about —, nor is a text a tool only
+   * showed to the gate.
+   */
+  gave?(path: string): void;
 }
 
 /** The tools a new conversation carries; a conversation's own list never changes afterwards. */
@@ -481,6 +490,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const slice = text.slice(offset, offset + maxChars);
           const next = offset + maxChars < text.length ? String(offset + maxChars) : null;
           const more = next ? readContinues(offset + maxChars) : "";
+          scope?.gave?.(note.path);
           return result(tool.name, `${note.path}\n\n${slice}${more}`, { path: note.path, text: slice, next });
         }
         case "get_outline": {

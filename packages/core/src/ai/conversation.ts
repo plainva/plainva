@@ -18,9 +18,12 @@ export interface TextPart {
   text: string;
   /**
    * Set on the part that carries the context of a user message: one stamp
-   * per note sent (`path#hash`). The request codecs send only `text`; the
-   * stamps let the UI tell context from the user's words and let the next
-   * message resend a note only when it changed.
+   * per note sent (`path#hash`; where a note went whole, the hash covers its
+   * text too). The request codecs send only `text`; the stamps let the UI
+   * tell context from the user's words and let the next message resend a
+   * part of a note only when it changed, when the model saw the note at
+   * another version since or under another choice to redact it, or when the
+   * same part went since with another text (`sentStamps`).
    */
   context?: readonly string[];
 }

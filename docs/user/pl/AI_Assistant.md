@@ -1,6 +1,6 @@
 # Asystent AI (Beta)
 
-Stan na: 2026-10-25
+Stan na: 2026-10-26
 
 Plainva potrafi odpowiadać na pytania o notatki za pomocą wybranego modelu AI. Czyta vault, przywołuje notatki, z których korzystała, otwiera notatki oraz widoki i proponuje zmiany — jako propozycje w notatce, jako szkice czegoś nowego albo jako plan, który potwierdzasz. Sama nigdy nie zmienia notatki. Asystent jest **eksperymentalny** i wyłączony, dopóki nie zostanie włączony, osobno na każdym urządzeniu.
 
@@ -61,7 +61,7 @@ Otwarta notatka jest dołączana automatycznie; można ją usunąć z kontekstu 
 
 Asystent potrafi też coś Ci pokazać: otworzyć notatkę przy nagłówku, pokazać notatkę na grafie, ustawić kalendarz na wybrany dzień, otworzyć widoki, pokazać i ukryć paski boczne. Korzysta w tym celu z poleceń z palety poleceń — i to tylko z tych, które coś pokazują: tych, które tworzą, zmieniają, usuwają, eksportują albo otwierają okno, wywołać nie może.
 
-Każda rozmowa zaczyna się od wiersza „Odpowiedzi pisze AI — ⟨model⟩ przez ⟨dostawca⟩”. Pod każdą odpowiedzią widnieje wiersz z informacją, co dokąd zostało wysłane: ile notatek, w przybliżeniu ile tokenów i — tam, gdzie dostawca publikuje ceny — przybliżony koszt. **Zatrzymaj** kończy odpowiedź w każdej chwili.
+Każda rozmowa zaczyna się od wiersza „Odpowiedzi pisze AI — ⟨model⟩ przez ⟨dostawca⟩”. Pod każdą odpowiedzią widnieje wiersz z informacją, co dokąd zostało wysłane: ile notatek, w przybliżeniu ile tokenów i — tam, gdzie dostawca publikuje ceny — przybliżony koszt. Tam, gdzie dostawca zgłasza pamięć podręczną, wiersz podaje też, jaką część danych wejściowych z niej odczytał. **Zatrzymaj** kończy odpowiedź w każdej chwili.
 
 Link w odpowiedzi otwiera się dopiero po potwierdzeniu jego adresu, a obrazy w odpowiedziach nigdy nie są wczytywane.
 
@@ -289,7 +289,7 @@ Na iPhonie i iPadzie te same dwie reguły decydują, które tytuły notatek mog�
 
 ## Historia i zużycie
 
-Rozmowy zostają na tym urządzeniu, dla każdego vaultu — nigdy w vaulcie i nigdy niesynchronizowane. **Przechowuj rozmowy** decyduje, jak długo; pojedyncze rozmowy można usuwać na liście, a wszystkie rozmowy danego vaultu naraz. **Zużycie w tym miesiącu** sumuje tokeny według dostawcy i modelu.
+Rozmowy zostają na tym urządzeniu, dla każdego vaultu — nigdy w vaulcie i nigdy niesynchronizowane. **Przechowuj rozmowy** decyduje, jak długo; pojedyncze rozmowy można usuwać na liście, a wszystkie rozmowy danego vaultu naraz. **Zużycie w tym miesiącu** sumuje tokeny według dostawcy i modelu. Każdy wiersz podaje, jaką część danych wejściowych dostawca odczytał ze swojej pamięci podręcznej, tam, gdzie ją zgłasza, oraz koszt, tam, gdzie publikuje ceny. Pod modelami **Zaoszczędzono dzięki wyborowi i skróceniu** szacuje, ilu tokenów zapytania z tego miesiąca nie zabrały, bo Plainva wysłała sekcję notatki lub jej kluczowe zdania — dosłownie lub jako streszczenie — zamiast całej notatki: resztę każdej takiej notatki, aż do tego, co Plainva wysyła najwyżej z jednej notatki. Wersja notatki liczy się najwyżej raz na rozmowę — przy systemowym modelu na tym urządzeniu, który dostaje notatki każdej tury od nowa, raz na turę — i wcale tam, gdzie model sam przeczytał notatkę, odpowiadając na to pytanie; notatka wysłana w całości niczego nie oszczędza, podobnie jak notatka tylko wymieniona — z nazwy lub ze streszczeniem w jednym wierszu — czy zapytanie, które nie dotarło do żadnego modelu. Oszczędność jest podawana w dolarach tylko tam, gdzie każdy z tych modeli ma cenę; model na tym urządzeniu liczy się jako bezpłatny.
 
 ## Ograniczenia wersji beta
 

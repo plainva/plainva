@@ -1,6 +1,6 @@
 # AI-assistent (Beta)
 
-Laatst bijgewerkt: 2026-10-25
+Laatst bijgewerkt: 2026-10-26
 
 Plainva kan vragen over je notities beantwoorden met een AI-model van jouw keuze. Het leest je vault, noemt de notities waarop het zich baseert, opent notities en weergaven voor je en stelt wijzigingen voor — als voorstellen bij een notitie, als concepten voor iets nieuws of als een plan dat jij bevestigt. Een notitie verandert het nooit zelf. De assistent is **experimenteel** en staat uit totdat je hem inschakelt, apart op elk apparaat.
 
@@ -61,7 +61,7 @@ De notitie die je open hebt staan, gaat automatisch mee; verwijder haar met het 
 
 De assistent kan je ook dingen laten zien: een notitie openen bij een kop, een notitie in de graaf tonen, de kalender op een dag zetten, weergaven openen, de zijbalken tonen en verbergen. Hij gebruikt daarvoor de opdrachten van het opdrachtenpalet — en daarvan alleen die iets tonen: wat iets aanmaakt, wijzigt, verwijdert, exporteert of een venster opent, kan hij niet in gang zetten.
 
-Elk gesprek begint met de regel “Antwoorden worden geschreven door een AI — ⟨model⟩ via ⟨provider⟩”. Onder elk antwoord staat een regel die zegt wat waarheen is verzonden: hoeveel notities, ongeveer hoeveel tokens en — waar de provider prijzen publiceert — de geschatte kosten. **Stoppen** beëindigt een antwoord op elk moment.
+Elk gesprek begint met de regel “Antwoorden worden geschreven door een AI — ⟨model⟩ via ⟨provider⟩”. Onder elk antwoord staat een regel die zegt wat waarheen is verzonden: hoeveel notities, ongeveer hoeveel tokens en — waar de provider prijzen publiceert — de geschatte kosten. Waar de provider een cache meldt, zegt de regel ook hoeveel van de invoer hij daaruit las. **Stoppen** beëindigt een antwoord op elk moment.
 
 Een link in een antwoord opent pas nadat je het adres ervan hebt bevestigd, en afbeeldingen in antwoorden worden nooit geladen.
 
@@ -289,7 +289,7 @@ Op een iPhone of iPad bepalen dezelfde twee regels welke notitietitels Siri en O
 
 ## Geschiedenis en verbruik
 
-Gesprekken blijven op dit apparaat, per vault — nooit in de vault en nooit gesynchroniseerd. **Gesprekken bewaren** bepaalt hoe lang; je kunt losse gesprekken in de lijst verwijderen, of alle gesprekken van een vault in één keer. **Verbruik deze maand** telt de tokens per provider en model op.
+Gesprekken blijven op dit apparaat, per vault — nooit in de vault en nooit gesynchroniseerd. **Gesprekken bewaren** bepaalt hoe lang; je kunt losse gesprekken in de lijst verwijderen, of alle gesprekken van een vault in één keer. **Verbruik deze maand** telt de tokens per provider en model op. Elke regel zegt hoeveel van de invoer de provider uit zijn cache las, waar hij er een meldt, en de kosten, waar hij prijzen publiceert. Onder de modellen schat **Bespaard door kiezen en inkorten** hoeveel tokens de verzoeken van deze maand niet meenamen omdat Plainva van een notitie een sectie of haar kernzinnen stuurde — letterlijk of als samenvatting — in plaats van de hele notitie: de rest van elke zulke notitie, tot wat Plainva hoogstens van één notitie stuurt. Een versie van een notitie telt hoogstens één keer per gesprek — bij het eigen model van het systeem op dit apparaat, dat de notities van elke beurt opnieuw krijgt, één keer per beurt — en helemaal niet waar het model de notitie voor die vraag zelf las; een notitie die in haar geheel ging, bespaart niets, net zomin als een die alleen genoemd werd — met haar naam of met een samenvatting van één regel — of een verzoek dat geen model bereikte. De besparing staat alleen in dollars waar elk van die modellen een prijs heeft; een model op dit apparaat telt als gratis.
 
 ## Grenzen van de beta
 

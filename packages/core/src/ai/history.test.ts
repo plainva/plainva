@@ -11,12 +11,16 @@ import {
   RUN_READ_CAP,
   RUN_WRITES_CAP,
   AI_LEDGER_LIMIT,
+  aiMonthlySavings,
   aiMonthlyTotals,
+  cacheShare,
+  contextSavingsOf,
   readConversationRecord,
   usageCostUsd,
   type ConversationRecord,
   type LedgerEntry,
 } from "./history.js";
+import { estimateTokensOfChars } from "./context/package.js";
 
 const at = "2026-09-24T10:00:00Z";
 
@@ -144,6 +148,15 @@ describe("conversation records", () => {
     expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("readMore");
     tampered.runs[0].read = [];
     expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("read");
+  });
+
+  it("keeps that a run reached no model, and nothing else in its place (plan P9-6)", () => {
+    const r = record();
+    r.runs[0] = { ...r.runs[0]!, stop: "failed", failure: "offline", unreached: true };
+    expect(readConversationRecord(JSON.parse(JSON.stringify(r)))!.runs[0]!.unreached).toBe(true);
+    const tampered = JSON.parse(JSON.stringify(r));
+    tampered.runs[0].unreached = "yes";
+    expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("unreached");
   });
 
   it("keeps what a run laid down for the user to decide: paths, counts and titles — bounded, and nothing that is none", () => {
@@ -282,5 +295,42 @@ describe("run ledger", () => {
     expect(addUsage(EMPTY_USAGE, { outputTokens: 2 })).toEqual({ ...EMPTY_USAGE, outputTokens: 2 });
     expect(usageCostUsd({ inputTokens: 1_000_000, outputTokens: 500_000, cacheReadTokens: 0, cacheWriteTokens: 0 }, { input: 3, output: 15 })).toBe(10.5);
     expect(usageCostUsd(EMPTY_USAGE, undefined)).toBeUndefined();
+  });
+
+  it("says how much of a request came from the provider's cache — and nothing where it reports none", () => {
+    expect(cacheShare({ inputTokens: 200, outputTokens: 50, cacheReadTokens: 700, cacheWriteTokens: 100 })).toBeCloseTo(0.7);
+    // Written to the cache, read from it nothing yet: a first request, 0 % of it — the provider has a cache.
+    expect(cacheShare({ inputTokens: 300, outputTokens: 50, cacheReadTokens: 0, cacheWriteTokens: 700 })).toBe(0);
+    // No cache numbers at all: a model on this device, a provider without one — no share, not a 0 %.
+    expect(cacheShare({ inputTokens: 1000, outputTokens: 50, cacheReadTokens: 0, cacheWriteTokens: 0 })).toBeNull();
+    expect(cacheShare(EMPTY_USAGE)).toBeNull();
+  });
+
+  it("estimates what choosing and shortening saved by the rule of the send overview", () => {
+    // What the context left out of the notes it put in, in characters: the tokens they would have been.
+    expect(contextSavingsOf([{ path: "A.md", left: 3500 }])).toEqual({ savedTokens: estimateTokensOfChars(3500) });
+    expect(estimateTokensOfChars(3500)).toBe(1000);
+    // Nothing left out — every note went whole, or was only named: nothing saved, nothing to record.
+    expect(contextSavingsOf([{ path: "A.md" }, { path: "B.md", left: 0 }])).toBeNull();
+  });
+
+  it("sums what a month saved, with dollars only where every saving run had a price", () => {
+    const saving = (i: number, month: string, context: LedgerEntry["context"], savedUsd?: number): LedgerEntry => ({ ...entry(i, month), ...(context ? { context } : {}), ...(savedUsd !== undefined ? { savedUsd } : {}) });
+    const priced = [saving(1, "2026-09", { savedTokens: 8000 }, 0.25), saving(2, "2026-09", { savedTokens: 2000 }, 0.5)];
+    expect(aiMonthlySavings([...priced, saving(3, "2026-08", { savedTokens: 99_999 }, 1), entry(4)], "2026-09")).toEqual({ savedTokens: 10_000, runs: 2, savedUsd: 0.75 });
+    // A model on this device costs nothing: its saving is worth 0 dollars, and the sum stays whole.
+    const device = saving(5, "2026-09", { savedTokens: 1000 }, 0);
+    expect(aiMonthlySavings([...priced, device], "2026-09")).toEqual({ savedTokens: 11_000, runs: 3, savedUsd: 0.75 });
+    // One run of a model without a price: the tokens still count, the dollars are not given as if they were all.
+    const unpriced = saving(6, "2026-09", { savedTokens: 1000 });
+    expect(aiMonthlySavings([...priced, unpriced], "2026-09")).toEqual({ savedTokens: 11_000, runs: 3 });
+    // An entry that is not what the app writes counts for nothing.
+    const odd = [
+      { ...entry(7), context: { savedTokens: "x" } },
+      { ...entry(8), context: { savedTokens: Number.NaN } },
+      { ...entry(9), context: "8000" },
+      { ...entry(10), at: 2026, context: { savedTokens: 50 } },
+    ] as unknown as LedgerEntry[];
+    expect(aiMonthlySavings([...odd, entry(11)], "2026-09")).toEqual({ savedTokens: 0, runs: 0 });
   });
 });

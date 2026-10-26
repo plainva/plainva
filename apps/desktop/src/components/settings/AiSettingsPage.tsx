@@ -15,11 +15,13 @@ import {
   MenuSurface,
   profileFacts,
   providerStatus,
+  savingsLine,
   Select,
   SettingCard,
   SettingCardNote,
   SettingRow,
   Switch,
+  usageRowLine,
   useAiState,
   AiSessionContext,
   type AiSession,
@@ -58,19 +60,24 @@ function AiSettingsBody({ session }: { session: AiSession }) {
   const [modelFor, setModelFor] = useState<AiProfileSlot | null>(null);
   const [menu, setMenu] = useState<{ provider: ProviderInfo; at: { x: number; y: number } } | null>(null);
   const [usage, setUsage] = useState<Awaited<ReturnType<AiSession["usage"]>>>([]);
+  const [saved, setSaved] = useState<Awaited<ReturnType<AiSession["savings"]>>>({ savedTokens: 0, runs: 0 });
   const number = new Intl.NumberFormat(i18n.language);
   const money = new Intl.NumberFormat(i18n.language, { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 
   const summaries = state?.summaries;
   useEffect(() => {
     let alive = true;
-    void session.usage(new Date().toISOString().slice(0, 7)).then((rows) => {
-      if (alive) setUsage(rows);
+    const month = new Date().toISOString().slice(0, 7);
+    void Promise.all([session.usage(month), session.savings(month)]).then(([rows, savings]) => {
+      if (!alive) return;
+      setUsage(rows);
+      setSaved(savings);
     });
     return () => {
       alive = false;
     };
   }, [session, summaries]);
+  const savedText = savingsLine(t, saved, { number, money });
 
   if (!state?.loaded) return null;
   const settings = state.settings;
@@ -219,9 +226,14 @@ function AiSettingsBody({ session }: { session: AiSession }) {
             <SettingRow
               key={row.key}
               label={`${session.providers().find((p) => p.id === row.providerId)?.label ?? row.providerId} · ${row.model}`}
-              desc={[t("ai.settings.usageRow", { input: number.format(row.usage.inputTokens + row.usage.cacheReadTokens + row.usage.cacheWriteTokens), output: number.format(row.usage.outputTokens) }), row.costUsd !== undefined ? `≈ ${money.format(row.costUsd)}` : ""].filter(Boolean).join(" · ")}
+              desc={usageRowLine(t, row, { number, money })}
             />
           ))
+        )}
+        {savedText && (
+          <SettingCardNote>
+            <span data-testid="ai-usage-saved">{savedText}</span>
+          </SettingCardNote>
         )}
       </SettingCard>
 

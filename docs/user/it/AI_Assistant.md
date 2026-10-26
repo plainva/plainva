@@ -1,6 +1,6 @@
 # Assistente IA (Beta)
 
-Ultimo aggiornamento: 2026-10-25
+Ultimo aggiornamento: 2026-10-26
 
 Plainva può rispondere a domande sulle tue note con un modello IA di tua scelta. Legge il tuo vault, cita le note su cui si basa, apre note e viste per te e propone modifiche — come proposte su una nota, come bozze di qualcosa di nuovo o come un piano che confermi tu. Non cambia mai una nota da solo. L'assistente è **sperimentale** ed è disattivato finché non lo attivi, singolarmente su ogni dispositivo.
 
@@ -61,7 +61,7 @@ La nota che hai aperta viene inclusa automaticamente; rimuovila dal contesto con
 
 L'assistente può anche mostrarti delle cose: aprire una nota a un titolo, mostrare una nota nel grafo, portare il calendario su un giorno, aprire viste, mostrare e nascondere le barre laterali. Per farlo usa i comandi della palette dei comandi — e tra questi solo quelli che mostrano qualcosa: non può attivare quelli che creano, modificano, eliminano, esportano o aprono una finestra.
 
-Ogni conversazione inizia con la riga «Le risposte sono scritte da un'IA — ⟨modello⟩ tramite ⟨provider⟩». Sotto ogni risposta una riga indica cosa è stato inviato e dove: quante note, all'incirca quanti token e — dove il provider pubblica i prezzi — il costo approssimativo. **Interrompi** termina una risposta in qualsiasi momento.
+Ogni conversazione inizia con la riga «Le risposte sono scritte da un'IA — ⟨modello⟩ tramite ⟨provider⟩». Sotto ogni risposta una riga indica cosa è stato inviato e dove: quante note, all'incirca quanti token e — dove il provider pubblica i prezzi — il costo approssimativo. Dove il provider segnala una cache, la riga indica anche quanta parte dell'input ha letto da lì. **Interrompi** termina una risposta in qualsiasi momento.
 
 Un link in una risposta si apre solo dopo che ne hai confermato l'indirizzo, e le immagini nelle risposte non vengono mai caricate.
 
@@ -289,7 +289,7 @@ Su iPhone e iPad, le stesse due regole decidono quali titoli di note Siri e Coma
 
 ## Cronologia e utilizzo
 
-Le conversazioni restano su questo dispositivo, per vault — mai nel vault e mai sincronizzate. **Conserva le conversazioni** stabilisce per quanto tempo; puoi eliminare singole conversazioni nell'elenco o tutte quelle di un vault in una volta. **Utilizzo di questo mese** somma i token per provider e modello.
+Le conversazioni restano su questo dispositivo, per vault — mai nel vault e mai sincronizzate. **Conserva le conversazioni** stabilisce per quanto tempo; puoi eliminare singole conversazioni nell'elenco o tutte quelle di un vault in una volta. **Utilizzo di questo mese** somma i token per provider e modello. Ogni riga indica quanta parte dell'input il provider ha letto dalla sua cache, dove ne segnala una, e il costo, dove pubblica i prezzi. Sotto i modelli, **Risparmiato con la scelta e l'accorciamento** stima i token che le richieste di questo mese non hanno portato perché Plainva ha inviato una sezione di una nota o le sue frasi chiave — alla lettera o come sintesi — invece dell'intera nota: il resto di ciascuna di quelle note, fino al massimo che Plainva invia di una nota. Una versione di una nota conta al massimo una volta per conversazione — con il modello di sistema su questo dispositivo, che riceve di nuovo le note di ogni turno, una volta per turno — e per niente dove il modello ha letto la nota da sé per rispondere a quella domanda; una nota partita intera non fa risparmiare nulla, né una solo citata — con il nome o con una sintesi di una riga —, né una richiesta che non ha raggiunto alcun modello. Il risparmio compare in dollari solo dove ognuno di quei modelli ha un prezzo; un modello su questo dispositivo conta come gratuito.
 
 ## Limiti della beta
 

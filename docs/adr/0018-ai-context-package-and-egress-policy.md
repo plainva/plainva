@@ -190,6 +190,70 @@ thinking blocks are involved).
       clouds carries nothing that was not passed for one: it changes its
       model as before, to another provider (the overview comes back, a new
       recipient) or to a model on the device.
+14. **What a request and a month cost** (built with P9-6; plan §9.7, §11.5).
+    The line under an answer names how much of the input the provider read
+    from its cache, where it reports one (`cacheShare`: what it read of all
+    the run's input, written to the cache included) — and nothing where it
+    reports neither reading nor writing, never a 0 % for a provider without a
+    cache; a share that is not all never reads as 100 %. The run ledger keeps,
+    beside the tokens, what choosing and shortening the notes saved: what the
+    context left out of the notes it put in — the rest of each note of which
+    only a section or its key sentences went, verbatim or as a gist, up to
+    what Plainva sends of one note at most, cut at its last line as Plainva
+    cuts it, and set against what was chosen — a section before its text was
+    cleaned for its recipient — the list of sections an open note's text
+    begins with counted as part of what went —, a card (cut from the cleaned
+    section) before a redaction (`PackageRef.left`, `contextSavingsOf`) —, and
+    those tokens at the model's price for input where it is known, at none for
+    a model on this device; numbers only, never content. A note that went
+    whole saves nothing, whatever a withheld place, link or redaction did to
+    its length, nor does a handle in the map, a card with no sentence or a
+    section with no text beyond its heading (a note whose opening is blank
+    goes with its first section, as a card does; a section that holds all a
+    note says goes as the whole note, and a note that went whole goes again
+    once its text changed — a part of a note is named unchanged only where
+    every view of the note's text the runs record since, the context's or a
+    tool's, has the version that part went in, no later turn carried that part
+    otherwise, and the conversation's choice to send the note redacted was the
+    same at every such view (RunMeta.redact), and the line says which part; a
+    part that holds all a note says and whose whole does not fit goes as
+    itself, its headings a rest to read, and saves nothing): what the notes
+    nobody chose would have cost is no saving anyone can count, so the month
+    never adds up a comparison with a request nobody would have sent. A
+    version of a note counts at most once per conversation, from the turns a
+    model received that carried some of it (not a name repeated unchanged, not
+    a card with no sentence; a section that is only its heading counts as
+    carried, on the low side): had it gone whole, the next turn would not have
+    sent it again. The system's own model is the exception — its request sends
+    every turn's notes anew, so each turn counts. The rule is on the low side:
+    a request carries the earlier turns too, the whole note's alternative
+    would as well, and neither is counted twice; and a part of a note that a
+    lost request carried and the next question takes again goes along as the
+    conversation's earlier turn and is not counted. A note whose text the
+    model was given by `read_note` in the run counts not at all
+    (`ToolScope.gave`, an uncapped set); a search snippet, a backlink's lines,
+    a list of headings or a text a tool only showed to the gate does not make
+    it so. A run records a saving only when a model received its request: it
+    reported what it took in, or it answered or ended its answer — also with
+    nothing to say —; a request no model reported receiving (lost on the way,
+    refused by the provider, stopped before an answer came) saved nothing, and
+    is marked so (`RunMeta.unreached`). A note the model read itself in an
+    earlier question counts again in a later one — the whole note would have
+    gone again too —, unless that question's context carried part of the same
+    version: had it gone whole then, it would not go again. One estimate
+    serves the send overview, "View context" and the month
+    (`estimateTokensOfChars`, 3.5 characters a token; the context view used 4
+    before). "View context" keeps its comparison with sending every proposed
+    note whole, in bytes against bytes (`naiveComparison`), a note the package
+    read by the bytes of its body: the index knows notes by their size on the
+    disk, properties and all, and a note in a script of several bytes a
+    character, or one with properties, must not look shortened when it went
+    whole; a share that rounds to nothing is not shown. "Usage this month"
+    names per model its cache share and its cost, and below them what the
+    month saved — in dollars only where every saving run had a price and they
+    come to at least half a cent, so that a model without one is never left
+    out of a sum that still looks complete, and a month on this device's
+    models alone shows tokens, not "$0.00".
 
 ## Consequences
 

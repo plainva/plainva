@@ -26,6 +26,7 @@ export * from "./eventDetails";
 export * from "./quarantineText";
 export * from "./privateData";
 export * from "./AiContextLens";
+export * from "./usageLines";
 export * from "./aiSelectionActions";
 export * from "./aiThreadReply";
 export * from "./aiWriteLint";

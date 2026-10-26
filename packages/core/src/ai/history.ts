@@ -1,5 +1,6 @@
 import type { Conversation } from "./conversation.js";
 import type { EgressManifest } from "./context/manifest.js";
+import { estimateTokensOfChars, type PackageRef } from "./context/package.js";
 import { isSensitiveKind, type SensitiveKind } from "./context/sensitiveHints.js";
 import { AI_POLICY_DIMENSIONS, type AiPolicyDimension } from "./policy.js";
 import { NOTE_HASH } from "./runSnapshot.js";
@@ -73,6 +74,14 @@ export interface RunMeta {
   stop: string;
   /** The failure's kind when it failed; the provider's own words are not stored. */
   failure?: string;
+  /**
+   * The request reached no model: none said what it took in, and none
+   * answered (plan KI-Harness P9-6). What it carried saved nothing then, and
+   * another part of the same note that a later turn takes counts. The same
+   * part asked again goes along as the conversation's earlier turn and is not
+   * counted — on the low side.
+   */
+  unreached?: true;
   costUsd?: number;
   /** The send overview of this run: what went where, by path and section — never content. */
   manifest?: EgressManifest;
@@ -111,9 +120,32 @@ export interface RunMeta {
    * The versions of the notes the run's tools read whole (plan KI-Harness
    * P9-2): the SHA-256 of the text a tool was given, by path — never the
    * text. A note that was only a hit of a search has none. At most
-   * `RUN_READ_CAP`, like `read`.
+   * `RUN_READ_CAP`, like `read` — kept apart from it, so a run whose `read`
+   * filled with notes it only listed still knows the texts it read (P9-6).
    */
   readHashes?: { path: string; hash: string }[];
+  /**
+   * The sources the conversation chose to send redacted when the run ran
+   * (plan KI-Harness P9-6), the situation among them where chosen: a cloud's
+   * context and tools followed this choice; on this device nothing is
+   * redacted (ADR 0018, decision 13). A part of a note named "unchanged" later
+   * stands only where this choice was the same at every view since. Absent
+   * where none was chosen.
+   */
+  redact?: string[];
+  /**
+   * Notes a tool of the run read at more than one version — the note changed
+   * while the run read it (plan KI-Harness P9-6). `readHashes` keeps the last
+   * one, for the run's snapshot; for "unchanged" such a note has no one
+   * version: what the model saw of it is not one text.
+   */
+  readChanged?: string[];
+  /**
+   * A tool of the run read a note whose version the record could not keep:
+   * more than `RUN_READ_CAP` notes read (plan KI-Harness P9-6). Nothing the
+   * conversation sent before counts as unchanged after it.
+   */
+  readUnhashed?: true;
   /** What the run asked of foreign servers; absent when it asked nothing. */
   mcp?: RunMcp;
   /** What the run laid down for the user to decide (plan KI-Harness P5); absent when it laid down nothing. */
@@ -449,6 +481,7 @@ function readRun(raw: unknown): RunMeta[] {
       steps: count(r.steps),
       stop: r.stop,
       ...(typeof r.failure === "string" ? { failure: r.failure } : {}),
+      ...(r.unreached === true ? { unreached: true as const } : {}),
       ...(typeof r.costUsd === "number" && Number.isFinite(r.costUsd) && r.costUsd >= 0 ? { costUsd: r.costUsd } : {}),
       ...(readManifest(r.manifest) ? { manifest: readManifest(r.manifest)! } : {}),
       ...(Array.isArray(r.skills)
@@ -468,6 +501,10 @@ function readRun(raw: unknown): RunMeta[] {
       // More than the record keeps — or more than it may keep: either way not everything is known by path.
       ...(r.readMore === true || strings(r.read).length > RUN_READ_CAP ? { readMore: true } : {}),
       ...(readHashesOf(r.readHashes).length ? { readHashes: readHashesOf(r.readHashes) } : {}),
+      // As many as the conversation chose: its own choice is read back without a bound too.
+      ...(strings(r.redact).length ? { redact: strings(r.redact) } : {}),
+      ...(strings(r.readChanged).length ? { readChanged: strings(r.readChanged).slice(0, RUN_READ_CAP) } : {}),
+      ...(r.readUnhashed === true ? { readUnhashed: true as const } : {}),
       ...(readRunMcp(r.mcp) ? { mcp: readRunMcp(r.mcp)! } : {}),
       ...(readRunWrites(r.writes) ? { writes: readRunWrites(r.writes)! } : {}),
       ...(readRunScripts(r.scripts) ? { scripts: readRunScripts(r.scripts)! } : {}),
@@ -732,6 +769,78 @@ export interface LedgerEntry {
    * habits — a skill nobody used, a way gone by hand — reads past them (plan P6-3).
    */
   aside?: boolean;
+  /**
+   * What choosing and shortening the notes saved in this run (plan KI-Harness
+   * P9-6); absent when nothing was left out, and for a request no model
+   * reported having received.
+   */
+  context?: RunContextSavings;
+  /** Those saved tokens at the model's price for input, when it is known; 0 for a model on this device. */
+  savedUsd?: number;
+}
+
+/**
+ * What choosing and shortening the notes saved in a run (plan KI-Harness
+ * P9-6, §9.7): the tokens of what the context left out of the notes it put
+ * in — the rest of each note of which only a section or its key sentences
+ * went, up to the most Plainva sends of one note (`PackageRef.left`). A note
+ * that went whole saves nothing, nor one that was only named: what the notes
+ * nobody chose would have cost is no saving anyone can count. An estimate
+ * from characters (`estimateTokensOfChars`), never content.
+ */
+export interface RunContextSavings {
+  savedTokens: number;
+}
+
+/**
+ * What a package's sources saved, leaving out those `skip` names — a note a
+ * tool of the run gave the model the text of anyway, a version of a note an
+ * earlier turn of the conversation already carried; null when that is
+ * nothing.
+ */
+export function contextSavingsOf(refs: readonly Pick<PackageRef, "path" | "hash" | "left">[], skip: (ref: Pick<PackageRef, "path" | "hash">) => boolean = () => false): RunContextSavings | null {
+  let chars = 0;
+  for (const ref of refs) if (ref.left !== undefined && ref.left > 0 && !skip(ref)) chars += ref.left;
+  const savedTokens = estimateTokensOfChars(chars);
+  return savedTokens > 0 ? { savedTokens } : null;
+}
+
+/**
+ * The share of a request's input the provider read from its cache (plan
+ * KI-Harness P9-6): `cacheRead` of everything that went in. Null where the
+ * provider reported no cache at all — a model on this device, a provider
+ * without one — rather than a 0 % that would say it tried.
+ */
+export function cacheShare(usage: ConversationUsage): number | null {
+  const cached = usage.cacheReadTokens + usage.cacheWriteTokens;
+  if (!(cached > 0)) return null;
+  return usage.cacheReadTokens / (usage.inputTokens + cached);
+}
+
+/**
+ * What choosing and shortening the notes saved in one calendar month (§9.7,
+ * §11.5): the tokens, the runs it saved in, and the dollars — only where every
+ * one of those runs had a price, so the sum never leaves out a model without
+ * one and still looks complete.
+ */
+export function aiMonthlySavings(entries: readonly LedgerEntry[], month: string): { savedTokens: number; runs: number; savedUsd?: number } {
+  let savedTokens = 0;
+  let runs = 0;
+  let savedUsd = 0;
+  let priced = 0;
+  for (const entry of entries) {
+    const context = entry.context;
+    if (typeof entry.at !== "string" || !entry.at.startsWith(month) || !context || !Number.isFinite(context.savedTokens)) continue;
+    const saved = context.savedTokens;
+    if (!(saved > 0)) continue;
+    savedTokens += saved;
+    runs += 1;
+    if (typeof entry.savedUsd === "number" && Number.isFinite(entry.savedUsd)) {
+      savedUsd += entry.savedUsd;
+      priced += 1;
+    }
+  }
+  return { savedTokens, runs, ...(runs > 0 && priced === runs ? { savedUsd } : {}) };
 }
 
 export const AI_LEDGER_LIMIT = 500;

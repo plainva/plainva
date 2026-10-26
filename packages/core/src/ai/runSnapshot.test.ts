@@ -116,6 +116,19 @@ describe("a run's record", () => {
     expect(read.replayOf).toBeUndefined();
   });
 
+  it("keeps the notes a run read at two versions, a read past its record and what it sent redacted, and drops what is no such thing (plan P9-6)", () => {
+    const r = JSON.parse(JSON.stringify(record()));
+    r.runs[0].readChanged = ["Projects/Plan.md", 4, "Projects/Notes.md"];
+    r.runs[0].readUnhashed = true;
+    r.runs[0].redact = ["Projects/Budget.md", null];
+    const read = readConversationRecord(r)!;
+    expect(read.runs[0]!.readChanged).toEqual(["Projects/Plan.md", "Projects/Notes.md"]);
+    expect(read.runs[0]!.redact).toEqual(["Projects/Budget.md"]);
+    expect(read.runs[0]!.readUnhashed).toBe(true);
+    r.runs[0].readUnhashed = "yes";
+    expect(readConversationRecord(r)!.runs[0]!.readUnhashed).toBeUndefined();
+  });
+
   it("keeps no more versions than paths of what was read", () => {
     const r = JSON.parse(JSON.stringify(record()));
     r.runs[0].readHashes = Array.from({ length: RUN_READ_CAP + 20 }, (_, i) => ({ path: `N/${i}.md`, hash: noteHash(String(i)) }));

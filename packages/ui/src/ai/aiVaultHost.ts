@@ -379,7 +379,7 @@ export interface CandidateRetrieval {
   now(): number;
   /** Notes close in meaning (plan P2b); absent while the vault has no search by meaning. */
   semanticCandidates?(question: string, limit: number, options: { cloudQuestion: boolean }): Promise<{ path: string; ordinal: number; hash: string; score: number }[]>;
-  /** Note sizes as the index knows them, for what a naive request would have sent (plan P2b-5). */
+  /** Note sizes in bytes, as the index knows them, for what a naive request would have sent (plan P2b-5). */
   noteSizes?(paths: readonly string[]): Promise<Map<string, number>>;
   /**
    * The notes whose text contains one of these spellings literally (plan

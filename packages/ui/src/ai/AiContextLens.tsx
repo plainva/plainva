@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Eye, HardDrive, LoaderCircle, Minus, Pin, ShieldAlert, Waypoints, X } from "lucide-react";
-import { REDACTABLE, SITUATION_SOURCE, type GateExclusion, type PackageRef, type SensitiveKind } from "@plainva/core";
+import { estimateTokensOfChars, naiveComparison, REDACTABLE, SITUATION_SOURCE, type GateExclusion, type PackageRef, type SensitiveKind } from "@plainva/core";
 import { Button } from "../components/ui/Button";
 import { IconButton } from "../components/ui/IconButton";
 import { cx } from "../components/ui/cx";
@@ -9,6 +9,7 @@ import { ICON } from "../lib/iconSizes";
 import { toast } from "../services/toastStore";
 import { requestGraphTrail } from "../graph/graphTrail";
 import type { ContextPreview } from "./aiSession";
+import { percentOf } from "./usageLines";
 import { useAiSession, useAiState } from "./useAiSession";
 import { useSensitiveKinds } from "./sensitiveKinds";
 
@@ -35,8 +36,8 @@ export interface AiContextLensProps {
 }
 
 const titleOf = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.(md|base)$/i, "");
-/** Tokens as the overview estimates them: about four characters each. */
-const tokensOf = (chars: number) => Math.ceil(chars / 4);
+/** Tokens as the send overview and the month's savings estimate them (plan P9-6): one rule for all three. */
+const tokensOf = estimateTokensOfChars;
 
 /** The naive comparison is told once per device (mockup v5 §3): after that the share says it. */
 const NAIVE_SEEN = "plainva-ai-lens-naive-seen";
@@ -100,11 +101,13 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
   }, [session, key]);
 
   const material = result?.preview?.pack.material ?? null;
-  const naive = material && material.candidateChars !== null && material.candidateChars > material.sentChars ? material.candidateChars : null;
+  // Bytes against bytes (P9-6): a note in a script of several bytes a character is no saving.
+  const naive = material ? naiveComparison(material) : null;
+  const comparable = naive !== null;
   // Told once: the first lens that can show the comparison marks it seen for the next ones.
   useEffect(() => {
-    if (naive !== null && !toldNaive) markNaiveSeen();
-  }, [naive, toldNaive]);
+    if (comparable && !toldNaive) markNaiveSeen();
+  }, [comparable, toldNaive]);
 
   if (!session || !state) return null;
   const loading = result?.key !== key;
@@ -206,12 +209,12 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
                 <dd>{t("ai.lens.sentOf", { sent: number.format(tokensOf(material.sentChars)), source: number.format(tokensOf(material.sourceChars)) })}</dd>
               </div>
             )}
-            {naive !== null && material && (
+            {naive !== null && (
               <div data-testid="ai-lens-savings">
                 <dt>{t("ai.lens.savings")}</dt>
                 <dd>
-                  {t("ai.lens.savingsShare", { percent: number.format(Math.round((1 - material.sentChars / naive) * 100)) })}
-                  {!toldNaive && ` — ${t("ai.lens.naive", { tokens: number.format(tokensOf(naive)) })}`}
+                  {t("ai.lens.savingsShare", { percent: number.format(percentOf(naive.share)) })}
+                  {!toldNaive && ` — ${t("ai.lens.naive", { tokens: number.format(naive.tokens) })}`}
                 </dd>
               </div>
             )}

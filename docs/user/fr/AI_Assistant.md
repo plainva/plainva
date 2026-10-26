@@ -1,6 +1,6 @@
 # Assistant IA (Bêta)
 
-Dernière mise à jour : 2026-10-25
+Dernière mise à jour : 2026-10-26
 
 Plainva peut répondre à des questions sur vos notes avec un modèle d'IA de votre choix. Il lit votre vault, cite les notes sur lesquelles il s'appuie, ouvre des notes et des vues pour vous et propose des modifications — sous forme de propositions sur une note, de brouillons pour ce qui est nouveau, ou d'un plan que vous confirmez. Il ne modifie jamais une note lui-même. L'assistant est **expérimental** et désactivé jusqu'à ce que vous l'activiez, séparément sur chaque appareil.
 
@@ -61,7 +61,7 @@ La note que vous avez ouverte est jointe automatiquement ; retirez-la du context
 
 L'assistant peut aussi vous montrer des choses : ouvrir une note à un titre, afficher une note dans le graphe, placer le calendrier sur un jour, ouvrir des vues, afficher et masquer les barres latérales. Il utilise pour cela les commandes de la palette de commandes — et, parmi elles, seulement celles qui montrent quelque chose : il ne peut pas déclencher celles qui créent, modifient, suppriment, exportent ou ouvrent une fenêtre.
 
-Chaque conversation commence par la ligne « Les réponses sont rédigées par une IA — ⟨modèle⟩ via ⟨fournisseur⟩ ». Sous chaque réponse, une ligne indique ce qui a été envoyé où : combien de notes, environ combien de jetons et — là où le fournisseur publie ses prix — le coût approximatif. **Arrêter** met fin à une réponse à tout moment.
+Chaque conversation commence par la ligne « Les réponses sont rédigées par une IA — ⟨modèle⟩ via ⟨fournisseur⟩ ». Sous chaque réponse, une ligne indique ce qui a été envoyé où : combien de notes, environ combien de jetons et — là où le fournisseur publie ses prix — le coût approximatif. Là où le fournisseur signale un cache, la ligne indique aussi quelle part de l'entrée il y a lue. **Arrêter** met fin à une réponse à tout moment.
 
 Un lien dans une réponse ne s'ouvre qu'après confirmation de son adresse, et les images dans les réponses ne sont jamais chargées.
 
@@ -289,7 +289,7 @@ Sur un iPhone ou un iPad, les deux mêmes règles décident des titres de notes 
 
 ## Historique et utilisation
 
-Les conversations restent sur cet appareil, par vault — jamais dans le vault et jamais synchronisées. **Conserver les conversations** détermine la durée ; vous pouvez supprimer une conversation isolée dans la liste, ou toutes celles d'un vault d'un coup. **Utilisation ce mois-ci** additionne les jetons par fournisseur et par modèle.
+Les conversations restent sur cet appareil, par vault — jamais dans le vault et jamais synchronisées. **Conserver les conversations** détermine la durée ; vous pouvez supprimer une conversation isolée dans la liste, ou toutes celles d'un vault d'un coup. **Utilisation ce mois-ci** additionne les jetons par fournisseur et par modèle. Chaque ligne indique quelle part de l'entrée le fournisseur a lue dans son cache, là où il en signale un, et le coût, là où il publie ses prix. Sous les modèles, **Économisé par la sélection et le raccourcissement** estime les jetons que les requêtes de ce mois n'ont pas emportés parce que Plainva a envoyé une section d'une note ou ses phrases clés — telles quelles ou sous forme de résumé — au lieu de la note entière : le reste de chacune de ces notes, jusqu'à ce que Plainva envoie au plus d'une note. Une version d'une note compte au plus une fois par conversation — avec le modèle du système sur cet appareil, qui reçoit à nouveau les notes de chaque tour, une fois par tour —, et pas du tout là où le modèle a lu la note lui-même pour répondre à cette question ; une note partie entière n'économise rien, pas plus qu'une note seulement citée — par son nom ou avec un résumé d'une ligne —, ni une requête qui n'a atteint aucun modèle. L'économie s'affiche en dollars seulement là où chacun de ces modèles a un prix ; un modèle sur cet appareil compte comme gratuit.
 
 ## Limites de la bêta
 

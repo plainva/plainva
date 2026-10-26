@@ -1,6 +1,6 @@
 # AI Assistant (Beta)
 
-Last reviewed: 2026-10-25
+Last reviewed: 2026-10-26
 
 Plainva can answer questions about your notes with an AI model of your choice. It reads your vault, cites the notes it used, opens notes and views for you and proposes changes — as suggestions on a note, as drafts of something new, or as a plan you confirm. It never changes a note itself. The assistant is **experimental** and switched off until you switch it on, separately on every device.
 
@@ -61,7 +61,7 @@ The note you have open goes along automatically; remove it from the context with
 
 The assistant can also show you things: open a note at a heading, show a note in the graph, turn the calendar to a day, open views, show and hide the sidebars. It uses the commands of the command palette for that — and of those only the ones that show something: whatever creates, changes, deletes, exports or opens a window is not its to trigger.
 
-Every conversation starts with the line "Answers are written by an AI — ⟨model⟩ via ⟨provider⟩". Under each answer a line says what was sent where: how many notes, roughly how many tokens and — where the provider publishes prices — the approximate cost. **Stop** ends an answer at any time.
+Every conversation starts with the line "Answers are written by an AI — ⟨model⟩ via ⟨provider⟩". Under each answer a line says what was sent where: how many notes, roughly how many tokens and — where the provider publishes prices — the approximate cost. Where the provider reports a cache, the line also says how much of the input it read from there. **Stop** ends an answer at any time.
 
 A link in an answer opens only after you confirmed its address, and images in answers are never loaded.
 
@@ -289,7 +289,7 @@ On an iPhone or iPad, the same two rules decide which note titles Siri and Short
 
 ## History and usage
 
-Conversations stay on this device, per vault — never in the vault and never synced. **Keep conversations** decides how long; you can delete single conversations in the list or all of a vault at once. **Usage this month** sums up the tokens per provider and model.
+Conversations stay on this device, per vault — never in the vault and never synced. **Keep conversations** decides how long; you can delete single conversations in the list or all of a vault at once. **Usage this month** sums up the tokens per provider and model. Each line says how much of the input the provider read from its cache, where it reports one, and the cost, where it publishes prices. Below the models, **Saved by choosing and shortening** estimates the tokens this month's requests did not carry because Plainva sent a section of a note or its key sentences — verbatim or as a gist — instead of the whole note: the rest of each such note, up to the most Plainva sends of one note. A version of a note counts at most once per conversation — with the system's own model on this device, which gets every turn's notes anew, once per turn —, and not at all where the model read the note itself while answering that question; a note that went whole saves nothing, nor does one only listed — by name or with a one-line gist —, nor a request that reached no model. The saving shows in dollars only where every one of those models has a price; a model on this device counts as costing nothing.
 
 ## Limits of the beta
 

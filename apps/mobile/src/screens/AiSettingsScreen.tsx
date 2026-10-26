@@ -18,11 +18,13 @@ import {
   readStatedWindow,
   Row,
   RowList,
+  savingsLine,
   SectionLabel,
   statedChoice,
   STATED_WINDOW_BOUNDS,
   Switch,
   toast,
+  usageRowLine,
   type AiSession,
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
@@ -54,17 +56,24 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
   const session = getMobileAiSession();
   const state = useSyncExternalStore(session.subscribe, session.getState);
   const [usage, setUsage] = useState<Awaited<ReturnType<AiSession["usage"]>>>([]);
+  const [saved, setSaved] = useState<Awaited<ReturnType<AiSession["savings"]>>>({ savedTokens: 0, runs: 0 });
   const number = new Intl.NumberFormat(i18n.language);
+  // As the desktop says it: the cost where the provider publishes prices (plan P9-6).
+  const money = new Intl.NumberFormat(i18n.language, { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 
   useEffect(() => {
     let alive = true;
-    void session.usage(new Date().toISOString().slice(0, 7)).then((rows) => {
-      if (alive) setUsage(rows);
+    const month = new Date().toISOString().slice(0, 7);
+    void Promise.all([session.usage(month), session.savings(month)]).then(([rows, savings]) => {
+      if (!alive) return;
+      setUsage(rows);
+      setSaved(savings);
     });
     return () => {
       alive = false;
     };
   }, [session, state.summaries]);
+  const savedText = savingsLine(t, saved, { number, money });
 
   // The system's own model says on opening whether it is there (plan P2c).
   useEffect(() => {
@@ -412,16 +421,17 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
               <Row title={t("ai.settings.usageNone")} />
             ) : (
               usage.map((row) => (
-                <Row
-                  key={row.key}
-                  wrap
-                  title={`${labelOf(row.providerId)} · ${row.model}`}
-                  subtitle={t("ai.settings.usageRow", { input: number.format(row.usage.inputTokens + row.usage.cacheReadTokens + row.usage.cacheWriteTokens), output: number.format(row.usage.outputTokens) })}
-                />
+                <Row key={row.key} wrap title={`${labelOf(row.providerId)} · ${row.model}`} subtitle={usageRowLine(t, row, { number, money })} />
               ))
             )}
           </RowList>
         </GroupCard>
+        {/* About the whole card, as the desktop says it in its note: below it, on the page edge (plan P9-6). */}
+        {savedText && (
+          <p className="m-hint" data-testid="m-ai-usage-saved">
+            {savedText}
+          </p>
+        )}
       </div>
     </div>
   );

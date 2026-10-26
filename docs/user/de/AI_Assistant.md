@@ -1,6 +1,6 @@
 # KI-Assistent (Beta)
 
-Stand: 2026-10-25
+Stand: 2026-10-26
 
 Plainva kann Fragen zu Deinen Notizen mit einem KI-Modell Deiner Wahl beantworten. Es liest Deinen Vault, nennt die Notizen, auf die es sich stützt, öffnet Notizen und Ansichten für Dich und schlägt Änderungen vor — als Vorschläge an einer Notiz, als Entwürfe für Neues oder als Plan, den Du bestätigst. Eine Notiz ändert es nie selbst. Der Assistent ist **experimentell** und aus, bis Du ihn einschaltest, auf jedem Gerät für sich.
 
@@ -61,7 +61,7 @@ Die Notiz, die Du offen hast, geht automatisch mit; nimm sie mit ihrem ✕ aus d
 
 Der Assistent kann Dir auch etwas zeigen: eine Notiz an einer Überschrift öffnen, eine Notiz im Graphen zeigen, den Kalender auf einen Tag stellen, Ansichten öffnen, die Seitenleisten ein- und ausblenden. Er benutzt dafür die Befehle der Befehlspalette — und davon nur die, die etwas zeigen: was anlegt, ändert, löscht, exportiert oder ein Fenster öffnet, kann er nicht auslösen.
 
-Jedes Gespräch beginnt mit der Zeile „Antworten schreibt eine KI — ⟨Modell⟩ über ⟨Anbieter⟩“. Unter jeder Antwort steht, was wohin gesendet wurde: wie viele Notizen, ungefähr wie viele Token und — wo der Anbieter Preise veröffentlicht — die ungefähren Kosten. **Stopp** beendet eine Antwort jederzeit.
+Jedes Gespräch beginnt mit der Zeile „Antworten schreibt eine KI — ⟨Modell⟩ über ⟨Anbieter⟩“. Unter jeder Antwort steht, was wohin gesendet wurde: wie viele Notizen, ungefähr wie viele Token und — wo der Anbieter Preise veröffentlicht — die ungefähren Kosten. Wo der Anbieter einen Cache meldet, sagt die Zeile auch, wie viel der Eingabe er daraus las. **Stopp** beendet eine Antwort jederzeit.
 
 Ein Link in einer Antwort öffnet sich erst, nachdem Du seine Adresse bestätigt hast, und Bilder in Antworten werden nie geladen.
 
@@ -289,7 +289,7 @@ Am iPhone und iPad entscheiden dieselben zwei Regeln, welche Notiztitel Siri und
 
 ## Verlauf und Verbrauch
 
-Gespräche bleiben auf diesem Gerät, je Vault — nie im Vault und nie synchronisiert. **Gespräche aufbewahren** legt fest, wie lange; einzelne Gespräche löschst Du in der Liste, alle eines Vaults auf einmal in den Einstellungen. **Verbrauch diesen Monat** fasst die Token je Anbieter und Modell zusammen.
+Gespräche bleiben auf diesem Gerät, je Vault — nie im Vault und nie synchronisiert. **Gespräche aufbewahren** legt fest, wie lange; einzelne Gespräche löschst Du in der Liste, alle eines Vaults auf einmal in den Einstellungen. **Verbrauch diesen Monat** fasst die Token je Anbieter und Modell zusammen. Jede Zeile sagt, wie viel der Eingabe der Anbieter aus seinem Cache las, wo er einen meldet, und die Kosten, wo er Preise veröffentlicht. Unter den Modellen schätzt **Durch Auswahl und Kürzung gespart**, wie viele Token die Anfragen dieses Monats nicht mitgenommen haben, weil Plainva von einer Notiz einen Abschnitt oder ihre Kernsätze schickte — wörtlich oder als Gist — statt der ganzen Notiz: den Rest jeder solchen Notiz, bis zu dem, was Plainva höchstens von einer Notiz schickt. Eine Fassung einer Notiz zählt höchstens einmal je Gespräch — beim Systemmodell auf diesem Gerät, das die Notizen jeder Runde neu bekommt, einmal je Runde — und gar nicht, wo das Modell die Notiz für diese Frage selbst gelesen hat; eine Notiz, die ganz ging, spart nichts, ebenso wenig eine, die nur genannt wurde — mit Namen oder mit einem Gist in einer Zeile —, oder eine Anfrage, die kein Modell erreichte. In Dollar steht die Ersparnis nur, wo jedes dieser Modelle einen Preis hat; ein Modell auf diesem Gerät gilt als kostenlos.
 
 ## Grenzen der Beta
 

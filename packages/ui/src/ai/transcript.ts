@@ -1,4 +1,4 @@
-import { calledToolName, EFFECT_DECLINED, imagesOf, type ConversationRecord, type ImagePart, type RunMeta } from "@plainva/core";
+import { calledToolName, contextStampPath, EFFECT_DECLINED, imagesOf, type ConversationRecord, type ImagePart, type RunMeta } from "@plainva/core";
 
 /**
  * What a reader sees of a conversation (P1a): the user's words, the answers,
@@ -19,10 +19,9 @@ export type TranscriptItem =
  */
 export type StepState = "done" | "failed" | "declined" | "open";
 
-/** The path of a context stamp (`path#hash`). */
+/** The path of a context stamp (`path#hash`): the core's one reading of it. */
 export function stampPath(stamp: string): string {
-  const cut = stamp.lastIndexOf("#");
-  return cut > 0 ? stamp.slice(0, cut) : stamp;
+  return contextStampPath(stamp);
 }
 
 export function transcriptOf(record: ConversationRecord): TranscriptItem[] {

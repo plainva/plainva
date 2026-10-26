@@ -5333,6 +5333,51 @@ test('AI writes a column of a database: a run proposes a value for each empty en
   await expect(panel.getByTestId('base-filter-words-result')).toHaveCount(0);
 });
 
+// The month's usage (AI harness P9-6): what each model went with, how much of
+// it came from the provider's cache, what it cost — and what choosing and
+// shortening the notes saved, read from the vault's run ledger in the app's
+// data, where it lies as the app writes it.
+test('AI usage this month: the cache share and the cost per model, and what choosing and shortening the notes saved', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true } };
+    const at = `${new Date().toISOString().slice(0, 7)}-01T10:00:00Z`;
+    const entry = (providerId: string, model: string, usage: object, extra: object) => ({ at, conversationId: 'c1', providerId, model, stop: 'answered', steps: 1, tools: [], usage, ...extra });
+    const ledger = JSON.stringify({
+      version: 1,
+      entries: [
+        entry('anthropic', 'claude-sonnet-4-5', { inputTokens: 300, outputTokens: 120, cacheReadTokens: 700, cacheWriteTokens: 0 }, { costUsd: 0.0123, context: { savedTokens: 11420 }, savedUsd: 0.0343 }),
+        entry('openai', 'gpt-5', { inputTokens: 1000, outputTokens: 50, cacheReadTokens: 0, cacheWriteTokens: 0 }, { costUsd: 0.002, context: { savedTokens: 1000 }, savedUsd: 0.0025 }),
+        // A model on this computer costs nothing: what it saved is worth no dollars, and the month's dollars stay whole.
+        entry('ollama', 'granite3.3:8b', { inputTokens: 900, outputTokens: 40, cacheReadTokens: 0, cacheWriteTokens: 0 }, { context: { savedTokens: 1000 }, savedUsd: 0 }),
+      ],
+    });
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:path|resolve_directory') return '/appdata';
+      // The run ledger of the vault that is open, under whatever key the app files it.
+      if (cmd === 'checked_read_text_file' && /^v[0-9a-f]{16}\/ledger\.json$/.test(String(args?.relPath))) return ledger;
+      return orig(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).first().click();
+  // Below the models: what the month saved — in tokens, and in dollars because every one of those runs had a price
+  // (the one on this computer at none).
+  const saved = dialog.getByTestId('ai-usage-saved');
+  await expect(saved).toHaveText(/^(Saved by choosing and shortening: ~13,420 tokens · ≈ \$0\.04|Durch Auswahl und Kürzung gespart: ~13\.420 Token · ≈ 0,04\s?\$)$/);
+  // A model whose provider reports its cache says how much came from it; one that reports none says nothing of a cache.
+  const cached = dialog.locator('.pv-setrow', { hasText: 'claude-sonnet-4-5' });
+  await expect(cached).toContainText(/1[,.]000 (tokens sent|Token gesendet) · 120 (received|empfangen) · 70\s?% (of the input from the cache|der Eingabe aus dem Cache) · ≈ /);
+  const plain = dialog.locator('.pv-setrow', { hasText: 'gpt-5' });
+  await expect(plain).toContainText(/1[,.]000 (tokens sent|Token gesendet) · 50 (received|empfangen) · ≈ /);
+  await expect(plain).not.toContainText(/cache|Cache/);
+  await saved.scrollIntoViewIfNeeded();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-usage-desktop.png'), animations: 'disabled' });
+});
+
 // "Explain image" (AI harness P4-5): a picture of the vault goes, with a
 // question, to the model — after the overview showed it exactly as it would
 // go. The web view's own decoder and canvas prepare it, as in the app: what

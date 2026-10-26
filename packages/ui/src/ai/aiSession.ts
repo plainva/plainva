@@ -161,6 +161,7 @@ import {
   type UpkeepHint,
   type UpkeepTestResult,
   switchInstruction,
+  aiMonthlySavings,
   aiMonthlyTotals,
   allProviders,
   appendAiLedgerEntry,
@@ -168,6 +169,7 @@ import {
   assistantSystemPrompt,
   buildContextPackage,
   contextBudgetFor,
+  contextSavingsOf,
   PLATFORM_CONTEXT_DEFAULT,
   conversationMatches,
   conversationSummaryOf,
@@ -210,6 +212,7 @@ import {
   localOnlyEgress,
   runsOnDevice,
   choiceOnDevice,
+  utf8Length,
   statedModelFacts,
   estimateRequestTokens,
   WINDOW_BUDGET_ROOM,
@@ -436,7 +439,7 @@ export interface AiVaultHost {
   /** Candidate lists of the vault's sources for a question (§8.1); the package gates and ranks them. */
   /** The recipient decides whether a cloud embedding model may see the question (plan P2b). */
   candidates(question: string, activePath: string | null, recipient?: EgressRecipient): Promise<Candidate[][]>;
-  /** Note sizes as the index knows them (plan P2b-5); absent, the lens leaves the naive comparison out. */
+  /** Note sizes in bytes, as the index knows them (plan P2b-5); absent, the lens leaves the naive comparison out. */
   noteSizes?(paths: readonly string[]): Promise<Map<string, number>>;
   policy: ContextPolicyHost;
   /**
@@ -1702,6 +1705,13 @@ export class AiSession {
     const vault = this.vault;
     if (!vault) return [];
     return aiMonthlyTotals(await vault.ledger.load().catch(() => []), month);
+  }
+
+  /** What choosing and shortening the notes saved in one month (`YYYY-MM`) of this vault's run ledger (plan P9-6). */
+  async savings(month: string): Promise<ReturnType<typeof aiMonthlySavings>> {
+    const vault = this.vault;
+    if (!vault) return { savedTokens: 0, runs: 0 };
+    return aiMonthlySavings(await vault.ledger.load().catch(() => []), month);
   }
 
   /** Adds an OpenAI-compatible server after the shell's native confirmation. */
@@ -4782,7 +4792,8 @@ export class AiSession {
         redactions: { withheldLinks: 0, places: 0, moodProperties: 0, sensitive: 0 },
         dataClasses: ["selection"],
         estimatedTokens: estimateTokens(passage.text + instruction),
-        material: { sentChars: range.text.length, sourceChars: range.text.length, candidateChars: null },
+        // The reader chose the passage: nothing of it was Plainva's to leave out (no `left` on its source).
+        material: { sentChars: range.text.length, sourceChars: range.text.length, sentBytes: utf8Length(range.text), candidateBytes: null },
       };
       const price = this.priceOf(choice);
       const folder = range.path.includes("/") ? range.path.slice(0, range.path.indexOf("/")) : "";
@@ -5868,6 +5879,7 @@ export class AiSession {
     );
     const context = await this.contextOf(question, vault, choice, provider, record ? record.pins : this.state.draftPins, record ? record.conversation.turns : [], {
       tools,
+      runs: record ? record.runs : [],
       more: record ? (record.conversation.more ?? []) : (start?.more ?? []),
       instructions: manifestInstructionsOf(record ? record.instructions : (start?.instructions ?? undefined)),
       ...(memory ? { memory } : {}),
@@ -5899,6 +5911,8 @@ export class AiSession {
     // `pinsOnly`: the notes pinned to it and nothing a search would find besides them (a replay, plan P9-2).
     conversation: {
       tools: readonly string[];
+      /** The runs so far: which versions of each note the model saw (plan P9-6). */
+      runs?: readonly RunMeta[];
       more?: readonly string[];
       instructions?: ManifestInstructions;
       memory?: ManifestMemory;
@@ -5934,8 +5948,9 @@ export class AiSession {
           situation: seen,
           candidates,
           pins: pins.filter((p) => !leaveOut.has(p)),
-          // A platform model's request carries only the latest notes (plan P2c): nothing counts as sent before.
-          ...(platform ? {} : { alreadySent: sentStamps(turns) }),
+          // A platform model's request carries only the latest notes (plan P2c): nothing counts as sent before. Any
+          // other's: what the turns carry of a note at the version of every view of it since (plan P9-6).
+          ...(platform ? {} : { alreadySent: sentStamps(turns, conversation.runs ?? []) }),
           leaveOut,
           originals: new Set(this.state.originalsNext),
           redact,
@@ -6223,8 +6238,11 @@ export class AiSession {
     const restricted = new Set<AiPolicyDimension>();
     // The notes this run's tools read, by path (plan P4.5): a foreign server gets a call only when everything the
     // conversation has read lies where the user allowed it. More than the record keeps is remembered as "more".
-    // Of a note a tool was given whole, the version too (plan P9-2): the hash of that text, for the run's snapshot.
-    const reads = { paths: new Set<string>(), more: false, hashes: new Map<string, string>() };
+    // Of a note a tool was given whole, the version too (plan P9-2): the hash of that text, for the run's snapshot —
+    // kept apart from the paths' bound, so a run that listed many notes still knows which texts it read (plan P9-6);
+    // a note read at two versions keeps the last one and is marked, and one past the bound says so. And every note whose text a tool gave the
+    // model, without a bound (plan P9-6): what this run's saving leaves out.
+    const reads = { paths: new Set<string>(), more: false, hashes: new Map<string, string>(), changed: new Set<string>(), unhashed: false, texts: new Set<string>() };
     const scope: ToolScope = {
       ...skillScope(bound?.folders, skillState),
       passed: (path, rules, text) => {
@@ -6233,7 +6251,21 @@ export class AiSession {
         if (isAiHiddenPath(path)) return;
         if (reads.paths.size < RUN_READ_CAP) reads.paths.add(path);
         else if (!reads.paths.has(path)) reads.more = true;
-        if (text !== undefined && reads.paths.has(path)) reads.hashes.set(path, noteHash(text));
+        if (text === undefined) return;
+        const hash = noteHash(text);
+        const known = reads.hashes.get(path);
+        if (known !== undefined) {
+          // Read again at another version: the run's snapshot shows the last one; for "unchanged" it has no one version.
+          if (known !== hash) {
+            reads.changed.add(path);
+            reads.hashes.set(path, hash);
+          }
+        } else if (reads.hashes.size < RUN_READ_CAP) reads.hashes.set(path, hash);
+        else reads.unhashed = true;
+      },
+      // A note whose text the model was given (plan P9-6): read_note, and nothing that only showed it to the gate.
+      gave: (path) => {
+        if (!isAiHiddenPath(path)) reads.texts.add(path);
       },
     };
     // The tools of foreign servers this run may find (plan P4.5): of the names its conversation was started with, the
@@ -6377,6 +6409,7 @@ export class AiSession {
     const carried = this.carriedTokens(provider, choice.model, record.conversation);
     const context = await this.contextOf(message, vault, choice, provider, record.pins, record.conversation.turns, {
       tools: toolNames,
+      runs: record.runs,
       more: moreNames,
       instructions: manifestInstructionsOf(record.instructions),
       ...(carriedMemory ? { memory: carriedMemory } : {}),
@@ -6723,7 +6756,7 @@ export class AiSession {
     /** The rules of notes that passed the run's tools although they restrict them elsewhere (plan P4-6), gathered while it runs. */
     restricted?: ReadonlySet<AiPolicyDimension>;
     /** The notes the run's tools read, by path (plan P4.5), gathered while it runs. */
-    reads?: { paths: ReadonlySet<string>; more: boolean; hashes?: ReadonlyMap<string, string> };
+    reads?: { paths: ReadonlySet<string>; more: boolean; hashes?: ReadonlyMap<string, string>; changed?: ReadonlySet<string>; unhashed?: boolean; texts?: ReadonlySet<string> };
     /** The tools of foreign servers this run may find, and what it asked of them (plan P4.5). */
     foreign?: readonly ToolManifest[];
     mcp?: RunMcp;
@@ -6817,7 +6850,34 @@ export class AiSession {
       cacheReadTokens: result.usage.cacheReadTokens,
       cacheWriteTokens: result.usage.cacheWriteTokens,
     };
-    const costUsd = usageCostUsd(usage, this.priceOf(choice));
+    const price = this.priceOf(choice);
+    const costUsd = usageCostUsd(usage, price);
+    // What choosing and shortening the notes saved (plan P9-6): estimated tokens, and at the model's price for input.
+    // Only for a request a model received — it said what it took in, or it answered (a system's model says nothing of
+    // tokens) —; once per version of a note in a conversation, counted from the turns a model received: had the note
+    // gone whole, the next turn would not have sent it again — except to the system's own model, whose request sends
+    // every turn's notes anew —; never for a note whose text a tool of the run gave the model anyway; and nothing in
+    // dollars for a model on this device.
+    const received =
+      result.usage.inputTokens + result.usage.cacheReadTokens + result.usage.cacheWriteTokens > 0 ||
+      result.conversation.turns.length > userTurn + 1 ||
+      // A model that ended its answer had the request — also where it had nothing to say.
+      result.stop.kind === "answered" ||
+      result.stop.kind === "refusal" ||
+      result.stop.kind === "max_tokens";
+    const anew = provider.endpoint.api === "platform";
+    const counted = anew
+      ? new Set<string>()
+      : new Set(
+          input.record.runs
+            .filter((earlier) => !earlier.unreached)
+            .flatMap((earlier) => earlier.manifest?.sources ?? [])
+            // A version counts as carried where some of its text went: a name repeated unchanged and a card with no
+            // sentence went with none.
+            .flatMap((source) => (source.hash && source.chars > 0 ? [`${source.path}#${source.hash}`] : [])),
+        );
+    const saved = received ? contextSavingsOf(pack.refs, (ref) => Boolean(input.reads?.texts?.has(ref.path)) || (ref.hash !== undefined && counted.has(`${ref.path}#${ref.hash}`))) : null;
+    const savedUsd = !saved ? undefined : choiceOnDevice(this.state.settings, choice) ? 0 : price ? (saved.savedTokens * price.input) / 1_000_000 : undefined;
     // What the skills cost (gate "token cost of skill selection measurable"): the bound one, the loaded ones, the catalog.
     const instructions = record.instructions;
     const skillsUsed: NonNullable<RunMeta["skills"]> = [
@@ -6838,6 +6898,7 @@ export class AiSession {
       steps: result.usage.steps,
       stop: result.stop.kind,
       ...(result.stop.kind === "failed" ? { failure: result.stop.failure.kind } : {}),
+      ...(received ? {} : { unreached: true as const }),
       ...(costUsd !== undefined ? { costUsd } : {}),
       manifest,
       ...(skillsUsed.length ? { skills: skillsUsed } : {}),
@@ -6848,6 +6909,10 @@ export class AiSession {
       ...(input.reads?.paths.size ? { read: [...input.reads.paths] } : {}),
       ...(input.reads?.more ? { readMore: true } : {}),
       ...(input.reads?.hashes?.size ? { readHashes: [...input.reads.hashes].map(([path, hash]) => ({ path, hash })) } : {}),
+      // The conversation's choice of what goes redacted, as this run sent it: its context and its tools followed it (P9-6).
+      ...(record.redact?.length ? { redact: [...record.redact] } : {}),
+      ...(input.reads?.changed?.size ? { readChanged: [...input.reads.changed] } : {}),
+      ...(input.reads?.unhashed ? { readUnhashed: true as const } : {}),
       ...(input.mcp?.calls.length ? { mcp: input.mcp } : {}),
       ...(input.writes && (input.writes.rounds.length || input.writes.drafts.length || input.writes.plans.length) ? { writes: input.writes } : {}),
       ...(input.scriptLog?.runs.length ? { scripts: input.scriptLog } : {}),
@@ -6885,6 +6950,8 @@ export class AiSession {
           ...(imagesOf(input.parts).length ? { images: imagesOf(input.parts).length } : {}),
           // A door's answer, an action at a note, a regression run: nobody typed it, and no habit shows in it (plan P6-3).
           ...(input.usedDrafts ? {} : { aside: true as const }),
+          // Numbers only: what the month saved is summed from them (plan P9-6).
+          ...(saved ? { context: saved, ...(savedUsd !== undefined ? { savedUsd } : {}) } : {}),
         }),
       );
     } catch {

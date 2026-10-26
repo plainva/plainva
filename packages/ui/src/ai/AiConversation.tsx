@@ -30,6 +30,7 @@ import { externalFailureText, externalOverviewLines, externalPrompts, externalTo
 import type { McpPromptReview } from "./mcpSession";
 import { scriptToolLabel } from "./scriptsWorkshop";
 import { transcriptOf, type TranscriptItem } from "./transcript";
+import { cacheShareText } from "./usageLines";
 import { useAiSession, useAiState } from "./useAiSession";
 
 /** From this width the AI tab shows "View context" as a column of its own. */
@@ -337,6 +338,9 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   const runLine = (run: RunMeta, coverage: AnswerCoverage | null) => {
     const tokens = run.usage.inputTokens + run.usage.cacheReadTokens + run.usage.cacheWriteTokens + run.usage.outputTokens;
     const parts = [t("ai.sentLine", { provider: providerLabel(run.providerId), count: run.sent.length, tokens: number.format(tokens) })];
+    // How much of it came from the provider's cache, where it reports one (plan P9-6).
+    const cached = cacheShareText(t, run.usage, number);
+    if (cached) parts.push(cached);
     if (run.kept.length) parts.push(t("ai.keptLine", { count: run.kept.length }));
     // The pictures the message brought (plan P4-5).
     const pictures = run.manifest?.sources.filter((source) => source.image).length ?? 0;
