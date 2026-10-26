@@ -143,6 +143,28 @@ export function readStoredOAuthAccess(value: unknown): StoredOAuthAccess | null 
   };
 }
 
+/**
+ * Google projects Plainva used and retired, by project number - the part of a
+ * client id before the first dash (K7, 2026-10-26: `plainva-spike`).
+ *
+ * No build ever shipped a client of it: while there was no standard sign-in,
+ * testers entered its clients as their own, and Google now answers
+ * "Error 401: deleted_client". Every such device moves back to the standard
+ * sign-in once; a client of any other project stays the person's choice.
+ */
+const RETIRED_GOOGLE_PROJECTS: readonly string[] = ["835308879715"];
+
+export function isRetiredPlainvaClient(family: OAuthFamily, clientId: string | undefined): boolean {
+  if (family !== "google" || !clientId) return false;
+  const project = clientId.trim().split("-")[0] ?? "";
+  return RETIRED_GOOGLE_PROJECTS.includes(project);
+}
+
+/** The access a stored choice is replaced with, once, or null to keep it. */
+export function retiredAccessReplacement(family: OAuthFamily, stored: StoredOAuthAccess | null): StoredOAuthAccess | null {
+  return stored?.source === "own" && isRetiredPlainvaClient(family, stored.clientId) ? { source: "plainva" } : null;
+}
+
 /** Whether a stored grant was made with the access of this device. */
 export function grantUsesAccess(grant: { clientId: string; clientSecret?: string }, access: OAuthAccess): boolean {
   return grant.clientId === access.clientId && (access.clientSecret === undefined || grant.clientSecret === access.clientSecret);

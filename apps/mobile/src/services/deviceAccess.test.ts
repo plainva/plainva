@@ -55,4 +55,20 @@ describe("readDeviceAccess on the phone", () => {
     pimSlot = { kind: "google", clientId: "own-1234.apps.googleusercontent.com", refreshToken: "" };
     expect(await readDeviceAccess("google", "v1")).toEqual({ source: "own", clientId: "own-1234.apps.googleusercontent.com" });
   });
+
+  it("moves a phone whose own client belongs to the retired project back to the standard sign-in, once", async () => {
+    secrets.set("oauth_access_google", { source: "own", clientId: "835308879715-bim1pgh5example.apps.googleusercontent.com" });
+    expect(await readDeviceAccess("google", "v1")).toEqual({ source: "plainva" });
+    expect(secrets.get("oauth_access_google")).toEqual({ source: "plainva" });
+  });
+
+  it("keeps an own client of any other project", async () => {
+    secrets.set("oauth_access_google", { source: "own", clientId: "123456789012-mine.apps.googleusercontent.com" });
+    expect(await readDeviceAccess("google", "v1")).toEqual({ source: "own", clientId: "123456789012-mine.apps.googleusercontent.com" });
+  });
+
+  it("never adopts a client of the retired project from a calendar slot", async () => {
+    pimSlot = { kind: "google", clientId: "835308879715-bim1pgh5example.apps.googleusercontent.com", refreshToken: "" };
+    expect(await readDeviceAccess("google", "v1")).toEqual({ source: "plainva" });
+  });
 });
