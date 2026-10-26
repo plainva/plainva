@@ -57,7 +57,7 @@ vi.mock("./services/pim/pimCredentials", () => ({
   pimSecretKey: (vaultId: string, accountId: string) => `pim_${vaultId}_${accountId}`,
 }));
 
-import { createMobileProfilePort, isMobileSettingsSyncEnabled } from "./services/mobileSettingsSync";
+import { createMobileProfilePort, isMobileSettingsSyncEnabled, noteAccountAddedLocally } from "./services/mobileSettingsSync";
 import { mobileCandidates } from "./services/mobileSecretsPort";
 import { loadCloudAccounts } from "./services/cloudAccountsStore";
 import type { MobileVault } from "./services/vaultService";
@@ -303,6 +303,21 @@ describe("mobile account-sync regression contracts", () => {
     expect(await port.exportValues()).toEqual({
       somethingFromTheFuture: { a: 1, z: 2 },
     });
+  });
+
+  it("publishes no removal an add has overtaken, and the add itself (third review, B1)", async () => {
+    const store = fakeStore();
+    install(store);
+    const port = createMobileProfilePort(mobileVault());
+    const removedAt = new Date(Date.now() - 3_600_000).toISOString();
+
+    // A removal arrives from another device; then the mailbox is connected again here.
+    await port.applyValues({ mailAccounts: [], removedAccounts: { "gmail-0123": removedAt } });
+    await noteAccountAddedLocally("fixture-vault", "mail", "gmail-0123");
+    const exported = await port.exportValues();
+
+    expect(exported).not.toHaveProperty("removedAccounts");
+    expect((exported.accountActs as Record<string, { act: string; counter: number }>)["gmail-0123"]).toMatchObject({ act: "revived", counter: 1 });
   });
 
   it("resets a stale bookmark list when the complete profile omits it", async () => {

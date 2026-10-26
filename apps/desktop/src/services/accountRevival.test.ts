@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  accountActsForProfile,
   emptyAccountMap,
+  laterAccountAct,
   forgetRemovedLocalAccount,
   importAccountMetadata,
   mailAccountsForProfile,
   rememberRemovedAccount,
   removedAccountsForProfile,
-  revivedAccountsForProfile,
   setPlatformServices,
   type AccountImportPorts,
   type ProfileAccountMap,
@@ -19,7 +20,9 @@ import { saveMailAccount, type MailAccountConfig } from "@plainva/ui/mail";
  * in the settings profile; connecting it again - after E7, or simply after a
  * remove - brought the same id back, and the next profile import dropped it on
  * every device. Adding an account again now revives it, and the revival
- * travels like the deletion: for each id the later act wins.
+ * travels like the deletion. Third review: the add is recorded even where no
+ * tombstone is known yet, and the order of the acts is a logical counter, not
+ * the clocks of the devices.
  */
 
 const gmail: MailAccountConfig = {
@@ -28,7 +31,7 @@ const gmail: MailAccountConfig = {
 const at = (hoursAgo: number) => new Date(Date.now() - hoursAgo * 3_600_000).toISOString();
 
 /** One device: its mailboxes and its account map, behind the importer's ports. */
-function device(mail: MailAccountConfig[]) {
+function device(mail: MailAccountConfig[], name = "device") {
   const state = { mail: [...mail], map: emptyAccountMap() as ProfileAccountMap };
   const ports: AccountImportPorts = {
     listPimAccounts: async () => [],
@@ -47,29 +50,35 @@ function device(mail: MailAccountConfig[]) {
     loadAccountMap: async () => state.map,
     saveAccountMap: async (map) => { state.map = map; },
   };
-  /** What this device publishes: its mailboxes, its deletions and its revivals. */
+  /** What this device publishes: its mailboxes, its deletions and its acts. */
   const publish = () => ({
     mailAccounts: mailAccountsForProfile(state.mail, state.map),
     removedAccounts: removedAccountsForProfile(state.map, undefined),
-    revivedAccounts: revivedAccountsForProfile(state.map, undefined),
+    accountActs: accountActsForProfile(state.map, undefined),
   });
-  return { state, ports, publish };
+  const remove = (when: string) => {
+    state.mail = state.mail.filter((entry) => entry.id !== gmail.id);
+    state.map = rememberRemovedAccount(state.map, "mail", gmail.id, when, name);
+  };
+  const add = (when: string) => {
+    state.mail = [...state.mail.filter((entry) => entry.id !== gmail.id), gmail];
+    state.map = forgetRemovedLocalAccount(state.map, "mail", gmail.id, when, name);
+  };
+  return { state, ports, publish, remove, add };
 }
 
 describe("a mailbox added again under the id a deletion named (B1)", () => {
   it("stays, on this device and on the others, and a later removal still wins", async () => {
-    const phone = device([gmail]);
-    const desktop = device([gmail]);
+    const phone = device([gmail], "phone");
+    const desktop = device([gmail], "desktop");
 
     // Removed on the phone; the desktop learns of it and drops it too.
-    phone.state.mail = [];
-    phone.state.map = rememberRemovedAccount(phone.state.map, "mail", gmail.id, at(3));
+    phone.remove(at(3));
     await importAccountMetadata(phone.publish(), desktop.ports);
     expect(desktop.state.mail).toEqual([]);
 
     // Connected again on the phone - Gmail comes back under the same id.
-    phone.state.mail = [gmail];
-    phone.state.map = forgetRemovedLocalAccount(phone.state.map, "mail", gmail.id, at(2));
+    phone.add(at(2));
 
     // The desktop still publishes the old deletion: the phone keeps its mailbox.
     await importAccountMetadata(desktop.publish(), phone.ports);
@@ -81,10 +90,79 @@ describe("a mailbox added again under the id a deletion named (B1)", () => {
     expect(desktop.state.map.removedLogical?.[gmail.id]).toBeUndefined();
 
     // Removed again later: that is the later act, and it wins everywhere.
-    desktop.state.mail = [];
-    desktop.state.map = rememberRemovedAccount(desktop.state.map, "mail", gmail.id, at(1));
+    desktop.remove(at(1));
     await importAccountMetadata(desktop.publish(), phone.ports);
     expect(phone.state.mail).toEqual([]);
+  });
+
+  it("is added again on a device that has not heard of the removal yet (B1 a)", async () => {
+    const phone = device([gmail], "phone");
+    const desktop = device([gmail], "desktop");
+
+    // Removed on the desktop; the phone has not imported anything since.
+    desktop.remove(at(3));
+    // On the phone the mailbox is connected again: no tombstone is known here,
+    // and the add still has to be recorded, or the desktop's removal wins.
+    phone.add(at(2));
+
+    await importAccountMetadata(desktop.publish(), phone.ports);
+    expect(phone.state.mail.map((entry) => entry.id)).toEqual([gmail.id]);
+    await importAccountMetadata(phone.publish(), desktop.ports);
+    expect(desktop.state.mail.map((entry) => entry.id)).toEqual([gmail.id]);
+  });
+
+  it("an add after a removal wins over a device whose clock runs ahead (B1 b)", async () => {
+    const phone = device([gmail], "phone");
+    const desktop = device([gmail], "desktop");
+
+    // The desktop's clock is two hours fast: its removal is stamped in the future.
+    desktop.remove(at(-2));
+    await importAccountMetadata(desktop.publish(), phone.ports);
+    expect(phone.state.mail).toEqual([]);
+
+    // The phone, having seen that removal, adds the mailbox back NOW.
+    phone.add(at(0));
+    await importAccountMetadata(desktop.publish(), phone.ports);
+    expect(phone.state.mail.map((entry) => entry.id)).toEqual([gmail.id]);
+    await importAccountMetadata(phone.publish(), desktop.ports);
+    expect(desktop.state.mail.map((entry) => entry.id)).toEqual([gmail.id]);
+
+    // And the desktop removing it again after that is the newer act once more.
+    desktop.remove(at(-2));
+    await importAccountMetadata(desktop.publish(), phone.ports);
+    expect(phone.state.mail).toEqual([]);
+  });
+
+  it("a removal from a build without counters ranks below any act (the limit, B1 c)", async () => {
+    const phone = device([], "phone");
+    phone.add(at(5));
+    // An older build only writes the id and a moment - even a later moment.
+    await importAccountMetadata({ mailAccounts: [], removedAccounts: { [gmail.id]: at(1) } }, phone.ports);
+    expect(phone.state.mail.map((entry) => entry.id)).toEqual([gmail.id]);
+    // Without any act for the id, that removal still holds.
+    const other = device([gmail], "other");
+    await importAccountMetadata({ mailAccounts: [], removedAccounts: { [gmail.id]: at(1) } }, other.ports);
+    expect(other.state.mail).toEqual([]);
+  });
+});
+
+describe("the order of two acts on one id", () => {
+  const act = (kind: "removed" | "revived", counter: number, when: string, deviceId: string) => ({ act: kind, counter, at: when, device: deviceId });
+
+  it("is the counter first, however the clocks stand", () => {
+    expect(laterAccountAct(act("removed", 1, at(-5), "a"), act("revived", 2, at(5), "b")).act).toBe("revived");
+  });
+
+  it("is the moment for acts that did not see each other, then the device, the same either way round", () => {
+    const early = act("removed", 1, at(2), "a");
+    const late = act("revived", 1, at(1), "b");
+    expect(laterAccountAct(early, late)).toBe(late);
+    expect(laterAccountAct(late, early)).toBe(late);
+    const sameMoment = at(1);
+    const fromA = act("revived", 1, sameMoment, "a");
+    const fromB = act("removed", 1, sameMoment, "b");
+    expect(laterAccountAct(fromA, fromB)).toBe(fromB);
+    expect(laterAccountAct(fromB, fromA)).toBe(fromB);
   });
 });
 

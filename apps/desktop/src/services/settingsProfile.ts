@@ -49,7 +49,7 @@ import {
   normalizeAccountMap,
   rememberRemovedAccount,
   removedAccountsForProfile,
-  revivedAccountsForProfile,
+  accountActsForProfile,
   forgetRemovedLocalAccount,
   importAccountMetadata as sharedImportAccountMetadata,
   parseBookmarksFile,
@@ -207,8 +207,7 @@ export async function noteAccountRemovedLocally(
 ): Promise<void> {
   const store = await getSettingsStore();
   const map = normalizeAccountMap(await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath)));
-  const next = rememberRemovedAccount(map, kind, localId);
-  if (next === map) return;
+  const next = rememberRemovedAccount(map, kind, localId, new Date().toISOString(), await getDeviceId(store));
   await store.set(profileAccountMapKey(vaultPath), next);
   await store.save();
 }
@@ -221,8 +220,7 @@ export async function noteAccountRemovedLocally(
 export async function noteAccountAddedLocally(vaultPath: string, kind: "pim" | "mail", localId: string): Promise<void> {
   const store = await getSettingsStore();
   const map = normalizeAccountMap(await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath)));
-  const next = forgetRemovedLocalAccount(map, kind, localId);
-  if (next === map) return;
+  const next = forgetRemovedLocalAccount(map, kind, localId, new Date().toISOString(), await getDeviceId(store));
   await store.set(profileAccountMapKey(vaultPath), next);
   await store.save();
 }
@@ -490,9 +488,10 @@ export async function exportProfileValues(
   // keeps the grow-only set from losing another device's entries.
   const removed = removedAccountsForProfile(map, undefined);
   if (Object.keys(removed).length) values.removedAccounts = removed;
-  // An account added again travels as such, or the deletion keeps winning elsewhere (B1).
-  const revived = revivedAccountsForProfile(map, undefined);
-  if (Object.keys(revived).length) values.revivedAccounts = revived;
+  // The acts themselves travel too: without them an add made after a removal
+  // loses to the removal on every other device (B1).
+  const acts = accountActsForProfile(map, undefined);
+  if (Object.keys(acts).length) values.accountActs = acts;
 
   if (context.rawVault) {
     try {
