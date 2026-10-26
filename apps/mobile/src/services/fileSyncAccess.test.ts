@@ -43,6 +43,14 @@ describe("whether this device reaches the vault's file provider", () => {
       provider: "s3",
       creds: { endpoint: "e", bucket: "b", region: "r", accessKeyId: "a", secretAccessKey: "" },
     };
-    expect(resolveMobileFileAccess("s3", s3, false)).toEqual({ ready: false, blocked: true });
+    // An empty secret is what "Sign out on this device" leaves (plan "Verbinden", V2).
+    expect(resolveMobileFileAccess("s3", s3, false)).toEqual({ ready: false, blocked: true, signedOut: true });
+  });
+
+  it("says a password account signed out on this device needs a sign-in", () => {
+    const webdav: MobileSyncProvider = { provider: "webdav", creds: { url: "https://dav", user: "u", pass: "" } };
+    expect(resolveMobileFileAccess("webdav", webdav, false)).toEqual({ ready: false, blocked: true, signedOut: true });
+    const dropbox: MobileSyncProvider = { provider: "dropbox", creds: { appKey: "k", refreshToken: "" } };
+    expect(resolveMobileFileAccess("dropbox", dropbox, false).signedOut).toBe(true);
   });
 });

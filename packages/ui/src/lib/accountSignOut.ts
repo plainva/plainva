@@ -25,24 +25,43 @@ export interface ServiceSignInSlot {
   nested?: "creds";
 }
 
+/** The fields of a slot that ARE a sign-in: a password, an app password, an S3 secret key. */
+export const SECRET_FIELDS = ["pass", "password", "secretAccessKey"] as const;
+
 /**
- * The slot value without a sign-in of its own: the refresh token emptied and
- * the marker of Android's system sign-in dropped - everything else (client,
- * folder, server, a password) stays. `null` when there is nothing to retire.
+ * The slot value without a sign-in of its own: the refresh token emptied, the
+ * marker of Android's system sign-in dropped, and a password or secret key
+ * emptied - everything else (client, server, user, folder) stays, so signing
+ * in again only asks for what was dropped. `null` when there is nothing to
+ * retire.
  *
- * Both have to go: the vault-open migration (K2) hands any refresh token or
- * system sign-in it finds in a service slot back to the card, so a slot left
- * as it was would have signed the card in again on the next start.
+ * Tokens have to go because the vault-open migration (K2) hands any refresh
+ * token or system sign-in it finds in a service slot back to the card. A
+ * password has to go because it IS the sign-in of a password account: an
+ * account signed out on this device that still held it would keep syncing
+ * (plan "Verbinden", V2 - "deletes the stored app password here").
  */
 export function retiredServiceSignIn(value: Record<string, unknown>, nested?: "creds"): Record<string, unknown> | null {
   const inner = nested ? value[nested] : value;
   if (!inner || typeof inner !== "object" || Array.isArray(inner)) return null;
   const grant = inner as Record<string, unknown>;
-  const hasOwn = (typeof grant.refreshToken === "string" && grant.refreshToken !== "") || grant.nativeGoogle !== undefined;
-  if (!hasOwn) return null;
-  const retired: Record<string, unknown> = { ...grant, refreshToken: "" };
-  delete retired.nativeGoogle;
+  const token = (typeof grant.refreshToken === "string" && grant.refreshToken !== "") || grant.nativeGoogle !== undefined;
+  const secrets = SECRET_FIELDS.filter((field) => typeof grant[field] === "string" && grant[field] !== "");
+  if (!token && !secrets.length) return null;
+  const retired: Record<string, unknown> = { ...grant };
+  if (token) {
+    retired.refreshToken = "";
+    delete retired.nativeGoogle;
+  }
+  for (const field of secrets) retired[field] = "";
   return nested ? { ...value, [nested]: retired } : retired;
+}
+
+/** Whether a slot value lost its sign-in to "Sign out on this device": a secret field is there, and empty. */
+export function isSignedOutSlot(value: unknown, nested?: "creds"): boolean {
+  const inner = value && typeof value === "object" ? (nested ? (value as Record<string, unknown>)[nested] : value) : null;
+  if (!inner || typeof inner !== "object") return false;
+  return SECRET_FIELDS.some((field) => (inner as Record<string, unknown>)[field] === "");
 }
 
 export interface DeviceSignOutPorts {

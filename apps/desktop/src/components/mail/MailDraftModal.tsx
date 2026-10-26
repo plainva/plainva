@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, ChipField, FloatingWindow, ICON, IconButton, Select, TextInput, templateBodyOf, toast } from "@plainva/ui";
+import { Banner, Button, ChipField, FloatingWindow, ICON, IconButton, mailboxesSwitchedOn, Select, TextInput, templateBodyOf, toast } from "@plainva/ui";
+import { loadCloudAccounts } from "../../services/cloudAccounts";
 import { AlertTriangle, Ban, FileText, Paperclip, RefreshCw, RotateCw, SquareArrowOutUpRight, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { listMailAccounts, mailSendRoute, type MailAccountConfig } from "@plainva/ui/mail";
@@ -334,7 +335,8 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     let alive = true;
     void (async () => {
       if (!vaultPath) return;
-      const list = await listMailAccounts(vaultPath);
+      // A mailbox whose account has mail switched off for the vault sends nothing (E3).
+      const list = mailboxesSwitchedOn(await listMailAccounts(vaultPath), await loadCloudAccounts(vaultPath).catch(() => []));
       if (!alive) return;
       setAccounts(list);
       setAccountsLoaded(true);

@@ -40,6 +40,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("./services/mail/mailRuntime", () => ({
   listMobileMailAccounts: vi.fn(async () => mocks.accounts),
+  // The screens list the mailboxes switched on (plan "Verbinden", E3): here every one is.
+  listActiveMobileMailAccounts: vi.fn(async () => mocks.accounts),
   mailVaultId: () => "/vault",
 }));
 // The shared Markdown editor is CodeMirror; what matters here is that the body

@@ -1,7 +1,8 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, Ban, BellOff, Clock, Copy, ExternalLink, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, Link2, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, TriangleAlert, X } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, IconButton, mailRowActions, MenuItem, MenuLabel, MenuSeparator, MenuSurface, RowActionList, SelectionBar, plainvaProducer, toast, useStableHandler, useWeekStartDay, type LinkTarget, type MailRowCaps } from "@plainva/ui";
+import { Banner, Button, EmptyState, ICON, IconButton, mailboxesSwitchedOn, mailRowActions, MenuItem, MenuLabel, MenuSeparator, MenuSurface, RowActionList, SelectionBar, plainvaProducer, toast, useStableHandler, useWeekStartDay, type LinkTarget, type MailRowCaps } from "@plainva/ui";
+import { loadCloudAccounts } from "../../services/cloudAccounts";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { firstAngleValue, nameBeforeAngle, trimChars, updateVaultText } from "@plainva/core";
 import "./mail.css";
@@ -578,7 +579,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     let alive = true;
     void (async () => {
       if (!vaultPath) return;
-      const list = await listMailAccounts(vaultPath);
+      // A mailbox whose account has mail switched off for the vault is not read (E3).
+      const list = mailboxesSwitchedOn(await listMailAccounts(vaultPath), await loadCloudAccounts(vaultPath).catch(() => []));
       if (!alive) return;
       setAccounts(list);
       setAccountId((prev) => (list.some((a) => a.id === prev) ? prev : list[0]?.id ?? ""));
@@ -2236,8 +2238,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                     }
                   >
                     {signInState === "expired"
-                      ? t("pim.signInAgain", { defaultValue: "Neu anmelden" })
-                      : t("deviceSignIn.action", { defaultValue: "Auf diesem Gerät anmelden" })}
+                      ? t("cloudAccounts.reconnect")
+                      : t("deviceSignIn.submit")}
                   </Button>
                 }
               >

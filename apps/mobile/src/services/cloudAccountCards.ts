@@ -151,7 +151,7 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
       vaultId: entry.id,
       record: stored,
       verifiedProviderIdentity: stored?.verifiedProviderIdentity,
-      serviceStates: { files: access.blocked ? "expired" : "active" },
+      serviceStates: { files: access.signedOut ? "signin" : access.blocked ? "expired" : "active" },
     });
   }
   for (const a of pim) {

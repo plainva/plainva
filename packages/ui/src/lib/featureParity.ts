@@ -625,23 +625,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-22",
   },
   {
-    id: "account-page-password-sign-in",
-    title: "Signing a password account in again from its account page",
-    area: "pim",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "Both shells sign a Google or Microsoft card in again from its page, sign it out on " +
-      "this device and remove it, and \"Check connection\" offers an action on every row " +
-      "that does not work. For a password account (iCloud, IMAP/CalDAV, WebDAV) the " +
-      "desktop's \"Sign in again\" re-runs the provider's own connection; the phone has no " +
-      "such run on the account page, so its check leads a failed row to the service's own " +
-      "settings, and the password change sits on the same page. The account page's one " +
-      "model for both shells (plan \"Verbinden\", V1/V2, waiting for the maintainer) closes it.",
-    verified: "2026-10-26",
-  },
-  {
     id: "blockers-follow-their-event",
     title: "Blockers follow their event, and a moved or changed blocker asks",
     area: "pim",

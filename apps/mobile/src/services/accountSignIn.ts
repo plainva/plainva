@@ -115,12 +115,12 @@ export type MobileSignInStart = { kind: "started" } | { kind: "nothingToAsk" };
  * Starts the one sign-in. The browser (or the system sheet) takes over; the
  * result arrives through `registerSignInHandler`, after a cold start too.
  */
-export async function beginMobileSignIn(vaultId: string, request: { family: OAuthFamily; cardId?: string; add: CloudServiceId[] }): Promise<MobileSignInStart> {
+export async function beginMobileSignIn(vaultId: string, request: { family: OAuthFamily; cardId?: string; add: CloudServiceId[]; outside?: CloudServiceId[] }): Promise<MobileSignInStart> {
   const resolution = await deviceAccess(request.family, vaultId);
   if (!resolution.ok) throw new AccessUnavailableError(request.family, resolution.problem);
   const record = request.cardId ? (await loadCloudAccounts(vaultId)).find((entry) => entry.id === request.cardId) : undefined;
   const prepared = prepareSignIn(
-    { vaultId, family: request.family, ...(request.cardId ? { cardId: request.cardId } : {}), add: request.add, access: resolution.access },
+    { vaultId, family: request.family, ...(request.cardId ? { cardId: request.cardId } : {}), add: request.add, access: resolution.access, ...(request.outside?.length ? { outside: request.outside } : {}) },
     record ? { record, mailKind: await mailKindOf(vaultId, record) } : undefined,
   );
   if (!needsConsent(prepared)) return { kind: "nothingToAsk" };

@@ -241,7 +241,7 @@ const BUDGET: Record<string, Counts> = {
   "components/settings/SecurityNav.tsx": {nakedButton:2,rawSpacing:4},
   "components/settings/SettingsNav.tsx": {nakedButton:3,rawSpacing:8},
   "components/settings/StoredCredentialsCard.tsx": {rawSpacing:3},
-  "components/settings/SyncPage.tsx": {nakedInput:1,rawSpacing:10},
+  "components/settings/SyncPage.tsx": {rawSpacing:10},
   "components/settings/VaultPages.tsx": {nakedInput:18,nakedButton:12,rawSpacing:7},
   "components/settings/VaultPickerModal.tsx": {nakedButton:1,rawSpacing:1},
   "components/tasks/RepeatTaskModal.tsx": {nakedInput:1,rawSpacing:1},

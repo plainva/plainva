@@ -47,6 +47,8 @@ vi.mock("@capacitor/app", () => ({
 }));
 vi.mock("./services/mail/mailRuntime", () => ({
   listMobileMailAccounts: async () => [{ id: "m1", label: "Work", host: "", port: 0, user: "anna@example.org", kind: "microsoft" }],
+  // The screens list the mailboxes switched on (plan "Verbinden", E3): here every one is.
+  listActiveMobileMailAccounts: async () => [{ id: "m1", label: "Work", host: "", port: 0, user: "anna@example.org", kind: "microsoft" }],
   mailVaultId: () => "/vault",
 }));
 vi.mock("@plainva/ui/mail", async (importOriginal) => ({

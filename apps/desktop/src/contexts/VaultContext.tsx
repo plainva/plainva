@@ -13,6 +13,7 @@ import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { fileBrokerTokenProvider } from "../services/accountBroker";
 import { migrateVaultGrants } from "../services/accountGrantMigration";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
+import { filesStoppedHere } from "../services/filesSwitch";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
 import { settlePendingWrites } from "../services/pendingWrites";
@@ -907,11 +908,15 @@ export const VaultProvider: React.FC<{
         { drive: driveCreds, onedrive: oneDriveCreds, dropbox: dropboxCreds, s3: s3Creds, webdav: webdavCreds },
         filesViaBroker
       );
-      const driveReady = fileAccess.ready.drive;
-      const oneDriveReady = fileAccess.ready.onedrive;
-      const dropboxReady = fileAccess.ready.dropbox;
-      const s3Ready = fileAccess.ready.s3;
-      const hasSyncTarget = fileAccess.provider !== null;
+      // Files switched off for the vault (E3) or paused on this device: the
+      // vault opens without a target and queues nothing (plan "Verbinden", V2/V3).
+      const filesStopped = await filesStoppedHere(path);
+      const driveReady = !filesStopped && fileAccess.ready.drive;
+      const oneDriveReady = !filesStopped && fileAccess.ready.onedrive;
+      const dropboxReady = !filesStopped && fileAccess.ready.dropbox;
+      const s3Ready = !filesStopped && fileAccess.ready.s3;
+      const webdavReady = !filesStopped && fileAccess.ready.webdav;
+      const hasSyncTarget = !filesStopped && fileAccess.provider !== null;
       /**
        * A provider IS configured for this vault, but nothing can open it.
        * Without saying so the load ended as plain "idle" with no provider: the
@@ -920,7 +925,7 @@ export const VaultProvider: React.FC<{
        * 2026-08-19, same class as 2026-07-30). Being unable to reach an account
        * is a state worth showing, not a reason to go quiet.
        */
-      const unusableProvider = fileAccess.blocked;
+      const unusableProvider = filesStopped ? null : fileAccess.blocked;
       const filesConfiguredWithoutAccess = unusableProvider !== null;
 
       // Files created/modified outside Plainva's own write path (another editor, the OS)
@@ -1371,7 +1376,7 @@ export const VaultProvider: React.FC<{
         } else if (s3Ready && s3Creds) {
           syncProvider = "s3";
           target = new S3SyncTarget(s3Creds, fetch, undefined, undefined, tauriSyncUploader);
-        } else if (webdavCreds && webdavCreds.url) {
+        } else if (webdavReady && webdavCreds && webdavCreds.url) {
           syncProvider = "webdav";
           // The fourth argument makes large writes stream from disk instead of
           // travelling through the webview (issue #48).

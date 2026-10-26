@@ -463,7 +463,7 @@ export function VaultDetailScreen({
                       setBusy(true);
                       void reconnectVault(vaultId).finally(() => setBusy(false));
                     }}
-                    title={t("mobile.reconnectAction")}
+                    title={t("cloudAccounts.reconnect")}
                   />
                 )}
                 {/* H2a: the cycle interval was hard-coded to 30 s on mobile
@@ -685,7 +685,7 @@ export function VaultDetailScreen({
                       setBusy(true);
                       void pauseProvider(vaultId).finally(() => setBusy(false));
                     }}
-                    title={<span className="m-danger">{t("mobile.syncDisconnect")}</span>}
+                    title={<span className="m-danger">{t("cloudAccounts.pauseSync")}</span>}
                   />
                 )}
                 {!isLocal && (

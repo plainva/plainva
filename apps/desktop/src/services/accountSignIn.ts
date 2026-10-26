@@ -28,6 +28,7 @@ import {
   listMailAccounts,
   mailSecretKey,
   mailTransport,
+  removeMailAccount,
   saveBrokerMailAccount,
   saveMailAccount,
   type MailAccountConfig,
@@ -148,7 +149,11 @@ export async function signInCloudAccount(vaultPath: string, getRuntime: () => Pi
   const access = resolution.access;
   const record = request.cardId ? (await loadCloudAccounts(vaultPath)).find((entry) => entry.id === request.cardId) : undefined;
   const prepared = prepareSignIn(
-    { vaultId: vaultPath, family: request.family, ...(request.cardId ? { cardId: request.cardId } : {}), add: request.add, access },
+    {
+      vaultId: vaultPath, family: request.family, ...(request.cardId ? { cardId: request.cardId } : {}), add: request.add, access,
+      // An app password the person entered takes the mailbox outside the consent (E5).
+      ...(request.mailPassword && request.add.includes("mail") ? { outside: ["mail"] as CloudServiceId[] } : {}),
+    },
     record ? { record, mailKind: await mailKindOf(vaultPath, record) } : undefined,
   );
 
@@ -158,6 +163,9 @@ export async function signInCloudAccount(vaultPath: string, getRuntime: () => Pi
     const mailAccountId = await addPasswordMailbox(vaultPath, request.mailPassword);
     const saved = { ...record, services: { ...record.services, mail: { mailAccountId } } };
     await saveCloudAccounts(vaultPath, [...(await loadCloudAccounts(vaultPath)).filter((entry) => entry.id !== record.id), saved]);
+    // The mailbox Google refused gives way to the app-password one (E7); filed mails stay notes.
+    const replaced = record.services.mail?.mailAccountId;
+    if (replaced && replaced !== mailAccountId) await removeMailAccount(vaultPath, replaced);
     await refreshCloudAccounts(vaultPath, getRuntime());
     return { prepared, record: saved, rows: [{ service: "mail", state: "active" }] };
   }

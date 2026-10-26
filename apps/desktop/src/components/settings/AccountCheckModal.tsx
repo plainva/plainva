@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, CircleAlert, Clock } from "lucide-react";
 import {
@@ -12,7 +12,8 @@ import {
   checkAccountConnection,
   hasStoredAccountGrant,
   logDiagnostic,
-  serviceCheckAction,
+  checkRowActionKey,
+  checkRowActions,
   serviceCheckText,
   ServiceCheckError,
   type CloudAccountRecord,
@@ -39,10 +40,16 @@ export const AccountCheckModal: React.FC<{
   standardAvailable?: boolean;
   onUseStandard?: () => void;
   onSignInAgain: () => void;
+  /** Gmail through an app password, where Google refuses it (E7). */
+  onAppPassword?: () => void;
+  /** The result, for the line of section 4 on the account page. */
+  onChecked?: (rows: ServiceCheck[]) => void;
   onClose: () => void;
-}> = ({ vaultPath, record, runtime, standardAvailable = false, onUseStandard, onSignInAgain, onClose }) => {
+}> = ({ vaultPath, record, runtime, standardAvailable = false, onUseStandard, onSignInAgain, onAppPassword, onChecked, onClose }) => {
   const { t } = useTranslation();
   const [results, setResults] = useState<ServiceCheck[] | null>(null);
+  const onCheckedRef = useRef(onChecked);
+  useEffect(() => { onCheckedRef.current = onChecked; }, [onChecked]);
   const family = record.family === "google" || record.family === "microsoft" ? record.family : null;
 
   useEffect(() => {
@@ -79,7 +86,10 @@ export const AccountCheckModal: React.FC<{
         describe: (error) => oauthErrorText(error),
       });
       logDiagnostic("accounts", accountCheckDiagnostic(record.family, checked));
-      if (alive) setResults(checked);
+      if (alive) {
+        setResults(checked);
+        onCheckedRef.current?.(checked);
+      }
     })();
     return () => { alive = false; };
   }, [family, record, runtime, t, vaultPath]);
@@ -100,9 +110,13 @@ export const AccountCheckModal: React.FC<{
         {(results ?? accountServices(record).map((service) => ({ service, state: "pending" as const }))).map((row) => {
           const kind = row.state === "ok" ? "ok" : row.state === "pending" ? "wait" : "err";
           const Icon = kind === "ok" ? Check : kind === "err" ? CircleAlert : Clock;
-          // Every row that does not work carries its action (plan "Verbinden", V0);
-          // signing in again on the desktop repairs every kind of account.
-          const action = row.state === "pending" ? null : serviceCheckAction(row as ServiceCheck, true, standardAvailable && !!onUseStandard);
+          // Every row that does not work carries the action that helps (plan "Verbinden",
+          // V0/V2); signing in again on the desktop repairs every kind of account.
+          const actions = row.state === "pending" ? [] : checkRowActions(row as ServiceCheck, {
+            family: record.family,
+            canSignIn: true,
+            standardAvailable: standardAvailable && !!onUseStandard,
+          }).filter((action) => action !== "appPassword" || !!onAppPassword);
           return (
             <div key={row.service} className={`pv-svcstat pv-svcstat--${kind}`} data-testid={`cloudacct-check-${row.service}`} data-state={row.state}>
               <span className="pv-svcstat-icon"><Icon size={ICON.ui} /></span>
@@ -112,16 +126,22 @@ export const AccountCheckModal: React.FC<{
                   {row.state === "pending" ? t("cloudAccounts.checkRunning") : serviceCheckText(row as ServiceCheck, (key) => t(key))}
                 </div>
               </div>
-              {action && (
+              {actions.map((action) => (
                 <Button
+                  key={action}
                   variant="secondary"
                   size="sm"
-                  data-testid={action === "useStandard" ? "cloudacct-check-standard" : "cloudacct-check-signin"}
-                  onClick={() => { onClose(); if (action === "useStandard") onUseStandard?.(); else onSignInAgain(); }}
+                  data-testid={`cloudacct-check-action-${row.service}-${action}`}
+                  onClick={() => {
+                    onClose();
+                    if (action === "useStandard") onUseStandard?.();
+                    else if (action === "appPassword") onAppPassword?.();
+                    else onSignInAgain();
+                  }}
                 >
-                  {t(action === "signIn" ? "deviceSignIn.submit" : action === "useStandard" ? "accountAccess.useStandard" : "cloudAccounts.reconnect")}
+                  {t(checkRowActionKey(action))}
                 </Button>
-              )}
+              ))}
             </div>
           );
         })}

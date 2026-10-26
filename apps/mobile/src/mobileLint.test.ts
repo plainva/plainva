@@ -2008,7 +2008,7 @@ describe("the vault detail screen", () => {
     // The destructive rows have to READ destructive, which was the finding:
     // "Sync trennen" was tonal and optically identical to "Umbenennen".
     const danger = screen.slice(screen.indexOf('tone="danger"'));
-    expect(danger).toMatch(/m-danger">\{t\("mobile\.syncDisconnect"\)/);
+    expect(danger).toMatch(/m-danger">\{t\("cloudAccounts\.pauseSync"\)/);
     expect(danger).toMatch(/m-danger">\{t\("mobile\.vaultDelete"\)/);
   });
 
@@ -2445,14 +2445,14 @@ describe("the cloud accounts screen", () => {
     expect(desktopShared).not.toMatch(/case "microsoft":/);
   });
 
-  it("offers the repair where the expired sign-in is stated", () => {
+  it("shows each account's ONE state and leaves its action to the account page", () => {
     const screen = read();
-    // The one action that fixes an expired token sits on the row that reports
-    // it — behind the chevron the user would have to guess which screen holds
-    // the button.
-    expect(screen).toMatch(/DeviceSignInBadge/);
-    expect(screen).toMatch(/cloudacct-signin-again/);
-    expect(screen).toMatch(/beginMobileSignIn/);
+    // Plan "Verbinden", V2: a row names the state of the account's own sign-in;
+    // the button that fixes it is the head of the account page - one place,
+    // the same in both shells.
+    expect(screen).toMatch(/pv-acct-state/);
+    expect(screen).toMatch(/accountStateOf\(card\.signIn\)/);
+    expect(screen).not.toMatch(/cloudacct-signin-again|beginMobileSignIn/);
   });
 
   it("leads into the account, not into the list of a service", () => {
@@ -2466,7 +2466,10 @@ describe("the cloud accounts screen", () => {
     expect(screen).not.toMatch(/onOpenCalendarAccounts|onOpenMailAccounts/);
     expect(routes).toMatch(/kind: "cloudaccount", path: key/);
     expect(detail).toMatch(/loadAccountCards/);
-    expect(detail).toMatch(/cloudacct-service-\$\{service\}/);
+    expect(detail).toMatch(/cloudacct-service-\$\{row\.service\}/);
+    // ...and each service of THIS account leads to this account's page of it (plan "Verbinden", V3).
+    expect(detail).toMatch(/onOpenService\(card, row\.service\)/);
+    expect(routes).toMatch(/kind: "accountservice", path: `\$\{service\}:\$\{card\.key\}`/);
   });
 
   it("lets the wizard step out of the way once it has handed over", () => {

@@ -56,7 +56,7 @@ import type { CarriedRow, ForwardSource, MailAccountConfig, MailAttachment } fro
 import { appendDraft, bytesToBase64, carriedFailureText, carriedLimitText, carriedRowNote, composeChanged, guessAttachmentMime, leftBehindText, listMailboxesFor, resolveDraftsMailbox, sendMail, sendableAttachment, senderKey, senderOptions, splitSenderKey, useCarriedFiles, withSignature, withoutSignature } from "@plainva/ui/mail";
 import { mConfirm, mSelect, mTargets } from "../services/mobileDialogs";
 import { MailComposeEditor } from "./mail/MailComposeEditor";
-import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
+import { listActiveMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { claimRefusedSend, holdRefusedSend, readRefusedSend, type RefusedMessage } from "../services/mail/refusedSend";
 import { AppBar } from "../components/AppBar";
@@ -288,7 +288,7 @@ export function MailComposeScreen({ draft, onBack, onDone, onOpenAccounts, vault
   );
 
   useEffect(() => {
-    void listMobileMailAccounts().then((rows) => {
+    void listActiveMobileMailAccounts().then((rows) => {
       setAccounts(rows);
       setAccountsLoaded(true);
       const account = rows.find((a) => a.id === accountId) ?? rows[0];

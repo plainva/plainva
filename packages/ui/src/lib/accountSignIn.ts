@@ -42,6 +42,12 @@ export interface SignInIntent {
   /** Services to ADD to the card. Empty when only signing in again. */
   add: SignInService[];
   access: OAuthAccess;
+  /**
+   * Added services the person chose to connect outside the consent although
+   * the access could carry them - Gmail with an app password under "Other
+   * sign-in" (plan "Verbinden", E5).
+   */
+  outside?: SignInService[];
 }
 
 export interface PreparedSignIn {
@@ -152,12 +158,17 @@ export function prepareSignIn(
 ): PreparedSignIn {
   if (intent.access.family !== intent.family) throw new Error("access of another provider");
   if (intent.cardId && (!card || card.record.id !== intent.cardId || card.record.family !== intent.family)) throw new SignInCardChangedError();
-  const carried = card ? cardOAuthServices(card.record, card.mailKind) : [];
+  // A service the person moves outside the consent is no longer carried by it (E7:
+  // Gmail refused by Google, connected with an app password instead).
+  const carried = card ? cardOAuthServices(card.record, card.mailKind).filter((service) => !intent.outside?.includes(service)) : [];
   const added = ordered(intent.add);
-  const outside = added.filter((service) => !consentCovers(intent.access, service));
+  const inConsent = (service: SignInService) => consentCovers(intent.access, service) && !intent.outside?.includes(service);
+  const outside = added.filter((service) => !inConsent(service));
   // May be empty: a Google card that only gains a Gmail app password needs no
   // consent at all. The caller asks `needsConsent` instead of trying one.
-  const requested = ordered([...carried, ...added.filter((service) => consentCovers(intent.access, service))]);
+  // Adding only what goes outside the consent asks the provider for nothing.
+  const onlyOutside = !!intent.outside?.length && added.length > 0 && added.every((service) => !inConsent(service));
+  const requested = onlyOutside ? [] : ordered([...carried, ...added.filter(inConsent)]);
   const expected = normalizeVerifiedProviderIdentity(card?.record.verifiedProviderIdentity);
   const label = card?.record.label?.trim() ?? "";
   return {

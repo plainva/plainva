@@ -22,6 +22,8 @@ import { CleanupScreen } from "./screens/CleanupScreen";
 import { SyncChainScreen } from "./screens/SyncChainScreen";
 import { SyncDiagnosticsScreen } from "./screens/SyncDiagnosticsScreen";
 import { CloudAccountDetailScreen } from "./screens/CloudAccountDetailScreen";
+import { AccountServiceScreen } from "./screens/AccountServiceScreen";
+import { ensureCardRecord } from "./services/accountPageFacts";
 import { CloudAccountsScreen } from "./screens/CloudAccountsScreen";
 import { CloudConnectScreen } from "./screens/CloudConnectScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
@@ -57,6 +59,7 @@ import { SecurityAreaScreen } from "./screens/SecurityAreaScreen";
 import { SecurityWizardScreen, type SecurityWizardFlow } from "./screens/SecurityWizardScreen";
 import { draftPath, mailRefPath, parseDraft, parseMailRef } from "./screens/mail/mailNavRefs";
 import { startConnectQueue } from "./services/connectQueue";
+import { reconnectVault } from "./services/oauthService";
 import { startAccountService } from "./services/cloudAccountConnections";
 import type { CloudServiceId } from "@plainva/ui";
 
@@ -230,12 +233,40 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       accountKey={e.path}
       key={e.path}
       onBack={c.pop}
-      onOpenCalendarAccounts={(id) => c.push({ kind: "pimaccounts", path: id ?? "" })}
-      onOpenMailAccounts={(id) => c.push({ kind: "mailaccounts", path: id ?? "" })}
+      // Level 3 (plan "Verbinden", V3): the service page of THIS account.
+      onOpenService={(card, service) => c.push({ kind: "accountservice", path: `${service}:${card.key}` })}
       onAddService={(card, service) => { void startAccountService(card, service).then(first => { if (first) c.push({ kind: screenForService(first), path: "", family: card.family }); }).catch(error => toast.error(error instanceof Error ? error.message : String(error))); }}
-      onOpenVault={(id) => c.push({ kind: "vault", path: id })}
+      onReconnectVault={(vaultId) => { void reconnectVault(vaultId).catch(error => toast.error(error instanceof Error ? error.message : String(error))); }}
+      // E7: Gmail through an app password, bound to this card - the IMAP form of the mail screen, inside a run.
+      onAppPassword={(card) => {
+        void (async () => {
+          const vaultId = card.recordVaultId ?? c.vault.vaultId;
+          const record = await ensureCardRecord(vaultId, card);
+          await startConnectQueue("google", ["mail"], {
+            vaultId, cloudAccountId: record.id, expectedIdentity: record.verifiedProviderIdentity,
+            ...(record.services.mail ? { replacesMailAccountId: record.services.mail.mailAccountId } : {}),
+          });
+          c.push({ kind: "mailaccounts", path: "", family: "imap" });
+        })().catch(error => toast.error(error instanceof Error ? error.message : String(error)));
+      }}
     />
   ),
+  accountservice: (e, c) => {
+    const split = e.path.indexOf(":");
+    const service = e.path.slice(0, split) as CloudServiceId;
+    const key = e.path.slice(split + 1);
+    return (
+      <AccountServiceScreen
+        key={e.path}
+        accountKey={key}
+        service={service}
+        vault={c.vault}
+        onBack={c.pop}
+        // What every account shares (E4): the vault's page for files, the Calendar and E-Mail pages.
+        onOpenGlobal={(target) => c.push(target === "files" ? { kind: "vault", path: c.vault.vaultId } : { kind: target === "calendar" ? "pimaccounts" : "mailaccounts", path: "" })}
+      />
+    );
+  },
   cloudconnect: (_e, c) => (
     <CloudConnectScreen
       onBack={c.pop}
@@ -371,7 +402,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })}
     />
   ),
-  pimaccounts: (e, c) => <PimAccountsScreen accountId={e.path || undefined} bump={c.bump} family={e.family} onBack={c.pop} vault={c.vault} />,
+  pimaccounts: (e, c) => <PimAccountsScreen accountId={e.path || undefined} bump={c.bump} family={e.family} onBack={c.pop} vault={c.vault} onOpenAccountCalendar={(id) => c.push({ kind: "accountservice", path: `calendar:${id}` })} />,
   mail: (_e, c) => (
     <MailListScreen
       vault={c.vault}
@@ -403,7 +434,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     />
   ),
   mailaccounts: (e, c) => (
-    <MailAccountsScreen accountId={e.path || undefined} bump={c.bump} family={e.family} onBack={c.pop} onOpenRule={(id) => c.push({ kind: "mailrule", path: id })} vault={c.vault} />
+    <MailAccountsScreen accountId={e.path || undefined} bump={c.bump} family={e.family} onBack={c.pop} onOpenAccountMail={(id) => c.push({ kind: "accountservice", path: `mail:${id}` })} onOpenRule={(id) => c.push({ kind: "mailrule", path: id })} vault={c.vault} />
   ),
   mailrule: (e, c) => <MailRuleScreen ruleId={e.path} onBack={c.pop} />,
   tasks: (_e, c) => (

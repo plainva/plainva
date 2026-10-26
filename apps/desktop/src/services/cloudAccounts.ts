@@ -9,6 +9,7 @@ import {
   type PimAccountRow,
 } from "@plainva/core";
 import {
+  calendarSwitches,
   reconcileCloudAccounts,
   familyOfSyncProvider,
   looksLikeNextcloud,
@@ -157,6 +158,11 @@ export async function refreshCloudAccounts(vaultPath: string, pimRuntime: PimRun
       .map((r) => ({ id: r.services.calendar!.pimAccountId, provider: "caldav" as const, label: r.label }));
   }
   const next = reconcileCloudAccounts(stored, observed);
+  // A calendar switched off for the vault on another device stops here too (E3).
+  if (pimRuntime?.isActive()) {
+    const rows = await pimRuntime.cache.listAccounts().catch(() => []);
+    for (const { row, enabled } of calendarSwitches(next, rows)) await pimRuntime.cache.upsertAccount({ ...row, enabled }).catch(() => undefined);
+  }
   // `stored` comes back from the store with sorted keys; a text comparison saw
   // a change on every refresh and saved again (finding 2026-09-24).
   if (!sameStoredValue(next, stored) && recordShape(next) !== lastSavedShape.get(vaultPath)) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accessLineText, accountCheckDiagnostic, checkAccountConnection, isOwnClientRejected, serviceCheckAction, serviceCheckKey, serviceCheckText, serviceConnectionMessage, ServiceCheckError, shortClientId, standardAccessAvailable, type CloudServiceId } from "@plainva/ui";
+import { accessLineText, accountCheckDiagnostic, checkAccountConnection, checkRowActions, isOwnClientRejected, serviceCheckKey, serviceCheckText, serviceConnectionMessage, ServiceCheckError, shortClientId, standardAccessAvailable, type CloudServiceId } from "@plainva/ui";
 
 /**
  * "Check connection" on an account card (account sign-in plan E6): each
@@ -115,14 +115,14 @@ describe("checkAccountConnection - sign-in on this device", () => {
     expect(serviceCheckText({ service: "files", state: "failed", detail: "said: x" }, t)).toBe("said: x");
   });
 
-  it("offers an action on every row that does not work", () => {
-    expect(serviceCheckAction({ service: "files", state: "ok" }, true)).toBeNull();
-    expect(serviceCheckAction({ service: "files", state: "signin" }, true)).toBe("signIn");
-    expect(serviceCheckAction({ service: "files", state: "expired" }, true)).toBe("signInAgain");
-    expect(serviceCheckAction({ service: "files", state: "notGranted" }, true)).toBe("signInAgain");
-    expect(serviceCheckAction({ service: "files", state: "failed", detail: "x" }, true)).toBe("signInAgain");
-    expect(serviceCheckAction({ service: "mail", state: "failed", detail: "x" }, false)).toBe("openService");
+  it("names the state of a row without a sign-in here", () => {
     expect(serviceCheckKey("signin")).toBe("deviceSignIn.notSignedIn");
+  });
+
+  it("marks Gmail refused by Google itself, not by this sign-in (E7)", async () => {
+    const { ports: p } = ports({ probe: (service) => { if (service === "mail") throw new Error("access_denied: the app has not completed the Google verification process"); } });
+    const rows = await checkAccountConnection(p);
+    expect(rows[2]).toMatchObject({ service: "mail", state: "failed", refused: true });
   });
 });
 
@@ -136,9 +136,9 @@ describe("a client the provider refuses", () => {
     const { ports: p } = ports({ probe: (service) => { if (service === "files") throw new Error("deleted_client: The OAuth client was deleted."); } });
     const rows = await checkAccountConnection(p);
     expect(rows[0]).toEqual({ service: "files", state: "failed", detailKey: "accountAccess.clientRejected", clientRejected: true });
-    expect(serviceCheckAction(rows[0], true, true)).toBe("useStandard");
+    expect(checkRowActions(rows[0], { family: "google", canSignIn: true, standardAvailable: true })).toEqual(["useStandard"]);
     // Without a standard client in this build, signing in again is what is left.
-    expect(serviceCheckAction(rows[0], true, false)).toBe("signInAgain");
+    expect(checkRowActions(rows[0], { family: "google", canSignIn: true, standardAvailable: false })).toEqual(["signInAgain"]);
   });
 
   it("is told apart from a changed account in the failure sentence", () => {

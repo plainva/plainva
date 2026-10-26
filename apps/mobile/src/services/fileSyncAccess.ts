@@ -1,4 +1,4 @@
-import { getPlatformServices } from "@plainva/ui";
+import { getPlatformServices, isSignedOutSlot } from "@plainva/ui";
 import { fileBrokerTokenProvider } from "./accountBroker";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 
@@ -27,6 +27,11 @@ export interface MobileFileSyncAccess {
    * Worth saying out loud; going quiet is what made the failure invisible.
    */
   blocked: boolean;
+  /**
+   * Blocked because "Sign out on this device" dropped the password, secret key
+   * or token here (plan "Verbinden", V2): the fix is signing in, not "again".
+   */
+  signedOut?: boolean;
 }
 
 /** Pure decision, so both callers can be tested without a keychain. */
@@ -40,6 +45,9 @@ export function resolveMobileFileAccess(
 ): MobileFileSyncAccess {
   if (!entryProvider) return { ready: false, blocked: false };
   if (!stored || stored.provider !== entryProvider) return { ready: false, blocked: true };
+  const signedOut = isSignedOutSlot(stored, "creds")
+    || (stored.provider === "dropbox" && (stored.creds as { refreshToken?: string }).refreshToken === "");
+  if (signedOut) return { ready: false, blocked: true, signedOut: true };
 
   const creds = stored.creds as {
     refreshToken?: string;

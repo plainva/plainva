@@ -3,7 +3,7 @@ import { isDevicePimSupported } from "../platform/devicePim";
 import { hasDevicePimAccount } from "../services/pim/pimService";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, ChevronRight, Folder, Mail } from "lucide-react";
-import { accountMonogram, Button, Checkbox, type CloudProviderFamily, type CloudServiceId, FAMILY_SERVICES, GroupCard, ICON, Row, RowList, suiteProvider } from "@plainva/ui";
+import { accountMonogram, Button, Checkbox, type CloudProviderFamily, type CloudServiceId, FAMILY_SERVICES, GroupCard, ICON, Row, RowList, suiteProvider, Switch } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { AccountAccessSheet } from "../components/AccountAccessSheet";
 import { AccessUnavailableError, beginMobileSignIn } from "../services/accountSignIn";
@@ -65,6 +65,13 @@ export function CloudConnectScreen({
   const [picked, setPicked] = useState<CloudServiceId[]>([]);
   /** Google/Microsoft without a usable access on this phone: the sheet asks for it. */
   const [accessFor, setAccessFor] = useState<OAuthFamily | null>(null);
+  /**
+   * "Other sign-in" (plan "Verbinden", E5): the own client id and - only when
+   * mail is chosen - Gmail by app password, in a sheet; the step itself shows
+   * the one button of the standard sign-in.
+   */
+  const [otherOpen, setOtherOpen] = useState(false);
+  const [gmailByPassword, setGmailByPassword] = useState(false);
   const [starting, setStarting] = useState(false);
   // The device tile exists only on the native shells and only while no device
   // account exists (E7): the device is the source, not a login — one per phone.
@@ -85,7 +92,9 @@ export function CloudConnectScreen({
     }
     setStarting(true);
     try {
-      const out = await beginMobileSignIn((await getActiveVaultEntry()).id, { family, add: picked });
+      // Gmail by app password goes outside the consent and on to the mail screen, bound to the card (E5).
+      const outside: CloudServiceId[] = family === "google" && gmailByPassword && picked.includes("mail") ? ["mail"] : [];
+      const out = await beginMobileSignIn((await getActiveVaultEntry()).id, { family, add: picked, ...(outside.length ? { outside } : {}) });
       // Only an app-password mailbox was ticked: no consent, the mail screen asks.
       if (out.kind === "nothingToAsk") onPickServices(picked, family);
     } catch (error) {
@@ -117,7 +126,7 @@ export function CloudConnectScreen({
                   onClick={() => {
                     // No services step for the device: it has one service and no form.
                     if (f === "device") { onConnectDevice?.(); return; }
-                    setFamily(f); setPicked(FAMILY_SERVICES[f].length === 1 ? [...FAMILY_SERVICES[f]] : []);
+                    setFamily(f); setPicked(FAMILY_SERVICES[f].length === 1 ? [...FAMILY_SERVICES[f]] : []); setGmailByPassword(false);
                   }}
                   subtitle={FAMILY_SERVICES[f].map(serviceName).join(" · ")}
                   title={familyName(f)}
@@ -131,6 +140,7 @@ export function CloudConnectScreen({
   }
 
   const suite = suiteProvider(family);
+  const oauth = family === "google" || family === "microsoft";
   const offered = FAMILY_SERVICES[family];
   const toggle = (s: CloudServiceId) =>
     setPicked((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
@@ -170,14 +180,51 @@ export function CloudConnectScreen({
         onClick={() => void start()}
         variant="primary"
       >
-        {t("cloudAccounts.connectServices", { count: picked.length })}
+        {oauth && !(family === "google" && gmailByPassword && picked.length === 1 && picked[0] === "mail")
+          ? t(family === "google" ? "cloudAccounts.signInGoogle" : "cloudAccounts.signInMicrosoft")
+          : t("cloudAccounts.connectServices", { count: picked.length })}
       </Button>
+      {oauth && (
+        <GroupCard>
+          <RowList>
+            <Row
+              data-testid="connect-other-signin"
+              end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+              onClick={() => setOtherOpen(true)}
+              subtitle={[t("cloudAccounts.otherSignInClient"), family === "google" && picked.includes("mail") ? t("cloudAccounts.mailByAppPassword") : null].filter(Boolean).join(" · ")}
+              title={t("cloudAccounts.otherSignIn")}
+            />
+          </RowList>
+        </GroupCard>
+      )}
 
       {/* Apple is the honest special case: iCloud Drive has no third-party
           API, so "files" is absent from its row above rather than failing. */}
       {!FAMILY_SERVICES[family].includes("files") && <p className="m-hint">{t("cloudAccounts.noFilesForFamily")}</p>}
       {suite && <p className="m-hint">{t("cloudAccounts.appPasswordHint")}</p>}
       </div>
+      {otherOpen && (family === "google" || family === "microsoft") && (
+        <AccountAccessSheet
+          family={family}
+          title={t("cloudAccounts.otherSignIn")}
+          onCancel={() => setOtherOpen(false)}
+          onSaved={() => setOtherOpen(false)}
+          extra={family === "google" && picked.includes("mail") ? (
+            <GroupCard>
+              <RowList>
+                <Row
+                  controls
+                  end={<Switch checked={gmailByPassword} label={t("cloudAccounts.mailByAppPassword")} onChange={setGmailByPassword} testId="connect-gmail-by-password" />}
+                  icon={<Mail className="m-accent" size={ICON.ui} />}
+                  subtitle={t("cloudAccounts.mailByAppPasswordHint")}
+                  title={t("cloudAccounts.mailByAppPassword")}
+                  wrap
+                />
+              </RowList>
+            </GroupCard>
+          ) : undefined}
+        />
+      )}
       {accessFor && (
         <AccountAccessSheet
           family={accessFor}

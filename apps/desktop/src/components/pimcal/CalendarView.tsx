@@ -24,7 +24,8 @@ import {
   type BlockFollowReport,
   type ResolvedBlocker,
 } from "@plainva/ui";
-import { CalendarSyncNotice, syncProblemsFor, type EventChange } from "@plainva/ui";
+import { CalendarSyncNotice, syncProblemsFor, type EventChange, CALENDAR_COLORS_EVENT, calendarColor, type CalendarColorOverrides } from "@plainva/ui";
+import { loadCalendarColors } from "../../services/pim/calendarColors";
 import { useVault, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { listExistingDailyNotes } from "../../services/dailyNotes";
@@ -170,6 +171,16 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const closeJump = useCallback(() => setJumpOpen(false), []);
   const [accounts, setAccounts] = useState<PimAccountRow[]>([]);
   const [calendars, setCalendars] = useState<CalRow[]>([]);
+  /** The calendars' own colours, chosen on their account's calendar page (plan "Verbinden", V3). */
+  const [colorOverrides, setColorOverrides] = useState<CalendarColorOverrides>({});
+  useEffect(() => {
+    if (!vaultPath) return;
+    let alive = true;
+    const read = () => void loadCalendarColors(vaultPath).then((next) => { if (alive) setColorOverrides(next); }).catch(() => undefined);
+    read();
+    window.addEventListener(CALENDAR_COLORS_EVENT, read);
+    return () => { alive = false; window.removeEventListener(CALENDAR_COLORS_EVENT, read); };
+  }, [vaultPath]);
   // What the cache holds, and on top of it what the user just did (issue 119):
   // a write shows from the moment it is made, not from the provider's answer.
   const [cachedEvents, setEvents] = useState<PimEventRow[]>([]);
@@ -615,9 +626,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   }, [monthSpans]);
   const calColor = useMemo(() => {
     const map = new Map<string, string>();
-    for (const c of calendars) map.set(`${c.accountId} ${c.id}`, c.color ?? "");
+    for (const c of calendars) map.set(`${c.accountId} ${c.id}`, calendarColor(c, colorOverrides));
     return map;
-  }, [calendars]);
+  }, [calendars, colorOverrides]);
   const calName = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of calendars) map.set(`${c.accountId} ${c.id}`, c.name);
@@ -1574,7 +1585,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         const refused = failed.find(isAuthorizationFailure);
         if (refused) {
           toast.error(message, {
-            label: t("pim.blockReauth", { defaultValue: "Neu anmelden" }),
+            label: t("cloudAccounts.reconnect"),
             run: () => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "cloudAccounts", accountId: refused.accountId } })),
           });
         } else {

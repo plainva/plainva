@@ -11,6 +11,7 @@ import { usePageSwipe } from "../lib/usePageSwipe";
 import { reauthorizeCalendarAccount } from "../services/pim/pimReauth";
 import { AccountAccessSheet } from "../components/AccountAccessSheet";
 import type { OAuthFamily } from "@plainva/ui";
+import { calendarColor } from "@plainva/ui";
 import { toastConnectionFailure } from "../services/connectionToast";
 import {
   subscribePimStatus,
@@ -209,7 +210,8 @@ export function PimCalendarScreen({
     // The task lists have their line above the task screen (B2).
     void (getPimCache()?.listSyncProblems() ?? Promise.resolve([])).then((problems) => setSyncProblems(syncProblemsFor(problems, "calendar"))).catch(() => setSyncProblems([]));
     void listPimCalendars()
-      .then((cals) => setCalColor(new Map(cals.map((c) => [`${c.accountId} ${c.id}`, c.color ?? ""]))))
+      // A calendar's own colour, chosen on its account's calendar page, wins (plan "Verbinden", V3).
+      .then((cals) => setCalColor(new Map(cals.map((c) => [`${c.accountId} ${c.id}`, calendarColor(c, getMobileSettings().calendarColors)]))))
       .catch(() => setCalColor(new Map()));
     void listPimAccounts().then(async (a) => {
       setHasAccounts(a.length > 0);

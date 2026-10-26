@@ -93,8 +93,8 @@ export function DeviceSignInCard({
       )}
       <Button variant="primary" data-testid="device-signin-action" onClick={onSignIn}>
         {expired
-          ? t("pim.signInAgain", { defaultValue: "Neu anmelden" })
-          : t("deviceSignIn.action", { defaultValue: "Auf diesem Gerät anmelden" })}
+          ? t("cloudAccounts.reconnect")
+          : t("deviceSignIn.submit")}
       </Button>
     </div>
   );

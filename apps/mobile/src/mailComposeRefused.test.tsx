@@ -35,6 +35,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("./services/mail/mailRuntime", () => ({
   listMobileMailAccounts: vi.fn(async () => mocks.accounts),
+  // The screens list the mailboxes switched on (plan "Verbinden", E3): here every one is.
+  listActiveMobileMailAccounts: vi.fn(async () => mocks.accounts),
   mailVaultId: () => "/vault",
 }));
 vi.mock("./screens/mail/MailComposeEditor", async () => {

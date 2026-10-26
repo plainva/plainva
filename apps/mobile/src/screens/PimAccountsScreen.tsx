@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { devicePermissionKey } from "../services/pim/devicePermission";
 import { devicePimAuthorization, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
-import { Check, ChevronRight, Circle, Plus, Trash2 } from "lucide-react";
-import { Banner, Button, calendarTargetForFamily, classifyAuthError, foldMachineText, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, IconButton, listTemplates, MEETING_TEMPLATE_TOKENS, minutesToTime, reminderDiagnosis, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
+import { Check, ChevronRight, Circle, Plus } from "lucide-react";
+import { Banner, Button, calendarTargetForFamily, classifyAuthError, foldMachineText, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, listTemplates, MEETING_TEMPLATE_TOKENS, minutesToTime, reminderDiagnosis, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { accessProblemKey, isGoogleAuthorizationCancelled, serviceConnectionMessage, type AccessResolution, type OAuthFamily } from "@plainva/ui";
 import { getReminderState, subscribeReminderState } from "../services/reminderScheduler";
@@ -20,7 +20,6 @@ import {
   setPimTaskListSelected,
   addPimAccount,
   reauthorizePimAccount,
-  removePimAccount,
   getPimCache,
 } from "../services/pim/pimService";
 import { AccessUnavailableError, beginMobileSignIn, deviceAccess } from "../services/accountSignIn";
@@ -66,9 +65,12 @@ export function PimAccountsScreen({
   family,
   vault,
   accountId,
+  onOpenAccountCalendar,
 }: {
   bump: number;
   accountId?: string;
+  /** The calendar page of one account (plan "Verbinden", V3). */
+  onOpenAccountCalendar?: (pimAccountId: string) => void;
   onBack?: () => void;
   /** For the folder browser — a path you have to type is a path you guess. */
   vault: MobileVault;
@@ -566,22 +568,6 @@ export function PimAccountsScreen({
     if (out.kind === "failed") toastConnectionFailure(out.error);
   };
 
-  const remove = async (a: PimAccountRow) => {
-    const ok = await mConfirm({
-      title: t("pim.removeAccount", { defaultValue: "Konto entfernen" }),
-      message: t("pim.removeAccountConfirm", { defaultValue: "Zugangsdaten und zwischengespeicherte Termine werden entfernt (der Kalender beim Anbieter bleibt)." }),
-      confirmLabel: t("pim.removeAccount", { defaultValue: "Entfernen" }),
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      await removePimAccount(a.id);
-      toast.success(t("pim.accountRemoved", { defaultValue: "Konto entfernt" }));
-      reload();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    }
-  };
 
   const [selectionPending, setSelectionPending] = useState(0);
   const toggleTaskList = async (l: { id: string; accountId: string; selected: boolean }) => {
@@ -770,12 +756,6 @@ export function PimAccountsScreen({
                   <span className="m-acct-name">{a.label}</span>
                   <DeviceSignInBadge state={state} />
                   <span className="m-acct-provider">{a.provider === "device" ? t("cloudAccounts.familyDevice") : a.provider}</span>
-                  <IconButton
-                    label={t("pim.removeAccount", { defaultValue: "Konto entfernen" })}
-                    onClick={() => void remove(a)}
-                  >
-                    <Trash2 size={ICON.ui} />
-                  </IconButton>
                 </div>
                 {a.provider === "device" && deviceStatus && deviceStatus.events !== "fullAccess" && (
                   /* The device account's "sign-in" is the permission: the hint names
@@ -807,7 +787,7 @@ export function PimAccountsScreen({
                       data-testid={`pim-account-reauth-${a.id}`}
                       onClick={() => void signInAgain(a)}
                     >
-                      {t("pim.signInAgain", { defaultValue: "Neu anmelden" })}
+                      {t("cloudAccounts.reconnect")}
                     </Button>
                   </>
                 )}
@@ -826,47 +806,64 @@ export function PimAccountsScreen({
                     <span style={{ color: "var(--text-faint)" }}>{failure}</span>
                   </p>
                 )}
-                {/* The account's own rows, indented under it — the inline
-                    left padding and the three hand-written ellipsis rules are
-                    what the row metric is for. */}
-                {cals.length > 0 && (
-                  <GroupCard>
-                    <RowList>
-                      {cals.map((c) => (
-                        <Row
-                          end={c.selected ? <Check className="m-accent" size={ICON.ui} /> : undefined}
-                          icon={<Circle className="m-caldot" fill="currentColor" size={ICON.meta} style={{ color: c.color || "var(--accent-color)" }} />}
-                          indent={1}
-                          key={c.id}
-                          onClick={() => void toggleCal(c)}
-                          title={c.name}
-                        />
-                      ))}
-                    </RowList>
-                  </GroupCard>
-                )}
-                {/* Task lists (S27): the account's lists mirror into the task
-                    database, and until now the phone could not say WHICH — a
-                    calendar account brought all of them or none. The section
-                    shows even when empty, with the reason, because a silently
-                    missing section reads as "this account has no lists". */}
-                <SectionLabel className="m-sectionlabel--inset">{t("pim.taskLists")}</SectionLabel>
-                {taskLists.filter((l) => l.accountId === a.id).length === 0 ? (
-                  <p className="m-hint">{t("pim.noTaskLists")}</p>
+                {/* Inside a connect run this IS the step that picks the calendars and
+                    lists ("connection.selectResources"). Outside one, the calendars and
+                    lists of ONE account, its switch and its colours live on that
+                    account's calendar page (plan "Verbinden", V3); removing the
+                    account lives on the account page (E2). */}
+                {calendarRun ? (
+                  <>
+                    {cals.length > 0 && (
+                      <GroupCard>
+                        <RowList>
+                          {cals.map((c) => (
+                            <Row
+                              end={c.selected ? <Check className="m-accent" size={ICON.ui} /> : undefined}
+                              icon={<Circle className="m-caldot" fill="currentColor" size={ICON.meta} style={{ color: c.color || "var(--accent-color)" }} />}
+                              indent={1}
+                              key={c.id}
+                              onClick={() => void toggleCal(c)}
+                              title={c.name}
+                            />
+                          ))}
+                        </RowList>
+                      </GroupCard>
+                    )}
+                    <SectionLabel className="m-sectionlabel--inset">{t("pim.taskLists")}</SectionLabel>
+                    {taskLists.filter((l) => l.accountId === a.id).length === 0 ? (
+                      <p className="m-hint">{t("pim.noTaskLists")}</p>
+                    ) : (
+                      <GroupCard>
+                        <RowList>
+                          {taskLists
+                            .filter((l) => l.accountId === a.id)
+                            .map((l) => (
+                              <Row
+                                end={l.selected ? <Check className="m-accent" size={ICON.ui} /> : undefined}
+                                indent={1}
+                                key={l.id}
+                                onClick={() => void toggleTaskList(l)}
+                                title={l.name}
+                              />
+                            ))}
+                        </RowList>
+                      </GroupCard>
+                    )}
+                  </>
                 ) : (
                   <GroupCard>
                     <RowList>
-                      {taskLists
-                        .filter((l) => l.accountId === a.id)
-                        .map((l) => (
-                          <Row
-                            end={l.selected ? <Check className="m-accent" size={ICON.ui} /> : undefined}
-                            indent={1}
-                            key={l.id}
-                            onClick={() => void toggleTaskList(l)}
-                            title={l.name}
-                          />
-                        ))}
+                      <Row
+                        indent={1}
+                        data-testid={`pim-account-calendars-${a.id}`}
+                        title={t("cloudAccounts.openAccountCalendar")}
+                        subtitle={t("cloudAccounts.calendarSummary", {
+                          calendars: cals.filter((c) => c.selected).length,
+                          lists: taskLists.filter((l) => l.accountId === a.id && l.selected).length,
+                        })}
+                        end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                        onClick={() => onOpenAccountCalendar?.(a.id)}
+                      />
                     </RowList>
                   </GroupCard>
                 )}

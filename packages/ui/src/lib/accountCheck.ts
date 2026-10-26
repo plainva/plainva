@@ -31,6 +31,18 @@ export interface ServiceCheck {
   detailKey?: string;
   /** The provider refused this device's own client (deleted, not allowed). */
   clientRejected?: boolean;
+  /** The provider refused the service itself, not this sign-in (Gmail for an unverified app, a user cap - E7). */
+  refused?: boolean;
+}
+
+/**
+ * Google refused Gmail itself - not this sign-in: the scope was refused for
+ * an app Google has not verified, or the project reached its user cap.
+ * Signing in again cannot help there; an app password can (plan "Verbinden", E7).
+ */
+export function isGmailAccessRefused(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return /access_denied|unverified|has not completed the google verification|user cap|userlimit|org_internal|admin_policy_enforced|app is blocked/i.test(message);
 }
 
 /**
@@ -87,6 +99,10 @@ export async function checkAccountConnection(ports: AccountCheckPorts): Promise<
         continue;
       }
       const message = error instanceof Error ? error.message : String(error);
+      if (service === "mail" && isGmailAccessRefused(message)) {
+        results.push({ service, state: "failed", detail: ports.describe(error), refused: true });
+        continue;
+      }
       results.push(classifyAuthError(message) === "expired" ? { service, state: "expired" } : { service, state: "failed", detail: ports.describe(error) });
     }
   }
@@ -111,26 +127,4 @@ export function serviceCheckKey(state: ServiceCheckState): string {
 export function serviceCheckText(row: ServiceCheck, t: (key: string) => string): string {
   if (row.state === "failed") return row.detailKey ? t(row.detailKey) : row.detail || t(serviceCheckKey("failed"));
   return t(serviceCheckKey(row.state));
-}
-
-/**
- * The one action a row of the check offers (plan "Verbinden", V0): every
- * service that does not work gets one - before, only a lapsed or ungranted
- * one did, and a row that simply failed was a dead end.
- *
- * `canSignIn` says whether this shell can sign the card in again from here;
- * where it cannot (a password account on the phone), the row leads to the
- * service's own settings instead.
- */
-export type ServiceCheckAction = "signIn" | "signInAgain" | "openService" | "useStandard";
-
-/**
- * `standardAvailable`: this device signs in with an own client and the build
- * carries the standard one - a refused client is then switched, not retried.
- */
-export function serviceCheckAction(row: ServiceCheck, canSignIn: boolean, standardAvailable = false): ServiceCheckAction | null {
-  if (row.state === "ok") return null;
-  if (row.clientRejected && standardAvailable) return "useStandard";
-  if (!canSignIn) return "openService";
-  return row.state === "signin" ? "signIn" : "signInAgain";
 }

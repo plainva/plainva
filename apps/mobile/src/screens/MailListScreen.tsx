@@ -47,7 +47,7 @@ import {
   sortMailFolders,
   threadRows,
 } from "@plainva/ui/mail";
-import { listMobileMailAccounts, mailVaultId, MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
+import { listActiveMobileMailAccounts, mailVaultId, MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { DeviceSignInCard } from "../components/DeviceSignInRow";
 import { accountRowState, deviceSignInState, type DeviceSignInState } from "../services/deviceSignIn";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
@@ -289,20 +289,20 @@ export function MailListScreen({
   // Accounts first — everything else hangs off the chosen one. A remembered
   // account that no longer exists falls back to the first (resolveMailAccount).
   useEffect(() => {
-    void listMobileMailAccounts().then((rowsA) => {
+    void listActiveMobileMailAccounts().then((rowsA) => {
       setAccounts(rowsA);
       setAccountId((cur) => resolveMailAccount(cur, rowsA));
     });
   }, [bump]);
 
   useEffect(() => {
-    const onChanged = () => void listMobileMailAccounts().then(setAccounts);
+    const onChanged = () => void listActiveMobileMailAccounts().then(setAccounts);
     window.addEventListener(MAIL_CHANGED_EVENT, onChanged);
     return () => window.removeEventListener(MAIL_CHANGED_EVENT, onChanged);
   }, []);
 
   // Folders of the chosen account; the inbox is the natural landing folder.
-  // Keyed on the account ID, not the account object: `listMobileMailAccounts`
+  // Keyed on the account ID, not the account object: `listActiveMobileMailAccounts`
   // hands back a fresh array each time, so an object dependency re-ran this on
   // every refresh — and several folder/message requests at once is exactly
   // what makes Graph answer 429 (device report 2026-07-26).

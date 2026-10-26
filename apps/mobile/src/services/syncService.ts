@@ -22,7 +22,7 @@ import {
   type JournalCheckResult,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { connectionErrorText, formatListingReport, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError } from "@plainva/ui";
+import { connectionErrorText, formatListingReport, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff } from "@plainva/ui";
 import { assertEmptyRemoteVault } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
@@ -251,14 +251,18 @@ export function syncPossible(v: MobileVault): boolean {
 export async function startSyncIfConfigured(v: MobileVault): Promise<void> {
   if (worker || !syncPossible(v)) return;
   const entry = await getVaultEntry(v.vaultId);
-  const stored = entry?.paused ? null : await getStoredProvider(v.vaultId);
+  // Files switched off for the vault (plan "Verbinden", E3) stand still like a
+  // vault paused on this phone: a decision, not a failure.
+  const { loadCloudAccounts } = await import("./cloudAccountsStore");
+  const filesOff = (await loadCloudAccounts(v.vaultId).catch(() => [])).some((record) => record.services.files && isServiceOff(record, "files"));
+  const stored = entry?.paused || filesOff ? null : await getStoredProvider(v.vaultId);
   if (!stored) {
     v.markFirstSyncComplete();
     // "Off" and "configured but unreachable here" used to look the same, and
     // the second one is the one worth saying (finding 2026-08-19): the card
     // reads the registry, so it kept claiming a connection while nothing came
     // through. A paused vault is a decision, not a failure.
-    const blocked = !entry?.paused && !!entry?.provider;
+    const blocked = !entry?.paused && !filesOff && !!entry?.provider;
     setState({
       status: blocked ? "error" : "off",
       message: blocked ? i18n.t("cloudAccounts.filesNoAccess") : null,

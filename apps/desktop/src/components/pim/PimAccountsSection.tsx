@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RefreshCw } from "lucide-react";
-import { Banner, Button, ICON, MEETING_TEMPLATE_TOKENS, TextInput, classifyAuthError, isApiNotEnabled, listTemplates, logDiagnostic, needsReauthorisation, reviewDuplicatePimRows } from "@plainva/ui";
+import { Banner, Button, ICON, MEETING_TEMPLATE_TOKENS, TextInput, classifyAuthError, isApiNotEnabled, listTemplates, logDiagnostic, needsReauthorisation, reviewDuplicatePimRows, type CloudServiceId } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar, PimTaskList } from "@plainva/core";
 import { useVault, meetingFolderKey, meetingNoteTemplateKey, templateFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -41,7 +41,6 @@ function logCollections(
     }
   }
 }
-import { setPimAccountEnabled } from "../../services/pim/pimAccounts";
 
 /**
  * Settings section "Kalender" (cloud-accounts split): per-account calendar and
@@ -50,7 +49,7 @@ import { setPimAccountEnabled } from "../../services/pim/pimAccounts";
  * Only rendered for the OPEN vault (the runtime is bound to its index DB).
  */
 
-export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccounts?: (accountRef?: string) => void }) {
+export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccounts?: (accountRef?: string, service?: CloudServiceId) => void }) {
   const { t } = useTranslation();
 
   /**
@@ -287,8 +286,6 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
       ))}
 
       {accounts.map((account) => {
-        const accCals = calendars.filter((c) => c.accountId === account.id);
-        const accLists = taskLists.filter((l) => l.accountId === account.id);
         const accErrors = errors[account.id] ?? {};
         return (
           <div key={account.id} data-testid={`pim-account-${account.provider}`} style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "0.6rem 0.75rem", marginBottom: "0.6rem" }}>
@@ -297,20 +294,19 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
               <span style={{ fontSize: "var(--text-sm)", padding: "0.05rem 0.45rem", borderRadius: "var(--radius-pill)", background: "var(--bg-secondary)", color: "var(--text-muted)", flexShrink: 0 }}>
                 {providerLabel(account.provider)}
               </span>
+              <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }} data-testid={`pim-account-summary-${account.id}`}>
+                {t("cloudAccounts.calendarSummary", {
+                  calendars: calendars.filter((c) => c.accountId === account.id && c.selected).length,
+                  lists: taskLists.filter((l) => l.accountId === account.id && l.selected).length,
+                })}
+              </span>
               <div style={{ flex: 1 }} />
-              <label style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--text-ui)", color: "var(--text-muted)", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={account.enabled}
-                  onChange={(e) => {
-                    void setPimAccountEnabled(pimRuntime, account, e.target.checked).then(() => setTick((x) => x + 1));
-                  }}
-                />
-                {t("pim.accountEnabled", { defaultValue: "Aktiv" })}
-              </label>
+              {/* The calendars and lists of ONE account, its switch and its colours
+                  live on that account's calendar page (plan "Verbinden", V3); this
+                  page keeps what every account shares (E4). */}
               {onOpenCloudAccounts && (
-                <Button variant="ghost" size="sm" onClick={() => onOpenCloudAccounts(account.id)}>
-                  {t("cloudAccounts.manageAccount")}
+                <Button variant="ghost" size="sm" onClick={() => onOpenCloudAccounts(account.id, "calendar")} data-testid={`pim-account-settings-${account.id}`}>
+                  {t("cloudAccounts.openAccountCalendar")}
                 </Button>
               )}
             </div>
@@ -326,7 +322,7 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
                           primary action has to be the one that helps. */}
                       {needsReauthorisation(accErrors.account) && onOpenCloudAccounts && (
                         <Button variant="secondary" size="sm" onClick={() => onOpenCloudAccounts(account.id)} data-testid="pim-reauthorise">
-                          {t("pim.signInAgain")}
+                          {t("cloudAccounts.reconnect")}
                         </Button>
                       )}
                       <Button
@@ -357,84 +353,6 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
               </div>
             )}
 
-            {accCals.length > 0 && (
-              <div style={{ marginTop: "0.5rem" }}>
-                <div style={{ fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", marginBottom: 2 }}>
-                  {t("pim.calendars", { defaultValue: "Kalender" })}
-                </div>
-                {accCals.map((cal) => (
-                  <label key={cal.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-md)", padding: "0.1rem 0", cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={cal.selected}
-                      onChange={(e) => {
-                        void pimRuntime.cache.setCalendarSelected(account.id, cal.id, e.target.checked).then(() => {
-                          setTick((x) => x + 1);
-                          void pimRuntime.worker.triggerImmediate();
-                        });
-                      }}
-                    />
-                    {cal.color ? <span aria-hidden style={{ width: 9, height: 9, borderRadius: "var(--radius-pill)", background: cal.color, flexShrink: 0 }} /> : null}
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cal.name}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            {/* ALWAYS rendered (issue #34): hiding the section on an empty
-                result made "nothing found" indistinguishable from "feature does
-                not exist" — the reporter searched for a week. */}
-            <div style={{ marginTop: "0.5rem" }}>
-              <div style={{ fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", marginBottom: 2 }}>
-                {t("pim.taskLists", { defaultValue: "Aufgabenlisten" })}
-              </div>
-              {accErrors.taskLists ? (
-                <Banner
-                  kind="error"
-                  rounded
-                  actions={
-                    <Button variant="ghost" size="sm" onClick={() => void pimRuntime.worker.triggerImmediate()}>
-                      {t("pim.lookAgain")}
-                    </Button>
-                  }
-                >
-                  {t("pim.taskListsFailed")} {accErrors.taskLists}
-                </Banner>
-              ) : accErrors.account ? (
-                // The account itself could not be reached, so nothing is known
-                // about its task lists. Saying "this account offers none" here
-                // was a claim we could not make — and it stood directly below
-                // the error banner that said so (finding 2026-07-28).
-                <div data-testid="pim-tasklists-unknown" style={{ fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
-                  <p style={{ margin: 0 }}>{t("pim.taskListsUnknown")}</p>
-                </div>
-              ) : accLists.length === 0 ? (
-                <div data-testid="pim-tasklists-empty" style={{ fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
-                  <p style={{ margin: 0 }}>{t("pim.noTaskLists")}</p>
-                  <p style={{ margin: "0.15rem 0 0.35rem", fontSize: "var(--text-sm)" }}>
-                    {account.provider === "caldav" ? t("pim.noTaskListsCalDavHint") : t("pim.noTaskListsHint")}
-                  </p>
-                  <Button variant="ghost" size="sm" onClick={() => void pimRuntime.worker.triggerImmediate()}>
-                    {t("pim.lookAgain")}
-                  </Button>
-                </div>
-              ) : null}
-              {accLists.map((list) => (
-                  <label key={list.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-md)", padding: "0.1rem 0", cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={list.selected}
-                      onChange={(e) => {
-                        void pimRuntime.cache.setTaskListSelected(account.id, list.id, e.target.checked).then(() => {
-                          setTick((x) => x + 1);
-                          void pimRuntime.worker.triggerImmediate();
-                        });
-                      }}
-                    />
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.name}</span>
-                  </label>
-                ))}
-            </div>
           </div>
         );
       })}

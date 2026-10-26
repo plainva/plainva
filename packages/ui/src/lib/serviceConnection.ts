@@ -20,6 +20,11 @@ export interface ServiceConnectionContext {
   cloudAccountId?: string;
   expectedIdentity?: VerifiedProviderIdentity;
   runId?: string;
+  /**
+   * The mailbox the new one replaces on the card (plan "Verbinden", E7: Gmail
+   * refused by Google, connected with an app password instead).
+   */
+  replacesMailAccountId?: string;
 }
 
 export type ServiceConnectionOutcome =

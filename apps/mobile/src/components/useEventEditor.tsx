@@ -313,7 +313,7 @@ export function useEventEditor({
       const message = t("pim.blockFailedFor", { cals, defaultValue: "Konnte in {{cals}} nicht blockieren." });
       // A 401/403 is a right the token does not carry — the sign-in is the fix,
       // and the accounts screen is where it lives on the phone.
-      if (failed.some(isAuthorizationFailure)) toast.error(`${message} ${t("pim.blockReauth", { defaultValue: "Neu anmelden" })}`);
+      if (failed.some(isAuthorizationFailure)) toast.error(`${message} ${t("cloudAccounts.reconnect")}`);
       else toast.error(message);
     } else if (ok === 0) {
       toast.error(t("pim.eventWriteFailed"));

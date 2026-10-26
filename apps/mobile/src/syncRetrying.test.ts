@@ -46,7 +46,7 @@ describe("the disconnected state is a state, not the action (finding 2026-09-03)
   it("names a paused vault 'disconnected', never 'disconnect'", () => {
     const t = i18n.t.bind(i18n) as never;
     expect(syncStateLabel({ status: "off" }, t)).toBe(i18n.t("mobile.syncDisconnected"));
-    expect(syncStateLabel({ status: "off" }, t)).not.toBe(i18n.t("mobile.syncDisconnect"));
+    expect(syncStateLabel({ status: "off" }, t)).not.toBe(i18n.t("cloudAccounts.pauseSync"));
   });
 });
 

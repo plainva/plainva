@@ -30,6 +30,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("./services/mail/mailRuntime", () => ({
   listMobileMailAccounts: vi.fn(async () => [{ id: "m1", label: "anna@example.org", host: "imap.example.org", port: 993, smtpHost: "smtp.example.org", smtpPort: 587, user: "anna@example.org", kind: "imap" }]),
+  // The screens list the mailboxes switched on (plan "Verbinden", E3): here every one is.
+  listActiveMobileMailAccounts: vi.fn(async () => [{ id: "m1", label: "anna@example.org", host: "imap.example.org", port: 993, smtpHost: "smtp.example.org", smtpPort: 587, user: "anna@example.org", kind: "imap" }]),
   mailVaultId: () => "/vault",
 }));
 vi.mock("./screens/mail/MailComposeEditor", async () => {

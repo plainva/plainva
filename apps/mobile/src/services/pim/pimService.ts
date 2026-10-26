@@ -128,7 +128,7 @@ export async function startPim(vault: MobileVault): Promise<void> {
   // to its card before the calendar starts (account sign-in plan K2).
   const { migrateVaultGrants } = await import("../accountGrantMigration");
   await migrateVaultGrants(vault.vaultId).catch((e) => console.error("[pim] moving sign-ins to their accounts failed", e));
-  return startPimRuntime(vault, {
+  await startPimRuntime(vault, {
     buildTarget: buildTargetFor,
     accountAuthRevision: async (vaultId, account) =>
       account.provider === "device" ? undefined : (await getPimCredentials(vaultId, account.id))?.loginRevision,
@@ -137,6 +137,9 @@ export async function startPim(vault: MobileVault): Promise<void> {
     // The other half of "did a change made in Reminders arrive here" (T4).
     onDeviceChanged: () => logDiagnostic("device", "store changed, cycle requested"),
   });
+  // A calendar switched off for the vault on another device stands still here too (E3).
+  const { applyCalendarSwitches } = await import("../serviceSwitches");
+  await applyCalendarSwitches(vault.vaultId).catch(() => undefined);
 }
 
 /** True while this vault carries the device account (at most one, plan E7). */
@@ -183,6 +186,14 @@ export async function checkPimAccount(vaultId: string, accountId: string): Promi
   const target = await buildTargetFor(vaultId, row);
   if (!target) throw new ServiceCheckError("signin");
   await target.listCalendars();
+}
+
+/** A calendar account running or standing still here (the account switch of plan "Verbinden", E3); its cache stays. */
+export async function setPimAccountEnabled(accountId: string, enabled: boolean): Promise<void> {
+  const row = (await listPimAccounts()).find((entry) => entry.id === accountId);
+  if (!row || !runtime || row.enabled === enabled) return;
+  await runtime.cache.upsertAccount({ ...row, enabled });
+  if (enabled) pimSyncNow();
 }
 
 export async function listPimAccounts(): Promise<PimAccountRow[]> {

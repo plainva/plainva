@@ -4,11 +4,12 @@ import { credentialManager } from "./CredentialManager";
 import { protectedSecrets } from "./protectedSecrets";
 import { loadCloudAccounts } from "./cloudAccounts";
 import { slot } from "./keychainSlots";
-import { buildWebDavTarget } from "./syncTargets";
+import { buildS3Target, buildWebDavTarget } from "./syncTargets";
 import { getPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 import { checkCalDavLogin } from "./pim/pimAccounts";
 import { restartPimAccountAfterLogin, type PimRuntime } from "./pim/pimRuntime";
 import type { ServiceStatusCb } from "./cloudAccountsActions";
+import { announceCredentials } from "./credentialsAnnouncement";
 
 export function desktopPasswordChangePorts(vaultPath: string, record: CloudAccountRecord, runtime: PimRuntime | null, onStatus?: (status: PasswordChangeStatus) => void): PasswordChangePorts {
   record = structuredClone(record);
@@ -28,7 +29,18 @@ export function desktopPasswordChangePorts(vaultPath: string, record: CloudAccou
     targets: async () => {
       const targets: PasswordChangeTarget[] = [];
       for (const service of passwordServicesOf(record)) {
-        if (service === "files") targets.push(createPasswordCredentialTarget({
+        if (service === "files" && record.services.files?.provider === "s3") targets.push(createPasswordCredentialTarget({
+          service, key: slot.files(vaultPath, "s3"), store: protectedSecrets,
+          read: async () => {
+            const value = await credentialManager.getS3Credentials(vaultPath);
+            if (value && typeof value.secretAccessKey !== "string") throw new PasswordChangeError("missing", service);
+            return value;
+          },
+          readBinding: async () => ({ provider: "s3" }),
+          withPassword: (value, secretAccessKey) => ({ ...value, secretAccessKey }),
+          verify: (value, _binding, secretAccessKey) => buildS3Target({ ...value, secretAccessKey, forcePathStyle: value.forcePathStyle ?? true }).listFolders("").then(() => {}),
+        }));
+        else if (service === "files") targets.push(createPasswordCredentialTarget({
           service, key: slot.files(vaultPath, "webdav"), store: protectedSecrets,
           read: async () => {
             const value = await credentialManager.getWebDavCredentials(vaultPath);
@@ -85,7 +97,9 @@ export function desktopPasswordChangePorts(vaultPath: string, record: CloudAccou
       return targets;
     },
     activate: async () => {
-      window.dispatchEvent(new CustomEvent("plainva-credentials-saved", { detail: { isNewConnection: false, vaultPath } }));
+      // Through the hold: an open account page keeps its place until it is left
+      // (the reload would put the settings back on the account list).
+      announceCredentials(false);
       if (record.services.calendar && passwordServicesOf(record).includes("calendar")) await restartPimAccountAfterLogin(runtime, record.services.calendar.pimAccountId);
     },
   };

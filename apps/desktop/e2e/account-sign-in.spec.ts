@@ -33,7 +33,17 @@ interface Harness {
   choice: FakeConsentChoice;
 }
 
-async function wire(page: Page, seed: { cards?: unknown[]; keychain?: Record<string, string>; splash?: boolean; pickDir?: string; pim?: { id: string; label: string } } = {}): Promise<Harness> {
+interface Seed {
+  cards?: unknown[];
+  keychain?: Record<string, string>;
+  splash?: boolean;
+  pickDir?: string;
+  pim?: { id: string; label: string };
+  /** Further settings entries (a mailbox list, say). */
+  settings?: Record<string, unknown>;
+}
+
+async function wire(page: Page, seed: Seed = {}): Promise<Harness> {
   const harness: Harness = {
     provider: new FakeOAuthProvider({ family: 'google', accounts: [ANNA, BERT], clients: [CLIENT] }),
     choice: {},
@@ -63,7 +73,7 @@ async function wire(page: Page, seed: { cards?: unknown[]; keychain?: Record<str
     return { status: response.status, body: await response.text() };
   });
 
-  await page.addInitScript((seedIn: { cards: unknown[]; keychain: Record<string, string>; client: typeof CLIENT; splash: boolean; pickDir: string | null; pim: { id: string; label: string } | null }) => {
+  await page.addInitScript((seedIn: { cards: unknown[]; keychain: Record<string, string>; client: typeof CLIENT; splash: boolean; pickDir: string | null; pim: { id: string; label: string } | null; settings: Record<string, unknown> }) => {
     const fs: Record<string, any> = {
       '/test-vault': { isDir: true },
       '/test-vault/.plainva': { isDir: true },
@@ -87,6 +97,7 @@ async function wire(page: Page, seed: { cards?: unknown[]; keychain?: Record<str
       [`okfPromptDismissed_${vaultKey}`, true],
       [`backupZipEnabled_${vaultKey}`, false],
       [`cloudAccounts_${vaultKey}`, seedIn.cards],
+      ...Object.entries(seedIn.settings),
     ]);
     // This device signs in to Google with an own client (no Plainva client in the test build).
     const keychain = new Map<string, string>([
@@ -98,7 +109,12 @@ async function wire(page: Page, seed: { cards?: unknown[]; keychain?: Record<str
     (window as any).__keychain = keychain;
 
     let redirect: { code: string; state: string | null } | { error: string } | null = null;
-    const responses = new Map<number, { status: number; url: string; body: string; read: boolean }>();
+    // The seeded calendar row, until the account is removed.
+    let pimGone = false;
+    const responses = new Map<number, { status: number; url: string; body: string; read: boolean; type?: string }>();
+    // A WebDAV server that lets anyone in: an empty folder for every listing.
+    const isDav = (url: string) => url.startsWith('https://dav.example/');
+    const EMPTY_LISTING = '<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"><d:response><d:href>/files/anna/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>';
     let nextRequest = 1;
     const isProvider = (url: string) => url.startsWith('https://oauth2.googleapis.com/') || url.startsWith('https://openidconnect.googleapis.com/');
     // Anything else of Google's (the Drive sync starting up) gets an empty answer.
@@ -159,6 +175,8 @@ async function wire(page: Page, seed: { cards?: unknown[]; keychain?: Record<str
           if (isProvider(cfg.url)) {
             const answer = await (window as any).__fakeFetch(cfg.url, cfg.method, cfg.headers, body);
             responses.set(id, { status: answer.status, url: cfg.url, body: answer.body, read: false });
+          } else if (isDav(cfg.url)) {
+            responses.set(id, { status: cfg.method === 'PROPFIND' ? 207 : 200, url: cfg.url, body: cfg.method === 'PROPFIND' ? EMPTY_LISTING : '', read: false, type: 'application/xml' });
           } else {
             responses.set(id, { status: 200, url: cfg.url, body: JSON.stringify(otherGoogle(cfg.method)), read: false });
           }
@@ -166,7 +184,7 @@ async function wire(page: Page, seed: { cards?: unknown[]; keychain?: Record<str
         }
         if (cmd === 'plugin:http|fetch_send') {
           const response = responses.get(args.rid)!;
-          return { status: response.status, statusText: '', url: response.url, headers: [['content-type', 'application/json']], rid: args.rid };
+          return { status: response.status, statusText: '', url: response.url, headers: [['content-type', response.type ?? 'application/json']], rid: args.rid };
         }
         if (cmd === 'plugin:http|fetch_read_body') {
           const response = responses.get(args.rid)!;
@@ -180,11 +198,15 @@ async function wire(page: Page, seed: { cards?: unknown[]; keychain?: Record<str
         if (cmd === 'plugin:dialog|ask' || cmd === 'plugin:dialog|confirm') return true;
         if (cmd === 'plugin:dialog|message') return String(args?.buttons) === 'OkCancel' ? 'Ok' : 'Yes';
         if (cmd === 'plugin:sql|load') return args.db;
-        if (cmd === 'plugin:sql|execute') return [0, 0];
+        if (cmd === 'plugin:sql|execute') {
+          if (/DELETE FROM pim_accounts/i.test(String(args.query))) pimGone = true;
+          return [0, 0];
+        }
         if (cmd === 'plugin:sql|select') {
           const q = String(args.query);
           // A Google calendar row of the vault, when the case seeds one.
-          if (seedIn.pim && q.includes('FROM pim_accounts')) return [{ id: seedIn.pim.id, provider: 'google', label: seedIn.pim.label, config: '{}', enabled: 1 }];
+          if (seedIn.pim && !pimGone && q.includes('FROM pim_accounts')) return [{ id: seedIn.pim.id, provider: 'google', label: seedIn.pim.label, config: '{}', enabled: 1 }];
+          if (seedIn.pim && !pimGone && q.includes('FROM pim_calendars')) return [{ account_id: seedIn.pim.id, cal_id: 'cal-anna', name: 'Anna privat', color: '#3366cc', selected: 1, read_only: 0 }];
           if (q.includes('FROM files WHERE is_deleted = 0')) return noteRows();
           if (q.includes('path, title, mode FROM files') || q.includes('FROM files WHERE mode')) return noteRows().map((r) => ({ path: r.path, title: r.title, mode: 'note' }));
           if (q.includes('SELECT path, title FROM files')) return noteRows().map((r) => ({ path: r.path, title: r.title }));
@@ -255,12 +277,17 @@ async function wire(page: Page, seed: { cards?: unknown[]; keychain?: Record<str
           fs[p] = { isDir: true };
           return null;
         }
+        // An IMAP server: the password "wrong" is turned away, any other lets in.
+        if (cmd === 'mail_check_login') {
+          if (String(args?.pass ?? args?.creds?.pass ?? '') === 'wrong') throw new Error('AUTHENTICATIONFAILED Invalid credentials');
+          return [{ name: 'INBOX', role: 'inbox' }, { name: 'Sent', role: 'sent' }];
+        }
         if (cmd === 'plugin:fs|watch') return 1;
         if (cmd === 'plugin:fs|unwatch') return null;
         return null;
       },
     };
-  }, { cards: seed.cards ?? [], keychain: seed.keychain ?? {}, client: CLIENT, splash: !!seed.splash, pickDir: seed.pickDir ?? null, pim: seed.pim ?? null });
+  }, { cards: seed.cards ?? [], keychain: seed.keychain ?? {}, client: CLIENT, splash: !!seed.splash, pickDir: seed.pickDir ?? null, pim: seed.pim ?? null, settings: seed.settings ?? {} });
   return harness;
 }
 
@@ -336,9 +363,10 @@ test('signing a card in again with another account changes nothing and names bot
   const dialog = await openCloudAccounts(page);
   await dialog.getByTestId('cloudacct-row').click();
 
-  // In the browser, Bert is signed in and the person picks him.
+  // In the browser, Bert is signed in and the person picks him. Switching a
+  // service on asks the provider for everything the card carries.
   harness.choice = { account: BERT.email };
-  await dialog.getByTestId('cloudacct-reconnect').click();
+  await dialog.getByTestId('cloudacct-service-mail').getByRole('switch').click();
 
   await expect(page.getByText(`You signed in as ${BERT.email}, but this account is ${ANNA.email}. Nothing was changed.`)).toBeVisible({ timeout: 15_000 });
   // The consent preselected Anna (the login hint), the person chose otherwise.
@@ -406,16 +434,17 @@ test('a card signs in from its state, checks files and calendar as working, sign
   });
   harness.choice = { account: ANNA.email };
   const dialog = await openCloudAccounts(page);
-  await expect(dialog.getByTestId('cloudacct-signin-hint')).toHaveText(/Anmeldung nötig|Sign-in needed/);
+  await expect(dialog.getByTestId('cloudacct-row-state')).toHaveAttribute('data-state', 'signin');
   await dialog.getByTestId('cloudacct-row').click();
 
   // No sign-in on this device: the state says so, and its button signs in.
-  await expect(dialog.getByTestId('cloudacct-signin-state')).toHaveAttribute('data-state', 'signin');
+  await expect(dialog.getByTestId('cloudacct-state')).toHaveAttribute('data-state', 'signin');
   await expect(dialog.getByTestId('cloudacct-signout')).toHaveCount(0);
-  await expect(dialog.getByTestId('cloudacct-reconnect')).toHaveText(/^(Anmelden|Sign in)$/);
-  await dialog.getByTestId('cloudacct-reconnect').click();
+  await expect(dialog.getByTestId('cloudacct-signin')).toHaveText(/^(Anmelden|Sign in)$/);
+  await dialog.getByTestId('cloudacct-signin').click();
   await expect.poll(() => grantOf(page, 'card-anna'), { timeout: 15_000 }).not.toBeNull();
-  await expect(dialog.getByTestId('cloudacct-signin-state')).toHaveCount(0, { timeout: 15_000 });
+  await expect(dialog.getByTestId('cloudacct-state')).toHaveAttribute('data-state', 'connected', { timeout: 15_000 });
+  await expect(dialog.getByTestId('cloudacct-signin')).toHaveCount(0);
 
   // Check connection: both services work with what this device holds.
   await dialog.getByTestId('cloudacct-check-open').click();
@@ -428,12 +457,222 @@ test('a card signs in from its state, checks files and calendar as working, sign
   // Sign out on this device: the grant goes, the card and its services stay.
   await dialog.getByTestId('cloudacct-signout').click();
   await expect.poll(() => grantOf(page, 'card-anna'), { timeout: 15_000 }).toBeNull();
-  await expect(dialog.getByTestId('cloudacct-signin-state')).toHaveAttribute('data-state', 'signin', { timeout: 15_000 });
+  await expect(dialog.getByTestId('cloudacct-state')).toHaveAttribute('data-state', 'signin', { timeout: 15_000 });
   expect((await cards(page)).find((entry) => entry.id === 'card-anna')?.services).toEqual(card.services);
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('signed-out.png') });
 
   // And in again.
-  await dialog.getByTestId('cloudacct-reconnect').click();
+  await dialog.getByTestId('cloudacct-signin').click();
   await expect.poll(() => grantOf(page, 'card-anna'), { timeout: 15_000 }).not.toBeNull();
-  await expect(dialog.getByTestId('cloudacct-signin-state')).toHaveCount(0, { timeout: 15_000 });
+  await expect(dialog.getByTestId('cloudacct-state')).toHaveAttribute('data-state', 'connected', { timeout: 15_000 });
+});
+
+/*
+ * Plan "Verbinden", V1-V3: one structure for every account - the head with
+ * one state, the services with their pages, the access, the check with an
+ * action per row, the end. The same cases for a Google, a WebDAV and an IMAP
+ * account; the phone runs them in `apps/mobile/e2e-prod/account-sign-in.spec.ts`.
+ */
+
+/** Anna's Google card with files and a calendar, signed in on this device. */
+function signedInGoogle(scopes: string) {
+  const card = { id: 'card-anna', family: 'google', label: ANNA.email, verifiedProviderIdentity: { issuer: 'google', subject: ANNA.subject }, services: { files: { provider: 'drive' }, calendar: { pimAccountId: 'pim-anna' } } };
+  return {
+    card,
+    seed: {
+      cards: [card],
+      pim: { id: 'pim-anna', label: ANNA.email },
+      keychain: {
+        [`account_card-anna_${vaultKey}`]: JSON.stringify({ clientId: CLIENT.clientId, clientSecret: CLIENT.clientSecret, refreshToken: 'annas-grant', scopes, providerIdentity: { issuer: 'google', subject: ANNA.subject } }),
+        [`drive_credentials_${vaultKey}`]: JSON.stringify({ clientId: CLIENT.clientId, clientSecret: CLIENT.clientSecret, refreshToken: '' }),
+        [`pim_pim-anna_${vaultKey}`]: JSON.stringify({ kind: 'google', clientId: CLIENT.clientId, clientSecret: CLIENT.clientSecret, refreshToken: '' }),
+      },
+    } satisfies Seed,
+  };
+}
+const ALL_SCOPES = ['https://www.googleapis.com/auth/drive', ...CALENDAR_SCOPES, 'openid', 'email'].join(' ');
+
+/** The in-app confirmation: its text, then its confirming button. */
+async function confirmDialog(page: Page): Promise<string> {
+  const overlay = page.locator('.pv-overlay--dialog');
+  await expect(overlay).toBeVisible();
+  const text = (await overlay.textContent()) ?? '';
+  await overlay.locator('.pv-btn--danger, .pv-btn--primary').first().click();
+  return text;
+}
+
+test('a Google account leads from the list to its calendar page and back, in five fixed sections', async ({ page }, testInfo) => {
+  const { seed } = signedInGoogle(ALL_SCOPES);
+  await wire(page, seed);
+  const dialog = await openCloudAccounts(page);
+  await expect(dialog.getByTestId('cloudacct-row-state')).toHaveAttribute('data-state', 'connected');
+  await dialog.getByTestId('cloudacct-row').click();
+
+  // The head: one state, no button while nothing needs a sign-in.
+  await expect(dialog.getByTestId('cloudacct-state')).toHaveAttribute('data-state', 'connected');
+  await expect(dialog.getByTestId('cloudacct-signin')).toHaveCount(0);
+  // The services, always in the same order; what the card does not carry is off, not missing.
+  const services = dialog.locator('[data-testid^="cloudacct-service-"]:not([data-testid^="cloudacct-service-open-"])');
+  await expect(services).toHaveCount(3);
+  expect(await services.evaluateAll((rows) => rows.map((row) => `${row.getAttribute('data-testid')}=${row.getAttribute('data-on')}`)))
+    .toEqual(['cloudacct-service-files=true', 'cloudacct-service-calendar=true', 'cloudacct-service-mail=false']);
+  // Access, check and the end, every one in its place.
+  await expect(dialog.getByTestId('cloudacct-access-change')).toBeVisible();
+  await expect(dialog.getByTestId('cloudacct-check-open')).toBeVisible();
+  await expect(dialog.getByTestId('cloudacct-signout')).toBeVisible();
+  await expect(dialog.getByTestId('cloudacct-remove')).toBeVisible();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('google-account-page.png'), fullPage: true });
+
+  // The calendar of THIS account: its calendars with their switch and colour.
+  await dialog.getByTestId('cloudacct-service-open-calendar').click();
+  await expect(dialog.getByTestId('account-service-calendar')).toBeVisible();
+  await expect(dialog.getByTestId('account-service-switch')).toBeVisible();
+  await expect(dialog.getByTestId('account-calendar-cal-anna')).toBeVisible({ timeout: 15_000 });
+  await expect(dialog.getByTestId('account-calendar-color-cal-anna')).toBeVisible();
+  await expect(dialog.getByTestId('account-service-global')).toBeVisible();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('google-calendar-page.png'), fullPage: true });
+  await dialog.getByTestId('account-service-back').click();
+  await expect(dialog.getByTestId('cloudacct-head')).toBeVisible();
+});
+
+test('the check names a service that was never granted, and its action grants it', async ({ page }) => {
+  // Signed in through the provider with the calendar left unticked at the consent.
+  const { seed } = signedInGoogle('');
+  const keychain = { ...seed.keychain };
+  delete (keychain as Record<string, string>)[`account_card-anna_${vaultKey}`];
+  const harness = await wire(page, { ...seed, keychain });
+  harness.choice = { account: ANNA.email, untick: CALENDAR_SCOPES };
+  const dialog = await openCloudAccounts(page);
+  await dialog.getByTestId('cloudacct-row').click();
+  await dialog.getByTestId('cloudacct-signin').click();
+  await expect.poll(() => grantOf(page, 'card-anna'), { timeout: 15_000 }).not.toBeNull();
+  harness.choice = { account: ANNA.email };
+
+  await dialog.getByTestId('cloudacct-check-open').click();
+  await expect(page.getByTestId('cloudacct-check-files')).toHaveAttribute('data-state', 'ok', { timeout: 15_000 });
+  await expect(page.getByTestId('cloudacct-check-calendar')).toHaveAttribute('data-state', 'notGranted', { timeout: 15_000 });
+  await expect(page.getByTestId('cloudacct-check-action-files-grant')).toHaveCount(0);
+  await page.getByTestId('cloudacct-check-action-calendar-grant').click();
+
+  // One consent later the card holds the calendar too, and the check says so.
+  await expect.poll(async () => String(JSON.parse((await grantOf(page, 'card-anna')) ?? '{}').scopes ?? ''), { timeout: 15_000 })
+    .toContain('https://www.googleapis.com/auth/calendar');
+  await dialog.getByTestId('cloudacct-check-open').click();
+  await expect(page.getByTestId('cloudacct-check-calendar')).toHaveAttribute('data-state', 'ok', { timeout: 15_000 });
+});
+
+test('removing a Google account says what goes and what stays, and takes the card and its sign-in out', async ({ page }) => {
+  const { seed } = signedInGoogle(ALL_SCOPES);
+  await wire(page, seed);
+  const dialog = await openCloudAccounts(page);
+  await dialog.getByTestId('cloudacct-row').click();
+  await dialog.getByTestId('cloudacct-remove').click();
+  const said = await confirmDialog(page);
+  expect(said).toMatch(/Goes:|Es geht:/);
+  expect(said).toMatch(/Stays:|Es bleibt:/);
+  expect(said).toMatch(/nothing is deleted at the provider|beim Anbieter wird nichts gelöscht/);
+
+  await expect.poll(async () => (await cards(page)).length, { timeout: 15_000 }).toBe(0);
+  await expect.poll(() => grantOf(page, 'card-anna')).toBeNull();
+  await expect(dialog.getByTestId('cloudacct-row')).toHaveCount(0);
+});
+
+/** A WebDAV card with its files, signed in with a password on this device. */
+const DAV_CARD = { id: 'card-dav', family: 'webdav', label: 'anna@dav.example', services: { files: { provider: 'webdav' } } };
+const davSeed = (pass: string): Seed => ({
+  cards: [DAV_CARD],
+  keychain: { [`webdav_credentials_${vaultKey}`]: JSON.stringify({ url: 'https://dav.example/files/anna/', user: 'anna', pass }) },
+});
+/** The password the WebDAV files slot holds now, wherever the migration put it. */
+const davPass = (page: Page): Promise<string | null> => page.evaluate((key) => {
+  const keychain = (window as any).__keychain as Map<string, string>;
+  const slot = [...keychain.keys()].find((k) => k === `webdav_credentials_${key}` || (k.includes('webdav') && k.includes('Files')));
+  return slot ? (JSON.parse(keychain.get(slot) ?? '{}').pass ?? null) : null;
+}, vaultKey);
+
+test('a WebDAV account shows its server and user, checks its files, signs out here and in again with the password', async ({ page }, testInfo) => {
+  await wire(page, davSeed('secret'));
+  const dialog = await openCloudAccounts(page);
+  await dialog.getByTestId('cloudacct-row').click();
+
+  await expect(dialog.getByTestId('cloudacct-state')).toHaveAttribute('data-state', 'connected');
+  // The same five sections: what WebDAV cannot do is missing, nothing moves.
+  await expect(dialog.getByTestId('cloudacct-service-files')).toHaveAttribute('data-on', 'true');
+  await expect(dialog.getByTestId('cloudacct-service-mail')).toHaveCount(0);
+  await expect(dialog.getByRole('group', { name: /Access on this device|Zugang auf diesem Gerät/ }).getByText('https://dav.example/files/anna/')).toBeVisible();
+  await expect(dialog.getByTestId('cloudacct-password-change')).toBeVisible();
+
+  await dialog.getByTestId('cloudacct-check-open').click();
+  await expect(page.getByTestId('cloudacct-check-files')).toHaveAttribute('data-state', 'ok', { timeout: 15_000 });
+  await page.keyboard.press('Escape');
+
+  // Signing out empties the password on this device; the card stays.
+  await dialog.getByTestId('cloudacct-signout').click();
+  await expect.poll(() => davPass(page), { timeout: 15_000 }).toBe('');
+  await expect(dialog.getByTestId('cloudacct-state')).toHaveAttribute('data-state', 'signin', { timeout: 15_000 });
+  expect((await cards(page)).map((card) => card.id)).toEqual(['card-dav']);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('webdav-signed-out.png'), fullPage: true });
+
+  // "Sign in" opens the password, the server lets it in, the state follows.
+  await dialog.getByTestId('cloudacct-signin').click();
+  await dialog.getByTestId('cloudacct-new-password').fill('secret-2');
+  await dialog.getByTestId('cloudacct-update-password').click();
+  await expect.poll(() => davPass(page), { timeout: 15_000 }).toBe('secret-2');
+  await expect(dialog.getByTestId('cloudacct-state')).toHaveAttribute('data-state', 'connected', { timeout: 15_000 });
+
+  // And out of the vault.
+  await dialog.getByTestId('cloudacct-remove').click();
+  await confirmDialog(page);
+  await expect.poll(async () => (await cards(page)).length, { timeout: 15_000 }).toBe(0);
+});
+
+/** An IMAP card and its mailbox; the password is whatever the case says. */
+const IMAP_CARD = { id: 'card-imap', family: 'imap', label: 'anna@mail.example', services: { mail: { mailAccountId: 'm1' } } };
+const imapSeed = (pass: string): Seed => ({
+  cards: [IMAP_CARD],
+  settings: { [`mailAccounts_${vaultKey}`]: [{ id: 'm1', label: 'anna@mail.example', host: 'imap.mail.example', port: 993, user: 'anna@mail.example', smtpHost: 'smtp.mail.example', smtpPort: 587 }] },
+  keychain: { [`mail_m1_${vaultKey}`]: JSON.stringify({ pass }) },
+});
+
+test('an IMAP account whose password the server turns away: the check says so, its action leads to the password', async ({ page }) => {
+  await wire(page, imapSeed('wrong'));
+  const dialog = await openCloudAccounts(page);
+  await dialog.getByTestId('cloudacct-row').click();
+  await expect(dialog.getByTestId('cloudacct-service-mail')).toHaveAttribute('data-on', 'true');
+  await expect(dialog.getByTestId('cloudacct-service-files')).toHaveCount(0);
+  await expect(dialog.getByRole('group', { name: /Access on this device|Zugang auf diesem Gerät/ }).getByText('imap.mail.example:993')).toBeVisible();
+
+  await dialog.getByTestId('cloudacct-check-open').click();
+  // A password the server turns away reads as a sign-in that no longer works.
+  await expect(page.getByTestId('cloudacct-check-mail')).toHaveAttribute('data-state', 'expired', { timeout: 15_000 });
+  await page.getByTestId('cloudacct-check-action-mail-signInAgain').click();
+
+  // The action opens the password of THIS account; a password the server takes repairs the check.
+  await dialog.getByTestId('cloudacct-new-password').fill('right');
+  await dialog.getByTestId('cloudacct-update-password').click();
+  await expect(dialog.getByText(/Password updated|Passwort aktualisiert/)).toBeVisible({ timeout: 15_000 });
+  await dialog.getByTestId('cloudacct-check-open').click();
+  await expect(page.getByTestId('cloudacct-check-mail')).toHaveAttribute('data-state', 'ok', { timeout: 15_000 });
+});
+
+test('an IMAP account signs out on this device and in again, and its mail page shows the folders', async ({ page }) => {
+  await wire(page, imapSeed('secret'));
+  const dialog = await openCloudAccounts(page);
+  await dialog.getByTestId('cloudacct-row').click();
+
+  await dialog.getByTestId('cloudacct-service-open-mail').click();
+  await expect(dialog.getByTestId('account-service-mail')).toBeVisible();
+  await expect(dialog.getByTestId('account-mail-folders')).toContainText('INBOX', { timeout: 15_000 });
+  await dialog.getByTestId('account-service-back').click();
+
+  await dialog.getByTestId('cloudacct-signout').click();
+  await expect(dialog.getByTestId('cloudacct-state')).toHaveAttribute('data-state', 'signin', { timeout: 15_000 });
+  await dialog.getByTestId('cloudacct-signin').click();
+  await dialog.getByTestId('cloudacct-new-password').fill('secret-2');
+  await dialog.getByTestId('cloudacct-update-password').click();
+  await expect(dialog.getByTestId('cloudacct-state')).toHaveAttribute('data-state', 'connected', { timeout: 15_000 });
+
+  await dialog.getByTestId('cloudacct-remove').click();
+  await confirmDialog(page);
+  await expect.poll(async () => (await cards(page)).length, { timeout: 15_000 }).toBe(0);
 });

@@ -1,6 +1,7 @@
 import { getPlatformServices } from "../platform/services";
 import { needsReauthorisation } from "./authErrors";
 import { readSlot } from "./keychainSlots";
+import { isSignedOutSlot } from "./accountSignOut";
 
 /**
  * "Is this account signed in ON THIS DEVICE?" (plan P7, lifted to shared in P2).
@@ -88,7 +89,8 @@ export function createDeviceSignIn(slots: DeviceSlotBuilders): DeviceSignIn {
         credentialKey(kind, vault, accountId),
         legacyKey,
       );
-      return secret ? "active" : "signin";
+      // A slot whose password "Sign out on this device" emptied is no sign-in (plan "Verbinden", V2).
+      return secret && !isSignedOutSlot(secret) ? "active" : "signin";
     } catch {
       return "signin";
     }

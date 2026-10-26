@@ -2,30 +2,35 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { devicePermissionKey } from "../services/pim/devicePermission";
 import { devicePimAuthorization, devicePimHasReminders, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, ChevronRight, Folder, ListChecks, LogOut, Mail, RotateCw, Trash2 } from "lucide-react";
+import { Activity, CalendarDays, ChevronRight, Folder, KeyRound, ListChecks, LogOut, Mail, Server, Trash2, User } from "lucide-react";
 import {
   AccountPasswordChangePanel,
   accessLineText,
   accessProblemKey,
-  isOwnClientRejected,
-  passwordServicesOf,
-  standardAccessAvailable,
   accountMonogram,
+  accountPageModel,
+  accountStateKey,
   Banner,
   Button,
-  FAMILY_SERVICES,
-  type CloudProviderFamily,
-  type CloudServiceId,
+  cx,
   familyLabel,
   GroupCard,
   hasStoredAccountGrant,
   ICON,
+  isOwnClientRejected,
+  passwordServicesOf,
+  removeAccountConfirm,
   Row,
   RowList,
   SectionLabel,
   serviceLabel,
-  signInActionKey,
+  standardAccessAvailable,
+  Switch,
   toast,
+  type CloudAccountRecord,
+  type CloudProviderFamily,
+  type CloudServiceId,
+  type ServiceCheck,
 } from "@plainva/ui";
 import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
@@ -36,24 +41,21 @@ import { connectionFailureToast, toastConnectionFailure } from "../services/conn
 import { devicePlatform } from "../services/devicePlatform";
 import { getAccountToken } from "../services/accountBroker";
 import { removeMobileAccount, signOutMobileAccountHere } from "../services/accountSignOut";
-import { mConfirm } from "../services/mobileDialogs";
-import { DeviceSignInBadge } from "../components/DeviceSignInRow";
+import { ensureCardRecord, readMobileAccountFacts, setMobileAppKey, setMobileServiceOff, type MobileAccountFacts } from "../services/accountPageFacts";
+import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { AccountAccessSheet } from "../components/AccountAccessSheet";
 import { AccountCheckSheet } from "../components/AccountCheckSheet";
 import { AppBar } from "../components/AppBar";
 
 /**
- * One cloud account (mobile rework N4.2, decision E4).
+ * One account (plan "Verbinden", V2) - the same five sections in the same
+ * order for every provider, as on the desktop: the head with ONE state and at
+ * most one button, the services with their switch and the way to this
+ * account's settings of each, how this phone signs in, "Check connection",
+ * and the end - "Sign out on this device" and "Remove account". What a
+ * provider cannot do is missing; it is never placed somewhere else.
  *
- * The overview's chevron used to open the list of ALL calendar accounts or ALL
- * mailboxes — it promised THIS account and showed every one of them. This is
- * the destination it promises: the identity, the services this account
- * actually carries, and the state of its sign-in on this device.
- *
- * Each service still leads on to the screen that OWNS it (a files connection
- * is a vault, so its detail is the vault detail) — that is where connecting,
- * editing and removing live. What changes is that the account names the way
- * there instead of handing over a list.
+ * The model of the page is shared (`accountPageModel`); this screen draws it.
  */
 
 const SERVICE_ICON: Record<CloudServiceId, typeof Folder> = {
@@ -70,29 +72,37 @@ function Mark({ family }: { family: CloudProviderFamily }) {
   );
 }
 
+/** The last check per card in this session, for the line of section 4. */
+const lastChecks = new Map<string, { time: string; ok: boolean }>();
+
 export function CloudAccountDetailScreen({
   accountKey,
   onBack,
-  onOpenVault,
-  onOpenCalendarAccounts,
-  onOpenMailAccounts,
+  onOpenService,
   onAddService,
+  onReconnectVault,
+  onAppPassword,
 }: {
   accountKey: string;
   onBack: () => void;
-  onOpenVault: (vaultId: string) => void;
-  onOpenCalendarAccounts: (accountId?: string) => void;
-  onOpenMailAccounts: (accountId?: string) => void;
+  /** Level 3: one service page of THIS account. */
+  onOpenService: (card: AccountCard, service: CloudServiceId) => void;
   onAddService: (card: AccountCard, service: CloudServiceId) => void;
+  /** Signs a Dropbox vault in again through the provider. */
+  onReconnectVault: (vaultId: string) => void;
+  /** Gmail through an app password, where Google refuses it (E7). */
+  onAppPassword: (card: AccountCard) => void;
 }) {
   const { t } = useTranslation();
   const [card, setCard] = useState<AccountCard | null>(null);
   const [unifiable, setUnifiable] = useState(false);
-  /** The card's own sign-in is on this phone - what "sign out here" removes. */
+  /** This phone holds a sign-in for the card it could drop. */
   const [signedInHere, setSignedInHere] = useState(false);
+  const [facts, setFacts] = useState<MobileAccountFacts | null>(null);
   const [ready, setReady] = useState(false);
   const [loginVaultId, setLoginVaultId] = useState<string | null>(null);
   const [loginStatus, setLoginStatus] = useState<AccountLoginStatus | undefined>();
+  const [busy, setBusy] = useState(false);
   const loadGeneration = useRef(0);
 
   const reload = useCallback(() => {
@@ -100,18 +110,22 @@ export function CloudAccountDetailScreen({
     void loadAccountCards()
       .then(async ({ cards }) => {
         const found = cards.find((c) => c.key === accountKey) ?? null;
-        let unifiable = false, shared = false;
-        if (found?.record && found.recordVaultId) {
-          const id = found.recordVaultId;
-          unifiable = await canUnifyMobileAccount(id, found.record);
-          // The grant, not its refresh token: Android's system sign-in holds none,
-          // and the way out was missing for exactly those cards.
-          shared = hasStoredAccountGrant(await getAccountToken(id, found.record.id).catch(() => null));
+        let unifiable = false, here = false;
+        const vaultId = found?.recordVaultId ?? null;
+        if (found && vaultId) {
+          if (found.record && (found.record.family === "google" || found.record.family === "microsoft")) {
+            unifiable = await canUnifyMobileAccount(vaultId, found.record);
+            // The grant, not its refresh token: Android's system sign-in holds none.
+            here = hasStoredAccountGrant(await getAccountToken(vaultId, found.record.id).catch(() => null));
+          } else {
+            here = found.family !== "device" && !!found.signIn && found.signIn !== "signin";
+          }
         }
+        const nextFacts = found && vaultId ? await readMobileAccountFacts(vaultId, found).catch(() => null) : null;
         if (turn !== loadGeneration.current) return;
-        setCard(found); setReady(true); setUnifiable(unifiable); setSignedInHere(shared);
-        setLoginVaultId(found?.recordVaultId ?? null);
-        setLoginStatus(found?.record && found.recordVaultId ? getAccountLoginStatus(found.recordVaultId, found.record.id) : undefined);
+        setCard(found); setReady(true); setUnifiable(unifiable); setSignedInHere(here); setFacts(nextFacts);
+        setLoginVaultId(vaultId);
+        setLoginStatus(found?.record && vaultId ? getAccountLoginStatus(vaultId, found.record.id) : undefined);
       })
       .catch(() => {
         if (turn !== loadGeneration.current) return;
@@ -144,15 +158,12 @@ export function CloudAccountDetailScreen({
     };
   }, [reload]);
 
-  /**
-   * The one action that repairs an expired sign-in — and, when this device
-   * holds no client id for the account, the form that asks for one instead of
-   * a red toast the user cannot act on (Befund 2026-08-20).
-   */
+  /** No usable access on this phone for Google/Microsoft: the sheet asks for it, then signs in (Befund 2026-08-20). */
   const [needClient, setNeedClient] = useState<"google" | "microsoft" | null>(null);
   const [signingIn, setSigningIn] = useState(false);
-  /** "Check connection" open (plan E6). */
   const [checking, setChecking] = useState(false);
+  /** The record the password entry of section 3 writes for - made on demand for a card without one. */
+  const [passwordRecord, setPasswordRecord] = useState<CloudAccountRecord | null>(null);
 
   // The device account's state is the system permission; read when the card shows.
   const [deviceStatus, setDeviceStatus] = useState<DevicePimStatus | null>(null);
@@ -163,55 +174,59 @@ export function CloudAccountDetailScreen({
     return () => { alive = false; };
   }, [card?.family]);
 
-  /** Google and Microsoft cards sign in from here, once for every service. */
-  const canSignIn = !!card?.record && !!loginVaultId && (card.record.family === "google" || card.record.family === "microsoft");
+  const oauthFamily = card?.family === "google" || card?.family === "microsoft" ? card.family : null;
+  const model = card ? accountPageModel({
+    family: card.family,
+    services: card.services,
+    off: card.record?.off,
+    signIn: card.signIn,
+    // Every provider signs in again from here, as on the desktop: OAuth
+    // through the provider, Dropbox through its consent, a password account
+    // through its password entry.
+    canSignIn: !!loginVaultId && card.family !== "device" && (!oauthFamily || !!card.record),
+    signedInHere,
+    summaries: facts?.summaries,
+  }) : null;
 
   /**
    * Which client this phone signs in with, named on the page (plan "Verbinden",
-   * V0) - and whether the standard one could take over. An own client Google
-   * had deleted signed in through the browser into "Error 401: deleted_client",
-   * and the page did not say which client was in use.
+   * V0) - and whether the standard one could take over.
    */
   const [access, setAccess] = useState<{ family: "google" | "microsoft"; line: string; standard: boolean } | null>(null);
   const [accessTurn, setAccessTurn] = useState(0);
   useEffect(() => {
-    const family = card?.family === "google" || card?.family === "microsoft" ? card.family : null;
-    if (!family) return;
+    if (!oauthFamily) return;
     let alive = true;
     void (async () => {
       const vault = loginVaultId ?? undefined;
-      const stored = await readDeviceAccess(family, vault);
-      const resolved = await deviceAccess(family, vault);
+      const stored = await readDeviceAccess(oauthFamily, vault);
+      const resolved = await deviceAccess(oauthFamily, vault);
       const env = import.meta.env as unknown as Record<string, unknown>;
-      if (alive) setAccess({ family, line: accessLineText(resolved, (key, options) => t(key, options), accessProblemKey), standard: standardAccessAvailable(family, devicePlatform(), stored, env) });
+      if (alive) setAccess({ family: oauthFamily, line: accessLineText(resolved, (key, options) => t(key, options), accessProblemKey), standard: standardAccessAvailable(oauthFamily, devicePlatform(), stored, env) });
     })().catch(() => undefined);
     return () => { alive = false; };
-  }, [card?.family, loginVaultId, accessTurn, t]);
+  }, [oauthFamily, loginVaultId, accessTurn, t]);
   const standardAvailable = !!access && access.family === card?.family && access.standard;
 
   /** "Use standard sign-in": this phone's access becomes the standard one, then the card signs in with it. */
   function switchToStandardSignIn() {
-    const family = card?.family === "google" || card?.family === "microsoft" ? card.family : null;
-    if (!family) return;
+    if (!oauthFamily) return;
     void (async () => {
-      await saveDeviceAccess(family, { source: "plainva" });
+      await saveDeviceAccess(oauthFamily, { source: "plainva" });
       setAccessTurn((turn) => turn + 1);
       signIn();
     })();
   }
 
-  /** Signing in again is the one sign-in for everything the card carries (plan E2). */
+  /** The one sign-in for everything a Google or Microsoft card carries (plan E2). */
   function signIn() {
-    if (!card?.record || !loginVaultId) return;
-    const family = card.record.family;
-    if (family !== "google" && family !== "microsoft") return;
+    if (!card?.record || !loginVaultId || !oauthFamily) return;
     void (async () => {
       setSigningIn(true);
       try {
-        await beginMobileSignIn(loginVaultId, { family, cardId: card.record!.id, add: [] });
+        await beginMobileSignIn(loginVaultId, { family: oauthFamily, cardId: card.record!.id, add: [] });
         setNeedClient(null);
       } catch (e) {
-        // No usable access on this phone: the sheet asks for it, then signs in.
         if (e instanceof AccessUnavailableError) setNeedClient(e.family);
         // A refused own client is not retried: the way on is the standard sign-in.
         else if (isOwnClientRejected(e) && standardAvailable) toast.error(connectionFailureToast(e)[0], { label: t("accountAccess.useStandard"), run: switchToStandardSignIn });
@@ -222,38 +237,66 @@ export function CloudAccountDetailScreen({
     })();
   }
 
-  /**
-   * "Sign out on this device" (plan "Verbinden", V0): this phone's sign-in for
-   * the card goes - the card's grant and whatever a service still kept for
-   * itself; the account, its services and settings and the other devices stay.
-   * It replaces "reset shared sign-in", which left the services' own sign-ins
-   * in place, was missing for Android's system sign-in and spoke of a time
-   * before the one sign-in. No confirmation (E2): signing in again undoes it.
-   */
-  const signOutHere = () => {
-    if (!card?.record || !loginVaultId) return;
+  /** Section 3's password entry - and "Sign in" of a password account. */
+  function openPassword() {
+    if (!card || !loginVaultId) return;
+    void ensureCardRecord(loginVaultId, card).then(setPasswordRecord).catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
+  }
+
+  /** Dropbox: the account's own app key, as on the desktop (empty = Plainva's). */
+  function editAppKey() {
+    if (!card || !loginVaultId) return;
     void (async () => {
-      setSigningIn(true);
+      const answer = await mPrompt({ title: t("settings.appKey"), message: t("cloudAccounts.byoAccountHint"), initial: card.record?.byoClientId ?? "", placeholder: t("settings.appKey") });
+      if (answer.cancelled) return;
       try {
-        await signOutMobileAccountHere(loginVaultId, card.record!, card);
+        await setMobileAppKey(loginVaultId, card, answer.value);
+        reload();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      }
+    })();
+  }
+
+  /** The head's one button, the same act for every provider. */
+  function headSignIn() {
+    if (!model) return;
+    if (model.access.kind === "oauth") signIn();
+    else if (model.access.kind === "appKey") { if (card?.vaultId) onReconnectVault(card.vaultId); }
+    else if (model.access.kind === "password" || model.access.kind === "keys") openPassword();
+  }
+
+  /** "Sign out on this device" - no confirmation (E2): signing in again undoes it. */
+  const signOutHere = () => {
+    if (!card || !loginVaultId) return;
+    void (async () => {
+      setBusy(true);
+      try {
+        const record = await ensureCardRecord(loginVaultId, card);
+        await signOutMobileAccountHere(loginVaultId, record, card);
         toast.success(t("cloudAccounts.signedOutHere"));
         reload();
       } catch (e) {
         toastConnectionFailure(e);
       } finally {
-        setSigningIn(false);
+        setBusy(false);
       }
     })();
   };
 
-  /** "Remove account" - as on the desktop: every service, the sign-in and the card leave the vault. */
+  /** "Remove account" - always asks, and says what goes and what stays (E2). */
   const removeAccount = () => {
     if (!card || !loginVaultId) return;
     void (async () => {
+      const confirm = removeAccountConfirm(card.services);
       const ok = await mConfirm({
-        title: t("cloudAccounts.removeAccount"),
-        message: t("cloudAccounts.removeAccountMsg"),
-        confirmLabel: t("common.delete"),
+        title: t("cloudAccounts.removeConfirmTitle"),
+        message: t("cloudAccounts.removeConfirmMsg", {
+          account: card.label || familyLabel(card.family),
+          goes: confirm.goes.map((key) => t(key)).join("; "),
+          stays: confirm.stays.map((key) => t(key)).join("; "),
+        }),
+        confirmLabel: t("cloudAccounts.removeAccount"),
         danger: true,
       });
       if (!ok) return;
@@ -266,17 +309,27 @@ export function CloudAccountDetailScreen({
     })();
   };
 
-  const openService = (service: CloudServiceId) => {
-    if (service === "files") {
-      if (card?.vaultId) onOpenVault(card.vaultId);
+  /** A service switch (E3): a carried service goes off or on for the vault, a missing one is added. */
+  const switchService = (service: CloudServiceId, on: boolean) => {
+    if (!card || !loginVaultId) return;
+    if (on && !card.services.includes(service)) {
+      onAddService(card, service);
       return;
     }
-    if (service === "calendar") onOpenCalendarAccounts(card?.pimAccountId ?? card?.record?.services.calendar?.pimAccountId);
-    else onOpenMailAccounts(card?.mailAccountId ?? card?.record?.services.mail?.mailAccountId);
+    void (async () => {
+      setBusy(true);
+      try {
+        await setMobileServiceOff(loginVaultId, card, service, !on);
+        reload();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      } finally {
+        setBusy(false);
+      }
+    })();
   };
 
-  // An account can disappear while its detail is open — removing it happens on
-  // the service's own screen, one push away. Saying so beats an empty page.
+  // An account can disappear while its page is open. Saying so beats an empty page.
   if (ready && !card) {
     return (
       <div className="m-page">
@@ -286,98 +339,114 @@ export function CloudAccountDetailScreen({
     );
   }
 
+  const lastCheck = card ? lastChecks.get(card.key) : undefined;
+
   return (
     <div className="m-page" data-testid="cloudacct-detail">
-      <AppBar onBack={onBack} title={card?.label || t("settings.sectionCloudAccounts")} />
+      <AppBar onBack={onBack} title={card ? familyLabel(card.family) : t("settings.sectionCloudAccounts")} />
       <div className="m-settings">
 
-      {card && (
+      {card && model && (
         <>
+          {/* 1 - the head: one state, at most one button. */}
+          <SectionLabel>{t("cloudAccounts.accountGroup")}</SectionLabel>
           <GroupCard>
             <RowList>
               <Row
                 icon={<Mark family={card.family} />}
-                title={card.label}
-                subtitle={card.subtitle ? `${familyLabel(card.family)} · ${card.subtitle}` : familyLabel(card.family)}
-                end={card.signIn && card.signIn !== "active" && canSignIn
-                  // The state that needs a sign-in IS the way to it (plan "Verbinden", V0):
-                  // a yellow "anmelden" nobody could tap was the finding on build 144.
-                  ? <Button size="sm" variant="primary" data-testid="cloudacct-signin" disabled={signingIn} onClick={() => signIn()}>{t(signInActionKey(card.signIn))}</Button>
-                  : card.signIn ? <DeviceSignInBadge state={card.signIn} /> : undefined}
+                title={familyLabel(card.family)}
+                subtitle={card.subtitle ? `${card.label} · ${card.subtitle}` : card.label}
+                end={model.head.state ? (
+                  <span className={cx("pv-acct-state", `pv-acct-state--${model.head.state}`)} data-testid="cloudacct-state" data-state={model.head.state}>
+                    {t(accountStateKey(model.head.state))}
+                  </span>
+                ) : undefined}
               />
             </RowList>
           </GroupCard>
-
-          <SectionLabel>{t("cloudAccounts.servicesGroup")}</SectionLabel>
+          {model.head.action && (
+            <Button variant="primary" data-testid="cloudacct-signin" disabled={signingIn || busy} onClick={headSignIn}>
+              {t(model.head.action.labelKey)}
+            </Button>
+          )}
+          {unifiable && model.head.state === "connected" && <p className="m-hint">{t("cloudAccounts.legacySignIn")}</p>}
           {loginStatus?.message && (
             <Banner kind="warning" rounded actions={<Button size="sm" variant="secondary" disabled={signingIn} onClick={() => signIn()}>{t("cloudAccounts.reconnect")}</Button>}>
               {loginStatus.message}
             </Banner>
           )}
+
+          {/* 2 - the services: switch, one line of state, the way to this account's settings. */}
+          <SectionLabel>{t("cloudAccounts.servicesGroup")}</SectionLabel>
           <GroupCard>
             <RowList>
-              {FAMILY_SERVICES[card.family].map((service) => {
-                const Icon = SERVICE_ICON[service];
+              {model.services.map((row) => {
+                const Icon = SERVICE_ICON[row.service];
                 return (
                   <Row
-                    key={service}
-                    data-testid={`cloudacct-service-${service}`}
+                    key={row.service}
+                    data-testid={`cloudacct-service-${row.service}`}
+                    data-on={row.on}
                     icon={<Icon size={ICON.ui} />}
-                    title={serviceLabel(service)}
-                    subtitle={loginStatus?.services[service] ?? t(!card.services.includes(service) ? "connection.notConnected" : card.serviceStates?.[service] && card.serviceStates[service] !== "active" ? "connection.needsConsent" : "connection.connected")}
+                    title={serviceLabel(row.service)}
+                    subtitle={loginStatus?.services[row.service] ?? row.summary ?? t(row.stateKey)}
                     wrap
-                    end={<Button size="sm" variant="tonal" onClick={() => card.services.includes(service) ? openService(service) : onAddService(card, service)}>{t(card.services.includes(service) ? "settings.title" : "connection.addService")}</Button>}
+                    controls
+                    onClick={row.target ? () => onOpenService(card, row.service) : undefined}
+                    end={
+                      <>
+                        <Switch checked={row.on} disabled={busy || !loginVaultId} label={serviceLabel(row.service)} onChange={(next) => switchService(row.service, next)} testId={`cloudacct-switch-${row.service}`} />
+                        {row.target && <ChevronRight className="m-chevron" size={ICON.ui} />}
+                      </>
+                    }
                   />
                 );
               })}
             </RowList>
           </GroupCard>
 
-          {/* This phone's access for the provider (plan E3): what signs in here,
-              and the way to change it - not only when a sign-in fails. */}
-          {(card.family === "google" || card.family === "microsoft") && (
-            <GroupCard>
-              <RowList>
+          {/* 3 - how this phone signs in: the same place for every provider. */}
+          <SectionLabel>{t("cloudAccounts.accessGroup")}</SectionLabel>
+          <GroupCard>
+            <RowList>
+              {model.access.kind === "oauth" && (
                 <Row
                   data-testid="cloudacct-access"
+                  icon={<KeyRound size={ICON.ui} />}
                   title={t("accountAccess.lineLabel")}
                   subtitle={access?.family === card.family ? access.line : t(card.family === "google" ? "accountAccess.title.google" : "accountAccess.title.microsoft")}
                   end={<ChevronRight className="m-chevron" size={ICON.ui} />}
                   onClick={() => setNeedClient(card.family as "google" | "microsoft")}
                 />
-              </RowList>
-            </GroupCard>
-          )}
-
-          {card.record && loginVaultId && (
-            <Button variant="secondary" data-testid="cloudacct-check-open" onClick={() => setChecking(true)}>
-              {t("cloudAccounts.checkConnection")}
-            </Button>
-          )}
-          {checking && card.record && loginVaultId && (
-            <AccountCheckSheet
-              vaultId={loginVaultId}
-              record={card.record}
-              card={card}
-              canSignIn={canSignIn}
-              standardAvailable={standardAvailable}
-              onUseStandard={() => { setChecking(false); switchToStandardSignIn(); }}
-              serviceLabel={serviceLabel}
-              onSignInAgain={() => signIn()}
-              onOpenService={(service) => { setChecking(false); openService(service); }}
-              onClose={() => setChecking(false)}
-            />
-          )}
-
-          {card.record && loginVaultId && passwordServicesOf(card.record).length > 0 && (
-            <AccountPasswordChangePanel ports={mobilePasswordChangePorts(loginVaultId, card.record)} />
-          )}
-
-          {card.family === "device" && (
-            <>
-              <SectionLabel>{t("pim.devicePermissionRow")}</SectionLabel>
-              <GroupCard>
-                <RowList>
+              )}
+              {model.access.kind === "appKey" && (
+                <Row
+                  data-testid="cloudacct-byo-id"
+                  icon={<KeyRound size={ICON.ui} />}
+                  title={t("settings.appKey")}
+                  subtitle={card.record?.byoClientId ?? t("accountAccess.plainva")}
+                  end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                  onClick={editAppKey}
+                />
+              )}
+              {(model.access.kind === "password" || model.access.kind === "keys") && (
+                <>
+                  {facts?.server && <Row icon={<Server size={ICON.ui} />} title={t("cloudAccounts.accessServer")} subtitle={facts.server} wrap />}
+                  {model.access.kind === "keys"
+                    ? facts?.accessKeyId && <Row icon={<User size={ICON.ui} />} title={t("cloudAccounts.accessKeyId")} subtitle={facts.accessKeyId} />
+                    : facts?.user && <Row icon={<User size={ICON.ui} />} title={t("cloudAccounts.accessUser")} subtitle={facts.user} />}
+                  <Row
+                    data-testid="cloudacct-password-change"
+                    icon={<KeyRound size={ICON.ui} />}
+                    title={t(model.access.kind === "keys" ? "cloudAccounts.accessSecretKey" : model.access.appPassword ? "cloudAccounts.appPassword" : "settings.password")}
+                    subtitle={card.signIn === "signin" ? t("deviceSignIn.needed") : "••••••••"}
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    onClick={openPassword}
+                  />
+                </>
+              )}
+              {model.access.kind === "permission" && (
+                <>
                   <Row
                     data-testid="cloudacct-device-events"
                     icon={<CalendarDays size={ICON.ui} />}
@@ -398,67 +467,73 @@ export function CloudAccountDetailScreen({
                   ) : (
                     <Row icon={<ListChecks size={ICON.ui} />} title={t("pim.deviceRemindersRow")} subtitle={t("pim.deviceNoRemindersAndroid")} />
                   )}
-                </RowList>
-              </GroupCard>
-              <p className="m-hint">{t("pim.deviceDualHint")}</p>
-              <p className="m-hint">{t("pim.deviceRemoveNote")}</p>
-            </>
+                </>
+              )}
+            </RowList>
+          </GroupCard>
+          {model.access.kind === "permission" && <p className="m-hint">{t("pim.deviceDualHint")}</p>}
+          {passwordRecord && loginVaultId && passwordServicesOf(passwordRecord).length > 0 && (
+            <AccountPasswordChangePanel ports={mobilePasswordChangePorts(loginVaultId, passwordRecord, (status) => { if (status.phase === "complete") reload(); })} />
           )}
 
-          {/* For a card still signed in per service; one with no sign-in here has "Sign in" above (plan "Verbinden", V0). */}
-          {unifiable && card.record && card.signIn !== "signin" && (
+          {/* 4 - check connection: one row per service, the action that helps. */}
+          {model.check && loginVaultId && (
             <>
-              <SectionLabel>{t("cloudAccounts.unifyLogin")}</SectionLabel>
+              <SectionLabel>{t("cloudAccounts.checkConnection")}</SectionLabel>
               <GroupCard>
                 <RowList>
                   <Row
-                    data-testid="cloudacct-detail-unify"
-                    icon={<RotateCw className="m-accent" size={ICON.ui} />}
-                    title={t("cloudAccounts.unifyLogin")}
+                    data-testid="cloudacct-check-open"
+                    icon={<Activity className="m-accent" size={ICON.ui} />}
+                    title={t("cloudAccounts.checkConnection")}
+                    subtitle={lastCheck ? `${t("cloudAccounts.checkLast", { time: lastCheck.time })} · ${t(lastCheck.ok ? "cloudAccounts.checkAllOk" : "cloudAccounts.checkSomeFailed")}` : t("cloudAccounts.checkHint")}
                     end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                    onClick={() => signIn()}
+                    onClick={() => setChecking(true)}
                   />
                 </RowList>
               </GroupCard>
-              <p className="m-hint">{t("cloudAccounts.unifyHintMobile")}</p>
             </>
           )}
-
-          {/* The end of the page (plan "Verbinden", E2): sign in again - always
-              there, as on the desktop -, sign out on this phone, remove. */}
-          {canSignIn && (card.signIn === "active" || signedInHere) && (
-            <GroupCard>
-              <RowList>
-                {card.signIn === "active" && (
-                  <Row
-                    data-testid="cloudacct-reconnect"
-                    icon={<RotateCw className="m-accent" size={ICON.ui} />}
-                    title={t("cloudAccounts.reconnect")}
-                    disabled={signingIn}
-                    onClick={() => signIn()}
-                  />
-                )}
-                {signedInHere && (
-                  <Row
-                    data-testid="cloudacct-signout"
-                    icon={<LogOut size={ICON.ui} />}
-                    title={t("cloudAccounts.signOutHere")}
-                    subtitle={t("cloudAccounts.signOutHereHint")}
-                    wrap
-                    disabled={signingIn}
-                    onClick={signOutHere}
-                  />
-                )}
-              </RowList>
-            </GroupCard>
+          {checking && loginVaultId && (
+            <AccountCheckSheet
+              vaultId={loginVaultId}
+              record={card.record}
+              card={card}
+              canSignIn={!!model.head.action || model.access.kind !== "permission"}
+              standardAvailable={standardAvailable}
+              onUseStandard={() => { setChecking(false); switchToStandardSignIn(); }}
+              serviceLabel={serviceLabel}
+              onSignInAgain={() => { setChecking(false); headSignIn(); }}
+              onAppPassword={() => { setChecking(false); onAppPassword(card); }}
+              onOpenService={(service) => { setChecking(false); onOpenService(card, service); }}
+              onChecked={(rows: ServiceCheck[]) => { lastChecks.set(card.key, { time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), ok: rows.every((row) => row.state === "ok") }); }}
+              onClose={() => setChecking(false)}
+            />
           )}
-          <SectionLabel className="m-danger">{t("mobile.vaultGroupDanger")}</SectionLabel>
-          <GroupCard tone="danger">
+
+          {/* 5 - the end: sign out here, or remove from the vault. */}
+          <SectionLabel>{t("cloudAccounts.endGroup")}</SectionLabel>
+          <GroupCard>
             <RowList>
+              {model.end.signOut && (
+                <Row
+                  data-testid="cloudacct-signout"
+                  icon={<LogOut size={ICON.ui} />}
+                  title={t("cloudAccounts.signOutHere")}
+                  subtitle={t("cloudAccounts.signOutHereHint")}
+                  wrap
+                  disabled={busy || signingIn}
+                  onClick={signOutHere}
+                />
+              )}
               <Row
                 data-testid="cloudacct-remove"
                 icon={<Trash2 className="m-danger" size={ICON.ui} />}
                 title={<span className="m-danger">{t("cloudAccounts.removeAccount")}</span>}
+                // The device's own calendars stay with the device; only the connection goes.
+                subtitle={t(card.family === "device" ? "pim.deviceRemoveNote" : "cloudAccounts.removeHint")}
+                wrap
+                disabled={busy}
                 onClick={removeAccount}
               />
             </RowList>

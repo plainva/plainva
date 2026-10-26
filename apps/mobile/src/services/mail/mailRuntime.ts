@@ -1,5 +1,5 @@
 import { sameStoredValue } from "@plainva/core";
-import { assertConnectionIdentity, classifyAuthError, parseMicrosoftMe, toast, type ServiceConnectionContext } from "@plainva/ui";
+import { assertConnectionIdentity, classifyAuthError, mailboxesSwitchedOn, parseMicrosoftMe, toast, type ServiceConnectionContext } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import {
   forgetGraphMailRuntime,
@@ -43,6 +43,13 @@ export function mailVaultId(): string | null {
 export async function listMobileMailAccounts(): Promise<MailAccountConfig[]> {
   if (!vaultId) return [];
   return listMailAccounts(vaultId);
+}
+
+/** The mailboxes the mail views read: a mailbox whose account has mail switched off for the vault stays configured, unread (plan "Verbinden", E3). */
+export async function listActiveMobileMailAccounts(): Promise<MailAccountConfig[]> {
+  if (!vaultId) return [];
+  const id = vaultId;
+  return mailboxesSwitchedOn(await listMailAccounts(id), await loadCloudAccounts(id).catch(() => []));
 }
 
 export async function removeMobileMailAccount(accountId: string): Promise<void> {

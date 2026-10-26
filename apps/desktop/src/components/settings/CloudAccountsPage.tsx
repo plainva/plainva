@@ -23,7 +23,6 @@ import {
   SettingRow,
   ICON,
   cx,
-  FAMILY_SERVICES,
   accountServices,
   looksLikeNextcloud,
   nextcloudEndpoints,
@@ -34,7 +33,12 @@ import {
   type CloudServiceId,
   type GuidedAccountRepairPlan,
   type DeviceSignInState,
-  signInActionKey,
+  accountAccessOf,
+  accountPageModel,
+  accountStateOf,
+  isServiceOff,
+  accountStateKey,
+  removeAccountConfirm,
   accessLineText,
   isOwnClientRejected,
   standardAccessAvailable,
@@ -56,9 +60,9 @@ import {
 } from "../../services/cloudAccounts";
 import {
   bindConnectResult,
-  disableAccountService,
   removeCloudAccount,
   rerunAccountAuth,
+  setAccountServiceOff,
   signOutCloudAccountHere,
   canUnifyAccountLogin,
   passwordServicesOf,
@@ -76,6 +80,8 @@ import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { CloudAccountsWizard } from "./CloudAccountsWizard";
 import { AccountCheckModal } from "./AccountCheckModal";
+import { AccountServicePage } from "./AccountServicePage";
+import { readAccountPageFacts, type AccountPageFacts } from "../../services/accountPageFacts";
 import { AccessUnavailableError, deviceAccess, readDeviceAccess, saveDeviceAccess, signInCloudAccount } from "../../services/accountSignIn";
 import { oauthErrorText } from "../../services/oauthLoopback";
 import { listMailAccounts } from "@plainva/ui/mail";
@@ -87,17 +93,20 @@ import { AccountMark, SERVICE_ICONS, ServiceChip, accountTitle, familyLabel, ser
  * stays in the per-service areas (sync / calendar / mail).
  */
 
-type Mode = { kind: "list" } | { kind: "wizard" } | { kind: "detail"; id: string };
+type Mode = { kind: "list" } | { kind: "wizard" } | { kind: "detail"; id: string } | { kind: "service"; id: string; service: CloudServiceId };
 
 export const CloudAccountsPage: React.FC<{
   selectedVault: string;
   initialProvider?: string;
-  /** Open this account's detail page as soon as it is known (D2). */
-  focusAccount?: { ref: string; nonce: number } | null;
+  /** Open this account's detail page - or one service page of it - as soon as it is known (D2, V3). */
+  focusAccount?: { ref: string; nonce: number; service?: CloudServiceId } | null;
+  /** Opens another settings page of the vault (the Calendar, E-Mail or Sync page, E4). */
+  onOpenArea?: (areaId: string) => void;
 }> = ({
   selectedVault,
   initialProvider,
   focusAccount,
+  onOpenArea,
 }) => {
   const { t } = useTranslation();
   const { dbAdapter, pimRuntime, vaultPath } = useVault();
@@ -130,6 +139,10 @@ export const CloudAccountsPage: React.FC<{
   const [editAccess, setEditAccess] = useState(false);
   /** The card whose connection is being checked (plan E6). */
   const [checking, setChecking] = useState<string | null>(null);
+  /** The last check of each account in this session, for section 4's line. */
+  const [lastChecks, setLastChecks] = useState<Map<string, { time: string; ok: boolean }>>(new Map());
+  /** The card whose password entry is open (section 3, and "Sign in" of a password account). */
+  const [passwordOpen, setPasswordOpen] = useState<string | null>(null);
   /** Whether the open card has a service a consent can renew (an app-password-only Gmail card has none). */
   const [renewable, setRenewable] = useState(true);
   const backfilled = useRef(false);
@@ -144,7 +157,8 @@ export const CloudAccountsPage: React.FC<{
     if (!hit) return;
     focusApplied.current = focusAccount.nonce;
     setReconStatus({});
-    setMode({ kind: "detail", id: hit.id });
+    const service = focusAccount.service;
+    setMode(service && accountServices(hit).includes(service) ? { kind: "service", id: hit.id, service } : { kind: "detail", id: hit.id });
   }, [focusAccount, records]);
 
   const reload = useCallback(async () => {
@@ -224,7 +238,7 @@ export const CloudAccountsPage: React.FC<{
   useEffect(() => {
     let cancelled = false;
     void Promise.all(
-      records.map(async (r) => [r.id, await accountSignInStateHere(selectedVault, r, !!fileAccess?.blocked)] as const),
+      records.map(async (r) => [r.id, await accountSignInStateHere(selectedVault, r, fileAccess?.blocked ? (fileAccess.signedOut ? "signedOut" : "blocked") : null)] as const),
     )
       .then((pairs) => {
         if (cancelled) return;
@@ -244,7 +258,15 @@ export const CloudAccountsPage: React.FC<{
   const unifyOffered = (id: string) => unifiable.has(id) && signInStates.get(id) !== "signin";
 
   const filesAccount = records.find((r) => r.services.files);
-  const detail = mode.kind === "detail" ? records.find((r) => r.id === mode.id) : undefined;
+  const detail = mode.kind === "detail" || mode.kind === "service" ? records.find((r) => r.id === mode.id) : undefined;
+  /** What the open account's page shows besides its state: who signs in where, one line per service. */
+  const [facts, setFacts] = useState<{ id: string; facts: AccountPageFacts } | null>(null);
+  useEffect(() => {
+    if (!detail) return;
+    let alive = true;
+    void readAccountPageFacts(selectedVault, detail, runtime).then((next) => { if (alive) setFacts({ id: detail.id, facts: next }); }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [detail, selectedVault, runtime]);
   const detailFamily = detail && (detail.family === "google" || detail.family === "microsoft") ? detail.family : null;
   useEffect(() => {
     if (!detailFamily) return;
@@ -409,28 +431,15 @@ export const CloudAccountsPage: React.FC<{
     }
   };
 
-  const disableService = async (record: CloudAccountRecord, service: CloudServiceId) => {
+  const remove = async (record: CloudAccountRecord, confirm = removeAccountConfirm(accountServices(record))) => {
+    // What goes and what stays, said before it happens (E2).
     const ok = await appConfirm({
-      title: serviceLabel(service),
-      message: t("cloudAccounts.serviceOffMsg", { service: serviceLabel(service) }),
-      confirmLabel: t("common.confirm"),
-      kind: "danger",
-    });
-    if (!ok) return;
-    setBusy(true);
-    try {
-      setRecords(await disableAccountService(selectedVault, runtime, record, service));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const remove = async (record: CloudAccountRecord) => {
-    const ok = await appConfirm({
-      title: t("cloudAccounts.removeAccount"),
-      message: t("cloudAccounts.removeAccountMsg"),
+      title: t("cloudAccounts.removeConfirmTitle"),
+      message: t("cloudAccounts.removeConfirmMsg", {
+        account: record.label || familyLabel(record.family, record.flavor),
+        goes: confirm.goes.map((key) => t(key)).join("; "),
+        stays: confirm.stays.map((key) => t(key)).join("; "),
+      }),
       confirmLabel: t("common.delete"),
       kind: "danger",
     });
@@ -460,6 +469,32 @@ export const CloudAccountsPage: React.FC<{
     }
   };
 
+  /** The head's one button: OAuth and Dropbox sign in through the provider, a password account opens its password entry. */
+  const headSignIn = (record: CloudAccountRecord) => {
+    const access = accountAccessOf(record.family);
+    if (access.kind === "password" || access.kind === "keys") {
+      setPasswordOpen(record.id);
+      return;
+    }
+    void reconnect(record);
+  };
+
+  /** A service switch (E3): a carried service is switched off or on for the vault, a missing one is added. */
+  const switchService = async (record: CloudAccountRecord, service: CloudServiceId, on: boolean) => {
+    if (on && !accountServices(record).includes(service)) {
+      await enableService(record, service);
+      return;
+    }
+    setBusy(true);
+    try {
+      setRecords(await setAccountServiceOff(selectedVault, runtime, record, service, !on));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const reconnect = async (record: CloudAccountRecord) => {
     if (record.family === "google" || record.family === "microsoft") {
       await signInCard(record, []);
@@ -477,9 +512,6 @@ export const CloudAccountsPage: React.FC<{
       void reload();
     }
   };
-
-  /** One sign-in for every service of the card is what signing in again does (E2). */
-  const unifyLogin = (record: CloudAccountRecord) => signInCard(record, []);
 
   const persistByoId = async (record: CloudAccountRecord, value: string) => {
     const next = records.map((r) => (r.id === record.id ? { ...r, byoClientId: value.trim() || undefined } : r));
@@ -590,66 +622,77 @@ export const CloudAccountsPage: React.FC<{
     );
   }
 
-  /* ---------- account detail (mockup screen 4) ---------- */
-  if (detail) {
-    const { name, identity } = accountTitle(detail);
-    const available = FAMILY_SERVICES[detail.family];
-    const oauthFamily = detail.family === "microsoft" || detail.family === "google" || detail.family === "dropbox";
-    const hasByo = oauthFamily;
-    const passwordServices = passwordServicesOf(detail);
-    const detailState = signInStates.get(detail.id);
+  /* ---------- one service of one account (level 3, plan "Verbinden" V3) ---------- */
+  if (mode.kind === "service" && detail) {
+    const row = accountPageModel({
+      family: detail.family,
+      services: accountServices(detail),
+      off: detail.off,
+      signIn: signInStates.get(detail.id),
+      canSignIn: true,
+      signedInHere: false,
+    }).services.find((entry) => entry.service === mode.service);
     return (
       <div>
         <AreaHead areaId="cloudAccounts" />
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-4)" }}>
+        <AccountServicePage
+          vaultPath={selectedVault}
+          record={detail}
+          service={mode.service}
+          on={!!row?.on}
+          busy={busy}
+          isActiveVault={isActiveVault}
+          runtime={runtime}
+          onToggle={(on) => void switchService(detail, mode.service, on)}
+          onBack={() => setMode({ kind: "detail", id: detail.id })}
+          onOpenArea={(area) => onOpenArea?.(area)}
+        />
+      </div>
+    );
+  }
+
+  /* ---------- account detail: five sections, always in this order (plan "Verbinden", V2) ---------- */
+  if (detail) {
+    const { name, identity } = accountTitle(detail);
+    const detailState = signInStates.get(detail.id);
+    const model = accountPageModel({
+      family: detail.family,
+      services: accountServices(detail),
+      off: detail.off,
+      signIn: detailState,
+      canSignIn: renewable,
+      signedInHere: detailState !== undefined && detailState !== "signin",
+      summaries: facts?.id === detail.id ? facts.facts.summaries : undefined,
+    });
+    const accountFacts = facts?.id === detail.id ? facts.facts : null;
+    const passwordServices = passwordServicesOf(detail);
+    const lastCheck = lastChecks.get(detail.id);
+    const confirm = removeAccountConfirm(accountServices(detail));
+    return (
+      <div>
+        <AreaHead areaId="cloudAccounts" />
+        {/* 1 - the head: one state, at most one button. */}
+        <div className="pv-acct-head" data-testid="cloudacct-head">
           <IconButton label={t("cloudAccounts.back")} onClick={() => setMode({ kind: "list" })} data-testid="cloudacct-detail-back">
             <ArrowLeft size={ICON.ui} />
           </IconButton>
           <AccountMark family={detail.family} flavor={detail.flavor} />
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="pv-acct-who">
             <div className="pv-acct-name">{name}</div>
             {identity && <div className="pv-acct-id">{identity}</div>}
           </div>
-          {detailState && detailState !== "active" && (
-            <span className="pv-svcchip" data-testid="cloudacct-signin-state" data-state={detailState}>
-              {t(detailState === "expired" ? "deviceSignIn.expired" : "deviceSignIn.needed")}
+          {model.head.state && (
+            <span className={cx("pv-acct-state", `pv-acct-state--${model.head.state}`)} data-testid="cloudacct-state" data-state={model.head.state}>
+              {t(accountStateKey(model.head.state))}
             </span>
           )}
-          {unifyOffered(detail.id) && (
-            <Button
-              variant="secondary"
-              icon={<RotateCw size={ICON.meta} />}
-              disabled={busy}
-              onClick={() => void unifyLogin(detail)}
-              data-testid="cloudacct-unify"
-            >
-              {t("cloudAccounts.unifyLogin")}
+          {model.head.action && (
+            <Button variant="primary" icon={<RotateCw size={ICON.meta} />} disabled={busy} onClick={() => headSignIn(detail)} data-testid="cloudacct-signin">
+              {t(model.head.action.labelKey)}
             </Button>
           )}
-          {oauthFamily && !unifyOffered(detail.id) && renewable && (
-            <Button
-              variant={detailState && detailState !== "active" ? "primary" : "secondary"}
-              icon={<RotateCw size={ICON.meta} />}
-              disabled={busy}
-              onClick={() => void reconnect(detail)}
-              data-testid="cloudacct-reconnect"
-            >
-              {t(signInActionKey(detailState ?? "active"))}
-            </Button>
-          )}
-          <Button variant="secondary" disabled={busy} onClick={() => setChecking(detail.id)} data-testid="cloudacct-check-open">
-            {t("cloudAccounts.checkConnection")}
-          </Button>
-          {detailFamily && detailState !== "signin" && (
-            <Button variant="secondary" icon={<LogOut size={ICON.meta} />} disabled={busy} onClick={() => void signOutHere(detail)} data-testid="cloudacct-signout" data-tip={t("cloudAccounts.signOutHereHint")}>
-              {t("cloudAccounts.signOutHere")}
-            </Button>
-          )}
-          <Button variant="danger-soft" icon={<Trash2 size={ICON.meta} />} disabled={busy} onClick={() => void remove(detail)} data-testid="cloudacct-remove">
-            {t("cloudAccounts.removeAccount")}
-          </Button>
         </div>
-
+        {unifyOffered(detail.id) && <SettingCardNote>{t("cloudAccounts.legacySignIn")}</SettingCardNote>}
         {Object.values(reconStatus).some((status) => status.reason === "permissions") && (
           <Banner kind="warning" rounded>{t("cloudAccounts.loginGrantIncomplete")}</Banner>
         )}
@@ -676,9 +719,164 @@ export const CloudAccountsPage: React.FC<{
           </SettingCard>
         )}
 
-        {/* E3 fallback — only where there is actually a second card of the same
-            provider to point at. A vault with one card per family never meets
-            this row. */}
+        {/* 2 - the services: switch, one line of state, the way to this account's settings. */}
+        <SettingCard label={t("cloudAccounts.servicesGroup")}>
+          {model.services.map((row) => {
+            const Icon = SERVICE_ICONS[row.service];
+            const carried = row.target !== null;
+            const takenElsewhere = row.service === "files" && !carried && !!filesAccount;
+            const needsRuntime = row.service === "calendar" && !carried && !runtime;
+            const disabled = busy || takenElsewhere || needsRuntime || !isActiveVault;
+            return (
+              <div key={row.service} className={cx("pv-svcline", !row.on && "is-off")} data-testid={`cloudacct-service-${row.service}`} data-on={row.on}>
+                <span className="pv-svcline-icon">
+                  <Icon size={ICON.ui} />
+                </span>
+                <div className="pv-svcline-main">
+                  <div className="pv-svcline-title">{serviceLabel(row.service)}</div>
+                  <div className="pv-svcline-desc">
+                    {takenElsewhere
+                      ? t("cloudAccounts.filesTakenDetail", { account: filesAccount!.label || familyLabel(filesAccount!.family, filesAccount!.flavor) })
+                      : needsRuntime
+                        ? t("pim.openVaultFirst")
+                        : row.summary ?? t(row.stateKey)}
+                  </div>
+                </div>
+                <div className="pv-svcline-ctrl">
+                  <Switch
+                    checked={row.on}
+                    disabled={disabled}
+                    label={serviceLabel(row.service)}
+                    onChange={(checked) => void switchService(detail, row.service, checked)}
+                  />
+                  {row.target && (
+                    <IconButton label={t("cloudAccounts.serviceSettings", { service: serviceLabel(row.service) })} onClick={() => setMode({ kind: "service", id: detail.id, service: row.service })} data-testid={`cloudacct-service-open-${row.service}`}>
+                      <ChevronRight size={ICON.ui} />
+                    </IconButton>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </SettingCard>
+
+        {gmailPasswordFor === detail.id && (
+          <SettingCard label={t("cloudAccounts.gmailPasswordGroup")}>
+            <SettingCardNote>{t("cloudAccounts.gmailPasswordHint", { account: detail.label })}</SettingCardNote>
+            <SettingRow label={t("cloudAccounts.appPassword")} wide>
+              <TextInput type="password" value={gmailPassword} onChange={(e) => setGmailPassword(e.target.value)} data-testid="cloudacct-gmail-password" />
+            </SettingRow>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)" }}>
+              <Button variant="ghost" onClick={() => setGmailPasswordFor(null)}>{t("common.cancel")}</Button>
+              <Button
+                variant="primary"
+                disabled={busy || !gmailPassword}
+                data-testid="cloudacct-gmail-password-save"
+                onClick={() => void signInCard(detail, ["mail"], { email: detail.label, pass: gmailPassword }).then(() => setGmailPassword(""))}
+              >
+                {t("pim.connect")}
+              </Button>
+            </div>
+          </SettingCard>
+        )}
+
+        {/* 3 - how this device signs in: the same place for every provider. */}
+        <SettingCard label={t("cloudAccounts.accessGroup")}>
+          {model.access.kind === "oauth" && detailFamily && accessInfo?.family === detailFamily && !editAccess && (
+            <SettingRow
+              label={t("accountAccess.lineLabel")}
+              desc={accessLineText(accessInfo.resolved, (key, options) => t(key, options), accessProblemKey)}
+            >
+              <Button variant="secondary" size="sm" data-testid="cloudacct-access-change" onClick={() => setEditAccess(true)}>{t("accountAccess.change")}</Button>
+            </SettingRow>
+          )}
+          {model.access.kind === "oauth" && detailFamily && accessInfo?.family === detailFamily && editAccess && (
+            <OAuthAccessEditor
+              family={detailFamily}
+              platform="desktop"
+              value={accessInfo.stored}
+              plainvaAvailable={detailFamily === "microsoft" || !!plainvaGoogleClient(import.meta.env as unknown as Record<string, unknown>, "desktop")}
+              onSave={async (next) => {
+                await saveDeviceAccess(detailFamily, next);
+                setAccessInfo({ family: detailFamily, stored: next, resolved: await deviceAccess(detailFamily, selectedVault) });
+                setEditAccess(false);
+              }}
+              onCancel={() => setEditAccess(false)}
+            />
+          )}
+          {model.access.kind === "appKey" && (
+            <SettingRow label={t("settings.useOwnAppId")} desc={t("cloudAccounts.byoAccountHint")}>
+              <TextInput
+                defaultValue={detail.byoClientId ?? accountFacts?.appKey ?? ""}
+                placeholder={t("settings.appKey")}
+                onBlur={(e) => void persistByoId(detail, e.target.value)}
+                style={{ width: 220 }}
+                data-testid="cloudacct-byo-id"
+              />
+            </SettingRow>
+          )}
+          {(model.access.kind === "password" || model.access.kind === "keys") && (
+            <>
+              {accountFacts?.server && <SettingRow label={t("cloudAccounts.accessServer")} desc={accountFacts.server}>{null}</SettingRow>}
+              {model.access.kind === "keys"
+                ? accountFacts?.accessKeyId && <SettingRow label={t("cloudAccounts.accessKeyId")} desc={accountFacts.accessKeyId}>{null}</SettingRow>
+                : accountFacts?.user && <SettingRow label={t("cloudAccounts.accessUser")} desc={accountFacts.user}>{null}</SettingRow>}
+              <SettingRow
+                label={t(model.access.kind === "keys" ? "cloudAccounts.accessSecretKey" : model.access.appPassword ? "cloudAccounts.appPassword" : "settings.password")}
+                desc={detailState === "signin" ? t("deviceSignIn.needed") : "••••••••"}
+              >
+                <Button variant="secondary" size="sm" disabled={passwordServices.length === 0} data-testid="cloudacct-password-change" onClick={() => setPasswordOpen(passwordOpen === detail.id ? null : detail.id)}>
+                  {t("accountAccess.change")}
+                </Button>
+              </SettingRow>
+            </>
+          )}
+        </SettingCard>
+        {passwordOpen === detail.id && passwordServices.length > 0 && <AccountPasswordChangePanel ports={desktopPasswordChangePorts(selectedVault, detail, runtime, (status) => { if (status.phase === "complete") void reload(); })} />}
+
+        {/* 4 - check connection: one row per service, the action that helps. */}
+        {model.check && (
+          <SettingCard label={t("cloudAccounts.checkConnection")}>
+            <SettingRow
+              label={lastCheck ? t("cloudAccounts.checkLast", { time: lastCheck.time }) : t("cloudAccounts.checkConnection")}
+              desc={lastCheck ? t(lastCheck.ok ? "cloudAccounts.checkAllOk" : "cloudAccounts.checkSomeFailed") : t("cloudAccounts.checkHint")}
+            >
+              <Button variant="secondary" size="sm" disabled={busy} onClick={() => setChecking(detail.id)} data-testid="cloudacct-check-open">
+                {t("cloudAccounts.checkConnection")}
+              </Button>
+            </SettingRow>
+          </SettingCard>
+        )}
+        {checking === detail.id && (
+          <AccountCheckModal
+            vaultPath={selectedVault}
+            record={detail}
+            runtime={runtime}
+            standardAvailable={standardAvailable}
+            onUseStandard={() => void switchToStandard(detail)}
+            onSignInAgain={() => headSignIn(detail)}
+            onAppPassword={() => setGmailPasswordFor(detail.id)}
+            onChecked={(rows) => setLastChecks((prev) => new Map(prev).set(detail.id, { time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), ok: rows.every((entry) => entry.state === "ok") }))}
+            onClose={() => setChecking(null)}
+          />
+        )}
+
+        {/* 5 - the end: sign out here, or remove from the vault. */}
+        <SettingCard label={t("cloudAccounts.endGroup")}>
+          <div className="pv-acct-ctlrow">
+            {model.end.signOut && (
+              <Button variant="secondary" icon={<LogOut size={ICON.meta} />} disabled={busy} onClick={() => void signOutHere(detail)} data-testid="cloudacct-signout" data-tip={t("cloudAccounts.signOutHereHint")}>
+                {t("cloudAccounts.signOutHere")}
+              </Button>
+            )}
+            <Button variant="danger-soft" icon={<Trash2 size={ICON.meta} />} disabled={busy} onClick={() => void remove(detail, confirm)} data-testid="cloudacct-remove">
+              {t("cloudAccounts.removeAccountEllipsis")}
+            </Button>
+          </div>
+          <SettingCardNote>{t("cloudAccounts.endHint")}</SettingCardNote>
+        </SettingCard>
+
+        {/* E3's fallback - only where there is a second card of the same provider to point at. */}
         {(() => {
           const others = records.filter((r) => r.id !== detail.id && r.family === detail.family);
           if (others.length === 0) return null;
@@ -711,150 +909,6 @@ export const CloudAccountsPage: React.FC<{
             </SettingCard>
           );
         })()}
-
-        {/* P3: the card must not read "connected" while nothing opens. Shown
-            only for the account that HOLDS the files service — a second card of
-            the same family is not the one to re-authorise. */}
-        {detail.services.files && fileAccess?.blocked && (
-          <Banner
-            kind="warning"
-            rounded
-            actions={
-              oauthFamily ? (
-                <Button variant="secondary" disabled={busy} onClick={() => void reconnect(detail)} data-testid="cloudacct-files-reauth">
-                  {t("cloudAccounts.reconnect")}
-                </Button>
-              ) : undefined
-            }
-          >
-            {t("cloudAccounts.filesNoAccess")}
-          </Banner>
-        )}
-
-        <SettingCard label={t("cloudAccounts.servicesGroup")}>
-          {available.map((service) => {
-            const Icon = SERVICE_ICONS[service];
-            const active = accountServices(detail).includes(service);
-            const takenElsewhere = service === "files" && !active && !!filesAccount;
-            const needsRuntime = service === "calendar" && !runtime;
-            const disabled = busy || takenElsewhere || needsRuntime || !isActiveVault;
-            return (
-              <div key={service} className={cx("pv-svcline", (takenElsewhere || (!active && needsRuntime)) && "is-off")}>
-                <span className="pv-svcline-icon">
-                  <Icon size={ICON.ui} />
-                </span>
-                <div className="pv-svcline-main">
-                  <div className="pv-svcline-title">{serviceLabel(service)}</div>
-                  <div className="pv-svcline-desc">
-                    {takenElsewhere
-                      ? t("cloudAccounts.filesTakenDetail", { account: filesAccount!.label || familyLabel(filesAccount!.family, filesAccount!.flavor) })
-                      : needsRuntime && !active
-                        ? t("pim.openVaultFirst")
-                        : active
-                          ? service === "files"
-                            ? t("cloudAccounts.svcConfigureSync")
-                            : service === "calendar"
-                              ? t("cloudAccounts.calendarNext")
-                              : t("cloudAccounts.svcConfigureMail")
-                          : service === "files"
-                            ? t("cloudAccounts.svcFilesDesc")
-                            : service === "calendar"
-                              ? t("cloudAccounts.svcCalendarDesc")
-                              : t("cloudAccounts.svcMailDesc")}
-                  </div>
-                </div>
-                <div className="pv-svcline-ctrl">
-                  <Switch
-                    checked={active}
-                    disabled={disabled}
-                    label={serviceLabel(service)}
-                    onChange={(checked) => {
-                      if (checked) void enableService(detail, service);
-                      else void disableService(detail, service);
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </SettingCard>
-
-        {passwordServices.length > 0 && <AccountPasswordChangePanel ports={desktopPasswordChangePorts(selectedVault, detail, runtime)} />}
-
-        {checking === detail.id && (
-          <AccountCheckModal
-            vaultPath={selectedVault}
-            record={detail}
-            runtime={runtime}
-            standardAvailable={standardAvailable}
-            onUseStandard={() => void switchToStandard(detail)}
-            onSignInAgain={() => void reconnect(detail)}
-            onClose={() => setChecking(null)}
-          />
-        )}
-
-        {gmailPasswordFor === detail.id && (
-          <SettingCard label={t("cloudAccounts.gmailPasswordGroup")}>
-            <SettingCardNote>{t("cloudAccounts.gmailPasswordHint", { account: detail.label })}</SettingCardNote>
-            <SettingRow label={t("cloudAccounts.appPassword")} wide>
-              <TextInput type="password" value={gmailPassword} onChange={(e) => setGmailPassword(e.target.value)} data-testid="cloudacct-gmail-password" />
-            </SettingRow>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)" }}>
-              <Button variant="ghost" onClick={() => setGmailPasswordFor(null)}>{t("common.cancel")}</Button>
-              <Button
-                variant="primary"
-                disabled={busy || !gmailPassword}
-                data-testid="cloudacct-gmail-password-save"
-                onClick={() => void signInCard(detail, ["mail"], { email: detail.label, pass: gmailPassword }).then(() => setGmailPassword(""))}
-              >
-                {t("pim.connect")}
-              </Button>
-            </div>
-          </SettingCard>
-        )}
-
-        {detailFamily && accessInfo?.family === detailFamily && !editAccess && (
-          <SettingCard label={t("cloudAccounts.appRegGroup")}>
-            <SettingRow
-              label={t("accountAccess.lineLabel")}
-              desc={accessLineText(accessInfo.resolved, (key, options) => t(key, options), accessProblemKey)}
-            >
-              <Button variant="secondary" size="sm" data-testid="cloudacct-access-change" onClick={() => setEditAccess(true)}>{t("accountAccess.change")}</Button>
-            </SettingRow>
-          </SettingCard>
-        )}
-        {detailFamily && accessInfo?.family === detailFamily && editAccess && (
-          <OAuthAccessEditor
-            family={detailFamily}
-            platform="desktop"
-            value={accessInfo.stored}
-            plainvaAvailable={detailFamily === "microsoft" || !!plainvaGoogleClient(import.meta.env as unknown as Record<string, unknown>, "desktop")}
-            onSave={async (next) => {
-              await saveDeviceAccess(detailFamily, next);
-              setAccessInfo({ family: detailFamily, stored: next, resolved: await deviceAccess(detailFamily, selectedVault) });
-              setEditAccess(false);
-            }}
-            onCancel={() => setEditAccess(false)}
-          />
-        )}
-
-        {hasByo && detail.family === "dropbox" && (
-          <SettingCard label={t("cloudAccounts.appRegGroup")}>
-            {/* This connection form supports the user's own Google project. */}
-            <SettingRow
-              label={t("settings.useOwnAppId")}
-              desc={t("cloudAccounts.byoAccountHint")}
-            >
-              <TextInput
-                defaultValue={detail.byoClientId ?? ""}
-                placeholder={detail.family === "dropbox" ? t("settings.appKey") : t("settings.clientId")}
-                onBlur={(e) => void persistByoId(detail, e.target.value)}
-                style={{ width: 220 }}
-                data-testid="cloudacct-byo-id"
-              />
-            </SettingRow>
-          </SettingCard>
-        )}
       </div>
     );
   }
@@ -917,26 +971,18 @@ export const CloudAccountsPage: React.FC<{
               </div>
               <span className="pv-svcchip-row">
                 {accountServices(record).map((s) => (
-                  <ServiceChip key={s} service={s} />
+                  <ServiceChip key={s} service={s} off={isServiceOff(record, s)} />
                 ))}
-                {/* Until now this offer only existed inside the account detail,
-                    so nobody found it who was not already looking. An account
-                    holding one token per service is the one that goes half-dead
-                    when a single renewal happens (finding 2026-07-28). */}
-                {unifyOffered(record.id) && (
-                  <span className="pv-svcchip" data-testid="cloudacct-unify-hint">
-                    {t("cloudAccounts.unifyAvailable")}
-                  </span>
-                )}
-                {/* P2: an account that arrived over the settings sync looks
-                    complete while nothing behind it works — its sign-in never
-                    travels. Saying so here is what turns a puzzling empty
-                    calendar into one obvious next step. */}
-                {signInStates.get(record.id) && signInStates.get(record.id) !== "active" && (
-                  <span className="pv-svcchip" data-testid="cloudacct-signin-hint">
-                    {t(signInStates.get(record.id) === "expired" ? "deviceSignIn.expired" : "deviceSignIn.needed")}
-                  </span>
-                )}
+                {/* ONE state per account, read from its own sign-in (plan "Verbinden", V2) -
+                    the same pill as in the head of its page. */}
+                {(() => {
+                  const state = accountStateOf(signInStates.get(record.id));
+                  return state ? (
+                    <span className={cx("pv-acct-state", `pv-acct-state--${state}`)} data-testid="cloudacct-row-state" data-state={state}>
+                      {t(accountStateKey(state))}
+                    </span>
+                  ) : null;
+                })()}
               </span>
               <span className="pv-acct-chevron">
                 <ChevronRight size={ICON.ui} />
@@ -944,12 +990,11 @@ export const CloudAccountsPage: React.FC<{
             </button>
           );
         })}
-        {/* C6/S19: the chip alone reads as an extra option. This says what the
-            state COSTS — one service going dark on its own is the failure mode
-            that took days to notice (finding 2026-07-28) — and where the fix is,
-            so the offer is not something you have to already know about. */}
+        {/* An account still signed in once per service goes half-dark when one
+            renewal fails (finding 2026-07-28): said once, the way out is "Sign in
+            again" on its page. */}
         {[...unifiable].some(unifyOffered) && (
-          <SettingCardNote>{t("cloudAccounts.unifyPending")}</SettingCardNote>
+          <SettingCardNote>{t("cloudAccounts.legacySignIn")}</SettingCardNote>
         )}
         {filesAccount && (
           <SettingCardNote>

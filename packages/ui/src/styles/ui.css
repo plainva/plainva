@@ -2740,6 +2740,27 @@ button.pv-acct:hover { background: var(--state-hover); }
   white-space: nowrap;
 }
 .pv-acct-chevron { color: var(--text-faint); flex-shrink: 0; }
+/* The account page (plan "Verbinden", V2): the head carries the ONE state as a
+   pill and at most one button; the end section's two actions sit in one row.
+   The same pill is the state of a row in the account list, in both shells. */
+.pv-acct-head { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+.pv-acct-state {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: var(--surface-container);
+  color: var(--text-muted);
+}
+.pv-acct-state--connected { background: var(--success-bg); color: var(--success-text); }
+.pv-acct-state--signin,
+.pv-acct-state--expired { background: var(--warning-bg); color: var(--warning-text); }
+.pv-acct-ctlrow { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3); }
 
 .pv-svcchip-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
 .pv-svcchip {

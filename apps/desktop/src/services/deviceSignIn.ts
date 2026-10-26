@@ -1,8 +1,8 @@
-import { cardSignInState, createDeviceSignIn, hasStoredAccountGrant, type CloudAccountRecord, type DeviceSignInState } from "@plainva/ui";
+import { cardSignInState, createDeviceSignIn, hasStoredAccountGrant, isSignedOutSlot, type CloudAccountRecord, type DeviceSignInState } from "@plainva/ui";
 import { mailSecretKey } from "@plainva/ui/mail";
 import { pimSecretKey } from "./pim/pimCredentials";
 import { accountSecretKey, getAccountToken } from "./accountBroker";
-import { legacySlot } from "./keychainSlots";
+import { legacySlot, slot } from "./keychainSlots";
 import { readSlot } from "@plainva/ui";
 import { credentialManager } from "./CredentialManager";
 
@@ -72,7 +72,9 @@ export async function accountSignedInHere(
   // working account as "not signed in".
   const read = async (readable: string, legacy: string): Promise<boolean> => {
     try {
-      return !!(await readSlot<unknown>(credentialManager, readable, legacy));
+      // A slot whose password "Sign out on this device" emptied is no sign-in.
+      const value = await readSlot<unknown>(credentialManager, readable, legacy);
+      return !!value && !isSignedOutSlot(value);
     } catch {
       // An unreadable slot is not proof of absence — a locked keychain would
       // otherwise mark every working account as "not signed in".
@@ -84,12 +86,16 @@ export async function accountSignedInHere(
 
   const calendar = record.services.calendar?.pimAccountId;
   const mail = record.services.mail?.mailAccountId;
+  // A password file account (WebDAV, S3) signs in through the vault's files slot
+  // (plan "Verbinden", V2: its head shows the same one state as every other card).
+  const files = record.services.files?.provider === "webdav" || record.services.files?.provider === "s3" ? record.services.files.provider : null;
   if (calendar && (await read(pimSecretKey(vaultPath, calendar), legacySlot.calendar(vaultPath, calendar)))) return true;
   if (mail && (await read(mailSecretKey(vaultPath, mail), legacySlot.mail(vaultPath, mail)))) return true;
+  if (files && (await read(slot.files(vaultPath, files), legacySlot.files(vaultPath, files)))) return true;
 
   // Nothing found — but only say so for an account whose credential we know
   // where to look for.
-  return calendar || mail ? false : null;
+  return calendar || mail || files ? false : null;
 }
 
 /**
@@ -97,13 +103,13 @@ export async function accountSignedInHere(
  * the shared rule (`cardSignInState`) over the desktop's slots, the same the
  * phone's cards follow. A Google or Microsoft card is its own sign-in: the
  * service slots the one sign-in emptied must not keep a card "signed in"
- * that was signed out here. `filesBlocked` is the vault's file access (the
+ * that was signed out here. `files` is the vault's file access (the
  * page reads it once for the files card).
  */
 export async function accountSignInStateHere(
   vaultPath: string,
   record: CloudAccountRecord,
-  filesBlocked = false,
+  files: "blocked" | "signedOut" | null = null,
 ): Promise<DeviceSignInState | undefined> {
   const broker = record.family === "google" || record.family === "microsoft";
   const cardGrant = broker ? hasStoredAccountGrant(await getAccountToken(vaultPath, record.id).catch(() => null)) : null;
@@ -112,6 +118,6 @@ export async function accountSignInStateHere(
     const here = await accountSignedInHere(vaultPath, record);
     if (here !== null) serviceStates.push(here ? "active" : "signin");
   }
-  if (record.services.files && filesBlocked) serviceStates.push("expired");
+  if (record.services.files && files) serviceStates.push(files === "signedOut" ? "signin" : "expired");
   return cardSignInState({ family: record.family, cardGrant, serviceStates });
 }

@@ -15,6 +15,7 @@ import {
   ServiceConnectionError,
   removeAccountCard,
   signOutAccountHere,
+  withServiceOff,
   type ServiceSignInSlot,
 } from "@plainva/ui";
 import { credentialManager } from "./CredentialManager";
@@ -52,6 +53,7 @@ import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from ".
 import { rotateLegacyFileGrant } from "./accountGrantMigration";
 import { accountCredentialStore } from "./accountCredentialStore";
 import { slot, legacySlot } from "./keychainSlots";
+import { announceCredentials } from "./credentialsAnnouncement";
 
 /**
  * Stage-A connect orchestration for the "Cloud-Konten" wizard: per selected
@@ -117,41 +119,9 @@ export async function clearOtherSyncSlots(vaultPath: string, keep: SyncProviderI
   if (keep !== "s3") await credentialManager.clearS3Credentials(vaultPath);
 }
 
-/**
- * Tells the open vault that sync credentials changed - it reloads to pick them up.
- *
- * A reload replaces the window with the loading screen, and the settings come
- * back on the account list: the wizard that had just connected lost its result
- * rows, so a calendar left unticked at the consent never said so (finding
- * 2026-10-23, found by the end-to-end test against the stand-in provider).
- * While a surface shows such a result it holds the announcement; the vault
- * reloads once, when the surface is left.
- */
-export function announceCredentials(isNewConnection: boolean): void {
-  if (announcementHolds > 0) {
-    heldAnnouncement = (heldAnnouncement ?? false) || isNewConnection;
-    return;
-  }
-  window.dispatchEvent(new CustomEvent("plainva-credentials-saved", { detail: { isNewConnection } }));
-}
-
-let announcementHolds = 0;
-let heldAnnouncement: boolean | null = null;
-
-/** Holds `announceCredentials` until the returned release; the last release sends what was held, once. */
-export function holdCredentialsAnnouncements(): () => void {
-  announcementHolds += 1;
-  let released = false;
-  return () => {
-    if (released) return;
-    released = true;
-    announcementHolds -= 1;
-    if (announcementHolds > 0 || heldAnnouncement === null) return;
-    const isNewConnection = heldAnnouncement;
-    heldAnnouncement = null;
-    announceCredentials(isNewConnection);
-  };
-}
+// Held while a surface shows a sign-in's result (moved to its own module so the
+// password change of an account page holds too, plan "Verbinden", V2).
+export { announceCredentials, holdCredentialsAnnouncements } from "./credentialsAnnouncement";
 
 /** Connects the FILES service of the request. Binds nothing before success. */
 async function connectFiles(vaultPath: string, req: ConnectRequest): Promise<SyncProviderId> {
@@ -568,6 +538,26 @@ export async function disableAccountService(
   return refreshCloudAccounts(vaultPath, runtime);
 }
 
+/**
+ * A service switched on or off for the vault (plan "Verbinden", E3): the
+ * binding stays, so does what the service left in the vault. Files stop at
+ * the next vault load (a reload follows), the calendar stops at once and on
+ * every other device when it reads the records, mail stops being read.
+ */
+export async function setAccountServiceOff(
+  vaultPath: string,
+  runtime: PimRuntime | null,
+  record: CloudAccountRecord,
+  service: CloudServiceId,
+  off: boolean,
+): Promise<CloudAccountRecord[]> {
+  const stored = await loadCloudAccounts(vaultPath);
+  await saveCloudAccounts(vaultPath, stored.map((entry) => (entry.id === record.id ? withServiceOff(entry, service, off) : entry)));
+  if (service === "files") announceCredentials(false);
+  if (service === "mail" && record.services.mail) forgetGraphMailRuntime(vaultPath, record.services.mail.mailAccountId);
+  return refreshCloudAccounts(vaultPath, runtime);
+}
+
 /** Removes the whole account: every service, then the grant, then the registry entry (the shared order). */
 export async function removeCloudAccount(
   vaultPath: string,
@@ -601,7 +591,9 @@ export async function signOutCloudAccountHere(
 ): Promise<CloudAccountRecord[]> {
   const slots: ServiceSignInSlot[] = [];
   const files = record.services.files?.provider;
-  if (files === "drive" || files === "onedrive") slots.push({ keys: [slot.files(vaultPath, files), legacySlot.files(vaultPath, files)] });
+  // Every provider: a token for Drive, OneDrive and Dropbox, the password of
+  // WebDAV, the secret key of S3 (plan "Verbinden", V2).
+  if (files) slots.push({ keys: [slot.files(vaultPath, files), legacySlot.files(vaultPath, files)] });
   const pim = record.services.calendar?.pimAccountId;
   if (pim) slots.push({ keys: [slot.calendar(vaultPath, pim), legacySlot.calendar(vaultPath, pim)] });
   const mail = record.services.mail?.mailAccountId;

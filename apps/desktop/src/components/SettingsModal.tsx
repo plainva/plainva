@@ -21,12 +21,12 @@ import {
   loadZipBackupSettings,
 } from "../services/backupPolicy";
 import { credentialManager } from "../services/CredentialManager";
-import { firstSettingsArea, settingsArea, hasCloudService, parseFolderTemplateRules, parseTypeTemplateRules, type SettingsWorld, type CloudAccountRecord, type SecurityAreaId, type FolderTemplateRule, type TypeTemplateRule } from "@plainva/ui";
+import { firstSettingsArea, settingsArea, hasCloudService, parseFolderTemplateRules, parseTypeTemplateRules, type SettingsWorld, type CloudAccountRecord, type CloudServiceId, type SecurityAreaId, type FolderTemplateRule, type TypeTemplateRule } from "@plainva/ui";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, observeSyncSlot } from "../services/cloudAccounts";
 import { listMailAccounts } from "@plainva/ui/mail";
 import { ShortcutsModal } from "./ShortcutsModal";
-import { useVault, defaultSyncIntervalSeconds, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, folderTemplatesKey, typeTemplatesKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, commentAnchorsKey, taskDatabaseKey, textFileExtensionsKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, journalHeadingKey, dayEndsAtKey, journalMoodPropertyKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE, verifierNameKey } from "../contexts/VaultContext";
+import { useVault, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, folderTemplatesKey, typeTemplatesKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, commentAnchorsKey, taskDatabaseKey, textFileExtensionsKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, journalHeadingKey, dayEndsAtKey, journalMoodPropertyKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE, verifierNameKey } from "../contexts/VaultContext";
 import { appPrompt } from "../services/appDialogs";
 import { createTaskDatabase } from "../services/taskDatabase";
 import { scanVaultOkf } from "../services/okfConversion";
@@ -154,7 +154,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // Closing the settings ends any preview of "My theme" and paints the stored
   // look again — whatever the page underneath did or did not get to clean up.
   useEffect(() => () => setCustomThemePreview(null), []);
-  const [intervalSec, setIntervalSec] = useState(String(defaultSyncIntervalSeconds()));
   const [showCompatibilityWarning, setShowCompatibilityWarning] = useState(true);
   // In-vault folder picker for the daily-notes and template folders (2026-07-11):
   // reuses the sync picker UI with a listing that walks the OPEN vault, so the
@@ -418,13 +417,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     (async () => {
       await reloadAccountState(section);
 
-      // Per-vault sync interval (falls back to the legacy global value, then default).
       const store = await getSettingsStore().catch(() => null);
       if (store) {
-        const perVault = await store.get<number>(syncIntervalKey(section));
-        const global = await store.get<number>("syncIntervalSeconds");
-        setIntervalSec(String(perVault ?? global ?? defaultSyncIntervalSeconds()));
-
         setDailyNotesFolder(await store.get<string>(dailyNotesFolderKey(section)) ?? "");
         setDailyNotesFormat(await store.get<string>(dailyNotesFormatKey(section)) ?? "YYYY-MM-DD");
         setTemplateFolder(await store.get<string>(templateFolderKey(section)) ?? "Templates");
@@ -534,8 +528,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
    */
   const featuresEventTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const featuresEventSection = useRef<string | null>(null);
-  const intervalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const intervalFlush = useRef<(() => void) | null>(null);
 
   const persistFeature = async (target: string, storeKey: string, value: unknown) => {
     if (target === GENERAL) return;
@@ -645,44 +637,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     }
   };
 
-  const handleIntervalChange = (raw: string) => {
-    setIntervalSec(raw);
-    if (section === GENERAL) return;
-    const target = section;
-    const run = () => {
-      intervalTimer.current = null;
-      intervalFlush.current = null;
-      const parsed = parseInt(raw, 10);
-      const seconds = Number.isFinite(parsed) ? Math.max(MIN_SYNC_INTERVAL_SECONDS, parsed) : defaultSyncIntervalSeconds();
-      void (async () => {
-        const store = await getSettingsStore();
-        await store.set(syncIntervalKey(target), seconds);
-        await store.save();
-        // Reloading the active vault restarts its worker with the new interval.
-        if (target === vaultPathRef.current) window.dispatchEvent(new CustomEvent("plainva-credentials-saved", { detail: { isNewConnection: false } }));
-      })();
-    };
-    if (intervalTimer.current) clearTimeout(intervalTimer.current);
-    intervalFlush.current = run;
-    intervalTimer.current = setTimeout(run, 800);
-  };
-
-  /** Blur normalizes the visible value the same way the save clamps it. */
-  const normalizeIntervalDisplay = () => {
-    const parsed = parseInt(intervalSec, 10);
-    const seconds = Number.isFinite(parsed) ? Math.max(MIN_SYNC_INTERVAL_SECONDS, parsed) : defaultSyncIntervalSeconds();
-    setIntervalSec(String(seconds));
-  };
-
   // Closing the modal flushes pending debounced work instead of dropping it.
   useEffect(() => () => {
     if (featuresEventTimer.current) {
       clearTimeout(featuresEventTimer.current);
       if (featuresEventSection.current === vaultPathRef.current) window.dispatchEvent(new CustomEvent("plainva-features-saved"));
-    }
-    if (intervalTimer.current) {
-      clearTimeout(intervalTimer.current);
-      intervalFlush.current?.();
     }
   }, []);
 
@@ -721,11 +680,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // decides which WORLD the content shows and keys every persistence handler.
   // Which cloud account the accounts page should open (D2). The nonce lets the
   // same account be asked for twice in a row — the page applies each request once.
-  const [cloudAccountFocus, setCloudAccountFocus] = useState<{ ref: string; nonce: number } | null>(() =>
+  const [cloudAccountFocus, setCloudAccountFocus] = useState<{ ref: string; nonce: number; service?: CloudServiceId } | null>(() =>
     initialAccountId ? { ref: initialAccountId, nonce: 1 } : null,
   );
-  const openCloudAccounts = (accountRef?: string) => {
-    if (accountRef) setCloudAccountFocus((prev) => ({ ref: accountRef, nonce: (prev?.nonce ?? 0) + 1 }));
+  /** `service` lands on that service's page of the account (plan "Verbinden", V3). */
+  const openCloudAccounts = (accountRef?: string, service?: CloudServiceId) => {
+    if (accountRef) setCloudAccountFocus((prev) => ({ ref: accountRef, nonce: (prev?.nonce ?? 0) + 1, ...(service ? { service } : {}) }));
     openArea("vault", "cloudAccounts");
   };
   const openArea = (world: SettingsWorld, areaId: string) => {
@@ -907,7 +867,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "cloudAccounts"}>
-                    <CloudAccountsPage selectedVault={selectedVault} initialProvider={initialProvider} focusAccount={cloudAccountFocus} />
+                    <CloudAccountsPage selectedVault={selectedVault} initialProvider={initialProvider} focusAccount={cloudAccountFocus} onOpenArea={(areaId) => openArea("vault", areaId)} />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "sync"}>
                     <SyncPage
@@ -915,9 +875,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       isActiveVault={isActiveVault}
                       activeProvider={activeProvider}
                       onOpenCloudAccounts={openCloudAccounts}
-                      intervalSec={intervalSec}
-                      onIntervalChange={handleIntervalChange}
-                      onIntervalBlur={normalizeIntervalDisplay}
                       hasSyncWorker={!!syncWorker}
                       syncQueueSnapshot={syncQueueSnapshot}
                       onLoadQueue={() => {

@@ -1,4 +1,4 @@
-import { CalDavPimTarget, WebDavSyncTarget } from "@plainva/core";
+import { CalDavPimTarget, S3SyncTarget, WebDavSyncTarget } from "@plainva/core";
 import { accountLoginBinding, createPasswordChangeJournal, createPasswordCredentialTarget, getPlatformServices, passwordServicesOf, PasswordChangeError, type CloudAccountRecord, type PasswordChangePorts, type PasswordChangeStatus, type PasswordChangeTarget } from "@plainva/ui";
 import { getMailPassword, listMailAccounts, mailAccountKind, mailSecretKey, checkMailLogin } from "@plainva/ui/mail";
 import { protectedSecrets } from "../platform/protectedSecrets";
@@ -29,7 +29,24 @@ export function mobilePasswordChangePorts(vaultId: string, record: CloudAccountR
     targets: async () => {
       const targets: PasswordChangeTarget[] = [];
       for (const service of passwordServicesOf(record)) {
-        if (service === "files") targets.push(createPasswordCredentialTarget({
+        if (service === "files" && record.services.files?.provider === "s3") targets.push(createPasswordCredentialTarget({
+          service, key: syncProviderSlot(vaultId), store: protectedSecrets,
+          read: async () => {
+            const value = await getStoredProvider(vaultId);
+            if (value && value.provider !== "s3") throw new PasswordChangeError("changed", service);
+            return value;
+          },
+          readBinding: async () => ({ provider: "s3" }),
+          withPassword: (value, secretAccessKey) => ({ ...value, creds: { ...value.creds, secretAccessKey } }),
+          verify: async (value, _binding, secretAccessKey) => {
+            allowHttpOrigin(value.creds.endpoint);
+            await new S3SyncTarget({ ...value.creds, secretAccessKey }, webdavFetch).listFolders("");
+          },
+          beforeWrite: async () => {
+            if ((await getActiveVaultEntry()).id === vaultId) await stopSyncAndDrain();
+          },
+        }));
+        else if (service === "files") targets.push(createPasswordCredentialTarget({
           service, key: syncProviderSlot(vaultId), store: protectedSecrets,
           read: async () => {
             const value = await getStoredProvider(vaultId);
@@ -87,7 +104,7 @@ export function mobilePasswordChangePorts(vaultId: string, record: CloudAccountR
       return targets;
     },
     activate: async () => {
-      if (record.services.files?.provider === "webdav") await resumeProvider(vaultId);
+      if (record.services.files?.provider === "webdav" || record.services.files?.provider === "s3") await resumeProvider(vaultId);
       if (record.services.calendar && passwordServicesOf(record).includes("calendar")) await restartPimAccountAfterLogin(vaultId, record.services.calendar.pimAccountId);
       notifyMailChanged();
     },
