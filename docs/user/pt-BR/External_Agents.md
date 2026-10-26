@@ -1,6 +1,6 @@
 # Agentes externos (Beta)
 
-Última revisão: 2026-10-07
+Última revisão: 2026-10-26
 
 Um agente externo é um programa de IA de outro fabricante — um agente que você instalou no seu computador e no qual você mesmo fez login, com a sua própria assinatura ou chave. O Plainva pode iniciar um agente assim na pasta de um vault e mostrar a sessão dele na aba de IA. Isso faz parte das funções experimentais de IA e funciona só no desktop.
 
@@ -46,6 +46,8 @@ Digite o que o agente deve fazer. A nota que você tem aberta é indicada ao age
 
 Quando o agente quer a sua permissão para um passo, **⟨agente⟩ pergunta** mostra isso. As palavras são do agente, e as opções são as que o agente oferece — **Permitir**, **Permitir sempre**, **Recusar**, **Recusar sempre**. Sua resposta vai só para o agente: o que ele faz depois de um sim é com ele, e um "sempre" é uma promessa que o agente cumpre, não o Plainva.
 
+**Configurações e comandos.** Quando o agente as oferece, o rodapé da sessão mostra as configurações dele: o modo e o modelo como botões — **⟨configuração⟩: ⟨valor⟩** —, o resto atrás do botão de controles deslizantes **Mais configurações de ⟨agente⟩**. Cada um desses menus começa com o título do próprio Plainva — **⟨configuração⟩ de ⟨agente⟩** ou **Mais configurações de ⟨agente⟩** —; abaixo dele, nomes, valores e descrições são do agente, na ordem dele: o valor atual com uma marca, uma opção liga/desliga como um item marcado ou não. Onde as palavras do agente aparecem num título ou numa frase do Plainva, ficam destacadas em itálico discreto, nunca nas maiúsculas do título. Cada sessão começa com os padrões do agente. Uma configuração muda como o agente trabalha, não o que o Plainva deixa passar: ler e escrever pelo Plainva seguem as mesmas regras em qualquer modo, e um modo em que o agente não pergunta mais nada não dispensa nenhum dos passos do próprio Plainva. O que o agente faz com as próprias ferramentas fica fora do Plainva em qualquer modo. Quando o agente muda uma configuração por conta própria, a sessão diz isso: **O agente mudou “⟨configuração⟩” para “⟨valor⟩” por conta própria.** O que ele muda junto com uma mudança sua, a sessão diz como tal — **Junto com isso, o agente mudou “⟨configuração⟩” para “⟨valor⟩”.** —, e também uma mudança que ele não fez: **O agente não mudou “⟨configuração⟩”.** Enquanto uma mudança espera pelo agente, um indicador gira ao lado das configurações, e elas não aceitam nada até ele responder. Uma **/** no começo de uma mensagem lista em **Comandos de ⟨agente⟩** os comandos do próprio agente com o que, segundo ele, eles fazem: as setas percorrem a lista, Enter ou Tab escolhem um comando e Esc fecha a lista. Um comando é uma mensagem que começa com o nome dele; quando o agente diz o que vem depois, isso aparece abaixo do campo até você continuar digitando. O que um comando faz é com o agente.
+
 **Parar** encerra a resposta em que o agente está trabalhando.
 
 ## O que o agente escreve
@@ -69,5 +71,5 @@ Se o programa do agente terminar sozinho, a sessão avisa, e **Mostrar as últim
 - Só no desktop e só na janela principal. No celular há o assistente do próprio Plainva.
 - Não em um workspace criptografado.
 - Uma sessão por vez, e sem histórico: uma sessão encerrada não pode ser aberta de novo.
-- Os modos, modelos e comandos próprios de um agente não podem ser escolhidos pelo Plainva, e não dá para enviar imagens a ele.
+- Não dá para enviar imagens a um agente, e o Plainva não leva para a próxima sessão um modo ou modelo escolhido em uma sessão.
 - Até agora isso foi testado só com um agente de teste do próprio Plainva. Quais agentes funcionam aqui, e quais entregam suas alterações ao Plainva, aparece quando você os testa — comentários são bem-vindos.

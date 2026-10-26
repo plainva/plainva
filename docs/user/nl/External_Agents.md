@@ -1,6 +1,6 @@
 # Externe agents (Beta)
 
-Laatst bijgewerkt: 2026-10-07
+Laatst bijgewerkt: 2026-10-26
 
 Een externe agent is een AI-programma van een andere maker — een agent die je op je computer hebt geïnstalleerd en waarbij je je zelf hebt aangemeld, met je eigen abonnement of sleutel. Plainva kan zo'n agent in de map van een vault starten en zijn sessie in het AI-tabblad tonen. Dit hoort bij de experimentele AI-functies en werkt alleen op de desktop.
 
@@ -46,6 +46,8 @@ Typ wat de agent moet doen. De notitie die je open hebt, wordt aan de agent geno
 
 Als de agent je toestemming voor een stap wil, toont **⟨agent⟩ vraagt** die. De woorden zijn van de agent, en de keuzes zijn de keuzes die de agent aanbiedt — **Toestaan**, **Altijd toestaan**, **Afwijzen**, **Altijd afwijzen**. Je antwoord gaat alleen naar de agent: wat hij na een ja doet, is zijn eigen zaak, en een 'altijd' is een belofte die de agent houdt, niet Plainva.
 
+**Instellingen en opdrachten.** Waar de agent ze aanbiedt, toont de voet van de sessie zijn eigen instellingen: zijn modus en zijn model als knoppen — **⟨instelling⟩: ⟨waarde⟩** —, de rest achter de knop met schuifregelaars **Meer instellingen van ⟨agent⟩**. Elk van hun menu's begint met Plainva's eigen kop — **⟨instelling⟩ van ⟨agent⟩** of **Meer instellingen van ⟨agent⟩** —; daaronder zijn namen, waarden en beschrijvingen die van de agent, in zijn volgorde: de huidige waarde met een vinkje, een schakelaar als een item met of zonder vinkje. Waar de woorden van de agent in een kop of een zin van Plainva staan, zijn ze in onopvallend cursief afgezet, nooit in de hoofdletters van de kop. Elke sessie begint met de standaardwaarden van de agent. Een instelling verandert hoe de agent werkt, niet wat Plainva doorlaat: lezen en schrijven via Plainva volgen in elke modus dezelfde regels, en een modus waarin de agent niets meer vraagt, bespaart geen enkele van Plainva's eigen stappen. Wat de agent met zijn eigen hulpmiddelen doet, valt in elke modus buiten Plainva. Als de agent zelf een instelling wijzigt, zegt de sessie dat: **De agent heeft “⟨instelling⟩” zelf op “⟨waarde⟩” gezet.** Wat hij samen met een wijziging van jou omzet, noemt ze als zodanig — **Daarbij heeft de agent “⟨instelling⟩” op “⟨waarde⟩” gezet.** —, en een wijziging die hij niet heeft gedaan ook: **De agent heeft “⟨instelling⟩” niet gewijzigd.** Zolang een wijziging op de agent wacht, draait er een indicator naast de instellingen, en ze reageren niet tot hij antwoordt. Een **/** aan het begin van een bericht toont onder **Opdrachten van ⟨agent⟩** de eigen opdrachten van de agent met wat ze volgens hem doen: de pijltjestoetsen lopen door de lijst, Enter of Tab neemt een opdracht over en Escape sluit de lijst. Een opdracht is een bericht dat met haar naam begint; waar de agent zegt wat erna komt, staat dat onder het veld tot je verder typt. Wat een opdracht doet, is de zaak van de agent.
+
 **Stoppen** beëindigt het antwoord waaraan de agent werkt.
 
 ## Wat de agent schrijft
@@ -69,5 +71,5 @@ Als het programma van de agent vanzelf eindigt, zegt de sessie dat, en **Zijn la
 - Alleen op de desktop en alleen in het hoofdvenster. Op de telefoon is er de eigen assistent van Plainva.
 - Niet in een versleutelde workspace.
 - Eén sessie tegelijk, en geen geschiedenis: een beëindigde sessie kan niet opnieuw worden geopend.
-- De eigen modi, modellen en opdrachten van een agent kunnen niet vanuit Plainva worden gekozen, en er kunnen geen afbeeldingen naar hem worden gestuurd.
+- Er kunnen geen afbeeldingen naar een agent worden gestuurd, en een modus of model dat je in een sessie kiest, neemt Plainva niet mee naar de volgende.
 - Tot nu toe is dit alleen met een eigen testagent van Plainva geprobeerd. Welke agents hier werken, en welke hun wijzigingen aan Plainva geven, blijkt als je ze probeert — feedback is welkom.

@@ -7,18 +7,29 @@ import i18n from "@plainva/ui/i18n";
 import {
   agentArgsFromText,
   agentAuthProblemText,
+  agentCommandsKey,
+  agentEventParts,
   agentEventText,
   agentEventTone,
+  agentMenuKey,
   agentNoteName,
   agentOptionsInOrder,
+  agentOptionsKey,
   agentOptionText,
+  agentProblemParts,
   agentProblemText,
   agentSeenText,
   agentSessionLine,
+  agentSpelledMessage,
+  agentToolParts,
+  agentValuesKey,
   AiAgentView,
   AiSessionContext,
   type AcpSessionEvent,
   type AiSession,
+  saidSentence,
+  sentence,
+  sentenceString,
 } from "@plainva/ui";
 import { acpHarness, AGENT_NOTES, decideAcpDraft, lastOf, memoryAcpVault, ROOT, type AcpHarness, type AcpScript } from "./acpTestHost";
 
@@ -243,6 +254,8 @@ describe("an agent's session", () => {
     await click(m.h, find(m.container, "ai-agent-start-action"));
     await send(m, "Move the date");
     expect(all(m.container, "ai-agent-tool").map((line) => line.textContent)).toEqual(["Reading the plan · Plan · outside the vault: 1", "Change a file · Notes", "Read Welcome.md"]);
+    // The agent's words for a step and the names of what it named are drawn apart; Plainva's word for the kind and its count are not.
+    expect(all(m.container, "ai-agent-tool").map((line) => Array.from(line.querySelectorAll("bdi.pv-said")).map((said) => said.textContent))).toEqual([["Reading the plan", "Plan"], ["Notes"], ["Read Welcome.md"]]);
     expect(find(m.container, "ai-agent-event-direct")!.textContent).toBe("The agent changed Projects/Notes.md itself: it is in the vault without a suggestion.");
     expect(find(m.container, "ai-agent-event-refused")!.textContent).toBe("Plainva did not hand Health/Results.md to the agent: kept from the cloud or the internet.");
     expect(find(m.container, "ai-agent-event-proposed")!.textContent).toMatch(/^Suggestion in Plan · changes: \d+\.$/);
@@ -331,7 +344,9 @@ describe("an agent's session", () => {
     expect(card.textContent).toContain("Plainva sees nothing of it and keeps no credential.");
     expect(find(m.container, "ai-agent-send")!.hasAttribute("disabled")).toBe(true);
     await click(m.h, find(m.container, "ai-agent-auth-method"));
-    expect(find(m.container, "ai-agent-auth-command")!.textContent).toBe("/usr/bin/gemini --acp login");
+    // As the native script runs it: into the vault's folder, every part quoted for the shell, each isolated.
+    expect(find(m.container, "ai-agent-auth-command")!.textContent).toBe("cd '/home/mara/Vault' && '/usr/bin/gemini' '--acp' 'login'");
+    expect(Array.from(find(m.container, "ai-agent-auth-command")!.querySelectorAll("bdi")).map((part) => part.textContent)).toEqual(["cd", "'/home/mara/Vault'", "&&", "'/usr/bin/gemini'", "'--acp'", "'login'"]);
     expect(find(m.container, "ai-agent-auth")!.textContent).toContain("No terminal could be opened.");
     // The user signed in in a terminal of their own.
     m.h.native.signedIn = true;
@@ -376,6 +391,20 @@ describe("the lines Plainva writes about an agent", () => {
       [{ type: "stopped", reason: "cancelled" }, "Stopped."],
       [{ type: "failed", message: "" }, "The agent could not finish this."],
       [{ type: "failed", message: "quota" }, "The agent could not finish this. It says: quota"],
+      // Plan P9-7: a setting the agent changed itself, in its own names — a switch says on or off —, and a change it did not take.
+      [{ type: "setting", setting: "Mode", value: "Code" }, "The agent set “Mode” to “Code” itself."],
+      [{ type: "setting", setting: "Think hard", value: true }, "The agent turned on “Think hard” itself."],
+      [{ type: "setting", setting: "Think hard", value: false }, "The agent turned off “Think hard” itself."],
+      // What changed along with the user's own change is named as going with it.
+      [{ type: "setting", setting: "Thought", value: "Low", along: true }, "With it, the agent set “Thought” to “Low”."],
+      [{ type: "setting", setting: "Think hard", value: true, along: true }, "With it, the agent turned on “Think hard”."],
+      [{ type: "setting", setting: "Think hard", value: false, along: true }, "With it, the agent turned off “Think hard”."],
+      [{ type: "setting-refused", setting: "Model", message: "" }, "The agent did not change “Model”."],
+      [{ type: "setting-refused", setting: "Model", message: "Not now." }, "The agent did not change “Model”. It says: Not now."],
+      [{ type: "setting-refused", setting: "Model", message: "", reason: "sign-in" }, "The agent did not change “Model”: it wants a sign-in first, in its own program."],
+      // An agent's mode in the older form is named in Plainva's own word.
+      [{ type: "setting", setting: null, value: "Ask" }, "The agent set “Mode” to “Ask” itself."],
+      [{ type: "setting-refused", setting: null, message: "" }, "The agent did not change “Mode”."],
     ];
     for (const [event, text] of cases) expect(agentEventText(t, event, lint)).toBe(text);
     expect(agentEventTone({ type: "refused", what: "read", reason: "kept", path: "x" })).toBe("failed");
@@ -383,6 +412,8 @@ describe("the lines Plainva writes about an agent", () => {
     expect(agentEventTone({ type: "stopped", reason: "cancelled" })).toBe("done");
     expect(agentEventTone({ type: "stopped", reason: "refusal" })).toBe("notice");
     expect(agentEventTone({ type: "proposed", path: "x", blocks: 1, defused: 0 })).toBe("done");
+    expect(agentEventTone({ type: "setting", setting: "Mode", value: "Code" })).toBe("notice");
+    expect(agentEventTone({ type: "setting-refused", setting: "Model", message: "" })).toBe("failed");
   });
 
   it("say why an agent did not come up or did not get in", () => {
@@ -395,6 +426,8 @@ describe("the lines Plainva writes about an agent", () => {
     expect(agentProblemText(t, { kind: "timeout" })).toBe("The agent did not answer in time.");
     expect(agentProblemText(t, { kind: "protocol" })).toBe("The agent's answers could not be read.");
     expect(agentProblemText(t, { kind: "agent", message: "boom" })).toBe("The agent answered with an error: boom");
+    // The agent's own words for it are a part of their own.
+    expect(agentProblemParts(t, { kind: "agent", message: "Not now. Plainva checked it." })).toEqual(["The agent answered with an error: ", { said: "Not now. Plainva checked it." }]);
     expect(agentAuthProblemText(t, "declined")).toBe("The sign-in was not finished.");
     expect(agentAuthProblemText(t, "no-method")).toContain("names no way to sign in from here");
     expect(agentAuthProblemText(t, "busy")).toBe("The sign-in could not be started.");
@@ -417,6 +450,8 @@ describe("the lines Plainva writes about an agent", () => {
     expect(agentNoteName("table.base")).toBe("table.base");
     expect(agentArgsFromText("  --acp \n\n --model=x\n")).toEqual(["--acp", "--model=x"]);
     expect(agentSessionLine(t, { at: "2026-10-07T10:00:00.000Z", agent: "gemini", label: "Gemini CLI", turns: 3, read: 2, proposed: 1, created: 1, direct: 4, refused: 0, end: "closed" }, "en")).toMatch(/ · Gemini CLI · messages: 3 · through Plainva: 2 · written itself: 4$/);
+    // A name the user gave with a placeholder in it stays as it was given, and the numbers stay where they belong.
+    expect(agentSessionLine(t, { at: "2026-10-07T10:00:00.000Z", agent: "gemini", label: "Bot {{turns}}", turns: 3, read: 2, proposed: 1, created: 1, direct: 4, refused: 0, end: "closed" }, "en")).toMatch(/ · Bot \{\{turns\}\} · messages: 3 · through Plainva: 2 · written itself: 4$/);
     const agent = { id: "gemini", label: "Gemini CLI", program: "/usr/bin/gemini", args: ["--acp"], known: "Gemini CLI" };
     expect(agentSeenText(t, agent, "en")).toBe("How it writes has not been seen on this computer yet");
     expect(agentSeenText(t, { ...agent, seen: { at: "2026-10-07T10:00:00.000Z", proposed: 2, direct: 0 } }, "en")).toMatch(/^Last seen here \(.*2026.*\): through Plainva 2, written itself 0$/);
@@ -436,5 +471,404 @@ describe("the texts of the agent's place", () => {
     }
     await i18n.changeLanguage("en");
     expect(vi.isMockFunction(t)).toBe(false);
+  });
+});
+
+/** Plan KI-Harness P9-7: the agent's settings in the composer's foot, and its commands while "/name" is typed. */
+describe("what the user may set for an agent's session, and its commands", () => {
+  const CONFIG = [
+    { id: "mode", name: "Mode", category: "mode", currentValue: "ask", options: [{ value: "ask", name: "Ask" }, { value: "code", name: "Code", description: "Changes files without asking" }] },
+    { id: "model", name: "Model", category: "model", currentValue: "fast", options: [{ group: "fast", name: "Fast", options: [{ value: "fast", name: "Fast model" }] }, { group: "deep", name: "Deep", options: [{ value: "deep", name: "Deep model" }] }] },
+    { id: "think", name: "Think hard", category: "thought_level", type: "boolean", currentValue: false },
+  ];
+  const menu = (container: HTMLElement, label: string) => container.querySelector(`[role="menu"][aria-label="${label}"]`) as HTMLElement | null;
+  const text = (item: Element) => item.querySelector(".pv-menu-text")!.textContent;
+  const key = (el: Element | null, name: string) =>
+    act(() => {
+      (el as HTMLElement).dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true }));
+    });
+
+  it("shows the agent's mode and model as buttons that open its own values, and the rest behind one button", async () => {
+    const m = await mount(() => ({ configOptions: CONFIG }));
+    await click(m.h, find(m.container, "ai-agent-start-action"));
+    const mode = find(m.container, "ai-agent-setting-mode")!;
+    expect(mode.textContent).toBe("Mode: Ask");
+    // Whose settings these are, said where they are.
+    expect(mode.getAttribute("data-tip")).toBe("A setting of Gemini CLI: it changes how Gemini CLI works, not what Plainva lets through. What Gemini CLI does with its own tools is outside Plainva in every mode.");
+    expect(find(m.container, "ai-agent-setting-model")!.textContent).toBe("Model: Fast model");
+    await click(m.h, mode);
+    const modes = Array.from(menu(m.container, "Mode of Gemini CLI")!.querySelectorAll('[role="menuitemradio"]'));
+    expect(modes.map((item) => [text(item), item.getAttribute("aria-checked")])).toEqual([
+      ["Ask", "true"],
+      ["Code", "false"],
+    ]);
+    await click(m.h, modes[1]);
+    expect(lastOf(m.h.agent().received)).toMatchObject({ method: "session/set_config_option", params: { configId: "mode", value: "code" } });
+    expect(find(m.container, "ai-agent-setting-mode")!.textContent).toBe("Mode: Code");
+    // The model's values under the agent's own groups.
+    await click(m.h, find(m.container, "ai-agent-setting-model"));
+    const models = menu(m.container, "Model of Gemini CLI")!;
+    expect(Array.from(models.querySelectorAll(".pv-menu-label")).map((label) => label.textContent)).toEqual(["Model of Gemini CLI", "Fast", "Deep"]);
+    key(models, "Escape");
+    // The rest: a switch is an entry that is ticked or not.
+    await click(m.h, find(m.container, "ai-agent-settings-more"));
+    const think = menu(m.container, "More settings of Gemini CLI")!.querySelector('[role="menuitemcheckbox"]')!;
+    expect([text(think), think.getAttribute("aria-checked")]).toEqual(["Think hard", "false"]);
+    await click(m.h, think);
+    expect(lastOf(m.h.agent().received)).toMatchObject({ method: "session/set_config_option", params: { configId: "think", value: true, type: "boolean" } });
+    expect(find(m.container, "ai-agent-settings-more")).not.toBeNull();
+  });
+
+  it("shows no settings for an agent that offers none, and the older modes for one that offers only those", async () => {
+    const none = await mount();
+    await click(none.h, find(none.container, "ai-agent-start-action"));
+    expect(find(none.container, "ai-agent-settings")).toBeNull();
+    act(() => root?.unmount());
+    const older = await mount(() => ({ modes: { currentModeId: "ask", availableModes: [{ id: "ask", name: "Ask" }, { id: "plan", name: "Plan" }] } }));
+    await click(older.h, find(older.container, "ai-agent-start-action"));
+    expect(find(older.container, "ai-agent-setting-mode")!.textContent).toBe("Mode: Ask");
+    await click(older.h, find(older.container, "ai-agent-setting-mode"));
+    // Plainva's own word names the mode here: of the heading and the button, only the agent's value is drawn as its.
+    expect(menu(older.container, "Mode of Gemini CLI")!.querySelector(".pv-menu-label")!.querySelectorAll("bdi.pv-said")).toHaveLength(0);
+    expect(Array.from(find(older.container, "ai-agent-setting-mode")!.querySelectorAll("bdi.pv-said")).map((said) => said.textContent)).toEqual(["Ask"]);
+    await click(older.h, Array.from(menu(older.container, "Mode of Gemini CLI")!.querySelectorAll('[role="menuitemradio"]'))[1]);
+    expect(lastOf(older.h.agent().received)).toMatchObject({ method: "session/set_mode", params: { modeId: "plan" } });
+    expect(find(older.container, "ai-agent-setting-mode")!.textContent).toBe("Mode: Plan");
+  });
+
+  it("finds a command the agent spells in other letters than typed, and writes it as the agent spells it", async () => {
+    // "résumé" with its accents apart, as an agent may spell it; a keyboard types them composed.
+    const spelled = "re\u0301sume\u0301";
+    const m = await mount(turns([{ say: "Done." }]));
+    await click(m.h, find(m.container, "ai-agent-start-action"));
+    await act(async () => {
+      m.h.agent().emit({
+        jsonrpc: "2.0",
+        method: "session/update",
+        params: { sessionId: "sess-1", update: { sessionUpdate: "available_commands_update", availableCommands: [{ name: spelled, description: "Sum up", input: { hint: "what to sum up" } }] } },
+      });
+      await m.h.settle();
+    });
+    const input = find(m.container, "ai-agent-input") as HTMLTextAreaElement;
+    type(input, `/${spelled.normalize("NFC").slice(0, 2)}`);
+    expect(all(m.container, "ai-agent-command")).toHaveLength(1);
+    key(input, "Enter");
+    expect(input.value).toBe(`/${spelled} `);
+    // Typed whole in the other spelling, it is still the agent's command, and what goes after it stands under the field.
+    type(input, `/${spelled.normalize("NFC")} `);
+    expect(find(m.container, "ai-agent-command-hint")!.textContent).toBe(`Gemini CLI on /${spelled}: what to sum up`);
+    // Sent so, it goes as the agent spells it: that is the name it recognises.
+    await send(m, `/${spelled.normalize("NFC")} the week`);
+    const prompts = m.h.agent().received.filter((message) => message.method === "session/prompt");
+    expect(((lastOf(prompts)!.params as { prompt: { type: string; text?: string }[] }).prompt[0]!).text).toBe(`/${spelled} the week`);
+  });
+
+  it("offers the agent's commands while a message begins with its name, and Enter takes one instead of sending", async () => {
+    const m = await mount(turns([{ say: "Searching." }]));
+    await click(m.h, find(m.container, "ai-agent-start-action"));
+    await act(async () => {
+      m.h.agent().emit({
+        jsonrpc: "2.0",
+        method: "session/update",
+        params: { sessionId: "sess-1", update: { sessionUpdate: "available_commands_update", availableCommands: [{ name: "web", description: "Search the web", input: { hint: "what to search for" } }, { name: "plan", description: "Make a plan" }] } },
+      });
+      await m.h.settle();
+    });
+    const input = find(m.container, "ai-agent-input") as HTMLTextAreaElement;
+    expect(input.placeholder).toBe("Message to Gemini CLI… — / for its commands");
+    type(input, "/");
+    const list = () => menu(m.container, "Commands of Gemini CLI");
+    expect(all(m.container, "ai-agent-command").map((item) => [text(item), item.querySelector(".pv-menu-hint")?.textContent])).toEqual([
+      ["/web", "Search the web · what to search for"],
+      ["/plan", "Make a plan"],
+    ]);
+    type(input, "/pl");
+    expect(all(m.container, "ai-agent-command").map(text)).toEqual(["/plan"]);
+    key(input, "Enter");
+    expect(input.value).toBe("/plan ");
+    expect(list()).toBeNull();
+    // Nothing was sent by that Enter.
+    expect(m.h.agent().received.some((message) => message.method === "session/prompt")).toBe(false);
+    // Escape closes the list and leaves the session as it is.
+    type(input, "/w");
+    expect(list()).not.toBeNull();
+    key(input, "Escape");
+    expect(list()).toBeNull();
+    expect(find(m.container, "ai-agent-session")).not.toBeNull();
+    type(input, "/web plainva");
+    expect(list()).toBeNull();
+    await click(m.h, find(m.container, "ai-agent-send"));
+    expect(lastOf(m.h.agent().received.filter((message) => message.method === "session/prompt"))).toMatchObject({ params: { prompt: [{ type: "text", text: "/web plainva" }] } });
+  });
+});
+
+/** Plan KI-Harness P9-7, review round 1: the keyboard, whose words, and the edges of the command list. */
+describe("an agent's settings and commands, at their edges", () => {
+  const CONFIG = [
+    { id: "mode", name: "Mode", category: "mode", currentValue: "ask", options: [{ value: "ask", name: "Ask" }, { value: "code", name: "Code", description: "Changes files without asking" }] },
+    { id: "model", name: "Model", category: "model", currentValue: "fast", options: [{ value: "fast", name: "Fast model" }, { value: "deep", name: "Deep model" }] },
+    { id: "think", name: "Think hard", category: "thought_level", type: "boolean", currentValue: false },
+    { id: "effort", name: "Effort", currentValue: "low", options: [{ value: "low", name: "Low" }, { value: "high", name: "High", description: "Takes its time" }] },
+  ];
+  const menu = (container: HTMLElement, label: string) => container.querySelector(`[role="menu"][aria-label="${label}"]`) as HTMLElement | null;
+  const text = (item: Element) => item.querySelector(".pv-menu-text")!.textContent;
+  const press = (el: Element | null, name: string, init: KeyboardEventInit = {}) =>
+    act(() => {
+      (el as HTMLElement).dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true, ...init }));
+    });
+  const microtasks = () =>
+    act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+  it("names each button for the agent whose setting it is, begins each menu with Plainva's heading, and ticks the current value", async () => {
+    const m = await mount(() => ({ configOptions: CONFIG }));
+    await click(m.h, find(m.container, "ai-agent-start-action"));
+    const mode = find(m.container, "ai-agent-setting-mode")!;
+    // Its name begins with what it shows and says whose setting it is; what a setting does not change is its description.
+    expect([mode.getAttribute("aria-label"), mode.textContent]).toEqual(["Mode: Ask, a setting of Gemini CLI", "Mode: Ask"]);
+    // The tip says whose setting it is and what it does not change; the description, read after the name, only the second.
+    expect(mode.getAttribute("data-tip")).toBe(t("ai.agent.config.tip", { agent: "Gemini CLI" }));
+    expect(mode.getAttribute("aria-description")).toBe(t("ai.agent.config.described", { agent: "Gemini CLI" }));
+    expect(mode.getAttribute("aria-expanded")).toBe("false");
+    await click(m.h, mode);
+    expect(mode.getAttribute("aria-expanded")).toBe("true");
+    const modes = menu(m.container, "Mode of Gemini CLI")!;
+    // Plainva's heading in its capitals; the agent's word in it is drawn apart, and its words below never look like one.
+    expect([modes.firstElementChild!.className, modes.firstElementChild!.textContent]).toEqual(["pv-menu-label", "Mode of Gemini CLI"]);
+    expect(Array.from(modes.firstElementChild!.querySelectorAll("bdi.pv-said")).map((said) => said.textContent)).toEqual(["Mode"]);
+    const [ask, code] = Array.from(modes.querySelectorAll('[role="menuitemradio"]'));
+    // The current value carries the tick in a slot the others keep free — not the arrow keys' highlight.
+    expect(ask!.querySelector(".pv-menu-tick svg")).not.toBeNull();
+    expect(code!.querySelector(".pv-menu-tick")!.childElementCount).toBe(0);
+    expect(ask!.classList.contains("is-active")).toBe(false);
+    // A description of the agent's is cut in its row and whole in the tooltip.
+    expect(code!.getAttribute("data-tip")).toBe("Changes files without asking");
+    // A second press on the button closes its menu.
+    await click(m.h, mode);
+    expect(menu(m.container, "Mode of Gemini CLI")).toBeNull();
+    await click(m.h, find(m.container, "ai-agent-settings-more"));
+    const more = menu(m.container, "More settings of Gemini CLI")!;
+    expect(more.firstElementChild!.textContent).toBe("More settings of Gemini CLI");
+    expect(find(m.container, "ai-agent-settings-more")!.getAttribute("aria-description")).toBe(t("ai.agent.config.describedMore", { agent: "Gemini CLI" }));
+    // A choice behind it is a group of its own under its name — the agent's words, in their quiet italics.
+    const effort = more.querySelector('[role="group"][aria-label="Effort"]')!;
+    expect([effort.querySelector(".pv-menu-label")!.textContent, effort.querySelector(".pv-menu-label")!.className]).toEqual(["Effort", "pv-menu-label pv-menu-label--said"]);
+    // In the direction its own letters give it, not the menu's.
+    expect(effort.querySelector(".pv-menu-label")!.getAttribute("dir")).toBe("auto");
+    expect(Array.from(effort.querySelectorAll('[role="menuitemradio"]')).map((item) => [text(item), item.getAttribute("aria-checked")])).toEqual([
+      ["Low", "true"],
+      ["High", "false"],
+    ]);
+  });
+
+  it("keeps the keyboard on a button while its change waits for the agent, and takes no press then", async () => {
+    const m = await mount(() => ({ configOptions: CONFIG, hangsOnSettings: true }));
+    await click(m.h, find(m.container, "ai-agent-start-action"));
+    const mode = find(m.container, "ai-agent-setting-mode") as HTMLButtonElement;
+    act(() => mode.focus());
+    await click(m.h, mode);
+    await click(m.h, Array.from(menu(m.container, "Mode of Gemini CLI")!.querySelectorAll('[role="menuitemradio"]'))[1]);
+    await microtasks();
+    // The focus came back to the button: it waits, and says so, but it is not taken out of the keyboard's way.
+    expect(document.activeElement).toBe(mode);
+    expect([mode.disabled, mode.getAttribute("aria-disabled")]).toEqual([false, "true"]);
+    // The row says in words that a change waits.
+    expect(m.container.querySelector('.pv-agent-settings [role="status"]')!.textContent).toBe("Gemini CLI is changing a setting…");
+    await click(m.h, mode);
+    expect(menu(m.container, "Mode of Gemini CLI")).toBeNull();
+  });
+
+  it("takes no pick from an open menu while a change in it waits", async () => {
+    const m = await mount(() => ({ configOptions: CONFIG, hangsOnSettings: true }));
+    await click(m.h, find(m.container, "ai-agent-start-action"));
+    await click(m.h, find(m.container, "ai-agent-settings-more"));
+    const more = menu(m.container, "More settings of Gemini CLI")!;
+    await click(m.h, more.querySelector('[role="menuitemcheckbox"]'));
+    // The switch keeps its menu open; until the agent answers, nothing in it can be picked — and its entries keep the
+    // keyboard: none is natively disabled, which would throw the focus to the page.
+    expect(menu(m.container, "More settings of Gemini CLI")).toBe(more);
+    const entries = Array.from(more.querySelectorAll<HTMLButtonElement>(".pv-menu-item"));
+    expect(entries.map((item) => [item.disabled, item.getAttribute("aria-disabled")])).toEqual([
+      [false, "true"],
+      [false, "true"],
+      [false, "true"],
+    ]);
+    await click(m.h, entries[2]);
+    expect(menu(m.container, "More settings of Gemini CLI")).toBe(more);
+    expect(m.h.agent().received.filter((message) => message.method === "session/set_config_option")).toHaveLength(1);
+  });
+
+  it("lists the agent's commands under Plainva's heading, says how many more there are, and what goes after a command it took", async () => {
+    const m = await mount(turns([{ say: "Done." }]));
+    await click(m.h, find(m.container, "ai-agent-start-action"));
+    const offered = [{ name: "web", description: "Search the web", input: { hint: "what to search for" } }, ...Array.from({ length: 13 }, (_, index) => ({ name: `w${index}`, description: `Command ${index}` }))];
+    await act(async () => {
+      m.h.agent().emit({ jsonrpc: "2.0", method: "session/update", params: { sessionId: "sess-1", update: { sessionUpdate: "available_commands_update", availableCommands: offered } } });
+      await m.h.settle();
+    });
+    const input = find(m.container, "ai-agent-input") as HTMLTextAreaElement;
+    type(input, "/w");
+    const list = menu(m.container, "Commands of Gemini CLI")!;
+    expect(list.firstElementChild!.textContent).toBe("Commands of Gemini CLI");
+    expect(all(m.container, "ai-agent-command")).toHaveLength(12);
+    // Plainva's note at the foot is a sentence, not a heading.
+    expect([list.lastElementChild!.textContent, list.lastElementChild!.className]).toEqual(["2 more — keep typing", "pv-menu-label pv-menu-label--note"]);
+    // A press anywhere on the list leaves the field its focus.
+    const pressed = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    list.firstElementChild!.dispatchEvent(pressed);
+    expect(pressed.defaultPrevented).toBe(true);
+    // As it narrows, it is the same list, placed again — not one mounted anew.
+    type(input, "/we");
+    expect(menu(m.container, "Commands of Gemini CLI")).toBe(list);
+    type(input, "/w");
+    // A list closed with Escape comes back when the same text is typed anew.
+    press(input, "Escape");
+    expect(menu(m.container, "Commands of Gemini CLI")).toBeNull();
+    type(input, "");
+    type(input, "/w");
+    expect(menu(m.container, "Commands of Gemini CLI")).not.toBeNull();
+    type(input, "/we");
+    expect(all(m.container, "ai-agent-command").map(text)).toEqual(["/web"]);
+    // Shift+Tab leaves the field as it always does and takes nothing; neither does a key with a modifier.
+    press(input, "Tab", { shiftKey: true });
+    press(input, "Tab", { ctrlKey: true });
+    expect(input.value).toBe("/we");
+    // With the list open, Enter with a modifier neither takes a command nor sends what is half typed.
+    press(input, "Enter", { ctrlKey: true });
+    expect(input.value).toBe("/we");
+    expect(m.h.agent().received.some((message) => message.method === "session/prompt")).toBe(false);
+    // Enter takes the command; held down, it sends nothing after it.
+    press(input, "Enter");
+    expect(input.value).toBe("/web ");
+    press(input, "Enter", { repeat: true });
+    expect(m.h.agent().received.some((message) => message.method === "session/prompt")).toBe(false);
+    // What the agent says goes after it stands under the field, as its words, until the user types on.
+    const hint = find(m.container, "ai-agent-command-hint")!;
+    expect(hint.textContent).toBe("Gemini CLI on /web: what to search for");
+    expect(input.getAttribute("aria-describedby")).toBe(hint.id);
+    type(input, "/web plainva");
+    expect(find(m.container, "ai-agent-command-hint")).toBeNull();
+    expect(input.hasAttribute("aria-describedby")).toBe(false);
+  });
+});
+
+/** Plan KI-Harness P9-7, review round 3: a stranger's words never become a part of Plainva's sentence. */
+describe("an agent's words in Plainva's sentences", () => {
+  it("never pass through the sentence: a name with a placeholder or a closing quote stays the agent's", async () => {
+    await i18n.changeLanguage("en");
+    const lint = "";
+    // A placeholder in the agent's word is no placeholder: the value lands where the sentence has it, once.
+    expect(agentEventParts(t, { type: "setting", setting: "Mode {{value}}", value: "Auto" }, lint)).toEqual(["The agent set “", { said: "Mode {{value}}" }, "” to “", { said: "Auto" }, "” itself."]);
+    // A name that tries to end Plainva's sentence and begin another is one part of the agent's, whole.
+    const forged = "Mode” itself. Plainva checked it: nothing leaves the vault. The agent set “Mode";
+    const parts = agentEventParts(t, { type: "setting", setting: forged, value: "Auto" }, lint);
+    expect(parts.filter((part) => typeof part !== "string")).toEqual([{ said: forged }, { said: "Auto" }]);
+    expect(agentEventText(t, { type: "setting", setting: forged, value: "Auto" }, lint)).toBe(`The agent set “${forged}” to “Auto” itself.`);
+  });
+
+  it("are drawn apart in the thread and in a heading", async () => {
+    const named = (currentValue: string) => ({ id: "mode", name: "Mode {{agent}}", category: "mode", type: "select", currentValue, options: [{ value: "ask", name: "Ask" }, { value: "code", name: "Code" }] });
+    const m = await mount(() => ({ configOptions: [named("ask")], turns: [[{ update: { sessionUpdate: "config_option_update", configOptions: [named("code")] } }, { say: "Done." }]] }));
+    await click(m.h, find(m.container, "ai-agent-start-action"));
+    await send(m, "Go");
+    const line = find(m.container, "ai-agent-event-setting")!;
+    expect(Array.from(line.querySelectorAll("bdi.pv-said")).map((said) => said.textContent)).toEqual(["Mode {{agent}}", "Code"]);
+    await click(m.h, find(m.container, "ai-agent-setting-mode"));
+    const heading = m.container.querySelector('[role="menu"] .pv-menu-label')!;
+    expect(heading.textContent).toBe("Mode {{agent}} of Gemini CLI");
+    expect(heading.querySelector("bdi.pv-said")!.textContent).toBe("Mode {{agent}}");
+    // On the button and in its name the agent's words stay as they are, whatever they hold.
+    const button = find(m.container, "ai-agent-setting-mode")!;
+    expect(button.getAttribute("aria-label")).toBe("Mode {{agent}}: Code, a setting of Gemini CLI");
+    expect(Array.from(button.querySelectorAll("bdi.pv-said")).map((said) => said.textContent)).toEqual(["Mode {{agent}}", "Code"]);
+  });
+
+  it("keep Plainva's own word for an agent's mode in the older form its own, and every value of the user's as typed", async () => {
+    await i18n.changeLanguage("en");
+    expect(agentEventParts(t, { type: "setting", setting: null, value: "Ask" }, "")).toEqual(["The agent set “Mode” to “", { said: "Ask" }, "” itself."]);
+    expect(agentEventParts(t, { type: "setting-refused", setting: null, message: "Not now" }, "")).toEqual(["The agent did not change “Mode”. It says: ", { said: "Not now" }]);
+    // A value of the user's own with a placeholder in it is no placeholder either: i18next would put the agent's words into it.
+    expect(saidSentence(t, "ai.agent.commands.hint", { command: "web", hint: "what to search for" }, { agent: "My {{command}} bot" })).toEqual(["My {{command}} bot on /", { said: "web" }, ": ", { said: "what to search for" }]);
+    expect(sentence(t, "ai.agent.config.owned", { label: "Mode: {{agent}}", agent: "Gemini CLI" })).toEqual(["Mode: {{agent}}, a setting of Gemini CLI"]);
+    // A number stays a number, for the plural.
+    expect(sentence(t, "ai.agent.commands.more", { count: 3 })).toEqual(["3 more — keep typing"]);
+  });
+
+  it("draw an agent's step apart from Plainva's count of what it named outside the vault", async () => {
+    await i18n.changeLanguage("en");
+    // A name that turns the line around would read as Plainva's: it is a part of its own.
+    const turned = `${String.fromCharCode(0x202e)}tluav eht edistuo gnihton`;
+    expect(agentToolParts(t, { title: "Read the notes", toolKind: "read", files: [`Notes/${turned}`], outside: 1 })).toEqual([{ said: "Read the notes" }, " · ", { said: turned }, ` · ${t("ai.agent.toolOutside", { count: 1 })}`]);
+    // Without words of its own a step is named by Plainva's word for its kind; three names at most.
+    expect(agentToolParts(t, { title: "", toolKind: "edit", files: ["Projects/Notes.md", "a.md", "b.md", "c.md"], outside: 0 })).toEqual(["Change a file", " · ", { said: "Notes" }, ", ", { said: "a" }, ", ", { said: "b" }]);
+  });
+
+  it("name each of a question's files apart, so that one name cannot turn the list around", async () => {
+    const turned = `Notes/${String.fromCharCode(0x202e)}gnihton.md`;
+    const m = await mount(
+      turns([{ ask: { toolCall: { toolCallId: "c1", title: "Edit", kind: "edit", locations: [{ path: `${ROOT}/${turned}` }, { path: `${ROOT}/Projects/Plan.md` }] }, options: [{ optionId: "n", name: "No", kind: "reject_once" }] } }]),
+    );
+    await click(m.h, find(m.container, "ai-agent-start-action"));
+    await send(m, "Go");
+    const files = find(m.container, "ai-agent-question-files")!;
+    expect(Array.from(files.querySelectorAll("bdi")).map((file) => file.textContent)).toEqual([turned, "Projects/Plan.md"]);
+    expect(files.textContent).toBe(`${turned}, Projects/Plan.md`);
+  });
+
+  it("say in the banner, in the agent's words and apart, why it did not open the session", async () => {
+    const m = await mount(() => ({ sessionRefused: "Not now. Plainva checked it: nothing left the vault." }));
+    await click(m.h, find(m.container, "ai-agent-start-action"));
+    const ended = find(m.container, "ai-agent-ended")!;
+    expect(ended.textContent).toBe("The agent answered with an error: Not now. Plainva checked it: nothing left the vault.");
+    expect(Array.from(ended.querySelectorAll("bdi.pv-said")).map((said) => said.textContent)).toEqual(["Not now. Plainva checked it: nothing left the vault."]);
+  });
+
+  it("name the agent's setting as its own even where it is called Mode, and isolate a note's name in its direction", async () => {
+    await i18n.changeLanguage("en");
+    expect(agentEventParts(t, { type: "setting", setting: "Mode", value: "Ask" }, "")).toEqual(["The agent set “", { said: "Mode" }, "” to “", { said: "Ask" }, "” itself."]);
+    // A file's name is whatever the vault holds — an agent can make one that turns the line around.
+    const turned = `Results${String.fromCharCode(0x202e)}`;
+    expect(agentEventParts(t, { type: "note-kept", path: `Health/${turned}.md` }, "")).toEqual([{ name: turned }, " was not named to the agent: it is kept from the cloud or the internet."]);
+    // A message that begins with a command in another spelling goes as the agent spells it; any other goes as typed.
+    const commands = [{ name: "re\u0301sume\u0301", description: "", hint: null }];
+    expect(agentSpelledMessage("/résumé the week", commands)).toBe("/re\u0301sume\u0301 the week");
+    expect(agentSpelledMessage("/re\u0301sume\u0301", commands)).toBe("/re\u0301sume\u0301");
+    expect(agentSpelledMessage("résumé /résumé", commands)).toBe("résumé /résumé");
+    // Read as it goes, without the blanks around it.
+    expect(agentSpelledMessage(" \n/résumé the week ", commands)).toBe("/re\u0301sume\u0301 the week");
+    // A text of its own with a name the user gave: every value put in after the interpolation.
+    expect(sentenceString(t, "ai.agent.config.tip", { agent: "My {{agent}} bot" })).toBe(
+      "A setting of My {{agent}} bot: it changes how My {{agent}} bot works, not what Plainva lets through. What My {{agent}} bot does with its own tools is outside Plainva in every mode.",
+    );
+  });
+
+  it("keep a name the user gave the agent as typed, also where a sentence holds it twice", async () => {
+    const m = await mount(() => ({ configOptions: [{ id: "model", name: "Model", category: "model", currentValue: "fast", options: [{ value: "fast", name: "Fast" }] }] }), { harness: { agentLabel: "My {{agent}} bot" } });
+    await click(m.h, find(m.container, "ai-agent-start-action"));
+    const model = find(m.container, "ai-agent-setting-model")!;
+    expect(model.getAttribute("data-tip")).toBe(sentenceString(t, "ai.agent.config.tip", { agent: "My {{agent}} bot" }));
+    expect(model.getAttribute("aria-description")).toBe("It changes how My {{agent}} bot works, not what Plainva lets through. What My {{agent}} bot does with its own tools is outside Plainva in every mode.");
+  });
+
+  it("draw a note's name in its own direction, in Plainva's type", async () => {
+    const m = await mount(undefined, { activeNote: { path: "Health/Results.md", title: "Results" } });
+    m.h.vault.active = "Health/Results.md";
+    await click(m.h, find(m.container, "ai-agent-start-action"));
+    await send(m, "Summarise");
+    const line = find(m.container, "ai-agent-event-note-kept")!;
+    expect(Array.from(line.querySelectorAll("bdi")).map((name) => [name.textContent, name.className])).toEqual([["Results", ""]]);
+  });
+
+  it("place a menu again when any of its entries changes, and tell values apart that look alike when joined", () => {
+    const value = (v: string, name = v.toUpperCase()) => ({ value: v, name, description: "" });
+    expect(agentValuesKey([value("a|/b")])).not.toBe(agentValuesKey([value("a"), value("b")]));
+    expect(agentValuesKey([value("a", "A")])).not.toBe(agentValuesKey([value("a", "A much longer name")]));
+    const option = (name: string) => ({ id: "think", name, description: "", category: "other" as const, type: "boolean" as const, current: false });
+    expect(agentOptionsKey([option("Think")])).not.toBe(agentOptionsKey([option("Think hard")]));
+    // A setting's menu also when the agent renames the setting; the list of commands when it shows others of the same number.
+    expect(agentMenuKey(["Mode of Gemini CLI"], [value("a")])).not.toBe(agentMenuKey(["Model of Gemini CLI"], [value("a")]));
+    expect(agentCommandsKey([{ name: "web", description: "", hint: null }], 0)).not.toBe(agentCommandsKey([{ name: "plan", description: "", hint: null }], 0));
   });
 });

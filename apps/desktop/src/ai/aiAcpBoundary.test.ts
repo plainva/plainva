@@ -209,7 +209,8 @@ describe("the web view's side of external agents", () => {
 
   it("offers an agent files through the app and a sign-in that can be shown — and no terminal", () => {
     const offered = acpInitializeParams({ name: "plainva", title: "Plainva", version: "1" }) as { clientCapabilities: { fs: unknown; terminal: unknown; auth: unknown } };
-    expect(offered.clientCapabilities).toEqual({ fs: { readTextFile: true, writeTextFile: true }, terminal: false, auth: { terminal: true } });
+    // And that a switch among the agent's settings can be shown as one (plan P9-7): a thing to show, nothing to do.
+    expect(offered.clientCapabilities).toEqual({ fs: { readTextFile: true, writeTextFile: true }, terminal: false, auth: { terminal: true }, session: { configOptions: { boolean: {} } } });
     // The client has a place for four things an agent may ask, and `terminal/` is not among them.
     expect([...client.matchAll(/case "([a-z_/]+)":/g)].map((m) => m[1])).toEqual(["session/request_permission", "fs/read_text_file", "fs/write_text_file"]);
     expect(client).not.toContain("terminal/");

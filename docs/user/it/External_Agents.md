@@ -1,6 +1,6 @@
 # Agenti esterni (Beta)
 
-Ultimo aggiornamento: 2026-10-07
+Ultimo aggiornamento: 2026-10-26
 
 Un agente esterno è un programma di IA di un altro produttore — un agente che hai installato sul tuo computer e a cui hai effettuato l'accesso tu stesso, con il tuo abbonamento o la tua chiave. Plainva può avviare un agente del genere nella cartella di un vault e mostrare la sua sessione nella scheda IA. Fa parte delle funzioni di IA sperimentali e funziona solo sul desktop.
 
@@ -46,6 +46,8 @@ Scrivi che cosa deve fare l'agente. La nota che hai aperta viene nominata all'ag
 
 Quando l'agente vuole il tuo permesso per un passo, **⟨agente⟩ chiede** lo mostra. Le parole sono dell'agente, e le scelte sono quelle che l'agente offre — **Consenti**, **Consenti sempre**, **Rifiuta**, **Rifiuta sempre**. La tua risposta va solo all'agente: ciò che fa dopo un sì è affar suo, e un «sempre» è una promessa che mantiene l'agente, non Plainva.
 
+**Impostazioni e comandi.** Dove l'agente le offre, il piede della sessione mostra le sue impostazioni: la sua modalità e il suo modello come pulsanti — **⟨impostazione⟩: ⟨valore⟩** —, il resto dietro il pulsante con i cursori **Altre impostazioni di ⟨agente⟩**. Ognuno dei loro menu inizia con il titolo proprio di Plainva — **⟨impostazione⟩ di ⟨agente⟩** o **Altre impostazioni di ⟨agente⟩** —; sotto, nomi, valori e descrizioni sono quelli dell'agente, nel suo ordine: il valore attuale con una spunta, un interruttore come una voce con o senza spunta. Dove le parole dell'agente compaiono in un titolo o in una frase di Plainva, sono distinte in un corsivo discreto, mai nelle maiuscole del titolo. Ogni sessione inizia con i valori predefiniti dell'agente. Un'impostazione cambia come lavora l'agente, non ciò che Plainva lascia passare: leggere e scrivere tramite Plainva seguono le stesse regole in ogni modalità, e una modalità in cui l'agente non chiede più nulla non risparmia nessuno dei passi propri di Plainva. Ciò che l'agente fa con i propri strumenti resta fuori da Plainva in qualsiasi modalità. Quando l'agente cambia un'impostazione di sua iniziativa, la sessione lo dice: **L'agente ha impostato «⟨impostazione⟩» su «⟨valore⟩» di sua iniziativa.** Ciò che cambia insieme a una tua modifica, la sessione lo indica come tale — **Con questa modifica, l'agente ha impostato «⟨impostazione⟩» su «⟨valore⟩».** —, e così anche una modifica che non ha fatto: **L'agente non ha cambiato «⟨impostazione⟩».** Finché una modifica attende l'agente, accanto alle impostazioni gira un indicatore, e non accettano nulla finché l'agente non risponde. Una **/** all'inizio di un messaggio elenca sotto **Comandi di ⟨agente⟩** i comandi propri dell'agente con ciò che, secondo lui, fanno: le frecce scorrono l'elenco, Invio o Tab prendono un comando, Esc chiude l'elenco. Un comando è un messaggio che inizia con il suo nome; dove l'agente dice cosa scrivere dopo, questo compare sotto il campo finché non continui a scrivere. Ciò che fa un comando è affare dell'agente.
+
 **Interrompi** termina la risposta a cui l'agente sta lavorando.
 
 ## Che cosa scrive l'agente
@@ -69,5 +71,5 @@ Se il programma dell'agente termina da solo, la sessione lo dice, e **Mostra le 
 - Solo sul desktop e solo nella finestra principale. Sul telefono c'è l'assistente proprio di Plainva.
 - Non in un workspace cifrato.
 - Una sessione alla volta, e nessuna cronologia: una sessione terminata non si può riaprire.
-- I modi, i modelli e i comandi propri di un agente non si possono scegliere da Plainva, e non gli si possono inviare immagini.
+- Non si possono inviare immagini a un agente, e Plainva non riporta nella sessione successiva una modalità o un modello scelti in una sessione.
 - Finora questo è stato provato solo con un agente di prova proprio di Plainva. Quali agenti funzionano qui, e quali consegnano le loro modifiche a Plainva, si vede provandoli — i riscontri sono benvenuti.

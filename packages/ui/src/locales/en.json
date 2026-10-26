@@ -2072,6 +2072,24 @@
       "placeholder": "Message to {{agent}}…",
       "empty": "Tell {{agent}} what to do. It works in the folder of this vault.",
       "plan": "The agent's plan",
+      "placeholderCommands": "Message to {{agent}}… — / for its commands",
+      "config": {
+        "value": "{{setting}}: {{value}}",
+        "owned": "{{label}}, a setting of {{agent}}",
+        "mode": "Mode",
+        "more": "More settings of {{agent}}",
+        "menu": "{{setting}} of {{agent}}",
+        "tip": "A setting of {{agent}}: it changes how {{agent}} works, not what Plainva lets through. What {{agent}} does with its own tools is outside Plainva in every mode.",
+        "described": "It changes how {{agent}} works, not what Plainva lets through. What {{agent}} does with its own tools is outside Plainva in every mode.",
+        "describedMore": "They change how {{agent}} works, not what Plainva lets through. What {{agent}} does with its own tools is outside Plainva in every mode.",
+        "changing": "{{agent}} is changing a setting…"
+      },
+      "commands": {
+        "label": "Commands of {{agent}}",
+        "hint": "{{agent}} on /{{command}}: {{hint}}",
+        "more_one": "{{count}} more — keep typing",
+        "more_other": "{{count}} more — keep typing"
+      },
       "toolOutside": "outside the vault: {{count}}",
       "kind": {
         "read": "Read",
@@ -2119,6 +2137,15 @@
         "noteKept": "{{note}} was not named to the agent: it is kept from the cloud or the internet.",
         "failed": "The agent could not finish this.",
         "failedSaid": "The agent could not finish this. It says: {{message}}",
+        "setting": "The agent set “{{setting}}” to “{{value}}” itself.",
+        "settingOn": "The agent turned on “{{setting}}” itself.",
+        "settingOff": "The agent turned off “{{setting}}” itself.",
+        "settingAlong": "With it, the agent set “{{setting}}” to “{{value}}”.",
+        "settingOnAlong": "With it, the agent turned on “{{setting}}”.",
+        "settingOffAlong": "With it, the agent turned off “{{setting}}”.",
+        "settingRefused": "The agent did not change “{{setting}}”.",
+        "settingRefusedSaid": "The agent did not change “{{setting}}”. It says: {{message}}",
+        "settingRefusedSignIn": "The agent did not change “{{setting}}”: it wants a sign-in first, in its own program.",
         "stopped": {
           "max_tokens": "The agent stopped: its model reached its limit.",
           "max_turn_requests": "The agent stopped: it reached its limit of steps.",

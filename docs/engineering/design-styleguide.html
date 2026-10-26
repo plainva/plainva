@@ -274,6 +274,25 @@
   .menu .item.danger, .menu .item.danger svg { color: var(--error-text); }
   .menu .sep { height: 1px; margin: var(--space-1) 6px; background: var(--border-color-light); }
   .menu .hint { margin-left: auto; color: var(--text-faint); font-size: var(--text-sm); }
+  /* AI harness P9-7: a choice's tick in a slot of its own, rows with a stranger's description, a stranger's headings */
+  .menu .item .tick { display: inline-flex; width: 15px; justify-content: center; color: var(--text-muted); }
+  .menu .item.hi { background: var(--state-hover); }
+  .menu.described .item .text { flex: 0 1 auto; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .menu.described .item .text:last-child { flex: 1 1 auto; max-width: none; }
+  .menu.described .hint { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+  .menu .label.said { text-transform: none; letter-spacing: normal; font-style: italic; color: var(--text-muted); }
+  .menu .label.note { text-transform: none; letter-spacing: normal; }
+  .said { font-style: italic; }
+  .menu .label .said { text-transform: none; letter-spacing: normal; }
+  .agentfoot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+  .agentwait { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-xs); color: var(--text-faint); }
+  .cmdhint { margin: 0; font-size: var(--text-xs); color: var(--text-faint); }
+  .stepline { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
+  .stepline > .tick { flex: none; color: var(--success-text); }
+  .pvbtn[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+  .iconbtn[aria-disabled="true"] { opacity: 0.45; cursor: default; }
+  .pvbtn.ghost[aria-disabled="true"]:hover, .iconbtn[aria-disabled="true"]:hover { background: transparent; color: var(--text-muted); }
+  .sronly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
   .modal { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-xl); box-shadow: var(--shadow-3); overflow: hidden; max-width: 460px; }
   .modal .mh { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-color-light); }
@@ -654,7 +673,7 @@
       <p><b>Menü-Anatomie (bindend):</b> thematische Gruppen mit <code>MenuSeparator</code> (in verankerten Eigenbauten <code>.pv-menu-sep</code>/<code>.pv-popover-label</code>); das <b>Danger-Item steht immer als letzte Gruppe hinter einem Trenner</b>. Homogene Listen-Menüs (Verschieben-nach-Ordner, Kanten-Bündel) bleiben bewusst ungruppiert. Tooltips tragen nur ZUSATZ-Information: Datei-Tabs den Vault-Pfad, virtuelle Tabs (plainva://…) gar keinen — nie das sichtbare Label wiederholen, nie interne Pseudo-Pfade zeigen.</p>
       <p><b>Datumssprung (<code>DateJumpPicker</code>, 2026-09-10):</b> EIN Raster, wo immer ein Datum gewählt wird, um dorthin zu gehen — Jahr-Zeile mit Doppelpfeilen, 4×3 Monate, 7-spaltiges Tagesraster mit dem Wochenstart aus der Einstellung und KW-Spalte bei Montag, Fuß mit Tastatur-Hinweis und tonalem „Heute". Auswahl gefüllt auf <code>--accent-color</code>, heute als Innenring, das aktuell gezeigte Band (Woche, drei Tage) und der Monat auf dem <code>--accent-container</code>-Paar. Namen aus <code>Intl</code>, nie aus Literalen. Das Raster ist EIN Tab-Stopp: Pfeile bewegen, Bild↑/↓ blättern Monate (mit Shift Jahre), Enter springt, Esc schließt. Der Auslöser <code>DateJumpTrigger</code> ist der Zeitraum-Titel mit Chevron (<code>aria-haspopup="dialog"</code>, aktiv auf dem Accent-Container-Paar) — Kalender-Tab, Seitenleisten-Kalender und Datenbank-Kalender teilen ihn. Desktop-Hülle <code>DateJumpPopover</code> (Popover-Vertrag, 300px), mobil ein Sheet.</p>
       <p><b>Fälligkeit wählen (<code>DuePicker</code>, 2026-10-24):</b> der Datumssprung mit Kopf und Fuß, überall wo eine Aufgabe ihre Fälligkeit bekommt — oben fünf Schnellwahl-Zeilen (Heute, Morgen, Dieses Wochenende, Nächste Woche, Kein Datum; Glyphe in eigener Ton-Farbe aus den Status-Tokens bzw. <code>--accent-color</code>, Wochentag rechts in <code>--text-faint</code>, die Zeile des aktuellen Tages auf dem Accent-Container-Paar), darunter das Tagesraster wie gehabt, unten die Zeile <b>Uhrzeit</b> (Haarlinie darüber, Uhr-Glyphe, <code>Switch</code> — aus = ganztägig —, an: natives Zeitfeld, kompakt; eine reine Zeitänderung zeigt ein tonales „Fertig“). Eine Schnellwahl behält eine gesetzte Uhrzeit. Kann das Ziel keine Uhrzeit tragen (Checkbox in einer Notiz, <code>📅</code> nur mit Tag), steht dort ein leiser Satz statt des Schalters. Desktop im <code>DateJumpPopover</code>, mobil im Sheet — dieselbe Komponente.</p>
-      <p><b>Picker mit Caret im Feld:</b> Ein Menü, das die Tastatur durchläuft, während der Caret woanders steht — der <code>@</code>-Erwähnungs-Picker ist der Fall — markiert seine aktuelle Zeile mit <code>MenuItem active</code> (<code>.pv-menu-item.is-active</code>, dasselbe <code>--accent-container</code>-Paar wie jede ausgewählte Zeile) und öffnet mit <code>autoFocus={false}</code>; die Zeile muss zusätzlich <code>mousedown</code> schlucken, sonst verliert das Feld den Fokus, bevor die Auswahl ankommt.</p>
+      <p><b>Picker mit Caret im Feld:</b> Ein Menü, das die Tastatur durchläuft, während der Caret woanders steht — der <code>@</code>-Erwähnungs-Picker ist der Fall — markiert seine aktuelle Zeile mit <code>MenuItem active</code> (<code>.pv-menu-item.is-active</code>, auf <code>--state-hover</code>: das Hover der Pfeiltasten, kein Auswahlzustand) und öffnet mit <code>autoFocus={false}</code>; ein solches Menü schluckt <code>mousedown</code> selbst, damit das Feld den Fokus behält, wo immer man auf das Menü drückt.</p>
     </div>
   </section>
 
@@ -1304,6 +1323,26 @@
         <dt>Files</dt>
         <dd><span><code>SKILL.md</code> · 149 B · <code>d2489d6</code></span><span><code>references/checklist.md</code> · 65 B · <code>dbab2de</code></span></dd>
       </dl>
+    </div>
+    <p class="sec-sub">AI harness P9-7 (2026-10-26): an external agent's settings and commands. In the composer's foot the agent's mode and model as ghost buttons in its words, the rest behind the sliders button; each menu begins with Plainva's heading in its capitals, the agent's words in it and its groups and names below it stand apart in quiet italics, isolated in their direction, the current value carries a tick in a slot of its own (<code>MenuItem checked</code>), and a description is cut at the row's end and whole in the tooltip (<code>.pv-menu--described</code>). While a change waits, a spinner turns at the row's end. A “/” at the start of a message lists the agent's commands under Plainva's heading, at most twelve with the rest counted in a sentence; what the agent says goes after a taken command stands under the field (<code>.pv-agent-command-hint</code>). The second row is the first while a change waits: the buttons dimmed, keeping the keyboard and taking no press, the spinner at its end, its words for a screen reader only. A step's line in the thread draws the agent's words for it and the names it named the same way; Plainva's count stays upright.</p>
+    <div class="card" style="max-width: 520px; display: grid; gap: var(--space-3)">
+      <div class="agentfoot"><button class="pvbtn ghost sm">Mode: Ask first</button><button class="pvbtn ghost sm">Model: Gemini Flash</button><button class="iconbtn" aria-label="More settings of Gemini CLI"><span aria-hidden="true">⚟</span></button><span class="agentwait" role="status"></span></div>
+      <div class="agentfoot"><button class="pvbtn ghost sm" aria-disabled="true">Mode: Ask first</button><button class="pvbtn ghost sm" aria-disabled="true">Model: Gemini Flash</button><button class="iconbtn" aria-label="More settings of Gemini CLI" aria-disabled="true"><span aria-hidden="true">⚟</span></button><span class="agentwait" role="status"><span aria-hidden="true">◌</span><span class="sronly">Gemini CLI is changing a setting…</span></span></div>
+      <div class="menu described" role="menu" aria-label="Model of Gemini CLI">
+        <div class="label"><bdi class="said">Model</bdi> of Gemini CLI</div>
+        <div class="label said">Fast</div>
+        <button class="item" role="menuitemradio" aria-checked="true"><span class="tick" aria-hidden="true">✓</span><span class="text">Gemini Flash</span></button>
+        <div class="label said">Thorough</div>
+        <button class="item" role="menuitemradio" aria-checked="false"><span class="tick" aria-hidden="true"></span><span class="text">Gemini Pro</span><span class="hint">Slower, more thorough</span></button>
+      </div>
+      <div class="menu described" role="menu" aria-label="Commands of Gemini CLI">
+        <div class="label">Commands of Gemini CLI</div>
+        <button class="item hi" role="menuitem"><span class="text">/plan</span><span class="hint">Makes a plan before it changes anything</span></button>
+        <button class="item" role="menuitem"><span class="text">/web</span><span class="hint">Searches the web · what to search for</span></button>
+        <div class="label note">3 more — keep typing</div>
+      </div>
+      <p class="cmdhint">Gemini CLI on /<bdi class="said">web</bdi>: <bdi class="said">what to search for</bdi></p>
+      <p class="stepline"><span class="tick" aria-hidden="true">✓</span><span><bdi class="said">Reading the plan</bdi> · <bdi class="said">Plan</bdi> · outside the vault: 1</span></p>
     </div>
     <p class="sec-sub">AI harness P4-6 (2026-10-06): “Keep as a note”. Under a finished answer, beside the run's line, a ghost Button of size sm with the file-plus mark (<code>.pv-ai-capture</code>): the user's own step — a press writes the note into the vault's inbox folder and opens it. In a shared workspace the press first asks, in the same card as a page, a search or mail (<code>AiEffectApproval</code>, <code>data-kind="write"</code>): the note's name, the folder, who reads it. One yes is for one note.</p>
     <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">

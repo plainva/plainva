@@ -9,8 +9,10 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { Check } from "lucide-react";
 import { cx } from "./cx";
 import { useOutsidePress } from "./useOutsidePress";
+import { ICON } from "../../lib/iconSizes";
 import { useStableHandler } from "../../lib/useStableHandler";
 
 /**
@@ -19,8 +21,9 @@ import { useStableHandler } from "../../lib/useStableHandler";
  * --shadow-2, --z-menu) + .pv-menu-item rows. Two anchor modes:
  *   anchorRef — opens below/above an element (dropdown pattern)
  *   at        — opens at a point, viewport-clamped (context-menu pattern)
- * Closes on a press outside, Escape, scroll and resize (same contract as the
- * previous DropdownMenu, which now renders through this surface).
+ * Closes on a press outside, Escape, resize and a scroll that moves what it
+ * hangs on — any scroll for a menu at a point (same contract as the previous
+ * DropdownMenu, which now renders through this surface).
  *
  * This is the one place `.pv-menu` is drawn. A menu drawn by hand has the
  * look and none of the contract: the two that existed until 2026-10-11 did
@@ -48,6 +51,12 @@ export interface MenuSurfaceProps {
   matchAnchorWidth?: boolean;
   ariaLabel?: string;
   className?: string;
+  /**
+   * What the list depends on, for a menu whose entries change while it is
+   * open — the commands that fit what is typed: when it changes, the menu is
+   * measured and placed again. A menu is otherwise placed once.
+   */
+  remeasure?: unknown;
   /**
    * Whether opening moves focus into the menu (default true).
    *
@@ -154,11 +163,14 @@ export function MenuSurface({
   matchAnchorWidth = false,
   ariaLabel,
   className,
+  remeasure,
   autoFocus = true,
   children,
 }: MenuSurfaceProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number; fit: number | null } | null>(null);
+  /** Where what it hangs on stood when the menu was last placed: a scroll that moved it from there closes the menu. */
+  const placedAgainst = useRef<{ top: number; left: number } | null>(null);
 
   // Measure after render, then clamp/flip into the viewport.
   useLayoutEffect(() => {
@@ -169,6 +181,7 @@ export function MenuSurface({
     const el = ref.current;
     if (!el) return;
     const r = anchorRef?.current?.getBoundingClientRect();
+    placedAgainst.current = r ? { top: r.top, left: r.left } : null;
     // The anchor's width is taken on before the menu is measured: how wide the
     // menu is decides where it fits.
     const fit = matchAnchorWidth && r ? r.width : null;
@@ -194,7 +207,7 @@ export function MenuSurface({
     top = Math.min(Math.max(MARGIN, top), Math.max(MARGIN, window.innerHeight - h - MARGIN));
     setPos({ left, top, fit });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, remeasure]);
 
   // Roving focus starts on the first enabled item — once the menu stands where
   // it belongs. Until `pos` is set it is `visibility: hidden`, and a hidden
@@ -316,9 +329,29 @@ export function MenuSurface({
     // only page/anchor scroll dismisses. scroll doesn't bubble, but a capturing
     // window listener also receives the menu's own descendant scroll, which used
     // to close it on the first wheel delta (making a scrollable menu unusable).
+    // A menu that hangs on an element closes when that element moves. A scroll of the page or of a pane that holds
+    // it moves it at once; anything else that scrolls — a conversation beside it that follows what arrives, the
+    // element's own content, an editor a toolbar follows from outside — closes it where the element has moved from
+    // where the menu was placed, two frames on: what follows a scroll by script moves in a frame of its own. A menu
+    // at a point closes on any scroll.
+    const anchor = anchorRef?.current ?? null;
+    let check = 0;
     const onScroll = (e: Event) => {
-      if (ref.current && e.target instanceof Node && ref.current.contains(e.target)) return;
-      closeFor("scroll");
+      const target = e.target instanceof Node ? e.target : null;
+      if (ref.current && target && ref.current.contains(target)) return;
+      if (!anchor || !target || (target !== anchor && target.contains(anchor))) {
+        closeFor("scroll");
+        return;
+      }
+      if (check) return;
+      check = requestAnimationFrame(() => {
+        check = requestAnimationFrame(() => {
+          check = 0;
+          const now = anchor.getBoundingClientRect();
+          const at = placedAgainst.current;
+          if (!anchor.isConnected || !at || now.top !== at.top || now.left !== at.left) closeFor("scroll");
+        });
+      });
     };
     const onKey = (e: KeyboardEvent) => {
       // While an input method composes, Escape is its own (it gives up the composition).
@@ -345,16 +378,28 @@ export function MenuSurface({
     document.addEventListener("contextmenu", onCtx);
     return () => {
       cancelAnimationFrame(frame);
+      if (check) cancelAnimationFrame(check);
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", close);
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("contextmenu", onCtx);
     };
-  }, [open, closeFor]);
+  }, [open, closeFor, anchorRef]);
 
   // A press anywhere but on the menu and on what it hangs on — the anchor's
   // own press is the anchor's to answer.
   useOutsidePress(open, () => closeFor("press"), ref, anchorRef);
+
+  // A menu that completes a field leaves the field its focus wherever it is
+  // pressed — an entry, a heading, a gap between rows: a press that took the
+  // focus would close the list before the pick lands.
+  useEffect(() => {
+    const el = ref.current;
+    if (!open || autoFocus || !el) return;
+    const keep = (e: MouseEvent) => e.preventDefault();
+    el.addEventListener("mousedown", keep);
+    return () => el.removeEventListener("mousedown", keep);
+  }, [open, autoFocus]);
 
   if (!open) return null;
 
@@ -428,6 +473,21 @@ export interface MenuItemButtonProps extends ButtonHTMLAttributes<HTMLButtonElem
   onSelect?: () => void;
   keepOpen?: boolean;
   /**
+   * A choice: a value of a set (`role="menuitemradio"`) or a switch
+   * (`role="menuitemcheckbox"`). The entry carries a tick when it is the one
+   * chosen or switched on, and a free slot of the same width when not, so that
+   * no label moves when the tick does; `aria-checked` follows. Never `active`
+   * for this — that is the row the arrow keys are on.
+   */
+  checked?: boolean;
+  /**
+   * The direction of the row's words: `auto` where they are all a stranger's —
+   * an agent's values, its commands —, set by their first strong letter and
+   * isolated from the menu around them. The app's own rows, which may begin
+   * with a value of the user's, keep the menu's direction.
+   */
+  textDir?: "auto";
+  /**
    * Highlighted without holding focus.
    *
    * Only for a menu opened with `autoFocus={false}`: there the keyboard lives in
@@ -444,27 +504,59 @@ export function MenuItem({
   onSelect,
   keepOpen,
   active,
+  checked,
+  textDir,
   className,
   children,
   onClick,
+  role,
   ...rest
 }: MenuItemButtonProps) {
   const ctx = useContext(MenuCtx);
+  const self = useRef<HTMLButtonElement | null>(null);
+  // The row the arrow keys are on stays in sight in a list that scrolls — only the list moves.
+  useEffect(() => {
+    const el = self.current;
+    const list = el?.closest<HTMLElement>(".pv-menu");
+    if (!active || !el || !list) return;
+    const top = el.offsetTop;
+    const bottom = top + el.offsetHeight;
+    if (top < list.scrollTop) list.scrollTop = top;
+    else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+  }, [active]);
+  // An entry that waits keeps the keyboard, as a disabled entry of a menu does, and takes no pick.
+  const waits = rest["aria-disabled"] === true || rest["aria-disabled"] === "true";
   return (
     <button
+      ref={self}
       type="button"
-      role="menuitem"
+      // A choice is a value of a set or a switch, as the caller says; a switch where it says nothing.
+      role={role ?? (checked === undefined ? "menuitem" : "menuitemcheckbox")}
       className={cx("pv-menu-item", danger && "pv-menu-item--danger", active && "is-active", className)}
       onClick={(e) => {
+        if (waits) return;
         onClick?.(e);
         onSelect?.();
         if (!keepOpen) ctx?.onClose();
       }}
       {...rest}
+      // The tick and what a reader hears of it are one fact.
+      {...(checked === undefined ? {} : { "aria-checked": checked })}
     >
+      {checked !== undefined ? (
+        <span className="pv-menu-ic pv-menu-tick" aria-hidden="true">
+          {checked ? <Check size={ICON.ui} /> : null}
+        </span>
+      ) : null}
       {icon ? <span className="pv-menu-ic">{icon}</span> : null}
-      <span className="pv-menu-text">{children}</span>
-      {hint ? <span className="pv-menu-hint">{hint}</span> : null}
+      <span className="pv-menu-text" dir={textDir}>
+        {children}
+      </span>
+      {hint ? (
+        <span className="pv-menu-hint" dir={textDir}>
+          {hint}
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -473,6 +565,16 @@ export function MenuSeparator() {
   return <div role="separator" className="pv-menu-sep" />;
 }
 
-export function MenuLabel({ children }: { children: ReactNode }) {
-  return <div className="pv-menu-label">{children}</div>;
+/**
+ * A heading in a menu. `kind`: `said` for a stranger's words — an agent's
+ * group or setting (plan KI-Harness P9-7) —, quieter and never in the
+ * capitals of the app's own headings; `note` for a sentence of the app's at
+ * the foot of a list, which is no heading.
+ */
+export function MenuLabel({ children, kind }: { children: ReactNode; kind?: "said" | "note" }) {
+  return (
+    <div className={cx("pv-menu-label", kind && `pv-menu-label--${kind}`)} dir={kind === "said" ? "auto" : undefined}>
+      {children}
+    </div>
+  );
 }

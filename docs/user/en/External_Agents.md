@@ -1,6 +1,6 @@
 # External agents (Beta)
 
-Last reviewed: 2026-10-07
+Last reviewed: 2026-10-26
 
 An external agent is an AI program of another maker — an agent you installed on your computer and signed in to yourself, with your own subscription or key. Plainva can start such an agent in the folder of a vault and show its session in the AI tab. This is part of the experimental AI features and works on the desktop only.
 
@@ -46,6 +46,8 @@ Type what the agent should do. The note you have open is named to the agent — 
 
 When the agent wants your leave for a step, **⟨agent⟩ asks** shows it. The words are the agent's own, and the choices are the ones the agent offers — **Allow**, **Always allow**, **Reject**, **Always reject**. Your answer goes to the agent only: what it does after a yes is its own doing, and an "always" is the agent's promise to keep, not Plainva's.
 
+**Settings and commands.** Where the agent offers them, the foot of the session shows its own settings: its mode and its model as buttons — **⟨setting⟩: ⟨value⟩** —, the rest behind the sliders button **More settings of ⟨agent⟩**. Each of their menus begins with Plainva's own heading — **⟨setting⟩ of ⟨agent⟩**, or **More settings of ⟨agent⟩** —; below it, names, values and descriptions are the agent's own, in its order: the current value with a tick, a switch as an entry with or without one. Wherever the agent's words stand in a heading or a sentence of Plainva's, they are set apart in quiet italics, never in the heading's capitals. Each session starts with the agent's defaults. A setting changes how the agent works, not what Plainva lets through: reading and writing through Plainva follow the same rules whatever the mode, and a mode in which the agent asks nothing more saves none of Plainva's own steps. What the agent does with its own tools is outside Plainva in every mode. When the agent changes a setting by itself, the session says so: **The agent set “⟨setting⟩” to “⟨value⟩” itself.** What it changes along with a change of yours, the session names as such — **With it, the agent set “⟨setting⟩” to “⟨value⟩”.** —, and a change the agent did not make, too: **The agent did not change “⟨setting⟩”.** While a change waits for the agent, a spinner turns beside the settings, and they take no press until it answers. Typing **/** at the start of a message lists the agent's own commands under **Commands of ⟨agent⟩**, with what it says they do: the arrow keys move through the list, Enter or Tab takes a command, and Escape closes the list. A command is a message that begins with its name; where the agent says what goes after it, that stands under the field until you type on. What a command does is the agent's matter.
+
 **Stop** ends the answer the agent is working on.
 
 ## What the agent writes
@@ -69,5 +71,5 @@ If the agent's program ends by itself, the session says so, and **Show its last 
 - Desktop only, and in the main window only. On the phone there is Plainva's own assistant.
 - Not in an encrypted workspace.
 - One session at a time, and no history: a session that ended cannot be opened again.
-- An agent's own modes, models and commands cannot be chosen from Plainva, and pictures cannot be sent to it.
+- Pictures cannot be sent to an agent, and Plainva does not carry a mode or model chosen in a session over to the next one.
 - So far this has been tried with a test agent of Plainva's own only. Which agents work here, and which of them hand their changes to Plainva, shows when you try them — feedback is welcome.

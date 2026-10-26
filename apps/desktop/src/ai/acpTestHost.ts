@@ -282,7 +282,7 @@ export const acpLabel = (key: string, vars?: Record<string, string>) => (vars ? 
 /** The controller over a scripted native side and a vault in memory, with one agent added ("gemini") unless the test adds its own. */
 export async function acpHarness(
   script: AcpScript = () => ({}),
-  options: { vault?: MemoryAcpVault | null; add?: boolean; toolbox?: AcpMcpServer | null; label?: (key: string, vars?: Record<string, string>) => string; resting?: () => boolean } = {},
+  options: { vault?: MemoryAcpVault | null; add?: boolean; agentLabel?: string; toolbox?: AcpMcpServer | null; label?: (key: string, vars?: Record<string, string>) => string; resting?: () => boolean } = {},
 ): Promise<AcpHarness> {
   const native = scriptedAcpNative(script);
   native.installed = { gemini: "/usr/bin/gemini", "codex-acp": "/usr/local/bin/codex-acp" };
@@ -319,7 +319,7 @@ export async function acpHarness(
   agents.attach(vault ? vault.side : null);
   await settle();
   if (options.add !== false) {
-    await agents.add("Gemini CLI", { program: "gemini", args: ["--acp"] }, { title: "Add", message: "Trust it?", confirm: "Add", cancel: "Cancel" });
+    await agents.add(options.agentLabel ?? "Gemini CLI", { program: "gemini", args: ["--acp"] }, { title: "Add", message: "Trust it?", confirm: "Add", cancel: "Cancel" });
     await settle();
   }
   return harness;

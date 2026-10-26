@@ -1,6 +1,6 @@
 # Externe Agenten (Beta)
 
-Stand: 2026-10-07
+Stand: 2026-10-26
 
 Ein externer Agent ist ein KI-Programm eines anderen Herstellers — ein Agent, den Du auf Deinem Rechner installiert und bei dem Du Dich selbst angemeldet hast, mit Deinem eigenen Abo oder Schlüssel. Plainva kann so einen Agenten im Ordner eines Vaults starten und seine Sitzung im KI-Tab zeigen. Das gehört zu den experimentellen KI-Funktionen und geht nur am Desktop.
 
@@ -46,6 +46,8 @@ Schreib, was der Agent tun soll. Die Notiz, die Du offen hast, wird dem Agenten 
 
 Will der Agent Deine Erlaubnis für einen Schritt, zeigt **⟨Agent⟩ fragt** ihn. Die Worte sind die des Agenten, und zur Wahl steht, was der Agent anbietet — **Erlauben**, **Immer erlauben**, **Ablehnen**, **Immer ablehnen**. Deine Antwort geht nur an den Agenten: was er nach einem Ja tut, ist seine Sache, und ein „immer“ ist ein Versprechen, das der Agent hält, nicht Plainva.
 
+**Einstellungen und Befehle.** Wo der Agent sie anbietet, zeigt der Fuß der Sitzung seine eigenen Einstellungen: seinen Modus und sein Modell als Schaltflächen — **⟨Einstellung⟩: ⟨Wert⟩** —, den Rest hinter der Regler-Schaltfläche **Weitere Einstellungen von ⟨Agent⟩**. Jedes ihrer Menüs beginnt mit Plainvas eigener Überschrift — **⟨Einstellung⟩ von ⟨Agent⟩** oder **Weitere Einstellungen von ⟨Agent⟩** —; darunter sind Namen, Werte und Beschreibungen die des Agenten, in seiner Reihenfolge: der aktuelle Wert mit einem Haken, ein Schalter als Eintrag mit oder ohne Haken. Wo die Worte des Agenten in einer Überschrift oder einem Satz von Plainva stehen, sind sie in ruhiger Kursivschrift abgesetzt, nie in den Großbuchstaben der Überschrift. Jede Sitzung beginnt mit den Vorgaben des Agenten. Eine Einstellung ändert, wie der Agent arbeitet, nicht, was Plainva durchlässt: Lesen und Schreiben über Plainva folgen in jedem Modus denselben Regeln, und ein Modus, in dem der Agent nichts mehr fragt, erspart keinen von Plainvas eigenen Schritten. Was der Agent mit seinen eigenen Werkzeugen tut, liegt in jedem Modus außerhalb von Plainva. Ändert der Agent eine Einstellung selbst, sagt es die Sitzung: **Der Agent hat „⟨Einstellung⟩“ selbst auf „⟨Wert⟩“ gestellt.** Was er zusammen mit einer Änderung von Dir umstellt, nennt sie als solches — **Damit hat der Agent „⟨Einstellung⟩“ auf „⟨Wert⟩“ gestellt.** —, und eine Änderung, die er nicht vorgenommen hat, ebenso: **Der Agent hat „⟨Einstellung⟩“ nicht geändert.** Solange eine Änderung auf den Agenten wartet, dreht sich neben den Einstellungen ein Kreis, und sie nehmen nichts an, bis er antwortet. Ein **/** am Anfang einer Nachricht listet unter **Befehle von ⟨Agent⟩** die eigenen Befehle des Agenten mit dem, was sie laut ihm tun: Die Pfeiltasten gehen durch die Liste, Enter oder Tab übernehmen einen Befehl, Escape schließt die Liste. Ein Befehl ist eine Nachricht, die mit seinem Namen beginnt; wo der Agent sagt, was danach kommt, steht das unter dem Feld, bis Du weiterschreibst. Was ein Befehl tut, ist Sache des Agenten.
+
 **Stopp** beendet die Antwort, an der der Agent gerade arbeitet.
 
 ## Was der Agent schreibt
@@ -69,5 +71,5 @@ Endet das Programm des Agenten von selbst, sagt die Sitzung das, und **Seine let
 - Nur am Desktop und nur im Hauptfenster. Am Telefon gibt es Plainvas eigenen Assistenten.
 - Nicht in einem verschlüsselten Workspace.
 - Eine Sitzung zur selben Zeit, und kein Verlauf: eine beendete Sitzung lässt sich nicht wieder öffnen.
-- Die eigenen Modi, Modelle und Befehle eines Agenten lassen sich aus Plainva nicht wählen, und Bilder lassen sich nicht an ihn senden.
+- Bilder lassen sich nicht an einen Agenten senden, und einen Modus oder ein Modell, das Du in einer Sitzung wählst, übernimmt Plainva nicht in die nächste.
 - Bisher wurde das nur mit einem eigenen Test-Agenten von Plainva ausprobiert. Welche Agenten hier funktionieren und welche ihre Änderungen an Plainva geben, zeigt sich, wenn Du sie ausprobierst — Rückmeldungen sind willkommen.

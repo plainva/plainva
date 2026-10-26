@@ -2006,6 +2006,23 @@
       "placeholder": "给 {{agent}} 的消息…",
       "empty": "告诉 {{agent}} 要做什么。它在这个仓库的文件夹中工作。",
       "plan": "智能体的计划",
+      "placeholderCommands": "给 {{agent}} 的消息… — 输入 / 查看它的命令",
+      "config": {
+        "value": "{{setting}}：{{value}}",
+        "owned": "{{label}}（{{agent}} 的设置）",
+        "mode": "模式",
+        "more": "{{agent}} 的更多设置",
+        "menu": "{{agent}} 的{{setting}}",
+        "tip": "这是 {{agent}} 的设置：它改变 {{agent}} 的工作方式，不改变Plainva放行的内容。{{agent}} 用自己的工具所做的事，在任何模式下都不经过Plainva。",
+        "described": "它改变 {{agent}} 的工作方式，不改变Plainva放行的内容。{{agent}} 用自己的工具所做的事，在任何模式下都不经过Plainva。",
+        "describedMore": "它们改变 {{agent}} 的工作方式，不改变Plainva放行的内容。{{agent}} 用自己的工具所做的事，在任何模式下都不经过Plainva。",
+        "changing": "{{agent}} 正在更改设置…"
+      },
+      "commands": {
+        "label": "{{agent}} 的命令",
+        "hint": "{{agent}} 对 /{{command}} 的提示：{{hint}}",
+        "more_other": "还有 {{count}} 个 — 继续输入可缩小范围"
+      },
       "toolOutside": "仓库之外：{{count}}",
       "kind": {
         "read": "读取",
@@ -2053,6 +2070,15 @@
         "noteKept": "没有向智能体提及 {{note}}：这篇笔记被排除在云端或互联网之外。",
         "failed": "智能体未能完成这一步。",
         "failedSaid": "智能体未能完成这一步。它的说明：{{message}}",
+        "setting": "智能体自行把“{{setting}}”设为“{{value}}”。",
+        "settingOn": "智能体自行打开了“{{setting}}”。",
+        "settingOff": "智能体自行关闭了“{{setting}}”。",
+        "settingAlong": "随之，智能体把“{{setting}}”设为“{{value}}”。",
+        "settingOnAlong": "随之，智能体打开了“{{setting}}”。",
+        "settingOffAlong": "随之，智能体关闭了“{{setting}}”。",
+        "settingRefused": "智能体没有更改“{{setting}}”。",
+        "settingRefusedSaid": "智能体没有更改“{{setting}}”。它的说明：{{message}}",
+        "settingRefusedSignIn": "智能体没有更改“{{setting}}”：它要求先在它自己的程序中登录。",
         "stopped": {
           "max_tokens": "智能体已停止：它的模型达到了上限。",
           "max_turn_requests": "智能体已停止：它达到了步骤数上限。",

@@ -142,6 +142,34 @@ export function acpCommandText(program: string, args: readonly string[]): string
   return [program, ...args].map(part).join(" ");
 }
 
+/**
+ * One part of a command for a shell of the user's own, read under sh as the
+ * native sign-in's `sh_quote` (`login.rs`) is read, and alike by bash, zsh
+ * and fish: in single quotes, each single quote of its own closed, escaped
+ * and reopened, and each backslash — which fish reads as an escape even in
+ * single quotes — moved into double quotes between them.
+ */
+function shQuote(part: string): string {
+  return `'${part.replace(/['\\]/g, (char) => (char === "'" ? "'\\''" : "'\"\\\\\"'"))}'`;
+}
+
+/**
+ * The sign-in a person runs in a terminal of their own where none could be
+ * opened — on macOS and Linux; Windows opens a console itself. In its parts,
+ * as the native script runs it (`login_script` in `login.rs`): into the
+ * vault's folder, the method's values set (in their names' order), the
+ * registered program with its arguments and the method's — every part quoted
+ * so that a shell reads it as the script's `sh` does, and what is copied and
+ * pasted runs as it is shown: nothing in it expands or is read as the shell's
+ * own.
+ */
+export function acpSignInCommand(folder: string, program: string, args: readonly string[], env: Readonly<Record<string, string>>): string[] {
+  const values = Object.entries(env)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([name, value]) => `${name}=${shQuote(value)}`);
+  return ["cd", shQuote(folder), "&&", ...values, shQuote(program), ...args.map(shQuote)];
+}
+
 /** A label the user gave an agent: one line, cleaned, short. */
 export function acpAgentLabel(raw: unknown, fallback: string): string {
   return capMcpText(raw, 60).text.replace(/\s+/g, " ").trim() || fallback;

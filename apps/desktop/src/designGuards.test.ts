@@ -384,6 +384,16 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-agent-start": "layout only — a column of text, a Select and a primary Button the themes already restyle",
   "pv-agent-heading": "a text run in --text-main; the themes override that token",
   "pv-agent-facts": "a list of sentences in --text-main; the themes override that token",
+  "pv-agent-settings": "layout only — a wrapping row of ghost Buttons and an IconButton the themes already restyle",
+  "pv-agent-setting-text": "layout only — the text of such a Button cut short with an ellipsis",
+  "pv-agent-command-hint": "text only — one faint line under the composer's field in the text tokens the themes already set",
+  "pv-menu-tick": "layout only — the width of a MenuItem's icon slot; the tick is the themes' icon colour",
+  "pv-menu-label--said": "text only — a MenuLabel without capitals, in italics and the muted text token the themes set",
+  "pv-menu-label--note": "text only — a MenuLabel without capitals",
+  "pv-agent-settings-status": "layout only — the spinner at the end of the settings row; its words are for a screen reader",
+  "pv-said": "text only — italics for a stranger's words inside the app's own sentences, in the colours around them",
+  "pv-sr-only": "invisible by design — text a screen reader hears and no theme draws",
+  "pv-menu--described": "layout only — how the name and the hint of a MenuItem share its row; the menu's look is the themes' own",
   "pv-related-row": "layout only — see pv-related",
   "pv-related-head": "layout only — see pv-related",
   "pv-related-main": "a placement class on a ghost Button the themes already restyle",
@@ -516,5 +526,69 @@ describe("theme coverage (LCARS + Win95 dock onto every pv surface)", () => {
     const ui = sourceFile(STYLE_FILES.ui);
     const stale = Object.keys(THEME_EXEMPT).filter((s) => !ui.includes(`.${s}`));
     expect(stale, `remove stale THEME_EXEMPT entries: ${stale.join(", ")}`).toEqual([]);
+  });
+});
+
+/**
+ * Plan KI-Harness P9-7: a control whose change waits keeps the keyboard (`aria-disabled`) and takes no press — so it
+ * shows no hover and no press either, in the base layer and in every theme.
+ */
+/** Splits at a separator that stands outside parentheses and brackets: `:not(a, b)` and `[x="a b"]` stay whole. */
+function topLevel(text: string, separator: RegExp): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const char of text) {
+    if (char === "(" || char === "[") depth++;
+    else if (char === ")" || char === "]") depth--;
+    if (depth === 0 && separator.test(char)) {
+      parts.push(current);
+      current = "";
+    } else current += char;
+  }
+  parts.push(current);
+  return parts.map((part) => part.trim()).filter(Boolean);
+}
+
+/**
+ * Of a stylesheet, each selector whose hover or press falls on a button of
+ * any kind, an icon button or a menu entry without leaving out one that waits:
+ * read compound by compound — the one with the hover must be the control's
+ * and must carry `:not([aria-disabled="true"])` (alone or in a list, in
+ * either quotes); an ancestor's exclusion is none.
+ */
+function unguardedPresses(css: string): string[] {
+  const out: string[] = [];
+  const clean = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const head of clean.matchAll(/([^{}]+)\{/g)) {
+    for (const selector of topLevel(head[1]!, /,/)) {
+      for (const compound of topLevel(selector.replace(/\s*[>+~]\s*/g, " "), /\s/)) {
+        if (!/:(?:hover|active)\b/.test(compound) || !/\.(?:pv-btn|pv-iconbtn|pv-menu-item)\b/.test(compound)) continue;
+        if (!/:not\([^)]*\[aria-disabled=(["'])true\1\]/.test(compound)) out.push(selector);
+      }
+    }
+  }
+  return out;
+}
+
+describe("a control that waits (aria-disabled) shows no hover and no press", () => {
+  it("guards every hover and press of a button of any kind, an icon button and a menu entry", () => {
+    const sheets = [STYLE_FILES.ui, ...themeFiles().filter((rel) => rel.endsWith(".css"))];
+    expect(sheets.flatMap((rel) => unguardedPresses(sourceFile(rel)).map((selector) => `${rel}: ${selector}`))).toEqual([]);
+  });
+
+  it("reads a selector compound by compound, as the browser does", () => {
+    const css = [
+      `.pv-btn--primary:hover:not(:disabled) {}`,
+      `.pv-btn:not(:disabled):hover {}`,
+      `:is(.pv-btn, .pv-chip):hover {}`,
+      `.pv-menu:not([aria-disabled="true"]) .pv-menu-item:hover {}`,
+      `.pv-btn--ghost:hover:not(:disabled):not([aria-disabled="true"]) {}`,
+      `.pv-btn:active:not(:disabled, [aria-disabled="true"]) {}`,
+      `.pv-iconbtn:hover:not([aria-disabled='true']) {}`,
+      `.pv-tabbar:hover .pv-iconbtn {}`,
+      `.pv-menu-item:hover:not([aria-disabled="true"]) .pv-menu-ic {}`,
+    ].join("\n");
+    expect(unguardedPresses(css)).toEqual([".pv-btn--primary:hover:not(:disabled)", ".pv-btn:not(:disabled):hover", ":is(.pv-btn, .pv-chip):hover", '.pv-menu:not([aria-disabled="true"]) .pv-menu-item:hover']);
   });
 });

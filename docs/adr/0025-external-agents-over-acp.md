@@ -59,13 +59,117 @@ An agent hosted this way is a different kind of thing from everything else in th
 
 ## Deferred, and why
 
-- An agent's modes, models, configuration options and slash commands; images and audio in a prompt. An agent's thoughts are not shown.
+- Images and audio in a prompt. An agent's thoughts are not shown. (Its modes, models, configuration options and commands, deferred here at first, came with plan P9-7 — see the addendum.)
+- Keeping a session's choice of mode or model for the agent's next session.
 - A history of sessions and loading an earlier one (`session/load`).
 - Withdrawing an agent's earlier round when a later turn changes the same note: today both stand, and the later one is against the note as it is.
 - Deleting and moving through the host, for which the protocol has no request. (Proposals for a note's properties, deferred here at first, came with the writing classes of the plan — decision 4.)
 - A fenced mode (see Alternatives).
 
+## Addendum 2026-10-26: settings, modes and commands (plan P9-7)
+
+An agent may offer the user settings for its session — a mode, a model, a
+level of thought, its own — and commands of its own. The desktop shows them,
+under the same rule as everything else the agent says: they are its words,
+and they change what the agent does, never what Plainva does at its side.
+
+1. **What is read.** A session's settings come from `session/new`
+   (`configOptions`), from the agent's answer to a change and from its
+   reports (`config_option_update`), always as the whole list, in the
+   agent's order. Plainva reads a choice among values (flat or in groups)
+   and a switch, and declares that it can show a switch
+   (`clientCapabilities.session.configOptions.boolean`). A setting of a kind
+   it does not know, or whose current value is not among its values, is
+   left out — the agent keeps its own. Where an agent sends settings, the
+   older modes (`modes`, `session/set_mode`, `current_mode_update`) are
+   ignored, as the protocol says; only where it sends none do they stand in.
+   Names, values and descriptions are a stranger's text: cleaned, cut, one
+   line each; a name the agent left empty falls back to its id, cleaned the
+   same way. Reports that arrive before the answer to `session/new` wait
+   until its id is known — of the settings, the commands and the mode only
+   the newest of each kind, since each carries the whole of it; no other
+   report takes their place, and reports for more than a few sessions are
+   not kept. The answer's settings reach the session where the answer is
+   read, before what the agent reports right behind it.
+2. **What is sent.** A change goes to the agent only for a setting and a
+   value it offered — like an option of its question, nothing else is a
+   choice (`setConfigOption`, `setMode` refuse without asking). What the
+   agent answers is what the session shows, and it counts where the agent's
+   messages put it: a report the agent sends right behind its answer comes
+   after it, also when both are read at once (the connection hands an answer
+   over where it reads it, `onResult`). A change has no time limit — the
+   protocol cannot withdraw one. Where the agent refuses, the setting stays
+   as it said and the thread names its refusal in its words; where it
+   answers and leaves the setting as it was, the thread says that it did not
+   change it; where it wants a sign-in first, the thread says so in
+   Plainva's words. A change Plainva did not send — a value no longer offered
+   — is nothing the agent declined, and no line. A report of exactly the
+   asked value answers it for what goes along, also before the answer
+   proper; the answer proper alone judges the asked setting — where it leaves
+   it where it stood, the agent did not make the change.
+3. **What changes.** A mode, a model or any other setting changes how the
+   agent works. What Plainva lets through at its side — a file read through
+   it under the vault's rules, a write that becomes a suggestion or a draft,
+   no terminal — it decides at every request, the same in every mode; a mode
+   in which the agent asks nothing more saves none of Plainva's own steps.
+   The mode and model buttons say so in their tip, every button in its
+   description — read after its name, which says already whose setting it
+   is —, the guide in words, and all of them say that what the agent does
+   with its own tools is outside Plainva in every mode. Each menu and the
+   list of commands begin with Plainva's own heading — "⟨setting⟩ of
+   ⟨agent⟩", "More settings of ⟨agent⟩", "Commands of ⟨agent⟩" —, and each
+   button's name begins with what it shows and says whose setting it is
+   ("Mode: Ask, a setting of ⟨agent⟩"). No word passes through the
+   interpolation of a sentence of Plainva's in the agent's place — a
+   heading, a button's name or tip, a line of the thread, a step's line, the
+   reason a session ended, the hint under the field —: words go in as parts
+   of their own, numbers as they are, for the plural; the agent's are drawn
+   apart in quiet italics and isolated in their direction, never in a
+   heading's capitals, a note's name is isolated in its direction, and
+   Plainva's and the user's words are the sentence's text — i18next puts a
+   value that holds a placeholder of the same sentence in the wrong place. A
+   name with "{{agent}}" in it stays a name, and a name that closes
+   Plainva's quote stays inside it: the agent's words stand beside
+   Plainva's, never in their place. Where an agent offers its modes in the
+   older way, Plainva names the setting in its own word. A question's files
+   stand each in its own direction. The command a sign-in shows to be
+   copied, where no terminal opens, is what the native script runs — into
+   the vault's folder, the method's values set, every part quoted so that
+   sh, bash, zsh and fish read it alike and nothing in it expands —, each
+   part in its own direction; a sign-in in a terminal whose arguments or
+   values hold a character a person cannot see or one that turns text
+   around is not offered.
+4. **What the agent does itself.** A setting the agent changes on its own —
+   reported, not asked for — is named in the thread in its words ("The
+   agent set … itself"), so that a mode that waives a question of the
+   agent's own does not pass unseen; so is the asked setting where the
+   agent answers with another value than asked. What changes in its answer
+   beside the asked setting goes with the user's change and is named as
+   such ("With it, the agent set …"). A setting turned back and forth with
+   nothing between — nothing else in the thread, no text, thought, step,
+   plan, question or file of the agent's, no change of the user's — leaves
+   one line, its last word, kept apart from others by the setting's id: two
+   settings of the same name stay two.
+5. **Commands.** The agent's commands (`available_commands_update`, each
+   report the whole list) are offered while a message begins with "/" and
+   the name is being typed — at most twelve, the rest counted —; a command
+   is the message itself, sent as text. Where the agent says what goes after
+   a command (`input.hint`), that stands under the field once it is taken,
+   in the agent's words, until the user types on. A name is one word of
+   letters and digits in any script, then also marks and `_ . : -`, at most
+   64 characters; one a message cannot begin with — a blank, a control,
+   invisible or ignorable character, a symbol, more than three marks in a
+   row, more than one word — is left out. A name is judged and told apart
+   in NFC and kept as the agent spells it: that is the name it recognises,
+   and a message that begins with it in another spelling goes in the
+   agent's. What a command does is the agent's.
+6. **Not kept.** Every session starts with the agent's own defaults; a choice
+   is not remembered for the agent's next session (a deferred point).
+
+The phone has no external agents (the parity catalog's decision); nothing
+of this exists there.
+
 ## Links
 
-- [External agents — architecture](../engineering/External_Agents.md), [AI threat model](../engineering/AI_Threat_Model.md) T30–T32.
+- [External agents — architecture](../engineering/External_Agents.md), [AI threat model](../engineering/AI_Threat_Model.md) T30–T32 and T86.
 - ADR 0017, 0018, 0019, 0022, 0023, 0024; Agent Client Protocol, protocol version 1.

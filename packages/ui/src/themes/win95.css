@@ -108,10 +108,10 @@
     inset -2px -2px 0 #808080,
     inset 2px 2px 0 #DFDFDF;
 }
-[data-theme-name="win95"] .pv-btn:active,
-[data-theme-name="win95"] .pv-btn--primary:active,
-[data-theme-name="win95"] .pv-btn--secondary:active,
-[data-theme-name="win95"] .pv-btn:active {
+[data-theme-name="win95"] .pv-btn:active:not([aria-disabled="true"]),
+[data-theme-name="win95"] .pv-btn--primary:active:not([aria-disabled="true"]),
+[data-theme-name="win95"] .pv-btn--secondary:active:not([aria-disabled="true"]),
+[data-theme-name="win95"] .pv-btn:active:not([aria-disabled="true"]) {
   box-shadow:
     inset -1px -1px 0 #FFFFFF,
     inset 1px 1px 0 #0A0A0A,
@@ -165,14 +165,14 @@
     inset 2px 2px 0 #FFFFFF,
     var(--shadow-2);
 }
-[data-theme-name="win95"] .pv-menu-item:hover:not(:disabled),
+[data-theme-name="win95"] .pv-menu-item:hover:not(:disabled):not([aria-disabled="true"]),
 [data-theme-name="win95"] .pv-menu-item:focus-visible {
   background: #000080;
   color: #FFFFFF;
 }
-[data-theme-name="win95"] .pv-menu-item:hover:not(:disabled) .pv-menu-ic,
+[data-theme-name="win95"] .pv-menu-item:hover:not(:disabled):not([aria-disabled="true"]) .pv-menu-ic,
 [data-theme-name="win95"] .pv-menu-item:focus-visible .pv-menu-ic,
-[data-theme-name="win95"] .pv-menu-item:hover:not(:disabled) .pv-menu-hint,
+[data-theme-name="win95"] .pv-menu-item:hover:not(:disabled):not([aria-disabled="true"]) .pv-menu-hint,
 [data-theme-name="win95"] .pv-menu-item:focus-visible .pv-menu-hint {
   color: #FFFFFF;
 }
@@ -208,7 +208,7 @@
 [data-theme-name="win95"] .pv-modal-header .pv-iconbtn {
   color: #FFFFFF;
 }
-[data-theme-name="win95"] .pv-modal-header .pv-iconbtn:hover:not(:disabled) {
+[data-theme-name="win95"] .pv-modal-header .pv-iconbtn:hover:not(:disabled):not([aria-disabled="true"]) {
   color: #FFFFFF;
   background: rgba(255, 255, 255, 0.18);
 }
@@ -514,7 +514,7 @@
 [data-theme-name="win95"] .pv-peek-head .pv-peek-btn,
 [data-theme-name="win95"] .pv-peek-head .pv-iconbtn { color: #FFFFFF; }
 [data-theme-name="win95"] .pv-peek-head .pv-peek-btn:hover:not(:disabled),
-[data-theme-name="win95"] .pv-peek-head .pv-iconbtn:hover:not(:disabled) {
+[data-theme-name="win95"] .pv-peek-head .pv-iconbtn:hover:not(:disabled):not([aria-disabled="true"]) {
   background: rgba(255, 255, 255, 0.18);
   color: #FFFFFF;
 }

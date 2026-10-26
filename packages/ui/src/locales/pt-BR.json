@@ -2138,6 +2138,25 @@
       "placeholder": "Mensagem para {{agent}}…",
       "empty": "Diga a {{agent}} o que fazer. Ele trabalha na pasta deste vault.",
       "plan": "Plano do agente",
+      "placeholderCommands": "Mensagem para {{agent}}… — / mostra os comandos dele",
+      "config": {
+        "value": "{{setting}}: {{value}}",
+        "owned": "{{label}}, uma configuração de {{agent}}",
+        "mode": "Modo",
+        "more": "Mais configurações de {{agent}}",
+        "menu": "{{setting}} de {{agent}}",
+        "tip": "Uma configuração de {{agent}}: muda como {{agent}} trabalha, não o que o Plainva deixa passar. O que {{agent}} faz com as próprias ferramentas fica fora do Plainva em qualquer modo.",
+        "described": "Muda como {{agent}} trabalha, não o que o Plainva deixa passar. O que {{agent}} faz com as próprias ferramentas fica fora do Plainva em qualquer modo.",
+        "describedMore": "Mudam como {{agent}} trabalha, não o que o Plainva deixa passar. O que {{agent}} faz com as próprias ferramentas fica fora do Plainva em qualquer modo.",
+        "changing": "{{agent}} está mudando uma configuração…"
+      },
+      "commands": {
+        "label": "Comandos de {{agent}}",
+        "hint": "{{agent}} sobre /{{command}}: {{hint}}",
+        "more_one": "Mais {{count}} — continue digitando",
+        "more_many": "Mais {{count}} — continue digitando",
+        "more_other": "Mais {{count}} — continue digitando"
+      },
       "toolOutside": "fora do vault: {{count}}",
       "kind": {
         "read": "Ler",
@@ -2185,6 +2204,15 @@
         "noteKept": "{{note}} não foi mencionada ao agente: ela é mantida fora da nuvem ou da internet.",
         "failed": "O agente não conseguiu terminar isto.",
         "failedSaid": "O agente não conseguiu terminar isto. Ele diz: {{message}}",
+        "setting": "O agente mudou “{{setting}}” para “{{value}}” por conta própria.",
+        "settingOn": "O agente ativou “{{setting}}” por conta própria.",
+        "settingOff": "O agente desativou “{{setting}}” por conta própria.",
+        "settingAlong": "Junto com isso, o agente mudou “{{setting}}” para “{{value}}”.",
+        "settingOnAlong": "Junto com isso, o agente ativou “{{setting}}”.",
+        "settingOffAlong": "Junto com isso, o agente desativou “{{setting}}”.",
+        "settingRefused": "O agente não mudou “{{setting}}”.",
+        "settingRefusedSaid": "O agente não mudou “{{setting}}”. Ele diz: {{message}}",
+        "settingRefusedSignIn": "O agente não mudou “{{setting}}”: ele pede antes um login no próprio programa dele.",
         "stopped": {
           "max_tokens": "O agente parou: o modelo dele chegou ao limite.",
           "max_turn_requests": "O agente parou: ele chegou ao limite de etapas.",

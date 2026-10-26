@@ -33,6 +33,14 @@ export interface AcpRequestOptions {
   /** Without one a request waits as long as the program runs: a turn of an agent has no fixed length. */
   timeoutMs?: number;
   signal?: AbortSignal;
+  /**
+   * Called with the answer where it is read — before anything the agent sent
+   * behind it, which may be read in the same breath (plan KI-Harness P9-7):
+   * what the caller keeps of it then follows the agent's order. An error it
+   * throws is dropped here and the answer settles all the same: a caller that
+   * has to fail on it reads the answer again where it awaits it.
+   */
+  onResult?(result: Record<string, unknown>): void;
 }
 
 export interface AcpConnection {
@@ -186,6 +194,11 @@ export function createAcpConnection(port: AcpPort, peer: AcpPeer): AcpConnection
         pending.set(id, {
           settle: (result) => {
             done();
+            try {
+              options.onResult?.(result);
+            } catch {
+              // Read again where the answer is awaited, and failed there.
+            }
             resolve(result);
           },
           fail: (failure) => {

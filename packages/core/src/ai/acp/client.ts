@@ -4,20 +4,24 @@ import {
   AcpError,
   AcpRefusal,
   acpInitializeParams,
+  readAcpConfigOptions,
   readAcpFileRead,
   readAcpFileWrite,
   readAcpInitialize,
-  readAcpNewSession,
   readAcpPermissionRequest,
+  readAcpSessionSetup,
   readAcpStopReason,
   readAcpUpdate,
   type AcpClientInfo,
+  type AcpConfigOption,
   type AcpFileRead,
   type AcpFileWrite,
   type AcpMcpServer,
+  type AcpModes,
   type AcpOpened,
   type AcpPermissionRequest,
   type AcpPromptBlock,
+  type AcpSessionOpened,
   type AcpStopReason,
   type AcpUpdate,
 } from "./protocol.js";
@@ -32,11 +36,22 @@ import {
  * the agent it offers none, and a request for one is answered like any method
  * that does not exist. A request that names another session than the one this
  * client opened is refused before a handler sees it.
+ *
+ * What the user may set for the session (plan P9-7) — its settings, or its
+ * modes in the older way — the client keeps as the agent last said them, and
+ * it asks the agent for a change only to a setting and a value the agent
+ * offered: like an option of its question, nothing else is a choice.
  */
 
 export interface AcpHost {
   /** The agent reports what it does. */
   update(update: AcpUpdate): void;
+  /**
+   * The session's settings as the agent's answer to `session/new` names them
+   * (plan P9-7), told where that answer is read: what the agent reports right
+   * behind it is measured against them.
+   */
+  opened?(settings: AcpSessionSettings): void;
   /**
    * The agent asks the user. Resolve with the id of the option the user chose,
    * or with null where they chose none. `signal` ends when the turn is
@@ -62,7 +77,37 @@ export interface AcpTimeouts {
   stop: number;
 }
 
+/**
+ * A change of a setting or a mode (plan P9-7) has no time limit: another model
+ * may have to be reached first, the protocol has no way to call it off, and an
+ * answer that came after a limit would be taken for the agent's own doing.
+ */
 export const ACP_TIMEOUTS: AcpTimeouts = { open: 60_000, session: 300_000, authenticate: 300_000, stop: 10_000 };
+
+/** Reports kept while a session is being opened (plan P9-7): an agent sends a few — its commands, its settings. */
+export const ACP_EARLY_UPDATES = 64;
+/** The sessions whose early reports are kept: one of them will be the session's. */
+export const ACP_EARLY_SESSIONS = 4;
+
+/** Reports that carry the whole of what they report: the newest of each stands for those before it. */
+const WHOLE_STATE: ReadonlySet<AcpUpdate["kind"]> = new Set(["config", "commands", "mode"]);
+
+/** A host's error is its own: what the client keeps stays the agent's word. */
+function tell(call: () => void): void {
+  try {
+    call();
+  } catch {
+    // Nothing to do here: the client's state is already what the agent said.
+  }
+}
+
+/** What the user may set for a session, as the agent last said it. */
+export interface AcpSessionSettings {
+  /** Its settings; null where it offers none. */
+  config: AcpConfigOption[] | null;
+  /** Its modes in the older way, only where it offers no settings. */
+  modes: AcpModes | null;
+}
 
 export interface AcpClientOptions {
   client: AcpClientInfo;
@@ -81,7 +126,17 @@ export interface AcpClient {
   /** Asks the agent to sign in by a method it named itself. */
   authenticate(methodId: string, signal?: AbortSignal): Promise<void>;
   /** Opens the one session of this client. Rejects with the failure "auth" where the agent wants a sign-in first. */
-  newSession(setup: AcpSessionSetup, signal?: AbortSignal): Promise<string>;
+  newSession(setup: AcpSessionSetup, signal?: AbortSignal): Promise<AcpSessionOpened>;
+  /** What the user may set for the session, as the agent last said it. */
+  settings(): AcpSessionSettings;
+  /**
+   * Asks the agent to change one of its settings to one of its values;
+   * resolves with every setting as the agent says it is now. Rejects without
+   * asking where the setting or the value is not one the agent offered.
+   */
+  setConfigOption(configId: string, value: string | boolean, signal?: AbortSignal): Promise<AcpConfigOption[]>;
+  /** Asks the agent to work in another of its modes (the older way). Rejects without asking for a mode it did not offer. */
+  setMode(modeId: string, signal?: AbortSignal): Promise<void>;
   /** One turn: resolves when the agent is done with it, with why it stopped. Stopping the signal stops the turn. */
   prompt(blocks: readonly AcpPromptBlock[], signal?: AbortSignal): Promise<AcpStopReason>;
   /** Ends the program. */
@@ -90,11 +145,29 @@ export interface AcpClient {
   sessionId(): string | null;
 }
 
+/** A setting at the value a bare answer names, where the setting still offers it; as it was where not. */
+function taken(option: AcpConfigOption, value: string | boolean): AcpConfigOption {
+  if (option.type === "boolean") return typeof value === "boolean" ? { ...option, current: value } : option;
+  return typeof value === "string" && option.values.some((offered) => offered.value === value) ? { ...option, current: value } : option;
+}
+
 export function createAcpClient(port: AcpPort, host: AcpHost, options: AcpClientOptions): AcpClient {
   const timeouts = { ...ACP_TIMEOUTS, ...options.timeouts };
   let opened: AcpOpened | null = null;
   let opening: Promise<AcpOpened> | null = null;
   let session: string | null = null;
+  let config: AcpConfigOption[] | null = null;
+  let modes: AcpModes | null = null;
+  /**
+   * Reports that came while the answer to `session/new` was on its way: an
+   * agent may send its commands right behind that answer, and both can be read
+   * before the answer is (plan P9-7). They are kept — a few — until the
+   * session's id is known; then those of this session count, in their order.
+   * A report of the settings, the commands or the mode carries the whole of
+   * it: only the newest of each kind is kept for a session, and no other
+   * report takes its place; reports for more than a few sessions are not kept.
+   */
+  let early: { sessionId: string; update: AcpUpdate }[] | null = null;
   /** The questions the agent waits on: all of them end when the turn is stopped. */
   const asking = new Set<AbortController>();
 
@@ -140,14 +213,38 @@ export function createAcpClient(port: AcpPort, host: AcpHost, options: AcpClient
     notification(method, params) {
       if (method !== "session/update") return;
       const read = readAcpUpdate(params);
-      if (!read || read.sessionId !== session) return;
-      host.update(read.update);
+      if (!read) return;
+      if (session === null) {
+        if (!early) return;
+        const kind = read.update.kind;
+        if (!early.some((kept) => kept.sessionId === read.sessionId) && new Set(early.map((kept) => kept.sessionId)).size >= ACP_EARLY_SESSIONS) return;
+        if (WHOLE_STATE.has(kind)) {
+          early = early.filter((kept) => kept.sessionId !== read.sessionId || kept.update.kind !== kind);
+          early.push(read);
+        } else if (early.filter((kept) => !WHOLE_STATE.has(kept.update.kind)).length < ACP_EARLY_UPDATES) early.push(read);
+        return;
+      }
+      if (read.sessionId === session) take(read.update);
     },
     exit(code) {
       for (const stop of [...asking]) stop.abort();
       host.exit(code);
     },
   });
+
+  /** A report of the session: what it says of the settings is kept, and the host hears it. */
+  const take = (update: AcpUpdate) => {
+    if (update.kind === "config") {
+      config = update.options;
+      // Settings take the place of the older modes from the first report of them on, as the protocol says.
+      modes = null;
+    } else if (update.kind === "mode") {
+      // The older way counts only where the agent offers no settings, and only for a mode it offered.
+      if (config !== null || !modes || !modes.available.some((mode) => mode.id === update.current)) return;
+      modes = { ...modes, current: update.current };
+    }
+    host.update(update);
+  };
 
   const open = (signal?: AbortSignal): Promise<AcpOpened> => {
     if (opened) return Promise.resolve(opened);
@@ -174,13 +271,63 @@ export function createAcpClient(port: AcpPort, host: AcpHost, options: AcpClient
     async newSession(setup, signal) {
       await open(signal);
       if (session !== null) throw new AcpError({ kind: "protocol", detail: "a session is open" });
+      // Each attempt keeps only what comes while it waits.
+      early = [];
+      let answered = false;
+      // The answer takes effect where it is read: what the agent reported before it counts first, then the answer
+      // stands — and the host learns it there, before what the agent reports right behind it.
+      const install = (result: Record<string, unknown>) => {
+        const answer = readAcpSessionSetup(result);
+        answered = true;
+        session = answer.sessionId;
+        const waiting = early ?? [];
+        early = null;
+        for (const read of waiting) if (read.sessionId === session) tell(() => take(read.update));
+        config = answer.config;
+        modes = answer.modes;
+        const settings = { config, modes };
+        tell(() => host.opened?.(settings));
+      };
       const result = await connection.request(
         "session/new",
         { cwd: setup.cwd, mcpServers: setup.mcpServers.map((server) => ({ name: server.name, command: server.command, args: [...server.args], env: server.env.map((entry) => ({ name: entry.name, value: entry.value })) })) },
-        { timeoutMs: timeouts.session, ...(signal ? { signal } : {}) },
+        { timeoutMs: timeouts.session, ...(signal ? { signal } : {}), onResult: install },
       );
-      session = readAcpNewSession(result);
-      return session;
+      // An answer that could not be read where it came is read here, where its error fails the call.
+      if (!answered) install(result);
+      return { sessionId: session!, config, modes };
+    },
+    settings: () => ({ config, modes }),
+    async setConfigOption(configId, value, signal) {
+      const sessionId = session;
+      if (sessionId === null) throw new AcpError({ kind: "protocol", detail: "no session" });
+      const option = config?.find((entry) => entry.id === configId);
+      const offered = option ? (option.type === "boolean" ? typeof value === "boolean" : typeof value === "string" && option.values.some((entry) => entry.value === value)) : false;
+      if (!option || !offered) throw new AcpError({ kind: "protocol", detail: "no such setting" });
+      // The agent answers with every setting as it is now — an answer without them is taken at its word for this one,
+      // while the value is still one it offers —, and the host hears it where it is read: a report the agent sends right
+      // behind it comes after it.
+      const answered = (result: Record<string, unknown>) => {
+        const next = readAcpConfigOptions(result.configOptions);
+        const options = next ?? (config ?? []).map((entry) => (entry.id !== configId ? entry : taken(entry, value)));
+        config = options;
+        if (next) modes = null;
+        tell(() => host.update({ kind: "config", options, answer: true }));
+      };
+      await connection.request("session/set_config_option", { sessionId, configId, value, ...(typeof value === "boolean" ? { type: "boolean" } : {}) }, { ...(signal ? { signal } : {}), onResult: answered });
+      return config ?? [];
+    },
+    async setMode(modeId, signal) {
+      const sessionId = session;
+      if (sessionId === null) throw new AcpError({ kind: "protocol", detail: "no session" });
+      if (config !== null || !modes || !modes.available.some((mode) => mode.id === modeId)) throw new AcpError({ kind: "protocol", detail: "no such mode" });
+      // Taken where the answer is read, before what the agent reports behind it.
+      const answered = () => {
+        if (!modes) return;
+        modes = { ...modes, current: modeId };
+        tell(() => host.update({ kind: "mode", current: modeId, answer: true }));
+      };
+      await connection.request("session/set_mode", { sessionId, modeId }, { ...(signal ? { signal } : {}), onResult: answered });
     },
     async prompt(blocks, signal) {
       const sessionId = session;

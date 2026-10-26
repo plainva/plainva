@@ -47,25 +47,27 @@
     color var(--dur-1) var(--ease-1);
 }
 .pv-btn:disabled { opacity: 0.5; cursor: default; }
+/* A button that waits (aria-disabled) keeps the keyboard and looks like one that does not take a press. */
+.pv-btn[aria-disabled="true"] { opacity: 0.5; cursor: default; }
 /* Size variants change only the tap-target (height + padding); the label size
    stays constant (--text-ui) so every button reads at one consistent size. */
 .pv-btn--sm { height: var(--control-sm); padding: 0 var(--space-2); }
 .pv-btn--lg { height: var(--control-lg); padding: 0 var(--space-4); }
 .pv-btn--primary { background: var(--accent-color); color: var(--accent-on); font-weight: 600; }
-.pv-btn--primary:hover:not(:disabled) { background: var(--accent-color-hover); }
+.pv-btn--primary:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--accent-color-hover); }
 /* Tonal (UI 2.0): accent-container fill, medium emphasis between primary and secondary. */
 .pv-btn--tonal { background: var(--accent-container); color: var(--on-accent-container); font-weight: 600; }
-.pv-btn--tonal:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-color) 24%, var(--bg-primary)); }
+.pv-btn--tonal:hover:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb, var(--accent-color) 24%, var(--bg-primary)); }
 .pv-btn--secondary { border-color: var(--border-color); }
-.pv-btn--secondary:hover:not(:disabled) { background: var(--state-hover); }
+.pv-btn--secondary:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--state-hover); }
 .pv-btn--ghost { color: var(--text-muted); }
-.pv-btn--ghost:hover:not(:disabled) { background: var(--state-hover); color: var(--text-main); }
-.pv-btn--ghost:active:not(:disabled) { background: var(--state-press); }
+.pv-btn--ghost:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--state-hover); color: var(--text-main); }
+.pv-btn--ghost:active:not(:disabled):not([aria-disabled="true"]) { background: var(--state-press); }
 .pv-btn--danger { background: var(--error-text); color: var(--error-bg); font-weight: 600; }
-.pv-btn--danger:hover:not(:disabled) { filter: brightness(0.94); }
+.pv-btn--danger:hover:not(:disabled):not([aria-disabled="true"]) { filter: brightness(0.94); }
 /* Soft/outlined danger (disconnect, remove) — error-tinted, less alarming than the filled danger. */
 .pv-btn--danger-soft { background: var(--error-bg); border-color: var(--error-border); color: var(--error-text); }
-.pv-btn--danger-soft:hover:not(:disabled) { background: color-mix(in srgb, var(--error-text) 12%, var(--bg-primary)); }
+.pv-btn--danger-soft:hover:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb, var(--error-text) 12%, var(--bg-primary)); }
 .pv-btn-ic { display: inline-flex; flex-shrink: 0; }
 /* Inline text-link button (e.g. "use your own app id") — accent, underline on hover. */
 .pv-linkbtn { background: none; border: none; padding: 0; color: var(--accent-color); cursor: pointer; font-family: var(--font-ui); font-size: var(--text-sm); text-align: left; }
@@ -103,9 +105,10 @@
   flex-shrink: 0;
   transition: background var(--dur-1) var(--ease-1), color var(--dur-1) var(--ease-1);
 }
-.pv-iconbtn:hover:not(:disabled) { background: var(--state-hover); color: var(--text-main); }
-.pv-iconbtn:active:not(:disabled) { background: var(--state-press); }
+.pv-iconbtn:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--state-hover); color: var(--text-main); }
+.pv-iconbtn:active:not(:disabled):not([aria-disabled="true"]) { background: var(--state-press); }
 .pv-iconbtn:disabled { opacity: 0.45; cursor: default; }
+.pv-iconbtn[aria-disabled="true"] { opacity: 0.45; cursor: default; }
 .pv-iconbtn--sm { width: var(--control-sm); height: var(--control-sm); }
 
 /* Floating over a canvas or map, where the surface below is not a panel: the
@@ -823,16 +826,20 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   white-space: nowrap;
   cursor: pointer;
 }
-.pv-menu-item:hover:not(:disabled), .pv-menu-item:focus-visible { background: var(--state-hover); }
+.pv-menu-item:hover:not(:disabled):not([aria-disabled="true"]), .pv-menu-item:focus-visible { background: var(--state-hover); }
 /* Keyboard highlight for a menu whose focus stays in the field below it (the
    mention picker): :focus-visible can never mark that row, so the owner sets
    .is-active. Same token as hover on purpose - it IS the hover of the arrow
    keys, not a selected state. */
 .pv-menu-item.is-active:not(:disabled) { background: var(--state-hover); }
-.pv-menu-item:active:not(:disabled) { background: var(--state-press); }
+.pv-menu-item:active:not(:disabled):not([aria-disabled="true"]) { background: var(--state-press); }
 .pv-menu-item:disabled { opacity: 0.45; cursor: default; }
+/* An entry that waits keeps the keyboard (aria-disabled) and looks like one that takes no pick. */
+.pv-menu-item[aria-disabled="true"] { opacity: 0.45; cursor: default; }
 .pv-menu-item--danger, .pv-menu-item--danger .pv-menu-ic { color: var(--error-text); }
 .pv-menu-ic { display: inline-flex; flex-shrink: 0; color: var(--text-muted); }
+/* The tick of a choice keeps its width when it is not there (MenuItem checked): no label moves. 15px is ICON.ui. */
+.pv-menu-tick { width: 15px; justify-content: center; }
 .pv-menu-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .pv-menu-hint { margin-left: auto; padding-left: var(--space-3); color: var(--text-faint); font-size: var(--text-sm); }
 .pv-menu-sep { height: 1px; margin: var(--space-1) 6px; background: var(--border-color-light); border: none; }
@@ -843,6 +850,17 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   letter-spacing: 0.05em;
   color: var(--text-faint);
 }
+/* A stranger's words as a heading — an agent's group or setting (plan KI-Harness P9-7): never in the capitals of the
+   app's own headings, but in the quiet italics a stranger's title has elsewhere. */
+.pv-menu-label--said { text-transform: none; letter-spacing: normal; font-style: italic; color: var(--text-muted); }
+/* A sentence of the app's at the foot of a list — how many more there are: no heading. */
+.pv-menu-label--note { text-transform: none; letter-spacing: normal; }
+/* A stranger's words inside one of the app's sentences or headings (plan KI-Harness P9-7): drawn apart in quiet
+   italics — never in a heading's capitals —; the <bdi> they stand in isolates their direction. */
+.pv-said { font-style: italic; }
+.pv-menu-label .pv-said { text-transform: none; letter-spacing: normal; }
+/* Visually hidden, heard by a screen reader. */
+.pv-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 
 /* --------------------------------------------------------------- popovers */
 /* Rich anchored popover (property value pickers, type menus, autocomplete
@@ -1383,8 +1401,8 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   transition-duration: var(--dur-1);
   transition-timing-function: var(--ease-1);
 }
-.pv-btn:active:not(:disabled),
-.pv-iconbtn:active:not(:disabled),
+.pv-btn:active:not(:disabled):not([aria-disabled="true"]),
+.pv-iconbtn:active:not(:disabled):not([aria-disabled="true"]),
 .pv-seg-item:active:not(:disabled) { transform: scale(0.97); }
 
 /* Shared list-row hover: lets CSS drive the hover so rows (file tree, tags,
@@ -3799,7 +3817,7 @@ button.pv-acct:hover { background: var(--state-hover); }
   border-color: color-mix(in srgb, currentColor 28%, transparent);
   color: inherit;
 }
-.pv-selbar .pv-btn:hover:not(:disabled) { background: var(--state-hover); }
+.pv-selbar .pv-btn:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--state-hover); }
 .pv-selbar .pv-btn--danger,
 .pv-selbar .pv-btn--danger-soft {
   color: var(--error-text);
@@ -4862,6 +4880,24 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-agent-facts { display: grid; gap: var(--space-2); margin: 0; padding-left: 1.2em; font-size: var(--text-md); line-height: 1.5; }
 /* The vault's lines about earlier sessions: a record to glance at, not the page's text. */
 .pv-agent-start .pv-mcp-audit { font-size: var(--text-sm); color: var(--text-muted); }
+/* What the user may set for the agent's session (plan KI-Harness P9-7): its mode, its model and the rest, as ghost
+   buttons that open menus, at the start of the composer's foot; "End session" keeps the other end. */
+.pv-agent-settings { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); min-width: 0; margin-right: auto; }
+/* The agent's words on such a button are cut short past a width; its accessible name carries them whole. */
+.pv-agent-setting-text { min-width: 0; max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* In a narrow pane a button is no wider than its row, and its words are cut there. */
+.pv-agent-settings .pv-btn { min-width: 0; max-width: 100%; }
+/* On a button whose words are all the agent's, they need no italics to stand apart. */
+.pv-agent-setting-text .pv-said { font-style: normal; }
+.pv-agent-settings-status { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-xs); color: var(--text-faint); }
+/* After a command was taken: what the agent says goes after it, under the field, until the user types on. */
+.pv-agent-command-hint { margin: 0; padding: 0 var(--space-1); font-size: var(--text-xs); color: var(--text-faint); overflow-wrap: anywhere; }
+/* A menu whose entries carry a stranger's description beside their name (plan KI-Harness P9-7): the name keeps its
+   width up to most of the row, the description is cut at the row's end — the whole of it is the entry's tooltip. */
+.pv-menu--described .pv-menu-text { flex: 0 1 auto; max-width: 70%; }
+.pv-menu--described .pv-menu-hint { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+/* A row without a description gives its name the row. */
+.pv-menu--described .pv-menu-text:last-child { flex: 1 1 auto; max-width: none; }
 /* "AI & automation" in the settings: provider rows, the add dialog, the model picker. */
 .pv-ai-rowactions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-1); }
 .pv-ai-notewithaction { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }

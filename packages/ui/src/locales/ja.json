@@ -2006,6 +2006,23 @@
       "placeholder": "{{agent}} へのメッセージ…",
       "empty": "{{agent}} にしてほしいことを伝えてください。この保管庫のフォルダーで作業します。",
       "plan": "エージェントの計画",
+      "placeholderCommands": "{{agent}} へのメッセージ… — / でコマンドを表示",
+      "config": {
+        "value": "{{setting}}: {{value}}",
+        "owned": "{{label}}（{{agent}} の設定）",
+        "mode": "モード",
+        "more": "{{agent}} のその他の設定",
+        "menu": "{{agent}} の{{setting}}",
+        "tip": "{{agent}} の設定です。{{agent}} の動作を変えるもので、Plainvaが通すものは変わりません。{{agent}} が自分のツールで行うことは、どのモードでもPlainvaの外にあります。",
+        "described": "{{agent}} の動作を変えるもので、Plainvaが通すものは変わりません。{{agent}} が自分のツールで行うことは、どのモードでもPlainvaの外にあります。",
+        "describedMore": "いずれも {{agent}} の動作を変えるもので、Plainvaが通すものは変わりません。{{agent}} が自分のツールで行うことは、どのモードでもPlainvaの外にあります。",
+        "changing": "{{agent}} が設定を変更しています…"
+      },
+      "commands": {
+        "label": "{{agent}} のコマンド",
+        "hint": "{{agent}} からの /{{command}} のヒント: {{hint}}",
+        "more_other": "ほか {{count}} 件 — 入力を続けて絞り込めます"
+      },
       "toolOutside": "保管庫の外: {{count}}",
       "kind": {
         "read": "読み取り",
@@ -2053,6 +2070,15 @@
         "noteKept": "{{note}} はエージェントに伝えませんでした。クラウドまたはインターネットから遠ざけられているノートです。",
         "failed": "エージェントはこれを完了できませんでした。",
         "failedSaid": "エージェントはこれを完了できませんでした。エージェントの説明: {{message}}",
+        "setting": "エージェントが「{{setting}}」を自分で「{{value}}」にしました。",
+        "settingOn": "エージェントが「{{setting}}」を自分でオンにしました。",
+        "settingOff": "エージェントが「{{setting}}」を自分でオフにしました。",
+        "settingAlong": "これに伴い、エージェントが「{{setting}}」を「{{value}}」にしました。",
+        "settingOnAlong": "これに伴い、エージェントが「{{setting}}」をオンにしました。",
+        "settingOffAlong": "これに伴い、エージェントが「{{setting}}」をオフにしました。",
+        "settingRefused": "エージェントは「{{setting}}」を変更しませんでした。",
+        "settingRefusedSaid": "エージェントは「{{setting}}」を変更しませんでした。エージェントの説明: {{message}}",
+        "settingRefusedSignIn": "エージェントは「{{setting}}」を変更しませんでした。先にエージェント自身のプログラムでサインインする必要があります。",
         "stopped": {
           "max_tokens": "エージェントが停止しました。モデルが上限に達しました。",
           "max_turn_requests": "エージェントが停止しました。手順数の上限に達しました。",

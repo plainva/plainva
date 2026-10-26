@@ -1,6 +1,6 @@
 # Agenci zewnętrzni (Beta)
 
-Stan na: 2026-10-07
+Stan na: 2026-10-26
 
 Agent zewnętrzny to program AI innego producenta — agent zainstalowany samodzielnie na komputerze, do którego logujesz się samodzielnie, z własną subskrypcją lub kluczem. Plainva może uruchomić takiego agenta w folderze vaultu i pokazać jego sesję na karcie AI. To część eksperymentalnych funkcji AI i działa tylko na komputerze.
 
@@ -46,6 +46,8 @@ Wpisz, co agent ma zrobić. Otwarta notatka jest agentowi wskazywana — jej naz
 
 Gdy agent chce Twojej zgody na jakiś krok, pokazuje to **⟨agent⟩ pyta**. Słowa pochodzą od agenta, a do wyboru jest to, co agent oferuje — **Zezwól**, **Zawsze zezwalaj**, **Odrzuć**, **Zawsze odrzucaj**. Twoja odpowiedź trafia tylko do agenta: to, co zrobi po zgodzie, jest jego sprawą, a „zawsze” to obietnica, której dotrzymuje agent, nie Plainva.
 
+**Ustawienia i polecenia.** Tam, gdzie agent je oferuje, stopka sesji pokazuje jego własne ustawienia: tryb i model jako przyciski — **⟨ustawienie⟩: ⟨wartość⟩** —, resztę pod przyciskiem z suwakami **Więcej ustawień: ⟨agent⟩**. Każde z ich menu zaczyna się od własnego nagłówka Plainvy — **⟨ustawienie⟩ — ⟨agent⟩** lub **Więcej ustawień: ⟨agent⟩** —; pod nim nazwy, wartości i opisy pochodzą od agenta, w jego kolejności: bieżąca wartość z zaznaczeniem, przełącznik jako pozycja z zaznaczeniem lub bez. Tam, gdzie słowa agenta stoją w nagłówku lub zdaniu Plainvy, są wyróżnione dyskretną kursywą, nigdy wersalikami nagłówka. Każda sesja zaczyna się od domyślnych wartości agenta. Ustawienie zmienia, jak agent pracuje, a nie to, co Plainva przepuszcza: czytanie i zapisywanie przez Plainvę podlegają w każdym trybie tym samym zasadom, a tryb, w którym agent o nic już nie pyta, nie oszczędza żadnego z własnych kroków Plainvy. To, co agent robi własnymi narzędziami, w każdym trybie pozostaje poza Plainvą. Gdy agent sam zmieni ustawienie, sesja o tym mówi: **Agent sam ustawił „⟨ustawienie⟩” na „⟨wartość⟩”.** To, co zmienia razem z Twoją zmianą, sesja nazywa wprost — **Przy tej zmianie agent ustawił „⟨ustawienie⟩” na „⟨wartość⟩”.** — podobnie jak zmianę, której nie wprowadził: **Agent nie zmienił „⟨ustawienie⟩”.** Dopóki zmiana czeka na agenta, obok ustawień kręci się wskaźnik, a ustawienia nie reagują, dopóki agent nie odpowie. Znak **/** na początku wiadomości wyświetla pod **Polecenia: ⟨agent⟩** własne polecenia agenta z tym, co według niego robią: strzałki przechodzą przez listę, Enter lub Tab wybierają polecenie, a Escape zamyka listę. Polecenie to wiadomość zaczynająca się od jego nazwy; tam, gdzie agent mówi, co ma nastąpić dalej, pojawia się to pod polem, dopóki nie zaczniesz pisać dalej. To, co robi polecenie, jest sprawą agenta.
+
 **Zatrzymaj** kończy odpowiedź, nad którą agent pracuje.
 
 ## Co zapisuje agent
@@ -69,5 +71,5 @@ Jeśli program agenta zakończy się sam, sesja o tym mówi, a **Pokaż jego ost
 - Tylko na komputerze i tylko w głównym oknie. Na telefonie jest własny asystent Plainva.
 - Nie w zaszyfrowanym obszarze roboczym.
 - Jedna sesja naraz i bez historii: zakończonej sesji nie da się otworzyć ponownie.
-- Własnych trybów, modeli i poleceń agenta nie da się wybrać z Plainva i nie można wysyłać mu obrazów.
+- Nie można wysyłać obrazów do agenta, a trybu ani modelu wybranego w sesji Plainva nie przenosi na następną.
 - Jak dotąd wypróbowano to tylko z własnym agentem testowym Plainva. Którzy agenci tu działają i którzy przekazują swoje zmiany Plainva, okazuje się przy próbie — opinie są mile widziane.

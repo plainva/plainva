@@ -1,4 +1,5 @@
 import { capMcpText } from "../mcp/listing.js";
+import { hiddenCharacters } from "../trust.js";
 
 /**
  * The Agent Client Protocol as Plainva reads it (plan KI-Harness P4.6): an
@@ -32,6 +33,11 @@ export const ACP_MAX_CONTENT = 20;
 export const ACP_MAX_AUTH_METHODS = 10;
 export const ACP_MAX_AUTH_ARGS = 16;
 export const ACP_MAX_AUTH_ENV = 16;
+/** What an agent lets the user set for a session (plan P9-7): this many settings, values, modes and commands are read. */
+export const ACP_MAX_CONFIG_OPTIONS = 16;
+export const ACP_MAX_CONFIG_VALUES = 100;
+export const ACP_MAX_MODES = 20;
+export const ACP_MAX_COMMANDS = 50;
 /** A file an agent writes through the host: a note, not an archive. */
 export const ACP_FILE_LIMIT = 2 * 1024 * 1024;
 /** An agent's own error text is cut here: it is shown, and it is a stranger's words. */
@@ -115,7 +121,12 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 
 /** A stranger's text for one line: cleaned, cut, without line breaks. */
 function line(raw: unknown, limit: number): string {
-  return capMcpText(raw, limit).text.replace(/\s+/g, " ").trim();
+  // What a person cannot see goes — a private or an ignorable character, half a surrogate pair —, and a control or a
+  // separator a stranger put in — a bell, an escape, a line separator — is a blank, as a line break is.
+  return capMcpText(raw, limit)
+    .text.replace(/[\p{Cs}\p{Co}\p{Default_Ignorable_Code_Point}]/gu, "")
+    .replace(/[\s\p{Cc}\p{Z}]+/gu, " ")
+    .trim();
 }
 
 /** A stranger's text that may have lines: cleaned and cut. */
@@ -209,7 +220,9 @@ function readAuthMethod(raw: unknown): AcpAuthMethod | null {
   if (!isRecord(raw)) return null;
   const methodId = id(raw.id);
   if (!methodId) return null;
-  const name = line(raw.name, ACP_NAME_LIMIT) || methodId.slice(0, ACP_NAME_LIMIT);
+  // Without a name of its own it is called by its id — cleaned as a name is; one that shows nothing is left out.
+  const name = line(raw.name, ACP_NAME_LIMIT) || line(methodId, ACP_NAME_LIMIT);
+  if (!name) return null;
   const description = line(raw.description, ACP_TITLE_LIMIT);
   if (raw.type === undefined || raw.type === null || raw.type === "agent") return { id: methodId, name, description, kind: "agent", args: [], env: {} };
   // Every other way to sign in — a key in a variable, a link — is one Plainva would have to carry out or hold a secret for: not offered.
@@ -217,7 +230,9 @@ function readAuthMethod(raw: unknown): AcpAuthMethod | null {
   const args: string[] = [];
   for (const arg of Array.isArray(raw.args) ? raw.args : []) {
     const value = printable(arg, 1024);
-    if (value === null || args.length === ACP_MAX_AUTH_ARGS) return null;
+    // Where no terminal opens, the command is shown to be copied: an argument must read as what it is — nothing a
+    // person cannot see, nothing that turns text around (the rule of the app's names, `hiddenCharacters`).
+    if (value === null || hiddenCharacters(value) > 0 || args.length === ACP_MAX_AUTH_ARGS) return null;
     args.push(value);
   }
   const env: Record<string, string> = {};
@@ -225,7 +240,8 @@ function readAuthMethod(raw: unknown): AcpAuthMethod | null {
   if (entries.length > ACP_MAX_AUTH_ENV) return null;
   for (const [key, entry] of entries) {
     const value = printable(entry, 4096);
-    if (!ENV_NAME.test(key) || value === null) return null;
+    // A value is shown in the command to copy as well: it, too, must read as what it is.
+    if (!ENV_NAME.test(key) || value === null || hiddenCharacters(value) > 0) return null;
     env[key] = value;
   }
   return { id: methodId, name, description, kind: "terminal", args, env };
@@ -256,6 +272,179 @@ export function readAcpNewSession(result: Record<string, unknown>): string {
   const sessionId = id(result.sessionId);
   if (!sessionId) throw new AcpError({ kind: "protocol", detail: "no session id" });
   return sessionId;
+}
+
+/* ---- what an agent lets the user set (plan P9-7) ------------------------------------------ */
+
+/**
+ * What a setting is for, as the agent files it. Plainva puts a mode and a
+ * model where they are seen at once and everything else behind "More
+ * settings"; a category it does not know is "other" — the protocol makes the
+ * category a hint, never the ground of anything.
+ */
+export const ACP_CONFIG_CATEGORIES = ["mode", "model", "model_config", "thought_level"] as const;
+export type AcpConfigCategory = (typeof ACP_CONFIG_CATEGORIES)[number] | "other";
+
+export interface AcpConfigValue {
+  value: string;
+  /** The agent's own name for it. */
+  name: string;
+  description: string;
+  /** The agent's own name for the group it stands in, where it groups its values. */
+  group?: string;
+}
+
+interface AcpConfigBase {
+  id: string;
+  /** The agent's own name for the setting. */
+  name: string;
+  description: string;
+  category: AcpConfigCategory;
+}
+
+/** One setting of a session: a choice among the agent's values, or a switch. */
+export type AcpConfigOption = (AcpConfigBase & { type: "select"; current: string; values: AcpConfigValue[] }) | (AcpConfigBase & { type: "boolean"; current: boolean });
+
+function readConfigValue(raw: unknown, group: string): AcpConfigValue | null {
+  if (!isRecord(raw)) return null;
+  const value = id(raw.value);
+  if (!value) return null;
+  // Without a name of its own it is shown by its value — cleaned as a name is; one that shows nothing is left out.
+  const name = line(raw.name, ACP_NAME_LIMIT) || line(value, ACP_NAME_LIMIT);
+  if (!name) return null;
+  return { value, name, description: line(raw.description, ACP_TITLE_LIMIT), ...(group ? { group } : {}) };
+}
+
+function readConfigOption(raw: unknown): AcpConfigOption | null {
+  if (!isRecord(raw)) return null;
+  const optionId = id(raw.id);
+  if (!optionId) return null;
+  const name = line(raw.name, ACP_NAME_LIMIT) || line(optionId, ACP_NAME_LIMIT);
+  if (!name) return null;
+  const base: AcpConfigBase = {
+    id: optionId,
+    name,
+    description: line(raw.description, ACP_TITLE_LIMIT),
+    category: (ACP_CONFIG_CATEGORIES as readonly unknown[]).includes(raw.category) ? (raw.category as AcpConfigCategory) : "other",
+  };
+  // A kind of setting Plainva does not know is left out: the agent keeps its own value for it.
+  const type = raw.type === undefined ? "select" : raw.type;
+  if (type === "boolean") return typeof raw.currentValue === "boolean" ? { ...base, type: "boolean", current: raw.currentValue } : null;
+  if (type !== "select") return null;
+  const current = typeof raw.currentValue === "string" ? raw.currentValue : null;
+  if (current === null) return null;
+  const values: AcpConfigValue[] = [];
+  /** The current value where the list has it past the values that are kept: it is shown for what it is all the same. */
+  let currentPast: AcpConfigValue | null = null;
+  let looked = 0;
+  const add = (item: unknown, group: string) => {
+    // What is read of a list at all is bounded too: a value a stranger hides at its far end is not looked for.
+    if (looked++ >= ACP_MAX_CONFIG_VALUES * 10) return;
+    const value = readConfigValue(item, group);
+    if (!value || values.some((known) => known.value === value.value)) return;
+    if (values.length < ACP_MAX_CONFIG_VALUES) values.push(value);
+    else if (value.value === current && !currentPast) currentPast = value;
+  };
+  // Values in a flat list, or in groups: the protocol never mixes them, and each is read for what it is.
+  for (const entry of Array.isArray(raw.options) ? raw.options : []) {
+    if (isRecord(entry) && Array.isArray(entry.options)) {
+      const group = line(entry.name, ACP_NAME_LIMIT) || line(entry.group, ACP_NAME_LIMIT);
+      for (const inner of entry.options) add(inner, group);
+    } else add(entry, "");
+  }
+  if (currentPast) values.push(currentPast);
+  // A choice whose current value it does not list cannot be shown for what it is.
+  if (!values.some((value) => value.value === current)) return null;
+  return { ...base, type: "select", current, values };
+}
+
+/** The settings an agent offers, in its order — the protocol makes the order its priority; null where it sent none. */
+export function readAcpConfigOptions(raw: unknown): AcpConfigOption[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: AcpConfigOption[] = [];
+  for (const entry of raw.slice(0, ACP_MAX_CONFIG_OPTIONS * 4)) {
+    if (out.length === ACP_MAX_CONFIG_OPTIONS) break;
+    const option = readConfigOption(entry);
+    if (option && !out.some((known) => known.id === option.id)) out.push(option);
+  }
+  return out;
+}
+
+export interface AcpMode {
+  id: string;
+  name: string;
+  description: string;
+}
+
+/** The modes of a session in the older way the protocol still carries: what an agent offers where it sends no settings. */
+export interface AcpModes {
+  current: string;
+  available: AcpMode[];
+}
+
+/** Reads `modes`; null where there are none, or where the current one is not among them. */
+export function readAcpModes(raw: unknown): AcpModes | null {
+  if (!isRecord(raw)) return null;
+  const available: AcpMode[] = [];
+  for (const entry of Array.isArray(raw.availableModes) ? raw.availableModes.slice(0, ACP_MAX_MODES) : []) {
+    if (!isRecord(entry)) continue;
+    const modeId = id(entry.id);
+    if (!modeId || available.some((known) => known.id === modeId)) continue;
+    // Without a name of its own it is called by its id — cleaned as a name is; one that shows nothing is left out.
+    const name = line(entry.name, ACP_NAME_LIMIT) || line(modeId, ACP_NAME_LIMIT);
+    if (name) available.push({ id: modeId, name, description: line(entry.description, ACP_TITLE_LIMIT) });
+  }
+  const current = id(raw.currentModeId);
+  return current && available.some((mode) => mode.id === current) ? { current, available } : null;
+}
+
+/** A command of the agent's own: what the user runs as `/name …` in a message. */
+export interface AcpCommand {
+  name: string;
+  /** The agent's own words for what it does. */
+  description: string;
+  /** What it says belongs after the name, where it takes something; null where it takes nothing. */
+  hint: string | null;
+}
+
+/**
+ * A name a message can begin with: one word of letters and digits in any script, then also marks and `_ . : -`, at
+ * most 64 characters — no blank, no control, invisible or ignorable character (a Hangul filler, a variation
+ * selector), no symbol, no more than three marks in a row. Read in NFC, as it is typed.
+ */
+const COMMAND_NAME = /^(?![\s\S]*\p{Default_Ignorable_Code_Point})(?![\s\S]*\p{M}{4})[\p{L}\p{N}][\p{L}\p{N}\p{M}_.:-]{0,63}$/u;
+
+/** Reads the commands an agent offers; every report carries the whole list. */
+export function readAcpCommands(raw: unknown): AcpCommand[] {
+  const out: AcpCommand[] = [];
+  for (const entry of Array.isArray(raw) ? raw.slice(0, ACP_MAX_COMMANDS * 4) : []) {
+    if (out.length === ACP_MAX_COMMANDS) break;
+    if (!isRecord(entry) || typeof entry.name !== "string") continue;
+    // An agent may write its commands with the slash it is typed with. A name is judged and told apart in NFC — one
+    // name in two spellings is one command — and kept as the agent spells it: that is the name it recognises.
+    const name = entry.name.startsWith("/") ? entry.name.slice(1) : entry.name;
+    const composed = name.normalize("NFC");
+    if (!COMMAND_NAME.test(composed) || out.some((known) => known.name.normalize("NFC") === composed)) continue;
+    const hint = isRecord(entry.input) ? line(entry.input.hint, ACP_TITLE_LIMIT) : "";
+    out.push({ name, description: line(entry.description, ACP_TITLE_LIMIT), hint: hint || null });
+  }
+  return out;
+}
+
+/** A session as the agent opened it: its id, and what the user may set for it. */
+export interface AcpSessionOpened {
+  sessionId: string;
+  /** Its settings; null where it sent none. */
+  config: AcpConfigOption[] | null;
+  /** Its modes in the older way — only where it sent no settings: a host that reads settings uses them alone. */
+  modes: AcpModes | null;
+}
+
+/** Reads the answer to `session/new` whole. */
+export function readAcpSessionSetup(result: Record<string, unknown>): AcpSessionOpened {
+  const sessionId = readAcpNewSession(result);
+  const config = readAcpConfigOptions(result.configOptions);
+  return { sessionId, config, modes: config ? null : readAcpModes(result.modes) };
 }
 
 export const ACP_STOP_REASONS = ["end_turn", "max_tokens", "max_turn_requests", "refusal", "cancelled"] as const;
@@ -306,7 +495,16 @@ export type AcpUpdate =
   | { kind: "text"; role: "agent" | "thought" | "user"; text: string }
   | { kind: "tool"; tool: AcpToolUpdate }
   | { kind: "plan"; entries: AcpPlanEntry[] }
-  /** Something Plainva shows nothing for: commands, modes, usage. */
+  /**
+   * Every setting of the session as it is now (plan P9-7). `answer`: the
+   * agent's answer to the user's own change, not a report of its own.
+   */
+  | { kind: "config"; options: AcpConfigOption[]; answer?: true }
+  /** The mode it works in now, in the older way; `answer` as for the settings. */
+  | { kind: "mode"; current: string; answer?: true }
+  /** Its commands as they are now. */
+  | { kind: "commands"; commands: AcpCommand[] }
+  /** Something Plainva shows nothing for: usage, a title it gave the session. */
   | { kind: "other"; name: string };
 
 const countLines = (value: string): number => (value === "" ? 0 : value.split("\n").length);
@@ -417,6 +615,17 @@ export function readAcpUpdate(params: Record<string, unknown>): { sessionId: str
       }
       return done({ kind: "plan", entries });
     }
+    case "config_option_update": {
+      const options = readAcpConfigOptions(raw.configOptions);
+      return options ? done({ kind: "config", options }) : null;
+    }
+    case "current_mode_update": {
+      const current = id(raw.currentModeId);
+      return current ? done({ kind: "mode", current }) : null;
+    }
+    case "available_commands_update":
+      // A report without its list says nothing — as one of the settings without theirs.
+      return Array.isArray(raw.availableCommands) ? done({ kind: "commands", commands: readAcpCommands(raw.availableCommands) }) : null;
     default:
       return done({ kind: "other", name: name.slice(0, 60) });
   }
@@ -520,13 +729,14 @@ export interface AcpClientInfo {
 /**
  * What Plainva tells an agent it can do for it. Files of the vault are read
  * and written through the app — a write becomes a suggestion —; a terminal is
- * not offered, so an agent cannot ask Plainva to run a command; and a sign-in
- * in the agent's own program can be shown.
+ * not offered, so an agent cannot ask Plainva to run a command; a sign-in
+ * in the agent's own program can be shown; and a setting that is a switch can
+ * be shown as one (plan P9-7).
  */
 export function acpInitializeParams(client: AcpClientInfo): Record<string, unknown> {
   return {
     protocolVersion: ACP_PROTOCOL_VERSION,
-    clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, terminal: false, auth: { terminal: true } },
+    clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, terminal: false, auth: { terminal: true }, session: { configOptions: { boolean: {} } } },
     clientInfo: { name: client.name, title: client.title, version: client.version },
   };
 }

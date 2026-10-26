@@ -20,6 +20,8 @@ export type ScriptedAcpStep =
   /** Changes one (`tool_call_update`). */
   | { toolUpdate: Record<string, unknown> }
   | { plan: unknown[] }
+  /** Any report of its own (`session/update`): a setting it changed itself, its commands. */
+  | { update: Record<string, unknown> }
   /** Asks the user (`session/request_permission`) and waits for the answer. */
   | { ask: { toolCall: Record<string, unknown>; options: unknown[] } }
   /** Asks the host for a file and waits. */
@@ -54,8 +56,32 @@ export interface ScriptedAcpOptions {
   sessionExtras?: Record<string, unknown>;
   /** It never answers `session/new`. */
   hangsOnSession?: boolean;
+  /** It answers `session/new` with an error of its own, in these words. */
+  sessionRefused?: string;
   /** After a stop it never ends the turn. */
   ignoresCancel?: boolean;
+  /** Its settings (plan P9-7), as it sends them in `session/new`; `session/set_config_option` changes them. */
+  configOptions?: Record<string, unknown>[];
+  /** Its modes in the older way, as it sends them in `session/new`; `session/set_mode` changes them. */
+  modes?: { currentModeId: string; availableModes: unknown[] };
+  /** It answers a change of a setting or a mode with an error of its own. */
+  refusesSettings?: boolean;
+  /** It answers a change of a setting without the list of its settings. */
+  answersSettingsBare?: boolean;
+  /** It never answers a change of a setting. */
+  hangsOnSettings?: boolean;
+  /** Reports it sends right behind its answer to `session/new`, in the same breath — before the host can have read the answer. */
+  afterSession?: { update: Record<string, unknown>; sessionId?: string }[];
+  /** Reports it sends right before its answer to `session/new`, in the same breath. */
+  beforeSession?: { update: Record<string, unknown>; sessionId?: string }[];
+  /** Reports it sends right behind its answer to a change of a setting or a mode, in the same breath. */
+  afterChange?: Record<string, unknown>[];
+  /** Reports it sends right before its answer to a change of a setting, in the same breath. */
+  beforeChange?: Record<string, unknown>[];
+  /** It answers a change of a setting with "sign in first". */
+  settingsNeedSignIn?: boolean;
+  /** What else changes when a setting does — its own rule for settings that depend on each other. */
+  onChange?: (configOptions: Record<string, unknown>[], configId: string, value: unknown) => Record<string, unknown>[];
 }
 
 export interface ScriptedAcpAnswer {
@@ -93,6 +119,9 @@ export function scriptedAcpAgent(options: ScriptedAcpOptions = {}): ScriptedAcpA
   let onExit: ((code: number | null) => void) | null = null;
   let nextId = 1000;
   let turn = 0;
+  // Its own copy of what it lets the user set: the answers say what it is now.
+  let configOptions = options.configOptions?.map((entry) => ({ ...entry }));
+  let modes = options.modes ? { ...options.modes } : undefined;
   const waiting = new Map<number, { method: string; resolve: () => void }>();
   let cancelWaiters: (() => void)[] = [];
 
@@ -167,6 +196,7 @@ export function scriptedAcpAgent(options: ScriptedAcpOptions = {}): ScriptedAcpA
       else if ("tool" in step) update({ sessionUpdate: "tool_call", ...step.tool });
       else if ("toolUpdate" in step) update({ sessionUpdate: "tool_call_update", ...step.toolUpdate });
       else if ("plan" in step) update({ sessionUpdate: "plan", entries: step.plan });
+      else if ("update" in step) update(step.update);
       else if ("ask" in step) await ask("session/request_permission", { sessionId: agent.session, toolCall: step.ask.toolCall, options: step.ask.options });
       else if ("read" in step) await ask("fs/read_text_file", { sessionId: agent.session, ...step.read });
       else if ("write" in step) await ask("fs/write_text_file", { sessionId: agent.session, ...step.write });
@@ -214,12 +244,48 @@ export function scriptedAcpAgent(options: ScriptedAcpOptions = {}): ScriptedAcpA
         return;
       case "session/new":
         if (options.hangsOnSession) return;
+        if (options.sessionRefused !== undefined) {
+          refuse(-32603, options.sessionRefused);
+          return;
+        }
         if (options.needsAuth && !agent.signedIn) {
           refuse(-32000, "Authentication required");
           return;
         }
-        reply({ sessionId: agent.session, ...options.sessionExtras });
+        for (const early of options.beforeSession ?? []) send({ jsonrpc: "2.0", method: "session/update", params: { sessionId: early.sessionId ?? agent.session, update: early.update } });
+        reply({ sessionId: agent.session, ...(configOptions ? { configOptions } : {}), ...(modes ? { modes } : {}), ...options.sessionExtras });
+        for (const early of options.afterSession ?? []) send({ jsonrpc: "2.0", method: "session/update", params: { sessionId: early.sessionId ?? agent.session, update: early.update } });
         return;
+      case "session/set_config_option": {
+        const params = isRecord(message.params) ? message.params : {};
+        if (options.hangsOnSettings) return;
+        if (options.settingsNeedSignIn) {
+          refuse(-32000, "Authentication required");
+          return;
+        }
+        const known = configOptions?.find((entry) => entry.id === params.configId);
+        if (options.refusesSettings || !known) {
+          refuse(-32602, "That setting cannot be changed now.");
+          return;
+        }
+        configOptions = configOptions!.map((entry) => (entry === known ? { ...entry, currentValue: params.value } : entry));
+        if (options.onChange) configOptions = options.onChange(configOptions, String(params.configId), params.value);
+        for (const body of options.beforeChange ?? []) update(body);
+        reply(options.answersSettingsBare ? {} : { configOptions });
+        for (const body of options.afterChange ?? []) update(body);
+        return;
+      }
+      case "session/set_mode": {
+        const params = isRecord(message.params) ? message.params : {};
+        if (options.refusesSettings || !modes) {
+          refuse(-32602, "That mode cannot be chosen now.");
+          return;
+        }
+        modes = { ...modes, currentModeId: String(params.modeId) };
+        reply({});
+        for (const body of options.afterChange ?? []) update(body);
+        return;
+      }
       case "session/prompt": {
         const steps = options.turns?.[turn] ?? [{ say: "Done." }];
         turn++;

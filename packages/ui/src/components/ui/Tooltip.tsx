@@ -4,7 +4,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
  * Global tooltip host (plan Designsprache P2, E7). Mounted ONCE (main.tsx);
  * event delegation on [data-tip] replaces native title= tooltips so hints
  * follow the theme (and LCARS can restyle them). Shows after a short delay on
- * hover or keyboard focus; hides on leave, blur, scroll, any key or press.
+ * hover or keyboard focus; hides on leave, blur, any key or press, and on a
+ * scroll that moves its element.
  * Accessible names stay on aria-label — data-tip is presentation only.
  */
 
@@ -37,11 +38,17 @@ export function TooltipHost() {
   useEffect(() => {
     let timer: number | undefined;
     let target: HTMLElement | null = null;
+    /** Where the element stood when its tip was shown. */
+    let shownAt: { top: number; left: number } | null = null;
+    let check = 0;
 
     const hide = () => {
       window.clearTimeout(timer);
       timer = undefined;
       target = null;
+      shownAt = null;
+      if (check) cancelAnimationFrame(check);
+      check = 0;
       setTip(null);
       setPos(null);
     };
@@ -54,6 +61,7 @@ export function TooltipHost() {
       timer = window.setTimeout(() => {
         if (target !== el || !el.isConnected) return;
         const r = el.getBoundingClientRect();
+        shownAt = { top: r.top, left: r.left };
         setTip({
           text,
           rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width },
@@ -81,6 +89,27 @@ export function TooltipHost() {
       if (el && keyboardFocus(e.target as Element)) schedule(el);
     };
     const onHide = () => hide();
+    // A scroll hides the tip where it moves the tip's element: the page's, or a pane's that holds it, at once; any
+    // other — a conversation beside it that follows what arrives, an editor a toolbar follows from outside — where
+    // the element has moved, two frames on: what follows a scroll by script moves in a frame of its own. A tip still
+    // waiting to show is measured when it shows.
+    const onScroll = (e: Event) => {
+      const el = target;
+      if (!el) return;
+      const scrolled = e.target instanceof Node ? e.target : null;
+      if (!scrolled || (scrolled !== el && scrolled.contains(el))) {
+        hide();
+        return;
+      }
+      if (!shownAt || check) return;
+      check = requestAnimationFrame(() => {
+        check = requestAnimationFrame(() => {
+          check = 0;
+          const r = el.getBoundingClientRect();
+          if (target === el && (!el.isConnected || !shownAt || r.top !== shownAt.top || r.left !== shownAt.left)) hide();
+        });
+      });
+    };
 
     document.addEventListener("mouseover", onOver);
     document.addEventListener("mouseout", onOut);
@@ -88,7 +117,7 @@ export function TooltipHost() {
     document.addEventListener("focusout", onHide);
     document.addEventListener("mousedown", onHide, true);
     document.addEventListener("keydown", onHide, true);
-    window.addEventListener("scroll", onHide, true);
+    window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onHide);
     return () => {
       window.clearTimeout(timer);
@@ -98,8 +127,9 @@ export function TooltipHost() {
       document.removeEventListener("focusout", onHide);
       document.removeEventListener("mousedown", onHide, true);
       document.removeEventListener("keydown", onHide, true);
-      window.removeEventListener("scroll", onHide, true);
+      window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", onHide);
+      if (check) cancelAnimationFrame(check);
     };
   }, []);
 

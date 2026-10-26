@@ -269,7 +269,7 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
   },
   {
     id: "ai-external-agents",
-    title: "An external agent — another maker's program with its own sign-in — works in the vault (Agent Client Protocol, plan KI-Harness P4.6)",
+    title: "An external agent — another maker's program with its own sign-in — works in the vault, with the settings and commands it offers (Agent Client Protocol, plan KI-Harness P4.6, P9-7)",
     area: "ai",
     kind: "decision",
     desktop: "yes",
@@ -281,7 +281,7 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "another program, there is no place to install one and no terminal to " +
       "sign in at. On the phone the assistant is Plainva's own, with the user's " +
       "provider or the system's model (plan KI-Harness §19.5).",
-    verified: "2026-10-07",
+    verified: "2026-10-26",
   },
   {
     id: "ai-local-servers",

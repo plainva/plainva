@@ -62,7 +62,7 @@ describe("an agent with its own sign-in works in the vault", () => {
     await h.agents.start("geminicli");
     expect(h.native.processes.map((process) => [process.agentId, process.root])).toEqual([["geminicli", ROOT]]);
     const [initialize, session] = h.agent().received;
-    expect(initialize?.params).toEqual({ protocolVersion: 1, clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, terminal: false, auth: { terminal: true } }, clientInfo: { name: "plainva", title: "Plainva", version: "0.9.0" } });
+    expect(initialize?.params).toEqual({ protocolVersion: 1, clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, terminal: false, auth: { terminal: true }, session: { configOptions: { boolean: {} } } }, clientInfo: { name: "plainva", title: "Plainva", version: "0.9.0" } });
     expect(session?.params).toEqual({ cwd: ROOT, mcpServers: [TOOLBOX] });
     const current = h.state().session!;
     expect(current.phase).toBe("ready");
@@ -609,7 +609,7 @@ describe("the sign-in is the agent's own", () => {
 
     h.native.login = "no-terminal";
     await h.agents.signIn("login");
-    expect(h.state().session!).toMatchObject({ phase: "auth", authProblem: "no-terminal", manualSignIn: "/usr/bin/gemini --acp login" });
+    expect(h.state().session!).toMatchObject({ phase: "auth", authProblem: "no-terminal", manualSignIn: ["cd", "'/home/mara/Vault'", "&&", "AGENT_INTERACTIVE='1'", "'/usr/bin/gemini'", "'--acp'", "'login'"] });
 
     h.native.login = "cancelled";
     await h.agents.signIn("login");
@@ -724,5 +724,381 @@ describe("a session ends", () => {
       { type: "failed", message: "The model is overloaded" },
     ]);
     expect(h.state().session!.phase).toBe("ready");
+  });
+});
+
+/** Plan KI-Harness P9-7: what the user may set for an agent's session, and the agent's own commands. */
+describe("what the user may set for an agent's session", () => {
+  const CONFIG = [
+    { id: "mode", name: "Mode", category: "mode", type: "select", currentValue: "ask", options: [{ value: "ask", name: "Ask" }, { value: "code", name: "Code", description: "Changes files without asking" }] },
+    {
+      id: "model",
+      name: "Model",
+      category: "model",
+      type: "select",
+      currentValue: "fast",
+      options: [
+        { group: "fast", name: "Fast", options: [{ value: "fast", name: "Fast model" }] },
+        { group: "deep", name: "Deep", options: [{ value: "deep", name: "Deep model" }] },
+      ],
+    },
+    { id: "think", name: "Think hard", category: "thought_level", type: "boolean", currentValue: false },
+    // A kind of setting Plainva does not know is left out: the agent keeps its own value.
+    { id: "budget", name: "Budget", type: "number", currentValue: 3 },
+  ];
+  const MODES = { currentModeId: "ask", availableModes: [{ id: "ask", name: "Ask" }, { id: "plan", name: "Plan", description: "Only plans" }] };
+  const update = (body: Record<string, unknown>) => ({ jsonrpc: "2.0", method: "session/update", params: { sessionId: "sess-1", update: body } });
+
+  it("shows the agent's settings in its order, and asks for a change only to a value the agent offered", async () => {
+    const h = await acpHarness(() => ({ configOptions: CONFIG, modes: MODES }));
+    await h.agents.start("geminicli");
+    const current = h.state().session!;
+    expect(current.config.map((option) => [option.id, option.category, option.type, option.current])).toEqual([
+      ["mode", "mode", "select", "ask"],
+      ["model", "model", "select", "fast"],
+      ["think", "thought_level", "boolean", false],
+    ]);
+    // Grouped values keep the agent's group names; the older modes stand back where there are settings.
+    const model = current.config[1]!;
+    expect(model.type === "select" && model.values.map((value) => [value.value, value.group])).toEqual([
+      ["fast", "Fast"],
+      ["deep", "Deep"],
+    ]);
+    expect(current.modes).toBeNull();
+    await h.agents.setConfig("mode", "code");
+    expect(lastOf(h.agent().received)).toMatchObject({ method: "session/set_config_option", params: { sessionId: "sess-1", configId: "mode", value: "code" } });
+    expect(h.state().session!.config[0]!.current).toBe("code");
+    expect(h.state().session!.changing).toBeNull();
+    // The user's own change is no line of the thread.
+    expect(events(h.state().session!.thread)).toEqual([]);
+    // A value, or a setting, the agent did not offer is no choice: nothing goes to it.
+    const sent = h.agent().received.length;
+    await h.agents.setConfig("mode", "root");
+    await h.agents.setConfig("budget", "9");
+    expect(h.agent().received).toHaveLength(sent);
+    // A switch goes as one.
+    await h.agents.setConfig("think", true);
+    expect(lastOf(h.agent().received)).toMatchObject({ method: "session/set_config_option", params: { configId: "think", value: true, type: "boolean" } });
+    expect(h.state().session!.config[2]!.current).toBe(true);
+  });
+
+  it("says in the thread when the agent changed a setting itself, and when it did not take a change", async () => {
+    const switched = [{ ...CONFIG[0], currentValue: "code" }, CONFIG[1], { ...CONFIG[2], currentValue: true }];
+    const h = await acpHarness(() => ({ configOptions: CONFIG, turns: [[{ update: { sessionUpdate: "config_option_update", configOptions: switched } }, { say: "Switched to code." }]] }));
+    await h.agents.start("geminicli");
+    await h.agents.send("Go ahead.");
+    // A mode that waives a question of the agent's own is worth knowing: the thread names it, in the agent's words.
+    expect(events(h.state().session!.thread)).toEqual([
+      { type: "setting", setting: "Mode", value: "Code" },
+      { type: "setting", setting: "Think hard", value: true },
+    ]);
+    expect(h.state().session!.config.map((option) => option.current)).toEqual(["code", "fast", true]);
+
+    const refusing = await acpHarness(() => ({ configOptions: CONFIG, refusesSettings: true }));
+    await refusing.agents.start("geminicli");
+    await refusing.agents.setConfig("model", "deep");
+    const session = refusing.state().session!;
+    expect(session.config[1]!.current).toBe("fast");
+    expect(session.changing).toBeNull();
+    expect(events(session.thread)).toEqual([{ type: "setting-refused", setting: "Model", message: "That setting cannot be changed now." }]);
+  });
+
+  it("takes an agent's answer without its settings at its word for the one it was asked", async () => {
+    const h = await acpHarness(() => ({ configOptions: CONFIG, answersSettingsBare: true }));
+    await h.agents.start("geminicli");
+    await h.agents.setConfig("model", "deep");
+    expect(h.state().session!.config.map((option) => option.current)).toEqual(["ask", "deep", false]);
+  });
+
+  it("offers the older modes where the agent sends no settings, and names a mode it switched to itself", async () => {
+    const h = await acpHarness(() => ({ modes: MODES, turns: [[{ update: { sessionUpdate: "current_mode_update", currentModeId: "ask" } }, { say: "Back to asking." }]] }));
+    await h.agents.start("geminicli");
+    expect(h.state().session!.config).toEqual([]);
+    expect(h.state().session!.modes).toEqual({ current: "ask", available: [{ id: "ask", name: "Ask", description: "" }, { id: "plan", name: "Plan", description: "Only plans" }] });
+    await h.agents.setMode("plan");
+    expect(lastOf(h.agent().received)).toMatchObject({ method: "session/set_mode", params: { sessionId: "sess-1", modeId: "plan" } });
+    expect(h.state().session!.modes!.current).toBe("plan");
+    // A mode it did not offer is no choice.
+    const sent = h.agent().received.length;
+    await h.agents.setMode("yolo");
+    expect(h.agent().received).toHaveLength(sent);
+    await h.agents.send("Plan it.");
+    expect(h.state().session!.modes!.current).toBe("ask");
+    // Its mode in the older form has no name of the agent's: Plainva names it, in its own word.
+    expect(events(h.state().session!.thread)).toEqual([{ type: "setting", setting: null, value: "Ask" }]);
+    // A switch to a mode it never offered is not taken.
+    h.agent().emit(update({ sessionUpdate: "current_mode_update", currentModeId: "yolo" }));
+    await h.settle();
+    expect(h.state().session!.modes!.current).toBe("ask");
+  });
+
+  it("keeps the commands and settings an agent reports right behind opening the session", async () => {
+    const h = await acpHarness(() => ({
+      configOptions: CONFIG,
+      afterSession: [
+        { update: { sessionUpdate: "available_commands_update", availableCommands: [{ name: "web", description: "Search the web" }] } },
+        { update: { sessionUpdate: "config_option_update", configOptions: [{ ...CONFIG[0], currentValue: "code" }, CONFIG[1], CONFIG[2]] } },
+      ],
+    }));
+    await h.agents.start("geminicli");
+    const session = h.state().session!;
+    expect(session.commands).toEqual([{ name: "web", description: "Search the web", hint: null }]);
+    expect(session.config.map((option) => option.current)).toEqual(["code", "fast", false]);
+  });
+
+  it("knows the agent's own commands as it reports them, and a command is a message that begins with its name", async () => {
+    const h = await acpHarness(() => ({ turns: [[{ say: "Searching." }]] }));
+    await h.agents.start("geminicli");
+    h.agent().emit(
+      update({
+        sessionUpdate: "available_commands_update",
+        availableCommands: [
+          { name: "web", description: "Search the web", input: { hint: "what to search for" } },
+          { name: "/plan", description: "Make a plan" },
+          { name: "bad name", description: "Two words" },
+          { name: "web", description: "Twice" },
+        ],
+      }),
+    );
+    await h.settle();
+    expect(h.state().session!.commands).toEqual([
+      { name: "web", description: "Search the web", hint: "what to search for" },
+      { name: "plan", description: "Make a plan", hint: null },
+    ]);
+    await h.agents.send("/web plainva");
+    expect(lastOf(h.agent().received.filter((message) => message.method === "session/prompt"))).toMatchObject({ params: { prompt: [{ type: "text", text: "/web plainva" }] } });
+    // Every report carries the whole list.
+    h.agent().emit(update({ sessionUpdate: "available_commands_update", availableCommands: [] }));
+    await h.settle();
+    expect(h.state().session!.commands).toEqual([]);
+  });
+});
+
+/** Plan KI-Harness P9-7, after review: the agent's order, what goes along with a change, and what is no refusal. */
+describe("a change of an agent's setting, in the agent's order", () => {
+  const CONFIG = [
+    { id: "mode", name: "Mode", category: "mode", type: "select", currentValue: "ask", options: [{ value: "ask", name: "Ask" }, { value: "code", name: "Code" }] },
+    { id: "model", name: "Model", category: "model", type: "select", currentValue: "fast", options: [{ value: "fast", name: "Fast model" }, { value: "deep", name: "Deep model" }] },
+    { id: "think", name: "Think hard", category: "thought_level", type: "boolean", currentValue: false },
+  ];
+  const update = (body: Record<string, unknown>) => ({ jsonrpc: "2.0", method: "session/update", params: { sessionId: "sess-1", update: body } });
+
+  it("names what changed with the user's own change as going with it, not as the agent's own doing", async () => {
+    // The agent's rule: a deep model thinks hard.
+    const h = await acpHarness(() => ({
+      configOptions: CONFIG,
+      onChange: (options, configId, value) => (configId === "model" && value === "deep" ? options.map((option) => (option.id === "think" ? { ...option, currentValue: true } : option)) : options),
+    }));
+    await h.agents.start("geminicli");
+    await h.agents.setConfig("model", "deep");
+    expect(events(h.state().session!.thread)).toEqual([{ type: "setting", setting: "Think hard", value: true, along: true }]);
+    expect(h.state().session!.config.map((option) => option.current)).toEqual(["ask", "deep", true]);
+  });
+
+  it("keeps what the agent reports right behind its answer, and names it as its own", async () => {
+    const h = await acpHarness(() => ({ configOptions: CONFIG, afterChange: [{ sessionUpdate: "config_option_update", configOptions: [CONFIG[0], { ...CONFIG[1], currentValue: "deep" }, CONFIG[2]] }] }));
+    await h.agents.start("geminicli");
+    await h.agents.setConfig("model", "deep");
+    // The report after the answer: the model stays deep, and the user's change is no line.
+    expect(h.state().session!.config.map((option) => option.current)).toEqual(["ask", "deep", false]);
+    expect(events(h.state().session!.thread)).toEqual([]);
+    // Behind an answer, the agent sets the mode itself: named as its own.
+    const own = await acpHarness(() => ({ configOptions: CONFIG, afterChange: [{ sessionUpdate: "config_option_update", configOptions: [{ ...CONFIG[0], currentValue: "code" }, { ...CONFIG[1], currentValue: "deep" }, CONFIG[2]] }] }));
+    await own.agents.start("geminicli");
+    await own.agents.setConfig("model", "deep");
+    expect(events(own.state().session!.thread)).toEqual([{ type: "setting", setting: "Mode", value: "Code" }]);
+    expect(own.state().session!.config.map((option) => option.current)).toEqual(["code", "deep", false]);
+  });
+
+  it("names no refusal the agent did not make, and ends a pending change with the session", async () => {
+    const h = await acpHarness(() => ({ configOptions: CONFIG }));
+    await h.agents.start("geminicli");
+    // A value the agent does not offer: Plainva does not send it, and the agent declined nothing.
+    await h.agents.setConfig("mode", "root");
+    expect(events(h.state().session!.thread)).toEqual([]);
+    expect(h.state().session!.changing).toBeNull();
+    const hanging = await acpHarness(() => ({ configOptions: CONFIG, hangsOnSettings: true }));
+    await hanging.agents.start("geminicli");
+    void hanging.agents.setConfig("model", "deep");
+    await hanging.settle();
+    expect(hanging.state().session!.changing).toBe("model");
+    await hanging.agents.end();
+    expect(hanging.state().session!.changing).toBeNull();
+  });
+
+  it("lets settings take the place of the older modes from the first report of them on", async () => {
+    const h = await acpHarness(() => ({ modes: { currentModeId: "ask", availableModes: [{ id: "ask", name: "Ask" }, { id: "plan", name: "Plan" }] } }));
+    await h.agents.start("geminicli");
+    expect(h.state().session!.modes).not.toBeNull();
+    h.agent().emit(update({ sessionUpdate: "config_option_update", configOptions: [CONFIG[0]] }));
+    await h.settle();
+    expect(h.state().session!.modes).toBeNull();
+    expect(h.state().session!.config.map((option) => option.id)).toEqual(["mode"]);
+  });
+});
+
+/** Plan KI-Harness P9-7, review round 1: what the thread says about an answer to the user's change. */
+describe("the thread on an answer to a change of a setting", () => {
+  const CONFIG = [
+    { id: "model", name: "Model", category: "model", type: "select", currentValue: "fast", options: [{ value: "fast", name: "Fast" }, { value: "medium", name: "Medium" }, { value: "deep", name: "Deep" }] },
+    { id: "thought", name: "Thought", category: "thought_level", type: "select", currentValue: "high", options: [{ value: "low", name: "Low" }, { value: "high", name: "High" }] },
+  ];
+
+  it("names an answer that leaves the asked setting as it was as a change the agent did not make", async () => {
+    // The agent answers with its settings as they were.
+    const h = await acpHarness(() => ({ configOptions: CONFIG, onChange: () => CONFIG.map((entry) => ({ ...entry })) }));
+    await h.agents.start("geminicli");
+    await h.agents.setConfig("model", "deep");
+    expect(events(h.state().session!.thread)).toEqual([{ type: "setting-refused", setting: "Model", message: "" }]);
+    expect(h.state().session!.config.map((option) => option.current)).toEqual(["fast", "high"]);
+  });
+
+  it("names the asked setting at another value than asked as the agent's own doing, and what went along with it as such", async () => {
+    const h = await acpHarness(() => ({
+      configOptions: CONFIG,
+      onChange: (options) => options.map((entry) => (entry.id === "model" ? { ...entry, currentValue: "medium" } : { ...entry, currentValue: "low" })),
+    }));
+    await h.agents.start("geminicli");
+    await h.agents.setConfig("model", "deep");
+    expect(events(h.state().session!.thread)).toEqual([
+      { type: "setting", setting: "Model", value: "Medium" },
+      { type: "setting", setting: "Thought", value: "Low", along: true },
+    ]);
+  });
+
+  it("leaves one line for a setting the agent turns back and forth, and one for each where something stood between", async () => {
+    const flip = (value: string): ScriptedAcpStep => ({ update: { sessionUpdate: "config_option_update", configOptions: [{ ...CONFIG[0], currentValue: value }, CONFIG[1]] } });
+    const h = await acpHarness(() => ({ configOptions: CONFIG, turns: [[flip("deep"), flip("fast"), flip("medium"), { say: "Now medium." }, flip("deep")]] }));
+    await h.agents.start("geminicli");
+    await h.agents.send("Go");
+    expect(events(h.state().session!.thread)).toEqual([
+      { type: "setting", setting: "Model", value: "Medium" },
+      { type: "setting", setting: "Model", value: "Deep" },
+    ]);
+  });
+});
+
+/** Plan KI-Harness P9-7, review round 2: lines by the setting's id, the agent's answer whenever it comes, a sign-in. */
+describe("the thread on an agent's settings, in every order the agent may say them", () => {
+  const CONFIG = [
+    { id: "mode", name: "Mode", category: "mode", type: "select", currentValue: "ask", options: [{ value: "ask", name: "Ask" }, { value: "bypass", name: "Bypass permissions" }] },
+    { id: "model", name: "Model", category: "model", type: "select", currentValue: "fast", options: [{ value: "fast", name: "Fast" }, { value: "medium", name: "Medium" }, { value: "deep", name: "Deep" }] },
+    { id: "think", name: "Think hard", category: "thought_level", type: "boolean", currentValue: false },
+  ];
+  const report = (changes: Record<string, unknown>) => ({
+    jsonrpc: "2.0",
+    method: "session/update",
+    params: { sessionId: "sess-1", update: { sessionUpdate: "config_option_update", configOptions: CONFIG.map((option) => (option.id in changes ? { ...option, currentValue: changes[option.id] } : option)) } },
+  });
+
+  it("names a switch the agent makes again after the user turned it back — a new line, not the old one", async () => {
+    const h = await acpHarness(() => ({ configOptions: CONFIG }));
+    await h.agents.start("geminicli");
+    h.agent().emit(report({ mode: "bypass" }));
+    await h.settle();
+    await h.agents.setConfig("mode", "ask");
+    h.agent().emit(report({ mode: "bypass" }));
+    await h.settle();
+    expect(events(h.state().session!.thread)).toEqual([
+      { type: "setting", setting: "Mode", value: "Bypass permissions" },
+      { type: "setting", setting: "Mode", value: "Bypass permissions" },
+    ]);
+  });
+
+  it("keeps two lines for two settings of the same name", async () => {
+    const twins = [CONFIG[0], { id: "mode-switch", name: "Mode", category: "other", type: "boolean", currentValue: false }];
+    const h = await acpHarness(() => ({ configOptions: twins }));
+    await h.agents.start("geminicli");
+    h.agent().emit({ jsonrpc: "2.0", method: "session/update", params: { sessionId: "sess-1", update: { sessionUpdate: "config_option_update", configOptions: [{ ...twins[0], currentValue: "bypass" }, { ...twins[1], currentValue: true }] } } });
+    await h.settle();
+    expect(events(h.state().session!.thread)).toEqual([
+      { type: "setting", setting: "Mode", value: "Bypass permissions" },
+      { type: "setting", setting: "Mode", value: true },
+    ]);
+  });
+
+  it("names a setting the agent changes right behind opening the session", async () => {
+    const h = await acpHarness(() => ({ configOptions: CONFIG, afterSession: [{ update: { sessionUpdate: "config_option_update", configOptions: [{ ...CONFIG[0], currentValue: "bypass" }, CONFIG[1], CONFIG[2]] } }] }));
+    await h.agents.start("geminicli");
+    expect(events(h.state().session!.thread)).toEqual([{ type: "setting", setting: "Mode", value: "Bypass permissions" }]);
+    expect(h.state().session!.config[0]!.current).toBe("bypass");
+  });
+
+  it("uses the question up with the answer: what the agent reports behind it is its own doing", async () => {
+    // It answers with the model as it was, and then sets it itself.
+    const h = await acpHarness(() => ({ configOptions: CONFIG, onChange: () => CONFIG.map((option) => ({ ...option })), afterChange: [report({ model: "deep" }).params.update] }));
+    await h.agents.start("geminicli");
+    await h.agents.setConfig("model", "deep");
+    expect(events(h.state().session!.thread)).toEqual([
+      { type: "setting-refused", setting: "Model", message: "" },
+      { type: "setting", setting: "Model", value: "Deep" },
+    ]);
+  });
+
+  it("takes a report of the asked value before the answer as the answer: what came with it goes along", async () => {
+    const h = await acpHarness(() => ({ configOptions: CONFIG, onChange: (options) => options.map((option) => (option.id === "think" ? { ...option, currentValue: true } : option)), beforeChange: [report({ model: "deep", think: true }).params.update] }));
+    await h.agents.start("geminicli");
+    await h.agents.setConfig("model", "deep");
+    expect(events(h.state().session!.thread)).toEqual([{ type: "setting", setting: "Think hard", value: true, along: true }]);
+  });
+
+  it("says nothing of a change the agent did not make where it moved the setting elsewhere itself", async () => {
+    const h = await acpHarness(() => ({ configOptions: CONFIG, onChange: (options) => options.map((option) => (option.id === "model" ? { ...option, currentValue: "medium" } : option)), beforeChange: [report({ model: "medium" }).params.update] }));
+    await h.agents.start("geminicli");
+    await h.agents.setConfig("model", "deep");
+    expect(events(h.state().session!.thread)).toEqual([{ type: "setting", setting: "Model", value: "Medium" }]);
+  });
+
+  it("names a change the agent wants a sign-in for", async () => {
+    const h = await acpHarness(() => ({ configOptions: CONFIG, settingsNeedSignIn: true }));
+    await h.agents.start("geminicli");
+    await h.agents.setConfig("model", "deep");
+    expect(events(h.state().session!.thread)).toEqual([{ type: "setting-refused", setting: "Model", message: "", reason: "sign-in" }]);
+    expect(h.state().session!.config[1]!.current).toBe("fast");
+  });
+});
+
+/** Plan KI-Harness P9-7, review round 3: a run of setting lines ends with anything the agent does; the answer proper. */
+describe("the lines of an agent's settings around what else it does", () => {
+  const CONFIG = [
+    { id: "mode", name: "Mode", category: "mode", type: "select", currentValue: "ask", options: [{ value: "ask", name: "Ask" }, { value: "bypass", name: "Bypass permissions" }] },
+    { id: "model", name: "Model", category: "model", type: "select", currentValue: "fast", options: [{ value: "fast", name: "Fast" }, { value: "deep", name: "Deep" }] },
+  ];
+  const mode = (value: string): ScriptedAcpStep => ({ update: { sessionUpdate: "config_option_update", configOptions: [{ ...CONFIG[0], currentValue: value }, CONFIG[1]] } });
+
+  it("keeps a line for each switch around a step that goes on in place", async () => {
+    const h = await acpHarness(() => ({
+      configOptions: CONFIG,
+      turns: [[{ tool: { toolCallId: "t1", title: "rm -rf build", kind: "execute", status: "pending" } }, mode("bypass"), { toolUpdate: { toolCallId: "t1", status: "completed" } }, mode("ask")]],
+    }));
+    await h.agents.start("geminicli");
+    await h.agents.send("Clean up.");
+    expect(events(h.state().session!.thread)).toEqual([
+      { type: "setting", setting: "Mode", value: "Bypass permissions" },
+      { type: "setting", setting: "Mode", value: "Ask" },
+    ]);
+  });
+
+  it("keeps a line for each switch around a file the agent reads through Plainva", async () => {
+    const h = await acpHarness(() => ({ configOptions: CONFIG, turns: [[mode("bypass"), { read: { path: `${ROOT}/Projects/Plan.md` } }, mode("ask")]] }));
+    await h.agents.start("geminicli");
+    await h.agents.send("Read the plan.");
+    expect(events(h.state().session!.thread)).toEqual([
+      { type: "setting", setting: "Mode", value: "Bypass permissions" },
+      { type: "setting", setting: "Mode", value: "Ask" },
+    ]);
+  });
+
+  it("judges the asked setting by the answer proper, whatever the agent reported of it before", async () => {
+    // It reports the asked model, and then answers with the model as it was.
+    const h = await acpHarness(() => ({
+      configOptions: CONFIG,
+      beforeChange: [{ sessionUpdate: "config_option_update", configOptions: [CONFIG[0], { ...CONFIG[1], currentValue: "deep" }] }],
+      onChange: () => CONFIG.map((option) => ({ ...option })),
+    }));
+    await h.agents.start("geminicli");
+    await h.agents.setConfig("model", "deep");
+    expect(events(h.state().session!.thread)).toEqual([{ type: "setting-refused", setting: "Model", message: "" }]);
+    expect(h.state().session!.config[1]!.current).toBe("fast");
   });
 });

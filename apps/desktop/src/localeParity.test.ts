@@ -67,8 +67,12 @@ function sourcesUnder(roots: readonly string[]): string[] {
 function collectUsedKeys(): Set<string> {
   const keys = new Set<string>();
   const re = /\bt\(\s*["']([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)+)["']/g;
+  // The agent view's sentence builders (plan P9-7) take the key second: a literal, or a choice between literals.
+  const sentences = /\b(?:saidSentence|sentenceString|sentence)\(\s*t\s*,\s*((?:[^,()"'`]|"[^"]*"|'[^']*')+),/g;
+  const literal = /["']([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)+)["']/g;
   for (const text of sourcesUnder(SCAN_ROOTS)) {
     for (const m of text.matchAll(re)) keys.add(m[1]);
+    for (const m of text.matchAll(sentences)) for (const k of m[1].matchAll(literal)) keys.add(k[1]);
   }
   return keys;
 }
@@ -322,6 +326,9 @@ const VERBATIM_ALLOWED = new Set<string>([
   "ai.mcp.package",
   // A running AI tool: the tool's own (translated) name and an ellipsis.
   "ai.toolRunning",
+  // An external agent's setting and where it stands (plan KI-Harness P9-7): the agent's own two words joined by a
+  // colon — French and the CJK languages write their own colon, the others this one.
+  "ai.agent.config.value",
   // Related notes (plan KI-Harness P2b-4): two sections and the arrow between them, nothing to translate.
   "ai.related.pair",
   // The assistant's way onto the internet (plan KI-Harness P4): "Internet" is the word in de, es, fr, it, nl, pl

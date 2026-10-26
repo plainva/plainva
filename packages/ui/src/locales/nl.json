@@ -2072,6 +2072,24 @@
       "placeholder": "Bericht aan {{agent}}…",
       "empty": "Zeg {{agent}} wat er moet gebeuren. Hij werkt in de map van deze vault.",
       "plan": "Plan van de agent",
+      "placeholderCommands": "Bericht aan {{agent}}… — / voor zijn opdrachten",
+      "config": {
+        "value": "{{setting}}: {{value}}",
+        "owned": "{{label}}, een instelling van {{agent}}",
+        "mode": "Modus",
+        "more": "Meer instellingen van {{agent}}",
+        "menu": "{{setting}} van {{agent}}",
+        "tip": "Een instelling van {{agent}}: die verandert hoe {{agent}} werkt, niet wat Plainva doorlaat. Wat {{agent}} met zijn eigen hulpmiddelen doet, valt in elke modus buiten Plainva.",
+        "described": "Die verandert hoe {{agent}} werkt, niet wat Plainva doorlaat. Wat {{agent}} met zijn eigen hulpmiddelen doet, valt in elke modus buiten Plainva.",
+        "describedMore": "Die veranderen hoe {{agent}} werkt, niet wat Plainva doorlaat. Wat {{agent}} met zijn eigen hulpmiddelen doet, valt in elke modus buiten Plainva.",
+        "changing": "{{agent}} wijzigt een instelling…"
+      },
+      "commands": {
+        "label": "Opdrachten van {{agent}}",
+        "hint": "{{agent}} over /{{command}}: {{hint}}",
+        "more_one": "Nog {{count}} — typ verder",
+        "more_other": "Nog {{count}} — typ verder"
+      },
       "toolOutside": "buiten de vault: {{count}}",
       "kind": {
         "read": "Lezen",
@@ -2119,6 +2137,15 @@
         "noteKept": "{{note}} is de agent niet genoemd: de notitie wordt van de cloud of van internet weggehouden.",
         "failed": "De agent kon dit niet afmaken.",
         "failedSaid": "De agent kon dit niet afmaken. Hij zegt: {{message}}",
+        "setting": "De agent heeft “{{setting}}” zelf op “{{value}}” gezet.",
+        "settingOn": "De agent heeft “{{setting}}” zelf aangezet.",
+        "settingOff": "De agent heeft “{{setting}}” zelf uitgezet.",
+        "settingAlong": "Daarbij heeft de agent “{{setting}}” op “{{value}}” gezet.",
+        "settingOnAlong": "Daarbij heeft de agent “{{setting}}” aangezet.",
+        "settingOffAlong": "Daarbij heeft de agent “{{setting}}” uitgezet.",
+        "settingRefused": "De agent heeft “{{setting}}” niet gewijzigd.",
+        "settingRefusedSaid": "De agent heeft “{{setting}}” niet gewijzigd. Hij zegt: {{message}}",
+        "settingRefusedSignIn": "De agent heeft “{{setting}}” niet gewijzigd: hij vraagt eerst om aanmelding in zijn eigen programma.",
         "stopped": {
           "max_tokens": "De agent is gestopt: zijn model heeft zijn limiet bereikt.",
           "max_turn_requests": "De agent is gestopt: hij heeft zijn limiet aan stappen bereikt.",

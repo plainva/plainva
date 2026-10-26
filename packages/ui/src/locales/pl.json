@@ -2204,6 +2204,26 @@
       "placeholder": "Wiadomość dla: {{agent}}…",
       "empty": "Napisz, co {{agent}} ma zrobić. Pracuje w folderze tego vaultu.",
       "plan": "Plan agenta",
+      "placeholderCommands": "Wiadomość dla: {{agent}}… — / pokazuje jego polecenia",
+      "config": {
+        "value": "{{setting}}: {{value}}",
+        "owned": "{{label}}, ustawienie agenta {{agent}}",
+        "mode": "Tryb",
+        "more": "Więcej ustawień: {{agent}}",
+        "menu": "{{setting}} — {{agent}}",
+        "tip": "Ustawienie agenta {{agent}}: zmienia, jak {{agent}} pracuje, a nie to, co Plainva przepuszcza. To, co {{agent}} robi własnymi narzędziami, w każdym trybie pozostaje poza Plainvą.",
+        "described": "Zmienia, jak {{agent}} pracuje, a nie to, co Plainva przepuszcza. To, co {{agent}} robi własnymi narzędziami, w każdym trybie pozostaje poza Plainvą.",
+        "describedMore": "Zmieniają, jak {{agent}} pracuje, a nie to, co Plainva przepuszcza. To, co {{agent}} robi własnymi narzędziami, w każdym trybie pozostaje poza Plainvą.",
+        "changing": "{{agent}} zmienia ustawienie…"
+      },
+      "commands": {
+        "label": "Polecenia: {{agent}}",
+        "hint": "{{agent}} o /{{command}}: {{hint}}",
+        "more_one": "Jeszcze {{count}} — pisz dalej",
+        "more_few": "Jeszcze {{count}} — pisz dalej",
+        "more_many": "Jeszcze {{count}} — pisz dalej",
+        "more_other": "Jeszcze {{count}} — pisz dalej"
+      },
       "toolOutside": "poza vaultem: {{count}}",
       "kind": {
         "read": "Odczyt",
@@ -2251,6 +2271,15 @@
         "noteKept": "Agentowi nie wskazano {{note}}: notatka jest trzymana z dala od chmury lub internetu.",
         "failed": "Agent nie mógł tego dokończyć.",
         "failedSaid": "Agent nie mógł tego dokończyć. Podaje: {{message}}",
+        "setting": "Agent sam ustawił „{{setting}}” na „{{value}}”.",
+        "settingOn": "Agent sam włączył „{{setting}}”.",
+        "settingOff": "Agent sam wyłączył „{{setting}}”.",
+        "settingAlong": "Przy tej zmianie agent ustawił „{{setting}}” na „{{value}}”.",
+        "settingOnAlong": "Przy tej zmianie agent włączył „{{setting}}”.",
+        "settingOffAlong": "Przy tej zmianie agent wyłączył „{{setting}}”.",
+        "settingRefused": "Agent nie zmienił „{{setting}}”.",
+        "settingRefusedSaid": "Agent nie zmienił „{{setting}}”. Podaje: {{message}}",
+        "settingRefusedSignIn": "Agent nie zmienił „{{setting}}”: najpierw wymaga zalogowania we własnym programie.",
         "stopped": {
           "max_tokens": "Agent przerwał: jego model osiągnął limit.",
           "max_turn_requests": "Agent przerwał: osiągnął limit kroków.",

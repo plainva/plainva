@@ -6765,7 +6765,7 @@ test('AI external agents: an agent is added and started after the surface said w
   await expect(session).toHaveAttribute('data-phase', 'ready');
   now = await acp();
   expect(now.started).toEqual([{ agentId: 'gemini', root: '/test-vault' }]);
-  expect(now.lines[0].params.clientCapabilities).toEqual({ fs: { readTextFile: true, writeTextFile: true }, terminal: false, auth: { terminal: true } });
+  expect(now.lines[0].params.clientCapabilities).toEqual({ fs: { readTextFile: true, writeTextFile: true }, terminal: false, auth: { terminal: true }, session: { configOptions: { boolean: {} } } });
   expect(now.lines[1].params).toEqual({ cwd: '/test-vault', mcpServers: [] });
   // The head of the session keeps saying it.
   await expect(page.getByTestId('ai-agent-marking')).toContainText(/Plainva's privacy rules do not apply to it|Plainvas Datenschutzregeln gelten für ihn nicht/);
@@ -6858,6 +6858,158 @@ test('AI external agents: an agent is added and started after the surface said w
   // Through Plainva came the round on the welcome note and the note that was a draft.
   await expect(sessions).toContainText(/through Plainva: 2 · written itself: 1|über Plainva: 2 · selbst geschrieben: 1/);
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-ended-desktop.png'), animations: 'disabled' });
+});
+
+// What the user may set for an agent's session, and the agent's own commands
+// (AI harness P9-7): the agent's mode and model stand in the composer's foot
+// in its own words, the rest behind one button; a change goes to the agent,
+// and what it answers is what the buttons say. A message that begins with "/"
+// offers its commands, and Enter takes one instead of sending. A setting the
+// agent changes by itself is named in the thread. The native side is stood in
+// for at the commands, as above; the agent sends its commands right behind the
+// answer that opened the session, before the app can have read that answer.
+test('AI external agents: the settings an agent offers stand in its session, a change goes to it, its commands come with "/", and a switch it makes itself is named', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true } };
+    (window as any).mockFs['/test-vault/.plainva/sync'] = { isDir: true };
+    const acp = ((window as any).__acp = {
+      registry: [{ id: 'gemini', program: '/usr/bin/gemini', args: ['--acp'] }] as any[],
+      lines: [] as any[],
+      channel: null as any,
+      config: [
+        { id: 'mode', name: 'Mode', category: 'mode', type: 'select', currentValue: 'ask', options: [{ value: 'ask', name: 'Ask first', description: 'Asks before it changes a file' }, { value: 'auto', name: 'Edit on its own', description: 'Changes files without asking' }] },
+        { id: 'model', name: 'Model', category: 'model', type: 'select', currentValue: 'flash', options: [{ group: 'fast', name: 'Fast', options: [{ value: 'flash', name: 'Gemini Flash' }] }, { group: 'deep', name: 'Thorough', options: [{ value: 'pro', name: 'Gemini Pro', description: 'Slower, more thorough' }] }] },
+        { id: 'think', name: 'Think hard', category: 'thought_level', type: 'boolean', currentValue: false },
+      ] as any[],
+    });
+    const say = (message: unknown) => acp.channel?.onmessage({ type: 'line', text: JSON.stringify(message) });
+    const update = (body: object) => say({ jsonrpc: '2.0', method: 'session/update', params: { sessionId: 's1', update: body } });
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'acp_agents') return acp.registry;
+      if (cmd === 'acp_detect') return (args.programs as string[]).map((name) => (name === 'gemini' ? '/usr/bin/gemini' : null));
+      if (cmd === 'acp_start') { acp.channel = args.onEvent; return null; }
+      if (cmd === 'acp_stop') { acp.channel?.onmessage({ type: 'exit', code: null }); acp.channel = null; return null; }
+      if (cmd === 'acp_log') return '';
+      if (cmd === 'acp_write') {
+        const message = JSON.parse(args.line);
+        acp.lines.push(message);
+        if (message.method === 'initialize') say({ jsonrpc: '2.0', id: message.id, result: { protocolVersion: 1, agentInfo: { name: 'gemini-cli', title: 'Gemini CLI', version: '0.63.0' }, agentCapabilities: {}, authMethods: [] } });
+        else if (message.method === 'session/new') {
+          say({ jsonrpc: '2.0', id: message.id, result: { sessionId: 's1', configOptions: acp.config } });
+          // Its commands right behind the answer, in the same breath.
+          update({ sessionUpdate: 'available_commands_update', availableCommands: [{ name: 'plan', description: 'Makes a plan before it changes anything' }, { name: 'web', description: 'Searches the web', input: { hint: 'what to search for' } }] });
+        } else if (message.method === 'session/set_config_option') {
+          acp.config = acp.config.map((option: any) => (option.id === message.params.configId ? { ...option, currentValue: message.params.value } : option));
+          const answer = () => say({ jsonrpc: '2.0', id: message.id, result: { configOptions: acp.config } });
+          // The switch takes the agent a moment: long enough to see what the menu does while it waits.
+          if (message.params.configId === 'think') setTimeout(answer, 600);
+          else answer();
+        } else if (message.method === 'session/prompt') {
+          // In the turn the agent switches itself into the mode that asks nothing.
+          acp.config = acp.config.map((option: any) => (option.id === 'mode' ? { ...option, currentValue: 'auto' } : option));
+          update({ sessionUpdate: 'config_option_update', configOptions: acp.config });
+          update({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Here is the plan.' } });
+          say({ jsonrpc: '2.0', id: message.id, result: { stopReason: 'end_turn' } });
+        }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const lines = () => page.evaluate(() => (window as any).__acp.lines as any[]);
+  const changes = async () => (await lines()).filter((line) => line.method === 'session/set_config_option').map((line) => line.params);
+
+  // 1. The session opens; Plainva told the agent that it can show a switch.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-skills')));
+  await page.getByTestId('ai-tab-agent').click();
+  await page.getByTestId('ai-agent-start-action').click();
+  const session = page.getByTestId('ai-agent-session');
+  await expect(session).toHaveAttribute('data-phase', 'ready');
+  expect((await lines())[0].params.clientCapabilities.session).toEqual({ configOptions: { boolean: {} } });
+
+  // 2. The agent's settings, in its own words, in the composer's foot — each button says whose setting it is.
+  const mode = page.getByTestId('ai-agent-setting-mode');
+  const model = page.getByTestId('ai-agent-setting-model');
+  await expect(mode).toHaveText('Mode: Ask first');
+  await expect(model).toHaveText('Model: Gemini Flash');
+  await expect(mode).toHaveAttribute('data-tip', /^(A setting of Gemini CLI: it changes how Gemini CLI works, not what Plainva lets through\. What Gemini CLI does with its own tools is outside Plainva in every mode\.|Eine Einstellung von Gemini CLI: Sie ändert, wie Gemini CLI arbeitet, nicht, was Plainva durchlässt\. Was Gemini CLI mit seinen eigenen Werkzeugen tut, liegt in jedem Modus außerhalb von Plainva\.)$/);
+  // Its name begins with what it shows and says whose setting it is; what a setting does not change is its description.
+  await expect(model).toHaveAttribute('aria-label', /^Model: Gemini Flash, (a setting of|eine Einstellung von) Gemini CLI$/);
+  await expect(model).toHaveAttribute('aria-description', /^(It changes how Gemini CLI works|Sie ändert, wie Gemini CLI arbeitet)/);
+
+  // 3. The model: the agent's values under its own groups. Picking one asks the agent; its answer is what the button says.
+  await model.click();
+  const models = page.getByRole('menu', { name: /^(Model of Gemini CLI|Model von Gemini CLI)$/ });
+  // Plainva's heading first, then the agent's groups.
+  await expect(models.locator('.pv-menu-label')).toHaveText([/^(Model of Gemini CLI|Model von Gemini CLI)$/, 'Fast', 'Thorough']);
+  await expect(models.getByRole('menuitemradio', { name: /Gemini Flash/ })).toHaveAttribute('aria-checked', 'true');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-config-desktop.png'), animations: 'disabled' });
+  await models.getByRole('menuitemradio', { name: /Gemini Pro/ }).click();
+  await expect(model).toHaveText('Model: Gemini Pro');
+  expect(await changes()).toEqual([{ sessionId: 's1', configId: 'model', value: 'pro' }]);
+
+  // 4. The rest behind one button: a switch is an entry that is ticked or not, and goes to the agent as one.
+  await page.getByTestId('ai-agent-settings-more').click();
+  const more = page.getByRole('menu', { name: /^(More settings of Gemini CLI|Weitere Einstellungen von Gemini CLI)$/ });
+  const think = more.getByRole('menuitemcheckbox', { name: /Think hard/ });
+  await expect(think).toHaveAttribute('aria-checked', 'false');
+  await think.focus();
+  await page.keyboard.press('Space');
+  // While the agent answers, the entry waits and keeps the keyboard — the focus never falls to the page.
+  await expect(think).toHaveAttribute('aria-disabled', 'true');
+  await expect(think).toBeFocused();
+  await expect(think).toHaveAttribute('aria-checked', 'true');
+  await expect(think).toBeFocused();
+  expect((await changes()).at(-1)).toEqual({ sessionId: 's1', configId: 'think', value: true, type: 'boolean' });
+  await page.keyboard.press('Escape');
+  await expect(more).toHaveCount(0);
+
+  // 5. A "/" at the start of a message offers the agent's commands — sent right behind the answer that opened the
+  //    session —, in its own words; Enter takes one instead of sending a message half typed.
+  const input = page.getByTestId('ai-agent-input');
+  await expect(input).toHaveAttribute('placeholder', /\/ (for its commands|für seine Befehle)$/);
+  await input.click();
+  await input.pressSequentially('/');
+  const commands = page.getByRole('menu', { name: /^(Commands of Gemini CLI|Befehle von Gemini CLI)$/ });
+  const command = commands.getByTestId('ai-agent-command');
+  await expect(command).toHaveCount(2);
+  await expect(command.first()).toContainText('/plan');
+  await expect(command.first()).toContainText('Makes a plan before it changes anything');
+  await expect(command.last()).toContainText('Searches the web · what to search for');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-commands-desktop.png'), animations: 'disabled' });
+  await input.pressSequentially('pl');
+  await expect(command).toHaveCount(1);
+  await page.keyboard.press('Enter');
+  await expect(input).toHaveValue('/plan ');
+  await expect(commands).toHaveCount(0);
+  expect((await lines()).some((line) => line.method === 'session/prompt')).toBe(false);
+  await input.pressSequentially('the shooting day');
+  await page.getByTestId('ai-agent-send').click();
+
+  // 6. The command went as the message itself. In the turn the agent switched itself into the mode that asks nothing:
+  //    the thread names it, in its words, and the button follows.
+  await expect(page.getByTestId('ai-agent-text').last()).toContainText('Here is the plan.');
+  expect((await lines()).filter((line) => line.method === 'session/prompt').map((line) => line.params.prompt[0])).toEqual([{ type: 'text', text: '/plan the shooting day' }]);
+  const own = page.getByTestId('ai-agent-event-setting');
+  await expect(own).toHaveCount(1);
+  await expect(own).toHaveText(/^(The agent set “Mode” to “Edit on its own” itself\.|Der Agent hat „Mode“ selbst auf „Edit on its own“ gestellt\.)$/);
+  await expect(mode).toHaveText('Mode: Edit on its own');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-setting-desktop.png'), animations: 'disabled' });
+
+  // 7. A command that says what goes after it: once taken, its words stand under the field until the user types on.
+  await input.click();
+  await input.pressSequentially('/we');
+  await page.keyboard.press('Enter');
+  await expect(input).toHaveValue('/web ');
+  const taken = page.getByTestId('ai-agent-command-hint');
+  await expect(taken).toHaveText(/^Gemini CLI (on|zu) \/web: what to search for$/);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-command-hint-desktop.png'), animations: 'disabled' });
+  await input.pressSequentially('plainva');
+  await expect(taken).toHaveCount(0);
 });
 
 // The vault's memory (AI harness P6): two files of the vault. A conversation

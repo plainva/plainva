@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   ACP_FILE_LIMIT,
   ACP_MAX_AUTH_METHODS,
+  ACP_MAX_COMMANDS,
+  ACP_MAX_CONFIG_OPTIONS,
   ACP_MAX_OPTIONS,
   ACP_TITLE_LIMIT,
   AcpError,
@@ -10,12 +12,16 @@ import {
   acpInitializeParams,
   acpLines,
   acpRpcFailure,
+  readAcpCommands,
+  readAcpConfigOptions,
   readAcpFileRead,
   readAcpFileWrite,
   readAcpInitialize,
   readAcpMessage,
+  readAcpModes,
   readAcpNewSession,
   readAcpPermissionRequest,
+  readAcpSessionSetup,
   readAcpStopReason,
   readAcpUpdate,
 } from "./protocol.js";
@@ -68,7 +74,7 @@ describe("what Plainva tells an agent it offers", () => {
   it("is files through the app, no terminal, and a sign-in that can be shown", () => {
     expect(acpInitializeParams({ name: "plainva", title: "Plainva", version: "1.2.3" })).toEqual({
       protocolVersion: 1,
-      clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, terminal: false, auth: { terminal: true } },
+      clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, terminal: false, auth: { terminal: true }, session: { configOptions: { boolean: {} } } },
       clientInfo: { name: "plainva", title: "Plainva", version: "1.2.3" },
     });
   });
@@ -128,6 +134,17 @@ describe("what an agent says about itself", () => {
     expect(terminal({ env: Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`V${i}`, "1"])) })).toEqual([]);
     // A name is one line, and falls back to the id.
     expect(terminal({ name: "" })[0]?.name).toBe("t");
+    // Shown to be copied where no terminal opens: an argument reads as what it is — nothing turns text around or shows nothing.
+    expect(terminal({ args: ["--login", `a${String.fromCharCode(0x202e)}b`] })).toEqual([]);
+    expect(terminal({ args: [`a${String.fromCharCode(0x2066)}b`] })).toEqual([]);
+    expect(terminal({ args: [`a${String.fromCharCode(0x200b)}b`] })).toEqual([]);
+    // Nor what the app's names may not hold: a control of the second set, a line separator, a no-break space, a private code point.
+    for (const code of [0x85, 0x2028, 0xa0, 0xe000]) expect(terminal({ args: [`a${String.fromCharCode(code)}b`] })).toEqual([]);
+    // A value stands in the command to copy too: the same rule — and the same value without such a character passes.
+    for (const code of [0x202e, 0x2067, 0x200b, 0xa0]) expect(terminal({ env: { AGENT_MODE: `login${String.fromCharCode(code)}now` } })).toEqual([]);
+    expect(terminal({ env: { AGENT_MODE: "loginnow" } })).toHaveLength(1);
+    // Letters of a script written from right to left are letters.
+    expect(terminal({ args: ["--name", "שלום"] })).toHaveLength(1);
   });
 
   it("reads no more methods than a person can choose from", () => {
@@ -226,8 +243,9 @@ describe("what an agent reports", () => {
   });
 
   it("is otherwise something Plainva shows nothing for", () => {
-    expect(update({ sessionUpdate: "available_commands_update", availableCommands: [] })).toEqual({ kind: "other", name: "available_commands_update" });
-    expect(update({ sessionUpdate: "current_mode_update", currentModeId: "yolo" })).toEqual({ kind: "other", name: "current_mode_update" });
+    // Its commands, its modes and its settings are read since plan P9-7; the rest is passed by.
+    expect(update({ sessionUpdate: "usage_update", used: 1200, size: 200_000 })).toEqual({ kind: "other", name: "usage_update" });
+    expect(update({ sessionUpdate: "session_info_update", title: "Fixing the tests" })).toEqual({ kind: "other", name: "session_info_update" });
     for (const none of [{}, { sessionId: "s1" }, { sessionId: "s1", update: {} }, { sessionId: 5, update: { sessionUpdate: "plan" } }, { update: { sessionUpdate: "plan" } }]) expect(readAcpUpdate(none)).toBeNull();
   });
 });
@@ -296,5 +314,135 @@ describe("what an agent asks the host for", () => {
     expect(acpLines(content, 2, 2)).toBe("two\nthree");
     expect(acpLines(content, null, 1)).toBe("one");
     expect(acpLines(content, 9, 5)).toBe("");
+  });
+});
+
+/** Plan KI-Harness P9-7: what an agent lets the user set, and its commands — a stranger's words, read with care. */
+describe("an agent's settings, modes and commands", () => {
+  it("reads settings in the agent's order: choices flat or in groups, switches, and leaves out what it cannot show", () => {
+    const options = readAcpConfigOptions([
+      { id: "mode", name: "Mode", category: "mode", type: "select", currentValue: "ask", options: [{ value: "ask", name: "Ask" }, { value: "code", name: "Code", description: "Edits\u0007 without asking" }] },
+      { id: "model", name: "Model", category: "model", currentValue: "b", options: [{ group: "g1", name: "Fast", options: [{ value: "a", name: "A" }] }, { group: "g2", options: [{ value: "b", name: "B" }] }] },
+      { id: "think", name: "Think", category: "thought_level", type: "boolean", currentValue: true },
+      { id: "x", name: "Custom", category: "_vendor", type: "select", currentValue: "1", options: [{ value: "1" }] },
+      // Not a kind Plainva knows (even with values it could list and a current one among them), a current value it does
+      // not list, no id, a second "mode": all left out.
+      { id: "n", name: "Number", type: "number", currentValue: "3", options: [{ value: "3", name: "Three" }] },
+      { id: "lost", name: "Lost", type: "select", currentValue: "gone", options: [{ value: "here", name: "Here" }] },
+      { name: "No id", currentValue: "a", options: [{ value: "a" }] },
+      { id: "mode", name: "Again", currentValue: "x", options: [{ value: "x" }] },
+      "nonsense",
+    ])!;
+    expect(options.map((option) => [option.id, option.category, option.type, option.current])).toEqual([
+      ["mode", "mode", "select", "ask"],
+      ["model", "model", "select", "b"],
+      ["think", "thought_level", "boolean", true],
+      ["x", "other", "select", "1"],
+    ]);
+    const [mode, model, , custom] = options;
+    // The agent's own words, cleaned of what nobody sees, in one line.
+    expect(mode!.type === "select" && mode!.values[1]).toEqual({ value: "code", name: "Code", description: "Edits without asking" });
+    expect(model!.type === "select" && model!.values).toEqual([
+      { value: "a", name: "A", description: "", group: "Fast" },
+      { value: "b", name: "B", description: "", group: "g2" },
+    ]);
+    // A value without a name is shown by its value.
+    expect(custom!.type === "select" && custom!.values[0]!.name).toBe("1");
+    expect(readAcpConfigOptions(undefined)).toBeNull();
+    expect(readAcpConfigOptions([])).toEqual([]);
+    // Too many: the first ones, in the agent's order.
+    const many = Array.from({ length: 40 }, (_, i) => ({ id: `o${i}`, name: `O${i}`, type: "boolean", currentValue: false }));
+    expect(readAcpConfigOptions(many)!.map((option) => option.id)).toEqual(many.slice(0, ACP_MAX_CONFIG_OPTIONS).map((option) => option.id));
+  });
+
+  it("reads the older modes, and takes settings alone where an agent sends both", () => {
+    const modes = { currentModeId: "ask", availableModes: [{ id: "ask", name: "Ask" }, { id: "plan", name: "Plan", description: "Only plans" }, { id: "ask" }] };
+    expect(readAcpModes(modes)).toEqual({ current: "ask", available: [{ id: "ask", name: "Ask", description: "" }, { id: "plan", name: "Plan", description: "Only plans" }] });
+    expect(readAcpModes({ currentModeId: "gone", availableModes: modes.availableModes })).toBeNull();
+    expect(readAcpModes(null)).toBeNull();
+    expect(readAcpSessionSetup({ sessionId: "s1", modes })).toEqual({ sessionId: "s1", config: null, modes: readAcpModes(modes) });
+    expect(readAcpSessionSetup({ sessionId: "s1", modes, configOptions: [] })).toEqual({ sessionId: "s1", config: [], modes: null });
+  });
+
+  it("shows a name without what a person cannot see, falls back to the id only cleaned, and leaves out what shows nothing", () => {
+    const hidden = String.fromCharCode(0xe000) + String.fromCharCode(0x3164) + String.fromCharCode(0xd800);
+    const options = readAcpConfigOptions([
+      { id: "mode", name: `Mo${hidden}de`, currentValue: "a", options: [{ value: "a", name: `A${String.fromCharCode(0x2028)}B` }, { value: `b${String.fromCharCode(0x0085)}c` }] },
+      { id: String.fromCharCode(0x200b), currentValue: "x", options: [{ value: "x", name: "X" }] },
+    ])!;
+    expect(options.map((option) => option.name)).toEqual(["Mode"]);
+    const [mode] = options;
+    expect(mode!.type === "select" && mode!.values.map((value) => value.name)).toEqual(["A B", "b c"]);
+    expect(readAcpModes({ currentModeId: "a", availableModes: [{ id: "a", name: hidden }] })).toEqual({ current: "a", available: [{ id: "a", name: "a", description: "" }] });
+  });
+
+  it("keeps the current value of a long list, past the values it shows", () => {
+    const many = Array.from({ length: 150 }, (_, i) => ({ value: `v${i}`, name: `V${i}` }));
+    const [long] = readAcpConfigOptions([{ id: "model", name: "Model", currentValue: "v140", options: many }])!;
+    expect(long!.type === "select" && long!.values.length).toBe(101);
+    expect(long!.type === "select" && long!.values[100]).toEqual({ value: "v140", name: "V140", description: "" });
+  });
+
+  it("reads commands by names a message can begin with, the whole list each time", () => {
+    expect(
+      readAcpCommands([
+        { name: "web", description: "Search the web", input: { hint: "what to search for" } },
+        { name: "/plan", description: "Make a plan" },
+        { name: "project:fix-tests", description: "Fix them" },
+        { name: "two words", description: "No" },
+        { name: "", description: "No" },
+        { name: "web", description: "Twice" },
+        { name: "x\u0000y", description: "No" },
+        { description: "No name" },
+        // Names in any script are names; a symbol, a direction mark or an invisible character is not part of one.
+        { name: "übersetzen", description: "Translate" },
+        { name: "要約", description: "Summarize" },
+        { name: "plan✓", description: "No" },
+        { name: "a\u202Eb", description: "No" },
+        { name: "a\u200Bb", description: "No" },
+        // An ignorable letter or mark shows nothing: a Hangul filler alone or after a name, a variation selector.
+        { name: "\u3164", description: "No" },
+        { name: "plan\u3164", description: "No" },
+        { name: "plan\uFE0F", description: "No" },
+        // Four marks in a row, on a letter none of them composes with in NFC.
+        { name: "x\u0301\u0302\u0303\u0304", description: "No" },
+        // Read in NFC: the decomposed spelling of a name already listed is that name.
+        { name: "u\u0308bersetzen", description: "Twice" },
+      ]),
+    ).toEqual([
+      { name: "web", description: "Search the web", hint: "what to search for" },
+      { name: "plan", description: "Make a plan", hint: null },
+      { name: "project:fix-tests", description: "Fix them", hint: null },
+      { name: "übersetzen", description: "Translate", hint: null },
+      { name: "要約", description: "Summarize", hint: null },
+    ]);
+    expect(readAcpCommands("nonsense")).toEqual([]);
+    // A name is kept as the agent spells it — that is the name it recognises —, and its other spelling is the same command.
+    const spelled = "re\u0301sume\u0301";
+    expect(readAcpCommands([{ name: spelled, description: "As spelled" }, { name: spelled.normalize("NFC"), description: "Twice" }])).toEqual([{ name: spelled, description: "As spelled", hint: null }]);
+    expect(readAcpCommands(Array.from({ length: 80 }, (_, i) => ({ name: `c${i}`, description: "" })))).toHaveLength(ACP_MAX_COMMANDS);
+  });
+
+  it("reads the reports of a setting, a mode and the commands, instead of passing them by", () => {
+    const options = [{ id: "mode", name: "Mode", category: "mode", currentValue: "code", options: [{ value: "code", name: "Code" }] }];
+    expect(readAcpUpdate({ sessionId: "s1", update: { sessionUpdate: "config_option_update", configOptions: options } })).toEqual({ sessionId: "s1", update: { kind: "config", options: readAcpConfigOptions(options) } });
+    expect(readAcpUpdate({ sessionId: "s1", update: { sessionUpdate: "current_mode_update", currentModeId: "plan" } })).toEqual({ sessionId: "s1", update: { kind: "mode", current: "plan" } });
+    expect(readAcpUpdate({ sessionId: "s1", update: { sessionUpdate: "available_commands_update", availableCommands: [{ name: "web", description: "Search" }] } })).toEqual({
+      sessionId: "s1",
+      update: { kind: "commands", commands: [{ name: "web", description: "Search", hint: null }] },
+    });
+    // A report without its list says nothing.
+    expect(readAcpUpdate({ sessionId: "s1", update: { sessionUpdate: "config_option_update" } })).toBeNull();
+    expect(readAcpUpdate({ sessionId: "s1", update: { sessionUpdate: "available_commands_update" } })).toBeNull();
+    expect(readAcpUpdate({ sessionId: "s1", update: { sessionUpdate: "current_mode_update" } })).toBeNull();
+  });
+
+  it("tells the agent that a switch can be shown as one", () => {
+    expect(acpInitializeParams({ name: "plainva", title: "Plainva", version: "1" }).clientCapabilities).toEqual({
+      fs: { readTextFile: true, writeTextFile: true },
+      terminal: false,
+      auth: { terminal: true },
+      session: { configOptions: { boolean: {} } },
+    });
   });
 });

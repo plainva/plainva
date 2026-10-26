@@ -2138,6 +2138,25 @@
       "placeholder": "Messaggio per {{agent}}…",
       "empty": "Di' a {{agent}} che cosa deve fare. Lavora nella cartella di questo vault.",
       "plan": "Piano dell'agente",
+      "placeholderCommands": "Messaggio per {{agent}}… — / mostra i suoi comandi",
+      "config": {
+        "value": "{{setting}}: {{value}}",
+        "owned": "{{label}}, un'impostazione di {{agent}}",
+        "mode": "Modalità",
+        "more": "Altre impostazioni di {{agent}}",
+        "menu": "{{setting}} di {{agent}}",
+        "tip": "Un'impostazione di {{agent}}: cambia come lavora {{agent}}, non ciò che Plainva lascia passare. Ciò che {{agent}} fa con i propri strumenti resta fuori da Plainva in qualsiasi modalità.",
+        "described": "Cambia come lavora {{agent}}, non ciò che Plainva lascia passare. Ciò che {{agent}} fa con i propri strumenti resta fuori da Plainva in qualsiasi modalità.",
+        "describedMore": "Cambiano come lavora {{agent}}, non ciò che Plainva lascia passare. Ciò che {{agent}} fa con i propri strumenti resta fuori da Plainva in qualsiasi modalità.",
+        "changing": "{{agent}} sta cambiando un'impostazione…"
+      },
+      "commands": {
+        "label": "Comandi di {{agent}}",
+        "hint": "{{agent}} su /{{command}}: {{hint}}",
+        "more_one": "Ancora {{count}} — continua a scrivere",
+        "more_many": "Ancora {{count}} — continua a scrivere",
+        "more_other": "Ancora {{count}} — continua a scrivere"
+      },
       "toolOutside": "fuori dal vault: {{count}}",
       "kind": {
         "read": "Leggere",
@@ -2185,6 +2204,15 @@
         "noteKept": "{{note}} non è stata nominata all'agente: è tenuta lontana dal cloud o da internet.",
         "failed": "L'agente non è riuscito a terminare.",
         "failedSaid": "L'agente non è riuscito a terminare. Dice: {{message}}",
+        "setting": "L'agente ha impostato «{{setting}}» su «{{value}}» di sua iniziativa.",
+        "settingOn": "L'agente ha attivato «{{setting}}» di sua iniziativa.",
+        "settingOff": "L'agente ha disattivato «{{setting}}» di sua iniziativa.",
+        "settingAlong": "Con questa modifica, l'agente ha impostato «{{setting}}» su «{{value}}».",
+        "settingOnAlong": "Con questa modifica, l'agente ha attivato «{{setting}}».",
+        "settingOffAlong": "Con questa modifica, l'agente ha disattivato «{{setting}}».",
+        "settingRefused": "L'agente non ha cambiato «{{setting}}».",
+        "settingRefusedSaid": "L'agente non ha cambiato «{{setting}}». Dice: {{message}}",
+        "settingRefusedSignIn": "L'agente non ha cambiato «{{setting}}»: chiede prima un accesso nel proprio programma.",
         "stopped": {
           "max_tokens": "L'agente si è fermato: il suo modello ha raggiunto il limite.",
           "max_turn_requests": "L'agente si è fermato: ha raggiunto il suo limite di passaggi.",

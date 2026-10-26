@@ -4,7 +4,7 @@ import {
   acpAgentLabel,
   acpAgentTarget,
   acpAuthorId,
-  acpCommandText,
+  acpSignInCommand,
   acpFileUri,
   acpKnownAgentOf,
   acpLoginProblem,
@@ -17,16 +17,20 @@ import {
   suggestAcpAgentId,
   type AcpAuthMethod,
   type AcpClient,
+  type AcpCommand,
+  type AcpConfigOption,
   type AcpFailure,
   type AcpFileRead,
   type AcpFileWrite,
   type AcpLoginProblem,
   type AcpMcpServer,
+  type AcpModes,
   type AcpNativeHost,
   type AcpPermissionOption,
   type AcpPermissionRequest,
   type AcpPlanEntry,
   type AcpPromptBlock,
+  type AcpSessionOpened,
   type AcpStartProblem,
   type AcpStopReason,
   type AcpToolKind,
@@ -137,7 +141,21 @@ export type AcpSessionEvent =
   /** A turn failed with an error of the agent's own. */
   | { type: "failed"; message: string }
   /** The open note was not named to the agent: it is kept from the cloud. */
-  | { type: "note-kept"; path: string };
+  | { type: "note-kept"; path: string }
+  /**
+   * The agent changed one of its settings by itself (plan P9-7): a mode, a
+   * model. Its own names for both — `setting` is `null` for its mode in the
+   * older form, which Plainva names —; a switch says on or off. `along`: it
+   * came with the agent's answer to a change the user made — a setting that
+   * goes with another.
+   */
+  | { type: "setting"; setting: string | null; value: string | boolean; along?: true }
+  /**
+   * The agent did not take a change the user asked for (`setting` as above).
+   * Its own words for why, or none; `reason`: it wants a sign-in first, in
+   * Plainva's words.
+   */
+  | { type: "setting-refused"; setting: string | null; message: string; reason?: "sign-in" };
 
 export type AcpThreadItem =
   | { kind: "user"; id: number; text: string; note: string | null }
@@ -206,10 +224,22 @@ export interface AiAcpSession {
   waiting: string[];
   authMethods: AcpAuthMethod[];
   authProblem: AcpAuthProblem | null;
-  /** Where no terminal could be opened: the command to run in one's own. */
-  manualSignIn: string | null;
+  /** Where no terminal could be opened: the command to run in one's own, in its parts as they are shown (`acpSignInCommand`). */
+  manualSignIn: string[] | null;
   problem: AcpSessionProblem | null;
   counts: AcpCounts;
+  /**
+   * What the agent lets the user set for this session (plan P9-7), in its
+   * order and in its own words: a mode, a model, more. They change how the
+   * agent works — never what Plainva lets through at its side.
+   */
+  config: AcpConfigOption[];
+  /** Its modes in the older way, where it offers no settings. */
+  modes: AcpModes | null;
+  /** Its own commands, run as `/name …` in a message. */
+  commands: AcpCommand[];
+  /** The setting whose change the agent has not answered yet: its id, or "mode" for the older way. */
+  changing: string | null;
 }
 
 export interface AiAcpState {
@@ -267,6 +297,18 @@ interface Live {
   /** The client is being replaced after a sign-in: its end is not the session's. */
   restarting: boolean;
   ended: boolean;
+  /**
+   * The change the user asked for and the agent has not answered — of a
+   * setting, or of the mode in the older way —, and what it stood at then: a
+   * report of exactly it is the answer, not the agent's own doing.
+   */
+  asked: { older: boolean; id: string; value: string | boolean; from: string | boolean } | null;
+  /**
+   * The lines of the settings the agent changed by itself since anything else
+   * stood in the thread or the user asked for a change, by the setting's id: a
+   * setting turned again in that run keeps one line, its last word.
+   */
+  run: Map<string, number> | null;
 }
 
 export class AiAcp {
@@ -439,6 +481,10 @@ export class AiAcp {
         manualSignIn: null,
         problem: null,
         counts: { ...EMPTY_COUNTS },
+        config: [],
+        modes: null,
+        commands: [],
+        changing: null,
       },
       nextItem: 1,
       turn: null,
@@ -449,6 +495,8 @@ export class AiAcp {
       direct: new Set(),
       restarting: false,
       ended: false,
+      asked: null,
+      run: null,
     };
     this.live = live;
     this.show();
@@ -470,6 +518,12 @@ export class AiAcp {
       }),
       {
         update: (update) => this.onUpdate(live, update),
+        // The settings the session opened with, where the answer is read: a report right behind it is measured against them.
+        opened: (settings) => {
+          if (live.client !== client || live.ended) return;
+          live.view.config = settings.config ?? [];
+          live.view.modes = settings.modes;
+        },
         permission: (request, signal) => this.onQuestion(live, request, signal),
         readFile: (request) => this.onRead(live, request),
         writeFile: (request) => this.onWrite(live, request),
@@ -480,6 +534,13 @@ export class AiAcp {
     );
     live.client = client;
     live.restarting = false;
+    // A program started anew: nothing an earlier one offered stands (plan P9-7).
+    live.view.config = [];
+    live.view.modes = null;
+    live.view.commands = [];
+    live.view.changing = null;
+    live.asked = null;
+    live.run = null;
     live.view.phase = "starting";
     this.show();
     try {
@@ -489,8 +550,9 @@ export class AiAcp {
       const toolbox = await host.toolbox().catch(() => null);
       live.view.tools = toolbox ? "offered" : "off";
       this.show();
-      await client.newSession({ cwd: live.root, mcpServers: toolbox ? [toolbox] : [] });
+      const started = await client.newSession({ cwd: live.root, mcpServers: toolbox ? [toolbox] : [] });
       if (live.ended || live.client !== client) return;
+      opensWith(live, started);
       live.view.phase = "ready";
       live.view.authProblem = null;
       live.view.manualSignIn = null;
@@ -535,8 +597,9 @@ export class AiAcp {
       try {
         await client.authenticate(method.id);
         const toolbox = await host.toolbox().catch(() => null);
-        await client.newSession({ cwd: live.root, mcpServers: toolbox ? [toolbox] : [] });
+        const started = await client.newSession({ cwd: live.root, mcpServers: toolbox ? [toolbox] : [] });
         if (live.ended || live.client !== client) return;
+        opensWith(live, started);
         live.view.tools = toolbox ? "offered" : "off";
         live.view.phase = "ready";
       } catch (error) {
@@ -564,7 +627,7 @@ export class AiAcp {
       live.view.phase = "auth";
       live.view.authProblem = word;
       // No terminal to open: the person runs the same command in their own, and comes back.
-      if (word === "no-terminal") live.view.manualSignIn = acpCommandText(live.agent.program, [...live.agent.args, ...method.args]);
+      if (word === "no-terminal") live.view.manualSignIn = acpSignInCommand(live.root, live.agent.program, [...live.agent.args, ...method.args], method.env);
       this.show();
       return;
     }
@@ -645,6 +708,61 @@ export class AiAcp {
     this.live?.turn?.abort();
   }
 
+  /**
+   * Changes one of the agent's settings for this session (plan P9-7) to one
+   * of the values it offered — also while it works: the agent decides when it
+   * takes effect. What the agent answers is what the session shows; where it
+   * refuses, the setting stays as it said and the thread says so.
+   */
+  async setConfig(configId: string, value: string | boolean): Promise<void> {
+    const live = this.live;
+    const client = live?.client;
+    if (!live || !client || live.view.changing !== null || (live.view.phase !== "ready" && live.view.phase !== "running")) return;
+    const option = live.view.config.find((entry) => entry.id === configId);
+    if (!option || option.current === value) return;
+    live.view.changing = configId;
+    live.asked = { older: false, id: configId, value, from: option.current };
+    // What the agent does after the user's change is a new line, whatever it said of this setting before.
+    live.run = null;
+    this.show();
+    let refused: AcpSessionEvent | null = null;
+    try {
+      // The answer reaches the session as a report, where the agent's order puts it (`AcpUpdate.answer`).
+      await client.setConfigOption(configId, value);
+    } catch (error) {
+      refused = refusalOf(asAcpError(error).failure, option.name);
+    }
+    if (live.client !== client || live.ended) return;
+    live.view.changing = null;
+    live.asked = null;
+    if (refused) this.event(live, refused);
+    this.show();
+  }
+
+  /** The same for an agent that offers modes in the older way. */
+  async setMode(modeId: string): Promise<void> {
+    const live = this.live;
+    const client = live?.client;
+    const modes = live?.view.modes;
+    if (!live || !client || !modes || live.view.changing !== null || (live.view.phase !== "ready" && live.view.phase !== "running")) return;
+    if (modes.current === modeId || !modes.available.some((mode) => mode.id === modeId)) return;
+    live.view.changing = "mode";
+    live.asked = { older: true, id: "", value: modeId, from: modes.current };
+    live.run = null;
+    this.show();
+    let refused: AcpSessionEvent | null = null;
+    try {
+      await client.setMode(modeId);
+    } catch (error) {
+      refused = refusalOf(asAcpError(error).failure, null);
+    }
+    if (live.client !== client || live.ended) return;
+    live.view.changing = null;
+    live.asked = null;
+    if (refused) this.event(live, refused);
+    this.show();
+  }
+
   /** The user's answer to the agent's question: one of its options, or none of them. */
   answer(optionId: string | null): void {
     const live = this.live;
@@ -706,16 +824,42 @@ export class AiAcp {
   /* ---- what an agent does ---------------------------------------------------------------------- */
 
   private push(live: Live, item: AcpThreadItem): void {
+    // Anything that comes into the thread ends a run of lines about settings.
+    live.run = null;
     live.view.thread.push(item);
     if (live.view.thread.length > THREAD_CAP) live.view.thread.splice(0, live.view.thread.length - THREAD_CAP);
   }
 
-  private event(live: Live, event: AcpSessionEvent): void {
+  /**
+   * A line of Plainva's own. `key`: the setting a line about a setting is
+   * about — the agent's id for it. A setting the agent turns again before
+   * anything else comes into the thread, or the user asks for a change, keeps
+   * its one line, now with its last word; two settings of the same name stay
+   * two.
+   */
+  private event(live: Live, event: AcpSessionEvent, key?: string): void {
+    if (event.type === "setting" && key !== undefined) {
+      const at = live.run?.get(key);
+      const index = at === undefined ? -1 : live.view.thread.findIndex((item) => item.id === at);
+      if (index >= 0) {
+        live.view.thread[index] = { kind: "event", id: at!, event };
+        return;
+      }
+      const run = live.run ?? new Map<string, number>();
+      const id = live.nextItem++;
+      this.push(live, { kind: "event", id, event });
+      run.set(key, id);
+      live.run = run;
+      return;
+    }
     this.push(live, { kind: "event", id: live.nextItem++, event });
   }
 
   private onUpdate(live: Live, update: AcpUpdate): void {
     if (live.ended) return;
+    // Anything the agent does between two reports of its settings ends a run of their lines — also what changes no
+    // line of the thread: a step that goes on, its plan, what it thinks.
+    if (update.kind === "text" || update.kind === "tool" || update.kind === "plan") live.run = null;
     if (update.kind === "text") {
       // What the agent thinks to itself and what it repeats of the user's words is not shown: the thread is what was said.
       if (update.role !== "agent") return;
@@ -729,8 +873,58 @@ export class AiAcp {
       // An agent sends its whole plan each time: the thread keeps one, where it first stood.
       if (at >= 0) live.view.thread[at] = { kind: "plan", id: live.view.thread[at]!.id, entries: update.entries };
       else if (update.entries.length) this.push(live, { kind: "plan", id: live.nextItem++, entries: update.entries });
+    } else if (update.kind === "config") {
+      this.takeSettings(live, update.options, update.answer === true);
+      // Settings take the place of the older modes, as the protocol says, from the first report of them on.
+      live.view.modes = null;
+    } else if (update.kind === "mode") {
+      const modes = live.view.modes;
+      const asked = live.asked?.older ? live.asked : null;
+      // A report of the asked mode is no line of its own; only the answer proper uses the question up.
+      const usersOwn = asked !== null && update.current === asked.value;
+      if (asked !== null && update.answer === true) live.asked = null;
+      if (!modes || modes.current === update.current) return;
+      const mode = modes.available.find((entry) => entry.id === update.current);
+      live.view.modes = { ...modes, current: update.current };
+      // A switch the user asked for is the answer to it; any other is the agent's own doing, and the thread says so.
+      if (mode && !usersOwn) this.event(live, { type: "setting", setting: null, value: mode.name }, "");
+    } else if (update.kind === "commands") {
+      live.view.commands = update.commands;
     } else return;
     this.showSoon();
+  }
+
+  /**
+   * Every setting as the agent says it is now. A value that changed and is
+   * not the one the user asked for is the agent's own doing: the thread names
+   * it — a mode that waives a question of the agent's own is worth knowing.
+   * `answered`: the agent's answer to the user's change, where another setting
+   * may go along with it — named as such —, and where the asked one may stay
+   * as it was — a change the agent did not make — or come to another value
+   * than asked, which is its own doing.
+   */
+  private takeSettings(live: Live, options: AcpConfigOption[], answered = false): void {
+    const asked = live.asked && !live.asked.older ? live.asked : null;
+    // A report that carries the asked setting at the asked value answers it for what goes along — before the answer
+    // proper, too —; only the answer proper judges the asked setting itself and uses the question up.
+    const answering = answered || (asked !== null && options.some((option) => option.id === asked.id && option.current === asked.value));
+    for (const option of options) {
+      const before = live.view.config.find((entry) => entry.id === option.id);
+      if (!before) continue;
+      const value = option.type === "boolean" ? option.current : (option.values.find((entry) => entry.value === option.current)?.name ?? option.current);
+      if (asked && option.id === asked.id) {
+        // The user's own change is no line; an answer that leaves the setting where it stood is a change the agent did
+        // not make; another value than asked is its own doing.
+        if (option.current === asked.value) continue;
+        if (answered && option.current === asked.from) this.event(live, { type: "setting-refused", setting: option.name, message: "" });
+        else if (before.current !== option.current) this.event(live, { type: "setting", setting: option.name, value }, option.id);
+        continue;
+      }
+      if (before.current === option.current) continue;
+      this.event(live, { type: "setting", setting: option.name, value, ...(answering ? { along: true as const } : {}) }, option.id);
+    }
+    live.view.config = options;
+    if (answered && asked) live.asked = null;
   }
 
   /** The files of the vault a tool call names, in the vault's own paths, and how many it names outside. */
@@ -775,6 +969,7 @@ export class AiAcp {
 
   private onQuestion(live: Live, request: AcpPermissionRequest, signal: AbortSignal): Promise<string | null> {
     if (live.ended || signal.aborted) return Promise.resolve(null);
+    live.run = null;
     return new Promise<string | null>((resolve) => {
       const entry = { request, resolve };
       signal.addEventListener(
@@ -807,6 +1002,7 @@ export class AiAcp {
 
   private async onRead(live: Live, request: AcpFileRead): Promise<string> {
     if (live.ended) throw new AcpFileRefusal("outside");
+    live.run = null;
     try {
       const read = await acpReadFile(live.vault.access, live.agent.id, request, (path) => live.own.get(path));
       live.view.counts.read++;
@@ -819,6 +1015,7 @@ export class AiAcp {
 
   private async onWrite(live: Live, request: AcpFileWrite): Promise<void> {
     if (live.ended) throw new AcpFileRefusal("outside");
+    live.run = null;
     try {
       // Planned now, so that the agent hears at once what Plainva does not take; proposed when the turn ends, so that one note gets one round.
       const plan = await acpPlanWrite(live.vault.access, live.agent.id, request);
@@ -891,6 +1088,9 @@ export class AiAcp {
     live.turn?.abort();
     for (const asked of live.asks.splice(0)) asked.resolve(null);
     live.view.question = null;
+    // A change that waited for the agent's answer waits no more.
+    live.view.changing = null;
+    live.asked = null;
     const client = live.client;
     live.client = null;
     await client?.close().catch(() => undefined);
@@ -913,6 +1113,30 @@ export class AiAcp {
     if (this.live === live) this.show();
     void this.refresh();
   }
+}
+
+/**
+ * A session that opened: what it lets the user set, as the client says it now
+ * — reports that came before the answer included. Its commands are left as
+ * the agent's own reports set them.
+ */
+function opensWith(live: Live, opened: AcpSessionOpened): void {
+  live.view.config = opened.config ?? [];
+  live.view.modes = opened.modes;
+  live.view.changing = null;
+  live.asked = null;
+}
+
+/**
+ * How the thread names a change the agent did not take (plan P9-7): its own no
+ * in its words, a sign-in it wants first in Plainva's. A program that ended
+ * says so itself, and a change Plainva did not send — a value no longer offered
+ * — is nothing the agent declined: no line.
+ */
+function refusalOf(failure: AcpFailure, setting: string | null): AcpSessionEvent | null {
+  if (failure.kind === "rpc") return { type: "setting-refused", setting, message: failure.message };
+  if (failure.kind === "auth") return { type: "setting-refused", setting, message: "", reason: "sign-in" };
+  return null;
 }
 
 function problemOf(failure: AcpFailure): AcpSessionProblem {

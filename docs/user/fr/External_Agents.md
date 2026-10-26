@@ -1,6 +1,6 @@
 # Agents externes (Bêta)
 
-Dernière mise à jour : 2026-10-07
+Dernière mise à jour : 2026-10-26
 
 Un agent externe est un programme d'IA d'un autre éditeur — un agent que vous avez installé sur votre ordinateur et auquel vous vous êtes connecté vous-même, avec votre propre abonnement ou votre propre clé. Plainva peut démarrer un tel agent dans le dossier d'un vault et afficher sa session dans l'onglet IA. Cela fait partie des fonctions d'IA expérimentales et ne marche que sur ordinateur.
 
@@ -46,6 +46,8 @@ Un agent qui n'est pas connecté le dit, et la session affiche **⟨agent⟩ dem
 
 Quand l'agent veut votre accord pour une étape, **⟨agent⟩ demande** l'affiche. Les mots sont ceux de l'agent, et les choix sont ceux que l'agent propose — **Autoriser**, **Toujours autoriser**, **Refuser**, **Toujours refuser**. Votre réponse ne va qu'à l'agent : ce qu'il fait après un oui est son affaire, et un « toujours » est une promesse que tient l'agent, pas Plainva.
 
+**Réglages et commandes.** Là où l'agent les propose, le pied de la session affiche ses propres réglages : son mode et son modèle comme boutons — **⟨réglage⟩ : ⟨valeur⟩** —, le reste derrière le bouton à curseurs **Autres réglages de ⟨agent⟩**. Chacun de leurs menus commence par le titre propre à Plainva — **⟨réglage⟩ de ⟨agent⟩** ou **Autres réglages de ⟨agent⟩** — ; en dessous, les noms, les valeurs et les descriptions sont ceux de l'agent, dans son ordre : la valeur actuelle cochée, un interrupteur comme une entrée cochée ou non. Là où les mots de l'agent figurent dans un titre ou une phrase de Plainva, ils sont mis à part en italique discret, jamais dans les capitales du titre. Chaque session commence avec les valeurs par défaut de l'agent. Un réglage change la façon dont l'agent travaille, pas ce que Plainva laisse passer : lire et écrire par Plainva suivent les mêmes règles quel que soit le mode, et un mode dans lequel l'agent ne demande plus rien n'épargne aucune des étapes propres à Plainva. Ce que l'agent fait avec ses propres outils échappe à Plainva, quel que soit le mode. Quand l'agent change un réglage de lui-même, la session le dit : **L'agent a mis « ⟨réglage⟩ » sur « ⟨valeur⟩ » de lui-même.** Ce qu'il change en même temps qu'un de vos changements, elle le nomme comme tel — **Avec ce changement, l'agent a mis « ⟨réglage⟩ » sur « ⟨valeur⟩ ».** —, et un changement qu'il n'a pas fait aussi : **L'agent n'a pas changé « ⟨réglage⟩ ».** Tant qu'un changement attend l'agent, un indicateur tourne à côté des réglages, et ils ne réagissent plus jusqu'à sa réponse. Une **/** au début d'un message liste sous **Commandes de ⟨agent⟩** les commandes propres à l'agent avec ce qu'il dit qu'elles font : les flèches parcourent la liste, Entrée ou Tab reprennent une commande, Échap ferme la liste. Une commande est un message qui commence par son nom ; là où l'agent dit ce qui doit suivre, cela s'affiche sous le champ jusqu'à ce que vous continuiez à écrire. Ce que fait une commande est l'affaire de l'agent.
+
 **Arrêter** met fin à la réponse sur laquelle l'agent travaille.
 
 ## Ce que l'agent écrit
@@ -69,5 +71,5 @@ Si le programme de l'agent se termine de lui-même, la session le dit, et **Affi
 - Ordinateur uniquement, et uniquement dans la fenêtre principale. Sur le téléphone, il y a l'assistant propre à Plainva.
 - Pas dans un espace chiffré.
 - Une session à la fois, et pas d'historique : une session terminée ne peut pas être rouverte.
-- Les modes, modèles et commandes propres à un agent ne peuvent pas être choisis depuis Plainva, et on ne peut pas lui envoyer d'images.
+- On ne peut pas envoyer d'images à un agent, et Plainva ne reporte pas sur la session suivante un mode ou un modèle choisi dans une session.
 - Jusqu'ici, cela n'a été essayé qu'avec un agent de test propre à Plainva. Quels agents fonctionnent ici, et lesquels remettent leurs modifications à Plainva, se voit en les essayant — vos retours sont les bienvenus.

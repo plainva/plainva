@@ -7,6 +7,7 @@ import {
   acpCommandText,
   acpKnownAgentOf,
   acpLoginProblem,
+  acpSignInCommand,
   acpStartProblem,
   acpToolbox,
   isAcpAgentId,
@@ -110,6 +111,26 @@ describe("an agent the user added", () => {
     expect(acpCommandText("/usr/bin/gemini", ["--acp"])).toBe("/usr/bin/gemini --acp");
     expect(acpCommandText("C:\\Program Files\\Agent\\agent.exe", ["login", 'say "hi"'])).toBe('"C:\\\\Program Files\\\\Agent\\\\agent.exe" login "say \\"hi\\""');
     expect(acpCommandText("agent", [""])).toBe('agent ""');
+  });
+
+  it("shows the sign-in for a terminal of one's own as the native script runs it, every part quoted for the shell", () => {
+    // Nothing in it expands or is read as the shell's own: a substitution, a backslash, a quote of its own. A
+    // backslash stands in double quotes, where sh, bash, zsh and fish all read it as one — fish reads it as an escape
+    // in single quotes, and an argument that ends in one would escape the closing quote there.
+    expect(acpSignInCommand("/home/me/My Vault", "/usr/bin/gemini", ["--acp", "login", "$(id)", "a\\b", "x\\", "it's"], { B: "2", A: "x y" })).toEqual([
+      "cd",
+      "'/home/me/My Vault'",
+      "&&",
+      "A='x y'",
+      "B='2'",
+      "'/usr/bin/gemini'",
+      "'--acp'",
+      "'login'",
+      "'$(id)'",
+      "'a'\"\\\\\"'b'",
+      "'x'\"\\\\\"''",
+      "'it'\\''s'",
+    ]);
   });
 
   it("names why a start or a sign-in did not happen in a fixed set of words", () => {
