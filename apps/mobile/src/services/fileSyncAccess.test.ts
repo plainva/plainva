@@ -69,7 +69,7 @@ describe("whether the vault's sync worker starts", () => {
 
   it("does not start for a vault signed out on this phone, and says why (review finding 3)", () => {
     expect(mobileSyncStart({ filesOff: false, entryProvider: "webdav", stored: webdav({ pass: "", signedOutHere: true }) }))
-      .toEqual({ start: false, status: "error", messageKey: "deviceSignIn.needed", queueLocalChanges: true });
+      .toEqual({ start: false, status: "error", messageKey: "deviceSignIn.needed", queueLocalChanges: true, signInNeeded: true });
   });
 
   it("starts for a WebDAV vault without a password (review finding 2)", () => {
@@ -88,7 +88,7 @@ describe("whether the vault's sync worker starts", () => {
     expect(mobileSyncStart({ filesOff: true, entryProvider: "webdav", stored: webdav({ pass: "x" }) })).toEqual({ start: true, settingsOnly: true });
     // A device signed out here stays still, settings included.
     expect(mobileSyncStart({ filesOff: true, entryProvider: "webdav", stored: webdav({ pass: "", signedOutHere: true }) }))
-      .toEqual({ start: false, status: "error", messageKey: "deviceSignIn.needed", queueLocalChanges: true });
+      .toEqual({ start: false, status: "error", messageKey: "deviceSignIn.needed", queueLocalChanges: true, signInNeeded: true });
     expect(mobileSyncStart({ filesOff: false, entryProvider: "webdav", stored: null })).toEqual({ start: false, status: "error", messageKey: "cloudAccounts.filesNoAccess", queueLocalChanges: true });
     expect(mobileSyncStart({ filesOff: false, stored: null })).toEqual({ start: false, status: "off", messageKey: null, queueLocalChanges: false });
   });
@@ -101,8 +101,8 @@ describe("every way a sync starts on the phone (second review, B2)", () => {
     // The worker and the settings-only sync are started in exactly one place each: the decided start.
     expect(source.match(/await startWorker\(/g)).toHaveLength(1);
     expect(source.match(/await startSettingsOnly\(/g)).toHaveLength(1);
-    expect(decided).toMatch(/await startWorker\(v, stored\)/);
-    expect(decided).toMatch(/await startSettingsOnly\(v, stored\)/);
+    expect(decided).toMatch(/await startWorker\(v, stored, generation\)/);
+    expect(decided).toMatch(/await startSettingsOnly\(v, stored, generation\)/);
     expect(decided).toMatch(/mobileSyncStart\(/);
     // Nothing else in the app builds a sync worker of its own.
     const others = ["vaultService.ts", "accountPassword.ts", "accountSignIn.ts", "serviceSwitches.ts"].map((file) => readFileSync(join(__dirname, file), "utf8"));
@@ -120,15 +120,15 @@ describe("every way a sync starts on the phone (second review, B2)", () => {
   });
 });
 
-describe("the files of a removed account leave nothing to push (second review, B4b)", () => {
-  it("clear the vault's queue and per-file records - now if it is open, when it opens otherwise", () => {
+describe("the sync state belongs to the folder, not the account (third review, finding 1)", () => {
+  it("is bound to the target in the one place a file worker is built, and nothing else clears it", () => {
     const sync = readFileSync(join(__dirname, "syncService.ts"), "utf8");
-    const disconnect = sync.slice(sync.indexOf("export async function disconnectFiles("), sync.indexOf("export async function clearFileSyncState("));
-    expect(disconnect).toMatch(/await clearFileSyncState\(/);
-    expect(disconnect).toMatch(/clearSyncStateOnOpen: true/);
-    expect(sync).toMatch(/await v\.syncQueue\?\.clearAll\(\);\s*await v\.syncRepo\?\.clearAll\(\);/);
+    const worker = sync.slice(sync.indexOf("async function startWorker("), sync.indexOf("const w = new SyncWorker(", sync.indexOf("async function startWorker(")));
+    expect(worker).toMatch(/await bindMobileSyncState\(v, p\)/);
+    // The reset is the binding's; removing an account or opening a vault clears nothing.
+    expect((sync.match(/\.clearAll\(\)/g) ?? []).length).toBe(2);
     const open = readFileSync(join(__dirname, "vaultService.ts"), "utf8");
-    expect(open).toMatch(/if \(entry\.clearSyncStateOnOpen\) \{\s*await queue\?\.clearAll\(\);\s*await syncRepo\.clearAll\(\);/);
+    expect(open).not.toMatch(/clearAll\(\)/);
   });
 });
 

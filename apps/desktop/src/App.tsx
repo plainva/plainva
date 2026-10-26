@@ -390,7 +390,7 @@ function App() {
           // the copy it merges), so this asks for it the same way the tree and
           // the editor banner do rather than reaching across.
           onResolveConflict={(p) => { setShowErrorModal(false); window.dispatchEvent(new CustomEvent("plainva-resolve-conflict", { detail: { path: p } })); }}
-          onOpenSettings={(provider) => { setShowErrorModal(false); openSettings({ provider: provider ?? undefined }); }}
+          onOpenSettings={(provider, accountId) => { setShowErrorModal(false); openSettings(accountId ? { accountId } : { provider: provider ?? undefined }); }}
           onRetry={() => syncWorker?.retryFailed()}
           onResetEncryption={resetConnectionEncryption}
         />
@@ -420,7 +420,8 @@ function SyncErrorDialog({
   error: SyncErrorSnapshot | null;
   onClose: () => void;
   onResolveConflict: (path: string) => void;
-  onOpenSettings: (provider: SyncProviderId | null) => void;
+  /** With an account: its page, where it signs in on this device (third review, finding 3). */
+  onOpenSettings: (provider: SyncProviderId | null, accountId?: string) => void;
   onRetry: () => void;
   onResetEncryption: () => Promise<void>;
 }) {
@@ -471,7 +472,9 @@ function SyncErrorDialog({
           {!recovered && encryptionBricked && (
             <Button variant="danger-soft" onClick={handleResetEncryption}>{t("sync.resetEncryptionAction", { defaultValue: "Verschlüsselung zurücksetzen" })}</Button>
           )}
-          {!recovered && !encryptionBricked && (authError || rootMissing
+          {!recovered && !encryptionBricked && (error?.signInAccountId
+            ? <Button variant="primary" onClick={() => onOpenSettings(error.provider ?? null, error.signInAccountId)} data-testid="sync-error-signin">{t("deviceSignIn.submit")}</Button>
+            : authError || rootMissing
             ? <Button variant="primary" onClick={() => onOpenSettings(error?.provider ?? null)}>{t("sync.openSettings")}</Button>
             : <Button variant="primary" onClick={onRetry}>{incomplete ? t("sync.listingIncompleteRetry") : t("sync.retryNow", { defaultValue: "Jetzt erneut versuchen" })}</Button>)}
         </>
@@ -487,7 +490,7 @@ function SyncErrorDialog({
               : t("sync.retrying", { defaultValue: "Plainva versucht die Synchronisierung erneut …" })}
           </p>
         )}
-        {!incomplete && !rootMissing && <p style={{ margin: "0.85rem 0 0", fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
+        {!incomplete && !rootMissing && !error?.signInAccountId && <p style={{ margin: "0.85rem 0 0", fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
           {encryptionBricked
             ? t("sync.encryptionErrorHint", { defaultValue: "Diese Verbindung galt als verschlüsselt, aber die Verschlüsselungsdaten fehlen in der Cloud (z. B. weil der verschlüsselte Vault gelöscht wurde). Zum Schutz stoppt der Sync. Wurde der Vault absichtlich entfernt, setze die Verschlüsselung für diese Verbindung zurück." })
             : error?.workspaceFailure === "integrity"

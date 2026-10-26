@@ -59,13 +59,9 @@ export async function signOutMobileAccountHere(vaultId: string, recordId: string
 async function restartServices(card: SignOutCard): Promise<void> {
   if (card.pimAccountId) pimSyncNow();
   if (card.services.includes("files") && card.vaultId) {
-    const { getActiveVaultEntry } = await import("./vaultRegistry");
-    if ((await getActiveVaultEntry()).id === card.vaultId) {
-      const { startSyncIfConfigured, stopSyncAndDrain } = await import("./syncService");
-      const { getMobileVault } = await import("./vaultService");
-      await stopSyncAndDrain();
-      await startSyncIfConfigured(await getMobileVault());
-    }
+    // Stop and start as one step (third review, finding 4).
+    const { restartSyncIfActive } = await import("./syncService");
+    await restartSyncIfActive(card.vaultId);
   }
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-pim-changed"));
 }

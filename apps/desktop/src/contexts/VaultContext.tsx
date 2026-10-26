@@ -1,4 +1,4 @@
-import { afterTaskSyncResume, clearPinboardCache, filesRunState, InlineSuggestProvider } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache, filesRunState, filesStoppedStatus, InlineSuggestProvider, syncStateBindingFor } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText, WORKSPACE_FORKS_FOLDER } from "@plainva/core";
@@ -15,7 +15,7 @@ import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { fileBrokerTokenProvider } from "../services/accountBroker";
 import { migrateVaultGrants } from "../services/accountGrantMigration";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
-import { filesOffForVault, isSyncPausedHere, queuesLocalChanges, takeClearSyncStateRequest } from "../services/filesSwitch";
+import { bindVaultSyncState, filesAccountIdForVault, filesIdentityForVault, filesOffForVault, isSyncPausedHere, queuesLocalChanges } from "../services/filesSwitch";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
 import { settlePendingWrites } from "../services/pendingWrites";
@@ -884,13 +884,6 @@ export const VaultProvider: React.FC<{
         : new QueueingVaultAdapter(backupVaultAdapter, syncQueue, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) });
 
       const syncRepo = new SyncStateRepository(dbAdapter, backupVaultAdapter, await getDeviceId());
-      // The vault's files were taken out of it (an account removed): the queue
-      // and per-file records of the old folder go before anything can push them
-      // to the next one (second review, B4b).
-      if (await takeClearSyncStateRequest(path)) {
-        await syncQueue.clearAll();
-        await syncRepo.clearAll();
-      }
       const vaultAdapter = new ConflictAwareVaultAdapter(
         queueingVaultAdapter,
         syncRepo,
@@ -935,7 +928,13 @@ export const VaultProvider: React.FC<{
       // Files off for the vault keeps the settings profile moving (settings
       // only, second review B3); paused here or signed out stops everything.
       const filesOffHere = await filesOffForVault(path);
-      const filesRun = filesRunState({ filesOff: filesOffHere, pausedHere: await isSyncPausedHere(path), signedOut: !!fileAccess.signedOut });
+      const pausedHere = await isSyncPausedHere(path);
+      const filesRun = filesRunState({ filesOff: filesOffHere, pausedHere, signedOut: !!fileAccess.signedOut });
+      // Standing still is said the way the phone says it: paused reads as off,
+      // signed out here as "Sign-in needed", with the way to the sign-in (third
+      // review, finding 3). Signed out used to end as plain idle.
+      const stoppedStatus = filesRun === "stopped" ? filesStoppedStatus({ pausedHere, signedOut: !!fileAccess.signedOut }) : null;
+      const signInAccountId = stoppedStatus?.signInNeeded && fileAccess.blocked ? await filesAccountIdForVault(path, fileAccess.blocked) : undefined;
       filesOffAtLoadRef.current = { path, filesOff: filesOffHere };
       // The target is built for a settings-only vault too - it carries the profile.
       const filesStopped = filesRun === "stopped";
@@ -1550,6 +1549,22 @@ export const VaultProvider: React.FC<{
               }
             }
           } else {
+            // The queue and the per-file records belong to the folder they were
+            // made with: kept for the same one, dropped for another - before the
+            // worker below can push or compare anything (third review, finding 1).
+            const binding = syncStateBindingFor({
+              provider: syncProvider!,
+              webdav: syncProvider === "webdav" && webdavCreds ? { url: webdavCreds.url, user: webdavCreds.user } : undefined,
+              s3: syncProvider === "s3" && s3Creds ? { endpoint: s3Creds.endpoint, bucket: s3Creds.bucket, prefix: s3Creds.prefix } : undefined,
+              folder: syncProvider === "drive"
+                ? await readDriveDestination(path)
+                : syncProvider === "onedrive" || syncProvider === "dropbox" ? { path: await readSyncRootFolder(path, syncProvider) } : undefined,
+              identity: await filesIdentityForVault(path, syncProvider!),
+            });
+            if ((await bindVaultSyncState(path, binding, { queue: syncQueue, records: syncRepo })) === "reset" && "allowRootCreation" in target) {
+              // Nothing has synced against this folder yet.
+              (target as { allowRootCreation: boolean }).allowRootCreation = true;
+            }
             // Large writes stream from disk instead of travelling through the
             // IPC boundary as a number array (issue #48). The resolver only
             // answers for files past the threshold, and only targets that can
@@ -1727,7 +1742,15 @@ export const VaultProvider: React.FC<{
       // Preserve the explicit locked status when an encrypted workspace has no
       // key material. The final load-state update below must not turn it idle.
       if (syncWorker || !workspaceSecurityStatus) {
-        if (!syncWorker && filesConfiguredWithoutAccess) {
+        if (!syncWorker && stoppedStatus?.signInNeeded) {
+          syncStatusStore.set(path, {
+            status: stoppedStatus.status,
+            message: i18n.t(stoppedStatus.messageKey),
+            provider: fileAccess.blocked,
+            authRecoverable: true,
+            signInAccountId,
+          });
+        } else if (!syncWorker && filesConfiguredWithoutAccess) {
           // Saying nothing here is what made the failure invisible: the card
           // still read "connected", the status bar stayed idle, and only the
           // absence of arriving files gave it away.

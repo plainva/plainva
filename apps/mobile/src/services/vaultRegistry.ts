@@ -36,12 +36,6 @@ export interface VaultEntry {
    * flag, so that the app resuming its pause cannot undo it (review finding 5b).
    */
   pausedHere?: boolean;
-  /**
-   * The vault's files were taken out of it while it was not open (an account
-   * removed): its sync queue and per-file records are cleared when it opens
-   * next (second review, B4b).
-   */
-  clearSyncStateOnOpen?: boolean;
   /** Set for a vault in a user-picked folder outside the app container. */
   external?: ExternalFolderRef;
 }

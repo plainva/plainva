@@ -52,6 +52,7 @@ export function VaultDetailScreen({
   onBack,
   onOpenSyncChain,
   onOpenSyncDiagnostics,
+  onOpenFilesAccount,
 }: {
   vaultId: string;
   activeVault: MobileVault;
@@ -60,6 +61,8 @@ export function VaultDetailScreen({
   onOpenSyncChain: () => void;
   /** What the settings sync last did here — its own destination (E3). */
   onOpenSyncDiagnostics: () => void;
+  /** The account that carries this vault's files, where it signs in on this phone (third review, finding 3). */
+  onOpenFilesAccount: () => void;
 }) {
   const { t } = useTranslation();
   const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
@@ -370,6 +373,14 @@ export function VaultDetailScreen({
               ))}
             </ul>
           </Banner>
+        )}
+        {/* Signed out on this phone: the status says "Sign-in needed" and leads
+            to the account, where the sign-in is - as the desktop's sync dialog
+            does (third review, finding 3). */}
+        {isActive && status.errorKind === "signed-out" && (
+          <Button variant="tonal" onClick={onOpenFilesAccount} data-testid="vault-files-signin">
+            {t("deviceSignIn.submit")}
+          </Button>
         )}
         {isActive && (status.errorKind === "pair-required" || status.errorKind === "workspace-integrity") && (
           <Button variant="tonal" onClick={() => window.dispatchEvent(new CustomEvent("m-open-security"))}>

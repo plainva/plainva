@@ -1,23 +1,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
-import { filesRunState } from "@plainva/ui";
-
-const settings = vi.hoisted(() => new Map<string, unknown>());
-vi.mock("./settingsStore", () => ({
-  getSettingsStore: async () => ({
-    get: async (key: string) => settings.get(key),
-    set: async (key: string, value: unknown) => { settings.set(key, value); },
-    delete: async (key: string) => settings.delete(key),
-    save: async () => undefined,
-  }),
-}));
-vi.mock("./cloudAccounts", () => ({ loadCloudAccounts: async () => [] }));
-
-import { requestClearSyncState, takeClearSyncStateRequest } from "./filesSwitch";
+import { describe, expect, it } from "vitest";
+import { filesRunState, filesStoppedStatus } from "@plainva/ui";
 
 /**
- * Second review of plan "Verbinden", B3 and B4b, the rules both shells share.
+ * Reviews of plan "Verbinden" (second B3, third finding 3), the rules both shells share.
  */
 describe("how a vault's file sync runs on this device (B3)", () => {
   it("keeps the settings travelling while files are off for the vault", () => {
@@ -32,24 +19,22 @@ describe("how a vault's file sync runs on this device (B3)", () => {
 
   it("is what the desktop opens a vault with, and a switch arriving with the profile reopens it", () => {
     const vault = readFileSync(join(__dirname, "..", "contexts", "VaultContext.tsx"), "utf8");
-    expect(vault).toMatch(/filesRunState\(\{ filesOff: filesOffHere, pausedHere: await isSyncPausedHere\(path\), signedOut: !!fileAccess\.signedOut \}\)/);
+    expect(vault).toMatch(/filesRunState\(\{ filesOff: filesOffHere, pausedHere, signedOut: !!fileAccess\.signedOut \}\)/);
     expect(vault).toMatch(/new SettingsOnlySync\(runner, target, backupVaultAdapter, intervalMs\)/);
     expect(vault).toMatch(/window\.addEventListener\(CLOUD_ACCOUNTS_EVENT, handleFilesSwitch\)/);
   });
 });
 
-describe("the files of a removed account leave nothing to push (B4b)", () => {
-  it("asks once for the vault's queue and records to be cleared at its next open", async () => {
-    expect(await takeClearSyncStateRequest("/v")).toBe(false);
-    await requestClearSyncState("/v");
-    expect(await takeClearSyncStateRequest("/v")).toBe(true);
-    expect(await takeClearSyncStateRequest("/v")).toBe(false);
+describe("a vault standing still says why, as on the phone (third review, finding 3)", () => {
+  it("reads as off where the person paused it, and as a sign-in needed where it is signed out", () => {
+    expect(filesStoppedStatus({ pausedHere: true, signedOut: false })).toEqual({ status: "off", messageKey: null, signInNeeded: false });
+    expect(filesStoppedStatus({ pausedHere: true, signedOut: true })).toEqual({ status: "off", messageKey: null, signInNeeded: false });
+    expect(filesStoppedStatus({ pausedHere: false, signedOut: true })).toEqual({ status: "error", messageKey: "deviceSignIn.needed", signInNeeded: true });
   });
 
-  it("is taken when the vault opens, before a worker can run", () => {
+  it("is what the desktop sets when a vault signed out here opens, with the account to sign in", () => {
     const vault = readFileSync(join(__dirname, "..", "contexts", "VaultContext.tsx"), "utf8");
-    expect(vault).toMatch(/if \(await takeClearSyncStateRequest\(path\)\) \{\s*await syncQueue\.clearAll\(\);\s*await syncRepo\.clearAll\(\);/);
-    const actions = readFileSync(join(__dirname, "cloudAccountsActions.ts"), "utf8");
-    expect(actions).toMatch(/await requestClearSyncState\(vaultPath\);/);
+    expect(vault).toMatch(/filesStoppedStatus\(\{ pausedHere, signedOut: !!fileAccess\.signedOut \}\)/);
+    expect(vault).toMatch(/if \(!syncWorker && stoppedStatus\?\.signInNeeded\) \{\s*syncStatusStore\.set\(path, \{\s*status: stoppedStatus\.status,\s*message: i18n\.t\(stoppedStatus\.messageKey\),[\s\S]{0,120}signInAccountId,/);
   });
 });

@@ -61,6 +61,7 @@ import { draftPath, mailRefPath, parseDraft, parseMailRef } from "./screens/mail
 import { startConnectQueue } from "./services/connectQueue";
 import { reconnectVault } from "./services/oauthService";
 import { startAccountService } from "./services/cloudAccountConnections";
+import { loadAccountCards } from "./services/cloudAccountCards";
 import type { CloudServiceId } from "@plainva/ui";
 
 /** Which screen signs a service in. One place, so the queue and the router agree. */
@@ -315,6 +316,15 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       onBack={c.pop}
       onOpenSyncChain={() => c.push({ kind: "syncchain", path: e.path })}
       onOpenSyncDiagnostics={() => c.push({ kind: "syncdiag", path: e.path })}
+      onOpenFilesAccount={() => {
+        // The card that carries this vault's files; the list when none is found.
+        void loadAccountCards()
+          .then(({ cards }) => {
+            const card = cards.find((entry) => entry.vaultId === e.path && entry.services.includes("files"));
+            c.push(card ? { kind: "cloudaccount", path: card.key } : { kind: "cloudaccounts", path: "" });
+          })
+          .catch(() => c.push({ kind: "cloudaccounts", path: "" }));
+      }}
       vaultId={e.path}
     />
   ),

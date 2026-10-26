@@ -29,6 +29,7 @@ vi.mock("./vaultRegistry", () => ({ getActiveVaultEntry: async () => ({ id: "oth
 vi.mock("./syncService", () => ({
   disconnectFiles: async (vault: string) => { state.disconnected.push(vault); state.slots.delete(`sync_${vault}`); },
   pauseProvider: async (vault: string) => { state.paused.push(vault); },
+  restartSyncIfActive: async () => undefined,
 }));
 
 import { removeMobileAccount, signOutMobileAccountHere } from "./accountSignOut";

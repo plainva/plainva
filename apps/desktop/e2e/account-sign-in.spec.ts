@@ -626,6 +626,27 @@ test('a WebDAV account shows its server and user, checks its files, signs out he
   await expect.poll(async () => (await cards(page)).length, { timeout: 15_000 }).toBe(0);
 });
 
+test('a vault signed out on this device says so in its sync status and leads to the sign-in, as the phone does', async ({ page }) => {
+  // Third review of plan "Verbinden", finding 3: the vault opened as plain idle.
+  await wire(page, {
+    cards: [DAV_CARD],
+    keychain: { [`webdav_credentials_${vaultKey}`]: JSON.stringify({ url: 'https://dav.example/files/anna/', user: 'anna', pass: '', signedOutHere: true }) },
+  });
+  await page.goto('/');
+  await expect(page.getByText('Todo').first()).toBeVisible({ timeout: 20000 });
+  await expect.poll(() => page.evaluate(async () => {
+    const { syncStatusStore } = await import('/src/services/syncStatusStore.ts');
+    const status = syncStatusStore.get('/test-vault');
+    return `${status.status}|${status.message}|${status.signInAccountId ?? ''}`;
+  }), { timeout: 15_000 }).toMatch(/^error\|(Sign-in needed|Anmeldung nötig)\|card-dav$/);
+
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-show-sync-error')));
+  await page.getByTestId('sync-error-signin').click();
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog.getByTestId('cloudacct-state')).toHaveAttribute('data-state', 'signin', { timeout: 15_000 });
+  await expect(dialog.getByTestId('cloudacct-signin')).toBeVisible();
+});
+
 /** An IMAP card and its mailbox; the password is whatever the case says. */
 const IMAP_CARD = { id: 'card-imap', family: 'imap', label: 'anna@mail.example', services: { mail: { mailAccountId: 'm1' } } };
 const imapSeed = (pass: string): Seed => ({

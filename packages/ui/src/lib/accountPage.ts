@@ -243,3 +243,19 @@ export function filesRunState(input: { filesOff: boolean; pausedHere: boolean; s
   if (input.pausedHere || input.signedOut) return "stopped";
   return input.filesOff ? "settingsOnly" : "running";
 }
+
+/**
+ * What the sync status says for a vault whose files are `stopped`, one answer
+ * for both shells (third review of plan "Verbinden", finding 3). The person's
+ * own pause is a decision and reads as off; a vault signed out on this device
+ * is not - it needs a sign-in, and the status says so and leads to it. The
+ * desktop showed such a vault as idle, the phone as "Sign-in needed".
+ */
+export type FilesStoppedStatus =
+  | { status: "off"; messageKey: null; signInNeeded: false }
+  | { status: "error"; messageKey: "deviceSignIn.needed"; signInNeeded: true };
+
+export function filesStoppedStatus(input: { pausedHere: boolean; signedOut: boolean }): FilesStoppedStatus {
+  if (!input.pausedHere && input.signedOut) return { status: "error", messageKey: "deviceSignIn.needed", signInNeeded: true };
+  return { status: "off", messageKey: null, signInNeeded: false };
+}

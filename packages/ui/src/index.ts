@@ -73,6 +73,7 @@ export * from "./lib/accountSignIn";
 export * from "./lib/accountCheck";
 export * from "./lib/accountSignOut";
 export * from "./lib/accountPage";
+export * from "./lib/syncStateBinding";
 export * from "./lib/googleAuthorization";
 export * from "./components/accounts/OAuthAccessEditor";
 export * from "./lib/tokenRefreshCoordinator";

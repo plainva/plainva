@@ -1,4 +1,4 @@
-import { isServiceOff } from "@plainva/ui";
+import { bindSyncState, isServiceOff, type SyncStateBinding, type SyncStateBindingDecision, type VerifiedProviderIdentity } from "@plainva/ui";
 import { loadCloudAccounts } from "./cloudAccounts";
 import { getSettingsStore } from "./settingsStore";
 
@@ -33,6 +33,12 @@ export async function filesOffForVault(vaultPath: string): Promise<boolean> {
   return records.some((record) => record.services.files && isServiceOff(record, "files"));
 }
 
+/** The account card that carries the vault's files through `provider`, where it signs in on this device (third review, finding 3). */
+export async function filesAccountIdForVault(vaultPath: string, provider: string): Promise<string | undefined> {
+  const records = await loadCloudAccounts(vaultPath).catch(() => []);
+  return records.find((record) => record.services.files?.provider === provider)?.id;
+}
+
 /**
  * Whether the vault queues its local changes: whenever it has a file provider,
  * running or standing still (review of plan "Verbinden", finding 4). Files
@@ -46,25 +52,30 @@ export function queuesLocalChanges(access: { provider: unknown; blocked: unknown
 }
 
 /**
- * Asks for the vault's sync queue and per-file records to be cleared when it
- * opens next - after its files were taken out of it (an account removed). A
- * queue left behind was pushed to whatever folder the vault was connected to
- * next (second review of plan "Verbinden", B4b). The phone does the same.
+ * The target the vault's sync queue and per-file records belong to, on this
+ * device (third review of plan "Verbinden", finding 1). Checked right before
+ * the file sync worker is built: the same target keeps both, another drops
+ * both - removing an account clears nothing, so connecting the same folder
+ * again finds its records and makes no conflict copies.
  */
-export const clearSyncStateKey = (vaultPath: string) =>
-  `clearSyncStateOnOpen_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+export const syncStateBindingKey = (vaultPath: string) =>
+  `syncStateBinding_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 
-export async function requestClearSyncState(vaultPath: string): Promise<void> {
+export async function bindVaultSyncState(
+  vaultPath: string,
+  current: SyncStateBinding,
+  state: { queue: { clearAll(): Promise<void> }; records: { clearAll(): Promise<void> } },
+): Promise<SyncStateBindingDecision> {
   const store = await getSettingsStore();
-  await store.set(clearSyncStateKey(vaultPath), true);
-  await store.save();
+  return bindSyncState({
+    load: async () => (await store.get<SyncStateBinding>(syncStateBindingKey(vaultPath))) ?? null,
+    save: async (binding) => { await store.set(syncStateBindingKey(vaultPath), binding); await store.save(); },
+    clear: async () => { await state.queue.clearAll(); await state.records.clearAll(); },
+  }, current);
 }
 
-/** Whether the vault's sync state is to be cleared now; the request is taken (removed) by asking. */
-export async function takeClearSyncStateRequest(vaultPath: string): Promise<boolean> {
-  const store = await getSettingsStore();
-  if (!(await store.get<boolean>(clearSyncStateKey(vaultPath)).catch(() => false))) return false;
-  await store.delete(clearSyncStateKey(vaultPath));
-  await store.save();
-  return true;
+/** The account the vault's files card proved, where it has one. */
+export async function filesIdentityForVault(vaultPath: string, provider: string): Promise<VerifiedProviderIdentity | undefined> {
+  const records = await loadCloudAccounts(vaultPath).catch(() => []);
+  return records.find((record) => record.services.files?.provider === provider)?.verifiedProviderIdentity;
 }

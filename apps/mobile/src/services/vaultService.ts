@@ -52,7 +52,6 @@ import {
   removeVault,
   setActiveVault,
   LOCAL_VAULT_ID,
-  updateVault,
   type VaultEntry, isExternalVault, type ExternalFolderRef, getVaultEntry } from "./vaultRegistry";
 import { getStoredProvider, purgeCredentials, stopSyncAndDrain, syncSoon } from "./syncService";
 import { clearMobileSyncState, mobileSyncDeviceId } from "./mobileSettingsSync";
@@ -726,12 +725,6 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     if (!workspaceState) ownQueue = new QueueingVaultAdapter(backup, queue, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) });
     const queueing = workspaceState ? new WorkspaceQueueingVaultAdapter(permissioned!, workspaceState) : ownQueue!;
     syncRepo = new SyncStateRepository(db, adapter, await mobileSyncDeviceId());
-    // Files taken out of this vault while it was closed: their queue and records go now (second review, B4b).
-    if (entry.clearSyncStateOnOpen) {
-      await queue?.clearAll();
-      await syncRepo.clearAll();
-      await updateVault(entry.id, { clearSyncStateOnOpen: false });
-    }
     const conflictAware = new ConflictAwareVaultAdapter(queueing, syncRepo, (path, mergedText) => {
       window.dispatchEvent(new CustomEvent("m-auto-merged", { detail: { path, mergedText } }));
     }, workspaceState ?? syncRepo, isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud",

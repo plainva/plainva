@@ -526,9 +526,9 @@ export class SyncQueue {
    * and to power a manual "retry sync now" action.
    */
   /**
-   * Drops every pending operation - when the files of a vault are taken out of
-   * it (an account removed): a queue left behind would be pushed to whatever
-   * folder the vault is connected to next (second review of plan "Verbinden", B4b).
+   * Drops every pending operation - when the vault's file sync starts against
+   * another folder than the one the queue was made for: pushed there, the queue
+   * would act on that folder (third review of plan "Verbinden", finding 1).
    */
   async clearAll(): Promise<void> {
     await this.db.execute("DELETE FROM offline_queue");

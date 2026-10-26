@@ -1,4 +1,4 @@
-import { filesRunState, getPlatformServices, isSignedOutSlot } from "@plainva/ui";
+import { filesRunState, filesStoppedStatus, getPlatformServices, isSignedOutSlot } from "@plainva/ui";
 import { fileBrokerTokenProvider } from "./accountBroker";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 
@@ -78,7 +78,7 @@ export function resolveMobileFileAccess(
  */
 export type MobileSyncStart =
   | { start: true; settingsOnly: boolean }
-  | { start: false; status: "off" | "error"; messageKey: string | null; queueLocalChanges: boolean };
+  | { start: false; status: "off" | "error"; messageKey: string | null; queueLocalChanges: boolean; signInNeeded?: true };
 
 export function mobileSyncStart(input: {
   pausedHere?: boolean;
@@ -93,9 +93,11 @@ export function mobileSyncStart(input: {
   const signedOut = !!input.stored && isSignedOutSlot(input.stored, "creds");
   const run = filesRunState({ filesOff: input.filesOff, pausedHere: !!input.pausedHere, signedOut });
   if (run === "stopped") {
-    return signedOut
-      ? { start: false, status: "error", messageKey: "deviceSignIn.needed", queueLocalChanges }
-      : { start: false, status: "off", messageKey: null, queueLocalChanges };
+    // The same answer the desktop gives (third review, finding 3).
+    const still = filesStoppedStatus({ pausedHere: !!input.pausedHere, signedOut });
+    return still.signInNeeded
+      ? { start: false, status: still.status, messageKey: still.messageKey, queueLocalChanges, signInNeeded: true }
+      : { start: false, status: still.status, messageKey: still.messageKey, queueLocalChanges };
   }
   if (!input.stored) return input.entryProvider ? { start: false, status: "error", messageKey: "cloudAccounts.filesNoAccess", queueLocalChanges } : { start: false, status: "off", messageKey: null, queueLocalChanges };
   // Files off for the vault: no file moves, the settings profile keeps travelling (second review, B3).
