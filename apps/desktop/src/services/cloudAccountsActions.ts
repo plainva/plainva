@@ -550,9 +550,16 @@ export async function setAccountServiceOff(
   record: CloudAccountRecord,
   service: CloudServiceId,
   off: boolean,
+  /**
+   * Pushes the settings profile once (review finding 4): the switch lives in
+   * the profile, which only travels with the file sync - switched off without
+   * this, files stayed on for every other device.
+   */
+  pushSettings?: () => Promise<void>,
 ): Promise<CloudAccountRecord[]> {
   const stored = await loadCloudAccounts(vaultPath);
   await saveCloudAccounts(vaultPath, stored.map((entry) => (entry.id === record.id ? withServiceOff(entry, service, off) : entry)));
+  if (service === "files" && off) await pushSettings?.().catch(() => undefined);
   if (service === "files") announceCredentials(false);
   if (service === "mail" && record.services.mail) forgetGraphMailRuntime(vaultPath, record.services.mail.mailAccountId);
   return refreshCloudAccounts(vaultPath, runtime);

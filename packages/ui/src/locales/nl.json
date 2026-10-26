@@ -3741,7 +3741,8 @@
     "otherSignInClient": "eigen client-ID",
     "mailByAppPassword": "E-mail met app-wachtwoord",
     "mailByAppPasswordHint": "Alleen omdat e-mail is gekozen: Gmail via IMAP in plaats van via de Google-aanmelding.",
-    "standardSignInLine": "Standaardaanmelding — je vult niets in. {{provider}} vraagt alle gekozen diensten in één venster."
+    "standardSignInLine": "Standaardaanmelding — je vult niets in. {{provider}} vraagt alle gekozen diensten in één venster.",
+    "filesOffLimit": "Zolang bestanden uit staan, hoort dit apparaat pas van wijzigingen op andere apparaten als bestanden weer aan staan; wat hier verandert, wacht op de volgende synchronisatie."
   },
   "comments": {
     "workspaceLocked": "Deze werkruimte is vergrendeld op dit apparaat. Open de beveiligingsinstellingen om deze te ontgrendelen en opmerkingen te lezen of te schrijven.",

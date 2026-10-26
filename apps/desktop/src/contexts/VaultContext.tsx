@@ -13,7 +13,7 @@ import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { fileBrokerTokenProvider } from "../services/accountBroker";
 import { migrateVaultGrants } from "../services/accountGrantMigration";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
-import { filesStoppedHere } from "../services/filesSwitch";
+import { filesStoppedHere, queuesLocalChanges } from "../services/filesSwitch";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
 import { settlePendingWrites } from "../services/pendingWrites";
@@ -96,6 +96,8 @@ export interface VaultSyncWorker {
    */
   verifyDeletionJournal?: (onProgress?: (done: number, total: number) => void) => Promise<JournalCheckResult>;
   listPendingOperations(limit?: number): Promise<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> }>;
+  /** One settings push outside a cycle, the last act before files go off for the vault (review of plan "Verbinden", finding 4). */
+  pushSettingsNow?: () => Promise<void>;
 }
 
 interface VaultState {
@@ -916,7 +918,6 @@ export const VaultProvider: React.FC<{
       const dropboxReady = !filesStopped && fileAccess.ready.dropbox;
       const s3Ready = !filesStopped && fileAccess.ready.s3;
       const webdavReady = !filesStopped && fileAccess.ready.webdav;
-      const hasSyncTarget = !filesStopped && fileAccess.provider !== null;
       /**
        * A provider IS configured for this vault, but nothing can open it.
        * Without saying so the load ended as plain "idle" with no provider: the
@@ -927,11 +928,13 @@ export const VaultProvider: React.FC<{
        */
       const unusableProvider = filesStopped ? null : fileAccess.blocked;
       const filesConfiguredWithoutAccess = unusableProvider !== null;
+      // Changes are queued for a vault with a provider even while its files stand still (review finding 4).
+      const queuesChanges = queuesLocalChanges(fileAccess);
 
       // Files created/modified outside Plainva's own write path (another editor, the OS)
       // are indexed but were never enqueued. Push them when this vault has a sync target.
       const enqueueLocalChange = async (changedPath: string) => {
-        if (!hasSyncTarget || changedPath.includes(".plainva") || changedPath.includes(".CONFLICT")) return;
+        if (!queuesChanges || changedPath.includes(".plainva") || changedPath.includes(".CONFLICT")) return;
         if (permissionedWorkspaceAdapter && !await permissionedWorkspaceAdapter.authorizeExternalChange(changedPath, true)) return;
         const queued = workspaceStateStore
           ? workspaceStateStore.enqueue("write", changedPath)
@@ -994,7 +997,7 @@ export const VaultProvider: React.FC<{
           // the index removed: the mark answers for the file the worker took
           // away, not for a later one of that name (finding 2026-10-12).
           if (ownDeletions.consume(path, row)) return;
-          if (hasSyncTarget) {
+          if (queuesChanges) {
             if (permissionedWorkspaceAdapter) {
               void permissionedWorkspaceAdapter.authorizeExternalChange(path, false).then((allowed) => {
                 if (!allowed) return;

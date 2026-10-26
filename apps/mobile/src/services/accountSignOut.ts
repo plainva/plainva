@@ -42,11 +42,14 @@ function serviceSlots(vaultId: string, card: SignOutCard): ServiceSignInSlot[] {
  * withdraws the consent of the account for the app's client, and every phone
  * signs in with that same client - it would sign out the other phones too.
  */
-export async function signOutMobileAccountHere(vaultId: string, record: CloudAccountRecord, card: SignOutCard): Promise<void> {
+export async function signOutMobileAccountHere(vaultId: string, recordId: string | undefined, card: SignOutCard): Promise<void> {
+  // A device-only act: it reads the card's record, if there is one, and never
+  // writes one (review of plan "Verbinden", finding 6). A card without a record
+  // holds no grant of its own - only its services' slots sign it in.
   await signOutAccountHere({
     store: accountCredentialStore,
     serviceSlots: serviceSlots(vaultId, card),
-    clearCardGrant: () => clearAccountToken(vaultId, record.id),
+    clearCardGrant: async () => { if (recordId) await clearAccountToken(vaultId, recordId); },
   });
   await clearNativeGoogleTokens();
   await restartServices(card);
@@ -70,16 +73,17 @@ async function restartServices(card: SignOutCard): Promise<void> {
 /**
  * Takes the account out of the vault, on every device: calendar and mailbox
  * are removed here as on their own screens, the vault's files connection is
- * turned off ("Disconnect" on the vault page - the vault and its notes stay),
- * then the card's grant and the card. Nothing is deleted at the provider.
+ * taken out with its stored sign-in (the vault and its notes stay), then the
+ * card's grant and the card. Nothing is deleted at the provider.
  */
 export async function removeMobileAccount(vaultId: string, record: CloudAccountRecord | undefined, card: SignOutCard): Promise<void> {
   await removeAccountCard({
     services: card.services,
     disable: async (service) => {
       if (service === "files" && card.vaultId) {
-        const { pauseProvider } = await import("./syncService");
-        await pauseProvider(card.vaultId);
+        // The sign-in goes with the account, as on the desktop (review finding 5a).
+        const { disconnectFiles } = await import("./syncService");
+        await disconnectFiles(card.vaultId);
       } else if (service === "calendar" && card.pimAccountId) await removePimAccount(card.pimAccountId);
       else if (service === "mail" && card.mailAccountId) await removeMobileMailAccount(card.mailAccountId);
     },

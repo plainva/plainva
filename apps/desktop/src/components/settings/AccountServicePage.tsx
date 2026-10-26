@@ -193,6 +193,8 @@ function FilesPart({ vaultPath, record, on }: { vaultPath: string; record: Cloud
         <SettingRow label={t("cloudAccounts.pauseSync")} desc={t("cloudAccounts.pauseSyncHint")}>
           <Switch checked={paused} disabled={!on} label={t("cloudAccounts.pauseSync")} onChange={(next) => void togglePause(next)} testId="account-files-pause" />
         </SettingRow>
+        {/* What "off" means for the other devices, said where it is switched (review finding 4). */}
+        <SettingCardNote><span data-testid="account-files-limit">{t("cloudAccounts.filesOffLimit")}</span></SettingCardNote>
       </SettingCard>
       {drivePicker && <DriveDestinationDialog session={drivePicker} onClose={() => setDrivePicker(null)}
         onSave={async (selected) => { await saveSyncRootFolder(drivePicker.vaultPath, "drive", selected.path, selected.id); await reload(); }} />}

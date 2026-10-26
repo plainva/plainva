@@ -2,14 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ServiceConnectionError, type CloudAccountRecord } from "@plainva/ui";
 
 let records: CloudAccountRecord[] = [];
-const removed: string[] = [];
+const replaced: Array<[string, string]> = [];
 vi.mock("./cloudAccountsStore", () => ({
   loadCloudAccounts: async () => records,
   saveCloudAccounts: async (_vault: string, next: CloudAccountRecord[]) => { records = next; },
 }));
 vi.mock("./connectQueue", () => ({ startConnectQueue: vi.fn() }));
 vi.mock("./vaultRegistry", () => ({ getActiveVaultEntry: async () => ({ id: "v1" }) }));
-vi.mock("./mail/mailRuntime", () => ({ removeMobileMailAccount: async (id: string) => { removed.push(id); } }));
+vi.mock("./mail/mailRuntime", () => ({ replaceMobileMailbox: async (from: string, to: string) => { replaced.push([from, to]); } }));
 
 import { bindMailToConnection } from "./cloudAccountConnections";
 
@@ -25,20 +25,20 @@ const card = (mail?: string): CloudAccountRecord => ({
 });
 
 describe("binding a mailbox to a card", () => {
-  beforeEach(() => { removed.length = 0; });
+  beforeEach(() => { replaced.length = 0; });
 
   it("a card without mail takes the mailbox", async () => {
     records = [card()];
     await bindMailToConnection({ vaultId: "v1", cloudAccountId: "card-a" }, "m-new");
     expect(records[0].services.mail).toEqual({ mailAccountId: "m-new" });
-    expect(removed).toEqual([]);
+    expect(replaced).toEqual([]);
   });
 
-  it("replaces the mailbox Google refused, and removes it", async () => {
+  it("replaces the mailbox Google refused, carrying its settings over (review finding 1)", async () => {
     records = [card("m-oauth")];
     await bindMailToConnection({ vaultId: "v1", cloudAccountId: "card-a", replacesMailAccountId: "m-oauth" }, "m-new");
     expect(records[0].services).toEqual({ files: { provider: "drive" }, mail: { mailAccountId: "m-new" } });
-    expect(removed).toEqual(["m-oauth"]);
+    expect(replaced).toEqual([["m-oauth", "m-new"]]);
   });
 
   it("still refuses a mailbox it was not asked to replace", async () => {
@@ -46,6 +46,6 @@ describe("binding a mailbox to a card", () => {
     await expect(bindMailToConnection({ vaultId: "v1", cloudAccountId: "card-a", replacesMailAccountId: "m-oauth" }, "m-new"))
       .rejects.toBeInstanceOf(ServiceConnectionError);
     expect(records[0].services.mail).toEqual({ mailAccountId: "m-other" });
-    expect(removed).toEqual([]);
+    expect(replaced).toEqual([]);
   });
 });

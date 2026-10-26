@@ -1,4 +1,4 @@
-import { withServiceOff, type CloudAccountRecord, type CloudServiceId } from "@plainva/ui";
+import { withServiceOff, type CloudAccountRecord, type CloudServiceId, type SyncProviderId } from "@plainva/ui";
 import { listMailAccounts } from "@plainva/ui/mail";
 import i18n from "@plainva/ui/i18n";
 import type { AccountCard } from "./cloudAccountCards";
@@ -58,13 +58,15 @@ export async function readMobileAccountFacts(vaultId: string, card: AccountCard)
  */
 export async function ensureCardRecord(vaultId: string, card: AccountCard): Promise<CloudAccountRecord> {
   if (card.record) return card.record;
+  const files = card.services.includes("files") && card.vaultId ? await filesProviderOf(card.vaultId) : null;
   const record: CloudAccountRecord = {
     id: crypto.randomUUID(),
     family: card.family,
     label: card.label,
     ...(card.verifiedProviderIdentity ? { verifiedProviderIdentity: card.verifiedProviderIdentity } : {}),
     services: {
-      ...(card.services.includes("files") && card.vaultId ? { files: { provider: (await readStoredProvider(card.vaultId))?.provider ?? "webdav" } } : {}),
+      // The provider the vault really syncs through - never a guess (review finding 6).
+      ...(files ? { files: { provider: files } } : {}),
       ...(card.pimAccountId ? { calendar: { pimAccountId: card.pimAccountId } } : {}),
       ...(card.mailAccountId ? { mail: { mailAccountId: card.mailAccountId } } : {}),
     },
@@ -73,10 +75,23 @@ export async function ensureCardRecord(vaultId: string, card: AccountCard): Prom
   return record;
 }
 
+/** The vault's file provider: its slot's, else the registry's; null when neither says. */
+async function filesProviderOf(vaultId: string): Promise<SyncProviderId | null> {
+  const stored = (await readStoredProvider(vaultId).catch(() => null))?.provider;
+  if (stored) return stored as SyncProviderId;
+  const { getVaultEntry } = await import("./vaultRegistry");
+  return ((await getVaultEntry(vaultId).catch(() => null))?.provider as SyncProviderId | undefined) ?? null;
+}
+
 /** A service switched on or off for the vault (E3); the binding and what it left in the vault stay. */
 export async function setMobileServiceOff(vaultId: string, card: AccountCard, service: CloudServiceId, off: boolean): Promise<void> {
   const record = await ensureCardRecord(vaultId, card);
   await saveCloudAccounts(vaultId, (await loadCloudAccounts(vaultId)).map((entry) => (entry.id === record.id ? withServiceOff(entry, service, off) : entry)));
+  // The last settings push before the file sync stops, so the other devices learn of it (review finding 4).
+  if (service === "files" && off) {
+    const { getActiveVaultEntry } = await import("./vaultRegistry");
+    if ((await getActiveVaultEntry()).id === vaultId) await (await import("./syncService")).pushSettingsNow().catch(() => undefined);
+  }
   const { applyMobileServiceSwitches } = await import("./serviceSwitches");
   await applyMobileServiceSwitches(vaultId);
   if (typeof window !== "undefined") {

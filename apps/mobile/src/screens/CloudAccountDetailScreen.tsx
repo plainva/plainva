@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { devicePermissionKey } from "../services/pim/devicePermission";
 import { devicePimAuthorization, devicePimHasReminders, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
-import { Activity, CalendarDays, ChevronRight, Folder, KeyRound, ListChecks, LogOut, Mail, Server, Trash2, User } from "lucide-react";
+import { Activity, CalendarDays, ChevronRight, Folder, KeyRound, ListChecks, LogOut, Mail, Merge, Server, Trash2, User } from "lucide-react";
 import {
   AccountPasswordChangePanel,
   accessLineText,
@@ -10,6 +10,7 @@ import {
   accountMonogram,
   accountPageModel,
   accountStateKey,
+  manualMergeCandidates,
   Banner,
   Button,
   cx,
@@ -42,7 +43,9 @@ import { devicePlatform } from "../services/devicePlatform";
 import { getAccountToken } from "../services/accountBroker";
 import { removeMobileAccount, signOutMobileAccountHere } from "../services/accountSignOut";
 import { ensureCardRecord, readMobileAccountFacts, setMobileAppKey, setMobileServiceOff, type MobileAccountFacts } from "../services/accountPageFacts";
-import { mConfirm, mPrompt } from "../services/mobileDialogs";
+import { mConfirm, mPrompt, mTargets } from "../services/mobileDialogs";
+import { guideMobileAccountRepair } from "../services/accountRepair";
+import { loadCloudAccounts } from "../services/cloudAccountsStore";
 import { AccountAccessSheet } from "../components/AccountAccessSheet";
 import { AccountCheckSheet } from "../components/AccountCheckSheet";
 import { AppBar } from "../components/AppBar";
@@ -98,6 +101,8 @@ export function CloudAccountDetailScreen({
   const [unifiable, setUnifiable] = useState(false);
   /** This phone holds a sign-in for the card it could drop. */
   const [signedInHere, setSignedInHere] = useState(false);
+  /** The other cards of this provider the person may name "the same account" (E3/E6). */
+  const [mergeCandidates, setMergeCandidates] = useState<CloudAccountRecord[]>([]);
   const [facts, setFacts] = useState<MobileAccountFacts | null>(null);
   const [ready, setReady] = useState(false);
   const [loginVaultId, setLoginVaultId] = useState<string | null>(null);
@@ -123,7 +128,9 @@ export function CloudAccountDetailScreen({
         }
         const nextFacts = found && vaultId ? await readMobileAccountFacts(vaultId, found).catch(() => null) : null;
         if (turn !== loadGeneration.current) return;
-        setCard(found); setReady(true); setUnifiable(unifiable); setSignedInHere(here); setFacts(nextFacts);
+        const others = found?.record && vaultId ? manualMergeCandidates(await loadCloudAccounts(vaultId).catch(() => []), found.record) : [];
+        if (turn !== loadGeneration.current) return;
+        setCard(found); setReady(true); setUnifiable(unifiable); setSignedInHere(here); setFacts(nextFacts); setMergeCandidates(others);
         setLoginVaultId(vaultId);
         setLoginStatus(found?.record && vaultId ? getAccountLoginStatus(vaultId, found.record.id) : undefined);
       })
@@ -272,12 +279,53 @@ export function CloudAccountDetailScreen({
     void (async () => {
       setBusy(true);
       try {
-        const record = await ensureCardRecord(loginVaultId, card);
-        await signOutMobileAccountHere(loginVaultId, record, card);
+        // This phone only: no vault-wide record is written for it (review finding 6).
+        await signOutMobileAccountHere(loginVaultId, card.record?.id, card);
         toast.success(t("cloudAccounts.signedOutHere"));
         reload();
       } catch (e) {
         toastConnectionFailure(e);
+      } finally {
+        setBusy(false);
+      }
+    })();
+  };
+
+  /**
+   * E3's fallback on the phone (E6, approved for both shells): two cards of
+   * ONE account that cannot be folded automatically, because neither carries
+   * a provider-confirmed identity. The person names the other card; the
+   * guided repair says what moves before it does anything - the same flow as
+   * the desktop's "Same account".
+   */
+  const mergeManually = () => {
+    const target = card?.record;
+    if (!target || !loginVaultId || mergeCandidates.length === 0) return;
+    void (async () => {
+      // The card to fold in is the target of an action (E20), not a value.
+      const sourceId = await mTargets({
+        title: t("cloudAccounts.mergeManualPick"),
+        message: t("cloudAccounts.mergeManualHint"),
+        options: mergeCandidates.map((record) => ({ value: record.id, label: record.label || familyLabel(record.family) })),
+      });
+      if (!sourceId) return;
+      setBusy(true);
+      try {
+        const result = await guideMobileAccountRepair(loginVaultId, { accountIds: [sourceId, target.id], targetId: target.id }, (plan) => mConfirm({
+          title: t("cloudAccounts.repairConfirmTitle"),
+          message: t("cloudAccounts.repairConfirmMessage", {
+            target: target.label || familyLabel(target.family),
+            sources: plan.merges[0].sourceIds.map((id) => mergeCandidates.find((record) => record.id === id)?.label || id).join(", "),
+            services: plan.merges[0].affectedServices.map(serviceLabel).join(" · "),
+          }),
+          confirmLabel: t("cloudAccounts.repairConfirmAction"),
+        }));
+        if (result.status === "repaired") {
+          toast.success(t("cloudAccounts.repairDone"));
+          onBack();
+        }
+      } catch {
+        toast.error(t("cloudAccounts.repairFailed"));
       } finally {
         setBusy(false);
       }
@@ -538,6 +586,27 @@ export function CloudAccountDetailScreen({
               />
             </RowList>
           </GroupCard>
+
+          {/* E3's fallback, as on the desktop (E6): only where another card of the same provider can be named. */}
+          {card.record && mergeCandidates.length > 0 && (
+            <>
+              <SectionLabel>{t("cloudAccounts.mergeManualGroup")}</SectionLabel>
+              <GroupCard>
+                <RowList>
+                  <Row
+                    data-testid="cloudacct-merge-manual"
+                    icon={<Merge size={ICON.ui} />}
+                    title={t("cloudAccounts.mergeManualAction")}
+                    subtitle={t("cloudAccounts.mergeManualHint")}
+                    wrap
+                    disabled={busy}
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    onClick={mergeManually}
+                  />
+                </RowList>
+              </GroupCard>
+            </>
+          )}
         </>
       )}
     </div>

@@ -35,6 +35,7 @@ import {
   type DeviceSignInState,
   accountAccessOf,
   accountPageModel,
+  manualMergeCandidates,
   accountStateOf,
   isServiceOff,
   accountStateKey,
@@ -84,7 +85,7 @@ import { AccountServicePage } from "./AccountServicePage";
 import { readAccountPageFacts, type AccountPageFacts } from "../../services/accountPageFacts";
 import { AccessUnavailableError, deviceAccess, readDeviceAccess, saveDeviceAccess, signInCloudAccount } from "../../services/accountSignIn";
 import { oauthErrorText } from "../../services/oauthLoopback";
-import { listMailAccounts } from "@plainva/ui/mail";
+import { listMailAccounts, replacementMailAddress } from "@plainva/ui/mail";
 import { AccountMark, SERVICE_ICONS, ServiceChip, accountTitle, familyLabel, serviceLabel } from "./cloudAccountsShared";
 
 /**
@@ -109,7 +110,7 @@ export const CloudAccountsPage: React.FC<{
   onOpenArea,
 }) => {
   const { t } = useTranslation();
-  const { dbAdapter, pimRuntime, vaultPath } = useVault();
+  const { dbAdapter, pimRuntime, vaultPath, syncWorker } = useVault();
   const isActiveVault = selectedVault === vaultPath;
   const runtime = isActiveVault ? pimRuntime : null;
   /** Read when a sign-in reaches the calendar: a runtime captured earlier may be stopped. */
@@ -134,6 +135,15 @@ export const CloudAccountsPage: React.FC<{
   /** The card whose Gmail asks for an app password inline (E5). */
   const [gmailPasswordFor, setGmailPasswordFor] = useState<string | null>(null);
   const [gmailPassword, setGmailPassword] = useState("");
+  /** The address the app-password mailbox signs in with: the refused mailbox's own (review finding 1). */
+  const [gmailAddress, setGmailAddress] = useState("");
+  useEffect(() => {
+    const record = records.find((entry) => entry.id === gmailPasswordFor);
+    if (!record) return;
+    let alive = true;
+    void listMailAccounts(selectedVault).catch(() => []).then((mailboxes) => { if (alive) setGmailAddress(replacementMailAddress(record, mailboxes)); });
+    return () => { alive = false; };
+  }, [gmailPasswordFor, records, selectedVault]);
   /** This device's access per family, shown on the account page (E3). */
   const [accessInfo, setAccessInfo] = useState<{ family: "google" | "microsoft"; stored: StoredOAuthAccess | null; resolved: AccessResolution } | null>(null);
   const [editAccess, setEditAccess] = useState(false);
@@ -487,7 +497,9 @@ export const CloudAccountsPage: React.FC<{
     }
     setBusy(true);
     try {
-      setRecords(await setAccountServiceOff(selectedVault, runtime, record, service, !on));
+      // The last settings push before the file sync stops, so the other devices learn of it (review finding 4).
+      const worker = isActiveVault ? syncWorker : null;
+      setRecords(await setAccountServiceOff(selectedVault, runtime, record, service, !on, worker?.pushSettingsNow ? async () => { await worker.pushSettingsNow?.(); } : undefined));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
@@ -762,7 +774,7 @@ export const CloudAccountsPage: React.FC<{
 
         {gmailPasswordFor === detail.id && (
           <SettingCard label={t("cloudAccounts.gmailPasswordGroup")}>
-            <SettingCardNote>{t("cloudAccounts.gmailPasswordHint", { account: detail.label })}</SettingCardNote>
+            <SettingCardNote>{t("cloudAccounts.gmailPasswordHint", { account: gmailAddress || detail.label })}</SettingCardNote>
             <SettingRow label={t("cloudAccounts.appPassword")} wide>
               <TextInput type="password" value={gmailPassword} onChange={(e) => setGmailPassword(e.target.value)} data-testid="cloudacct-gmail-password" />
             </SettingRow>
@@ -770,9 +782,9 @@ export const CloudAccountsPage: React.FC<{
               <Button variant="ghost" onClick={() => setGmailPasswordFor(null)}>{t("common.cancel")}</Button>
               <Button
                 variant="primary"
-                disabled={busy || !gmailPassword}
+                disabled={busy || !gmailPassword || !gmailAddress}
                 data-testid="cloudacct-gmail-password-save"
-                onClick={() => void signInCard(detail, ["mail"], { email: detail.label, pass: gmailPassword }).then(() => setGmailPassword(""))}
+                onClick={() => void signInCard(detail, ["mail"], { email: gmailAddress, pass: gmailPassword }).then(() => setGmailPassword(""))}
               >
                 {t("pim.connect")}
               </Button>
@@ -878,7 +890,7 @@ export const CloudAccountsPage: React.FC<{
 
         {/* E3's fallback - only where there is a second card of the same provider to point at. */}
         {(() => {
-          const others = records.filter((r) => r.id !== detail.id && r.family === detail.family);
+          const others = manualMergeCandidates(records, detail);
           if (others.length === 0) return null;
           return (
             <SettingCard label={t("cloudAccounts.mergeManualGroup")}>

@@ -29,6 +29,22 @@ export interface ServiceSignInSlot {
 export const SECRET_FIELDS = ["pass", "password", "secretAccessKey"] as const;
 
 /**
+ * The mark "Sign out on this device" leaves in a slot whose sign-in it took
+ * (review of plan "Verbinden", finding 2). An EMPTY secret is no sign-out: a
+ * WebDAV vault may be set up without a password (the phone allows it), and it
+ * has to go on syncing. Only this mark, written by sign-out alone, says so; a
+ * sign-in clears it (`withoutSignOutMark`), and a secret written beside it
+ * outweighs it.
+ */
+export const SIGNED_OUT_MARK = "signedOutHere";
+
+/** The slot (or its `creds`) as the record the sign-in lives in. */
+function grantOf(value: unknown, nested?: "creds"): Record<string, unknown> | null {
+  const inner = value && typeof value === "object" && !Array.isArray(value) ? (nested ? (value as Record<string, unknown>)[nested] : value) : null;
+  return inner && typeof inner === "object" && !Array.isArray(inner) ? (inner as Record<string, unknown>) : null;
+}
+
+/**
  * The slot value without a sign-in of its own: the refresh token emptied, the
  * marker of Android's system sign-in dropped, and a password or secret key
  * emptied - everything else (client, server, user, folder) stays, so signing
@@ -40,11 +56,15 @@ export const SECRET_FIELDS = ["pass", "password", "secretAccessKey"] as const;
  * password has to go because it IS the sign-in of a password account: an
  * account signed out on this device that still held it would keep syncing
  * (plan "Verbinden", V2 - "deletes the stored app password here").
+ *
+ * A slot whose sign-in is its own - a password, a secret key, Dropbox's
+ * token (`appKey`) - gets the sign-out mark. A Google or Microsoft service
+ * slot does not: its sign-in is the card's grant, which sign-out deletes, and
+ * the one sign-in writes that slot again with an empty token by design.
  */
 export function retiredServiceSignIn(value: Record<string, unknown>, nested?: "creds"): Record<string, unknown> | null {
-  const inner = nested ? value[nested] : value;
-  if (!inner || typeof inner !== "object" || Array.isArray(inner)) return null;
-  const grant = inner as Record<string, unknown>;
+  const grant = grantOf(value, nested);
+  if (!grant) return null;
   const token = (typeof grant.refreshToken === "string" && grant.refreshToken !== "") || grant.nativeGoogle !== undefined;
   const secrets = SECRET_FIELDS.filter((field) => typeof grant[field] === "string" && grant[field] !== "");
   if (!token && !secrets.length) return null;
@@ -54,14 +74,33 @@ export function retiredServiceSignIn(value: Record<string, unknown>, nested?: "c
     delete retired.nativeGoogle;
   }
   for (const field of secrets) retired[field] = "";
+  const dropbox = typeof grant.appKey === "string" || (value as { provider?: unknown }).provider === "dropbox";
+  if (secrets.length || dropbox) retired[SIGNED_OUT_MARK] = true;
   return nested ? { ...value, [nested]: retired } : retired;
 }
 
-/** Whether a slot value lost its sign-in to "Sign out on this device": a secret field is there, and empty. */
+/** Whether anything in the slot can still sign in: a password, a secret key or a token. */
+function holdsSignIn(grant: Record<string, unknown>): boolean {
+  return [...SECRET_FIELDS, "refreshToken"].some((field) => typeof grant[field] === "string" && grant[field] !== "");
+}
+
+/**
+ * Whether "Sign out on this device" took this slot's sign-in: its mark is
+ * there and nothing in the slot signs in. An empty password without the mark
+ * is a sign-in without a password, not a sign-out.
+ */
 export function isSignedOutSlot(value: unknown, nested?: "creds"): boolean {
-  const inner = value && typeof value === "object" ? (nested ? (value as Record<string, unknown>)[nested] : value) : null;
-  if (!inner || typeof inner !== "object") return false;
-  return SECRET_FIELDS.some((field) => (inner as Record<string, unknown>)[field] === "");
+  const grant = grantOf(value, nested);
+  return !!grant && grant[SIGNED_OUT_MARK] === true && !holdsSignIn(grant);
+}
+
+/** The slot value with the sign-out mark gone - what every sign-in writes. */
+export function withoutSignOutMark<T>(value: T, nested?: "creds"): T {
+  const grant = grantOf(value, nested);
+  if (!grant || !(SIGNED_OUT_MARK in grant)) return value;
+  const next = { ...grant };
+  delete next[SIGNED_OUT_MARK];
+  return (nested ? { ...(value as Record<string, unknown>), [nested]: next } : next) as T;
 }
 
 export interface DeviceSignOutPorts {

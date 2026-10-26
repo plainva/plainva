@@ -28,3 +28,15 @@ export async function filesStoppedHere(vaultPath: string): Promise<boolean> {
   if (records.some((record) => record.services.files && isServiceOff(record, "files"))) return true;
   return isSyncPausedHere(vaultPath);
 }
+
+/**
+ * Whether the vault queues its local changes: whenever it has a file provider,
+ * running or standing still (review of plan "Verbinden", finding 4). Files
+ * switched off, paused here or signed out stop the worker, not the record of
+ * what changed - a file edited outside Plainva while files were off went
+ * unnoticed by the sync once they were on again, because the index had
+ * already taken it in. The queue holds it until the worker runs.
+ */
+export function queuesLocalChanges(access: { provider: unknown; blocked: unknown }): boolean {
+  return access.provider !== null || access.blocked !== null;
+}

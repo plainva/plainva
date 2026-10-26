@@ -6,6 +6,7 @@ import {
   getMailRefreshToken,
   listMailAccounts,
   removeMailAccount,
+  replaceMailbox,
   saveMicrosoftMailAccount,
 } from "@plainva/ui/mail";
 import type { MailAccountConfig } from "@plainva/ui/mail";
@@ -50,6 +51,14 @@ export async function listActiveMobileMailAccounts(): Promise<MailAccountConfig[
   if (!vaultId) return [];
   const id = vaultId;
   return mailboxesSwitchedOn(await listMailAccounts(id), await loadCloudAccounts(id).catch(() => []));
+}
+
+/** The refused Gmail mailbox gives way to its app-password replacement (E7), its settings carried over. */
+export async function replaceMobileMailbox(replacedId: string, replacementId: string): Promise<void> {
+  if (!vaultId) return;
+  forgetGraphMailRuntime(vaultId, replacedId);
+  await replaceMailbox(vaultId, replacedId, replacementId);
+  notifyMailChanged();
 }
 
 export async function removeMobileMailAccount(accountId: string): Promise<void> {

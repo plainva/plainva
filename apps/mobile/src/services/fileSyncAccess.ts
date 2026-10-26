@@ -45,8 +45,8 @@ export function resolveMobileFileAccess(
 ): MobileFileSyncAccess {
   if (!entryProvider) return { ready: false, blocked: false };
   if (!stored || stored.provider !== entryProvider) return { ready: false, blocked: true };
-  const signedOut = isSignedOutSlot(stored, "creds")
-    || (stored.provider === "dropbox" && (stored.creds as { refreshToken?: string }).refreshToken === "");
+  // Only the mark sign-out leaves says "signed out"; an empty password alone is a server without one.
+  const signedOut = isSignedOutSlot(stored, "creds");
   if (signedOut) return { ready: false, blocked: true, signedOut: true };
 
   const creds = stored.creds as {
@@ -64,6 +64,33 @@ export function resolveMobileFileAccess(
         : // Dropbox has no broker family: its token is always its own.
           !!creds.refreshToken || (stored.provider === "drive" && !!creds.nativeGoogle?.email) || (stored.provider !== "dropbox" && filesViaBroker);
   return { ready, blocked: !ready };
+}
+
+/**
+ * Whether the active vault's sync worker may start, and what the status says
+ * when it may not. Every way the files stand still is a decision here, not a
+ * failure - the person paused them (`pausedHere`, their own switch, never
+ * touched by the app's own pause), the app paused them (`paused`, a password
+ * change in flight), or files are off for the vault (E3) - except two: a vault
+ * signed out on this phone, which must not ask the provider with an emptied
+ * password (review of plan "Verbinden", finding 3), and a slot nothing here
+ * opens.
+ */
+export function mobileSyncStart(input: {
+  paused?: boolean;
+  pausedHere?: boolean;
+  filesOff: boolean;
+  entryProvider?: string;
+  stored: MobileSyncProvider | null;
+}): { start: true } | { start: false; status: "off" | "error"; messageKey: string | null; queueLocalChanges: boolean } {
+  // A vault with a provider keeps queueing what changes on this phone while
+  // its sync stands still, so turning it on again sends what changed in the
+  // meantime (review finding 4); a vault without one has nothing to send to.
+  const queueLocalChanges = !!input.entryProvider;
+  if (input.paused || input.pausedHere || input.filesOff) return { start: false, status: "off", messageKey: null, queueLocalChanges };
+  if (input.stored && isSignedOutSlot(input.stored, "creds")) return { start: false, status: "error", messageKey: "deviceSignIn.needed", queueLocalChanges };
+  if (!input.stored) return input.entryProvider ? { start: false, status: "error", messageKey: "cloudAccounts.filesNoAccess", queueLocalChanges } : { start: false, status: "off", messageKey: null, queueLocalChanges };
+  return { start: true };
 }
 
 /** Whether the account-wide token of this vault covers the file service. */

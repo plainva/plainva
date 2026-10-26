@@ -20,6 +20,7 @@ import { getActiveVaultEntry } from "../vaultRegistry";
 import { applyTemplateInteractive } from "../templateInteractive";
 import { getMobileSettings } from "../mobileSettings";
 import { getPimCredentials, savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
+import { pimTargetCredentials } from "./pimTargetCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
@@ -109,7 +110,8 @@ async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<
   if (account.provider === "device") {
     return isDevicePimSupported() ? new DevicePimTarget(timedDevicePimPort(devicePimPort(), (line) => logDiagnostic("device", line))) : null;
   }
-  const creds = await getPimCredentials(vaultId, account.id);
+  // None for an account signed out on this phone (review finding 3).
+  const creds = await pimTargetCredentials(vaultId, account.id);
   if (!creds) return null;
   if (creds.kind === "caldav") {
     void allowHttpOrigin(creds.url);

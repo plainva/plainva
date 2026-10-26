@@ -259,6 +259,17 @@ export class EncryptedWorkspaceWorker {
     this.abort?.abort();
   }
 
+  /** Pushes the settings profile once before files are switched off (plan "Verbinden", E3; review finding 4), as `SyncWorker.pushSettingsNow`. */
+  async pushSettingsNow(): Promise<void> {
+    if (!this.options.sideband) return;
+    if (this.syncing) await this.syncing.catch(() => {});
+    try {
+      await this.options.sideband();
+    } catch (e) {
+      console.error("[EncryptedWorkspaceWorker] settings push before stopping failed:", e);
+    }
+  }
+
   async stopAndDrain(): Promise<void> {
     this.stop();
     await this.syncing?.catch(() => undefined);

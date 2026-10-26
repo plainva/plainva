@@ -307,6 +307,21 @@ describe("SyncWorker", () => {
     expect(settingsSync.run).toHaveBeenCalledWith(target, vault);
   });
 
+  it("pushes the settings profile once on request, without a file cycle - the last act before files go off (review finding 4)", async () => {
+    const settingsSync = { run: vi.fn().mockResolvedValue(undefined) };
+    const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { settingsSync });
+
+    await w.pushSettingsNow();
+
+    expect(settingsSync.run).toHaveBeenCalledWith(target, vault);
+    expect(engine.processQueue).not.toHaveBeenCalled();
+    // Nothing to push without a profile sync.
+    await new SyncWorker(engine, target, stateRepo, vault, queue, 100).pushSettingsNow();
+    // A failing push is reported, not thrown: files go off all the same.
+    settingsSync.run.mockRejectedValueOnce(new Error("settings boom"));
+    await expect(w.pushSettingsNow()).resolves.toBeUndefined();
+  });
+
   it("a failing profile-sync sideband never fails the file cycle", async () => {
     const settingsSync = { run: vi.fn().mockRejectedValue(new Error("settings boom")) };
     const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { settingsSync });

@@ -356,6 +356,11 @@ export async function removeMailAccount(vaultPath: string, accountId: string): P
   const list = await listMailAccounts(vaultPath);
   await store.set(mailAccountsKey(vaultPath), list.filter((a) => a.id !== accountId));
   await store.save();
+  // The deletion travels with the settings profile: without its tombstone the
+  // next profile import from another device put the mailbox straight back
+  // (review of plan "Verbinden", finding 1). A mailbox that was never shared
+  // leaves a tombstone nobody matches.
+  await getPlatformServices().noteAccountRemoved?.(vaultPath, "mail", accountId).catch(() => undefined);
   await removeSlot(
     getPlatformServices().credentials,
     mailSecretKey(vaultPath, accountId),

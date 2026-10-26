@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardSignInState, isSignedOutSlot, removeAccountCard, retiredServiceSignIn, signInActionKey, signOutAccountHere, type CloudServiceId } from "@plainva/ui";
+import { cardSignInState, createPasswordCredentialTarget, isSignedOutSlot, removeAccountCard, retiredServiceSignIn, signInActionKey, signOutAccountHere, withoutSignOutMark, type CloudServiceId } from "@plainva/ui";
 
 /**
  * Plan "Verbinden", V0: the state of an account card is its own sign-in, and
@@ -65,21 +65,42 @@ describe("signOutAccountHere", () => {
     expect(JSON.parse(data.get("pim_v_cal")!)).toEqual({ kind: "google", clientId: "c", refreshToken: "" });
     // Android's system sign-in is a marker, not a token: it goes too, the folder stays.
     expect(JSON.parse(data.get("files_v")!)).toEqual({ provider: "drive", creds: { clientId: "c", refreshToken: "", rootFolderName: "Wiki" } });
-    // A password IS a sign-in (plan "Verbinden", V2): emptied, the field stays.
-    expect(JSON.parse(data.get("mail_v_m")!)).toEqual({ password: "" });
+    // A password IS a sign-in (plan "Verbinden", V2): emptied, the field stays, and the slot is marked.
+    expect(JSON.parse(data.get("mail_v_m")!)).toEqual({ password: "", signedOutHere: true });
     expect(calls).toEqual(["grant"]);
   });
 
-  it("signs a password account out by emptying its password and keeping server and user", () => {
-    expect(retiredServiceSignIn({ provider: "webdav", creds: { url: "https://dav.example", user: "lena", pass: "secret" } }, "creds"))
-      .toEqual({ provider: "webdav", creds: { url: "https://dav.example", user: "lena", pass: "" } });
-    expect(retiredServiceSignIn({ kind: "caldav", url: "https://dav.example", user: "lena", pass: "secret" })).toEqual({ kind: "caldav", url: "https://dav.example", user: "lena", pass: "" });
-    expect(retiredServiceSignIn({ endpoint: "https://s3.example", accessKeyId: "AK", secretAccessKey: "SK" })).toEqual({ endpoint: "https://s3.example", accessKeyId: "AK", secretAccessKey: "" });
-    expect(isSignedOutSlot({ url: "u", user: "lena", pass: "" })).toBe(true);
-    expect(isSignedOutSlot({ provider: "webdav", creds: { url: "u", pass: "" } }, "creds")).toBe(true);
+  it("signs a password account out by emptying its password, keeping server and user, and marking the slot", () => {
+    const webdav = retiredServiceSignIn({ provider: "webdav", creds: { url: "https://dav.example", user: "lena", pass: "secret" } }, "creds");
+    expect(webdav).toEqual({ provider: "webdav", creds: { url: "https://dav.example", user: "lena", pass: "", signedOutHere: true } });
+    expect(isSignedOutSlot(webdav, "creds")).toBe(true);
+    const caldav = retiredServiceSignIn({ kind: "caldav", url: "https://dav.example", user: "lena", pass: "secret" });
+    expect(caldav).toEqual({ kind: "caldav", url: "https://dav.example", user: "lena", pass: "", signedOutHere: true });
+    expect(isSignedOutSlot(caldav)).toBe(true);
+    expect(retiredServiceSignIn({ endpoint: "https://s3.example", accessKeyId: "AK", secretAccessKey: "SK" })).toEqual({ endpoint: "https://s3.example", accessKeyId: "AK", secretAccessKey: "", signedOutHere: true });
+    // Dropbox's token is its own sign-in: marked; a Google service slot is the card's: not.
+    expect(retiredServiceSignIn({ appKey: "k", refreshToken: "t" })).toEqual({ appKey: "k", refreshToken: "", signedOutHere: true });
+    expect(retiredServiceSignIn({ provider: "dropbox", creds: { refreshToken: "t" } }, "creds")).toEqual({ provider: "dropbox", creds: { refreshToken: "", signedOutHere: true } });
+    expect(retiredServiceSignIn({ kind: "google", clientId: "c", refreshToken: "t" })).toEqual({ kind: "google", clientId: "c", refreshToken: "" });
     expect(isSignedOutSlot({ url: "u", user: "lena", pass: "x" })).toBe(false);
     // An OAuth slot emptied by the one sign-in (K2) is not "signed out".
     expect(isSignedOutSlot({ kind: "google", clientId: "c", refreshToken: "" })).toBe(false);
+  });
+
+  it("an empty password without the sign-out mark is a server without a password, not a sign-out (review finding 2)", () => {
+    // The phone lets a WebDAV vault be set up without a password; it must keep syncing.
+    expect(isSignedOutSlot({ url: "u", user: "lena", pass: "" })).toBe(false);
+    expect(isSignedOutSlot({ provider: "webdav", creds: { url: "u", user: "", pass: "" } }, "creds")).toBe(false);
+    expect(isSignedOutSlot({ kind: "caldav", url: "u", user: "lena", pass: "" })).toBe(false);
+    expect(isSignedOutSlot({ password: "" })).toBe(false);
+  });
+
+  it("a sign-in clears the mark: a new secret outweighs it, and the password change drops it", () => {
+    expect(isSignedOutSlot({ url: "u", pass: "new", signedOutHere: true })).toBe(false);
+    expect(withoutSignOutMark({ url: "u", pass: "", signedOutHere: true })).toEqual({ url: "u", pass: "" });
+    expect(withoutSignOutMark({ provider: "webdav", creds: { url: "u", pass: "x", signedOutHere: true } }, "creds")).toEqual({ provider: "webdav", creds: { url: "u", pass: "x" } });
+    const untouched = { url: "u", pass: "x" };
+    expect(withoutSignOutMark(untouched)).toBe(untouched);
   });
 
   it("leaves a slot without a sign-in of its own byte for byte", () => {
@@ -106,5 +127,21 @@ describe("removeAccountCard", () => {
       dropRecord: async () => { calls.push("record"); },
     });
     expect(calls).toEqual(["files", "mail", "grant", "record"]);
+  });
+});
+
+describe("signing in again through the password entry (review finding 2)", () => {
+  it("writes the new password without the sign-out mark", () => {
+    const target = createPasswordCredentialTarget<{ provider: string; creds: Record<string, unknown> }, { provider: string }>({
+      service: "files",
+      key: "files_v",
+      store: memoryStore({}).store,
+      read: async () => null,
+      readBinding: async () => ({ provider: "webdav" }),
+      withPassword: (value, pass) => ({ ...value, creds: { ...value.creds, pass } }),
+      verify: async () => undefined,
+    });
+    const previous = JSON.stringify({ credential: { provider: "webdav", creds: { url: "u", user: "lena", pass: "", signedOutHere: true } }, binding: { provider: "webdav" } });
+    expect(JSON.parse(target.withPassword(previous, "new")).credential).toEqual({ provider: "webdav", creds: { url: "u", user: "lena", pass: "new" } });
   });
 });

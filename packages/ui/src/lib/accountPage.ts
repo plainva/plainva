@@ -215,3 +215,14 @@ export function taskListState(input: { count: number; listsError?: string | null
 export function emptyTaskListHintKey(provider: string): string {
   return provider === "caldav" ? "pim.noTaskListsCalDavHint" : "pim.noTaskListsHint";
 }
+
+/**
+ * The cards the person may declare "the same account" as this one (E3's
+ * fallback, E6 on both shells): the other cards of the same provider. The
+ * automatic fold needs a provider-confirmed identity on both sides; a card
+ * that never got one has no other way out, and the statement is the
+ * person's, never a guess from a label.
+ */
+export function manualMergeCandidates<T extends Pick<CloudAccountRecord, "id" | "family">>(records: readonly T[], target: Pick<CloudAccountRecord, "id" | "family">): T[] {
+  return records.filter((record) => record.id !== target.id && record.family === target.family);
+}

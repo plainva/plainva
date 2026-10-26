@@ -3472,8 +3472,9 @@ describe("desktop rules the phone had never been given (finding 2026-08-19)", ()
   });
 
   it("tells a configured-but-unreachable file provider apart from no sync", () => {
-    const sync = read("src/services/syncService.ts");
-    expect(sync).toMatch(/filesNoAccess/);
+    // The decision moved into one pure rule (review of plan "Verbinden", finding 3), which the start asks.
+    expect(read("src/services/syncService.ts")).toMatch(/mobileSyncStart\(/);
+    expect(read("src/services/fileSyncAccess.ts")).toMatch(/filesNoAccess/);
     const cards = read("src/services/cloudAccountCards.ts");
     expect(cards, "and the card stops claiming a connection").toMatch(/resolveMobileFileAccess/);
   });

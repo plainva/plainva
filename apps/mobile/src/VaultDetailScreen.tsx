@@ -9,8 +9,9 @@ import {
   getStoredProvider,
   getSyncStatus,
   listProviderFolders,
-  pauseProvider,
+  pauseSyncHere,
   resumeProvider,
+  resumeSyncHere,
   restartSync,
   subscribeSyncStatus,
   syncNow,
@@ -229,7 +230,7 @@ export function VaultDetailScreen({
     !isLocal ||
     (isActive && !!entry.provider) ||
     (isActive && canChangeRemoteFolder(entry.provider)) ||
-    !!(entry.provider && entry.paused) ||
+    !!(entry.provider && (entry.paused || entry.pausedHere)) ||
     entry.provider === "drive" ||
     entry.provider === "onedrive" ||
     entry.provider === "dropbox";
@@ -267,7 +268,7 @@ export function VaultDetailScreen({
               changed since it was connected, so it reports itself in the meta
               line together with the rest of the reading. */}
           <span className="m-statcard-head">
-            {isActive && entry.provider && !entry.paused ? (
+            {isActive && entry.provider && !entry.paused && !entry.pausedHere ? (
               <>
                 {status.status === "error" ? (
                   <AlertTriangle className="m-error" size={ICON.ui} />
@@ -403,14 +404,15 @@ export function VaultDetailScreen({
         )}
         {/* A paused sync has exactly one thing to say, so it says it as the
             call to action rather than as the fourth row of a list. */}
-        {entry.provider && entry.paused && (
+        {entry.provider && (entry.paused || entry.pausedHere) && (
           <div className="m-sync-actions m-sync-actions--column">
             <Button
               variant="primary"
               disabled={busy}
               onClick={() => {
                 setBusy(true);
-                void resumeProvider(vaultId).finally(() => setBusy(false));
+                // The person's own pause, and one an earlier version kept under the app's flag.
+                void resumeSyncHere(vaultId).then(() => (entry.paused ? resumeProvider(vaultId) : undefined)).finally(() => setBusy(false));
               }}
             >
               {t("mobile.syncResume")}
@@ -673,17 +675,17 @@ export function VaultDetailScreen({
         {/* Everything that cannot be undone by tapping again, behind its own
             outline and in the destructive colour — not the fourth tonal button
             of the same run. */}
-        {(!isLocal || (entry.provider && !entry.paused)) && (
+        {(!isLocal || (entry.provider && !entry.paused && !entry.pausedHere)) && (
           <>
             <SectionLabel className="m-danger">{t("mobile.vaultGroupDanger")}</SectionLabel>
             <GroupCard tone="danger">
               <RowList>
-                {entry.provider && !entry.paused && (
+                {entry.provider && !entry.paused && !entry.pausedHere && (
                   <Row
                     icon={<Unplug className="m-danger" size={ICON.ui} />}
                     onClick={() => {
                       setBusy(true);
-                      void pauseProvider(vaultId).finally(() => setBusy(false));
+                      void pauseSyncHere(vaultId).finally(() => setBusy(false));
                     }}
                     title={<span className="m-danger">{t("cloudAccounts.pauseSync")}</span>}
                   />

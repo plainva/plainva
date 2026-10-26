@@ -655,6 +655,25 @@ export class SyncWorker {
     this.settingsSyncRunner = runner;
   }
 
+  /**
+   * Pushes the settings profile once, outside a cycle - the last thing a
+   * worker does before files are switched off for the vault (plan "Verbinden",
+   * E3; review finding 4). The switch itself lives in the profile, and the
+   * profile only ever travels inside this worker's cycles: without this push
+   * the other devices never learned that files were off. A failure is reported
+   * and left at that; the next cycle (files on again) pushes anyway.
+   */
+  public async pushSettingsNow(): Promise<void> {
+    if (!this.settingsSyncRunner) return;
+    const cycle = this.currentCycle;
+    if (cycle) await cycle.catch(() => {});
+    try {
+      await this.settingsSyncRunner.run(this.rawTarget, this.vault);
+    } catch (e) {
+      console.error("[SyncWorker] settings push before stopping failed:", e);
+    }
+  }
+
   private setStatus(status: SyncStatus, error?: string, reason?: SyncErrorReason, retryAt?: number) {
     if (this.currentStatus !== status) {
       this.currentStatus = status;

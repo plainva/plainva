@@ -42,9 +42,10 @@ import {
   getSyncStatus,
   listProviderFolders,
   openDriveDestination,
-  pauseProvider,
+  pauseSyncHere,
   restartSync,
   resumeProvider,
+  resumeSyncHere,
   subscribeSyncStatus,
   type MobileSyncProvider,
 } from "../services/syncService";
@@ -158,13 +159,16 @@ function FilesPart({ vaultId, vault, on }: { vaultId: string; vault: MobileVault
   const reload = useCallback(async () => {
     const stored = await getStoredProvider(vaultId).catch(() => null);
     setFolder(stored ? await readSyncRootFolder(vaultId, stored.provider, stored).catch(() => "") : "");
-    setPaused(!!(await getVaultEntry(vaultId))?.paused);
+    const entry = await getVaultEntry(vaultId);
+    setPaused(!!(entry?.pausedHere || entry?.paused));
   }, [vaultId]);
   useEffect(() => { void reload(); }, [reload]);
 
   const togglePause = (next: boolean) => {
     setBusy(true);
-    void (next ? pauseProvider(vaultId) : resumeProvider(vaultId)).then(reload).finally(() => setBusy(false));
+    // The person's own pause (review finding 5b); resuming also clears one an earlier version kept under the app's flag.
+    void (next ? pauseSyncHere(vaultId) : resumeSyncHere(vaultId).then(async () => { if ((await getVaultEntry(vaultId))?.paused) await resumeProvider(vaultId); }))
+      .then(reload).finally(() => setBusy(false));
   };
   const pickInterval = () => {
     void mSelect({
@@ -226,6 +230,8 @@ function FilesPart({ vaultId, vault, on }: { vaultId: string; vault: MobileVault
           />
         </RowList>
       </GroupCard>
+      {/* What "off" means for the other devices, said where it is switched (review finding 4). */}
+      <p className="m-hint" data-testid="account-files-limit">{t("cloudAccounts.filesOffLimit")}</p>
       {drivePicker && <DriveDestinationDialog session={drivePicker} onClose={() => setDrivePicker(null)}
         onSave={async (selected) => { await changeRemoteFolder(vault, selected.path, selected.id); await reload(); }} />}
       {folderPick && (

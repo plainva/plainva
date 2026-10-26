@@ -30,7 +30,7 @@ import {
   listMailAccounts,
   mailSecretKey,
   mailTransport,
-  removeMailAccount,
+  replaceMailbox,
   saveBrokerMailAccount,
   saveMailAccount,
   type MailAccountConfig,
@@ -171,9 +171,10 @@ export async function signInCloudAccount(vaultPath: string, getRuntime: () => Pi
     const mailAccountId = await addPasswordMailbox(vaultPath, request.mailPassword);
     const saved = { ...record, services: { ...record.services, mail: { mailAccountId } } };
     await saveCloudAccounts(vaultPath, [...(await loadCloudAccounts(vaultPath)).filter((entry) => entry.id !== record.id), saved]);
-    // The mailbox Google refused gives way to the app-password one (E7); filed mails stay notes.
+    // The mailbox Google refused gives way to the app-password one (E7), with
+    // everything the person set on it; filed mails stay notes (review finding 1).
     const replaced = record.services.mail?.mailAccountId;
-    if (replaced && replaced !== mailAccountId) await removeMailAccount(vaultPath, replaced);
+    if (replaced && replaced !== mailAccountId) await replaceMailbox(vaultPath, replaced, mailAccountId);
     await refreshCloudAccounts(vaultPath, getRuntime());
     return { prepared, record: saved, rows: [{ service: "mail", state: "active" }] };
   }

@@ -29,8 +29,13 @@ export interface VaultEntry {
   /** Display name; empty for the local vault (the UI localizes that). */
   name: string;
   provider?: string;
-  /** Sync paused ("disconnected" in the UI); credentials stay stored. */
+  /** Sync paused by the app itself (a password change in flight); credentials stay stored. */
   paused?: boolean;
+  /**
+   * Sync paused by the person ("Pause sync", plan "Verbinden", V3) - its own
+   * flag, so that the app resuming its pause cannot undo it (review finding 5b).
+   */
+  pausedHere?: boolean;
   /** Set for a vault in a user-picked folder outside the app container. */
   external?: ExternalFolderRef;
 }

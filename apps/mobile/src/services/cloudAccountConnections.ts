@@ -52,6 +52,7 @@ export async function bindMailToConnection(context: ServiceConnectionContext | u
   const next: CloudAccountRecord = { ...record, ...(identity ? { verifiedProviderIdentity: identity } : {}), services: { ...record.services, mail: { mailAccountId: bindingId } } };
   await saveCloudAccounts(context.vaultId, records.map(r => r.id === record.id ? next : r));
   if ((await loadCloudAccounts(context.vaultId)).find(r => r.id === record.id)?.services.mail?.mailAccountId !== bindingId) throw new ServiceConnectionError("storageFailed");
-  // The mailbox Google refused gives way to the app-password one (E7); filed mails stay notes.
-  if (replacing) await (await import("./mail/mailRuntime")).removeMobileMailAccount(current);
+  // The mailbox Google refused gives way to the app-password one (E7), with
+  // everything the person set on it; filed mails stay notes (review finding 1).
+  if (replacing) await (await import("./mail/mailRuntime")).replaceMobileMailbox(current, bindingId);
 }

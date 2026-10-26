@@ -94,7 +94,8 @@ export function resolveFileSyncAccess(slots: SyncSlots, filesViaBroker: { drive:
                 : null;
 
   const blockedSlot = blocked ? slots[blocked] : null;
-  const signedOut = !!blockedSlot && (isSignedOutSlot(blockedSlot) || (blocked === "dropbox" && (blockedSlot as { refreshToken?: string }).refreshToken === ""));
+  // Only the mark sign-out leaves says "signed out"; an empty password alone is a server without one.
+  const signedOut = !!blockedSlot && isSignedOutSlot(blockedSlot);
   return { provider, ready, blocked, ...(signedOut ? { signedOut } : {}) };
 }
 

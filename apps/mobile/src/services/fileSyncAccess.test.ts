@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveMobileFileAccess } from "./fileSyncAccess";
+import { mobileSyncStart, resolveMobileFileAccess } from "./fileSyncAccess";
 import type { MobileSyncProvider } from "./syncService";
 
 const drive = (refreshToken: string): MobileSyncProvider => ({
@@ -43,14 +43,46 @@ describe("whether this device reaches the vault's file provider", () => {
       provider: "s3",
       creds: { endpoint: "e", bucket: "b", region: "r", accessKeyId: "a", secretAccessKey: "" },
     };
-    // An empty secret is what "Sign out on this device" leaves (plan "Verbinden", V2).
-    expect(resolveMobileFileAccess("s3", s3, false)).toEqual({ ready: false, blocked: true, signedOut: true });
+    // An empty secret alone is no sign-out (review finding 2): blocked, but not "signed out".
+    expect(resolveMobileFileAccess("s3", s3, false)).toEqual({ ready: false, blocked: true });
   });
 
   it("says a password account signed out on this device needs a sign-in", () => {
-    const webdav: MobileSyncProvider = { provider: "webdav", creds: { url: "https://dav", user: "u", pass: "" } };
+    const webdav = { provider: "webdav", creds: { url: "https://dav", user: "u", pass: "", signedOutHere: true } } as MobileSyncProvider;
     expect(resolveMobileFileAccess("webdav", webdav, false)).toEqual({ ready: false, blocked: true, signedOut: true });
-    const dropbox: MobileSyncProvider = { provider: "dropbox", creds: { appKey: "k", refreshToken: "" } };
+    const dropbox = { provider: "dropbox", creds: { appKey: "k", refreshToken: "", signedOutHere: true } } as MobileSyncProvider;
     expect(resolveMobileFileAccess("dropbox", dropbox, false).signedOut).toBe(true);
+  });
+
+  it("keeps a WebDAV vault set up without a password syncing (review finding 2)", () => {
+    const webdav: MobileSyncProvider = { provider: "webdav", creds: { url: "https://dav", user: "", pass: "" } };
+    expect(resolveMobileFileAccess("webdav", webdav, false)).toEqual({ ready: true, blocked: false });
+    const lapsed: MobileSyncProvider = { provider: "dropbox", creds: { appKey: "k", refreshToken: "" } };
+    expect(resolveMobileFileAccess("dropbox", lapsed, false)).toEqual({ ready: false, blocked: true });
+  });
+});
+
+describe("whether the vault's sync worker starts", () => {
+  const webdav = (creds: Record<string, unknown>) => ({ provider: "webdav", creds: { url: "https://dav", user: "u", ...creds } }) as MobileSyncProvider;
+
+  it("does not start for a vault signed out on this phone, and says why (review finding 3)", () => {
+    expect(mobileSyncStart({ filesOff: false, entryProvider: "webdav", stored: webdav({ pass: "", signedOutHere: true }) }))
+      .toEqual({ start: false, status: "error", messageKey: "deviceSignIn.needed", queueLocalChanges: true });
+  });
+
+  it("starts for a WebDAV vault without a password (review finding 2)", () => {
+    expect(mobileSyncStart({ filesOff: false, entryProvider: "webdav", stored: webdav({ pass: "" }) })).toEqual({ start: true });
+  });
+
+  it("stays paused while the person paused it, whatever the app does with its own pause (review finding 5b)", () => {
+    expect(mobileSyncStart({ paused: false, pausedHere: true, filesOff: false, entryProvider: "webdav", stored: webdav({ pass: "x" }) }))
+      .toEqual({ start: false, status: "off", messageKey: null, queueLocalChanges: true });
+  });
+
+  it("stands still without a word when files are off for the vault, and says so when nothing here opens the slot", () => {
+    // ...and goes on queueing what changes here, so turning files on again sends it (review finding 4).
+    expect(mobileSyncStart({ filesOff: true, entryProvider: "webdav", stored: webdav({ pass: "x" }) })).toEqual({ start: false, status: "off", messageKey: null, queueLocalChanges: true });
+    expect(mobileSyncStart({ filesOff: false, entryProvider: "webdav", stored: null })).toEqual({ start: false, status: "error", messageKey: "cloudAccounts.filesNoAccess", queueLocalChanges: true });
+    expect(mobileSyncStart({ filesOff: false, stored: null })).toEqual({ start: false, status: "off", messageKey: null, queueLocalChanges: false });
   });
 });

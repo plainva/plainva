@@ -3778,7 +3778,8 @@
     "otherSignInClient": "ID de cliente propio",
     "mailByAppPassword": "Correo con contraseña de aplicación",
     "mailByAppPasswordHint": "Solo porque se eligió el correo: Gmail por IMAP en lugar de con el inicio de sesión de Google.",
-    "standardSignInLine": "Inicio de sesión estándar: no escribes nada. {{provider}} pide todos los servicios elegidos en una sola ventana."
+    "standardSignInLine": "Inicio de sesión estándar: no escribes nada. {{provider}} pide todos los servicios elegidos en una sola ventana.",
+    "filesOffLimit": "Mientras los archivos estén desactivados, este dispositivo solo conoce los cambios de otros dispositivos cuando vuelvan a activarse; lo que cambie aquí espera a la próxima sincronización."
   },
   "comments": {
     "workspaceLocked": "Este espacio de trabajo está bloqueado en este dispositivo. Abre los ajustes de seguridad para desbloquearlo y leer o escribir anotaciones.",

@@ -3704,7 +3704,8 @@
     "otherSignInClient": "独自のクライアント ID",
     "mailByAppPassword": "アプリパスワードでメール",
     "mailByAppPasswordHint": "メールを選んだ場合のみ: Google のサインインではなく IMAP で Gmail を使います。",
-    "standardSignInLine": "標準のサインイン — 入力は不要です。{{provider}} が選んだすべてのサービスを 1 つの画面で確認します。"
+    "standardSignInLine": "標準のサインイン — 入力は不要です。{{provider}} が選んだすべてのサービスを 1 つの画面で確認します。",
+    "filesOffLimit": "ファイルがオフの間、このデバイスはファイルを再びオンにするまで他のデバイスの変更を受け取りません。ここでの変更は次の同期まで待機します。"
   },
   "comments": {
     "workspaceLocked": "このデバイスではワークスペースがロックされています。セキュリティ設定を開いてロックを解除すると、コメントの読み書きができます。",

@@ -3815,7 +3815,8 @@
     "otherSignInClient": "własny identyfikator klienta",
     "mailByAppPassword": "Poczta przez hasło aplikacji",
     "mailByAppPasswordHint": "Tylko dlatego, że wybrano pocztę: Gmail przez IMAP zamiast logowania Google.",
-    "standardSignInLine": "Logowanie standardowe — nic nie wpisujesz. {{provider}} pyta o wszystkie wybrane usługi w jednym oknie."
+    "standardSignInLine": "Logowanie standardowe — nic nie wpisujesz. {{provider}} pyta o wszystkie wybrane usługi w jednym oknie.",
+    "filesOffLimit": "Dopóki pliki są wyłączone, to urządzenie dowiaduje się o zmianach z innych urządzeń dopiero po ich ponownym włączeniu; zmiany tutaj czekają na następną synchronizację."
   },
   "comments": {
     "workspaceLocked": "Ten obszar roboczy jest zablokowany na tym urządzeniu. Otwórz ustawienia zabezpieczeń, aby go odblokować i czytać lub pisać uwagi.",
