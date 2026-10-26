@@ -23,10 +23,23 @@ const CLIENT = { clientId: "1234-plainva-test.apps.googleusercontent.com" };
 interface Harness {
   provider: FakeOAuthProvider;
   choice: FakeConsentChoice;
+  /**
+   * Answer Google's APIs (Drive, Calendar, Tasks) - each only for an access
+   * token whose grant covers it, the way Google answers. Off, they are blocked.
+   */
+  answerApis: boolean;
 }
 
-async function boot(context: BrowserContext, page: Page): Promise<Harness> {
-  const harness: Harness = { provider: new FakeOAuthProvider({ family: "google", accounts: [ANNA, BERT], clients: [CLIENT] }), choice: {} };
+const API_SCOPES: [prefix: string, scope: string][] = [
+  ["https://www.googleapis.com/drive/", "https://www.googleapis.com/auth/drive"],
+  ["https://www.googleapis.com/upload/drive/", "https://www.googleapis.com/auth/drive"],
+  ["https://www.googleapis.com/calendar/", "https://www.googleapis.com/auth/calendar"],
+  ["https://tasks.googleapis.com/", "https://www.googleapis.com/auth/tasks"],
+  ["https://www.googleapis.com/tasks/", "https://www.googleapis.com/auth/tasks"],
+];
+
+async function boot(context: BrowserContext, page: Page, seed?: (storage: Record<string, unknown>) => void, withCalendar = false): Promise<Harness> {
+  const harness: Harness = { provider: new FakeOAuthProvider({ family: "google", accounts: [ANNA, BERT], clients: [CLIENT] }), choice: {}, answerApis: false };
   const origin = new URL(test.info().project.use.baseURL ?? "http://localhost:4174").origin;
   await context.route((url) => url.origin !== origin, async (route) => {
     const url = route.request().url();
@@ -35,9 +48,23 @@ async function boot(context: BrowserContext, page: Page): Promise<Harness> {
       await route.fulfill({ status: response.status, contentType: "application/json", body: await response.text() });
       return;
     }
+    const api = API_SCOPES.find(([prefix]) => url.startsWith(prefix));
+    if (harness.answerApis && api) {
+      const token = (route.request().headers()["authorization"] ?? "").replace(/^Bearer\s+/i, "");
+      if (!harness.provider.scopesOf(token)?.includes(api[1])) {
+        await route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: { code: 401, status: "UNAUTHENTICATED", message: "Request had invalid authentication credentials." } }) });
+        return;
+      }
+      const method = route.request().method();
+      const body = method === "GET"
+        ? { files: [], items: [{ id: "primary", summary: "Anna", primary: true, accessRole: "owner" }], startPageToken: "1", newStartPageToken: "1", changes: [] }
+        : { id: "created-1", name: "Plainva", mimeType: "application/vnd.google-apps.folder" };
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+      return;
+    }
     await route.abort("blockedbyclient");
   });
-  await installSqlBridge(context);
+  const sql = await installSqlBridge(context);
 
   // The browser step: the consent URL the app opened, answered by the provider,
   // and its redirect handed back as the system would.
@@ -80,6 +107,7 @@ async function boot(context: BrowserContext, page: Page): Promise<Harness> {
   storage.secret_sync_provider_mobile_local = { provider: "drive", creds: { clientId: CLIENT.clientId, refreshToken: "" } };
   // This phone signs in to Google with an own access.
   storage.secret_oauth_access_google = { source: "own", clientId: CLIENT.clientId };
+  seed?.(storage);
   await context.addInitScript((seed) => {
     if (localStorage.getItem("CapacitorStorage.mobile-settings")) return;
     localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({ onboarded: true, language: "en", motion: "off" }));
@@ -88,6 +116,13 @@ async function boot(context: BrowserContext, page: Page): Promise<Harness> {
 
   await page.goto("/");
   await waitForVaultDirectory(page);
+  if (withCalendar) {
+    // The fixture's Google calendar row (pim-fixture-1), in the vault's index once it exists.
+    await expect.poll(() => sql.count("plainva-index", "sqlite_master WHERE name = 'pim_calendars'"), { timeout: 20_000 }).toBe(1);
+    sql.seedPim("plainva-index");
+    await page.reload();
+    await waitForVaultDirectory(page);
+  }
   const close = page.getByTestId("whats-new-close");
   await expect(close).toBeVisible({ timeout: 15000 });
   await close.click();
@@ -144,4 +179,59 @@ test("signing the card in again with its own account writes its grant, with the 
   await expect.poll(readGrant, { timeout: 15000 }).not.toBeNull();
   const stored = JSON.parse((await readGrant())!);
   expect(JSON.stringify(stored)).toContain(ANNA.subject);
+});
+
+/** The card's grant on this phone, or null. */
+const cardGrant = (page: Page) => page.evaluate(() => {
+  const key = Object.keys(localStorage).find((k) => k.startsWith("CapacitorStorage.secret_account_acct-fixture-cal"));
+  return key ? localStorage.getItem(key) : null;
+});
+
+/**
+ * Plan "Verbinden", V0 - the findings on TestFlight build 144: the yellow
+ * "sign in" could not be tapped, "Check connection" reported files and the
+ * calendar as not connected while both ran, and no sign-in could be removed
+ * from the phone. One card with files and a calendar, from no sign-in to
+ * signed in, checked, signed out on this phone and signed in again.
+ */
+test("a card signs in from its state, checks files and calendar as working, signs out on this phone and in again", async ({ context, page }, testInfo) => {
+  const harness = await boot(context, page, (storage) => {
+    storage.cloudAccounts_local = [
+      ...(storage.cloudAccounts_local as { id: string }[]).filter((card) => card.id !== "acct-fixture-cal"),
+      { id: "acct-fixture-cal", family: "google", label: ANNA.email, verifiedProviderIdentity: { issuer: "google", subject: ANNA.subject }, services: { files: { provider: "drive" }, calendar: { pimAccountId: "pim-fixture-1" } } },
+    ];
+    // The calendar's slot as the one sign-in leaves it: the client, no token of its own.
+    storage["secret_pim_local_pim-fixture-1"] = { kind: "google", clientId: CLIENT.clientId, refreshToken: "" };
+  }, true);
+  harness.answerApis = true;
+  harness.choice = { account: ANNA.email };
+  await openGoogleCard(page);
+
+  // No sign-in on this phone: the state IS the button.
+  const signIn = page.getByTestId("cloudacct-signin");
+  await expect(signIn).toHaveText("Sign in");
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("signin-needed.png") });
+  await signIn.click();
+  await expect.poll(() => cardGrant(page), { timeout: 15000 }).not.toBeNull();
+  await expect(page.getByTestId("cloudacct-signin")).toHaveCount(0, { timeout: 15000 });
+
+  // Files through the vault's slot and the card's sign-in, the calendar the page shows.
+  await page.getByTestId("cloudacct-check-open").click();
+  await expect(page.getByTestId("cloudacct-check-files")).toHaveAttribute("data-state", "ok", { timeout: 15000 });
+  await expect(page.getByTestId("cloudacct-check-calendar")).toHaveAttribute("data-state", "ok", { timeout: 15000 });
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("check-ok.png") });
+  await page.locator(".m-sheet-backdrop").click({ position: { x: 10, y: 10 } });
+
+  // Signed out on this phone: the grant goes, the account and its services stay.
+  await page.getByTestId("cloudacct-signout").click();
+  await expect.poll(() => cardGrant(page), { timeout: 15000 }).toBeNull();
+  await expect(page.getByTestId("cloudacct-signin")).toHaveText("Sign in", { timeout: 15000 });
+  const cards = JSON.parse((await page.evaluate(() => localStorage.getItem("CapacitorStorage.cloudAccounts_local"))) ?? "[]") as { id: string; services: Record<string, unknown> }[];
+  expect(cards.find((card) => card.id === "acct-fixture-cal")?.services).toMatchObject({ files: { provider: "drive" }, calendar: { pimAccountId: "pim-fixture-1" } });
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("signed-out.png") });
+
+  // And in again, from the same button.
+  await page.getByTestId("cloudacct-signin").click();
+  await expect.poll(() => cardGrant(page), { timeout: 15000 }).not.toBeNull();
+  await expect(page.getByTestId("cloudacct-signin")).toHaveCount(0, { timeout: 15000 });
 });

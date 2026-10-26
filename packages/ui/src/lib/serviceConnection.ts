@@ -73,6 +73,17 @@ export function isGoogleClientProblem(error: unknown): boolean {
   return /redirect_uri_mismatch|invalid_client|Custom URI scheme/.test(rawText(error));
 }
 
+/**
+ * The provider refuses the CLIENT, not the person: deleted in its project,
+ * not allowed for this kind of request, or not found (plan "Verbinden", V0).
+ * Signing in again with the same client cannot help; switching this device to
+ * the standard sign-in can.
+ */
+export function isOwnClientRejected(error: unknown): boolean {
+  if (error instanceof ServiceConnectionError) return false;
+  return /deleted_client|unauthorized_client|invalid_client/.test(rawText(error));
+}
+
 /** The sentence for each reason a connection flow names itself. */
 const REASON_KEYS: Record<ServiceConnectionError["reason"], string> = {
   accountChanged: "connection.accountChanged",
@@ -128,9 +139,14 @@ export function serviceConnectionMessage(error: unknown, t: ConnectionTranslate,
     const detail = value.split("oauth error in redirect:").pop()?.trim();
     return detail ? t("settings.oauthProviderError", { detail }) : t("settings.oauthCancelled");
   }
+  if (/deleted_client|unauthorized_client/.test(value)) return t("accountAccess.clientRejected");
   if (/invalid_client|invalid_request|Custom URI scheme/.test(value)) return t("connection.googleClientUnsupported");
   if (/wrongAccount/.test(value)) return t("connection.wrongAccount");
-  if (/accountChanged|runtime changed|destination_active/.test(value)) return t("connection.accountChanged");
+  // A calendar runtime replaced under a connection is the VAULT reloading or
+  // switching - never "the target account changed", which sent people looking
+  // for an account mix-up that did not exist (finding 2026-10-26).
+  if (/runtime changed/.test(value)) return t("connection.runtimeChanged");
+  if (/accountChanged|destination_active/.test(value)) return t("connection.accountChanged");
   if (/needsConsent|no_stored_sign_in|invalid_grant/.test(value)) return t("connection.needsConsent");
   if (/identityUnavailable/.test(value)) return t("connection.identityUnavailable");
   if (/storageFailed|storage_failed|secure storage/.test(value) || hasOrderedWords(value, "not", "saved")) return t("connection.storageFailed");

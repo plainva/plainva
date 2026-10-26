@@ -2,10 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { devicePermissionKey } from "../services/pim/devicePermission";
 import { devicePimAuthorization, devicePimHasReminders, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, ChevronRight, Folder, ListChecks, Mail, RotateCw, Unlink } from "lucide-react";
+import { CalendarDays, ChevronRight, Folder, ListChecks, LogOut, Mail, RotateCw, Trash2 } from "lucide-react";
 import {
   AccountPasswordChangePanel,
+  accessLineText,
+  accessProblemKey,
+  isOwnClientRejected,
   passwordServicesOf,
+  standardAccessAvailable,
   accountMonogram,
   Banner,
   Button,
@@ -14,22 +18,26 @@ import {
   type CloudServiceId,
   familyLabel,
   GroupCard,
+  hasStoredAccountGrant,
   ICON,
   Row,
   RowList,
   SectionLabel,
   serviceLabel,
+  signInActionKey,
   toast,
 } from "@plainva/ui";
 import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
 import { mobilePasswordChangePorts } from "../services/accountPassword";
 import { canUnifyMobileAccount, getAccountLoginStatus, ACCOUNT_LOGIN_STATUS_EVENT, type AccountLoginStatus } from "../services/accountLogin";
-import { AccessUnavailableError, beginMobileSignIn } from "../services/accountSignIn";
-import { toastConnectionFailure } from "../services/connectionToast";
-import { clearAccountToken, getAccountToken } from "../services/accountBroker";
+import { AccessUnavailableError, beginMobileSignIn, deviceAccess, readDeviceAccess, saveDeviceAccess } from "../services/accountSignIn";
+import { connectionFailureToast, toastConnectionFailure } from "../services/connectionToast";
+import { devicePlatform } from "../services/devicePlatform";
+import { getAccountToken } from "../services/accountBroker";
+import { removeMobileAccount, signOutMobileAccountHere } from "../services/accountSignOut";
 import { mConfirm } from "../services/mobileDialogs";
-import { DeviceSignInBadge, DeviceSignInCard } from "../components/DeviceSignInRow";
+import { DeviceSignInBadge } from "../components/DeviceSignInRow";
 import { AccountAccessSheet } from "../components/AccountAccessSheet";
 import { AccountCheckSheet } from "../components/AccountCheckSheet";
 import { AppBar } from "../components/AppBar";
@@ -80,7 +88,8 @@ export function CloudAccountDetailScreen({
   const { t } = useTranslation();
   const [card, setCard] = useState<AccountCard | null>(null);
   const [unifiable, setUnifiable] = useState(false);
-  const [sharedLogin, setSharedLogin] = useState(false);
+  /** The card's own sign-in is on this phone - what "sign out here" removes. */
+  const [signedInHere, setSignedInHere] = useState(false);
   const [ready, setReady] = useState(false);
   const [loginVaultId, setLoginVaultId] = useState<string | null>(null);
   const [loginStatus, setLoginStatus] = useState<AccountLoginStatus | undefined>();
@@ -95,10 +104,12 @@ export function CloudAccountDetailScreen({
         if (found?.record && found.recordVaultId) {
           const id = found.recordVaultId;
           unifiable = await canUnifyMobileAccount(id, found.record);
-          shared = !!(await getAccountToken(id, found.record.id).catch(() => null))?.refreshToken;
+          // The grant, not its refresh token: Android's system sign-in holds none,
+          // and the way out was missing for exactly those cards.
+          shared = hasStoredAccountGrant(await getAccountToken(id, found.record.id).catch(() => null));
         }
         if (turn !== loadGeneration.current) return;
-        setCard(found); setReady(true); setUnifiable(unifiable); setSharedLogin(shared);
+        setCard(found); setReady(true); setUnifiable(unifiable); setSignedInHere(shared);
         setLoginVaultId(found?.recordVaultId ?? null);
         setLoginStatus(found?.record && found.recordVaultId ? getAccountLoginStatus(found.recordVaultId, found.record.id) : undefined);
       })
@@ -152,8 +163,45 @@ export function CloudAccountDetailScreen({
     return () => { alive = false; };
   }, [card?.family]);
 
+  /** Google and Microsoft cards sign in from here, once for every service. */
+  const canSignIn = !!card?.record && !!loginVaultId && (card.record.family === "google" || card.record.family === "microsoft");
+
+  /**
+   * Which client this phone signs in with, named on the page (plan "Verbinden",
+   * V0) - and whether the standard one could take over. An own client Google
+   * had deleted signed in through the browser into "Error 401: deleted_client",
+   * and the page did not say which client was in use.
+   */
+  const [access, setAccess] = useState<{ family: "google" | "microsoft"; line: string; standard: boolean } | null>(null);
+  const [accessTurn, setAccessTurn] = useState(0);
+  useEffect(() => {
+    const family = card?.family === "google" || card?.family === "microsoft" ? card.family : null;
+    if (!family) return;
+    let alive = true;
+    void (async () => {
+      const vault = loginVaultId ?? undefined;
+      const stored = await readDeviceAccess(family, vault);
+      const resolved = await deviceAccess(family, vault);
+      const env = import.meta.env as unknown as Record<string, unknown>;
+      if (alive) setAccess({ family, line: accessLineText(resolved, (key, options) => t(key, options), accessProblemKey), standard: standardAccessAvailable(family, devicePlatform(), stored, env) });
+    })().catch(() => undefined);
+    return () => { alive = false; };
+  }, [card?.family, loginVaultId, accessTurn, t]);
+  const standardAvailable = !!access && access.family === card?.family && access.standard;
+
+  /** "Use standard sign-in": this phone's access becomes the standard one, then the card signs in with it. */
+  function switchToStandardSignIn() {
+    const family = card?.family === "google" || card?.family === "microsoft" ? card.family : null;
+    if (!family) return;
+    void (async () => {
+      await saveDeviceAccess(family, { source: "plainva" });
+      setAccessTurn((turn) => turn + 1);
+      signIn();
+    })();
+  }
+
   /** Signing in again is the one sign-in for everything the card carries (plan E2). */
-  const signIn = () => {
+  function signIn() {
     if (!card?.record || !loginVaultId) return;
     const family = card.record.family;
     if (family !== "google" && family !== "microsoft") return;
@@ -165,37 +213,53 @@ export function CloudAccountDetailScreen({
       } catch (e) {
         // No usable access on this phone: the sheet asks for it, then signs in.
         if (e instanceof AccessUnavailableError) setNeedClient(e.family);
+        // A refused own client is not retried: the way on is the standard sign-in.
+        else if (isOwnClientRejected(e) && standardAvailable) toast.error(connectionFailureToast(e)[0], { label: t("accountAccess.useStandard"), run: switchToStandardSignIn });
         else toastConnectionFailure(e);
+      } finally {
+        setSigningIn(false);
+      }
+    })();
+  }
+
+  /**
+   * "Sign out on this device" (plan "Verbinden", V0): this phone's sign-in for
+   * the card goes - the card's grant and whatever a service still kept for
+   * itself; the account, its services and settings and the other devices stay.
+   * It replaces "reset shared sign-in", which left the services' own sign-ins
+   * in place, was missing for Android's system sign-in and spoke of a time
+   * before the one sign-in. No confirmation (E2): signing in again undoes it.
+   */
+  const signOutHere = () => {
+    if (!card?.record || !loginVaultId) return;
+    void (async () => {
+      setSigningIn(true);
+      try {
+        await signOutMobileAccountHere(loginVaultId, card.record!, card);
+        toast.success(t("cloudAccounts.signedOutHere"));
+        reload();
+      } catch (e) {
+        toastConnectionFailure(e);
       } finally {
         setSigningIn(false);
       }
     })();
   };
 
-  /**
-   * The way out of a shared sign-in that no longer works.
-   *
-   * `clearAccountToken` has existed since stage B and had no caller on the
-   * phone — so a token that covered the wrong services could not be removed
-   * from the app at all: every service kept reading it, and re-authorising a
-   * service wrote to a slot nobody read (finding 2026-08-19). Clearing it does
-   * not sign anything out at the provider; it makes the services fall back to
-   * their own sign-in, which is what "Ein Login für alle Dienste" then rebuilds.
-   */
-  const resetSharedLogin = () => {
-    if (!card?.record || !loginVaultId) return;
+  /** "Remove account" - as on the desktop: every service, the sign-in and the card leave the vault. */
+  const removeAccount = () => {
+    if (!card || !loginVaultId) return;
     void (async () => {
       const ok = await mConfirm({
-        title: t("cloudAccounts.resetSharedLogin"),
-        message: t("cloudAccounts.resetSharedLoginConfirm"),
-        confirmLabel: t("cloudAccounts.resetSharedLogin"),
+        title: t("cloudAccounts.removeAccount"),
+        message: t("cloudAccounts.removeAccountMsg"),
+        confirmLabel: t("common.delete"),
         danger: true,
       });
       if (!ok) return;
       try {
-        await clearAccountToken(loginVaultId, card.record!.id);
-        toast.success(t("cloudAccounts.sharedLoginCleared"));
-        reload();
+        await removeMobileAccount(loginVaultId, card.record, card);
+        onBack();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
       }
@@ -235,20 +299,14 @@ export function CloudAccountDetailScreen({
                 icon={<Mark family={card.family} />}
                 title={card.label}
                 subtitle={card.subtitle ? `${familyLabel(card.family)} · ${card.subtitle}` : familyLabel(card.family)}
-                end={card.signIn ? <DeviceSignInBadge state={card.signIn} /> : undefined}
+                end={card.signIn && card.signIn !== "active" && canSignIn
+                  // The state that needs a sign-in IS the way to it (plan "Verbinden", V0):
+                  // a yellow "anmelden" nobody could tap was the finding on build 144.
+                  ? <Button size="sm" variant="primary" data-testid="cloudacct-signin" disabled={signingIn} onClick={() => signIn()}>{t(signInActionKey(card.signIn))}</Button>
+                  : card.signIn ? <DeviceSignInBadge state={card.signIn} /> : undefined}
               />
             </RowList>
           </GroupCard>
-
-          {card.signIn === "expired" && card.record && (
-            <DeviceSignInCard
-              accountLabel={card.label}
-              onSignIn={() => signIn()}
-              oauth
-              providerLabel={familyLabel(card.family)}
-              state="expired"
-            />
-          )}
 
           <SectionLabel>{t("cloudAccounts.servicesGroup")}</SectionLabel>
           {loginStatus?.message && (
@@ -283,7 +341,7 @@ export function CloudAccountDetailScreen({
                 <Row
                   data-testid="cloudacct-access"
                   title={t("accountAccess.lineLabel")}
-                  subtitle={t(card.family === "google" ? "accountAccess.title.google" : "accountAccess.title.microsoft")}
+                  subtitle={access?.family === card.family ? access.line : t(card.family === "google" ? "accountAccess.title.google" : "accountAccess.title.microsoft")}
                   end={<ChevronRight className="m-chevron" size={ICON.ui} />}
                   onClick={() => setNeedClient(card.family as "google" | "microsoft")}
                 />
@@ -300,8 +358,13 @@ export function CloudAccountDetailScreen({
             <AccountCheckSheet
               vaultId={loginVaultId}
               record={card.record}
+              card={card}
+              canSignIn={canSignIn}
+              standardAvailable={standardAvailable}
+              onUseStandard={() => { setChecking(false); switchToStandardSignIn(); }}
               serviceLabel={serviceLabel}
               onSignInAgain={() => signIn()}
+              onOpenService={(service) => { setChecking(false); openService(service); }}
               onClose={() => setChecking(false)}
             />
           )}
@@ -342,7 +405,8 @@ export function CloudAccountDetailScreen({
             </>
           )}
 
-          {unifiable && card.record && (
+          {/* For a card still signed in per service; one with no sign-in here has "Sign in" above (plan "Verbinden", V0). */}
+          {unifiable && card.record && card.signIn !== "signin" && (
             <>
               <SectionLabel>{t("cloudAccounts.unifyLogin")}</SectionLabel>
               <GroupCard>
@@ -360,22 +424,45 @@ export function CloudAccountDetailScreen({
             </>
           )}
 
-          {sharedLogin && card.record && (
-            <>
-              <SectionLabel>{t("cloudAccounts.sharedLoginGroup")}</SectionLabel>
-              <GroupCard>
-                <RowList>
+          {/* The end of the page (plan "Verbinden", E2): sign in again - always
+              there, as on the desktop -, sign out on this phone, remove. */}
+          {canSignIn && (card.signIn === "active" || signedInHere) && (
+            <GroupCard>
+              <RowList>
+                {card.signIn === "active" && (
                   <Row
-                    data-testid="cloudacct-detail-reset-shared"
-                    icon={<Unlink className="m-danger" size={ICON.ui} />}
-                    onClick={resetSharedLogin}
-                    title={t("cloudAccounts.resetSharedLogin")}
+                    data-testid="cloudacct-reconnect"
+                    icon={<RotateCw className="m-accent" size={ICON.ui} />}
+                    title={t("cloudAccounts.reconnect")}
+                    disabled={signingIn}
+                    onClick={() => signIn()}
                   />
-                </RowList>
-              </GroupCard>
-              <p className="m-hint">{t("cloudAccounts.resetSharedLoginHint")}</p>
-            </>
+                )}
+                {signedInHere && (
+                  <Row
+                    data-testid="cloudacct-signout"
+                    icon={<LogOut size={ICON.ui} />}
+                    title={t("cloudAccounts.signOutHere")}
+                    subtitle={t("cloudAccounts.signOutHereHint")}
+                    wrap
+                    disabled={signingIn}
+                    onClick={signOutHere}
+                  />
+                )}
+              </RowList>
+            </GroupCard>
           )}
+          <SectionLabel className="m-danger">{t("mobile.vaultGroupDanger")}</SectionLabel>
+          <GroupCard tone="danger">
+            <RowList>
+              <Row
+                data-testid="cloudacct-remove"
+                icon={<Trash2 className="m-danger" size={ICON.ui} />}
+                title={<span className="m-danger">{t("cloudAccounts.removeAccount")}</span>}
+                onClick={removeAccount}
+              />
+            </RowList>
+          </GroupCard>
         </>
       )}
     </div>
@@ -384,7 +471,7 @@ export function CloudAccountDetailScreen({
         <AccountAccessSheet
           family={needClient}
           onCancel={() => setNeedClient(null)}
-          onSaved={() => { setNeedClient(null); signIn(); }}
+          onSaved={() => { setNeedClient(null); setAccessTurn((turn) => turn + 1); signIn(); }}
         />
       )}
       </div>

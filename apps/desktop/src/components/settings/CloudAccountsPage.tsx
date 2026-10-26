@@ -1,7 +1,7 @@
 import { desktopPasswordChangePorts } from "../../services/accountPassword";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Check, ChevronRight, CircleAlert, Clock, Plus, RotateCw, Trash2, Users } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, CircleAlert, Clock, LogOut, Plus, RotateCw, Trash2, Users } from "lucide-react";
 import {
   AccountPasswordChangePanel,
   OAuthAccessEditor,
@@ -33,12 +33,17 @@ import {
   type CloudAccountRecord,
   type CloudServiceId,
   type GuidedAccountRepairPlan,
+  type DeviceSignInState,
+  signInActionKey,
+  accessLineText,
+  isOwnClientRejected,
+  standardAccessAvailable,
 } from "@plainva/ui";
 import { findCloudAccountByRef } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 import { credentialManager } from "../../services/CredentialManager";
-import { accountSignedInHere } from "../../services/deviceSignIn";
+import { accountSignInStateHere } from "../../services/deviceSignIn";
 import { readFileSyncAccess, type FileSyncAccess } from "../../services/fileSyncAccess";
 import { getPimCredentials } from "../../services/pim/pimCredentials";
 import {
@@ -54,6 +59,7 @@ import {
   disableAccountService,
   removeCloudAccount,
   rerunAccountAuth,
+  signOutCloudAccountHere,
   canUnifyAccountLogin,
   passwordServicesOf,
   runConnectSequence,
@@ -190,25 +196,6 @@ export const CloudAccountsPage: React.FC<{
     };
   }, [records, selectedVault]);
 
-  // P2: which accounts hold a credential on THIS device. `null` entries stay
-  // out of the map — a files-only account keeps its credential in the
-  // provider's own slot, and the sync status answers that better than a chip.
-  const [signedIn, setSignedIn] = useState<Map<string, boolean>>(new Map());
-  useEffect(() => {
-    let cancelled = false;
-    void Promise.all(
-      records.map(async (r) => [r.id, await accountSignedInHere(selectedVault, r)] as const),
-    )
-      .then((pairs) => {
-        if (cancelled) return;
-        setSignedIn(new Map(pairs.filter((p): p is readonly [string, boolean] => p[1] !== null)));
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [records, selectedVault]);
-
   /**
    * P3: whether this device can actually OPEN the vault's file provider. The
    * card used to hang on the slot alone, so a broker-backed account whose
@@ -227,6 +214,34 @@ export const CloudAccountsPage: React.FC<{
       cancelled = true;
     };
   }, [records, selectedVault]);
+
+  // The state of each card ON THIS DEVICE - one rule for list and page, and
+  // the same as the phone's (plan "Verbinden", V0): a Google or Microsoft card
+  // is its own sign-in. `undefined` entries stay out of the map: a files-only
+  // account of another kind keeps its credential in the provider's own slot,
+  // and the sync status answers that better than a chip.
+  const [signInStates, setSignInStates] = useState<Map<string, DeviceSignInState>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all(
+      records.map(async (r) => [r.id, await accountSignInStateHere(selectedVault, r, !!fileAccess?.blocked)] as const),
+    )
+      .then((pairs) => {
+        if (cancelled) return;
+        setSignInStates(new Map(pairs.filter((p): p is readonly [string, DeviceSignInState] => !!p[1])));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [records, selectedVault, fileAccess]);
+
+  /**
+   * "One sign-in for all services" is for a card still signed in per service.
+   * A card without any sign-in on this device needs signing in - the same act,
+   * under the plan's one word (plan "Verbinden", V0).
+   */
+  const unifyOffered = (id: string) => unifiable.has(id) && signInStates.get(id) !== "signin";
 
   const filesAccount = records.find((r) => r.services.files);
   const detail = mode.kind === "detail" ? records.find((r) => r.id === mode.id) : undefined;
@@ -258,6 +273,18 @@ export const CloudAccountsPage: React.FC<{
     return oauthErrorText(err);
   };
 
+  /** This desktop signs in with an own client and the build carries the standard one (plan "Verbinden", V0). */
+  const standardAvailable = !!accessInfo && standardAccessAvailable(accessInfo.family, "desktop", accessInfo.stored, import.meta.env as unknown as Record<string, unknown>);
+
+  /** "Use standard sign-in": this desktop's access becomes the standard one, then the card signs in with it. */
+  const switchToStandard = async (record: CloudAccountRecord) => {
+    const family = record.family === "google" || record.family === "microsoft" ? record.family : null;
+    if (!family) return;
+    await saveDeviceAccess(family, { source: "plainva" });
+    setAccessInfo({ family, stored: { source: "plainva" }, resolved: await deviceAccess(family, selectedVault) });
+    await signInCard(record, []);
+  };
+
   /**
    * Google and Microsoft: adding a service and signing in again are the same
    * act - one consent for everything the card carries plus what is added
@@ -283,7 +310,9 @@ export const CloudAccountsPage: React.FC<{
       setReconStatus(next);
       setGmailPasswordFor(null);
     } catch (err) {
-      toast.error(signInText(err));
+      // A refused own client is not retried: the way on is the standard sign-in.
+      if (isOwnClientRejected(err) && standardAvailable) toast.error(signInText(err), { label: t("accountAccess.useStandard"), run: () => void switchToStandard(record) });
+      else toast.error(signInText(err));
     } finally {
       setBusy(false);
       void reload();
@@ -412,6 +441,20 @@ export const CloudAccountsPage: React.FC<{
       setMode({ kind: "list" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** "Sign out on this device" (plan "Verbinden", V0) - no confirmation (E2): signing in again undoes it. */
+  const signOutHere = async (record: CloudAccountRecord) => {
+    setBusy(true);
+    try {
+      setRecords(await signOutCloudAccountHere(selectedVault, runtime, record));
+      setReconStatus({});
+      toast.success(t("cloudAccounts.signedOutHere"));
+    } catch (err) {
+      toast.error(oauthErrorText(err));
     } finally {
       setBusy(false);
     }
@@ -554,6 +597,7 @@ export const CloudAccountsPage: React.FC<{
     const oauthFamily = detail.family === "microsoft" || detail.family === "google" || detail.family === "dropbox";
     const hasByo = oauthFamily;
     const passwordServices = passwordServicesOf(detail);
+    const detailState = signInStates.get(detail.id);
     return (
       <div>
         <AreaHead areaId="cloudAccounts" />
@@ -566,7 +610,12 @@ export const CloudAccountsPage: React.FC<{
             <div className="pv-acct-name">{name}</div>
             {identity && <div className="pv-acct-id">{identity}</div>}
           </div>
-          {unifiable.has(detail.id) && (
+          {detailState && detailState !== "active" && (
+            <span className="pv-svcchip" data-testid="cloudacct-signin-state" data-state={detailState}>
+              {t(detailState === "expired" ? "deviceSignIn.expired" : "deviceSignIn.needed")}
+            </span>
+          )}
+          {unifyOffered(detail.id) && (
             <Button
               variant="secondary"
               icon={<RotateCw size={ICON.meta} />}
@@ -577,14 +626,25 @@ export const CloudAccountsPage: React.FC<{
               {t("cloudAccounts.unifyLogin")}
             </Button>
           )}
-          {oauthFamily && !unifiable.has(detail.id) && renewable && (
-            <Button variant="secondary" icon={<RotateCw size={ICON.meta} />} disabled={busy} onClick={() => void reconnect(detail)} data-testid="cloudacct-reconnect">
-              {t("cloudAccounts.reconnect")}
+          {oauthFamily && !unifyOffered(detail.id) && renewable && (
+            <Button
+              variant={detailState && detailState !== "active" ? "primary" : "secondary"}
+              icon={<RotateCw size={ICON.meta} />}
+              disabled={busy}
+              onClick={() => void reconnect(detail)}
+              data-testid="cloudacct-reconnect"
+            >
+              {t(signInActionKey(detailState ?? "active"))}
             </Button>
           )}
           <Button variant="secondary" disabled={busy} onClick={() => setChecking(detail.id)} data-testid="cloudacct-check-open">
             {t("cloudAccounts.checkConnection")}
           </Button>
+          {detailFamily && detailState !== "signin" && (
+            <Button variant="secondary" icon={<LogOut size={ICON.meta} />} disabled={busy} onClick={() => void signOutHere(detail)} data-testid="cloudacct-signout" data-tip={t("cloudAccounts.signOutHereHint")}>
+              {t("cloudAccounts.signOutHere")}
+            </Button>
+          )}
           <Button variant="danger-soft" icon={<Trash2 size={ICON.meta} />} disabled={busy} onClick={() => void remove(detail)} data-testid="cloudacct-remove">
             {t("cloudAccounts.removeAccount")}
           </Button>
@@ -726,6 +786,8 @@ export const CloudAccountsPage: React.FC<{
             vaultPath={selectedVault}
             record={detail}
             runtime={runtime}
+            standardAvailable={standardAvailable}
+            onUseStandard={() => void switchToStandard(detail)}
             onSignInAgain={() => void reconnect(detail)}
             onClose={() => setChecking(null)}
           />
@@ -755,9 +817,7 @@ export const CloudAccountsPage: React.FC<{
           <SettingCard label={t("cloudAccounts.appRegGroup")}>
             <SettingRow
               label={t("accountAccess.lineLabel")}
-              desc={accessInfo.resolved.ok
-                ? (accessInfo.resolved.access.source === "plainva" ? t("accountAccess.plainva") : t("accountAccess.ownLine", { id: accessInfo.resolved.access.clientId }))
-                : t(accessProblemKey(accessInfo.resolved.problem))}
+              desc={accessLineText(accessInfo.resolved, (key, options) => t(key, options), accessProblemKey)}
             >
               <Button variant="secondary" size="sm" data-testid="cloudacct-access-change" onClick={() => setEditAccess(true)}>{t("accountAccess.change")}</Button>
             </SettingRow>
@@ -863,7 +923,7 @@ export const CloudAccountsPage: React.FC<{
                     so nobody found it who was not already looking. An account
                     holding one token per service is the one that goes half-dead
                     when a single renewal happens (finding 2026-07-28). */}
-                {unifiable.has(record.id) && (
+                {unifyOffered(record.id) && (
                   <span className="pv-svcchip" data-testid="cloudacct-unify-hint">
                     {t("cloudAccounts.unifyAvailable")}
                   </span>
@@ -872,9 +932,9 @@ export const CloudAccountsPage: React.FC<{
                     complete while nothing behind it works — its sign-in never
                     travels. Saying so here is what turns a puzzling empty
                     calendar into one obvious next step. */}
-                {signedIn.get(record.id) === false && (
+                {signInStates.get(record.id) && signInStates.get(record.id) !== "active" && (
                   <span className="pv-svcchip" data-testid="cloudacct-signin-hint">
-                    {t("deviceSignIn.notSignedIn")}
+                    {t(signInStates.get(record.id) === "expired" ? "deviceSignIn.expired" : "deviceSignIn.needed")}
                   </span>
                 )}
               </span>
@@ -888,7 +948,7 @@ export const CloudAccountsPage: React.FC<{
             state COSTS — one service going dark on its own is the failure mode
             that took days to notice (finding 2026-07-28) — and where the fix is,
             so the offer is not something you have to already know about. */}
-        {unifiable.size > 0 && (
+        {[...unifiable].some(unifyOffered) && (
           <SettingCardNote>{t("cloudAccounts.unifyPending")}</SettingCardNote>
         )}
         {filesAccount && (

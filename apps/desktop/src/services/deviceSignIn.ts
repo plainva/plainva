@@ -1,7 +1,7 @@
-import { createDeviceSignIn, type CloudAccountRecord } from "@plainva/ui";
+import { cardSignInState, createDeviceSignIn, hasStoredAccountGrant, type CloudAccountRecord, type DeviceSignInState } from "@plainva/ui";
 import { mailSecretKey } from "@plainva/ui/mail";
 import { pimSecretKey } from "./pim/pimCredentials";
-import { accountSecretKey } from "./accountBroker";
+import { accountSecretKey, getAccountToken } from "./accountBroker";
 import { legacySlot } from "./keychainSlots";
 import { readSlot } from "@plainva/ui";
 import { credentialManager } from "./CredentialManager";
@@ -90,4 +90,28 @@ export async function accountSignedInHere(
   // Nothing found — but only say so for an account whose credential we know
   // where to look for.
   return calendar || mail ? false : null;
+}
+
+/**
+ * The ONE state of an account card on the desktop (plan "Verbinden", V0) -
+ * the shared rule (`cardSignInState`) over the desktop's slots, the same the
+ * phone's cards follow. A Google or Microsoft card is its own sign-in: the
+ * service slots the one sign-in emptied must not keep a card "signed in"
+ * that was signed out here. `filesBlocked` is the vault's file access (the
+ * page reads it once for the files card).
+ */
+export async function accountSignInStateHere(
+  vaultPath: string,
+  record: CloudAccountRecord,
+  filesBlocked = false,
+): Promise<DeviceSignInState | undefined> {
+  const broker = record.family === "google" || record.family === "microsoft";
+  const cardGrant = broker ? hasStoredAccountGrant(await getAccountToken(vaultPath, record.id).catch(() => null)) : null;
+  const serviceStates: DeviceSignInState[] = [];
+  if (!broker) {
+    const here = await accountSignedInHere(vaultPath, record);
+    if (here !== null) serviceStates.push(here ? "active" : "signin");
+  }
+  if (record.services.files && filesBlocked) serviceStates.push("expired");
+  return cardSignInState({ family: record.family, cardGrant, serviceStates });
 }

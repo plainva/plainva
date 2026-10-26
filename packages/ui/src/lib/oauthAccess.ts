@@ -147,3 +147,34 @@ export function readStoredOAuthAccess(value: unknown): StoredOAuthAccess | null 
 export function grantUsesAccess(grant: { clientId: string; clientSecret?: string }, access: OAuthAccess): boolean {
   return grant.clientId === access.clientId && (access.clientSecret === undefined || grant.clientSecret === access.clientSecret);
 }
+
+/**
+ * The client this device signs in with, as the account page names it (plan
+ * "Verbinden", V0): "Standard sign-in", or "Own client ID (…a1b2c3)" - the
+ * tail is enough to recognise a client in the provider's console without
+ * printing the whole id. Before, the phone's page said only that there was
+ * an access, so a client that Google had deleted signed in through the browser
+ * into "Error 401: deleted_client" with nothing on screen naming it.
+ */
+export function shortClientId(clientId: string): string {
+  const head = clientId.split(".")[0] ?? clientId;
+  return head.length > 6 ? `…${head.slice(-6)}` : head;
+}
+
+export function accessLineText(
+  resolved: AccessResolution,
+  t: (key: string, options?: Record<string, unknown>) => string,
+  problemKey: (problem: AccessProblem) => string,
+): string {
+  if (!resolved.ok) return t(problemKey(resolved.problem));
+  return resolved.access.source === "plainva" ? t("accountAccess.plainva") : t("accountAccess.ownLine", { id: shortClientId(resolved.access.clientId) });
+}
+
+/**
+ * Whether "Use standard sign-in" can help: this device signs in with an own
+ * client, and this build carries the standard one for the platform.
+ */
+export function standardAccessAvailable(family: OAuthFamily, platform: AccessPlatform, stored: StoredOAuthAccess | null, env: Record<string, unknown>): boolean {
+  if (stored?.source !== "own") return false;
+  return family === "microsoft" || !!plainvaGoogleClient(env, platform);
+}

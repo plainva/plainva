@@ -22,7 +22,7 @@ import {
   type JournalCheckResult,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { connectionErrorText, formatListingReport, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext } from "@plainva/ui";
+import { connectionErrorText, formatListingReport, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError } from "@plainva/ui";
 import { assertEmptyRemoteVault } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
@@ -739,6 +739,30 @@ export async function listProviderFolders(p: MobileSyncProvider, path: string, c
   if (p.provider === "webdav") await allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") await allowHttpOrigin(p.creds.endpoint);
   const target = await buildTarget(p, null, undefined, context);
+  return target.listFolders ? target.listFolders(path) : [];
+}
+
+/**
+ * The folders of a vault's CONNECTED provider, read the way its sync reads
+ * them: from the stored slot, through the card's sign-in where the slot leaves
+ * its own token blank (the phone's twin of the desktop's `syncTargetFromSlots`).
+ *
+ * "Check connection" used `listProviderFolders`, the probe of a connection
+ * that does not exist yet: no vault, no account, so a slot whose refresh token
+ * the one sign-in emptied (K2) renewed nothing and failed every time - files
+ * read as not connected while they synced (plan "Verbinden", V0).
+ */
+export async function listStoredProviderFolders(vaultId: string, path: string): Promise<string[]> {
+  const stored = await getStoredProvider(vaultId);
+  if (!stored) throw new ServiceCheckError("signin");
+  if (stored.provider === "webdav") await allowHttpOrigin(stored.creds.url);
+  else if (stored.provider === "s3") await allowHttpOrigin(stored.creds.endpoint);
+  const target = await buildTarget(stored, credKeyFor(vaultId), vaultId);
+  const ownSignIn = stored.provider === "drive" ? !!stored.creds.refreshToken || !!stored.creds.nativeGoogle
+    : stored.provider === "onedrive" || stored.provider === "dropbox" ? !!stored.creds.refreshToken
+      : true;
+  // Nothing on this device opens it: not the slot, not the card.
+  if (!ownSignIn && !(target as { accessTokenProvider?: unknown }).accessTokenProvider) throw new ServiceCheckError("signin");
   return target.listFolders ? target.listFolders(path) : [];
 }
 

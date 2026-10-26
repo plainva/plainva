@@ -24,7 +24,7 @@ import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { assertConnectionIdentity, formatPimCycle, logDiagnostic, ServiceConnectionError, timedDevicePimPort, withAccountCredentialLock, type ServiceConnectionContext } from "@plainva/ui";
+import { assertConnectionIdentity, formatPimCycle, logDiagnostic, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
 import { noteAccountRemovedLocally } from "../mobileSettingsSync";
@@ -176,8 +176,12 @@ export async function connectDevicePimAccount(label: string): Promise<{ ok: true
 /** "Check connection" (account sign-in plan E6): reads the account's calendars with what this phone holds; throws when that fails. */
 export async function checkPimAccount(vaultId: string, accountId: string): Promise<void> {
   const row = (await listPimAccounts()).find((entry) => entry.id === accountId);
-  const target = row ? await buildTargetFor(vaultId, row) : null;
-  if (!target) throw new Error("not connected");
+  // Said in words, not as a bare English "not connected" that reached the row
+  // as the provider's answer (plan "Verbinden", V0): no calendar account here
+  // is "not connected yet", one without a sign-in here is "not signed in".
+  if (!row) throw new ServiceCheckError("failed", "connection.notConnected");
+  const target = await buildTargetFor(vaultId, row);
+  if (!target) throw new ServiceCheckError("signin");
   await target.listCalendars();
 }
 

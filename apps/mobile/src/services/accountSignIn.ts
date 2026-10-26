@@ -84,7 +84,15 @@ export async function readDeviceAccess(family: OAuthFamily, vaultId?: string): P
       return found;
     }
   }
-  return null;
+  // Nothing to adopt is a decision too, and it is kept (finding 2026-10-26):
+  // `own` compares with the client THIS build ships, so a phone that never
+  // stored its choice took the previous build's standard client - kept in a
+  // calendar slot since the one sign-in (K2) - for an own one the day the
+  // build switched to a new Google project, and signed in through the browser
+  // with a client that project no longer had ("Error 401: deleted_client").
+  const standard: StoredOAuthAccess = { source: "plainva" };
+  await credentials.writeSecret(oauthAccessKey(family), standard);
+  return standard;
 }
 
 export async function saveDeviceAccess(family: OAuthFamily, access: StoredOAuthAccess): Promise<void> {

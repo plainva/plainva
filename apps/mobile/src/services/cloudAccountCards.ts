@@ -1,6 +1,8 @@
 import type { CloudAccountRecord, CloudProviderFamily, CloudServiceId } from "@plainva/ui";
 import {
+  cardSignInState,
   familyOfCalDavUrl,
+  hasStoredAccountGrant,
   familyOfMailAccount,
   familyOfPimProvider,
   familyOfSyncProvider,
@@ -16,6 +18,7 @@ import { listPimAccounts } from "./pim/pimService";
 import { listMobileMailAccounts } from "./mail/mailRuntime";
 import { loadCloudAccounts } from "./cloudAccountsStore";
 import { accountRowState, deviceSignInStates, type DeviceSignInState } from "./deviceSignIn";
+import { getAccountToken } from "./accountBroker";
 import { filesViaBrokerToken, readStoredProvider, resolveMobileFileAccess } from "./fileSyncAccess";
 
 /**
@@ -115,10 +118,6 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     merged.mailAccountId ??= card.mailAccountId;
     merged.verifiedProviderIdentity ??= card.verifiedProviderIdentity;
     merged.serviceStates = { ...merged.serviceStates, ...card.serviceStates };
-    // An expired sign-in outranks a working one: the card must report the
-    // service that stopped, not the one that happens to be listed first.
-    if (card.signIn === "expired") merged.signIn = "expired";
-    else merged.signIn = merged.signIn ?? card.signIn;
   };
 
   // Files first: its destination can disconnect and remove, the others cannot.
@@ -150,7 +149,6 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
       ...(entry.name && entry.name !== label ? { subtitle: entry.name } : {}),
       services: ["files"],
       vaultId: entry.id,
-      ...(access.blocked ? { signIn: "expired" as DeviceSignInState } : {}),
       record: stored,
       verifiedProviderIdentity: stored?.verifiedProviderIdentity,
       serviceStates: { files: access.blocked ? "expired" : "active" },
@@ -169,7 +167,6 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
       family,
       label: a.label,
       services: ["calendar"],
-      signIn: a.provider === "device" ? "active" : accountRowState(pimStates.get(a.id) ?? "signin"),
       record: bound,
       pimAccountId: a.id,
       verifiedProviderIdentity: verified ?? bound?.verifiedProviderIdentity,
@@ -184,12 +181,20 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
       family,
       label: a.label,
       services: ["mail"],
-      signIn: mailStates.get(a.id) ?? "signin",
       record: bound,
       mailAccountId: a.id,
       verifiedProviderIdentity: bound?.verifiedProviderIdentity,
       serviceStates: { mail: mailStates.get(a.id) ?? "signin" },
     });
+  }
+  // One state per card, from the card's own sign-in where it has one (plan
+  // "Verbinden", V0) - the same rule as the desktop's account list.
+  for (const card of cards) {
+    const record = card.record;
+    const cardGrant = record && (record.family === "google" || record.family === "microsoft")
+      ? hasStoredAccountGrant(await getAccountToken(entry.id, record.id).catch(() => null))
+      : null;
+    card.signIn = cardSignInState({ family: card.family, cardGrant, serviceStates: Object.values(card.serviceStates ?? {}) });
   }
   if ((await getActiveVaultEntry()).id !== entry.id) throw new Error("account vault changed");
   for (const card of cards) card.recordVaultId = entry.id;

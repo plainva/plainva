@@ -113,7 +113,9 @@ describe("opening a vault in a picked folder", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(whole).toBe(false);
     await vault.dispose();
-  });
+    // The first test of the file imports the whole boot afresh (resetModules):
+    // alone about 3 s, under a full parallel suite more than the default 20 s.
+  }, 60_000);
 
   it("a switch away from a vault whose boot does not answer does not wait for it", async () => {
     const { plugin } = fakeVaultFolder(new Map([["Home.md", "# Home"]]));

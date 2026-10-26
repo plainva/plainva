@@ -13,6 +13,9 @@ import {
   type ServiceConnectionContext,
   assertConnectionIdentity,
   ServiceConnectionError,
+  removeAccountCard,
+  signOutAccountHere,
+  type ServiceSignInSlot,
 } from "@plainva/ui";
 import { credentialManager } from "./CredentialManager";
 import { authorizeDropbox } from "./dropboxAuth";
@@ -26,7 +29,7 @@ import {
   type S3TargetCreds,
 } from "./syncTargets";
 import { connectCalDavAccount, removePimAccount } from "./pim/pimAccounts";
-import { graphMailAddress, forgetGraphMailRuntime } from "@plainva/ui/mail";
+import { graphMailAddress, forgetGraphMailRuntime, legacyMailSecretKey, mailSecretKey } from "@plainva/ui/mail";
 import { checkMailLogin } from "@plainva/ui/mail";
 import {
   listMailAccounts,
@@ -47,6 +50,8 @@ import {
 import i18n from "@plainva/ui/i18n";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 import { rotateLegacyFileGrant } from "./accountGrantMigration";
+import { accountCredentialStore } from "./accountCredentialStore";
+import { slot, legacySlot } from "./keychainSlots";
 
 /**
  * Stage-A connect orchestration for the "Cloud-Konten" wizard: per selected
@@ -563,18 +568,49 @@ export async function disableAccountService(
   return refreshCloudAccounts(vaultPath, runtime);
 }
 
-/** Removes the whole account: every service, then the registry entry. */
+/** Removes the whole account: every service, then the grant, then the registry entry (the shared order). */
 export async function removeCloudAccount(
   vaultPath: string,
   runtime: PimRuntime | null,
   record: CloudAccountRecord
 ): Promise<CloudAccountRecord[]> {
-  if (record.services.files) await disableAccountService(vaultPath, runtime, record, "files");
-  if (record.services.calendar) await disableAccountService(vaultPath, runtime, record, "calendar");
-  if (record.services.mail) await disableAccountService(vaultPath, runtime, record, "mail");
-  // The account-wide token outlives its services otherwise (E9.2).
-  await clearAccountToken(vaultPath, record.id).catch(() => undefined);
-  const stored = await loadCloudAccounts(vaultPath);
-  await saveCloudAccounts(vaultPath, stored.filter((r) => r.id !== record.id));
+  await removeAccountCard({
+    services: (["files", "calendar", "mail"] as const).filter((service) => !!record.services[service]),
+    disable: async (service) => { await disableAccountService(vaultPath, runtime, record, service); },
+    // The account-wide token outlives its services otherwise (E9.2).
+    clearCardGrant: () => clearAccountToken(vaultPath, record.id),
+    dropRecord: async () => {
+      const stored = await loadCloudAccounts(vaultPath);
+      await saveCloudAccounts(vaultPath, stored.filter((r) => r.id !== record.id));
+    },
+  });
+  return refreshCloudAccounts(vaultPath, runtime);
+}
+
+/**
+ * "Sign out on this device" (plan "Verbinden", V0): this desktop's sign-in for
+ * the card goes - the card's grant and any sign-in a service still kept for
+ * itself (`signOutAccountHere`); the account, its services, settings and the
+ * other devices stay. The card then reads "sign-in needed" and its button
+ * signs it in again. Until now the desktop could only remove the account.
+ */
+export async function signOutCloudAccountHere(
+  vaultPath: string,
+  runtime: PimRuntime | null,
+  record: CloudAccountRecord
+): Promise<CloudAccountRecord[]> {
+  const slots: ServiceSignInSlot[] = [];
+  const files = record.services.files?.provider;
+  if (files === "drive" || files === "onedrive") slots.push({ keys: [slot.files(vaultPath, files), legacySlot.files(vaultPath, files)] });
+  const pim = record.services.calendar?.pimAccountId;
+  if (pim) slots.push({ keys: [slot.calendar(vaultPath, pim), legacySlot.calendar(vaultPath, pim)] });
+  const mail = record.services.mail?.mailAccountId;
+  if (mail) {
+    forgetGraphMailRuntime(vaultPath, mail);
+    slots.push({ keys: [mailSecretKey(vaultPath, mail), legacyMailSecretKey(vaultPath, mail)] });
+  }
+  await signOutAccountHere({ store: accountCredentialStore, serviceSlots: slots, clearCardGrant: () => clearAccountToken(vaultPath, record.id) });
+  // The calendar says what it now is at once, not at its next turn.
+  if (pim) await restartPimAccountAfterLogin(runtime, pim).catch(() => undefined);
   return refreshCloudAccounts(vaultPath, runtime);
 }

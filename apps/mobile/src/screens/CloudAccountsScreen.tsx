@@ -15,6 +15,7 @@ import {
   SectionLabel,
   familyLabel,
   serviceLabel,
+  signInActionKey,
   toast,
 } from "@plainva/ui";
 import { accountMonogram, type CloudProviderFamily } from "@plainva/ui";
@@ -276,12 +277,15 @@ export function CloudAccountsScreen({
             {/* The repair sits where the problem is stated. An expired token is
                 fixed by signing in again — anywhere else the user would have to
                 guess which of the screens behind the chevron holds the button. */}
-            {card.signIn === "expired" && card.record && (
+            {/* Every state that needs a sign-in, not only an expired one (plan
+                "Verbinden", V0): a card signed out here, or one that never signed
+                in on this phone, has the same one step. */}
+            {card.signIn && card.signIn !== "active" && card.record && (card.record.family === "google" || card.record.family === "microsoft") && (
               <Row
                 indent={1}
                 data-testid="cloudacct-signin-again"
                 icon={<RotateCw className="m-accent" size={ICON.ui} />}
-                title={t("pim.signInAgain")}
+                title={t(signInActionKey(card.signIn))}
                 onClick={() => signInAgain(card.record!)}
               />
             )}

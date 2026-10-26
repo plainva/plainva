@@ -46,6 +46,22 @@ export function googleSignInFlow(clientId: string, nativeGrantClientIds: readonl
 /** Queued until the next request, which awaits clearing before obtaining a token. */
 export function forgetNativeGoogleTokens(): void { for (const token of issued) rejected.add(token); issued.clear(); }
 
+/**
+ * Signing out on this device (plan "Verbinden", V0): Play services drops the
+ * access tokens it cached for Plainva now, not at the next request. Local
+ * only - the consent at Google stays, so other phones stay signed in.
+ */
+export async function clearNativeGoogleTokens(): Promise<void> {
+  forgetNativeGoogleTokens();
+  if (!hasGooglePlayServices()) { rejected.clear(); return; }
+  await withAccountCredentialLock("native-google-authorization", async () => {
+    for (const token of [...rejected]) {
+      await native.clearToken({ token }).catch(() => undefined);
+      rejected.delete(token);
+    }
+  });
+}
+
 export async function authorizeNativeGoogle(scope: string, interactive: boolean, expected?: StoredAccountToken) {
   return withAccountCredentialLock("native-google-authorization", () => authorize(scope, interactive, expected));
 }
