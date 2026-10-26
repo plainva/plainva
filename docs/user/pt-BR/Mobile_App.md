@@ -1,6 +1,6 @@
 # O app mobile
 
-Última atualização: 2026-10-24
+Última atualização: 2026-10-26
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -206,6 +206,8 @@ As duas configurações — o espaço de trabalho criptografado e a frase secret
 **Deixar outro app sincronizar a pasta (iPhone e iPad).** A pasta do Plainva aparece no app **Arquivos**, em **No meu iPhone** → **Plainva**. Assim, outro programa — um cliente Syncthing, por exemplo — pode selecioná-la e mantê-la sincronizada entre seus dispositivos sem que o Plainva se conecte a nenhum serviço de nuvem. O vault que você criou no dispositivo fica ali como `vault`; cada conexão na nuvem ganha sua própria subpasta em `vaults`. O contrário não vale: o Plainva trabalha na própria pasta, não na de outro app. No Android essa pasta não fica visível para outros programas.
 
 **Uma pasta existente como vault (Android e iOS).** Em **Vaults → Criar um vault** há um terceiro caminho, **Uma pasta neste dispositivo**: você escolhe uma pasta mantida por outro programa — Syncthing, o app Arquivos, um segundo cliente de sincronização — e o Plainva lê e grava ali sem copiar nada. A pasta continua sendo a pasta: se você remover o vault, só a conexão desaparece, os arquivos ficam. Mudanças que outro programa faz ali são vistas ao voltar ao app e ao abrir uma nota. A sincronização na nuvem fica desligada para esses vaults — uma segunda sincronização no mesmo local sobrescreveria a primeira — e o cartão nos detalhes do vault diz isso. Se o acesso expirar (pasta movida, permissão revogada), o cartão avisa e **Reconectar pasta** o restaura.
+
+**Abrir um cofre, e a primeira vez em uma pasta.** Enquanto um cofre abre, a tela o nomeia, conta os arquivos lidos até agora e oferece **Voltar para “…”** — o cofre de onde você veio — ou, logo após iniciar o app, **Abrir outro cofre**. Se o cofre não puder ser aberto, a tela diz por quê, com o mesmo caminho de volta e **Tentar novamente agora**. Um vault em pasta é lido por inteiro na primeira vez que abre, e isso acontece em segundo plano: você pode trabalhar na hora. Uma faixa no topo diz até onde chegou o índice de busca; até terminar, a busca, as tags e os bancos de dados mostram só o que já foi lido. Renomear, mover, localizar e substituir e a limpeza esperam por ele, para que nenhum link fique de fora. Uma solicitação à pasta que não recebe resposta em 30 segundos (60 ao ler um arquivo) é abandonada: esse arquivo ou pasta fica fora do índice de busca e é nomeado, e a exportação de diagnóstico registra isso.
 
 ## Rede de segurança
 

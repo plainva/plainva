@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-10-24
+Última actualización: 2026-10-26
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -206,6 +206,8 @@ Ambas configuraciones — el espacio de trabajo cifrado y la frase de contraseñ
 **Dejar que otra app sincronice la carpeta (iPhone y iPad).** La carpeta de Plainva aparece en la app **Archivos**, en **En mi iPhone** → **Plainva**. Así, otro programa — por ejemplo un cliente de Syncthing — puede seleccionarla y mantenerla sincronizada entre tus dispositivos sin que Plainva se conecte a ningún servicio en la nube. El vault que creaste en el dispositivo está ahí como `vault`; cada conexión en la nube recibe su propia subcarpeta dentro de `vaults`. Lo contrario no vale: Plainva trabaja en su propia carpeta, no en la de otra app. En Android esta carpeta no es visible para otros programas.
 
 **Una carpeta existente como bóveda (Android e iOS).** En **Bóvedas → Crear una bóveda** hay una tercera vía, **Una carpeta en este dispositivo**: eliges una carpeta que mantiene otro programa —Syncthing, la app Archivos, un segundo cliente de sincronización— y Plainva lee y escribe ahí sin copiar nada. La carpeta sigue siendo la carpeta: si quitas la bóveda, solo desaparece la conexión, los archivos se quedan. Los cambios que otro programa hace ahí se ven al volver a la app y al abrir una nota. La sincronización en la nube está apagada para estas bóvedas —una segunda sincronización sobre el mismo almacén sobrescribiría la primera— y la tarjeta del detalle lo dice. Si el acceso caduca (carpeta movida, permiso retirado), la tarjeta lo indica y **Volver a conectar la carpeta** lo restaura.
+
+**Abrir una bóveda, y la primera vez en una carpeta.** Mientras se abre una bóveda, la pantalla la nombra, cuenta los archivos leídos hasta ahora y ofrece **Volver a «…»** —la bóveda de la que venías— o, justo después de iniciar la app, **Abrir otra bóveda**. Si la bóveda no se puede abrir, la pantalla dice por qué, con el mismo camino de vuelta y **Reintentar ahora**. Una bóveda de carpeta se lee entera la primera vez que se abre, y eso ocurre en segundo plano: puedes trabajar enseguida. Una franja arriba indica cuánto ha avanzado el índice de búsqueda; hasta que termina, la búsqueda, las etiquetas y las bases de datos muestran solo lo ya leído. Renombrar, mover, buscar y reemplazar y la limpieza lo esperan, para que no falte ningún enlace. Una petición a la carpeta que no recibe respuesta en 30 segundos (60 al leer un archivo) se abandona: ese archivo o carpeta queda fuera del índice de búsqueda y se nombra, y la exportación de diagnóstico lo registra.
 
 ## Red de seguridad
 

@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-10-24
+Dernière mise à jour : 2026-10-26
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -206,6 +206,8 @@ Les deux configurations — l'espace de travail chiffré et la phrase secrète d
 **Laisser une autre app synchroniser le dossier (iPhone et iPad).** Le dossier de Plainva apparaît dans l'app **Fichiers**, sous **Sur mon iPhone** → **Plainva**. Un autre programme — un client Syncthing, par exemple — peut donc le sélectionner et le garder synchronisé entre vos appareils, sans que Plainva soit relié à un service cloud. Le vault que vous avez créé sur l'appareil s'y trouve sous `vault` ; chaque connexion cloud reçoit son propre sous-dossier dans `vaults`. L'inverse n'est pas vrai : Plainva travaille dans son propre dossier, pas dans celui d'une autre app. Sous Android, ce dossier n'est pas visible pour les autres programmes.
 
 **Un dossier existant comme vault (Android et iOS).** Sous **Vaults → Créer un vault**, une troisième voie, **Un dossier sur cet appareil** : vous choisissez un dossier tenu par un autre programme — Syncthing, l’app Fichiers, un second client de synchronisation — et Plainva y lit et y écrit sans rien copier. Le dossier reste le dossier : si vous retirez le vault, seule la connexion disparaît, les fichiers restent. Les changements qu’un autre programme y fait sont vus au retour dans l’app et à l’ouverture d’une note. La synchronisation cloud est désactivée pour ces vaults — une seconde synchronisation sur le même stockage écraserait la première — et la carte du détail le dit. Si l’accès expire (dossier déplacé, autorisation retirée), la carte le signale et **Reconnecter le dossier** le rétablit.
+
+**Ouvrir un coffre, et la première fois dans un dossier.** Pendant l’ouverture d’un coffre, l’écran le nomme, compte les fichiers déjà lus et propose **Retour à « … »** — le coffre d’où vous venez — ou, juste après le démarrage de l’app, **Ouvrir un autre coffre**. Si le coffre ne peut pas être ouvert, l’écran dit pourquoi, avec le même chemin de retour et **Réessayer maintenant**. Un vault dans un dossier est lu en entier à sa première ouverture, et cela se fait en arrière-plan : vous pouvez travailler tout de suite. Un bandeau en haut indique où en est l’index de recherche ; tant qu’il n’est pas terminé, la recherche, les tags et les bases de données ne montrent que ce qui a déjà été lu. Renommer, déplacer, rechercher et remplacer et le nettoyage l’attendent, pour qu’aucun lien ne manque. Une requête au dossier sans réponse en 30 secondes (60 pour lire un fichier) est abandonnée : ce fichier ou dossier reste hors de l’index de recherche et est nommé, et l’export de diagnostic le consigne.
 
 ## Filet de sécurité
 

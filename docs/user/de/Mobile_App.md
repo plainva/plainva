@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-10-24
+Stand: 2026-10-26
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -206,6 +206,8 @@ Beide Einrichtungen — der verschlüsselte Workspace und die Sync-Passphrase �
 **Von einer anderen App synchronisieren lassen (iPhone und iPad).** Plainvas Ordner erscheint in der **Dateien**-App unter **Auf meinem iPhone** → **Plainva**. Ein anderes Programm — etwa ein Syncthing-Client — kann ihn damit auswählen und über Deine Geräte hinweg synchron halten, ganz ohne Cloud-Verbindung in Plainva. Der Vault, den Du auf dem Gerät angelegt hast, liegt darin als `vault`, jede Cloud-Verbindung als eigener Unterordner unter `vaults`. Umgekehrt gilt das nicht: Plainva arbeitet in seinem eigenen Ordner, nicht in dem einer anderen App. Unter Android ist dieser Ordner für andere Programme nicht sichtbar.
 
 **Ein vorhandener Ordner als Vault (Android und iOS).** Unter **Vaults → Vault anlegen** gibt es den dritten Weg **Ein Ordner auf diesem Gerät**: Du wählst einen Ordner, den ein anderes Programm hält — Syncthing, die Dateien-App, ein zweiter Sync-Client —, und Plainva liest und schreibt dort, ohne etwas zu kopieren. Der Ordner bleibt der Ordner: Entfernst Du den Vault, geht nur die Verbindung, die Dateien bleiben. Änderungen, die ein anderes Programm dort macht, sieht Plainva beim Zurückkehren in die App und beim Öffnen einer Notiz. Der Cloud-Sync ist für solche Vaults aus — ein zweiter Sync auf derselben Ablage würde den ersten überschreiben —, und die Karte im Vault-Detail sagt das. Läuft der Zugriff ab (Ordner verschoben, Berechtigung entzogen), nennt die Karte es und **Ordner neu verbinden** stellt ihn her.
+
+**Einen Vault öffnen, und das erste Mal in einem Ordner.** Während ein Vault öffnet, nennt der Bildschirm ihn, zählt die bisher gelesenen Dateien und bietet **Zurück zu „…“** an — zum Vault, von dem Du kamst — oder, direkt nach dem App-Start, **Anderen Vault öffnen**. Lässt sich der Vault nicht öffnen, sagt der Bildschirm warum, mit demselben Weg zurück und **Jetzt erneut versuchen**. Ein Ordner-Vault wird beim ersten Öffnen ganz gelesen, und das läuft im Hintergrund: Du kannst sofort arbeiten. Ein Streifen oben sagt, wie weit der Suchindex ist; bis er durch ist, zeigen Suche, Tags und Datenbanken nur, was schon gelesen ist. Umbenennen, Verschieben, Suchen & Ersetzen und das Aufräumen warten auf ihn, damit kein Link fehlt. Eine Anfrage an den Ordner, die binnen 30 Sekunden (beim Lesen einer Datei 60) keine Antwort bekommt, wird aufgegeben: Die Datei oder der Ordner bleibt aus dem Suchindex draußen und wird genannt, und der Diagnose-Export hält es fest.
 
 ## Sicherheitsnetz
 

@@ -122,6 +122,26 @@ textarea {
 /* A waiting share is the first visible strip and owns the status-bar inset. */
 .m-app:has(.m-share-notice) { --m-header-safe-top: 0px; }
 .m-share-notice { flex-shrink: 0; padding-top: calc(var(--space-2) + var(--m-safe-top)); }
+/* The first index of a folder vault, built behind the open app (issue 143):
+   the same strip, and it owns the inset unless a share notice above does. */
+.m-app:has(.m-index-notice) { --m-header-safe-top: 0px; }
+.m-index-notice { flex-shrink: 0; padding-top: calc(var(--space-2) + var(--m-safe-top)); }
+.m-share-notice ~ .m-index-notice { padding-top: var(--space-2); }
+
+/* What the app shows while it has no vault (issue 143): the shared empty
+   state, centred in the whole window, with the progress bar of the app and
+   the ways out stacked under it. */
+.m-boot {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--m-safe-top) var(--space-4) 0;
+}
+.m-boot .pv-empty-msg { width: 100%; }
+.m-boot .m-progress { margin-top: var(--space-2); }
+.m-boot-count { margin: var(--space-2) 0 0; font-variant-numeric: tabular-nums; }
+.m-boot-actions { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
 
 .m-screen {
   flex: 1;

@@ -38,10 +38,10 @@ export const MOBILE_COMMENT_CAPABILITIES: readonly WorkspaceCapability[] = BUNDL
 
 export async function listMobilePublicationFeedback(vault: MobileVault, path: string) {
   if (!vault.workspaceState || !vault.workspaceRuntime) return [];
-  const [{ listAllMobilePublicationComments }, { getMobileWorkspaceObjectStore }] = await Promise.all([
+  const [{ listAllMobilePublicationComments }, { findMobileWorkspaceObjectStore }] = await Promise.all([
     import("./mobileWorkspaceSecurity"), import("./syncService"),
   ]);
-  const store = await getMobileWorkspaceObjectStore(vault.vaultId);
+  const store = await findMobileWorkspaceObjectStore(vault.vaultId);
   if (!store) return [];
   const result = await listAllMobilePublicationComments({ state: vault.workspaceState, store,
     runtime: vault.workspaceRuntime, vaultId: vault.vaultId, path });

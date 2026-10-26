@@ -692,10 +692,26 @@ function workspaceProvider(provider: MobileSyncProvider["provider"]) {
   return provider === "drive" ? "google-drive" as const : provider;
 }
 
-export async function getMobileWorkspaceObjectStore(vaultId: string): Promise<WorkspaceObjectStore> {
+/**
+ * The cloud store of a vault's workspace, or null when the vault has no sync
+ * provider — a vault on this device only, or one in a picked folder. For what
+ * merely LOOKS (a screen counting publications, a cycle collecting comments):
+ * no provider is "there is nothing out there", not a failure. "Security &
+ * Sharing" asked the throwing variant below on every open and left an
+ * unhandled "sync connection required" in the diagnostics of every vault
+ * without sync (issue 143).
+ */
+export async function findMobileWorkspaceObjectStore(vaultId: string): Promise<WorkspaceObjectStore | null> {
   const provider = await getStoredProvider(vaultId);
-  if (!provider) throw new Error("sync connection required");
+  if (!provider) return null;
   return createProviderWorkspaceObjectStore(workspaceProvider(provider.provider), await buildTarget(provider, credKeyFor(vaultId), vaultId));
+}
+
+/** The same store for what has to WRITE there — pairing, publishing, revoking: without a provider that is a failure with a reason. */
+export async function getMobileWorkspaceObjectStore(vaultId: string): Promise<WorkspaceObjectStore> {
+  const store = await findMobileWorkspaceObjectStore(vaultId);
+  if (!store) throw new Error("sync connection required");
+  return store;
 }
 
 export async function getMobileRemoteWorkspaceInfo(vaultId: string): Promise<{ workspaceId: string; fingerprint: string } | null> {

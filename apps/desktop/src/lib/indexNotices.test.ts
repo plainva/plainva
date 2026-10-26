@@ -102,7 +102,9 @@ describe("what both shells say about the search index", () => {
     // Owed a full scan from the start; a warm index only counts as whole once a scan went through on it.
     expect(desktop).toContain("let coldIndexOwed = true;");
     expect(desktop).toMatch(/if \(await indexer\.indexComplete\(\)\.catch\(\(\) => false\)\) \{\s*coldIndexOwed = false;\s*deferInitialEnqueue = false;\s*\}/);
-    expect(mobile).toContain('await indexer.indexVaultFull("open, empty index").catch(() => {});');
+    // A container's first scan before the vault opens, a picked folder's behind it (issue 143) — both keep what they got.
+    expect(mobile).toContain('await indexer.indexVaultFull("open, empty index").catch(() => {})');
+    expect(mobile).toMatch(/indexWhole = indexer\s*\.indexVaultFull\("open, empty index"\)[\s\S]{0,240}\.catch\(\(\) => \{\}\)/);
     expect(mobile).toContain("toast.error(indexUnavailableText(err))");
     // Until a full scan has gone through, the task reconciler creates no notes:
     // the anchors it looks for come from the index.

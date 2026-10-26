@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-10-24
+Last updated: 2026-10-26
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -206,6 +206,8 @@ Both setups — the encrypted workspace and the sync passphrase — now run as *
 **Letting another app sync the folder (iPhone and iPad).** Plainva's folder shows up in the **Files** app under **On My iPhone** → **Plainva**. Another program — a Syncthing client, for instance — can pick it from there and keep it in sync across your devices without Plainva talking to any cloud service. The vault you created on the device sits inside it as `vault`; every cloud connection gets its own subfolder under `vaults`. The reverse does not hold: Plainva works in its own folder, not in another app's. On Android this folder is not visible to other programs.
 
 **An existing folder as a vault (Android and iOS).** Under **Vaults → Create a vault** there is a third way, **A folder on this device**: you pick a folder another program keeps — Syncthing, the Files app, a second sync client — and Plainva reads and writes there without copying anything. The folder stays the folder: remove the vault and only the connection goes, the files stay. Changes another program makes there are seen when you return to the app and when you open a note. Cloud sync is off for such vaults — a second sync on the same store would overwrite the first — and the card in the vault detail says so. If access expires (folder moved, permission revoked), the card names it and **Reconnect folder** restores it.
+
+**Opening a vault, and the first time in a folder.** While a vault opens, the screen names it, counts the files read so far and offers **Back to “…”** — the vault you came from — or, right after the app starts, **Open another vault**. If the vault cannot be opened, the screen says why, with the same way back and **Try again now**. A folder vault is read in full the first time it opens, and that runs in the background: you can work right away. A strip at the top says how far the search index has come; until it is through, search, tags and databases show only what has been read. Renaming, moving, find & replace and the clean-up wait for it, so that no link is missed. A request to the folder that gets no answer within 30 seconds (60 for reading a file) is given up: that file or folder is left out of the search index and named, and the diagnostics export records it.
 
 ## Safety net
 

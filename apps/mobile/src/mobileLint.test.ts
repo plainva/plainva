@@ -1442,6 +1442,8 @@ describe("a vault switch the program starts is offered, not taken", () => {
     expect(direct).toEqual([
       // "Use this vault" on a vault's page.
       "VaultDetailScreen.tsx",
+      // The way out of a vault that does not open: back, another vault, or again (issue 143).
+      "components/VaultBootSurface.tsx",
       // The import wizard's "Done": the vault it has just made.
       "screens/ImportWizardScreen.tsx",
       // A tap on a row of the vault list.

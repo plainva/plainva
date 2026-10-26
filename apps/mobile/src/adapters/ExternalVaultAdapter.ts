@@ -2,6 +2,7 @@ import { textOfFileBytes, trimChars, PathSpellings, withStoredSpelling, type Spe
 import { VaultFileExistsError, VaultFileNotFoundError, type IVaultAdapter, type VaultFileInfo, type VaultListing, type VaultWalkOptions, type VaultWalkSkip } from "@plainva/core";
 import type { VaultFolderAccess, VaultFolderEntry, VaultFolderNative } from "../platform/vaultFolder";
 import { isMissingFile } from "./fileErrors";
+import { withFolderDeadlines, type FolderDeadlineOptions } from "./folderAnswerDeadline";
 
 /**
  * IVaultAdapter over a folder the user picked on the device (external vault
@@ -133,10 +134,20 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     return { files, skipped: skipped.map((s) => ({ ...s, path: ids.get(s.path) ?? s.path })) };
   }
 
+  private readonly plugin: VaultFolderNative;
+
+  /**
+   * Every call that only looks gets a deadline (issue 143,
+   * `folderAnswerDeadline.ts`): a provider that stops answering makes a read
+   * or a listing fail with a reason that names the path — and the scan goes on.
+   */
   constructor(
-    private readonly plugin: VaultFolderNative,
+    plugin: VaultFolderNative,
     readonly handle: string,
-  ) {}
+    deadlines: FolderDeadlineOptions = {},
+  ) {
+    this.plugin = withFolderDeadlines(plugin, deadlines);
+  }
 
   /** No sandbox folder: the streaming uploader has nothing to open here (and no sync runs, E4). */
   get sandboxRoot(): undefined {

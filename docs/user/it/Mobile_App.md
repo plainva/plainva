@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-10-24
+Ultimo aggiornamento: 2026-10-26
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -206,6 +206,8 @@ Entrambe le configurazioni — l'area di lavoro crittografata e la passphrase di
 **Lasciare che un'altra app sincronizzi la cartella (iPhone e iPad).** La cartella di Plainva compare nell'app **File**, sotto **Su iPhone** → **Plainva**. Un altro programma — per esempio un client Syncthing — può quindi selezionarla e tenerla sincronizzata tra i tuoi dispositivi, senza che Plainva sia collegato ad alcun servizio cloud. Il vault che hai creato sul dispositivo si trova lì come `vault`; ogni connessione cloud riceve la propria sottocartella in `vaults`. Il contrario non vale: Plainva lavora nella propria cartella, non in quella di un'altra app. Su Android questa cartella non è visibile agli altri programmi.
 
 **Una cartella esistente come vault (Android e iOS).** In **Vault → Crea un vault** c’è una terza via, **Una cartella su questo dispositivo**: scegli una cartella tenuta da un altro programma — Syncthing, l’app File, un secondo client di sincronizzazione — e Plainva legge e scrive lì senza copiare nulla. La cartella resta la cartella: se rimuovi il vault, sparisce solo il collegamento, i file restano. Le modifiche che un altro programma fa lì si vedono al ritorno nell’app e all’apertura di una nota. La sincronizzazione cloud è spenta per questi vault — una seconda sincronizzazione sullo stesso archivio sovrascriverebbe la prima — e la scheda nel dettaglio lo dice. Se l’accesso scade (cartella spostata, permesso revocato), la scheda lo segnala e **Ricollega cartella** lo ripristina.
+
+**Aprire un vault, e la prima volta in una cartella.** Mentre un vault si apre, la schermata lo nomina, conta i file letti finora e offre **Torna a “…”** — il vault da cui venivi — oppure, subito dopo l’avvio dell’app, **Apri un altro vault**. Se il vault non si può aprire, la schermata dice perché, con la stessa via di ritorno e **Riprova ora**. Un vault in una cartella viene letto per intero alla prima apertura, e questo avviene in background: puoi lavorare subito. Una striscia in alto dice a che punto è l’indice di ricerca; finché non è completo, ricerca, tag e database mostrano solo ciò che è già stato letto. Rinominare, spostare, trova e sostituisci e la pulizia lo aspettano, così nessun link va perso. Una richiesta alla cartella che non riceve risposta entro 30 secondi (60 per leggere un file) viene abbandonata: quel file o quella cartella resta fuori dall’indice di ricerca e viene indicato, e l’esportazione diagnostica lo registra.
 
 ## Rete di sicurezza
 

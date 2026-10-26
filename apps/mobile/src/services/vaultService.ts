@@ -101,6 +101,7 @@ import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, mov
 import { applyTextShape, DEFAULT_TEXT_SHAPE, editorTextOf, keepTextBeside, openEditorText, sayLineEndsConverted, type KeptText, type TextFileShape } from "@plainva/ui";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
+import { awaitWholeIndex, beginIndexBuild, endIndexBuild, isIndexBuilding, reportIndexBuild } from "./indexBuild";
 
 /**
  * Mobile vault bootstrap (M2/M3): a real sandbox vault behind the SAME
@@ -152,6 +153,12 @@ export interface MobileVault {
    * gets imported a second time — the duplicate 0.6.7 exists to prevent.
    */
   indexSettled(): boolean;
+  /**
+   * Resolves once the index holds the whole vault as far as a scan could read
+   * it — at once for a vault whose index was there before it opened, after the
+   * first scan for a new folder vault (issue 143). Never rejects.
+   */
+  whenIndexWhole(): Promise<void>;
   /**
    * The index follows these paths — written, moved here or removed, by the
    * app, a restore or a pull, and whatever kind of file they are. The ONE
@@ -207,10 +214,65 @@ function reportSnapshotFailure(path: string): void {
 }
 
 let bootPromise: Promise<MobileVault> | null = null;
+/** Whether the boot behind `bootPromise` has an answer yet. */
+let bootSettled = false;
+/** Stops the scan of the boot that is running — a switch away does not wait it out. */
+let bootAbort: AbortController | null = null;
+/** The vault the last switch left: where "back" on the boot surface leads (issue 143). */
+let previousVaultId: string | null = null;
 
 export function getMobileVault(): Promise<MobileVault> {
-  if (!bootPromise) bootPromise = getActiveVaultEntry().then(boot);
+  if (!bootPromise) {
+    const abort = new AbortController();
+    const settle = () => { if (bootAbort === abort) bootSettled = true; };
+    bootAbort = abort;
+    bootSettled = false;
+    bootPromise = getActiveVaultEntry().then((entry) => boot(entry, abort.signal));
+    bootPromise.then(settle, settle);
+  }
   return bootPromise;
+}
+
+/**
+ * How long a switch waits for a boot that has not answered, once its scan was
+ * told to stop. What can still be open then is a call into the folder, and
+ * that has a deadline of its own (`folderAnswerDeadline.ts`) — but the person
+ * who pressed "back" should not wait for it.
+ */
+const ABANDON_BOOT_AFTER_MS = 2_000;
+
+/**
+ * The vault of the boot that is running, or null — and the boot is over when
+ * this returns. A boot that is still running is told to stop its scan and
+ * given a moment; one that does not answer by then is left behind, and its
+ * vault is closed whenever it does arrive. Waiting for it here was a switch
+ * that hung as long as the boot did.
+ */
+async function retireBoot(): Promise<MobileVault | null> {
+  const pending = bootPromise;
+  if (!pending) return null;
+  if (bootSettled) return pending.catch(() => null);
+  bootAbort?.abort();
+  const late = Symbol("late");
+  const outcome = await Promise.race([
+    pending.catch(() => null),
+    new Promise<typeof late>((resolve) => setTimeout(() => resolve(late), ABANDON_BOOT_AFTER_MS)),
+  ]);
+  if (outcome !== late) return outcome;
+  void pending.then((v) => v.dispose()).catch(() => {});
+  return null;
+}
+
+/**
+ * Where "back" on the boot surface leads: the vault the last switch left, if
+ * it is still registered. Null after a cold start — then the surface offers
+ * the other registered vaults.
+ */
+export async function previousMobileVault(): Promise<VaultEntry | null> {
+  if (!previousVaultId) return null;
+  const entry = await getVaultEntry(previousVaultId);
+  const active = await getActiveVaultEntry();
+  return entry && entry.id !== active.id ? entry : null;
 }
 
 /**
@@ -219,8 +281,13 @@ export function getMobileVault(): Promise<MobileVault> {
  * reset their stacks.
  */
 export async function switchVault(id: string): Promise<void> {
-  const current = bootPromise ? await bootPromise.catch(() => null) : null;
+  // Already opening this very vault: stopping its boot to start it again would only lose the scan so far.
+  if (bootPromise && !bootSettled && (await getActiveVaultEntry()).id === id) return;
+  const current = await retireBoot();
   if (current?.vaultId === id) return;
+  // Asked for the same vault, this is "try again" on the boot surface: no vault to go back to from there.
+  const leaving = (await getActiveVaultEntry()).id;
+  if (leaving !== id) previousVaultId = leaving;
   // Pending editor saves must land BEFORE the worker stops and the database
   // closes — and they land in the vault they were typed in (the coordinator
   // captured that instance per schedule call).
@@ -239,7 +306,7 @@ export async function switchVault(id: string): Promise<void> {
 }
 
 export async function reloadActiveMobileVault(): Promise<void> {
-  const current = bootPromise ? await bootPromise.catch(() => null) : null;
+  const current = await retireBoot();
   await noteSaver.flushAll();
   await stopSyncAndDrain();
   if (current) await current.dispose().catch(() => {});
@@ -468,7 +535,7 @@ export type MobileRawAdapter = IVaultAdapter & {
   refreshAccess?(): Promise<VaultFolderAccess>;
 };
 
-async function boot(entry: VaultEntry): Promise<MobileVault> {
+async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVault> {
   // Paths are vault-relative: a stale lastPersisted entry from another vault
   // must never classify this vault's disk content as our own echo.
   clearPersistedTextCache();
@@ -481,8 +548,18 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
   // An external folder is addressed by its handle, everything else by its
   // sandbox folder. Same chain above either way (backup, queue, conflict) —
   // never the permissioned/workspace links (E5: no encrypted workspace there).
+  // Set when the vault closes or a switch leaves it while it opens (retireBoot).
+  const indexAbort = new AbortController();
+  signal?.addEventListener("abort", () => indexAbort.abort(), { once: true });
   const adapter: MobileRawAdapter = isExternalVault(entry)
-    ? new ExternalVaultAdapter(getVaultFolderPlugin(), entry.external.handle)
+    ? new ExternalVaultAdapter(getVaultFolderPlugin(), entry.external.handle, {
+      // Closing waits for the scan; a call it hangs on fails at once then.
+      signal: indexAbort.signal,
+      // A provider that stops answering is named with the call it left open
+      // (issue 143) — vault-relative, like every path in the diagnostics.
+      onStalled: (call, path, afterMs) => logDiagnostic("folder", `no answer to ${call} "${path}" after ${Math.round(afterMs / 1000)} s — further calls fail at once until the folder answers again`),
+      onRecovered: (refused) => logDiagnostic("folder", `the folder answers again (${refused} call(s) failed at once meanwhile)`),
+    })
     : new CapacitorVaultAdapter(isDefaultLocal ? "vault" : `vaults/${entry.id}`);
   const containerExisted = await adapter.exists("");
   await adapter.initialize();
@@ -496,8 +573,9 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     (await adapter.listDir("")).length === 0 && !getMobileSettings().onboarded;
   let templateCreationClaimed = false;
   // Set when the full index pass is through — see MobileVault.indexSettled.
-  const indexAbort = new AbortController();
   let indexPassSettled = false;
+  /** Resolved once the index is whole enough for what needs ALL of it — see MobileVault.whenIndexWhole. */
+  let indexWhole: Promise<void> = Promise.resolve();
 
   // Enqueue guards mirror the desktop: nothing enqueues before sync is
   // configured, and the initial full index defers new-file pushes until the
@@ -659,6 +737,8 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     const indexNotices = createIndexNotices(toast);
     indexer = new VaultIndexer(files, db, {
       scanSignal: indexAbort.signal,
+      // Counted only while the first index is built (services/indexBuild.ts).
+      onProgress: (done, total) => reportIndexBuild(entry.id, done, total),
       // One line per full scan (issue 122), the same one the desktop writes:
       // what set it off, how much it walked, how long it took, what it changed.
       // On screen, what it left out, by name (issue 125).
@@ -727,6 +807,23 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
           window.dispatchEvent(new CustomEvent("m-vault-changed"));
         })
         .catch(() => {});
+    } else if (isExternalVault(entry)) {
+      // A folder another app keeps is read through the platform's storage
+      // access, one call per folder and per file (issue 143): minutes for a
+      // large vault, where the desktop's walk takes seconds. Waiting for it
+      // before the first picture was a blank screen for as long, and for good
+      // when one call never answered. It runs behind the open app now, like
+      // the warm pass; the strip on top counts it, and what needs the whole
+      // index waits for it (`awaitWholeIndex`).
+      beginIndexBuild(entry.id);
+      indexWhole = indexer
+        .indexVaultFull("open, empty index")
+        .then(() => {
+          if (indexAbort.signal.aborted) return;
+          window.dispatchEvent(new CustomEvent("m-vault-changed"));
+        })
+        .catch(() => {})
+        .finally(() => endIndexBuild(entry.id));
     } else {
       // A scan that fails leaves the index as far as it got (issue 125). It
       // used to throw into the catch below, which took the whole database with
@@ -735,7 +832,12 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       // failure is on screen now (onFullScanFailed); the next full scan, at the
       // return to the app or a pull to refresh, tries again, and only one that
       // goes through counts the index as settled (onFullScan).
-      await indexer.indexVaultFull("open, empty index").catch(() => {});
+      //
+      // The app's own container still blocks: it is read through the file
+      // system, not a provider, and is empty or small the first time (a new
+      // vault, or one the first pull fills). The boot surface counts it.
+      beginIndexBuild(entry.id);
+      await indexer.indexVaultFull("open, empty index").catch(() => {}).finally(() => endIndexBuild(entry.id));
     }
     searchAvailable = true;
   } catch (err) {
@@ -787,6 +889,7 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       deferInitialEnqueue = false;
     },
     indexSettled: () => indexPassSettled,
+    whenIndexWhole: () => indexWhole,
     // Every kind of file, a removed one included, one path at a time (pathReindex.ts).
     reindexPaths: createPathReindexer(indexer, adapter, {
       turns: indexTurns,
@@ -934,7 +1037,9 @@ export const vaultOps = {
       .filter((e) => e.isDirectory && !e.name.startsWith("."))
       .map((e) => e.name)
       .sort();
-    const deep = v.queryService ? await v.queryService.countNotesPerSubfolder(folder) : null;
+    // Half an index counts half the notes (issue 143): while the first one is
+    // built, the shallow count below says what lies in the folder itself.
+    const deep = v.queryService && !isIndexBuilding(v.vaultId) ? await v.queryService.countNotesPerSubfolder(folder) : null;
     const shallowCount = async (path: string): Promise<number> => {
       try {
         return (await v.files.listDir(path)).filter((e) => !e.isDirectory && /\.md$/i.test(e.name)).length;
@@ -999,6 +1104,7 @@ export const vaultOps = {
     if (newPath === oldPath) return { newPath, renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false };
     let changedPaths: string[] = [];
     let report = { renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false };
+    await awaitWholeIndex(v);
     const queryService = v.queryService;
     const followUpError = await moveStep(v, oldPath, newPath, async () => {
       if (queryService) {
@@ -1069,6 +1175,7 @@ export const vaultOps = {
     // we do not know which of them the editor holds — so everything pending
     // lands first. With nothing pending this costs nothing.
     await flushBeforeMove(v, oldPath, true);
+    await awaitWholeIndex(v);
     const followUpError = await moveStep(v, oldPath, newPath, () => v.files.renameItem(oldPath, newPath));
     // Pinboard arrangements store vault-relative paths (plan Pinboard P5):
     // rewrite them by prefix so cards under the folder keep position and pin.
@@ -1103,6 +1210,7 @@ export const vaultOps = {
     const name = path.split("/").pop()!;
     const newPath = targetFolder ? `${targetFolder}/${name}` : name;
     if (newPath === path) return path;
+    await awaitWholeIndex(v);
     const followUpError = await moveStep(v, path, newPath, () => v.files.renameItem(path, newPath));
     // Retarget pinboard arrangements (vault-relative paths, plan Pinboard P5).
     const sweptBases = await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [{ from: path, to: newPath }]).catch(() => [] as string[]);

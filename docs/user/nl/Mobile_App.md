@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-10-24
+Laatst bijgewerkt: 2026-10-26
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -206,6 +206,8 @@ Beide instellingen — de versleutelde werkruimte en de synchronisatiewachtwoord
 **Een andere app de map laten synchroniseren (iPhone en iPad).** De map van Plainva verschijnt in de app **Bestanden**, onder **Op mijn iPhone** → **Plainva**. Een ander programma — bijvoorbeeld een Syncthing-client — kan hem daar kiezen en over je apparaten synchroon houden, zonder dat Plainva met een clouddienst praat. De vault die je op het apparaat hebt aangemaakt staat daarin als `vault`; elke cloudverbinding krijgt een eigen submap onder `vaults`. Omgekeerd geldt dat niet: Plainva werkt in zijn eigen map, niet in die van een andere app. Op Android is deze map niet zichtbaar voor andere programma's.
 
 **Een bestaande map als vault (Android en iOS).** Onder **Vaults → Vault aanmaken** is er een derde weg, **Een map op dit apparaat**: je kiest een map die een ander programma bijhoudt — Syncthing, de Bestanden-app, een tweede synchronisatieclient — en Plainva leest en schrijft daar zonder iets te kopiëren. De map blijft de map: verwijder je de vault, dan verdwijnt alleen de verbinding, de bestanden blijven. Wijzigingen die een ander programma daar maakt, ziet Plainva bij terugkeer in de app en bij het openen van een notitie. Cloudsynchronisatie staat voor zulke vaults uit — een tweede synchronisatie op dezelfde opslag zou de eerste overschrijven — en de kaart in het vaultdetail zegt dat. Verloopt de toegang (map verplaatst, toestemming ingetrokken), dan meldt de kaart het en **Map opnieuw verbinden** herstelt hem.
+
+**Een kluis openen, en de eerste keer in een map.** Terwijl een kluis opent, noemt het scherm hem, telt het de tot nu toe gelezen bestanden en biedt het **Terug naar ‘…’** aan — de kluis waar je vandaan kwam — of, direct na het starten van de app, **Een andere kluis openen**. Kan de kluis niet worden geopend, dan zegt het scherm waarom, met dezelfde weg terug en **Nu opnieuw proberen**. Een vault in een map wordt de eerste keer helemaal gelezen, en dat gebeurt op de achtergrond: je kunt meteen werken. Een strook bovenaan zegt hoe ver de zoekindex is; tot hij klaar is, tonen zoeken, tags en databases alleen wat al gelezen is. Hernoemen, verplaatsen, zoeken en vervangen en het opruimen wachten erop, zodat er geen link ontbreekt. Een verzoek aan de map dat binnen 30 seconden (60 bij het lezen van een bestand) geen antwoord krijgt, wordt opgegeven: dat bestand of die map blijft buiten de zoekindex en wordt genoemd, en de diagnose-export legt het vast.
 
 ## Vangnet
 
