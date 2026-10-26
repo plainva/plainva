@@ -300,6 +300,10 @@ async function commitMailAccount(vaultPath: string, account: MailAccountConfig, 
       throw error;
     }
   });
+  // Added (again): a tombstone this id still carries must not drop it on the
+  // next profile import - here or on any other device (second review of plan
+  // "Verbinden", B1; a Gmail mailbox keeps one id across connections).
+  await getPlatformServices().noteAccountAdded?.(vaultPath, "mail", account.id).catch(() => undefined);
 }
 
 /** Accounts stamped in this run — a stale account object must not re-stamp. */

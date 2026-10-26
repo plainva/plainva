@@ -61,6 +61,8 @@ import {
   shouldReportOnce,
   rememberRemovedAccount,
   removedAccountsForProfile,
+  revivedAccountsForProfile,
+  forgetRemovedLocalAccount,
   shouldReportWaitingAccounts,
   storeBackedFields,
   toast,
@@ -301,6 +303,16 @@ export async function noteAccountRemovedLocally(
   const store = await settingsStore();
   const map = normalizeAccountMap(await store.get<ProfileAccountMap>(accountMapKey(vaultId)));
   const next = rememberRemovedAccount(map, kind, localId);
+  if (next === map) return;
+  await store.set(accountMapKey(vaultId), next);
+  await store.save();
+}
+
+/** Notes that an account was added (again) here, so a deletion of its id gives way (second review, B1). */
+export async function noteAccountAddedLocally(vaultId: string, kind: "pim" | "mail", localId: string): Promise<void> {
+  const store = await settingsStore();
+  const map = normalizeAccountMap(await store.get<ProfileAccountMap>(accountMapKey(vaultId)));
+  const next = forgetRemovedLocalAccount(map, kind, localId);
   if (next === map) return;
   await store.set(accountMapKey(vaultId), next);
   await store.save();
@@ -630,6 +642,9 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
       // Same as the desktop: a deletion is only shared if it is IN the document.
       const removed = removedAccountsForProfile(map, undefined);
       if (Object.keys(removed).length) values.removedAccounts = removed;
+      // An account added again travels as such, or the deletion keeps winning elsewhere (B1).
+      const revived = revivedAccountsForProfile(map, undefined);
+      if (Object.keys(revived).length) values.revivedAccounts = revived;
 
       // Bookmarks (S15). The phone has always kept them in the same shared file
       // as the desktop — it simply never put them in the profile, so a bookmark

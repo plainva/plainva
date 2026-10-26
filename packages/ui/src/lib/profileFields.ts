@@ -112,6 +112,7 @@ export const PROFILE_DEFAULTS: Readonly<Record<string, unknown>> = Object.freeze
   mailAccounts: Object.freeze([]),
   cloudAccounts: Object.freeze([]),
   removedAccounts: Object.freeze({}),
+  revivedAccounts: Object.freeze({}),
   bookmarks: Object.freeze([]),
 });
 
@@ -303,6 +304,10 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   // row left one device and every other device handed it straight back
   // (E1, finding 2026-08-19).
   { logical: "removedAccounts", scope: "member", kind: "json", area: "accounts", desktop: "own", mobile: "own" },
+  // Accounts added again after a deletion (second review of plan "Verbinden",
+  // B1): a mailbox with a stable id came back under the id the deletions still
+  // named. The later of deletion and revival wins, on every device.
+  { logical: "revivedAccounts", scope: "member", kind: "json", area: "accounts", desktop: "own", mobile: "own" },
   { logical: "bookmarks", scope: "member", kind: "json", area: "accounts", desktop: "own", mobile: "own" },
   // No canonical empty default: explicit [] clears folders; an absent field
   // means a profile from an older client and must preserve them.

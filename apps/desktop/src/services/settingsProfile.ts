@@ -49,6 +49,8 @@ import {
   normalizeAccountMap,
   rememberRemovedAccount,
   removedAccountsForProfile,
+  revivedAccountsForProfile,
+  forgetRemovedLocalAccount,
   importAccountMetadata as sharedImportAccountMetadata,
   parseBookmarksFile,
   applyBookmarkProfileOnDisk, validBookmarkPaths, setBookmarksLaneScope,
@@ -206,6 +208,20 @@ export async function noteAccountRemovedLocally(
   const store = await getSettingsStore();
   const map = normalizeAccountMap(await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath)));
   const next = rememberRemovedAccount(map, kind, localId);
+  if (next === map) return;
+  await store.set(profileAccountMapKey(vaultPath), next);
+  await store.save();
+}
+
+/**
+ * Notes that an account was added (again) here: the deletion the profile may
+ * still carry for its id gives way to a revival that travels (second review of
+ * plan "Verbinden", B1).
+ */
+export async function noteAccountAddedLocally(vaultPath: string, kind: "pim" | "mail", localId: string): Promise<void> {
+  const store = await getSettingsStore();
+  const map = normalizeAccountMap(await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath)));
+  const next = forgetRemovedLocalAccount(map, kind, localId);
   if (next === map) return;
   await store.set(profileAccountMapKey(vaultPath), next);
   await store.save();
@@ -474,6 +490,9 @@ export async function exportProfileValues(
   // keeps the grow-only set from losing another device's entries.
   const removed = removedAccountsForProfile(map, undefined);
   if (Object.keys(removed).length) values.removedAccounts = removed;
+  // An account added again travels as such, or the deletion keeps winning elsewhere (B1).
+  const revived = revivedAccountsForProfile(map, undefined);
+  if (Object.keys(revived).length) values.revivedAccounts = revived;
 
   if (context.rawVault) {
     try {

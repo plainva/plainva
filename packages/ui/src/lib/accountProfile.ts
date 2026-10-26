@@ -95,6 +95,15 @@ export interface ProfileAccountMap {
    * else; it stops it coming back HERE.
    */
   removedLogical?: Record<string, string>;
+  /**
+   * Shared account ids added again after a deletion, with the moment it
+   * happened (second review of plan "Verbinden", B1). A Gmail mailbox keeps
+   * ONE id across every connection (`stableGmailId`), so connecting it again
+   * after removing it brought back an id the tombstones still named - and the
+   * next profile import dropped it on every device. Tombstones and revivals
+   * both travel; for each id the later act wins.
+   */
+  revivedLogical?: Record<string, string>;
 }
 
 export interface ProfilePimSelections {
@@ -183,41 +192,86 @@ export function removedAccountsForProfile(
   map: ProfileAccountMap,
   documentValue: unknown,
   now = new Date(),
+  documentRevived?: unknown,
 ): Record<string, string> {
+  const removed = latestActs([documentValue, map.removedLogical], now);
+  const revived = latestActs([documentRevived, map.revivedLogical], now);
+  // An account added again after its deletion is alive: the later act wins (B1).
+  for (const [logical, at] of Object.entries(revived)) {
+    if (removed[logical] && removed[logical] <= at) delete removed[logical];
+  }
+  return removed;
+}
+
+/** The revivals this device publishes, as the deletions: a union, the latest act per id, within the retention window. */
+export function revivedAccountsForProfile(map: ProfileAccountMap, documentValue: unknown, now = new Date()): Record<string, string> {
+  return latestActs([documentValue, map.revivedLogical], now);
+}
+
+/**
+ * Unions acts (deletions or revivals) by id, keeping the LATEST stamp per id
+ * and dropping what is past the retention window. Latest, not earliest: a
+ * deletion after a revival is a new act and has to win over the revival
+ * (B1); devices that only repeat an act copy its stamp, so the window still
+ * runs from the act itself.
+ */
+function latestActs(sources: readonly unknown[], now: Date): Record<string, string> {
   const cutoff = now.getTime() - REMOVED_ACCOUNT_TTL_DAYS * 24 * 60 * 60 * 1000;
   const out: Record<string, string> = {};
-  const take = (source: unknown) => {
-    if (!source || typeof source !== "object" || Array.isArray(source)) return;
+  for (const source of sources) {
+    if (!source || typeof source !== "object" || Array.isArray(source)) continue;
     for (const [logical, at] of Object.entries(source as Record<string, unknown>)) {
       if (typeof at !== "string" || !logical) continue;
       const stamp = Date.parse(at);
       if (Number.isFinite(stamp) && stamp < cutoff) continue;
-      // The earliest stamp wins, so the TTL is measured from the deletion
-      // itself rather than restarting on every device that repeats it.
-      if (!out[logical] || at < out[logical]) out[logical] = at;
+      if (!out[logical] || at > out[logical]) out[logical] = at;
     }
-  };
-  take(documentValue);
-  take(map.removedLogical);
+  }
   return out;
 }
 
-/** The document's tombstones, folded into what this device remembers. */
+/** The document's deletions and revivals, folded into what this device remembers. */
 export function mergeRemovedAccounts(
   map: ProfileAccountMap,
   documentValue: unknown,
   now = new Date(),
+  documentRevived?: unknown,
 ): ProfileAccountMap {
-  const merged = removedAccountsForProfile(map, documentValue, now);
-  return Object.keys(merged).length ? { ...map, removedLogical: merged } : { ...map, removedLogical: undefined };
+  const merged = removedAccountsForProfile(map, documentValue, now, documentRevived);
+  const revived = revivedAccountsForProfile(map, documentRevived, now);
+  return {
+    ...map,
+    removedLogical: Object.keys(merged).length ? merged : undefined,
+    revivedLogical: Object.keys(revived).length ? revived : undefined,
+  };
 }
 
-/** Clears the tombstone — the user deliberately added this account back. */
-export function forgetRemovedAccount(map: ProfileAccountMap, logicalId: string): ProfileAccountMap {
+/**
+ * The user deliberately added this account back: its tombstone goes here, and
+ * a revival stamped NOW travels in its place, so every device that still holds
+ * the tombstone lets the account in again (B1). Removing it once more later is
+ * a later act, and wins.
+ */
+export function forgetRemovedAccount(map: ProfileAccountMap, logicalId: string, at = new Date().toISOString()): ProfileAccountMap {
   if (!map.removedLogical?.[logicalId]) return map;
   const rest = { ...map.removedLogical };
   delete rest[logicalId];
-  return { ...map, removedLogical: Object.keys(rest).length ? rest : undefined };
+  return {
+    ...map,
+    removedLogical: Object.keys(rest).length ? rest : undefined,
+    revivedLogical: { ...(map.revivedLogical ?? {}), [logicalId]: at },
+  };
+}
+
+/** `forgetRemovedAccount` for the id the shell knows (its local id), as `rememberRemovedAccount` takes it. */
+export function forgetRemovedLocalAccount(
+  map: ProfileAccountMap,
+  kind: "pim" | "mail",
+  localId: string,
+  at = new Date().toISOString(),
+): ProfileAccountMap {
+  const logical = (kind === "pim" ? map.pimLocalToLogical : map.mailLocalToLogical)[localId] ?? localId;
+  return forgetRemovedAccount(map, logical, at);
 }
 
 /** Backward-compatible reader for maps written before cloud/secret addressing. */
@@ -233,6 +287,9 @@ export function normalizeAccountMap(map: Partial<ProfileAccountMap> | null | und
   }
   if (map?.removedLogical && Object.keys(map.removedLogical).length > 0) {
     normalized.removedLogical = { ...map.removedLogical };
+  }
+  if (map?.revivedLogical && Object.keys(map.revivedLogical).length > 0) {
+    normalized.revivedLogical = { ...map.revivedLogical };
   }
   return normalized;
 }
@@ -591,6 +648,8 @@ export async function importAccountMetadata(
   const previousMap = mergeRemovedAccounts(
     normalizeAccountMap(await ports.loadAccountMap()),
     values.removedAccounts,
+    new Date(),
+    values.revivedAccounts,
   );
   const pimMap = new Map<string, string>();
   const mailMap = new Map<string, string>();
@@ -736,6 +795,7 @@ export async function importAccountMetadata(
     // Including what the document taught us — dropping it here would mean
     // re-importing the same deleted rows on the very next cycle.
     ...(previousMap.removedLogical ? { removedLogical: { ...previousMap.removedLogical } } : {}),
+    ...(previousMap.revivedLogical ? { revivedLogical: { ...previousMap.revivedLogical } } : {}),
   };
 
   const cloudMap = new Map<string, string>();
