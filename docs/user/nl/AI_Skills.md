@@ -1,6 +1,6 @@
 # Vaardigheden (Beta)
 
-Laatst bijgewerkt: 2026-10-25
+Laatst bijgewerkt: 2026-10-26
 
 Een vaardigheid is een set instructies voor werk dat terugkomt: een vergadering voorbereiden, je taken ordenen, een weekoverzicht. Plainva levert er veertien mee, en je kunt je eigen schrijven. Vaardigheden gebruiken het open formaat Agent Skills — een map met een `SKILL.md` — en werken daardoor ook in andere AI-apps die dat formaat lezen.
 
@@ -90,7 +90,7 @@ Een vaardigheid kan testscenario's meebrengen: een bericht dat haar start, en wa
 
 **Testen met ⟨model⟩** — onderaan **Vaardigheden** of in het menu van een vaardigheid — laat de scenario's draaien tegen het model dat een nieuw gesprek zou gebruiken. Niets start vanzelf: het dialoogvenster zegt eerst hoeveel scenario's tegen welk model zouden draaien, en jij stelt een **Plafond** in Amerikaanse dollars in; de test eindigt tussen twee scenario's zodra het is bereikt. Is er voor het model geen prijs bekend, dan eindigt de test na een vast aantal tokens; een model op dit apparaat heeft geen plafond nodig.
 
-Elk scenario is een gewone uitvoering van zijn vaardigheid: het leest je vault zoals een uitvoering met de hand, gaat door hetzelfde overzicht vóór het verzenden, telt mee in je verbruik en laat zijn gesprek achter in de geschiedenis, waar zijn volgende uitvoering het vervangt. Daarna toont elk scenario zijn uitkomst in woorden, en de rij van de vaardigheid zegt hoe haar laatste uitvoering verliep. Een uitkomst geldt voor één model en één versie van de vaardigheid: kies je een ander model of wijzig je de vaardigheid, dan zegt de rij dat in plaats van een uitkomst te tonen die niet meer telt. Sommige meegeleverde scenario's vragen naar notities uit Plainva's eigen testvault; in jouw vault gelden ze niet, en het dialoogvenster telt ze apart in plaats van ze als mislukt te rekenen.
+Elk scenario is een gewone uitvoering van zijn vaardigheid: het leest je vault zoals een uitvoering met de hand, gaat door hetzelfde overzicht vóór het verzenden, telt mee in je verbruik en laat zijn gesprek achter in de geschiedenis, waar zijn volgende uitvoering het vervangt — tenzij het open staat of je ermee verder bent gegaan; dan blijft het. Daarna toont elk scenario zijn uitkomst in woorden, en de rij van de vaardigheid zegt hoe haar laatste uitvoering verliep. Een uitkomst geldt voor één model en één versie van de vaardigheid: kies je een ander model of wijzig je de vaardigheid, dan zegt de rij dat in plaats van een uitkomst te tonen die niet meer telt. Sommige meegeleverde scenario's vragen naar notities uit Plainva's eigen testvault; in jouw vault gelden ze niet, en het dialoogvenster telt ze apart in plaats van ze als mislukt te rekenen.
 
 ## Leren van een gesprek
 

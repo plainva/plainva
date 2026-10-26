@@ -1,6 +1,6 @@
 # Skills (Beta)
 
-Stand: 2026-10-25
+Stand: 2026-10-26
 
 Ein Skill ist eine Anleitung für Arbeit, die wiederkommt: ein Meeting vorbereiten, die Aufgaben sortieren, ein Wochenrückblick. Plainva bringt vierzehn davon mit, und Du kannst eigene schreiben. Skills nutzen das offene Format Agent Skills — ein Ordner mit einer `SKILL.md` — und funktionieren deshalb auch in anderen KI-Apps, die das Format lesen.
 
@@ -90,7 +90,7 @@ Ein Skill kann Testszenarien mitbringen: eine Nachricht, die ihn startet, und wa
 
 **Mit ⟨Modell⟩ prüfen** — unten in **Skills** oder im Menü eines Skills — lässt die Szenarien gegen das Modell laufen, das ein neues Gespräch benutzen würde. Nichts startet von selbst: der Dialog sagt zuerst, wie viele Szenarien gegen welches Modell laufen würden, und Du setzt eine **Obergrenze** in US-Dollar; der Lauf endet zwischen zwei Szenarien, sobald sie erreicht ist. Ist für das Modell kein Preis bekannt, endet der Lauf stattdessen nach einer festen Zahl von Token; ein Modell auf diesem Gerät braucht keine Obergrenze.
 
-Jedes Szenario ist ein gewöhnlicher Lauf seines Skills: es liest Deinen Vault wie ein Lauf von Hand, geht durch dieselbe Übersicht vor dem Senden, zählt zu Deinem Verbrauch und hinterlässt sein Gespräch im Verlauf, wo sein nächster Lauf es ersetzt. Danach zeigt jedes Szenario sein Ergebnis in Worten, und die Zeile des Skills sagt, wie sein letzter Lauf ausging. Ein Ergebnis gilt für ein Modell und eine Fassung des Skills: wählst Du ein anderes Modell oder änderst den Skill, sagt die Zeile das, statt ein Ergebnis zu zeigen, das nicht mehr zählt. Einige der mitgelieferten Szenarien fragen nach Notizen aus Plainvas eigenem Test-Vault; in Deinem Vault gelten sie nicht, und der Dialog zählt sie gesondert, statt sie als nicht bestanden zu werten.
+Jedes Szenario ist ein gewöhnlicher Lauf seines Skills: es liest Deinen Vault wie ein Lauf von Hand, geht durch dieselbe Übersicht vor dem Senden, zählt zu Deinem Verbrauch und hinterlässt sein Gespräch im Verlauf, wo sein nächster Lauf es ersetzt — außer es ist gerade offen, oder Du hast darin weitergemacht; dann bleibt es. Danach zeigt jedes Szenario sein Ergebnis in Worten, und die Zeile des Skills sagt, wie sein letzter Lauf ausging. Ein Ergebnis gilt für ein Modell und eine Fassung des Skills: wählst Du ein anderes Modell oder änderst den Skill, sagt die Zeile das, statt ein Ergebnis zu zeigen, das nicht mehr zählt. Einige der mitgelieferten Szenarien fragen nach Notizen aus Plainvas eigenem Test-Vault; in Deinem Vault gelten sie nicht, und der Dialog zählt sie gesondert, statt sie als nicht bestanden zu werten.
 
 ## Aus einem Gespräch lernen
 

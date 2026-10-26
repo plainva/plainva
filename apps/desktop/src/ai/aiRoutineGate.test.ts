@@ -177,6 +177,324 @@ describe("a run nobody watches", () => {
     expect([routineOf(h).conversationId === previous, h.s.getState().summaries.some((summary) => summary.id === previous)]).toEqual([false, true]);
   });
 
+  // What the user did with the previous run's conversation makes it theirs (strand 6, step 9).
+  const wentOn: [string, (h: Awaited<ReturnType<typeof routineSession>>, id: string) => Promise<void>][] = [
+    [
+      "a message",
+      async (h, id) => {
+        await h.s.open(id);
+        await h.s.send("And on Friday?");
+        h.s.newConversation();
+      },
+    ],
+    ["a title", (h, id) => h.s.rename(id, "Kept brief")],
+    [
+      "a pin",
+      async (h, id) => {
+        await h.s.open(id);
+        await h.s.pin("Projects/Offer.md");
+        h.s.newConversation();
+      },
+    ],
+    [
+      "a redaction",
+      async (h, id) => {
+        await h.s.open(id);
+        await h.s.toggleRedact("Projects/Offer.md");
+        h.s.newConversation();
+      },
+    ],
+    [
+      "another model",
+      async (h, id) => {
+        await h.s.open(id);
+        await h.s.setChoice(CLOUD);
+        h.s.newConversation();
+      },
+    ],
+    [
+      "another model of the same provider",
+      async (h, id) => {
+        await h.s.open(id);
+        await h.s.setChoice({ providerId: LOCAL.providerId, model: "granite3.3:2b" });
+        h.s.newConversation();
+      },
+    ],
+    [
+      "the same model through another provider",
+      async (h, id) => {
+        await h.s.open(id);
+        await h.s.setChoice({ providerId: CLOUD.providerId, model: LOCAL.model });
+        h.s.newConversation();
+      },
+    ],
+  ];
+  /** Opens a conversation and sends into it, as the user would: an overview that comes is approved. */
+  const goOnWith = async (h: Awaited<ReturnType<typeof routineSession>>, id: string) => {
+    h.s.subscribe(() => {
+      if (h.s.getState().consent) h.s.answerConsent(true);
+    });
+    await h.s.open(id);
+    return h.s.send("Anything else?");
+  };
+  for (const [what, step] of wentOn) {
+    it(`keeps the previous run's conversation where the user went on with it: ${what}`, async () => {
+      const vault = routineVault(NOTES);
+      const h = await routineSession([chat({ text: "Friday." }), chat({ text: "Thursday too." }), chat({ text: "Wednesday." }), chat({ text: "Also." })], vault, { model: LOCAL });
+      await h.setUp();
+      h.go(at(9, 7, 1));
+      expect(await h.s.runDueRoutines()).toBe(1);
+      const previous = routineOf(h).conversationId!;
+      await step(h, previous);
+      h.go(at(14, 12, 0));
+      expect(await h.s.runDueRoutines()).toBe(1);
+      expect([routineOf(h).conversationId === previous, h.s.getState().summaries.some((summary) => summary.id === previous)]).toEqual([false, true]);
+      // Nothing about it is being deleted any more: their next message goes (one for a model of another kind is
+      // refused by what the conversation was begun for, ADR 0018 — not by a deletion, which sends nothing at all).
+      expect(await goOnWith(h, previous)).not.toBeNull();
+    });
+  }
+
+  it("keeps the previous run's conversation that is on screen when the next run ends", async () => {
+    const vault = routineVault(NOTES);
+    const h = await routineSession([chat({ text: "Friday." }), chat({ text: "Wednesday." })], vault, { model: LOCAL });
+    await h.setUp();
+    h.go(at(9, 7, 1));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    const previous = routineOf(h).conversationId!;
+    await h.s.open(previous);
+    h.go(at(14, 12, 0));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    expect([h.s.getState().active?.id, h.s.getState().summaries.some((summary) => summary.id === previous)]).toEqual([previous, true]);
+  });
+
+  /** Holds the next reading of a conversation until the test lets it go; `reading` once it was asked for. */
+  const heldReading = (vault: ReturnType<typeof routineVault>, id: string) => {
+    const load = vault.host.conversations.load.bind(vault.host.conversations);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const reading = new Promise<void>((resolve) => (reached = resolve));
+    let first = true;
+    vault.host.conversations.load = async (asked) => {
+      if (first && asked === id) {
+        first = false;
+        reached();
+        await gate;
+      }
+      return load(asked);
+    };
+    return { reading, release };
+  };
+
+  it("keeps the previous run's conversation the user pinned a note in while its turn came, and then left", async () => {
+    const vault = routineVault(NOTES);
+    const h = await routineSession([chat({ text: "Friday." }), chat({ text: "Wednesday." })], vault, { model: LOCAL });
+    await h.setUp();
+    h.go(at(9, 7, 1));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    const previous = routineOf(h).conversationId!;
+    await h.s.open(previous);
+    // The next run's deletion reads it slowly; meanwhile the user pins a note in it and goes elsewhere (step 9).
+    const hold = heldReading(vault, previous);
+    h.go(at(14, 12, 0));
+    const due = h.s.runDueRoutines();
+    await hold.reading;
+    const pinning = h.s.pin("Projects/Offer.md");
+    h.s.newConversation();
+    hold.release();
+    await Promise.all([pinning, due]);
+    expect(h.s.getState().summaries.some((summary) => summary.id === previous)).toBe(true);
+    expect((await vault.host.conversations.load(previous))?.pins).toEqual(["Projects/Offer.md"]);
+  });
+
+  it("keeps the previous run's conversation the user pinned a note in while its deletion waited its turn, and then left", async () => {
+    const vault = routineVault(NOTES);
+    const h = await routineSession([chat({ text: "Friday." }), chat({ text: "Wednesday." })], vault, { model: LOCAL });
+    await h.setUp();
+    h.go(at(9, 7, 1));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    const previous = routineOf(h).conversationId!;
+    await h.s.open(previous);
+    // A write of it is slow at the store — the model it has, chosen again —, so the next run's deletion of it waits behind.
+    const save = vault.host.conversations.save.bind(vault.host.conversations);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let choiceReached!: () => void;
+    const choiceSaving = new Promise<void>((resolve) => (choiceReached = resolve));
+    let runReached!: () => void;
+    const runSaving = new Promise<void>((resolve) => (runReached = resolve));
+    let saves = 0;
+    vault.host.conversations.save = async (record) => {
+      saves += 1;
+      if (saves === 1) {
+        choiceReached();
+        await gate;
+      }
+      if (saves === 2) runReached();
+      return save(record);
+    };
+    const choosing = h.s.setChoice(LOCAL);
+    await choiceSaving;
+    h.go(at(14, 12, 0));
+    const due = h.s.runDueRoutines();
+    await runSaving;
+    for (let i = 0; i < 3; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+    // While the deletion waits its turn, the user pins a note in it and goes elsewhere (step 9).
+    const pinning = h.s.pin("Projects/Offer.md");
+    h.s.newConversation();
+    release();
+    await Promise.all([choosing, pinning, due]);
+    expect((await vault.host.conversations.load(previous))?.pins).toEqual(["Projects/Offer.md"]);
+  });
+
+  it("drops the previous run's conversation that was on screen until its turn came, and nothing more", async () => {
+    const vault = routineVault(NOTES);
+    const h = await routineSession([chat({ text: "Friday." }), chat({ text: "Wednesday." })], vault, { model: LOCAL });
+    await h.setUp();
+    h.go(at(9, 7, 1));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    const previous = routineOf(h).conversationId!;
+    await h.s.open(previous);
+    // On screen when the next run ends, no longer when the deletion's turn comes: it is the routine's, and goes.
+    const hold = heldReading(vault, previous);
+    h.go(at(14, 12, 0));
+    const due = h.s.runDueRoutines();
+    await hold.reading;
+    h.s.newConversation();
+    hold.release();
+    await due;
+    expect(h.s.getState().summaries.some((summary) => summary.id === previous)).toBe(false);
+  });
+
+  it("drops the previous run's conversation the user renamed and named back again", async () => {
+    const vault = routineVault(NOTES);
+    const h = await routineSession([chat({ text: "Friday." }), chat({ text: "Wednesday." })], vault, { model: LOCAL });
+    await h.setUp();
+    h.go(at(9, 7, 1));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    const previous = routineOf(h).conversationId!;
+    // A rename that is through is no rename on its way: the title alone decides (step 9).
+    await h.s.rename(previous, "Kept brief");
+    await h.s.rename(previous, "Routine: Morning brief");
+    h.go(at(14, 12, 0));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    expect(h.s.getState().summaries.some((summary) => summary.id === previous)).toBe(false);
+  });
+
+  const unreadable: [string, () => Promise<null>][] = [
+    [
+      "it throws",
+      async () => {
+        throw new Error("unreadable");
+      },
+    ],
+    ["it reads as nothing", async () => null],
+  ];
+  for (const [how, read] of unreadable) {
+    it(`keeps the previous run's conversation where it cannot be read: ${how}`, async () => {
+      const vault = routineVault(NOTES);
+      const h = await routineSession([chat({ text: "Friday." }), chat({ text: "Wednesday." }), chat({ text: "Also." })], vault, { model: LOCAL });
+      await h.setUp();
+      h.go(at(9, 7, 1));
+      expect(await h.s.runDueRoutines()).toBe(1);
+      const previous = routineOf(h).conversationId!;
+      // The store cannot read it any more — a newer format, a broken file: nothing tells it is the routine's alone (step 9).
+      const load = vault.host.conversations.load.bind(vault.host.conversations);
+      vault.host.conversations.load = async (id) => (id === previous ? read() : load(id));
+      h.go(at(14, 12, 0));
+      expect(await h.s.runDueRoutines()).toBe(1);
+      expect(h.s.getState().summaries.some((summary) => summary.id === previous)).toBe(true);
+      // Readable again, it is as it was: it takes the user's next message.
+      vault.host.conversations.load = load;
+      expect(await goOnWith(h, previous)).toMatchObject({ kind: "answered" });
+    });
+  }
+
+  it("drops the previous run's conversation also where the routine was renamed since: by the title it gave it", async () => {
+    const vault = routineVault(NOTES);
+    const h = await routineSession([chat({ text: "Friday." }), chat({ text: "Wednesday." })], vault, { model: LOCAL });
+    const { routine } = await h.setUp();
+    h.go(at(9, 7, 1));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    const previous = routineOf(h).conversationId!;
+    // The routine renamed: its next conversation has another title, the last one still the one it was given.
+    await h.setUp({ name: "Daily brief" }, routine.id);
+    h.go(at(14, 12, 0));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    expect([routineOf(h, "Daily brief").conversationId === previous, h.s.getState().summaries.some((summary) => summary.id === previous)]).toEqual([false, false]);
+  });
+
+  it("keeps the previous run's conversation while the user renames it from the history", async () => {
+    const vault = routineVault(NOTES);
+    const h = await routineSession([chat({ text: "Friday." }), chat({ text: "Wednesday." })], vault, { model: LOCAL });
+    await h.setUp();
+    h.go(at(9, 7, 1));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    const previous = routineOf(h).conversationId!;
+    // The rename reads the conversation slowly; meanwhile the next run ends (step 9).
+    const load = vault.host.conversations.load.bind(vault.host.conversations);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const reading = new Promise<void>((resolve) => (reached = resolve));
+    let first = true;
+    vault.host.conversations.load = async (id) => {
+      if (first && id === previous) {
+        first = false;
+        reached();
+        await gate;
+      }
+      return load(id);
+    };
+    const renaming = h.s.rename(previous, "Kept brief");
+    await reading;
+    h.go(at(14, 12, 0));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    release();
+    await renaming;
+    expect(h.s.getState().summaries.find((summary) => summary.id === previous)?.title).toBe("Kept brief");
+  });
+
+  it("keeps the previous run's conversation whose pin is still being written when the next run ends", async () => {
+    const vault = routineVault(NOTES);
+    const h = await routineSession([chat({ text: "Friday." }), chat({ text: "Wednesday." })], vault, { model: LOCAL });
+    await h.setUp();
+    h.go(at(9, 7, 1));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    const previous = routineOf(h).conversationId!;
+    await h.s.open(previous);
+    // The pin's write held at the store, and the user goes elsewhere meanwhile (step 9).
+    const save = vault.host.conversations.save.bind(vault.host.conversations);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let pinReached!: () => void;
+    const pinSaving = new Promise<void>((resolve) => (pinReached = resolve));
+    let runReached!: () => void;
+    const runSaving = new Promise<void>((resolve) => (runReached = resolve));
+    let saves = 0;
+    vault.host.conversations.save = async (record) => {
+      saves += 1;
+      if (saves === 1) {
+        pinReached();
+        await gate;
+      }
+      if (saves === 2) runReached();
+      return save(record);
+    };
+    const pinning = h.s.pin("Projects/Offer.md");
+    await pinSaving;
+    h.s.newConversation();
+    h.go(at(14, 12, 0));
+    const due = h.s.runDueRoutines();
+    // The next run's own conversation is written, and its deletion of the last one waits behind the pin.
+    await runSaving;
+    for (let i = 0; i < 3; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+    release();
+    await Promise.all([pinning, due]);
+    expect(h.s.getState().summaries.some((summary) => summary.id === previous)).toBe(true);
+  });
+
   it("drops the previous run's conversation in its own vault, also where the shell made a new host for it during the run", async () => {
     const vault = routineVault(NOTES);
     let swap: (() => void) | null = null;

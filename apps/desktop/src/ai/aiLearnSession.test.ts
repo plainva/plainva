@@ -196,6 +196,73 @@ describe("learning from a conversation that is deleted meanwhile (strand 6, step
     expect(drafts(s)).toEqual([]);
   });
 
+  it("cuts the review off at once where the user deletes its conversation, also while a write of it waits (strand 6, step 9)", async () => {
+    const vault = memoryVault({ [ACTIVE_MEMORY_FILE]: PLAIN_MEMORY });
+    const { s, fake } = await memorySession([turn({ text: "They are billed per episode." }), turn({ text: `Here:\n${proposals([MEMORY])}` })], vault);
+    expect(await s.send("How is Harbour Studio billed? They pay per episode, I think.")).toEqual({ kind: "answered" });
+    const id = s.getState().active!.id;
+    // The review's request held at the model.
+    const send = fake.egress.send.bind(fake.egress);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const asked = new Promise<void>((resolve) => (reached = resolve));
+    fake.egress.send = async (requestId, spec, onChunk) => {
+      reached();
+      await gate;
+      return send(requestId, spec, onChunk);
+    };
+    const learning = s.learnFrom(id);
+    await asked;
+    // A pin of the conversation is written slowly; meanwhile the user deletes the conversation.
+    const store = vault.host.conversations;
+    const save = store.save.bind(store);
+    let releaseSave!: () => void;
+    const saveGate = new Promise<void>((resolve) => (releaseSave = resolve));
+    let saving!: () => void;
+    const saveReached = new Promise<void>((resolve) => (saving = resolve));
+    store.save = async (record) => {
+      saving();
+      await saveGate;
+      return save(record);
+    };
+    const pinning = s.pin("Projects/Offer.md");
+    await saveReached;
+    const removing = s.remove(id);
+    // The review's answer comes while the deletion still waits behind the pin: the review was cut off at once.
+    release();
+    expect(await learning).toMatchObject({ kind: "refused", reason: "cancelled" });
+    releaseSave();
+    await Promise.all([pinning, removing]);
+  });
+
+  it("starts no regression run while a review is learning (strand 6, step 9)", async () => {
+    const vault = memoryVault({ [ACTIVE_MEMORY_FILE]: PLAIN_MEMORY });
+    const { s, fake } = await memorySession([turn({ text: "They are billed per episode." }), turn({ text: `Here:\n${proposals([MEMORY])}` }), turn({ text: "Done." })], vault);
+    expect(await s.send("How is Harbour Studio billed? They pay per episode, I think.")).toEqual({ kind: "answered" });
+    const id = s.getState().active!.id;
+    // The review's request held at the model.
+    const send = fake.egress.send.bind(fake.egress);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const asked = new Promise<void>((resolve) => (reached = resolve));
+    let first = true;
+    fake.egress.send = async (requestId, spec, onChunk) => {
+      if (first) {
+        first = false;
+        reached();
+        await gate;
+      }
+      return send(requestId, spec, onChunk);
+    };
+    const learning = s.learnFrom(id);
+    await asked;
+    expect(await s.testSkills(["plainva:task-triage"], { maxCostUsd: null })).toEqual({ kind: "refused", reason: "busy" });
+    release();
+    await learning;
+  });
+
   it("lays down nothing where the whole history is deleted while a draft waits its turn", async () => {
     const vault = memoryVault({ [ACTIVE_MEMORY_FILE]: PLAIN_MEMORY });
     const { s } = await memorySession([turn({ text: "They are billed per episode." }), turn({ text: `Here:\n${proposals([MEMORY, RULE, NEW_SKILL])}` })], vault);

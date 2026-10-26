@@ -50,6 +50,12 @@ describe("conversation records", () => {
     }
   });
 
+  it("keeps the title the app gave a conversation one of its own runs made — and nothing that is none (strand 6, step 9)", () => {
+    const r = { ...record(), appTitle: "Routine: Morning brief" };
+    expect(readConversationRecord(JSON.parse(JSON.stringify(r)))).toEqual(r);
+    expect(readConversationRecord(JSON.parse(JSON.stringify({ ...record(), appTitle: 5 })))).toEqual(record());
+  });
+
   it("repairs damaged optional fields instead of dropping the conversation", () => {
     const r = JSON.parse(JSON.stringify(record()));
     r.usage = { inputTokens: -3, outputTokens: "x" };

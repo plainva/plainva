@@ -1,6 +1,6 @@
 # Compétences (Bêta)
 
-Dernière mise à jour : 2026-10-25
+Dernière mise à jour : 2026-10-26
 
 Une compétence est un ensemble d'instructions pour un travail qui revient : préparer une réunion, trier vos tâches, un bilan de la semaine. Plainva en fournit quatorze, et vous pouvez écrire les vôtres. Les compétences utilisent le format ouvert Agent Skills — un dossier avec un `SKILL.md` — et fonctionnent donc aussi dans d'autres apps d'IA qui lisent ce format.
 
@@ -90,7 +90,7 @@ Une compétence peut apporter des scénarios de test : un message qui la lance, 
 
 **Tester avec ⟨modèle⟩** — en bas de **Compétences**, ou dans le menu d'une compétence — exécute les scénarios avec le modèle qu'utiliserait une nouvelle conversation. Rien ne démarre tout seul : la boîte de dialogue indique d'abord combien de scénarios s'exécuteraient et avec quel modèle, et vous fixez un **Plafond** en dollars américains ; le test s'arrête entre deux scénarios dès qu'il est atteint. Si aucun prix n'est connu pour le modèle, le test s'arrête après un nombre fixe de jetons ; un modèle sur cet appareil n'a pas besoin de plafond.
 
-Chaque scénario est une exécution ordinaire de sa compétence : il lit votre vault comme une exécution à la main, passe par le même aperçu avant l'envoi, compte dans votre consommation et laisse sa conversation dans l'historique, où sa prochaine exécution la remplace. Ensuite, chaque scénario affiche son résultat en toutes lettres, et la ligne de la compétence indique comment s'est passée sa dernière exécution. Un résultat vaut pour un modèle et une version de la compétence : si vous choisissez un autre modèle ou modifiez la compétence, la ligne le dit au lieu d'afficher un résultat qui ne compte plus. Certains scénarios fournis portent sur des notes du vault de test de Plainva ; dans votre vault ils ne s'appliquent pas, et la boîte de dialogue les compte à part au lieu de les considérer comme échoués.
+Chaque scénario est une exécution ordinaire de sa compétence : il lit votre vault comme une exécution à la main, passe par le même aperçu avant l'envoi, compte dans votre consommation et laisse sa conversation dans l'historique, où sa prochaine exécution la remplace — sauf si elle est ouverte ou que vous l'avez poursuivie ; elle reste alors. Ensuite, chaque scénario affiche son résultat en toutes lettres, et la ligne de la compétence indique comment s'est passée sa dernière exécution. Un résultat vaut pour un modèle et une version de la compétence : si vous choisissez un autre modèle ou modifiez la compétence, la ligne le dit au lieu d'afficher un résultat qui ne compte plus. Certains scénarios fournis portent sur des notes du vault de test de Plainva ; dans votre vault ils ne s'appliquent pas, et la boîte de dialogue les compte à part au lieu de les considérer comme échoués.
 
 ## Apprendre d'une conversation
 

@@ -545,6 +545,28 @@ describe("the regression run of the skills", () => {
     expect(vault.tests().records).toHaveLength(1);
   });
 
+  it("keeps the conversation that was open when the regression run came again, whichever scenario it belongs to (strand 6, step 9)", async () => {
+    const { s, vault } = await tested([...ratesRun(), turn({ text: "It is an offer." }), ...ratesRun(), turn({ text: "It is an offer." })]);
+    await s.testSkills([OWN], { maxCostUsd: null });
+    const summary = vault.tests().records[0]!.scenarios.find((scenario) => scenario.id === "summary")!.conversationId!;
+    // The last scenario's conversation open: by its turn, a scenario of this run has the screen.
+    await s.open(summary);
+    await s.testSkills([OWN], { maxCostUsd: null });
+    expect([vault.saved.has(summary), s.getState().active?.id]).toEqual([true, summary]);
+  });
+
+  it("makes room also where the skill's title changed since: by the title its conversations were given (strand 6, step 9)", async () => {
+    const { s, vault } = await tested([...ratesRun(), turn({ text: "It is an offer." }), ...ratesRun(), turn({ text: "It is an offer." })]);
+    await s.testSkills([OWN], { maxCostUsd: null });
+    const first = new Set(vault.saved.keys());
+    // The skill is called otherwise now: the next conversations are titled so, the last ones keep their own.
+    vault.disk.set(`${OWN}/SKILL.md`, SKILL().replace("  plainva.folders: Projects/\n", "  plainva.folders: Projects/\n  plainva.title: Offer review\n"));
+    await vault.approve(OWN);
+    await s.refreshSkills();
+    await s.testSkills([OWN], { maxCostUsd: null });
+    expect([vault.saved.size, [...vault.saved.keys()].some((id) => first.has(id))]).toEqual([2, false]);
+  });
+
   it("ends between two scenarios once the ceiling is reached, and records what did not run", async () => {
     const { s, fake, vault } = await tested([...ratesRun(), turn({ text: "never sent" })]);
     expect(await s.testSkills([OWN], { maxCostUsd: null, maxTokens: 50 })).toEqual({ kind: "done", ran: 1, passed: 1, failed: 0, stopped: "ceiling" });

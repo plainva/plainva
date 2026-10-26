@@ -1,6 +1,6 @@
 # Habilidades (Beta)
 
-Última revisão: 2026-10-25
+Última revisão: 2026-10-26
 
 Uma habilidade é um conjunto de instruções para um trabalho que se repete: preparar uma reunião, organizar suas tarefas, uma revisão semanal. O Plainva traz quatorze, e você pode escrever as suas. As habilidades usam o formato aberto Agent Skills — uma pasta com um `SKILL.md` — e por isso também funcionam em outros apps de IA que leem esse formato.
 
@@ -90,7 +90,7 @@ Uma habilidade pode trazer cenários de teste: uma mensagem que a inicia e o que
 
 **Testar com ⟨modelo⟩** — no fim de **Habilidades** ou no menu de uma habilidade — roda os cenários com o modelo que uma nova conversa usaria. Nada começa sozinho: o diálogo primeiro diz quantos cenários rodariam e com qual modelo, e você define um **Teto** em dólares americanos; o teste termina entre dois cenários assim que ele é atingido. Se não há preço conhecido para o modelo, o teste termina após um número fixo de tokens; um modelo neste dispositivo não precisa de teto.
 
-Cada cenário é uma execução comum da sua habilidade: lê seu vault como uma execução à mão, passa pelo mesmo resumo antes do envio, conta no seu consumo e deixa sua conversa no histórico, onde a próxima execução a substitui. Depois, cada cenário mostra seu resultado em palavras, e a linha da habilidade diz como foi sua última execução. Um resultado vale para um modelo e uma versão da habilidade: se você escolher outro modelo ou alterar a habilidade, a linha diz isso em vez de mostrar um resultado que não conta mais. Alguns cenários incluídos perguntam sobre notas do vault de testes do Plainva; no seu vault eles não valem, e o diálogo os conta à parte em vez de reprová-los.
+Cada cenário é uma execução comum da sua habilidade: lê seu vault como uma execução à mão, passa pelo mesmo resumo antes do envio, conta no seu consumo e deixa sua conversa no histórico, onde a próxima execução a substitui — a menos que ela esteja aberta ou que você a tenha continuado; então ela fica. Depois, cada cenário mostra seu resultado em palavras, e a linha da habilidade diz como foi sua última execução. Um resultado vale para um modelo e uma versão da habilidade: se você escolher outro modelo ou alterar a habilidade, a linha diz isso em vez de mostrar um resultado que não conta mais. Alguns cenários incluídos perguntam sobre notas do vault de testes do Plainva; no seu vault eles não valem, e o diálogo os conta à parte em vez de reprová-los.
 
 ## Aprender com uma conversa
 

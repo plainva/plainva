@@ -1,6 +1,6 @@
 # Competenze (Beta)
 
-Ultimo aggiornamento: 2026-10-25
+Ultimo aggiornamento: 2026-10-26
 
 Una competenza è un insieme di istruzioni per un lavoro che ritorna: preparare una riunione, ordinare le tue attività, un riepilogo settimanale. Plainva ne include quattordici e puoi scriverne di tue. Le competenze usano il formato aperto Agent Skills — una cartella con uno `SKILL.md` — e quindi funzionano anche in altre app di IA che leggono questo formato.
 
@@ -90,7 +90,7 @@ Una competenza può portare scenari di prova: un messaggio che la avvia e ciò c
 
 **Verifica con ⟨modello⟩** — in fondo a **Competenze** o nel menu di una competenza — esegue gli scenari con il modello che userebbe una nuova conversazione. Nulla parte da solo: la finestra dice prima quanti scenari girerebbero e con quale modello, e tu imposti un **Tetto** in dollari statunitensi; la verifica termina tra due scenari appena viene raggiunto. Se per il modello non è noto alcun prezzo, la verifica termina dopo un numero fisso di token; un modello su questo dispositivo non ha bisogno di un tetto.
 
-Ogni scenario è un'esecuzione normale della sua competenza: legge il tuo vault come un'esecuzione a mano, passa dallo stesso riepilogo prima dell'invio, conta nel tuo consumo e lascia la sua conversazione nella cronologia, dove la sua prossima esecuzione la sostituisce. Poi ogni scenario mostra il suo esito a parole, e la riga della competenza dice com'è andata la sua ultima esecuzione. Un esito vale per un modello e una versione della competenza: se scegli un altro modello o modifichi la competenza, la riga lo dice invece di mostrare un esito che non conta più. Alcuni scenari forniti chiedono di note del vault di prova di Plainva; nel tuo vault non valgono, e la finestra li conta a parte invece di considerarli falliti.
+Ogni scenario è un'esecuzione normale della sua competenza: legge il tuo vault come un'esecuzione a mano, passa dallo stesso riepilogo prima dell'invio, conta nel tuo consumo e lascia la sua conversazione nella cronologia, dove la sua prossima esecuzione la sostituisce, a meno che non sia aperta o che tu l'abbia proseguita; allora resta. Poi ogni scenario mostra il suo esito a parole, e la riga della competenza dice com'è andata la sua ultima esecuzione. Un esito vale per un modello e una versione della competenza: se scegli un altro modello o modifichi la competenza, la riga lo dice invece di mostrare un esito che non conta più. Alcuni scenari forniti chiedono di note del vault di prova di Plainva; nel tuo vault non valgono, e la finestra li conta a parte invece di considerarli falliti.
 
 ## Imparare da una conversazione
 

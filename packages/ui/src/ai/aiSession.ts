@@ -1168,6 +1168,35 @@ function withChoicesOf(record: ConversationRecord, from: ConversationChoices): C
 }
 
 /**
+ * Whether a conversation a run of the app made is still that alone (strand 6,
+ * step 9): its one run, under the title the app gave it (`appTitle`; for one
+ * made before that was kept, `title`, the one the app gives it now), on the
+ * run's model, nothing pinned, and redacted only what the run itself sent
+ * redacted. One the user went on with — a message, a title, a pin, a
+ * redaction, another model — is the user's; and so is one that cannot be read
+ * (`null`): nothing tells it is the app's alone.
+ */
+function onlyItsOwnRun(stored: ConversationRecord | null, title: string): boolean {
+  if (!stored) return false;
+  const run = stored.runs[0];
+  return (
+    stored.runs.length <= 1 &&
+    stored.title === (stored.appTitle ?? title) &&
+    stored.pins.length === 0 &&
+    sameEntries(stored.redact, run?.redact) &&
+    (!run || stored.providerId === run.providerId) &&
+    (!run || stored.model === run.model)
+  );
+}
+
+/** Whether two lists hold the same entries, in whatever order. */
+function sameEntries(a: readonly string[] | undefined, b: readonly string[] | undefined): boolean {
+  const left = new Set(a ?? []);
+  const right = new Set(b ?? []);
+  return left.size === right.size && [...left].every((entry) => right.has(entry));
+}
+
+/**
  * Which vault's data a host stands for (strand 6, step 8): its data key where
  * it has one — a shell hands a new host for the same vault when what it is
  * made of changes —, else the host itself.
@@ -1461,6 +1490,8 @@ export class AiSession {
   private readonly deleting = new Map<string, number>();
   /** Conversations whose deletion is done: no write that comes afterwards writes them back. */
   private readonly deleted = new Set<string>();
+  /** Renames on their way, per conversation (step 9): the user's step, which the app's own deletion leaves alone. */
+  private readonly renaming = new Map<string, number>();
   /**
    * Counts on whenever the user leaves what a message of the composer is put
    * together for — another conversation opened, a new one begun, the one on
@@ -2001,12 +2032,28 @@ export class AiSession {
    * listed it while the deletion was on its way, or the shell made a new host
    * meanwhile; a notice about it goes with it. One that cannot be deleted
    * stays where it is.
+   *
+   * `ownOnly`: the app's own deletion (step 9). It is asked of the
+   * conversation as it is stored, in its turn after every write of it, and
+   * only then marked as on its way: one the user renames meanwhile, one that
+   * cannot be read and one `ownOnly` refuses stay, and nothing about them
+   * changes meanwhile.
    */
-  private async deleteStored(vault: AiVaultHost, id: string): Promise<void> {
-    // A review that learns from it is cut off.
-    if (this.state.learning === id) this.learnAbort?.abort();
-    this.askDeletion(id);
-    await this.queued(vault, id, async () => {
+  private async deleteStored(vault: AiVaultHost, id: string, ownOnly?: (stored: ConversationRecord | null) => boolean): Promise<void> {
+    // The user's deletion is on its way at once, and cuts a review of the conversation off at once.
+    if (!ownOnly) {
+      if (this.state.learning === id) this.learnAbort?.abort();
+      this.askDeletion(id);
+    }
+    // How often it was written or deleted once this step was asked for: one more since is a step of the user's.
+    let asked = 0;
+    const step = this.queued(vault, id, async () => {
+      if (ownOnly) {
+        // One that cannot be read stays: the step ends here, and nothing about the conversation changed.
+        const stored = await vault.conversations.load(id);
+        if (this.renaming.has(id) || (this.changes.get(id) ?? 0) !== asked || !ownOnly(stored)) return;
+        this.askDeletion(id);
+      }
       try {
         await vault.conversations.remove(id);
       } catch (error) {
@@ -2021,6 +2068,8 @@ export class AiSession {
         ...(this.state.notice?.conversationId === id ? { notice: null } : {}),
       });
     });
+    asked = this.changes.get(id) ?? 0;
+    await step;
   }
 
   /**
@@ -4218,7 +4267,8 @@ export class AiSession {
     if (!this.state.settings.enabled || !vault) return { kind: "refused", reason: "off" };
     const choice = this.newConversationChoice();
     if (!choice || !providerById(choice.providerId, this.state.settings.custom)) return { kind: "refused", reason: "no-model" };
-    if (this.state.live || this.sending) return { kind: "refused", reason: "busy" };
+    // One run at a time (step 9): also while a review learns, a column is filled, a note is kept or a routine runs.
+    if (this.occupied()) return { kind: "refused", reason: "busy" };
     this.sending = true;
     const since = this.clearsOf(vault);
     const before = this.state.active;
@@ -4256,13 +4306,16 @@ export class AiSession {
             continue;
           }
           this.set({ skillTests: { ...this.state.skillTests, running: { skill: target.id, scenario: scenario.id, done: ran, total } } });
-          // The history keeps one conversation per scenario: the one of its last run makes room.
+          // The history keeps one conversation per scenario: the one of its last run makes room — unless it was open
+          // when the run began (it comes back at the end, where the user went nowhere else), or the user went on with
+          // it since (step 9).
+          const named = t("ai.workshop.test.conversation", { skill: title, scenario: scenario.id });
           const old = previous?.scenarios.find((s) => s.id === scenario.id)?.conversationId;
-          if (old) await this.dropOwn(vault, old);
+          if (old) await this.dropOwn(vault, old, (stored) => old !== before?.id && onlyItsOwnRun(stored, named));
           this.set({ active: null, notice: null });
           const outcome = await this.runMessage(scenario.message, vault, choice, {
             skills: { entries, bind: target.id },
-            detached: { title: t("ai.workshop.test.conversation", { skill: title, scenario: scenario.id }), limits: SKILL_TEST_RUN_LIMITS },
+            detached: { title: named, limits: SKILL_TEST_RUN_LIMITS },
             since,
           });
           // Stopped by the user, the send overview declined, the vault gone — or the request itself failed, which
@@ -4271,7 +4324,7 @@ export class AiSession {
           if (this.vault !== vault || !outcome || !outcome.record || outcome.stop.kind === "cancelled" || broke) {
             stopped = broke ? "failed" : "cancelled";
             if (broke) failure = broke;
-            if (outcome?.record) await this.dropOwn(vault, outcome.record.id);
+            if (outcome?.record) await this.dropOwn(vault, outcome.record.id, (stored) => onlyItsOwnRun(stored, named));
             results.push(scenarioNotRun(scenario));
             continue;
           }
@@ -4326,10 +4379,23 @@ export class AiSession {
    * its own vault, and with that from the history and the screen. No step of
    * the user's, so what was open before comes back after a regression run;
    * one that cannot be deleted stays, and what the run is for goes on — the
-   * routine keeps its note, the regression run its scenarios.
+   * routine keeps its note, the regression run its scenarios. `ownOnly`: as
+   * for `deleteStored`.
    */
-  private async dropOwn(vault: AiVaultHost, id: string): Promise<void> {
-    await this.deleteStored(vault, id).catch(() => undefined);
+  private async dropOwn(vault: AiVaultHost, id: string, ownOnly?: (stored: ConversationRecord | null) => boolean): Promise<void> {
+    await this.deleteStored(vault, id, ownOnly).catch(() => undefined);
+  }
+
+  /**
+   * The history keeps one conversation per routine (ADR 0033): the one of its
+   * last run makes room for this run's — unless it is on screen when its turn
+   * comes, or the user went on with it since (strand 6, step 9); then it is the
+   * user's and stays.
+   */
+  private async dropPrevious(vault: AiVaultHost, routine: Routine, record: ConversationRecord | undefined, title: string): Promise<void> {
+    const previous = routine.conversationId;
+    if (!record || !previous || previous === record.id) return;
+    await this.dropOwn(vault, previous, (stored) => this.state.active?.id !== previous && onlyItsOwnRun(stored, title));
   }
 
   // ---------------------------------------------------------------- routines
@@ -4569,10 +4635,7 @@ export class AiSession {
     if (outcome.need) return needs(outcome.need);
     const record = outcome.record;
     const left = record ? { conversationId: record.id } : {};
-    // The history keeps one conversation per routine: the one of its last run makes room — unless it is on screen.
-    if (record && routine.conversationId && routine.conversationId !== record.id && this.state.active?.id !== routine.conversationId) {
-      await this.dropOwn(vault, routine.conversationId);
-    }
+    await this.dropPrevious(vault, routine, record, title);
     const stop = outcome.stop;
     if (stop.kind === "cancelled") return { outcome: "stopped", ...left };
     // Switched to fully local while it ran: the request was not handed on.
@@ -4689,10 +4752,7 @@ export class AiSession {
     if (outcome.need) return needs(outcome.need);
     const record = outcome.record;
     const left = record ? { conversationId: record.id } : {};
-    // The history keeps one conversation per routine: the one of its last run makes room — unless it is on screen.
-    if (record && routine.conversationId && routine.conversationId !== record.id && this.state.active?.id !== routine.conversationId) {
-      await this.dropOwn(vault, routine.conversationId);
-    }
+    await this.dropPrevious(vault, routine, record, title);
     const stop = outcome.stop;
     if (stop.kind === "cancelled") return { outcome: "stopped", ...left };
     if (stop.kind === "failed" && stop.failure.kind === "local_only") return { ...needs("local"), ...left };
@@ -4993,15 +5053,23 @@ export class AiSession {
     const vault = this.vault;
     const clean = title.trim();
     if (!vault || !clean) return;
-    const record = this.state.active?.id === id ? this.state.active : await this.loaded(vault, id);
-    if (!record) return;
-    const next = { ...record, title: clean };
-    // What is on screen first: a run of this conversation that ends meanwhile takes the title from there.
-    this.set({
-      active: this.state.active?.id === id ? next : this.state.active,
-      summaries: this.state.summaries.map((s) => (s.id === id ? { ...s, title: clean } : s)),
-    });
-    await this.storeChoice(vault, next);
+    // On its way — read, then written —, a rename is the user's step: the app's own deletion leaves the conversation alone.
+    this.renaming.set(id, (this.renaming.get(id) ?? 0) + 1);
+    try {
+      const record = this.state.active?.id === id ? this.state.active : await this.loaded(vault, id);
+      if (!record) return;
+      const next = { ...record, title: clean };
+      // What is on screen first: a run of this conversation that ends meanwhile takes the title from there.
+      this.set({
+        active: this.state.active?.id === id ? next : this.state.active,
+        summaries: this.state.summaries.map((s) => (s.id === id ? { ...s, title: clean } : s)),
+      });
+      await this.storeChoice(vault, next);
+    } finally {
+      const left = (this.renaming.get(id) ?? 1) - 1;
+      if (left > 0) this.renaming.set(id, left);
+      else this.renaming.delete(id);
+    }
   }
 
   /** Ids of the conversations whose title or text contains the query (history search, §16). */
@@ -6617,6 +6685,8 @@ export class AiSession {
         pins: door ? door.pins : replay ? replay.pins : detached || routine ? [] : this.state.draftPins,
         ...(instructions ? { instructions } : {}),
         ...(replay ? { replayOf: replay.of } : {}),
+        // Made by a run of the app's own (step 9): the title it gave it, by which it knows it is still its own alone.
+        ...(detached ? { appTitle: detached.title } : routine ? { appTitle: routine.title } : {}),
         // Begun for a reader on this device: what it is given from the first message on was never checked for a cloud.
         ...(isCloudRecipient(recipient) ? {} : { onDevice: true as const }),
       };

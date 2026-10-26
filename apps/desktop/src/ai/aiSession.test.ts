@@ -2920,6 +2920,84 @@ describe("a conversation changed while a run of it is on its way", () => {
     expect(vault.saved.has(last!)).toBe(true);
   });
 
+  it("keeps a scenario's conversation the user went on with when the regression run comes again", async () => {
+    const { s } = session([answer("One."), answer("Two."), answer("More."), answer("Three.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    let records = EMPTY_SKILL_TESTS;
+    vault.host.skillTests = {
+      load: async () => records,
+      save: async (next) => void (records = next),
+    };
+    expect(await s.testSkills(["plainva:task-triage"], { maxCostUsd: null })).toMatchObject({ kind: "done", ran: 1 });
+    const last = records.records.find((record) => record.id === "plainva:task-triage")?.scenarios[0]?.conversationId;
+    // The user went on with the scenario's conversation (strand 6, step 9).
+    await s.open(last!);
+    expect(await s.send("Tell me more.")).toMatchObject({ kind: "answered" });
+    s.newConversation();
+    expect(await s.testSkills(["plainva:task-triage"], { maxCostUsd: null })).toMatchObject({ kind: "done", ran: 1 });
+    expect([vault.saved.has(last!), s.getState().summaries.some((summary) => summary.id === last)]).toEqual([true, true]);
+  });
+
+  it("keeps a scenario's conversation that is on screen when the regression run comes again", async () => {
+    const { s } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    let records = EMPTY_SKILL_TESTS;
+    vault.host.skillTests = {
+      load: async () => records,
+      save: async (next) => void (records = next),
+    };
+    expect(await s.testSkills(["plainva:task-triage"], { maxCostUsd: null })).toMatchObject({ kind: "done", ran: 1 });
+    const last = records.records.find((record) => record.id === "plainva:task-triage")?.scenarios[0]?.conversationId;
+    // On screen when the run comes again: in use, not the app's to delete (step 9).
+    await s.open(last!);
+    expect(await s.testSkills(["plainva:task-triage"], { maxCostUsd: null })).toMatchObject({ kind: "done", ran: 1 });
+    expect([vault.saved.has(last!), s.getState().active?.id]).toEqual([true, last]);
+  });
+
+  it("drops a scenario's last conversation whose run itself sent a note redacted", async () => {
+    const { s } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    let records = EMPTY_SKILL_TESTS;
+    vault.host.skillTests = {
+      load: async () => records,
+      save: async (next) => void (records = next),
+    };
+    expect(await s.testSkills(["plainva:task-triage"], { maxCostUsd: null })).toMatchObject({ kind: "done", ran: 1 });
+    const last = records.records.find((record) => record.id === "plainva:task-triage")?.scenarios[0]?.conversationId;
+    // As where the run's own overview redacted a note: the conversation and its run carry the same (step 9).
+    const stored = vault.saved.get(last!)!;
+    vault.saved.set(last!, { ...stored, redact: ["Plan.md"], runs: stored.runs.map((run) => ({ ...run, redact: ["Plan.md"] })) });
+    expect(await s.testSkills(["plainva:task-triage"], { maxCostUsd: null })).toMatchObject({ kind: "done", ran: 1 });
+    expect(vault.saved.has(last!)).toBe(false);
+  });
+
+  it("keeps a cancelled scenario's conversation the user renamed while it ran", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const hold = held(fake);
+    const testing = s.testSkills(["plainva:task-triage"], { maxCostUsd: null });
+    await hold.waiting;
+    // The scenario's conversation is on screen while it runs: the user names it, then stops the run (step 9).
+    const scenario = s.getState().active!.id;
+    await s.rename(scenario, "Mine");
+    s.stop();
+    hold.release();
+    await testing;
+    expect(vault.saved.get(scenario)?.title).toBe("Mine");
+  });
+
   it("asks nothing again of a conversation deleted from the history while the replay's request is put together", async () => {
     const { s, fake } = session([answer("One."), answer("Two.")]);
     await s.load();

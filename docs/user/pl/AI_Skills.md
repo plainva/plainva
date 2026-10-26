@@ -1,6 +1,6 @@
 # Umiejętności (Beta)
 
-Stan na: 2026-10-25
+Stan na: 2026-10-26
 
 Umiejętność to zestaw instrukcji do pracy, która się powtarza: przygotowanie spotkania, porządkowanie zadań, przegląd tygodnia. Plainva ma czternaście wbudowanych, a własne można pisać samodzielnie. Umiejętności korzystają z otwartego formatu Agent Skills — folderu z plikiem `SKILL.md` — dlatego działają też w innych aplikacjach AI, które czytają ten format.
 
@@ -90,7 +90,7 @@ Umiejętność może mieć scenariusze testowe: wiadomość, która ją uruchami
 
 **Sprawdź z ⟨model⟩** — na dole sekcji **Umiejętności** albo w menu umiejętności — uruchamia scenariusze z modelem, którego użyłaby nowa rozmowa. Nic nie startuje samo: okno najpierw mówi, ile scenariuszy i z jakim modelem zostałoby uruchomionych, a Ty ustawiasz **Limit** w dolarach amerykańskich; sprawdzanie kończy się między dwoma scenariuszami, gdy zostanie osiągnięty. Jeśli cena modelu nie jest znana, sprawdzanie kończy się po stałej liczbie tokenów; model na tym urządzeniu nie potrzebuje limitu.
 
-Każdy scenariusz to zwykłe uruchomienie swojej umiejętności: czyta vault jak uruchomienie ręczne, przechodzi przez ten sam przegląd przed wysłaniem, liczy się do Twojego zużycia i zostawia swoją rozmowę w historii, gdzie zastępuje ją jego następne uruchomienie. Potem każdy scenariusz pokazuje wynik słowami, a wiersz umiejętności mówi, jak poszło jej ostatnie uruchomienie. Wynik dotyczy jednego modelu i jednej wersji umiejętności: gdy wybierzesz inny model albo zmienisz umiejętność, wiersz to powie, zamiast pokazywać wynik, który już się nie liczy. Niektóre dołączone scenariusze pytają o notatki z testowego vaultu Plainvy; w Twoim vaulcie nie mają zastosowania, a okno liczy je osobno, zamiast uznawać je za niezaliczone.
+Każdy scenariusz to zwykłe uruchomienie swojej umiejętności: czyta vault jak uruchomienie ręczne, przechodzi przez ten sam przegląd przed wysłaniem, liczy się do Twojego zużycia i zostawia swoją rozmowę w historii, gdzie zastępuje ją jego następne uruchomienie — chyba że jest otwarta albo jest w niej coś od Ciebie; wtedy zostaje. Potem każdy scenariusz pokazuje wynik słowami, a wiersz umiejętności mówi, jak poszło jej ostatnie uruchomienie. Wynik dotyczy jednego modelu i jednej wersji umiejętności: gdy wybierzesz inny model albo zmienisz umiejętność, wiersz to powie, zamiast pokazywać wynik, który już się nie liczy. Niektóre dołączone scenariusze pytają o notatki z testowego vaultu Plainvy; w Twoim vaulcie nie mają zastosowania, a okno liczy je osobno, zamiast uznawać je za niezaliczone.
 
 ## Uczenie się z rozmowy
 

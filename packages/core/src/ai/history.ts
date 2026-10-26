@@ -297,6 +297,12 @@ export interface ConversationRecord {
   /** The skill, the catalog and AGENTS.md its system prompt carries (plan KI-Harness P3). */
   instructions?: ConversationInstructions;
   /**
+   * The title the app gave a conversation one of its own runs made — a
+   * routine's, a scenario's of a regression run (strand 6, step 9): the app
+   * deletes such a conversation only while it still bears it.
+   */
+  appTitle?: string;
+  /**
    * The conversation was begun for a model on this device (ADR 0018): what it
    * was given from its first message on was put together for a reader that
    * may see what no cloud may. It goes on with a model on this device only.
@@ -383,6 +389,7 @@ export function readConversationRecord(raw: unknown): ConversationRecord | null 
     pins: Array.isArray(r.pins) ? r.pins.filter((p): p is string => typeof p === "string") : [],
     ...(Array.isArray(r.redact) ? { redact: r.redact.filter((p): p is string => typeof p === "string") } : {}),
     ...(readInstructions(r.instructions) ? { instructions: readInstructions(r.instructions)! } : {}),
+    ...(typeof r.appTitle === "string" ? { appTitle: r.appTitle } : {}),
     ...(r.onDevice === true ? { onDevice: true as const } : {}),
     ...(readReplayOf(r.replayOf) ? { replayOf: readReplayOf(r.replayOf)! } : {}),
   };
