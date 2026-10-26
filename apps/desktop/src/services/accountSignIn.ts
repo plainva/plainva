@@ -367,7 +367,7 @@ async function bindMail(vaultPath: string, cardId: string, completed: CompletedS
   const account: MailAccountConfig = {
     id, label: completed.email, kind: "gmail", host: "imap.gmail.com", port: 993, user: completed.email, smtpHost: "smtp.gmail.com", smtpPort: 465,
   };
-  await saveBrokerMailAccount(vaultPath, account);
+  await saveBrokerMailAccount(vaultPath, account, "connect");
   return { mailAccountId: id };
 }
 
@@ -376,7 +376,7 @@ async function addPasswordMailbox(vaultPath: string, input: { email: string; pas
   const config: Omit<MailAccountConfig, "id" | "label"> = { host: "imap.gmail.com", port: 993, user: input.email, smtpHost: "smtp.gmail.com", smtpPort: 465 };
   await checkMailLogin(config, input.pass);
   const id = crypto.randomUUID();
-  await saveMailAccount(vaultPath, { id, label: input.email, ...config }, input.pass);
+  await saveMailAccount(vaultPath, { id, label: input.email, ...config }, input.pass, "connect");
   return id;
 }
 

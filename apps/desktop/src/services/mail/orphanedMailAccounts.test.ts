@@ -89,7 +89,7 @@ describe("the rule", () => {
 
 describe("finding incomplete accounts", () => {
   it("finds the entries a failed setup left behind, and nothing that works", async () => {
-    await saveMailAccount(VAULT, account("working"), "pw");
+    await saveMailAccount(VAULT, account("working"), "pw", "connect");
     await putEntryWithoutPassword(account("orphan1"));
     await putEntryWithoutPassword(account("orphan2"));
     expect((await findOrphanedMailAccounts(VAULT, db)).map((a) => a.id)).toEqual(["orphan1", "orphan2"]);
@@ -121,7 +121,7 @@ describe("the fetch marker", () => {
   const page = { total: 1, unseen: 0, messages: [{ uid: 7, subject: "S", from: "a@b.invalid", dateTs: Date.parse("2026-09-24T09:00:00Z"), seen: false, flagged: false }] };
 
   it("is written once, on the first fetch that works", async () => {
-    await saveMailAccount(VAULT, account("m"), "pw");
+    await saveMailAccount(VAULT, account("m"), "pw", "connect");
     let calls = 0;
     setMailPlatform({
       transport: { listEnvelopes: async () => { calls++; return page; } } as unknown as MailTransport,
@@ -138,7 +138,7 @@ describe("the fetch marker", () => {
   });
 
   it("is not written by a fetch that fails", async () => {
-    await saveMailAccount(VAULT, account("m"), "pw");
+    await saveMailAccount(VAULT, account("m"), "pw", "connect");
     setMailPlatform({
       transport: { listEnvelopes: async () => { throw new Error("authentication failed"); } } as unknown as MailTransport,
       http: { api: fetch, token: fetch },
@@ -150,7 +150,7 @@ describe("the fetch marker", () => {
 
 describe("removing one", () => {
   it("removes only that entry", async () => {
-    await saveMailAccount(VAULT, account("working"), "pw");
+    await saveMailAccount(VAULT, account("working"), "pw", "connect");
     await putEntryWithoutPassword(account("orphan"));
     await expect(removeOrphanedMailAccount(VAULT, "orphan", db)).resolves.toBe("removed");
     expect((await listMailAccounts(VAULT)).map((a) => a.id)).toEqual(["working"]);
@@ -165,7 +165,7 @@ describe("removing one", () => {
   });
 
   it("never removes a working account, whatever id is passed", async () => {
-    await saveMailAccount(VAULT, account("working"), "pw");
+    await saveMailAccount(VAULT, account("working"), "pw", "connect");
     await expect(removeOrphanedMailAccount(VAULT, "working", db)).resolves.toBe("kept");
     expect((await listMailAccounts(VAULT)).map((a) => a.id)).toEqual(["working"]);
   });

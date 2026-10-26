@@ -112,7 +112,7 @@ export async function bindMicrosoftMailAccount(vault: string, clientId: string, 
   const account: MailAccountConfig = { ...previous, id, label: previous?.label || address, host: "", port: 0, user: address, kind: "microsoft", clientId };
   const oldToken = previous ? await getMailRefreshToken(vault, id) : null;
   try {
-    await saveMicrosoftMailAccount(vault, account, refreshToken);
+    await saveMicrosoftMailAccount(vault, account, refreshToken, "connect");
     await bindMailToConnection(context, id, profile!.identity);
     await recordConnectOutcome(context, "mail", { state: previous ? "alreadyConnected" : "connected", bindingId: id });
     } catch (err) {
@@ -120,7 +120,7 @@ export async function bindMicrosoftMailAccount(vault: string, clientId: string, 
       const bound = context?.cloudAccountId && (await loadCloudAccounts(vault)).find(r => r.id === context.cloudAccountId)?.services.mail?.mailAccountId === id;
       const ownRow = (await listMailAccounts(vault)).find(a => a.id === id);
       if (!bound && sameStoredValue(ownRow, account) && await getMailRefreshToken(vault, id) === refreshToken) {
-      if (previous) await saveMicrosoftMailAccount(vault, previous, oldToken ?? "");
+      if (previous) await saveMicrosoftMailAccount(vault, previous, oldToken ?? "", "edit");
       else await removeMailAccount(vault, id);
     }
     throw err;

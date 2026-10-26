@@ -22,7 +22,7 @@ import {
   type JournalCheckResult,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { connectionErrorText, formatListingReport, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, syncStateBindingFor, type SyncStateBinding, type SyncStateBindingDecision } from "@plainva/ui";
+import { connectionErrorText, formatListingReport, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision } from "@plainva/ui";
 import { assertEmptyRemoteVault } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
@@ -651,6 +651,20 @@ async function bindMobileSyncState(v: MobileVault, p: MobileSyncProvider): Promi
   }, binding);
 }
 
+/** Whether the vault synced before, read before the binding so a reset cannot hide it; the registry keeps it. */
+async function mobileSyncedBefore(v: MobileVault): Promise<boolean> {
+  return vaultSyncedBefore({
+    recorded: async () => (await getVaultEntry(v.vaultId))?.syncedBefore === true,
+    record: () => markMobileSyncedBefore(v.vaultId),
+    confirmedRemoteFiles: async () => (await v.syncRepo?.hasConfirmedRemoteFiles()) ?? false,
+  });
+}
+
+async function markMobileSyncedBefore(vaultId: string): Promise<void> {
+  if ((await getVaultEntry(vaultId))?.syncedBefore === true) return;
+  await updateVault(vaultId, { syncedBefore: true });
+}
+
 async function loadVaultCloudAccounts(vaultId: string): Promise<CloudAccountRecord[]> {
   const { loadCloudAccounts } = await import("./cloudAccountsStore");
   return loadCloudAccounts(vaultId).catch(() => []);
@@ -1084,7 +1098,9 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   // (finding 2026-09-20): not finding it is then an error with a way out, not
   // a reason to compare every known file against an empty one. Probes and
   // pickers build their targets elsewhere and keep the default.
-  const hasSyncedBefore = (await v.syncRepo?.hasConfirmedRemoteFiles().catch(() => false)) ?? false;
+  // A fact of the vault, not of its records: a reset of the sync state never
+  // makes a vault that synced before "new" again (fifth review, finding 2).
+  const hasSyncedBefore = !rootCreationAllowed(await mobileSyncedBefore(v).catch(() => true));
   if ("allowRootCreation" in rawTarget) (rawTarget as { allowRootCreation: boolean }).allowRootCreation = !hasSyncedBefore;
   // Drive only: the folder id learned by NAME, kept until a full listing of it
   // has held — then stored, so the id addresses the folder from now on (A4).
@@ -1214,6 +1230,8 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     setProgress(p ? { current: p.current, total: p.total } : null);
   };
   w.onFirstCycleComplete = () => {
+    // From now on a missing cloud folder is an error, never a new one (fifth review, 2).
+    void markMobileSyncedBefore(v.vaultId).catch((e) => console.error("[syncService] could not record the first sync", e));
     void v.syncQueue!.enqueueLocalOnlyFiles().catch(() => {});
     v.markFirstSyncComplete();
     // The remote content is here now, so anchored notes exist and can be

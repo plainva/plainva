@@ -18,7 +18,7 @@ describe("Gmail account adoption", () => {
     const result = await completeGmailSignIn("vault", token, "access", p, source);
     expect(result.services.calendar).toEqual(source.services.calendar);
     expect(result.services.mail).toBeDefined();
-    expect(state.saveMail).toHaveBeenCalledWith("vault", expect.objectContaining({ kind: "gmail", smtpHost: "smtp.gmail.com", user: source.label }));
+    expect(state.saveMail).toHaveBeenCalledWith("vault", expect.objectContaining({ kind: "gmail", smtpHost: "smtp.gmail.com", user: source.label }), "connect");
     expect(p.saveGrant).toHaveBeenCalledWith(source.id, expect.objectContaining({ providerIdentity: source.verifiedProviderIdentity, scopes: GOOGLE_MAIL_SCOPES }));
   });
   it("preserves all existing services after the user selects another Google identity", async () => {

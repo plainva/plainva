@@ -10,11 +10,13 @@ import {
   SyncEngine,
   SyncQueue,
   SyncStateRepository,
+  SyncRootMissingError,
   SyncWorker,
+  WebDavSyncTarget,
   dropboxFolderIdentity,
   dropboxRootPath,
 } from "@plainva/core";
-import { syncStateBindingDecision, syncStateBindingFor } from "@plainva/ui";
+import { rootCreationAllowed, syncStateBindingDecision, syncStateBindingFor } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 
@@ -39,7 +41,7 @@ vi.mock("./settingsStore", () => ({
 }));
 vi.mock("./cloudAccounts", () => ({ loadCloudAccounts: async () => [] }));
 
-import { bindVaultSyncState } from "./filesSwitch";
+import { bindVaultSyncState, syncedBeforeForVault } from "./filesSwitch";
 
 type Remote = Map<string, { text: string; etag: string }>;
 
@@ -274,5 +276,39 @@ describe("one target or another (fourth review, finding 1)", () => {
     const vault = readFileSync(join(__dirname, "..", "contexts", "VaultContext.tsx"), "utf8");
     const phone = readFileSync(join(__dirname, "..", "..", "..", "mobile", "src", "services", "syncService.ts"), "utf8");
     for (const source of [vault, phone]) expect(source).not.toMatch(/allowRootCreation = true/);
+  });
+});
+
+describe("a vault that synced before stays one, whatever its records say (fifth review, finding 2)", () => {
+  it("after a reset and a cycle that confirmed nothing, the next start creates no folder: the folder is missing, said as such", async () => {
+    const vault = await syncedVault();
+    // Synced with folder A: the fact is taken from the records the first time it is asked.
+    expect(await syncedBeforeForVault("/v", vault.repo)).toBe(true);
+    // Connected to folder B: the records go.
+    expect(await bindVaultSyncState("/v", FOLDER_A, { queue: vault.queue, records: vault.repo })).toBe("adopt");
+    expect(await bindVaultSyncState("/v", FOLDER_B, { queue: vault.queue, records: vault.repo })).toBe("reset");
+    expect(await vault.repo.hasConfirmedRemoteFiles()).toBe(false);
+    // Its first cycle found nothing up there to confirm (the folder briefly gone).
+    await vault.cycle(new Map()).catch(() => undefined);
+    expect(await vault.repo.hasConfirmedRemoteFiles()).toBe(false);
+
+    // The next start: the vault synced before, so the folder may not be created.
+    const synced = await syncedBeforeForVault("/v", vault.repo);
+    expect(synced).toBe(true);
+    const target = new WebDavSyncTarget({ url: "https://dav.example/files/anna/other/", user: "anna", pass: "x" }, (async () => new Response("", { status: 404 })) as unknown as typeof fetch);
+    target.allowRootCreation = rootCreationAllowed(synced);
+    await expect(target.pull()).rejects.toBeInstanceOf(SyncRootMissingError);
+  });
+
+  it("a vault that never synced may create its folder", async () => {
+    expect(await syncedBeforeForVault("/new", { hasConfirmedRemoteFiles: async () => false })).toBe(false);
+    expect(rootCreationAllowed(false)).toBe(true);
+  });
+
+  it("is what the desktop asks before it builds a target, and records on the first cycle", () => {
+    const source = readFileSync(join(__dirname, "..", "contexts", "VaultContext.tsx"), "utf8");
+    expect(source).toMatch(/const hasSyncedBefore = !rootCreationAllowed\(await syncedBeforeForVault\(path, syncRepo\)/);
+    expect(source).toMatch(/onFirstCycleComplete = \(\) => \{\s*\/\/[^\n]*\n\s*void markVaultSyncedBefore\(path\)/);
+    expect(source).not.toMatch(/hasSyncedBefore = await syncRepo\.hasConfirmedRemoteFiles/);
   });
 });

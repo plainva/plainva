@@ -66,7 +66,7 @@ beforeEach(async () => {
   state.settings.set(cloudAccountsRegistryKey(vault), [structuredClone(record)]);
   write(filesKey, { url: "https://files.example.invalid", user: "user", pass: "old-files" });
   write(calendarKey, { kind: "caldav", url: "https://calendar.example.invalid", user: "user", pass: "old-calendar" });
-  await saveMailAccount(vault, { id: "mail", label: "Before", host: "imap.example.invalid", port: 993, user: "user", signature: "Before" }, "old-mail");
+  await saveMailAccount(vault, { id: "mail", label: "Before", host: "imap.example.invalid", port: 993, user: "user", signature: "Before" }, "old-mail", "connect");
 });
 afterEach(() => { if (previousPlatform) setPlatformServices(previousPlatform); vi.unstubAllGlobals(); });
 
@@ -112,7 +112,7 @@ describe("password repair through actual account and protected credential slots"
     state.afterProbe = async (service) => {
       if (service !== "mail") return;
       const account = (await listMailAccounts(vault))[0];
-      await saveMailAccount(vault, { ...account, label: "Renamed", signature: "New signature" }, "old-mail");
+      await saveMailAccount(vault, { ...account, label: "Renamed", signature: "New signature" }, "old-mail", "edit");
     };
     await beginPasswordChange(ports(), "new-password");
     expect((await listMailAccounts(vault))[0]).toMatchObject({ label: "Renamed", signature: "New signature" });
@@ -123,7 +123,7 @@ describe("password repair through actual account and protected credential slots"
     state.afterProbe = async (service) => {
       if (service !== "mail") return;
       const account: MailAccountConfig = (await listMailAccounts(vault))[0];
-      await saveMailAccount(vault, { ...account, host: "other.example.invalid" }, "independent");
+      await saveMailAccount(vault, { ...account, host: "other.example.invalid" }, "independent", "edit");
     };
     await expect(beginPasswordChange(ports(), "new-password")).rejects.toMatchObject({ phase: "changed", service: "mail" });
     expect(filePassword()).toBe("old-files");

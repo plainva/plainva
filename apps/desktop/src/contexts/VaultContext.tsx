@@ -1,4 +1,4 @@
-import { afterTaskSyncResume, clearPinboardCache, filesRunState, filesStoppedStatus, InlineSuggestProvider, syncStateBindingFor } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache, filesRunState, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText, WORKSPACE_FORKS_FOLDER } from "@plainva/core";
@@ -15,7 +15,7 @@ import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { fileBrokerTokenProvider } from "../services/accountBroker";
 import { migrateVaultGrants } from "../services/accountGrantMigration";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
-import { bindVaultSyncState, filesAccountIdForVault, filesIdentityForVault, filesOffForVault, isSyncPausedHere, queuesLocalChanges } from "../services/filesSwitch";
+import { bindVaultSyncState, filesAccountIdForVault, filesIdentityForVault, filesOffForVault, isSyncPausedHere, markVaultSyncedBefore, queuesLocalChanges, syncedBeforeForVault } from "../services/filesSwitch";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
 import { settlePendingWrites } from "../services/pendingWrites";
@@ -1314,7 +1314,9 @@ export const VaultProvider: React.FC<{
         // folder (finding 2026-09-20): not finding the folder is then an error
         // with a way out, not a reason to compare 1142 known files against an
         // empty one.
-        const hasSyncedBefore = await syncRepo.hasConfirmedRemoteFiles().catch(() => false);
+        // A fact of the vault, not of its records: a reset of the sync state
+        // never makes a vault that synced before "new" again (fifth review, 2).
+        const hasSyncedBefore = !rootCreationAllowed(await syncedBeforeForVault(path, syncRepo).catch(() => true));
         // Drive only: the folder id learned by NAME, kept until a listing of it
         // has held (see onFullListingTrusted below).
         let resolvedDriveRoot: { id: string; path: string } | null = null;
@@ -1625,6 +1627,8 @@ export const VaultProvider: React.FC<{
               syncStatusStore.set(path, { progress });
             };
             syncWorker.onFirstCycleComplete = () => {
+              // From now on a missing cloud folder is an error, never a new one (fifth review, 2).
+              void markVaultSyncedBefore(path).catch((e) => console.error("[VaultContext] could not record the first sync", e));
               // The vault has its remote content now, so anchored notes exist
               // and can be adopted rather than imported a second time (E7).
               firstSyncSettled = true;

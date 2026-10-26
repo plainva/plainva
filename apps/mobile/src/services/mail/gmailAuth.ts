@@ -35,7 +35,7 @@ export async function connectGmailFromCard(): Promise<void> {
       await mailTransport().checkLogin({ host: "imap.gmail.com", port: 993, user: email, pass: access, auth: "xoauth2" });
       const id = await stableGmailId(token.providerIdentity.subject);
       const account: MailAccountConfig = { id, label: email, kind: "gmail", host: "imap.gmail.com", port: 993, user: email, smtpHost: "smtp.gmail.com", smtpPort: 465 };
-      await saveBrokerMailAccount(context.vaultId, account);
+      await saveBrokerMailAccount(context.vaultId, account, "connect");
       await bindMailToConnection(context, id, token.providerIdentity);
       await recordConnectOutcome(context, "mail", { state: "connected", bindingId: id });
       notifyMailChanged();

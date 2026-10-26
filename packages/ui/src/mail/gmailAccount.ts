@@ -54,7 +54,7 @@ export async function completeGmailSignIn(vault: string, token: StoredAccountTok
     const current = await ports.read();
     const latest = current.find(item => item.id === id);
     if (source && (!latest || accountLoginBinding(latest) !== accountLoginBinding(source))) throw new Error("The account changed during sign-in");
-    await saveBrokerMailAccount(vault, { ...mailbox, id: mailId, label: mailbox?.label || profile.label!, kind: "gmail", host: "imap.gmail.com", port: 993, user: profile.label!, smtpHost: "smtp.gmail.com", smtpPort: 465 });
+    await saveBrokerMailAccount(vault, { ...mailbox, id: mailId, label: mailbox?.label || profile.label!, kind: "gmail", host: "imap.gmail.com", port: 993, user: profile.label!, smtpHost: "smtp.gmail.com", smtpPort: 465 }, "connect");
     const updated = latest ? { ...latest, verifiedProviderIdentity: profile.identity, services: record.services } : record;
     await ports.write([...current.filter(item => item.id !== id), updated]);
     const saved = (await ports.read()).find(item => item.id === id);

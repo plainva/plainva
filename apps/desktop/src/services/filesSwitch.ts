@@ -1,4 +1,4 @@
-import { bindSyncState, isServiceOff, type SyncStateBinding, type SyncStateBindingDecision, type VerifiedProviderIdentity } from "@plainva/ui";
+import { bindSyncState, isServiceOff, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, type VerifiedProviderIdentity } from "@plainva/ui";
 import { loadCloudAccounts } from "./cloudAccounts";
 import { getSettingsStore } from "./settingsStore";
 
@@ -72,6 +72,32 @@ export async function bindVaultSyncState(
     save: async (binding) => { await store.set(syncStateBindingKey(vaultPath), binding); await store.save(); },
     clear: async () => { await state.queue.clearAll(); await state.records.clearAll(); },
   }, current);
+}
+
+/**
+ * Whether this vault has ever synced with a remote, kept in the settings and
+ * never taken back by a reset of its sync state (fifth review of plan
+ * "Verbinden", finding 2). Read before the binding, so a reset on the same
+ * start cannot hide it.
+ */
+export const syncedBeforeKey = (vaultPath: string) =>
+  `vaultSyncedBefore_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+
+export async function syncedBeforeForVault(vaultPath: string, records: { hasConfirmedRemoteFiles(): Promise<boolean> }): Promise<boolean> {
+  const store = await getSettingsStore();
+  return vaultSyncedBefore({
+    recorded: async () => (await store.get<boolean>(syncedBeforeKey(vaultPath))) === true,
+    record: () => markVaultSyncedBefore(vaultPath),
+    confirmedRemoteFiles: () => records.hasConfirmedRemoteFiles(),
+  });
+}
+
+/** Records that the vault synced (its first cycle completed); never undone. */
+export async function markVaultSyncedBefore(vaultPath: string): Promise<void> {
+  const store = await getSettingsStore();
+  if ((await store.get<boolean>(syncedBeforeKey(vaultPath))) === true) return;
+  await store.set(syncedBeforeKey(vaultPath), true);
+  await store.save();
 }
 
 /** The account the vault's files card proved, where it has one. */

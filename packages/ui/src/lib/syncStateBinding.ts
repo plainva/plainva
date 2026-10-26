@@ -148,3 +148,42 @@ export async function bindSyncState(ports: SyncStateBindingPorts, current: SyncS
   if (!sameStoredValue(stored, merged)) await ports.save(merged);
   return decision;
 }
+
+/**
+ * Whether the vault has ever synced with a remote - a fact of the vault, kept
+ * apart from the sync records (fifth review of plan "Verbinden", finding 2).
+ *
+ * Whether a missing cloud folder may be created hung on the records: "has
+ * this vault confirmed remote files". A reset of the sync state empties them,
+ * and a first cycle after it that confirms nothing (the folder briefly gone, a
+ * listing that failed) left the next start free to create a new, empty folder
+ * for a vault that had synced for months - the 2026-09-20 class, in two steps.
+ * So the fact is recorded once and never taken back by a reset, a clear or a
+ * new binding: as soon as records show the vault synced (which also carries it
+ * over for every vault that synced before this rule), and when a first cycle
+ * completes.
+ */
+export interface SyncedBeforePorts {
+  /** The recorded fact (registry or settings). */
+  recorded(): Promise<boolean>;
+  record(): Promise<void>;
+  /** The sync records confirm remote files - the evidence before anything was recorded. */
+  confirmedRemoteFiles(): Promise<boolean>;
+}
+
+export async function vaultSyncedBefore(ports: SyncedBeforePorts): Promise<boolean> {
+  if (await ports.recorded().catch(() => false)) return true;
+  if (!(await ports.confirmedRemoteFiles().catch(() => false))) return false;
+  await ports.record();
+  return true;
+}
+
+/**
+ * Whether a target may create its missing cloud folder: only for a vault that
+ * has never synced. Everything else - a vault that synced before, whatever its
+ * records say now - gets the error with the folder picker instead. A folder the
+ * person chooses to create is created by the picker itself, not by the sync.
+ */
+export function rootCreationAllowed(syncedBefore: boolean): boolean {
+  return !syncedBefore;
+}

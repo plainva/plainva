@@ -205,10 +205,10 @@ export async function connectMicrosoftMailAccount(vaultPath: string, clientId: s
   // connect names and to no other, so the name comes first.
   claimPendingMailbox(vaultPath, id);
   const account: MailAccountConfig = { id, label: "Microsoft", host: "", port: 0, user: "", kind: "microsoft", clientId };
-  await saveMicrosoftMailAccount(vaultPath, account, refreshToken);
+  await saveMicrosoftMailAccount(vaultPath, account, refreshToken, "connect");
   try {
     const address = await graphMailAddress(vaultPath, account);
-    await saveMicrosoftMailAccount(vaultPath, { ...account, label: address, user: address }, refreshToken);
+    await saveMicrosoftMailAccount(vaultPath, { ...account, label: address, user: address }, refreshToken, "connect");
     return { id, address };
   } catch (err) {
     // The token cannot read the mailbox: undo the half-connected account.
@@ -230,7 +230,7 @@ async function connectMail(vaultPath: string, req: ConnectRequest): Promise<{ id
   };
   await checkMailLogin(config, m.pass);
   const id = newId();
-  await saveMailAccount(vaultPath, { id, label: m.label?.trim() || m.email, ...config }, m.pass);
+  await saveMailAccount(vaultPath, { id, label: m.label?.trim() || m.email, ...config }, m.pass, "connect");
   return { id, identity: m.email };
 }
 

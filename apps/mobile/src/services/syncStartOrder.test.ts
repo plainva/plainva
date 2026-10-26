@@ -27,6 +27,14 @@ const state = vi.hoisted(() => ({
   /** What happened, in order: a reset of the sync state, a worker built. */
   log: [] as string[],
   settingsOnly: [] as Array<{ running: boolean }>,
+  /** The sync records confirm remote files (cleared with them). */
+  confirmed: false,
+  /** The registry's fact that the vault synced before. */
+  syncedBefore: false,
+  /** The target each file worker was built with. */
+  targets: [] as Array<{ allowRootCreation?: boolean }>,
+  /** Each file worker, to complete its first cycle by hand. */
+  workerHooks: [] as Array<{ onFirstCycleComplete?: () => void }>,
 }));
 
 vi.mock("@plainva/core", async (original) => {
@@ -39,7 +47,14 @@ vi.mock("@plainva/core", async (original) => {
     async pushSettingsNow() {}
   }
   class FakeWorker extends FakeRunning {
-    constructor() { super(); state.workers.push(this); state.log.push("worker"); }
+    onFirstCycleComplete?: () => void;
+    constructor(...args: unknown[]) {
+      super();
+      state.workers.push(this);
+      state.log.push("worker");
+      if (args[1] && typeof args[1] === "object") state.targets.push(args[1] as { allowRootCreation?: boolean });
+      state.workerHooks.push(this);
+    }
     verifyDeletionJournal() { return Promise.resolve(null); }
   }
   class FakeSettingsOnly extends FakeRunning {
@@ -87,9 +102,10 @@ vi.mock("./cloudAccountsStore", () => ({
 vi.mock("./vaultRegistry", async (original) => ({
   ...await original<typeof import("./vaultRegistry")>(),
   getActiveVaultEntry: async () => ({ id: "v" }),
-  getVaultEntry: async () => ({ id: "v", provider: "webdav", pausedHere: state.pausedHere }),
-  updateVault: async (_id: string, patch: { pausedHere?: boolean }) => {
+  getVaultEntry: async () => ({ id: "v", provider: "webdav", pausedHere: state.pausedHere, syncedBefore: state.syncedBefore }),
+  updateVault: async (_id: string, patch: { pausedHere?: boolean; syncedBefore?: boolean }) => {
     if (patch.pausedHere !== undefined) state.pausedHere = patch.pausedHere;
+    if (patch.syncedBefore !== undefined) state.syncedBefore = patch.syncedBefore;
   },
 }));
 vi.mock("./vaultService", () => ({ getMobileVault: async () => vault, switchVault: vi.fn() }));
@@ -103,12 +119,12 @@ vi.mock("../adapters/syncUpload", () => ({ createContentRefResolver: () => ({}),
 
 const vault = {
   vaultId: "v",
-  syncQueue: { clearAll: async () => { state.log.push("clear queue"); } },
+  syncQueue: { clearAll: async () => { state.log.push("clear queue"); }, enqueueLocalOnlyFiles: async () => undefined },
   syncRepo: {
-    clearAll: async () => { state.log.push("clear records"); },
+    clearAll: async () => { state.log.push("clear records"); state.confirmed = false; },
     // Where the start waits after it has decided: the gate holds it there.
     hasConfirmedRemoteFiles: () => {
-      if (!state.gate) return Promise.resolve(false);
+      if (!state.gate) return Promise.resolve(state.confirmed);
       state.gate.reached = true;
       return state.gate.promise;
     },
@@ -144,6 +160,10 @@ beforeEach(() => {
   state.log.length = 0;
   state.gate = null;
   state.joinGate = null;
+  state.confirmed = false;
+  state.syncedBefore = false;
+  state.targets.length = 0;
+  state.workerHooks.length = 0;
   state.workers.length = 0;
   state.settingsOnly.length = 0;
 });
@@ -264,5 +284,35 @@ describe("an encrypted workspace's start that a stop overtakes (fourth review, f
 
     expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
     expect(getSyncStatus().status).not.toBe("syncing");
+  });
+});
+
+describe("a vault that synced before stays one, whatever its records say (fifth review, finding 2)", () => {
+  it("after a reset and a cycle that confirmed nothing, the next start creates no folder", async () => {
+    // Synced with folder A.
+    state.confirmed = true;
+    await startSyncIfConfigured(vault);
+    expect(state.targets[0].allowRootCreation).toBe(false);
+    await stopSyncAndDrain();
+    // Connected to another folder: the reset empties the records, and the
+    // first cycle there confirms nothing (the folder briefly gone).
+    state.url = "https://dav.example.test/another-vault";
+    await startSyncIfConfigured(vault);
+    expect(state.log).toContain("clear records");
+    expect(state.confirmed).toBe(false);
+    await stopSyncAndDrain();
+    // The next start: no folder is created; the target says it is missing.
+    await startSyncIfConfigured(vault);
+    expect(state.targets[2].allowRootCreation).toBe(false);
+  });
+
+  it("a vault that never synced may create its folder, until its first cycle has run", async () => {
+    await startSyncIfConfigured(vault);
+    expect(state.targets[0].allowRootCreation).toBe(true);
+    state.workerHooks[0].onFirstCycleComplete?.();
+    await vi.waitFor(() => expect(state.syncedBefore).toBe(true));
+    await stopSyncAndDrain();
+    await startSyncIfConfigured(vault);
+    expect(state.targets[1].allowRootCreation).toBe(false);
   });
 });

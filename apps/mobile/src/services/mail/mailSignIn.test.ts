@@ -141,8 +141,8 @@ beforeEach(() => {
 
 describe("the sign-in a mailbox works with, as the phone registers it", () => {
   it("gives each of two Microsoft mailboxes the sign-in of its own account", async () => {
-    await saveBrokerMailAccount(VAULT, FIRST);
-    await saveBrokerMailAccount(VAULT, SECOND);
+    await saveBrokerMailAccount(VAULT, FIRST, "connect");
+    await saveBrokerMailAccount(VAULT, SECOND, "connect");
     state.records = [card("card-a", FIRST.user, FIRST.id), card("card-b", SECOND.user, SECOND.id)];
     grant("card-a", "sign-in-a");
     grant("card-b", "sign-in-b");
@@ -155,8 +155,8 @@ describe("the sign-in a mailbox works with, as the phone registers it", () => {
   });
 
   it("answers the same whichever card is stored first", async () => {
-    await saveBrokerMailAccount(VAULT, FIRST);
-    await saveBrokerMailAccount(VAULT, SECOND);
+    await saveBrokerMailAccount(VAULT, FIRST, "connect");
+    await saveBrokerMailAccount(VAULT, SECOND, "connect");
     state.records = [card("card-b", SECOND.user, SECOND.id), card("card-a", FIRST.user, FIRST.id)];
     grant("card-a", "sign-in-a");
     grant("card-b", "sign-in-b");
@@ -169,8 +169,8 @@ describe("the sign-in a mailbox works with, as the phone registers it", () => {
     // The phone's ordinary second mailbox: connected from the mail settings,
     // its sign-in in its own slot, and no card — nothing reconciles the
     // registry here. This is the state the built app was seen in.
-    await saveBrokerMailAccount(VAULT, FIRST);
-    await saveMicrosoftMailAccount(VAULT, SECOND, "own-sign-in-b");
+    await saveBrokerMailAccount(VAULT, FIRST, "connect");
+    await saveMicrosoftMailAccount(VAULT, SECOND, "own-sign-in-b", "connect");
     state.records = [card("card-a", FIRST.user, FIRST.id)];
     grant("card-a", "sign-in-a");
 
@@ -184,8 +184,8 @@ describe("the sign-in a mailbox works with, as the phone registers it", () => {
     // Stage B adopts a mailbox's own sign-in into the card that points at it.
     // For every mailbox after the first that never ran: the first card
     // answered before the second was looked at.
-    await saveBrokerMailAccount(VAULT, FIRST);
-    await saveMicrosoftMailAccount(VAULT, SECOND, "own-sign-in-b");
+    await saveBrokerMailAccount(VAULT, FIRST, "connect");
+    await saveMicrosoftMailAccount(VAULT, SECOND, "own-sign-in-b", "connect");
     state.records = [card("card-a", FIRST.user, FIRST.id), card("card-b", SECOND.user, SECOND.id)];
     grant("card-a", "sign-in-a");
     state.profiles.set("access:own-sign-in-b", { id: "provider-id-b", mail: SECOND.user });
@@ -204,7 +204,7 @@ describe("the sign-in a mailbox works with, as the phone registers it", () => {
   it("keeps a mailbox on its own sign-in when its card belongs to another account", async () => {
     // The card says one address, the provider answers with another: the
     // adoption refuses, and the mailbox goes on with what it has.
-    await saveMicrosoftMailAccount(VAULT, SECOND, "own-sign-in-b");
+    await saveMicrosoftMailAccount(VAULT, SECOND, "own-sign-in-b", "connect");
     state.records = [card("card-b", "someone-else@example.net", SECOND.id)];
     state.profiles.set("access:own-sign-in-b", { id: "provider-id-b", mail: SECOND.user });
 
@@ -217,8 +217,8 @@ describe("the sign-in a mailbox works with, as the phone registers it", () => {
     // What the settings sync leaves on this device: the mailbox and its card
     // arrive, the sign-in does not. It used to show the first account's mail
     // under this mailbox's name.
-    await saveBrokerMailAccount(VAULT, FIRST);
-    await saveBrokerMailAccount(VAULT, SECOND);
+    await saveBrokerMailAccount(VAULT, FIRST, "connect");
+    await saveBrokerMailAccount(VAULT, SECOND, "connect");
     state.records = [card("card-a", FIRST.user, FIRST.id), card("card-b", SECOND.user, SECOND.id)];
     grant("card-a", "sign-in-a");
 
@@ -233,8 +233,8 @@ describe("the sign-in a mailbox works with, as the phone registers it", () => {
   });
 
   it("says that no card carries a mailbox when none points at it", async () => {
-    await saveBrokerMailAccount(VAULT, FIRST);
-    await saveBrokerMailAccount(VAULT, SECOND);
+    await saveBrokerMailAccount(VAULT, FIRST, "connect");
+    await saveBrokerMailAccount(VAULT, SECOND, "connect");
     state.records = [card("card-a", FIRST.user, FIRST.id)];
     grant("card-a", "sign-in-a");
 
@@ -246,8 +246,8 @@ describe("the sign-in a mailbox works with, as the phone registers it", () => {
     // Two cards of two families that both carry mail: the one that is not
     // first was handed the other family's token, which its server refuses.
     const gmail = mailbox("box-g", "anna@gmail.com", "gmail");
-    await saveBrokerMailAccount(VAULT, FIRST);
-    await saveBrokerMailAccount(VAULT, gmail);
+    await saveBrokerMailAccount(VAULT, FIRST, "connect");
+    await saveBrokerMailAccount(VAULT, gmail, "connect");
     state.records = [card("card-a", FIRST.user, FIRST.id), card("card-g", gmail.user, gmail.id, "google")];
     grant("card-a", "sign-in-a");
     state.secrets.set(accountSecretKey(VAULT, "card-g"), {

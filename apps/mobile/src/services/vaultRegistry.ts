@@ -36,6 +36,12 @@ export interface VaultEntry {
    * flag, so that the app resuming its pause cannot undo it (review finding 5b).
    */
   pausedHere?: boolean;
+  /**
+   * The vault has synced with a remote at least once; never taken back by a
+   * reset of its sync state (fifth review of plan "Verbinden", finding 2): a
+   * missing cloud folder is then an error, never a new empty one.
+   */
+  syncedBefore?: boolean;
   /** Set for a vault in a user-picked folder outside the app container. */
   external?: ExternalFolderRef;
 }

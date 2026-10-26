@@ -339,13 +339,14 @@ export function MailAccountsScreen({
       const oldPassword = existing ? await getMailPassword(vault, existing.id) : null;
       await checkMailLogin({ host: account.host, port: account.port, user: account.user, kind: "imap" }, password);
       if (mailVaultId() !== vault) throw new ServiceConnectionError("accountChanged");
-      await saveMailAccount(vault, account, password);
+      // The form edits a mailbox from its page, or connects one (fifth review, 1).
+      await saveMailAccount(vault, account, password, editing ? "edit" : "connect");
       try { await bindMailToConnection(context, account.id); }
       catch (error) {
         const bound = context?.cloudAccountId && (await loadCloudAccounts(vault)).find(r => r.id === context.cloudAccountId)?.services.mail?.mailAccountId === account.id;
         const ownRow = (await listMailAccounts(vault)).find(a => a.id === account.id);
         if (!bound && sameStoredValue(ownRow, account) && await getMailPassword(vault, account.id) === password) {
-          if (existing) await saveMailAccount(vault, existing, oldPassword ?? "");
+          if (existing) await saveMailAccount(vault, existing, oldPassword ?? "", "edit");
           else await removeMailAccount(vault, account.id);
         }
         throw error;

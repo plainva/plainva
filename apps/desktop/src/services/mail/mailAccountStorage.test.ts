@@ -46,16 +46,16 @@ describe("a new mail account on the desktop store", () => {
       id: "m1", label: "m.muster@gmail.com", host: "imap.gmail.com", port: 993,
       user: "m.muster@gmail.com", smtpHost: "smtp.gmail.com", smtpPort: 465,
     };
-    await saveMailAccount(VAULT, account, "abcd efgh ijkl mnop");
+    await saveMailAccount(VAULT, account, "abcd efgh ijkl mnop", "connect");
     expect(await listMailAccounts(VAULT)).toEqual([account]);
     expect(await getMailPassword(VAULT, "m1")).toBe("abcd efgh ijkl mnop");
   });
 
   it("stores a Microsoft (Graph) mail account with its token", async () => {
     const account: MailAccountConfig = { id: "ms", label: "Microsoft", host: "", port: 0, user: "", kind: "microsoft", clientId: "client" };
-    await saveMicrosoftMailAccount(VAULT, account, "RT");
+    await saveMicrosoftMailAccount(VAULT, account, "RT", "connect");
     // The second save of the same flow: the address is known now.
-    await saveMicrosoftMailAccount(VAULT, { ...account, label: "me@outlook.com", user: "me@outlook.com" }, "RT");
+    await saveMicrosoftMailAccount(VAULT, { ...account, label: "me@outlook.com", user: "me@outlook.com" }, "RT", "connect");
     expect(await listMailAccounts(VAULT)).toEqual([{ ...account, label: "me@outlook.com", user: "me@outlook.com" }]);
     expect(await getMailRefreshToken(VAULT, "ms")).toBe("RT");
   });
@@ -63,8 +63,8 @@ describe("a new mail account on the desktop store", () => {
   it("adds a second account beside an existing one without disturbing it", async () => {
     const first: MailAccountConfig = { id: "a", label: "A", host: "imap.a.invalid", port: 993, user: "a@a.invalid" };
     const second: MailAccountConfig = { id: "b", label: "B", host: "imap.b.invalid", port: 993, user: "b@b.invalid" };
-    await saveMailAccount(VAULT, first, "pa");
-    await saveMailAccount(VAULT, second, "pb");
+    await saveMailAccount(VAULT, first, "pa", "connect");
+    await saveMailAccount(VAULT, second, "pb", "connect");
     expect((await listMailAccounts(VAULT)).map((a) => a.id)).toEqual(["a", "b"]);
     expect(await getMailPassword(VAULT, "a")).toBe("pa");
   });
@@ -76,9 +76,9 @@ describe("a new mail account on the desktop store", () => {
    */
   it("rolls back entry and password when saving really fails", async () => {
     const existing: MailAccountConfig = { id: "keep", label: "Keep", host: "imap.k.invalid", port: 993, user: "k@k.invalid" };
-    await saveMailAccount(VAULT, existing, "pk");
+    await saveMailAccount(VAULT, existing, "pk", "connect");
     store.failNextSave();
-    const failed = saveMailAccount(VAULT, { id: "new", label: "New", host: "imap.n.invalid", port: 993, user: "n@n.invalid" }, "pn");
+    const failed = saveMailAccount(VAULT, { id: "new", label: "New", host: "imap.n.invalid", port: 993, user: "n@n.invalid" }, "pn", "connect");
     await expect(failed).rejects.toThrow("disk full");
     expect(await listMailAccounts(VAULT)).toEqual([existing]);
     expect(secrets.has(mailSecretKey(VAULT, "new"))).toBe(false);
@@ -89,7 +89,7 @@ describe("a new mail account on the desktop store", () => {
     // A store that accepts the call and keeps nothing (a read-only profile).
     const set = store.set;
     store.set = async () => undefined;
-    const failed = saveMailAccount(VAULT, { id: "x", label: "X", host: "imap.x.invalid", port: 993, user: "x@x.invalid" }, "px");
+    const failed = saveMailAccount(VAULT, { id: "x", label: "X", host: "imap.x.invalid", port: 993, user: "x@x.invalid" }, "px", "connect");
     await expect(failed).rejects.toBeInstanceOf(ServiceConnectionError);
     await expect(failed).rejects.toMatchObject({ reason: "storageFailed" });
     store.set = set;

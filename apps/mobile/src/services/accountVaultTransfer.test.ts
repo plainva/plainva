@@ -97,7 +97,7 @@ beforeEach(async () => {
   await cache.replaceTaskLists("calendar", [{ id: "tasks", name: "Not selected" }]);
   await cache.setTaskListSelected("calendar", "tasks", false);
   state.secrets.set("pim-source-calendar", { kind: "caldav", password: "calendar-secret" });
-  await saveMailAccount("source", { id: "mail", label: "Mail", kind: "imap", host: "imap.invalid", port: 993, user: "a" }, "mail-secret");
+  await saveMailAccount("source", { id: "mail", label: "Mail", kind: "imap", host: "imap.invalid", port: 993, user: "a" }, "mail-secret", "connect");
   await saveCloudAccounts("source", [{ id: "account", family: "fastmail", label: "Account", services: { calendar: { pimAccountId: "calendar" }, mail: { mailAccountId: "mail" } } }]);
   await startConnectQueue("fastmail", ["files"], { vaultId: "source", cloudAccountId: "account" });
 });

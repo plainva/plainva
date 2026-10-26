@@ -187,17 +187,22 @@ describe("adding a mailbox", () => {
       openExternal: async () => undefined,
       noteAccountAdded: async (vault, kind, id) => { added.push([vault, kind, id]); },
     });
-    await saveMailAccount("/v", { ...gmail, kind: undefined, id: "imap-1" }, "app-password");
+    await saveMailAccount("/v", { ...gmail, kind: undefined, id: "imap-1" }, "app-password", "connect");
     expect(added).toEqual([["/v", "mail", "imap-1"]]);
   });
 
-  it("records nothing for a new password of a mailbox that is here: a removal made elsewhere still wins (fourth review, finding 2)", async () => {
+  /**
+   * The mailbox is removed on the desktop; the phone has not imported that yet
+   * and still holds it. Then the phone saves it - as a connect, or as an edit
+   * on its page - and the two devices exchange their documents.
+   */
+  async function saveOnThePhoneAfterARemovalElsewhere(intent: "connect" | "edit") {
     const phone = device([gmail], "phone");
     const desktop = device([gmail], "desktop");
     const imap: MailAccountConfig = { ...gmail, kind: undefined, id: "imap-1" };
     phone.state.mail = [imap];
     desktop.state.mail = [imap];
-    // The phone's store holds the mailbox the edit is about.
+    // The phone's store holds the mailbox the save is about.
     const settings = new Map<string, unknown>([[mailAccountsKey("/v"), [imap]]]);
     const secrets = new Map<string, unknown>();
     setPlatformServices({
@@ -218,15 +223,20 @@ describe("adding a mailbox", () => {
       noteAccountAdded: async (_vault, kind, id) => { phone.state.map = forgetRemovedLocalAccount(phone.state.map, kind, id, at(1), "phone"); },
     });
 
-    // Removed on the desktop; the phone has not imported it yet.
     desktop.state.mail = [];
     desktop.state.map = rememberRemovedAccount(desktop.state.map, "mail", imap.id, at(3), "desktop");
-    // On the phone the person types a new password into the mailbox that is still there.
-    await saveMailAccount("/v", imap, "new-password");
+    await saveMailAccount("/v", imap, "new-password", intent);
 
     await importAccountMetadata(desktop.publish(), phone.ports);
-    expect(phone.state.mail).toEqual([]);
     await importAccountMetadata(phone.publish(), desktop.ports);
-    expect(desktop.state.mail).toEqual([]);
+    return { phone: phone.state.mail.map((entry) => entry.id), desktop: desktop.state.mail.map((entry) => entry.id) };
+  }
+
+  it("connecting a mailbox this device still holds is an add: it stays on both devices (fifth review, finding 1)", async () => {
+    expect(await saveOnThePhoneAfterARemovalElsewhere("connect")).toEqual({ phone: ["imap-1"], desktop: ["imap-1"] });
+  });
+
+  it("a new password on the mailbox page records nothing: the removal made elsewhere wins (fourth review, finding 2)", async () => {
+    expect(await saveOnThePhoneAfterARemovalElsewhere("edit")).toEqual({ phone: [], desktop: [] });
   });
 });
