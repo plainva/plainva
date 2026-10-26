@@ -8,7 +8,9 @@ import {
   oauthAccessKey,
   plainvaGoogleClient,
   prepareSignIn,
+  isRetiredPlainvaClient,
   readStoredOAuthAccess,
+  retiredAccessReplacement,
   replaceProtectedSlot,
   resolveOAuthAccess,
   validClientId,
@@ -76,6 +78,11 @@ const env = (): Record<string, unknown> => import.meta.env as unknown as Record<
  */
 export async function readDeviceAccess(family: OAuthFamily, vaultPath?: string): Promise<StoredOAuthAccess | null> {
   const stored = readStoredOAuthAccess(await credentialManager.readSecret<unknown>(oauthAccessKey(family)));
+  const replacement = retiredAccessReplacement(family, stored);
+  if (replacement) {
+    await credentialManager.writeSecret(oauthAccessKey(family), replacement);
+    return replacement;
+  }
   if (stored || !vaultPath) return stored;
   // Nothing to adopt is a decision too, and it is kept (finding 2026-10-26):
   // the adoption tells an own client from the standard one by comparing with
@@ -102,6 +109,7 @@ async function adoptHistoricalClient(family: OAuthFamily, vaultPath: string): Pr
   const plainva = plainvaGoogleClient(env(), "desktop");
   const own = (client: { clientId?: string; clientSecret?: string } | null | undefined): StoredOAuthAccess | null =>
     client?.clientId && client.clientSecret && client.clientId !== plainva?.clientId && validClientId("google", client.clientId)
+      && !isRetiredPlainvaClient("google", client.clientId)
       ? { source: "own", clientId: client.clientId, clientSecret: client.clientSecret }
       : null;
   for (const record of await loadCloudAccounts(vaultPath)) {

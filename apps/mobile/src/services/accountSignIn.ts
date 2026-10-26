@@ -8,7 +8,9 @@ import {
   oauthAccessKey,
   plainvaGoogleClient,
   prepareSignIn,
+  isRetiredPlainvaClient,
   readStoredOAuthAccess,
+  retiredAccessReplacement,
   replaceProtectedSlot,
   resolveOAuthAccess,
   SignInNothingGrantedError,
@@ -67,12 +69,18 @@ export { devicePlatform };
 export async function readDeviceAccess(family: OAuthFamily, vaultId?: string): Promise<StoredOAuthAccess | null> {
   const credentials = getPlatformServices().credentials;
   const stored = readStoredOAuthAccess(await credentials.readSecret<unknown>(oauthAccessKey(family)));
+  const replacement = retiredAccessReplacement(family, stored);
+  if (replacement) {
+    await credentials.writeSecret(oauthAccessKey(family), replacement);
+    return replacement;
+  }
   if (stored || !vaultId || family !== "google") return stored;
   // An own client this device held before the plan - in an account's grant
   // or a calendar's slot - becomes its access once, so nobody types it again.
   const plainva = plainvaGoogleClient(env(), devicePlatform());
   const own = (client: { clientId?: string; nativeGoogle?: unknown } | null | undefined): StoredOAuthAccess | null =>
     client?.clientId && !client.nativeGoogle && client.clientId !== plainva?.clientId && validClientId("google", client.clientId)
+      && !isRetiredPlainvaClient("google", client.clientId)
       ? { source: "own", clientId: client.clientId }
       : null;
   for (const record of await loadCloudAccounts(vaultId)) {

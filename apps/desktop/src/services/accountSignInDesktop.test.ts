@@ -199,4 +199,21 @@ describe("this device's access", () => {
     h.secrets.set("drive", { clientId: "previous-standard.apps.googleusercontent.com", clientSecret: "s", refreshToken: "" });
     expect(await readDeviceAccess("google", "V")).toEqual({ source: "plainva" });
   });
+
+  it("moves a device whose own client belongs to the retired project back to the standard sign-in, once (finding 2026-10-26)", async () => {
+    h.secrets = new Map([["oauth_access_google", { source: "own", clientId: "835308879715-bim1pgh5example.apps.googleusercontent.com", clientSecret: "s" }]]);
+    expect(await readDeviceAccess("google", "V")).toEqual({ source: "plainva" });
+    expect(h.secrets.get("oauth_access_google")).toEqual({ source: "plainva" });
+  });
+
+  it("keeps an own client of any other project", async () => {
+    const own = { source: "own", clientId: "123456789012-mine.apps.googleusercontent.com", clientSecret: "s" };
+    h.secrets = new Map([["oauth_access_google", own]]);
+    expect(await readDeviceAccess("google", "V")).toEqual(own);
+  });
+
+  it("never adopts a client of the retired project from the slots", async () => {
+    h.secrets = new Map([["drive", { clientId: "835308879715-bim1pgh5example.apps.googleusercontent.com", clientSecret: "s", refreshToken: "" }]]);
+    expect(await readDeviceAccess("google", "V")).toEqual({ source: "plainva" });
+  });
 });
