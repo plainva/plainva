@@ -2585,6 +2585,8 @@ test('signature: the field fills the settings row and is draggable in height onl
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-open-sync-settings', { detail: { area: 'mail' } })));
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.locator('.pv-navlink', { hasText: /^(E-Mail|Email)$/ }).click();
+  // Sender and signature live on the mail page of the mailbox's account (plan "Verbinden", V3).
+  await page.getByTestId('mail-account-settings-m1').click();
   const editor = page.locator('.pv-mail-cmpeditor').first();
   await expect(editor).toBeVisible();
 
