@@ -54,6 +54,7 @@ import { rotateLegacyFileGrant } from "./accountGrantMigration";
 import { accountCredentialStore } from "./accountCredentialStore";
 import { slot, legacySlot } from "./keychainSlots";
 import { announceCredentials } from "./credentialsAnnouncement";
+import { requestClearSyncState } from "./filesSwitch";
 
 /**
  * Stage-A connect orchestration for the "Cloud-Konten" wizard: per selected
@@ -528,6 +529,8 @@ export async function disableAccountService(
 ): Promise<CloudAccountRecord[]> {
   if (service === "files" && record.services.files) {
     await clearOtherSyncSlots(vaultPath, null);
+    // The old folder's queue and records go with it, at the reload below (second review, B4b).
+    await requestClearSyncState(vaultPath);
     announceCredentials(false);
   } else if (service === "calendar" && record.services.calendar && runtime) {
     await removePimAccount(runtime, vaultPath, record.services.calendar.pimAccountId);

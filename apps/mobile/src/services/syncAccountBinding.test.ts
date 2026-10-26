@@ -106,11 +106,12 @@ describe("the real mobile file service respects its account binding", () => {
     expect(state.secrets.get("sync_provider_mobile_v")).toEqual(files);
   });
 
-  it("clears only a bound slot and resumes that vault", async () => {
+  it("clears only a bound slot, and leaves the person's pause alone (second review, B4a)", async () => {
     state.secrets.set("sync_provider_mobile_v", { provider: "onedrive", creds: { clientId: "microsoft-client", refreshToken: "old-files", rootFolderName: "Existing" } });
     await switchProviderToAccountBroker("v", state.records[1], "microsoft-client");
     expect(state.secrets.get("sync_provider_mobile_v")).toEqual({ provider: "onedrive", creds: { clientId: "microsoft-client", refreshToken: "", rootFolderName: "Existing" } });
-    expect(state.resumed).toHaveBeenCalledWith("v", { paused: false });
+    // No sign-in ends a pause: the registry is not written; the sync restarts through the one start.
+    expect(state.resumed).not.toHaveBeenCalled();
   });
 
   it.each(["drive", "onedrive"] as const)("builds the actual %s target with only its own token provider", async (provider) => {

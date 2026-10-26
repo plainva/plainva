@@ -3779,7 +3779,7 @@
     "mailByAppPassword": "E-mail par mot de passe d’application",
     "mailByAppPasswordHint": "Uniquement parce que l’e-mail est choisi : Gmail via IMAP plutôt que via la connexion Google.",
     "standardSignInLine": "Connexion standard — vous ne saisissez rien. {{provider}} demande tous les services choisis dans une seule fenêtre.",
-    "filesOffLimit": "Tant que les fichiers sont désactivés, cet appareil n’apprend les modifications des autres appareils qu’une fois les fichiers réactivés ; ce qui change ici attend la prochaine synchronisation."
+    "filesOffLimit": "Tant que les fichiers sont désactivés, aucun appareil ne synchronise les notes ; les réglages continuent de circuler, donc la réactivation atteint chaque appareil."
   },
   "comments": {
     "workspaceLocked": "Cet espace de travail est verrouillé sur cet appareil. Ouvre les paramètres de sécurité pour le déverrouiller et lire ou écrire des remarques.",

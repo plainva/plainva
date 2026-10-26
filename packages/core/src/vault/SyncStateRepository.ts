@@ -34,6 +34,16 @@ export interface SyncState {
 
 export class SyncStateRepository {
   private readonly conflictFiles: ConflictFileStore | null;
+  /**
+   * Drops every per-file sync record - when the files of a vault are taken out
+   * of it (an account removed): the records describe the old folder, and a
+   * later connection to another one must start from the files, not from them
+   * (second review of plan "Verbinden", B4b).
+   */
+  async clearAll(): Promise<void> {
+    await this.db.execute("DELETE FROM sync_state");
+  }
+
   constructor(private readonly db: IDatabaseAdapter, files?: IVaultAdapter, deviceId?: string) {
     this.conflictFiles = files ? new ConflictFileStore(files, deviceId ?? "") : null;
   }

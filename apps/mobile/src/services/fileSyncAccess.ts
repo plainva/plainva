@@ -1,4 +1,4 @@
-import { getPlatformServices, isSignedOutSlot } from "@plainva/ui";
+import { filesRunState, getPlatformServices, isSignedOutSlot } from "@plainva/ui";
 import { fileBrokerTokenProvider } from "./accountBroker";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 
@@ -76,21 +76,30 @@ export function resolveMobileFileAccess(
  * password (review of plan "Verbinden", finding 3), and a slot nothing here
  * opens.
  */
+export type MobileSyncStart =
+  | { start: true; settingsOnly: boolean }
+  | { start: false; status: "off" | "error"; messageKey: string | null; queueLocalChanges: boolean };
+
 export function mobileSyncStart(input: {
-  paused?: boolean;
   pausedHere?: boolean;
   filesOff: boolean;
   entryProvider?: string;
   stored: MobileSyncProvider | null;
-}): { start: true } | { start: false; status: "off" | "error"; messageKey: string | null; queueLocalChanges: boolean } {
+}): MobileSyncStart {
   // A vault with a provider keeps queueing what changes on this phone while
   // its sync stands still, so turning it on again sends what changed in the
   // meantime (review finding 4); a vault without one has nothing to send to.
   const queueLocalChanges = !!input.entryProvider;
-  if (input.paused || input.pausedHere || input.filesOff) return { start: false, status: "off", messageKey: null, queueLocalChanges };
-  if (input.stored && isSignedOutSlot(input.stored, "creds")) return { start: false, status: "error", messageKey: "deviceSignIn.needed", queueLocalChanges };
+  const signedOut = !!input.stored && isSignedOutSlot(input.stored, "creds");
+  const run = filesRunState({ filesOff: input.filesOff, pausedHere: !!input.pausedHere, signedOut });
+  if (run === "stopped") {
+    return signedOut
+      ? { start: false, status: "error", messageKey: "deviceSignIn.needed", queueLocalChanges }
+      : { start: false, status: "off", messageKey: null, queueLocalChanges };
+  }
   if (!input.stored) return input.entryProvider ? { start: false, status: "error", messageKey: "cloudAccounts.filesNoAccess", queueLocalChanges } : { start: false, status: "off", messageKey: null, queueLocalChanges };
-  return { start: true };
+  // Files off for the vault: no file moves, the settings profile keeps travelling (second review, B3).
+  return { start: true, settingsOnly: run === "settingsOnly" };
 }
 
 /** Whether the account-wide token of this vault covers the file service. */

@@ -3705,7 +3705,7 @@
     "mailByAppPassword": "通过应用专用密码收发邮件",
     "mailByAppPasswordHint": "仅在选择邮件时：通过 IMAP 使用 Gmail，而不是 Google 登录。",
     "standardSignInLine": "标准登录——无需输入任何内容。{{provider}} 会在一个窗口中请求所有已选服务。",
-    "filesOffLimit": "文件关闭期间，此设备要等文件重新打开后才会获知其他设备上的更改；此处的更改会等到下次同步。"
+    "filesOffLimit": "文件关闭期间，任何设备都不同步笔记；设置仍会同步，因此重新打开会传达到每台设备。"
   },
   "comments": {
     "workspaceLocked": "此工作区在这台设备上已锁定。打开安全设置以解锁工作区，然后即可阅读或撰写批注。",

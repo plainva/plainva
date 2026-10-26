@@ -29,13 +29,19 @@ export interface VaultEntry {
   /** Display name; empty for the local vault (the UI localizes that). */
   name: string;
   provider?: string;
-  /** Sync paused by the app itself (a password change in flight); credentials stay stored. */
+  /** Written by older versions for "Trennen"; read once and moved to `pausedHere` (`migrateLegacyPause`). */
   paused?: boolean;
   /**
    * Sync paused by the person ("Pause sync", plan "Verbinden", V3) - its own
    * flag, so that the app resuming its pause cannot undo it (review finding 5b).
    */
   pausedHere?: boolean;
+  /**
+   * The vault's files were taken out of it while it was not open (an account
+   * removed): its sync queue and per-file records are cleared when it opens
+   * next (second review, B4b).
+   */
+  clearSyncStateOnOpen?: boolean;
   /** Set for a vault in a user-picked folder outside the app container. */
   external?: ExternalFolderRef;
 }
@@ -45,7 +51,7 @@ export function isExternalVault(entry: VaultEntry | null | undefined): entry is 
   return Boolean(entry?.external?.handle);
 }
 
-interface RegistryState {
+export interface RegistryState {
   vaults: VaultEntry[];
   activeId: string;
 }
@@ -68,6 +74,19 @@ async function persist(state: RegistryState): Promise<void> {
   await Preferences.set({ key: KEY, value: JSON.stringify(state) });
 }
 
+/** `paused` (older versions' "Trennen") becomes `pausedHere`; the registry unchanged when there is none. */
+export function migrateLegacyPause(registry: RegistryState): RegistryState {
+  if (!registry.vaults.some((vault) => vault.paused !== undefined)) return registry;
+  return {
+    ...registry,
+    vaults: registry.vaults.map((vault) => {
+      if (vault.paused === undefined) return vault;
+      const { paused, ...rest } = vault;
+      return paused ? { ...rest, pausedHere: true } : rest;
+    }),
+  };
+}
+
 export async function loadRegistry(): Promise<RegistryState> {
   if (cache) return cache;
   const { value } = await Preferences.get({ key: KEY });
@@ -75,8 +94,13 @@ export async function loadRegistry(): Promise<RegistryState> {
     try {
       const parsed = JSON.parse(value) as RegistryState;
       if (parsed?.vaults?.length && parsed.activeId) {
-        cache = parsed;
-        return parsed;
+        // Older versions wrote the person's "Trennen" as `paused`; it is the
+        // person's own pause, `pausedHere`, which no sign-in undoes (second
+        // review, B4a). Moved once, then written back.
+        const migrated = migrateLegacyPause(parsed);
+        cache = migrated;
+        if (migrated !== parsed) await persist(migrated);
+        return migrated;
       }
     } catch {
       /* corrupt registry -> rebuild below */

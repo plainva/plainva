@@ -322,6 +322,32 @@ describe("SyncWorker", () => {
     await expect(w.pushSettingsNow()).resolves.toBeUndefined();
   });
 
+  it("does not keep the settings push waiting behind a running file cycle, and never syncs the profile twice at once (second review, B3)", async () => {
+    let releaseRun: () => void = () => {};
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const settingsSync = {
+      run: vi.fn(async () => {
+        inFlight += 1;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await new Promise<void>((resolve) => { releaseRun = resolve; });
+        inFlight -= 1;
+      }),
+    };
+    const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { settingsSync });
+    // A long file cycle is running.
+    (w as unknown as { currentCycle: Promise<void> }).currentCycle = new Promise<void>(() => {});
+    const first = w.pushSettingsNow();
+    const second = w.pushSettingsNow();
+    await vi.waitFor(() => expect(settingsSync.run).toHaveBeenCalledTimes(1));
+    releaseRun();
+    await first;
+    await vi.waitFor(() => expect(settingsSync.run).toHaveBeenCalledTimes(2));
+    releaseRun();
+    await second;
+    expect(maxInFlight).toBe(1);
+  });
+
   it("a failing profile-sync sideband never fails the file cycle", async () => {
     const settingsSync = { run: vi.fn().mockRejectedValue(new Error("settings boom")) };
     const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { settingsSync });

@@ -3742,7 +3742,7 @@
     "mailByAppPassword": "E-Mail per App-Passwort",
     "mailByAppPasswordHint": "Nur, weil E-Mail gewählt ist: Gmail über IMAP statt über die Google-Anmeldung.",
     "standardSignInLine": "Standard-Anmeldung – Du gibst nichts ein. {{provider}} fragt alle gewählten Dienste in einem Fenster ab.",
-    "filesOffLimit": "Solange Dateien aus sind, erfährt dieses Gerät von Änderungen anderer Geräte erst, wenn Dateien wieder an sind; was sich hier ändert, wartet auf den nächsten Abgleich."
+    "filesOffLimit": "Solange Dateien aus sind, gleicht kein Gerät Notizen ab; die Einstellungen reisen weiter, deshalb erreicht das Wiedereinschalten jedes Gerät."
   },
   "comments": {
     "workspaceLocked": "Dieser Workspace ist auf diesem Gerät gesperrt. Öffne die Sicherheitseinstellungen, um ihn zu entsperren und Anmerkungen zu lesen oder zu schreiben.",

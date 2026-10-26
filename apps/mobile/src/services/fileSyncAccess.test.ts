@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { mobileSyncStart, resolveMobileFileAccess } from "./fileSyncAccess";
 import type { MobileSyncProvider } from "./syncService";
 
@@ -71,18 +73,62 @@ describe("whether the vault's sync worker starts", () => {
   });
 
   it("starts for a WebDAV vault without a password (review finding 2)", () => {
-    expect(mobileSyncStart({ filesOff: false, entryProvider: "webdav", stored: webdav({ pass: "" }) })).toEqual({ start: true });
+    expect(mobileSyncStart({ filesOff: false, entryProvider: "webdav", stored: webdav({ pass: "" }) })).toEqual({ start: true, settingsOnly: false });
   });
 
   it("stays paused while the person paused it, whatever the app does with its own pause (review finding 5b)", () => {
-    expect(mobileSyncStart({ paused: false, pausedHere: true, filesOff: false, entryProvider: "webdav", stored: webdav({ pass: "x" }) }))
+    expect(mobileSyncStart({ pausedHere: true, filesOff: false, entryProvider: "webdav", stored: webdav({ pass: "x" }) }))
+      .toEqual({ start: false, status: "off", messageKey: null, queueLocalChanges: true });
+    // Paused here stops the settings too, also while files are off for the vault (second review, B3).
+    expect(mobileSyncStart({ pausedHere: true, filesOff: true, entryProvider: "webdav", stored: webdav({ pass: "x" }) }))
       .toEqual({ start: false, status: "off", messageKey: null, queueLocalChanges: true });
   });
 
-  it("stands still without a word when files are off for the vault, and says so when nothing here opens the slot", () => {
-    // ...and goes on queueing what changes here, so turning files on again sends it (review finding 4).
-    expect(mobileSyncStart({ filesOff: true, entryProvider: "webdav", stored: webdav({ pass: "x" }) })).toEqual({ start: false, status: "off", messageKey: null, queueLocalChanges: true });
+  it("keeps only the settings travelling while files are off for the vault (second review, B3), and says so when nothing here opens the slot", () => {
+    expect(mobileSyncStart({ filesOff: true, entryProvider: "webdav", stored: webdav({ pass: "x" }) })).toEqual({ start: true, settingsOnly: true });
+    // A device signed out here stays still, settings included.
+    expect(mobileSyncStart({ filesOff: true, entryProvider: "webdav", stored: webdav({ pass: "", signedOutHere: true }) }))
+      .toEqual({ start: false, status: "error", messageKey: "deviceSignIn.needed", queueLocalChanges: true });
     expect(mobileSyncStart({ filesOff: false, entryProvider: "webdav", stored: null })).toEqual({ start: false, status: "error", messageKey: "cloudAccounts.filesNoAccess", queueLocalChanges: true });
     expect(mobileSyncStart({ filesOff: false, stored: null })).toEqual({ start: false, status: "off", messageKey: null, queueLocalChanges: false });
   });
 });
+
+describe("every way a sync starts on the phone (second review, B2)", () => {
+  it("goes through the one decision - no path starts a worker past it", () => {
+    const source = readFileSync(join(__dirname, "syncService.ts"), "utf8");
+    const decided = source.slice(source.indexOf("async function startSyncDecided("), source.indexOf("\n}\n", source.indexOf("async function startSyncDecided(")));
+    // The worker and the settings-only sync are started in exactly one place each: the decided start.
+    expect(source.match(/await startWorker\(/g)).toHaveLength(1);
+    expect(source.match(/await startSettingsOnly\(/g)).toHaveLength(1);
+    expect(decided).toMatch(/await startWorker\(v, stored\)/);
+    expect(decided).toMatch(/await startSettingsOnly\(v, stored\)/);
+    expect(decided).toMatch(/mobileSyncStart\(/);
+    // Nothing else in the app builds a sync worker of its own.
+    const others = ["vaultService.ts", "accountPassword.ts", "accountSignIn.ts", "serviceSwitches.ts"].map((file) => readFileSync(join(__dirname, file), "utf8"));
+    for (const other of others) expect(other).not.toMatch(/new (SyncWorker|EncryptedWorkspaceWorker|SettingsOnlySync)\(/);
+  });
+
+  it("lets no sign-in, password change or switch end the person's pause (B4a)", () => {
+    const files = readdirSync(join(__dirname)).filter((name) => /\.tsx?$/.test(name) && !name.includes(".test."));
+    const writers = files.filter((file) => /pausedHere: false/.test(readFileSync(join(__dirname, file), "utf8")));
+    expect(writers).toEqual(["syncService.ts"]);
+    const sync = readFileSync(join(__dirname, "syncService.ts"), "utf8");
+    // Only "Resume" and taking the files out of the vault end it.
+    expect((sync.match(/pausedHere: false/g) ?? []).length).toBe(2);
+    expect(sync).not.toMatch(/paused: (true|false)/);
+  });
+});
+
+describe("the files of a removed account leave nothing to push (second review, B4b)", () => {
+  it("clear the vault's queue and per-file records - now if it is open, when it opens otherwise", () => {
+    const sync = readFileSync(join(__dirname, "syncService.ts"), "utf8");
+    const disconnect = sync.slice(sync.indexOf("export async function disconnectFiles("), sync.indexOf("export async function clearFileSyncState("));
+    expect(disconnect).toMatch(/await clearFileSyncState\(/);
+    expect(disconnect).toMatch(/clearSyncStateOnOpen: true/);
+    expect(sync).toMatch(/await v\.syncQueue\?\.clearAll\(\);\s*await v\.syncRepo\?\.clearAll\(\);/);
+    const open = readFileSync(join(__dirname, "vaultService.ts"), "utf8");
+    expect(open).toMatch(/if \(entry\.clearSyncStateOnOpen\) \{\s*await queue\?\.clearAll\(\);\s*await syncRepo\.clearAll\(\);/);
+  });
+});
+

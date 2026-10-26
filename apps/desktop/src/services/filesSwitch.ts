@@ -24,9 +24,13 @@ export async function setSyncPausedHere(vaultPath: string, paused: boolean): Pro
 }
 
 export async function filesStoppedHere(vaultPath: string): Promise<boolean> {
+  return (await filesOffForVault(vaultPath)) || isSyncPausedHere(vaultPath);
+}
+
+/** Files switched off for the vault (E3) - on every device, carried in the settings profile. */
+export async function filesOffForVault(vaultPath: string): Promise<boolean> {
   const records = await loadCloudAccounts(vaultPath).catch(() => []);
-  if (records.some((record) => record.services.files && isServiceOff(record, "files"))) return true;
-  return isSyncPausedHere(vaultPath);
+  return records.some((record) => record.services.files && isServiceOff(record, "files"));
 }
 
 /**
@@ -39,4 +43,28 @@ export async function filesStoppedHere(vaultPath: string): Promise<boolean> {
  */
 export function queuesLocalChanges(access: { provider: unknown; blocked: unknown }): boolean {
   return access.provider !== null || access.blocked !== null;
+}
+
+/**
+ * Asks for the vault's sync queue and per-file records to be cleared when it
+ * opens next - after its files were taken out of it (an account removed). A
+ * queue left behind was pushed to whatever folder the vault was connected to
+ * next (second review of plan "Verbinden", B4b). The phone does the same.
+ */
+export const clearSyncStateKey = (vaultPath: string) =>
+  `clearSyncStateOnOpen_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+
+export async function requestClearSyncState(vaultPath: string): Promise<void> {
+  const store = await getSettingsStore();
+  await store.set(clearSyncStateKey(vaultPath), true);
+  await store.save();
+}
+
+/** Whether the vault's sync state is to be cleared now; the request is taken (removed) by asking. */
+export async function takeClearSyncStateRequest(vaultPath: string): Promise<boolean> {
+  const store = await getSettingsStore();
+  if (!(await store.get<boolean>(clearSyncStateKey(vaultPath)).catch(() => false))) return false;
+  await store.delete(clearSyncStateKey(vaultPath));
+  await store.save();
+  return true;
 }

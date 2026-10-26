@@ -1,4 +1,4 @@
-import { sameStoredValue } from "@plainva/core";
+import { sameStoredValue, SettingsOnlySync } from "@plainva/core";
 import { clearMobileCommentWorker, setMobileCommentWorker } from "./commentWorker";
 import {
   DriveSyncTarget,
@@ -250,21 +250,35 @@ export function syncPossible(v: MobileVault): boolean {
   return v.syncQueue !== null && v.syncRepo !== null;
 }
 
-/** Starts the worker for stored credentials; no-op without credentials/queue. */
-export async function startSyncIfConfigured(v: MobileVault): Promise<void> {
-  if (worker || !syncPossible(v)) return;
+/**
+ * Starts the vault's sync for stored credentials; no-op without
+ * credentials/queue. The ONE way a sync starts on the phone (second review of
+ * plan "Verbinden", B2): every other path - a sign-in again, a password
+ * change, a switch - stops what runs and calls this, so "Pause sync", files
+ * off and a sign-out here are always asked. A guard test keeps it that way.
+ */
+export function startSyncIfConfigured(v: MobileVault): Promise<void> {
+  // One start at a time: two callers (the app coming to the front, a switch
+  // arriving) must not both get past the check below and start two workers.
+  const run = startChain.then(() => startSyncDecided(v));
+  startChain = run.catch(() => undefined);
+  return run;
+}
+
+let startChain: Promise<void> = Promise.resolve();
+
+async function startSyncDecided(v: MobileVault): Promise<void> {
+  if (worker || settingsOnlySync || !syncPossible(v)) return;
+  watchFilesSwitch();
   const entry = await getVaultEntry(v.vaultId);
-  // Files switched off for the vault (plan "Verbinden", E3) stand still like a
-  // vault paused on this phone: a decision, not a failure.
-  const { loadCloudAccounts } = await import("./cloudAccountsStore");
-  const filesOff = (await loadCloudAccounts(v.vaultId).catch(() => [])).some((record) => record.services.files && isServiceOff(record, "files"));
-  const stored = entry?.paused || entry?.pausedHere || filesOff ? null : await getStoredProvider(v.vaultId);
+  const filesOff = await filesOffForVault(v.vaultId);
+  const stored = entry?.pausedHere ? null : await getStoredProvider(v.vaultId);
   // "Off" and "configured but unreachable here" used to look the same, and
   // the second one is the one worth saying (finding 2026-08-19): the card
   // reads the registry, so it kept claiming a connection while nothing came
   // through. A paused vault is a decision, not a failure; one signed out on
   // this phone starts no worker at all (review of plan "Verbinden", finding 3).
-  const decision = mobileSyncStart({ paused: entry?.paused, pausedHere: entry?.pausedHere, filesOff, entryProvider: entry?.provider, stored });
+  const decision = mobileSyncStart({ pausedHere: entry?.pausedHere, filesOff, entryProvider: entry?.provider, stored });
   if (!decision.start || !stored) {
     // Standing still is no reason to forget what changes here (review finding
     // 4): a vault with a provider queues its changes while files are off, so
@@ -275,7 +289,68 @@ export async function startSyncIfConfigured(v: MobileVault): Promise<void> {
     setState(decision.start ? { status: "off", message: null } : { status: decision.status, message: decision.messageKey ? i18n.t(decision.messageKey) : null });
     return;
   }
+  if (decision.settingsOnly) {
+    await startSettingsOnly(v, stored);
+    return;
+  }
   await startWorker(v, stored);
+}
+
+/** Files switched off for the vault (plan "Verbinden", E3) - on every device, carried in the settings profile. */
+async function filesOffForVault(vaultId: string): Promise<boolean> {
+  const { loadCloudAccounts } = await import("./cloudAccountsStore");
+  return (await loadCloudAccounts(vaultId).catch(() => [])).some((record) => record.services.files && isServiceOff(record, "files"));
+}
+
+/** The settings-only sync of a vault whose files are off (second review, B3). */
+let settingsOnlySync: SettingsOnlySync | null = null;
+
+/**
+ * Files off for the vault: no file worker, but the settings profile keeps
+ * travelling on the interval (second review, B3) - so "off" and "on", and
+ * the calendar and mail switches made meanwhile, reach every device. Local
+ * changes queue meanwhile (finding 4) and the first-sync deferral holds.
+ */
+async function startSettingsOnly(v: MobileVault, p: MobileSyncProvider): Promise<void> {
+  v.enableSyncEnqueue();
+  if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
+  else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
+  const rawTarget = await buildTarget(p, credKeyFor(v.vaultId), v.vaultId);
+  const { target, runner } = await prepareMobileSettingsSync(v, p, rawTarget);
+  if (worker || settingsOnlySync) return;
+  settingsOnlySync = new SettingsOnlySync(runner, target, v.backup ?? v.adapter, syncIntervalMs());
+  settingsOnlySync.start();
+  setState({ status: "off", message: null });
+}
+
+let filesSwitchWatched = false;
+
+/**
+ * Files switched off or on for the vault - on this phone, or on another device
+ * and arriving with the settings profile (second review, B3): the sync starts
+ * again in the other mode. What stands still on purpose (paused, signed out)
+ * is left alone; `startSyncIfConfigured` decides.
+ */
+function watchFilesSwitch(): void {
+  if (filesSwitchWatched || typeof window === "undefined") return;
+  filesSwitchWatched = true;
+  void import("./cloudAccountsStore").then(({ CLOUD_ACCOUNTS_EVENT }) => {
+    window.addEventListener(CLOUD_ACCOUNTS_EVENT, () => {
+      void (async () => {
+        if (!worker && !settingsOnlySync) return;
+        const v = await getMobileVault();
+        const off = await filesOffForVault(v.vaultId);
+        if ((off && worker) || (!off && settingsOnlySync)) await restartSyncIfActive(v.vaultId);
+      })().catch((e) => console.error("[sync] following the files switch failed", e));
+    });
+  });
+}
+
+/** Stops what runs for the active vault and starts it again through `startSyncIfConfigured`. */
+export async function restartSyncIfActive(vaultId: string): Promise<void> {
+  if ((await getActiveVaultEntry()).id !== vaultId) return;
+  await stopSyncAndDrain();
+  await startSyncIfConfigured(await getMobileVault());
 }
 
 /** Human-readable vault name for a fresh connection. */
@@ -382,23 +457,11 @@ async function adoptOrForget(vaultId: string, adopt?: (vaultId: string) => Promi
 }
 
 /**
- * Pauses sync for a vault ("Trennen"): the worker stops but the stored
- * credentials stay, so resuming is one tap (no re-auth). Pausing a
- * non-active vault leaves the running worker alone.
- */
-export async function pauseProvider(vaultId: string): Promise<void> {
-  await updateVault(vaultId, { paused: true });
-  if ((await getActiveVaultEntry()).id === vaultId) {
-    stopSync();
-    setState({ status: "off", message: null });
-  }
-}
-
-/**
  * "Pause sync" on the account's files page (plan "Verbinden", V3): the
- * person's own pause, on this phone only. It has its own flag so that the app
- * resuming ITS pause (after a password change, say) cannot undo it (review
- * finding 5b) - the desktop keeps it under its own key too (`filesSwitch.ts`).
+ * person's own pause, on this phone only - the desktop keeps it under its own
+ * key too (`filesSwitch.ts`). Only the person ends it: no sign-in, password
+ * change or switch does (second review, B4). The flag older versions wrote
+ * for "Trennen" (`paused`) becomes this one when the registry is read.
  */
 export async function pauseSyncHere(vaultId: string): Promise<void> {
   await updateVault(vaultId, { pausedHere: true });
@@ -408,18 +471,10 @@ export async function pauseSyncHere(vaultId: string): Promise<void> {
   }
 }
 
-/** Ends the person's own pause; restarts the worker when the vault is active. */
+/** Ends the person's own pause; restarts the sync when the vault is active. */
 export async function resumeSyncHere(vaultId: string): Promise<void> {
   await updateVault(vaultId, { pausedHere: false });
-  if ((await getActiveVaultEntry()).id === vaultId) await startSyncIfConfigured(await getMobileVault());
-}
-
-/** Resumes a paused vault; restarts the worker when it is the active one. */
-export async function resumeProvider(vaultId: string): Promise<void> {
-  await updateVault(vaultId, { paused: false });
-  if ((await getActiveVaultEntry()).id === vaultId) {
-    await startSyncIfConfigured(await getMobileVault());
-  }
+  await restartSyncIfActive(vaultId);
 }
 
 /**
@@ -442,11 +497,8 @@ export async function reauthorizeVault(vaultId: string, fresh: MobileSyncProvide
     }
   }
   await getPlatformServices().credentials.writeSecret(credKeyFor(vaultId), merged);
-  await updateVault(vaultId, { paused: false });
-  if ((await getActiveVaultEntry()).id === vaultId) {
-    stopSync();
-    await startWorker(await getMobileVault(), merged);
-  }
+  // Through the one start: a sign-in never undoes "Pause sync" or files off (second review, B2/B4).
+  await restartSyncIfActive(vaultId);
 }
 
 /**
@@ -486,11 +538,9 @@ export async function switchProviderToAccountBroker(
   else if (existing.provider === "onedrive") merged = { provider: "onedrive", creds: { ...existing.creds, refreshToken: "" } };
   else return; // password- or key-based providers have nothing to hand over
   await rotateLegacyFileGrant(credKeyFor(vaultId), existing.provider, existing.creds, "");
-  await updateVault(vaultId, { paused: false });
-  if ((await getActiveVaultEntry()).id === vaultId) {
-    stopSync();
-    await startWorker(await getMobileVault(), merged);
-  }
+  // Through the one start: a sign-in never undoes "Pause sync" or files off (second review, B2/B4).
+  void merged;
+  await restartSyncIfActive(vaultId);
 }
 
 /**
@@ -505,9 +555,23 @@ export async function disconnectFiles(vaultId: string): Promise<void> {
   if ((await getActiveVaultEntry()).id === vaultId) {
     await stopSyncAndDrain();
     setState({ status: "off", message: null });
+    // The pending pushes and the per-file sync records belong to the folder
+    // that goes: left behind, a later connection to another folder pushed
+    // that queue there and compared against the old folder's state (second
+    // review, B4b). The desktop does the same in `disableAccountService`.
+    await clearFileSyncState(await getMobileVault());
+  } else {
+    // A vault that is not open has its database closed; it is cleared when it opens next.
+    await updateVault(vaultId, { clearSyncStateOnOpen: true });
   }
   await purgeCredentials(vaultId);
-  await updateVault(vaultId, { provider: undefined, paused: false, pausedHere: false });
+  await updateVault(vaultId, { provider: undefined, pausedHere: false });
+}
+
+/** Empties the vault's sync queue and its per-file sync records. */
+export async function clearFileSyncState(v: MobileVault): Promise<void> {
+  await v.syncQueue?.clearAll();
+  await v.syncRepo?.clearAll();
 }
 
 /**
@@ -517,7 +581,8 @@ export async function disconnectFiles(vaultId: string): Promise<void> {
  * `setAccountServiceOff`.
  */
 export async function pushSettingsNow(): Promise<void> {
-  await worker?.pushSettingsNow?.();
+  if (worker) await worker.pushSettingsNow?.();
+  else await settingsOnlySync?.pushSettingsNow();
 }
 
 /** Final credential cleanup when a vault is deleted. */
@@ -592,6 +657,8 @@ export function stopSync(): void {
   clearMobileCommentWorker();
   worker?.stop();
   worker = null;
+  settingsOnlySync?.stop();
+  settingsOnlySync = null;
   deletionJournal = null;
   journalChecker = null;
 }
@@ -605,6 +672,9 @@ export async function stopSyncAndDrain(): Promise<void> {
   clearMobileCommentWorker();
   const w = worker;
   worker = null;
+  const settingsOnly = settingsOnlySync;
+  settingsOnlySync = null;
+  await settingsOnly?.stopAndDrain();
   deletionJournal = null;
   journalChecker = null;
   if (w) await w.stopAndDrain();

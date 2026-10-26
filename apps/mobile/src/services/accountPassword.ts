@@ -4,7 +4,7 @@ import { getMailPassword, listMailAccounts, mailAccountKind, mailSecretKey, chec
 import { protectedSecrets } from "../platform/protectedSecrets";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
 import { loadCloudAccounts } from "./cloudAccountsStore";
-import { getStoredProvider, resumeProvider, stopSyncAndDrain } from "./syncService";
+import { getStoredProvider, restartSyncIfActive, stopSyncAndDrain } from "./syncService";
 import { syncProviderSlot } from "./syncSlot";
 import { getActiveVaultEntry } from "./vaultRegistry";
 import { getPimCredentials, pimSecretKey } from "./pim/pimCredentials";
@@ -104,7 +104,8 @@ export function mobilePasswordChangePorts(vaultId: string, record: CloudAccountR
       return targets;
     },
     activate: async () => {
-      if (record.services.files?.provider === "webdav" || record.services.files?.provider === "s3") await resumeProvider(vaultId);
+      // The sync starts again through the one start: a new password never ends "Pause sync" (second review, B4a).
+      if (record.services.files?.provider === "webdav" || record.services.files?.provider === "s3") await restartSyncIfActive(vaultId);
       if (record.services.calendar && passwordServicesOf(record).includes("calendar")) await restartPimAccountAfterLogin(vaultId, record.services.calendar.pimAccountId);
       notifyMailChanged();
     },

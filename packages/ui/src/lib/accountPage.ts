@@ -226,3 +226,20 @@ export function emptyTaskListHintKey(provider: string): string {
 export function manualMergeCandidates<T extends Pick<CloudAccountRecord, "id" | "family">>(records: readonly T[], target: Pick<CloudAccountRecord, "id" | "family">): T[] {
   return records.filter((record) => record.id !== target.id && record.family === target.family);
 }
+
+/**
+ * How a vault's file sync runs on this device, one rule for both shells
+ * (second review of plan "Verbinden", B3):
+ * - `stopped`: the person paused it here ("Pause sync"), or this device is
+ *   signed out - nothing runs, settings included, because that stop is meant;
+ * - `settingsOnly`: files are switched off for the vault (E3) - no file moves,
+ *   but the settings profile keeps travelling on the interval, so "off", "on"
+ *   and the switches made meanwhile reach every device;
+ * - `running`: everything syncs.
+ */
+export type FilesRunState = "running" | "settingsOnly" | "stopped";
+
+export function filesRunState(input: { filesOff: boolean; pausedHere: boolean; signedOut: boolean }): FilesRunState {
+  if (input.pausedHere || input.signedOut) return "stopped";
+  return input.filesOff ? "settingsOnly" : "running";
+}

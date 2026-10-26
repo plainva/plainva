@@ -3742,7 +3742,7 @@
     "mailByAppPassword": "Email with app password",
     "mailByAppPasswordHint": "Only because email is chosen: Gmail over IMAP instead of through the Google sign-in.",
     "standardSignInLine": "Standard sign-in — you enter nothing. {{provider}} asks for every chosen service in one window.",
-    "filesOffLimit": "While files are off, this device learns of changes from other devices only once files are on again; what changes here waits for the next sync."
+    "filesOffLimit": "While files are off, no device syncs notes; settings still travel, so switching files on again reaches every device."
   },
   "comments": {
     "workspaceLocked": "This workspace is locked on this device. Open the security settings to unlock it and read or write remarks.",

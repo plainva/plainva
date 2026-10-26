@@ -44,7 +44,6 @@ import {
   openDriveDestination,
   pauseSyncHere,
   restartSync,
-  resumeProvider,
   resumeSyncHere,
   subscribeSyncStatus,
   type MobileSyncProvider,
@@ -160,15 +159,14 @@ function FilesPart({ vaultId, vault, on }: { vaultId: string; vault: MobileVault
     const stored = await getStoredProvider(vaultId).catch(() => null);
     setFolder(stored ? await readSyncRootFolder(vaultId, stored.provider, stored).catch(() => "") : "");
     const entry = await getVaultEntry(vaultId);
-    setPaused(!!(entry?.pausedHere || entry?.paused));
+    setPaused(!!entry?.pausedHere);
   }, [vaultId]);
   useEffect(() => { void reload(); }, [reload]);
 
   const togglePause = (next: boolean) => {
     setBusy(true);
     // The person's own pause (review finding 5b); resuming also clears one an earlier version kept under the app's flag.
-    void (next ? pauseSyncHere(vaultId) : resumeSyncHere(vaultId).then(async () => { if ((await getVaultEntry(vaultId))?.paused) await resumeProvider(vaultId); }))
-      .then(reload).finally(() => setBusy(false));
+    void (next ? pauseSyncHere(vaultId) : resumeSyncHere(vaultId)).then(reload).finally(() => setBusy(false));
   };
   const pickInterval = () => {
     void mSelect({

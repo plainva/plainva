@@ -17,12 +17,7 @@ export async function applyCalendarSwitches(vaultId: string): Promise<void> {
  */
 export async function applyMobileServiceSwitches(vaultId: string): Promise<void> {
   await applyCalendarSwitches(vaultId);
-  const { getActiveVaultEntry } = await import("./vaultRegistry");
-  if ((await getActiveVaultEntry()).id === vaultId) {
-    const { startSyncIfConfigured, stopSyncAndDrain } = await import("./syncService");
-    const { getMobileVault } = await import("./vaultService");
-    await stopSyncAndDrain();
-    await startSyncIfConfigured(await getMobileVault());
-  }
+  // Files: the sync follows the switch by itself (`watchFilesSwitch` in
+  // syncService), the same way it follows one arriving from another device.
   notifyMailChanged();
 }

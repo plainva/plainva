@@ -525,6 +525,15 @@ export class SyncQueue {
    * recover ops that got stuck after repeated failures (e.g. while push was broken)
    * and to power a manual "retry sync now" action.
    */
+  /**
+   * Drops every pending operation - when the files of a vault are taken out of
+   * it (an account removed): a queue left behind would be pushed to whatever
+   * folder the vault is connected to next (second review of plan "Verbinden", B4b).
+   */
+  async clearAll(): Promise<void> {
+    await this.db.execute("DELETE FROM offline_queue");
+  }
+
   async resetStuckOperations(): Promise<void> {
     await this.db.execute(
       `UPDATE offline_queue

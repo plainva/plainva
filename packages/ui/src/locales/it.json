@@ -3779,7 +3779,7 @@
     "mailByAppPassword": "E-mail con password per le app",
     "mailByAppPasswordHint": "Solo perché è scelta l’e-mail: Gmail via IMAP invece che con l’accesso Google.",
     "standardSignInLine": "Accesso standard: non inserisci nulla. {{provider}} chiede tutti i servizi scelti in un’unica finestra.",
-    "filesOffLimit": "Finché i file sono disattivati, questo dispositivo conosce le modifiche degli altri dispositivi solo quando vengono riattivati; ciò che cambia qui attende la prossima sincronizzazione."
+    "filesOffLimit": "Finché i file sono disattivati, nessun dispositivo sincronizza le note; le impostazioni continuano a viaggiare, quindi la riattivazione raggiunge ogni dispositivo."
   },
   "comments": {
     "workspaceLocked": "Questo spazio di lavoro è bloccato su questo dispositivo. Apri le impostazioni di sicurezza per sbloccarlo e leggere o scrivere annotazioni.",

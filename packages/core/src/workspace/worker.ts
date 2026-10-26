@@ -259,20 +259,31 @@ export class EncryptedWorkspaceWorker {
     this.abort?.abort();
   }
 
-  /** Pushes the settings profile once before files are switched off (plan "Verbinden", E3; review finding 4), as `SyncWorker.pushSettingsNow`. */
+  /** Pushes the settings profile once before files are switched off (plan "Verbinden", E3), as `SyncWorker.pushSettingsNow`: serialised, never behind a file cycle. */
   async pushSettingsNow(): Promise<void> {
-    if (!this.options.sideband) return;
-    if (this.syncing) await this.syncing.catch(() => {});
     try {
-      await this.options.sideband();
+      await this.runSidebandSerially();
     } catch (e) {
       console.error("[EncryptedWorkspaceWorker] settings push before stopping failed:", e);
     }
   }
 
+  private sidebandChain: Promise<void> = Promise.resolve();
+
+  /** One sideband run at a time, whoever asks (second review, B3). */
+  private runSidebandSerially(): Promise<void> {
+    const sideband = this.options.sideband;
+    if (!sideband) return Promise.resolve();
+    const run = this.sidebandChain.then(() => sideband());
+    this.sidebandChain = run.catch(() => undefined);
+    return run;
+  }
+
   async stopAndDrain(): Promise<void> {
     this.stop();
     await this.syncing?.catch(() => undefined);
+    // A settings push started outside a cycle finishes too (second review, B3).
+    await this.sidebandChain;
   }
 
   triggerImmediate(): void {
@@ -378,7 +389,7 @@ export class EncryptedWorkspaceWorker {
     await resumeWorkspaceRekey(this.state);
     await this.publishCheckpoint(signal);
     await this.refreshPublications(signal);
-    await this.options.sideband?.();
+    await this.runSidebandSerially();
     const meta = await this.requireMeta();
     meta.lastSyncAt = nowIso();
     meta.lastError = null;
