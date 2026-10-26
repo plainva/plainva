@@ -3043,6 +3043,7 @@
     "editEvent": "编辑日程",
     "deleteEvent": "删除日程",
     "deleteEventMsg": "“{{title}}”将从服务商的日历中删除。",
+    "eventChangedDeleteAnyway": "“{{title}}”已在远端被修改。仍要删除吗？",
     "eventTitle": "标题",
     "groupEvent": "事件",
     "groupTime": "时间",

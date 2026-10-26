@@ -3072,6 +3072,7 @@
     "editEvent": "Edit event",
     "deleteEvent": "Delete event",
     "deleteEventMsg": "“{{title}}” will be deleted from the provider's calendar.",
+    "eventChangedDeleteAnyway": "“{{title}}” changed remotely. Delete it anyway?",
     "eventTitle": "Title",
     "groupEvent": "Event",
     "groupTime": "Time",

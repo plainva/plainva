@@ -3072,6 +3072,7 @@
     "editEvent": "Afspraak bewerken",
     "deleteEvent": "Afspraak verwijderen",
     "deleteEventMsg": "“{{title}}” wordt uit de agenda van de provider verwijderd.",
+    "eventChangedDeleteAnyway": "“{{title}}” is extern gewijzigd. Toch verwijderen?",
     "eventTitle": "Titel",
     "groupEvent": "Afspraak",
     "groupTime": "Tijd",

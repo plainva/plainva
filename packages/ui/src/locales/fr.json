@@ -3101,6 +3101,7 @@
     "editEvent": "Modifier l’événement",
     "deleteEvent": "Supprimer l’événement",
     "deleteEventMsg": "« {{title}} » sera supprimé du calendrier du fournisseur.",
+    "eventChangedDeleteAnyway": "« {{title}} » a été modifié à distance. Le supprimer quand même ?",
     "eventTitle": "Titre",
     "groupEvent": "Événement",
     "groupTime": "Heure",

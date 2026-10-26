@@ -261,7 +261,8 @@ export interface RpcMap {
    */
   "pim-write": {
     args: { accountId: string; op: PimWriteOp };
-    result: { ok: true; etag?: string; uid?: string; href?: string } | { conflict: true };
+    /** `currentEtag`: what a conflict read back, for "delete anyway" (R2). */
+    result: { ok: true; etag?: string; uid?: string; href?: string } | { conflict: true; currentEtag?: string };
   };
   /**
    * Toggle a bookmark. The list is owner state — its sidebar renders it — so

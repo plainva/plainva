@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { applyEventChanges, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker } from "@plainva/ui";
-import { parseRRule, uniqueBlockRefs, type PimBlockRef, type PimEventDraft, type PimEventRow } from "@plainva/core";
+import { parseRRule, PimConflictError, uniqueBlockRefs, type PimBlockRef, type PimEventDraft, type PimEventRow } from "@plainva/core";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mActions, mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
 import {
@@ -161,10 +161,25 @@ export function useEventEditor({
     }
     // Gone from the screen with the confirmation (issue 119); a refusal
     // brings the event back and says why.
-    const run = () => {
-      void deletePimEvent(target, also).then(
+    const run = (subject: PimEventRow = target, anyway = false) => {
+      void deletePimEvent(subject, also, { anyway }).then(
         (report) => void reportBlockers(report, null),
-        (err) => reportRefused(err, run, "delete"),
+        async (err) => {
+          if (!(err instanceof PimConflictError)) {
+            reportRefused(err, () => run(), "delete");
+            return;
+          }
+          // Changed elsewhere for real (R2) — the provider already lets a guard
+          // pass that is merely behind. Asked as the desktop asks; "delete
+          // anyway" deletes the state the provider just named.
+          const again = await mConfirm({
+            title: t("pim.deleteEvent"),
+            message: t("pim.eventChangedDeleteAnyway", { title: target.title }),
+            danger: true,
+            confirmLabel: t("common.delete"),
+          });
+          if (again) run({ ...subject, etag: err.currentEtag }, true);
+        },
       );
     };
     run();

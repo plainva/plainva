@@ -370,7 +370,7 @@ export class GooglePimTarget implements IPimTarget {
   /** RSVP: GET the event, set the own attendee's responseStatus, PATCH the full
    * attendee list back (Google replaces the array on patch). Google notifies the
    * organiser via its own scheduling. */
-  async respondToEvent(ref: PimEventRef, response: "accepted" | "declined" | "tentative"): Promise<void> {
+  async respondToEvent(ref: PimEventRef, response: "accepted" | "declined" | "tentative"): Promise<{ etag?: string } | void> {
     const url = `${CAL_BASE}/calendars/${encodeURIComponent(ref.calendarId)}/events/${encodeURIComponent(ref.uid)}`;
     const ev = await this.getJson<{ attendees?: Array<{ email?: string; self?: boolean; responseStatus?: string }> }>(url);
     const attendees = ev.attendees ?? [];
@@ -382,6 +382,13 @@ export class GooglePimTarget implements IPimTarget {
       body: JSON.stringify({ attendees: patched }),
     });
     if (!res.ok) throw new Error(`google rsvp ${res.status}`);
+    // The answer changed the event, and its etag with it (R2): the view holds
+    // the new one, or the next delete is refused as "changed elsewhere".
+    try {
+      return { etag: ((await res.json()) as { etag?: string }).etag };
+    } catch {
+      return {};
+    }
   }
 
   async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {

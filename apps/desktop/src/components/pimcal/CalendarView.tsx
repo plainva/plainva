@@ -5,7 +5,7 @@ import { CalendarRange, ChevronLeft, Diamond, ChevronRight, Link2, ListChecks, M
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { errorText, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, markFreshNote, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
+import { errorText, etagStamp, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, markFreshNote, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
 import { PimConflictError, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
 import {
   blockLinkKey,
@@ -1098,8 +1098,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         throw new Error(t("pim.rsvpUnsupported", { defaultValue: "Zu-/Absagen wird für dieses Konto nicht unterstützt." }));
       }
       const respond = target.respondToEvent.bind(target);
-      await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: e, patch: { selfResponse: response } }, () =>
-        respond({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, response),
+      const change = { kind: "update" as const, ref: e, patch: { selfResponse: response } };
+      // The answer changes the event's etag; the view holds the new one (R2).
+      await writeEventOptimistically(
+        pendingEventWrites,
+        change,
+        () => respond({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, response),
+        (written) => [change, ...etagStamp(e, written ? written.etag : undefined)],
       );
       refreshAfterWrite();
     },
@@ -1121,11 +1126,18 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         color,
       };
       try {
-        await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: e, patch: { color } }, async () => {
-          const target = await targetFor(e.accountId);
-          if (!target) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
-          await target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft);
-        });
+        const change = { kind: "update" as const, ref: e, patch: { color } };
+        await writeEventOptimistically(
+          pendingEventWrites,
+          change,
+          async () => {
+            const target = await targetFor(e.accountId);
+            if (!target) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+            return target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft);
+          },
+          // The new colour, and the etag it left the event with (R2).
+          (written) => [change, ...etagStamp(e, written.etag)],
+        );
       } catch (err) {
         if (err instanceof PimConflictError) {
           toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
@@ -1192,16 +1204,34 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
    * event and, where the user left the box ticked, its blockers (K3). */
   const performDelete = useCallback(
     async (e: PimEventRow, blockers: readonly ResolvedBlocker[] = []) => {
-      try {
-        // Gone from view with the confirmation; a refusal brings it back.
-        const report = await deleteEventWithBlockers(followDeps, e, blockers);
-        reportBlockers(report, null);
-      } catch (err) {
-        if (err instanceof PimConflictError) {
-          toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
-        } else {
-          reportWriteFailure(err, () => retryWrites.current?.remove(e, blockers), "delete");
+      let subject = e;
+      let anyway = false;
+      for (;;) {
+        try {
+          // Gone from view with the confirmation; a refusal brings it back.
+          const report = await deleteEventWithBlockers(followDeps, subject, blockers, { anyway });
+          reportBlockers(report, null);
+        } catch (err) {
+          if (err instanceof PimConflictError) {
+            // Changed elsewhere for real - the provider already let a guard
+            // that was merely behind pass (issue 119, R2). The person decides;
+            // "delete anyway" deletes the state the provider just named.
+            const ok = await appConfirm({
+              title: t("pim.deleteEvent", { defaultValue: "Termin löschen" }),
+              message: t("pim.eventChangedDeleteAnyway", { title: e.title, defaultValue: "„{{title}}“ wurde extern geändert. Trotzdem löschen?" }),
+              kind: "danger",
+              confirmLabel: t("common.delete", { defaultValue: "Löschen" }),
+            });
+            if (ok) {
+              subject = { ...subject, etag: err.currentEtag };
+              anyway = true;
+              continue;
+            }
+          } else {
+            reportWriteFailure(err, () => retryWrites.current?.remove(e, blockers), "delete");
+          }
         }
+        break;
       }
       refreshAfterWrite();
     },

@@ -52,6 +52,7 @@ import {
   type ShownEventRow,
   pendingEventWrites,
   writeEventOptimistically,
+  etagStamp,
   type EventTargets,
   parseGoogleUserInfo,
   type VerifiedProviderProfile,
@@ -225,6 +226,13 @@ async function reconcilePendingEventWrites(): Promise<void> {
   const found: PimEventRow[] = [];
   for (const write of writes) {
     const ref = write.kind === "create" ? write.row : write.ref;
+    if (write.kind === "stamp") {
+      // A stamp speaks about every row of its object (R2): a series' master
+      // and occurrences share the etag, so they are all asked for.
+      const rows = await cache.findEventsByUid(ref.uid.split("#")[0]).catch(() => []);
+      found.push(...rows.filter((row) => row.accountId === ref.accountId && row.calendarId === ref.calendarId));
+      continue;
+    }
     const row = await cache.getEventByUid(ref.accountId, ref.calendarId, ref.uid).catch(() => null);
     if (row) found.push(row);
   }
@@ -653,9 +661,14 @@ export async function updatePimEvent(
   loaded: readonly PimEventRow[] = [],
 ): Promise<FollowedWriteOutcome> {
   const move = moveToCalendarKey ? splitCalendarKey(moveToCalendarKey) : null;
-  const out = await updateEventWithBlockers(followDeps(), event, draft, { moveTo: move, loaded });
-  if (out.kind !== "conflict") pimSyncNow({ afterWrite: true });
-  return out;
+  // Pulled after every outcome (R2): a conflict or a refusal is exactly when
+  // the screen needs the provider's current state - the next try is sent with
+  // what that pull brings.
+  try {
+    return await updateEventWithBlockers(followDeps(), event, draft, { moveTo: move, loaded });
+  } finally {
+    pimSyncNow({ afterWrite: true });
+  }
 }
 
 /** The blockers of an event, for the question a deletion asks about them. */
@@ -693,9 +706,11 @@ export async function detachPimBlocker(
   source: PimEventRow | null,
 ): Promise<EventWriteOutcome> {
   const move = moveToCalendarKey ? splitCalendarKey(moveToCalendarKey) : null;
-  const out = await detachBlockerAndUpdate(followDeps(), blocker, draft, { moveTo: move, source });
-  if (out.kind !== "conflict") pimSyncNow({ afterWrite: true });
-  return out;
+  try {
+    return await detachBlockerAndUpdate(followDeps(), blocker, draft, { moveTo: move, source });
+  } finally {
+    pimSyncNow({ afterWrite: true });
+  }
 }
 
 /** After "Block in other calendars": the event's own list gains the new blockers. */
@@ -785,11 +800,20 @@ export async function openMeetingNoteFor(
   return { path: res.path, created: res.created };
 }
 
-/** Deletes an event and — where the user said so — the blockers that mirror it (K3). */
-export async function deletePimEvent(event: PimEventRow, blockers: readonly ResolvedBlocker[] = []): Promise<BlockFollowReport> {
-  const report = await deleteEventWithBlockers(followDeps(), event, blockers);
-  pimSyncNow({ afterWrite: true });
-  return report;
+/**
+ * Deletes an event and — where the user said so — the blockers that mirror it (K3).
+ *
+ * A refused delete pulls as well (issue 119, R2): until then the phone threw
+ * before the pull, and "Try again" was sent with the same stale etag, for as
+ * long as the next scheduled cycle took. `anyway` is the second call after a
+ * `PimConflictError`, with the etag the conflict named on `event`.
+ */
+export async function deletePimEvent(event: PimEventRow, blockers: readonly ResolvedBlocker[] = [], options: { anyway?: boolean } = {}): Promise<BlockFollowReport> {
+  try {
+    return await deleteEventWithBlockers(followDeps(), event, blockers, options);
+  } finally {
+    pimSyncNow({ afterWrite: true });
+  }
 }
 
 /** Responds to an invitation (accept/decline/tentative) via the account's target. */
@@ -800,8 +824,13 @@ export async function respondToPimEvent(event: PimEventRow, response: "accepted"
   const target = await runtime.buildTarget(account);
   if (!target?.respondToEvent) throw new Error("responding is not supported for this account");
   const respond = target.respondToEvent.bind(target);
-  await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: event, patch: { selfResponse: response } }, () =>
-    respond({ calendarId: event.calendarId, uid: event.uid, etag: event.etag, href: event.href }, response),
+  const change = { kind: "update" as const, ref: event, patch: { selfResponse: response } };
+  // The answer changes the event's etag; the screens hold the new one (R2).
+  await writeEventOptimistically(
+    pendingEventWrites,
+    change,
+    () => respond({ calendarId: event.calendarId, uid: event.uid, etag: event.etag, href: event.href }, response),
+    (written) => [change, ...etagStamp(event, written ? written.etag : undefined)],
   );
   pimSyncNow({ afterWrite: true });
 }

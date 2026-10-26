@@ -3101,6 +3101,7 @@
     "editEvent": "Editar evento",
     "deleteEvent": "Excluir evento",
     "deleteEventMsg": "“{{title}}” será excluído do calendário do provedor.",
+    "eventChangedDeleteAnyway": "“{{title}}” foi alterado remotamente. Excluir mesmo assim?",
     "eventTitle": "Título",
     "groupEvent": "Evento",
     "groupTime": "Horário",

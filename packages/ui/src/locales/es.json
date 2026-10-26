@@ -3101,6 +3101,7 @@
     "editEvent": "Editar evento",
     "deleteEvent": "Eliminar evento",
     "deleteEventMsg": "«{{title}}» se eliminará del calendario del proveedor.",
+    "eventChangedDeleteAnyway": "«{{title}}» cambió de forma remota. ¿Eliminarlo de todos modos?",
     "eventTitle": "Título",
     "groupEvent": "Evento",
     "groupTime": "Hora",

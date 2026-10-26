@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { PimConflictError } from "@plainva/core";
-import { createCalendarEvent, deleteCalendarEvent, draftToRow, sameEventRef, updateCalendarEvent } from "@plainva/ui";
+import { createCalendarEvent, deleteCalendarEvent, draftToRow, etagStamp, sameEventRef, updateCalendarEvent } from "@plainva/ui";
 
 const draft = { title: "Review", start: { ts: 1 }, end: { ts: 2 }, allDay: false } as any;
 const event = { accountId: "a1", calendarId: "c1", uid: "u1", etag: "e1", href: "h1" } as any;
@@ -57,6 +57,30 @@ describe("calendar event writes", () => {
     const t = targets({});
     await expect(createCalendarEvent(t, "a1", "c1", draft)).rejects.toThrow();
     await expect(deleteCalendarEvent(t, event)).rejects.toThrow();
+  });
+
+  it("an edited event carries the etag the provider answered with, not the one the edit made stale (R2)", async () => {
+    // The next delete was sent with the old one and refused as "changed
+    // elsewhere" on every provider that checks it.
+    const t = targets({ a1: { updateEvent: vi.fn(async () => ({ etag: "e2" })) } });
+    const out = await updateCalendarEvent(t, event, draft);
+    expect(out.kind === "written" && out.rows[0].etag).toBe("e2");
+  });
+
+  it("a delete tells the provider what the person saw of the event; 'delete anyway' does not (R2)", async () => {
+    const del = vi.fn(async () => {});
+    const t = targets({ a1: { deleteEvent: del } });
+    const seen = { ...event, title: "Review", start: { ts: 1 }, end: { ts: 2 }, allDay: false };
+    await deleteCalendarEvent(t, seen);
+    expect(del).toHaveBeenLastCalledWith(expect.objectContaining({ uid: "u1", etag: "e1", expect: expect.objectContaining({ uid: "u1", title: "Review", start: { ts: 1 } }) }));
+    await deleteCalendarEvent(t, { ...seen, etag: "e7" }, { anyway: true });
+    expect(del).toHaveBeenLastCalledWith({ calendarId: "c1", uid: "u1", etag: "e7", href: "h1" });
+  });
+
+  it("names the new etag as a change for the rows on screen - of the whole CalDAV object (R2)", () => {
+    expect(etagStamp(event, "e2")).toEqual([{ kind: "stamp", ref: { accountId: "a1", calendarId: "c1", uid: "u1" }, href: "h1", from: "e1", etag: "e2" }]);
+    expect(etagStamp(event, "e1")).toEqual([]);
+    expect(etagStamp(event, undefined)).toEqual([]);
   });
 
   it("matches rows by account, calendar and uid", () => {

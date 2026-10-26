@@ -184,3 +184,22 @@ describe("actual mobile calendar connection lifecycle", () => {
     expect(JSON.parse(state.secrets.get(pimSecretKey("original", "synced"))!).refreshToken).toBe("kept");
   });
 });
+
+describe("a refused event write on the phone (issue 119, R2)", () => {
+  // The phone threw before it asked for a cycle: the screen kept the stale
+  // etag, and "Try again" was refused the same way until the next scheduled
+  // cycle - on a phone, whenever the app next came to the front.
+  const event = { accountId: "nowhere", calendarId: "c1", uid: "ev-1", title: "Planning", start: { ts: 1 }, end: { ts: 2 }, allDay: false, etag: '"v1"' };
+
+  it("a delete that is refused still asks for a cycle", async () => {
+    state.triggered.mockClear();
+    await expect(pim.deletePimEvent(event)).rejects.toThrow();
+    expect(state.triggered).toHaveBeenCalledTimes(1);
+  });
+
+  it("so does an edit that is refused", async () => {
+    state.triggered.mockClear();
+    await expect(pim.updatePimEvent(event, { title: "Planning", start: { ts: 1 }, end: { ts: 2 }, allDay: false })).rejects.toThrow();
+    expect(state.triggered).toHaveBeenCalledTimes(1);
+  });
+});

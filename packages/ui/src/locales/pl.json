@@ -3130,6 +3130,7 @@
     "editEvent": "Edytuj wydarzenie",
     "deleteEvent": "Usuń wydarzenie",
     "deleteEventMsg": "„{{title}}” zostanie usunięte z kalendarza dostawcy.",
+    "eventChangedDeleteAnyway": "„{{title}}” zostało zmienione zdalnie. Usunąć mimo to?",
     "eventTitle": "Tytuł",
     "groupEvent": "Wydarzenie",
     "groupTime": "Czas",

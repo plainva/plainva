@@ -10,8 +10,8 @@ import {
 } from "@plainva/core";
 import { markdownToHtml } from "../lib/markdownToHtml";
 import { logDiagnostic } from "../services/diagnosticsLog";
-import { deleteCalendarEvent, draftToRow, updateCalendarEvent, type EventTargets, type EventWriteOutcome } from "./eventWrite";
-import { pendingEventWrites, writeEventOptimistically, type PendingEventWrites } from "./pendingEventWrites";
+import { deleteCalendarEvent, draftToRow, etagStamp, updateCalendarEvent, type EventTargets, type EventWriteOutcome } from "./eventWrite";
+import { pendingEventWrites, showWrittenEvents, writeEventOptimistically, type PendingEventChange, type PendingEventWrites } from "./pendingEventWrites";
 
 /**
  * Blockers follow their event (K3, plan Befunde 2026-10-06).
@@ -240,6 +240,19 @@ function blockerPatchFor(blocker: ResolvedBlocker, draft: PimEventDraft, busyLab
   };
 }
 
+/**
+ * What an event update leaves on screen until the cache has it: a move is
+ * "there now, gone here"; a write in place keeps its change AND the etag the
+ * provider answered with (R2) - the next write of the same event is sent with
+ * that one, not with the one this write made stale.
+ */
+function settledUpdate(source: PimEventRow, patch: Partial<PimEventRow>, moving: boolean, result: EventWriteOutcome): PendingEventChange[] {
+  if (result.kind === "conflict") return [];
+  if (!moving) return [{ kind: "update", ref: source, patch }, ...etagStamp(source, result.rows[0]?.etag)];
+  const created = result.rows.map((row) => ({ kind: "create" as const, row }));
+  return result.kind === "written" ? [...created, { kind: "delete" as const, ref: source }] : created;
+}
+
 const isGone = (error: unknown): boolean => error instanceof PimRequestError && (error.status === 404 || error.status === 410);
 
 const reasonOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -308,7 +321,8 @@ export async function updateEventWithBlockers(
   // 1 — on screen now.
   const shown = blockerRowsOf(source, loaded).map((row) => {
     const blocker: ResolvedBlocker = { ref: { accountId: row.accountId, calendarId: row.calendarId, uid: row.uid }, row, mode: modeOf(row, source, source.blocks?.find((ref) => sameRef(ref, row))) };
-    return { row, id: store.begin({ kind: "update", ref: row, patch: blockerPatchFor(blocker, draft, deps.busyLabel) }) };
+    const change: PendingEventChange = { kind: "update", ref: row, patch: blockerPatchFor(blocker, draft, deps.busyLabel) };
+    return { row, change, id: store.begin(change) };
   });
   const dropShown = () => shown.forEach((entry) => store.drop(entry.id));
 
@@ -328,12 +342,7 @@ export async function updateEventWithBlockers(
         const withList = !source.seriesMaster && !sameRefList(refs, source.blocks ?? []);
         return updateCalendarEvent(deps.targets, source, withList || (moving && refs.length > 0) ? { ...draft, blocks: refs } : draft, moveTo);
       },
-      (result) => {
-        if (result.kind === "conflict") return [];
-        if (!moving) return undefined;
-        const created = result.rows.map((row) => ({ kind: "create" as const, row }));
-        return result.kind === "written" ? [...created, { kind: "delete" as const, ref: source }] : created;
-      },
+      (result) => settledUpdate(source, patch, moving, result),
     );
   } catch (error) {
     dropShown();
@@ -352,8 +361,10 @@ export async function updateEventWithBlockers(
     try {
       const target = await targetOf(deps, blocker.ref.accountId);
       const next = blockerDraftFor(blocker, draft, deps.busyLabel, blockOf);
-      await writeBlocker(blocker, (etag) => target.updateEvent(blockerRef(blocker, etag), next));
-      if (overlay) store.settle(overlay.id);
+      const written = await writeBlocker(blocker, (etag) => target.updateEvent(blockerRef(blocker, etag), next));
+      const stamp = blocker.row ? etagStamp(blocker.row, written?.etag) : [];
+      if (overlay) store.settle(overlay.id, [overlay.change, ...stamp]);
+      else showWrittenEvents(store, stamp);
       report.followed.push(blocker.ref);
     } catch (error) {
       if (overlay) store.drop(overlay.id);
@@ -377,6 +388,8 @@ export async function deleteEventWithBlockers(
   deps: BlockFollowDeps,
   source: PimEventRow,
   blockers: readonly ResolvedBlocker[],
+  /** "Delete anyway" after a `PimConflictError`: `source` carries the etag the conflict named (R2). */
+  options: { anyway?: boolean } = {},
 ): Promise<BlockFollowReport> {
   const store = deps.store ?? pendingEventWrites;
   // A deleted blocker leaves its event's list. Looked up before the delete:
@@ -385,7 +398,14 @@ export async function deleteEventWithBlockers(
   // Gone from view with the confirmation, all of them.
   const shown = blockers.filter((blocker) => blocker.row).map((blocker) => ({ blocker, id: store.begin({ kind: "delete", ref: blocker.row! }) }));
   try {
-    await writeEventOptimistically(store, { kind: "delete", ref: source }, () => deleteCalendarEvent(deps.targets, source));
+    // Deleting ONE occurrence of a CalDAV series rewrites the series: the
+    // other occurrences on screen take its new etag (R2).
+    await writeEventOptimistically(
+      store,
+      { kind: "delete", ref: source },
+      () => deleteCalendarEvent(deps.targets, source, { anyway: options.anyway }),
+      (result) => [{ kind: "delete", ref: source }, ...etagStamp(source, result ? result.etag : undefined)],
+    );
   } catch (error) {
     shown.forEach((entry) => store.drop(entry.id));
     throw error;
@@ -395,8 +415,10 @@ export async function deleteEventWithBlockers(
     const overlay = shown.find((entry) => entry.blocker === blocker);
     try {
       const target = await targetOf(deps, blocker.ref.accountId);
-      await writeBlocker(blocker, (etag) => target.deleteEvent(blockerRef(blocker, etag)));
-      if (overlay) store.settle(overlay.id);
+      const result = await writeBlocker(blocker, (etag) => target.deleteEvent(blockerRef(blocker, etag)));
+      const stamp = blocker.row && result ? etagStamp(blocker.row, result.etag) : [];
+      if (overlay) store.settle(overlay.id, [{ kind: "delete", ref: overlay.blocker.row! }, ...stamp]);
+      else showWrittenEvents(store, stamp);
       report.followed.push(blocker.ref);
     } catch (error) {
       if (overlay) store.drop(overlay.id);
@@ -430,12 +452,16 @@ export async function recordBlockers(deps: BlockFollowDeps, source: PimEventRow,
     const { blockers } = await resolveBlockers(deps, source);
     const blocks = uniqueBlockRefs([...(source.blocks ?? []), ...refsOf(blockers), ...created]);
     const ref = { calendarId: source.calendarId, uid: source.uid, href: source.href };
+    let written: { etag?: string };
     try {
-      await link({ ...ref, etag: source.etag }, { blocks });
+      written = await link({ ...ref, etag: source.etag }, { blocks });
     } catch (error) {
       if (!(error instanceof PimConflictError)) throw error;
-      await link(ref, { blocks });
+      written = await link(ref, { blocks });
     }
+    // The list changed the event, and its etag: without the new one the next
+    // delete of the event was refused as "changed elsewhere" (R2).
+    showWrittenEvents(deps.store ?? pendingEventWrites, etagStamp(source, written.etag));
     return true;
   } catch (error) {
     logDiagnostic("pim", `blocker list not written: ${reasonOf(error)}`);
@@ -511,12 +537,7 @@ export async function detachBlockerAndUpdate(
     store,
     { kind: "update", ref: blocker, patch },
     () => updateCalendarEvent(deps.targets, blocker, written, moveTo),
-    (result) => {
-      if (result.kind === "conflict") return [];
-      if (!moving) return undefined;
-      const created = result.rows.map((row) => ({ kind: "create" as const, row }));
-      return result.kind === "written" ? [...created, { kind: "delete" as const, ref: blocker }] : created;
-    },
+    (result) => settledUpdate(blocker, patch, moving, result),
   );
   if (out.kind !== "conflict" && detach) await unlistBlocker(deps, blocker, options.source ?? null);
   return out;
@@ -534,7 +555,8 @@ async function unlistBlocker(deps: BlockFollowDeps, blocker: PimEventRow, source
     const target = await deps.targets.targetFor(source.accountId);
     if (!target?.linkEvent) return;
     // No etag: the list is ours alone, and the event may have been written since.
-    await target.linkEvent({ calendarId: source.calendarId, uid: source.uid, href: source.href }, { blocks: source.blocks.filter((ref) => !sameRef(ref, blocker)) });
+    const written = await target.linkEvent({ calendarId: source.calendarId, uid: source.uid, href: source.href }, { blocks: source.blocks.filter((ref) => !sameRef(ref, blocker)) });
+    showWrittenEvents(deps.store ?? pendingEventWrites, etagStamp(source, written.etag));
   } catch (error) {
     logDiagnostic("pim", `blocker list not pruned: ${reasonOf(error)}`);
   }

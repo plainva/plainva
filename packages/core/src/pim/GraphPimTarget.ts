@@ -374,7 +374,7 @@ export class GraphPimTarget implements IPimTarget {
   }
 
   /** RSVP via the dedicated Graph actions; sendResponse notifies the organiser. */
-  async respondToEvent(ref: PimEventRef, response: "accepted" | "declined" | "tentative"): Promise<void> {
+  async respondToEvent(ref: PimEventRef, response: "accepted" | "declined" | "tentative"): Promise<{ etag?: string } | void> {
     const action = response === "accepted" ? "accept" : response === "declined" ? "decline" : "tentativelyAccept";
     const res = await this.request(`${GRAPH_BASE}/me/events/${encodeURIComponent(ref.uid)}/${action}`, {
       method: "POST",
@@ -382,6 +382,15 @@ export class GraphPimTarget implements IPimTarget {
       body: JSON.stringify({ sendResponse: true }),
     });
     if (!res.ok && res.status !== 200 && res.status !== 202) throw new Error(`graph rsvp ${res.status}`);
+    // The answer changed the event and its etag (R2), and the action says
+    // neither: read it back, or the next delete is refused as "changed
+    // elsewhere". A read that fails leaves it unknown.
+    try {
+      const now = await this.getJson<{ "@odata.etag"?: string }>(`${GRAPH_BASE}/me/events/${encodeURIComponent(ref.uid)}?$select=id`);
+      return { etag: now["@odata.etag"] };
+    } catch {
+      return {};
+    }
   }
 
   async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {

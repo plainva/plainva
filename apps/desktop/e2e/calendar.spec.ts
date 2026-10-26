@@ -151,6 +151,31 @@ test.beforeEach(async ({ page }) => {
       plugins: { path: { sep: '/' } },
       transformCallback: (_cb: any) => 1,
       invoke: async (cmd: string, args: any, options: any) => {
+        // Opt-in (issue 119, R2): a CalDAV server inside the page, behind the
+        // HTTP plugin, and the account's sign-in for it. See `installCalDav`.
+        const dav = (window as any).__caldavFake;
+        if (dav) {
+          if (cmd === 'keychain_get' && /acc1/.test(String(args?.key ?? ''))) return JSON.stringify({ kind: 'caldav', url: 'https://dav.test/cal/', user: 'tester', pass: 'fixture-only' });
+          if (cmd === 'plugin:http|fetch') {
+            const cfg = args.clientConfig;
+            const body = cfg.data ? new TextDecoder().decode(new Uint8Array(cfg.data)) : '';
+            const answer = dav.handle(String(cfg.method ?? 'GET'), String(cfg.url), cfg.headers ?? [], body);
+            const rid = ++dav.nextRid;
+            dav.responses.set(rid, { ...answer, url: cfg.url, read: false });
+            return rid;
+          }
+          if (cmd === 'plugin:http|fetch_send') {
+            const r = dav.responses.get(args.rid);
+            return { status: r.status, statusText: '', url: r.url, headers: r.headers, rid: args.rid };
+          }
+          if (cmd === 'plugin:http|fetch_read_body') {
+            const r = dav.responses.get(args.rid);
+            if (r.read) return [1];
+            r.read = true;
+            return [...new TextEncoder().encode(r.body), 0];
+          }
+          if (cmd === 'plugin:http|fetch_cancel' || cmd === 'plugin:http|fetch_cancel_body') return null;
+        }
         if (cmd === 'plugin:path|normalize') {
           let p = args.path.replace(/\\/g, '/');
           while (p.includes('//')) p = p.replace('//', '/');
@@ -359,6 +384,133 @@ async function openVault(page: any) {
   await page.goto('/');
   await expect(page.getByText('Todo').first()).toBeVisible({ timeout: 20000 });
 }
+
+/**
+ * A CalDAV server in the page (issue 119, R2). It keeps the objects it is sent
+ * and checks `If-Match` like a real one. With `rewrite` it behaves as iCloud
+ * is suspected to: the PUT answer names an etag, and the server rewrites the
+ * object right after - with an etag of its own and a property of its own.
+ * Collection requests (discovery, pulls) get an empty multistatus.
+ */
+async function installCalDav(page: any, options: { rewrite: boolean }) {
+  await page.addInitScript((opts: { rewrite: boolean }) => {
+    const objects = new Map<string, { ics: string; etag: string }>();
+    const calls: Array<{ method: string; url: string; ifMatch?: string; status: number }> = [];
+    let n = 0;
+    const header = (headers: Array<[string, string]>, name: string) => headers.find(([k]) => k.toLowerCase() === name)?.[1];
+    const answer = (call: { method: string; url: string; ifMatch?: string }, status: number, headers: Array<[string, string]> = [], body = '') => {
+      calls.push({ ...call, status });
+      return { status, headers, body };
+    };
+    (window as any).__caldavFake = {
+      objects,
+      calls,
+      responses: new Map(),
+      nextRid: 0,
+      handle(method: string, url: string, headers: Array<[string, string]>, body: string) {
+        const call = { method, url, ifMatch: header(headers, 'if-match') };
+        if (!url.endsWith('.ics')) {
+          return { status: 207, headers: [['content-type', 'application/xml']], body: '<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:"/>' };
+        }
+        const obj = objects.get(url);
+        if (method === 'PUT') {
+          if (call.ifMatch && obj?.etag !== call.ifMatch) return answer(call, 412);
+          const etag = `"v${++n}"`;
+          objects.set(url, opts.rewrite
+            ? { ics: body.split('END:VEVENT').join('X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC\r\nEND:VEVENT'), etag: `"v${n}-icloud"` }
+            : { ics: body, etag });
+          return answer(call, obj ? 204 : 201, [['etag', etag]]);
+        }
+        if (!obj) return answer(call, 404);
+        if (method === 'GET') return answer(call, 200, [['etag', obj.etag], ['content-type', 'text/calendar']], obj.ics);
+        if (method === 'DELETE') {
+          if (call.ifMatch && obj.etag !== call.ifMatch) return answer(call, 412);
+          objects.delete(url);
+          return answer(call, 204);
+        }
+        return answer(call, 405);
+      },
+    };
+  }, options);
+}
+
+/** Creates an event through the day pane's "+" and waits for it on screen. */
+async function createEventToday(page: any, title: string) {
+  await page.getByTestId('ribbon-calendar').click();
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+  await page.getByTestId(`calendar-day-number-${todayKey}`).click();
+  await page.getByTestId('calendar-new-event').click();
+  await page.getByTestId('event-title').fill(title);
+  await page.getByTestId('event-save').click();
+  const shown = page.getByTestId('calendar-timed-event').filter({ hasText: title });
+  await expect(shown).toBeVisible();
+  // Written: the server holds it.
+  await expect.poll(() => page.evaluate(() => (window as any).__caldavFake.objects.size)).toBe(1);
+  return shown;
+}
+
+async function deleteFromContextMenu(page: any, shown: any) {
+  await shown.click({ button: 'right' });
+  await page.getByTestId('ctx-delete').click();
+  const confirm = page.getByRole('dialog').filter({ hasText: /Termin löschen|Delete event/ });
+  await confirm.getByRole('button', { name: /Bestätigen|Confirm/ }).click();
+}
+
+test('an event the server rewrote after saving is deleted on the first try (issue 119, R2)', async ({ page }) => {
+  await installCalDav(page, { rewrite: true });
+  await openVault(page);
+  const shown = await createEventToday(page, 'iCloud-Termin');
+  await deleteFromContextMenu(page, shown);
+
+  await expect.poll(() => page.evaluate(() => (window as any).__caldavFake.objects.size)).toBe(0);
+  await expect(page.getByTestId('calendar-timed-event').filter({ hasText: 'iCloud-Termin' })).toHaveCount(0);
+  // The refused guard was looked at, not reported: one read, one retry.
+  const objectCalls = await page.evaluate(() => (window as any).__caldavFake.calls.filter((c: any) => c.method !== 'PUT').map((c: any) => [c.method, c.ifMatch ?? null, c.status]));
+  expect(objectCalls).toEqual([
+    ['DELETE', '"v1"', 412],
+    ['GET', null, 200],
+    ['DELETE', '"v1-icloud"', 204],
+  ]);
+  await expect(page.locator('.pv-toast').filter({ hasText: /extern geändert|changed remotely/ })).toHaveCount(0);
+  await expect(page.getByRole('dialog').filter({ hasText: /Trotzdem löschen|Delete it anyway/ })).toHaveCount(0);
+});
+
+test('an event edited a moment ago is deleted with the etag of that edit (issue 119, R2)', async ({ page }) => {
+  await installCalDav(page, { rewrite: false });
+  await openVault(page);
+  const shown = await createEventToday(page, 'Frisch bearbeitet');
+  // A colour from the context menu is a write of its own: GET, then PUT.
+  await shown.click({ button: 'right' });
+  await page.getByTestId('ctx-colors').locator('[data-testid^="ctx-color-#"]').first().click();
+  await expect.poll(() => page.evaluate(() => (window as any).__caldavFake.calls.filter((c: any) => c.method === 'PUT').length)).toBe(2);
+  await deleteFromContextMenu(page, shown);
+
+  await expect.poll(() => page.evaluate(() => (window as any).__caldavFake.objects.size)).toBe(0);
+  // Sent with the etag the colour write was answered with - no refusal at all.
+  const deletes = await page.evaluate(() => (window as any).__caldavFake.calls.filter((c: any) => c.method === 'DELETE').map((c: any) => [c.ifMatch ?? null, c.status]));
+  expect(deletes).toEqual([['"v2"', 204]]);
+});
+
+test('an event changed elsewhere asks before it is deleted anyway (issue 119, R2)', async ({ page }) => {
+  await installCalDav(page, { rewrite: false });
+  await openVault(page);
+  const shown = await createEventToday(page, 'Anderswo geändert');
+  // Somebody else renames it on the server.
+  await page.evaluate(() => {
+    const dav = (window as any).__caldavFake;
+    const [url, obj] = [...dav.objects.entries()][0];
+    dav.objects.set(url, { ics: obj.ics.replace('SUMMARY:Anderswo geändert', 'SUMMARY:Umbenannt'), etag: '"elsewhere"' });
+  });
+  await deleteFromContextMenu(page, shown);
+  const ask = page.getByRole('dialog').filter({ hasText: /Trotzdem löschen|Delete it anyway/ });
+  await expect(ask).toBeVisible();
+  // Nothing deleted yet; the answer deletes the state the server named.
+  expect(await page.evaluate(() => (window as any).__caldavFake.objects.size)).toBe(1);
+  await ask.getByRole('button', { name: /Löschen|Delete/ }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).__caldavFake.objects.size)).toBe(0);
+  const last = await page.evaluate(() => (window as any).__caldavFake.calls.filter((c: any) => c.method === 'DELETE').pop());
+  expect(last.ifMatch).toBe('"elsewhere"');
+});
 
 test('month day-pane time grid; event -> meeting note on disk', async ({ page }) => {
   await openVault(page);

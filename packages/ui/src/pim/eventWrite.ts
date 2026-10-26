@@ -1,5 +1,6 @@
-import { PimConflictError, type PimEventDraft, type PimEventRow, type IPimTarget } from "@plainva/core";
+import { eventSubstanceOf, PimConflictError, type PimEventDraft, type PimEventRef, type PimEventRow, type IPimTarget } from "@plainva/core";
 import { logDiagnostic } from "../services/diagnosticsLog";
+import type { EtagStamp } from "./pendingEventWrites";
 
 /**
  * Writing a calendar event, in ONE place (S24).
@@ -44,6 +45,31 @@ export function draftToRow(
     ...(draft.blockOf !== undefined ? { blockOf: draft.blockOf ?? undefined } : {}),
     ...(draft.blocks !== undefined ? { blocks: draft.blocks.length > 0 ? draft.blocks : undefined } : {}),
   };
+}
+
+/**
+ * The etag a write left an event with, as the change the views hold until the
+ * next pull (issue 119, R2) - or nothing, where the provider named none or the
+ * etag did not change. See `EtagStamp`.
+ */
+export function etagStamp(
+  event: Pick<PimEventRow, "accountId" | "calendarId" | "uid" | "etag" | "href">,
+  etag: string | undefined,
+): EtagStamp[] {
+  if (!etag || etag === event.etag) return [];
+  return [{ kind: "stamp", ref: { accountId: event.accountId, calendarId: event.calendarId, uid: event.uid }, ...(event.href ? { href: event.href } : {}), from: event.etag, etag }];
+}
+
+/** What a delete is sent with: the event's guard, and what the person saw of it (R2). */
+type DeleteSubject = Pick<PimEventRow, "accountId" | "calendarId" | "uid" | "etag" | "href"> &
+  Partial<Pick<PimEventRow, "title" | "start" | "allDay" | "recurrence" | "seriesMaster">>;
+
+function deleteRef(event: DeleteSubject, anyway: boolean): PimEventRef {
+  const ref: PimEventRef = { calendarId: event.calendarId, uid: event.uid, etag: event.etag, href: event.href };
+  // "Delete anyway" was asked about a state that had changed: no second
+  // judgement of it, only the guard the person was shown.
+  if (anyway || event.start === undefined || event.title === undefined) return ref;
+  return { ...ref, expect: eventSubstanceOf({ uid: event.uid, title: event.title, start: event.start, allDay: !!event.allDay, recurrence: event.recurrence, seriesMaster: event.seriesMaster }) };
 }
 
 /** Match a cache row to a provider ref (account + calendar + instance uid). */
@@ -107,7 +133,7 @@ export async function createCalendarEvent(
  */
 export async function updateCalendarEvent(
   targets: EventTargets,
-  event: Pick<PimEventRow, "accountId" | "calendarId" | "uid" | "etag" | "href">,
+  event: DeleteSubject,
   draft: PimEventDraft,
   moveTo?: { accountId: string; calendarId: string } | null,
 ): Promise<EventWriteOutcome> {
@@ -119,7 +145,7 @@ export async function updateCalendarEvent(
     try {
       const oldTarget = await targets.targetFor(event.accountId);
       if (oldTarget) {
-        await oldTarget.deleteEvent({ calendarId: event.calendarId, uid: event.uid, etag: event.etag, href: event.href });
+        await oldTarget.deleteEvent(deleteRef(event, false));
       }
     } catch (error) {
       // The copy exists. A failed source delete leaves a duplicate after the
@@ -129,8 +155,9 @@ export async function updateCalendarEvent(
     return { kind: "written", rows, removed };
   }
 
+  let written: { etag?: string };
   try {
-    await timedWrite(
+    written = await timedWrite(
       targets,
       event.accountId,
       "update",
@@ -141,9 +168,12 @@ export async function updateCalendarEvent(
     if (err instanceof PimConflictError) return { kind: "conflict" };
     throw err;
   }
+  // The etag the provider answered with, never the one the write was sent
+  // with (issue 119, R2): that one is exactly what the write made stale, and
+  // the next delete sent with it was refused as "changed elsewhere".
   return {
     kind: "written",
-    rows: [{ ...draftToRow(event.accountId, event.calendarId, event.uid, draft), etag: event.etag, href: event.href }],
+    rows: [{ ...draftToRow(event.accountId, event.calendarId, event.uid, draft), etag: written.etag, href: event.href }],
   };
 }
 
@@ -164,18 +194,32 @@ export function seriesDeleteSubject(occurrence: PimEventRow, master: PimEventRow
   // occurrence: its "series id" names the FIRST occurrence, and deleting that
   // removes one event, not the series. No fallback there - the refusal stays.
   if (provider === "device") return null;
-  return { ...occurrence, uid: occurrence.seriesMaster, seriesMaster: undefined, etag: occurrence.href ? occurrence.etag : undefined };
+  // `RRULE` without a rule is how the cache names a series whose rule it has
+  // not read: this IS a series, only its rule and its first start are not
+  // known here - and a delete that has to judge a moved etag (R2) must not
+  // take the occurrence's start for the series'.
+  return { ...occurrence, uid: occurrence.seriesMaster, seriesMaster: undefined, recurrence: "RRULE", etag: occurrence.href ? occurrence.etag : undefined };
 }
 
+/**
+ * Deletes an event. The provider is told what the person saw of it, so a guard
+ * that is only behind - the server spelled the event anew - costs one more
+ * request instead of a "changed elsewhere" (R2). A real change still comes back
+ * as `PimConflictError`, carrying the etag to send when the person says
+ * "delete anyway"; that second call passes `anyway` with that etag on `event`.
+ *
+ * Returns the etag a series was left with when ONE occurrence was deleted.
+ */
 export async function deleteCalendarEvent(
   targets: EventTargets,
-  event: Pick<PimEventRow, "accountId" | "calendarId" | "uid" | "etag" | "href">,
-): Promise<void> {
-  await timedWrite(
+  event: DeleteSubject,
+  options: { anyway?: boolean } = {},
+): Promise<{ etag?: string } | void> {
+  return timedWrite(
     targets,
     event.accountId,
     "delete",
-    (target) => target.deleteEvent({ calendarId: event.calendarId, uid: event.uid, etag: event.etag, href: event.href }),
+    (target) => target.deleteEvent(deleteRef(event, options.anyway === true)),
     "no writable target for this account",
   );
 }

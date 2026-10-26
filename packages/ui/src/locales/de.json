@@ -3072,6 +3072,7 @@
     "editEvent": "Termin bearbeiten",
     "deleteEvent": "Termin löschen",
     "deleteEventMsg": "„{{title}}“ wird im Kalender des Anbieters gelöscht.",
+    "eventChangedDeleteAnyway": "„{{title}}“ wurde extern geändert. Trotzdem löschen?",
     "eventTitle": "Titel",
     "groupEvent": "Termin",
     "groupTime": "Zeit",

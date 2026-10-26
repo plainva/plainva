@@ -3043,6 +3043,7 @@
     "editEvent": "予定を編集",
     "deleteEvent": "予定を削除",
     "deleteEventMsg": "「{{title}}」はプロバイダーのカレンダーから削除されます。",
+    "eventChangedDeleteAnyway": "「{{title}}」はリモートで変更されました。それでも削除しますか？",
     "eventTitle": "タイトル",
     "groupEvent": "予定",
     "groupTime": "時間",
