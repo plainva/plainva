@@ -1196,6 +1196,13 @@ function sameEntries(a: readonly string[] | undefined, b: readonly string[] | un
   return left.size === right.size && [...left].every((entry) => right.has(entry));
 }
 
+/** What a run on its way holds of its conversation (strand 6, step 8; `running`). */
+interface RunEntry {
+  vault: AiVaultHost;
+  stored: ConversationRecord | null;
+  choices: ConversationChoices | null;
+}
+
 /**
  * Which vault's data a host stands for (strand 6, step 8): its data key where
  * it has one — a shell hands a new host for the same vault when what it is
@@ -1468,7 +1475,13 @@ export class AiSession {
    * conversation's next run, and a choice still goes onto the conversation as
    * it was stored. `vault`: the vault the run belongs to.
    */
-  private readonly running = new Map<string, { vault: AiVaultHost; stored: ConversationRecord | null; choices: ConversationChoices | null }>();
+  private readonly running = new Map<string, RunEntry>();
+  /**
+   * The listing of the vault's conversations the last attaching began (strand
+   * 6, step 10): what a run that attaching stopped still writes enters the
+   * history once that listing is through.
+   */
+  private listing: Promise<void> = Promise.resolve();
   /**
    * Each conversation's writes and its deletions, one after the other, with
    * the vault they go to: a later one is never overtaken by an earlier one.
@@ -1923,8 +1936,16 @@ export class AiSession {
     void this.refreshMemory();
     void this.refreshStyle();
     void this.loadHintPrefs(vault);
-    // What a "Delete all" of this vault leaves (step 8): read once such a clearing is through, and again where a Delete
-    // all came meanwhile.
+    this.listing = this.listConversations(vault);
+    await this.listing;
+  }
+
+  /**
+   * The history of a vault attached: what a "Delete all" of this vault leaves
+   * (step 8), read once such a clearing is through, and again where a Delete
+   * all came meanwhile.
+   */
+  private async listConversations(vault: AiVaultHost): Promise<void> {
     let listed: ConversationSummary[];
     for (;;) {
       const clears = this.clearsOf(vault);
@@ -1948,6 +1969,22 @@ export class AiSession {
     this.set({ summaries: sortSummaries(listed.filter((s) => !this.deleted.has(s.id))) });
   }
 
+  /**
+   * What a run still wrote after a new host of its vault stopped it (strand 6,
+   * step 10): its conversation enters the history once the attaching's listing
+   * is through — as the vault now stores it. The reading is the rule: a
+   * conversation deleted meanwhile, cleared by a Delete all, never written, or
+   * not this vault's reads as nothing (`loaded` waits for each of them). One
+   * more attaching since the reading lists its own vault anew.
+   */
+  private async listStopped(id: string): Promise<void> {
+    const host = this.vault;
+    if (!host) return;
+    const stored = await this.loaded(host, id);
+    if (!stored || this.vault !== host) return;
+    this.set({ summaries: sortSummaries([conversationSummaryOf(stored), ...this.state.summaries.filter((s) => s.id !== id)]) });
+  }
+
   async open(id: string): Promise<void> {
     const vault = this.vault;
     if (!vault || this.state.live) return;
@@ -1955,7 +1992,14 @@ export class AiSession {
     if (this.state.active?.id !== id) this.leaveComposerMessage();
     const screen = this.screens;
     const started = this.started;
-    const record = await this.loaded(vault, id);
+    // Read again where a write of it came while the reading came back (strand 6, step 10): the end of a run that a new
+    // host stopped can land between the reading's check and this step, off screen, and nothing would take it back.
+    let record: ConversationRecord | null;
+    for (;;) {
+      const changes = this.changes.get(id) ?? 0;
+      record = await this.loaded(vault, id);
+      if ((this.changes.get(id) ?? 0) === changes) break;
+    }
     // A later step on screen — another conversation, a new one, a deletion of the one on screen — wins over a reading
     // that comes late, and so does a run that began since; one deleted meanwhile is read as gone (`loaded`).
     if (!record || this.vault !== vault || this.screens !== screen || this.started !== started) return;
@@ -4644,7 +4688,9 @@ export class AiSession {
     // The mandatory note: the answer as "Keep as a note" writes it — stamped, with its sources and the rules of what
     // it rests on —, called after the routine and the day. A shared workspace was named when the routine was confirmed.
     const kept = await this.captureFrom(vault, record, record.runs[0]?.userTurn ?? 0, { title: routineNoteTitle(routine.name, this.host.now()), standing: true });
-    if (kept.kind !== "captured") return { outcome: "failed", failure: "note", ...left };
+    // Kept by no host where a new one of the vault came since it ran (strand 6, step 10): stopped, the answer in its
+    // conversation; the routine's previous conversation went as it would — app data of the same vault, not its notes.
+    if (kept.kind !== "captured") return this.vault !== vault ? { outcome: "stopped", ...left } : { outcome: "failed", failure: "note", ...left };
     return { outcome: "answered", note: kept.path, noteTitle: kept.title, ...left };
   }
 
@@ -4776,6 +4822,9 @@ export class AiSession {
           ...(material.more ? { more: t("ai.routines.log.entryMore", { count: String(material.more) }) } : {}),
         },
       };
+      // A new host of the vault since it ran (strand 6, step 10) stops the entry: nothing is laid into the vault through
+      // the host that was. The answer stays in its conversation, which the history lists.
+      if (this.vault !== vault) return { outcome: "stopped", ...left };
       await log.update(path, (current) => logEntryText(current, entry));
     } catch {
       return { outcome: "failed", failure: "note", ...left };
@@ -5220,6 +5269,9 @@ export class AiSession {
       const chunks = selectionChunks(base, place.from, place.to, linted.text, action === "tasks" ? "insert" : "replace");
       if (!chunks.length) return { kind: "unchanged", conversationId: saved.id };
       const roundNote = t(`ai.selection.roundNote.${action}`, { model: choice.model });
+      // A new host of the vault since the answer (strand 6, step 10) stops the round: nothing is laid down through the
+      // host that was. The answer stays in its conversation.
+      if (this.vault !== vault) return { kind: "refused", reason: "cancelled" };
       await vault.propose({
         path: range.path,
         base,
@@ -5315,6 +5367,9 @@ export class AiSession {
       // The summary names no address the transcript does not hold (its check); what it holds is made inert like the transcript's.
       const above = summary ? defuseNewAddresses(summary.text, [base]) : null;
       const roundNote = summary ? t("ai.transcribe.roundNoteSummary", { name: audio.name, model: summary.model }) : t("ai.transcribe.roundNote", { name: audio.name });
+      // A new host of the vault since the request went (strand 6, step 10) stops the round: nothing is laid down through
+      // the host that was. The recording stays, to be written down again.
+      if (this.vault !== vault) return refused("cancelled");
       await vault.propose({
         path: notePath,
         base,
@@ -5988,6 +6043,9 @@ export class AiSession {
       // Written into the note only where the place it lands in would allow more than its sources do.
       const place = await vault.policy.policyOf(capturedNotePath(folder, note.stem), "").catch(() => null);
       const rules = AI_POLICY_DIMENSIONS.filter((dimension) => inherited.has(dimension) && place?.policy[dimension] !== "deny");
+      // A new host of the vault since this began (strand 6, step 10) stops it: nothing is laid into the vault through the
+      // host that was — a routine's note no more than one the user keeps. The answer stays in its conversation.
+      if (this.vault !== vault) return refused("cancelled");
       const path = await capture.write(folder, note.stem, withInheritedRules(note.content, rules));
       return { kind: "captured", path, title: note.title, ...(rules.length ? { inherited: rules } : {}) };
     } catch (error) {
@@ -6091,6 +6149,9 @@ export class AiSession {
       // What the user's own text already links to stays a link; what the model brought does not become one.
       const reply = defuseNewAddresses((outcome.answer ?? "").trim(), [note?.text ?? "", request.quote ?? "", request.question, ...request.thread.map((remark) => remark.body)]).text;
       if (!reply) return refused("no-answer", withId);
+      // A new host of the vault since the question went (strand 6, step 10) stops the reply: nothing is posted through
+      // the host that was. The answer stays in its conversation, which the history lists.
+      if (this.vault !== vault) return refused("cancelled", withId);
       try {
         await vault.reply({
           path: request.path,
@@ -7493,6 +7554,15 @@ export class AiSession {
       if (this.vault !== vault || gone) {
         // What this run put on screen as running goes with it.
         if (this.state.live?.conversationId === record.id) this.set({ live: null });
+        // A new host the shell made meanwhile — the same vault rebuilt, say (step 10): it stopped this run, but what the
+        // run wrote is its vault's. The conversation enters the history once the attaching's listing is through, as
+        // the vault then stores it (`listStopped`); the screen it reaches only where the user opened it again (above).
+        if (!gone) {
+          void this.listing
+            .catch(() => undefined)
+            .then(() => this.listStopped(record.id))
+            .catch(() => undefined);
+        }
         return { stop: result.stop, record: latest, answer };
       }
       if (input.background) {

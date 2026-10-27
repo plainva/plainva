@@ -159,6 +159,39 @@ describe("a run nobody watches", () => {
     expect(titles(h).filter((title) => title === "Routine: Morning brief")).toHaveLength(1);
   });
 
+  it("keeps no note through a host that is gone: a new host for the same vault while the run's end is written stops it (strand 6, step 10)", async () => {
+    const vault = routineVault(NOTES);
+    const h = await routineSession([chat({ text: BRIEF })], vault, { model: LOCAL });
+    await h.setUp();
+    h.go(at(9, 7, 1));
+    vault.host.key = "vault-1";
+    // The run's conversation is written while the shell hands a new host for the same vault — the index rebuilt, say.
+    const save = vault.host.conversations.save.bind(vault.host.conversations);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const saving = new Promise<void>((resolve) => (reached = resolve));
+    let first = true;
+    vault.host.conversations.save = async (record) => {
+      if (first) {
+        first = false;
+        reached();
+        await gate;
+      }
+      return save(record);
+    };
+    const due = h.s.runDueRoutines();
+    await saving;
+    await h.s.attachVault({ ...vault.host });
+    release();
+    await due;
+    // The answer stays in its conversation, which the history lists; nothing went through the host that was.
+    expect(vault.kept).toEqual([]);
+    expect(routineOf(h).last).toMatchObject({ outcome: "stopped" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(titles(h)).toContain("Routine: Morning brief");
+  });
+
   it("keeps its note and moves on to its new conversation where the previous one cannot be deleted", async () => {
     const vault = routineVault(NOTES);
     const h = await routineSession([chat({ text: "Friday." }), chat({ text: "Wednesday." })], vault, { model: LOCAL });

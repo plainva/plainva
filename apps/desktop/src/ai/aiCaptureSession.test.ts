@@ -221,6 +221,31 @@ async function session(script: EgressChunk[][], vault: ReturnType<typeof vaultOf
 const toolNames = (spec: HttpRequestSpec | undefined) => ((spec?.body?.tools ?? []) as { name?: string }[]).map((tool) => tool.name);
 
 describe("keep as a note", () => {
+  it("writes no note through a host that is gone: a new host for the same vault while it is put together stops it (strand 6, step 10)", async () => {
+    const vault = vaultOf({ active: "Projects/Offer 2026.md" });
+    const { s } = await session([turn({ text: "The offer is due on Friday." })], vault);
+    expect(await s.send("When is the offer due?")).toEqual({ kind: "answered" });
+    vault.host.key = "vault-1";
+    // The folder it lands in is asked for; meanwhile the shell hands a new host for the same vault — the index rebuilt.
+    const capture = vault.host.capture!;
+    const folder = capture.folder.bind(capture);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const asked = new Promise<void>((resolve) => (reached = resolve));
+    capture.folder = async () => {
+      reached();
+      await gate;
+      return folder();
+    };
+    const keeping = s.captureAnswer(0);
+    await asked;
+    await s.attachVault({ ...vault.host });
+    release();
+    expect(await keeping).toMatchObject({ kind: "refused", reason: "cancelled" });
+    expect([...vault.written.keys()]).toEqual([]);
+  });
+
   it("writes the answer of a run into the inbox folder, with the notes it rests on — sent along or read by a tool", async () => {
     const vault = vaultOf({ active: "Projects/Offer 2026.md" });
     const { s, fake } = await session([turn({ calls: [{ id: "c1", name: "read_note", args: { path: "Projects/Rates.md" } }, { id: "c2", name: "read_note", args: { path: "Projects/Missing.md" } }] }), turn({ text: "The offer names 1,800 euros; last year it was 1,750 [[Rates]]." })], vault);

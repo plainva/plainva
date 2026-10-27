@@ -875,6 +875,42 @@ describe("an AI action at a selection", () => {
     expect([fake.sent.length, s.getState().live, s.getState().active]).toEqual([1, null, null]);
   });
 
+  it("lays no round through a host that is gone: a new host for the same vault after the answer stops it (strand 6, step 10)", async () => {
+    const { s, fake } = session([answer("```\nThe contract runs on.\n```")]);
+    await s.load();
+    const { vault, rounds } = proposing();
+    vault.host.key = "vault-1";
+    await s.attachVault(vault.host);
+    // The note is read again once the answer is in, to lay the round on it as it is now: that reading is held.
+    const readNote = vault.host.readNote.bind(vault.host);
+    const send = fake.egress.send.bind(fake.egress);
+    let answered = false;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const reading = new Promise<void>((resolve) => (reached = resolve));
+    fake.egress.send = async (id, spec, onChunk) => {
+      const out = await send(id, spec, onChunk);
+      answered = true;
+      return out;
+    };
+    vault.host.readNote = async (path) => {
+      if (answered) {
+        answered = false;
+        reached();
+        await gate;
+      }
+      return readNote(path);
+    };
+    const outcome = s.proposeForSelection({ action: "rewrite", range });
+    await reading;
+    // The index rebuilt meanwhile: the shell hands a new host for the same vault.
+    await s.attachVault({ ...vault.host });
+    release();
+    expect(await outcome).toEqual({ kind: "refused", reason: "cancelled" });
+    expect(rounds).toEqual([]);
+  });
+
   it("proposes nothing for a passage whose history Delete all cleared while it was looked at", async () => {
     const { s, fake } = session([answer("```\nThe contract runs on.\n```"), answer("```\nThe contract runs on.\n```")]);
     await s.load();
@@ -1083,6 +1119,38 @@ describe("transcribing a voice note", () => {
     return { ...made, vault, rounds };
   }
 
+  it("lays no round through a host that is gone: a new host for the same vault while the transcript comes back stops it (strand 6, step 10)", async () => {
+    const { s, fake, vault, rounds } = await transcribing([json({ text: "Put community care on its own line.", usage: { input_tokens: 80, output_tokens: 20 } })]);
+    vault.host.key = "vault-1";
+    // Once the transcript is in, the note is read again to lay the round on it as it is now: that reading is held.
+    const send = fake.egress.send.bind(fake.egress);
+    const readNote = vault.host.readNote.bind(vault.host);
+    let answered = false;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const reading = new Promise<void>((resolve) => (reached = resolve));
+    fake.egress.send = async (id, spec, onChunk) => {
+      const out = await send(id, spec, onChunk);
+      answered = true;
+      return out;
+    };
+    vault.host.readNote = async (path) => {
+      if (answered) {
+        answered = false;
+        reached();
+        await gate;
+      }
+      return readNote(path);
+    };
+    const outcome = s.transcribe({ notePath: day, target, audio: recording });
+    await reading;
+    await s.attachVault({ ...vault.host });
+    release();
+    expect(await outcome).toMatchObject({ kind: "refused", reason: "cancelled" });
+    expect(rounds).toEqual([]);
+  });
+
   it("sends the recording as it is and proposes the transcript under its line, authored by the model", async () => {
     const { s, fake, vault, rounds } = await transcribing([json({ text: "Put community care on its own line.\nAsk Tom about ten episodes.", usage: { input_tokens: 80, output_tokens: 20 } })]);
     const outcome = await s.transcribe({ notePath: day, target, audio: recording });
@@ -1239,6 +1307,41 @@ describe("answering in a comment thread", () => {
     };
     return { vault, replies };
   }
+
+  it("posts no reply through a host that is gone: a new host for the same vault while the run's end is written stops it (strand 6, step 10)", async () => {
+    const { s, fake } = session([answer("It renews itself.")]);
+    await s.load();
+    const { vault, replies } = replying();
+    vault.host.key = "vault-1";
+    await s.attachVault(vault.host);
+    // Once the answer is in, the run's end is written: that write is held, and meanwhile the index is rebuilt.
+    const send = fake.egress.send.bind(fake.egress);
+    const save = vault.host.conversations.save.bind(vault.host.conversations);
+    let answered = false;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const saving = new Promise<void>((resolve) => (reached = resolve));
+    fake.egress.send = async (id, spec, onChunk) => {
+      const out = await send(id, spec, onChunk);
+      answered = true;
+      return out;
+    };
+    vault.host.conversations.save = async (record) => {
+      if (answered) {
+        answered = false;
+        reached();
+        await gate;
+      }
+      return save(record);
+    };
+    const outcome = s.replyInThread(request);
+    await saving;
+    await s.attachVault({ ...vault.host });
+    release();
+    expect(await outcome).toMatchObject({ kind: "refused", reason: "cancelled" });
+    expect(replies).toEqual([]);
+  });
 
   it("asks with the thread, its passage and the note, and posts the answer as a reply under the model's name", async () => {
     const { s, fake } = session([answer("It renews itself — see [[Contract]].")]);
@@ -1746,6 +1849,8 @@ describe("a conversation changed while a run of it is on its way", () => {
     await hold.waiting;
     s.newConversation();
     const renaming = s.rename(id, "Mine");
+    // A full turn first: a reading that did not wait for the write would have read the conversation without the pin.
+    await new Promise((resolve) => setTimeout(resolve, 0));
     hold.release();
     await Promise.all([pinning, renaming]);
     expect(vault.saved.get(id)).toMatchObject({ title: "Mine", pins: ["Offer.md"] });
@@ -2186,6 +2291,8 @@ describe("a conversation changed while a run of it is on its way", () => {
     await hold.begun;
     const slow = slowRead(vault);
     const opening = s.open("elsewhere");
+    // A full turn first: a reading that did not wait for the clearing would have read the conversation before it.
+    await new Promise((resolve) => setTimeout(resolve, 0));
     hold.release();
     await clearing;
     slow.reply();
@@ -3653,6 +3760,199 @@ describe("a conversation changed while a run of it is on its way", () => {
     expect(vault.saved.size).toBe(0);
     expect([s.getState().active, s.getState().live, s.getState().summaries]).toEqual([null, null, []]);
     expect(vault.ledger()).toHaveLength(2);
+  });
+
+  it("lists the end of a run that a new host for the same vault stopped, and puts it on no screen (strand 6, step 10)", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    vault.host.key = "vault-1";
+    await s.attachVault(vault.host);
+    // A run that begins a conversation on its way when the shell hands a new host for the vault — the index rebuilt.
+    const hold = held(fake);
+    const run = s.send("First");
+    await hold.waiting;
+    const n = s.getState().active!.id;
+    await s.attachVault({ ...vault.host });
+    hold.release();
+    await run;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // A new host is an attaching: the run stopped, and the screen begins anew — what the run wrote is listed.
+    expect([s.getState().active, vault.saved.has(n), s.getState().summaries.some((summary) => summary.id === n)]).toEqual([null, true, true]);
+  });
+
+  it("lists the end of a stopped run also where it comes while the new host's attaching lists (strand 6, step 10)", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    vault.host.key = "vault-1";
+    await s.attachVault(vault.host);
+    const hold = held(fake);
+    const run = s.send("First");
+    await hold.waiting;
+    const n = s.getState().active!.id;
+    // The new host's list is read before the run's end is written, and handed back only after.
+    const list = vault.host.conversations.list.bind(vault.host.conversations);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const read = new Promise<void>((resolve) => (reached = resolve));
+    let first = true;
+    vault.host.conversations.list = async () => {
+      const rows = await list();
+      if (first) {
+        first = false;
+        reached();
+        await gate;
+      }
+      return rows;
+    };
+    const attaching = s.attachVault({ ...vault.host });
+    await read;
+    hold.release();
+    await run;
+    release();
+    await attaching;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(s.getState().summaries.some((summary) => summary.id === n)).toBe(true);
+  });
+
+  it("lists nothing of a run that another vault's attaching stopped (strand 6, step 10)", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    vault.host.key = "vault-1";
+    await s.attachVault(vault.host);
+    const hold = held(fake);
+    const run = s.send("First");
+    await hold.waiting;
+    const n = s.getState().active!.id;
+    const other = vaultHost("Plan.md");
+    other.host.key = "vault-2";
+    await s.attachVault(other.host);
+    hold.release();
+    await run;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // The run is its own vault's: written there, listed nowhere else.
+    expect([vault.saved.has(n), s.getState().summaries.some((summary) => summary.id === n)]).toEqual([true, false]);
+  });
+
+  it("shows a conversation whose run a new host stopped with that run's end once it comes, and the next message keeps its turns (strand 6, step 10)", async () => {
+    const { s, fake } = session([answer("One."), answer("Two."), answer("Three.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    vault.host.key = "vault-1";
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const c = s.getState().active!.id;
+    // Its next run on its way when the shell hands a new host; the user opens the conversation again before the
+    // stopped run's end is written.
+    const hold = held(fake);
+    const run = s.send("Second");
+    await hold.waiting;
+    await s.attachVault({ ...vault.host });
+    const opening = s.open(c);
+    // A full turn first: the conversation is read, and shown, before the stopped run's end is written.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    hold.release();
+    await Promise.all([run, opening]);
+    expect(JSON.stringify(s.getState().active?.conversation.turns)).toContain("Second");
+    await s.send("Third");
+    expect(JSON.stringify(vault.saved.get(c)?.conversation.turns)).toContain("Second");
+  });
+
+  it("lists nothing of a stopped run in a vault attached while its end is read for the history (strand 6, step 10)", async () => {
+    const { s, fake } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    vault.host.key = "vault-1";
+    await s.attachVault(vault.host);
+    const hold = held(fake);
+    const run = s.send("First");
+    await hold.waiting;
+    const n = s.getState().active!.id;
+    await s.attachVault({ ...vault.host });
+    // The stopped run's end, read for the history through the new host, is held there while another vault is attached.
+    const read = slowRead(vault);
+    hold.release();
+    await run;
+    await read.reading;
+    const other = vaultHost("Plan.md");
+    other.host.key = "vault-2";
+    await s.attachVault(other.host);
+    read.reply();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(s.getState().summaries.some((summary) => summary.id === n)).toBe(false);
+  });
+
+  it("lists no stopped run's end that a Delete all cleared while it was read for the history (strand 6, step 10)", async () => {
+    const { s, fake } = session([answer("One.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    vault.host.key = "vault-1";
+    await s.attachVault(vault.host);
+    const hold = held(fake);
+    const run = s.send("First");
+    await hold.waiting;
+    const n = s.getState().active!.id;
+    await s.attachVault({ ...vault.host });
+    const read = slowRead(vault);
+    hold.release();
+    await run;
+    await read.reading;
+    // Read before it, handed back after: the conversation the reading found is gone.
+    await s.removeAll();
+    read.reply();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect([vault.saved.has(n), s.getState().summaries.some((summary) => summary.id === n)]).toEqual([false, false]);
+  });
+
+  it("opens a conversation again however a run of it broke: no reading waits on a run that is over (strand 6, step 10)", async () => {
+    const { s } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Plan.md");
+    await s.attachVault(vault.host);
+    await s.send("First");
+    const c = s.getState().active!.id;
+    // A shell's listener that breaks as the next run puts itself on screen: that run ends before its end is decided.
+    let broke = false;
+    const off = s.subscribe(() => {
+      if (!broke && s.getState().live) {
+        broke = true;
+        throw new Error("listener broke");
+      }
+    });
+    expect(await s.send("Second")).toMatchObject({ kind: "failed" });
+    off();
+    s.newConversation();
+    await s.open(c);
+    expect(s.getState().active?.id).toBe(c);
+  });
+
+  it("keeps a stopped run's turns however its end and an opening interleave: an opening reads again what was written since (strand 6, step 10)", async () => {
+    for (let turns = 0; turns <= 40; turns++) {
+      const { s, fake } = session([answer("One."), answer("Two."), answer("Three.")]);
+      await s.load();
+      const vault = vaultHost("Plan.md");
+      vault.host.key = "vault-1";
+      await s.attachVault(vault.host);
+      await s.send("First");
+      const c = s.getState().active!.id;
+      const hold = held(fake);
+      const run = s.send("Second");
+      await hold.waiting;
+      await s.attachVault({ ...vault.host });
+      // The opening's reading is held; the stopped run ends, and the reading comes back a few turns later or sooner.
+      const read = slowRead(vault);
+      const opening = s.open(c);
+      await read.reading;
+      hold.release();
+      for (let turn = 0; turn < turns; turn++) await Promise.resolve();
+      read.reply();
+      await Promise.all([run, opening]);
+      await s.send("Third");
+      expect(JSON.stringify(vault.saved.get(c)?.conversation.turns), `${turns} turns`).toContain("Second");
+    }
   });
 
   it("lists no conversation an earlier attaching deleted, also where the shell made a new host meanwhile", async () => {

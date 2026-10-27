@@ -119,6 +119,38 @@ describe("a run of a folder's log", () => {
     expect(vault.kept).toEqual([]);
   });
 
+  it("writes no entry through a host that is gone: a new host for the same vault while the run's end is written stops it (strand 6, step 10)", async () => {
+    const vault = projects();
+    const h = await routineSession([turn({ text: ANSWER })], vault);
+    await h.setUp(LOG);
+    vault.edit("Projects/Plan.md", PLAN_NOW, at(9, 10).getTime());
+    h.go(at(9, 18, 1));
+    vault.host.key = "vault-1";
+    // The run's conversation is written while the shell hands a new host for the same vault — the index rebuilt, say.
+    const save = vault.host.conversations.save.bind(vault.host.conversations);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let reached!: () => void;
+    const saving = new Promise<void>((resolve) => (reached = resolve));
+    let first = true;
+    vault.host.conversations.save = async (record) => {
+      if (first) {
+        first = false;
+        reached();
+        await gate;
+      }
+      return save(record);
+    };
+    const due = h.s.runDueRoutines();
+    await saving;
+    await h.s.attachVault({ ...vault.host });
+    release();
+    await due;
+    // The answer stays in its conversation; nothing went through the host that was.
+    expect(vault.file("Projects/log.md")).toBeNull();
+    expect(h.sent).toHaveLength(1);
+  });
+
   it("asks no model and writes nothing where nothing changed — and looks from where the last entry ended", async () => {
     const vault = projects();
     const h = await routineSession([turn({ text: "[1] The budget was agreed." }), turn({ text: "[1] The kick-off moved to Tuesday." })], vault);
