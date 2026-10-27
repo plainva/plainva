@@ -354,10 +354,11 @@ function contextKind(before: string): LintFindingKind {
   return "bare-url";
 }
 
-// A destination is read no further than this. A host sits at its front, so a longer scan finds no new host; the cap
-// keeps a run of pasted-together `](`/`]:`/`<` leads from each scanning to the end of the text — the whole would be
-// quadratic. Past it, the address's `://` is still broken; only how far the finding quotes it is capped.
-const MAX_ADDRESS = 4096;
+// A destination (and an address in running text) is read no further than this. A host sits at the front, so a longer
+// scan finds no new host; the cap keeps a run of pasted-together `](`/`]:`/`<` leads or schemes from each scanning to
+// the end of the text — the whole would be quadratic, and even bounded each scan runs once per lead. Past it, the
+// address's `://` is still broken; only how far the finding quotes it is capped.
+const MAX_ADDRESS = 1024;
 
 /**
  * Where a destination that starts at `at` ends, as CommonMark delimits it: one
@@ -411,7 +412,9 @@ const isBlank = (c: string): boolean => /\s/.test(c);
  * `?!.,:*_~`, a ")" without its "(", and what looks like a character reference.
  */
 function gfmEnd(text: string, start: number): number {
-  const limit = Math.min(text.length, start + MAX_ADDRESS);
+  // A running-text address is read in a shorter window still: a host and a reasonable path fit, and this scan runs
+  // once per scheme/`www.` match — a long blank-free run of them would be costly even bounded at the destination cap.
+  const limit = Math.min(text.length, start + 256);
   let end = start;
   let open = 0;
   let close = 0;
