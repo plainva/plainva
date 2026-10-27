@@ -120,6 +120,6 @@ describe("what both shells say about the search index", () => {
     expect(desktop).toMatch(/onFullScan: \(info\) => \{\s*(?:\/\/[^\n]*\n\s*)*if \(coldIndexOwed\) \{\s*coldIndexOwed = false;\s*deferInitialEnqueue = false;\s*(?:\/\/[^\n]*\n\s*)*if \(localOnlySwept\) \{\s*syncQueue\.enqueueLocalOnlyFiles\(\)/);
     const scanned = desktop.indexOf("onFullScan: (info) => {");
     expect(desktop.indexOf("if (coldIndexOwed) {", scanned)).toBeLessThan(desktop.indexOf('logDiagnostic("index", formatFullScan(info));', scanned));
-    expect(desktop).toMatch(/syncWorker\.onFirstCycleComplete = \(skipped\) => \{[^}]*?syncQueue\.enqueueLocalOnlyFiles\(skipped\)[\s\S]{0,400}?localOnlySwept = true;\s*\};/);
+    expect(desktop).toMatch(/syncWorker\.onFirstCycleComplete = \(outcome\) => \{[^}]*?syncQueue\.enqueueLocalOnlyFiles\(\)[\s\S]{0,400}?localOnlySwept = true;\s*(?:\/\/[^\n]*\n\s*)*sayFirstSyncConflictCopies\(outcome\.conflictCopies,[\s\S]{0,300}?\};/);
   });
 });

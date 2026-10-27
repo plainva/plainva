@@ -22,7 +22,7 @@ import {
   type JournalCheckResult,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { connectionErrorText, formatListingReport, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision } from "@plainva/ui";
+import { connectionErrorText, ensureStarterManifest, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision } from "@plainva/ui";
 import { assertEmptyRemoteVault } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
@@ -495,6 +495,8 @@ export async function createProviderVault(
     template: opts.template,
     vaultName: opts.vaultName,
     subfoldersHeading: opts.subfoldersHeading,
+    // Made for this new cloud folder: the template is what it is to hold.
+    recordStarter: false,
   });
   await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
   await adoptOrForget(id, adopt);
@@ -1101,6 +1103,10 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   // A fact of the vault, not of its records: a reset of the sync state never
   // makes a vault that synced before "new" again (fifth review, finding 2).
   const hasSyncedBefore = !rootCreationAllowed(await mobileSyncedBefore(v).catch(() => true));
+  // Starter content never goes into a folder the vault is connected to
+  // (review 2026-10-27): a vault from before the vault remembered its starter
+  // files has them recognised now, once, before its first upload.
+  if (!hasSyncedBefore) await ensureStarterManifest(v.adapter).catch((e) => console.warn("[syncService] starter files not recognised", e));
   if ("allowRootCreation" in rawTarget) (rawTarget as { allowRootCreation: boolean }).allowRootCreation = !hasSyncedBefore;
   // Drive only: the folder id learned by NAME, kept until a full listing of it
   // has held — then stored, so the id addresses the folder from now on (A4).
@@ -1229,14 +1235,17 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   w.onProgress = (p) => {
     setProgress(p ? { current: p.current, total: p.total } : null);
   };
-  w.onFirstCycleComplete = (skipped) => {
+  w.onFirstCycleComplete = (outcome) => {
     // From now on a missing cloud folder is an error, never a new one (fifth review, 2).
     void markMobileSyncedBefore(v.vaultId).catch((e) => console.error("[syncService] could not record the first sync", e));
-    void v.syncQueue!.enqueueLocalOnlyFiles(skipped).catch(() => {});
+    void v.syncQueue!.enqueueLocalOnlyFiles().catch(() => {});
     v.markFirstSyncComplete();
     // The remote content is here now, so anchored notes exist and can be
     // ADOPTED rather than imported a second time.
     firstCycleSettled = true;
+    // Never silently: the copies kept where both sides differed (review 2026-10-27).
+    sayFirstSyncConflictCopies(outcome.conflictCopies, (key, options) => i18n.t(key, options), (copy) =>
+      window.dispatchEvent(new CustomEvent("m-reveal-file", { detail: { path: copy, vaultId: v.vaultId } })));
   };
   w.onFilesChanged = (paths) => {
     void v.reindexPaths(paths);

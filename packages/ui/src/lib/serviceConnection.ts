@@ -177,9 +177,14 @@ export async function createServiceGrantProbe(
   const resolve = async () => {
     const record = (await ports.records()).find(r => r.id === opts.accountId);
     if ((!record && !opts.allowUnbound) || (record && record.family !== opts.family)) throw new ServiceConnectionError("accountChanged");
-    const identity = normalizeVerifiedProviderIdentity(record?.verifiedProviderIdentity);
-    if (opts.expectedIdentity && (!identity || verifiedProviderIdentityKey(identity) !== verifiedProviderIdentityKey(opts.expectedIdentity))) throw new ServiceConnectionError("accountChanged");
     const token = await ports.token();
+    // A card the running sign-in creates has no record until every service is
+    // bound - the record is written once, at the end. Its identity is then the
+    // one its grant proved. Reading only the record failed the calendar of
+    // every new desktop card with "the target account or vault changed"
+    // (finding 2026-10-27).
+    const identity = normalizeVerifiedProviderIdentity(record ? record.verifiedProviderIdentity : token?.providerIdentity);
+    if (opts.expectedIdentity && (!identity || verifiedProviderIdentityKey(identity) !== verifiedProviderIdentityKey(opts.expectedIdentity))) throw new ServiceConnectionError("accountChanged");
     // A system-sheet grant (Android) holds no refresh token and is still a grant.
     if (!hasStoredAccountGrant(token) || !sameOAuthClient(token, opts) || !tokenCoversService(token, opts.service, opts.family)) throw new ServiceConnectionError("needsConsent");
   };

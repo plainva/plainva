@@ -1,4 +1,4 @@
-import { afterTaskSyncResume, clearPinboardCache, filesRunState, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache, ensureStarterManifest, filesRunState, sayFirstSyncConflictCopies, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText, WORKSPACE_FORKS_FOLDER } from "@plainva/core";
@@ -1317,6 +1317,12 @@ export const VaultProvider: React.FC<{
         // A fact of the vault, not of its records: a reset of the sync state
         // never makes a vault that synced before "new" again (fifth review, 2).
         const hasSyncedBefore = !rootCreationAllowed(await syncedBeforeForVault(path, syncRepo).catch(() => true));
+        // Starter content never goes into a folder the vault is connected to
+        // (review 2026-10-27): a vault from before the vault remembered its
+        // starter files has them recognised now, once, before its first upload.
+        if (!hasSyncedBefore && (driveReady || oneDriveReady || dropboxReady || s3Ready || webdavReady)) {
+          await ensureStarterManifest(backupVaultAdapter).catch((e) => console.warn("[VaultContext] starter files not recognised", e));
+        }
         // Drive only: the folder id learned by NAME, kept until a listing of it
         // has held (see onFullListingTrusted below).
         let resolvedDriveRoot: { id: string; path: string } | null = null;
@@ -1626,7 +1632,7 @@ export const VaultProvider: React.FC<{
               // Coarse cycle progress for the status bar (WP6); throttled in core.
               syncStatusStore.set(path, { progress });
             };
-            syncWorker.onFirstCycleComplete = (skipped) => {
+            syncWorker.onFirstCycleComplete = (outcome) => {
               // From now on a missing cloud folder is an error, never a new one (fifth review, 2).
               void markVaultSyncedBefore(path).catch((e) => console.error("[VaultContext] could not record the first sync", e));
               // The vault has its remote content now, so anchored notes exist
@@ -1636,10 +1642,13 @@ export const VaultProvider: React.FC<{
               // local-only files (no remote_etag) — including those whose initial-index
               // enqueue we deferred (3c) — so new local files still reach the remote,
               // without the fresh-index mass-overwrite risk.
-              syncQueue.enqueueLocalOnlyFiles(skipped)
+              syncQueue.enqueueLocalOnlyFiles()
                 .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
                 .catch((e) => console.error("[VaultContext] enqueueLocalOnlyFiles failed", e));
               localOnlySwept = true;
+              // Never silently: the copies kept where both sides differed (review 2026-10-27).
+              sayFirstSyncConflictCopies(outcome.conflictCopies, (key, options) => i18n.t(key, options), (copy) =>
+                window.dispatchEvent(new CustomEvent("plainva-resolve-conflict", { detail: { path: copy } })));
             };
             syncWorker.onFilesChanged = (paths) => {
               // Pulled writes/deletions happen outside the editor; re-index so the

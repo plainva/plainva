@@ -2,6 +2,7 @@ import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { conflictSessionKey, decodeConflictSession, type ConflictDiagnostic, type ConflictEditSession } from "./conflictSession.js";
 import { ConflictFileStore } from "./ConflictFileStore.js";
 import type { IVaultAdapter } from "./IVaultAdapter.js";
+import { clearAllUnsyncablePaths, clearUnsyncablePath, listUnsyncablePaths, markUnsyncablePath, type UnsyncableEntry } from "../sync/unsyncablePaths.js";
 
 export interface SyncState {
   path: string;
@@ -42,6 +43,21 @@ export class SyncStateRepository {
    */
   async clearAll(): Promise<void> {
     await this.db.execute("DELETE FROM sync_state");
+    // What the other folder refused is no fact about this one.
+    await clearAllUnsyncablePaths(this.db);
+  }
+
+  /** Files the provider never hands out here (see unsyncablePaths.ts). */
+  async listUnsyncable(): Promise<UnsyncableEntry[]> {
+    return listUnsyncablePaths(this.db);
+  }
+
+  async markUnsyncable(path: string, reason: string, etag: string, now: number = Date.now()): Promise<UnsyncableEntry> {
+    return markUnsyncablePath(this.db, path, reason, etag, now);
+  }
+
+  async clearUnsyncable(path: string): Promise<void> {
+    await clearUnsyncablePath(this.db, path);
   }
 
   constructor(private readonly db: IDatabaseAdapter, files?: IVaultAdapter, deviceId?: string) {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PimCacheRepository, type IDatabaseAdapter, type ISyncTarget, type IVaultAdapter } from "@plainva/core";
+import { PimCacheRepository, starterHash, type IDatabaseAdapter, type ISyncTarget, type IVaultAdapter } from "@plainva/core";
 import type { MobileVault } from "./vaultService";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 
@@ -137,6 +137,25 @@ describe("the account-to-files transfer before vault activation", () => {
     expect(await getMailPassword(target, "mail")).toBe("mail-secret");
     expect(state.secrets.get(`pim-${target}-calendar`)).toEqual(state.secrets.get("pim-source-calendar"));
     expect((await loadCloudAccounts(target))[0].services).toEqual({ files: { provider: "webdav" }, calendar: { pimAccountId: "calendar" }, mail: { mailAccountId: "mail" } });
+  });
+  it("leaves a fresh vault's starter notes behind and asks only about the person's own (review 2026-10-27)", async () => {
+    const starter = "# Willkommen\n";
+    state.disks.get("source")!.set("Willkommen.md", starter);
+    state.disks.get("source")!.set(".plainva/starter-files.json", JSON.stringify({ version: 1, files: { "Willkommen.md": starterHash(starter) } }));
+    await connect();
+    const target = state.switches[0];
+    expect([...state.disks.get(target)!.keys()].filter((p) => !p.startsWith(".plainva"))).toEqual(["Note.md"]);
+    expect(state.disks.get("source")!.get("Willkommen.md")).toBe(starter);
+  });
+  it("does not ask at all when the vault holds only its starter notes", async () => {
+    const starter = "# Willkommen\n";
+    state.disks.get("source")!.delete("Note.md");
+    state.disks.get("source")!.set("Willkommen.md", starter);
+    state.disks.get("source")!.set(".plainva/starter-files.json", JSON.stringify({ version: 1, files: { "Willkommen.md": starterHash(starter) } }));
+    await connect();
+    expect(state.events).not.toContain("review");
+    expect(state.switches).toHaveLength(1);
+    expect([...state.disks.get(state.switches[0])!.keys()].filter((p) => !p.startsWith(".plainva"))).toEqual([]);
   });
   it("cancels review without copying or publishing a vault", async () => {
     state.accepted = false;

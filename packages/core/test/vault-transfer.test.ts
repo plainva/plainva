@@ -34,6 +34,17 @@ describe("reviewed vault transfer", () => {
     await commitVaultTransfer(plan, source.adapter, destination.adapter, null);
     expect(destination.files.get("Notes.md")).toBe("local");
   });
+  it("leaves the starter content of a fresh vault behind and copies only the person's own files (review 2026-10-27)", async () => {
+    const source = disk({ "Willkommen.md": "starter", "Meine Notiz.md": "mine" });
+    const destination = disk({});
+    const plan = await planVaultTransfer(source.adapter, null, destination.adapter, undefined, (file) => file.path === "Willkommen.md");
+    expect(plan.local.map((file) => file.path)).toEqual(["Meine Notiz.md"]);
+    expect(plan.keptBack.map((file) => file.path)).toEqual(["Willkommen.md"]);
+    await commitVaultTransfer(plan, source.adapter, destination.adapter, null);
+    expect([...destination.files.keys()]).toEqual(["Meine Notiz.md"]);
+    // The source keeps it.
+    expect(source.files.get("Willkommen.md")).toBe("starter");
+  });
   it("says how far it read the cloud folder, file by file (device finding 2026-10-27)", async () => {
     const source = disk({ "Notes.md": "new" });
     const remote = cloud({ "Daily.md": "remote", "Archive.md": "old" });

@@ -11,6 +11,8 @@ export interface VaultTransferPlan {
   files: TransferFile[];
   etags: Map<string, string>;
   targetFiles: TransferFile[];
+  /** Source files the copy leaves behind (the starter content of a fresh vault); the source keeps them. */
+  keptBack: TransferFile[];
 }
 const safePath = (path: string) => path.length > 0 && !path.startsWith("/") && !/[\\:]/.test(path) && ![...path].some(c => c.charCodeAt(0) < 32) && !path.split("/").some(p => !p || p === "." || p === "..");
 const transferable = (path: string) => ![".plainva", ".pvws"].some(root => path === root || path.startsWith(root + "/"));
@@ -52,10 +54,17 @@ export async function planVaultTransfer(
   remote: ISyncTarget | null,
   target?: IVaultAdapter,
   onProgress?: (done: number, total: number) => void,
+  /** Source files that stay where they are (review 2026-10-27: a fresh vault's starter notes). */
+  keepBack?: (file: TransferFile) => boolean,
 ): Promise<VaultTransferPlan> {
   const listing = remote ? await remote.pull() : { etagMap: new Map<string, string>(), needsFullListing: false };
   if (listing.needsFullListing) throw new Error("transfer_incomplete_inventory");
-  const local = await readTransferFiles(source);
+  const keptBack: TransferFile[] = [];
+  const local = (await readTransferFiles(source)).filter((file) => {
+    if (!keepBack?.(file)) return true;
+    keptBack.push(file);
+    return false;
+  });
   const targetFiles = target ? await readTransferFiles(target) : [];
   const remoteFiles: TransferFile[] = [];
   const toRead = [...listing.etagMap.keys()].filter((path) => transferable(path));
@@ -101,7 +110,7 @@ export async function planVaultTransfer(
       if (portable.has(parent)) throw new Error("transfer_invalid_path");
     }
   }
-  return { local, remote: remoteFiles, files: [...files.values()], collisions, etags: listing.etagMap, targetFiles };
+  return { local, remote: remoteFiles, files: [...files.values()], collisions, etags: listing.etagMap, targetFiles, keptBack };
 }
 
 /** Revalidate the displayed snapshot; never replace a pre-existing destination
@@ -111,7 +120,8 @@ export async function commitVaultTransfer(plan: VaultTransferPlan, source: IVaul
     const listing = await remote.pull();
     if (listing.needsFullListing || listing.etagMap.size !== plan.etags.size || [...plan.etags].some(([p, tag]) => listing.etagMap.get(p) !== tag)) throw new Error("transfer_source_changed");
   }
-  const latest = await readTransferFiles(source);
+  const left = new Set(plan.keptBack.map((file) => file.path));
+  const latest = (await readTransferFiles(source)).filter((file) => !left.has(file.path));
   if (latest.length !== plan.local.length || latest.some(f => plan.local.find(p => p.path === f.path)?.hash !== f.hash)) throw new Error("transfer_source_changed");
   // Check every destination before the first write; protect existing local edits.
   const before = new Map(plan.targetFiles.map(f => [f.path, f.hash]));

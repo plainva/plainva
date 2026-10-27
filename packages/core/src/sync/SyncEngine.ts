@@ -1,11 +1,13 @@
 import { SyncQueue, REMOTE_REFUSAL } from "./SyncQueue.js";
-import { ISyncTarget, RemoteChangedError, SyncContentRef, type ExpectedRemote } from "./ISyncTarget.js";
+import { ISyncTarget, RemoteChangedError, SyncContentRef, type ExpectedRemote, type SyncOperation } from "./ISyncTarget.js";
 import { SyncStateRepository } from "../vault/SyncStateRepository.js";
 import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
 import { findCollidingPath, foldPathForCollision, foldPathNormalization, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
 import { withPathSpellings } from "./spellingSyncTarget.js";
 import { isTextFile, mergeableText } from "./fileType.js";
 import { hasAppleDoubleHeader, isAppleDoubleName, isSystemJunkPath } from "../vault/systemJunk.js";
+import { unsyncableCopyPath } from "./unsyncablePaths.js";
+import { isUntouchedStarter, readStarterManifest, type StarterManifest } from "../vault/starterFiles.js";
 
 async function sha256Bytes(bytes: Uint8Array): Promise<string> {
   const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", bytes as BufferSource);
@@ -112,6 +114,71 @@ export class SyncEngine {
     private readonly resolveContentRef?: ContentRefResolver
   ) {
     this.target = withPathSpellings(target);
+  }
+
+  /** A starter file the remote never had, with the bytes it was written with. */
+  private async isUntouchedStarterUpload(path: string, starters: StarterManifest): Promise<boolean> {
+    if (this.stateRepo && (await this.stateRepo.getSyncState(path))?.remote_etag) return false;
+    try {
+      return isUntouchedStarter(starters, path, await this.vault.readBinaryFile(path));
+    } catch {
+      return false;
+    }
+  }
+
+  /** The files the provider refused for good, as stored; none where the store cannot say. */
+  private async unsyncablePaths(): Promise<Set<string>> {
+    if (!this.stateRepo) return new Set();
+    try {
+      return new Set((await this.stateRepo.listUnsyncable()).map((entry) => entry.path));
+    } catch {
+      return new Set();
+    }
+  }
+
+  /**
+   * Keeps every upload off a file the provider will never hand out here
+   * (review 2026-10-27). The remote copy at such a path is the only one; this
+   * device never had its bytes, and Drive updates a file by its name:
+   *
+   * - a queued write there is not pushed. Content this device holds at the
+   *   path moves to a sibling that says it is a conflicting copy, and goes up
+   *   under that name (the move is queued like any rename);
+   * - a rename FROM such a path moved local content only: it goes up as a new
+   *   file under its new name, and the remote file stays where it is;
+   * - a rename ONTO such a path goes to the copy's name instead, here and on
+   *   the remote;
+   * - a queued delete there is not pushed: what this device removed was never
+   *   the remote file.
+   *
+   * `"done"` retires the operation; otherwise the operation to carry on with.
+   */
+  private async keepOffUnsyncable(op: SyncOperation, refused: ReadonlySet<string>): Promise<SyncOperation | "done"> {
+    if (op.operation === "delete" && refused.has(op.file_path)) {
+      console.warn(`[SyncEngine] not pushing deletion of ${op.file_path}: the provider never handed it out here`);
+      return "done";
+    }
+    if (op.operation === "write" && refused.has(op.file_path)) {
+      if (await this.vault.exists(op.file_path)) {
+        const copy = unsyncableCopyPath(op.file_path, new Date());
+        console.warn(`[SyncEngine] not pushing ${op.file_path} over a remote file the provider never handed out; it goes up as ${copy}`);
+        await this.vault.renameItem(op.file_path, copy);
+      }
+      return "done";
+    }
+    if (op.operation === "rename" && op.new_path) {
+      if (refused.has(op.file_path)) {
+        console.warn(`[SyncEngine] not moving the remote file ${op.file_path}: the provider never handed it out; ${op.new_path} goes up as a new file`);
+        return this.keepOffUnsyncable({ ...op, operation: "write", file_path: op.new_path, new_path: undefined }, refused);
+      }
+      if (refused.has(op.new_path)) {
+        const copy = unsyncableCopyPath(op.new_path, new Date());
+        console.warn(`[SyncEngine] not moving ${op.file_path} over a remote file the provider never handed out; it goes to ${copy}`);
+        if (await this.vault.exists(op.new_path)) await this.vault.renameItem(op.new_path, copy);
+        return { ...op, new_path: copy };
+      }
+    }
+    return op;
   }
 
   /**
@@ -268,6 +335,8 @@ export class SyncEngine {
     let consecutiveFailures = 0;
     let pushIdx = 0;
     const refusedThisPass = new Set<string>();
+    const refusedForGood = await this.unsyncablePaths();
+    const starters = pending.some((op) => op.operation === "write") ? await readStarterManifest(this.vault) : null;
     const localListings = new Map<string, Promise<VaultFileInfo[] | null>>();
     const remoteFolders: { value?: Map<string, Set<string>> } = {};
     for (let op of pending) {
@@ -333,6 +402,25 @@ export class SyncEngine {
             file_path: toPathIdentity(op.file_path),
             ...(op.new_path ? { new_path: toPathIdentity(op.new_path) } : {}),
           };
+        }
+        // A file the provider never hands out here (unsyncablePaths.ts): its
+        // remote copy is the only one, so nothing of this device goes over it.
+        if (refusedForGood.size > 0) {
+          const kept = await this.keepOffUnsyncable(op, refusedForGood);
+          if (kept === "done") {
+            await this.queue.markSynced(op.id, op.file_path, op.file_path);
+            consecutiveFailures = 0;
+            continue;
+          }
+          op = kept;
+        }
+        // Starter content the person never touched stays on this device
+        // (starterFiles.ts): it never goes into a connected folder.
+        if (starters && op.operation === "write" && starters.files[op.file_path] !== undefined && await this.isUntouchedStarterUpload(op.file_path, starters)) {
+          console.log(`[SyncEngine] not pushing ${op.file_path}: starter content nobody changed`);
+          await this.queue.markSynced(op.id, op.file_path, op.file_path);
+          consecutiveFailures = 0;
+          continue;
         }
         // The twin lock on the push side (issue #112). A DELETE whose path has
         // a twin here that differs only in letter case is the SAME file for

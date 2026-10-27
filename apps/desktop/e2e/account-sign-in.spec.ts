@@ -738,24 +738,36 @@ test('an IMAP account signs out on this device and in again, and its mail page s
  * Device finding 2026-10-27, the desktop's side: connecting files to a cloud
  * folder that already holds many files goes on at once - nothing of the folder
  * is read up front -, and the files arrive through the vault's sync, which the
- * desktop has always done. The phone now does the same.
+ * desktop has always done. The phone now does the same. The calendar of the
+ * same consent ends connected: the files sync starting in the folder - the
+ * vault reload the sign-in triggers - takes no binding with it.
  */
-test('connecting files to a folder with many files goes on before a file is pulled, and the files arrive through the sync', async ({ page }, testInfo) => {
+test('connecting files and calendar to a folder with many files goes on before a file is pulled, the calendar connects, and the files arrive through the sync', async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   const harness = await wire(page, { driveNotes: 40 });
   const dialog = await openCloudAccounts(page);
   await dialog.getByTestId('cloudacct-add').click();
   await dialog.getByTestId('cloudacct-provider-google').click();
   await dialog.getByTestId('cloudacct-svc-files').check();
+  await dialog.getByTestId('cloudacct-svc-calendar').check();
   await dialog.getByTestId('cloudacct-to-signin').click();
   harness.choice = { account: ANNA.email };
   await dialog.getByTestId('cloudacct-connect').click();
 
   await expect(dialog.getByTestId('cloudacct-status-files')).toContainText(/verbunden|connected/, { timeout: 15_000 });
+  // Connected: the row says what it found (here: no calendars), never that the account changed.
+  await expect(dialog.getByTestId('cloudacct-status-calendar')).toHaveClass(/pv-svcstat--ok/, { timeout: 30_000 });
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('many-files-connected.png') });
+  // (The card's calendar reference is not read here: this stand-in database keeps
+  // no calendar rows, so the account registry's reconcile drops it again.)
+  const [card] = await cards(page);
+  expect(card.services.files).toBeTruthy();
   expect(await page.evaluate(() => (window as any).__driveDownloads.finished)).toBe(0);
-  // Back to the vault: its sync takes the folder in.
-  await page.keyboard.press('Escape');
+  // Back to the vault - the settings closed, the one reload of the sign-in runs - and its sync takes the folder in.
+  await expect(async () => {
+    if (await dialog.isVisible()) await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden({ timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
   await page.evaluate(() => (window as any).__releaseDownloads());
   await expect.poll(() => page.evaluate(() => (window as any).__driveDownloads.files.length), { timeout: 60_000 }).toBe(40);
   // ... and land in the vault.

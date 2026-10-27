@@ -192,9 +192,34 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
   // its first service was done, left a signed-in card that no list showed - as
   // if the wizard had deleted it. It is listed with its services off, and the
   // account page switches them on. The desktop lists every record already.
-  for (const record of records) {
+  // Verified records first: a leftover record with only the address must not
+  // take the row a verified record of the same account is owed.
+  const verifiedFirst = [...records].sort((a, b) => Number(!!b.verifiedProviderIdentity) - Number(!!a.verifiedProviderIdentity));
+  for (const record of verifiedFirst) {
     if (cards.some((card) => card.record?.id === record.id)) continue;
     const services = (["files", "calendar", "mail"] as const).filter((service) => !!record.services[service]);
+    // A row of this account that found no record above - two records with its
+    // label, or none naming it - is this account's card, not a second one
+    // (review 2026-10-27): the same account by verified identity where both
+    // have one, by address where either has none.
+    const recordIdentity = record.verifiedProviderIdentity ? verifiedProviderIdentityKey(record.verifiedProviderIdentity) : null;
+    const owner = cards.find((card) => {
+      if (card.record || card.family !== record.family) return false;
+      const cardIdentity = card.verifiedProviderIdentity ? verifiedProviderIdentityKey(card.verifiedProviderIdentity) : null;
+      if (cardIdentity && recordIdentity) return cardIdentity === recordIdentity;
+      const address = identityKey(record.label);
+      return !!address && identityKey(card.label) === address;
+    });
+    if (owner) {
+      owner.record = record;
+      owner.verifiedProviderIdentity ??= record.verifiedProviderIdentity;
+      for (const service of services) {
+        if (owner.services.includes(service)) continue;
+        owner.services.push(service);
+        owner.serviceStates = { ...owner.serviceStates, [service]: "signin" };
+      }
+      continue;
+    }
     add({
       key: keyOf(record.family, record.label, record.id, record.verifiedProviderIdentity),
       family: record.family,

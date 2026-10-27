@@ -34,7 +34,7 @@ const state = vi.hoisted(() => ({
   /** The target each file worker was built with. */
   targets: [] as Array<{ allowRootCreation?: boolean }>,
   /** Each file worker, to complete its first cycle by hand. */
-  workerHooks: [] as Array<{ onFirstCycleComplete?: () => void }>,
+  workerHooks: [] as Array<{ onFirstCycleComplete?: (outcome: { skipped: string[]; conflictCopies: string[] }) => void }>,
 }));
 
 vi.mock("@plainva/core", async (original) => {
@@ -47,7 +47,7 @@ vi.mock("@plainva/core", async (original) => {
     async pushSettingsNow() {}
   }
   class FakeWorker extends FakeRunning {
-    onFirstCycleComplete?: () => void;
+    onFirstCycleComplete?: (outcome: { skipped: string[]; conflictCopies: string[] }) => void;
     constructor(...args: unknown[]) {
       super();
       state.workers.push(this);
@@ -309,7 +309,7 @@ describe("a vault that synced before stays one, whatever its records say (fifth 
   it("a vault that never synced may create its folder, until its first cycle has run", async () => {
     await startSyncIfConfigured(vault);
     expect(state.targets[0].allowRootCreation).toBe(true);
-    state.workerHooks[0].onFirstCycleComplete?.();
+    state.workerHooks[0].onFirstCycleComplete?.({ skipped: [], conflictCopies: [] });
     await vi.waitFor(() => expect(state.syncedBefore).toBe(true));
     await stopSyncAndDrain();
     await startSyncIfConfigured(vault);

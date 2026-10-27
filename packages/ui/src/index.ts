@@ -394,6 +394,7 @@ export * from "./vaultTemplates/types";
 export * from "./vaultTemplates/baseBuilders";
 export * from "./vaultTemplates/registry";
 export * from "./vaultTemplates/scaffold";
+export * from "./vaultTemplates/starterFiles";
 export * from "./components/searchSetup";
 export * from "./lib/readerSource";
 export * from "./lib/readerDirection";
@@ -448,6 +449,7 @@ export * from "./lib/accountLoginGrant";
 export * from "./lib/fileBrokerBinding";
 export * from "./lib/accountBrokerLookup";
 export * from "./lib/serviceConnection";
+export * from "./lib/firstSyncCopies";
 export * from "./components/FileComparisonDetails";
 export * from "./components/ConflictHistory";
 

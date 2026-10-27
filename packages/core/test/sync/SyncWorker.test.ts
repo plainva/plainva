@@ -1273,10 +1273,103 @@ describe("SyncWorker", () => {
       const written = vault.writeTextFile.mock.calls.map((c: any[]) => c[0]);
       expect(written).toEqual(expect.arrayContaining(["a.md", "c.md"]));
       expect(written).not.toContain("flagged.md");
-      // The vault is not held up: its first cycle is done, and the skipped file stays out of the local-only upload.
-      expect(spy).toHaveBeenCalledWith(["flagged.md"]);
+      // The vault is not held up: its first cycle is done, and the skipped file is named.
+      expect(spy).toHaveBeenCalledWith({ skipped: ["flagged.md"], conflictCopies: [] });
       expect(statusSpy.mock.calls.at(-1)?.[0]).toBe("error");
       expect(statusSpy.mock.calls.at(-1)?.[1]).toContain("cannot be synced here and are skipped: flagged.md");
+    });
+
+    describe("a file refused for good (review 2026-10-27)", () => {
+      // The vault database's store of refused files, as SyncStateRepository keeps it.
+      let refused: Map<string, { path: string; reason: string; etag: string; attempts: number; retryAt: number }>;
+      beforeEach(() => {
+        refused = new Map();
+        stateRepo.listUnsyncable = vi.fn(async () => [...refused.values()]);
+        stateRepo.markUnsyncable = vi.fn(async (path: string, reason: string, etag: string, now: number) => {
+          const attempts = (refused.get(path)?.attempts ?? 0) + 1;
+          const entry = { path, reason, etag, attempts, retryAt: now + 60_000 };
+          refused.set(path, entry);
+          return entry;
+        });
+        stateRepo.clearUnsyncable = vi.fn(async (path: string) => { refused.delete(path); });
+        target.getStartCursor = vi.fn().mockResolvedValue("cursor-A");
+        target.download.mockImplementation(async (p: string) => {
+          if (p === "flagged.md") throw new UnsyncableFileError(p, "cannotDownloadAbusiveFile");
+          return new TextEncoder().encode(`content ${p}`);
+        });
+      });
+
+      it("does not keep the vault on full listings: the cursor is adopted and the listing trusted", async () => {
+        const trusted = vi.fn();
+        worker.onFullListingTrusted = trusted;
+        target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"], ["flagged.md", "e2"]]) });
+
+        await worker.runCycle();
+
+        expect(worker["cursor"]).toBe("cursor-A");
+        expect(trusted).toHaveBeenCalledTimes(1);
+        // ... and the refusal is stored, with the marker it was refused at.
+        expect(refused.get("flagged.md")).toMatchObject({ reason: "cannotDownloadAbusiveFile", etag: "e2", attempts: 1 });
+      });
+
+      it("is asked for again on its own, without a full listing, once its turn has come - and a download that works clears it", async () => {
+        refused.set("flagged.md", { path: "flagged.md", reason: "cannotDownloadAbusiveFile", etag: "e2", attempts: 1, retryAt: 0 });
+        worker["cursor"] = "c0";
+        target.pull.mockResolvedValueOnce({ etagMap: new Map(), nextCursor: "c1" });
+        target.download.mockImplementation(async (p: string) => new TextEncoder().encode(`content ${p}`));
+        const statusSpy = vi.fn();
+        worker.onStatusChange = statusSpy;
+
+        await worker.runCycle();
+
+        expect(target.pull).toHaveBeenCalledWith("c0");
+        expect(target.download).toHaveBeenCalledWith("flagged.md");
+        expect(vault.writeTextFile.mock.calls.map((c: any[]) => c[0])).toContain("flagged.md");
+        expect(refused.has("flagged.md")).toBe(false);
+        expect(worker["cursor"]).toBe("c1");
+        expect(statusSpy.mock.calls.at(-1)?.[0]).toBe("idle");
+      });
+
+      it("waits for its turn, and the status keeps naming it in a cycle that does not list it", async () => {
+        refused.set("flagged.md", { path: "flagged.md", reason: "cannotDownloadAbusiveFile", etag: "e2", attempts: 1, retryAt: Date.now() + 60_000 });
+        worker["cursor"] = "c0";
+        target.pull.mockResolvedValueOnce({ etagMap: new Map(), nextCursor: "c1" });
+        const statusSpy = vi.fn();
+        worker.onStatusChange = statusSpy;
+
+        await worker.runCycle();
+
+        expect(target.download).not.toHaveBeenCalled();
+        expect(worker["cursor"]).toBe("c1");
+        expect(statusSpy.mock.calls.at(-1)?.[0]).toBe("error");
+        expect(statusSpy.mock.calls.at(-1)?.[1]).toContain("cannot be synced here and are skipped: flagged.md");
+      });
+
+      it("is forgotten when a whole listing no longer holds it", async () => {
+        refused.set("flagged.md", { path: "flagged.md", reason: "cannotDownloadAbusiveFile", etag: "e2", attempts: 3, retryAt: Date.now() + 60_000 });
+        target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"]]) });
+
+        await worker.runCycle();
+
+        expect(refused.size).toBe(0);
+      });
+    });
+
+    it("names the conflict copies its first complete cycle kept (review 2026-10-27)", async () => {
+      const spy = vi.fn();
+      worker.onFirstCycleComplete = spy;
+      // A note both sides hold, differently, with no common base: the local version is kept as a copy.
+      target.pull.mockResolvedValueOnce({ etagMap: new Map([["both.md", "e1"]]) });
+      target.download.mockResolvedValue(new TextEncoder().encode("remote text\n"));
+      vault.exists.mockImplementation(async (p: string) => p === "both.md");
+      vault.readTextFile.mockResolvedValue("local text\n");
+
+      await worker.runCycle();
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      const { conflictCopies } = spy.mock.calls[0][0];
+      expect(conflictCopies).toHaveLength(1);
+      expect(conflictCopies[0]).toMatch(/^both\.CONFLICT-/);
     });
   });
 

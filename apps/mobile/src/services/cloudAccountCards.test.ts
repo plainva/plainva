@@ -78,6 +78,34 @@ describe("loadAccountCards", () => {
     expect(cards.map((card) => [card.record?.id, card.services])).toEqual([["acc-2", []]]);
   });
 
+  it("lists one card for an account whose calendar row found no record of its own (review 2026-10-27)", async () => {
+    // Two records carry the address - the account's own and a leftover without
+    // an identity - so the calendar row matches neither by label.
+    records = [
+      { id: "acc-old", family: "google", label: "me@example.com", services: {} } as unknown as CloudAccountRecord,
+      { id: "acc-1", family: "google", label: "me@example.com", verifiedProviderIdentity: identity, services: { files: { provider: "drive", vaultId: "v-other" } } } as unknown as CloudAccountRecord,
+    ];
+    entry = { id: "v1", name: "wiki", provider: undefined as unknown as string };
+    pimRows.push({ id: "pim-1", provider: "google", label: "me@example.com", config: {} });
+
+    const { cards } = await loadAccountCards();
+
+    expect(cards).toHaveLength(1);
+    expect(cards[0].record?.id).toBe("acc-1");
+    expect(cards[0].pimAccountId).toBe("pim-1");
+    expect([...cards[0].services].sort()).toEqual(["calendar", "files"]);
+  });
+
+  it("keeps two cards for two accounts whose verified identities differ", async () => {
+    records = [{ id: "acc-1", family: "google", label: "me@example.com", verifiedProviderIdentity: identity, services: {} } as unknown as CloudAccountRecord];
+    entry = { id: "v1", name: "wiki", provider: undefined as unknown as string };
+    pimRows.push({ id: "pim-2", provider: "google", label: "me@example.com", config: { plainvaVerifiedProviderIdentity: { issuer: "google", subject: "sub-2" } } });
+
+    const { cards } = await loadAccountCards();
+
+    expect(cards.map((card) => [card.record?.id, card.pimAccountId])).toEqual([[undefined, "pim-2"], ["acc-1", undefined]]);
+  });
+
   it("folds a files card and a calendar card of the same verified account", async () => {
     records = [
       {

@@ -1,6 +1,6 @@
 import { sameStoredValue, trimEndChars } from "@plainva/core";
-import { commitVaultTransfer, planVaultTransfer, PimCacheRepository, refreshDriveAccessToken, refreshOneDriveAccessToken, refreshDropboxAccessToken, type ISyncTarget } from "@plainva/core";
-import { assertConnectionIdentity, getPlatformServices, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
+import { commitVaultTransfer, isUntouchedStarter, planVaultTransfer, PimCacheRepository, readStarterManifest, refreshDriveAccessToken, refreshOneDriveAccessToken, refreshDropboxAccessToken, type ISyncTarget } from "@plainva/core";
+import { assertConnectionIdentity, getPlatformServices, recognizeStarterFiles, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
 import { getMailPassword, getMailRefreshToken, listMailAccounts, mailAccountKind, saveMailAccount, saveMicrosoftMailAccount } from "@plainva/ui/mail";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { webdavFetch } from "../adapters/webdavHttp";
@@ -107,10 +107,16 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
   // vault the run started in (where both sides have a file, the sync keeps
   // both versions) and, below, the accounts and settings. An encrypted
   // workspace was refused above by its genesis file.
-  const plan = await planVaultTransfer(v.adapter, null, target);
+  // The starter notes of a fresh vault stay behind (review 2026-10-27): they
+  // are the app's, and went up into the person's existing folder.
+  // Read, never written here: the source vault stays as it is.
+  const starters = await readStarterManifest(v.adapter)
+    ?? { version: 1 as const, files: await recognizeStarterFiles(v.adapter).catch(() => ({})) };
+  const plan = await planVaultTransfer(v.adapter, null, target, undefined, (file) => isUntouchedStarter(starters, file.path, file.bytes));
   setFilesConnectProgress(null);
-  // Asked only when there is something local to copy: an empty vault goes on at once.
-  if ((plan.files.length > 0 || plan.collisions.length > 0) && !await reviewVaultTransfer(plan, (await getActiveVaultEntry()).name, existing?.name ?? name)) {
+  // Asked only when there is something of the person's to copy - the question
+  // says how many notes go up; a fresh vault goes on at once.
+  if ((plan.local.length > 0 || plan.collisions.length > 0) && !await reviewVaultTransfer(plan, (await getActiveVaultEntry()).name, existing?.name ?? name)) {
     // Said on the step's banner: the person is back at the files step on purpose.
     await recordConnectOutcome(context, "files", { state: "cancelled" });
     return;

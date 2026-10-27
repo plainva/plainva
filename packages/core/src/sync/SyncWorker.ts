@@ -13,6 +13,7 @@ import { withPathSpellings } from "./spellingSyncTarget.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
 import { classifySyncError, syncErrorMessage, SyncRootMissingError, UnsyncableFileError, type SyncErrorKind } from "./errorKind.js";
+import { nextUnsyncableRetry, type UnsyncableEntry } from "./unsyncablePaths.js";
 import type { DeletionJournal } from "./deletionJournal.js";
 import { withPathMutation } from "../vault/pathMutation.js";
 import { ConflictSessions, conflictDiagnostic, type ConflictSessionGate } from "../vault/conflictSession.js";
@@ -519,11 +520,15 @@ export class SyncWorker {
    */
   /**
    * The first pull whose only failures are files that can never be synced
-   * here: `skipped` names them, and the host leaves them out of the local-only
-   * upload (device finding 2026-10-27).
+   * here (device finding 2026-10-27). `skipped` names those files;
+   * `conflictCopies` the copies the sync kept until then where both sides
+   * had a different version of a file - so a first connect onto a folder that
+   * already holds notes never makes them silently (review 2026-10-27).
    */
-  public onFirstCycleComplete?: (skipped: string[]) => void;
+  public onFirstCycleComplete?: (outcome: { skipped: string[]; conflictCopies: string[] }) => void;
   private firstCycleComplete = false;
+  /** The conflict copies the sync kept before its first complete cycle. */
+  private firstCycleCopies: string[] = [];
   /**
    * Fired once when the mass-deletion guard trips (see MASS_DELETE_MIN/SHARE): the
    * queued remote deletions are held and the desktop must ask the user to either
@@ -1074,7 +1079,21 @@ export class SyncWorker {
       const bytes = new TextEncoder().encode(localContent);
       await this.keepByteCopy(path, bytes, await sha256Bytes(bytes), changedPaths);
     }
+    this.noteConflictCopy(session.workingCopyPath);
     return session.workingCopyPath;
+  }
+
+  private noteConflictCopy(path: string): void {
+    if (!this.firstCycleComplete && !this.firstCycleCopies.includes(path)) this.firstCycleCopies.push(path);
+  }
+
+  /** The files the provider refused for good, as stored; none where the store cannot say. */
+  private async storedUnsyncable(): Promise<UnsyncableEntry[]> {
+    try {
+      return (await this.stateRepo.listUnsyncable()) ?? [];
+    } catch {
+      return [];
+    }
   }
 
   /**
@@ -1247,6 +1266,7 @@ export class SyncWorker {
     const copy = this.conflictPathFor(path);
     await this.vault.writeBinaryFile(copy, localBytes);
     changedPaths.push(copy);
+    this.noteConflictCopy(copy);
     this.keptByteCopies.set(path, { sha: localSha, copy });
   }
 
@@ -1918,26 +1938,50 @@ export class SyncWorker {
     let consecutivePullFailures = 0;
     // Files that can never be synced here: skipped, named, and no reason to
     // hold the vault - a file that fails for a reason waiting can fix does.
-    const unsyncable: { path: string; reason: string }[] = [];
-    const guardPullStep = async (path: string, step: () => Promise<void>) => {
+    // They are no pull failure: they neither hold the cursor nor the first
+    // cycle, and they are asked for again on their own (review 2026-10-27).
+    const known = new Map((await this.storedUnsyncable()).map((entry) => [entry.path, entry]));
+    const refusedForGood = (e: unknown): UnsyncableFileError | null =>
+      e instanceof UnsyncableFileError ? e : e instanceof Error && e.cause instanceof UnsyncableFileError ? e.cause : null;
+    const markRefused = async (path: string, reason: string, etag: string) => {
+      console.error(`[SyncWorker] skipped ${path}: ${reason}`);
+      const now = Date.now();
+      // Kept in memory too, so the status names it even where the store failed.
+      const previous = known.get(path);
+      known.set(path, { path, reason, etag, attempts: (previous?.attempts ?? 0) + 1, retryAt: nextUnsyncableRetry((previous?.attempts ?? 0) + 1, now) });
+      try {
+        known.set(path, await this.stateRepo.markUnsyncable(path, reason, etag, now));
+      } catch (e) {
+        console.warn(`[SyncWorker] could not record ${path} as unsyncable`, e);
+      }
+    };
+    const clearRefused = async (path: string) => {
+      if (!known.delete(path)) return;
+      try {
+        await this.stateRepo.clearUnsyncable(path);
+      } catch (e) {
+        console.warn(`[SyncWorker] could not clear the unsyncable mark of ${path}`, e);
+      }
+    };
+    const guardPullStep = async (path: string, step: () => Promise<void>, etag = "") => {
       this.noteCycleActivity();
       try {
         await step();
         consecutivePullFailures = 0;
+        await clearRefused(path);
       } catch (e) {
         // A protocol violation (encrypted remote we can't read, plaintext in
         // strict mode, key/manifest mismatch) is fatal: never counted as an
         // ordinary single-file failure — rethrow so it ends the whole cycle
         // before the push, fail-closed (settings-sync plan §3.5/A3).
         if (e instanceof FatalSyncProtocolError) throw e;
-        pullFailureCount++;
-        const never = e instanceof UnsyncableFileError ? e : e instanceof Error && e.cause instanceof UnsyncableFileError ? e.cause : null;
+        const never = refusedForGood(e);
         if (never) {
-          unsyncable.push({ path, reason: never.reason });
-          console.error(`[SyncWorker] skipped ${path}: ${never.reason}`);
+          await markRefused(path, never.reason, etag);
           flushChangedPaths();
           return;
         }
+        pullFailureCount++;
         if (!pullFailure || (classifySyncError(e) === "fatal" && classifySyncError(pullFailure.error) === "transient"))
           pullFailure = { path, error: e };
         consecutivePullFailures++;
@@ -2125,9 +2169,31 @@ export class SyncWorker {
 
         await guardPullStep(path, () =>
           this.reconcilePulledFile(path, remoteEtag, state, now, changedPaths, () => prefetcher.get(path))
-        );
+        , remoteEtag);
       }
       if (unreached.size > 0) this.engine.keepRefusedPaths?.(unreached);
+
+      // 2'. Files refused for good in an earlier cycle and not listed in this
+      // one (a cursor pull lists only what changed): each is asked for again on
+      // its own, spaced out - no full listing for them (review 2026-10-27). A
+      // download that works clears the mark; one that fails otherwise waits for
+      // its next turn without counting as a pull failure.
+      for (const entry of [...known.values()]) {
+        if (!alive()) break;
+        if (pullResult.etagMap.has(entry.path) || entry.retryAt > Date.now()) continue;
+        if (excludedFromSync(entry.path) || awaitingStructure(entry.path)) continue;
+        this.noteCycleActivity();
+        try {
+          await this.reconcilePulledFile(entry.path, entry.etag, stateMap.get(entry.path) ?? null, now, changedPaths, () => this.target.download(entry.path));
+          await clearRefused(entry.path);
+        } catch (e) {
+          if (e instanceof FatalSyncProtocolError) throw e;
+          const never = refusedForGood(e);
+          if (never) await markRefused(entry.path, never.reason, entry.etag);
+          else console.warn(`[SyncWorker] retry of ${entry.path} failed; asked again later`, e);
+        }
+        flushChangedPaths();
+      }
 
       // 2a. Provider ids (finding 2026-09-20). Only pushes used to record one, so
       // a vault this device mostly PULLED had none — and without an id an
@@ -2571,6 +2637,8 @@ export class SyncWorker {
           this.cursor = seededCursor;
           this.cyclesSinceFull = 0;
           this.lastFullListingAt = Date.now();
+          // A refused file a whole listing no longer holds is gone remotely.
+          for (const path of [...known.keys()]) if (!remotePaths.has(path)) await clearRefused(path);
           if (!deletionMirroringSuspended) {
             try {
               this.onFullListingTrusted?.();
@@ -2599,10 +2667,12 @@ export class SyncWorker {
       // fresh index so a rebuilt DB never blindly overwrites a newer remote — 3c). Gated
       // on zero pull failures: a file whose reconcile failed has no remote base yet and
       // would be misclassified as local-only, i.e. pushed over a possibly newer remote.
-      if (!this.firstCycleComplete && pullFailureCount === unsyncable.length) {
+      if (!this.firstCycleComplete && pullFailureCount === 0) {
         this.firstCycleComplete = true;
+        const conflictCopies = this.firstCycleCopies;
+        this.firstCycleCopies = [];
         try {
-          this.onFirstCycleComplete?.(unsyncable.map((entry) => entry.path));
+          this.onFirstCycleComplete?.({ skipped: [...known.keys()], conflictCopies });
         } catch (e) {
           console.error("[SyncWorker] onFirstCycleComplete failed:", e);
         }
@@ -2639,12 +2709,13 @@ export class SyncWorker {
         // why deletions are not being mirrored (clicking the status opens the
         // sync error dialog). A healthy next cycle clears this automatically.
         this.setStatus("error", deletionMirroringSuspended);
-      } else if (pullFailureCount > 0 && pullFailureCount === unsyncable.length) {
+      } else if (pullFailureCount === 0 && known.size > 0) {
         // Only files that can never be synced here: the rest is in, those are
-        // named - first three, then the count - and the vault goes on.
-        const names = unsyncable.slice(0, 3).map((entry) => entry.path).join(", ");
-        const more = unsyncable.length > 3 ? ` and ${unsyncable.length - 3} more` : "";
-        this.setStatus("error", `${unsyncable.length} file(s) cannot be synced here and are skipped: ${names}${more} (${unsyncable[0].reason})`);
+        // named - first three, then the count - until a download works.
+        const skipped = [...known.values()];
+        const names = skipped.slice(0, 3).map((entry) => entry.path).join(", ");
+        const more = skipped.length > 3 ? ` and ${skipped.length - 3} more` : "";
+        this.setStatus("error", `${skipped.length} file(s) cannot be synced here and are skipped: ${names}${more} (${skipped[0].reason})`);
       } else if (pullFailureCount > 0) {
         // The cycle completed, but some files could not be pulled. Surface it (the
         // frozen cursor retries them next cycle) WITHOUT counting toward the

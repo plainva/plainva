@@ -245,6 +245,8 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
           template,
           vaultName: getBasename(localDir),
           subfoldersHeading: t("indexMd.subfoldersHeading"),
+          // Made for this new cloud folder: the template is what it is to hold.
+          recordStarter: false,
         });
         await applyVaultTemplateSettings(localDir, template);
       }
