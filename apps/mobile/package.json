@@ -12,7 +12,7 @@
     "sync": "cap sync",
     "test": "vitest run",
     "baseline": "node scripts/screenshot-baseline.mjs",
-    "smoke:prod": "vite build && playwright test --config playwright.prod.config.ts"
+    "smoke:prod": "vite build --mode e2e && playwright test --config playwright.prod.config.ts"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^8.1.1",

@@ -2,13 +2,16 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 import { buildInfoDefine } from "../../scripts/build-info.mjs";
+import { e2eBuildDefine } from "./scripts/e2e-build-env.mjs";
 
 // Port 1430 on purpose: the desktop dev server owns 1420 and both run in
 // parallel during development.
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   // Which build this is (channel, branch, commit, CI run) for About & diagnostics.
-  define: buildInfoDefine(),
+  // The e2e build (`--mode e2e`, the smoke:prod script) also ships the fake
+  // provider's standard Google client; every other mode gets nothing from it.
+  define: { ...buildInfoDefine(), ...e2eBuildDefine(mode) },
   // Same canonical source module as desktop; no package build/HMR split.
   resolve: { alias: [{ find: /^@plainva\/core$/, replacement: fileURLToPath(new URL("../../packages/core/src/index.ts", import.meta.url)) }] },
   server: {
@@ -84,4 +87,4 @@ export default defineConfig({
       },
     },
   },
-} as any);
+}) as any);

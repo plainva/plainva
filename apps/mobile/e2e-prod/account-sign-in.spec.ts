@@ -2,6 +2,7 @@ import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { FakeOAuthProvider, type FakeConsentChoice } from "../../../packages/ui/src/testing/fakeOAuthProvider";
 import { waitForVaultDirectory } from "./exampleVault";
+import { E2E_STANDARD_GOOGLE_IOS_CLIENT_ID } from "../scripts/e2e-build-env.mjs";
 
 /**
  * The one account sign-in on the phone, against a stand-in for Google
@@ -17,8 +18,10 @@ import { waitForVaultDirectory } from "./exampleVault";
 
 const ANNA = { subject: "sub-anna", email: "anna@gmail.com" };
 const BERT = { subject: "sub-bert", email: "bert@gmail.com" };
-// An iOS-type client: the phone's own Google access has no secret.
-const CLIENT = { clientId: "1234-plainva-test.apps.googleusercontent.com" };
+// An iOS-type client: the phone's own Google access has no secret. The same
+// client is the e2e build's standard one (`scripts/e2e-build-env.mjs`), so a
+// test can sign in either way against the one fake provider.
+const CLIENT = { clientId: E2E_STANDARD_GOOGLE_IOS_CLIENT_ID };
 
 interface Harness {
   provider: FakeOAuthProvider;
@@ -425,8 +428,10 @@ test("an IMAP account: the same sections, a check that names the failing mailbox
  * The wizard's own end-to-end test never got past the files form (it ran
  * without the index the files step needs), so none of this was ever run.
  */
-async function firstGoogleConnect(context: BrowserContext, page: Page): Promise<Harness> {
+async function firstGoogleConnect(context: BrowserContext, page: Page, access: "own" | "standard" = "own", withMail = false): Promise<Harness> {
   const harness = await boot(context, page, (storage) => {
+    // The standard sign-in: the client this build ships (the e2e build, `scripts/e2e-build-env.mjs`).
+    if (access === "standard") storage.secret_oauth_access_google = { source: "plainva" };
     storage.cloudAccounts_local = (storage.cloudAccounts_local as { id: string }[]).filter((card) => card.id !== "acct-fixture-cal");
     const registry = storage.vault_registry as { vaults: Record<string, unknown>[] };
     registry.vaults = registry.vaults.map((vault) => {
@@ -447,10 +452,12 @@ async function firstGoogleConnect(context: BrowserContext, page: Page): Promise<
   await page.getByTestId("connect-family-google").click();
   await page.getByTestId("connect-service-files").click();
   await page.getByTestId("connect-service-calendar").click();
+  if (withMail) await page.getByTestId("connect-service-mail").click();
   await page.getByTestId("connect-start").click();
 
-  // Back from Google: step 1 of 2, files.
-  await expect(page.getByText(/Step 1 of 2/)).toBeVisible({ timeout: 20000 });
+  // Back from Google: step 1, files.
+  await expect(page.getByText(withMail ? /Step 1 of 3/ : /Step 1 of 2/)).toBeVisible({ timeout: 20000 });
+  await expect(page.getByTestId("vault-access")).toContainText(access === "standard" ? "Standard" : "Own client");
   return harness;
 }
 
@@ -507,4 +514,32 @@ test("a files step whose copy is cancelled says so, and reads the cloud folder w
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("first-connect-cancelled.png"), fullPage: true });
   }
   await expect(page.getByTestId("files-connect-progress")).toHaveCount(0);
+});
+
+test("a first Google connect with the standard sign-in goes from the files step on to the next one", async ({ context, page }, testInfo) => {
+  await firstGoogleConnect(context, page, "standard");
+  await connectAndPick(page);
+  const review = page.getByRole("button", { name: "Start copying" });
+  try {
+    await expect(review).toBeVisible({ timeout: 15000 });
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("standard-after-pick.png"), fullPage: true });
+  }
+  await closeToasts(page);
+  await review.click();
+  await expect(page.getByText(/Step 2 of 2/)).toBeVisible({ timeout: 20000 });
+});
+
+test("a first Google connect with the standard sign-in and all three services goes on from the files step", async ({ context, page }, testInfo) => {
+  await firstGoogleConnect(context, page, "standard", true);
+  await connectAndPick(page);
+  const review = page.getByRole("button", { name: "Start copying" });
+  try {
+    await expect(review).toBeVisible({ timeout: 15000 });
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("standard-three-after-pick.png"), fullPage: true });
+  }
+  await closeToasts(page);
+  await review.click();
+  await expect(page.getByText(/Step 2 of 3/)).toBeVisible({ timeout: 20000 });
 });
