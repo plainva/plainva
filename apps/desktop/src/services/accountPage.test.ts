@@ -53,6 +53,14 @@ describe("accountPageModel", () => {
     expect(rows[0]).toEqual({ service: "files", on: true, stateKey: "cloudAccounts.serviceWaiting", target: "files" });
   });
 
+  it("says a service of a signed-in card is not signed in where its own sign-in is missing (device finding 2026-10-27)", () => {
+    const rows = accountPageModel({ ...google, summaries: { calendar: "3 calendars" }, serviceStates: { files: "active", calendar: "signin" } }).services;
+    expect(rows[0]).toMatchObject({ service: "files", stateKey: "connection.connected" });
+    // The same fact the check reads: no "connected", no live line that claims it works.
+    expect(rows[1]).toEqual({ service: "calendar", on: true, stateKey: "deviceSignIn.notSignedIn", target: "calendar" });
+    expect(accountPageModel({ ...google, serviceStates: { calendar: "expired" } }).services[1].stateKey).toBe("deviceSignIn.expired");
+  });
+
   it("keeps a switched-off service (E3) with its page, so it can be switched on again where it was", () => {
     const rows = accountPageModel({ ...google, off: ["calendar"] }).services;
     expect(rows[1]).toEqual({ service: "calendar", on: false, stateKey: "cloudAccounts.serviceOff", target: "calendar" });

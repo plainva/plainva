@@ -89,6 +89,13 @@ export interface AccountPageInput {
   signedInHere: boolean;
   /** What each service says live, measured by the shell. */
   summaries?: Partial<Record<CloudServiceId, string>>;
+  /**
+   * Each service's own sign-in state on this device, where the shell knows it
+   * (the calendar's and the mailbox's slots). A card can be signed in while
+   * one of its services is not (device finding 2026-10-27): the row says so,
+   * from the same fact the check reads, instead of "connected".
+   */
+  serviceStates?: Partial<Record<CloudServiceId, DeviceSignInState | undefined>>;
 }
 
 export interface AccountPageModel {
@@ -119,11 +126,16 @@ export function accountPageModel(input: AccountPageInput): AccountPageModel {
     const carried = input.services.includes(service);
     const on = carried && !input.off?.includes(service);
     const summary = on ? input.summaries?.[service] : undefined;
+    const own = input.serviceStates?.[service];
+    const ownNeedsSignIn = own === "signin" || own === "expired";
     return {
       service,
       on,
-      stateKey: !on ? "cloudAccounts.serviceOff" : needsSignIn ? "cloudAccounts.serviceWaiting" : "connection.connected",
-      ...(summary && !needsSignIn ? { summary } : {}),
+      stateKey: !on ? "cloudAccounts.serviceOff"
+        : needsSignIn ? "cloudAccounts.serviceWaiting"
+          : ownNeedsSignIn ? (own === "expired" ? "deviceSignIn.expired" : "deviceSignIn.notSignedIn")
+            : "connection.connected",
+      ...(summary && !needsSignIn && !ownNeedsSignIn ? { summary } : {}),
       target: carried ? service : null,
     };
   });

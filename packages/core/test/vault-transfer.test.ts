@@ -25,6 +25,15 @@ function cloud(initial: Record<string, string>) {
 }
 
 describe("reviewed vault transfer", () => {
+  it("without a cloud folder to read, copies only what is local and leaves the folder to the sync (device finding 2026-10-27)", async () => {
+    const source = disk({ "Notes.md": "local" });
+    const destination = disk({});
+    const plan = await planVaultTransfer(source.adapter, null, destination.adapter);
+    expect(plan.remote).toEqual([]);
+    expect(plan.files.map((file) => file.path)).toEqual(["Notes.md"]);
+    await commitVaultTransfer(plan, source.adapter, destination.adapter, null);
+    expect(destination.files.get("Notes.md")).toBe("local");
+  });
   it("says how far it read the cloud folder, file by file (device finding 2026-10-27)", async () => {
     const source = disk({ "Notes.md": "new" });
     const remote = cloud({ "Daily.md": "remote", "Archive.md": "old" });

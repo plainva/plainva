@@ -193,6 +193,7 @@ export function CloudAccountDetailScreen({
     canSignIn: !!loginVaultId && card.family !== "device" && (!oauthFamily || !!card.record),
     signedInHere,
     summaries: facts?.summaries,
+    serviceStates: card.serviceStates,
   }) : null;
 
   /**
@@ -437,7 +438,9 @@ export function CloudAccountDetailScreen({
                     data-on={row.on}
                     icon={<Icon size={ICON.ui} />}
                     title={serviceLabel(row.service)}
-                    subtitle={loginStatus?.services[row.service] ?? row.summary ?? t(row.stateKey)}
+                    // What a sign-in said about a service stands only while the facts do not say it works:
+                    // the line and the check read the same facts (device finding 2026-10-27).
+                    subtitle={(card.serviceStates?.[row.service] !== "active" ? loginStatus?.services[row.service] : undefined) ?? row.summary ?? t(row.stateKey)}
                     wrap
                     controls
                     onClick={row.target ? () => onOpenService(card, row.service) : undefined}

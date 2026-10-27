@@ -82,7 +82,7 @@ export * from "./pim/taskNoteIdentity.js";
 export * from "./vault/vaultTransfer.js";
 export * from "./sync/deletionJournal.js";
 export * from "./sync/ownDeletions.js";
-export { SyncRootMissingError, isLocalStoreBusy, isRequestSendFailure, isSignInFailure } from "./sync/errorKind.js";
+export { SyncRootMissingError, UnsyncableFileError, isLocalStoreBusy, isRequestSendFailure, isSignInFailure } from "./sync/errorKind.js";
 export * from "./sync/syncLifecycle.js";
 export * from "./settingsSync/paths.js";
 export * from "./settingsSync/profileFile.js";

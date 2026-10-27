@@ -79,6 +79,8 @@ const provider = { provider: "webdav" as const, creds: { url: "https://example.i
 let source: MobileVault;
 let remoteFiles: Map<string, string>;
 let remote: ISyncTarget;
+/** What the transfer asked the cloud folder for. */
+let downloaded: string[] = [];
 beforeEach(async () => {
   vi.stubGlobal("window", new EventTarget());
   setPlatformServices(getPlatformServices());
@@ -90,7 +92,8 @@ beforeEach(async () => {
   source = { vaultId: "source", db, adapter: memoryDisk("source") } as MobileVault;
   state.disks.get("source")!.set("Note.md", "local notes");
   remoteFiles = new Map([["Note.md", "cloud notes"]]);
-  remote = { pull: async () => ({ etagMap: new Map(remoteFiles) }), download: async (p: string) => remoteFiles.has(p) ? new TextEncoder().encode(remoteFiles.get(p)) : null } as unknown as ISyncTarget;
+  downloaded = [];
+  remote = { pull: async () => ({ etagMap: new Map(remoteFiles) }), download: async (p: string) => { downloaded.push(p); return remoteFiles.has(p) ? new TextEncoder().encode(remoteFiles.get(p)) : null; } } as unknown as ISyncTarget;
   const cache = new PimCacheRepository(db);
   await cache.upsertAccount({ id: "calendar", provider: "caldav", label: "Calendar", enabled: true, config: {} });
   await cache.replaceCalendars("calendar", [{ id: "cal", name: "Selected", readOnly: false }]);
@@ -125,7 +128,9 @@ describe("the account-to-files transfer before vault activation", () => {
     const target = state.switches[0];
     expect(state.events.indexOf("review")).toBeLessThan(state.events.indexOf("copy"));
     expect(state.events[state.events.length - 1]).toBe("activate");
-    expect([...state.disks.get(target)!.values()].sort()).toEqual(["cloud notes", "local notes"]);
+    // What is local is copied; the cloud folder is not read - its files come through the sync (device finding 2026-10-27).
+    expect([...state.disks.get(target)!.values()].sort()).toEqual(["local notes"]);
+    expect(downloaded).toEqual([".pvws/genesis.pvgen"]);
     expect(state.disks.get("source")!.get("Note.md")).toBe("local notes");
     expect(await new PimCacheRepository(state.databases.get(target)!).snapshotAccount("calendar")).toEqual(snapshot);
     expect(await listMailAccounts(target)).toEqual(await listMailAccounts("source"));
@@ -148,7 +153,7 @@ describe("the account-to-files transfer before vault activation", () => {
     state.failSecret = "";
     await connect();
     expect(state.switches).toEqual([id]); expect(state.allocations).toBe(1);
-    expect([...state.disks.get(id)!.values()].sort()).toEqual(["cloud notes", "local notes"]);
+    expect([...state.disks.get(id)!.values()].sort()).toEqual(["local notes"]);
   });
   it("refuses a changed source while the review was open", async () => {
     state.afterReview = async () => { state.disks.get("source")!.set("Note.md", "edited during review"); };
@@ -172,7 +177,7 @@ describe("the account-to-files transfer before vault activation", () => {
     memoryDisk("existing"); state.disks.get("existing")!.set("Note.md", "unsynced destination");
     await connect();
     expect(state.switches).toEqual(["existing"]); expect(state.allocations).toBe(0);
-    expect([...state.disks.get("existing")!.values()].sort()).toEqual(["cloud notes", "local notes", "unsynced destination"]);
+    expect([...state.disks.get("existing")!.values()].sort()).toEqual(["local notes", "unsynced destination"]);
     expect((await loadCloudAccounts("existing"))[0].services.calendar?.pimAccountId).toBe("calendar");
   });
   it("refuses ambiguous existing destinations without selecting one arbitrarily", async () => {
@@ -215,7 +220,7 @@ describe("the transfer's own switch into the vault it copied into", () => {
     const run = (await loadConnectQueue())!;
     const target = run.preparedVaultId!;
     expect(state.entries.map(e => e.id)).toContain(target);
-    expect([...state.disks.get(target)!.values()].sort()).toEqual(["cloud notes", "local notes"]);
+    expect([...state.disks.get(target)!.values()].sort()).toEqual(["local notes"]);
     expect(run.context.vaultId).toBe(target);
     expect(run.outcomes.files).toEqual({ state: "connected", bindingId: target });
     expect(state.active).toBe("source");

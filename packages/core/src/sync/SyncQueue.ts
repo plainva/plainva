@@ -439,7 +439,10 @@ export class SyncQueue {
    * establishes the base for files that exist remotely, and only genuinely local-only
    * files are pushed. `.plainva`/`.CONFLICT` are excluded (device-local).
    */
-  async enqueueLocalOnlyFiles(): Promise<void> {
+  async enqueueLocalOnlyFiles(except: readonly string[] = []): Promise<void> {
+    // Files the pull skipped have no remote base: pushed as "local only" they
+    // would overwrite the remote copy nobody could read (device finding 2026-10-27).
+    const skipped = new Set(except);
     await this.db.transaction(async () => {
       const files = await this.db.query<{ path: string }>(
         `SELECT f.path FROM files f
@@ -450,7 +453,7 @@ export class SyncQueue {
       );
       for (const row of files) {
         // A twin spelling (ADR 0016) is reported by the sync, never uploaded.
-        if (isTwinSpelling(row.path)) continue;
+        if (isTwinSpelling(row.path) || skipped.has(row.path)) continue;
         const existing = await this.db.queryOne<{ id: number }>(
           `SELECT id FROM offline_queue WHERE file_path = ? LIMIT 1`,
           [row.path]

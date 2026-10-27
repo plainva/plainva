@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SyncWorker, isLocalOnlyPath, dropCoveredDeletePaths, classifySyncError, syncErrorMessage, syncErrorReason, TRANSIENT_FAILURES_BEFORE_ERROR } from "../../src/sync/SyncWorker.js";
-import { SyncProviderError } from "../../src/sync/errorKind.js";
+import { SyncProviderError, UnsyncableFileError } from "../../src/sync/errorKind.js";
 import { FatalSyncProtocolError } from "../../src/settingsSync/errors.js";
 import { DeletionJournal, serializeDeletionJournal } from "../../src/sync/deletionJournal.js";
 import { addConflictFixture } from "../helpers/conflictFixture.js";
@@ -1256,6 +1256,27 @@ describe("SyncWorker", () => {
       target.pull.mockResolvedValueOnce({ etagMap: new Map() });
       await worker.runCycle();
       expect(spy).toHaveBeenCalledTimes(1);
+    });
+    it("skips a file that can never be synced, names it, and lets the first cycle complete with the rest (device finding 2026-10-27)", async () => {
+      const spy = vi.fn();
+      worker.onFirstCycleComplete = spy;
+      const statusSpy = vi.fn();
+      worker.onStatusChange = statusSpy;
+      target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"], ["flagged.md", "e2"], ["c.md", "e3"]]) });
+      target.download.mockImplementation(async (p: string) => {
+        if (p === "flagged.md") throw new UnsyncableFileError(p, "cannotDownloadAbusiveFile");
+        return new TextEncoder().encode(`content ${p}`);
+      });
+
+      await worker.runCycle();
+
+      const written = vault.writeTextFile.mock.calls.map((c: any[]) => c[0]);
+      expect(written).toEqual(expect.arrayContaining(["a.md", "c.md"]));
+      expect(written).not.toContain("flagged.md");
+      // The vault is not held up: its first cycle is done, and the skipped file stays out of the local-only upload.
+      expect(spy).toHaveBeenCalledWith(["flagged.md"]);
+      expect(statusSpy.mock.calls.at(-1)?.[0]).toBe("error");
+      expect(statusSpy.mock.calls.at(-1)?.[1]).toContain("cannot be synced here and are skipped: flagged.md");
     });
   });
 

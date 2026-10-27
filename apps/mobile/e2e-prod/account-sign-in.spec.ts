@@ -31,6 +31,8 @@ interface Harness {
    * token whose grant covers it, the way Google answers. Off, they are blocked.
    */
   answerApis: boolean;
+  /** The app's SQLite, to seed rows a single test needs. */
+  sql: Awaited<ReturnType<typeof installSqlBridge>>;
 }
 
 const API_SCOPES: [prefix: string, scope: string][] = [
@@ -42,7 +44,7 @@ const API_SCOPES: [prefix: string, scope: string][] = [
 ];
 
 async function boot(context: BrowserContext, page: Page, seed?: (storage: Record<string, unknown>) => void, withCalendar = false): Promise<Harness> {
-  const harness: Harness = { provider: new FakeOAuthProvider({ family: "google", accounts: [ANNA, BERT], clients: [CLIENT] }), choice: {}, answerApis: false };
+  const harness = { provider: new FakeOAuthProvider({ family: "google", accounts: [ANNA, BERT], clients: [CLIENT] }), choice: {}, answerApis: false } as Harness;
   const origin = new URL(test.info().project.use.baseURL ?? "http://localhost:4174").origin;
   await context.route((url) => url.origin !== origin, async (route) => {
     const url = route.request().url();
@@ -77,6 +79,7 @@ async function boot(context: BrowserContext, page: Page, seed?: (storage: Record
     await route.abort("blockedbyclient");
   });
   const sql = await installSqlBridge(context);
+  harness.sql = sql;
 
   // The browser step: the consent URL the app opened, answered by the provider,
   // and its redirect handed back as the system would.
@@ -467,19 +470,11 @@ async function connectAndPick(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Use this folder" }).click({ timeout: 15000 });
 }
 
-/** The notice about a newly created cloud folder lies over the sheet; it is closed first. */
-async function closeToasts(page: Page): Promise<void> {
-  const close = page.locator(".pv-toasts").getByRole("button", { name: "Close" });
-  while (await close.count()) await close.first().click();
-}
 
 test("a first Google connect from nothing goes from the files step on to the next one", async ({ context, page }, testInfo) => {
   await firstGoogleConnect(context, page);
   await connectAndPick(page);
-  const review = page.getByRole("button", { name: "Start copying" });
-  await expect(review).toBeVisible({ timeout: 15000 });
-  await closeToasts(page);
-  await review.click();
+  // The vault the run started in has nothing local to copy: no question, straight on.
   try {
     await expect(page.getByText(/Step 2 of 2/)).toBeVisible({ timeout: 20000 });
   } finally {
@@ -488,6 +483,8 @@ test("a first Google connect from nothing goes from the files step on to the nex
 });
 
 test("a files step that fails after the folder pick says why, on its banner", async ({ context, page }, testInfo) => {
+  // An iPhone's width: the step label and a long message share the banner (device finding 2026-10-27).
+  await page.setViewportSize({ width: 375, height: 812 });
   await firstGoogleConnect(context, page);
   // From now on Google cannot say whose account this is.
   await context.route("https://openidconnect.googleapis.com/v1/userinfo", (route) => route.fulfill({ status: 500, contentType: "application/json", body: "{}" }));
@@ -499,47 +496,146 @@ test("a files step that fails after the folder pick says why, on its banner", as
   }
   await expect(page.getByText(/Step 1 of 2/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect", exact: true })).toBeEnabled();
+  // Nothing in the banner is squeezed below a few characters: the step label broke letter by letter.
+  const squeezed = await page.locator(".m-connectrun").evaluate((root) => [...root.querySelectorAll("span, button, strong")]
+    .filter((el) => (el.textContent ?? "").trim().length > 0 && el.children.length === 0)
+    .map((el) => {
+      const text = (el.textContent ?? "").trim();
+      const size = parseFloat(getComputedStyle(el).fontSize);
+      return { text: text.slice(0, 24), width: Math.round(el.getBoundingClientRect().width), min: Math.round(Math.min(4, text.length) * size * 0.5) };
+    })
+    .filter((entry) => entry.width < entry.min));
+  expect(squeezed).toEqual([]);
+  const step = await page.locator(".m-connectrun span").first().evaluate((el) => ({ height: el.getBoundingClientRect().height, line: parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.4 }));
+  expect(step.height, "the step label stays on one or two lines").toBeLessThanOrEqual(step.line * 2 + 1);
 });
 
-test("a files step whose copy is cancelled says so, and reads the cloud folder with its progress shown", async ({ context, page }, testInfo) => {
+test("leaving the wizard after the sign-in keeps the account, with its services off (device finding 2026-10-27)", async ({ context, page }, testInfo) => {
   await firstGoogleConnect(context, page);
-  await connectAndPick(page);
-  const cancel = page.locator(".m-sheet").getByRole("button", { name: "Cancel" });
-  await expect(page.getByRole("button", { name: "Start copying" })).toBeVisible({ timeout: 15000 });
-  await closeToasts(page);
-  await cancel.click();
+  await page.getByTestId("connectrun-cancel").click();
+  // Back from the wizard's provider list to the accounts.
+  await page.getByRole("button", { name: "Back" }).first().click();
   try {
-    await expect(page.getByTestId("connectrun-outcome")).toHaveText(/Copying was cancelled/, { timeout: 15000 });
+    await expect(page.getByTestId("cloudacct-row").filter({ hasText: ANNA.email })).toBeVisible({ timeout: 15000 });
   } finally {
-    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("first-connect-cancelled.png"), fullPage: true });
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("left-wizard-account-stays.png"), fullPage: true });
   }
-  await expect(page.getByTestId("files-connect-progress")).toHaveCount(0);
+  await page.getByTestId("cloudacct-row").filter({ hasText: ANNA.email }).click();
+  await expect(page.getByTestId("cloudacct-state")).toHaveAttribute("data-state", "connected", { timeout: 15000 });
+  await expect(page.getByTestId("cloudacct-service-files")).toHaveAttribute("data-on", "false");
+  await expect(page.getByTestId("cloudacct-service-calendar")).toHaveAttribute("data-on", "false");
 });
 
 test("a first Google connect with the standard sign-in goes from the files step on to the next one", async ({ context, page }, testInfo) => {
   await firstGoogleConnect(context, page, "standard");
   await connectAndPick(page);
-  const review = page.getByRole("button", { name: "Start copying" });
   try {
-    await expect(review).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Step 2 of 2/)).toBeVisible({ timeout: 20000 });
   } finally {
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("standard-after-pick.png"), fullPage: true });
   }
-  await closeToasts(page);
-  await review.click();
-  await expect(page.getByText(/Step 2 of 2/)).toBeVisible({ timeout: 20000 });
 });
 
 test("a first Google connect with the standard sign-in and all three services goes on from the files step", async ({ context, page }, testInfo) => {
   await firstGoogleConnect(context, page, "standard", true);
   await connectAndPick(page);
-  const review = page.getByRole("button", { name: "Start copying" });
   try {
-    await expect(review).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Step 2 of 3/)).toBeVisible({ timeout: 20000 });
   } finally {
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("standard-three-after-pick.png"), fullPage: true });
   }
-  await closeToasts(page);
-  await review.click();
-  await expect(page.getByText(/Step 2 of 3/)).toBeVisible({ timeout: 20000 });
+});
+
+/*
+ * Device finding 2026-10-27 (TestFlight 147): a Google card with a sign-in,
+ * files working, its calendar "not signed in" - and signing in again from the
+ * check changed nothing. An older calendar row of the same account, folded
+ * into the card first, was the row the check read and the row line showed,
+ * while the sign-in bound the row the card's record names.
+ */
+test("a calendar not signed in under a signed-in card says so on its row, and signing in from the check repairs it", async ({ context, page }, testInfo) => {
+  const harness = await boot(context, page, withGoogleCalendar, true);
+  harness.answerApis = true;
+  harness.choice = { account: ANNA.email };
+  // An older calendar row of the same account, without a sign-in, listed first.
+  harness.sql.run("plainva-index", "INSERT OR REPLACE INTO pim_accounts (id, provider, label, config, enabled) VALUES (?, ?, ?, ?, 1)", ["pim-a-old", "google", "Anna@gmail.com", JSON.stringify({ clientId: "fixture-client" })]);
+  await page.reload();
+  await waitForVaultDirectory(page);
+  await openGoogleCard(page);
+  await page.getByTestId("cloudacct-signin").click();
+  await expect(page.getByTestId("cloudacct-state")).toHaveAttribute("data-state", "connected", { timeout: 15000 });
+  // The card keeps its sign-in; its calendar's sign-in on this phone is gone.
+  await page.evaluate(() => localStorage.removeItem("CapacitorStorage.secret_pim_local_pim-fixture-1"));
+  await page.reload();
+  await waitForVaultDirectory(page);
+  await openGoogleCard(page);
+  await expect(page.getByTestId("cloudacct-state")).toHaveAttribute("data-state", "connected", { timeout: 15000 });
+  // The card is signed in; its calendar is not - the row says so.
+  await expect(page.getByTestId("cloudacct-service-calendar")).toContainText("Not signed in", { timeout: 15000 });
+
+  await page.getByTestId("cloudacct-check-open").click();
+  await expect(page.getByTestId("cloudacct-check-files")).toHaveAttribute("data-state", "ok", { timeout: 15000 });
+  await expect(page.getByTestId("cloudacct-check-calendar")).toHaveAttribute("data-state", "signin", { timeout: 15000 });
+  await page.getByTestId("cloudacct-check-action-calendar-signIn").click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("CapacitorStorage.secret_pim_local_pim-fixture-1")), { timeout: 15000 }).not.toBeNull();
+
+  await page.getByTestId("cloudacct-check-open").click();
+  try {
+    await expect(page.getByTestId("cloudacct-check-calendar")).toHaveAttribute("data-state", "ok", { timeout: 15000 });
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("calendar-repaired-check.png"), fullPage: true });
+  }
+  await page.locator(".m-sheet-backdrop").click({ position: { x: 10, y: 10 } });
+  await expect(page.getByTestId("cloudacct-service-calendar")).not.toContainText("Not signed in");
+  await expect(page.getByTestId("cloudacct-service-calendar")).not.toContainText("waiting");
+});
+
+/**
+ * A Drive folder "Vault" with `count` notes, answered ahead of the generic API
+ * stand-in. Downloads wait for `release()`, so a test can tell "the step went
+ * on" from "the files arrived".
+ */
+async function driveVaultFolder(context: BrowserContext, count: number) {
+  const notes = Array.from({ length: count }, (_, i) => ({ id: `n${i + 1}`, name: `Note ${i + 1}.md`, mimeType: "text/markdown", md5Checksum: `m${i + 1}`, modifiedTime: "2026-10-20T10:00:00.000Z" }));
+  const state = { started: 0, finished: 0, release: () => {} };
+  const released = new Promise<void>((resolve) => { state.release = resolve; });
+  const json = (body: unknown) => ({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  await context.route((url) => url.href.startsWith("https://www.googleapis.com/drive/v3/files"), async (route) => {
+    const url = new URL(route.request().url());
+    const media = /\/files\/(n\d+)$/.exec(url.pathname);
+    if (media && url.searchParams.get("alt") === "media") {
+      state.started++;
+      await released;
+      state.finished++;
+      await route.fulfill({ status: 200, contentType: "text/markdown", body: `# ${media[1]}\n` });
+      return;
+    }
+    const q = url.searchParams.get("q") ?? "";
+    if (route.request().method() === "GET" && q) {
+      if (/name='Vault' and 'root' in parents/.test(q)) return route.fulfill(json({ files: [{ id: "vault-id", name: "Vault" }] }));
+      if (/^'root' in parents and mimeType='application\/vnd\.google-apps\.folder'/.test(q)) return route.fulfill(json({ files: [{ id: "vault-id", name: "Vault" }] }));
+      if (/^'vault-id' in parents and mimeType=/.test(q)) return route.fulfill(json({ files: [] }));
+      if (/^'vault-id' in parents and trashed=false$/.test(q)) return route.fulfill(json({ files: notes }));
+    }
+    await route.fallback();
+  });
+  return state;
+}
+
+test("a first connect onto a folder with many files goes on to step 2 before a file is pulled, and the files arrive through the sync", async ({ context, page }, testInfo) => {
+  await firstGoogleConnect(context, page);
+  const drive = await driveVaultFolder(context, 60);
+  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await page.getByRole("button", { name: "Vault" }).click({ timeout: 15000 });
+  await page.getByRole("button", { name: "Use this folder" }).click();
+  // Nothing of the folder is read up front: the run is on its next step while no file has come in.
+  try {
+    await expect(page.getByText(/Step 2 of 2/)).toBeVisible({ timeout: 20000 });
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("many-files-step-2.png"), fullPage: true });
+  }
+  expect(drive.finished).toBe(0);
+  // The sync takes them in, in the background.
+  drive.release();
+  await expect.poll(() => drive.finished, { timeout: 60000 }).toBe(60);
 });

@@ -5,7 +5,7 @@ import { refreshTokenBody, readRefreshResponse } from "./oauthRefresh.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry, parseRetryAfterMs } from "./httpRetry.js";
-import { SyncProviderError, SyncRootMissingError } from "./errorKind.js";
+import { SyncProviderError, SyncRootMissingError, UnsyncableFileError } from "./errorKind.js";
 import { streamUpload } from "./streamUpload.js";
 import { foldPathNormalization } from "./pathIdentity.js";
 import { trimChars } from "../textScan.js";
@@ -1062,7 +1062,16 @@ export class DriveSyncTarget implements ISyncTarget {
     if (!id) return null;
     const res = await this.authedFetch("GET", `${DRIVE_API}/files/${id}?alt=media`);
     if (res.status === 404) return null;
-    if (!res.ok) throw await driveResponseError("download", res);
+    if (!res.ok) {
+      // A file whose bytes Drive will never hand out (flagged as abusive, or
+      // without downloadable content) is skipped and named, never retried
+      // into a stuck vault (device finding 2026-10-27).
+      const failure = await driveFailure(res);
+      if (res.status === 403 && /cannotDownloadAbusiveFile|fileNotDownloadable|cannotDownloadFile/.test(failure.detail)) {
+        throw new UnsyncableFileError(filePath, failure.detail);
+      }
+      throw await driveResponseError("download", res);
+    }
     const buf = await res.arrayBuffer();
     return new Uint8Array(buf);
   }

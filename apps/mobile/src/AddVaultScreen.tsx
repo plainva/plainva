@@ -276,9 +276,7 @@ export function AddVaultScreen({
           {filesProgress && (
             <Banner kind="info" rounded>
               <span data-testid="files-connect-progress">
-                {filesProgress.phase === "reading"
-                  ? t("connection.filesReading", { done: filesProgress.done, total: filesProgress.total })
-                  : t(filesProgress.phase === "copying" ? "connection.filesCopying" : "connection.filesChecking")}
+                {t(filesProgress.phase === "copying" ? "connection.filesCopying" : "connection.filesChecking")}
               </span>
             </Banner>
           )}

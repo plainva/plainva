@@ -1626,7 +1626,7 @@ export const VaultProvider: React.FC<{
               // Coarse cycle progress for the status bar (WP6); throttled in core.
               syncStatusStore.set(path, { progress });
             };
-            syncWorker.onFirstCycleComplete = () => {
+            syncWorker.onFirstCycleComplete = (skipped) => {
               // From now on a missing cloud folder is an error, never a new one (fifth review, 2).
               void markVaultSyncedBefore(path).catch((e) => console.error("[VaultContext] could not record the first sync", e));
               // The vault has its remote content now, so anchored notes exist
@@ -1636,7 +1636,7 @@ export const VaultProvider: React.FC<{
               // local-only files (no remote_etag) — including those whose initial-index
               // enqueue we deferred (3c) — so new local files still reach the remote,
               // without the fresh-index mass-overwrite risk.
-              syncQueue.enqueueLocalOnlyFiles()
+              syncQueue.enqueueLocalOnlyFiles(skipped)
                 .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
                 .catch((e) => console.error("[VaultContext] enqueueLocalOnlyFiles failed", e));
               localOnlySwept = true;

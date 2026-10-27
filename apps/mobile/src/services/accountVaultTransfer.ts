@@ -99,13 +99,18 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
   const target = new CapacitorVaultAdapter(`vaults/${id}`);
   await target.initialize();
   await noteSaver.flushAll();
-  const plan = await planVaultTransfer(v.adapter, remote, target, (done, total) => setFilesConnectProgress({ phase: "reading", done, total }));
-  // Encrypted workspaces must be opened through their pairing flow, never
-  // copied as raw ciphertext into an ordinary connection.
-  if ([...plan.etags.keys()].some(path => path.startsWith(".pvws/"))) throw new Error("pair-required");
-  // The review asks; nothing is in progress meanwhile.
+  // The cloud folder's files are NOT read here (device finding 2026-10-27): a
+  // folder of 1246 files kept the step reading for minutes, and one file the
+  // read refused failed the whole step. The new vault takes them through its
+  // sync - in the background, resumable, with its progress, an unreadable file
+  // skipped and named. What is copied here is what is local: the notes of the
+  // vault the run started in (where both sides have a file, the sync keeps
+  // both versions) and, below, the accounts and settings. An encrypted
+  // workspace was refused above by its genesis file.
+  const plan = await planVaultTransfer(v.adapter, null, target);
   setFilesConnectProgress(null);
-  if (!await reviewVaultTransfer(plan, (await getActiveVaultEntry()).name, existing?.name ?? name)) {
+  // Asked only when there is something local to copy: an empty vault goes on at once.
+  if ((plan.files.length > 0 || plan.collisions.length > 0) && !await reviewVaultTransfer(plan, (await getActiveVaultEntry()).name, existing?.name ?? name)) {
     // Said on the step's banner: the person is back at the files step on purpose.
     await recordConnectOutcome(context, "files", { state: "cancelled" });
     return;
@@ -137,7 +142,7 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
     // Validate binding collisions before copying anything.
     for (const row of accounts) { const old = existingPim.find(a => a.id === row.id); if (old && !sameStoredValue(old, row)) throw new Error("transfer_binding_collision"); }
     for (const mail of mailAccounts) { const old = existingMail.find(a => a.id === mail.id); if (old && !sameStoredValue(old, mail)) throw new Error("transfer_binding_collision"); }
-    await commitVaultTransfer(plan, v.adapter, target, remote);
+    await commitVaultTransfer(plan, v.adapter, target, null);
     for (const row of accounts) {
       const creds = await getPimCredentials(v.vaultId, row.id);
       if (creds) await savePimCredentials(id, row.id, creds);

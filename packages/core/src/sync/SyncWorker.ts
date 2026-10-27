@@ -12,7 +12,7 @@ import { findCollidingPath, isTwinSpelling, toPathIdentity, type NameCollision }
 import { withPathSpellings } from "./spellingSyncTarget.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
-import { classifySyncError, syncErrorMessage, SyncRootMissingError, type SyncErrorKind } from "./errorKind.js";
+import { classifySyncError, syncErrorMessage, SyncRootMissingError, UnsyncableFileError, type SyncErrorKind } from "./errorKind.js";
 import type { DeletionJournal } from "./deletionJournal.js";
 import { withPathMutation } from "../vault/pathMutation.js";
 import { ConflictSessions, conflictDiagnostic, type ConflictSessionGate } from "../vault/conflictSession.js";
@@ -517,7 +517,12 @@ export class SyncWorker {
    * after a fresh index the initial push is deliberately deferred to the first pull so
    * a rebuilt DB cannot blindly overwrite a newer remote. See 3c / enqueueLocalOnlyFiles.
    */
-  public onFirstCycleComplete?: () => void;
+  /**
+   * The first pull whose only failures are files that can never be synced
+   * here: `skipped` names them, and the host leaves them out of the local-only
+   * upload (device finding 2026-10-27).
+   */
+  public onFirstCycleComplete?: (skipped: string[]) => void;
   private firstCycleComplete = false;
   /**
    * Fired once when the mass-deletion guard trips (see MASS_DELETE_MIN/SHARE): the
@@ -1911,6 +1916,9 @@ export class SyncWorker {
     let pullFailureCount = 0;
     let pullFailure: { path: string; error: unknown } | undefined;
     let consecutivePullFailures = 0;
+    // Files that can never be synced here: skipped, named, and no reason to
+    // hold the vault - a file that fails for a reason waiting can fix does.
+    const unsyncable: { path: string; reason: string }[] = [];
     const guardPullStep = async (path: string, step: () => Promise<void>) => {
       this.noteCycleActivity();
       try {
@@ -1923,6 +1931,13 @@ export class SyncWorker {
         // before the push, fail-closed (settings-sync plan §3.5/A3).
         if (e instanceof FatalSyncProtocolError) throw e;
         pullFailureCount++;
+        const never = e instanceof UnsyncableFileError ? e : e instanceof Error && e.cause instanceof UnsyncableFileError ? e.cause : null;
+        if (never) {
+          unsyncable.push({ path, reason: never.reason });
+          console.error(`[SyncWorker] skipped ${path}: ${never.reason}`);
+          flushChangedPaths();
+          return;
+        }
         if (!pullFailure || (classifySyncError(e) === "fatal" && classifySyncError(pullFailure.error) === "transient"))
           pullFailure = { path, error: e };
         consecutivePullFailures++;
@@ -2584,10 +2599,10 @@ export class SyncWorker {
       // fresh index so a rebuilt DB never blindly overwrites a newer remote — 3c). Gated
       // on zero pull failures: a file whose reconcile failed has no remote base yet and
       // would be misclassified as local-only, i.e. pushed over a possibly newer remote.
-      if (!this.firstCycleComplete && pullFailureCount === 0) {
+      if (!this.firstCycleComplete && pullFailureCount === unsyncable.length) {
         this.firstCycleComplete = true;
         try {
-          this.onFirstCycleComplete?.();
+          this.onFirstCycleComplete?.(unsyncable.map((entry) => entry.path));
         } catch (e) {
           console.error("[SyncWorker] onFirstCycleComplete failed:", e);
         }
@@ -2624,6 +2639,12 @@ export class SyncWorker {
         // why deletions are not being mirrored (clicking the status opens the
         // sync error dialog). A healthy next cycle clears this automatically.
         this.setStatus("error", deletionMirroringSuspended);
+      } else if (pullFailureCount > 0 && pullFailureCount === unsyncable.length) {
+        // Only files that can never be synced here: the rest is in, those are
+        // named - first three, then the count - and the vault goes on.
+        const names = unsyncable.slice(0, 3).map((entry) => entry.path).join(", ");
+        const more = unsyncable.length > 3 ? ` and ${unsyncable.length - 3} more` : "";
+        this.setStatus("error", `${unsyncable.length} file(s) cannot be synced here and are skipped: ${names}${more} (${unsyncable[0].reason})`);
       } else if (pullFailureCount > 0) {
         // The cycle completed, but some files could not be pulled. Surface it (the
         // frozen cursor retries them next cycle) WITHOUT counting toward the

@@ -1229,10 +1229,10 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   w.onProgress = (p) => {
     setProgress(p ? { current: p.current, total: p.total } : null);
   };
-  w.onFirstCycleComplete = () => {
+  w.onFirstCycleComplete = (skipped) => {
     // From now on a missing cloud folder is an error, never a new one (fifth review, 2).
     void markMobileSyncedBefore(v.vaultId).catch((e) => console.error("[syncService] could not record the first sync", e));
-    void v.syncQueue!.enqueueLocalOnlyFiles().catch(() => {});
+    void v.syncQueue!.enqueueLocalOnlyFiles(skipped).catch(() => {});
     v.markFirstSyncComplete();
     // The remote content is here now, so anchored notes exist and can be
     // ADOPTED rather than imported a second time.

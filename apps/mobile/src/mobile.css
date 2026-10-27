@@ -3837,10 +3837,30 @@ textarea {
    line instead of the control sitting under it (finding 2026-08-19). */
 .m-connectrun {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
   width: 100%;
+}
+/* The step and its message, one column: wide enough for the step label before
+   the buttons get a line of their own, and words break only between words
+   (the banner's own text breaks anywhere, which let a squeezed label break
+   letter by letter). */
+.m-connectrun-text {
+  display: flex;
+  flex: 1 1 14rem;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.m-connectrun-step { font-weight: 600; }
+.m-connectrun-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: auto;
 }
 
 .m-acctmark {

@@ -95,7 +95,7 @@ export function AccountServiceScreen({
     };
   }, [reload]);
 
-  const row = card ? accountPageModel({ family: card.family, services: card.services, off: card.record?.off, signIn: card.signIn, canSignIn: false, signedInHere: false }).services.find((entry) => entry.service === service) : undefined;
+  const row = card ? accountPageModel({ family: card.family, services: card.services, off: card.record?.off, signIn: card.signIn, canSignIn: false, signedInHere: false, serviceStates: card.serviceStates }).services.find((entry) => entry.service === service) : undefined;
   const toggle = (on: boolean) => {
     if (!card?.recordVaultId) return;
     setBusy(true);

@@ -40,18 +40,20 @@ export async function readTransferFiles(adapter: IVaultAdapter): Promise<Transfe
 /**
  * Read-only preview. The caller must review every collision before commit.
  *
- * Every file of the cloud folder is read here, one after the other - for a
- * folder that already holds a vault that takes a while, so `onProgress` says
- * how far it got (files read, files to read); a caller that shows nothing
- * looks as if it did nothing (device finding 2026-10-27).
+ * With a `remote`, every file of the cloud folder is read here, one after the
+ * other, and `onProgress` says how far it got. Without one (`null`) only the
+ * source and the destination are read: a new vault on an existing cloud folder
+ * takes that folder's files through its sync - in the background, resumable,
+ * one unreadable file skipped instead of stopping everything - and the copy
+ * carries what is local (device finding 2026-10-27).
  */
 export async function planVaultTransfer(
   source: IVaultAdapter,
-  remote: ISyncTarget,
+  remote: ISyncTarget | null,
   target?: IVaultAdapter,
   onProgress?: (done: number, total: number) => void,
 ): Promise<VaultTransferPlan> {
-  const listing = await remote.pull();
+  const listing = remote ? await remote.pull() : { etagMap: new Map<string, string>(), needsFullListing: false };
   if (listing.needsFullListing) throw new Error("transfer_incomplete_inventory");
   const local = await readTransferFiles(source);
   const targetFiles = target ? await readTransferFiles(target) : [];
@@ -61,7 +63,7 @@ export async function planVaultTransfer(
   for (const path of listing.etagMap.keys()) {
     if (!safePath(path)) throw new Error("transfer_invalid_path");
     if (!transferable(path)) continue;
-    const bytes = await remote.download(path);
+    const bytes = await remote!.download(path);
     if (bytes === null) throw new Error("transfer_source_changed");
     remoteFiles.push({ path, bytes, hash: sha256Hex(bytes) });
     onProgress?.(remoteFiles.length, toRead.length);
@@ -104,9 +106,11 @@ export async function planVaultTransfer(
 
 /** Revalidate the displayed snapshot; never replace a pre-existing destination
  * with different bytes. A retry reuses identical files after an interruption. */
-export async function commitVaultTransfer(plan: VaultTransferPlan, source: IVaultAdapter, target: IVaultAdapter, remote: ISyncTarget): Promise<void> {
-  const listing = await remote.pull();
-  if (listing.needsFullListing || listing.etagMap.size !== plan.etags.size || [...plan.etags].some(([p, tag]) => listing.etagMap.get(p) !== tag)) throw new Error("transfer_source_changed");
+export async function commitVaultTransfer(plan: VaultTransferPlan, source: IVaultAdapter, target: IVaultAdapter, remote: ISyncTarget | null): Promise<void> {
+  if (remote) {
+    const listing = await remote.pull();
+    if (listing.needsFullListing || listing.etagMap.size !== plan.etags.size || [...plan.etags].some(([p, tag]) => listing.etagMap.get(p) !== tag)) throw new Error("transfer_source_changed");
+  }
   const latest = await readTransferFiles(source);
   if (latest.length !== plan.local.length || latest.some(f => plan.local.find(p => p.path === f.path)?.hash !== f.hash)) throw new Error("transfer_source_changed");
   // Check every destination before the first write; protect existing local edits.
