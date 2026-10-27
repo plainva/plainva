@@ -1,4 +1,4 @@
-import { afterTaskSyncResume, clearPinboardCache, ensureStarterManifest, filesRunState, sayFirstSyncConflictCopies, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache, filesRunState, sayFirstSyncConflictCopies, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText, WORKSPACE_FORKS_FOLDER } from "@plainva/core";
@@ -1317,12 +1317,6 @@ export const VaultProvider: React.FC<{
         // A fact of the vault, not of its records: a reset of the sync state
         // never makes a vault that synced before "new" again (fifth review, 2).
         const hasSyncedBefore = !rootCreationAllowed(await syncedBeforeForVault(path, syncRepo).catch(() => true));
-        // Starter content never goes into a folder the vault is connected to
-        // (review 2026-10-27): a vault from before the vault remembered its
-        // starter files has them recognised now, once, before its first upload.
-        if (!hasSyncedBefore && (driveReady || oneDriveReady || dropboxReady || s3Ready || webdavReady)) {
-          await ensureStarterManifest(backupVaultAdapter).catch((e) => console.warn("[VaultContext] starter files not recognised", e));
-        }
         // Drive only: the folder id learned by NAME, kept until a listing of it
         // has held (see onFullListingTrusted below).
         let resolvedDriveRoot: { id: string; path: string } | null = null;
@@ -1584,6 +1578,9 @@ export const VaultProvider: React.FC<{
               syncRepo,
               createContentRefResolver(path, tauriVaultAdapter),
             );
+            // A refused file's content moved to its copy: the open editor follows
+            // it, as it follows a file moved outside Plainva (review 2026-10-27).
+            engine.onLocalMove = (from) => window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: from } }));
             // Profile-sync sideband (opt-in): transports .plainva/sync/settings.json
             // through the same target, outside the file queue/merge path. null when
             // the vault has not opted in.

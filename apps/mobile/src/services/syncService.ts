@@ -22,7 +22,7 @@ import {
   type JournalCheckResult,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { connectionErrorText, ensureStarterManifest, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision } from "@plainva/ui";
+import { connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision } from "@plainva/ui";
 import { assertEmptyRemoteVault } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
@@ -1103,10 +1103,6 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   // A fact of the vault, not of its records: a reset of the sync state never
   // makes a vault that synced before "new" again (fifth review, finding 2).
   const hasSyncedBefore = !rootCreationAllowed(await mobileSyncedBefore(v).catch(() => true));
-  // Starter content never goes into a folder the vault is connected to
-  // (review 2026-10-27): a vault from before the vault remembered its starter
-  // files has them recognised now, once, before its first upload.
-  if (!hasSyncedBefore) await ensureStarterManifest(v.adapter).catch((e) => console.warn("[syncService] starter files not recognised", e));
   if ("allowRootCreation" in rawTarget) (rawTarget as { allowRootCreation: boolean }).allowRootCreation = !hasSyncedBefore;
   // Drive only: the folder id learned by NAME, kept until a full listing of it
   // has held — then stored, so the id addresses the folder from now on (A4).
@@ -1191,6 +1187,9 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     // this resolver is never asked for one; the fallback only satisfies the type.
     createContentRefResolver(v.adapter.sandboxRoot ?? "", v.adapter),
   );
+  // A refused file's content moved to its copy: the open note follows it, as
+  // it follows a file moved outside the app (review 2026-10-27).
+  engine.onLocalMove = (from) => notifyPulledFiles([from]);
   // Pulls write through the backup adapter (not the queueing chain) — the
   // worker does its own merge and manages sync_state (desktop pattern).
   // Smaller download windows than the desktop (P3.3): phones have tighter

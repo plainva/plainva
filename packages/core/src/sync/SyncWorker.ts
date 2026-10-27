@@ -2178,9 +2178,14 @@ export class SyncWorker {
       // its own, spaced out - no full listing for them (review 2026-10-27). A
       // download that works clears the mark; one that fails otherwise waits for
       // its next turn without counting as a pull failure.
+      // A download that finds nothing - the file is gone remotely - clears the
+      // mark and leaves this device's file alone: a remote deletion reaches it
+      // only on the deletion path below, with its guards (second review).
       for (const entry of [...known.values()]) {
         if (!alive()) break;
         if (pullResult.etagMap.has(entry.path) || entry.retryAt > Date.now()) continue;
+        // Deleted remotely: the deletion path below takes it, with all its guards.
+        if (pullResult.deleted?.includes(entry.path)) continue;
         if (excludedFromSync(entry.path) || awaitingStructure(entry.path)) continue;
         this.noteCycleActivity();
         try {

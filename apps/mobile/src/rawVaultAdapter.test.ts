@@ -71,8 +71,6 @@ const WORKSPACE =
 const NOT_OPEN = "a vault that is not open — created, prepared or filled a moment ago — has no chain yet; its first index run takes every file as new";
 const BOOT = "`boot` builds the chain on this storage";
 const TRANSFER_SOURCE = "the open vault is the SOURCE of a transfer into another one: read here, written there";
-const STARTER =
-  "`.plainva/starter-files.json` is the app's own record of the starter content it wrote (review 2026-10-27): never versioned, never synced; the starter files themselves are only read";
 const FIRST_VAULT =
   "the vault this very start created and found empty (`claimTemplateCreation`): nothing to take a version of, nothing the chain knows that could differ, no provider to queue for — and the scaffold refuses a folder that is not empty. The full index run right behind it takes every file as new. Thirty writes through the queue's database on the first start would only add a way for it to fail";
 
@@ -134,7 +132,6 @@ const SITES: Record<string, Site[]> = {
     ["handed to createContentRefResolver", 1, "reads: names a file for the upload that streams it"],
     ["handed to new DeletionJournal", 1, "the deletion journal is a sideband file of the sync (`.plainva/sync`), not a note"],
     ["handed to new SyncWorker", 1, SYNC],
-    ["handed to ensureStarterManifest", 1, STARTER],
     ["handed to new SettingsOnlySync", 1, `${SIDEBAND} (files off for the vault: only the settings travel, second review B3)`],
   ],
   "services/vaultService.ts": [

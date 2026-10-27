@@ -1345,6 +1345,38 @@ describe("SyncWorker", () => {
         expect(statusSpy.mock.calls.at(-1)?.[1]).toContain("cannot be synced here and are skipped: flagged.md");
       });
 
+      it("deleted remotely, its mark goes and this device's file stays (second review 2026-10-27)", async () => {
+        refused.set("flagged.md", { path: "flagged.md", reason: "cannotDownloadAbusiveFile", etag: "e2", attempts: 1, retryAt: 0 });
+        worker["cursor"] = "c0";
+        target.pull.mockResolvedValueOnce({ etagMap: new Map(), nextCursor: "c1" });
+        target.download.mockImplementation(async () => null);
+        vault.exists.mockImplementation(async (p: string) => p === "flagged.md");
+        vault.readTextFile.mockResolvedValue("this device's text");
+
+        await worker.runCycle();
+
+        expect(refused.has("flagged.md")).toBe(false);
+        expect(vault.deleteItem).not.toHaveBeenCalled();
+        expect(vault.writeTextFile).not.toHaveBeenCalled();
+      });
+
+      it("deleted remotely and reported so, it goes through the deletion path, which keeps a file changed here", async () => {
+        refused.set("flagged.md", { path: "flagged.md", reason: "cannotDownloadAbusiveFile", etag: "e2", attempts: 1, retryAt: 0 });
+        worker["cursor"] = "c0";
+        target.pull.mockResolvedValueOnce({ etagMap: new Map(), deleted: ["flagged.md"], nextCursor: "c1" });
+        // Synced once, changed here since.
+        stateRepo.getAllStates.mockResolvedValue(new Map([["flagged.md", { remote_etag: "e1", base_sha256: await sha("synced text"), local_sha256: await sha("synced text") }]]));
+        vault.exists.mockImplementation(async (p: string) => p === "flagged.md");
+        vault.readTextFile.mockResolvedValue("changed here");
+
+        await worker.runCycle();
+
+        // The retry did not ask for it: the deletion path had it.
+        expect(target.download).not.toHaveBeenCalledWith("flagged.md");
+        expect(refused.has("flagged.md")).toBe(false);
+        expect(vault.deleteItem).not.toHaveBeenCalled();
+      });
+
       it("is forgotten when a whole listing no longer holds it", async () => {
         refused.set("flagged.md", { path: "flagged.md", reason: "cannotDownloadAbusiveFile", etag: "e2", attempts: 3, retryAt: Date.now() + 60_000 });
         target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"]]) });

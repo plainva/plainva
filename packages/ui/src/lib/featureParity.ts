@@ -1350,6 +1350,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-14",
   },
   {
+    id: "starter-content-held-back",
+    title: "A fresh vault's starter notes stay out of a cloud folder that already holds notes",
+    area: "sync",
+    kind: "decision",
+    desktop: null,
+    desktopReason:
+      "The phone connects files by creating a new vault for the cloud folder and copying " +
+      "the open vault into it; that copy leaves the untouched starter notes of a template " +
+      "behind (review 2026-10-27, the maintainer's starter notes landed in his wiki). The " +
+      "desktop connects files to the open vault in place - there is no copy, so what the " +
+      "vault holds is what the person chose to connect, and the sync takes all of it, " +
+      "exactly as it does for a template vault on a new, empty folder on both shells.",
+    mobile: "yes",
+    verified: "2026-10-27",
+  },
+  {
     id: "first-index-in-background",
     title: "Working in a vault while its first index is built",
     area: "vault",

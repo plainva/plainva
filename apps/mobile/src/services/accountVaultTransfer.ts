@@ -107,12 +107,19 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
   // vault the run started in (where both sides have a file, the sync keeps
   // both versions) and, below, the accounts and settings. An encrypted
   // workspace was refused above by its genesis file.
-  // The starter notes of a fresh vault stay behind (review 2026-10-27): they
-  // are the app's, and went up into the person's existing folder.
+  // The starter notes of a fresh vault stay behind where the folder already
+  // holds notes (review 2026-10-27): they are the app's, and went up into the
+  // person's existing wiki. A new, empty folder takes the vault as it is, its
+  // template included (second review). Only the folder's listing is asked for,
+  // none of its files; a listing that fails counts as a folder with notes.
+  const listing = await remote.pull().catch(() => null);
+  const folderHoldsNotes = !listing || !!listing.needsFullListing
+    || [...listing.etagMap.keys()].some((path) => !/^\.(plainva|pvws)(\/|$)/.test(path));
   // Read, never written here: the source vault stays as it is.
-  const starters = await readStarterManifest(v.adapter)
-    ?? { version: 1 as const, files: await recognizeStarterFiles(v.adapter).catch(() => ({})) };
-  const plan = await planVaultTransfer(v.adapter, null, target, undefined, (file) => isUntouchedStarter(starters, file.path, file.bytes));
+  const starters = folderHoldsNotes
+    ? await readStarterManifest(v.adapter) ?? { version: 1 as const, files: await recognizeStarterFiles(v.adapter).catch(() => ({})) }
+    : null;
+  const plan = await planVaultTransfer(v.adapter, null, target, undefined, starters ? (file) => isUntouchedStarter(starters, file.path, file.bytes) : undefined);
   setFilesConnectProgress(null);
   // Asked only when there is something of the person's to copy - the question
   // says how many notes go up; a fresh vault goes on at once.

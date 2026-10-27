@@ -147,6 +147,15 @@ describe("the account-to-files transfer before vault activation", () => {
     expect([...state.disks.get(target)!.keys()].filter((p) => !p.startsWith(".plainva"))).toEqual(["Note.md"]);
     expect(state.disks.get("source")!.get("Willkommen.md")).toBe(starter);
   });
+  it("takes the starter notes along onto a new, empty folder: the vault goes up as it is (second review 2026-10-27)", async () => {
+    const starter = "# Willkommen\n";
+    remoteFiles.clear();
+    state.disks.get("source")!.set("Willkommen.md", starter);
+    state.disks.get("source")!.set(".plainva/starter-files.json", JSON.stringify({ version: 1, files: { "Willkommen.md": starterHash(starter) } }));
+    await connect();
+    const target = state.switches[0];
+    expect([...state.disks.get(target)!.keys()].filter((p) => !p.startsWith(".plainva")).sort()).toEqual(["Note.md", "Willkommen.md"]);
+  });
   it("does not ask at all when the vault holds only its starter notes", async () => {
     const starter = "# Willkommen\n";
     state.disks.get("source")!.delete("Note.md");

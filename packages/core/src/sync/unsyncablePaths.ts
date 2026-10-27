@@ -85,10 +85,10 @@ export async function clearAllUnsyncablePaths(db: IDatabaseAdapter): Promise<voi
  * says it is a conflicting copy and syncs like any note - never `.CONFLICT`,
  * which stays on the device.
  */
-export function unsyncableCopyPath(path: string, now: Date): string {
+export function unsyncableCopyPath(path: string, now: Date, n?: number): string {
   const stamp = now.toISOString().slice(0, 19).replace("T", " ").replace(/:/g, "-");
   const slash = path.lastIndexOf("/");
   const dot = path.lastIndexOf(".");
   const split = dot > slash + 1 ? dot : path.length;
-  return `${path.slice(0, split)} (conflict ${stamp})${path.slice(split)}`;
+  return `${path.slice(0, split)} (conflict ${stamp}${n ? ` ${n}` : ""})${path.slice(split)}`;
 }

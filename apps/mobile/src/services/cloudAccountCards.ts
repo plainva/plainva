@@ -198,17 +198,20 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
   for (const record of verifiedFirst) {
     if (cards.some((card) => card.record?.id === record.id)) continue;
     const services = (["files", "calendar", "mail"] as const).filter((service) => !!record.services[service]);
-    // A row of this account that found no record above - two records with its
-    // label, or none naming it - is this account's card, not a second one
-    // (review 2026-10-27): the same account by verified identity where both
-    // have one, by address where either has none.
+    // A row of this account that found no record above is this account's
+    // card, not a second one (review 2026-10-27): the same account by verified
+    // identity where both have one. By address only where exactly one record
+    // of the family has that address - a work and a personal Microsoft account
+    // can share one (second review 2026-10-27); where it is ambiguous, the
+    // cards stay apart.
     const recordIdentity = record.verifiedProviderIdentity ? verifiedProviderIdentityKey(record.verifiedProviderIdentity) : null;
+    const address = identityKey(record.label);
+    const addressIsTheAccount = !!address && records.filter((other) => other.family === record.family && identityKey(other.label) === address).length === 1;
     const owner = cards.find((card) => {
       if (card.record || card.family !== record.family) return false;
       const cardIdentity = card.verifiedProviderIdentity ? verifiedProviderIdentityKey(card.verifiedProviderIdentity) : null;
       if (cardIdentity && recordIdentity) return cardIdentity === recordIdentity;
-      const address = identityKey(record.label);
-      return !!address && identityKey(card.label) === address;
+      return addressIsTheAccount && identityKey(card.label) === address;
     });
     if (owner) {
       owner.record = record;
@@ -221,7 +224,8 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
       continue;
     }
     add({
-      key: keyOf(record.family, record.label, record.id, record.verifiedProviderIdentity),
+      // Its own card where the address does not say which account it is.
+      key: recordIdentity || addressIsTheAccount ? keyOf(record.family, record.label, record.id, record.verifiedProviderIdentity) : `${record.family}|#${record.id}`,
       family: record.family,
       label: record.label,
       services: [...services],

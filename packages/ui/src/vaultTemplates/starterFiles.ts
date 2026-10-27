@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { isPlainvaManagedIndex, readStarterManifest, starterHash, writeStarterManifest, type StarterManifest, type VaultFileInfo } from "@plainva/core";
+import { isPlainvaManagedIndex, starterHash, type VaultFileInfo } from "@plainva/core";
 import { serializeBaseConfig } from "../base/baseFormat";
 import { APP_LANGUAGES } from "../services/languages";
 import { getVaultTemplates } from "./registry";
@@ -15,10 +15,6 @@ import { buildTemplateNoteContent, interpolateNote, interpolateScaffoldDates } f
  * while it carries Plainva's marker, at the root or in a template's folder.
  */
 export interface StarterRecognitionAdapter {
-  exists(path: string): Promise<boolean>;
-  readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, content: string): Promise<void>;
-  createDir?(path: string): Promise<void>;
   listDir(path?: string, recursive?: boolean): Promise<VaultFileInfo[]>;
   readBinaryFile(path: string): Promise<Uint8Array>;
 }
@@ -89,16 +85,4 @@ export async function recognizeStarterFiles(adapter: StarterRecognitionAdapter):
     }
   }
   return recognized;
-}
-
-/**
- * The vault's starter manifest; for a vault without one, the starter files
- * recognised by their bytes are written down first, once.
- */
-export async function ensureStarterManifest(adapter: StarterRecognitionAdapter): Promise<StarterManifest> {
-  const stored = await readStarterManifest(adapter);
-  if (stored) return stored;
-  const files = await recognizeStarterFiles(adapter);
-  await writeStarterManifest(adapter, files);
-  return { version: 1, files };
 }

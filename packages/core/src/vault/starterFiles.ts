@@ -10,14 +10,16 @@ import { sha256Hex } from "../workspace/encoding.js";
  *
  * So the vault remembers what it was given, in a device-local file next to
  * its index: each starter file with the hash it had when it was written. A
- * file that still has those bytes was never touched, and nothing of it goes
- * into a connected folder - not by the copy into a new vault, not by an upload.
- * The moment the person changes it, it is theirs and syncs like any note. A
- * generated listing (`index.md` with Plainva's marker) stays the app's for as
- * long as it carries the marker: every device generates its own.
+ * file that still has those bytes was never touched. The phone's copy of a
+ * vault into a new one for a folder that already holds notes leaves such files
+ * behind (`planVaultTransfer`'s `keepBack`); the moment the person changes one,
+ * it is theirs and goes along. A generated listing (`index.md` with Plainva's
+ * marker) stays the app's for as long as it carries the marker: every device
+ * generates its own. No upload asks this record (second review 2026-10-27): a
+ * vault connected to its own folder - a new, empty one - takes all of it up,
+ * its template included.
  *
- * A vault created to go online at once (a new cloud folder of its own) records
- * nothing: its template is what the person asked that folder to hold.
+ * A vault created to go online at once records nothing.
  */
 export const STARTER_MANIFEST_PATH = ".plainva/starter-files.json";
 

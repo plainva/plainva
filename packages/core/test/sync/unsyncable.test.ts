@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { realSqlite } from "../helpers/realSqlite.js";
 import { SyncStateRepository } from "../../src/vault/SyncStateRepository.js";
 import { SyncQueue } from "../../src/sync/SyncQueue.js";
@@ -25,6 +25,7 @@ function localVault(files: Map<string, string>) {
       files.set(to, files.get(from)!);
       files.delete(from);
     }),
+    deleteItem: vi.fn(async (p: string) => { files.delete(p); }),
     getFileInfo: vi.fn(async () => ({ isDirectory: false })),
     listDir: vi.fn(async () => []),
   };
@@ -78,6 +79,8 @@ describe("files refused for good: stored next to the sync state", () => {
 });
 
 describe("nothing goes up over a file refused for good", () => {
+  afterEach(() => { vi.useRealTimers(); });
+
   it("a queued write - the local-only sweep's too - moves the local content to a copy instead of pushing it over the remote file", async () => {
     const files = new Map([["flagged.md", "this device's text"]]);
     const { queue, vault, target, engine } = await setup(files);
@@ -92,6 +95,38 @@ describe("nothing goes up over a file refused for good", () => {
     expect(to).toMatch(/^flagged \(conflict \d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2}\)\.md$/);
     expect(files.get(to)).toBe("this device's text");
     expect(await queue.getPendingOperations()).toEqual([]);
+  });
+
+  it("an open note on it: three saves make one copy, and the editor ends on the copy (second review 2026-10-27)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-27T15:00:00.000Z"));
+    const files = new Map<string, string>();
+    const { queue, target, engine } = await setup(files);
+    // The editor: saves where its file is, and follows a move it is told about.
+    const editor = { path: "flagged.md", save: async (text: string) => { files.set(editor.path, text); await queue.queueWrite(editor.path); } };
+    const told: Array<[string, string]> = [];
+    engine.onLocalMove = (from, to) => { told.push([from, to]); };
+
+    await editor.save("my text");
+    await engine.processQueue();
+    // A second later the editor saves the old path once more - before it heard of the move.
+    vi.setSystemTime(new Date("2026-10-27T15:00:01.000Z"));
+    await editor.save("my text");
+    await engine.processQueue();
+    // Now it follows, and its third save lands on the copy.
+    expect(told.length).toBeGreaterThan(0);
+    editor.path = told[told.length - 1][1];
+    vi.setSystemTime(new Date("2026-10-27T15:00:02.000Z"));
+    await editor.save("my text, more");
+    await engine.processQueue();
+
+    const copies = [...files.keys()].filter((p) => p.includes("(conflict "));
+    expect(copies).toHaveLength(1);
+    expect(editor.path).toBe(copies[0]);
+    expect(files.has("flagged.md")).toBe(false);
+    expect(files.get(copies[0])).toBe("my text, more");
+    expect(new Set(told.map(([, to]) => to))).toEqual(new Set([copies[0]]));
+    expect(pushedPaths(target)).not.toContain("write flagged.md");
   });
 
   it("a rename from it goes up as a new file, and the remote file stays where it is", async () => {

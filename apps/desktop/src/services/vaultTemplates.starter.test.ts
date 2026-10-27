@@ -1,12 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { isUntouchedStarter, readStarterManifest, STARTER_MANIFEST_PATH } from "@plainva/core";
-import { ensureStarterManifest, getVaultTemplates, recognizeStarterFiles, scaffoldVaultTemplate } from "@plainva/ui";
+import { getVaultTemplates, recognizeStarterFiles, scaffoldVaultTemplate } from "@plainva/ui";
 
 /**
- * A fresh vault's starter content stays out of a connected folder (review
- * 2026-10-27): the phone's starter notes went up into the person's existing
- * wiki. The vault remembers what the scaffold wrote; a vault from before that
- * has it recognised by its bytes.
+ * A fresh vault's starter content stays behind when the phone copies the vault
+ * into a new one for a folder that already holds notes (review 2026-10-27: the
+ * starter notes went up into the person's existing wiki). The vault remembers
+ * what the scaffold wrote; a vault from before that has it recognised by its
+ * bytes, read only, when the copy runs.
  */
 
 class MemoryVault {
@@ -78,10 +79,5 @@ describe("the starter content of a fresh vault", () => {
     expect(recognized["index.md"]).toBeDefined();
     const untouched = [...vault.files.keys()].filter((path) => path !== touched && path !== "Meine Notiz.md");
     expect(Object.keys(recognized).sort()).toEqual(untouched.sort());
-
-    // Written down once; a later call reads it.
-    const manifest = await ensureStarterManifest(vault);
-    expect(manifest.files).toEqual(recognized);
-    expect(await readStarterManifest(vault)).toEqual(manifest);
   });
 });
