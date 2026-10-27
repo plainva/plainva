@@ -46,9 +46,6 @@ const ALLOWED = new Map<string, string>([
   ["packages/core/src/vault/VaultQueryService.ts", "card search: wider than the block on purpose"],
   ["packages/ui/src/lib/noteCardModel.ts", "card preview: wider than the block on purpose"],
   ["packages/ui/src/lib/textDirection.ts", "writing direction of a paragraph: wider than the block on purpose"],
-  // A head that closes on `...` or never closes keeps its lines from being read as what an assistant remembers;
-  // the file's writers add entries behind the last one or at the end, never into the head (AI harness P6).
-  ["packages/core/src/ai/memory/memoryFile.ts", "the memory's entries: wider than the block on purpose"],
 ]);
 
 describe("the properties block has one definition", () => {

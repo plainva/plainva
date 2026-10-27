@@ -1,3 +1,5 @@
+import { frontmatterSpan } from "../../frontmatter-block.js";
+import { createFenceTracker, readQuoteDepth } from "../../markdownFence.js";
 import { AI_POLICY_DIMENSIONS, type AiPolicyDimension } from "../policy.js";
 import { stripInvisible } from "../trust.js";
 
@@ -96,7 +98,6 @@ export interface ParsedMemory {
 const BULLET = /^[-*+][ \t]+/;
 const HEADING = /^#{1,6}[ \t]+/;
 const CONTINUATION = /^(?: {2,}|\t)\S/;
-const FENCE = /^(?:```|~~~)/;
 /** The app's own comment: written at the end of an entry, read wherever it stands in one. */
 const META_OPEN = /<!--[ \t]*plainva:/g;
 const META_WHOLE = /<!--[ \t]*plainva:([\s\S]*?)-->/g;
@@ -210,30 +211,46 @@ function headingText(rest: string): string {
   return text.slice(0, end).trim();
 }
 
-/** Where the body of a file begins: behind a YAML block at its very top, if it has one. */
-function bodyStart(lines: readonly string[]): number {
-  if (lines[0]?.trim() !== "---") return 0;
-  for (let index = 1; index < lines.length; index++) if (lines[index]!.trim() === "---" || lines[index]!.trim() === "...") return index + 1;
-  // A block that never closes is the whole file: nothing in it is an entry.
-  return lines.length;
+/**
+ * The line where the body of a file begins: behind its properties block, by
+ * the core's one rule for it (`frontmatterSpan`). A block that never closes is
+ * none — the reading view shows its lines as text, and an entry added to such
+ * a file is read where it stands.
+ */
+function bodyStart(text: string): number {
+  const span = frontmatterSpan(text);
+  if (!span) return 0;
+  const head = text.slice(0, span.end).split(/\r?\n/);
+  return span.end === text.length && !/\n$/.test(text) ? head.length : head.length - 1;
 }
 
 /** The entries of a memory file, in the order they stand in it. */
 export function parseMemory(text: string | null, place: MemoryPlace): ParsedMemory {
   if (text === null) return { entries: [], more: false };
-  const lines = (text.charCodeAt(0) === BOM ? text.slice(1) : text).split(/\r?\n/);
+  const { entries, more } = scanMemory(text, place);
+  return { entries, more };
+}
+
+/**
+ * The entries of a memory file and, where it ends in a fence that never
+ * closes, the line that fence opened at (-1: none) — read by the same loop, so
+ * that what is code to the one is code to the other.
+ */
+function scanMemory(text: string, place: MemoryPlace): ParsedMemory & { openFence: number } {
+  const body = text.charCodeAt(0) === BOM ? text.slice(1) : text;
+  const lines = body.split(/\r?\n/);
   const entries: MemoryEntry[] = [];
   const seen = new Map<string, number>();
   let section: string | null = null;
-  let fenced = false;
+  // What is code, the one fence rule of every scanner says (`markdownFence.ts`): no entry stands in it.
+  const fence = createFenceTracker();
+  let opened = -1;
   let more = false;
-  for (let index = bodyStart(lines); index < lines.length; index++) {
+  for (let index = bodyStart(body); index < lines.length; index++) {
     const line = lines[index]!;
-    if (FENCE.test(line.trimStart())) {
-      fenced = !fenced;
-      continue;
-    }
-    if (fenced) continue;
+    const kind = fence.step(line);
+    if (kind === "open") opened = index;
+    if (kind !== null) continue;
     const heading = HEADING.exec(line);
     if (heading) {
       section = cleanMemoryText(headingText(line.slice(heading[0].length))).text || null;
@@ -280,7 +297,7 @@ export function parseMemory(text: string | null, place: MemoryPlace): ParsedMemo
       lines: span,
     });
   }
-  return { entries, more };
+  return { entries, more, openFence: fence.inFence ? opened : -1 };
 }
 
 /** Why a text cannot become an entry; null where it can. */
@@ -320,7 +337,7 @@ export function addMemoryEntry(file: string | null, place: MemoryPlace, text: st
   const line = entryLine(text, meta);
   const eol = breakOf(file);
   if (file === null || file.trim() === "") return { ok: true, text: `${HEADER[place]}${eol}${eol}${line}${eol}` };
-  const parsed = parseMemory(file, place);
+  const parsed = scanMemory(file, place);
   const cleaned = cleanMemoryText(text).text;
   if (parsed.entries.some((entry) => entry.text === cleaned)) return { ok: false, problem: "duplicate" };
   const lines = file.split(/\r?\n/);
@@ -329,7 +346,17 @@ export function addMemoryEntry(file: string | null, place: MemoryPlace, text: st
     lines.splice(last.line + last.lines, 0, line);
     return { ok: true, text: lines.join(eol) };
   }
-  // No entry yet: at the end, one blank line behind what stands there.
+  // No entry yet: at the end, one blank line behind what stands there — or, where the file ends in a fence that never
+  // closes, before that fence, and before the quote or callout it stands in: behind it the entry would be code, and no
+  // reading would find it. A byte order mark stays at the very front.
+  if (parsed.openFence >= 0) {
+    let at = parsed.openFence;
+    if (readQuoteDepth(lines[at]!).depth > 0) while (at > 0 && readQuoteDepth(lines[at - 1]!).depth > 0) at -= 1;
+    const mark = at === 0 && file.charCodeAt(0) === BOM ? String.fromCharCode(BOM) : "";
+    if (mark) lines[0] = lines[0]!.slice(1);
+    lines.splice(at, 0, `${mark}${line}`, "");
+    return { ok: true, text: lines.join(eol) };
+  }
   while (lines.length && lines[lines.length - 1]!.trim() === "") lines.pop();
   return { ok: true, text: `${lines.join(eol)}${eol}${eol}${line}${eol}` };
 }

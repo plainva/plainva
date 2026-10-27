@@ -18,6 +18,7 @@
  * A chunk's hash is its text's: equal text, equal vector. An edit re-embeds
  * only the pieces it touched; a rename (new title, so new text) all of them.
  */
+import { createFenceTracker } from "../../markdownFence.js";
 import { isSpacelessChar } from "../../vault/spacelessText.js";
 import { sha256Hex, utf8Encode } from "../../workspace/encoding.js";
 import { atxHeading, noteBody } from "../context/sections.js";
@@ -57,7 +58,6 @@ const PARAGRAPH_JOIN = "\n\n";
 const SENTENCE_END = /[.!?。！？｡]/;
 const WHITESPACE = /\s/;
 const MARK = /\p{M}/u;
-const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 const BLANK = /^\s*$/;
 
 function charWeight(char: string): number {
@@ -79,7 +79,8 @@ function sectionsOf(content: string): Section[] {
   const stack: { level: number; text: string }[] = [];
   let current: Section = { chain: [], paragraphs: [] };
   let open: Span | null = null;
-  let fence: string | null = null;
+  // What is code, the one fence rule of every scanner says (`markdownFence.ts`): a heading in it opens no section.
+  const fence = createFenceTracker();
   let offset = 0;
   const closeParagraph = () => {
     if (open) current.paragraphs.push({ from: base + open.from, to: base + open.to });
@@ -89,11 +90,7 @@ function sectionsOf(content: string): Section[] {
     const from = offset;
     const to = offset + line.length;
     offset = to + 1;
-    const f = FENCE.exec(line);
-    if (f) {
-      if (!fence) fence = f[1]![0]!;
-      else if (f[1]![0] === fence) fence = null;
-    } else if (!fence) {
+    if (fence.step(line) === null) {
       const heading = atxHeading(line.replace(/\r$/, ""));
       if (heading) {
         closeParagraph();

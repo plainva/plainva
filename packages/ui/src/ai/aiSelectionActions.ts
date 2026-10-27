@@ -2,7 +2,9 @@ import { presentableDiff } from "@codemirror/merge";
 import {
   buildCommentAnchor,
   commentActionController,
+  createFenceTracker,
   createWorkspaceObjectId,
+  readQuoteDepth,
   MAX_ANCHOR_QUOTE_BYTES,
   mintAnchorMarkerId,
   type CommentOperationService,
@@ -68,9 +70,14 @@ export function askMessage(action: AiAskAction): string | null {
 /** The passage in a model's answer: a code fence or one pair of quotation marks around it removed. */
 export function passageOf(answer: string): string {
   let text = answer.trim();
-  if (text.startsWith("```")) {
-    const lines = text.split("\n");
-    if (lines.length >= 2 && lines[lines.length - 1]!.trim() === "```") text = lines.slice(1, -1).join("\n").trim();
+  // A fence around the whole answer, by the one fence rule (`markdownFence.ts`): its first line opens it, outside any
+  // quote, its last line closes it, and every line between is its code — two blocks with words between them, or a
+  // fence in a quote, are the answer as it stands.
+  const lines = text.split("\n");
+  if (lines.length >= 2 && readQuoteDepth(lines[0]!).depth === 0) {
+    const fence = createFenceTracker();
+    const kinds = lines.map((line) => fence.step(line));
+    if (kinds[0] === "open" && kinds[kinds.length - 1] === "close" && kinds.slice(1, -1).every((kind) => kind === "code")) text = lines.slice(1, -1).join("\n").trim();
   }
   const pairs: [string, string][] = [
     ['"', '"'],

@@ -8,6 +8,7 @@
  * left out whole, never shortened, and the card says how much. Built from the
  * note as it is when the message is assembled, a card cannot be stale.
  */
+import { createFenceTracker } from "../../markdownFence.js";
 import { atxHeading } from "./sections.js";
 
 export interface ContextCard {
@@ -104,19 +105,19 @@ export function sentencesOf(line: string): string[] {
  */
 export function contextCard(sectionText: string, chain: string, maxChars = CARD_CHARS): ContextCard {
   const units: { text: string; protected: boolean }[] = [];
-  let fence = false;
+  // What is code, the one fence rule of every scanner says (`markdownFence.ts`).
+  const fence = createFenceTracker();
   for (const raw of sectionText.split("\n")) {
-    if (/^\s{0,3}(`{3,}|~{3,})/.test(raw)) {
-      fence = !fence;
-      continue;
-    }
+    const kind = fence.step(raw);
+    if (kind === "open" || kind === "close") continue;
     const line = raw.trim();
-    if (!line || atxHeading(raw)) continue;
-    if (fence) {
-      // Code is protected whole: its lines go as they are.
+    if (!line) continue;
+    if (kind === "code") {
+      // Code is protected whole: its lines go as they are, a "# comment" in it included — it is no heading.
       units.push({ text: line, protected: true });
       continue;
     }
+    if (atxHeading(raw)) continue;
     if (TASK.test(raw)) {
       units.push({ text: line, protected: true });
       continue;

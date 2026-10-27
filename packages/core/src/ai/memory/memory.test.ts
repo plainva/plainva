@@ -55,8 +55,9 @@ describe("reading a memory file", () => {
   it("skips a YAML block at the top and code between fences — a list in either is no memory", () => {
     const file = ["---", "plainva:", "  ai:", "    cloud: deny", "list:", "- not an entry", "---", "- One.", "```", "- in code", "```", "~~~", "- in code too", "~~~", "- Two."].join("\n");
     expect(texts(file)).toEqual(["One.", "Two."]);
-    // A block that never closes is the whole file.
-    expect(texts("---\ntitle: x\n- nothing")).toEqual([]);
+    // A block that never closes is none, by the core's one rule for it (`frontmatterSpan`): the reading view shows its
+    // lines as text, and a list in them is what the file says.
+    expect(texts("---\ntitle: x\n- nothing")).toEqual(["nothing"]);
   });
 
   it("joins the indented lines that continue an entry, and says how many lines it spans", () => {

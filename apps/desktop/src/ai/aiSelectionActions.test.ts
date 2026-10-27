@@ -28,6 +28,11 @@ describe("the AI at a selection", () => {
     expect(passageOf('"One" and "two"')).toBe('"One" and "two"');
     expect(passageOf("Plain.")).toBe("Plain.");
     expect(passageOf("```\n```")).toBe("");
+    // By the one fence rule: a longer run around a shorter one is taken off whole, and two blocks are no one block.
+    expect(passageOf("````\n```js\nx\n```\n````")).toBe("```js\nx\n```");
+    expect(passageOf("```\nOne.\n```\nand\n```\nTwo.\n```")).toBe("```\nOne.\n```\nand\n```\nTwo.\n```");
+    // A fence in a quote is the quote's: taking it off would leave the markers on every line.
+    expect(passageOf("> ```js\n> const a = 1;\n> ```")).toBe("> ```js\n> const a = 1;\n> ```");
   });
 
   it("finds the passage where it was, or at its one occurrence; a changed or repeated passage is lost", () => {

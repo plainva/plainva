@@ -1,4 +1,5 @@
 import { noteBodyOf } from "../frontmatter-block.js";
+import { createFenceTracker } from "../markdownFence.js";
 
 /**
  * The user's writing style (plan KI-Harness P9-3, § 18; ADR 0035): what this
@@ -116,7 +117,6 @@ const ABBREVIATIONS = words("bzw ca etc usw nr dr vgl ggf inkl evtl bspw sog ugs
 const LIST_LINE = /^(\s*)(?:[-*+]|\d{1,9}[.)])\s+(?:\[[^\]\n]\]\s+)?/;
 const HEADING_LINE = /^#{1,6}\s+\S/;
 const RULE_LINE = /^\s{0,3}([-*_])(?:\s*\1){2,}\s*$/;
-const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 const EMOJI = /(?:\p{Regional_Indicator}{2}|(?:\p{Emoji_Presentation}|\p{Extended_Pictographic}️)\p{Emoji_Modifier}?(?:‍(?:\p{Emoji_Presentation}|\p{Extended_Pictographic}️?)\p{Emoji_Modifier}?)*)/gu;
 const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/gu;
 const KANA = /[\p{Script=Hiragana}\p{Script=Katakana}]/gu;
@@ -263,7 +263,9 @@ function exampleOf(text: string): ExampleText {
   let lines = 0;
   let listLines = 0;
   let headings = 0;
-  let fence: string | null = null;
+  // What is code, the one fence rule of every scanner says (`markdownFence.ts`). A comment is no code: its lines never
+  // reach the fence, so a fence written inside one opens nothing.
+  const fence = createFenceTracker();
   let comment: "html" | "obsidian" | null = null;
   let inItem = false;
   const endParagraph = () => {
@@ -272,16 +274,13 @@ function exampleOf(text: string): ExampleText {
   };
   for (const raw of noteBodyOf(text).slice(0, STYLE_EXAMPLE_CHARS).split(/\r?\n/)) {
     const line = raw.trimEnd();
-    if (fence) {
-      if (line.trimStart().startsWith(fence)) fence = null;
-      continue;
-    }
-    const fenced = FENCE.exec(line);
-    if (fenced) {
-      endParagraph();
-      fence = fenced[1]!.slice(0, 3);
-      inItem = false;
-      continue;
+    if (comment === null) {
+      const kind = fence.step(line);
+      if (kind === "open") {
+        endParagraph();
+        inItem = false;
+      }
+      if (kind !== null) continue;
     }
     if (comment) {
       if (line.includes(comment === "html" ? "-->" : "%%")) comment = null;

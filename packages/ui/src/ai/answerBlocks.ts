@@ -1,4 +1,4 @@
-import { atxHeading } from "@plainva/core";
+import { atxHeading, createFenceTracker, readQuoteDepth } from "@plainva/core";
 
 /**
  * The block structure of an AI answer (P1a): paragraphs, headings, lists,
@@ -26,7 +26,15 @@ export interface AnswerListItem {
   depth: number;
 }
 
-const FENCE = /^\s{0,3}(`{3,}|~{3,})\s*([^`\s]*)/;
+/** The language an opening fence names: the first word of its info string. */
+function fenceLang(line: string): string {
+  const rest = line.trimStart();
+  let run = 0;
+  while (run < rest.length && rest[run] === rest[0]) run++;
+  const info = rest.slice(run).trimStart();
+  const end = info.search(/[\s`]/);
+  return end < 0 ? info : info.slice(0, end);
+}
 // Linear patterns only: they run on untrusted model output, so no two
 // quantifiers may trade characters (eslint-plugin-regexp, super-linear
 // backtracking). What a pattern cannot say linearly, code does.
@@ -68,7 +76,10 @@ function listItem(indent: string, text: string): AnswerListItem {
   return task ? { text: text.slice(task[0].length), task: task[1] === " " ? "open" : "done", depth } : { text, depth };
 }
 
-export function parseAnswer(markdown: string): AnswerBlock[] {
+/** How deep quotes nest before their inner lines are read as text: the answer is untrusted, and each level reads it again. */
+const QUOTE_DEPTH = 8;
+
+export function parseAnswer(markdown: string, depth = 0): AnswerBlock[] {
   const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
   const blocks: AnswerBlock[] = [];
   let i = 0;
@@ -79,16 +90,17 @@ export function parseAnswer(markdown: string): AnswerBlock[] {
   };
   while (i < lines.length) {
     const line = lines[i];
-    const fence = FENCE.exec(line);
-    if (fence) {
+    // A fence by the one rule of every scanner (`markdownFence.ts`): "```x```" at the start of a line is a code span,
+    // only a run at least as long as the opening one closes the block, and a quote's fence is the quote's (below).
+    const fence = createFenceTracker();
+    if (readQuoteDepth(line).depth === 0 && fence.step(line) === "open") {
       flush();
-      const marker = fence[1];
       const body: string[] = [];
       i++;
       // An unclosed fence (the answer is still streaming) runs to the end.
-      while (i < lines.length && !new RegExp(`^\\s{0,3}${marker[0] === "`" ? "`" : "~"}{${marker.length},}\\s*$`).test(lines[i])) body.push(lines[i++]);
+      while (i < lines.length && fence.step(lines[i]) === "code") body.push(lines[i++]);
       i++;
-      blocks.push({ kind: "code", lang: fence[2] ?? "", text: body.join("\n") });
+      blocks.push({ kind: "code", lang: fenceLang(line), text: body.join("\n") });
       continue;
     }
     if (!line.trim()) {
@@ -112,7 +124,7 @@ export function parseAnswer(markdown: string): AnswerBlock[] {
       flush();
       const inner: string[] = [];
       while (i < lines.length && QUOTE.test(lines[i])) inner.push(QUOTE.exec(lines[i++])![1]);
-      blocks.push({ kind: "quote", blocks: parseAnswer(inner.join("\n")) });
+      blocks.push({ kind: "quote", blocks: depth < QUOTE_DEPTH ? parseAnswer(inner.join("\n"), depth + 1) : [{ kind: "paragraph", text: inner.join("\n") }] });
       continue;
     }
     const bullet = BULLET.exec(line);

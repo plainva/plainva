@@ -1,3 +1,5 @@
+import { createFenceTracker } from "../../markdownFence.js";
+
 /**
  * The notes a text names (plan KI-Harness P5-7): what the source check reads
  * before an assistant's text is laid down.
@@ -18,7 +20,6 @@
  */
 
 const WIKI_LINK = /!?\[\[([^[\]|#\n]*)(?:#[^[\]|\n]*)?(?:\|[^[\]\n]*)?\]\]/g;
-const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 /** A name that ends like a file: a dot and one to five letters or digits. */
 const FILE_EXTENSION = /\.([a-z0-9]{1,5})$/i;
 
@@ -96,28 +97,50 @@ function withoutCodeSpans(line: string): string {
   return out + line.slice(copied);
 }
 
+/**
+ * Whether a line can open a fence for the source check: at most three spaces
+ * before each quote marker and before the run, and no tab or other blank among
+ * them. Behind a run that only might open a fence — indented four, a no-break
+ * space before it — the links are still checked. A line scanner cannot be sure
+ * of every fence: one in a list item or an HTML block can still hide a link
+ * from the check, as before; only the renderer's own parser would know.
+ */
+function opensForSure(line: string): boolean {
+  let at = 0;
+  for (;;) {
+    let spaces = 0;
+    while (line[at] === " ") {
+      at++;
+      spaces++;
+    }
+    if (spaces > 3) return false;
+    const ch = line[at];
+    if (ch !== ">") return ch === undefined || !/\s/.test(ch);
+    at++;
+    if (line[at] === " ") at++;
+  }
+}
+
 /** The text without what is code in it: a fenced block and a code span say `[[x]]` without linking anything. */
 function withoutCode(text: string): string {
-  const out: string[] = [];
-  let fence: string | null = null;
-  for (const line of text.split("\n")) {
-    const mark = FENCE.exec(line)?.[1];
-    if (fence !== null) {
-      // A fence closes with at least as many of the same character as opened it.
-      if (mark && mark[0] === fence[0] && mark.length >= fence.length && line.trim() === mark) fence = null;
-      out.push("");
-      continue;
+  // What is code, the one fence rule of every scanner says (`markdownFence.ts`): a fence closes only on a run at least
+  // as long as its own, "```a``` and [[b]]" is a paragraph with a span in it, and a fence in a quote or callout is code.
+  // Read as a check reads it: a fence opens only where CommonMark is sure (`opensForSure`).
+  let fence = createFenceTracker();
+  const isCode = (line: string): boolean => {
+    if (!fence.inFence && !opensForSure(line)) return false;
+    const kind = fence.step(line);
+    // A fence that ended with its quote, and a run behind it that only might open one: no fence.
+    if (kind === "open" && !opensForSure(line)) {
+      fence = createFenceTracker();
+      return false;
     }
-    // A fence of backticks carries no backtick behind its run: "```a``` and [[b]]" is a paragraph with a span in
-    // it, not the start of a block that would hide the rest of the text from the check.
-    if (mark && !(mark[0] === "`" && line.slice(line.indexOf(mark) + mark.length).includes("`"))) {
-      fence = mark;
-      out.push("");
-      continue;
-    }
-    out.push(withoutCodeSpans(line));
-  }
-  return out.join("\n");
+    return kind !== null;
+  };
+  return text
+    .split("\n")
+    .map((line) => (isCode(line) ? "" : withoutCodeSpans(line)))
+    .join("\n");
 }
 
 /** Whether a link's name is a note's: no extension, or `.md`. */

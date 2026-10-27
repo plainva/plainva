@@ -1,3 +1,5 @@
+import { createFenceTracker } from "../markdownFence.js";
+
 /**
  * Coverage of an answer (plan KI-Harness P2b-5, §21 citation duty): how many
  * of its statements name a note. A statement is a paragraph or a list item
@@ -27,7 +29,8 @@ const CITATION = /\[\[[^[\]\n]+\]\]/;
 /** The statements of an answer, in order. */
 export function answerStatements(answer: string): string[] {
   const out: string[] = [];
-  let fence = false;
+  // What is code, the one fence rule of every scanner says (`markdownFence.ts`).
+  const fence = createFenceTracker();
   let paragraph: string[] = [];
   const flush = () => {
     const text = paragraph.join(" ").trim();
@@ -36,12 +39,12 @@ export function answerStatements(answer: string): string[] {
   };
   for (const line of answer.split("\n")) {
     const trimmed = line.trim();
-    if (/^(`{3,}|~{3,})/.test(trimmed)) {
+    const kind = fence.step(line);
+    if (kind === "open" || kind === "close") {
       flush();
-      fence = !fence;
       continue;
     }
-    if (fence) continue;
+    if (kind === "code") continue;
     if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("|") || trimmed.startsWith(">")) {
       flush();
       continue;

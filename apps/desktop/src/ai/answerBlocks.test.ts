@@ -41,4 +41,25 @@ describe("answer blocks", () => {
     }
     expect(parseAnswer("<img src=x onerror=alert(1)>")).toEqual([{ kind: "paragraph", text: "<img src=x onerror=alert(1)>" }]);
   });
+
+  it("reads fenced code by the one rule of the scanners: a code span opens no block, and a quote's fence stays the quote's", () => {
+    // "```js``` and more" is a paragraph with a code span in it: the line after it is no code.
+    expect(parseAnswer("```js``` is a span\nThe next line.")).toEqual([{ kind: "paragraph", text: "```js``` is a span\nThe next line." }]);
+    // Only a run at least as long as the opening one closes the block.
+    expect(parseAnswer("````md\n```\ninner\n````\nAfter.")).toEqual([
+      { kind: "code", lang: "md", text: "```\ninner" },
+      { kind: "paragraph", text: "After." },
+    ]);
+    expect(parseAnswer("> ```\n> code\n> ```")).toEqual([{ kind: "quote", blocks: [{ kind: "code", lang: "", text: "code" }] }]);
+    // A fence shown inside a code block, indented four, is that block's text: the block ends where its own run does.
+    expect(parseAnswer(["```markdown", "1. Install:", "", "    ```bash", "    npm i", "    ```", "```", "", "## Done"].join("\n"))).toEqual([
+      { kind: "code", lang: "markdown", text: "1. Install:\n\n    ```bash\n    npm i\n    ```" },
+      { kind: "heading", level: 2, text: "Done" },
+    ]);
+  });
+
+  it("reads quotes nested deeper than eight as text: no answer makes it throw, however deep", () => {
+    expect(() => parseAnswer(`${">".repeat(20000)} x`)).not.toThrow();
+    expect(JSON.stringify(parseAnswer(`${"> ".repeat(12)}deep`))).toContain("deep");
+  });
 });

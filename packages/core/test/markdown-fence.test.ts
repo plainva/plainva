@@ -43,6 +43,10 @@ const CASES: Record<string, string[]> = {
   "a run with text behind it does not close": ["```", "``` not a close", "- [ ] code", "```", "- [ ] real"],
   "a callout fence with tilde and info": ["> [!tip]", "> ~~~mermaid", "> graph TD", "> ~~~", "- [ ] real"],
   "an unclosed fence runs to the end": ["- [ ] real", "```", "- [ ] code"],
+  "a run indented four inside a fence is code, not its close": ["```markdown", "1. Install:", "", "    ```bash", "    - [ ] code", "    ```", "```", "", "- [ ] real"],
+  "a closer in a list item stands within the item's content": ["1. Step", "   ```", "   - [ ] code", "    ```", "   - [ ] real"],
+  "a closer three deeper than its opener closes it": ["1. Step", "   ```", "   - [ ] code", "      ```", "   - [ ] real"],
+  "a tab behind a quote marker before a closer closes it": ["> [!tip]", "> ```", "> - [ ] code", "> \t```", "> - [ ] real"],
 };
 
 describe("fenced code lines: the scanner reads them as remark does", () => {

@@ -7,6 +7,7 @@
  */
 
 import { noteBodyOf } from "../../frontmatter-block.js";
+import { createFenceTracker } from "../../markdownFence.js";
 
 /**
  * An ATX heading ("## Title", closing hashes allowed), or null. Linear on any
@@ -40,15 +41,10 @@ export interface OutlineHeading {
 export function outlineOf(body: string): OutlineHeading[] {
   const out: OutlineHeading[] = [];
   const stack: { level: number; text: string }[] = [];
-  let fence: string | null = null;
+  // What is code, the one fence rule of every scanner says (`markdownFence.ts`).
+  const fence = createFenceTracker();
   body.split("\n").forEach((line, index) => {
-    const f = /^\s{0,3}(`{3,}|~{3,})/.exec(line);
-    if (f) {
-      if (!fence) fence = f[1]![0]!;
-      else if (f[1]![0] === fence) fence = null;
-      return;
-    }
-    if (fence) return;
+    if (fence.step(line) !== null) return;
     const heading = atxHeading(line);
     if (!heading) return;
     const { level, text } = heading;
