@@ -12,6 +12,7 @@ import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
 import { finishConnectVault, loadConnectQueue, outcomeBelongsToRun, prepareConnectVault, recordConnectOutcome } from "./connectQueue";
 import { CONNECT_FORM_GUARD, foreignInputOnScreen, whileEntering } from "./flowVault";
 import { copyProfilePreferences } from "./profileImportJournal";
+import { setFilesConnectProgress } from "./filesConnectProgress";
 import { getPimCredentials, savePimCredentials } from "./pim/pimCredentials";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import { readSyncRootFolder } from "./syncRootFolder";
@@ -98,14 +99,18 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
   const target = new CapacitorVaultAdapter(`vaults/${id}`);
   await target.initialize();
   await noteSaver.flushAll();
-  const plan = await planVaultTransfer(v.adapter, remote, target);
+  const plan = await planVaultTransfer(v.adapter, remote, target, (done, total) => setFilesConnectProgress({ phase: "reading", done, total }));
   // Encrypted workspaces must be opened through their pairing flow, never
   // copied as raw ciphertext into an ordinary connection.
   if ([...plan.etags.keys()].some(path => path.startsWith(".pvws/"))) throw new Error("pair-required");
+  // The review asks; nothing is in progress meanwhile.
+  setFilesConnectProgress(null);
   if (!await reviewVaultTransfer(plan, (await getActiveVaultEntry()).name, existing?.name ?? name)) {
+    // Said on the step's banner: the person is back at the files step on purpose.
     await recordConnectOutcome(context, "files", { state: "cancelled" });
     return;
   }
+  setFilesConnectProgress({ phase: "copying" });
   const currentRun = await loadConnectQueue();
   if ((await getActiveVaultEntry()).id !== v.vaultId || !currentRun || !outcomeBelongsToRun(currentRun, context, "files")) throw new Error("accountChanged");
   const targetRecords = await loadCloudAccounts(id);

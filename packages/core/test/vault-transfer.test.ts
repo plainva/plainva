@@ -25,6 +25,13 @@ function cloud(initial: Record<string, string>) {
 }
 
 describe("reviewed vault transfer", () => {
+  it("says how far it read the cloud folder, file by file (device finding 2026-10-27)", async () => {
+    const source = disk({ "Notes.md": "new" });
+    const remote = cloud({ "Daily.md": "remote", "Archive.md": "old" });
+    const seen: Array<[number, number]> = [];
+    await planVaultTransfer(source.adapter, remote.target, undefined, (done, total) => seen.push([done, total]));
+    expect(seen).toEqual([[0, 2], [1, 2], [2, 2]]);
+  });
   it("shows every collision before writes and preserves source, remote and unsynced destination content", async () => {
     const source = disk({ "Daily.md": "source", "Notes.md": "new" });
     const remote = cloud({ "Daily.md": "remote", "Archive.md": "old" });

@@ -37,19 +37,34 @@ export async function readTransferFiles(adapter: IVaultAdapter): Promise<Transfe
   return files;
 }
 
-/** Read-only preview. The caller must review every collision before commit. */
-export async function planVaultTransfer(source: IVaultAdapter, remote: ISyncTarget, target?: IVaultAdapter): Promise<VaultTransferPlan> {
+/**
+ * Read-only preview. The caller must review every collision before commit.
+ *
+ * Every file of the cloud folder is read here, one after the other - for a
+ * folder that already holds a vault that takes a while, so `onProgress` says
+ * how far it got (files read, files to read); a caller that shows nothing
+ * looks as if it did nothing (device finding 2026-10-27).
+ */
+export async function planVaultTransfer(
+  source: IVaultAdapter,
+  remote: ISyncTarget,
+  target?: IVaultAdapter,
+  onProgress?: (done: number, total: number) => void,
+): Promise<VaultTransferPlan> {
   const listing = await remote.pull();
   if (listing.needsFullListing) throw new Error("transfer_incomplete_inventory");
   const local = await readTransferFiles(source);
   const targetFiles = target ? await readTransferFiles(target) : [];
   const remoteFiles: TransferFile[] = [];
+  const toRead = [...listing.etagMap.keys()].filter((path) => transferable(path));
+  onProgress?.(0, toRead.length);
   for (const path of listing.etagMap.keys()) {
     if (!safePath(path)) throw new Error("transfer_invalid_path");
     if (!transferable(path)) continue;
     const bytes = await remote.download(path);
     if (bytes === null) throw new Error("transfer_source_changed");
     remoteFiles.push({ path, bytes, hash: sha256Hex(bytes) });
+    onProgress?.(remoteFiles.length, toRead.length);
   }
   const files = new Map(remoteFiles.map(file => [file.path, file]));
   const allLocal = [...targetFiles, ...local];

@@ -23,6 +23,7 @@ import {
   presetById,
   presetForEmail,
   getPlatformServices,
+  serviceConnectionMessage,
   toast,
   type CloudAccountRecord,
   type CloudProviderFamily,
@@ -941,9 +942,10 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
           allowRoot={result.filesProvider === "s3"}
           onSelect={(picked) => {
             setShowFolderPicker(false);
-            void saveSyncRootFolder(vaultPath, result.filesProvider!, picked).then(() =>
-              getSyncRootFolder(vaultPath, result.filesProvider!).then(setRootFolder)
-            );
+            // A pick that is not stored says so, as on the phone (device finding 2026-10-27).
+            void saveSyncRootFolder(vaultPath, result.filesProvider!, picked)
+              .then(() => getSyncRootFolder(vaultPath, result.filesProvider!).then(setRootFolder))
+              .catch((error: unknown) => toast.error(serviceConnectionMessage(error, t)));
           }}
           onCancel={() => setShowFolderPicker(false)}
         />

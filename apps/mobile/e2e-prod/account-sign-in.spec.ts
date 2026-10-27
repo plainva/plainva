@@ -414,3 +414,97 @@ test("an IMAP account: the same sections, a check that names the failing mailbox
   await page.getByTestId("confirm-act").click();
   await expect.poll(async () => (await storedCards(page)).some((card) => card.id === "card-imap"), { timeout: 15000 }).toBe(false);
 });
+
+/*
+ * A first connect from nothing (device finding 2026-10-27, TestFlight 146):
+ * no card, no slot, no cloud vault. Google is chosen with files and a
+ * calendar, the sign-in returns, "Connect" opens the Drive folder picker, a
+ * folder is taken. On the iPhone the wizard then stood on step 1, files,
+ * again - with nothing said. Everything after the pick was dropped in
+ * silence: an error, the long read of the cloud folder, a cancelled copy.
+ * The wizard's own end-to-end test never got past the files form (it ran
+ * without the index the files step needs), so none of this was ever run.
+ */
+async function firstGoogleConnect(context: BrowserContext, page: Page): Promise<Harness> {
+  const harness = await boot(context, page, (storage) => {
+    storage.cloudAccounts_local = (storage.cloudAccounts_local as { id: string }[]).filter((card) => card.id !== "acct-fixture-cal");
+    const registry = storage.vault_registry as { vaults: Record<string, unknown>[] };
+    registry.vaults = registry.vaults.map((vault) => {
+      if (vault.id !== "local") return vault;
+      const rest = { ...vault };
+      delete rest.provider;
+      delete rest.paused;
+      return rest;
+    });
+    delete storage.secret_sync_provider_mobile_local;
+  });
+  harness.answerApis = true;
+  page.on("pageerror", (error) => console.log("PAGE ERROR:", error.message));
+
+  await page.locator('[data-testid="nav-settings"]').first().click();
+  await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
+  await page.getByTestId("cloudacct-connect").click();
+  await page.getByTestId("connect-family-google").click();
+  await page.getByTestId("connect-service-files").click();
+  await page.getByTestId("connect-service-calendar").click();
+  await page.getByTestId("connect-start").click();
+
+  // Back from Google: step 1 of 2, files.
+  await expect(page.getByText(/Step 1 of 2/)).toBeVisible({ timeout: 20000 });
+  return harness;
+}
+
+/** "Connect", then the folder picker's own folder. */
+async function connectAndPick(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await page.getByRole("button", { name: "Use this folder" }).click({ timeout: 15000 });
+}
+
+/** The notice about a newly created cloud folder lies over the sheet; it is closed first. */
+async function closeToasts(page: Page): Promise<void> {
+  const close = page.locator(".pv-toasts").getByRole("button", { name: "Close" });
+  while (await close.count()) await close.first().click();
+}
+
+test("a first Google connect from nothing goes from the files step on to the next one", async ({ context, page }, testInfo) => {
+  await firstGoogleConnect(context, page);
+  await connectAndPick(page);
+  const review = page.getByRole("button", { name: "Start copying" });
+  await expect(review).toBeVisible({ timeout: 15000 });
+  await closeToasts(page);
+  await review.click();
+  try {
+    await expect(page.getByText(/Step 2 of 2/)).toBeVisible({ timeout: 20000 });
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("first-connect-step-2.png"), fullPage: true });
+  }
+});
+
+test("a files step that fails after the folder pick says why, on its banner", async ({ context, page }, testInfo) => {
+  await firstGoogleConnect(context, page);
+  // From now on Google cannot say whose account this is.
+  await context.route("https://openidconnect.googleapis.com/v1/userinfo", (route) => route.fulfill({ status: 500, contentType: "application/json", body: "{}" }));
+  await connectAndPick(page);
+  try {
+    await expect(page.getByTestId("connectrun-outcome")).toHaveText(/identity could not be verified/, { timeout: 20000 });
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("first-connect-failed.png"), fullPage: true });
+  }
+  await expect(page.getByText(/Step 1 of 2/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect", exact: true })).toBeEnabled();
+});
+
+test("a files step whose copy is cancelled says so, and reads the cloud folder with its progress shown", async ({ context, page }, testInfo) => {
+  await firstGoogleConnect(context, page);
+  await connectAndPick(page);
+  const cancel = page.locator(".m-sheet").getByRole("button", { name: "Cancel" });
+  await expect(page.getByRole("button", { name: "Start copying" })).toBeVisible({ timeout: 15000 });
+  await closeToasts(page);
+  await cancel.click();
+  try {
+    await expect(page.getByTestId("connectrun-outcome")).toHaveText(/Copying was cancelled/, { timeout: 15000 });
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("first-connect-cancelled.png"), fullPage: true });
+  }
+  await expect(page.getByTestId("files-connect-progress")).toHaveCount(0);
+});

@@ -15,6 +15,7 @@ import {
 } from "./services/syncService";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { beginOAuth, beginStoredFilesConnection, type OAuthProviderId } from "./services/oauthService";
+import { FILES_CONNECT_PROGRESS_EVENT, filesConnectProgress, type FilesConnectProgress } from "./services/filesConnectProgress";
 import { deviceAccess } from "./services/accountSignIn";
 import { AccountAccessSheet } from "./components/AccountAccessSheet";
 import { getPimCredentials } from "./services/pim/pimCredentials";
@@ -104,6 +105,15 @@ export function AddVaultScreen({
   }, [accessFamily]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // After the folder pick the step goes on without the form (device finding
+  // 2026-10-27): what it is doing is said here, and Connect waits for it.
+  const [filesProgress, setFilesProgress] = useState<FilesConnectProgress | null>(() => filesConnectProgress());
+  useEffect(() => {
+    const read = () => setFilesProgress(filesConnectProgress());
+    read();
+    window.addEventListener(FILES_CONNECT_PROGRESS_EVENT, read);
+    return () => window.removeEventListener(FILES_CONNECT_PROGRESS_EVENT, read);
+  }, []);
   // Direct providers (WebDAV/S3) browse the cloud folder BEFORE connecting
   // (package I; the desktop 3-step flow). OAuth keeps its redirect picker.
   const [pickFor, setPickFor] = useState<MobileSyncProvider | null>(null);
@@ -263,6 +273,15 @@ export function AddVaultScreen({
         <div className="m-settings">
           <p className="m-hint">{t("mobile.syncCreatesVaultHint")}</p>
           {error && <Banner kind="error" rounded>{error}</Banner>}
+          {filesProgress && (
+            <Banner kind="info" rounded>
+              <span data-testid="files-connect-progress">
+                {filesProgress.phase === "reading"
+                  ? t("connection.filesReading", { done: filesProgress.done, total: filesProgress.total })
+                  : t(filesProgress.phase === "copying" ? "connection.filesCopying" : "connection.filesChecking")}
+              </span>
+            </Banner>
+          )}
 
           {/* Came through the wizard: the provider is settled, so this states it
               rather than asking a second time. Suite families (Fastmail, Koofr,
@@ -424,7 +443,7 @@ export function AddVaultScreen({
           )}
 
           <div className="m-sync-actions">
-            <Button variant="primary" disabled={busy || !canConnect} onClick={connect}>
+            <Button variant="primary" disabled={busy || !!filesProgress || !canConnect} onClick={connect}>
               {t("mobile.syncConnect")}
             </Button>
           </div>

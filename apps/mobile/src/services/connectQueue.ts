@@ -72,12 +72,14 @@ export async function connectionContextFor(service: CloudServiceId): Promise<Ser
   const q = await loadConnectQueue();
   return q?.pending[0] === service ? { ...q.context } : undefined;
 }
-export async function recordConnectOutcome(context: ServiceConnectionContext | undefined, service: CloudServiceId, outcome: ServiceConnectionOutcome): Promise<void> {
-  if (!context?.runId) return;
-  await withAccountCredentialLock(KEY, async () => {
+/** Whether the outcome was written: only into the run it belongs to. */
+export async function recordConnectOutcome(context: ServiceConnectionContext | undefined, service: CloudServiceId, outcome: ServiceConnectionOutcome): Promise<boolean> {
+  if (!context?.runId) return false;
+  return withAccountCredentialLock(KEY, async () => {
     const q = await loadConnectQueue();
-    if (!q || !outcomeBelongsToRun(q, context, service)) return;
+    if (!q || !outcomeBelongsToRun(q, context, service)) return false;
     await persist({ ...q, outcomes: { ...q.outcomes, [service]: outcome } });
+    return true;
   });
 }
 export async function confirmConnectSelection(): Promise<void> {
