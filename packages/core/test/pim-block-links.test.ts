@@ -270,7 +270,8 @@ describe("CalDAV: an X- property on the event", () => {
   async function createdIcs(d: PimEventDraft): Promise<string> {
     let body = "";
     const fetchFn: FetchFn = vi.fn(async (_input, init) => {
-      body = String(init?.body);
+      // A PUT answered without an etag is followed by a read of it (R2).
+      if (init?.method === "PUT") body = String(init.body);
       return new Response("", { status: 201 });
     });
     await new CalDavPimTarget(creds, fetchFn).createEvent(collection, d);

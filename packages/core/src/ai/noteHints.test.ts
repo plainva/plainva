@@ -36,6 +36,12 @@ describe("a TODO line", () => {
       [3, "TODO three"],
     ]);
   });
+
+  it("knows code by the task scanners' one fence rule: a run as long as the opening one closes it, and inline code opens nothing", () => {
+    // "```" does not close "````", so the TODO behind it is code; "```js```" is a code span, so the TODO behind it is text.
+    const note = ["````", "```", "TODO still code", "````", "```js``` is a span", "TODO after"].join("\n");
+    expect(todoLines(note).map(({ line, todo }) => [line, todo.rest])).toEqual([[6, "after"]]);
+  });
 });
 
 describe("a TODO line as a task", () => {

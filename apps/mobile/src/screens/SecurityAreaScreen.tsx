@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import { useForeignLegacyComments } from "@plainva/ui";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
-import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, quarantineSync, stopSyncAndDrain } from "../services/syncService";
+import { findMobileWorkspaceObjectStore, getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, quarantineSync, stopSyncAndDrain } from "../services/syncService";
 import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, resumeMobileWorkspaceSetup, markMobileEncryptionLift, readMobileEncryptionLift, clearMobileEncryptionLift, discardMobileLocalFork, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { SqlWorkspaceStateStore } from "@plainva/core";
@@ -161,7 +161,8 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     const records = vault.workspaceState ? await listMobilePublications(vault.workspaceState) : [];
     setPublications(records);
     // Bring the object counts in line before anyone reads them (finding 2026-08-25).
-    const store = await getMobileWorkspaceObjectStore(vault.vaultId);
+    // A vault without a sync provider has no store to count against (issue 143).
+    const store = await findMobileWorkspaceObjectStore(vault.vaultId);
     const rt = vault.workspaceRuntime;
     if (store && rt) await refreshMobileWorkspaceSliceCounts({ vaultId: vault.vaultId, store, runtime: rt, objects: await sliceObjects() }).catch(() => false);
     /* AFTER the materialization refresh, not before: coverage is read from the
@@ -437,7 +438,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const withdrawPublication = async (record: WorkspacePublicationRecord) => {
     const rt = vault.workspaceRuntime;
     const state = vault.workspaceState;
-    const store = await getMobileWorkspaceObjectStore(vault.vaultId);
+    const store = await findMobileWorkspaceObjectStore(vault.vaultId);
     if (!rt || !state || !store) return;
     const result = await withdrawMobilePublication({
       vaultId: vault.vaultId,
@@ -467,7 +468,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const inviteRecipient = async (record: WorkspacePublicationRecord, displayName: string) => {
     const rt = vault.workspaceRuntime;
     const state = vault.workspaceState;
-    const store = await getMobileWorkspaceObjectStore(vault.vaultId);
+    const store = await findMobileWorkspaceObjectStore(vault.vaultId);
     if (!rt || !state || !store) throw new Error("workspace-unavailable");
     setRecipientsBusy(true);
     try {
@@ -490,7 +491,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const revokeRecipient = async (record: WorkspacePublicationRecord, memberId: string) => {
     const rt = vault.workspaceRuntime;
     const state = vault.workspaceState;
-    const store = await getMobileWorkspaceObjectStore(vault.vaultId);
+    const store = await findMobileWorkspaceObjectStore(vault.vaultId);
     if (!rt || !state || !store) throw new Error("workspace-unavailable");
     setRecipientsBusy(true);
     try {

@@ -21,6 +21,7 @@ import {
 } from "@plainva/ui";
 import type { FindReplaceOptions, VaultFindResult } from "@plainva/core";
 import { vaultTextFiles, type MobileVault } from "../services/vaultService";
+import { awaitWholeIndex } from "../services/indexBuild";
 import { AppBar } from "../components/AppBar";
 
 /**
@@ -85,6 +86,8 @@ export function FindReplaceScreen({
     if (!vault.queryService || !find) return;
     setBusy(true);
     try {
+      // A replace over half an index would miss the notes not read yet (issue 143).
+      await awaitWholeIndex(vault);
       const res = await vault.queryService.findInVault(find, opts);
       setResults(res);
       setSelected(new Set(res.map((r) => r.path)));

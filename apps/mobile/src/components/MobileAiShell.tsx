@@ -18,6 +18,7 @@ import type { MobileVault } from "../services/vaultService";
  * and gets all of it from here.
  */
 export { openAiNoteTarget, useMobileAi, withoutAiArea } from "../services/ai/mobileAi";
+export { ShellProviders } from "./ShellProviders";
 
 /**
  * Where the assistant's surfaces lead in the shell — every step through

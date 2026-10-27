@@ -1,6 +1,6 @@
 # Setting up OneDrive & Dropbox (your own app registration)
 
-Last reviewed: 2026-10-23
+Last reviewed: 2026-10-26
 
 **You normally don't need this page:** Plainva ships its own app ID for OneDrive **and** Dropbox — you pick the provider, click **Connect** and sign in. You need your **own** (free) app registration in two cases only: when a corporate restriction blocks the bundled sign-in, or when you deliberately want the connection under your own control. For **OneDrive** you enter it under **Sign-in on this device** → **Change** → **Own client ID** — on the account page or in the wizard, on the desktop and on the phone alike, for this device only. For **Dropbox** the field stays where it was: on the **desktop** **Use your own app ID** at the account, on the **phone** in the connect form, right under the provider. Either way you enter a single public value:
 
@@ -96,7 +96,7 @@ Tab **Permissions** — tick the following and click **Submit** at the bottom:
 - `files.content.read`
 - `files.content.write`
 
-> ⚠️ If you change the permissions later, you must **Reconnect** in Plainva, otherwise the old rights still apply.
+> ⚠️ If you change the permissions later, you must **Sign in again** in Plainva, otherwise the old rights still apply.
 
 ### 5. Copy the App key
 
@@ -117,12 +117,12 @@ Tab **Settings**: copy the **App key** value — that is your value for Plainva.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| OneDrive: "Microsoft returned no refresh_token" | `offline_access` missing | Step A5: add `offline_access`, then **Reconnect** |
+| OneDrive: "Microsoft returned no refresh_token" | `offline_access` missing | Step A5: add `offline_access`, then **Sign in again** |
 | OneDrive: login asks for a secret / fails | Platform "Web" instead of "Mobile and desktop" | Step A2: platform **Public client/native**, redirect `http://localhost` |
 | OneDrive: personal account is rejected | Wrong account type | Step A2: choose "… and personal Microsoft accounts" |
 | Dropbox: sign-in hangs / "redirect_uri mismatch" | Redirect not exact | Step B3: exactly `http://127.0.0.1:41953` |
 | Dropbox: "Port 41953 is in use" | Another program blocks the port | Close the blocking application, try again |
-| Dropbox: can't find the vault / missing rights | "App folder" instead of "Full Dropbox", or permissions not **Submit**ted | Check step B2 / B4, then **Reconnect** |
+| Dropbox: can't find the vault / missing rights | "App folder" instead of "Full Dropbox", or permissions not **Submit**ted | Check step B2 / B4, then **Sign in again** |
 
 ## See also
 

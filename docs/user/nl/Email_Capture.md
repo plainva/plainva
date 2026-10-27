@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-10-23
+Laatst bijgewerkt: 2026-10-26
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -16,9 +16,9 @@ Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en —
 
 Bij het verbinden wordt de aanmelding gevalideerd voordat er iets wordt opgeslagen; de toegangsgegevens komen terecht in de sleutelhanger van je besturingssysteem. De verbonden mailboxen en de vastleginstellingen vind je daarna in het gebied **E-mail**: de instelling **E-mailmap** bepaalt waar vastgelegde e-mails worden opgeslagen (standaard `Mail`).
 
-**Aanmelden op een tweede apparaat.** Komt een postbus mee via de instellingensynchronisatie, dan reist het wachtwoord niet automatisch mee — aanmeldingen worden alleen overgedragen als je de synchronisatie van inloggegevens zelf inschakelt. Zo'n postbus toont in het gebied **E-mail** de knop **Op dit apparaat aanmelden**: voer het wachtwoord in, Plainva controleert het bij de provider en bewaart het pas daarna in de sleutelhanger. Bij een Microsoft-postbus leidt dezelfde knop naar **Cloudaccounts**, want daar verloopt de aanmelding in de browser. Blijft de berichtenlijst daardoor leeg, dan staat dezelfde melding met dezelfde knop ook daar — je hoeft daarvoor niet zelf naar de instellingen te zoeken.
+**Aanmelden op een tweede apparaat.** Komt een postbus mee via de instellingensynchronisatie, dan reist het wachtwoord niet automatisch mee — aanmeldingen worden alleen overgedragen als je de synchronisatie van inloggegevens zelf inschakelt. Zo'n postbus toont in het gebied **E-mail** de knop **Aanmelden**: voer het wachtwoord in, Plainva controleert het bij de provider en bewaart het pas daarna in de sleutelhanger. Bij een Microsoft-postbus leidt dezelfde knop naar **Cloudaccounts**, want daar verloopt de aanmelding in de browser. Blijft de berichtenlijst daardoor leeg, dan staat dezelfde melding met dezelfde knop ook daar — je hoeft daarvoor niet zelf naar de instellingen te zoeken.
 
-**E-mailaccounts zonder wachtwoord.** Een instelling die bij het opslaan mislukte, kon een vermelding zonder wachtwoord achterlaten (Plainva 0.8.3 op de desktop). Het gedeelte **E-mail** wijst één keer op accounts die op dit apparaat geen wachtwoord hebben en hier nog nooit mail hebben opgehaald. **Bekijken** toont de lijst. Gebruik je zo’n account op een ander apparaat, kies dan **Op dit apparaat aanmelden** — dat is dan de juiste weg. **Verwijderen** wist de vermelding na een vraag op alle apparaten die de instellingen van deze vault synchroniseren, nooit mail of bestanden. **Later** verbergt de melding. Plainva verwijdert nooit zelf iets.
+**E-mailaccounts zonder wachtwoord.** Een instelling die bij het opslaan mislukte, kon een vermelding zonder wachtwoord achterlaten (Plainva 0.8.3 op de desktop). Het gedeelte **E-mail** wijst één keer op accounts die op dit apparaat geen wachtwoord hebben en hier nog nooit mail hebben opgehaald. **Bekijken** toont de lijst. Gebruik je zo’n account op een ander apparaat, kies dan **Aanmelden** — dat is dan de juiste weg. **Verwijderen** wist de vermelding na een vraag op alle apparaten die de instellingen van deze vault synchroniseren, nooit mail of bestanden. **Later** verbergt de melding. Plainva verwijdert nooit zelf iets.
 
 ## E-mails lezen
 
@@ -82,7 +82,7 @@ Je hoeft niet vanuit Plainva te verzenden. Dit werkt bij elke notitie en heeft g
 
 ## Handtekening en afzenderadressen
 
-Onder **Instellingen → E-mail → Verzenden** heeft elke mailbox twee eigen instellingen:
+Op de e-mailpagina van zijn account — **Cloudaccounts** → het account → **E-mail**, of de rij van de mailbox in het gebied **E-mail** — heeft elke mailbox twee eigen instellingen:
 
 - **Handtekening** — Markdown, wordt bij het opstellen onder je tekst gezet (en boven een geciteerd of doorgestuurd origineel, waar een lezer hem verwacht). Wissel je in het opstelvenster van afzender, dan wordt de handtekening vervangen in plaats van er een tweede bij te zetten. Het veld is dezelfde editor als het opstelvenster, dus je ziet de handtekening zoals hij verstuurd wordt.
 - **Handtekening per adres** — heb je meer afzenderadressen, dan verschijnt boven het veld de keuze **Handtekening voor**. “Standaard (alle adressen)” is de handtekening van het account; kies een adres om er een te schrijven die alleen voor dat adres geldt. Adressen zonder eigen handtekening blijven de standaard gebruiken, en van afzender wisselen tijdens het schrijven zet de juiste erin — ook tussen twee adressen van hetzelfde account. Maak je het veld van een adres leeg, dan valt het terug op de standaard.
@@ -102,7 +102,7 @@ Draagt een bericht de kopregel `List-Unsubscribe`, dan toont Plainva in de lezer
 
 ## Uitstellen
 
-Sommige post is niet dringend, maar ook niet afgehandeld. **Uitstellen** haalt een bericht uit de lijst tot een moment dat je kiest — later vandaag, morgenochtend, dit weekend of volgende week. Op de computer staat de optie in het contextmenu van de rij, op de telefoon is het bovendien een veegactie. De knop **Uitgesteld** brengt ze weer in beeld; van daaruit zet **Nu terughalen** een bericht meteen terug in de lijst.
+Sommige post is niet dringend, maar ook niet afgehandeld. **Uitstellen** haalt een bericht uit de lijst tot een moment dat je kiest — later vandaag, morgenochtend, dit weekend of volgende week. Volgende week is de eerste dag van de volgende week zoals ingesteld bij **Week begint op** — dezelfde dag als bij de vervaldatum van een taak. Op de computer staat de optie in het contextmenu van de rij, op de telefoon is het bovendien een veegactie. De knop **Uitgesteld** brengt ze weer in beeld; van daaruit zet **Nu terughalen** een bericht meteen terug in de lijst.
 
 Twee dingen die eerlijk gezegd moeten worden. Ten eerste is uitstellen een **eigen markering van Plainva**, geen serverfunctie: IMAP noch Microsoft kent zoiets. De markering reist mee met de instellingensynchronisatie, dus een op de telefoon uitgesteld bericht rust ook op de computer — in een ander mailprogramma staat het gewoon in het postvak IN. Ten tweede verbergt uitstellen alleen de **lijst van de map** waarin je het deed: zoeken en "Alle postvakken" tonen het bericht nog steeds. Uitgesteld betekent "niet in de weg", niet "weg".
 

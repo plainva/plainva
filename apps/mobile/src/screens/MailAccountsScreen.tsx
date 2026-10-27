@@ -4,10 +4,10 @@ import { connectGmailFromCard } from "../services/mail/gmailAuth";
 import { beginMobileSignIn } from "../services/accountSignIn";
 import { toastConnectionFailure } from "../services/connectionToast";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronRight, Pencil, Plus } from "lucide-react";
 import { Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailTargetForFamily, Row, RowList, SectionLabel, Segmented, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
 import type { MailAccountConfig, MailRule } from "@plainva/ui/mail";
-import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, setVacation, updateMailAccount, orphanedMailServer, useOrphanedMailAccounts, vacationSupport } from "@plainva/ui/mail";
+import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, saveMailAccount, setVacation, orphanedMailServer, useOrphanedMailAccounts, vacationSupport } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
 import { getConnectSecrets } from "../services/connectSecrets";
 import { mConfirm, mPrompt, mSelect } from "../services/mobileDialogs";
@@ -15,7 +15,6 @@ import {
   connectMicrosoftMail,
   listMobileMailAccounts,
   mailVaultId,
-  removeMobileMailAccount,
   MAIL_CHANGED_EVENT,
 } from "../services/mail/mailRuntime";
 import { deviceSignInStates, type DeviceSignInState } from "../services/deviceSignIn";
@@ -52,6 +51,7 @@ export function MailAccountsScreen({
   family,
   vault,
   accountId,
+  onOpenAccountMail,
 }: {
   bump: number;
   onBack?: () => void;
@@ -65,6 +65,8 @@ export function MailAccountsScreen({
    */
   family?: CloudProviderFamily;
   accountId?: string;
+  /** The mail page of one mailbox's account (plan "Verbinden", V3). */
+  onOpenAccountMail?: (mailAccountId: string) => void;
 }) {
   const { t } = useTranslation();
   const connectionRun = useConnectionRun();
@@ -90,11 +92,8 @@ export function MailAccountsScreen({
   // additional sender addresses. Not credentials — editing them must never ask
   // for the password again, so they go through the metadata-only update.
   const [sendingId, setSendingId] = useState("");
-  const [signature, setSignature] = useState("");
-  const [senders, setSenders] = useState("");
   // P8.2: which address the signature field is pointed at. "" = the account
   // default, which every address without its own signature uses.
-  const [sigAddress, setSigAddress] = useState("");
   // IMAP sign-in (G2): the address picks the preset, so the usual case is
   // address + app password and nothing else.
   const [kind, setKind] = useState<"microsoft" | "imap">(mailPreset?.backend ?? "microsoft");
@@ -282,19 +281,7 @@ export function MailAccountsScreen({
       return;
     }
     if (sendingAccount.id !== sendingId) setSendingId(sendingAccount.id);
-    setSignature(sendingAccount.signature ?? "");
-    setSenders((sendingAccount.senders ?? []).join("\n"));
   }, [sendingAccount, sendingId]);
-
-  const persistSending = useCallback(
-    async (patch: Partial<MailAccountConfig>) => {
-      const vault = mailVaultId();
-      if (!vault || !sendingAccount) return;
-      await updateMailAccount(vault, sendingAccount.id, patch);
-      notifyMailChanged();
-    },
-    [sendingAccount]
-  );
 
   const pickSendingAccount = () => {
     void mSelect({
@@ -303,39 +290,6 @@ export function MailAccountsScreen({
       value: sendingId,
     }).then((v) => {
       if (v !== null) setSendingId(v);
-    });
-  };
-
-  /** Saves to the selected address, or to the account default. An emptied
-   * per-address signature is REMOVED, so the address falls back to the default —
-   * which is what "no own signature" means. */
-  const persistSignature = async (text: string) => {
-    if (!sendingAccount) return;
-    if (!sigAddress) {
-      await persistSending({ signature: text });
-      return;
-    }
-    const key = normalizeSenderAddress(sigAddress);
-    const next = { ...(sendingAccount.signatures ?? {}) };
-    if (text.trim()) next[key] = text;
-    else delete next[key];
-    await persistSending({ signatures: next });
-  };
-
-  const pickSignatureAddress = () => {
-    if (!sendingAccount) return;
-    void mSelect({
-      title: t("mail.signatureAddress", { defaultValue: "Signatur für" }),
-      options: [
-        { value: "", label: t("mail.signatureDefault", { defaultValue: "Standard (alle Adressen)" }) },
-        ...senderOptions(sendingAccount).map((address) => ({
-          value: address,
-          label: sendingAccount.signatures?.[normalizeSenderAddress(address)] ? `${address} ✓` : address,
-        })),
-      ],
-      value: sigAddress,
-    }).then((v) => {
-      if (v !== null) setSigAddress(v);
     });
   };
 
@@ -385,13 +339,14 @@ export function MailAccountsScreen({
       const oldPassword = existing ? await getMailPassword(vault, existing.id) : null;
       await checkMailLogin({ host: account.host, port: account.port, user: account.user, kind: "imap" }, password);
       if (mailVaultId() !== vault) throw new ServiceConnectionError("accountChanged");
-      await saveMailAccount(vault, account, password);
+      // The form edits a mailbox from its page, or connects one (fifth review, 1).
+      await saveMailAccount(vault, account, password, editing ? "edit" : "connect");
       try { await bindMailToConnection(context, account.id); }
       catch (error) {
         const bound = context?.cloudAccountId && (await loadCloudAccounts(vault)).find(r => r.id === context.cloudAccountId)?.services.mail?.mailAccountId === account.id;
         const ownRow = (await listMailAccounts(vault)).find(a => a.id === account.id);
         if (!bound && sameStoredValue(ownRow, account) && await getMailPassword(vault, account.id) === password) {
-          if (existing) await saveMailAccount(vault, existing, oldPassword ?? "");
+          if (existing) await saveMailAccount(vault, existing, oldPassword ?? "", "edit");
           else await removeMailAccount(vault, account.id);
         }
         throw error;
@@ -412,14 +367,6 @@ export function MailAccountsScreen({
     }
   };
 
-  const remove = async (a: MailAccountConfig) => {
-    if (!(await mConfirm({ title: t("mail.removeAccountConfirm"), message: a.label, danger: true }))) return;
-    try {
-      await removeMobileMailAccount(a.id);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    }
-  };
 
   return (
     <div className="m-page">
@@ -449,7 +396,7 @@ export function MailAccountsScreen({
                   controls
                   data-testid={`mail-orphan-${a.id}`}
                   end={<>
-                    <Button size="sm" variant="primary" onClick={() => void signInOrphan(a)} data-testid={`mail-orphan-signin-${a.id}`}>{t("deviceSignIn.action")}</Button>
+                    <Button size="sm" variant="primary" onClick={() => void signInOrphan(a)} data-testid={`mail-orphan-signin-${a.id}`}>{t("deviceSignIn.submit")}</Button>
                     <Button size="sm" variant="danger-soft" onClick={() => void removeOrphan(a)} data-testid={`mail-orphan-remove-${a.id}`}>{t("mail.orphans.remove")}</Button>
                   </>}
                   key={a.id}
@@ -534,15 +481,11 @@ export function MailAccountsScreen({
                         <Pencil size={ICON.ui} />
                       </IconButton>
                     )}
-                    <IconButton
-                      label={t("mail.removeAccount", { defaultValue: "Postfach entfernen" })}
-                      onClick={() => void remove(a)}
-                    >
-                      <Trash2 size={ICON.ui} />
-                    </IconButton>
+                    <ChevronRight className="m-chevron" size={ICON.ui} />
                   </>}
                   key={a.id}
                   title={a.label}
+                  onClick={() => onOpenAccountMail?.(a.id)}
                 />
               );
             })}
@@ -667,53 +610,24 @@ export function MailAccountsScreen({
               </>
             )}
 
-            <SectionLabel>{t("mail.sendingGroup", { defaultValue: "Senden" })}</SectionLabel>
-            {(accounts.length > 1 || (sendingAccount && senderOptions(sendingAccount).length > 1)) && (
-              <GroupCard>
-                <RowList>
-                  {accounts.length > 1 && (
+            {/* Rules and out-of-office belong to the mailbox picked here; sender and
+                signature moved to the mail page of each account (plan "Verbinden", V3). */}
+            {accounts.length > 1 && (
+              <>
+                <SectionLabel>{t("mail.account")}</SectionLabel>
+                <GroupCard>
+                  <RowList>
                     <Row
+                      data-testid="mail-sending-account"
                       end={<><span className="m-prop-val">{sendingAccount?.label || sendingAccount?.user}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
                       onClick={pickSendingAccount}
-                      title={t("mail.account", { defaultValue: "Konto" })}
+                      title={t("mail.account")}
                     />
-                  )}
-                  {sendingAccount && senderOptions(sendingAccount).length > 1 && (
-                    <Row
-                      data-testid="mail-signature-address"
-                      end={<><span className="m-prop-val">{sigAddress || t("mail.signatureDefault", { defaultValue: "Standard (alle Adressen)" })}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
-                      onClick={pickSignatureAddress}
-                      title={t("mail.signatureAddress", { defaultValue: "Signatur für" })}
-                    />
-                  )}
-                </RowList>
-              </GroupCard>
+                  </RowList>
+                </GroupCard>
+                <p className="m-hint">{t("cloudAccounts.mailAccountPickHint")}</p>
+              </>
             )}
-            <GroupCard><RowList>
-              <SettingField label={t("mail.signature", { defaultValue: "Signatur" })}>
-                <TextArea
-                  rows={4}
-                  value={signature}
-                  onChange={(e) => setSignature(e.target.value)}
-                  onBlur={() => void persistSignature(signature)}
-                  data-testid="mail-signature"
-                />
-              </SettingField>
-            </RowList></GroupCard>
-            <p className="m-hint">{t("mail.signatureHint")}</p>
-            <GroupCard><RowList>
-              <SettingField label={t("mail.senders", { defaultValue: "Weitere Absender-Adressen" })}>
-                <TextArea
-                  rows={3}
-                  value={senders}
-                  onChange={(e) => setSenders(e.target.value)}
-                  onBlur={() => void persistSending({ senders: senders.split("\n").map((l) => l.trim()).filter(Boolean) })}
-                  data-testid="mail-senders"
-                  purpose="address"
-                />
-              </SettingField>
-            </RowList></GroupCard>
-            <p className="m-hint">{t("mail.sendersHint")}</p>
           </>
         )}
 

@@ -8,7 +8,9 @@ import {
   oauthAccessKey,
   plainvaGoogleClient,
   prepareSignIn,
+  isRetiredPlainvaClient,
   readStoredOAuthAccess,
+  retiredAccessReplacement,
   replaceProtectedSlot,
   resolveOAuthAccess,
   validClientId,
@@ -28,6 +30,7 @@ import {
   listMailAccounts,
   mailSecretKey,
   mailTransport,
+  replaceMailbox,
   saveBrokerMailAccount,
   saveMailAccount,
   type MailAccountConfig,
@@ -75,8 +78,19 @@ const env = (): Record<string, unknown> => import.meta.env as unknown as Record<
  */
 export async function readDeviceAccess(family: OAuthFamily, vaultPath?: string): Promise<StoredOAuthAccess | null> {
   const stored = readStoredOAuthAccess(await credentialManager.readSecret<unknown>(oauthAccessKey(family)));
+  const replacement = retiredAccessReplacement(family, stored);
+  if (replacement) {
+    await credentialManager.writeSecret(oauthAccessKey(family), replacement);
+    return replacement;
+  }
   if (stored || !vaultPath) return stored;
-  const adopted = await adoptHistoricalClient(family, vaultPath);
+  // Nothing to adopt is a decision too, and it is kept (finding 2026-10-26):
+  // the adoption tells an own client from the standard one by comparing with
+  // the client THIS build ships, so a device that never stored its choice
+  // took the previous build's standard client for an own one the day the
+  // build switched to a new Google project - and signed in with a client that
+  // project no longer had ("Error 401: deleted_client").
+  const adopted = await adoptHistoricalClient(family, vaultPath) ?? (family === "google" ? { source: "plainva" as const } : null);
   if (adopted) await credentialManager.writeSecret(oauthAccessKey(family), adopted);
   return adopted;
 }
@@ -95,6 +109,7 @@ async function adoptHistoricalClient(family: OAuthFamily, vaultPath: string): Pr
   const plainva = plainvaGoogleClient(env(), "desktop");
   const own = (client: { clientId?: string; clientSecret?: string } | null | undefined): StoredOAuthAccess | null =>
     client?.clientId && client.clientSecret && client.clientId !== plainva?.clientId && validClientId("google", client.clientId)
+      && !isRetiredPlainvaClient("google", client.clientId)
       ? { source: "own", clientId: client.clientId, clientSecret: client.clientSecret }
       : null;
   for (const record of await loadCloudAccounts(vaultPath)) {
@@ -142,7 +157,11 @@ export async function signInCloudAccount(vaultPath: string, getRuntime: () => Pi
   const access = resolution.access;
   const record = request.cardId ? (await loadCloudAccounts(vaultPath)).find((entry) => entry.id === request.cardId) : undefined;
   const prepared = prepareSignIn(
-    { vaultId: vaultPath, family: request.family, ...(request.cardId ? { cardId: request.cardId } : {}), add: request.add, access },
+    {
+      vaultId: vaultPath, family: request.family, ...(request.cardId ? { cardId: request.cardId } : {}), add: request.add, access,
+      // An app password the person entered takes the mailbox outside the consent (E5).
+      ...(request.mailPassword && request.add.includes("mail") ? { outside: ["mail"] as CloudServiceId[] } : {}),
+    },
     record ? { record, mailKind: await mailKindOf(vaultPath, record) } : undefined,
   );
 
@@ -152,6 +171,10 @@ export async function signInCloudAccount(vaultPath: string, getRuntime: () => Pi
     const mailAccountId = await addPasswordMailbox(vaultPath, request.mailPassword);
     const saved = { ...record, services: { ...record.services, mail: { mailAccountId } } };
     await saveCloudAccounts(vaultPath, [...(await loadCloudAccounts(vaultPath)).filter((entry) => entry.id !== record.id), saved]);
+    // The mailbox Google refused gives way to the app-password one (E7), with
+    // everything the person set on it; filed mails stay notes (review finding 1).
+    const replaced = record.services.mail?.mailAccountId;
+    if (replaced && replaced !== mailAccountId) await replaceMailbox(vaultPath, replaced, mailAccountId);
     await refreshCloudAccounts(vaultPath, getRuntime());
     return { prepared, record: saved, rows: [{ service: "mail", state: "active" }] };
   }
@@ -185,7 +208,9 @@ export async function signInCloudAccount(vaultPath: string, getRuntime: () => Pi
       ? async () => ({ mailAccountId: await addPasswordMailbox(vaultPath, request.mailPassword!) })
       : undefined,
     afterBinding: async ({ calendarAccountId }) => {
-      const runtime = getRuntime();
+      // A runtime that is still being replaced is waited for; one that never
+      // comes starts its worker on its own when it does (pimRuntime).
+      const runtime = calendarAccountId ? await livingPimRuntime(getRuntime).catch(() => null) : null;
       if (runtime && calendarAccountId) {
         const row = (await runtime.cache.listAccounts()).find((entry) => entry.id === calendarAccountId);
         if (row && !row.enabled) await runtime.cache.upsertAccount({ ...row, enabled: true });
@@ -266,12 +291,48 @@ async function bindCalendar(
     });
     return { pimAccountId: existing };
   }
-  const runtime = getRuntime();
-  if (!runtime) throw new Error("calendar needs the open vault's runtime");
-  const row = family === "google"
-    ? await connectGoogleAccount(runtime, vaultPath, { clientId, clientSecret: clientSecret ?? "", viaBroker: true, brokerAccountId: cardId, expectedIdentity: completed.identity })
-    : await connectMicrosoftAccount(runtime, vaultPath, { clientId, viaBroker: true, brokerAccountId: cardId, expectedIdentity: completed.identity });
+  const row = await withLivingPimRuntime(getRuntime, (runtime) => family === "google"
+    ? connectGoogleAccount(runtime, vaultPath, { clientId, clientSecret: clientSecret ?? "", viaBroker: true, brokerAccountId: cardId, expectedIdentity: completed.identity })
+    : connectMicrosoftAccount(runtime, vaultPath, { clientId, viaBroker: true, brokerAccountId: cardId, expectedIdentity: completed.identity }));
   return { pimAccountId: row.id, label: row.label };
+}
+
+/** How long a calendar binding waits for the vault's next runtime. */
+export const RUNTIME_WAIT_MS = 20_000;
+
+/**
+ * The calendar runtime that is ALIVE now (finding 2026-10-26).
+ *
+ * Adding a Google account with files, calendar and mail on the desktop ended
+ * with files and mail connected and the calendar refused with "the target
+ * account or vault changed": the runtime the binding was handed had been
+ * stopped by a vault reload - one that had started before the sign-in (the
+ * reload after removing the previous account, say) and whose new runtime was
+ * not yet in place. Files and mail need no runtime, so only the calendar fell.
+ * The binding now takes the runtime alive at the moment it runs and waits for
+ * the next one while a reload is replacing it; "no vault open" still says so
+ * at once.
+ */
+export async function livingPimRuntime(getRuntime: () => PimRuntime | null, waitMs = RUNTIME_WAIT_MS): Promise<PimRuntime> {
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    const runtime = getRuntime();
+    if (!runtime) throw new Error("calendar needs the open vault's runtime");
+    if (runtime.isActive()) return runtime;
+    if (Date.now() >= deadline) throw new Error("pim runtime changed");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+
+/** Runs `bind` under the living runtime; a reload that stops it half way gets one more turn with the next. */
+export async function withLivingPimRuntime<T>(getRuntime: () => PimRuntime | null, bind: (runtime: PimRuntime) => Promise<T>, waitMs = RUNTIME_WAIT_MS): Promise<T> {
+  const runtime = await livingPimRuntime(getRuntime, waitMs);
+  try {
+    return await bind(runtime);
+  } catch (error) {
+    if (runtime.isActive()) throw error;
+    return bind(await livingPimRuntime(getRuntime, waitMs));
+  }
 }
 
 async function stableGmailId(subject: string): Promise<string> {
@@ -306,7 +367,7 @@ async function bindMail(vaultPath: string, cardId: string, completed: CompletedS
   const account: MailAccountConfig = {
     id, label: completed.email, kind: "gmail", host: "imap.gmail.com", port: 993, user: completed.email, smtpHost: "smtp.gmail.com", smtpPort: 465,
   };
-  await saveBrokerMailAccount(vaultPath, account);
+  await saveBrokerMailAccount(vaultPath, account, "connect");
   return { mailAccountId: id };
 }
 
@@ -315,7 +376,7 @@ async function addPasswordMailbox(vaultPath: string, input: { email: string; pas
   const config: Omit<MailAccountConfig, "id" | "label"> = { host: "imap.gmail.com", port: 993, user: input.email, smtpHost: "smtp.gmail.com", smtpPort: 465 };
   await checkMailLogin(config, input.pass);
   const id = crypto.randomUUID();
-  await saveMailAccount(vaultPath, { id, label: input.email, ...config }, input.pass);
+  await saveMailAccount(vaultPath, { id, label: input.email, ...config }, input.pass, "connect");
   return id;
 }
 

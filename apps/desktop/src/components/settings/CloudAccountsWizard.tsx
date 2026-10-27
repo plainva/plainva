@@ -6,6 +6,7 @@ import {
   Button,
   TextInput,
   Checkbox,
+  Switch,
   SearchField,
   SettingCard,
   SettingCardNote,
@@ -117,8 +118,17 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
   const boundIdRef = useRef<string | undefined>(undefined);
   const [tile, setTile] = useState<ProviderTileDef | null>(preselected);
   const [svc, setSvc] = useState<Record<CloudServiceId, boolean>>({ files: false, calendar: false, mail: false });
-  const [byoOpen, setByoOpen] = useState(false);
+  /**
+   * "Other sign-in" (plan "Verbinden", E5): the own client id, the Dropbox app
+   * key and - only when mail is chosen - Gmail by app password live folded
+   * away; the step shows the one button of the standard sign-in.
+   */
+  const [otherOpen, setOtherOpen] = useState(false);
   const [byoId, setByoId] = useState("");
+  /** The person chose Gmail by app password under "Other sign-in". */
+  const [gmailByPassword, setGmailByPassword] = useState(false);
+  /** IMAP: the servers behind "Advanced" once the address names a known provider. */
+  const [imapAdvanced, setImapAdvanced] = useState(false);
   const [wd, setWd] = useState({ base: "", user: "", pass: "", advanced: false, filesUrl: "", caldavUrl: "" });
   const [s3, setS3] = useState({ endpoint: "", region: "", bucket: "", accessKeyId: "", secretKey: "", prefix: "", pathStyle: true });
   const [imap, setImap] = useState({ email: "", presetId: "custom", host: "", port: "993", smtpHost: "", smtpPort: "587", pass: "" });
@@ -146,7 +156,6 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
   /** This device's access for Google/Microsoft (E3); null while it loads. */
   const [access, setAccess] = useState<AccessResolution | null>(null);
   const [storedAccess, setStoredAccess] = useState<StoredOAuthAccess | null>(null);
-  const [editAccess, setEditAccess] = useState(false);
   /** Set when the sign-in found the account already connected in this vault. */
   const [joinedAccount, setJoinedAccount] = useState<string | null>(null);
 
@@ -162,12 +171,14 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
       if (!alive) return;
       setStoredAccess(stored);
       setAccess(resolved);
-      if (!resolved.ok) setEditAccess(true);
+      if (!resolved.ok) setOtherOpen(true);
     })();
     return () => { alive = false; };
   }, [accountFamily, vaultPath]);
   /** Gmail outside the consent: the access cannot carry mail, so it asks for an app password (E5). */
   const gmailNeedsPassword = family === "google" && svc.mail && !!access?.ok && !access.access.mail;
+  /** Gmail goes by app password: because the access cannot carry mail, or because the person chose it. */
+  const gmailPassword = family === "google" && svc.mail && (gmailNeedsPassword || gmailByPassword);
   const suiteDef = family ? suiteProvider(family) : null;
   const available = family ? FAMILY_SERVICES[family] : [];
   const filesTakenBy = records.find((r) => r.services.files);
@@ -249,7 +260,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
       family: family!,
       flavor: tile?.flavor,
       services,
-      byoClientId: byoOpen ? byoId.trim() || undefined : undefined,
+      byoClientId: otherOpen ? byoId.trim() || undefined : undefined,
       webdav: family === "webdav" ? { filesUrl: endpoints.files, caldavUrl: endpoints.caldav, user: wd.user.trim(), pass: wd.pass } : suiteDav,
       s3:
         family === "s3"
@@ -298,7 +309,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
         family: accountFamily!,
         ...(boundIdRef.current ? { cardId: boundIdRef.current } : {}),
         add: todo,
-        ...(gmailNeedsPassword && todo.includes("mail") ? { mailPassword: { email: imap.email.trim(), pass: imap.pass } } : {}),
+        ...(gmailPassword && todo.includes("mail") ? { mailPassword: { email: imap.email.trim(), pass: imap.pass } } : {}),
       });
       boundIdRef.current = outcome.record.id;
       if (outcome.completed?.joinedExistingCard) setJoinedAccount(outcome.record.label);
@@ -522,11 +533,19 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
   /* ---------- step 3: sign in / connect ---------- */
   const endpoints = !wd.advanced ? nextcloudEndpoints(wd.base, wd.user) : null;
   const oauthFamily = family === "microsoft" || family === "dropbox";
-  const needsImapForm = family === "imap" || gmailNeedsPassword;
+  const needsImapForm = family === "imap" || gmailPassword;
+  const otherShown = otherOpen || (!!accountFamily && !!access && !access.ok) || gmailNeedsPassword;
+  /** What "Other sign-in" holds for this provider and these services, said folded. */
+  const otherHint = [
+    accountFamily ? t("cloudAccounts.otherSignInClient") : family === "dropbox" ? t("settings.appKey") : null,
+    family === "google" && svc.mail ? t("cloudAccounts.mailByAppPassword") : null,
+  ].filter(Boolean).join(" · ");
+  /** IMAP servers show when the address names no known provider, or on request. */
+  const imapServersShown = family !== "google" && (imapAdvanced || imap.presetId === "custom");
   const activePreset = needsImapForm && family !== "google" ? presetById(imap.presetId) : null;
   const connectDisabled =
     running ||
-    (!!accountFamily && (!access?.ok || editAccess)) ||
+    (!!accountFamily && !access?.ok) ||
     (family === "webdav" && (wd.advanced ? !(svc.files ? wd.filesUrl.trim() : true) || !(svc.calendar ? wd.caldavUrl.trim() : true) : !wd.base.trim()) ) ||
     (family === "webdav" && (!wd.user.trim() || !wd.pass)) ||
     (family === "s3" && (!s3.endpoint.trim() || !s3.bucket.trim() || !s3.accessKeyId.trim() || !s3.secretKey)) ||
@@ -545,31 +564,65 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
     <div>
       {steps}
       {/* family-specific inputs */}
-      {accountFamily && access && !editAccess && (
+      {/* Google and Microsoft: what gets asked, and how - the button below is the action (E5). */}
+      {accountFamily && access && (
         <SettingCard>
-          <SettingRow
-            label={t("accountAccess.lineLabel")}
-            desc={access.ok ? (access.access.source === "plainva" ? t("accountAccess.plainva") : t("accountAccess.ownLine", { id: access.access.clientId })) : t(accessProblemKey(access.problem))}
-          >
-            <Button variant="secondary" size="sm" data-testid="cloudacct-access-change" onClick={() => setEditAccess(true)}>{t("accountAccess.change")}</Button>
-          </SettingRow>
+          <div className="pv-acct-head" data-testid="cloudacct-signin-summary">
+            <AccountMark family={accountFamily} />
+            <div className="pv-acct-who">
+              <div className="pv-acct-name">{selected.map(serviceLabel).join(" · ")}</div>
+              <div className="pv-acct-id">
+                {access.ok
+                  ? access.access.source === "plainva"
+                    ? t("cloudAccounts.standardSignInLine", { provider: familyLabel(accountFamily) })
+                    : t("accountAccess.ownLine", { id: access.access.clientId })
+                  : t(accessProblemKey(access.problem))}
+              </div>
+            </div>
+          </div>
         </SettingCard>
       )}
-      {accountFamily && access && editAccess && (
-        <OAuthAccessEditor
-          family={accountFamily}
-          platform="desktop"
-          value={storedAccess}
-          plainvaAvailable={accountFamily === "microsoft" || !!plainvaGoogleClient(import.meta.env as unknown as Record<string, unknown>, "desktop")}
-          onSave={async (next) => {
-            await saveDeviceAccess(accountFamily, next);
-            setStoredAccess(next);
-            const resolved = await deviceAccess(accountFamily, vaultPath);
-            setAccess(resolved);
-            setEditAccess(!resolved.ok);
-          }}
-          onCancel={access.ok ? () => setEditAccess(false) : undefined}
-        />
+      {(accountFamily || family === "dropbox") && !allDone && (
+        <SettingCard>
+          <SettingCardNote>
+            <Button variant="ghost" size="sm" aria-expanded={otherShown} onClick={() => setOtherOpen(!otherShown)} data-testid="cloudacct-other-signin">
+              {t("cloudAccounts.otherSignIn")}
+            </Button>
+            {!otherShown && otherHint && <> · {otherHint}</>}
+          </SettingCardNote>
+          {otherShown && accountFamily && access && (
+            <OAuthAccessEditor
+              family={accountFamily}
+              platform="desktop"
+              value={storedAccess}
+              plainvaAvailable={accountFamily === "microsoft" || !!plainvaGoogleClient(import.meta.env as unknown as Record<string, unknown>, "desktop")}
+              onSave={async (next) => {
+                await saveDeviceAccess(accountFamily, next);
+                setStoredAccess(next);
+                const resolved = await deviceAccess(accountFamily, vaultPath);
+                setAccess(resolved);
+                if (resolved.ok) setOtherOpen(false);
+              }}
+              onCancel={access.ok ? () => setOtherOpen(false) : undefined}
+            />
+          )}
+          {otherShown && family === "dropbox" && (
+            <SettingRow label={t("settings.appKey")} desc={t("cloudAccounts.byoAccountHint")} wide>
+              <TextInput value={byoId} onChange={(e) => setByoId(e.target.value)} placeholder={t("settings.appKey")} data-testid="cloudacct-byo-key" />
+            </SettingRow>
+          )}
+          {otherShown && family === "google" && svc.mail && (
+            <SettingRow label={t("cloudAccounts.mailByAppPassword")} desc={t("cloudAccounts.mailByAppPasswordHint")}>
+              <Switch
+                checked={gmailPassword}
+                disabled={gmailNeedsPassword || running}
+                label={t("cloudAccounts.mailByAppPassword")}
+                onChange={setGmailByPassword}
+                testId="cloudacct-gmail-by-password"
+              />
+            </SettingRow>
+          )}
+        </SettingCard>
       )}
       {family === "webdav" && (
         <SettingCard>
@@ -730,7 +783,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
               data-testid="cloudacct-imap-email"
             />
           </SettingRow>
-          {family !== "google" && (
+          {imapServersShown && (
             <SettingRow label={t("mail.provider")}>
               <Select
                 value={imap.presetId}
@@ -740,7 +793,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
               />
             </SettingRow>
           )}
-          {family !== "google" && (
+          {imapServersShown && (
             <>
               <SettingRow label={t("cloudAccounts.imapHost")} wide>
                 <TextInput purpose="address" value={imap.host} onChange={(e) => setImap({ ...imap, host: e.target.value })} />
@@ -759,6 +812,13 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
           <SettingRow label={t("pim.davPass")} wide>
             <TextInput type="password" value={imap.pass} onChange={(e) => setImap({ ...imap, pass: e.target.value })} data-testid="cloudacct-imap-pass" />
           </SettingRow>
+          {family !== "google" && imap.presetId !== "custom" && (
+            <SettingCardNote>
+              <button type="button" className="pv-linkbtn" onClick={() => setImapAdvanced(!imapAdvanced)} data-testid="cloudacct-imap-advanced">
+                {imapAdvanced ? t("cloudAccounts.simpleEndpoints") : t("cloudAccounts.advancedEndpoints")}
+              </button>
+            </SettingCardNote>
+          )}
           {family === "google" && <SettingCardNote>{t("cloudAccounts.gmailHint")} <Button size="sm" variant="ghost" data-testid="gmail-app-password-link" onClick={() => void getPlatformServices().openExternal(presetById("gmail")!.appPasswordUrl!)}>{t("cloudAccounts.gmailAppPasswordLink")}</Button></SettingCardNote>}
           {activePreset?.useTileInstead && (
             <SettingCardNote>
@@ -859,7 +919,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
                   ? family === "microsoft"
                     ? t("cloudAccounts.signInMicrosoft")
                     : t("cloudAccounts.signInDropbox")
-                  : family === "google" && (svc.files || svc.calendar || (svc.mail && !gmailNeedsPassword))
+                  : family === "google" && (svc.files || svc.calendar || (svc.mail && !gmailPassword))
                     ? t("cloudAccounts.signInGoogle")
                     : t("pim.connect")}
           </Button>
@@ -871,22 +931,6 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
         )}
       </div>
 
-      {family === "dropbox" && !allDone && (
-        <SettingCardNote>
-          <button type="button" className="pv-linkbtn" onClick={() => setByoOpen((v) => !v)}>
-            {t("settings.useOwnAppId")}
-          </button>
-          {byoOpen && (
-            <div style={{ marginTop: "var(--space-2)", maxWidth: 360 }}>
-              <TextInput
-                value={byoId}
-                onChange={(e) => setByoId(e.target.value)}
-                placeholder={family === "dropbox" ? t("settings.appKey") : t("settings.clientId")}
-              />
-            </div>
-          )}
-        </SettingCardNote>
-      )}
       {!allDone && <SettingCardNote>{t("cloudAccounts.sequenceHint")}</SettingCardNote>}
 
       {showFolderPicker && result.filesProvider && (

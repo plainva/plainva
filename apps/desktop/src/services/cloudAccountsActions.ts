@@ -13,6 +13,10 @@ import {
   type ServiceConnectionContext,
   assertConnectionIdentity,
   ServiceConnectionError,
+  removeAccountCard,
+  signOutAccountHere,
+  withServiceOff,
+  type ServiceSignInSlot,
 } from "@plainva/ui";
 import { credentialManager } from "./CredentialManager";
 import { authorizeDropbox } from "./dropboxAuth";
@@ -26,7 +30,7 @@ import {
   type S3TargetCreds,
 } from "./syncTargets";
 import { connectCalDavAccount, removePimAccount } from "./pim/pimAccounts";
-import { graphMailAddress, forgetGraphMailRuntime } from "@plainva/ui/mail";
+import { graphMailAddress, forgetGraphMailRuntime, legacyMailSecretKey, mailSecretKey } from "@plainva/ui/mail";
 import { checkMailLogin } from "@plainva/ui/mail";
 import {
   listMailAccounts,
@@ -47,6 +51,9 @@ import {
 import i18n from "@plainva/ui/i18n";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 import { rotateLegacyFileGrant } from "./accountGrantMigration";
+import { accountCredentialStore } from "./accountCredentialStore";
+import { slot, legacySlot } from "./keychainSlots";
+import { announceCredentials } from "./credentialsAnnouncement";
 
 /**
  * Stage-A connect orchestration for the "Cloud-Konten" wizard: per selected
@@ -112,41 +119,9 @@ export async function clearOtherSyncSlots(vaultPath: string, keep: SyncProviderI
   if (keep !== "s3") await credentialManager.clearS3Credentials(vaultPath);
 }
 
-/**
- * Tells the open vault that sync credentials changed - it reloads to pick them up.
- *
- * A reload replaces the window with the loading screen, and the settings come
- * back on the account list: the wizard that had just connected lost its result
- * rows, so a calendar left unticked at the consent never said so (finding
- * 2026-10-23, found by the end-to-end test against the stand-in provider).
- * While a surface shows such a result it holds the announcement; the vault
- * reloads once, when the surface is left.
- */
-export function announceCredentials(isNewConnection: boolean): void {
-  if (announcementHolds > 0) {
-    heldAnnouncement = (heldAnnouncement ?? false) || isNewConnection;
-    return;
-  }
-  window.dispatchEvent(new CustomEvent("plainva-credentials-saved", { detail: { isNewConnection } }));
-}
-
-let announcementHolds = 0;
-let heldAnnouncement: boolean | null = null;
-
-/** Holds `announceCredentials` until the returned release; the last release sends what was held, once. */
-export function holdCredentialsAnnouncements(): () => void {
-  announcementHolds += 1;
-  let released = false;
-  return () => {
-    if (released) return;
-    released = true;
-    announcementHolds -= 1;
-    if (announcementHolds > 0 || heldAnnouncement === null) return;
-    const isNewConnection = heldAnnouncement;
-    heldAnnouncement = null;
-    announceCredentials(isNewConnection);
-  };
-}
+// Held while a surface shows a sign-in's result (moved to its own module so the
+// password change of an account page holds too, plan "Verbinden", V2).
+export { announceCredentials, holdCredentialsAnnouncements } from "./credentialsAnnouncement";
 
 /** Connects the FILES service of the request. Binds nothing before success. */
 async function connectFiles(vaultPath: string, req: ConnectRequest): Promise<SyncProviderId> {
@@ -230,10 +205,10 @@ export async function connectMicrosoftMailAccount(vaultPath: string, clientId: s
   // connect names and to no other, so the name comes first.
   claimPendingMailbox(vaultPath, id);
   const account: MailAccountConfig = { id, label: "Microsoft", host: "", port: 0, user: "", kind: "microsoft", clientId };
-  await saveMicrosoftMailAccount(vaultPath, account, refreshToken);
+  await saveMicrosoftMailAccount(vaultPath, account, refreshToken, "connect");
   try {
     const address = await graphMailAddress(vaultPath, account);
-    await saveMicrosoftMailAccount(vaultPath, { ...account, label: address, user: address }, refreshToken);
+    await saveMicrosoftMailAccount(vaultPath, { ...account, label: address, user: address }, refreshToken, "connect");
     return { id, address };
   } catch (err) {
     // The token cannot read the mailbox: undo the half-connected account.
@@ -255,7 +230,7 @@ async function connectMail(vaultPath: string, req: ConnectRequest): Promise<{ id
   };
   await checkMailLogin(config, m.pass);
   const id = newId();
-  await saveMailAccount(vaultPath, { id, label: m.label?.trim() || m.email, ...config }, m.pass);
+  await saveMailAccount(vaultPath, { id, label: m.label?.trim() || m.email, ...config }, m.pass, "connect");
   return { id, identity: m.email };
 }
 
@@ -553,6 +528,9 @@ export async function disableAccountService(
 ): Promise<CloudAccountRecord[]> {
   if (service === "files" && record.services.files) {
     await clearOtherSyncSlots(vaultPath, null);
+    // The queue and the per-file records stay: they belong to the folder, not the
+    // account, and the next file sync keeps them for the same folder and drops them
+    // for another (third review, finding 1).
     announceCredentials(false);
   } else if (service === "calendar" && record.services.calendar && runtime) {
     await removePimAccount(runtime, vaultPath, record.services.calendar.pimAccountId);
@@ -563,18 +541,78 @@ export async function disableAccountService(
   return refreshCloudAccounts(vaultPath, runtime);
 }
 
-/** Removes the whole account: every service, then the registry entry. */
+/**
+ * A service switched on or off for the vault (plan "Verbinden", E3): the
+ * binding stays, so does what the service left in the vault. Files stop at
+ * the next vault load (a reload follows), the calendar stops at once and on
+ * every other device when it reads the records, mail stops being read.
+ */
+export async function setAccountServiceOff(
+  vaultPath: string,
+  runtime: PimRuntime | null,
+  record: CloudAccountRecord,
+  service: CloudServiceId,
+  off: boolean,
+  /**
+   * Pushes the settings profile once (review finding 4): the switch lives in
+   * the profile, which only travels with the file sync - switched off without
+   * this, files stayed on for every other device.
+   */
+  pushSettings?: () => Promise<void>,
+): Promise<CloudAccountRecord[]> {
+  const stored = await loadCloudAccounts(vaultPath);
+  await saveCloudAccounts(vaultPath, stored.map((entry) => (entry.id === record.id ? withServiceOff(entry, service, off) : entry)));
+  if (service === "files" && off) await pushSettings?.().catch(() => undefined);
+  if (service === "files") announceCredentials(false);
+  if (service === "mail" && record.services.mail) forgetGraphMailRuntime(vaultPath, record.services.mail.mailAccountId);
+  return refreshCloudAccounts(vaultPath, runtime);
+}
+
+/** Removes the whole account: every service, then the grant, then the registry entry (the shared order). */
 export async function removeCloudAccount(
   vaultPath: string,
   runtime: PimRuntime | null,
   record: CloudAccountRecord
 ): Promise<CloudAccountRecord[]> {
-  if (record.services.files) await disableAccountService(vaultPath, runtime, record, "files");
-  if (record.services.calendar) await disableAccountService(vaultPath, runtime, record, "calendar");
-  if (record.services.mail) await disableAccountService(vaultPath, runtime, record, "mail");
-  // The account-wide token outlives its services otherwise (E9.2).
-  await clearAccountToken(vaultPath, record.id).catch(() => undefined);
-  const stored = await loadCloudAccounts(vaultPath);
-  await saveCloudAccounts(vaultPath, stored.filter((r) => r.id !== record.id));
+  await removeAccountCard({
+    services: (["files", "calendar", "mail"] as const).filter((service) => !!record.services[service]),
+    disable: async (service) => { await disableAccountService(vaultPath, runtime, record, service); },
+    // The account-wide token outlives its services otherwise (E9.2).
+    clearCardGrant: () => clearAccountToken(vaultPath, record.id),
+    dropRecord: async () => {
+      const stored = await loadCloudAccounts(vaultPath);
+      await saveCloudAccounts(vaultPath, stored.filter((r) => r.id !== record.id));
+    },
+  });
+  return refreshCloudAccounts(vaultPath, runtime);
+}
+
+/**
+ * "Sign out on this device" (plan "Verbinden", V0): this desktop's sign-in for
+ * the card goes - the card's grant and any sign-in a service still kept for
+ * itself (`signOutAccountHere`); the account, its services, settings and the
+ * other devices stay. The card then reads "sign-in needed" and its button
+ * signs it in again. Until now the desktop could only remove the account.
+ */
+export async function signOutCloudAccountHere(
+  vaultPath: string,
+  runtime: PimRuntime | null,
+  record: CloudAccountRecord
+): Promise<CloudAccountRecord[]> {
+  const slots: ServiceSignInSlot[] = [];
+  const files = record.services.files?.provider;
+  // Every provider: a token for Drive, OneDrive and Dropbox, the password of
+  // WebDAV, the secret key of S3 (plan "Verbinden", V2).
+  if (files) slots.push({ keys: [slot.files(vaultPath, files), legacySlot.files(vaultPath, files)] });
+  const pim = record.services.calendar?.pimAccountId;
+  if (pim) slots.push({ keys: [slot.calendar(vaultPath, pim), legacySlot.calendar(vaultPath, pim)] });
+  const mail = record.services.mail?.mailAccountId;
+  if (mail) {
+    forgetGraphMailRuntime(vaultPath, mail);
+    slots.push({ keys: [mailSecretKey(vaultPath, mail), legacyMailSecretKey(vaultPath, mail)] });
+  }
+  await signOutAccountHere({ store: accountCredentialStore, serviceSlots: slots, clearCardGrant: () => clearAccountToken(vaultPath, record.id) });
+  // The calendar says what it now is at once, not at its next turn.
+  if (pim) await restartPimAccountAfterLogin(runtime, pim).catch(() => undefined);
   return refreshCloudAccounts(vaultPath, runtime);
 }

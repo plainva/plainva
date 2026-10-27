@@ -153,7 +153,7 @@ describe("the notice about mail accounts without a password, on the desktop", ()
     await render(vi.fn(), onSignIn);
     await click(container.querySelector('[data-testid="mail-orphans-review"]'));
     const signIn = container.querySelector('[data-testid="mail-orphan-signin"]');
-    expect(signIn?.textContent).toBe("Sign in on this device");
+    expect(signIn?.textContent).toBe("Sign in");
     await click(signIn);
     expect(onSignIn).toHaveBeenCalledWith(expect.objectContaining({ id: "elsewhere" }));
     expect(confirm).not.toHaveBeenCalled();

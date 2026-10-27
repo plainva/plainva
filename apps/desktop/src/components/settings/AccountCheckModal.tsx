@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, CircleAlert, Clock } from "lucide-react";
 import {
@@ -10,8 +10,12 @@ import {
   accountCheckDiagnostic,
   accountServices,
   checkAccountConnection,
+  hasStoredAccountGrant,
   logDiagnostic,
-  serviceCheckKey,
+  checkRowActionKey,
+  checkRowActions,
+  serviceCheckText,
+  ServiceCheckError,
   type CloudAccountRecord,
   type ServiceCheck,
 } from "@plainva/ui";
@@ -32,11 +36,20 @@ export const AccountCheckModal: React.FC<{
   vaultPath: string;
   record: CloudAccountRecord;
   runtime: PimRuntime | null;
+  /** This desktop uses an own client and the build carries the standard one. */
+  standardAvailable?: boolean;
+  onUseStandard?: () => void;
   onSignInAgain: () => void;
+  /** Gmail through an app password, where Google refuses it (E7). */
+  onAppPassword?: () => void;
+  /** The result, for the line of section 4 on the account page. */
+  onChecked?: (rows: ServiceCheck[]) => void;
   onClose: () => void;
-}> = ({ vaultPath, record, runtime, onSignInAgain, onClose }) => {
+}> = ({ vaultPath, record, runtime, standardAvailable = false, onUseStandard, onSignInAgain, onAppPassword, onChecked, onClose }) => {
   const { t } = useTranslation();
   const [results, setResults] = useState<ServiceCheck[] | null>(null);
+  const onCheckedRef = useRef(onChecked);
+  useEffect(() => { onCheckedRef.current = onChecked; }, [onChecked]);
   const family = record.family === "google" || record.family === "microsoft" ? record.family : null;
 
   useEffect(() => {
@@ -46,6 +59,8 @@ export const AccountCheckModal: React.FC<{
       const mailbox = mailboxes.find((entry) => entry.id === record.services.mail?.mailAccountId);
       const checked = await checkAccountConnection({
         services: accountServices(record),
+        // A card signed out on this device says so for every service (plan "Verbinden", V0).
+        cardSignedIn: async () => (family ? hasStoredAccountGrant(await getAccountToken(vaultPath, record.id).catch(() => null)) : null),
         covered: async (service) => {
           if (!family) return null;
           if (service === "mail" && family === "google" && mailbox?.kind !== "gmail") return null;
@@ -55,25 +70,30 @@ export const AccountCheckModal: React.FC<{
           if (service === "files") {
             await (await syncTargetFromSlots(vaultPath, record.services.files!.provider)).listFolders("");
           } else if (service === "calendar") {
-            if (!runtime) throw new Error(t("pim.openVaultFirst"));
+            if (!runtime) throw new ServiceCheckError("failed", "pim.openVaultFirst");
+            // The same id the account page shows: on the desktop the card IS the registry record.
             const row = (await runtime.cache.listAccounts()).find((entry) => entry.id === record.services.calendar!.pimAccountId);
-            const target = row ? await runtime.buildTarget(row) : null;
-            if (!target) throw new Error(t("connection.notConnected"));
+            if (!row) throw new ServiceCheckError("failed", "connection.notConnected");
+            const target = await runtime.buildTarget(row);
+            // No sign-in for it on this device: said in words, with "Sign in" beside it.
+            if (!target) throw new ServiceCheckError("signin");
             await target.listCalendars();
           } else {
-            if (!mailbox) throw new Error(t("connection.notConnected"));
+            if (!mailbox) throw new ServiceCheckError("failed", "connection.notConnected");
             await checkMailbox(vaultPath, mailbox);
           }
         },
         describe: (error) => oauthErrorText(error),
       });
       logDiagnostic("accounts", accountCheckDiagnostic(record.family, checked));
-      if (alive) setResults(checked);
+      if (alive) {
+        setResults(checked);
+        onCheckedRef.current?.(checked);
+      }
     })();
     return () => { alive = false; };
   }, [family, record, runtime, t, vaultPath]);
 
-  const needsSignIn = !!family && !!results?.some((r) => r.state === "expired" || r.state === "notGranted");
   return (
     <Modal
       title={t("cloudAccounts.checkConnection")}
@@ -82,11 +102,6 @@ export const AccountCheckModal: React.FC<{
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>
-          {needsSignIn && (
-            <Button variant="primary" data-testid="cloudacct-check-signin" onClick={() => { onClose(); onSignInAgain(); }}>
-              {t("cloudAccounts.reconnect")}
-            </Button>
-          )}
         </>
       }
     >
@@ -95,15 +110,38 @@ export const AccountCheckModal: React.FC<{
         {(results ?? accountServices(record).map((service) => ({ service, state: "pending" as const }))).map((row) => {
           const kind = row.state === "ok" ? "ok" : row.state === "pending" ? "wait" : "err";
           const Icon = kind === "ok" ? Check : kind === "err" ? CircleAlert : Clock;
+          // Every row that does not work carries the action that helps (plan "Verbinden",
+          // V0/V2); signing in again on the desktop repairs every kind of account.
+          const actions = row.state === "pending" ? [] : checkRowActions(row as ServiceCheck, {
+            family: record.family,
+            canSignIn: true,
+            standardAvailable: standardAvailable && !!onUseStandard,
+          }).filter((action) => action !== "appPassword" || !!onAppPassword);
           return (
             <div key={row.service} className={`pv-svcstat pv-svcstat--${kind}`} data-testid={`cloudacct-check-${row.service}`} data-state={row.state}>
               <span className="pv-svcstat-icon"><Icon size={ICON.ui} /></span>
               <div className="pv-svcstat-main">
                 <div className="pv-svcstat-label">{serviceLabel(row.service)}</div>
                 <div className="pv-svcstat-sub">
-                  {row.state === "pending" ? t("cloudAccounts.checkRunning") : row.state === "failed" ? (row as ServiceCheck).detail : t(serviceCheckKey(row.state))}
+                  {row.state === "pending" ? t("cloudAccounts.checkRunning") : serviceCheckText(row as ServiceCheck, (key) => t(key))}
                 </div>
               </div>
+              {actions.map((action) => (
+                <Button
+                  key={action}
+                  variant="secondary"
+                  size="sm"
+                  data-testid={`cloudacct-check-action-${row.service}-${action}`}
+                  onClick={() => {
+                    onClose();
+                    if (action === "useStandard") onUseStandard?.();
+                    else if (action === "appPassword") onAppPassword?.();
+                    else onSignInAgain();
+                  }}
+                >
+                  {t(checkRowActionKey(action))}
+                </Button>
+              ))}
             </div>
           );
         })}

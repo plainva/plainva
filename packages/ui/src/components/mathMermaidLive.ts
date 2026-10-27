@@ -1,7 +1,9 @@
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { EditorState, Range, RangeSetBuilder, StateField } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
+import { stripQuoteMarkers } from "@plainva/core";
 import { activeLineSet } from "./LivePreviewPlugin";
+import { calloutColorKey, calloutLineClass, parseCalloutMarker } from "./callouts";
 import { renderMermaidDiagram, currentMermaidTheme } from "../services/mermaidRender";
 import { anchorFrameAt, anchorFrameSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
 import i18n from "../i18n";
@@ -269,22 +271,29 @@ class MermaidLiveWidget extends WidgetType {
     readonly from: number,
     readonly to: number,
     readonly frame: AnchorFrame | null,
+    /**
+     * The line class of the quote or callout the fence stands in, "" at the top
+     * level: the diagram replaces those lines, so it carries their card.
+     */
+    readonly quoteClass: string,
   ) { super(); }
 
   eq(other: MermaidLiveWidget) {
     // The frame joins the identity too: without it CodeMirror keeps the DOM it
     // already built and the frame would never appear.
-    return this.code === other.code && this.theme === other.theme
+    return this.code === other.code && this.theme === other.theme && this.quoteClass === other.quoteClass
       && anchorFrameSignature(other.frame) === anchorFrameSignature(this.frame);
   }
 
   toDOM(view: EditorView) {
     const el = document.createElement("div");
-    el.className = "pv-mermaid-live";
+    el.className = this.quoteClass ? `pv-mermaid-live ${this.quoteClass}` : "pv-mermaid-live";
     // Padding, NOT margin: an element's OWN margin is excluded from the height
     // CodeMirror measures (offsetHeight), which left a small residual caret
     // offset per diagram. Padding sits inside the border-box and is measured.
-    el.style.padding = "0.4em 0";
+    // Top and bottom only: the sides belong to the quote or callout card.
+    el.style.paddingTop = "0.4em";
+    el.style.paddingBottom = "0.4em";
     el.style.overflowX = "auto";
     el.style.cursor = "text"; // clicking flips to source (caret enters the fence)
     el.addEventListener("mousedown", (e) => caretIntoWidget(view, el, e));
@@ -341,6 +350,38 @@ export interface MathMermaidTexts {
   error: string;
 }
 
+/** A node of the syntax tree (its type, without a dependency on Lezer itself). */
+type SyntaxNode = ReturnType<typeof syntaxTree>["topNode"];
+
+/**
+ * The block quotes a fence stands in: how many, and the line class of the
+ * innermost one — the class `LivePreviewPlugin` gives its lines, so a diagram
+ * that replaces them keeps the quote's bar or the callout's card.
+ */
+function quoteContext(state: EditorState, node: SyntaxNode, firstLine: number, lastLine: number): { depth: number; lineClass: string } {
+  let depth = 0;
+  let inner: SyntaxNode | null = null;
+  for (let up = node.parent; up; up = up.parent) {
+    if (up.name !== "Blockquote") continue;
+    depth++;
+    if (!inner) inner = up;
+  }
+  if (!inner) return { depth, lineClass: "" };
+  const doc = state.doc;
+  const start = doc.lineAt(inner.from).number;
+  const end = doc.lineAt(Math.min(inner.to, doc.length)).number;
+  const callout = parseCalloutMarker(doc.line(start).text.replace(/^\s*>+\s?/, ""));
+  if (!callout) return { depth, lineClass: "cm-blockquote-line" };
+  const key = calloutColorKey(callout.type);
+  let lineClass = calloutLineClass(key, firstLine, start, end);
+  if (lastLine === end && firstLine !== end) lineClass += " cm-callout--last";
+  return { depth, lineClass };
+}
+
+/** The opening line of a mermaid fence, without what stands in front of the run. */
+const MERMAID_OPEN = /^\s*(`{3,}|~{3,})\s*mermaid\s*$/i;
+const FENCE_CLOSE = /^\s*(`{3,}|~{3,})\s*$/;
+
 function buildBlockDecorations(state: EditorState, texts: MathMermaidTexts): DecorationSet {
   const decos: Range<Decoration>[] = [];
   try {
@@ -348,21 +389,37 @@ function buildBlockDecorations(state: EditorState, texts: MathMermaidTexts): Dec
     const doc = state.doc;
     const fences: Array<{ from: number; to: number }> = [];
 
-    // ```mermaid fences via the syntax tree (the only fence type we replace).
+    // ```mermaid fences via the syntax tree (the only fence type we replace) -
+    // at the top level, in a list item, and in a quote or callout, where every
+    // line of the fence starts with the quote's `>` (finding 2026-10-25: those
+    // stayed source; the reading view drew them).
     syntaxTree(state).iterate({
       enter: (node) => {
         if (node.name !== "FencedCode") return;
         fences.push({ from: node.from, to: node.to });
         const firstLine = doc.lineAt(node.from);
-        if (!/^(`{3,}|~{3,})\s*mermaid\s*$/i.test(firstLine.text)) return false;
         const lastLine = doc.lineAt(Math.min(node.to, doc.length));
+        const quote = quoteContext(state, node.node, firstLine.number, lastLine.number);
+        const lineText = (n: number) => stripQuoteMarkers(doc.line(n).text, quote.depth);
+        const opener = lineText(firstLine.number);
+        if (!MERMAID_OPEN.test(opener)) return false;
         // An unterminated fence swallows the rest of the note — only replace
         // when the closing marker exists.
-        if (lastLine.number === firstLine.number || !/^(`{3,}|~{3,})\s*$/.test(lastLine.text)) return false;
+        if (lastLine.number === firstLine.number || !FENCE_CLOSE.test(lineText(lastLine.number))) return false;
         for (let i = firstLine.number; i <= lastLine.number; i++) {
           if (activeLines.has(i)) return false;
         }
-        const code = doc.sliceString(doc.line(firstLine.number + 1).from, doc.line(lastLine.number - 1).to);
+        // The code as the renderer reads it: without the quote markers, and
+        // without the indentation the fence itself stands at.
+        const indent = opener.length - opener.trimStart().length;
+        const codeLines: string[] = [];
+        for (let n = firstLine.number + 1; n < lastLine.number; n++) {
+          const text = lineText(n);
+          let cut = 0;
+          while (cut < indent && (text[cut] === " " || text[cut] === "\t")) cut++;
+          codeLines.push(text.slice(cut));
+        }
+        const code = codeLines.join("\n");
         if (!code.trim()) return false;
         decos.push(
           Decoration.replace({
@@ -373,6 +430,7 @@ function buildBlockDecorations(state: EditorState, texts: MathMermaidTexts): Dec
               firstLine.from,
               lastLine.to,
               anchorFrameAt(state, firstLine.from, lastLine.to),
+              quote.lineClass,
             ),
             block: true,
           }).range(firstLine.from, lastLine.to)

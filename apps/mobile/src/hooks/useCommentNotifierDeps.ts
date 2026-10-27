@@ -108,11 +108,11 @@ async function guestComments(
 ): Promise<Map<string, Array<{ comment: WorkspaceCommentRecord; publicationName: string }>>> {
   if (!vault.workspaceState || !vault.workspaceRuntime) return new Map();
   try {
-    const [{ listAllMobilePublicationComments }, { getMobileWorkspaceObjectStore }] = await Promise.all([
+    const [{ listAllMobilePublicationComments }, { findMobileWorkspaceObjectStore }] = await Promise.all([
       import("../services/mobileWorkspaceSecurity"),
       import("../services/syncService"),
     ]);
-    const store = await getMobileWorkspaceObjectStore(vault.vaultId);
+    const store = await findMobileWorkspaceObjectStore(vault.vaultId);
     if (!store) return new Map();
     return await listAllMobilePublicationComments({
       state: vault.workspaceState,

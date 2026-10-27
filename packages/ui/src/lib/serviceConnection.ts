@@ -12,6 +12,7 @@ import { hasStoredAccountGrant, sameOAuthClient, tokenCoversService, type Stored
 import { AccountGrantMissingPermissionsError } from "./accountLoginGrant";
 import { connectionFailureCode } from "@plainva/core";
 import { googleAuthorizationMessage } from "./googleAuthorization";
+import type { AccessPlatform } from "./oauthAccess";
 
 /** Non-secret destination carried across screens and native browser returns. */
 export interface ServiceConnectionContext {
@@ -19,6 +20,11 @@ export interface ServiceConnectionContext {
   cloudAccountId?: string;
   expectedIdentity?: VerifiedProviderIdentity;
   runId?: string;
+  /**
+   * The mailbox the new one replaces on the card (plan "Verbinden", E7: Gmail
+   * refused by Google, connected with an app password instead).
+   */
+  replacesMailAccountId?: string;
 }
 
 export type ServiceConnectionOutcome =
@@ -34,6 +40,54 @@ export class ServiceConnectionError extends Error {
 
 /** A translator: react-i18next's `t` and `i18n.t` both fit. */
 export type ConnectionTranslate = (key: string, options?: Record<string, unknown>) => string;
+
+/** What the shell knows about where the failure happened. */
+export interface ConnectionMessageContext {
+  /** The device's access platform (`oauthAccess.ts`); absent = say it for both. */
+  platform?: AccessPlatform;
+}
+
+/**
+ * Google refused the client for this device's return address (issue 142).
+ *
+ * A Desktop-type client only allows a loopback return, an iOS-type client only
+ * the app's custom scheme. So `redirect_uri_mismatch` on a phone means "not an
+ * iOS client — in practice a Desktop one", and on a computer "not a Desktop
+ * client". The client ID itself cannot tell (every type is
+ * `…apps.googleusercontent.com`), and Google usually shows the error on its
+ * own page in the browser; the editor of the own client therefore says the
+ * same in advance. When the answer does reach Plainva, it is named here.
+ */
+function isGoogleClientTypeMismatch(value: string): boolean {
+  return value.includes("redirect_uri_mismatch");
+}
+
+const GOOGLE_CLIENT_TYPE_KEYS: Record<AccessPlatform | "unknown", string> = {
+  desktop: "connection.googleClientWrongTypeDesktop",
+  ios: "connection.googleClientWrongTypePhone",
+  android: "connection.googleClientWrongTypePhone",
+  unknown: "connection.googleClientWrongType",
+};
+
+/**
+ * Whether a failed connection is about the Google client registration, so the
+ * surface showing the sentence can offer the guide (`googleClientGuideUrl`).
+ */
+export function isGoogleClientProblem(error: unknown): boolean {
+  if (error instanceof ServiceConnectionError) return false;
+  return /redirect_uri_mismatch|invalid_client|Custom URI scheme/.test(rawText(error));
+}
+
+/**
+ * The provider refuses the CLIENT, not the person: deleted in its project,
+ * not allowed for this kind of request, or not found (plan "Verbinden", V0).
+ * Signing in again with the same client cannot help; switching this device to
+ * the standard sign-in can.
+ */
+export function isOwnClientRejected(error: unknown): boolean {
+  if (error instanceof ServiceConnectionError) return false;
+  return /deleted_client|unauthorized_client|invalid_client/.test(rawText(error));
+}
 
 /** The sentence for each reason a connection flow names itself. */
 const REASON_KEYS: Record<ServiceConnectionError["reason"], string> = {
@@ -70,7 +124,7 @@ function rawText(error: unknown): string {
  *     replacement could, but it must never look like Plainva's sentence;
  *   - nothing at all still says something: the generic retry sentence.
  */
-export function serviceConnectionMessage(error: unknown, t: ConnectionTranslate): string {
+export function serviceConnectionMessage(error: unknown, t: ConnectionTranslate, context: ConnectionMessageContext = {}): string {
   if (error instanceof ServiceConnectionError) return t(REASON_KEYS[error.reason]);
   // Android: Play services said why (lib/googleAuthorization.ts). Asked before
   // anything else, so that a refused registration never reads as "cancelled".
@@ -80,6 +134,9 @@ export function serviceConnectionMessage(error: unknown, t: ConnectionTranslate)
   if (connection) return t(`connectionFailure.${connection}`);
   if (error instanceof AccountGrantMissingPermissionsError) return t("cloudAccounts.loginGrantIncomplete");
   const value = rawText(error);
+  // Before the loopback markers: "oauth error in redirect: redirect_uri_mismatch"
+  // is the client type, not a provider sentence to pass through.
+  if (isGoogleClientTypeMismatch(value)) return t(GOOGLE_CLIENT_TYPE_KEYS[context.platform ?? "unknown"]);
   // The desktop's OAuth loopback reports in marker sentences (N1/S1).
   if (value.includes("oauth loopback cancelled") || value === "cancelled") return t("settings.oauthCancelled");
   if (value.includes("oauth loopback timed out")) return t("settings.oauthTimedOut");
@@ -87,9 +144,14 @@ export function serviceConnectionMessage(error: unknown, t: ConnectionTranslate)
     const detail = value.split("oauth error in redirect:").pop()?.trim();
     return detail ? t("settings.oauthProviderError", { detail }) : t("settings.oauthCancelled");
   }
-  if (/redirect_uri_mismatch|invalid_client|invalid_request|Custom URI scheme/.test(value)) return t("connection.googleClientUnsupported");
+  if (/deleted_client|unauthorized_client/.test(value)) return t("accountAccess.clientRejected");
+  if (/invalid_client|invalid_request|Custom URI scheme/.test(value)) return t("connection.googleClientUnsupported");
   if (/wrongAccount/.test(value)) return t("connection.wrongAccount");
-  if (/accountChanged|runtime changed|destination_active/.test(value)) return t("connection.accountChanged");
+  // A calendar runtime replaced under a connection is the VAULT reloading or
+  // switching - never "the target account changed", which sent people looking
+  // for an account mix-up that did not exist (finding 2026-10-26).
+  if (/runtime changed/.test(value)) return t("connection.runtimeChanged");
+  if (/accountChanged|destination_active/.test(value)) return t("connection.accountChanged");
   if (/needsConsent|no_stored_sign_in|invalid_grant/.test(value)) return t("connection.needsConsent");
   if (/identityUnavailable/.test(value)) return t("connection.identityUnavailable");
   if (/storageFailed|storage_failed|secure storage/.test(value) || hasOrderedWords(value, "not", "saved")) return t("connection.storageFailed");

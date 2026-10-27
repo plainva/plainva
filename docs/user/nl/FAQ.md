@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-10-22
+Laatst bijgewerkt: 2026-10-26
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -70,7 +70,7 @@ Om het op te lossen toont **Versies vergelijken** (rechtsklik op het conflictbes
 
 ### Mijn Google-aanmelding verloopt steeds
 
-Bij de "Bring Your Own"-installatie blijft je Google-project in testmodus; Google beëindigt de sessie dan na 7 dagen. Plainva vernieuwt tokens automatisch op de achtergrond, maar als de aanmelding is verlopen, gebruik dan **Opnieuw verbinden** in de sync-instellingen. Details: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
+Bij de "Bring Your Own"-installatie blijft je Google-project in testmodus; Google beëindigt de sessie dan na 7 dagen. Plainva vernieuwt tokens automatisch op de achtergrond, maar als de aanmelding is verlopen, gebruik dan **Opnieuw verbinden** op de pagina van het account onder **Cloudaccounts**. Details: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
 ### Mijn vault staat in een OneDrive-/Dropbox-/iCloud-map en Plainva gedraagt zich vreemd
 
@@ -82,7 +82,7 @@ Ze worden gewoon lokaal opgeslagen en verzameld in een wachtrij; zodra de verbin
 
 ### De statusbalk toont Offline terwijl ik wel internet heb
 
-Dan is de sync-verbinding zelf verstoord — vaak omdat de aanmelding is verlopen of de toegangsgegevens zijn gewijzigd (bijv. bij Google Drive). Klik op **Offline** in de statusbalk of op de waarschuwingsdriehoek naast de vaultnaam: het dialoogvenster toont de precieze foutmelding, en **Sync-instellingen openen** brengt je direct naar het bijbehorende providerformulier, waar je de verbinding opnieuw tot stand brengt (bijv. **Opnieuw verbinden**). Elke klik start bovendien meteen een nieuwe sync-poging.
+Dan is de sync-verbinding zelf verstoord — vaak omdat de aanmelding is verlopen of de toegangsgegevens zijn gewijzigd (bijv. bij Google Drive). Klik op **Offline** in de statusbalk of op de waarschuwingsdriehoek naast de vaultnaam: het dialoogvenster toont de precieze foutmelding, en **Sync-instellingen openen** brengt je naar de sync-instellingen; de pagina van het account onder **Cloudaccounts** toont zijn status en biedt **Aanmelden** of **Opnieuw verbinden** direct in zijn kop. Elke klik start bovendien meteen een nieuwe sync-poging.
 
 ### Waarom ontbreekt provider X (Proton, Tuta, iCloud Drive …)?
 

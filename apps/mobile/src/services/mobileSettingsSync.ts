@@ -61,6 +61,8 @@ import {
   shouldReportOnce,
   rememberRemovedAccount,
   removedAccountsForProfile,
+  accountActsForProfile,
+  forgetRemovedLocalAccount,
   shouldReportWaitingAccounts,
   storeBackedFields,
   toast,
@@ -300,8 +302,16 @@ export async function noteAccountRemovedLocally(
 ): Promise<void> {
   const store = await settingsStore();
   const map = normalizeAccountMap(await store.get<ProfileAccountMap>(accountMapKey(vaultId)));
-  const next = rememberRemovedAccount(map, kind, localId);
-  if (next === map) return;
+  const next = rememberRemovedAccount(map, kind, localId, new Date().toISOString(), await deviceId());
+  await store.set(accountMapKey(vaultId), next);
+  await store.save();
+}
+
+/** Notes that an account was added (again) here, so a deletion of its id gives way (second review, B1). */
+export async function noteAccountAddedLocally(vaultId: string, kind: "pim" | "mail", localId: string): Promise<void> {
+  const store = await settingsStore();
+  const map = normalizeAccountMap(await store.get<ProfileAccountMap>(accountMapKey(vaultId)));
+  const next = forgetRemovedLocalAccount(map, kind, localId, new Date().toISOString(), await deviceId());
   await store.set(accountMapKey(vaultId), next);
   await store.save();
 }
@@ -629,7 +639,16 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
 
       // Same as the desktop: a deletion is only shared if it is IN the document.
       const removed = removedAccountsForProfile(map, undefined);
+      // Set or cleared explicitly: both fields also sit in the preserved unknown
+      // values this export starts from, and a stale copy from there would
+      // publish a removal the acts have already overtaken.
       if (Object.keys(removed).length) values.removedAccounts = removed;
+      else delete values.removedAccounts;
+      // The acts themselves travel too: without them an add made after a
+      // removal loses to the removal on every other device (B1).
+      const acts = accountActsForProfile(map, undefined);
+      if (Object.keys(acts).length) values.accountActs = acts;
+      else delete values.accountActs;
 
       // Bookmarks (S15). The phone has always kept them in the same shared file
       // as the desktop — it simply never put them in the profile, so a bookmark
@@ -749,7 +768,7 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
           await saveBarLayout("mobileBar", vaultId, sanitizeAreaOrder(canonical.barLayoutMobileBar, barDef("mobileBar").spec));
         }
 
-        const known = new Set([...Object.keys(mobileBinding()), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "bookmarkFolders", "folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar", "personalDesign"]);
+        const known = new Set([...Object.keys(mobileBinding()), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "bookmarkFolders", "folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar", "personalDesign", "removedAccounts", "accountActs"]);
         const unknown = Object.fromEntries(Object.entries(canonical).filter(([key]) => !known.has(key)));
         const store = await settingsStore();
         await store.set(unknownKey(vaultId), unknown);

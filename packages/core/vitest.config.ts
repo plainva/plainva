@@ -14,6 +14,12 @@ export default defineConfig({
     // SQLite file or a vault on disk, and the Windows release runner took more
     // than the 10 s default for that (release 0.8.6, Sammelplan 3.149).
     hookTimeout: 60_000,
+    // Console output goes straight to the process instead of through the
+    // worker's RPC. The sync suites log a lot; twice (24.10. and 26.10.) a
+    // worker was torn down while such a log was still in flight, and vitest
+    // failed the run with "Closing rpc while onUserConsoleLog was pending"
+    // although every test had passed (Sammelplan 3.153 Nr. 9).
+    disableConsoleIntercept: true,
     // See the desktop config: PLAINVA_TEST_WORKERS=<n> caps the workers on a loaded machine.
     ...(process.env.PLAINVA_TEST_WORKERS ? { maxWorkers: Number(process.env.PLAINVA_TEST_WORKERS) } : {}),
   },

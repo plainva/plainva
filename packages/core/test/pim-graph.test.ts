@@ -264,7 +264,8 @@ describe("GraphPimTarget", () => {
     expect(calls[0].url).toContain("/me/events/e1/decline");
     expect(calls[0].body).toEqual({ sendResponse: true });
     await t.respondToEvent({ calendarId: "c1", uid: "e1" }, "tentative");
-    expect(calls[1].url).toContain("/me/events/e1/tentativelyAccept");
+    // Each answer is followed by a read of the new etag (R2), so the actions are not adjacent.
+    expect(calls.filter((c) => /\/(accept|decline|tentativelyAccept)$/.test(c.url)).map((c) => c.url.split("/").pop())).toEqual(["decline", "tentativelyAccept"]);
   });
 });
 

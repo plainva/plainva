@@ -1,6 +1,6 @@
 # Tareas
 
-Última actualización: 2026-10-24
+Última actualización: 2026-10-25
 
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 
@@ -28,6 +28,8 @@ Los cuatro filtros de la barra de escritorio aparecen en el teléfono como chips
 ## Leer la lista
 
 Las tareas se agrupan por nota; el título de la nota es un encabezado en el que puedes hacer clic para abrir la nota. Cada tarea muestra su casilla y su texto, con un tachado una vez que está hecha. Una **fecha límite** escrita como `📅 2026-08-01` en la línea de la tarea aparece como una pequeña insignia.
+
+Un enlace en el texto de una tarea se lee como su texto: `[[Alexander Gaas|Alex]]` muestra **Alex**, `[[Personas/Anna]]` muestra **Anna**, con el aspecto de un enlace. Hacer clic o tocar el enlace abre esa nota; hacer clic en el resto de la línea abre la tarea. Esto vale para toda lista de tareas, en el escritorio y en el teléfono. Un enlace a una nota que todavía no existe se ve como en el editor —atenuado y discontinuo— y al hacer clic en él se crea la nota.
 
 ## Filtrar
 
@@ -177,3 +179,16 @@ Más formas de entrada: **Nueva tarea** en el menú de la bandeja del sistema en
 ## Marcar desde un widget
 
 La casilla del widget **Hoy** recoge un encargo: la marca aparece enseguida, la nota cambia la próxima vez que abras Plainva y entonces ocurren también la repetición y la sincronización. Hasta entonces la fila dice **se aplicará al abrir Plainva**. Una tarea que hayas terminado, borrado o movido mientras tanto se deja en paz. En el iPhone esto requiere iOS 17; por debajo, un toque en la fila abre la tarea. Detalles: [La app móvil](Mobile_App.md).
+
+<!-- task-rows-2026-10-24 -->
+## Subtareas, viñetas y lo hecho hoy
+
+**Subtareas.** Una casilla sangrada bajo otra es su subtarea, como `show tree` en el plugin Tasks de Obsidian. En las listas **Hoy**, **Próximamente**, **Bandeja de entrada** y **Hechas**, una tarea lleva sus subtareas sangradas debajo — abiertas y terminadas, estas tachadas — y una flecha al final de la fila las pliega. Una subtarea con fecha propia aparece además en su propio día; una sin fecha se lista bajo su tarea y no sola en **Bandeja de entrada**. La lista **Todas** mantiene cada casilla en el orden de su nota.
+
+**Viñetas.** Las viñetas simples sangradas bajo una tarea — preguntas, notas — se muestran bajo su título como una vista previa de hasta dos líneas; el resto lo guarda la nota.
+
+Ambas están activadas hasta que las desactives: **Subtareas** y **Viñetas** están junto a los demás filtros (casillas en el escritorio, chips en el teléfono) y se recuerdan con ellos.
+
+**Hechas hoy.** Bajo **Hoy**, una línea plegada **Hechas (n)** reúne lo que se marcó hoy — una casilla según su fecha de finalización `✅` (que Plainva escribe con cada marca), una entrada de la base de datos de tareas según el día en que su nota cambió por última vez, porque una base de datos no tiene fecha de finalización propia. Una casilla terminada sin fecha no cuenta: nada dice cuándo se terminó. El pliegue está cerrado hasta que lo abras; el dispositivo recuerda tu elección. La pantalla **Hoy** del teléfono muestra el mismo pliegue bajo **Vence**.
+
+**La casilla en el teléfono.** En el editor, en el modo de lectura, en el área Tareas y bajo **Hoy**, el teléfono dibuja cada casilla de tarea igual: grande y redondeada, rellena con una marca si está hecha, medio rellena si está **En curso**, tachada si está **Cancelada**. El escritorio mantiene sus casillas más pequeñas, hechas para el ratón.

@@ -91,7 +91,7 @@ export const NAV_KINDS = [
   "folder", "note", "base", "today", "pimcalendar", "mail", "mailmsg", "mailcompose",
   "mailaccounts", "mailrule", "pimaccounts", "tasks", "databases", "graphmap", "comments", "journal", "cleanup", "tags", "bookmarks", "recent",
   "search", "findreplace", "more", "areas", "settings", "settingsArea", "vaults", "appearance", "customtheme",
-  "cloudaccounts", "cloudaccount", "cloudconnect", "sync", "vault", "syncchain", "syncdiag", "securitywizard",
+  "cloudaccounts", "cloudaccount", "accountservice", "cloudconnect", "sync", "vault", "syncchain", "syncdiag", "securitywizard",
   "importwizard", "imageviewer", "overviews", "okfconversion", "okfmigration", "pinentry", "ai", "aihistory",
 ] as const;
 
@@ -128,6 +128,7 @@ export type NavKind =
   | "customtheme"
   | "cloudaccounts"
   | "cloudaccount"
+  | "accountservice"
   | "cloudconnect"
   | "sync"
   | "vault"
@@ -173,7 +174,7 @@ export interface NavEntry {
   family?: CloudProviderFamily;
 }
 
-const GLOBAL_KINDS = new Set<NavKind>(["search", "findreplace", "more", "areas", "settings", "settingsArea", "vaults", "appearance", "customtheme", "cloudaccounts", "cloudaccount", "cloudconnect", "sync", "vault", "syncchain", "syncdiag", "overviews"]);
+const GLOBAL_KINDS = new Set<NavKind>(["search", "findreplace", "more", "areas", "settings", "settingsArea", "vaults", "appearance", "customtheme", "cloudaccounts", "cloudaccount", "accountservice", "cloudconnect", "sync", "vault", "syncchain", "syncdiag", "overviews"]);
 
 export const isGlobalKind = (kind: NavKind): boolean => GLOBAL_KINDS.has(kind);
 

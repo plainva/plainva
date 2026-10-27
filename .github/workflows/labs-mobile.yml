@@ -9,9 +9,12 @@ name: Labs Mobile
 #
 # The identity is fixed in this file (env below), so nothing built here can
 # reach com.plainva.app; release-mobile.yml and ios.yml in turn refuse commits
-# that are not on main. The Google test clients are left out on purpose: they
-# are registered for the store app's ids, and a Labs build shows "not
-# configured" rather than a provider error.
+# that are not on main. The store app's Google clients are never used here:
+# they are registered for its ids. Labs takes its own from the repository
+# variables VITE_PLAINVA_GOOGLE_IOS_CLIENT_ID_LABS (an iOS client for
+# com.plainva.app.labs) and VITE_PLAINVA_GOOGLE_ANDROID_CLIENT_ID_LABS (an
+# Android client for com.plainva.app.labs with the upload key); while they are
+# unset, a Labs build shows "not included" rather than a provider error.
 #
 # Secrets: the Android upload key (ANDROID_KEYSTORE_BASE64, _PASSWORD,
 # ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD), the Apple distribution certificate
@@ -85,6 +88,12 @@ jobs:
 
       - name: Build web assets
         run: pnpm --filter mobile build
+        # Plainva Labs is its own app to Google (docs/engineering/Labs_Channel.md):
+        # an Android client for com.plainva.app.labs and the upload key. Unset
+        # leaves the standard sign-in out of the build, as before.
+        env:
+          VITE_PLAINVA_GOOGLE_MAIL_STATE: ${{ vars.VITE_PLAINVA_GOOGLE_MAIL_STATE }}
+          VITE_PLAINVA_GOOGLE_ANDROID_CLIENT_ID: ${{ vars.VITE_PLAINVA_GOOGLE_ANDROID_CLIENT_ID_LABS }}
 
       - name: Capacitor sync
         working-directory: apps/mobile
@@ -175,6 +184,12 @@ jobs:
 
       - name: Build web assets
         run: pnpm --filter mobile build
+        # Plainva Labs is its own app to Google (docs/engineering/Labs_Channel.md):
+        # an iOS client with the bundle ID com.plainva.app.labs. Unset leaves the
+        # standard sign-in out of the build, as before.
+        env:
+          VITE_PLAINVA_GOOGLE_MAIL_STATE: ${{ vars.VITE_PLAINVA_GOOGLE_MAIL_STATE }}
+          VITE_PLAINVA_GOOGLE_IOS_CLIENT_ID: ${{ vars.VITE_PLAINVA_GOOGLE_IOS_CLIENT_ID_LABS }}
 
       - name: Sync Capacitor iOS
         working-directory: apps/mobile

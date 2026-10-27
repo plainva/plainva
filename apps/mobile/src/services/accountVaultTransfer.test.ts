@@ -74,7 +74,7 @@ import { armLeaveGuard, resetLeaveGuard } from "./leaveGuard";
 import { clearConnectQueue, loadConnectQueue, startConnectQueue } from "./connectQueue";
 import { getMailPassword, listMailAccounts, saveMailAccount } from "@plainva/ui/mail";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
-import { getPlatformServices, setPlatformServices } from "@plainva/ui";
+import { accountActsForProfile, emptyAccountMap, forgetRemovedLocalAccount, getPlatformServices, rememberRemovedAccount, setPlatformServices } from "@plainva/ui";
 const provider = { provider: "webdav" as const, creds: { url: "https://example.invalid/files", user: "a", pass: "files-secret" } };
 let source: MobileVault;
 let remoteFiles: Map<string, string>;
@@ -97,7 +97,7 @@ beforeEach(async () => {
   await cache.replaceTaskLists("calendar", [{ id: "tasks", name: "Not selected" }]);
   await cache.setTaskListSelected("calendar", "tasks", false);
   state.secrets.set("pim-source-calendar", { kind: "caldav", password: "calendar-secret" });
-  await saveMailAccount("source", { id: "mail", label: "Mail", kind: "imap", host: "imap.invalid", port: 993, user: "a" }, "mail-secret");
+  await saveMailAccount("source", { id: "mail", label: "Mail", kind: "imap", host: "imap.invalid", port: 993, user: "a" }, "mail-secret", "connect");
   await saveCloudAccounts("source", [{ id: "account", family: "fastmail", label: "Account", services: { calendar: { pimAccountId: "calendar" }, mail: { mailAccountId: "mail" } } }]);
   await startConnectQueue("fastmail", ["files"], { vaultId: "source", cloudAccountId: "account" });
 });
@@ -105,6 +105,20 @@ afterEach(async () => { for (const db of state.databases.values()) await db.clos
 async function connect() { const q = (await loadConnectQueue())!; return connectAccountFiles(source, provider, q.context, async () => remote, "Cloud"); }
 
 describe("the account-to-files transfer before vault activation", () => {
+  it("moves mailboxes as they are: a removal of one in the target vault, made on another device, still wins there", async () => {
+    const added: Array<[string, string, string]> = [];
+    setPlatformServices({ ...getPlatformServices(), noteAccountAdded: async (vault, kind, id) => { added.push([vault, kind, id]); } });
+    await connect();
+    const target = state.switches[0];
+    // What this phone now holds for the target vault: the acts its hook recorded during the move.
+    let here = emptyAccountMap();
+    for (const [vault, kind, id] of added) if (vault === target) here = forgetRemovedLocalAccount(here, kind as "mail" | "pim", id, new Date().toISOString(), "phone");
+    // The target vault's document says, from another device, that the mailbox was removed.
+    const elsewhere = accountActsForProfile(rememberRemovedAccount(emptyAccountMap(), "mail", "mail", new Date(Date.now() - 3_600_000).toISOString(), "other-device"), undefined);
+    // The import: a move is no add, so the removal wins.
+    expect(accountActsForProfile(here, elsewhere).mail?.act).toBe("removed");
+    expect(added.filter(([vault]) => vault === target)).toEqual([]);
+  });
   it("preserves files, real calendar selections and mail credentials before switching", async () => {
     const snapshot = await new PimCacheRepository(source.db!).snapshotAccount("calendar");
     await connect();

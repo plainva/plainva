@@ -76,6 +76,8 @@ const vault = {
     listNotes: async () => [],
     getBacklinks: async () => [],
     listBases: async () => [],
+    // The titles' link lookup (useLinkTargetLookup).
+    linkTargets: async () => [],
   },
   files: { exists: async () => false },
   indexer: null,

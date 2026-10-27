@@ -1,4 +1,4 @@
-import { Capacitor } from "@capacitor/core";
+import { devicePlatform } from "./devicePlatform";
 import {
   adoptFilesSignIn,
   bindSignedInAccount,
@@ -8,13 +8,14 @@ import {
   oauthAccessKey,
   plainvaGoogleClient,
   prepareSignIn,
+  isRetiredPlainvaClient,
   readStoredOAuthAccess,
+  retiredAccessReplacement,
   replaceProtectedSlot,
   resolveOAuthAccess,
   SignInNothingGrantedError,
   SignInWrongAccountError,
   validClientId,
-  type AccessPlatform,
   type AccessResolution,
   type CloudAccountRecord,
   type CloudServiceId,
@@ -63,20 +64,23 @@ export class AccessUnavailableError extends Error {
 
 const env = (): Record<string, unknown> => import.meta.env as unknown as Record<string, unknown>;
 
-/** The phone's platform for the access rules; the web build signs in like an iPhone, through the browser. */
-export function devicePlatform(): AccessPlatform {
-  return Capacitor.getPlatform() === "android" ? "android" : "ios";
-}
+export { devicePlatform };
 
 export async function readDeviceAccess(family: OAuthFamily, vaultId?: string): Promise<StoredOAuthAccess | null> {
   const credentials = getPlatformServices().credentials;
   const stored = readStoredOAuthAccess(await credentials.readSecret<unknown>(oauthAccessKey(family)));
+  const replacement = retiredAccessReplacement(family, stored);
+  if (replacement) {
+    await credentials.writeSecret(oauthAccessKey(family), replacement);
+    return replacement;
+  }
   if (stored || !vaultId || family !== "google") return stored;
   // An own client this device held before the plan - in an account's grant
   // or a calendar's slot - becomes its access once, so nobody types it again.
   const plainva = plainvaGoogleClient(env(), devicePlatform());
   const own = (client: { clientId?: string; nativeGoogle?: unknown } | null | undefined): StoredOAuthAccess | null =>
     client?.clientId && !client.nativeGoogle && client.clientId !== plainva?.clientId && validClientId("google", client.clientId)
+      && !isRetiredPlainvaClient("google", client.clientId)
       ? { source: "own", clientId: client.clientId }
       : null;
   for (const record of await loadCloudAccounts(vaultId)) {
@@ -88,7 +92,15 @@ export async function readDeviceAccess(family: OAuthFamily, vaultId?: string): P
       return found;
     }
   }
-  return null;
+  // Nothing to adopt is a decision too, and it is kept (finding 2026-10-26):
+  // `own` compares with the client THIS build ships, so a phone that never
+  // stored its choice took the previous build's standard client - kept in a
+  // calendar slot since the one sign-in (K2) - for an own one the day the
+  // build switched to a new Google project, and signed in through the browser
+  // with a client that project no longer had ("Error 401: deleted_client").
+  const standard: StoredOAuthAccess = { source: "plainva" };
+  await credentials.writeSecret(oauthAccessKey(family), standard);
+  return standard;
 }
 
 export async function saveDeviceAccess(family: OAuthFamily, access: StoredOAuthAccess): Promise<void> {
@@ -111,12 +123,12 @@ export type MobileSignInStart = { kind: "started" } | { kind: "nothingToAsk" };
  * Starts the one sign-in. The browser (or the system sheet) takes over; the
  * result arrives through `registerSignInHandler`, after a cold start too.
  */
-export async function beginMobileSignIn(vaultId: string, request: { family: OAuthFamily; cardId?: string; add: CloudServiceId[] }): Promise<MobileSignInStart> {
+export async function beginMobileSignIn(vaultId: string, request: { family: OAuthFamily; cardId?: string; add: CloudServiceId[]; outside?: CloudServiceId[] }): Promise<MobileSignInStart> {
   const resolution = await deviceAccess(request.family, vaultId);
   if (!resolution.ok) throw new AccessUnavailableError(request.family, resolution.problem);
   const record = request.cardId ? (await loadCloudAccounts(vaultId)).find((entry) => entry.id === request.cardId) : undefined;
   const prepared = prepareSignIn(
-    { vaultId, family: request.family, ...(request.cardId ? { cardId: request.cardId } : {}), add: request.add, access: resolution.access },
+    { vaultId, family: request.family, ...(request.cardId ? { cardId: request.cardId } : {}), add: request.add, access: resolution.access, ...(request.outside?.length ? { outside: request.outside } : {}) },
     record ? { record, mailKind: await mailKindOf(vaultId, record) } : undefined,
   );
   if (!needsConsent(prepared)) return { kind: "nothingToAsk" };

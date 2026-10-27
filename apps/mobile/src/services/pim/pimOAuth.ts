@@ -11,7 +11,7 @@ import {
   GOOGLE_CALENDAR_SCOPES,
   GRAPH_CALENDAR_SCOPES,
 } from "@plainva/core";
-import { getPlatformServices, PLAINVA_ONEDRIVE_CLIENT_ID, ServiceConnectionError, serviceConnectionMessage, toast, withAccountCredentialLock } from "@plainva/ui";
+import { getPlatformServices, PLAINVA_ONEDRIVE_CLIENT_ID, ServiceConnectionError, toast, withAccountCredentialLock } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../../adapters/webdavHttp";
 import { addPimAccount, reauthorizePimAccount } from "./pimService";
@@ -23,6 +23,7 @@ import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConn
 import { getMobileVault } from "../vaultService";
 import { enterFlowVault, releaseFlowVault, waitsAtOffer } from "../flowVault";
 import { APP_ID, APP_URL } from "../appScheme";
+import { connectionFailureToast } from "../connectionToast";
 
 /** Stored beside the PKCE verifier, never inferred from the current screen. */
 export interface AccountOAuthContext {
@@ -496,7 +497,7 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     await recordConnectOutcome(flow.serviceContext, (flow.purpose === "mail" || flow.purpose === "gmail") ? "mail" : "calendar", { state: /wrongAccount|needsConsent|invalid_grant|accountChanged/.test(message) ? "needsConsent" : "failed", message }).catch(() => {});
-    if (!wasSignInAnnounced(e)) toast.error(serviceConnectionMessage(e, i18n.t));
+    if (!wasSignInAnnounced(e)) toast.error(...connectionFailureToast(e));
   }
   return true;
 }

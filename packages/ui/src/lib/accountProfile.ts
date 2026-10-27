@@ -95,6 +95,34 @@ export interface ProfileAccountMap {
    * else; it stops it coming back HERE.
    */
   removedLogical?: Record<string, string>;
+  /**
+   * Every deletion and every deliberate add, per shared account id, as an
+   * ordered act (reviews of plan "Verbinden", B1). A Gmail mailbox keeps ONE id
+   * across every connection (`stableGmailId`), so connecting it again after
+   * removing it brought back an id the tombstones still named - and the next
+   * profile import dropped it on every device. Which act wins is decided by a
+   * logical counter, not by the clocks of the devices: see `AccountAct`.
+   * `removedLogical` above is derived from these and kept for the builds that
+   * only know that field.
+   */
+  accountActs?: Record<string, AccountAct>;
+}
+
+/**
+ * One act on a shared account id: it was removed, or added (again) by the user.
+ *
+ * A Lamport counter orders them: an act is stamped one above the highest
+ * counter this device has seen for the id, so an add that follows a removal
+ * the device knew about always wins, however far the two clocks are apart.
+ * Two acts with the same counter did not see each other; the later `at`
+ * decides, then the device id, so every device picks the same one. `at` also
+ * drives the retention window.
+ */
+export interface AccountAct {
+  act: "removed" | "revived";
+  counter: number;
+  at: string;
+  device: string;
 }
 
 export interface ProfilePimSelections {
@@ -146,6 +174,7 @@ export function rememberRemovedAccount(
   kind: "pim" | "mail",
   localId: string,
   at = new Date().toISOString(),
+  device = "",
 ): ProfileAccountMap {
   // A row this device PUBLISHED has no map entry — its logical id is simply its
   // local id (see `pimAccountsForProfile`). Treating that as "nothing to
@@ -153,7 +182,7 @@ export function rememberRemovedAccount(
   // and handed it straight back on the next cycle (finding 2026-08-19). An id
   // that was never shared produces a harmless tombstone nobody ever matches.
   const logical = (kind === "pim" ? map.pimLocalToLogical : map.mailLocalToLogical)[localId] ?? localId;
-  return { ...map, removedLogical: { ...(map.removedLogical ?? {}), [logical]: at } };
+  return recordAccountAct(map, logical, "removed", at, device);
 }
 
 /**
@@ -167,57 +196,172 @@ export function rememberRemovedAccount(
 export const REMOVED_ACCOUNT_TTL_DAYS = 180;
 
 /**
- * The deletions this device publishes.
+ * Orders two acts on the same id: the higher counter wins; acts with the same
+ * counter did not see each other, so the later `at` and then the device id
+ * decide - the same choice on every device.
+ */
+export function laterAccountAct(a: AccountAct, b: AccountAct): AccountAct {
+  if (a.counter !== b.counter) return a.counter > b.counter ? a : b;
+  if (a.at !== b.at) return a.at > b.at ? a : b;
+  if (a.device !== b.device) return a.device > b.device ? a : b;
+  // Same counter, moment and device: one act seen twice. A removal is the
+  // conservative reading of a corrupt pair.
+  return a.act === "removed" ? a : b;
+}
+
+function validAct(value: unknown): value is AccountAct {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const act = value as Partial<AccountAct>;
+  return (act.act === "removed" || act.act === "revived")
+    && typeof act.counter === "number" && Number.isInteger(act.counter) && act.counter >= 0
+    && typeof act.at === "string" && typeof act.device === "string";
+}
+
+/**
+ * A removal written by a build that only knew `removedAccounts` (an id and a
+ * moment) carries no counter: it ranks as counter 0, below every act a current
+ * build records. That is the price of reading the older field at all - the
+ * limit is spelled out where the field is registered (`profileFields.ts`).
+ */
+function legacyRemovals(value: unknown): Record<string, AccountAct> {
+  const out: Record<string, AccountAct> = {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) return out;
+  for (const [logical, at] of Object.entries(value as Record<string, unknown>)) {
+    if (!logical || typeof at !== "string") continue;
+    out[logical] = { act: "removed", counter: 0, at, device: "" };
+  }
+  return out;
+}
+
+function documentActs(value: unknown): Record<string, AccountAct> {
+  const out: Record<string, AccountAct> = {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) return out;
+  for (const [logical, act] of Object.entries(value as Record<string, unknown>)) {
+    if (logical && validAct(act)) out[logical] = { act: act.act, counter: act.counter, at: act.at, device: act.device };
+  }
+  return out;
+}
+
+/** The acts this map knows, including the removals of a map written before acts existed. */
+function mapActs(map: ProfileAccountMap): Record<string, AccountAct> {
+  return foldActs([legacyRemovals(map.removedLogical), documentActs(map.accountActs)], null);
+}
+
+/** The winning act per id across sources, without what is past the retention window (`now` null: keep all). */
+function foldActs(sources: ReadonlyArray<Record<string, AccountAct>>, now: Date | null): Record<string, AccountAct> {
+  const cutoff = now ? now.getTime() - REMOVED_ACCOUNT_TTL_DAYS * 24 * 60 * 60 * 1000 : null;
+  const out: Record<string, AccountAct> = {};
+  for (const source of sources) {
+    for (const [logical, act] of Object.entries(source)) {
+      if (cutoff !== null) {
+        const stamp = Date.parse(act.at);
+        if (Number.isFinite(stamp) && stamp < cutoff) continue;
+      }
+      out[logical] = out[logical] ? laterAccountAct(out[logical], act) : act;
+    }
+  }
+  return out;
+}
+
+/** The removals among the winning acts, as the id → moment map the older field speaks. */
+function removalsOf(acts: Record<string, AccountAct>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [logical, act] of Object.entries(acts)) if (act.act === "removed") out[logical] = act.at;
+  return out;
+}
+
+function withActs(map: ProfileAccountMap, acts: Record<string, AccountAct>): ProfileAccountMap {
+  const removed = removalsOf(acts);
+  const next: ProfileAccountMap = { ...map };
+  delete next.removedLogical;
+  delete next.accountActs;
+  if (Object.keys(removed).length) next.removedLogical = removed;
+  if (Object.keys(acts).length) next.accountActs = acts;
+  return next;
+}
+
+/** Records an act on `logical`, one above the highest counter this device has seen for it. */
+function recordAccountAct(
+  map: ProfileAccountMap,
+  logical: string,
+  act: AccountAct["act"],
+  at: string,
+  device: string,
+): ProfileAccountMap {
+  const acts = mapActs(map);
+  const seen = acts[logical]?.counter ?? 0;
+  return withActs(map, { ...acts, [logical]: { act, counter: seen + 1, at, device } });
+}
+
+/**
+ * The acts this device publishes: a union of the document's and its own, the
+ * winning act per id, within the retention window. The union is what keeps the
+ * whole-field last-writer-wins of the profile from losing another device's acts.
+ */
+export function accountActsForProfile(
+  map: ProfileAccountMap,
+  documentValue: unknown,
+  now = new Date(),
+  documentRemoved?: unknown,
+): Record<string, AccountAct> {
+  return foldActs([legacyRemovals(documentRemoved), documentActs(documentValue), mapActs(map)], now);
+}
+
+/**
+ * The deletions this device publishes, in the field every build reads.
  *
  * A deletion used to be a purely local suppression: the row left this device,
  * the tombstone stopped it coming back HERE, and every other device kept it —
  * so "delete the account and add it again" removed it in one place and
  * duplicated it everywhere else (E1, finding 2026-08-19). Carrying the set in
- * the document makes the deletion mean the same thing on every device.
- *
- * The union with what the document already carries is the part that matters:
- * the field is last-writer-wins as a whole, so a device that published only its
- * OWN tombstones would silently resurrect everyone else's rows.
+ * the document makes the deletion mean the same thing on every device. An id
+ * whose latest act is an add is not in it (B1).
  */
 export function removedAccountsForProfile(
   map: ProfileAccountMap,
   documentValue: unknown,
   now = new Date(),
+  documentActsValue?: unknown,
 ): Record<string, string> {
-  const cutoff = now.getTime() - REMOVED_ACCOUNT_TTL_DAYS * 24 * 60 * 60 * 1000;
-  const out: Record<string, string> = {};
-  const take = (source: unknown) => {
-    if (!source || typeof source !== "object" || Array.isArray(source)) return;
-    for (const [logical, at] of Object.entries(source as Record<string, unknown>)) {
-      if (typeof at !== "string" || !logical) continue;
-      const stamp = Date.parse(at);
-      if (Number.isFinite(stamp) && stamp < cutoff) continue;
-      // The earliest stamp wins, so the TTL is measured from the deletion
-      // itself rather than restarting on every device that repeats it.
-      if (!out[logical] || at < out[logical]) out[logical] = at;
-    }
-  };
-  take(documentValue);
-  take(map.removedLogical);
-  return out;
+  return removalsOf(accountActsForProfile(map, documentActsValue, now, documentValue));
 }
 
-/** The document's tombstones, folded into what this device remembers. */
+/** The document's acts, folded into what this device remembers. */
 export function mergeRemovedAccounts(
   map: ProfileAccountMap,
   documentValue: unknown,
   now = new Date(),
+  documentActsValue?: unknown,
 ): ProfileAccountMap {
-  const merged = removedAccountsForProfile(map, documentValue, now);
-  return Object.keys(merged).length ? { ...map, removedLogical: merged } : { ...map, removedLogical: undefined };
+  return withActs(map, accountActsForProfile(map, documentActsValue, now, documentValue));
 }
 
-/** Clears the tombstone — the user deliberately added this account back. */
-export function forgetRemovedAccount(map: ProfileAccountMap, logicalId: string): ProfileAccountMap {
-  if (!map.removedLogical?.[logicalId]) return map;
-  const rest = { ...map.removedLogical };
-  delete rest[logicalId];
-  return { ...map, removedLogical: Object.keys(rest).length ? rest : undefined };
+/**
+ * The user deliberately added this account: an add is recorded for its id
+ * whether or not this device holds a tombstone for it (third review, B1 a) - the
+ * removal may sit only in the document, on a device this one has not heard
+ * from yet, and the add has to outrank it when the two meet. Removing it once
+ * more later is a later act, and wins.
+ */
+export function forgetRemovedAccount(
+  map: ProfileAccountMap,
+  logicalId: string,
+  at = new Date().toISOString(),
+  device = "",
+): ProfileAccountMap {
+  return recordAccountAct(map, logicalId, "revived", at, device);
+}
+
+/** `forgetRemovedAccount` for the id the shell knows (its local id), as `rememberRemovedAccount` takes it. */
+export function forgetRemovedLocalAccount(
+  map: ProfileAccountMap,
+  kind: "pim" | "mail",
+  localId: string,
+  at = new Date().toISOString(),
+  device = "",
+): ProfileAccountMap {
+  const logical = (kind === "pim" ? map.pimLocalToLogical : map.mailLocalToLogical)[localId] ?? localId;
+  return forgetRemovedAccount(map, logical, at, device);
 }
 
 /** Backward-compatible reader for maps written before cloud/secret addressing. */
@@ -233,6 +377,9 @@ export function normalizeAccountMap(map: Partial<ProfileAccountMap> | null | und
   }
   if (map?.removedLogical && Object.keys(map.removedLogical).length > 0) {
     normalized.removedLogical = { ...map.removedLogical };
+  }
+  if (map?.accountActs && Object.keys(map.accountActs).length > 0) {
+    normalized.accountActs = { ...map.accountActs };
   }
   return normalized;
 }
@@ -591,6 +738,8 @@ export async function importAccountMetadata(
   const previousMap = mergeRemovedAccounts(
     normalizeAccountMap(await ports.loadAccountMap()),
     values.removedAccounts,
+    new Date(),
+    values.accountActs,
   );
   const pimMap = new Map<string, string>();
   const mailMap = new Map<string, string>();
@@ -736,6 +885,7 @@ export async function importAccountMetadata(
     // Including what the document taught us — dropping it here would mean
     // re-importing the same deleted rows on the very next cycle.
     ...(previousMap.removedLogical ? { removedLogical: { ...previousMap.removedLogical } } : {}),
+    ...(previousMap.accountActs ? { accountActs: { ...previousMap.accountActs } } : {}),
   };
 
   const cloudMap = new Map<string, string>();

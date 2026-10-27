@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Folder, X } from "lucide-react";
-import { Button, CommittedTextInput, DAY_END_CHOICES, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, boundaryLabel, clampBoundary, okfBundleStatusLines, sanitizeDailyNoteFormat } from "@plainva/ui";
+import { Button, CommittedTextInput, DAY_END_CHOICES, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, boundaryLabel, clampBoundary, okfBundleStatusLines, sanitizeDailyNoteFormat, type CloudServiceId } from "@plainva/ui";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { ReminderSettings } from "../pim/ReminderSettings";
@@ -20,7 +20,7 @@ import { DEFAULT_ZIP_KEEP } from "../../services/backupPolicy";
  * semantics stay in SettingsModal and arrive as props.
  */
 
-export const PimPage: React.FC<{ isActiveVault: boolean; onOpenCloudAccounts: (accountRef?: string) => void }> = ({ isActiveVault, onOpenCloudAccounts }) => {
+export const PimPage: React.FC<{ isActiveVault: boolean; onOpenCloudAccounts: (accountRef?: string, service?: CloudServiceId) => void }> = ({ isActiveVault, onOpenCloudAccounts }) => {
   const { t } = useTranslation();
   return (
     <div>
@@ -45,7 +45,7 @@ export const PimPage: React.FC<{ isActiveVault: boolean; onOpenCloudAccounts: (a
 
 /** Email service page (cloud-accounts split): mailbox references + capture
  * behavior; connecting/removing mailboxes lives in the Cloud-Konten area. */
-export const MailPage: React.FC<{ isActiveVault: boolean; onOpenCloudAccounts: (accountRef?: string) => void }> = ({ isActiveVault, onOpenCloudAccounts }) => {
+export const MailPage: React.FC<{ isActiveVault: boolean; onOpenCloudAccounts: (accountRef?: string, service?: CloudServiceId) => void }> = ({ isActiveVault, onOpenCloudAccounts }) => {
   const { t } = useTranslation();
   return (
     <div>

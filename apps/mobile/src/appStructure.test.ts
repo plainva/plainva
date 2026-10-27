@@ -70,7 +70,11 @@ import { describe, expect, it } from "vitest";
 // services/navActions, and the shell pays one import and one call. The
 // conflict store binding (P1) had already used the slack the notifier left.
 // Connection-folder callbacks now live with their durable OAuth transaction.
-const APP_TSX_LINE_BUDGET = 793;
+// Lowered from 793 with issue 143: the vault's boot — its two paths, the
+// services that start and stop on it and the import restart — moved into
+// hooks/useVaultBoot when it gained a failure branch and a state to show, and
+// the boot surface itself is components/VaultBootSurface.
+const APP_TSX_LINE_BUDGET = 753;
 
 describe("mobile app structure ratchet", () => {
   it(`App.tsx stays within its ${APP_TSX_LINE_BUDGET}-line budget`, () => {

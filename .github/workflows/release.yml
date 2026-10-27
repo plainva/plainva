@@ -222,6 +222,16 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          # Plainva's own Google client for the desktop (docs/engineering/Google_Mail.md),
+          # read by Vite in tauri's beforeBuildCommand. Unset leaves the standard
+          # sign-in out of the build ("not included"), exactly as before. The ID
+          # and the mail state are repository variables like in the mobile
+          # workflows; the Desktop client's secret is not confidential to Google
+          # (an installed app) and ends up in the bundle, but it lives in
+          # `secrets.` so that it stays masked in the logs.
+          VITE_PLAINVA_GOOGLE_MAIL_STATE: ${{ vars.VITE_PLAINVA_GOOGLE_MAIL_STATE }}
+          VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_ID: ${{ vars.VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_ID }}
+          VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_SECRET }}
         with:
           releaseId: ${{ needs.prepare.outputs.release_id }}
           tagName: ${{ needs.prepare.outputs.release_tag }}
@@ -248,6 +258,10 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # The same Google client as the release build above.
+          VITE_PLAINVA_GOOGLE_MAIL_STATE: ${{ vars.VITE_PLAINVA_GOOGLE_MAIL_STATE }}
+          VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_ID: ${{ vars.VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_ID }}
+          VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_SECRET }}
         run: pnpm --filter desktop tauri build --bundles appimage --config src-tauri/tauri.onnxruntime.conf.json
 
       # Measure every AppImage we build (release or test): extract it, assert

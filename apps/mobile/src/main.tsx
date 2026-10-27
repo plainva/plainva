@@ -95,6 +95,9 @@ setPlatformServices({
   // Version for the `generated` stamps of import / mail capture / task sync
   // (OKF 0.2 provenance, plan P3b) — the same producer names as the desktop.
   appVersion: mobileAppVersion,
+  // A removed mailbox stays removed on the other devices too (review of plan "Verbinden", finding 1).
+  noteAccountRemoved: (vaultKey, kind, localId) => import("./services/mobileSettingsSync").then((m) => m.noteAccountRemovedLocally(vaultKey, kind, localId)),
+  noteAccountAdded: (vaultKey, kind, localId) => import("./services/mobileSettingsSync").then((m) => m.noteAccountAddedLocally(vaultKey, kind, localId)),
   openExternal: async (url) => {
     // window.open doesn't reliably reach the system browser inside the
     // Capacitor WebView; open web links in the in-app browser instead.

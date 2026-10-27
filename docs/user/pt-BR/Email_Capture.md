@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-10-23
+Última revisão: 2026-10-26
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -16,9 +16,9 @@ O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e lev
 
 Conectar valida o login antes de salvar qualquer coisa; as credenciais vão para o chaveiro do seu sistema operacional. As caixas de correio conectadas e as configurações de captura ficam depois na área **E-mail**: a configuração **Pasta de e-mail** escolhe onde os e-mails capturados são armazenados (padrão `Mail`).
 
-**Entrar em um segundo dispositivo.** Quando uma caixa de correio chega pela sincronização de configurações, a senha dela não vem junto automaticamente — os logins só são transferidos se você mesmo ativar a sincronização de credenciais. Essa caixa mostra o botão **Entrar neste dispositivo** na área **E-mail**: digite a senha e o Plainva a verifica com o provedor antes de guardá-la no chaveiro. Em uma caixa Microsoft, o mesmo botão leva a **Contas na nuvem**, porque é lá que o login acontece no navegador. Se isso deixar a lista de mensagens vazia, o mesmo aviso com o botão **Entrar neste dispositivo** aparece ali também — você não precisa procurar as configurações sozinho.
+**Entrar em um segundo dispositivo.** Quando uma caixa de correio chega pela sincronização de configurações, a senha dela não vem junto automaticamente — os logins só são transferidos se você mesmo ativar a sincronização de credenciais. Essa caixa mostra o botão **Entrar** na área **E-mail**: digite a senha e o Plainva a verifica com o provedor antes de guardá-la no chaveiro. Em uma caixa Microsoft, o mesmo botão leva a **Contas na nuvem**, porque é lá que o login acontece no navegador. Se isso deixar a lista de mensagens vazia, o mesmo aviso com o botão **Entrar** aparece ali também — você não precisa procurar as configurações sozinho.
 
-**Contas de e-mail sem senha.** Uma configuração que falhou ao salvar podia deixar uma entrada sem senha (Plainva 0.8.3 no desktop). A área **E-mail** aponta uma vez as contas que não têm senha neste dispositivo e nunca baixaram e-mails aqui. **Ver** mostra a lista. Se você usa uma dessas contas em outro dispositivo, escolha **Entrar neste dispositivo** — esse é então o caminho certo. **Remover** apaga a entrada depois de perguntar, em todos os dispositivos que sincronizam as configurações deste vault, nunca e-mails ou arquivos. **Depois** oculta o aviso. O Plainva nunca remove nada por conta própria.
+**Contas de e-mail sem senha.** Uma configuração que falhou ao salvar podia deixar uma entrada sem senha (Plainva 0.8.3 no desktop). A área **E-mail** aponta uma vez as contas que não têm senha neste dispositivo e nunca baixaram e-mails aqui. **Ver** mostra a lista. Se você usa uma dessas contas em outro dispositivo, escolha **Entrar** — esse é então o caminho certo. **Remover** apaga a entrada depois de perguntar, em todos os dispositivos que sincronizam as configurações deste vault, nunca e-mails ou arquivos. **Depois** oculta o aviso. O Plainva nunca remove nada por conta própria.
 
 ## Lendo e-mails
 
@@ -82,7 +82,7 @@ Você não precisa enviar de dentro do Plainva. Isto funciona com qualquer nota 
 
 ## Assinatura e endereços de remetente
 
-Em **Configurações → E-mail → Envio**, cada caixa postal tem dois ajustes próprios:
+Na página de e-mail da sua conta — **Contas na nuvem** → a conta → **E-mail**, ou a linha da caixa postal na área **E-mail** —, cada caixa postal tem dois ajustes próprios:
 
 - **Assinatura** — em Markdown, adicionada abaixo do seu texto ao escrever (e acima de um original citado ou encaminhado, onde o leitor espera encontrá-la). Trocar de remetente na janela de composição substitui a assinatura em vez de empilhar uma segunda. O campo usa o mesmo editor da janela de redação, então você vê a assinatura como ela será enviada.
 - **Assinatura por endereço** — quando você tiver outros endereços de remetente, aparece o seletor **Assinatura para** acima do campo. “Padrão (todos os endereços)” é a assinatura da conta; escolha um endereço para escrever uma só para ele. Endereços sem assinatura própria continuam usando a padrão, e trocar de remetente ao redigir coloca a correta — inclusive entre dois endereços da mesma conta. Se esvaziar o campo de um endereço, ele volta para a padrão.
@@ -102,7 +102,7 @@ Quando uma mensagem traz o cabeçalho `List-Unsubscribe`, o Plainva mostra no le
 
 ## Adiar
 
-Há correio que não é urgente nem está resolvido. **Adiar** tira uma mensagem da lista até um momento que você escolhe — mais tarde hoje, amanhã de manhã, no fim de semana ou na semana que vem. No computador a opção fica no menu de contexto da linha; no celular é também um gesto de deslizar. O botão **Adiados** os traz de volta à vista; a partir dali, **Trazer agora** devolve a mensagem à lista imediatamente.
+Há correio que não é urgente nem está resolvido. **Adiar** tira uma mensagem da lista até um momento que você escolhe — mais tarde hoje, amanhã de manhã, no fim de semana ou na semana que vem. A semana que vem é o primeiro dia da próxima semana conforme **Início da semana** — o mesmo dia do prazo de uma tarefa. No computador a opção fica no menu de contexto da linha; no celular é também um gesto de deslizar. O botão **Adiados** os traz de volta à vista; a partir dali, **Trazer agora** devolve a mensagem à lista imediatamente.
 
 Duas coisas que merecem ser ditas com clareza. Primeiro, adiar é um **marcador do próprio Plainva**, não um recurso do servidor: nem IMAP nem Microsoft têm algo assim. O marcador viaja com a sincronização de configurações, então uma mensagem adiada no celular também descansa no computador — em outro programa de e-mail ela está na caixa de entrada como sempre. Segundo, adiar esconde apenas a **lista da pasta** em que você fez isso: a busca e "Todas as caixas de entrada" continuam mostrando a mensagem. Adiado significa "fora do caminho", não "sumiu".
 

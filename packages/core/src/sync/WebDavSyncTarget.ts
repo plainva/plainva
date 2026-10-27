@@ -6,6 +6,48 @@ import { ConditionalWrites } from "./conditionalWrite.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
 import { trimChars, trimEndChars } from "../textScan.js";
+import { folderSegments } from "./folderIdentity.js";
+
+/**
+ * Canonical identity of a WebDAV files root (fourth review of plan
+ * "Verbinden", finding 1): scheme and host in lower case, a default port
+ * dropped, no trailing slash, segments decoded and NFC. Nextcloud and
+ * ownCloud serve the same files under `/remote.php/webdav/` and
+ * `/remote.php/dav/files/<user>/`; both become one form, and the owner goes
+ * into `account` (lower case: those servers sign in without regard to case,
+ * and two spellings of one user are never two targets). Undefined when the
+ * address cannot be read - then nothing can be compared.
+ */
+export function webDavFolderIdentity(url: string, user?: string): { root: string; account?: string } | undefined {
+  let parsed: URL;
+  try {
+    parsed = new URL(url.trim());
+  } catch {
+    return undefined;
+  }
+  const segments = folderSegments(parsed.pathname).map((segment) => {
+    try {
+      return decodeURIComponent(segment).normalize("NFC");
+    } catch {
+      return segment.normalize("NFC");
+    }
+  });
+  let owner: string | undefined;
+  const at = segments.findIndex((segment) => segment.toLowerCase() === "remote.php");
+  if (at >= 0) {
+    const next = segments[at + 1]?.toLowerCase();
+    if (next === "webdav") {
+      segments.splice(at, 2, "remote.php", "files");
+    } else if (next === "dav" && segments[at + 2]?.toLowerCase() === "files" && segments[at + 3]) {
+      owner = segments[at + 3].toLowerCase();
+      segments.splice(at, 4, "remote.php", "files");
+    }
+  }
+  const login = user?.trim().toLowerCase();
+  const account = login || owner;
+  const root = `${parsed.protocol.toLowerCase()}//${parsed.host.toLowerCase()}/${segments.join("/")}`;
+  return account ? { root, account } : { root };
+}
 
 export interface WebDavCredentials {
   url: string;

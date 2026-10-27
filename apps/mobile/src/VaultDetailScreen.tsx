@@ -9,8 +9,8 @@ import {
   getStoredProvider,
   getSyncStatus,
   listProviderFolders,
-  pauseProvider,
-  resumeProvider,
+  pauseSyncHere,
+  resumeSyncHere,
   restartSync,
   subscribeSyncStatus,
   syncNow,
@@ -52,6 +52,7 @@ export function VaultDetailScreen({
   onBack,
   onOpenSyncChain,
   onOpenSyncDiagnostics,
+  onOpenFilesAccount,
 }: {
   vaultId: string;
   activeVault: MobileVault;
@@ -60,6 +61,8 @@ export function VaultDetailScreen({
   onOpenSyncChain: () => void;
   /** What the settings sync last did here — its own destination (E3). */
   onOpenSyncDiagnostics: () => void;
+  /** The account that carries this vault's files, where it signs in on this phone (third review, finding 3). */
+  onOpenFilesAccount: () => void;
 }) {
   const { t } = useTranslation();
   const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
@@ -229,7 +232,7 @@ export function VaultDetailScreen({
     !isLocal ||
     (isActive && !!entry.provider) ||
     (isActive && canChangeRemoteFolder(entry.provider)) ||
-    !!(entry.provider && entry.paused) ||
+    !!(entry.provider && entry.pausedHere) ||
     entry.provider === "drive" ||
     entry.provider === "onedrive" ||
     entry.provider === "dropbox";
@@ -267,7 +270,7 @@ export function VaultDetailScreen({
               changed since it was connected, so it reports itself in the meta
               line together with the rest of the reading. */}
           <span className="m-statcard-head">
-            {isActive && entry.provider && !entry.paused ? (
+            {isActive && entry.provider && !entry.pausedHere ? (
               <>
                 {status.status === "error" ? (
                   <AlertTriangle className="m-error" size={ICON.ui} />
@@ -371,6 +374,14 @@ export function VaultDetailScreen({
             </ul>
           </Banner>
         )}
+        {/* Signed out on this phone: the status says "Sign-in needed" and leads
+            to the account, where the sign-in is - as the desktop's sync dialog
+            does (third review, finding 3). */}
+        {isActive && status.errorKind === "signed-out" && (
+          <Button variant="tonal" onClick={onOpenFilesAccount} data-testid="vault-files-signin">
+            {t("deviceSignIn.submit")}
+          </Button>
+        )}
         {isActive && (status.errorKind === "pair-required" || status.errorKind === "workspace-integrity") && (
           <Button variant="tonal" onClick={() => window.dispatchEvent(new CustomEvent("m-open-security"))}>
             {t("workspaceSecurity.openSecurity", { defaultValue: "Open Security & Sharing" })}
@@ -403,14 +414,14 @@ export function VaultDetailScreen({
         )}
         {/* A paused sync has exactly one thing to say, so it says it as the
             call to action rather than as the fourth row of a list. */}
-        {entry.provider && entry.paused && (
+        {entry.provider && entry.pausedHere && (
           <div className="m-sync-actions m-sync-actions--column">
             <Button
               variant="primary"
               disabled={busy}
               onClick={() => {
                 setBusy(true);
-                void resumeProvider(vaultId).finally(() => setBusy(false));
+                void resumeSyncHere(vaultId).finally(() => setBusy(false));
               }}
             >
               {t("mobile.syncResume")}
@@ -463,7 +474,7 @@ export function VaultDetailScreen({
                       setBusy(true);
                       void reconnectVault(vaultId).finally(() => setBusy(false));
                     }}
-                    title={t("mobile.reconnectAction")}
+                    title={t("cloudAccounts.reconnect")}
                   />
                 )}
                 {/* H2a: the cycle interval was hard-coded to 30 s on mobile
@@ -673,19 +684,19 @@ export function VaultDetailScreen({
         {/* Everything that cannot be undone by tapping again, behind its own
             outline and in the destructive colour — not the fourth tonal button
             of the same run. */}
-        {(!isLocal || (entry.provider && !entry.paused)) && (
+        {(!isLocal || (entry.provider && !entry.pausedHere)) && (
           <>
             <SectionLabel className="m-danger">{t("mobile.vaultGroupDanger")}</SectionLabel>
             <GroupCard tone="danger">
               <RowList>
-                {entry.provider && !entry.paused && (
+                {entry.provider && !entry.pausedHere && (
                   <Row
                     icon={<Unplug className="m-danger" size={ICON.ui} />}
                     onClick={() => {
                       setBusy(true);
-                      void pauseProvider(vaultId).finally(() => setBusy(false));
+                      void pauseSyncHere(vaultId).finally(() => setBusy(false));
                     }}
-                    title={<span className="m-danger">{t("mobile.syncDisconnect")}</span>}
+                    title={<span className="m-danger">{t("cloudAccounts.pauseSync")}</span>}
                   />
                 )}
                 {!isLocal && (

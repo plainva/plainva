@@ -1,4 +1,6 @@
-import { afterTaskSyncResume, clearPinboardCache, InlineSuggestProvider } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache, filesRunState, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor } from "@plainva/ui";
+import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
+import { announceCredentials } from "../services/credentialsAnnouncement";
 import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText, WORKSPACE_FORKS_FOLDER } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import { relocateDrafts } from "../services/draftJournal";
@@ -13,6 +15,7 @@ import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { fileBrokerTokenProvider } from "../services/accountBroker";
 import { migrateVaultGrants } from "../services/accountGrantMigration";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
+import { bindVaultSyncState, filesAccountIdForVault, filesIdentityForVault, filesOffForVault, isSyncPausedHere, markVaultSyncedBefore, queuesLocalChanges, syncedBeforeForVault } from "../services/filesSwitch";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
 import { settlePendingWrites } from "../services/pendingWrites";
@@ -26,7 +29,7 @@ import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } 
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
-import { CommentStoreLockedError, commentSignedByPerson } from "@plainva/core";
+import { CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson } from "@plainva/core";
 import type { JournalCheckResult } from "@plainva/core";
 import { desktopCommentOperations } from "../services/commentOperations";
 import { clientCommentOperations } from "../services/clientCommentOperations";
@@ -95,6 +98,8 @@ export interface VaultSyncWorker {
    */
   verifyDeletionJournal?: (onProgress?: (done: number, total: number) => void) => Promise<JournalCheckResult>;
   listPendingOperations(limit?: number): Promise<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> }>;
+  /** One settings push outside a cycle, the last act before files go off for the vault (review of plan "Verbinden", finding 4). */
+  pushSettingsNow?: () => Promise<void>;
 }
 
 interface VaultState {
@@ -688,6 +693,15 @@ export const VaultProvider: React.FC<{
   /** Last automatic refresh per half, for the focus/interval throttles (E4/E11). */
   const autoRefreshMarksRef = useRef({ local: 0, cloud: 0 });
   const syncTargetRef = useRef<ISyncTarget | null>(null);
+  /** The settings-only sync of a vault whose files are off (E3; second review, B3). */
+  const settingsOnlyRef = useRef<SettingsOnlySync | null>(null);
+  const stopSettingsOnly = async () => {
+    const running = settingsOnlyRef.current;
+    settingsOnlyRef.current = null;
+    await running?.stopAndDrain();
+  };
+  /** Whether files were off for the vault when it was opened - a change arriving with the profile reopens it. */
+  const filesOffAtLoadRef = useRef<{ path: string; filesOff: boolean } | null>(null);
   const syncProviderRef = useRef<SyncProviderId | null>(null);
   const workspaceStateRef = useRef<SqlWorkspaceStateStore | null>(null);
   const workspaceRuntimeRef = useRef<PersonalWorkspaceRuntime | null>(null);
@@ -748,6 +762,8 @@ export const VaultProvider: React.FC<{
         // writing into the very DB file the reload below re-opens/migrates.
         await state.syncWorker.stopAndDrain();
       }
+      // The settings-only sync of a vault with files off goes with it (second review, B3).
+      await stopSettingsOnly();
 
       // Keychain entries move to their readable names (P6) — deliberately NOT
       // awaited. It is a dozen keychain round-trips, and putting them in front
@@ -907,11 +923,26 @@ export const VaultProvider: React.FC<{
         { drive: driveCreds, onedrive: oneDriveCreds, dropbox: dropboxCreds, s3: s3Creds, webdav: webdavCreds },
         filesViaBroker
       );
-      const driveReady = fileAccess.ready.drive;
-      const oneDriveReady = fileAccess.ready.onedrive;
-      const dropboxReady = fileAccess.ready.dropbox;
-      const s3Ready = fileAccess.ready.s3;
-      const hasSyncTarget = fileAccess.provider !== null;
+      // Files switched off for the vault (E3) or paused on this device: the
+      // vault opens without a target and queues nothing (plan "Verbinden", V2/V3).
+      // Files off for the vault keeps the settings profile moving (settings
+      // only, second review B3); paused here or signed out stops everything.
+      const filesOffHere = await filesOffForVault(path);
+      const pausedHere = await isSyncPausedHere(path);
+      const filesRun = filesRunState({ filesOff: filesOffHere, pausedHere, signedOut: !!fileAccess.signedOut });
+      // Standing still is said the way the phone says it: paused reads as off,
+      // signed out here as "Sign-in needed", with the way to the sign-in (third
+      // review, finding 3). Signed out used to end as plain idle.
+      const stoppedStatus = filesRun === "stopped" ? filesStoppedStatus({ pausedHere, signedOut: !!fileAccess.signedOut }) : null;
+      const signInAccountId = stoppedStatus?.signInNeeded && fileAccess.blocked ? await filesAccountIdForVault(path, fileAccess.blocked) : undefined;
+      filesOffAtLoadRef.current = { path, filesOff: filesOffHere };
+      // The target is built for a settings-only vault too - it carries the profile.
+      const filesStopped = filesRun === "stopped";
+      const driveReady = !filesStopped && fileAccess.ready.drive;
+      const oneDriveReady = !filesStopped && fileAccess.ready.onedrive;
+      const dropboxReady = !filesStopped && fileAccess.ready.dropbox;
+      const s3Ready = !filesStopped && fileAccess.ready.s3;
+      const webdavReady = !filesStopped && fileAccess.ready.webdav;
       /**
        * A provider IS configured for this vault, but nothing can open it.
        * Without saying so the load ended as plain "idle" with no provider: the
@@ -920,13 +951,15 @@ export const VaultProvider: React.FC<{
        * 2026-08-19, same class as 2026-07-30). Being unable to reach an account
        * is a state worth showing, not a reason to go quiet.
        */
-      const unusableProvider = fileAccess.blocked;
+      const unusableProvider = filesRun === "running" ? fileAccess.blocked : null;
       const filesConfiguredWithoutAccess = unusableProvider !== null;
+      // Changes are queued for a vault with a provider even while its files stand still (review finding 4).
+      const queuesChanges = queuesLocalChanges(fileAccess);
 
       // Files created/modified outside Plainva's own write path (another editor, the OS)
       // are indexed but were never enqueued. Push them when this vault has a sync target.
       const enqueueLocalChange = async (changedPath: string) => {
-        if (!hasSyncTarget || changedPath.includes(".plainva") || changedPath.includes(".CONFLICT")) return;
+        if (!queuesChanges || changedPath.includes(".plainva") || changedPath.includes(".CONFLICT")) return;
         if (permissionedWorkspaceAdapter && !await permissionedWorkspaceAdapter.authorizeExternalChange(changedPath, true)) return;
         const queued = workspaceStateStore
           ? workspaceStateStore.enqueue("write", changedPath)
@@ -989,7 +1022,7 @@ export const VaultProvider: React.FC<{
           // the index removed: the mark answers for the file the worker took
           // away, not for a later one of that name (finding 2026-10-12).
           if (ownDeletions.consume(path, row)) return;
-          if (hasSyncTarget) {
+          if (queuesChanges) {
             if (permissionedWorkspaceAdapter) {
               void permissionedWorkspaceAdapter.authorizeExternalChange(path, false).then((allowed) => {
                 if (!allowed) return;
@@ -1281,7 +1314,9 @@ export const VaultProvider: React.FC<{
         // folder (finding 2026-09-20): not finding the folder is then an error
         // with a way out, not a reason to compare 1142 known files against an
         // empty one.
-        const hasSyncedBefore = await syncRepo.hasConfirmedRemoteFiles().catch(() => false);
+        // A fact of the vault, not of its records: a reset of the sync state
+        // never makes a vault that synced before "new" again (fifth review, 2).
+        const hasSyncedBefore = !rootCreationAllowed(await syncedBeforeForVault(path, syncRepo).catch(() => true));
         // Drive only: the folder id learned by NAME, kept until a listing of it
         // has held (see onFullListingTrusted below).
         let resolvedDriveRoot: { id: string; path: string } | null = null;
@@ -1371,7 +1406,7 @@ export const VaultProvider: React.FC<{
         } else if (s3Ready && s3Creds) {
           syncProvider = "s3";
           target = new S3SyncTarget(s3Creds, fetch, undefined, undefined, tauriSyncUploader);
-        } else if (webdavCreds && webdavCreds.url) {
+        } else if (webdavReady && webdavCreds && webdavCreds.url) {
           syncProvider = "webdav";
           // The fourth argument makes large writes stream from disk instead of
           // travelling through the webview (issue #48).
@@ -1389,7 +1424,18 @@ export const VaultProvider: React.FC<{
           const globalInterval = await settingsStore.get<number>("syncIntervalSeconds");
           const savedInterval = perVaultInterval ?? globalInterval;
           const intervalMs = Math.max(MIN_SYNC_INTERVAL_SECONDS, savedInterval ?? defaultSyncIntervalSeconds()) * 1000;
-          if (workspaceSecurityStatus && workspaceStateStore) {
+          if (filesRun === "settingsOnly") {
+            // Files are off for the vault (E3): no file worker, only the
+            // settings profile on the interval (second review, B3). No file
+            // target is published either, so nothing here offers a file sync.
+            syncTargetRef.current = null;
+            syncProviderRef.current = null;
+            const runner = await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, ...(workspaceRuntime ? { memberId: workspaceRuntime.memberId } : {}) });
+            if (runner && !currentAbortSignal.aborted) {
+              settingsOnlyRef.current = new SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs);
+              settingsOnlyRef.current.start();
+            }
+          } else if (workspaceSecurityStatus && workspaceStateStore) {
             const runtime = workspaceRuntime;
             if (!runtime) {
               // A locked workspace can be opened with what is on this device; a missing key
@@ -1505,6 +1551,22 @@ export const VaultProvider: React.FC<{
               }
             }
           } else {
+            // The queue and the per-file records belong to the folder they were
+            // made with: kept for the same one, dropped for another - before the
+            // worker below can push or compare anything (third review, finding 1).
+            const binding = syncStateBindingFor({
+              provider: syncProvider!,
+              webdav: syncProvider === "webdav" && webdavCreds ? { url: webdavCreds.url, user: webdavCreds.user } : undefined,
+              s3: syncProvider === "s3" && s3Creds ? { endpoint: s3Creds.endpoint, bucket: s3Creds.bucket, prefix: s3Creds.prefix } : undefined,
+              folder: syncProvider === "drive"
+                ? await readDriveDestination(path)
+                : syncProvider === "onedrive" || syncProvider === "dropbox" ? { path: await readSyncRootFolder(path, syncProvider) } : undefined,
+              identity: await filesIdentityForVault(path, syncProvider!),
+            });
+            // A reset never allows creating the folder: that stays a decision of
+            // its own (a new vault, a new folder chosen in the wizard), and the
+            // 2026-09-20 protection for a known vault holds (fourth review, 1c).
+            await bindVaultSyncState(path, binding, { queue: syncQueue, records: syncRepo });
             // Large writes stream from disk instead of travelling through the
             // IPC boundary as a number array (issue #48). The resolver only
             // answers for files past the threshold, and only targets that can
@@ -1565,6 +1627,8 @@ export const VaultProvider: React.FC<{
               syncStatusStore.set(path, { progress });
             };
             syncWorker.onFirstCycleComplete = () => {
+              // From now on a missing cloud folder is an error, never a new one (fifth review, 2).
+              void markVaultSyncedBefore(path).catch((e) => console.error("[VaultContext] could not record the first sync", e));
               // The vault has its remote content now, so anchored notes exist
               // and can be adopted rather than imported a second time (E7).
               firstSyncSettled = true;
@@ -1682,7 +1746,15 @@ export const VaultProvider: React.FC<{
       // Preserve the explicit locked status when an encrypted workspace has no
       // key material. The final load-state update below must not turn it idle.
       if (syncWorker || !workspaceSecurityStatus) {
-        if (!syncWorker && filesConfiguredWithoutAccess) {
+        if (!syncWorker && stoppedStatus?.signInNeeded) {
+          syncStatusStore.set(path, {
+            status: stoppedStatus.status,
+            message: i18n.t(stoppedStatus.messageKey),
+            provider: fileAccess.blocked,
+            authRecoverable: true,
+            signInAccountId,
+          });
+        } else if (!syncWorker && filesConfiguredWithoutAccess) {
           // Saying nothing here is what made the failure invisible: the card
           // still read "connected", the status bar stayed idle, and only the
           // absence of arriving files gave it away.
@@ -2177,6 +2249,18 @@ export const VaultProvider: React.FC<{
       }
     };
 
+    // Files switched off or on for the vault - here, or on another device and
+    // arriving with the settings profile (second review, B3): the vault opens
+    // again in the other mode. Through the announcement, so an open account
+    // page keeps its place until it is left.
+    const handleFilesSwitch = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { vaultPath?: string } | undefined;
+      const atLoad = filesOffAtLoadRef.current;
+      if (!state.vaultPath || !atLoad || atLoad.path !== state.vaultPath) return;
+      if (detail?.vaultPath && detail.vaultPath !== state.vaultPath) return;
+      void filesOffForVault(state.vaultPath).then((off) => { if (off !== atLoad.filesOff) announceCredentials(false); });
+    };
+
     const handleSyncQueued = () => {
       if (state.syncWorker) {
         state.syncWorker.triggerImmediate();
@@ -2231,6 +2315,7 @@ export const VaultProvider: React.FC<{
 
     window.addEventListener("plainva-workspace-security-changed", handleWorkspaceSecurityChanged);
     window.addEventListener("plainva-credentials-saved", handleCredentialsSaved);
+    window.addEventListener(CLOUD_ACCOUNTS_EVENT, handleFilesSwitch);
     window.addEventListener("plainva-sync-queued", handleSyncQueued);
     window.addEventListener("plainva-settings-sync-toggled", handleSettingsSyncToggled);
     // Encryption state changed (passphrase set/unlocked/locked): reopen the vault
@@ -2242,6 +2327,7 @@ export const VaultProvider: React.FC<{
     return () => {
       window.removeEventListener("plainva-workspace-security-changed", handleWorkspaceSecurityChanged);
       window.removeEventListener("plainva-credentials-saved", handleCredentialsSaved);
+      window.removeEventListener(CLOUD_ACCOUNTS_EVENT, handleFilesSwitch);
       window.removeEventListener("plainva-sync-queued", handleSyncQueued);
       window.removeEventListener("plainva-settings-sync-toggled", handleSettingsSyncToggled);
       window.removeEventListener("plainva-encryption-changed", handleEncryptionChanged);
@@ -2301,9 +2387,13 @@ export const VaultProvider: React.FC<{
     //
     // The caller is a React unmount cleanup and cannot await, so the promise is
     // parked: whoever opens this vault next waits for it (`loadVault`).
+    const settingsOnly = settingsOnlyRef.current;
+    settingsOnlyRef.current = null;
+    settingsOnly?.stop();
     const drain = (async () => {
       if (path) await settlePendingWrites(path);
       await worker?.stopAndDrain();
+      await settingsOnly?.stopAndDrain();
       await state.indexer?.whenIdle?.();
       await state.indexQueue?.whenIdle();
     })();

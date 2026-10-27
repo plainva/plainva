@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-10-23
+Last reviewed: 2026-10-26
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -16,9 +16,9 @@ Plainva can read your mailbox to get knowledge out of email and into your vault,
 
 Connecting validates the login before anything is saved; the credentials go into your operating system's keychain. The connected mailboxes and the capture settings then live in the **Email** area: the **Mail folder** setting chooses where captured emails are stored (default `Mail`).
 
-**Signing in on a second device.** When a mailbox travels with the settings sync, its password does not come along automatically — sign-ins are only transferred if you switch the credentials sync on yourself. Such a mailbox shows a **Sign in on this device** button in the **Email** area: type the password, and Plainva checks it with the provider before storing it in the keychain. For a Microsoft mailbox the same button leads to **Cloud accounts**, because that is where the browser sign-in happens. When this leaves the message list empty, the same notice and the same button appear there as well — you do not have to go looking for the settings yourself.
+**Signing in on a second device.** When a mailbox travels with the settings sync, its password does not come along automatically — sign-ins are only transferred if you switch the credentials sync on yourself. Such a mailbox shows a **Sign in** button in the **Email** area: type the password, and Plainva checks it with the provider before storing it in the keychain. For a Microsoft mailbox the same button leads to **Cloud accounts**, because that is where the browser sign-in happens. When this leaves the message list empty, the same notice and the same button appear there as well — you do not have to go looking for the settings yourself.
 
-**Email accounts without a password.** A setup that failed while saving could leave an entry without a password behind (Plainva 0.8.3 on the desktop). The **Email** area points out, once, the accounts that have no password on this device and have never fetched mail here. **View** shows the list. If you use such an account on another device, choose **Sign in on this device** — that is the right way then. **Remove** deletes the entry after asking, on every device that syncs this vault's settings, never mail or files. **Later** hides the notice. Plainva never removes anything on its own.
+**Email accounts without a password.** A setup that failed while saving could leave an entry without a password behind (Plainva 0.8.3 on the desktop). The **Email** area points out, once, the accounts that have no password on this device and have never fetched mail here. **View** shows the list. If you use such an account on another device, choose **Sign in** — that is the right way then. **Remove** deletes the entry after asking, on every device that syncs this vault's settings, never mail or files. **Later** hides the notice. Plainva never removes anything on its own.
 
 ## Reading mail
 
@@ -82,7 +82,7 @@ You don't have to send from within Plainva. These work on any note and need no S
 
 ## Signature and sender addresses
 
-Under **Settings → E-Mail → Sending** each mailbox carries two settings of its own:
+On the mail page of its account — **Cloud accounts** → the account → **Email**, or the mailbox's row in the **Email** area — each mailbox carries two settings of its own:
 
 - **Signature** — Markdown, added below what you write when composing (and above a quoted or forwarded original, where a reader expects it). Switching sender in the compose window swaps the signature instead of stacking a second one. The field is the same editor as the compose window, so you see the signature the way it will be sent.
 - **Signature per address** — once you have additional sender addresses, a **Signature for** selector appears above the field. “Default (all addresses)” is the account signature; pick an address to write one just for it. Addresses without their own signature keep using the default, and switching sender while composing swaps in the right one — including between two addresses of the same account. Empty an address's field and it falls back to the default.
@@ -102,7 +102,7 @@ When a message carries a `List-Unsubscribe` header, Plainva shows an **Unsubscri
 
 ## Snoozing
 
-Some mail is not urgent and not done either. **Snooze** takes a message out of the list until a moment you pick — later today, tomorrow morning, this weekend or next week. On the desktop the entry sits in the row's context menu, on the phone it is a swipe action as well. The **Snoozed** button brings them back into view; from there **Bring back now** returns a message to the list immediately.
+Some mail is not urgent and not done either. **Snooze** takes a message out of the list until a moment you pick — later today, tomorrow morning, this weekend or next week. Next week is the first day of next week as set under **Week starts on** — the same day a task's due date means by it. On the desktop the entry sits in the row's context menu, on the phone it is a swipe action as well. The **Snoozed** button brings them back into view; from there **Bring back now** returns a message to the list immediately.
 
 Two things about it that deserve saying plainly. First, snoozing is **Plainva's own marker**, not a server feature: neither IMAP nor Microsoft has such a thing. The marker travels with the settings sync, so a message snoozed on the phone rests on the desktop too — in another mail program it sits in the inbox as usual. Second, snoozing only hides the **list of the folder** you did it in: search and "All inboxes" still show the message. Snoozed means "not in my way", not "gone".
 

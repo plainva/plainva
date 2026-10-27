@@ -1,4 +1,4 @@
-import { getPlatformServices } from "@plainva/ui";
+import { filesRunState, filesStoppedStatus, getPlatformServices, isSignedOutSlot } from "@plainva/ui";
 import { fileBrokerTokenProvider } from "./accountBroker";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 
@@ -27,6 +27,11 @@ export interface MobileFileSyncAccess {
    * Worth saying out loud; going quiet is what made the failure invisible.
    */
   blocked: boolean;
+  /**
+   * Blocked because "Sign out on this device" dropped the password, secret key
+   * or token here (plan "Verbinden", V2): the fix is signing in, not "again".
+   */
+  signedOut?: boolean;
 }
 
 /** Pure decision, so both callers can be tested without a keychain. */
@@ -40,6 +45,9 @@ export function resolveMobileFileAccess(
 ): MobileFileSyncAccess {
   if (!entryProvider) return { ready: false, blocked: false };
   if (!stored || stored.provider !== entryProvider) return { ready: false, blocked: true };
+  // Only the mark sign-out leaves says "signed out"; an empty password alone is a server without one.
+  const signedOut = isSignedOutSlot(stored, "creds");
+  if (signedOut) return { ready: false, blocked: true, signedOut: true };
 
   const creds = stored.creds as {
     refreshToken?: string;
@@ -56,6 +64,44 @@ export function resolveMobileFileAccess(
         : // Dropbox has no broker family: its token is always its own.
           !!creds.refreshToken || (stored.provider === "drive" && !!creds.nativeGoogle?.email) || (stored.provider !== "dropbox" && filesViaBroker);
   return { ready, blocked: !ready };
+}
+
+/**
+ * Whether the active vault's sync worker may start, and what the status says
+ * when it may not. Every way the files stand still is a decision here, not a
+ * failure - the person paused them (`pausedHere`, their own switch, never
+ * touched by the app's own pause), the app paused them (`paused`, a password
+ * change in flight), or files are off for the vault (E3) - except two: a vault
+ * signed out on this phone, which must not ask the provider with an emptied
+ * password (review of plan "Verbinden", finding 3), and a slot nothing here
+ * opens.
+ */
+export type MobileSyncStart =
+  | { start: true; settingsOnly: boolean }
+  | { start: false; status: "off" | "error"; messageKey: string | null; queueLocalChanges: boolean; signInNeeded?: true };
+
+export function mobileSyncStart(input: {
+  pausedHere?: boolean;
+  filesOff: boolean;
+  entryProvider?: string;
+  stored: MobileSyncProvider | null;
+}): MobileSyncStart {
+  // A vault with a provider keeps queueing what changes on this phone while
+  // its sync stands still, so turning it on again sends what changed in the
+  // meantime (review finding 4); a vault without one has nothing to send to.
+  const queueLocalChanges = !!input.entryProvider;
+  const signedOut = !!input.stored && isSignedOutSlot(input.stored, "creds");
+  const run = filesRunState({ filesOff: input.filesOff, pausedHere: !!input.pausedHere, signedOut });
+  if (run === "stopped") {
+    // The same answer the desktop gives (third review, finding 3).
+    const still = filesStoppedStatus({ pausedHere: !!input.pausedHere, signedOut });
+    return still.signInNeeded
+      ? { start: false, status: still.status, messageKey: still.messageKey, queueLocalChanges, signInNeeded: true }
+      : { start: false, status: still.status, messageKey: still.messageKey, queueLocalChanges };
+  }
+  if (!input.stored) return input.entryProvider ? { start: false, status: "error", messageKey: "cloudAccounts.filesNoAccess", queueLocalChanges } : { start: false, status: "off", messageKey: null, queueLocalChanges };
+  // Files off for the vault: no file moves, the settings profile keeps travelling (second review, B3).
+  return { start: true, settingsOnly: run === "settingsOnly" };
 }
 
 /** Whether the account-wide token of this vault covers the file service. */

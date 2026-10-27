@@ -2772,6 +2772,27 @@ button.pv-acct:hover { background: var(--state-hover); }
   white-space: nowrap;
 }
 .pv-acct-chevron { color: var(--text-faint); flex-shrink: 0; }
+/* The account page (plan "Verbinden", V2): the head carries the ONE state as a
+   pill and at most one button; the end section's two actions sit in one row.
+   The same pill is the state of a row in the account list, in both shells. */
+.pv-acct-head { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+.pv-acct-state {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: var(--surface-container);
+  color: var(--text-muted);
+}
+.pv-acct-state--connected { background: var(--success-bg); color: var(--success-text); }
+.pv-acct-state--signin,
+.pv-acct-state--expired { background: var(--warning-bg); color: var(--warning-text); }
+.pv-acct-ctlrow { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3); }
 
 .pv-svcchip-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
 .pv-svcchip {
@@ -3112,8 +3133,79 @@ button.pv-acct:hover { background: var(--state-hover); }
    glyph follows --taskbox-size — 18px with a pointer, 24px under a finger. */
 .pv-iconbtn--taskbox svg { width: var(--taskbox-size); height: var(--taskbox-size); }
 .pv-iconbtn--taskbox.is-done { color: var(--accent-color); }
+/* One task box on the phone (wish E9, 2026-10-24). Under a finger the lists,
+   Today, the journal and the note's text (the editor's `.cm-md-task`, also the
+   reading view) draw the SAME square: --md-task-size, --taskbox-radius, a
+   --taskbox-line border; done fills it with the accent and a tick, in progress
+   fills its lower half, cancelled strikes it through on a muted line. The
+   pointer densities keep their glyphs and the native box — the desktop's
+   denser rows are drawn for a mouse. The target around it stays the button's
+   (--touch-sm) or the editor's hit span. */
+.pv-taskbox-glyph { display: inline-flex; align-items: center; justify-content: center; }
+.pv-taskbox-face { display: none; }
+[data-density="touch"] .pv-taskbox-glyph > svg { display: none; }
+[data-density="touch"] .pv-taskbox-face,
+[data-density="touch"] .cm-editor input.cm-md-task {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: var(--md-task-size);
+  height: var(--md-task-size);
+  margin: 0;
+  border: var(--taskbox-line) solid var(--text-faint);
+  border-radius: var(--taskbox-radius);
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+[data-density="touch"] .pv-taskbox-face[data-state="done"],
+[data-density="touch"] .cm-editor input.cm-md-task:checked {
+  border-color: var(--accent-color);
+  background: var(--accent-color);
+}
+[data-density="touch"] .pv-taskbox-face[data-state="done"]::after,
+[data-density="touch"] .cm-editor input.cm-md-task:checked::after {
+  content: "";
+  width: 28%;
+  height: 52%;
+  border: solid var(--accent-on);
+  border-width: 0 var(--taskbox-line) var(--taskbox-line) 0;
+  transform: translateY(-12%) rotate(45deg);
+}
+[data-density="touch"] .pv-taskbox-face[data-state="progress"],
+[data-density="touch"] .cm-editor input.cm-md-task.cm-md-task--progress {
+  border-color: var(--accent-color);
+  background: linear-gradient(to top, var(--accent-color) 50%, transparent 50%);
+}
+[data-density="touch"] .pv-taskbox-face[data-state="cancelled"],
+[data-density="touch"] .cm-editor input.cm-md-task.cm-md-task--cancelled:checked {
+  border-color: var(--text-muted);
+  background: transparent;
+}
+[data-density="touch"] .pv-taskbox-face[data-state="cancelled"]::after,
+[data-density="touch"] .cm-editor input.cm-md-task.cm-md-task--cancelled:checked::after {
+  content: "";
+  width: 64%;
+  height: 0;
+  border: 0;
+  border-top: var(--taskbox-line) solid var(--text-muted);
+  transform: none;
+}
 .pv-planner-source { margin-left: auto; font-size: var(--text-sm); color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 16rem; }
 .pv-planner-segment { margin-bottom: var(--space-2); }
+/* The title of a task in any task list (TaskTitle, wish E3): inline code and a
+   highlight as the text has them; a link wears .pv-wiki-link / .pv-web-link. */
+.pv-task-title code { background: var(--code-bg); border-radius: var(--radius-xs); padding: 0 var(--space-1); font-size: 0.9em; }
+.pv-task-title mark { background: var(--highlight-bg); color: inherit; border-radius: var(--radius-xs); }
+/* The bullets under a task (wish E6): up to two muted lines at the head of the
+   row's meta line, each cut at its end — a preview, the note has the rest. */
+.pv-planner-details { flex-basis: 100%; min-width: 0; font-size: var(--text-sm); color: var(--text-muted); }
+.pv-planner-details > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-planner-details > span::before { content: "• "; color: var(--text-faint); }
+/* "Done (n)" under what is due (wish E5): a quiet row of the same card, the
+   finished tasks folded in below it. */
+.pv-planner-donefold { color: var(--text-muted); }
+.pv-planner-donefold .pv-grouprow-title { font-size: var(--text-sm); }
 
 .pv-capture { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-3) 0; }
 .pv-capture-box { position: relative; }

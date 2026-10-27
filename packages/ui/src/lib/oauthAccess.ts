@@ -143,7 +143,60 @@ export function readStoredOAuthAccess(value: unknown): StoredOAuthAccess | null 
   };
 }
 
+/**
+ * Google projects Plainva used and retired, by project number - the part of a
+ * client id before the first dash (K7, 2026-10-26: `plainva-spike`).
+ *
+ * No build ever shipped a client of it: while there was no standard sign-in,
+ * testers entered its clients as their own, and Google now answers
+ * "Error 401: deleted_client". Every such device moves back to the standard
+ * sign-in once; a client of any other project stays the person's choice.
+ */
+const RETIRED_GOOGLE_PROJECTS: readonly string[] = ["835308879715"];
+
+export function isRetiredPlainvaClient(family: OAuthFamily, clientId: string | undefined): boolean {
+  if (family !== "google" || !clientId) return false;
+  const project = clientId.trim().split("-")[0] ?? "";
+  return RETIRED_GOOGLE_PROJECTS.includes(project);
+}
+
+/** The access a stored choice is replaced with, once, or null to keep it. */
+export function retiredAccessReplacement(family: OAuthFamily, stored: StoredOAuthAccess | null): StoredOAuthAccess | null {
+  return stored?.source === "own" && isRetiredPlainvaClient(family, stored.clientId) ? { source: "plainva" } : null;
+}
+
 /** Whether a stored grant was made with the access of this device. */
 export function grantUsesAccess(grant: { clientId: string; clientSecret?: string }, access: OAuthAccess): boolean {
   return grant.clientId === access.clientId && (access.clientSecret === undefined || grant.clientSecret === access.clientSecret);
+}
+
+/**
+ * The client this device signs in with, as the account page names it (plan
+ * "Verbinden", V0): "Standard sign-in", or "Own client ID (…a1b2c3)" - the
+ * tail is enough to recognise a client in the provider's console without
+ * printing the whole id. Before, the phone's page said only that there was
+ * an access, so a client that Google had deleted signed in through the browser
+ * into "Error 401: deleted_client" with nothing on screen naming it.
+ */
+export function shortClientId(clientId: string): string {
+  const head = clientId.split(".")[0] ?? clientId;
+  return head.length > 6 ? `…${head.slice(-6)}` : head;
+}
+
+export function accessLineText(
+  resolved: AccessResolution,
+  t: (key: string, options?: Record<string, unknown>) => string,
+  problemKey: (problem: AccessProblem) => string,
+): string {
+  if (!resolved.ok) return t(problemKey(resolved.problem));
+  return resolved.access.source === "plainva" ? t("accountAccess.plainva") : t("accountAccess.ownLine", { id: shortClientId(resolved.access.clientId) });
+}
+
+/**
+ * Whether "Use standard sign-in" can help: this device signs in with an own
+ * client, and this build carries the standard one for the platform.
+ */
+export function standardAccessAvailable(family: OAuthFamily, platform: AccessPlatform, stored: StoredOAuthAccess | null, env: Record<string, unknown>): boolean {
+  if (stored?.source !== "own") return false;
+  return family === "microsoft" || !!plainvaGoogleClient(env, platform);
 }

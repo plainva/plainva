@@ -1,6 +1,6 @@
 # 配置Google Drive同步（自备凭据）
 
-更新日期：2026-10-23
+更新日期：2026-10-26
 
 Plainva通过**此设备的登录方式**登录Google。如果你的版本为Google包含了**标准登录**，你无需输入任何内容，也不需要这一页。否则——或者你更愿意用自己的项目——就使用你自己的Google API凭据：这种**自备凭据（BYO）** 方式为同步你的私人文件提供了一种安全的途径。
 
@@ -66,7 +66,7 @@ Plainva通过**此设备的登录方式**登录Google。如果你的版本为Goo
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-上面的桌面端步骤需要桌面客户端的客户端 ID 及其对应的密钥。在手机上，无论 Android 还是 iOS，Plainva 都在浏览器中登录 Google：请在你的 Google 项目中创建一个 **iOS** 类型的 OAuth 客户端(Android 也是如此)，软件包 ID 填写 `com.plainva.app`。Plainva 通过 `com.plainva.app:/oauth2redirect` 返回；没有客户端密钥。请在手机上把客户端 ID 填入**此设备的登录方式** → **自有客户端 ID**。不要创建 Android 类型的客户端：Google 在全球只允许一个项目登记 Play 版本的软件包名称和证书指纹，其他项目一律被拒绝(“Android 软件包名称和指纹已被使用”)。为 Plainva 0.8.3 或 0.8.4 配置的 Android 客户端无法用于新的登录；已登录的账号继续可用。桌面客户端不能替代移动端注册。使用日历时，还需启用 Google Calendar API 和 Google Tasks API。
+上面的桌面端步骤需要桌面客户端的客户端 ID 及其对应的密钥。在手机上，无论 Android 还是 iOS，Plainva 都在浏览器中登录 Google：请在你的 Google 项目中创建一个 **iOS** 类型的 OAuth 客户端(Android 也是如此)，软件包 ID 填写 `com.plainva.app`。Plainva 通过 `com.plainva.app:/oauth2redirect` 返回；没有客户端密钥。请在手机上把客户端 ID 填入**此设备的登录方式** → **自有客户端 ID**。不要创建 Android 类型的客户端：Google 在全球只允许一个项目登记 Play 版本的软件包名称和证书指纹，其他项目一律被拒绝(“Android 软件包名称和指纹已被使用”)。为 Plainva 0.8.3 或 0.8.4 配置的 Android 客户端无法用于新的登录；已登录的账号继续可用。桌面客户端不能替代移动端注册。使用日历时，还需启用 Google Calendar API 和 Google Tasks API。如果手机上 Google 显示“错误 400：redirect_uri_mismatch”，说明该客户端 ID 的类型是“桌面应用”：请按此处说明创建类型为 **iOS** 的客户端，并改为填写它的客户端 ID。在客户端 ID 输入框下方，**打开 Google 指南** 会跳转到本节。
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 

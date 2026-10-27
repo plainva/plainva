@@ -85,6 +85,9 @@ setPlatformServices({
   // Readable keychain names (P6). Registered here so the shared mail module
   // uses them too — mobile registers nothing and keeps the legacy shape.
   keychainSlotName,
+  // A removed mailbox stays removed on the other devices too (review of plan "Verbinden", finding 1).
+  noteAccountRemoved: (vaultKey, kind, localId) => import("./services/settingsProfile").then((m) => m.noteAccountRemovedLocally(vaultKey, kind, localId)),
+  noteAccountAdded: (vaultKey, kind, localId) => import("./services/settingsProfile").then((m) => m.noteAccountAddedLocally(vaultKey, kind, localId)),
 });
 
 // The mail seam (feinplan G0.1): IMAP/SMTP go to the Rust commands, Graph HTTP

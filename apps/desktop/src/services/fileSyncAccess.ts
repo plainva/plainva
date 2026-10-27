@@ -1,5 +1,5 @@
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
-import type { SyncProviderId } from "@plainva/ui";
+import { isSignedOutSlot, type SyncProviderId } from "@plainva/ui";
 import { fileBrokerTokenProvider } from "./accountBroker";
 import {
   credentialManager,
@@ -42,6 +42,11 @@ export interface FileSyncAccess {
    * made the failure invisible.
    */
   blocked: SyncProviderId | null;
+  /**
+   * The blocked provider lost its password, secret key or token to "Sign out
+   * on this device" (plan "Verbinden", V2): signing in is the fix.
+   */
+  signedOut?: boolean;
 }
 
 /** Pure decision, so both callers can be tested without a keychain. */
@@ -56,7 +61,7 @@ export function resolveFileSyncAccess(slots: SyncSlots, filesViaBroker: { drive:
     // Dropbox has no broker family: its token is always its own.
     dropbox: !!(dropbox && dropbox.appKey && dropbox.refreshToken),
     s3: !!(s3 && s3.endpoint && s3.bucket && s3.accessKeyId && s3.secretAccessKey && s3.region),
-    webdav: !!(webdav && webdav.url),
+    webdav: !!(webdav && webdav.url && !isSignedOutSlot(webdav)),
   };
 
   // Same precedence as the settings form; the XOR rule means at most one slot
@@ -88,7 +93,10 @@ export function resolveFileSyncAccess(slots: SyncSlots, filesViaBroker: { drive:
                 ? "webdav"
                 : null;
 
-  return { provider, ready, blocked };
+  const blockedSlot = blocked ? slots[blocked] : null;
+  // Only the mark sign-out leaves says "signed out"; an empty password alone is a server without one.
+  const signedOut = !!blockedSlot && isSignedOutSlot(blockedSlot);
+  return { provider, ready, blocked, ...(signedOut ? { signedOut } : {}) };
 }
 
 /** Reads this vault's slots (a missing/unreadable slot counts as absent). */

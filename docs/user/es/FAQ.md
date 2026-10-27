@@ -1,6 +1,6 @@
 # FAQ y solución de problemas
 
-Última actualización: 2026-10-22
+Última actualización: 2026-10-26
 
 Respuestas a las preguntas más frecuentes — desde la compatibilidad con Obsidian hasta los archivos en conflicto y las copias de seguridad.
 
@@ -70,7 +70,7 @@ Para resolverlo, **Comparar versiones** (clic derecho en el archivo de conflicto
 
 ### Mi inicio de sesión de Google caduca constantemente
 
-Con la configuración "Bring Your Own", tu proyecto de Google permanece en modo de prueba; Google entonces termina la sesión a los 7 días. Plainva renueva los tokens automáticamente en segundo plano, pero una vez caducados, usa **Volver a conectar** en la configuración de sincronización. Detalles: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
+Con la configuración "Bring Your Own", tu proyecto de Google permanece en modo de prueba; Google entonces termina la sesión a los 7 días. Plainva renueva los tokens automáticamente en segundo plano, pero una vez caducados, usa **Volver a conectar** en la página de la cuenta bajo **Cuentas en la nube**. Detalles: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
 ### Mi vault vive en una carpeta de OneDrive/Dropbox/iCloud y Plainva se comporta de forma extraña
 
@@ -82,7 +82,7 @@ Se guardan localmente como de costumbre y se acumulan en una cola; en cuanto vue
 
 ### La barra de estado dice Sin conexión aunque tengo internet
 
-Entonces la propia conexión de sincronización está rota — a menudo porque el inicio de sesión ha caducado o las credenciales han cambiado (p. ej. con Google Drive). Haz clic en **Sin conexión** en la barra de estado o en el triángulo de advertencia junto al nombre del vault: el diálogo muestra el mensaje de error exacto, y **Abrir configuración de sincronización** te lleva directamente al formulario del proveedor correspondiente, donde restableces la conexión (p. ej. **Volver a conectar**). Cada clic también dispara de inmediato un nuevo intento de sincronización.
+Entonces la propia conexión de sincronización está rota — a menudo porque el inicio de sesión ha caducado o las credenciales han cambiado (p. ej. con Google Drive). Haz clic en **Sin conexión** en la barra de estado o en el triángulo de advertencia junto al nombre del vault: el diálogo muestra el mensaje de error exacto, y **Abrir configuración de sincronización** te lleva a la configuración de sincronización; la página de la cuenta bajo **Cuentas en la nube** muestra su estado y ofrece **Iniciar sesión** o **Volver a conectar** directamente en su cabecera. Cada clic también dispara de inmediato un nuevo intento de sincronización.
 
 ### ¿Por qué falta el proveedor X (Proton, Tuta, iCloud Drive …)?
 

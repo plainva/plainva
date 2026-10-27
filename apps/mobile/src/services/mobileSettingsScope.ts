@@ -187,6 +187,12 @@ export interface VaultScopedSettings {
   meetingTemplate: string;
   defaultCalendar: string;
   /**
+   * The calendars' own colours, chosen on their account's calendar page (plan
+   * "Verbinden", V3): "<accountId> <calendarId>" -> hex. Per vault and
+   * device-local, like the desktop's key: the provider's colour is what travels.
+   */
+  calendarColors: Record<string, string>;
+  /**
    * The name "Mark as reviewed" writes as `verified: human:<name>` (OKF 0.2,
    * plan P3b, D1). Per vault and DEVICE-LOCAL like `navigatorTab`: it is the
    * person at this phone, not a setting to carry to another device — so it
@@ -245,6 +251,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "meetingFolder",
   "meetingTemplate",
   "defaultCalendar",
+  "calendarColors",
   "verifierName",
 ];
 
@@ -299,6 +306,7 @@ export function vaultDefaults(): VaultScopedSettings {
     meetingFolder: profileDefault<string>("meetingFolder")!,
     meetingTemplate: profileDefault<string>("meetingNoteTemplate")!,
     defaultCalendar: profileDefault<string>("defaultCalendar")!,
+    calendarColors: {},
     mailRemoteImages: profileDefault<boolean>("mailRemoteImages")!,
     commentAnchors: profileDefault<boolean>("commentAnchors")!,
     // Off until asked for: switching on is what draws the baseline (FB3), and
@@ -357,6 +365,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     meetingFolder: src.meetingFolder ?? d.meetingFolder,
     meetingTemplate: src.meetingTemplate ?? d.meetingTemplate,
     defaultCalendar: src.defaultCalendar ?? d.defaultCalendar,
+    calendarColors: src.calendarColors ?? d.calendarColors,
     mailRemoteImages: src.mailRemoteImages ?? d.mailRemoteImages,
     commentAnchors: src.commentAnchors ?? d.commentAnchors,
     commentNotifyEnabled: src.commentNotifyEnabled ?? d.commentNotifyEnabled,

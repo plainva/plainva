@@ -112,6 +112,7 @@ export const PROFILE_DEFAULTS: Readonly<Record<string, unknown>> = Object.freeze
   mailAccounts: Object.freeze([]),
   cloudAccounts: Object.freeze([]),
   removedAccounts: Object.freeze({}),
+  accountActs: Object.freeze({}),
   bookmarks: Object.freeze([]),
 });
 
@@ -303,6 +304,23 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   // row left one device and every other device handed it straight back
   // (E1, finding 2026-08-19).
   { logical: "removedAccounts", scope: "member", kind: "json", area: "accounts", desktop: "own", mobile: "own" },
+  // Every removal and every deliberate add per account id, ordered by a
+  // logical counter (reviews of plan "Verbinden", B1): a mailbox with a
+  // stable id came back under the id the deletions still named, and a device
+  // with a fast clock could outrank an add made after its removal.
+  // `removedAccounts` stays the field older builds read; it is derived from
+  // the winning acts. What an older build (before this field) does with it:
+  // - it does not know the field and keeps it as an unknown value (desktop
+  //   and phone since 0.5.0), so a single-person profile carries it through
+  //   unchanged; in a workspace with a personal file per member it is not a
+  //   personal field there, so that build leaves it out of the member file
+  //   it writes and a current device puts it back on its next cycle;
+  // - it never learns of an add: it keeps its own removal of the id, hides
+  //   the account on that device and keeps publishing the removal until the
+  //   retention window ends or the device is updated;
+  // - a removal made there has no counter and ranks below every act of a
+  //   current build, so after an add it removes the account only on itself.
+  { logical: "accountActs", scope: "member", kind: "json", area: "accounts", desktop: "own", mobile: "own" },
   { logical: "bookmarks", scope: "member", kind: "json", area: "accounts", desktop: "own", mobile: "own" },
   // No canonical empty default: explicit [] clears folders; an absent field
   // means a profile from an older client and must preserve them.

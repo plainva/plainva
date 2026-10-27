@@ -11,7 +11,7 @@ import {
   type PimAccountRow,
   type PimStatus,
 } from "@plainva/core";
-import { formatPimCycle, logDiagnostic } from "@plainva/ui";
+import { formatPimCycle, isSignedOutSlot, logDiagnostic } from "@plainva/ui";
 import { getPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
 
@@ -84,7 +84,12 @@ export function createPimRuntime(opts: {
     // those accounts, every cycle, in silence: no target, no error, and an empty
     // calendar list that looked like the account had nothing (finding
     // 2026-07-30). The row itself carries what is needed to ask the broker.
-    const creds = (await getPimCredentials(opts.vaultPath, account.id))  ?? brokerBackedCredentials(account);
+    const stored = await getPimCredentials(opts.vaultPath, account.id);
+    // Signed out on this device (review of plan "Verbinden", finding 3): no
+    // target, so no request goes out with an emptied password - a provider
+    // locks an account out after a run of them (iCloud, Nextcloud).
+    if (stored && isSignedOutSlot(stored)) return null;
+    const creds = stored ?? brokerBackedCredentials(account);
     if (!creds) return null;
     if (creds.kind === "caldav") {
       return new CalDavPimTarget({ url: creds.url, user: creds.user, pass: creds.pass }, httpFetch);

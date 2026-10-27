@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-10-24
+Dernière mise à jour : 2026-10-25
 
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
@@ -28,6 +28,8 @@ Les quatre filtres de la barre de bureau apparaissent sur le téléphone sous fo
 ## Lire la liste
 
 Les tâches sont regroupées par note ; le titre de la note est un en-tête sur lequel vous pouvez cliquer pour ouvrir la note. Chaque tâche affiche sa case à cocher et son texte, barré une fois qu'elle est terminée. Une **date d'échéance** écrite sous la forme `📅 2026-08-01` dans la ligne de tâche apparaît comme un petit badge.
+
+Un lien dans le texte d'une tâche s'affiche comme son texte : `[[Alexander Gaas|Alex]]` affiche **Alex**, `[[Personnes/Anna]]` affiche **Anna**, avec l'aspect d'un lien. Un clic ou un appui sur le lien ouvre cette note ; un clic sur le reste de la ligne ouvre la tâche. Cela vaut pour chaque liste de tâches, sur le bureau comme sur le téléphone. Un lien vers une note qui n'existe pas encore a l'aspect qu'il a dans l'éditeur — atténué et en pointillés —, et un clic dessus crée la note.
 
 ## Filtrer
 
@@ -177,3 +179,16 @@ D'autres façons d'y entrer : **Nouvelle tâche** dans le menu de la zone de not
 ## Cocher depuis un widget
 
 La case du widget **Aujourd’hui** enregistre une demande : la coche apparaît aussitôt, la note change à la prochaine ouverture de Plainva, et c’est alors que la récurrence et la synchronisation ont lieu. Jusque-là, la ligne indique **appliqué à l’ouverture de Plainva**. Une tâche terminée, supprimée ou déplacée entre-temps est laissée telle quelle. Sur iPhone, cela demande iOS 17 ; en dessous, un appui sur la ligne ouvre la tâche. Détails : [L’application mobile](Mobile_App.md).
+
+<!-- task-rows-2026-10-24 -->
+## Sous-tâches, puces et ce qui est terminé aujourd'hui
+
+**Sous-tâches.** Une case à cocher en retrait sous une autre est sa sous-tâche, comme `show tree` dans le plugin Tasks d'Obsidian. Dans les listes **Aujourd'hui**, **À venir**, **Boîte de réception** et **Terminées**, une tâche porte ses sous-tâches en retrait sous elle — ouvertes et terminées, ces dernières barrées — et une flèche en bout de ligne les replie. Une sous-tâche ayant sa propre date figure aussi à son propre jour ; une sous-tâche sans date est listée sous sa tâche et non seule dans la **Boîte de réception**. La liste **Toutes** garde chaque case à cocher dans l'ordre de sa note.
+
+**Puces.** Les puces simples en retrait sous une tâche — questions, remarques — s'affichent sous son titre comme un aperçu de deux lignes au plus ; la note garde le reste.
+
+Les deux sont activées tant que vous ne les désactivez pas : **Sous-tâches** et **Puces** se trouvent avec les autres filtres (cases à cocher sur le bureau, rangée de filtres sur le téléphone) et sont mémorisées avec eux.
+
+**Terminées aujourd'hui.** Sous **Aujourd'hui**, une ligne repliée **Terminées (n)** rassemble ce qui a été coché aujourd'hui — une case à cocher selon sa date d'achèvement `✅` (que Plainva écrit à chaque coche), une entrée de la base de tâches selon le jour où sa note a été modifiée pour la dernière fois, car une base n'a pas de date d'achèvement propre. Une case terminée sans date n'est pas comptée : rien n'indique quand elle a été terminée. Le pli est fermé tant que vous ne l'ouvrez pas ; l'appareil mémorise votre choix. L'écran **Aujourd'hui** du téléphone montre le même pli sous **À échéance**.
+
+**La case sur le téléphone.** Dans l'éditeur, en mode lecture, dans la zone Tâches et sous **Aujourd'hui**, le téléphone dessine chaque case de tâche de la même façon : grande et arrondie, remplie d'une coche quand elle est terminée, à moitié remplie pour **En cours**, barrée pour **Annulée**. Le bureau garde ses cases plus petites, conçues pour la souris.

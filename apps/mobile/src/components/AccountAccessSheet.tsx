@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { OAuthAccessEditor, plainvaGoogleClient, type OAuthFamily, type StoredOAuthAccess } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
@@ -16,9 +16,15 @@ export function AccountAccessSheet({
   family,
   onCancel,
   onSaved,
+  title,
+  extra,
 }: {
   family: OAuthFamily;
   onCancel: () => void;
+  /** "Other sign-in" of the add flow (plan "Verbinden", E5) names the sheet itself. */
+  title?: string;
+  /** Further ways to sign in below the access (Gmail by app password, E5). */
+  extra?: ReactNode;
   /** Called once the choice is stored; the caller usually signs in again. */
   onSaved: () => void;
 }) {
@@ -34,7 +40,7 @@ export function AccountAccessSheet({
     <div className="m-sheet-backdrop" onClick={onCancel}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()} data-testid="account-access-sheet">
         <SheetGrip onClose={onCancel} />
-        <p className="m-sheet-title">{t(family === "google" ? "accountAccess.title.google" : "accountAccess.title.microsoft")}</p>
+        <p className="m-sheet-title">{title ?? t(family === "google" ? "accountAccess.title.google" : "accountAccess.title.microsoft")}</p>
         {value !== undefined && (
           <OAuthAccessEditor
             family={family}
@@ -48,6 +54,7 @@ export function AccountAccessSheet({
             onCancel={onCancel}
           />
         )}
+        {extra}
       </div>
     </div>
   );

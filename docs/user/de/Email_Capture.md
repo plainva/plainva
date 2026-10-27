@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-10-23
+Stand: 2026-10-26
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -16,9 +16,9 @@ Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen
 
 Beim Verbinden wird die Anmeldung geprüft, bevor irgendetwas gespeichert wird; die Zugangsdaten landen im Schlüsselbund Deines Betriebssystems. Die verbundenen Postfächer und die Ablage-Einstellungen findest Du danach im Bereich **E-Mail**: die Einstellung **E-Mail-Ordner** bestimmt, wo abgelegte E-Mails gespeichert werden (Standard `Mail`).
 
-**Auf einem zweiten Gerät anmelden.** Reist ein Postfach über die Einstellungs-Synchronisation mit, kommt sein Passwort nicht automatisch mit — Anmeldungen werden nur übertragen, wenn Du den Zugangsdaten-Sync ausdrücklich einschaltest. Ein solches Postfach zeigt im Bereich **E-Mail** den Knopf **Auf diesem Gerät anmelden**: Passwort eingeben, Plainva prüft es beim Anbieter und legt es erst danach im Schlüsselbund ab. Bei einem Microsoft-Postfach führt derselbe Knopf zu **Cloud-Konten**, weil dort die Anmeldung im Browser läuft. Bleibt die Nachrichtenliste deswegen leer, steht derselbe Hinweis mit demselben Knopf auch dort — Du musst die Einstellungen dafür nicht selbst suchen.
+**Auf einem zweiten Gerät anmelden.** Reist ein Postfach über die Einstellungs-Synchronisation mit, kommt sein Passwort nicht automatisch mit — Anmeldungen werden nur übertragen, wenn Du den Zugangsdaten-Sync ausdrücklich einschaltest. Ein solches Postfach zeigt im Bereich **E-Mail** den Knopf **Anmelden**: Passwort eingeben, Plainva prüft es beim Anbieter und legt es erst danach im Schlüsselbund ab. Bei einem Microsoft-Postfach führt derselbe Knopf zu **Cloud-Konten**, weil dort die Anmeldung im Browser läuft. Bleibt die Nachrichtenliste deswegen leer, steht derselbe Hinweis mit demselben Knopf auch dort — Du musst die Einstellungen dafür nicht selbst suchen.
 
-**E-Mail-Konten ohne Passwort.** Eine Einrichtung, die beim Speichern scheiterte, konnte einen Eintrag ohne Passwort zurücklassen (Plainva 0.8.3 am Desktop). Der Bereich **E-Mail** weist einmal auf Konten hin, die auf diesem Gerät kein Passwort haben und hier noch nie Mails abgerufen haben. **Ansehen** zeigt die Liste. Nutzt Du ein solches Konto auf einem anderen Gerät, wähle **Auf diesem Gerät anmelden** — das ist dann der richtige Weg. **Entfernen** löscht den Eintrag nach einer Rückfrage auf allen Geräten, die die Einstellungen dieses Vaults abgleichen, nie Mails oder Dateien. **Später** blendet den Hinweis aus. Von sich aus entfernt Plainva nichts.
+**E-Mail-Konten ohne Passwort.** Eine Einrichtung, die beim Speichern scheiterte, konnte einen Eintrag ohne Passwort zurücklassen (Plainva 0.8.3 am Desktop). Der Bereich **E-Mail** weist einmal auf Konten hin, die auf diesem Gerät kein Passwort haben und hier noch nie Mails abgerufen haben. **Ansehen** zeigt die Liste. Nutzt Du ein solches Konto auf einem anderen Gerät, wähle **Anmelden** — das ist dann der richtige Weg. **Entfernen** löscht den Eintrag nach einer Rückfrage auf allen Geräten, die die Einstellungen dieses Vaults abgleichen, nie Mails oder Dateien. **Später** blendet den Hinweis aus. Von sich aus entfernt Plainva nichts.
 
 ## Mails lesen
 
@@ -82,7 +82,7 @@ Du musst nicht aus Plainva heraus senden. Das hier funktioniert an jeder Notiz u
 
 ## Signatur und Absender-Adressen
 
-Unter **Einstellungen → E-Mail → Senden** hat jedes Postfach zwei eigene Einstellungen:
+Auf der E-Mail-Seite seines Kontos — **Cloud-Konten** → das Konto → **E-Mail**, oder die Zeile des Postfachs im Bereich **E-Mail** — hat jedes Postfach zwei eigene Einstellungen:
 
 - **Signatur** — Markdown, wird beim Verfassen unter Deinen Text gesetzt (und über einem zitierten oder weitergeleiteten Original, wo ein Leser sie erwartet). Wechselst Du im Verfassen-Fenster den Absender, wird die Signatur ausgetauscht statt eine zweite anzuhängen. Das Feld ist derselbe Editor wie im Verfassen-Fenster — Du siehst die Signatur also so, wie sie verschickt wird.
 - **Signatur je Adresse** — hast Du weitere Absender-Adressen hinterlegt, erscheint über dem Feld die Auswahl **Signatur für**. „Standard (alle Adressen)" ist die Signatur des Kontos; wählst Du eine Adresse, schreibst Du eine eigene nur für sie. Adressen ohne eigene Signatur nutzen weiter die Standard-Signatur, und ein Wechsel des Absenders im Verfassen-Fenster tauscht die richtige ein — auch zwischen zwei Adressen desselben Kontos. Leerst Du das Feld einer Adresse, fällt sie auf den Standard zurück.
@@ -102,7 +102,7 @@ Trägt eine Nachricht die Kopfzeile `List-Unsubscribe`, zeigt Plainva im Leser e
 
 ## Zurückstellen
 
-Manche Post ist nicht dringend, aber auch nicht erledigt. **Zurückstellen** nimmt eine Nachricht bis zu einem Zeitpunkt aus der Liste — später heute, morgen früh, am Wochenende oder nächste Woche. Am Rechner steht der Punkt im Rechtsklickmenü der Zeile, am Telefon zusätzlich als Wischaktion. Der Knopf **Zurückgestellte** holt sie sichtbar zurück; von dort bringt **Jetzt zurückholen** eine Nachricht sofort in die Liste.
+Manche Post ist nicht dringend, aber auch nicht erledigt. **Zurückstellen** nimmt eine Nachricht bis zu einem Zeitpunkt aus der Liste — später heute, morgen früh, am Wochenende oder nächste Woche. Nächste Woche ist der erste Tag der nächsten Woche, wie unter **Wochenbeginn** eingestellt — derselbe Tag wie bei der Fälligkeit einer Aufgabe. Am Rechner steht der Punkt im Rechtsklickmenü der Zeile, am Telefon zusätzlich als Wischaktion. Der Knopf **Zurückgestellte** holt sie sichtbar zurück; von dort bringt **Jetzt zurückholen** eine Nachricht sofort in die Liste.
 
 Zwei Dinge dazu, die ehrlich gesagt sein wollen. Erstens ist Zurückstellen **Plainvas eigener Merker**, keine Server-Funktion: weder IMAP noch Microsoft kennen so etwas. Der Merker reist über die Einstellungs-Synchronisation mit, also ruht eine am Telefon zurückgestellte Nachricht auch am Rechner — in einem anderen Mailprogramm liegt sie dagegen ganz normal im Posteingang. Zweitens versteckt Zurückstellen nur die **Liste des Ordners**, in dem Du es getan hast: die Suche und „Alle Posteingänge" zeigen die Nachricht weiterhin. Zurückgestellt heißt „nicht im Weg", nicht „weg".
 

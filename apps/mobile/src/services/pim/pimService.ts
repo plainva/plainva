@@ -20,11 +20,12 @@ import { getActiveVaultEntry } from "../vaultRegistry";
 import { applyTemplateInteractive } from "../templateInteractive";
 import { getMobileSettings } from "../mobileSettings";
 import { getPimCredentials, savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
+import { pimTargetCredentials } from "./pimTargetCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { assertConnectionIdentity, formatPimCycle, logDiagnostic, ServiceConnectionError, timedDevicePimPort, withAccountCredentialLock, type ServiceConnectionContext } from "@plainva/ui";
+import { assertConnectionIdentity, formatPimCycle, logDiagnostic, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
 import { noteAccountRemovedLocally } from "../mobileSettingsSync";
@@ -52,6 +53,7 @@ import {
   type ShownEventRow,
   pendingEventWrites,
   writeEventOptimistically,
+  etagStamp,
   type EventTargets,
   parseGoogleUserInfo,
   type VerifiedProviderProfile,
@@ -108,7 +110,8 @@ async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<
   if (account.provider === "device") {
     return isDevicePimSupported() ? new DevicePimTarget(timedDevicePimPort(devicePimPort(), (line) => logDiagnostic("device", line))) : null;
   }
-  const creds = await getPimCredentials(vaultId, account.id);
+  // None for an account signed out on this phone (review finding 3).
+  const creds = await pimTargetCredentials(vaultId, account.id);
   if (!creds) return null;
   if (creds.kind === "caldav") {
     void allowHttpOrigin(creds.url);
@@ -127,7 +130,7 @@ export async function startPim(vault: MobileVault): Promise<void> {
   // to its card before the calendar starts (account sign-in plan K2).
   const { migrateVaultGrants } = await import("../accountGrantMigration");
   await migrateVaultGrants(vault.vaultId).catch((e) => console.error("[pim] moving sign-ins to their accounts failed", e));
-  return startPimRuntime(vault, {
+  await startPimRuntime(vault, {
     buildTarget: buildTargetFor,
     accountAuthRevision: async (vaultId, account) =>
       account.provider === "device" ? undefined : (await getPimCredentials(vaultId, account.id))?.loginRevision,
@@ -136,6 +139,9 @@ export async function startPim(vault: MobileVault): Promise<void> {
     // The other half of "did a change made in Reminders arrive here" (T4).
     onDeviceChanged: () => logDiagnostic("device", "store changed, cycle requested"),
   });
+  // A calendar switched off for the vault on another device stands still here too (E3).
+  const { applyCalendarSwitches } = await import("../serviceSwitches");
+  await applyCalendarSwitches(vault.vaultId).catch(() => undefined);
 }
 
 /** True while this vault carries the device account (at most one, plan E7). */
@@ -175,9 +181,21 @@ export async function connectDevicePimAccount(label: string): Promise<{ ok: true
 /** "Check connection" (account sign-in plan E6): reads the account's calendars with what this phone holds; throws when that fails. */
 export async function checkPimAccount(vaultId: string, accountId: string): Promise<void> {
   const row = (await listPimAccounts()).find((entry) => entry.id === accountId);
-  const target = row ? await buildTargetFor(vaultId, row) : null;
-  if (!target) throw new Error("not connected");
+  // Said in words, not as a bare English "not connected" that reached the row
+  // as the provider's answer (plan "Verbinden", V0): no calendar account here
+  // is "not connected yet", one without a sign-in here is "not signed in".
+  if (!row) throw new ServiceCheckError("failed", "connection.notConnected");
+  const target = await buildTargetFor(vaultId, row);
+  if (!target) throw new ServiceCheckError("signin");
   await target.listCalendars();
+}
+
+/** A calendar account running or standing still here (the account switch of plan "Verbinden", E3); its cache stays. */
+export async function setPimAccountEnabled(accountId: string, enabled: boolean): Promise<void> {
+  const row = (await listPimAccounts()).find((entry) => entry.id === accountId);
+  if (!row || !runtime || row.enabled === enabled) return;
+  await runtime.cache.upsertAccount({ ...row, enabled });
+  if (enabled) pimSyncNow();
 }
 
 export async function listPimAccounts(): Promise<PimAccountRow[]> {
@@ -225,6 +243,13 @@ async function reconcilePendingEventWrites(): Promise<void> {
   const found: PimEventRow[] = [];
   for (const write of writes) {
     const ref = write.kind === "create" ? write.row : write.ref;
+    if (write.kind === "stamp") {
+      // A stamp speaks about every row of its object (R2): a series' master
+      // and occurrences share the etag, so they are all asked for.
+      const rows = await cache.findEventsByUid(ref.uid.split("#")[0]).catch(() => []);
+      found.push(...rows.filter((row) => row.accountId === ref.accountId && row.calendarId === ref.calendarId));
+      continue;
+    }
     const row = await cache.getEventByUid(ref.accountId, ref.calendarId, ref.uid).catch(() => null);
     if (row) found.push(row);
   }
@@ -653,9 +678,14 @@ export async function updatePimEvent(
   loaded: readonly PimEventRow[] = [],
 ): Promise<FollowedWriteOutcome> {
   const move = moveToCalendarKey ? splitCalendarKey(moveToCalendarKey) : null;
-  const out = await updateEventWithBlockers(followDeps(), event, draft, { moveTo: move, loaded });
-  if (out.kind !== "conflict") pimSyncNow({ afterWrite: true });
-  return out;
+  // Pulled after every outcome (R2): a conflict or a refusal is exactly when
+  // the screen needs the provider's current state - the next try is sent with
+  // what that pull brings.
+  try {
+    return await updateEventWithBlockers(followDeps(), event, draft, { moveTo: move, loaded });
+  } finally {
+    pimSyncNow({ afterWrite: true });
+  }
 }
 
 /** The blockers of an event, for the question a deletion asks about them. */
@@ -693,9 +723,11 @@ export async function detachPimBlocker(
   source: PimEventRow | null,
 ): Promise<EventWriteOutcome> {
   const move = moveToCalendarKey ? splitCalendarKey(moveToCalendarKey) : null;
-  const out = await detachBlockerAndUpdate(followDeps(), blocker, draft, { moveTo: move, source });
-  if (out.kind !== "conflict") pimSyncNow({ afterWrite: true });
-  return out;
+  try {
+    return await detachBlockerAndUpdate(followDeps(), blocker, draft, { moveTo: move, source });
+  } finally {
+    pimSyncNow({ afterWrite: true });
+  }
 }
 
 /** After "Block in other calendars": the event's own list gains the new blockers. */
@@ -785,11 +817,20 @@ export async function openMeetingNoteFor(
   return { path: res.path, created: res.created };
 }
 
-/** Deletes an event and — where the user said so — the blockers that mirror it (K3). */
-export async function deletePimEvent(event: PimEventRow, blockers: readonly ResolvedBlocker[] = []): Promise<BlockFollowReport> {
-  const report = await deleteEventWithBlockers(followDeps(), event, blockers);
-  pimSyncNow({ afterWrite: true });
-  return report;
+/**
+ * Deletes an event and — where the user said so — the blockers that mirror it (K3).
+ *
+ * A refused delete pulls as well (issue 119, R2): until then the phone threw
+ * before the pull, and "Try again" was sent with the same stale etag, for as
+ * long as the next scheduled cycle took. `anyway` is the second call after a
+ * `PimConflictError`, with the etag the conflict named on `event`.
+ */
+export async function deletePimEvent(event: PimEventRow, blockers: readonly ResolvedBlocker[] = [], options: { anyway?: boolean } = {}): Promise<BlockFollowReport> {
+  try {
+    return await deleteEventWithBlockers(followDeps(), event, blockers, options);
+  } finally {
+    pimSyncNow({ afterWrite: true });
+  }
 }
 
 /** Responds to an invitation (accept/decline/tentative) via the account's target. */
@@ -800,8 +841,13 @@ export async function respondToPimEvent(event: PimEventRow, response: "accepted"
   const target = await runtime.buildTarget(account);
   if (!target?.respondToEvent) throw new Error("responding is not supported for this account");
   const respond = target.respondToEvent.bind(target);
-  await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: event, patch: { selfResponse: response } }, () =>
-    respond({ calendarId: event.calendarId, uid: event.uid, etag: event.etag, href: event.href }, response),
+  const change = { kind: "update" as const, ref: event, patch: { selfResponse: response } };
+  // The answer changes the event's etag; the screens hold the new one (R2).
+  await writeEventOptimistically(
+    pendingEventWrites,
+    change,
+    () => respond({ calendarId: event.calendarId, uid: event.uid, etag: event.etag, href: event.href }, response),
+    (written) => [change, ...etagStamp(event, written ? written.etag : undefined)],
   );
   pimSyncNow({ afterWrite: true });
 }

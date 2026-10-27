@@ -111,11 +111,22 @@ describe("a row with an action can be swiped", () => {
       );
     }
     // One definition: both lists come from `taskRowActions`, the swipe keeps
-    // what is marked `swipe`, the sheet is the whole list plus "open".
-    const swipeDef = src.slice(src.indexOf("const swipeActions"), src.indexOf("const swipeActions") + 300);
+    // what is marked `swipe`, the sheet is the whole list plus "open" — in
+    // the hook every task list of the phone reads (E1, 2026-10-24).
+    const kit = read("components/useTaskRowActions.tsx");
+    const swipeDef = kit.slice(kit.indexOf("const swipeActions"), kit.indexOf("const swipeActions") + 300);
     expect(swipeDef).toContain("taskRowActions(t, a)");
     expect(swipeDef).toMatch(/\.filter\(\(s\) => s\.swipe\)/);
-    expect(src).toMatch(/\.\.\.rowActions\(taskSheet\)\.map/);
+    expect(kit).toMatch(/\.\.\.rowActions\(taskSheet\)\.map/);
+    expect(src).toMatch(/useTaskRowActions\(/);
+  });
+
+  it("covers a task under Today → Due, with the tasks tab's own list (E1)", () => {
+    const src = read("screens/TodayScreen.tsx");
+    expect(src).toMatch(/useTaskRowActions\(/);
+    const row = src.slice(src.indexOf("const taskRow = ("), src.indexOf("data-testid=\"today-task-row\""));
+    expect(row, "the Due row is not swipeable").toContain("<SwipeRow actions={taskRows.swipeActions(acts)}");
+    expect(row).toContain("const acts = taskRows.capsOf(row);");
   });
 
   it("hands every swipe row a swipe list, never a whole sheet", () => {
@@ -123,10 +134,10 @@ describe("a row with an action can be swiped", () => {
     // list that is filtered for `swipe`, picked by name, or built for the swipe.
     // The conversation row builds its list for the swipe alone: the only
     // capability it hands over is deleting the whole conversation.
-    const allowed = /^(swipeActions|swipeFor)\(|\.filter\(\(a\) => a\.swipe\)|pickRowActions\(|^mailRowActions\(t, \{ delete: [^,}]*\}\)/;
+    const allowed = /^(swipeActions|swipeFor|taskRows\.swipeActions)\(|\.filter\(\(a\) => a\.swipe\)|pickRowActions\(|^mailRowActions\(t, \{ delete: [^,}]*\}\)/;
     let seen = 0;
     // The home screen's full lists (E8, 2026-10-24) swipe their rows like the file list.
-    for (const file of ["screens/TasksScreen.tsx", "screens/BrowseScreen.tsx", "screens/JournalScreen.tsx", "screens/MailListScreen.tsx", "screens/RecentScreen.tsx", "BookmarksScreen.tsx"]) {
+    for (const file of ["screens/TasksScreen.tsx", "screens/TodayScreen.tsx", "screens/BrowseScreen.tsx", "screens/JournalScreen.tsx", "screens/MailListScreen.tsx", "screens/RecentScreen.tsx", "BookmarksScreen.tsx"]) {
       const src = read(file);
       for (let at = src.indexOf("<SwipeRow"); at >= 0; at = src.indexOf("<SwipeRow", at + 1)) {
         const open = src.indexOf("actions={", at) + "actions={".length;

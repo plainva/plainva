@@ -1,6 +1,6 @@
 # FAQ & dépannage
 
-Dernière mise à jour : 2026-10-22
+Dernière mise à jour : 2026-10-26
 
 Réponses aux questions les plus courantes — de la compatibilité Obsidian aux fichiers en conflit et aux sauvegardes.
 
@@ -70,7 +70,7 @@ Pour le résoudre, **Comparer les versions** (clic droit sur le fichier de confl
 
 ### Ma connexion Google expire sans cesse
 
-Avec la configuration « Bring Your Own », votre projet Google reste en mode test ; Google met alors fin à la session au bout de 7 jours. Plainva renouvelle les jetons automatiquement en arrière-plan, mais une fois expirée, utilisez **Se reconnecter** dans les paramètres de synchronisation. Détails : [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
+Avec la configuration « Bring Your Own », votre projet Google reste en mode test ; Google met alors fin à la session au bout de 7 jours. Plainva renouvelle les jetons automatiquement en arrière-plan, mais une fois expirée, utilisez **Se reconnecter** sur la page du compte sous **Comptes cloud**. Détails : [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
 ### Mon vault vit dans un dossier OneDrive/Dropbox/iCloud et Plainva se comporte étrangement
 
@@ -82,7 +82,7 @@ Elles sont enregistrées localement comme d'habitude et rassemblées dans une fi
 
 ### La barre d'état indique Hors ligne alors que j'ai internet
 
-Alors c'est la connexion de synchronisation elle-même qui est rompue — souvent parce que la connexion a expiré ou que les identifiants ont changé (p. ex. avec Google Drive). Cliquez sur **Hors ligne** dans la barre d'état ou sur le triangle d'avertissement à côté du nom du vault : le dialogue affiche le message d'erreur exact, et **Ouvrir les paramètres de synchronisation** vous amène directement au formulaire du fournisseur concerné où vous rétablissez la connexion (p. ex. **Se reconnecter**). Chaque clic déclenche aussi immédiatement une nouvelle tentative de synchronisation.
+Alors c'est la connexion de synchronisation elle-même qui est rompue — souvent parce que la connexion a expiré ou que les identifiants ont changé (p. ex. avec Google Drive). Cliquez sur **Hors ligne** dans la barre d'état ou sur le triangle d'avertissement à côté du nom du vault : le dialogue affiche le message d'erreur exact, et **Ouvrir les paramètres de synchronisation** vous amène aux paramètres de synchronisation ; la page du compte sous **Comptes cloud** montre son état et propose **Se connecter** ou **Se reconnecter** directement dans son en-tête. Chaque clic déclenche aussi immédiatement une nouvelle tentative de synchronisation.
 
 ### Pourquoi le fournisseur X manque-t-il (Proton, Tuta, iCloud Drive …) ?
 

@@ -88,12 +88,17 @@ describe("Android Google authorization", () => {
     // ...except to sign in again an account whose grant Play services holds, with the same client.
     expect(native.googleSignInFlow("users-own.apps.googleusercontent.com", ["users-own.apps.googleusercontent.com"])).toBe("native");
     expect(native.googleSignInFlow("another.apps.googleusercontent.com", ["users-own.apps.googleusercontent.com"])).toBe("browser");
-    vi.stubEnv("VITE_PLAINVA_GOOGLE_MAIL_STATE", "testing");
+    // The build's own client: the gate asks whether it is configured, not
+    // Google's publishing state — a project moved to production must not lose
+    // the system sign-in.
     vi.stubEnv("VITE_PLAINVA_GOOGLE_ANDROID_CLIENT_ID", own);
-    expect(native.googleSignInFlow(own)).toBe("native");
-    expect(native.googleSignInFlow("users-own.apps.googleusercontent.com")).toBe("browser");
-    // The gate of the shipped entry stays: outside "testing" there is none.
-    vi.stubEnv("VITE_PLAINVA_GOOGLE_MAIL_STATE", "production");
+    for (const state of ["", "testing", "production"]) {
+      vi.stubEnv("VITE_PLAINVA_GOOGLE_MAIL_STATE", state);
+      expect(native.googleSignInFlow(own), `publishing state "${state}"`).toBe("native");
+      expect(native.googleSignInFlow("users-own.apps.googleusercontent.com")).toBe("browser");
+    }
+    // Without a configured client there is none, whatever the state says.
+    vi.stubEnv("VITE_PLAINVA_GOOGLE_ANDROID_CLIENT_ID", "");
     expect(native.googleSignInFlow(own)).toBe("browser");
     vi.unstubAllEnvs();
   });

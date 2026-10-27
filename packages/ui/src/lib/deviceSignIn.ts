@@ -1,6 +1,7 @@
 import { getPlatformServices } from "../platform/services";
 import { needsReauthorisation } from "./authErrors";
 import { readSlot } from "./keychainSlots";
+import { isSignedOutSlot } from "./accountSignOut";
 
 /**
  * "Is this account signed in ON THIS DEVICE?" (plan P7, lifted to shared in P2).
@@ -88,7 +89,8 @@ export function createDeviceSignIn(slots: DeviceSlotBuilders): DeviceSignIn {
         credentialKey(kind, vault, accountId),
         legacyKey,
       );
-      return secret ? "active" : "signin";
+      // A slot whose password "Sign out on this device" emptied is no sign-in (plan "Verbinden", V2).
+      return secret && !isSignedOutSlot(secret) ? "active" : "signin";
     } catch {
       return "signin";
     }
@@ -127,6 +129,52 @@ export function accountRowState(signIn: DeviceSignInState, lastError?: string | 
   // more precise statement of the two.
   if (signIn !== "active") return signIn;
   return needsReauthorisation(lastError) ? "expired" : "active";
+}
+
+/**
+ * The ONE state an account card shows, in the list and on its page, in both
+ * shells (plan "Verbinden", V0).
+ *
+ * A Google or Microsoft card signs in once for every service it carries (the
+ * account sign-in plan, K2/K4): that one sign-in IS the card's state. The phone
+ * used to fold the per-service slots instead, and since K2 those slots are
+ * deliberately empty - a calendar without a slot of its own turned a card that
+ * was validly signed in into "anmelden", and a card whose sign-in was gone
+ * still read as signed in as long as an emptied slot existed. The desktop list
+ * asked the card first but fell back to the same slots.
+ *
+ * What the services report still counts where it is a real failure: a sign-in
+ * that exists but no longer opens a service is "expired" - signing in again is
+ * the fix. A card without a sign-in of its own (passwords, app keys, a card the
+ * registry does not know) keeps the rule of its services: the worst wins.
+ */
+export function cardSignInState(input: {
+  family: string;
+  /**
+   * Whether the card's own sign-in is on this device. `null` when the card
+   * has none (not Google/Microsoft, or no registry record to hold it).
+   */
+  cardGrant: boolean | null;
+  /** What each service reports from its own slot or its last real failure. */
+  serviceStates: readonly (DeviceSignInState | undefined)[];
+}): DeviceSignInState | undefined {
+  const states = input.serviceStates.filter((state): state is DeviceSignInState => !!state);
+  if ((input.family === "google" || input.family === "microsoft") && input.cardGrant !== null) {
+    if (!input.cardGrant) return "signin";
+    return states.includes("expired") ? "expired" : "active";
+  }
+  if (states.includes("expired")) return "expired";
+  if (states.includes("signin")) return "signin";
+  return states.length ? "active" : undefined;
+}
+
+/**
+ * The words of the one button a card shows when its state needs a sign-in -
+ * "Anmelden" when this device never signed in, "Erneut anmelden" when a
+ * sign-in stopped working. The same two words everywhere (plan "Verbinden").
+ */
+export function signInActionKey(state: DeviceSignInState): "deviceSignIn.submit" | "cloudAccounts.reconnect" {
+  return state === "signin" ? "deviceSignIn.submit" : "cloudAccounts.reconnect";
 }
 
 /**

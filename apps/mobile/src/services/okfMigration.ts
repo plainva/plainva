@@ -6,6 +6,7 @@ import {
   type OkfRunReport,
 } from "@plainva/ui";
 import type { MobileVault } from "./vaultService";
+import { awaitWholeIndex } from "./indexBuild";
 
 /**
  * The phone's half of the OKF bundle migration (OKF v0.2 plan, P2).
@@ -28,6 +29,7 @@ export type { OkfRunReport, OkfRollbackReport, OkfVersionState };
  */
 export async function scanVaultOkfVersion(vault: MobileVault): Promise<OkfVersionState> {
   if (!vault.queryService) throw new Error("no index");
+  await awaitWholeIndex(vault);
   const rows = await vault.queryService.db.query<{ path: string }>(
     `SELECT DISTINCT f.path AS path
      FROM properties p JOIN files f ON f.id = p.file_id

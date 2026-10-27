@@ -6,12 +6,16 @@ import { taskNamesHiddenKey, taskNamesJournalKey } from "./taskNameCleanupStore"
 
 export interface TaskViewState {
   status: TaskStatusFilter; text: string; folder: string; tag: string; dueOnly: boolean; showHidden: boolean;
+  /** Subtasks under their task in the planner lists (E6, 2026-10-24); on until switched off. */
+  subtasks: boolean;
+  /** The bullets under a task as a two-line preview (E6); on until switched off. */
+  details: boolean;
   /** Which list the view shows (planner B1). Not a filter: "reset filters" leaves it alone. */
   list: TaskViewList;
 }
 export type TaskViewStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 export const taskViewStateKey = (vault: string) => `plainva-task-view-${vault}`;
-const defaults = (): TaskViewState => ({ status: "open", text: "", folder: "", tag: "", dueOnly: false, showHidden: false, list: "today" });
+const defaults = (): TaskViewState => ({ status: "open", text: "", folder: "", tag: "", dueOnly: false, showHidden: false, subtasks: true, details: true, list: "today" });
 function defaultStorage(): TaskViewStorage | null { try { return globalThis.localStorage ?? null; } catch { return null; } }
 
 export function parseTaskViewState(raw: string | null): TaskViewState {
@@ -22,7 +26,7 @@ export function parseTaskViewState(raw: string | null): TaskViewState {
     const p = value as Record<string, unknown>;
     if (p.status === "open" || p.status === "done" || p.status === "all") next.status = p.status;
     for (const key of ["text", "folder", "tag"] as const) if (typeof p[key] === "string") next[key] = p[key].slice(0, 4096);
-    for (const key of ["dueOnly", "showHidden"] as const) if (typeof p[key] === "boolean") next[key] = p[key];
+    for (const key of ["dueOnly", "showHidden", "subtasks", "details"] as const) if (typeof p[key] === "boolean") next[key] = p[key];
     if (isTaskViewList(p.list)) next.list = p.list;
   } catch { /* A broken local preference must not prevent opening tasks. */ }
   return next;
@@ -102,6 +106,8 @@ export function useTaskViewState(vault: string | null) {
     setTag: (value: SetStateAction<string>) => store.set("tag", value),
     setDueOnly: (value: SetStateAction<boolean>) => store.set("dueOnly", value),
     setShowHidden: (value: SetStateAction<boolean>) => store.set("showHidden", value), resetFilters: store.reset,
+    setSubtasks: (value: SetStateAction<boolean>) => store.set("subtasks", value),
+    setDetails: (value: SetStateAction<boolean>) => store.set("details", value),
     setList: (value: SetStateAction<TaskViewList>) => store.set("list", value),
   }), [store]);
   return { ...state, ...actions };

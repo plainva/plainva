@@ -1,6 +1,6 @@
 # Google Drive同期の設定（Bring Your Own Credentials）
 
-最終更新: 2026-10-23
+最終更新: 2026-10-26
 
 PlainvaはGoogleに**この端末のログイン**でログインします。お使いのビルドにGoogle用の**標準のログイン**が含まれている場合、何も入力する必要はなく、このページも不要です。そうでない場合、または自分のプロジェクトを使いたい場合は、自前のGoogle API認証情報（Credentials）を使用します。この**Bring Your Own Credentials（BYO）** 方式は、あなたの個人ファイルを安全に同期する方法を提供します。
 
@@ -66,7 +66,7 @@ Plainvaがあなたの認証情報を使用するには、同意画面（「OAut
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-上記のデスクトップ手順では、デスクトップ用クライアント ID と対応するシークレットを使います。スマートフォンでは、Android でも iOS でも、Plainva はブラウザで Google にサインインします。Google プロジェクトに、Android の場合も含めて、バンドル ID `com.plainva.app` の **iOS** タイプの OAuth クライアントを作成してください。Plainva には `com.plainva.app:/oauth2redirect` で戻ります。クライアント シークレットはありません。クライアント ID は、スマートフォンの **この端末のログイン** → **独自のクライアント ID** に入力します。Android タイプのクライアントは作成しないでください。Google は Play ビルドのパッケージ名と証明書フィンガープリントの組み合わせを世界で 1 つのプロジェクトにしか認めず、ほかはすべて拒否します(「Android パッケージ名とフィンガープリントはすでに使用されています」)。Plainva 0.8.3 または 0.8.4 用に設定した Android クライアントは、新しいサインインには使えません。すでにサインイン済みのアカウントは引き続き動作します。デスクトップ用クライアントはモバイルの登録の代わりになりません。カレンダーを使う場合は Google Calendar API と Google Tasks API も有効にしてください。
+上記のデスクトップ手順では、デスクトップ用クライアント ID と対応するシークレットを使います。スマートフォンでは、Android でも iOS でも、Plainva はブラウザで Google にサインインします。Google プロジェクトに、Android の場合も含めて、バンドル ID `com.plainva.app` の **iOS** タイプの OAuth クライアントを作成してください。Plainva には `com.plainva.app:/oauth2redirect` で戻ります。クライアント シークレットはありません。クライアント ID は、スマートフォンの **この端末のログイン** → **独自のクライアント ID** に入力します。Android タイプのクライアントは作成しないでください。Google は Play ビルドのパッケージ名と証明書フィンガープリントの組み合わせを世界で 1 つのプロジェクトにしか認めず、ほかはすべて拒否します(「Android パッケージ名とフィンガープリントはすでに使用されています」)。Plainva 0.8.3 または 0.8.4 用に設定した Android クライアントは、新しいサインインには使えません。すでにサインイン済みのアカウントは引き続き動作します。デスクトップ用クライアントはモバイルの登録の代わりになりません。カレンダーを使う場合は Google Calendar API と Google Tasks API も有効にしてください。スマートフォンで Google に「エラー 400: redirect_uri_mismatch」と表示される場合、そのクライアントIDの種類は「デスクトップ アプリ」です。ここで説明しているとおり種類 **iOS** のクライアントを作成し、そのクライアントIDを代わりに入力してください。クライアントIDの入力欄の下にある **Google のガイドを開く** から、このセクションに移動できます。
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 

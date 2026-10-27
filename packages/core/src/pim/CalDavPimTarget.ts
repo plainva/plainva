@@ -29,6 +29,7 @@ import { htmlToMarkdown } from "./htmlToMarkdown.js";
 import { normalizeTitle } from "./seriesTitle.js";
 import { sortedMinutes } from "./eventFields.js";
 import { decodeBlockRefs, encodeBlockRefs } from "./blockLinks.js";
+import { eventSubstanceOf, sameEventSubstance, type PimEventSubstance } from "./eventSubstance.js";
 
 /**
  * CalDAV read adapter (stage 2): RFC 4791 on top of the WebDAV conventions the
@@ -295,12 +296,12 @@ export class CalDavPimTarget implements IPimTarget {
 
   /** RSVP: set the own ATTENDEE's PARTSTAT and PUT back. RFC 6638
    * auto-scheduling servers then notify the organiser; others simply record it. */
-  async respondToEvent(ref: PimEventRef, response: "accepted" | "declined" | "tentative"): Promise<void> {
+  async respondToEvent(ref: PimEventRef, response: "accepted" | "declined" | "tentative"): Promise<{ etag?: string } | void> {
     if (!ref.href) return;
     const me = this.selfEmail();
     if (!me) return; // cannot identify the account attendee (user is not an email)
     const partstat = response === "accepted" ? "ACCEPTED" : response === "declined" ? "DECLINED" : "TENTATIVE";
-    await this.readModifyPut(ref.href, ref.etag, "vevent", (comp) => {
+    return this.readModifyPut(ref.href, ref.etag, "vevent", (comp) => {
       for (const p of comp.getAllProperties("attendee")) {
         if (mailtoEmail(p) === me) {
           p.setParameter("partstat", partstat);
@@ -387,7 +388,7 @@ export class CalDavPimTarget implements IPimTarget {
       body: buildIcsObject(uid, "vevent", (vevent) => applyEventDraft(vevent, draft)),
     });
     if (!res.ok) throw await pimRequestError("caldav create event", res);
-    return { uid, etag: res.headers.get("ETag") ?? undefined, href };
+    return { uid, etag: await this.etagAfterWrite(href, res), href };
   }
 
   async updateEvent(ref: PimEventRef, draft: PimEventDraft): Promise<{ etag?: string }> {
@@ -429,29 +430,54 @@ export class CalDavPimTarget implements IPimTarget {
     });
   }
 
-  async deleteEvent(ref: PimEventRef): Promise<void> {
-    if (!ref.href) throw new Error("caldav delete needs the object href");
+  /**
+   * Deletes an event, or one occurrence of a series.
+   *
+   * A refused guard (412) is not yet a conflict (issue 119, R2). The object is
+   * read once more: gone means deleted; still the event the caller saw
+   * (`ref.expect`, compared by `sameEventSubstance`) means the server only
+   * spelled it anew - iCloud rewrites what it is sent - and the delete is
+   * repeated once with the new etag. Anything else is a conflict that carries
+   * the new etag, so the person can be asked and "delete anyway" is sent
+   * against exactly the state they were told about.
+   */
+  async deleteEvent(ref: PimEventRef): Promise<{ etag?: string } | void> {
+    const href = ref.href;
+    if (!href) throw new Error("caldav delete needs the object href");
     const recurrenceId = instanceRecurrenceId(ref.uid);
     if (recurrenceId) {
       // "Only this event": EXDATE on the master + drop a matching override.
-      // The series object itself survives.
-      await this.readModifyPutObject(ref.href, ref.etag, (cal) => {
-        const master = findComponent(cal, "vevent", null);
-        if (!master) throw new Error("caldav object has no vevent");
-        master.addPropertyWithValue("exdate", icalTimeFromKey(recurrenceId));
-        const override = findComponent(cal, "vevent", recurrenceId);
-        if (override) cal.removeSubcomponent(override);
-        bumpRevision(master);
-      });
-      return;
+      // The series object itself survives - with a new etag, which every other
+      // occurrence shares and which is therefore handed back.
+      return this.readModifyPutObject(
+        href,
+        ref.etag,
+        (cal) => {
+          const master = findComponent(cal, "vevent", null);
+          if (!master) throw new Error("caldav object has no vevent");
+          master.addPropertyWithValue("exdate", icalTimeFromKey(recurrenceId));
+          const override = findComponent(cal, "vevent", recurrenceId);
+          if (override) cal.removeSubcomponent(override);
+          bumpRevision(master);
+        },
+        { expect: ref.expect ? { substance: ref.expect, calendarId: ref.calendarId, uid: ref.uid } : undefined, goneIsDone: true },
+      );
     }
-    const res = await this.rawRequest(ref.href, {
-      method: "DELETE",
-      headers: ref.etag ? { "If-Match": ref.etag } : {},
-    });
-    if (res.status === 412) throw new PimConflictError();
-    // Already gone = success (the file sync's not-found-on-delete lesson).
-    if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`caldav delete ${res.status}`);
+    let guard = ref.etag;
+    for (let attempt = 0; ; attempt++) {
+      const res = await this.rawRequest(href, {
+        method: "DELETE",
+        headers: guard ? { "If-Match": guard } : {},
+      });
+      // Already gone = success (the file sync's not-found-on-delete lesson).
+      if (res.ok || res.status === 404 || res.status === 410) return;
+      if (res.status !== 412) throw new Error(`caldav delete ${res.status}`);
+      const current = await this.readObject(href);
+      if (current.gone) return;
+      const same = attempt === 0 && !!ref.expect && current.text !== undefined && this.isStill(current.text, href, ref.calendarId, ref.uid, ref.expect);
+      if (!same) throw new PimConflictError(undefined, current.etag);
+      guard = current.etag;
+    }
   }
 
   async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {
@@ -463,7 +489,7 @@ export class CalDavPimTarget implements IPimTarget {
       body: buildIcsObject(uid, "vtodo", (vtodo) => applyTaskDraft(vtodo, draft)),
     });
     if (!res.ok) throw await pimRequestError("caldav create task", res);
-    return { uid, etag: res.headers.get("ETag") ?? undefined, href };
+    return { uid, etag: await this.etagAfterWrite(href, res), href };
   }
 
   async updateTask(ref: PimTaskRef, draft: PimTaskDraft): Promise<{ etag?: string }> {
@@ -507,29 +533,107 @@ export class CalDavPimTarget implements IPimTarget {
   private async readModifyPutObject(
     href: string | undefined,
     knownEtag: string | undefined,
-    mutate: (cal: InstanceType<typeof ICAL.Component>) => void
+    mutate: (cal: InstanceType<typeof ICAL.Component>) => void,
+    options: {
+      /** Deleting an occurrence (R2): an object that moved but is still this event is written anyway, once. */
+      expect?: { substance: PimEventSubstance; calendarId: string; uid: string };
+      /** Deleting an occurrence: a series that is gone has nothing left to delete. */
+      goneIsDone?: boolean;
+    } = {}
   ): Promise<{ etag?: string }> {
     if (!href) throw new Error("caldav update needs the object href");
-    const getRes = await this.rawRequest(href, { method: "GET", headers: {} });
-    // With its status (K3): a blocker that is gone answers 404 here, and the
-    // caller has to tell "gone" from "refused".
-    if (!getRes.ok) throw new PimRequestError(`caldav read ${getRes.status} before update`, getRes.status);
-    const currentEtag = getRes.headers.get("ETag") ?? undefined;
-    if (knownEtag && currentEtag && knownEtag !== currentEtag) throw new PimConflictError();
+    const expect = options.expect;
+    let known = knownEtag;
+    for (let attempt = 0; ; attempt++) {
+      const getRes = await this.rawRequest(href, { method: "GET", headers: {} });
+      if (options.goneIsDone && (getRes.status === 404 || getRes.status === 410)) return {};
+      // With its status (K3): a blocker that is gone answers 404 here, and the
+      // caller has to tell "gone" from "refused".
+      if (!getRes.ok) throw new PimRequestError(`caldav read ${getRes.status} before update`, getRes.status);
+      const currentEtag = getRes.headers.get("ETag") ?? undefined;
+      const text = await getRes.text();
+      // The guard the caller holds is behind. Only a write that may go ahead
+      // over a moved object that is still the same event (`expect`) does -
+      // with the etag just read, so a third writer is still caught by the PUT.
+      if (known && currentEtag && known !== currentEtag) {
+        if (!expect || !this.isStill(text, href, expect.calendarId, expect.uid, expect.substance)) {
+          throw new PimConflictError(undefined, currentEtag);
+        }
+        known = currentEtag;
+      }
 
-    const jcal = ICAL.parse(await getRes.text());
-    const cal = new ICAL.Component(jcal);
-    mutate(cal);
+      const jcal = ICAL.parse(text);
+      const cal = new ICAL.Component(jcal);
+      mutate(cal);
 
-    const guard = knownEtag ?? currentEtag;
-    const putRes = await this.rawRequest(href, {
-      method: "PUT",
-      headers: { "Content-Type": "text/calendar; charset=utf-8", ...(guard ? { "If-Match": guard } : {}) },
-      body: cal.toString(),
-    });
-    if (putRes.status === 412) throw new PimConflictError();
-    if (!putRes.ok) throw new Error(`caldav update ${putRes.status}`);
-    return { etag: putRes.headers.get("ETag") ?? undefined };
+      const guard = known ?? currentEtag;
+      const putRes = await this.rawRequest(href, {
+        method: "PUT",
+        headers: { "Content-Type": "text/calendar; charset=utf-8", ...(guard ? { "If-Match": guard } : {}) },
+        body: cal.toString(),
+      });
+      if (putRes.status === 412) {
+        // Moved between the read and the write: where the caller allows it,
+        // read once more and judge the new state (one more PUT at most);
+        // otherwise it is a conflict.
+        if (expect && attempt === 0) {
+          known = guard;
+          continue;
+        }
+        throw new PimConflictError();
+      }
+      if (!putRes.ok) throw new Error(`caldav update ${putRes.status}`);
+      return { etag: await this.etagAfterWrite(href, putRes) };
+    }
+  }
+
+  /**
+   * The etag an object has after Plainva wrote it (issue 119, R2).
+   *
+   * RFC 4791 section 5.3.4: a server that stores what it was sent may name its
+   * etag in the answer; one that changed it on the way in must NOT. iCloud is
+   * the second kind. Without the etag the views held the previous one - or
+   * none - and the next delete or edit was refused as "changed elsewhere". So
+   * where the answer is silent, the object is read back. A read that fails
+   * leaves the etag unknown, which the 412 handling of a delete copes with.
+   */
+  private async etagAfterWrite(href: string, res: Response): Promise<string | undefined> {
+    const said = res.headers.get("ETag");
+    if (said) return said;
+    try {
+      return (await this.readObject(href)).etag;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** One object as the server holds it now: gone, or its etag and text. */
+  private async readObject(href: string): Promise<{ gone: boolean; etag?: string; text?: string }> {
+    const res = await this.rawRequest(href, { method: "GET", headers: {} });
+    if (res.status === 404 || res.status === 410) return { gone: true };
+    if (!res.ok) throw new PimRequestError(`caldav read ${res.status}`, res.status);
+    return { gone: false, etag: res.headers.get("ETag") ?? undefined, text: await res.text() };
+  }
+
+  /**
+   * Whether the object text still holds the event the caller saw. Read through
+   * the same expansion a pull uses, so the comparison is between two things
+   * spelled alike: the row the view holds and the row a pull would produce now.
+   */
+  private isStill(ics: string, href: string, calendarId: string, uid: string, expected: PimEventSubstance): boolean {
+    try {
+      const key = instanceRecurrenceId(uid);
+      // An occurrence is looked for around its original time - a moved one up
+      // to a year either side. A series or a single event is emitted whatever
+      // the window.
+      const around = key ? icalTimeFromKey(key).toJSDate().getTime() : 0;
+      const year = 366 * 24 * 3600_000;
+      const rows = expandIcsEvents(ics, calendarId, href, undefined, around - year, around + year);
+      const now = rows.find((row) => row.uid === uid);
+      return !!now && sameEventSubstance(expected, eventSubstanceOf(now));
+    } catch {
+      return false;
+    }
   }
 }
 

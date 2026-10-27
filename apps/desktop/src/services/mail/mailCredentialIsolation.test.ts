@@ -45,7 +45,7 @@ beforeEach(() => {
 
 describe("mail credential isolation through the actual shared writers and runtime", () => {
   it.each([undefined, "imap"] as const)("preserves an IMAP password when OAuth cleanup reaches a %s mailbox", async (kind) => {
-    await saveMailAccount("vault-A", { ...account, kind }, "test-app-password");
+    await saveMailAccount("vault-A", { ...account, kind }, "test-app-password", "connect");
     await expect(saveMailRefreshToken("vault-A", account.id, "")).rejects.toThrow(/password/);
     await expect(getMailPassword("vault-A", account.id)).resolves.toBe("test-app-password");
     expect(secrets.get(mailSecretKey("vault-A", account.id))).toEqual({ pass: "test-app-password" });
@@ -57,16 +57,16 @@ describe("mail credential isolation through the actual shared writers and runtim
   });
 
   it("rotates only the selected Microsoft mailbox in its vault", async () => {
-    await saveMicrosoftMailAccount("vault-A", account, "old-A");
-    await saveMicrosoftMailAccount("vault-B", account, "old-B");
+    await saveMicrosoftMailAccount("vault-A", account, "old-A", "connect");
+    await saveMicrosoftMailAccount("vault-B", account, "old-B", "connect");
     await saveMailRefreshToken("vault-B", account.id, "new-B");
     expect(secrets.get(mailSecretKey("vault-A", account.id))).toEqual({ refreshToken: "old-A" });
     expect(secrets.get(mailSecretKey("vault-B", account.id))).toEqual({ refreshToken: "new-B" });
   });
 
   it("resolves and forgets the same imported mailbox ID separately in each vault", async () => {
-    await saveMicrosoftMailAccount("vault-A", account, "old-A");
-    await saveMicrosoftMailAccount("vault-B", account, "old-B");
+    await saveMicrosoftMailAccount("vault-A", account, "old-A", "connect");
+    await saveMicrosoftMailAccount("vault-B", account, "old-B", "connect");
     const resolver = vi.fn(async (vault: string) => async () => `access-${vault}`);
     setMailTokenResolver(resolver);
     expect(await Promise.all([
@@ -81,7 +81,7 @@ describe("mail credential isolation through the actual shared writers and runtim
   });
 
   it("an older failed initialization cannot evict its replacement after reconnect", async () => {
-    await saveMicrosoftMailAccount("vault-A", account, "");
+    await saveMicrosoftMailAccount("vault-A", account, "", "connect");
     let release!: () => void;
     const waiting = new Promise<void>((resolve) => { release = resolve; });
     const resolver = vi.fn().mockImplementationOnce(async () => { await waiting; return undefined; })
@@ -98,7 +98,7 @@ describe("mail credential isolation through the actual shared writers and runtim
   });
 
   it("does not cache a successful access token before its rotated credential is saved", async () => {
-    await saveMicrosoftMailAccount("vault-A", account, "old");
+    await saveMicrosoftMailAccount("vault-A", account, "old", "connect");
     vi.mocked(refreshOneDriveAccessToken).mockResolvedValue({ accessToken: "access", refreshToken: "new", expiresIn: 3600 });
     failWrite = true;
     await expect(mailAccessTokenFor("vault-A", account.id)).rejects.toThrow(/secure storage/);

@@ -1,6 +1,7 @@
 import { stripTasksPriority, tasksDescription, type TaskRecord } from "@plainva/core";
 import type { TaskDbRow } from "./taskDatabase";
 import type { PlannerRow, TaskPriority } from "./taskPlanner";
+import { calendarDay } from "./today";
 
 /**
  * The two task sources in the planner's one row shape (plan Aufgaben-Oberfläche,
@@ -42,6 +43,9 @@ export function plannerRowsFromDb(rows: readonly TaskDbRow[], metaOf: (path: str
       repeats: meta.repeats,
       mirrored: meta.mirrored,
       repeatsAtProvider: meta.repeatsAtProvider,
+      // A database has no completion date: a done entry was finished, at the
+      // latest, when its note last changed (wish E5).
+      ...(row.done && row.modified !== undefined ? { doneOn: calendarDay(new Date(row.modified)) } : {}),
     };
   });
 }
@@ -61,5 +65,9 @@ export function plannerRowsFromTasks(tasks: readonly TaskRecord[]): PlannerRow[]
     priority: task.priority ?? 0,
     tags: task.tags,
     repeats: task.recurrence !== undefined,
+    ...(task.parent !== undefined ? { parentId: plannerTaskId(task.path, task.parent) } : {}),
+    ...(task.details && task.details.length > 0 ? { details: task.details } : {}),
+    // The Tasks plugin's `✅` date — Plainva writes it with every tick.
+    ...(task.state === "done" && task.completed ? { doneOn: task.completed } : {}),
   }));
 }

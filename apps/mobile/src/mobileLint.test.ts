@@ -1459,6 +1459,8 @@ describe("a vault switch the program starts is offered, not taken", () => {
     expect(direct).toEqual([
       // "Use this vault" on a vault's page.
       "VaultDetailScreen.tsx",
+      // The way out of a vault that does not open: back, another vault, or again (issue 143).
+      "components/VaultBootSurface.tsx",
       // The import wizard's "Done": the vault it has just made.
       "screens/ImportWizardScreen.tsx",
       // A tap on a row of the vault list.
@@ -1609,7 +1611,9 @@ describe("tasks can be narrowed the same way on both shells", () => {
   });
 
   it("lets a promotion choose its database", () => {
-    const screen = stripComments(readFileSync(join(SRC, "screens/TasksScreen.tsx"), "utf8"));
+    // Promotion is the task-row hook's since E1 (2026-10-24); the tab wires its chip to it.
+    const screen = stripComments(readFileSync(join(SRC, "components/useTaskRowActions.tsx"), "utf8"));
+    expect(stripComments(readFileSync(join(SRC, "screens/TasksScreen.tsx"), "utf8"))).toMatch(/promotePress\.start\(/);
     expect(screen).toMatch(/promoteInto\(/);
     expect(screen).toMatch(/listBases\(\)/);
   });
@@ -2023,7 +2027,7 @@ describe("the vault detail screen", () => {
     // The destructive rows have to READ destructive, which was the finding:
     // "Sync trennen" was tonal and optically identical to "Umbenennen".
     const danger = screen.slice(screen.indexOf('tone="danger"'));
-    expect(danger).toMatch(/m-danger">\{t\("mobile\.syncDisconnect"\)/);
+    expect(danger).toMatch(/m-danger">\{t\("cloudAccounts\.pauseSync"\)/);
     expect(danger).toMatch(/m-danger">\{t\("mobile\.vaultDelete"\)/);
   });
 
@@ -2460,14 +2464,14 @@ describe("the cloud accounts screen", () => {
     expect(desktopShared).not.toMatch(/case "microsoft":/);
   });
 
-  it("offers the repair where the expired sign-in is stated", () => {
+  it("shows each account's ONE state and leaves its action to the account page", () => {
     const screen = read();
-    // The one action that fixes an expired token sits on the row that reports
-    // it — behind the chevron the user would have to guess which screen holds
-    // the button.
-    expect(screen).toMatch(/DeviceSignInBadge/);
-    expect(screen).toMatch(/cloudacct-signin-again/);
-    expect(screen).toMatch(/beginMobileSignIn/);
+    // Plan "Verbinden", V2: a row names the state of the account's own sign-in;
+    // the button that fixes it is the head of the account page - one place,
+    // the same in both shells.
+    expect(screen).toMatch(/pv-acct-state/);
+    expect(screen).toMatch(/accountStateOf\(card\.signIn\)/);
+    expect(screen).not.toMatch(/cloudacct-signin-again|beginMobileSignIn/);
   });
 
   it("leads into the account, not into the list of a service", () => {
@@ -2481,7 +2485,10 @@ describe("the cloud accounts screen", () => {
     expect(screen).not.toMatch(/onOpenCalendarAccounts|onOpenMailAccounts/);
     expect(routes).toMatch(/kind: "cloudaccount", path: key/);
     expect(detail).toMatch(/loadAccountCards/);
-    expect(detail).toMatch(/cloudacct-service-\$\{service\}/);
+    expect(detail).toMatch(/cloudacct-service-\$\{row\.service\}/);
+    // ...and each service of THIS account leads to this account's page of it (plan "Verbinden", V3).
+    expect(detail).toMatch(/onOpenService\(card, row\.service\)/);
+    expect(routes).toMatch(/kind: "accountservice", path: `\$\{service\}:\$\{card\.key\}`/);
   });
 
   it("lets the wizard step out of the way once it has handed over", () => {
@@ -3351,7 +3358,8 @@ describe("plain text files do not get the note toolbar", () => {
  */
 describe("tasks created on the phone reach the provider list", () => {
   const service = stripComments(readFileSync(join(SRC, "services/pim/taskToProvider.ts"), "utf8"));
-  const tasks = stripComments(readFileSync(join(SRC, "screens/TasksScreen.tsx"), "utf8"));
+  // The tasks tab and its row hook (promotion lives there since E1, 2026-10-24).
+  const tasks = stripComments(readFileSync(join(SRC, "screens/TasksScreen.tsx"), "utf8")) + stripComments(readFileSync(join(SRC, "components/useTaskRowActions.tsx"), "utf8"));
   const mail = stripComments(readFileSync(join(SRC, "screens/MailMessageScreen.tsx"), "utf8"));
   const note = stripComments(readFileSync(join(SRC, "screens/NoteScreen.tsx"), "utf8"));
   const sheet = stripComments(readFileSync(join(SRC, "screens/base/BaseConfigSheet.tsx"), "utf8"));
@@ -3486,8 +3494,9 @@ describe("desktop rules the phone had never been given (finding 2026-08-19)", ()
   });
 
   it("tells a configured-but-unreachable file provider apart from no sync", () => {
-    const sync = read("src/services/syncService.ts");
-    expect(sync).toMatch(/filesNoAccess/);
+    // The decision moved into one pure rule (review of plan "Verbinden", finding 3), which the start asks.
+    expect(read("src/services/syncService.ts")).toMatch(/mobileSyncStart\(/);
+    expect(read("src/services/fileSyncAccess.ts")).toMatch(/filesNoAccess/);
     const cards = read("src/services/cloudAccountCards.ts");
     expect(cards, "and the card stops claiming a connection").toMatch(/resolveMobileFileAccess/);
   });

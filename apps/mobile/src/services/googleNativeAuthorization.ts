@@ -1,7 +1,7 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import {
-  chooseGoogleSignInFlow, GoogleAuthorizationError, googleAuthorizationDiagnostic, googleOrphanResultDiagnostic, googlePublicClient, googleServicesOfScope, logDiagnostic,
-  oauthScopesCover, parseGoogleUserInfo, readGoogleAuthorizationFailure, verifiedProviderIdentityKey, withAccountCredentialLock,
+  chooseGoogleSignInFlow, GoogleAuthorizationError, googleAuthorizationDiagnostic, googleOrphanResultDiagnostic, googleServicesOfScope, logDiagnostic,
+  oauthScopesCover, parseGoogleUserInfo, plainvaGoogleClient, readGoogleAuthorizationFailure, verifiedProviderIdentityKey, withAccountCredentialLock,
   type GoogleAuthorizationFailure, type StoredAccountToken,
 } from "@plainva/ui";
 import { webdavFetch } from "../adapters/webdavHttp";
@@ -33,13 +33,34 @@ export function googleSignInFlow(clientId: string, nativeGrantClientIds: readonl
   return chooseGoogleSignInFlow({
     playServices,
     clientId,
-    builtInClientId: playServices ? googlePublicClient(import.meta.env, "android")?.clientId : null,
+    // The one rule for "does this build ship Plainva's Android client" — the
+    // same one the account card's standard sign-in reads (oauthAccess.ts). It
+    // asks whether the client is configured, not Google's publishing state:
+    // the earlier gate on VITE_PLAINVA_GOOGLE_MAIL_STATE === "testing" would
+    // have hidden the system sign-in the day the project went to production.
+    builtInClientId: playServices ? plainvaGoogleClient(import.meta.env, "android")?.clientId : null,
     nativeGrantClientIds,
   });
 }
 
 /** Queued until the next request, which awaits clearing before obtaining a token. */
 export function forgetNativeGoogleTokens(): void { for (const token of issued) rejected.add(token); issued.clear(); }
+
+/**
+ * Signing out on this device (plan "Verbinden", V0): Play services drops the
+ * access tokens it cached for Plainva now, not at the next request. Local
+ * only - the consent at Google stays, so other phones stay signed in.
+ */
+export async function clearNativeGoogleTokens(): Promise<void> {
+  forgetNativeGoogleTokens();
+  if (!hasGooglePlayServices()) { rejected.clear(); return; }
+  await withAccountCredentialLock("native-google-authorization", async () => {
+    for (const token of [...rejected]) {
+      await native.clearToken({ token }).catch(() => undefined);
+      rejected.delete(token);
+    }
+  });
+}
 
 export async function authorizeNativeGoogle(scope: string, interactive: boolean, expected?: StoredAccountToken) {
   return withAccountCredentialLock("native-google-authorization", () => authorize(scope, interactive, expected));

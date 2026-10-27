@@ -165,8 +165,8 @@ afterEach(() => setPendingBrokerAccount(null));
 
 describe("the sign-in a mailbox works with, as the main window registers it", () => {
   it("gives each of two Microsoft mailboxes the sign-in of its own account", async () => {
-    await saveBrokerMailAccount(VAULT, FIRST);
-    await saveBrokerMailAccount(VAULT, SECOND);
+    await saveBrokerMailAccount(VAULT, FIRST, "connect");
+    await saveBrokerMailAccount(VAULT, SECOND, "connect");
     state.records = [card("card-a", FIRST.user, FIRST.id), card("card-b", SECOND.user, SECOND.id)];
     grant("card-a", "sign-in-a");
     grant("card-b", "sign-in-b");
@@ -179,8 +179,8 @@ describe("the sign-in a mailbox works with, as the main window registers it", ()
   });
 
   it("answers the same whichever card is stored first", async () => {
-    await saveBrokerMailAccount(VAULT, FIRST);
-    await saveBrokerMailAccount(VAULT, SECOND);
+    await saveBrokerMailAccount(VAULT, FIRST, "connect");
+    await saveBrokerMailAccount(VAULT, SECOND, "connect");
     state.records = [card("card-b", SECOND.user, SECOND.id), card("card-a", FIRST.user, FIRST.id)];
     grant("card-a", "sign-in-a");
     grant("card-b", "sign-in-b");
@@ -190,8 +190,8 @@ describe("the sign-in a mailbox works with, as the main window registers it", ()
   });
 
   it("leaves a mailbox no card points at on its own sign-in", async () => {
-    await saveBrokerMailAccount(VAULT, FIRST);
-    await saveMicrosoftMailAccount(VAULT, SECOND, "own-sign-in-b");
+    await saveBrokerMailAccount(VAULT, FIRST, "connect");
+    await saveMicrosoftMailAccount(VAULT, SECOND, "own-sign-in-b", "connect");
     state.records = [card("card-a", FIRST.user, FIRST.id)];
     grant("card-a", "sign-in-a");
 
@@ -205,8 +205,8 @@ describe("the sign-in a mailbox works with, as the main window registers it", ()
     // Stage B adopts a mailbox's own sign-in into the card that points at it.
     // For every mailbox after the first that never ran: the first card
     // answered before the second was looked at.
-    await saveBrokerMailAccount(VAULT, FIRST);
-    await saveMicrosoftMailAccount(VAULT, SECOND, "own-sign-in-b");
+    await saveBrokerMailAccount(VAULT, FIRST, "connect");
+    await saveMicrosoftMailAccount(VAULT, SECOND, "own-sign-in-b", "connect");
     state.records = [card("card-a", FIRST.user, FIRST.id), card("card-b", SECOND.user, SECOND.id)];
     grant("card-a", "sign-in-a");
     state.profiles.set("access:own-sign-in-b", { id: "provider-id-b", mail: SECOND.user });
@@ -225,7 +225,7 @@ describe("the sign-in a mailbox works with, as the main window registers it", ()
   it("keeps a mailbox on its own sign-in when its card belongs to another account", async () => {
     // The card says one address, the provider answers with another: the
     // adoption refuses, and the mailbox goes on with what it has.
-    await saveMicrosoftMailAccount(VAULT, SECOND, "own-sign-in-b");
+    await saveMicrosoftMailAccount(VAULT, SECOND, "own-sign-in-b", "connect");
     state.records = [card("card-b", "someone-else@example.net", SECOND.id)];
     state.profiles.set("access:own-sign-in-b", { id: "provider-id-b", mail: SECOND.user });
 
@@ -238,8 +238,8 @@ describe("the sign-in a mailbox works with, as the main window registers it", ()
     // What the settings sync leaves on a second device: the mailbox and its
     // card arrive, the sign-in does not. It used to show the first account's
     // mail under this mailbox's name.
-    await saveBrokerMailAccount(VAULT, FIRST);
-    await saveBrokerMailAccount(VAULT, SECOND);
+    await saveBrokerMailAccount(VAULT, FIRST, "connect");
+    await saveBrokerMailAccount(VAULT, SECOND, "connect");
     state.records = [card("card-a", FIRST.user, FIRST.id), card("card-b", SECOND.user, SECOND.id)];
     grant("card-a", "sign-in-a");
 
@@ -253,8 +253,8 @@ describe("the sign-in a mailbox works with, as the main window registers it", ()
   });
 
   it("says that no card carries a mailbox when none points at it", async () => {
-    await saveBrokerMailAccount(VAULT, FIRST);
-    await saveBrokerMailAccount(VAULT, SECOND);
+    await saveBrokerMailAccount(VAULT, FIRST, "connect");
+    await saveBrokerMailAccount(VAULT, SECOND, "connect");
     state.records = [card("card-a", FIRST.user, FIRST.id)];
     grant("card-a", "sign-in-a");
 
@@ -266,8 +266,8 @@ describe("the sign-in a mailbox works with, as the main window registers it", ()
     // Two cards of two families that both carry mail: the one that is not
     // first was handed the other family's token, which its server refuses.
     const gmail = mailbox("box-g", "anna@gmail.com", "gmail");
-    await saveBrokerMailAccount(VAULT, FIRST);
-    await saveBrokerMailAccount(VAULT, gmail);
+    await saveBrokerMailAccount(VAULT, FIRST, "connect");
+    await saveBrokerMailAccount(VAULT, gmail, "connect");
     state.records = [card("card-a", FIRST.user, FIRST.id), card("card-g", gmail.user, gmail.id, "google")];
     grant("card-a", "sign-in-a");
     state.secrets.set(accountSecretKey(VAULT, "card-g"), {
@@ -283,7 +283,7 @@ describe("the sign-in a mailbox works with, as the main window registers it", ()
 
   describe("while another account is being connected", () => {
     beforeEach(async () => {
-      await saveBrokerMailAccount(VAULT, FIRST);
+      await saveBrokerMailAccount(VAULT, FIRST, "connect");
       state.records = [card("card-a", FIRST.user, FIRST.id)];
       grant("card-a", "sign-in-a");
       // The wizard has the new account's sign-in, and no card yet.
@@ -301,7 +301,7 @@ describe("the sign-in a mailbox works with, as the main window registers it", ()
       const fresh = mailbox("box-new", "neu@example.org");
       // The wizard names the mailbox, saves it, then reads its address.
       claimPendingMailbox(VAULT, fresh.id);
-      await saveBrokerMailAccount(VAULT, fresh);
+      await saveBrokerMailAccount(VAULT, fresh, "connect");
       await expect(mailAccessTokenFor(VAULT, fresh.id)).resolves.toBe("access:sign-in-new");
     });
 
@@ -312,20 +312,20 @@ describe("the sign-in a mailbox works with, as the main window registers it", ()
       // and it must not turn the connect's own mailbox away.
       const fresh = mailbox("box-new", "neu@example.org");
       claimPendingMailbox(VAULT, fresh.id);
-      await saveBrokerMailAccount(VAULT, fresh);
+      await saveBrokerMailAccount(VAULT, fresh, "connect");
       state.records = [...state.records, card("card-found", "", fresh.id)];
       await expect(mailAccessTokenFor(VAULT, fresh.id)).resolves.toBe("access:sign-in-new");
     });
 
     it("keeps a mailbox no card points at on its own sign-in, not on the new account's", async () => {
       // No card claims it — which is not the same as being part of the connect.
-      await saveMicrosoftMailAccount(VAULT, SECOND, "own-sign-in-b");
+      await saveMicrosoftMailAccount(VAULT, SECOND, "own-sign-in-b", "connect");
       await expect(mailAccessTokenFor(VAULT, SECOND.id)).resolves.toBe("access:own-sign-in-b");
       expect(state.refreshed).not.toContain("sign-in-new");
     });
 
     it("and gives one without a sign-in none, not the new account's", async () => {
-      await saveBrokerMailAccount(VAULT, SECOND);
+      await saveBrokerMailAccount(VAULT, SECOND, "connect");
       await expect(mailAccessTokenFor(VAULT, SECOND.id)).rejects.toThrow(/no_stored_sign_in/);
       expect(state.refreshed).toEqual([]);
     });

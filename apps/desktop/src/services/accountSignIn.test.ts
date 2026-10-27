@@ -159,6 +159,27 @@ describe("Gmail outside the consent (E5)", () => {
       { service: "mail", state: "needsPassword" },
     ]);
   });
+
+  it("takes Gmail outside the consent when the person chooses the app password, although the access could carry it", () => {
+    const prepared = prepareSignIn({ vaultId: "v", family: "google", add: ["files", "mail"], access: OWN_DESKTOP, outside: ["mail"] });
+    expect(prepared.requested).toEqual(["files"]);
+    expect(prepared.outside).toEqual(["mail"]);
+    expect(prepared.scope).not.toContain("mail.google.com");
+  });
+
+  it("replaces a Gmail mailbox Google refused with an app password - no consent, the other services are left alone (E7)", () => {
+    const record = card({ services: { files: { provider: "drive" }, mail: { mailAccountId: "m-oauth" } } });
+    const prepared = prepareSignIn({ vaultId: "v", family: "google", cardId: "card-a", add: ["mail"], access: OWN_DESKTOP, outside: ["mail"] }, { record, mailKind: "gmail" });
+    expect(prepared.carried).toEqual(["files"]);
+    expect(needsConsent(prepared)).toBe(false);
+    expect(prepared.outside).toEqual(["mail"]);
+  });
+
+  it("without that choice a carried Gmail mailbox stays in the consent", () => {
+    const record = card({ services: { files: { provider: "drive" }, mail: { mailAccountId: "m-oauth" } } });
+    const prepared = prepareSignIn({ vaultId: "v", family: "google", cardId: "card-a", add: [], access: OWN_DESKTOP }, { record, mailKind: "gmail" });
+    expect(prepared.requested).toEqual(["files", "mail"]);
+  });
 });
 
 describe("what the provider says it granted", () => {

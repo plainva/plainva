@@ -19,20 +19,19 @@ import {
 import { useCommentShell } from "./hooks/useCommentShell";
 import { AdaptiveLayout } from "./components/AdaptiveLayout";
 import { makeOpenAttachment, routeVaultPath } from "./services/openAttachment";
-import { vaultOps, getMobileVault, createLocalVault, chooseVaultPlace, createVaultInPickedFolder, type MobileVault } from "./services/vaultService";
-import { startSyncIfConfigured } from "./services/syncService";
+import { vaultOps, getMobileVault, createLocalVault, chooseVaultPlace, createVaultInPickedFolder } from "./services/vaultService";
+import { useVaultBoot } from "./hooks/useVaultBoot";
+import { VaultBootSurface } from "./components/VaultBootSurface";
+import { IndexBuildNotice } from "./components/IndexBuildNotice";
 import { useBackupSchedule } from "./services/useBackupSchedule";
 import { backupVaultNow } from "./services/vaultBackup";
 import { rebuildVaultIndex } from "./services/indexMaintenance";
 import { useIndexAutoUpdate } from "./services/useIndexAutoUpdate";
 import { usePinboardDraftSweep } from "./services/usePinboardDraftSweep";
-import { restartPimAfterImport, startPim, stopPim } from "./services/pim/pimService";
 import { onAppBackground, onAppForeground } from "./services/appLifecycle";
 import { recordProcessExitsOnBoot } from "./services/processExits";
-import { startMobileMail, stopMobileMail } from "./services/mail/mailRuntime";
 import { useConnectRun } from "./hooks/useConnectRun";
 import { useConnectionRun } from "./hooks/useConnectionRun";
-import { resumePimOAuthResult } from "./services/pim/pimOAuth";
 import { useDeepLinkNav } from "./hooks/useDeepLinkNav";
 import { useFolderLinkNav } from "./hooks/useFolderLinkNav";
 import { useSoftKeyboard } from "./hooks/useSoftKeyboard";
@@ -43,7 +42,6 @@ import { App as CapApp } from "@capacitor/app";
 import { mActions, mPrompt } from "./services/mobileDialogs";
 import { askBeforeLeaving, leaveThen } from "./services/leaveQuestion";
 import { createNavActions, restoreSession } from "./services/navActions";
-import { bindConflictStore } from "./services/conflictState";
 import { useNavPersistence } from "./services/sessionState";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import { JournalCaptureSheet } from "./components/JournalCaptureSheet";
@@ -85,8 +83,7 @@ import { buildMobileCommands } from "./services/mobileCommands";
 import { getWindowClass, isRailClass, subscribeWindowClass } from "./services/windowClass";
 import { useAdaptiveSplit } from "./hooks/useAdaptiveSplit";
 import { FabMenu } from "./components/FabMenu";
-import { aiShellRoutes, MobileAiShell, useMobileAi, withoutAiArea } from "./components/MobileAiShell";
-import { ShellProviders } from "./components/ShellProviders";
+import { aiShellRoutes, MobileAiShell, ShellProviders, useMobileAi, withoutAiArea } from "./components/MobileAiShell";
 
 // Tab/stack shell (rebuilt in R2): the bottom bar carries up to four
 // user-chosen screens around the fixed ＋ (M3 navigation bar); search and
@@ -103,7 +100,6 @@ const dayOfIso = (iso: string): Date => {
 
 export default function App() {
   const { i18n, t } = useTranslation();
-  const [vault, setVault] = useState<MobileVault | null>(null);
   // The bar's arrangement, from the shared bar model (S10). Starts at the
   // model's default and is replaced once the vault's own value is read — a
   // synchronous first paint matters more here than a moment of the default,
@@ -137,10 +133,6 @@ export default function App() {
   useEffect(() => {
     navRef.current = nav;
   }, [nav]);
-  const vaultRef = useRef(vault);
-  useEffect(() => {
-    vaultRef.current = vault;
-  }, [vault]);
   // Package J intents: the [] URL effect and the resume poll only park them
   // here; the PendingIntentRunner below (rendered after the vault guard)
   // executes them with the real capture/openDaily closures.
@@ -197,6 +189,17 @@ export default function App() {
     // Read, not closed over: this callback is deliberately dependency-free.
     setNav((s) => ensureVisibleTab(s, shownBarTabs(next, isRailClass(getWindowClass()))));
   }, []);
+  // The vault's boot and the services on it (hooks/useVaultBoot); while it has
+  // none, the shell shows where the boot stands (issue 143).
+  const { vault, boot } = useVaultBoot({
+    onOpened: (v, first) => {
+      if (first) void restoreSession(v, setNav).finally(() => window.dispatchEvent(new Event("m-connect-run-changed")));
+      else setBump((n) => n + 1);
+      void adoptBar(v.vaultId);
+    },
+    onSwitching: () => setNav((s) => initialNavState(s.activeTab)),
+    onAccountsImported: () => setBump((n) => n + 1),
+  });
 
   /**
    * A deliberate change to the bar — kept, mirrored and stored. Reads the vault
@@ -216,35 +219,9 @@ export default function App() {
   const connectionRun = useConnectionRun();
 
   useEffect(() => {
-    void getMobileVault().then((v) => {
-      setVault(v);
-      bindConflictStore(v.vaultId); // unresolved conflicts survive the restart (P1)
-      void restoreSession(v, setNav).finally(() => window.dispatchEvent(new Event("m-connect-run-changed")));
-      void adoptBar(v.vaultId);
-      void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e));
-      void startPim(v).then(resumePimOAuthResult).catch((e) => console.error("[boot] pim start failed", e));
-      startMobileMail(v);
-    });
     void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
     const onChanged = () => setBump((n) => n + 1);
-    // Vault switch (M3.5 isolation): drop all stacks (and any overlay), then
-    // reboot the vault and restart sync for the newly active container.
-    const onSwitched = () => {
-      stopPim();
-      stopMobileMail();
-      setVault(null);
-      setNav((s) => initialNavState(s.activeTab));
-      void getMobileVault().then((v) => {
-        setVault(v);
-        bindConflictStore(v.vaultId);
-        setBump((n) => n + 1);
-        void adoptBar(v.vaultId);
-        void startSyncIfConfigured(v).catch((e) => console.error("[switch] sync start failed", e));
-        void startPim(v).catch((e) => console.error("[switch] pim start failed", e));
-        startMobileMail(v);
-      });
-      void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
-    };
+    const onSwitched = () => void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
     const onSettings = () => {
       void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
     };
@@ -258,19 +235,6 @@ export default function App() {
       const id = barVaultRef.current;
       if (id) void adoptBar(id);
     };
-    // Accounts arrived through the settings sync (plan P3). They were written
-    // straight into the vault database, so the runtimes are still holding the
-    // state from before — without this the imported calendar stays empty and
-    // the mailbox invisible until the next app start.
-    const onAccountsImported = () => {
-      void getMobileVault().then((v) => {
-        // Queued behind a sign-in that is being stored (pimService).
-        void restartPimAfterImport(v).catch((e) => console.error("[import] pim restart failed", e));
-        stopMobileMail();
-        startMobileMail(v);
-        setBump((n) => n + 1);
-      });
-    };
     const onRevealFile = (event: Event) => {
       const { path, vaultId } = (event as CustomEvent<{ path: string; vaultId: string }>).detail;
       if (barVaultRef.current !== vaultId) return;
@@ -281,13 +245,11 @@ export default function App() {
     window.addEventListener("m-vault-changed", onChanged);
     window.addEventListener("m-vault-switched", onSwitched);
     window.addEventListener("m-settings-changed", onSettings);
-    window.addEventListener("m-accounts-imported", onAccountsImported);
     window.addEventListener(BAR_LAYOUT_CHANGED_EVENT, onBarLayout);
     return () => {
       window.removeEventListener("m-vault-changed", onChanged);
       window.removeEventListener("m-vault-switched", onSwitched);
       window.removeEventListener("m-settings-changed", onSettings);
-      window.removeEventListener("m-accounts-imported", onAccountsImported);
       window.removeEventListener("m-reveal-file", onRevealFile);
       window.removeEventListener(BAR_LAYOUT_CHANGED_EVENT, onBarLayout);
     };
@@ -399,14 +361,9 @@ export default function App() {
   // the hook order on the next one.
   const { splitPossible, twoColumn, navCollapsed, toggleNav } = useAdaptiveSplit(onboarded);
 
-  // Long press on the navigation bar opens the areas sheet (P5/E10) — the
-  // shortcut next to the discoverable title ▾. A short tap must stay a tab
-  // switch, so the timer is cancelled on pointerup/leave. Declared above the
-  // early return: hooks must run in the same order on every render.
-
   useCommentShell(vault, useCallback((entry) => leaveThen(() => setNav((s) => pushEntry(s, entry))), []));
   const ai = useMobileAi(vault, () => commandNotePath(nav));
-  if (!vault) return <div className="m-app" />;
+  if (!vault) return <VaultBootSurface boot={boot} />;
 
   const top = navTop(nav);
 
@@ -680,6 +637,7 @@ export default function App() {
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
       <ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} />
+      <IndexBuildNotice vaultId={vault.vaultId} />
       {!onboarded && (
         <div className="m-onboarding">
           <h1>{t("mobile.onboardingTitle")}</h1>

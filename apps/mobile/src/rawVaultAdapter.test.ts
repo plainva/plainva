@@ -137,6 +137,7 @@ const SITES: Record<string, Site[]> = {
     ["handed to createContentRefResolver", 1, "reads: names a file for the upload that streams it"],
     ["handed to new DeletionJournal", 1, "the deletion journal is a sideband file of the sync (`.plainva/sync`), not a note"],
     ["handed to new SyncWorker", 1, SYNC],
+    ["handed to new SettingsOnlySync", 1, `${SIDEBAND} (files off for the vault: only the settings travel, second review B3)`],
   ],
   "services/vaultService.ts": [
     ["builds CapacitorVaultAdapter", 2, `${BOOT}; ${NOT_OPEN} (\`createLocalVault\`)`],

@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, Plus, RotateCw } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import {
   type AccountRepairNeed,
   accountServices,
+  accountStateKey,
+  accountStateOf,
+  cx,
+  isServiceOff,
   type CloudAccountRecord,
   type CloudServiceId,
   GroupCard,
@@ -22,16 +26,10 @@ import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
 import { backfillMobileCalendarIdentity, backfillMobileSyncIdentity } from "../services/cloudIdentityBackfill";
-import { canUnifyMobileAccount } from "../services/accountLogin";
-import { AccessUnavailableError, beginMobileSignIn } from "../services/accountSignIn";
-import { toastConnectionFailure } from "../services/connectionToast";
-import { loadCloudAccounts } from "../services/cloudAccountsStore";
 import {
   guideMobileAccountRepair,
   loadMobileAccountRepairNeeds,
 } from "../services/accountRepair";
-import { DeviceSignInBadge } from "../components/DeviceSignInRow";
-import { AccountAccessSheet } from "../components/AccountAccessSheet";
 import { mConfirm } from "../services/mobileDialogs";
 import { AppBar } from "../components/AppBar";
 import { ConnectRunSummary } from "../components/ConnectRunBanner";
@@ -86,12 +84,6 @@ export function CloudAccountsScreen({
   const [cloudRecords, setCloudRecords] = useState<CloudAccountRecord[]>([]);
   const [repairNeeds, setRepairNeeds] = useState<AccountRepairNeed[]>([]);
   const [repairBusy, setRepairBusy] = useState(false);
-  /**
-   * Accounts still holding one token per service. The desktop has offered to
-   * merge them since stage B; the phone could not, so the same account followed
-   * two different token models on two devices (Sammelplan C5).
-   */
-  const [unifiable, setUnifiable] = useState<CloudAccountRecord[]>([]);
 
   const reload = useCallback(() => {
     void loadAccountCards()
@@ -106,13 +98,9 @@ export function CloudAccountsScreen({
     void getActiveVaultEntry()
       .then(async (entry) => {
         setRepairNeeds(await loadMobileAccountRepairNeeds(entry.id));
-        const records = await loadCloudAccounts(entry.id);
-        const checked = await Promise.all(records.map(async (r) => ((await canUnifyMobileAccount(entry.id, r)) ? r : null)));
-        setUnifiable(checked.filter((r): r is CloudAccountRecord => !!r));
       })
       .catch(() => {
         setRepairNeeds([]);
-        setUnifiable([]);
       });
   }, []);
 
@@ -146,31 +134,6 @@ export function CloudAccountsScreen({
   }, [reload]);
 
   const serviceNames = (services: readonly CloudServiceId[]) => services.map(serviceLabel).join(" · ");
-
-  /** Signing in again is the fix for an expired OAuth token; the record holds
-   * everything the login needs, so the row that shows the problem carries it.
-   *
-   * When this device holds no client id for the account, the answer is the form
-   * — not the raw error this used to toast (Befund 2026-08-20). */
-  const [needClient, setNeedClient] = useState<{ record: CloudAccountRecord; family: "google" | "microsoft" } | null>(null);
-  const [, setSigningIn] = useState(false);
-
-  const signInAgain = (record: CloudAccountRecord) => {
-    const family = record.family;
-    if (family !== "google" && family !== "microsoft") return;
-    void (async () => {
-      setSigningIn(true);
-      try {
-        await beginMobileSignIn((await getActiveVaultEntry()).id, { family, cardId: record.id, add: [] });
-        setNeedClient(null);
-      } catch (e) {
-        if (e instanceof AccessUnavailableError) setNeedClient({ record, family: e.family });
-        else toastConnectionFailure(e);
-      } finally {
-        setSigningIn(false);
-      }
-    })();
-  };
 
   const repairAmbiguous = async (need: AccountRepairNeed, target: CloudAccountRecord) => {
     if (repairBusy) return;
@@ -254,73 +217,42 @@ export function CloudAccountsScreen({
 
       <SectionLabel>{t("cloudAccounts.connectedGroup")}</SectionLabel>
       {cards.length === 0 && <p className="m-hint">{t("cloudAccounts.noneYet")}</p>}
-      {cards.map((card) => (
-        <GroupCard key={card.key}>
-          <RowList>
-            <Row
-              data-testid="cloudacct-row"
-              icon={<Mark family={card.family} />}
-              title={card.label}
-              subtitle={card.subtitle ? `${familyLabel(card.family)} · ${card.subtitle}` : familyLabel(card.family)}
-              end={
-                <>
-                  {card.signIn && card.signIn !== "active" && <DeviceSignInBadge state={card.signIn} />}
-                  <ChevronRight className="m-chevron" size={ICON.ui} />
-                </>
-              }
-              onClick={() => onOpenAccount(card.key)}
-            />
-            {/* The services are the account's smallest fact, so they read like one:
-                the muted second-line type, indented under the identity. */}
-            <Row indent={1} title={<span className="m-acctsub">{serviceNames(card.services)}</span>} />
-            {/* The repair sits where the problem is stated. An expired token is
-                fixed by signing in again — anywhere else the user would have to
-                guess which of the screens behind the chevron holds the button. */}
-            {card.signIn === "expired" && card.record && (
-              <Row
-                indent={1}
-                data-testid="cloudacct-signin-again"
-                icon={<RotateCw className="m-accent" size={ICON.ui} />}
-                title={t("pim.signInAgain")}
-                onClick={() => signInAgain(card.record!)}
-              />
-            )}
-          </RowList>
-        </GroupCard>
-      ))}
-
-      {unifiable.length > 0 && (
-        <>
-          <SectionLabel>{t("cloudAccounts.unifyLogin")}</SectionLabel>
-          <GroupCard>
+      {cards.map((card) => {
+        // ONE state per account, read from its own sign-in (plan "Verbinden", V2) - the
+        // pill of the account page's head; the action lives there.
+        const state = accountStateOf(card.signIn);
+        return (
+          <GroupCard key={card.key}>
             <RowList>
-              {unifiable.map((record) => (
-                <Row
-                  key={record.id}
-                  data-testid="cloudacct-unify"
-                  icon={<RotateCw className="m-accent" size={ICON.ui} />}
-                  title={t("cloudAccounts.unifyLogin")}
-                  subtitle={record.label || t("cloudAccounts.unifyAvailable")}
-                  end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                  onClick={() => signInAgain(record)}
-                />
-              ))}
+              <Row
+                data-testid="cloudacct-row"
+                icon={<Mark family={card.family} />}
+                title={card.label}
+                subtitle={card.subtitle ? `${familyLabel(card.family)} · ${card.subtitle}` : familyLabel(card.family)}
+                end={
+                  <>
+                    {state && (
+                      <span className={cx("pv-acct-state", `pv-acct-state--${state}`)} data-testid="cloudacct-row-state" data-state={state}>
+                        {t(accountStateKey(state))}
+                      </span>
+                    )}
+                    <ChevronRight className="m-chevron" size={ICON.ui} />
+                  </>
+                }
+                onClick={() => onOpenAccount(card.key)}
+              />
+              {/* The services are the account's smallest fact, so they read like one:
+                  the muted second-line type, indented under the identity. A service
+                  switched off for the vault (E3) is not listed as running. */}
+              <Row indent={1} title={<span className="m-acctsub">{serviceNames(card.services.filter((service) => !card.record || !isServiceOff(card.record, service)))}</span>} />
             </RowList>
           </GroupCard>
-          <p className="m-hint">{t("cloudAccounts.unifyHintMobile")}</p>
-        </>
-      )}
+        );
+      })}
 
       <p className="m-hint">{t("mobile.syncCreatesVaultHint")}</p>
       </div>
 
-      {needClient && (
-        <AccountAccessSheet
-          family={needClient.family}
-          onCancel={() => setNeedClient(null)}
-          onSaved={() => { const { record } = needClient; setNeedClient(null); signInAgain(record); }}
-        />
-      )}
     </div>
   );
 }

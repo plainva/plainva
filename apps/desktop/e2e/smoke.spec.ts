@@ -2681,6 +2681,46 @@ test('Read view: a wiki link with an unbalanced paren in the target renders as a
   await expect(reader.getByText(/wiki:\/\//)).toHaveCount(0);
 });
 
+test('Read view: a tick below a fenced block in a callout writes exactly its own line', async ({ page }) => {
+  // Finding 2026-10-25: the reader renders a fence behind `> ` as code and
+  // matches a ticked box back to the file by counting; the scanner that
+  // counts in the file did not know such a fence, so its example lines were
+  // tasks and a tick wrote a line further up.
+  const note = [
+    '# Fenced',
+    '',
+    '> [!example] How a checklist looks',
+    '> ```markdown',
+    '> - [ ] not a task',
+    '> - [ ] not a task either',
+    '> ```',
+    '',
+    '- [ ] first real',
+    '- [ ] second real',
+    '',
+  ].join('\n');
+  await page.addInitScript((note) => {
+    (window as any).mockFs['/test-vault/Fenced.md'] = note;
+  }, note);
+
+  await page.goto('/');
+  await expect(page.getByText('Fenced', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByText('Fenced', { exact: true }).click();
+  await page.locator('[data-tip="Lesemodus"], [data-tip="Read Mode"]').first().click();
+
+  const reader = page.locator('.markdown-reader').first();
+  await expect(reader.locator('pre code', { hasText: 'not a task either' })).toBeVisible();
+  const boxes = reader.locator('input[type="checkbox"]');
+  await expect(boxes).toHaveCount(2);
+  await boxes.nth(1).click();
+
+  const expected = note.split('\n');
+  expected[9] = '- [x] second real';
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Fenced.md']), { timeout: 8000 })
+    .toBe(expected.join('\n'));
+});
+
 test('Settings: creating a standard task database scaffolds folder + .base and selects it', async ({ page }) => {
   // PIM plan 1a: the vault designates one .base as its task database; the
   // create action scaffolds it in the vault-template shape.

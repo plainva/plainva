@@ -64,7 +64,12 @@ vi.mock("./cloudAccountsActions", () => ({
   connectMicrosoftMailAccount: vi.fn(async () => ({ id: "ms-mail", address: "x" })),
 }));
 vi.mock("./pim/pimAccounts", () => ({
-  connectGoogleAccount: vi.fn(async () => { h.calendarConnects++; return { id: `pim-${h.calendarConnects}`, label: "Calendar" }; }),
+  // As the real one: a runtime that a reload stopped refuses (`assertPimRuntime`).
+  connectGoogleAccount: vi.fn(async (runtime: { isActive(): boolean }) => {
+    if (!runtime.isActive()) throw new Error("pim runtime changed");
+    h.calendarConnects++;
+    return { id: `pim-${h.calendarConnects}`, label: "Calendar" };
+  }),
   connectMicrosoftAccount: vi.fn(),
 }));
 vi.mock("./pim/pimCredentials", () => ({ getPimCredentials: vi.fn(async () => null) }));
@@ -84,6 +89,7 @@ vi.mock("@plainva/ui/mail", () => ({
 
 const runtime = {
   cache: { listAccounts: vi.fn(async () => [{ id: "pim-1", enabled: false }]), upsertAccount: vi.fn(async () => undefined) },
+  isActive: () => true,
 } as never;
 
 const { signInCloudAccount, AccessUnavailableError, readDeviceAccess } = await import("./accountSignIn");
@@ -101,6 +107,28 @@ beforeEach(() => {
 });
 
 describe("connecting a Google account on the desktop", () => {
+  /**
+   * Finding 2026-10-26 (desktop dev build, new Google project): files and mail
+   * connected, the calendar said "the target account or vault changed". The
+   * runtime it was handed had been stopped by a vault reload whose new runtime
+   * was not in place yet; nothing about the account had changed.
+   */
+  it("binds the calendar under the runtime that is alive when it runs, not one a reload stopped", async () => {
+    const stopped = { ...(runtime as object), isActive: () => false } as never;
+    let current: unknown = stopped;
+    // The reload finishes while the sign-in is underway.
+    setTimeout(() => { current = runtime; }, 150);
+    const outcome = await signInCloudAccount("V", () => current as never, { family: "google", add: ["files", "calendar", "mail"] });
+    expect(outcome.rows.map((row) => [row.service, row.state])).toEqual([["files", "active"], ["calendar", "active"], ["mail", "active"]]);
+    expect(h.registry[0].services.calendar).toEqual({ pimAccountId: "pim-1" });
+  });
+
+  it("never calls a reload 'the target account changed'", async () => {
+    const { serviceConnectionMessage } = await import("@plainva/ui");
+    const text = serviceConnectionMessage(new Error("pim runtime changed"), (key) => key);
+    expect(text).toBe("connection.runtimeChanged");
+  });
+
   it("binds files, calendar and mail from ONE consent and reloads the vault once, at the end (plan § 1.1)", async () => {
     const outcome = await signInCloudAccount("V", () => runtime, { family: "google", add: ["files", "calendar", "mail"] });
     expect(h.provider.log.filter((entry) => entry.kind === "consent")).toHaveLength(1);
@@ -161,5 +189,31 @@ describe("this device's access", () => {
     h.secrets = new Map([["drive", { clientId: "legacy.apps.googleusercontent.com", clientSecret: "legacy-secret", refreshToken: "" }]]);
     expect(await readDeviceAccess("google", "V")).toEqual({ source: "own", clientId: "legacy.apps.googleusercontent.com", clientSecret: "legacy-secret" });
     expect(h.secrets.get("oauth_access_google")).toEqual({ source: "own", clientId: "legacy.apps.googleusercontent.com", clientSecret: "legacy-secret" });
+  });
+
+  it("keeps 'nothing to adopt', so a later build never takes its predecessor's standard client for an own one (finding 2026-10-26)", async () => {
+    h.secrets = new Map();
+    expect(await readDeviceAccess("google", "V")).toEqual({ source: "plainva" });
+    // Later the slots name a client this build does not ship - the standard
+    // client of the build before a project switch, say.
+    h.secrets.set("drive", { clientId: "previous-standard.apps.googleusercontent.com", clientSecret: "s", refreshToken: "" });
+    expect(await readDeviceAccess("google", "V")).toEqual({ source: "plainva" });
+  });
+
+  it("moves a device whose own client belongs to the retired project back to the standard sign-in, once (finding 2026-10-26)", async () => {
+    h.secrets = new Map([["oauth_access_google", { source: "own", clientId: "835308879715-bim1pgh5example.apps.googleusercontent.com", clientSecret: "s" }]]);
+    expect(await readDeviceAccess("google", "V")).toEqual({ source: "plainva" });
+    expect(h.secrets.get("oauth_access_google")).toEqual({ source: "plainva" });
+  });
+
+  it("keeps an own client of any other project", async () => {
+    const own = { source: "own", clientId: "123456789012-mine.apps.googleusercontent.com", clientSecret: "s" };
+    h.secrets = new Map([["oauth_access_google", own]]);
+    expect(await readDeviceAccess("google", "V")).toEqual(own);
+  });
+
+  it("never adopts a client of the retired project from the slots", async () => {
+    h.secrets = new Map([["drive", { clientId: "835308879715-bim1pgh5example.apps.googleusercontent.com", clientSecret: "s", refreshToken: "" }]]);
+    expect(await readDeviceAccess("google", "V")).toEqual({ source: "plainva" });
   });
 });

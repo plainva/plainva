@@ -1,6 +1,6 @@
 # FAQ & Fehlerbehebung
 
-Stand: 2026-10-22
+Stand: 2026-10-26
 
 Antworten auf die häufigsten Fragen — von Obsidian-Kompatibilität über Konfliktdateien bis zu Backups.
 
@@ -70,7 +70,7 @@ Zum Auflösen öffnet **Fassungen vergleichen** (Rechtsklick auf die Konfliktdat
 
 ### Meine Google-Anmeldung läuft ständig ab
 
-Beim „Bring Your Own"-Setup bleibt Dein Google-Projekt im Testing-Modus; Google beendet die Anmeldung dann nach 7 Tagen. Plainva erneuert Tokens automatisch im Hintergrund, aber nach Ablauf hilft **Neu verbinden** in den Sync-Einstellungen. Details: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
+Beim „Bring Your Own"-Setup bleibt Dein Google-Projekt im Testing-Modus; Google beendet die Anmeldung dann nach 7 Tagen. Plainva erneuert Tokens automatisch im Hintergrund, aber nach Ablauf hilft **Erneut anmelden** auf der Seite des Kontos unter **Cloud-Konten**. Details: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
 ### Mein Vault liegt in einem OneDrive-/Dropbox-/iCloud-Ordner und Plainva verhält sich seltsam
 
@@ -82,7 +82,7 @@ Sie werden ganz normal lokal gespeichert und in einer Warteschlange gesammelt; s
 
 ### Die Statusleiste zeigt Offline, obwohl ich Internet habe
 
-Dann ist die Sync-Verbindung selbst gestört — häufig, weil die Anmeldung abgelaufen ist oder sich Zugangsdaten geändert haben (z. B. bei Google Drive). Klicke auf **Offline** in der Statusleiste oder auf das Warndreieck neben dem Vault-Namen: Der Dialog zeigt die genaue Fehlermeldung, und **Sync-Einstellungen öffnen** führt direkt zum passenden Anbieter-Formular, wo Du die Verbindung neu herstellst (z. B. **Neu verbinden**). Jeder Klick stößt außerdem sofort einen neuen Sync-Versuch an.
+Dann ist die Sync-Verbindung selbst gestört — häufig, weil die Anmeldung abgelaufen ist oder sich Zugangsdaten geändert haben (z. B. bei Google Drive). Klicke auf **Offline** in der Statusleiste oder auf das Warndreieck neben dem Vault-Namen: Der Dialog zeigt die genaue Fehlermeldung, und **Sync-Einstellungen öffnen** führt zu den Sync-Einstellungen; die Seite des Kontos unter **Cloud-Konten** zeigt seinen Zustand und bietet **Anmelden** oder **Erneut anmelden** direkt im Kopf an. Jeder Klick stößt außerdem sofort einen neuen Sync-Versuch an.
 
 ### Warum fehlt Anbieter X (Proton, Tuta, iCloud Drive …)?
 

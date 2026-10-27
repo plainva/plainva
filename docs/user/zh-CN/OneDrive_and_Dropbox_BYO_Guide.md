@@ -1,6 +1,6 @@
 # 设置OneDrive与Dropbox（自备App注册）
 
-更新日期：2026-10-23
+更新日期：2026-10-26
 
 **通常你不需要这个页面：** Plainva为OneDrive**和**Dropbox都自带了应用ID——你只需选择服务商，点击**连接**并登录即可。你只在两种情况下才需要**自己的**（免费）App注册：公司限制挡住了自带的登录方式，或者你想主动把连接掌握在自己手中。对于**OneDrive**，你在**此设备的登录方式** → **更改** → **自有客户端 ID**中填入它——在账户页面或向导中，桌面端和手机上都一样，且仅适用于此设备。对于**Dropbox**，字段仍在原来的位置：**桌面端**在账户处的**使用你自己的应用 ID**，**手机**上则在连接表单中，紧跟在服务商下方。无论哪种方式，你都只需填入唯一一个公开值：
 
@@ -96,7 +96,7 @@
 - `files.content.read`
 - `files.content.write`
 
-> ⚠️ 如果你之后更改了权限，必须在Plainva中**重新连接**，否则旧的权限仍然有效。
+> ⚠️ 如果你之后更改了权限，必须在Plainva中**重新登录**，否则旧的权限仍然有效。
 
 ### 5. 复制App key
 
@@ -117,12 +117,12 @@
 
 | 症状 | 原因 | 解决方法 |
 |---|---|---|
-| OneDrive："Microsoft returned no refresh_token" | 缺少`offline_access` | 第A5步：添加`offline_access`，然后**重新连接** |
+| OneDrive："Microsoft returned no refresh_token" | 缺少`offline_access` | 第A5步：添加`offline_access`，然后**重新登录** |
 | OneDrive：登录要求提供Secret／失败 | 平台选成了"Web"而不是"移动和桌面" | 第A2步：平台选**公共客户端/本机**，重定向填`http://localhost` |
 | OneDrive：个人账户被拒绝 | 账户类型选错 | 第A2步：选择"……以及个人Microsoft账户" |
 | Dropbox：登录卡住／"redirect_uri mismatch" | 重定向地址不精确 | 第B3步：必须精确为`http://127.0.0.1:41953` |
 | Dropbox："Port 41953 is in use" | 另一个程序占用了该端口 | 关闭占用端口的应用，再试一次 |
-| Dropbox：找不到仓库／权限缺失 | 选成了"App folder"而不是"Full Dropbox"，或权限没有点击**Submit** | 检查第B2／B4步，然后**重新连接** |
+| Dropbox：找不到仓库／权限缺失 | 选成了"App folder"而不是"Full Dropbox"，或权限没有点击**Submit** | 检查第B2／B4步，然后**重新登录** |
 
 ## 另请参阅
 

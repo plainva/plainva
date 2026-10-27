@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useTranslation } from "react-i18next";
 import { Ban, CheckSquare, ChevronDown, Folder, FolderInput, Mail, MailOpen, MessagesSquare, Paperclip, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
 import { firstAngleValue } from "@plainva/core";
-import { Banner, Button, EmptyState, Fab, ICON, IconButton, mailRowActions, plainvaProducer, SearchField, toast, useStableHandler } from "@plainva/ui";
+import { Banner, Button, EmptyState, Fab, ICON, IconButton, mailRowActions, plainvaProducer, SearchField, toast, useStableHandler, useWeekStartDay } from "@plainva/ui";
 import { addSnooze, filterSnoozed, parseSnoozeState, pruneSnoozes, SNOOZE_PRESETS, snoozeUntil, type SnoozeEntry, type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
 import { applyMailBulk, MailBulkReport, type MailBulkReportItem, type MailBulkAction } from "@plainva/ui/mail";
 import { mailListView } from "./mail/mailListView";
@@ -47,7 +47,7 @@ import {
   sortMailFolders,
   threadRows,
 } from "@plainva/ui/mail";
-import { listMobileMailAccounts, mailVaultId, MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
+import { listActiveMobileMailAccounts, mailVaultId, MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { DeviceSignInCard } from "../components/DeviceSignInRow";
 import { accountRowState, deviceSignInState, type DeviceSignInState } from "../services/deviceSignIn";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
@@ -120,6 +120,8 @@ export function MailListScreen({
   onCompose: (accountId: string) => void;
 }) {
   const { t, i18n } = useTranslation();
+  // "Next week" begins where the week-start setting says (snoozeUntil).
+  const weekStart = useWeekStartDay();
   const vaultObj = vault_;
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   // Seeded from the remembered pair (B1), so a rebuild after the reader closes
@@ -287,20 +289,20 @@ export function MailListScreen({
   // Accounts first — everything else hangs off the chosen one. A remembered
   // account that no longer exists falls back to the first (resolveMailAccount).
   useEffect(() => {
-    void listMobileMailAccounts().then((rowsA) => {
+    void listActiveMobileMailAccounts().then((rowsA) => {
       setAccounts(rowsA);
       setAccountId((cur) => resolveMailAccount(cur, rowsA));
     });
   }, [bump]);
 
   useEffect(() => {
-    const onChanged = () => void listMobileMailAccounts().then(setAccounts);
+    const onChanged = () => void listActiveMobileMailAccounts().then(setAccounts);
     window.addEventListener(MAIL_CHANGED_EVENT, onChanged);
     return () => window.removeEventListener(MAIL_CHANGED_EVENT, onChanged);
   }, []);
 
   // Folders of the chosen account; the inbox is the natural landing folder.
-  // Keyed on the account ID, not the account object: `listMobileMailAccounts`
+  // Keyed on the account ID, not the account object: `listActiveMobileMailAccounts`
   // hands back a fresh array each time, so an object dependency re-ran this on
   // every refresh — and several folder/message requests at once is exactly
   // what makes Graph answer 429 (device report 2026-07-26).
@@ -1084,7 +1086,7 @@ export function MailListScreen({
       options: SNOOZE_PRESETS.map((p) => ({ value: p, label: t(`mail.snooze_${p}`) })),
     })) as SnoozePreset | null;
     if (!chosenPreset) return;
-    const until = snoozeUntil(chosenPreset, new Date());
+    const until = snoozeUntil(chosenPreset, new Date(), weekStart);
     const next = addSnooze(snoozed, { account: account.id, id: m.id, folder: mailbox ?? "", until });
     setSnoozed(next);
     patchRows((prev) => prev.filter((r) => r.id !== m.id));

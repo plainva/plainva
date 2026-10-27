@@ -783,7 +783,7 @@ test('task filters survive note navigation and restart; missing selections can b
   await page.reload(); await page.getByTestId('ribbon-tasks').click(); await expect(search).toHaveValue('milk');
   const state = await page.evaluate(() => JSON.parse(localStorage.getItem('plainva-task-view-/test-vault')!));
   // Resetting the filters leaves the chosen list alone (planner B1).
-  expect(state).toEqual({ version: 1, status: 'all', text: 'milk', folder: '', tag: '', dueOnly: false, showHidden: false, list: 'all' });
+  expect(state).toEqual({ version: 1, status: 'all', text: 'milk', folder: '', tag: '', dueOnly: false, showHidden: false, subtasks: true, details: true, list: 'all' });
   expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Todo.md'])).toContain('- [ ] buy milk');
 });
 

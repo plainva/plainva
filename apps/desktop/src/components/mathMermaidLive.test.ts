@@ -21,6 +21,7 @@ vi.mock("../services/mermaidRender", () => ({
 }));
 
 import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
+import { EditorView } from "@codemirror/view";
 
 // Live-preview math + mermaid widgets (Nachfass 2026-07-06). The session host
 // wires mathInlinePlugin/mathMermaidBlockField in LIVE mode only; these tests
@@ -141,6 +142,55 @@ describe("mathMermaidLive", () => {
   it("ignores dollar signs inside fenced code blocks", () => {
     const s = makeSession("# T\n\n```\nkosten $5 und $10\n```\n\nEnde.");
     expect(mathWidgets(s)).toBe(0);
+  });
+});
+
+// A mermaid fence in a quote or a callout (finding 2026-10-25): every line of
+// it starts with the quote's `>`, and the field only knew fences at the start
+// of a line - the reading view drew the diagram, the editor left the source.
+describe("mermaid in a quote or a callout", () => {
+  /** The code each diagram widget hands the renderer, read off the editor's decorations. */
+  const diagramCodes = (s: EditorSession): string[] => {
+    const out: string[] = [];
+    for (const source of s.view.state.facet(EditorView.decorations)) {
+      const set = typeof source === "function" ? source(s.view) : source;
+      set.between(0, s.view.state.doc.length, (_from, _to, deco) => {
+        const widget = deco.spec.widget as { code?: unknown; quoteClass?: unknown } | undefined;
+        if (widget && typeof widget.code === "string" && typeof widget.quoteClass === "string") out.push(widget.code);
+      });
+    }
+    return out;
+  };
+
+  const CALLOUT = ["# T", "", "> [!info] Flow", "> ```mermaid", "> graph TD;", ">   A-->B;", "> ```", "", "Ende."].join("\n");
+
+  it("draws it like a top-level fence, from the code the reading view reads", () => {
+    const s = makeSession(CALLOUT);
+    const widgets = s.view.dom.querySelectorAll(".pv-mermaid-live");
+    expect(widgets.length).toBe(1);
+    expect(diagramCodes(s)).toEqual(["graph TD;\n  A-->B;"]);
+    // The diagram replaces the callout's last lines, so it carries the card.
+    expect(widgets[0].classList.contains("cm-callout")).toBe(true);
+    expect(widgets[0].classList.contains("cm-callout--last")).toBe(true);
+    expect(widgets[0].classList.contains("cm-callout--first")).toBe(false);
+  });
+
+  it("draws it in a plain quote, in a nested quote and in a list item", () => {
+    const s = makeSession(["# T", "", "> ```mermaid", "> graph LR; X-->Y;", "> ```", "", "> > ~~~mermaid", "> > graph LR; P-->Q;", "> > ~~~", "", "- step", "  ```mermaid", "  graph LR; M-->N;", "  ```", ""].join("\n"));
+    const widgets = [...s.view.dom.querySelectorAll(".pv-mermaid-live")];
+    expect(widgets.length).toBe(3);
+    expect(diagramCodes(s)).toEqual(["graph LR; X-->Y;", "graph LR; P-->Q;", "graph LR; M-->N;"]);
+    expect(widgets.map((w) => w.classList.contains("cm-blockquote-line"))).toEqual([true, true, false]);
+  });
+
+  it("shows the source while the caret is inside, and never replaces an unterminated one", () => {
+    const s = makeSession(CALLOUT);
+    s.view.dispatch({ selection: { anchor: s.view.state.doc.toString().indexOf("A-->B") } });
+    expect(mermaidWidgets(s)).toBe(0);
+    s.view.dispatch({ selection: { anchor: 0 } });
+    expect(mermaidWidgets(s)).toBe(1);
+    const open = makeSession(["# T", "", "> ```mermaid", "> graph TD; A-->B;", "", "Text."].join("\n"));
+    expect(mermaidWidgets(open)).toBe(0);
   });
 });
 

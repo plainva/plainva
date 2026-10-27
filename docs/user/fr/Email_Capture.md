@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-10-23
+Dernière mise à jour : 2026-10-26
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -16,9 +16,9 @@ Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de 
 
 Connecter le compte valide l'identification avant que quoi que ce soit ne soit enregistré ; les identifiants vont dans le trousseau de votre système d'exploitation. Les boîtes connectées et les réglages de capture se trouvent ensuite dans la zone **E-mail** : le réglage **Dossier e-mail** choisit où les e-mails capturés sont stockés (par défaut `Mail`).
 
-**Se connecter sur un deuxième appareil.** Lorsqu'une boîte aux lettres arrive par la synchronisation des réglages, son mot de passe ne suit pas automatiquement — les connexions ne sont transférées que si vous activez vous-même la synchronisation des identifiants. Une telle boîte affiche le bouton **Se connecter sur cet appareil** dans la zone **E-mail** : saisissez le mot de passe, Plainva le vérifie auprès du fournisseur avant de l'enregistrer dans le trousseau. Pour une boîte Microsoft, le même bouton mène à **Comptes cloud**, car la connexion s'y fait dans le navigateur. Si cela laisse la liste des messages vide, le même avis et le même bouton y apparaissent aussi — vous n'êtes pas obligé d'aller chercher les paramètres vous-même.
+**Se connecter sur un deuxième appareil.** Lorsqu'une boîte aux lettres arrive par la synchronisation des réglages, son mot de passe ne suit pas automatiquement — les connexions ne sont transférées que si vous activez vous-même la synchronisation des identifiants. Une telle boîte affiche le bouton **Se connecter** dans la zone **E-mail** : saisissez le mot de passe, Plainva le vérifie auprès du fournisseur avant de l'enregistrer dans le trousseau. Pour une boîte Microsoft, le même bouton mène à **Comptes cloud**, car la connexion s'y fait dans le navigateur. Si cela laisse la liste des messages vide, le même avis et le même bouton y apparaissent aussi — vous n'êtes pas obligé d'aller chercher les paramètres vous-même.
 
-**Comptes e-mail sans mot de passe.** Une configuration qui échouait à l’enregistrement pouvait laisser une entrée sans mot de passe (Plainva 0.8.3 sur ordinateur). La zone **E-mail** signale une fois les comptes qui n’ont pas de mot de passe sur cet appareil et n’y ont jamais récupéré d’e-mails. **Voir** affiche la liste. Si vous utilisez un tel compte sur un autre appareil, choisissez **Se connecter sur cet appareil** — c’est alors la bonne voie. **Retirer** supprime l’entrée après confirmation, sur tous les appareils qui synchronisent les réglages de ce vault, jamais d’e-mails ni de fichiers. **Plus tard** masque l’avis. Plainva ne retire jamais rien de lui-même.
+**Comptes e-mail sans mot de passe.** Une configuration qui échouait à l’enregistrement pouvait laisser une entrée sans mot de passe (Plainva 0.8.3 sur ordinateur). La zone **E-mail** signale une fois les comptes qui n’ont pas de mot de passe sur cet appareil et n’y ont jamais récupéré d’e-mails. **Voir** affiche la liste. Si vous utilisez un tel compte sur un autre appareil, choisissez **Se connecter** — c’est alors la bonne voie. **Retirer** supprime l’entrée après confirmation, sur tous les appareils qui synchronisent les réglages de ce vault, jamais d’e-mails ni de fichiers. **Plus tard** masque l’avis. Plainva ne retire jamais rien de lui-même.
 
 ## Lire les e-mails
 
@@ -82,7 +82,7 @@ Vous n'êtes pas obligé d'envoyer depuis Plainva. Ceci fonctionne sur n'importe
 
 ## Signature et adresses d'expéditeur
 
-Dans **Paramètres → E-mail → Envoi**, chaque boîte aux lettres dispose de deux réglages propres :
+Sur la page e-mail de son compte — **Comptes cloud** → le compte → **E-mail**, ou la ligne de la boîte aux lettres dans la zone **E-mail** —, chaque boîte aux lettres dispose de deux réglages propres :
 
 - **Signature** — en Markdown, ajoutée sous votre texte lors de la rédaction (et au-dessus d'un original cité ou transféré, là où un lecteur l'attend). Changer d'expéditeur dans la fenêtre de rédaction remplace la signature au lieu d'en empiler une seconde. Le champ utilise le même éditeur que la fenêtre de rédaction : vous voyez donc la signature telle qu'elle sera envoyée.
 - **Signature par adresse** — dès que tu as d'autres adresses d'expéditeur, un sélecteur **Signature pour** apparaît au-dessus du champ. « Par défaut (toutes les adresses) » est la signature du compte ; choisis une adresse pour en écrire une rien que pour elle. Les adresses sans signature propre continuent d'utiliser celle par défaut, et changer d'expéditeur pendant la rédaction met la bonne en place — y compris entre deux adresses d'un même compte. Vide le champ d'une adresse et elle revient à la signature par défaut.
@@ -102,7 +102,7 @@ Lorsqu'un message porte l'en-tête `List-Unsubscribe`, Plainva affiche un bouton
 
 ## Reporter
 
-Certains courriers ne sont pas urgents sans être réglés pour autant. **Reporter** retire un message de la liste jusqu'à un moment que tu choisis : plus tard aujourd'hui, demain matin, ce week-end ou la semaine prochaine. Sur l'ordinateur, l'entrée se trouve dans le menu contextuel de la ligne ; sur le téléphone, c'est en plus un geste de balayage. Le bouton **Reportés** les fait réapparaître ; de là, **Ramener maintenant** remet un message dans la liste sur-le-champ.
+Certains courriers ne sont pas urgents sans être réglés pour autant. **Reporter** retire un message de la liste jusqu'à un moment que tu choisis : plus tard aujourd'hui, demain matin, ce week-end ou la semaine prochaine. La semaine prochaine, c'est le premier jour de la semaine suivante selon **Début de la semaine** — le même jour que pour l'échéance d'une tâche. Sur l'ordinateur, l'entrée se trouve dans le menu contextuel de la ligne ; sur le téléphone, c'est en plus un geste de balayage. Le bouton **Reportés** les fait réapparaître ; de là, **Ramener maintenant** remet un message dans la liste sur-le-champ.
 
 Deux points à dire franchement. D'abord, reporter est un **marqueur propre à Plainva**, pas une fonction du serveur : ni IMAP ni Microsoft ne connaissent cela. Le marqueur voyage avec la synchronisation des réglages, donc un message reporté sur le téléphone se repose aussi sur l'ordinateur — dans un autre logiciel de messagerie, il est simplement dans la boîte de réception. Ensuite, reporter ne masque que la **liste du dossier** où tu l'as fait : la recherche et « Toutes les boîtes » affichent toujours le message. Reporté veut dire « pas dans mes pattes », pas « disparu ».
 

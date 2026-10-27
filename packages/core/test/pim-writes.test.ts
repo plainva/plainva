@@ -257,7 +257,8 @@ describe("CalDavPimTarget writes", () => {
   it("persists linked-block metadata as an iCalendar extension property", async () => {
     let putBody = "";
     const fetchFn: FetchFn = vi.fn(async (_input, init) => {
-      putBody = String(init?.body);
+      // A PUT answered without an etag is followed by a read of it (R2).
+      if (init?.method === "PUT") putBody = String(init.body);
       return new Response("", { status: 201 });
     });
     await new CalDavPimTarget(creds, fetchFn).createEvent("https://dav.example.org/cal/home/personal/", { ...timedDraft, blockOf: "source-uid" });
@@ -267,7 +268,8 @@ describe("CalDavPimTarget writes", () => {
   it("creates an all-day event with VALUE=DATE civil dates", async () => {
     let putBody = "";
     const fetchFn: FetchFn = vi.fn(async (_input, init) => {
-      putBody = String(init?.body);
+      // A PUT answered without an etag is followed by a read of it (R2).
+      if (init?.method === "PUT") putBody = String(init.body);
       return new Response("", { status: 201 });
     });
     await new CalDavPimTarget(creds, fetchFn).createEvent("https://dav.example.org/cal/home/personal/", allDayDraft);
@@ -500,7 +502,8 @@ describe("CalDavPimTarget writes", () => {
   it("createEvent attaches a simple RRULE when the draft asks for recurrence", async () => {
     let putBody = "";
     const fetchFn: FetchFn = vi.fn(async (_input, init) => {
-      putBody = String(init?.body);
+      // A PUT answered without an etag is followed by a read of it (R2).
+      if (init?.method === "PUT") putBody = String(init.body);
       return new Response("", { status: 201 });
     });
     await new CalDavPimTarget(creds, fetchFn).createEvent("https://dav.example.org/cal/home/personal/", {

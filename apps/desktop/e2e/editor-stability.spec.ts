@@ -69,6 +69,7 @@ test.beforeEach(async ({ page }) => {
       '/test-vault/Welcome.md': '# Hello\nWelcome to the mock vault!',
       '/test-vault/Big.md': big,
       '/test-vault/Math.md': math,
+      '/test-vault/Callout.md': ['# Callout', '', '> [!info] Flow', '> ```mermaid', '> graph TD; A-->B;', '> ```', '', 'ENDE', ''].join(String.fromCharCode(10)),
       '/test-vault/Links.md': links,
     };
 
@@ -354,6 +355,27 @@ test('live mode renders KaTeX + mermaid in place; clicking flips to source (Nach
   await mermaid.click();
   await expect(editor).toContainText('```mermaid');
   await expect(page.locator('.pv-mermaid-live')).toHaveCount(0);
+});
+
+// Finding 2026-10-25: a mermaid fence inside a callout stayed source in the
+// live preview (every line of it starts with the quote's `>`); the reading
+// view drew it. Both draw it now, and the diagram keeps the callout's card.
+test('a mermaid fence in a callout is drawn in the live preview and in read mode', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Callout', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByText('Callout', { exact: true }).click();
+
+  const editor = page.locator('.cm-content').first();
+  await expect(editor).toBeVisible({ timeout: 10000 });
+  const live = page.locator('.pv-mermaid-live');
+  await expect(live.locator('svg')).toBeVisible({ timeout: 30000 });
+  await expect(live).toHaveClass(/cm-callout/);
+  await expect(editor).not.toContainText('```mermaid');
+
+  await page.locator('[data-tip="Lesemodus"], [data-tip="Read Mode"]').first().click();
+  const reader = page.locator('.markdown-reader').first();
+  // The diagram's own svg, not the callout's icon.
+  await expect(reader.locator('.pv-reader-callout svg[aria-roledescription]').first()).toBeVisible({ timeout: 30000 });
 });
 
 test('typing + save cycle far below the init-parse window keeps the view still', async ({ page }) => {

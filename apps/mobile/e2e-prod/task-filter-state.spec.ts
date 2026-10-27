@@ -32,6 +32,6 @@ test("task filters return after note navigation and restart with a clearable mis
     if (await page.getByTestId("note-menu").isVisible()) await page.getByRole("button", { name: /^Back$/ }).click();
     if (!await search.isVisible()) await tasks.click();
     await expect(search).toHaveValue("remember");
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem("plainva-task-view-local")!))).toEqual({ version: 1, status: "all", text: "remember", folder: "", tag: "", dueOnly: false, showHidden: false, list: "all" });
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem("plainva-task-view-local")!))).toEqual({ version: 1, status: "all", text: "remember", folder: "", tag: "", dueOnly: false, showHidden: false, list: "all", subtasks: true, details: true });
   } finally { sql.close(); }
 });

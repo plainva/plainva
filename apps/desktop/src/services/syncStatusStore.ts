@@ -39,6 +39,12 @@ export interface SyncStatusSnapshot {
    * fix (P3, 2026-08-19).
    */
   authRecoverable?: boolean;
+  /**
+   * The vault is signed out on THIS device: the account card whose sign-in it
+   * needs (third review of plan "Verbinden", finding 3). The dialog then leads
+   * to that card instead of the sync settings.
+   */
+  signInAccountId?: string;
   /** With `retrying` only: wall clock of the next attempt (round 3, R4). */
   retryAt?: number;
   /**
@@ -69,6 +75,7 @@ export interface SyncErrorEntry {
   provider: SyncProviderId | null;
   reason?: SyncErrorReason;
   authRecoverable?: boolean;
+  signInAccountId?: string;
   listingIncomplete?: ListingIncompleteInfo | null;
 }
 export type SyncErrorSnapshot = SyncErrorEntry;
@@ -116,6 +123,7 @@ export const syncStatusStore = {
     if ((next.status !== undefined || next.message !== undefined) && next.authRecoverable === undefined) {
       merged.authRecoverable = undefined;
     }
+    if ((next.status !== undefined || next.message !== undefined) && next.signInAccountId === undefined) merged.signInAccountId = undefined;
     if ((next.status !== undefined || next.message !== undefined) && next.workspaceFailure === undefined) merged.workspaceFailure = undefined;
     st.snapshot = merged;
     if (
@@ -129,6 +137,7 @@ export const syncStatusStore = {
         provider: merged.provider,
         reason: merged.reason,
         authRecoverable: merged.authRecoverable,
+        ...(merged.signInAccountId ? { signInAccountId: merged.signInAccountId } : {}),
         workspaceFailure: merged.workspaceFailure,
         listingIncomplete: merged.listingIncomplete ?? null,
       });
@@ -182,6 +191,7 @@ export function captureSyncErrorSnapshot(vaultPath: string | null): SyncErrorSna
       provider: current.provider,
       reason: current.reason,
       authRecoverable: current.authRecoverable,
+      ...(current.signInAccountId ? { signInAccountId: current.signInAccountId } : {}),
       listingIncomplete: current.listingIncomplete ?? null,
     };
   }

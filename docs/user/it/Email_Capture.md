@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-10-23
+Ultimo aggiornamento: 2026-10-26
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -16,9 +16,9 @@ Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mai
 
 Il collegamento verifica l'accesso prima che venga salvato qualcosa; le credenziali finiscono nel portachiavi del sistema operativo. Le caselle collegate e le impostazioni di cattura si trovano poi nell'area **E-mail**: l'impostazione **Cartella e-mail** sceglie dove vengono salvate le e-mail catturate (predefinita `Mail`).
 
-**Accedere su un secondo dispositivo.** Quando una casella arriva tramite la sincronizzazione delle impostazioni, la sua password non la segue automaticamente: gli accessi vengono trasferiti solo se attivi tu la sincronizzazione delle credenziali. Una casella così mostra il pulsante **Accedi su questo dispositivo** nell'area **E-mail**: digita la password e Plainva la verifica presso il provider prima di salvarla nel portachiavi. Per una casella Microsoft lo stesso pulsante porta a **Account cloud**, perché è lì che avviene l'accesso nel browser. Se questo lascia vuoto l'elenco dei messaggi, lo stesso avviso con lo stesso pulsante compare anche lì — non devi cercare le impostazioni da solo.
+**Accedere su un secondo dispositivo.** Quando una casella arriva tramite la sincronizzazione delle impostazioni, la sua password non la segue automaticamente: gli accessi vengono trasferiti solo se attivi tu la sincronizzazione delle credenziali. Una casella così mostra il pulsante **Accedi** nell'area **E-mail**: digita la password e Plainva la verifica presso il provider prima di salvarla nel portachiavi. Per una casella Microsoft lo stesso pulsante porta a **Account cloud**, perché è lì che avviene l'accesso nel browser. Se questo lascia vuoto l'elenco dei messaggi, lo stesso avviso con lo stesso pulsante compare anche lì — non devi cercare le impostazioni da solo.
 
-**Account e-mail senza password.** Una configurazione fallita durante il salvataggio poteva lasciare una voce senza password (Plainva 0.8.3 su desktop). L’area **E-mail** segnala una volta gli account che su questo dispositivo non hanno password e qui non hanno mai scaricato e-mail. **Vedi** mostra l’elenco. Se usi un account del genere su un altro dispositivo, scegli **Accedi su questo dispositivo**: in quel caso è la strada giusta. **Rimuovi** elimina la voce dopo una conferma, su tutti i dispositivi che sincronizzano le impostazioni di questo vault, mai e-mail o file. **Più tardi** nasconde l’avviso. Plainva non rimuove mai nulla da solo.
+**Account e-mail senza password.** Una configurazione fallita durante il salvataggio poteva lasciare una voce senza password (Plainva 0.8.3 su desktop). L’area **E-mail** segnala una volta gli account che su questo dispositivo non hanno password e qui non hanno mai scaricato e-mail. **Vedi** mostra l’elenco. Se usi un account del genere su un altro dispositivo, scegli **Accedi**: in quel caso è la strada giusta. **Rimuovi** elimina la voce dopo una conferma, su tutti i dispositivi che sincronizzano le impostazioni di questo vault, mai e-mail o file. **Più tardi** nasconde l’avviso. Plainva non rimuove mai nulla da solo.
 
 ## Leggere le e-mail
 
@@ -82,7 +82,7 @@ Non devi inviare dall'interno di Plainva. Questo funziona con qualsiasi nota e n
 
 ## Firma e indirizzi mittente
 
-In **Impostazioni → E-mail → Invio** ogni casella ha due impostazioni proprie:
+Nella pagina e-mail del suo account — **Account cloud** → l'account → **E-mail**, oppure la riga della casella nell'area **E-mail** — ogni casella ha due impostazioni proprie:
 
 - **Firma** — in Markdown, aggiunta sotto il tuo testo quando scrivi (e sopra un originale citato o inoltrato, dove il lettore se la aspetta). Cambiando mittente nella finestra di composizione la firma viene sostituita invece di accumularne una seconda. Il campo usa lo stesso editor della finestra di composizione, quindi vedi la firma come verrà inviata.
 - **Firma per indirizzo** — quando hai altri indirizzi mittente, sopra il campo compare la scelta **Firma per**. «Predefinita (tutti gli indirizzi)» è la firma dell'account; scegli un indirizzo per scriverne una solo per lui. Gli indirizzi senza firma propria continuano a usare quella predefinita, e cambiare mittente mentre scrivi inserisce quella giusta — anche tra due indirizzi dello stesso account. Se svuoti il campo di un indirizzo, torna alla predefinita.
@@ -102,7 +102,7 @@ Quando un messaggio porta l'intestazione `List-Unsubscribe`, Plainva mostra nel 
 
 ## Rimandare
 
-C'è posta che non è urgente ma nemmeno conclusa. **Rimanda** toglie un messaggio dall'elenco fino a un momento che scegli: più tardi oggi, domani mattina, nel fine settimana o la prossima settimana. Sul computer la voce sta nel menu contestuale della riga; sul telefono è anche un gesto di scorrimento. Il pulsante **Rimandati** li riporta alla vista; da lì **Riporta ora** rimette subito un messaggio nell'elenco.
+C'è posta che non è urgente ma nemmeno conclusa. **Rimanda** toglie un messaggio dall'elenco fino a un momento che scegli: più tardi oggi, domani mattina, nel fine settimana o la prossima settimana. La prossima settimana è il primo giorno della settimana successiva secondo **Inizio settimana**: lo stesso giorno della scadenza di un'attività. Sul computer la voce sta nel menu contestuale della riga; sul telefono è anche un gesto di scorrimento. Il pulsante **Rimandati** li riporta alla vista; da lì **Riporta ora** rimette subito un messaggio nell'elenco.
 
 Due cose da dire chiaramente. Primo: rimandare è un **contrassegno di Plainva**, non una funzione del server — né IMAP né Microsoft conoscono qualcosa del genere. Il contrassegno viaggia con la sincronizzazione delle impostazioni, quindi un messaggio rimandato sul telefono riposa anche sul computer; in un altro programma di posta sta normalmente nella posta in arrivo. Secondo: rimandare nasconde soltanto l'**elenco della cartella** in cui l'hai fatto — la ricerca e «Tutte le caselle» continuano a mostrare il messaggio. Rimandato significa «non tra i piedi», non «sparito».
 

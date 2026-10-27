@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-10-24
+Laatst bijgewerkt: 2026-10-25
 
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
@@ -28,6 +28,8 @@ De vier filters van de desktopbalk verschijnen op de telefoon als chips boven de
 ## De lijst lezen
 
 Taken zijn gegroepeerd per notitie; de notitietitel is een kop waarop je kunt klikken om de notitie te openen. Elke taak toont het selectievakje en de tekst, doorgestreept zodra de taak is voltooid. Een **vervaldatum**, geschreven als `📅 2026-08-01` in de taakregel, verschijnt als klein label.
+
+Een link in de tekst van een taak staat er als zijn tekst: `[[Alexander Gaas|Alex]]` toont **Alex**, `[[Mensen/Anna]]` toont **Anna**, in het uiterlijk van een link. Klikken of tikken op de link opent die notitie; klikken op de rest van de regel opent de taak. Dit geldt voor elke takenlijst, op de desktop en op de telefoon. Een link naar een notitie die nog niet bestaat, ziet eruit als in de editor — gedempt en gestreept — en een klik erop maakt de notitie aan.
 
 ## Filteren
 
@@ -177,3 +179,16 @@ Meer manieren om een taak toe te voegen: **Nieuwe taak** in het systeemvakmenu o
 ## Afvinken vanuit een widget
 
 Het vakje in de widget **Vandaag** neemt een verzoek op: het vinkje verschijnt meteen, de notitie verandert bij het volgende openen van Plainva, en dan gebeuren ook de herhaling en de synchronisatie. Tot dan zegt de regel **wordt toegepast bij het openen van Plainva**. Een taak die je intussen hebt afgerond, verwijderd of verplaatst blijft ongemoeid. Op de iPhone vereist dit iOS 17; daaronder opent een tik op de regel de taak. Details: [De mobiele app](Mobile_App.md).
+
+<!-- task-rows-2026-10-24 -->
+## Subtaken, opsommingen en wat vandaag klaar is
+
+**Subtaken.** Een vakje dat onder een ander is ingesprongen, is zijn subtaak, zoals `show tree` in de Tasks-plug-in van Obsidian. In de lijsten **Vandaag**, **Binnenkort**, **Inbox** en **Klaar** draagt een taak haar subtaken ingesprongen onder zich — open en afgeronde, de afgeronde doorgestreept — en een pijl aan het eind van de regel klapt ze in. Een subtaak met een eigen datum staat ook op zijn eigen dag; een subtaak zonder datum staat onder zijn taak en niet nog eens apart in de **Inbox**. De lijst **Alle** houdt elk vakje in de volgorde van zijn notitie.
+
+**Opsommingen.** Gewone opsommingstekens die onder een taak zijn ingesprongen — vragen, aantekeningen — toont de regel onder de titel als voorvertoning van maximaal twee regels; de rest bewaart de notitie.
+
+Beide staan aan tot je ze uitzet: **Subtaken** en **Opsommingen** staan bij de andere filters (selectievakjes op de desktop, chips op de telefoon) en worden samen met die onthouden.
+
+**Vandaag klaar.** Onder **Vandaag** verzamelt een ingeklapte regel **Klaar (n)** wat vandaag is afgevinkt — een vakje op zijn afrondingsdatum `✅` (die Plainva bij elk vinkje schrijft), een item van de takendatabase op de dag waarop zijn notitie voor het laatst is gewijzigd, omdat een database geen eigen afrondingsdatum heeft. Een afgevinkt vakje zonder datum telt niet mee: niets zegt wanneer het is afgerond. De regel is dicht tot je hem opent; het apparaat onthoudt je keuze. Het scherm **Vandaag** van de telefoon toont dezelfde regel onder **Vervalt**.
+
+**Het vakje op de telefoon.** In de editor, in de leesmodus, in het onderdeel Taken en onder **Vandaag** tekent de telefoon elk taakvakje hetzelfde: groot en afgerond, gevuld met een vinkje als het klaar is, half gevuld bij **Bezig**, doorgestreept bij **Geannuleerd**. De desktop houdt zijn kleinere vakjes, gemaakt voor de muis.

@@ -151,6 +151,52 @@ describe("pending calendar writes (issue 119)", () => {
     expect(seriesDeleteSubject(row("e1@1700000000000", { seriesMaster: "e1" }), null, "device")).toBeNull();
   });
 
+  it("a series addressed through its occurrence is a series whose rule and start are not known here (R2)", () => {
+    const caldav = row("s1#20261020T090000", { seriesMaster: "s1", href: "https://dav/cal/s1.ics", etag: '"7"' });
+    // `RRULE` without a rule: the cache's own word for that. A delete that
+    // has to judge a moved etag must not compare the occurrence's start.
+    expect(seriesDeleteSubject(caldav, null)?.recurrence).toBe("RRULE");
+  });
+
+  it("a written etag reaches every row of its object that still holds the old one, and only those (R2)", () => {
+    const href = "https://dav/cal/s1.ics";
+    const rows = [
+      row("s1#1", { seriesMaster: "s1", href, etag: '"7"' }),
+      row("s1#2", { seriesMaster: "s1", href, etag: '"7"' }),
+      row("other", { href: "https://dav/cal/other.ics", etag: '"7"' }),
+    ];
+    const writes = [{ kind: "stamp" as const, ref: ref("s1#1"), href, from: '"7"', etag: '"8"', id: 1, state: "settled" as const, settledAt: 0 }];
+    expect(applyPendingEventWrites(rows, writes).map((e) => e.etag)).toEqual(['"8"', '"8"', '"7"']);
+    // Without an href (Google, Microsoft) only the event itself.
+    const google = [row("g1", { etag: "a" }), row("g2", { etag: "a" })];
+    expect(applyPendingEventWrites(google, [{ ...writes[0], ref: ref("g1"), href: undefined, from: "a", etag: "b" }]).map((e) => e.etag)).toEqual(["b", "a"]);
+  });
+
+  it("a pull that moved the etag on is the newer word: the stamp steps aside and then leaves (R2)", () => {
+    const href = "https://dav/cal/s1.ics";
+    const stamp = { kind: "stamp" as const, ref: ref("s1"), href, from: '"7"', etag: '"8"', id: 1, state: "settled" as const, settledAt: 0 };
+    const pulled = [row("s1", { href, etag: '"9"' })];
+    expect(applyPendingEventWrites(pulled, [stamp])[0].etag).toBe('"9"');
+    expect(unsettledEventWrites(pulled, [stamp], 1)).toEqual([]);
+    expect(unsettledEventWrites([row("s1", { href, etag: '"7"' })], [stamp], 1)).toHaveLength(1);
+  });
+
+  it("a write against an event the cache has not listed yet goes into its create overlay (R2)", async () => {
+    // Laid beside it, the write was let go at the first reconcile - a cache
+    // that never saw the event agrees with nothing: a fresh event lost its new
+    // etag at once, and a deleted one came back from its create overlay.
+    const store = new PendingEventWrites();
+    const fresh = row("u9", { href: "https://dav/cal/u9.ics", etag: '"v1"' });
+    await writeEventOptimistically(store, { kind: "create", row: fresh }, async () => fresh, () => [{ kind: "create", row: fresh }]);
+    const recolour = { kind: "update" as const, ref: ref("u9"), patch: { color: "#d50000" } };
+    await writeEventOptimistically(store, recolour, async () => ({ etag: '"v2"' }), (w) => [recolour, { kind: "stamp", ref: ref("u9"), href: fresh.href, from: '"v1"', etag: w.etag }]);
+    store.reconcile([]);
+    expect(applyPendingEventWrites([], store.snapshot()).map((e) => [e.uid, e.color, e.etag])).toEqual([["u9", "#d50000", '"v2"']]);
+    await writeEventOptimistically(store, { kind: "delete", ref: ref("u9") }, async () => undefined, () => [{ kind: "delete", ref: ref("u9") }]);
+    store.reconcile([]);
+    expect(applyPendingEventWrites([], store.snapshot())).toEqual([]);
+  });
+
   it("tells its listeners about every change and keeps a stable snapshot in between", () => {
     const store = new PendingEventWrites();
     const listener = vi.fn();

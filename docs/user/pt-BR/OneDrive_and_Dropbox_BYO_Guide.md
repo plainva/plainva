@@ -1,6 +1,6 @@
 # Configurar OneDrive & Dropbox (registro de app próprio)
 
-Última revisão: 2026-10-23
+Última revisão: 2026-10-26
 
 **Normalmente você não precisa desta página:** o Plainva já vem com seu próprio ID de app para OneDrive **e** Dropbox — você escolhe o provedor, clica em **Conectar** e faz login. Você só precisa de um registro de app **próprio** (gratuito) em dois casos: quando uma restrição corporativa bloqueia o login que acompanha o app, ou quando você quer colocar a conexão deliberadamente sob seu próprio controle. Para o **OneDrive**, você o informa em **Login neste dispositivo** → **Alterar** → **ID de cliente próprio** — na página da conta ou no assistente, tanto no desktop quanto no celular, só para este dispositivo. Para o **Dropbox**, o campo continua onde estava: no **desktop**, **Usar seu próprio ID de aplicativo** na conta; no **telefone**, no formulário de conexão, logo abaixo do provedor. De qualquer forma, você informa um único valor público:
 
@@ -96,7 +96,7 @@ Aba **Permissions** — marque as seguintes e clique em **Submit** ao final:
 - `files.content.read`
 - `files.content.write`
 
-> ⚠️ Se você alterar as permissões depois, precisará **Reconectar** no Plainva; caso contrário, os direitos antigos continuam valendo.
+> ⚠️ Se você alterar as permissões depois, precisará **Entrar novamente** no Plainva; caso contrário, os direitos antigos continuam valendo.
 
 ### 5. Copie a App key
 
@@ -117,12 +117,12 @@ Aba **Settings**: copie o valor **App key** — esse é o seu valor para o Plain
 
 | Sintoma | Causa | Solução |
 |---|---|---|
-| OneDrive: "Microsoft returned no refresh_token" | `offline_access` ausente | Passo A5: adicione `offline_access`, depois **Reconectar** |
+| OneDrive: "Microsoft returned no refresh_token" | `offline_access` ausente | Passo A5: adicione `offline_access`, depois **Entrar novamente** |
 | OneDrive: o login pede um secret / falha | Plataforma "Web" em vez de "Mobile and desktop" | Passo A2: plataforma **Cliente público/nativo**, redirect `http://localhost` |
 | OneDrive: conta pessoal é rejeitada | Tipo de conta errado | Passo A2: escolha "… e contas pessoais da Microsoft" |
 | Dropbox: o login trava / "redirect_uri mismatch" | Redirect não exato | Passo B3: exatamente `http://127.0.0.1:41953` |
 | Dropbox: "Port 41953 is in use" | Outro programa bloqueia a porta | Feche o aplicativo bloqueador, tente novamente |
-| Dropbox: não encontra o vault / faltam direitos | "App folder" em vez de "Full Dropbox", ou permissões sem **Submit** | Verifique o passo B2 / B4, depois **Reconectar** |
+| Dropbox: não encontra o vault / faltam direitos | "App folder" em vez de "Full Dropbox", ou permissões sem **Submit** | Verifique o passo B2 / B4, depois **Entrar novamente** |
 
 ## Veja também
 

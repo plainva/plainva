@@ -1524,4 +1524,27 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     mobileReason: "Android explicitly includes user-installed CAs in the platform network security configuration. iOS uses URLSession platform trust and may report an indeterminate trust failure without distinguishing a hostname failure. Both retain TLS and hostname validation; no per-host trust bypass is offered.",
     verified: "2026-09-14",
   },
+  {
+    id: "first-index-in-background",
+    title: "Working in a vault while its first index is built",
+    area: "vault",
+    kind: "decision",
+    desktop: "partial",
+    desktopReason:
+      "The desktop opens a vault without an index behind its loading screen — vault name, " +
+      "progress bar, \"Cancel / close vault\" — and shows the app once the first scan is " +
+      "through. Its walk runs in the Rust process against the operating system's file " +
+      "system and takes seconds even for large vaults, so the wait is short and a " +
+      "background build would only add a state in which search, links and databases are " +
+      "half there. The phone shows the same loading surface with the same way out " +
+      "(issue 143) and builds in the background only for a vault in a picked folder: " +
+      "there every folder and every file is a call through the Storage Access Framework " +
+      "or a security-scoped bookmark to the app that provides the folder — minutes for a " +
+      "large vault, and a call that never answered was a blank screen for good. The phone " +
+      "therefore also puts a deadline on every call that only looks into such a folder; the " +
+      "desktop's file system has no provider in between to hang. What needs the whole " +
+      "index (rename, move, find & replace, clean-up, OKF) waits for it on the phone.",
+    mobile: "yes",
+    verified: "2026-10-26",
+  },
 ];

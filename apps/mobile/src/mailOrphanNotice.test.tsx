@@ -154,7 +154,7 @@ describe("the notice about mail accounts without a password, on the phone", () =
     await render();
     await click(container.querySelector('[data-testid="mail-orphans-review"]'));
     const signIn = container.querySelector('[data-testid="mail-orphan-signin-elsewhere"]');
-    expect(signIn?.textContent).toBe("Sign in on this device");
+    expect(signIn?.textContent).toBe("Sign in");
     await click(signIn);
     // The same IMAP form the edit button opens, pointed at that account.
     expect(container.querySelector(".m-sheet")).not.toBeNull();

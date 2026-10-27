@@ -43,8 +43,9 @@ async function send(accountId: string, op: PimWriteOp) {
   const res = await bus.request("pim-write", { accountId, op });
   if ("conflict" in res) {
     // PimConflictError cannot survive JSON; the caller's `instanceof` check is
-    // what decides between "re-pull and reopen" and "show an error".
-    throw new PimConflictError();
+    // what decides between "re-pull and reopen" and "show an error". The etag
+    // the owner read back travels as a value (R2).
+    throw new PimConflictError(undefined, res.currentEtag);
   }
   return res;
 }
@@ -74,10 +75,12 @@ export function createRemotePimTarget(account: PimAccountRow): IPimTarget {
       return { etag: res.etag };
     },
     async deleteEvent(ref: PimEventRef) {
-      await send(id, { kind: "deleteEvent", ref });
+      const res = await send(id, { kind: "deleteEvent", ref });
+      return { etag: res.etag };
     },
     async respondToEvent(ref: PimEventRef, response: "accepted" | "declined" | "tentative") {
-      await send(id, { kind: "respondToEvent", ref, response });
+      const res = await send(id, { kind: "respondToEvent", ref, response });
+      return { etag: res.etag };
     },
   } as IPimTarget;
 }

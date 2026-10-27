@@ -2,6 +2,7 @@ import { sameStoredValue } from "@plainva/core";
 import { PasswordChangeError, type PasswordChangeTarget } from "./accountPasswordChange";
 import type { CloudServiceId } from "./cloudAccounts";
 import type { ProtectedSecretStore } from "./passwordChangeJournal";
+import { withoutSignOutMark } from "./accountSignOut";
 
 /** A snapshot includes only the secret and the fields that bind it to its
  * endpoint. Cosmetic account metadata remains owned by its normal editor. */
@@ -27,7 +28,9 @@ export function createPasswordCredentialTarget<T, B>(opts: {
     read: async () => JSON.stringify(await source()),
     withPassword: (previous, password) => {
       const value = parse(previous);
-      return JSON.stringify({ ...value, credential: opts.withPassword(value.credential, password) });
+      // A new password signs the account in again: the sign-out mark goes with it (at the top or under `creds`).
+      const credential = withoutSignOutMark(withoutSignOutMark(opts.withPassword(value.credential, password)), "creds");
+      return JSON.stringify({ ...value, credential });
     },
     verify: async (password, previous) => {
       const value = parse(previous);

@@ -3,17 +3,16 @@ import { useTranslation } from "react-i18next";
 import { Users } from "lucide-react";
 import {
   Button,
-  DriveDestinationDialog,
   EmptyState,
   SettingCard,
   SettingCardNote,
   SettingRow,
   Switch,
-  TextInput,
   ICON,
   familyOfSyncProvider,
   hasCloudService,
   toast,
+  type CloudServiceId,
   Banner,
   deviceStateKey,
   diagnosticsState,
@@ -25,7 +24,7 @@ import {
   type SyncDiagnostics,
 } from "@plainva/ui";
 import { AreaHead } from "./AppPages";
-import { MIN_SYNC_INTERVAL_SECONDS, useVault } from "../../contexts/VaultContext";
+import { useVault } from "../../contexts/VaultContext";
 import { syncStatusStore } from "../../services/syncStatusStore";
 import { getSettingsStore } from "../../services/settingsStore";
 import {
@@ -47,8 +46,7 @@ import {
 } from "../../services/encryptionSession";
 import { EncryptionSetupModal } from "./EncryptionSetupModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAccounts";
-import { getSyncRootFolder, listSyncFoldersFromSlots, saveSyncRootFolder, createSyncFolderFromSlots, openDriveDestination } from "../../services/cloudAccountsActions";
-import { SyncFolderPickerModal } from "../SyncFolderPickerModal";
+import { getSyncRootFolder } from "../../services/cloudAccountsActions";
 import { AccountMark, familyLabel } from "./cloudAccountsShared";
 import { StoredCredentialsCard } from "./StoredCredentialsCard";
 
@@ -67,10 +65,7 @@ export interface SyncPageProps {
   selectedVault: string;
   isActiveVault: boolean;
   activeProvider: SyncProvider;
-  onOpenCloudAccounts: (accountRef?: string) => void;
-  intervalSec: string;
-  onIntervalChange: (raw: string) => void;
-  onIntervalBlur: () => void;
+  onOpenCloudAccounts: (accountRef?: string, service?: CloudServiceId) => void;
   hasSyncWorker: boolean;
   syncQueueSnapshot: { total: number; items: SyncQueueItem[] } | null;
   onLoadQueue: () => void;
@@ -81,9 +76,6 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const { backupAdapter, syncWorker } = useVault();
   const [records, setRecords] = useState<CloudAccountRecord[]>([]);
   const [rootFolder, setRootFolder] = useState("");
-  const [showPicker, setShowPicker] = useState(false);
-  const [drivePicker, setDrivePicker] = useState<Awaited<ReturnType<typeof openDriveDestination>> | null>(null);
-  const [openingPicker, setOpeningPicker] = useState(false);
   const [settingsSyncOn, setSettingsSyncOn] = useState(false);
   const [secretsSyncOn, setSecretsSyncOn] = useState(false);
   const [secretsDecided, setSecretsDecided] = useState(true);
@@ -261,8 +253,9 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
               <div className="pv-acct-name">{t("cloudAccounts.filesVia", { name: accountName || provider })}</div>
               <div className="pv-acct-id">{rootFolder || t("cloudAccounts.cloudFolderHint")}</div>
             </div>
-            <Button variant="ghost" onClick={() => p.onOpenCloudAccounts(filesAccount?.id)} data-testid="sync-manage-account">
-              {t("cloudAccounts.manageAccount")}
+            {/* Cloud folder, interval and pausing belong to the files of THIS account (plan "Verbinden", V3). */}
+            <Button variant="ghost" onClick={() => p.onOpenCloudAccounts(filesAccount?.id, "files")} data-testid="sync-manage-account">
+              {t("cloudAccounts.openAccountFiles")}
             </Button>
           </div>
         )}
@@ -270,29 +263,6 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
 
       {connected && (
         <SettingCard label={t("settings.groupSyncBehavior", { defaultValue: "Verhalten" })}>
-          <SettingRow label={t("cloudAccounts.cloudFolder")} desc={t("cloudAccounts.cloudFolderHint")}>
-            <TextInput value={rootFolder} readOnly style={{ width: 180 }} data-testid="sync-cloud-folder" />
-            {provider !== "webdav" && (
-              <Button variant="secondary" disabled={openingPicker} onClick={() => {
-                if (provider !== "drive") { setShowPicker(true); return; }
-                setOpeningPicker(true);
-                void openDriveDestination(p.selectedVault).then(setDrivePicker).catch(error => toast.warning(String(error))).finally(() => setOpeningPicker(false));
-              }}>
-                {t("settings.browseFolders")}
-              </Button>
-            )}
-          </SettingRow>
-          <SettingRow label={t("settings.syncInterval")} desc={t("settings.syncIntervalDesc", { min: MIN_SYNC_INTERVAL_SECONDS })}>
-            <input
-              type="number"
-              min={MIN_SYNC_INTERVAL_SECONDS}
-              value={p.intervalSec}
-              onChange={(e) => p.onIntervalChange(e.target.value)}
-              onBlur={p.onIntervalBlur}
-              className="pv-field"
-              style={{ flex: 1, minWidth: 0 }}
-            />
-          </SettingRow>
           {p.isActiveVault && p.hasSyncWorker && (
             <SettingRow
               label={t("settings.syncQueue", { defaultValue: "Ausstehende Übertragungen" })}
@@ -709,21 +679,6 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
           worth finding (E2). */}
       <StoredCredentialsCard />
 
-      {drivePicker && <DriveDestinationDialog session={drivePicker} onClose={() => setDrivePicker(null)}
-        onSave={async selected => { await saveSyncRootFolder(drivePicker.vaultPath, "drive", selected.path, selected.id); await reload(); }} />}
-      {showPicker && provider !== "none" && provider !== "webdav" && (
-        <SyncFolderPickerModal
-          listFolders={(path) => listSyncFoldersFromSlots(p.selectedVault, provider, path)}
-          createFolder={(path) => createSyncFolderFromSlots(p.selectedVault, provider, path)}
-          rootLabel={accountName || provider}
-          allowRoot={provider === "s3"}
-          onSelect={(picked) => {
-            setShowPicker(false);
-            void saveSyncRootFolder(p.selectedVault, provider, picked).then(() => reload());
-          }}
-          onCancel={() => setShowPicker(false)}
-        />
-      )}
     </div>
   );
 };

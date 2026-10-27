@@ -10,7 +10,7 @@ import { NoteCardBody } from "./NoteCardBody";
 import { Rating } from "./ui/Rating";
 import { cx } from "./ui/cx";
 import { IconButton } from "./ui/IconButton";
-import { TaskStateIcon } from "./TaskStateIcon";
+import { TaskBoxGlyph } from "./TaskCheckButton";
 
 /**
  * The journal as a wall of cards (plan Journal-Erweiterungen, X5/E4).
@@ -91,7 +91,7 @@ function EntryCard({ entry, day, loadMedia, onToggleTask, onOpenEntry, onMenu }:
               onClick={() => onToggleTask(day, entry)}
               data-testid="journal-entry-toggle"
             >
-              <TaskStateIcon state={entry.task} size={ICON.ui} />
+              <TaskBoxGlyph state={entry.task} size={ICON.ui} />
             </IconButton>
           </span>
         )}

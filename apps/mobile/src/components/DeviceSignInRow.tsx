@@ -32,7 +32,8 @@ export function DeviceSignInBadge({ state }: { state: DeviceSignInState }) {
       </span>
     );
   }
-  return <span className="m-state m-state--warn">{t("deviceSignIn.signIn", { defaultValue: "anmelden" })}</span>;
+  // The plan's word for the state ("Verbinden", V0); the action beside it says "Anmelden".
+  return <span className="m-state m-state--warn" data-testid="device-signin-needed">{t("deviceSignIn.needed")}</span>;
 }
 
 /**
@@ -92,8 +93,8 @@ export function DeviceSignInCard({
       )}
       <Button variant="primary" data-testid="device-signin-action" onClick={onSignIn}>
         {expired
-          ? t("pim.signInAgain", { defaultValue: "Neu anmelden" })
-          : t("deviceSignIn.action", { defaultValue: "Auf diesem Gerät anmelden" })}
+          ? t("cloudAccounts.reconnect")
+          : t("deviceSignIn.submit")}
       </Button>
     </div>
   );

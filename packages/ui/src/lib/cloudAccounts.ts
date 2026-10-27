@@ -73,6 +73,12 @@ export interface CloudAccountRecord {
   /** Wizard flavor for the webdav family ("nextcloud" preset vs generic server). */
   flavor?: "nextcloud";
   services: CloudAccountServices;
+  /**
+   * Services switched off for the vault, on every device (plan "Verbinden",
+   * E3). The binding stays - notes, the calendar cache, filed mails stay -,
+   * and switched on again the service goes on where it was.
+   */
+  off?: CloudServiceId[];
 }
 
 /** Which services each provider family can offer (the wizard's checkbox matrix). */
@@ -439,9 +445,50 @@ export function accountServices(record: CloudAccountRecord): CloudServiceId[] {
   return out;
 }
 
-/** True when any account carries the given service (nav/ribbon gating). */
+/** Whether a carried service is switched off for the vault (E3). */
+export function isServiceOff(record: Pick<CloudAccountRecord, "off">, service: CloudServiceId): boolean {
+  return !!record.off?.includes(service);
+}
+
+/** The record with the service switched on or off for the vault (E3); the binding is kept. */
+export function withServiceOff(record: CloudAccountRecord, service: CloudServiceId, off: boolean): CloudAccountRecord {
+  const rest = (record.off ?? []).filter((entry) => entry !== service);
+  const next = off ? [...rest, service] : rest;
+  const base: CloudAccountRecord = { ...record };
+  delete base.off;
+  return next.length ? { ...base, off: next } : base;
+}
+
+/**
+ * The calendar rows whose `enabled` flag has to follow the account's switch
+ * (E3): a calendar switched off for the vault stops on every device, with its
+ * cache kept; switched on again it goes on where it was. Applied by the shell
+ * that toggles AND by every other device when it reads the records.
+ */
+export function calendarSwitches<T extends { id: string; enabled: boolean }>(
+  records: readonly CloudAccountRecord[],
+  rows: readonly T[],
+): { row: T; enabled: boolean }[] {
+  const out: { row: T; enabled: boolean }[] = [];
+  for (const record of records) {
+    const id = record.services.calendar?.pimAccountId;
+    const row = id ? rows.find((entry) => entry.id === id) : undefined;
+    if (!row) continue;
+    const enabled = !isServiceOff(record, "calendar");
+    if (row.enabled !== enabled) out.push({ row, enabled });
+  }
+  return out;
+}
+
+/** The mailboxes whose account has mail switched on (E3): a switched-off mailbox stays configured, unread. */
+export function mailboxesSwitchedOn<T extends { id: string }>(mailboxes: readonly T[], records: readonly CloudAccountRecord[]): T[] {
+  const off = new Set(records.filter((record) => isServiceOff(record, "mail")).map((record) => record.services.mail?.mailAccountId));
+  return mailboxes.filter((mailbox) => !off.has(mailbox.id));
+}
+
+/** True when any account carries the given service and has it switched on (nav/ribbon gating). */
 export function hasCloudService(records: readonly CloudAccountRecord[], service: CloudServiceId): boolean {
-  return records.some((r) => accountServices(r).includes(service));
+  return records.some((r) => accountServices(r).includes(service) && !isServiceOff(r, service));
 }
 
 /**

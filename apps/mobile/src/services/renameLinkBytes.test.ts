@@ -95,6 +95,8 @@ beforeEach(async () => {
     toPathIdentity, renameFileWithLinkUpdates, renameBookmarksOnDisk, notifyFileOps, landedAtDestination, errorText, MoveBlockedError, moveItemName,
     noteSaver: { flush: async (path: string) => { flushed.push(path); }, flushAll: async () => {} },
     relocateDrafts: async () => {},
+    // The index of this vault is whole: nothing to wait for (issue 143).
+    awaitWholeIndex: async () => {},
     toast: { error: (text: string) => { warnings.push(text); }, warning: (text: string) => { warnings.push(text); }, success: () => {} },
     i18n: { t: (key: string) => key },
     window, CustomEvent, console: { error: () => {}, warn: () => {} },

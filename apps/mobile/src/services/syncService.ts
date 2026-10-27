@@ -1,4 +1,4 @@
-import { sameStoredValue } from "@plainva/core";
+import { sameStoredValue, SettingsOnlySync } from "@plainva/core";
 import { clearMobileCommentWorker, setMobileCommentWorker } from "./commentWorker";
 import {
   DriveSyncTarget,
@@ -22,13 +22,14 @@ import {
   type JournalCheckResult,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { connectionErrorText, formatListingReport, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext } from "@plainva/ui";
+import { connectionErrorText, formatListingReport, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision } from "@plainva/ui";
 import { assertEmptyRemoteVault } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
 import { authorizeNativeGoogle, forgetNativeGoogleTokens } from "./googleNativeAuthorization";
 import i18n from "@plainva/ui/i18n";
 import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
+import { mobileSyncStart, type MobileSyncStart } from "./fileSyncAccess";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 import { mConfirm } from "./mobileDialogs";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
@@ -111,7 +112,7 @@ interface SyncState {
   message: string | null;
   /** Set only on the encrypted-workspace "pair/recover this device" error so the
    *  UI can offer a deep-link into Security & Sharing (package F2). */
-  errorKind?: "pair-required" | "workspace-integrity" | "authentication";
+  errorKind?: "pair-required" | "workspace-integrity" | "authentication" | "signed-out";
   /** Wall clock of the next attempt, with `retrying` only (round 3, R4). */
   retryAt?: number;
   /** Wall-clock stamp of the last cycle that finished cleanly (P5). */
@@ -148,6 +149,8 @@ type MobileSyncWorker = {
   fullResync?: () => Promise<void>;
   /** One awaited cycle; only the encrypted-workspace worker offers it. */
   runNow?: () => Promise<void>;
+  /** One settings push outside a cycle, before files go off (review finding 4). */
+  pushSettingsNow?: () => Promise<void>;
   onStatusChange?: SyncWorker["onStatusChange"];
   onProgress?: SyncWorker["onProgress"];
   onFilesChanged?: SyncWorker["onFilesChanged"];
@@ -177,7 +180,7 @@ export function deletionLogChecker(): JournalChecker | null {
 function setState(next: {
   status: MobileSyncStatus;
   message: string | null;
-  errorKind?: "pair-required" | "workspace-integrity" | "authentication";
+  errorKind?: "pair-required" | "workspace-integrity" | "authentication" | "signed-out";
   retryAt?: number;
   rootMissing?: boolean;
 }): void {
@@ -247,25 +250,168 @@ export function syncPossible(v: MobileVault): boolean {
   return v.syncQueue !== null && v.syncRepo !== null;
 }
 
-/** Starts the worker for stored credentials; no-op without credentials/queue. */
-export async function startSyncIfConfigured(v: MobileVault): Promise<void> {
-  if (worker || !syncPossible(v)) return;
-  const entry = await getVaultEntry(v.vaultId);
-  const stored = entry?.paused ? null : await getStoredProvider(v.vaultId);
-  if (!stored) {
-    v.markFirstSyncComplete();
-    // "Off" and "configured but unreachable here" used to look the same, and
-    // the second one is the one worth saying (finding 2026-08-19): the card
-    // reads the registry, so it kept claiming a connection while nothing came
-    // through. A paused vault is a decision, not a failure.
-    const blocked = !entry?.paused && !!entry?.provider;
-    setState({
-      status: blocked ? "error" : "off",
-      message: blocked ? i18n.t("cloudAccounts.filesNoAccess") : null,
-    });
+/**
+ * Starts the vault's sync for stored credentials; no-op without
+ * credentials/queue. The ONE way a sync starts on the phone (second review of
+ * plan "Verbinden", B2): every other path - a sign-in again, a password
+ * change, a switch - stops what runs and calls this, so "Pause sync", files
+ * off and a sign-out here are always asked. A guard test keeps it that way.
+ */
+export function startSyncIfConfigured(v: MobileVault): Promise<void> {
+  // One start at a time: two callers (the app coming to the front, a switch
+  // arriving) must not both get past the check below and start two workers.
+  return inStartChain(() => startSyncDecided(v));
+}
+
+let startChain: Promise<void> = Promise.resolve();
+
+/**
+ * Every step that starts, or stops and starts again, runs here, one after
+ * the other: a restart's stop, its decision and its start are ONE step (third
+ * review, finding 4). A stop outside the chain ran while a start that had
+ * already decided was still building its worker - the restart then found
+ * nothing to stop, its own start found the new worker and left it, and the
+ * vault synced its files although they had just been switched off.
+ */
+function inStartChain(step: () => Promise<void>): Promise<void> {
+  const run = startChain.then(step);
+  startChain = run.catch(() => undefined);
+  return run;
+}
+
+/**
+ * Counts the stops. A plain stop (pause, vault switch) does not wait in the
+ * chain behind a start that may be waiting on the network; instead a start
+ * that began before it puts nothing in place after it.
+ */
+let startGeneration = 0;
+
+async function startSyncDecided(v: MobileVault): Promise<void> {
+  if (worker || settingsOnlySync || !syncPossible(v)) return;
+  const generation = startGeneration;
+  watchFilesSwitch();
+  const { decision, stored } = await decideStart(v);
+  if (!decision.start || !stored) {
+    // Standing still is no reason to forget what changes here (review finding
+    // 4): a vault with a provider queues its changes while files are off, so
+    // turning them on sends them. Its first-sync deferral stays - a cold index
+    // must not queue every file as new before the first pull has looked.
+    if (!decision.start && decision.queueLocalChanges) v.enableSyncEnqueue();
+    else v.markFirstSyncComplete();
+    setState(standingStatus(decision));
     return;
   }
-  await startWorker(v, stored);
+  if (decision.settingsOnly) {
+    await startSettingsOnly(v, stored, generation);
+    return;
+  }
+  await startWorker(v, stored, generation);
+}
+
+/**
+ * The one decision whether the vault's sync starts here, and with what.
+ * "Off" and "configured but unreachable here" used to look the same, and the
+ * second one is the one worth saying (finding 2026-08-19): the card reads the
+ * registry, so it kept claiming a connection while nothing came through. A
+ * paused vault is a decision, not a failure; one signed out on this phone
+ * starts no worker at all (review of plan "Verbinden", finding 3).
+ */
+async function decideStart(v: MobileVault): Promise<{ decision: MobileSyncStart; stored: MobileSyncProvider | null }> {
+  const entry = await getVaultEntry(v.vaultId);
+  const filesOff = await filesOffForVault(v.vaultId);
+  const stored = entry?.pausedHere ? null : await getStoredProvider(v.vaultId);
+  return { decision: mobileSyncStart({ pausedHere: entry?.pausedHere, filesOff, entryProvider: entry?.provider, stored }), stored };
+}
+
+/** What the status says while nothing runs, as the decision has it. */
+function standingStatus(decision: MobileSyncStart): Parameters<typeof setState>[0] {
+  return decision.start ? { status: "off", message: null } : {
+    status: decision.status,
+    message: decision.messageKey ? i18n.t(decision.messageKey) : null,
+    // Signed out on this phone: the vault screen leads to the sign-in (finding 3).
+    ...(decision.signInNeeded ? { errorKind: "signed-out" as const } : {}),
+  };
+}
+
+/**
+ * A start that a stop overtook while it showed "syncing" (the encrypted
+ * workspace's join): the status goes back to what the decision says now, not
+ * "syncing" for a worker that never came (fourth review, finding 3).
+ */
+async function settleCancelledStart(v: MobileVault): Promise<void> {
+  if (worker || settingsOnlySync) return;
+  setState(standingStatus((await decideStart(v)).decision));
+}
+
+/** Files switched off for the vault (plan "Verbinden", E3) - on every device, carried in the settings profile. */
+async function filesOffForVault(vaultId: string): Promise<boolean> {
+  const { loadCloudAccounts } = await import("./cloudAccountsStore");
+  return (await loadCloudAccounts(vaultId).catch(() => [])).some((record) => record.services.files && isServiceOff(record, "files"));
+}
+
+/** The settings-only sync of a vault whose files are off (second review, B3). */
+let settingsOnlySync: SettingsOnlySync | null = null;
+
+/**
+ * Files off for the vault: no file worker, but the settings profile keeps
+ * travelling on the interval (second review, B3) - so "off" and "on", and
+ * the calendar and mail switches made meanwhile, reach every device. Local
+ * changes queue meanwhile (finding 4) and the first-sync deferral holds.
+ */
+async function startSettingsOnly(v: MobileVault, p: MobileSyncProvider, generation: number): Promise<void> {
+  v.enableSyncEnqueue();
+  if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
+  else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
+  const rawTarget = await buildTarget(p, credKeyFor(v.vaultId), v.vaultId);
+  const { target, runner } = await prepareMobileSettingsSync(v, p, rawTarget);
+  if (worker || settingsOnlySync || generation !== startGeneration) return;
+  settingsOnlySync = new SettingsOnlySync(runner, target, v.backup ?? v.adapter, syncIntervalMs());
+  settingsOnlySync.start();
+  setState({ status: "off", message: null });
+}
+
+let filesSwitchWatched = false;
+
+/**
+ * Files switched off or on for the vault - on this phone, or on another device
+ * and arriving with the settings profile (second review, B3): the sync starts
+ * again in the other mode. What stands still on purpose (paused, signed out)
+ * is left alone; `startSyncIfConfigured` decides.
+ */
+function watchFilesSwitch(): void {
+  if (filesSwitchWatched || typeof window === "undefined") return;
+  filesSwitchWatched = true;
+  void import("./cloudAccountsStore").then(({ CLOUD_ACCOUNTS_EVENT }) => {
+    window.addEventListener(CLOUD_ACCOUNTS_EVENT, () => {
+      void followFilesSwitch().catch((e) => console.error("[sync] following the files switch failed", e));
+    });
+  });
+}
+
+/**
+ * In the chain, like the start it may have to undo: a switch that arrives
+ * while a start is still building its worker is looked at once that start is
+ * done, not dismissed because nothing runs yet (third review, finding 4).
+ */
+function followFilesSwitch(): Promise<void> {
+  return inStartChain(async () => {
+    if (!worker && !settingsOnlySync) return;
+    const v = await getMobileVault();
+    const off = await filesOffForVault(v.vaultId);
+    if ((off && worker) || (!off && settingsOnlySync)) {
+      await stopAndDrainNow();
+      await startSyncDecided(v);
+    }
+  });
+}
+
+/** Stops what runs for the active vault and starts it again, decided as `startSyncIfConfigured` decides - one step. */
+export function restartSyncIfActive(vaultId: string): Promise<void> {
+  return inStartChain(async () => {
+    if ((await getActiveVaultEntry()).id !== vaultId) return;
+    await stopAndDrainNow();
+    await startSyncDecided(await getMobileVault());
+  });
 }
 
 /** Human-readable vault name for a fresh connection. */
@@ -372,24 +518,24 @@ async function adoptOrForget(vaultId: string, adopt?: (vaultId: string) => Promi
 }
 
 /**
- * Pauses sync for a vault ("Trennen"): the worker stops but the stored
- * credentials stay, so resuming is one tap (no re-auth). Pausing a
- * non-active vault leaves the running worker alone.
+ * "Pause sync" on the account's files page (plan "Verbinden", V3): the
+ * person's own pause, on this phone only - the desktop keeps it under its own
+ * key too (`filesSwitch.ts`). Only the person ends it: no sign-in, password
+ * change or switch does (second review, B4). The flag older versions wrote
+ * for "Trennen" (`paused`) becomes this one when the registry is read.
  */
-export async function pauseProvider(vaultId: string): Promise<void> {
-  await updateVault(vaultId, { paused: true });
+export async function pauseSyncHere(vaultId: string): Promise<void> {
+  await updateVault(vaultId, { pausedHere: true });
   if ((await getActiveVaultEntry()).id === vaultId) {
     stopSync();
     setState({ status: "off", message: null });
   }
 }
 
-/** Resumes a paused vault; restarts the worker when it is the active one. */
-export async function resumeProvider(vaultId: string): Promise<void> {
-  await updateVault(vaultId, { paused: false });
-  if ((await getActiveVaultEntry()).id === vaultId) {
-    await startSyncIfConfigured(await getMobileVault());
-  }
+/** Ends the person's own pause; restarts the sync when the vault is active. */
+export async function resumeSyncHere(vaultId: string): Promise<void> {
+  await updateVault(vaultId, { pausedHere: false });
+  await restartSyncIfActive(vaultId);
 }
 
 /**
@@ -412,11 +558,8 @@ export async function reauthorizeVault(vaultId: string, fresh: MobileSyncProvide
     }
   }
   await getPlatformServices().credentials.writeSecret(credKeyFor(vaultId), merged);
-  await updateVault(vaultId, { paused: false });
-  if ((await getActiveVaultEntry()).id === vaultId) {
-    stopSync();
-    await startWorker(await getMobileVault(), merged);
-  }
+  // Through the one start: a sign-in never undoes "Pause sync" or files off (second review, B2/B4).
+  await restartSyncIfActive(vaultId);
 }
 
 /**
@@ -456,11 +599,86 @@ export async function switchProviderToAccountBroker(
   else if (existing.provider === "onedrive") merged = { provider: "onedrive", creds: { ...existing.creds, refreshToken: "" } };
   else return; // password- or key-based providers have nothing to hand over
   await rotateLegacyFileGrant(credKeyFor(vaultId), existing.provider, existing.creds, "");
-  await updateVault(vaultId, { paused: false });
+  // Through the one start: a sign-in never undoes "Pause sync" or files off (second review, B2/B4).
+  void merged;
+  await restartSyncIfActive(vaultId);
+}
+
+/**
+ * Takes the files of a removed account out of the vault on this phone
+ * (review of plan "Verbinden", finding 5a): the worker stops, the stored
+ * sign-in goes - as the desktop clears its sync slots - and the vault stays,
+ * with its notes, as a vault without a provider. A pause would have kept the
+ * password on the phone and let a later "resume" sync again for an account
+ * the vault no longer has.
+ */
+export async function disconnectFiles(vaultId: string): Promise<void> {
   if ((await getActiveVaultEntry()).id === vaultId) {
-    stopSync();
-    await startWorker(await getMobileVault(), merged);
+    await stopSyncAndDrain();
+    setState({ status: "off", message: null });
   }
+  // The queue and the per-file records stay: they belong to the folder, not the
+  // account, and the next file sync keeps them for the same folder and drops
+  // them for another (third review, finding 1). The desktop does the same.
+  await purgeCredentials(vaultId);
+  await updateVault(vaultId, { provider: undefined, pausedHere: false });
+}
+
+/**
+ * Binds the vault's sync queue and per-file records to the target about to
+ * start (third review, finding 1): the same folder keeps both, another drops
+ * both - before the worker can push or compare anything. The rule is shared
+ * with the desktop (`bindSyncState`).
+ */
+async function bindMobileSyncState(v: MobileVault, p: MobileSyncProvider): Promise<SyncStateBindingDecision> {
+  const records = await loadVaultCloudAccounts(v.vaultId);
+  const identity = records.find((record) => record.services.files?.provider === p.provider)?.verifiedProviderIdentity;
+  const binding = syncStateBindingFor({
+    provider: p.provider,
+    webdav: p.provider === "webdav" ? { url: p.creds.url, user: p.creds.user } : undefined,
+    s3: p.provider === "s3" ? { endpoint: p.creds.endpoint, bucket: p.creds.bucket, prefix: p.creds.prefix } : undefined,
+    folder: p.provider === "drive"
+      ? await readDriveDestination(v.vaultId, p)
+      : p.provider === "onedrive" || p.provider === "dropbox" ? { path: await readSyncRootFolder(v.vaultId, p.provider, p) } : undefined,
+    identity,
+  });
+  const store = await getPlatformServices().loadSettings();
+  const key = `syncStateBinding_${v.vaultId}`;
+  return bindSyncState({
+    load: async () => (await store.get<SyncStateBinding>(key)) ?? null,
+    save: async (next) => { await store.set(key, next); await store.save(); },
+    clear: async () => { await v.syncQueue?.clearAll(); await v.syncRepo?.clearAll(); },
+  }, binding);
+}
+
+/** Whether the vault synced before, read before the binding so a reset cannot hide it; the registry keeps it. */
+async function mobileSyncedBefore(v: MobileVault): Promise<boolean> {
+  return vaultSyncedBefore({
+    recorded: async () => (await getVaultEntry(v.vaultId))?.syncedBefore === true,
+    record: () => markMobileSyncedBefore(v.vaultId),
+    confirmedRemoteFiles: async () => (await v.syncRepo?.hasConfirmedRemoteFiles()) ?? false,
+  });
+}
+
+async function markMobileSyncedBefore(vaultId: string): Promise<void> {
+  if ((await getVaultEntry(vaultId))?.syncedBefore === true) return;
+  await updateVault(vaultId, { syncedBefore: true });
+}
+
+async function loadVaultCloudAccounts(vaultId: string): Promise<CloudAccountRecord[]> {
+  const { loadCloudAccounts } = await import("./cloudAccountsStore");
+  return loadCloudAccounts(vaultId).catch(() => []);
+}
+
+/**
+ * Pushes the settings profile once, before files go off for the vault (plan
+ * "Verbinden", E3; review finding 4): the switch travels in the profile, which
+ * only the running worker carries. The desktop does the same in
+ * `setAccountServiceOff`.
+ */
+export async function pushSettingsNow(): Promise<void> {
+  if (worker) await worker.pushSettingsNow?.();
+  else await settingsOnlySync?.pushSettingsNow();
 }
 
 /** Final credential cleanup when a vault is deleted. */
@@ -532,9 +750,12 @@ export function syncSoon(): void {
 }
 
 export function stopSync(): void {
+  startGeneration += 1;
   clearMobileCommentWorker();
   worker?.stop();
   worker = null;
+  settingsOnlySync?.stop();
+  settingsOnlySync = null;
   deletionJournal = null;
   journalChecker = null;
 }
@@ -544,10 +765,19 @@ export function stopSync(): void {
  * switch/delete close or remove the per-vault database right after — a cycle
  * still downloading/writing must finish (or abort) first.
  */
-export async function stopSyncAndDrain(): Promise<void> {
+export function stopSyncAndDrain(): Promise<void> {
+  return stopAndDrainNow();
+}
+
+/** The stop itself; inside the chain a restart calls it directly, and waiting on the chain there would wait on itself. */
+async function stopAndDrainNow(): Promise<void> {
+  startGeneration += 1;
   clearMobileCommentWorker();
   const w = worker;
   worker = null;
+  const settingsOnly = settingsOnlySync;
+  settingsOnlySync = null;
+  await settingsOnly?.stopAndDrain();
   deletionJournal = null;
   journalChecker = null;
   if (w) await w.stopAndDrain();
@@ -692,10 +922,26 @@ function workspaceProvider(provider: MobileSyncProvider["provider"]) {
   return provider === "drive" ? "google-drive" as const : provider;
 }
 
-export async function getMobileWorkspaceObjectStore(vaultId: string): Promise<WorkspaceObjectStore> {
+/**
+ * The cloud store of a vault's workspace, or null when the vault has no sync
+ * provider — a vault on this device only, or one in a picked folder. For what
+ * merely LOOKS (a screen counting publications, a cycle collecting comments):
+ * no provider is "there is nothing out there", not a failure. "Security &
+ * Sharing" asked the throwing variant below on every open and left an
+ * unhandled "sync connection required" in the diagnostics of every vault
+ * without sync (issue 143).
+ */
+export async function findMobileWorkspaceObjectStore(vaultId: string): Promise<WorkspaceObjectStore | null> {
   const provider = await getStoredProvider(vaultId);
-  if (!provider) throw new Error("sync connection required");
+  if (!provider) return null;
   return createProviderWorkspaceObjectStore(workspaceProvider(provider.provider), await buildTarget(provider, credKeyFor(vaultId), vaultId));
+}
+
+/** The same store for what has to WRITE there — pairing, publishing, revoking: without a provider that is a failure with a reason. */
+export async function getMobileWorkspaceObjectStore(vaultId: string): Promise<WorkspaceObjectStore> {
+  const store = await findMobileWorkspaceObjectStore(vaultId);
+  if (!store) throw new Error("sync connection required");
+  return store;
 }
 
 export async function getMobileRemoteWorkspaceInfo(vaultId: string): Promise<{ workspaceId: string; fingerprint: string } | null> {
@@ -723,6 +969,30 @@ export async function listProviderFolders(p: MobileSyncProvider, path: string, c
   if (p.provider === "webdav") await allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") await allowHttpOrigin(p.creds.endpoint);
   const target = await buildTarget(p, null, undefined, context);
+  return target.listFolders ? target.listFolders(path) : [];
+}
+
+/**
+ * The folders of a vault's CONNECTED provider, read the way its sync reads
+ * them: from the stored slot, through the card's sign-in where the slot leaves
+ * its own token blank (the phone's twin of the desktop's `syncTargetFromSlots`).
+ *
+ * "Check connection" used `listProviderFolders`, the probe of a connection
+ * that does not exist yet: no vault, no account, so a slot whose refresh token
+ * the one sign-in emptied (K2) renewed nothing and failed every time - files
+ * read as not connected while they synced (plan "Verbinden", V0).
+ */
+export async function listStoredProviderFolders(vaultId: string, path: string): Promise<string[]> {
+  const stored = await getStoredProvider(vaultId);
+  if (!stored) throw new ServiceCheckError("signin");
+  if (stored.provider === "webdav") await allowHttpOrigin(stored.creds.url);
+  else if (stored.provider === "s3") await allowHttpOrigin(stored.creds.endpoint);
+  const target = await buildTarget(stored, credKeyFor(vaultId), vaultId);
+  const ownSignIn = stored.provider === "drive" ? !!stored.creds.refreshToken || !!stored.creds.nativeGoogle
+    : stored.provider === "onedrive" || stored.provider === "dropbox" ? !!stored.creds.refreshToken
+      : true;
+  // Nothing on this device opens it: not the slot, not the card.
+  if (!ownSignIn && !(target as { accessTokenProvider?: unknown }).accessTokenProvider) throw new ServiceCheckError("signin");
   return target.listFolders ? target.listFolders(path) : [];
 }
 
@@ -794,15 +1064,17 @@ export async function changeRemoteFolder(v: MobileVault, folder: string, folderI
   if ((await getActiveVaultEntry()).id !== v.vaultId) throw new Error("The active vault changed. Open its current settings.");
   const stored = await getStoredProvider(v.vaultId);
   if (!stored || !canChangeRemoteFolder(stored.provider)) throw new Error("remote folder is not changeable for this provider");
-  await stopSyncAndDrain();
-  // The three OAuth providers keep the folder in the settings now, so it
-  // survives an account being removed; WebDAV and S3 keep theirs in the
-  // connection, where a reconnect shows it in the form.
-  await writeSyncRootFolder(v.vaultId, stored.provider, folder.trim(), folderId);
-  if (stored.provider === "s3") {
-    await getPlatformServices().credentials.writeSecret(credKeyFor(v.vaultId), withRemoteFolder(stored, folder));
-  }
-  await startSyncIfConfigured(v);
+  await inStartChain(async () => {
+    await stopAndDrainNow();
+    // The three OAuth providers keep the folder in the settings now, so it
+    // survives an account being removed; WebDAV and S3 keep theirs in the
+    // connection, where a reconnect shows it in the form.
+    await writeSyncRootFolder(v.vaultId, stored.provider, folder.trim(), folderId);
+    if (stored.provider === "s3") {
+      await getPlatformServices().credentials.writeSecret(credKeyFor(v.vaultId), withRemoteFolder(stored, folder));
+    }
+    await startSyncDecided(v);
+  });
 }
 
 export async function openDriveDestination(vaultId: string) {
@@ -814,7 +1086,7 @@ export async function openDriveDestination(vaultId: string) {
     loadFolder: (id: string, page?: string) => target.previewFolder(id, page) };
 }
 
-async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void> {
+async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: number): Promise<void> {
   v.enableSyncEnqueue();
   // Origin policy (P4.3): user-configured servers must be allowed on the
   // native bridge before requests fly. Fire-and-forget is safe — a request
@@ -826,7 +1098,9 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
   // (finding 2026-09-20): not finding it is then an error with a way out, not
   // a reason to compare every known file against an empty one. Probes and
   // pickers build their targets elsewhere and keep the default.
-  const hasSyncedBefore = (await v.syncRepo?.hasConfirmedRemoteFiles().catch(() => false)) ?? false;
+  // A fact of the vault, not of its records: a reset of the sync state never
+  // makes a vault that synced before "new" again (fifth review, finding 2).
+  const hasSyncedBefore = !rootCreationAllowed(await mobileSyncedBefore(v).catch(() => true));
   if ("allowRootCreation" in rawTarget) (rawTarget as { allowRootCreation: boolean }).allowRootCreation = !hasSyncedBefore;
   // Drive only: the folder id learned by NAME, kept until a full listing of it
   // has held — then stored, so the id addresses the folder from now on (A4).
@@ -863,6 +1137,11 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
     // freeze (package F1, Punkt 14).
     setState({ status: "syncing", message: null });
     await initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.backup ?? v.adapter, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString(), onProgress: (done, total) => setProgress({ current: done, total }) });
+    if (generation !== startGeneration) {
+      // Stopped meanwhile (finding 4): no worker, and no "syncing" left standing.
+      await settleCancelledStart(v);
+      return;
+    }
     const encrypted = new EncryptedWorkspaceWorker(objectStore, v.workspaceState, v.backup ?? v.adapter, v.workspaceRuntime, {
       intervalMs: syncIntervalMs(),
       // The workspace worker runs its sideband AFTER pull and push, so the
@@ -910,11 +1189,18 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
   // worker does its own merge and manages sync_state (desktop pattern).
   // Smaller download windows than the desktop (P3.3): phones have tighter
   // memory budgets, and a batch of large attachments must not balloon RAM.
+  // The queue and the records belong to the folder they were made with (finding 1).
+  // A reset never allows creating the folder: that stays a decision of its own
+  // (a new vault, a new folder chosen in the wizard), and the 2026-09-20
+  // protection for a known vault holds (fourth review, finding 1c).
+  await bindMobileSyncState(v, p);
+  if (generation !== startGeneration) return; // stopped meanwhile (finding 4)
   firstCycleSettled = false;
   // Deletion journal (feedback round 2026-09-01, P1): the deletions a person
   // confirmed here reach the other devices as an intent, and theirs reach us.
   // Raw adapter — it is a sideband file, not a note.
   const journal = new DeletionJournal(v.backup ?? v.adapter, await mobileSyncDeviceId());
+  if (generation !== startGeneration) return; // stopped meanwhile (finding 4)
   deletionJournal = journal;
   const w = new SyncWorker(engine, target, v.syncRepo!, v.backup ?? v.adapter, v.syncQueue!, syncIntervalMs(), {
     downloadConcurrency: 2,
@@ -944,6 +1230,8 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
     setProgress(p ? { current: p.current, total: p.total } : null);
   };
   w.onFirstCycleComplete = () => {
+    // From now on a missing cloud folder is an error, never a new one (fifth review, 2).
+    void markMobileSyncedBefore(v.vaultId).catch((e) => console.error("[syncService] could not record the first sync", e));
     void v.syncQueue!.enqueueLocalOnlyFiles().catch(() => {});
     v.markFirstSyncComplete();
     // The remote content is here now, so anchored notes exist and can be
@@ -1034,8 +1322,10 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
   lastForegroundSyncAt = Date.now();
 }
 
-/** Rebuilds the worker after unlocking or changing the settings-sync opt-in. */
-export async function restartSync(v: MobileVault): Promise<void> {
-  await stopSyncAndDrain();
-  await startSyncIfConfigured(v);
+/** Rebuilds the worker after unlocking or changing the settings-sync opt-in - stop and start as one step (finding 4). */
+export function restartSync(v: MobileVault): Promise<void> {
+  return inStartChain(async () => {
+    await stopAndDrainNow();
+    await startSyncDecided(v);
+  });
 }

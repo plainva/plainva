@@ -338,6 +338,70 @@ describe("an event is deleted", () => {
   });
 });
 
+describe("the etag a write leaves (issue 119, R2)", () => {
+  // Before: every row on screen kept the etag the write had just made stale,
+  // and the next delete or edit of the same event was refused as "changed
+  // elsewhere" until a pull came round - more than a minute on the desktop.
+  it("after an edit, the event and the blockers that followed carry the provider's new etag", async () => {
+    const w = world([source, busy]);
+    await updateEventWithBlockers(w.deps, source, moved(source), { loaded: [source, busy] });
+    const shown = applyPendingEventWrites([source, busy], w.store.snapshot());
+    expect(shown.map((r) => [r.uid, r.etag])).toEqual([
+      ["src", '"next"'],
+      ["blk-busy", '"next"'],
+    ]);
+  });
+
+  it("deleting ONE occurrence of a CalDAV series hands the series' new etag to the other occurrences", async () => {
+    const href = "https://dav/cal/series.ics";
+    const occ = (n: number) => row("work", "cal-work", `ser#${n}`, { seriesMaster: "ser", href, etag: '"s-1"', start: { ts: T0 + n * 24 * HOUR }, end: { ts: T0 + n * 24 * HOUR + HOUR } });
+    const w = world([]);
+    const deps: BlockFollowDeps = { ...w.deps, targets: { targetFor: async () => ({ provider: "caldav", deleteEvent: async () => ({ etag: '"s-2"' }) }) as unknown as IPimTarget } };
+    await deleteEventWithBlockers(deps, occ(1), []);
+    const shown = applyPendingEventWrites([occ(0), occ(1), occ(2)], w.store.snapshot());
+    expect(shown.map((r) => [r.uid, r.etag])).toEqual([
+      ["ser#0", '"s-2"'],
+      ["ser#2", '"s-2"'],
+    ]);
+  });
+
+  it("recording new blockers on an event leaves it with the etag of that write", async () => {
+    const w = world([source]);
+    const deps: BlockFollowDeps = {
+      ...w.deps,
+      targets: { targetFor: async () => ({ provider: "google", linkEvent: async () => ({ etag: '"linked"' }) }) as unknown as IPimTarget },
+    };
+    expect(await recordBlockers(deps, source, [{ accountId: "home", calendarId: "cal-family", uid: "blk-new" }])).toBe(true);
+    expect(applyPendingEventWrites([source], w.store.snapshot())[0].etag).toBe('"linked"');
+  });
+
+  it("a delete is sent with what the person saw; a real change comes back with its etag, and 'delete anyway' is sent with that", async () => {
+    const refs: PimEventRef[] = [];
+    const w = world([]);
+    const deps: BlockFollowDeps = {
+      ...w.deps,
+      targets: {
+        targetFor: async () =>
+          ({
+            provider: "caldav",
+            deleteEvent: async (ref: PimEventRef) => {
+              refs.push(ref);
+              if (refs.length === 1) throw new PimConflictError("changed", '"v9"');
+            },
+          }) as unknown as IPimTarget,
+      },
+    };
+    const refused = await deleteEventWithBlockers(deps, source, []).catch((e) => e);
+    expect(refused).toBeInstanceOf(PimConflictError);
+    expect(refused.currentEtag).toBe('"v9"');
+    expect(refs[0].expect).toMatchObject({ uid: "src", title: "Board meeting", start: { ts: T0 } });
+    // Back on screen while the person is asked.
+    expect(applyPendingEventWrites([source], w.store.snapshot()).map((r) => r.uid)).toEqual(["src"]);
+    await deleteEventWithBlockers(deps, { ...source, etag: refused.currentEtag }, [], { anyway: true });
+    expect(refs[1]).toEqual({ calendarId: "cal-work", uid: "src", etag: '"v9"', href: undefined });
+  });
+});
+
 describe("a blocker is moved or changed", () => {
   it("finds the event it mirrors — and none for an entry whose event is gone", async () => {
     const w = world([source, busy, details]);

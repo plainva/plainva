@@ -655,6 +655,40 @@ export class SyncWorker {
     this.settingsSyncRunner = runner;
   }
 
+  /**
+   * Pushes the settings profile once, outside a cycle - the last thing a
+   * worker does before files are switched off for the vault (plan "Verbinden",
+   * E3; review finding 4). The switch itself lives in the profile, and the
+   * profile only ever travels inside this worker's cycles: without this push
+   * the other devices never learned that files were off. A failure is reported
+   * and left at that; the next cycle (files on again) pushes anyway.
+   */
+  public async pushSettingsNow(): Promise<void> {
+    // Not behind a running file cycle (second review, B3): the settings step is
+    // serialised on its own, so this waits at most for another settings run.
+    try {
+      await this.runSettingsSerially();
+    } catch (e) {
+      console.error("[SyncWorker] settings push before stopping failed:", e);
+    }
+  }
+
+  /** The tail of the settings runs: one at a time, whoever asks - a cycle or `pushSettingsNow`. */
+  private settingsChain: Promise<void> = Promise.resolve();
+
+  /**
+   * Runs the settings step after any settings run already in flight, never
+   * beside it: two profile syncs at once would each read, merge and write the
+   * same document (second review, B3).
+   */
+  private runSettingsSerially(): Promise<void> {
+    const runner = this.settingsSyncRunner;
+    if (!runner) return Promise.resolve();
+    const run = this.settingsChain.then(() => runner.run(this.rawTarget, this.vault));
+    this.settingsChain = run.catch(() => undefined);
+    return run;
+  }
+
   private setStatus(status: SyncStatus, error?: string, reason?: SyncErrorReason, retryAt?: number) {
     if (this.currentStatus !== status) {
       this.currentStatus = status;
@@ -976,6 +1010,10 @@ export class SyncWorker {
     this.stop();
     const cycle = this.currentCycle;
     if (cycle) await cycle.catch(() => {});
+    // A settings push started outside a cycle finishes too: whoever syncs the
+    // profile next (the settings-only sync of a vault whose files just went
+    // off) must not run beside it (second review, B3).
+    await this.settingsChain;
   }
 
   /** Read-only queue snapshot for the settings UI (P3.4 queue visibility). */
@@ -2488,7 +2526,7 @@ export class SyncWorker {
       // settings hiccup never fails or slows the file sync.
       if (this.settingsSyncRunner && alive()) {
         try {
-          await this.settingsSyncRunner.run(this.rawTarget, this.vault);
+          await this.runSettingsSerially();
         } catch (e) {
           console.error("[SyncWorker] settings-sync sideband failed:", e);
         }

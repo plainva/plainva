@@ -22,6 +22,7 @@ import { confirmDeleteFile } from "../lib/deleteFile";
 import { configuredNoteType } from "../services/newNote";
 import { syncSoon } from "../services/syncService";
 import type { MobileVault } from "../services/vaultService";
+import { awaitWholeIndex } from "../services/indexBuild";
 
 /**
  * Cleanup mode (S35) — the desktop's worklist, mobile-sized.
@@ -71,6 +72,8 @@ export function CleanupScreen({
     let alive = true;
     void (async () => {
       try {
+        // An orphan is a note the index knows no link to — over half an index, a wrong offer to delete (issue 143).
+        await awaitWholeIndex(vault);
         const graph = new GraphService(service.db);
         const model = await graph.loadGraph({ includeAttachments: false });
         const [o, b] = await Promise.all([graph.getOrphans(model), graph.getBrokenLinks(model)]);
@@ -102,6 +105,7 @@ export function CleanupScreen({
     setScanning(true);
     setProgress(null);
     try {
+      await awaitWholeIndex(vault);
       const graph = new GraphService(service.db);
       const found = await graph.findUnlinkedMentions({
         signal: controller.signal,

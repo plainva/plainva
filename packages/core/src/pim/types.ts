@@ -1,3 +1,5 @@
+import type { PimEventSubstance } from "./eventSubstance.js";
+
 /**
  * PIM object sync (Gesamtplan PIM-Ausbau 2026-07-17): calendars and tasks
  * mirrored from external providers. This is a SEPARATE axis from the file
@@ -298,6 +300,14 @@ export interface PimEventRef {
   uid: string;
   etag?: string;
   href?: string;
+  /**
+   * What the caller saw of the event — for a DELETE only (issue 119, R2).
+   * A target that can read the object back after a refused guard (CalDAV)
+   * repeats the delete once with the new etag when the object is still this
+   * event in substance, and treats an object that is gone as deleted. Without
+   * it, a refused guard is a conflict, as before.
+   */
+  expect?: PimEventSubstance;
 }
 
 export interface PimTaskDraft {
@@ -344,9 +354,17 @@ export interface PimWriteResult {
  * Callers re-pull and re-reconcile instead of overwriting blindly — the same
  * philosophy as the file sync's remoteEtag guard. */
 export class PimConflictError extends Error {
-  constructor(message = "remote object changed (etag mismatch)") {
+  /**
+   * The object's etag as the target read it back after the refusal, where it
+   * did (R2). It is the guard for "delete anyway": that deletes the state the
+   * person was told about, and is refused again if it moves once more.
+   */
+  readonly currentEtag?: string;
+
+  constructor(message = "remote object changed (etag mismatch)", currentEtag?: string) {
     super(message);
     this.name = "PimConflictError";
+    if (currentEtag !== undefined) this.currentEtag = currentEtag;
   }
 }
 
@@ -401,7 +419,12 @@ export interface IPimTarget {
    * moved past `ref.etag`. Providers preserve fields the draft does not carry
    * (partial update / read-modify-write). */
   updateEvent(ref: PimEventRef, draft: PimEventDraft): Promise<{ etag?: string }>;
-  deleteEvent(ref: PimEventRef): Promise<void>;
+  /**
+   * Deletes an event. Deleting ONE occurrence of a CalDAV series rewrites the
+   * series object, and its new etag — shared by every other occurrence — is
+   * returned so the views can hold it (R2). Everything else returns nothing.
+   */
+  deleteEvent(ref: PimEventRef): Promise<{ etag?: string } | void>;
   /**
    * Writes ONLY the blocker linkage of an event (K3) — `blockOf`, `blocks`,
    * or both — and nothing else about it.
@@ -416,7 +439,7 @@ export interface IPimTarget {
   /** RSVP to an invitation as the account user: set the own PARTSTAT and let
    * the provider notify the organiser. Providers without native scheduling
    * (or where the user is not an attendee) may leave this undefined. */
-  respondToEvent?(ref: PimEventRef, response: "accepted" | "declined" | "tentative"): Promise<void>;
+  respondToEvent?(ref: PimEventRef, response: "accepted" | "declined" | "tentative"): Promise<{ etag?: string } | void>;
   createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult>;
   /** Updates a task (title/due/completed/notes). Etag-guarded where the
    * provider supports it (CalDAV, Graph); Google Tasks is last-write-wins. */

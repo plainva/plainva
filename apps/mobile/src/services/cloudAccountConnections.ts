@@ -45,9 +45,14 @@ export async function bindMailToConnection(context: ServiceConnectionContext | u
   if (!context?.cloudAccountId) return;
   const records = await loadCloudAccounts(context.vaultId);
   const record = records.find(r => r.id === context.cloudAccountId);
-  if (!record || (record.services.mail && record.services.mail.mailAccountId !== bindingId)) throw new ServiceConnectionError("accountChanged");
+  const current = record?.services.mail?.mailAccountId;
+  const replacing = !!current && current !== bindingId && current === context.replacesMailAccountId;
+  if (!record || (current && current !== bindingId && !replacing)) throw new ServiceConnectionError("accountChanged");
   if (identity) assertConnectionIdentity(record.verifiedProviderIdentity ?? context.expectedIdentity, identity);
   const next: CloudAccountRecord = { ...record, ...(identity ? { verifiedProviderIdentity: identity } : {}), services: { ...record.services, mail: { mailAccountId: bindingId } } };
   await saveCloudAccounts(context.vaultId, records.map(r => r.id === record.id ? next : r));
   if ((await loadCloudAccounts(context.vaultId)).find(r => r.id === record.id)?.services.mail?.mailAccountId !== bindingId) throw new ServiceConnectionError("storageFailed");
+  // The mailbox Google refused gives way to the app-password one (E7), with
+  // everything the person set on it; filed mails stay notes (review finding 1).
+  if (replacing) await (await import("./mail/mailRuntime")).replaceMobileMailbox(current, bindingId);
 }

@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-10-23
+Stan na: 2026-10-26
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -16,9 +16,9 @@ Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili
 
 Łączenie sprawdza logowanie, zanim cokolwiek zostanie zapisane; dane dostępowe trafiają do pęku kluczy Twojego systemu operacyjnego. Połączone skrzynki i ustawienia przechwytywania znajdziesz później w obszarze **E-mail**: ustawienie **Folder e-mail** określa, gdzie są przechowywane przechwycone e-maile (domyślnie `Mail`).
 
-**Logowanie na drugim urządzeniu.** Gdy skrzynka przyjeżdża przez synchronizację ustawień, jej hasło nie wędruje automatycznie — logowania są przenoszone tylko wtedy, gdy sam włączysz synchronizację danych logowania. Taka skrzynka pokazuje w obszarze **E-mail** przycisk **Zaloguj się na tym urządzeniu**: wpisz hasło, a Plainva sprawdzi je u dostawcy i dopiero potem zapisze w pęku kluczy. W przypadku skrzynki Microsoft ten sam przycisk prowadzi do **Konta w chmurze**, bo tam odbywa się logowanie w przeglądarce. Jeśli przez to lista wiadomości pozostaje pusta, ta sama wskazówka z tym samym przyciskiem znajduje się także tam — nie musisz sam szukać ustawień.
+**Logowanie na drugim urządzeniu.** Gdy skrzynka przyjeżdża przez synchronizację ustawień, jej hasło nie wędruje automatycznie — logowania są przenoszone tylko wtedy, gdy sam włączysz synchronizację danych logowania. Taka skrzynka pokazuje w obszarze **E-mail** przycisk **Zaloguj się**: wpisz hasło, a Plainva sprawdzi je u dostawcy i dopiero potem zapisze w pęku kluczy. W przypadku skrzynki Microsoft ten sam przycisk prowadzi do **Konta w chmurze**, bo tam odbywa się logowanie w przeglądarce. Jeśli przez to lista wiadomości pozostaje pusta, ta sama wskazówka z tym samym przyciskiem znajduje się także tam — nie musisz sam szukać ustawień.
 
-**Konta e-mail bez hasła.** Konfiguracja, która nie powiodła się przy zapisie, mogła pozostawić wpis bez hasła (Plainva 0.8.3 na komputerze). Obszar **E-mail** jeden raz wskazuje konta, które na tym urządzeniu nie mają hasła i nigdy nie pobrały tu wiadomości. **Pokaż** wyświetla listę. Jeśli takie konto działa na innym urządzeniu, należy wybrać **Zaloguj się na tym urządzeniu** — to wtedy właściwa droga. **Usuń** po potwierdzeniu kasuje wpis na wszystkich urządzeniach synchronizujących ustawienia tego vaultu, nigdy wiadomości ani pliki. **Później** ukrywa komunikat. Plainva nigdy nie usuwa niczego samodzielnie.
+**Konta e-mail bez hasła.** Konfiguracja, która nie powiodła się przy zapisie, mogła pozostawić wpis bez hasła (Plainva 0.8.3 na komputerze). Obszar **E-mail** jeden raz wskazuje konta, które na tym urządzeniu nie mają hasła i nigdy nie pobrały tu wiadomości. **Pokaż** wyświetla listę. Jeśli takie konto działa na innym urządzeniu, należy wybrać **Zaloguj się** — to wtedy właściwa droga. **Usuń** po potwierdzeniu kasuje wpis na wszystkich urządzeniach synchronizujących ustawienia tego vaultu, nigdy wiadomości ani pliki. **Później** ukrywa komunikat. Plainva nigdy nie usuwa niczego samodzielnie.
 
 ## Czytanie poczty
 
@@ -82,7 +82,7 @@ Nie musisz wysyłać z poziomu Plainva. To działa dla dowolnej notatki i nie wy
 
 ## Podpis i adresy nadawcy
 
-W **Ustawieniach → E-mail → Wysyłanie** każda skrzynka ma dwa własne ustawienia:
+Na stronie poczty swojego konta — **Konta w chmurze** → konto → **E-mail**, albo w wierszu skrzynki w obszarze **E-mail** — każda skrzynka ma dwa własne ustawienia:
 
 - **Podpis** — w Markdownie, dodawany pod Twoim tekstem podczas pisania (i nad cytowanym lub przekazanym oryginałem, gdzie czytelnik się go spodziewa). Zmiana nadawcy w oknie tworzenia wiadomości podmienia podpis, zamiast doklejać drugi. Pole to ten sam edytor co okno tworzenia wiadomości, więc widzisz podpis dokładnie w takiej postaci, w jakiej zostanie wysłany.
 - **Podpis dla adresu** — gdy masz dodatkowe adresy nadawcy, nad polem pojawia się wybór **Podpis dla**. „Domyślny (wszystkie adresy)” to podpis konta; wybierz adres, aby napisać podpis tylko dla niego. Adresy bez własnego podpisu nadal używają domyślnego, a zmiana nadawcy podczas pisania wstawia właściwy — także między dwoma adresami tego samego konta. Gdy opróżnisz pole adresu, wróci on do domyślnego.
@@ -102,7 +102,7 @@ Gdy wiadomość niesie nagłówek `List-Unsubscribe`, Plainva pokazuje w czytnik
 
 ## Odkładanie
 
-Bywa poczta, która nie jest pilna, ale też nie jest załatwiona. **Odłóż** usuwa wiadomość z listy do wybranego momentu — później dzisiaj, jutro rano, w weekend albo w przyszłym tygodniu. Na komputerze pozycja jest w menu kontekstowym wiersza, na telefonie dodatkowo jako gest przesunięcia. Przycisk **Odłożone** przywraca je do widoku; stamtąd **Przywróć teraz** natychmiast wraca wiadomość na listę.
+Bywa poczta, która nie jest pilna, ale też nie jest załatwiona. **Odłóż** usuwa wiadomość z listy do wybranego momentu — później dzisiaj, jutro rano, w weekend albo w przyszłym tygodniu. Przyszły tydzień to pierwszy dzień następnego tygodnia według ustawienia **Początek tygodnia** — ten sam dzień co przy terminie zadania. Na komputerze pozycja jest w menu kontekstowym wiersza, na telefonie dodatkowo jako gest przesunięcia. Przycisk **Odłożone** przywraca je do widoku; stamtąd **Przywróć teraz** natychmiast wraca wiadomość na listę.
 
 Dwie rzeczy warto powiedzieć wprost. Po pierwsze, odkładanie to **własny znacznik Plainvy**, nie funkcja serwera: ani IMAP, ani Microsoft czegoś takiego nie mają. Znacznik podróżuje z synchronizacją ustawień, więc wiadomość odłożona na telefonie odpoczywa też na komputerze — w innym programie pocztowym leży normalnie w skrzynce odbiorczej. Po drugie, odkładanie ukrywa tylko **listę tego folderu**, w którym to zrobiłeś: wyszukiwanie i „Wszystkie skrzynki" nadal pokazują wiadomość. Odłożone znaczy „nie na drodze", a nie „zniknęło".
 

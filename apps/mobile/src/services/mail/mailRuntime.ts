@@ -1,11 +1,12 @@
 import { sameStoredValue } from "@plainva/core";
-import { assertConnectionIdentity, classifyAuthError, parseMicrosoftMe, toast, type ServiceConnectionContext } from "@plainva/ui";
+import { assertConnectionIdentity, classifyAuthError, mailboxesSwitchedOn, parseMicrosoftMe, toast, type ServiceConnectionContext } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import {
   forgetGraphMailRuntime,
   getMailRefreshToken,
   listMailAccounts,
   removeMailAccount,
+  replaceMailbox,
   saveMicrosoftMailAccount,
 } from "@plainva/ui/mail";
 import type { MailAccountConfig } from "@plainva/ui/mail";
@@ -43,6 +44,21 @@ export function mailVaultId(): string | null {
 export async function listMobileMailAccounts(): Promise<MailAccountConfig[]> {
   if (!vaultId) return [];
   return listMailAccounts(vaultId);
+}
+
+/** The mailboxes the mail views read: a mailbox whose account has mail switched off for the vault stays configured, unread (plan "Verbinden", E3). */
+export async function listActiveMobileMailAccounts(): Promise<MailAccountConfig[]> {
+  if (!vaultId) return [];
+  const id = vaultId;
+  return mailboxesSwitchedOn(await listMailAccounts(id), await loadCloudAccounts(id).catch(() => []));
+}
+
+/** The refused Gmail mailbox gives way to its app-password replacement (E7), its settings carried over. */
+export async function replaceMobileMailbox(replacedId: string, replacementId: string): Promise<void> {
+  if (!vaultId) return;
+  forgetGraphMailRuntime(vaultId, replacedId);
+  await replaceMailbox(vaultId, replacedId, replacementId);
+  notifyMailChanged();
 }
 
 export async function removeMobileMailAccount(accountId: string): Promise<void> {
@@ -96,7 +112,7 @@ export async function bindMicrosoftMailAccount(vault: string, clientId: string, 
   const account: MailAccountConfig = { ...previous, id, label: previous?.label || address, host: "", port: 0, user: address, kind: "microsoft", clientId };
   const oldToken = previous ? await getMailRefreshToken(vault, id) : null;
   try {
-    await saveMicrosoftMailAccount(vault, account, refreshToken);
+    await saveMicrosoftMailAccount(vault, account, refreshToken, "connect");
     await bindMailToConnection(context, id, profile!.identity);
     await recordConnectOutcome(context, "mail", { state: previous ? "alreadyConnected" : "connected", bindingId: id });
     } catch (err) {
@@ -104,7 +120,7 @@ export async function bindMicrosoftMailAccount(vault: string, clientId: string, 
       const bound = context?.cloudAccountId && (await loadCloudAccounts(vault)).find(r => r.id === context.cloudAccountId)?.services.mail?.mailAccountId === id;
       const ownRow = (await listMailAccounts(vault)).find(a => a.id === id);
       if (!bound && sameStoredValue(ownRow, account) && await getMailRefreshToken(vault, id) === refreshToken) {
-      if (previous) await saveMicrosoftMailAccount(vault, previous, oldToken ?? "");
+      if (previous) await saveMicrosoftMailAccount(vault, previous, oldToken ?? "", "edit");
       else await removeMailAccount(vault, id);
     }
     throw err;

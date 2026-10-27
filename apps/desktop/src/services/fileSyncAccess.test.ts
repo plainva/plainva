@@ -72,4 +72,23 @@ describe("resolveFileSyncAccess", () => {
     expect(access.provider).toBeNull();
     expect(access.blocked).toBe("s3");
   });
+
+  /** Plan "Verbinden", V2: a password account signed out on this device needs a sign-in, not "again". */
+  it("tells a slot signed out on this device from one that stopped working", () => {
+    const webdav = { ...empty, webdav: { url: "https://cloud.example/dav", user: "u", pass: "", signedOutHere: true } as SyncSlots["webdav"] };
+    expect(resolveFileSyncAccess(webdav, { drive: false, onedrive: false })).toMatchObject({ provider: null, blocked: "webdav", signedOut: true });
+    const dropbox = { ...empty, dropbox: { appKey: "k", refreshToken: "", signedOutHere: true } as SyncSlots["dropbox"] };
+    expect(resolveFileSyncAccess(dropbox, { drive: false, onedrive: false }).signedOut).toBe(true);
+    // A token that ran out is no sign-out.
+    const lapsed = { ...empty, dropbox: { appKey: "k", refreshToken: "" } as SyncSlots["dropbox"] };
+    expect(resolveFileSyncAccess(lapsed, { drive: false, onedrive: false })).toMatchObject({ blocked: "dropbox" });
+    expect(resolveFileSyncAccess(lapsed, { drive: false, onedrive: false }).signedOut).toBeUndefined();
+    const s3 = { ...empty, s3: { endpoint: "e", bucket: "b", accessKeyId: "a", secretAccessKey: "s", region: "" } as SyncSlots["s3"] };
+    expect(resolveFileSyncAccess(s3, { drive: false, onedrive: false }).signedOut).toBeUndefined();
+  });
+
+  it("keeps a WebDAV server without a password syncing (review finding 2)", () => {
+    const webdav = { ...empty, webdav: { url: "https://cloud.example/dav", user: "u", pass: "" } as SyncSlots["webdav"] };
+    expect(resolveFileSyncAccess(webdav, { drive: false, onedrive: false })).toMatchObject({ provider: "webdav", blocked: null });
+  });
 });

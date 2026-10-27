@@ -1,6 +1,6 @@
 # Captura de correo
 
-Última actualización: 2026-10-23
+Última actualización: 2026-10-26
 
 Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu vault, y — desde la 0.4.0 — también redactar y enviar correo. El foco sigue en la **captura** de mensajes como notas; un buzón conectado por **IMAP** solo se lee para la captura (nada en él cambia, ni siquiera las marcas de no leído) mientras no configures el envío.
 
@@ -16,9 +16,9 @@ Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu 
 
 Al conectar se valida el inicio de sesión antes de guardar nada; las credenciales van al llavero de tu sistema operativo. Los buzones conectados y los ajustes de captura viven después en la zona **Correo**: el ajuste **Carpeta de correo** elige dónde se guardan los correos capturados (por defecto `Mail`).
 
-**Iniciar sesión en un segundo dispositivo.** Cuando un buzón llega mediante la sincronización de ajustes, su contraseña no viaja automáticamente: los inicios de sesión solo se transfieren si activas tú mismo la sincronización de credenciales. Ese buzón muestra el botón **Iniciar sesión en este dispositivo** en el área **Correo**: escribe la contraseña y Plainva la verifica con el proveedor antes de guardarla en el llavero. En un buzón de Microsoft, ese mismo botón lleva a **Cuentas en la nube**, porque allí es donde se inicia sesión en el navegador. Si por eso la lista de mensajes queda vacía, el mismo aviso con el mismo botón aparece también ahí — no hace falta que vayas a buscar tú mismo los ajustes.
+**Iniciar sesión en un segundo dispositivo.** Cuando un buzón llega mediante la sincronización de ajustes, su contraseña no viaja automáticamente: los inicios de sesión solo se transfieren si activas tú mismo la sincronización de credenciales. Ese buzón muestra el botón **Iniciar sesión** en el área **Correo**: escribe la contraseña y Plainva la verifica con el proveedor antes de guardarla en el llavero. En un buzón de Microsoft, ese mismo botón lleva a **Cuentas en la nube**, porque allí es donde se inicia sesión en el navegador. Si por eso la lista de mensajes queda vacía, el mismo aviso con el mismo botón aparece también ahí — no hace falta que vayas a buscar tú mismo los ajustes.
 
-**Cuentas de correo sin contraseña.** Una configuración que falló al guardar podía dejar una entrada sin contraseña (Plainva 0.8.3 en el escritorio). El área **Correo** señala una vez las cuentas que no tienen contraseña en este dispositivo y que aquí nunca han recibido correo. **Ver** muestra la lista. Si usas una de esas cuentas en otro dispositivo, elige **Iniciar sesión en este dispositivo**: ese es entonces el camino correcto. **Quitar** elimina la entrada tras preguntar, en todos los dispositivos que sincronizan los ajustes de este vault, nunca correos ni archivos. **Más tarde** oculta el aviso. Plainva nunca quita nada por su cuenta.
+**Cuentas de correo sin contraseña.** Una configuración que falló al guardar podía dejar una entrada sin contraseña (Plainva 0.8.3 en el escritorio). El área **Correo** señala una vez las cuentas que no tienen contraseña en este dispositivo y que aquí nunca han recibido correo. **Ver** muestra la lista. Si usas una de esas cuentas en otro dispositivo, elige **Iniciar sesión**: ese es entonces el camino correcto. **Quitar** elimina la entrada tras preguntar, en todos los dispositivos que sincronizan los ajustes de este vault, nunca correos ni archivos. **Más tarde** oculta el aviso. Plainva nunca quita nada por su cuenta.
 
 ## Leer correo
 
@@ -82,7 +82,7 @@ No tienes que enviar desde dentro de Plainva. Esto funciona con cualquier nota y
 
 ## Firma y direcciones de remitente
 
-En **Ajustes → Correo → Envío**, cada buzón tiene dos ajustes propios:
+En la página de correo de su cuenta — **Cuentas en la nube** → la cuenta → **Correo**, o la fila del buzón en la zona **Correo** —, cada buzón tiene dos ajustes propios:
 
 - **Firma** — en Markdown, se añade debajo de tu texto al redactar (y encima de un original citado o reenviado, donde el lector la espera). Si cambias de remitente en la ventana de redacción, la firma se sustituye en lugar de acumularse una segunda. El campo usa el mismo editor que la ventana de redacción, así que ves la firma tal como se enviará.
 - **Firma por dirección** — cuando tengas más direcciones de remitente, aparece el selector **Firma para** encima del campo. «Predeterminada (todas las direcciones)» es la firma de la cuenta; elige una dirección para escribir una solo para ella. Las direcciones sin firma propia siguen usando la predeterminada, y cambiar de remitente al redactar coloca la correcta, también entre dos direcciones de la misma cuenta. Si vacías el campo de una dirección, vuelve a la predeterminada.
@@ -102,7 +102,7 @@ Cuando un mensaje trae la cabecera `List-Unsubscribe`, Plainva muestra un botón
 
 ## Posponer
 
-Hay correo que no es urgente pero tampoco está resuelto. **Posponer** saca un mensaje de la lista hasta un momento que elijas: más tarde hoy, mañana por la mañana, el fin de semana o la próxima semana. En el escritorio la opción está en el menú contextual de la fila; en el teléfono es además una acción de deslizamiento. El botón **Pospuestos** los vuelve a mostrar; desde ahí, **Traer ahora** devuelve un mensaje a la lista de inmediato.
+Hay correo que no es urgente pero tampoco está resuelto. **Posponer** saca un mensaje de la lista hasta un momento que elijas: más tarde hoy, mañana por la mañana, el fin de semana o la próxima semana. La próxima semana es el primer día de la semana siguiente según **Inicio de semana**: el mismo día que en el vencimiento de una tarea. En el escritorio la opción está en el menú contextual de la fila; en el teléfono es además una acción de deslizamiento. El botón **Pospuestos** los vuelve a mostrar; desde ahí, **Traer ahora** devuelve un mensaje a la lista de inmediato.
 
 Dos cosas que conviene decir con claridad. Primero, posponer es un **marcador propio de Plainva**, no una función del servidor: ni IMAP ni Microsoft tienen algo así. El marcador viaja con la sincronización de ajustes, así que un mensaje pospuesto en el teléfono también descansa en el escritorio — en otro programa de correo aparece en la bandeja de entrada como siempre. Segundo, posponer solo oculta la **lista de la carpeta** en la que lo hiciste: la búsqueda y «Todas las bandejas» siguen mostrando el mensaje. Pospuesto significa «no en mi camino», no «desaparecido».
 

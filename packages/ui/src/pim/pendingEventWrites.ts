@@ -35,7 +35,37 @@ export interface PendingEventRef {
 export type PendingEventChange =
   | { kind: "create"; row: PimEventRow }
   | { kind: "update"; ref: PendingEventRef; patch: Partial<PimEventRow> }
-  | { kind: "delete"; ref: PendingEventRef };
+  | { kind: "delete"; ref: PendingEventRef }
+  | EtagStamp;
+
+/**
+ * The etag a write left an event with (issue 119, R2).
+ *
+ * Every write changes the etag of what it wrote, and the provider names the
+ * new one in its answer. The rows the views hold kept the OLD one until the
+ * next pull - so the next delete or edit, sent with it, was refused as
+ * "changed elsewhere", and only a second try a minute later went through.
+ *
+ * A stamp replaces `from` by `etag` on the rows that still carry `from`:
+ *
+ *  - by `href` where there is one. A CalDAV object holds a whole series, and
+ *    its master and every occurrence share its etag - deleting or moving ONE
+ *    occurrence leaves all the others behind,
+ *  - by the event's ref otherwise (Google and Microsoft give every occurrence
+ *    its own etag).
+ *
+ * A row whose etag is no longer `from` has been pulled since, and the pull is
+ * the newer word: the stamp leaves it alone, and leaves altogether once no row
+ * carries `from` any more.
+ */
+export interface EtagStamp {
+  kind: "stamp";
+  ref: PendingEventRef;
+  href?: string;
+  /** The etag the write was sent against; `undefined` for a row that had none. */
+  from?: string;
+  etag: string;
+}
 
 export type PendingEventWrite = PendingEventChange & {
   id: number;
@@ -61,6 +91,12 @@ export const SETTLED_EVENT_WRITE_TTL_MS = 3 * 60_000;
 
 const sameRef = (row: PendingEventRef, ref: PendingEventRef): boolean =>
   row.accountId === ref.accountId && row.calendarId === ref.calendarId && row.uid === ref.uid;
+
+/** Whether a stamp speaks about this row: the same object (or event), still at the etag the write replaced. */
+const stamps = (row: PimEventRow, stamp: EtagStamp): boolean =>
+  (stamp.href
+    ? row.accountId === stamp.ref.accountId && row.calendarId === stamp.ref.calendarId && row.href === stamp.href
+    : sameRef(row, stamp.ref)) && (row.etag ?? undefined) === stamp.from;
 
 /**
  * Whether the cache lists a created event. A SERIES never appears under its
@@ -92,6 +128,8 @@ export function applyPendingEventWrites(rows: readonly PimEventRow[], writes: re
     const sending = write.state === "sending";
     if (write.kind === "delete") {
       shown = shown.filter((row) => !sameRef(row, write.ref));
+    } else if (write.kind === "stamp") {
+      shown = shown.map((row) => (stamps(row, write) ? { ...row, etag: write.etag } : row));
     } else if (write.kind === "update") {
       shown = shown.map((row) => (sameRef(row, write.ref) ? { ...row, ...write.patch, ...(sending ? { pending: true as const } : {}) } : row));
     } else if (!listsCreated(shown, write.row)) {
@@ -109,6 +147,7 @@ export function unsettledEventWrites(rows: readonly PimEventRow[], writes: reado
     if (write.state === "sending") return true;
     if (now - (write.settledAt ?? now) > SETTLED_EVENT_WRITE_TTL_MS) return false;
     if (write.kind === "create") return !listsCreated(rows, write.row);
+    if (write.kind === "stamp") return rows.some((row) => stamps(row, write));
     const cached = rows.find((row) => sameRef(row, write.ref));
     if (write.kind === "delete") return cached !== undefined;
     // An event that left the cache has nothing to patch any more.
@@ -169,7 +208,7 @@ export class PendingEventWrites {
     if (!current) return;
     const replaced: PendingEventChange[] = after ? after.map(statedChange) : [current];
     const settled = replaced.map((change, index): PendingEventWrite => ({ ...change, id: index === 0 ? id : this.reserve(), state: "settled", settledAt: now }));
-    this.set(this.writes.flatMap((write) => (write.id === id ? settled : [write])));
+    this.set(foldIntoCreates(this.writes.flatMap((write) => (write.id === id ? settled : [write])), settled));
   }
 
   /** The provider refused: the view goes back to what the cache says. */
@@ -198,6 +237,38 @@ export class PendingEventWrites {
  */
 export function showWrittenEvents(store: PendingEventWrites, changes: readonly PendingEventChange[]): void {
   for (const change of changes) store.settle(store.begin(change));
+}
+
+/**
+ * A settled write against an event the cache does not list yet - one created a
+ * moment ago, shown only by its `create` overlay - is folded INTO that overlay
+ * (issue 119, R2).
+ *
+ * Laid beside it, it was let go at the first reconcile: an update, a stamp or a
+ * delete waits for the cache to agree, and a cache that has never seen the
+ * event agrees with nothing. So a new event that was recoloured lost its new
+ * etag at once, and one that was deleted came back from its create overlay for
+ * up to three minutes.
+ */
+function foldIntoCreates(writes: readonly PendingEventWrite[], settled: readonly PendingEventWrite[]): PendingEventWrite[] {
+  let out = writes.slice();
+  for (const change of settled) {
+    if (change.kind === "create") continue;
+    const created = (write: PendingEventWrite): write is Extract<PendingEventWrite, { kind: "create" }> =>
+      write.kind === "create" && write.state === "settled" && write.id !== change.id;
+    if (change.kind === "delete") {
+      // Gone: nothing of it is to be shown any more.
+      out = out.filter((write) => !(created(write) && sameRef(write.row, change.ref)));
+    } else if (change.kind === "update") {
+      if (!out.some((write) => created(write) && sameRef(write.row, change.ref))) continue;
+      out = out
+        .map((write) => (created(write) && sameRef(write.row, change.ref) ? { ...write, row: { ...write.row, ...change.patch } } : write))
+        .filter((write) => write.id !== change.id);
+    } else {
+      out = out.map((write) => (created(write) && stamps(write.row, change) ? { ...write, row: { ...write.row, etag: change.etag } } : write));
+    }
+  }
+  return out;
 }
 
 /** One overlay per app: the editor that writes and the views that show are different components. */

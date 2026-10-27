@@ -452,18 +452,20 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
           const res = await target.updateEvent(op.ref, op.draft);
           return { ok: true as const, etag: res.etag };
         }
+        // Both may leave the event with a new etag (R2), which the window
+        // that asked lays over its rows.
         if (op.kind === "deleteEvent") {
-          await target.deleteEvent(op.ref);
-          return { ok: true as const };
+          const res = await target.deleteEvent(op.ref);
+          return { ok: true as const, etag: res ? res.etag : undefined };
         }
         if (!target.respondToEvent) throw new Error("this provider cannot answer invitations");
-        await target.respondToEvent(op.ref, op.response);
-        return { ok: true as const };
+        const res = await target.respondToEvent(op.ref, op.response);
+        return { ok: true as const, etag: res ? res.etag : undefined };
       } catch (err) {
         // A conflict is an ANSWER, not a failure: the caller re-pulls and lets
         // the user edit the fresh state. It travels as a value because
         // `PimConflictError` cannot survive JSON.
-        if (err instanceof PimConflictError) return { conflict: true as const };
+        if (err instanceof PimConflictError) return { conflict: true as const, currentEtag: err.currentEtag };
         throw err;
       }
     }, { vaultPath: deps.vaultPath }),

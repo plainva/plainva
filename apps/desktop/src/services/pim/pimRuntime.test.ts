@@ -39,6 +39,19 @@ describe("building a target for an account", () => {
 
   beforeEach(() => { getPimCredentials.mockReset(); scopeState.mockReset(); started.mockClear(); triggered.mockClear(); });
 
+  it("builds no target for an account signed out on this device - no request with an emptied password (review finding 3)", async () => {
+    getPimCredentials.mockResolvedValue({ kind: "caldav", url: "https://caldav.icloud.com", user: "anna", pass: "", signedOutHere: true });
+    expect(await runtime().buildTarget(row("caldav"))).toBeNull();
+    // A Google account signed out here does not fall back to the card's (deleted) grant either.
+    getPimCredentials.mockResolvedValue({ kind: "google", clientId: "cid", clientSecret: "sec", refreshToken: "", signedOutHere: true });
+    expect(await runtime().buildTarget(row("google"))).toBeNull();
+  });
+
+  it("still builds one for a CalDAV server without a password", async () => {
+    getPimCredentials.mockResolvedValue({ kind: "caldav", url: "https://dav.example", user: "anna", pass: "" });
+    expect(await runtime().buildTarget(row("caldav"))).not.toBeNull();
+  });
+
   it("does not revive a runtime disposed before the login completes", async () => {
     const target = runtime();
     target.stop();

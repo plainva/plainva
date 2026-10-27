@@ -309,6 +309,8 @@ export interface TaskDbRow {
    * held was gone before anything could show it.
    */
   dueMinutes?: number;
+  /** When the entry's note last changed (`file.mtime`, ms) — the only date a done entry has (wish E5). */
+  modified?: number;
 }
 
 /** The database's first date column — the one a due date is read from and a
@@ -354,6 +356,7 @@ export function taskDbRows(
       dueMinutes: parsedDue?.minutes,
       ...(priorityModel ? { priority: priorityOfValue(r[priorityModel.key], priorityModel) } : {}),
       ...(r["remind"] !== undefined && r["remind"] !== null && r["remind"] !== "" ? { remind: r["remind"] } : {}),
+      ...(typeof r["file.mtime"] === "number" && Number.isFinite(r["file.mtime"]) ? { modified: r["file.mtime"] } : {}),
     };
   });
 }

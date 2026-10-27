@@ -24,6 +24,7 @@ import type { OAuthAccess, ServiceConnectionContext } from "@plainva/ui";
 import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConnectOutcome } from "./connectQueue";
 import { getActiveVaultEntry } from "./vaultRegistry";
 import { APP_ID, APP_URL } from "./appScheme";
+import { connectionFailureToast } from "./connectionToast";
 
 /**
  * Mobile OAuth: the system browser and PKCE with the custom-scheme callback,
@@ -526,7 +527,7 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
     await offerFolderPicker(mp, flow.extras);
   } catch (e) {
     if (flow && params.get("state") === flow.state) await recordConnectOutcome(flow.extras.serviceContext, "files", { state: "failed", message: e instanceof Error ? e.message : String(e) }).catch(() => {});
-    toast.error(serviceConnectionMessage(e, i18n.t));
+    toast.error(...connectionFailureToast(e));
   }
   return true;
 }

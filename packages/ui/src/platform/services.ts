@@ -39,6 +39,19 @@ export interface PlatformServices {
    * at all; the stamp's job is to name the process, the version is detail.
    */
   appVersion?(): Promise<string>;
+  /**
+   * Remembers that a shared account was removed on this device, so the next
+   * settings-profile import does not bring it back and the deletion travels to
+   * the other devices (the shells' `noteAccountRemovedLocally`). Optional: a
+   * shell without a settings profile has nothing to remember.
+   */
+  noteAccountRemoved?(vaultKey: string, kind: "pim" | "mail", localId: string): Promise<void>;
+  /**
+   * Remembers that an account was added (again) on this device: a deletion the
+   * profile still carries for its id is revived, here and on the other devices
+   * (the shells' `noteAccountAddedLocally`).
+   */
+  noteAccountAdded?(vaultKey: string, kind: "pim" | "mail", localId: string): Promise<void>;
 }
 
 let current: PlatformServices | null = null;

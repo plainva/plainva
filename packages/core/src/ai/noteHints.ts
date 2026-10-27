@@ -1,5 +1,6 @@
 import { frontmatterSpan } from "../frontmatter-block.js";
-import { GFM_TASK_FENCE, GFM_TASK_LINE } from "../vault/taskScan.js";
+import { createFenceTracker } from "../markdownFence.js";
+import { GFM_TASK_LINE } from "../vault/taskScan.js";
 
 /**
  * Calm hints at the open note (plan KI-Harness P8-3, mockup chapter 25): what
@@ -77,15 +78,13 @@ export function todoLines(content: string): { line: number; raw: string; todo: T
   const lines = content.split(/\r?\n/);
   const bodyStart = span ? content.slice(0, span.end).split(/\r?\n/).length - 1 : 0;
   const out: { line: number; raw: string; todo: TodoLine }[] = [];
-  let fenced = false;
+  // What is code, the task scanners' one fence rule says (`markdownFence.ts`): a fence closes only on a run of its
+  // character at least as long, a backtick run with a backtick behind it opens none, and a fence in a quote is code.
+  const fence = createFenceTracker();
   for (let index = bodyStart; index < lines.length; index++) {
     // The first line of a file with a byte order mark begins with it: the line is what follows.
     const raw = index === 0 && lines[0]!.startsWith(BOM) ? lines[0]!.slice(1) : lines[index]!;
-    if (GFM_TASK_FENCE.test(raw)) {
-      fenced = !fenced;
-      continue;
-    }
-    if (fenced || GFM_TASK_LINE.test(raw)) continue;
+    if (fence.step(raw) !== null || GFM_TASK_LINE.test(raw)) continue;
     const todo = todoLineOf(raw);
     if (todo) out.push({ line: index + 1, raw, todo });
   }

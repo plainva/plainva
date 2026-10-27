@@ -139,8 +139,11 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
       if (!existingPim.some(a => a.id === row.id)) await cache.restoreAccount(await sourceCache.snapshotAccount(row.id));
     }
     for (const mail of mailAccounts) {
-      if (mailAccountKind(mail) === "microsoft") await saveMicrosoftMailAccount(id, mail, await getMailRefreshToken(v.vaultId, mail.id) ?? "");
-      else await saveMailAccount(id, mail, await getMailPassword(v.vaultId, mail.id) ?? "");
+      // Moved with the vault, as they are: no one connected a mailbox here, so
+      // no add is recorded - a mailbox removed from the target vault on another
+      // device stays removed (last review of plan "Verbinden").
+      if (mailAccountKind(mail) === "microsoft") await saveMicrosoftMailAccount(id, mail, await getMailRefreshToken(v.vaultId, mail.id) ?? "", "edit");
+      else await saveMailAccount(id, mail, await getMailPassword(v.vaultId, mail.id) ?? "", "edit");
     }
     for (const record of records) { const token = await getAccountToken(v.vaultId, record.id); if (token) await saveAccountToken(id, record.id === selected?.id ? accountId : record.id, token); }
     if (!existing) await copyProfilePreferences(v, id, target);

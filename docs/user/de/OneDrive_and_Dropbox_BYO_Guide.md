@@ -1,6 +1,6 @@
 # OneDrive & Dropbox einrichten (eigene App-Registrierung)
 
-Stand: 2026-10-23
+Stand: 2026-10-26
 
 **Normalerweise brauchst Du diese Seite nicht:** Für OneDrive **und** Dropbox bringt Plainva eine eigene App-ID mit — Du wählst den Anbieter, klickst **Verbinden** und meldest Dich an. Eine **eigene** (kostenlose) App-Registrierung brauchst Du nur in zwei Fällen: wenn eine Firmen-Sperre die mitgelieferte Anmeldung blockiert, oder wenn Du die Verbindung bewusst unter Deine eigene Kontrolle stellen willst. Für **OneDrive** trägst Du sie unter **Anmeldung auf diesem Gerät** → **Ändern** → **Eigene Client-ID** ein — auf der Konto-Seite oder im Assistenten, am Rechner wie am Telefon, nur für dieses Gerät. Für **Dropbox** bleibt das Feld, wo es war: am **Desktop** **Eigene App-ID verwenden** beim Konto, am **Telefon** im Verbinden-Formular direkt unter dem Anbieter. Trag dort genau einen öffentlichen Wert ein:
 
@@ -96,7 +96,7 @@ Reiter **Permissions** — folgende anhaken und unten **Submit** klicken:
 - `files.content.read`
 - `files.content.write`
 
-> ⚠️ Änderst Du die Berechtigungen später, musst Du Dich in Plainva **neu verbinden**, sonst gelten die alten Rechte weiter.
+> ⚠️ Änderst Du die Berechtigungen später, musst Du Dich in Plainva über **Erneut anmelden** auf der Seite des Kontos neu anmelden, sonst gelten die alten Rechte weiter.
 
 ### 5. App-Key kopieren
 
@@ -117,12 +117,12 @@ Reiter **Settings**: den Wert **App key** kopieren — das ist Dein Wert für Pl
 
 | Symptom | Ursache | Lösung |
 |---|---|---|
-| OneDrive: „Microsoft hat keinen refresh_token geliefert" | `offline_access` fehlt | Schritt A5: `offline_access` ergänzen, dann **Neu verbinden** |
+| OneDrive: „Microsoft hat keinen refresh_token geliefert" | `offline_access` fehlt | Schritt A5: `offline_access` ergänzen, dann **Erneut anmelden** |
 | OneDrive: Login verlangt ein Secret / schlägt fehl | Plattform „Web" statt „Mobil und Desktop" | Schritt A2: Plattform **Öffentlicher Client/nativ**, Redirect `http://localhost` |
 | OneDrive: privates Konto wird abgelehnt | falscher Kontotyp | Schritt A2: „… und persönliche Microsoft-Konten" wählen |
 | Dropbox: Anmeldung hängt / „redirect_uri mismatch" | Redirect nicht exakt | Schritt B3: genau `http://127.0.0.1:41953` |
 | Dropbox: „Port 41953 ist belegt" | anderes Programm blockiert den Port | blockierende Anwendung schließen, erneut verbinden |
-| Dropbox: findet Vault nicht / Rechte fehlen | „App folder" statt „Full Dropbox", oder Permissions nicht **Submit** | Schritt B2 / B4 prüfen, dann **Neu verbinden** |
+| Dropbox: findet Vault nicht / Rechte fehlen | „App folder" statt „Full Dropbox", oder Permissions nicht **Submit** | Schritt B2 / B4 prüfen, dann **Erneut anmelden** |
 
 ## Siehe auch
 
