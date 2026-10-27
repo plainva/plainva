@@ -435,9 +435,11 @@ a write or an outside effect.
       made, the notes that went along or were read through a tool — never
       from what the model says it used.
     - *Nothing the model wrote loads or leads anywhere.* The answer's text
-      passes the pre-write linter with no exception at all (decision 6): every
-      address is inert. The linter does not depend on parsing Markdown, so
-      the syntax around an inert address is still that of a link or an
+      passes the pre-write linter (decision 6): every address is inert. Only
+      the code every renderer shows as code stays as written, and nothing in
+      it loads or leads anywhere (addendum 2026-10-27). The linter does not
+      depend on parsing Markdown, so the syntax around an inert address is
+      still that of a link or an
       image; a second pass, which is about how the note reads and not about
       safety, writes those as their words with the address beside them as
       text — nothing is drawn as a link that is none, and an image is never
@@ -640,6 +642,23 @@ a write or an outside effect.
 - **A version before an accept only for a machine's suggestions.**
   Rejected: the editor's undo takes back nobody's accepted suggestion.
 
+## Addendum 2026-10-27: the linter reads an address the way the renderer does (strand 6, Nr. 12)
+
+Decision 6 holds that the linter does not depend on parsing Markdown. It still reads where an address stands and where it ends, and wherever it read that differently from the renderer, an address stayed live. A check against a real CommonMark + GFM parser and a real HTML parser (`injectionCorpus.test.ts`) found these cases, some of them older than this package. An `<img title=">" src="//host/…">` passed whole: the pattern for a tag ended at the `>` in the quoted value, while a browser reads on to the `>` behind it. The same happened with a `<` in a value, and with the comment a browser takes into a tag left open as its attributes. An address behind `_` or a digit was not seen, and `www.` behind punctuation was not either, though GFM links both. A destination was read only as far as its first blank or parenthesis, and an address of the user's own was taken as ended at a blank. That last one was a door: data could be hung onto a known address inside `<…>` or inside an attribute's value (`<https://known/a ?d=…>`, `src="https://known/a ?d=…"`). And a note written whole was linted byte for byte, the user's own text included: `<std::string>` became `<std[:]:string>`, and an `<svg>` of the user's became text.
+
+1. **Every address is read where it stands, whole, as the renderer reads it there.** A destination is read as CommonMark delimits it: blanks inside `<…>`, balanced parentheses, backslash escapes. An autolink is read only where it is one — `<` then a scheme of two to thirty-two characters and a closing `>` —, so a `<x:` in an image's or a link's text opens none, and reading one there would run past the real destination behind it and leave it live. An attribute's value is read as a browser reads it: to its quote, past a `>` and a `<`, across lines, with tabs and line breaks dropped. An address in running text is read as GFM links it: to a blank or a `<`, without the punctuation it trims. A `www.` is read behind any character, not only behind a non-letter: micromark (Plainva's own preview) links it only after a non-letter, markdown-it (Obsidian) and marked after a letter too, and the note is read there as well. Each is read as written and as decoded, since a renderer links what it finds raw and what it reads decoded. A scan of an address is capped at a few thousand characters — a host sits at the front, and the cap keeps a run of pasted-together addresses from being read again and again into a quadratic cost.
+2. **An attribute that loads or links is made inert wherever it stands.** Its name is bracketed (`[src]=…`), which neither a browser nor a Markdown parser reads as that attribute. That holds also in a tag the linter escapes and where no whole tag is seen at all. In SVG, the animation values (`to`, `from`, `by`, `values`, which can set an `href`) count, and so does a `url()` in any attribute. An unsafe destination is written inert at every authority marker — each `://` and each bare protocol-relative `//`, wherever it stands, not only at the front —, so a reader that takes a URL from the middle of what the linter was handed (a destination read wider than the renderer reads it, an address inside an address) finds nothing live.
+3. **An address of the user's own stays live only where the linter reads exactly it.** The known addresses are read from the user's text by the same readers (`addressesIn`), and a destination, a value or an address in running text is compared whole, never as the start of something longer. This replaces the placeholders that stood in for known addresses while the linter ran: they took an address as ended where a blank followed it.
+4. **Fenced code is no exception for a part of a note.** Whether a fence is one depends on where the part lands. In a note written whole, the code every renderer shows as code stays as written (`sureFencedCode`): a fence at the start of its line or behind quote markers, outside the properties block and outside HTML blocks, and before any run that only might open a fence.
+5. **A note written whole is linted where the write changes it** (`defuseNoteText`). Against the note it replaces, only the paragraphs a change touches are linted, and every other byte stays as it was. What the rest of the note makes of the change is read with it (`lintReach`):
+   - an HTML block that keeps its text raw over blank lines (a comment, `<pre>`, `<style>`, `<?…?>`, `<![CDATA[…]]>`);
+   - a tag left open at the end of its paragraph, which takes what follows into it;
+   - a `<style>` or a `<form>` before the change, after which a change is a style sheet or a form's field;
+   - a `<base>` anywhere, which moves every relative address of the note;
+   - a reference definition the change begins to use. A definition the note only defines and never uses renders nothing; its address is not one the user's text "already carries", so it shields nothing, and once a change here uses it — a full, collapsed or shortcut reference — its line is linted with the change and the address is made inert. A definition the note defines *and* uses is a live link of the user's and stays; a definition the change never uses stays as the user's own bytes.
+
+   Accepted with it: a note that holds such a tag has more of its own text linted when an assistant edits it, and the proposal shows that. A `<style>` of the user's, the way some Obsidian users style a single note, is written as text when an assistant edits after it.
+
 ## Links
 
 - ADR 0017, ADR 0018, ADR 0022; `packages/ui/src/services/commandRegistry.ts`;
@@ -675,3 +694,10 @@ a write or an outside effect.
   `apps/desktop/src/services/commentOperations.ts` and
   `apps/mobile/src/services/commentOperations.ts`;
   `docs/engineering/AI_Threat_Model.md` (T38, T39).
+- The linter and how far it reads (addendum 2026-10-27):
+  `packages/core/src/ai/preWriteLint.ts` (`addressesIn`), `sureFencedCode`
+  and `lintReach` in `packages/core/src/ai/sureCode.ts`,
+  `defuseNewAddresses` and `defuseNoteText` in
+  `packages/ui/src/ai/aiWriteLint.ts`; the oracle, a CommonMark + GFM parser
+  and an HTML parser: `packages/core/src/ai/injectionCorpus.test.ts`;
+  `docs/engineering/AI_Threat_Model.md` (T1).

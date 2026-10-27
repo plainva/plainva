@@ -3,7 +3,7 @@ import { safeFileStem } from "../lib/fileStem";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 import { profileDefault } from "../lib/profileFields";
 import { generatedStamp } from "../lib/okfProvenance";
-import { defuseNewAddresses } from "./aiWriteLint";
+import { defuseNoteText } from "./aiWriteLint";
 
 /**
  * "Keep as a note" under an answer (plan KI-Harness P4-6, §17.1 "research
@@ -164,7 +164,7 @@ export interface CapturedNote {
 
 /** The note an answer becomes. Pure: the same answer gives the same note. */
 export function captureNote(input: AnswerToCapture, t: Translate): CapturedNote {
-  const linted = defuseNewAddresses(input.answer.trim(), []);
+  const linted = defuseNoteText(input.answer.trim(), []);
   // An answer that opens with its own heading names the note (plan P7): the heading becomes the title instead of
   // standing under it a second time. A title that is given — a skill's — comes first; without either, the question.
   // Read without a pattern: the first line, a `#` and a blank at its start, the marks and blanks around its words.

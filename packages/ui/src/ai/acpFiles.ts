@@ -24,7 +24,7 @@ import {
 } from "@plainva/core";
 import { generatedStamp } from "../lib/okfProvenance";
 import { selectionChunks, type SuggestionAuthor } from "./aiSelectionActions";
-import { defuseNewAddresses } from "./aiWriteLint";
+import { defuseNewAddresses, defuseNoteText } from "./aiWriteLint";
 import { noteAsEdited, type RoundChunk } from "./writeTools";
 
 /**
@@ -282,7 +282,7 @@ export async function acpPlanNoteWrite(vault: AcpVaultAccess, agentId: string, p
     if (properties.some((property) => isRuleOrTrustProperty("", property.key, property.value))) throw new AcpFileRefusal("rules", path);
     // The place may have rules of its own: a folder kept from the agent takes no note from it either.
     if (!(await allowed(vault, agentId, path, content))) throw new AcpFileRefusal("kept", path);
-    const linted = defuseNewAddresses(content, []);
+    const linted = defuseNoteText(content, []);
     try {
       // The stamp that says who wrote the note goes into its properties when it is created: they have to be readable for that.
       acpNewNoteContent(linted.text, agentId, new Date(0));
@@ -296,8 +296,9 @@ export async function acpPlanNoteWrite(vault: AcpVaultAccess, agentId: string, p
   if (content === base) return { kind: "unchanged", path };
   // The properties: every one that would say something else becomes a proposed value, or the write is refused.
   const properties = frontmatterBlock(content) === frontmatterBlock(base) ? { chunks: [], defused: 0, count: 0, intended: null } : acpPropertyBlocks(base, content, path);
-  // The text below them is linted as a whole, then diffed: a block of the round is a fragment, and half an address is none.
-  const linted = defuseNewAddresses(content.slice(noteBodyStart(content)), [base]);
+  // What the write brings to the text below them is linted, the paragraphs it touches whole — a block of the round is
+  // a fragment, and half an address is none —; every other byte stays as the note had it (strand 6, Nr. 12).
+  const linted = defuseNoteText(content.slice(noteBodyStart(content)), [base], base.slice(noteBodyStart(base)));
   const top = properties.intended === null ? base.slice(0, noteBodyStart(base)) : properties.intended.slice(0, noteBodyStart(properties.intended));
   const chunks: RoundChunk[] = [...properties.chunks, ...selectionChunks(base, 0, base.length, top + linted.text, "replace")];
   if (chunks.length === 0) return { kind: "unchanged", path };

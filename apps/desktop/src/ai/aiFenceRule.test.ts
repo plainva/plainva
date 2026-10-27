@@ -12,12 +12,6 @@ import { describe, expect, it } from "vitest";
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const DIRS = ["packages/core/src/ai", "packages/ui/src/ai", "apps/desktop/src/ai", "apps/mobile/src/services/ai"];
 /**
- * The check of what an assistant writes keeps its own reading of code until
- * its own package, next on the plan (strand 6): how it reads an address as
- * the renderer does, and what of a text it may change.
- */
-const EXCEPT = new Set(["packages/core/src/ai/preWriteLint.ts"]);
-/**
  * A fence written as a pattern: a counted run of backticks or tildes, in a class or a group, a backtick written as an
  * escape, a run repeated by a back-reference, a string search for a run, or the two runs side by side.
  */
@@ -44,7 +38,7 @@ describe("the assistant's scanners", () => {
     for (const dir of DIRS) {
       for (const name of readdirSync(join(ROOT, dir), { recursive: true }) as string[]) {
         const path = `${dir}/${name.replace(/\\/g, "/")}`;
-        if (!/\.tsx?$/.test(path) || /\.test\.tsx?$/.test(path) || EXCEPT.has(path)) continue;
+        if (!/\.tsx?$/.test(path) || /\.test\.tsx?$/.test(path)) continue;
         seen.push(path);
         readFileSync(join(ROOT, path), "utf8")
           .split("\n")

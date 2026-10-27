@@ -17,7 +17,7 @@ import {
   type AiSuggestAction,
   type SuggestionAuthor,
 } from "./aiSelectionActions";
-import { defuseNewAddresses } from "./aiWriteLint";
+import { defuseNewAddresses, defuseNoteText } from "./aiWriteLint";
 import { draftedEntryContent, draftedNoteContent, EMPTY_WRITE_DRAFTS, namedNoteContent, type DraftCreator, type OpenProposal, type WriteDraftState, type WriteDraftStore } from "./aiWrites";
 import { isWriteToolName, type PlanQuestion, type WriteRun } from "./writeTools";
 import { bringsAddress, FILL_INSTRUCTION, FILL_LIMITS, fillColumnLine, isFillColumn, parseFillAnswer, type FillColumn } from "./aiFill";
@@ -6147,7 +6147,7 @@ export class AiSession {
       const withId = conversationId ? { conversationId } : {};
       if (outcome.stop.kind !== "answered") return refused(outcome.stop.kind === "cancelled" ? "cancelled" : "failed", withId);
       // What the user's own text already links to stays a link; what the model brought does not become one.
-      const reply = defuseNewAddresses((outcome.answer ?? "").trim(), [note?.text ?? "", request.quote ?? "", request.question, ...request.thread.map((remark) => remark.body)]).text;
+      const reply = defuseNoteText((outcome.answer ?? "").trim(), [note?.text ?? "", request.quote ?? "", request.question, ...request.thread.map((remark) => remark.body)]).text;
       if (!reply) return refused("no-answer", withId);
       // A new host of the vault since the question went (strand 6, step 10) stops the reply: nothing is posted through
       // the host that was. The answer stays in its conversation, which the history lists.

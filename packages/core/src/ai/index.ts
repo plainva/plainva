@@ -9,6 +9,7 @@ export * from "./policy.js";
 export * from "./egressGate.js";
 export * from "./linkNames.js";
 export * from "./preWriteLint.js";
+export * from "./sureCode.js";
 export * from "./tools.js";
 export * from "./conversation.js";
 export * from "./providers.js";

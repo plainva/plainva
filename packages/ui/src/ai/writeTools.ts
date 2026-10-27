@@ -44,7 +44,7 @@ import { parseTaskCapture, type CaptureVocabulary } from "../lib/taskCapture";
 import { readTextShape } from "../lib/textFileShape";
 import { capturedNotePath, flattenInertLinks } from "./aiCapture";
 import { selectionChunks, type SuggestionAuthor } from "./aiSelectionActions";
-import { defuseNewAddresses } from "./aiWriteLint";
+import { defuseNewAddresses, defuseNoteText } from "./aiWriteLint";
 
 /**
  * The writing tools of the assistant (plan KI-Harness P5, ADR 0019 §2), one
@@ -394,8 +394,9 @@ async function proposeEdit(deps: VaultWriteDeps, run: WriteRun, a: Record<string
 
   // A round inherits nothing, so it may only go where the rules of what the conversation rests on already hold.
   if (!(await placeTakes(run, ctx, note.path, base))) return refuse("restricted");
-  // The whole new text is linted, then diffed: a block of the round is a fragment, and half an address is none.
-  const linted = defuseNewAddresses(outcome.text, [base, ...run.userTexts()]);
+  // What the edit brings is linted, the paragraphs it touches whole — a block of the round is a fragment, and half an
+  // address is none —; every other byte stays as the note had it (strand 6, Nr. 12).
+  const linted = defuseNoteText(outcome.text, [base, ...run.userTexts()], base);
   // Only the note's text is proposed here: its properties stay as they are, whatever the lint made of them.
   const start = noteBodyStart(base);
   const intended = base.slice(0, start) + linted.text.slice(noteBodyStart(linted.text));
@@ -470,7 +471,7 @@ async function setProperty(deps: VaultWriteDeps, run: WriteRun, a: Record<string
 function draftedText(content: string, run: WriteRun): { text: string; defused: number } | null {
   // What a note says about its own rules and its own trust is not an assistant's to write: a draft is text.
   if (noteBodyStart(content) > 0) return null;
-  const linted = defuseNewAddresses(content.trim(), run.userTexts());
+  const linted = defuseNoteText(content.trim(), run.userTexts());
   return { text: flattenInertLinks(linted.text), defused: linted.defused };
 }
 
