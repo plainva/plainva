@@ -61,6 +61,7 @@ import { mobileCommentOperations } from "../services/commentOperations";
 import { consumeNoteCommands, type NoteCommand } from "../services/noteCommands";
 import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
+import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
 
 /** A property value as the anchor quote carries it (desktop parity). */
 function propertyValueText(value: unknown): string {
@@ -606,8 +607,9 @@ export function NoteScreen({
   // the missing state — the stale index row is already gone. The first answer
   // comes from the parent folder; a vault-wide pass may still change it, and
   // the screen updates when it does.
-  const followMoved = useStableHandler((to: string) => {
-    void getVaultEntry(vault.vaultId).catch(() => null).then((entry) => {
+  const followMoved = useStableHandler((to: string, movedOutside = true) => {
+    // A move the sync made here is no move outside the app: the bar shows the new name.
+    if (movedOutside) void getVaultEntry(vault.vaultId).catch(() => null).then((entry) => {
       toast.info(t("mobile.noteMovedFollowed", { folder: movedFolderLabel(to, entry?.name || t("mobile.vaultLocal")) }));
     });
     onRenamed(to);
@@ -696,7 +698,7 @@ export function NoteScreen({
     }
   };
   /** Writes the unsaved text to where the file lives now, then follows it there. */
-  const carryAndFollow = useStableHandler(async (to: string, picked: boolean) => {
+  const carryAndFollow = useStableHandler(async (to: string, picked: boolean, movedOutside = true) => {
     const text = liveText();
     if (text === null || !aliveRef.current) return;
     // The new file holds what was last saved (its hash matched), so that is
@@ -722,8 +724,24 @@ export function NoteScreen({
     // The old place holds nothing any more; its journal entry is settled.
     clearDraft(vault, path);
     setVanished(null);
-    followMoved(to);
+    followMoved(to, movedOutside);
   });
+  // The sync moved the open note here (fileMoved.ts): the screen switches to
+  // the new name directly, its unsaved text with it - never a save at the old
+  // place, never the lookup for a file moved outside the app.
+  const followSyncMove = useStableHandler((event: Event) => {
+    const moved = (event as CustomEvent<FileMovedDetail>).detail;
+    if (!moved || moved.from !== path || moved.vaultId !== vault.vaultId) return;
+    if (vanishTimerRef.current !== null) { window.clearTimeout(vanishTimerRef.current); vanishTimerRef.current = null; }
+    const text = liveText();
+    const unsaved = noteSaver.hasPending(path, vault) || (text !== null && doc !== null && text !== (getLastPersistedText(vault, path) ?? doc));
+    if (unsaved) void carryAndFollow(moved.to, false, false);
+    else followMoved(moved.to, false);
+  });
+  useEffect(() => {
+    window.addEventListener(FILE_MOVED_EVENT, followSyncMove);
+    return () => window.removeEventListener(FILE_MOVED_EVENT, followSyncMove);
+  }, [followSyncMove]);
   /** "Save here again": the reader brings the file back where it was. */
   const restoreHere = useStableHandler(async () => {
     const text = liveText();

@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { isPlainvaManagedIndex, starterHash, type VaultFileInfo } from "@plainva/core";
+import { isPlainvaManagedIndex, isUntouchedStarter, readStarterManifest, starterHash, type VaultFileInfo } from "@plainva/core";
 import { serializeBaseConfig } from "../base/baseFormat";
 import { APP_LANGUAGES } from "../services/languages";
 import { getVaultTemplates } from "./registry";
@@ -85,4 +85,60 @@ export async function recognizeStarterFiles(adapter: StarterRecognitionAdapter):
     }
   }
   return recognized;
+}
+
+/** Whether a cloud folder's listing holds notes; a listing that failed (`null`) counts as one that does. */
+export function folderHoldsNotes(remotePaths: Iterable<string> | null): boolean {
+  if (remotePaths === null) return true;
+  for (const path of remotePaths) if (!isPrivate(path)) return true;
+  return false;
+}
+
+export interface StarterSource extends StarterRecognitionAdapter {
+  exists(path: string): Promise<boolean>;
+  readTextFile(path: string): Promise<string>;
+}
+
+/**
+ * The one rule for starter content and a cloud folder (third review
+ * 2026-10-27), for both shells at the moment a vault meets its folder: the
+ * phone's copy into a new vault, the desktop's binding of the open one. Where
+ * the folder already holds notes - or its listing could not be read - the
+ * starter files nobody changed stay on this device: the vault's record of
+ * them, or for a vault from before the record, the files recognised by their
+ * bytes. An empty or new folder takes everything. Returns path -> hash of the
+ * bytes held back; nothing is written here.
+ */
+export async function starterFilesToHoldBack(adapter: StarterSource, remotePaths: Iterable<string> | null): Promise<Map<string, string>> {
+  const held = new Map<string, string>();
+  if (!folderHoldsNotes(remotePaths)) return held;
+  const record = await readStarterManifest(adapter);
+  const files = record ? record.files : await recognizeStarterFiles(adapter).catch(() => ({} as Record<string, string>));
+  const manifest = { version: 1 as const, files };
+  for (const path of Object.keys(files)) {
+    let bytes: Uint8Array;
+    try {
+      bytes = await adapter.readBinaryFile(path);
+    } catch {
+      continue;
+    }
+    if (isUntouchedStarter(manifest, path, bytes)) held.set(path, starterHash(bytes));
+  }
+  return held;
+}
+
+/**
+ * Binding a vault in place (the desktop): the decision waits for the
+ * worker's first whole listing - which runs before the vault's first upload -
+ * and is stored next to the sync state, where every upload asks it.
+ */
+export function holdBackStartersAtFirstListing(
+  worker: { onFirstListing?: (remotePaths: ReadonlySet<string>) => Promise<void> },
+  adapter: StarterSource,
+  repo: { holdBackStarters(files: ReadonlyMap<string, string>): Promise<void> },
+): void {
+  worker.onFirstListing = async (remotePaths) => {
+    const held = await starterFilesToHoldBack(adapter, remotePaths);
+    if (held.size > 0) await repo.holdBackStarters(held);
+  };
 }

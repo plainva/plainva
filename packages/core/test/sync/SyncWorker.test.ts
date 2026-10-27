@@ -1387,6 +1387,22 @@ describe("SyncWorker", () => {
       });
     });
 
+    it("tells the first whole listing once, before anything of this device goes up (third review 2026-10-27)", async () => {
+      const order: string[] = [];
+      const seen: string[][] = [];
+      worker.onFirstListing = async (paths) => { order.push("listing"); seen.push([...paths]); };
+      engine.processQueue.mockImplementation(async () => { order.push("push"); });
+      target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"]]) });
+      target.download.mockResolvedValue(new TextEncoder().encode("a"));
+
+      await worker.runCycle();
+      target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"], ["b.md", "e2"]]) });
+      await worker.runCycle();
+
+      expect(seen).toEqual([["a.md"]]);
+      expect(order.indexOf("listing")).toBeLessThan(order.indexOf("push"));
+    });
+
     it("names the conflict copies its first complete cycle kept (review 2026-10-27)", async () => {
       const spy = vi.fn();
       worker.onFirstCycleComplete = spy;

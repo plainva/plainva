@@ -530,6 +530,12 @@ export class SyncWorker {
   /** The conflict copies the sync kept before its first complete cycle. */
   private firstCycleCopies: string[] = [];
   /**
+   * Called once, with the paths of the first whole listing, before this
+   * worker pushes anything (see where it is called).
+   */
+  public onFirstListing?: (remotePaths: ReadonlySet<string>) => Promise<void>;
+  private firstListingTold = false;
+  /**
    * Fired once when the mass-deletion guard trips (see MASS_DELETE_MIN/SHARE): the
    * queued remote deletions are held and the desktop must ask the user to either
    * approveMassDeletion() (execute them) or discardMassDeletion() (drop the deletes
@@ -2049,6 +2055,17 @@ export class SyncWorker {
       const now = Date.now();
       const pullMs = now - pullStartedAt;
       const remotePaths = new Set(pullResult.etagMap.keys());
+      // The first whole listing this worker sees, before anything of this
+      // device goes up in the cycle: what a binding decides from the folder it
+      // found (third review 2026-10-27, starter content held back).
+      if (doFullListing && !this.firstListingTold && alive()) {
+        this.firstListingTold = true;
+        try {
+          await this.onFirstListing?.(remotePaths);
+        } catch (e) {
+          console.error("[SyncWorker] onFirstListing consumer failed:", e);
+        }
+      }
       const structuralPending = await this.queue.getPendingStructuralPaths();
       const awaitingStructure = (path: string): boolean =>
         structuralPending.some((p) => path === p || path.startsWith(p + "/"));

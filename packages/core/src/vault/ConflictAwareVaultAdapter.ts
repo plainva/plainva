@@ -763,6 +763,21 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     });
   }
 
+  async deleteItemIfUnchanged(path: string, expectedSha256: string): Promise<boolean> {
+    return this.runExclusive(path, async () => {
+      await this.requireResolved(path);
+      let bytes: Uint8Array;
+      try {
+        bytes = await this.inner.readBinaryFile(path);
+      } catch {
+        return false;
+      }
+      if ((await sha256BytesHex(bytes)) !== expectedSha256) return false;
+      await this.inner.deleteItem(path);
+      return true;
+    });
+  }
+
   async renameItem(oldPath: string, newPath: string): Promise<void> {
     return withPathMutation(this.mutationScope, [oldPath, newPath], async () => {
       await this.requireResolved(oldPath);

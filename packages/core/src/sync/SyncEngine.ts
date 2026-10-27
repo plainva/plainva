@@ -144,18 +144,54 @@ export class SyncEngine {
     const kept = this.unsyncableCopies.get(path);
     if (kept && kept.sha === sha && await this.vault.exists(kept.copy)
       && await sha256Bytes(await this.vault.readBinaryFile(kept.copy)) === sha) {
-      console.warn(`[SyncEngine] ${path} holds what ${kept.copy} holds already; the stray file goes`);
-      await this.vault.deleteItem(path);
-      this.tellMoved(path, kept.copy);
-      return;
+      // Compare and delete as one step with the chain's other writes: a save
+      // that lands after the read above is never deleted (third review
+      // 2026-10-27). Where the file changed meanwhile - or this storage cannot
+      // compare and delete - its content gets a copy of its own below.
+      if (this.vault.deleteItemIfUnchanged && await this.vault.deleteItemIfUnchanged(path, sha)) {
+        console.warn(`[SyncEngine] ${path} held what ${kept.copy} holds already; the stray file went`);
+        this.tellMoved(path, kept.copy);
+        return;
+      }
+      if (!(await this.vault.exists(path))) return;
     }
     let copy = unsyncableCopyPath(path, new Date());
     // Never onto another copy: two moves within a second get distinct names.
     for (let n = 2; await this.vault.exists(copy); n++) copy = unsyncableCopyPath(path, new Date(), n);
     console.warn(`[SyncEngine] not pushing ${path} over a remote file the provider never handed out; it goes up as ${copy}`);
     await this.vault.renameItem(path, copy);
-    this.unsyncableCopies.set(path, { copy, sha });
+    // What the copy holds now - a save may have landed since the read above.
+    this.unsyncableCopies.set(path, { copy, sha: await sha256Bytes(await this.vault.readBinaryFile(copy)) });
     this.tellMoved(path, copy);
+  }
+
+  /** Starter files held back, by path; none where the store cannot say. */
+  private async heldBackStarters(): Promise<Map<string, string>> {
+    if (!this.stateRepo) return new Map();
+    try {
+      return await this.stateRepo.listHeldBackStarters();
+    } catch {
+      return new Map();
+    }
+  }
+
+  /**
+   * Whether this operation is held back as untouched starter content. A write
+   * of the bytes held back is; anything else the person does to such a file -
+   * changes it, moves it, deletes it - makes it theirs: the mark goes, and the
+   * operation runs as any other.
+   */
+  private async keepsStarterBack(op: SyncOperation, held: Map<string, string>): Promise<boolean> {
+    const path = op.file_path;
+    const hash = held.get(path);
+    if (hash === undefined) return false;
+    if (op.operation === "write") {
+      const bytes = await this.vault.readBinaryFile(path).catch(() => null);
+      if (bytes && (await sha256Bytes(bytes)) === hash) return true;
+    }
+    held.delete(path);
+    await this.stateRepo?.releaseHeldBackStarter(path).catch(() => undefined);
+    return false;
   }
 
   /** The files the provider refused for good, as stored; none where the store cannot say. */
@@ -368,6 +404,7 @@ export class SyncEngine {
     let pushIdx = 0;
     const refusedThisPass = new Set<string>();
     const refusedForGood = await this.unsyncablePaths();
+    const heldBack = await this.heldBackStarters();
     const localListings = new Map<string, Promise<VaultFileInfo[] | null>>();
     const remoteFolders: { value?: Map<string, Set<string>> } = {};
     for (let op of pending) {
@@ -444,6 +481,14 @@ export class SyncEngine {
             continue;
           }
           op = kept;
+        }
+        // Starter content this vault keeps here (heldBackStarters.ts): while a
+        // file still has the bytes it was held back with, it does not go up.
+        if (heldBack.size > 0 && await this.keepsStarterBack(op, heldBack)) {
+          console.log(`[SyncEngine] not pushing ${op.file_path}: starter content kept on this device`);
+          await this.queue.markSynced(op.id, op.file_path, op.file_path);
+          consecutiveFailures = 0;
+          continue;
         }
         // The twin lock on the push side (issue #112). A DELETE whose path has
         // a twin here that differs only in letter case is the SAME file for

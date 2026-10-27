@@ -50,6 +50,25 @@ describe("a template vault on a new, empty folder", () => {
   });
 });
 
+describe("a vault bound to a folder that already holds notes (third review 2026-10-27)", () => {
+  it("keeps the starter files it held back, and sends the person's note and a starter note they changed - which is theirs from then on", async () => {
+    const files = new Map([["Willkommen.md", STARTER], ["index.md", INDEX], ["Changed.md", "# Changed by me\n"], ["Meine Notiz.md", "# Meine Notiz\n"]]);
+    const db = await realSqlite();
+    const queue = new SyncQueue(db);
+    const repo = new SyncStateRepository(db);
+    await repo.holdBackStarters(new Map([["Willkommen.md", starterHash(STARTER)], ["index.md", starterHash(INDEX)], ["Changed.md", starterHash("# Changed\n")]]));
+    const target = { push: vi.fn(async () => ({ etag: "pushed" })), pull: vi.fn(), download: vi.fn() };
+    const engine = new SyncEngine(queue, target as never, vaultWith(files) as never, repo);
+    for (const path of files.keys()) await queue.queueWrite(path);
+
+    await engine.processQueue();
+
+    expect(target.push.mock.calls.map((call) => ((call as unknown[])[0] as { file_path: string }).file_path).sort()).toEqual(["Changed.md", "Meine Notiz.md"]);
+    expect([...(await repo.listHeldBackStarters()).keys()].sort()).toEqual(["Willkommen.md", "index.md"]);
+    expect(await queue.getPendingOperations()).toEqual([]);
+  });
+});
+
 describe("the starter record", () => {
   it("says untouched only for the bytes a file was written with, and for a listing while it carries the marker", () => {
     const manifest = { version: 1 as const, files: { "a.md": starterHash("a"), "index.md": starterHash("x") } };

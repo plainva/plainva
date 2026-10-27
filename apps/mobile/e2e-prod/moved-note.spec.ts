@@ -245,6 +245,37 @@ test.describe("a note that is OPEN while it is moved outside Plainva (issue 110)
     }
   });
 
+  test("a note the sync moved to its copy - a file the provider refuses - switches to the copy, its unsaved text and next save with it (third review 2026-10-27)", async ({ page, context }) => {
+    const sql = await installSqlBridge(context);
+    try {
+      const copy = "4 blog/link-50 (conflict 2026-10-27 15-00-00).md";
+      const row = await openBlogFolder(page, sql, [["4 blog/link-50.md", NOTE], ["4 blog/taken/keep.md", "# Keep\n"]]);
+      await row.click();
+      await typeIntoNote(page, " Typed before the move.");
+      // Every notice from here on is kept, so none can come and go unseen.
+      await page.evaluate(() => {
+        const seen: string[] = [];
+        (window as unknown as { __notices: string[] }).__notices = seen;
+        new MutationObserver(() => { for (const toast of document.querySelectorAll(".pv-toast")) if (!seen.includes(toast.textContent ?? "")) seen.push(toast.textContent ?? ""); })
+          .observe(document.body, { childList: true, subtree: true, characterData: true });
+      });
+      // What the engine does: the file goes to its copy, and the app hears of it.
+      await moveOutside(page, "4 blog/link-50.md", copy);
+      await page.evaluate((to) => window.dispatchEvent(new CustomEvent("m-file-moved", { detail: { from: "4 blog/link-50.md", to, vaultId: "local" } })), copy);
+
+      await expect.poll(() => readVaultFile(page, copy), { timeout: 20_000 }).toContain("Typed before the move.");
+      // Its next save goes to the copy.
+      await typeIntoNote(page, " And after it.");
+      await expect.poll(() => readVaultFile(page, copy), { timeout: 20_000 }).toContain("And after it.");
+      await page.waitForTimeout(2500);
+      expect(await onDisk(page, "4 blog/link-50.md")).toBe(false);
+      // Followed directly - not found by the lookup for a file moved outside the app, which says so.
+      expect((await page.evaluate(() => (window as unknown as { __notices: string[] }).__notices)).filter((text) => text.includes("Moved outside Plainva"))).toEqual([]);
+    } finally {
+      sql.close();
+    }
+  });
+
   test("keeps the unsaved text of a note deleted outside Plainva until it is saved back", async ({ page, context }) => {
     const sql = await installSqlBridge(context);
     try {

@@ -1,6 +1,7 @@
-import { afterTaskSyncResume, clearPinboardCache, filesRunState, sayFirstSyncConflictCopies, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache, filesRunState, holdBackStartersAtFirstListing, sayFirstSyncConflictCopies, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
+import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
 import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText, WORKSPACE_FORKS_FOLDER } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import { relocateDrafts } from "../services/draftJournal";
@@ -1578,9 +1579,9 @@ export const VaultProvider: React.FC<{
               syncRepo,
               createContentRefResolver(path, tauriVaultAdapter),
             );
-            // A refused file's content moved to its copy: the open editor follows
-            // it, as it follows a file moved outside Plainva (review 2026-10-27).
-            engine.onLocalMove = (from) => window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: from } }));
+            // A refused file's content moved to its copy: the editor open on it
+            // switches to the copy at once (third review 2026-10-27).
+            engine.onLocalMove = (from, to) => window.dispatchEvent(new CustomEvent(FILE_MOVED_EVENT, { detail: { from, to, vaultPath: path } satisfies FileMovedDetail }));
             // Profile-sync sideband (opt-in): transports .plainva/sync/settings.json
             // through the same target, outside the file queue/merge path. null when
             // the vault has not opted in.
@@ -1588,7 +1589,12 @@ export const VaultProvider: React.FC<{
             // The worker writes pulled content through the raw backup adapter (not
             // the queueing/conflict-aware one): it does its own merge and manages
             // sync_state, so routing through the queue would re-enqueue every pull.
-            syncWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync, deletionJournal, ownDeletions });
+            const fileWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync, deletionJournal, ownDeletions });
+            syncWorker = fileWorker;
+            // Bound to this folder now (no file confirmed with it yet): where the
+            // folder already holds notes, the starter content nobody changed stays
+            // here - the one rule the phone's copy follows too (third review 2026-10-27).
+            if (!(await syncRepo.hasConfirmedRemoteFiles().catch(() => true))) holdBackStartersAtFirstListing(fileWorker, backupVaultAdapter, syncRepo);
             firstSyncSettled = false;
             // The listing contradicts itself: facts for the dialog, null once a
             // listing holds again. Set BEFORE the status, so the error entry the

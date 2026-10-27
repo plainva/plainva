@@ -13,6 +13,11 @@ import { unsyncableCopyPath } from "../../src/sync/unsyncablePaths.js";
  * this device's content over the only copy there was.
  */
 
+async function hex(text: string): Promise<string> {
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 function localVault(files: Map<string, string>) {
   return {
     exists: vi.fn(async (p: string) => files.has(p)),
@@ -26,6 +31,13 @@ function localVault(files: Map<string, string>) {
       files.delete(from);
     }),
     deleteItem: vi.fn(async (p: string) => { files.delete(p); }),
+    // The chain's compare-and-delete: only while the file holds what was read.
+    deleteItemIfUnchanged: vi.fn(async (p: string, sha: string) => {
+      const text = files.get(p);
+      if (text === undefined || (await hex(text)) !== sha) return false;
+      files.delete(p);
+      return true;
+    }),
     getFileInfo: vi.fn(async () => ({ isDirectory: false })),
     listDir: vi.fn(async () => []),
   };

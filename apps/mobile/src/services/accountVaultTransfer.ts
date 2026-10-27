@@ -1,6 +1,6 @@
 import { sameStoredValue, trimEndChars } from "@plainva/core";
-import { commitVaultTransfer, isUntouchedStarter, planVaultTransfer, PimCacheRepository, readStarterManifest, refreshDriveAccessToken, refreshOneDriveAccessToken, refreshDropboxAccessToken, type ISyncTarget } from "@plainva/core";
-import { assertConnectionIdentity, getPlatformServices, recognizeStarterFiles, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
+import { commitVaultTransfer, planVaultTransfer, PimCacheRepository, refreshDriveAccessToken, refreshOneDriveAccessToken, refreshDropboxAccessToken, type ISyncTarget } from "@plainva/core";
+import { assertConnectionIdentity, getPlatformServices, starterFilesToHoldBack, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
 import { getMailPassword, getMailRefreshToken, listMailAccounts, mailAccountKind, saveMailAccount, saveMicrosoftMailAccount } from "@plainva/ui/mail";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { webdavFetch } from "../adapters/webdavHttp";
@@ -109,17 +109,13 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
   // workspace was refused above by its genesis file.
   // The starter notes of a fresh vault stay behind where the folder already
   // holds notes (review 2026-10-27): they are the app's, and went up into the
-  // person's existing wiki. A new, empty folder takes the vault as it is, its
-  // template included (second review). Only the folder's listing is asked for,
-  // none of its files; a listing that fails counts as a folder with notes.
+  // person's existing wiki. One rule with the desktop's binding
+  // (starterFilesToHoldBack): a new, empty folder takes the vault as it is,
+  // and a listing that fails counts as a folder with notes. Only the folder's
+  // listing is asked for, none of its files; the source vault is only read.
   const listing = await remote.pull().catch(() => null);
-  const folderHoldsNotes = !listing || !!listing.needsFullListing
-    || [...listing.etagMap.keys()].some((path) => !/^\.(plainva|pvws)(\/|$)/.test(path));
-  // Read, never written here: the source vault stays as it is.
-  const starters = folderHoldsNotes
-    ? await readStarterManifest(v.adapter) ?? { version: 1 as const, files: await recognizeStarterFiles(v.adapter).catch(() => ({})) }
-    : null;
-  const plan = await planVaultTransfer(v.adapter, null, target, undefined, starters ? (file) => isUntouchedStarter(starters, file.path, file.bytes) : undefined);
+  const held = await starterFilesToHoldBack(v.adapter, listing && !listing.needsFullListing ? listing.etagMap.keys() : null);
+  const plan = await planVaultTransfer(v.adapter, null, target, undefined, held.size > 0 ? (file) => held.get(file.path) === file.hash : undefined);
   setFilesConnectProgress(null);
   // Asked only when there is something of the person's to copy - the question
   // says how many notes go up; a fresh vault goes on at once.

@@ -43,6 +43,7 @@ import { getMobileVault, type MobileVault } from "./vaultService";
 import { enterMadeVault } from "./flowVault";
 import { mobileSyncDeviceId, prepareMobileSettingsSync } from "./mobileSettingsSync";
 import { notifyPulledFiles } from "./pulledFiles";
+import { FILE_MOVED_EVENT, type FileMovedDetail } from "./fileMoved";
 import { loadMobilePublicationRuntime } from "./mobileWorkspaceSecurity";
 import {
   addVault,
@@ -1187,9 +1188,12 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     // this resolver is never asked for one; the fallback only satisfies the type.
     createContentRefResolver(v.adapter.sandboxRoot ?? "", v.adapter),
   );
-  // A refused file's content moved to its copy: the open note follows it, as
-  // it follows a file moved outside the app (review 2026-10-27).
-  engine.onLocalMove = (from) => notifyPulledFiles([from]);
+  // A refused file's content moved to its copy: the note open on it switches
+  // to the copy at once (third review 2026-10-27).
+  engine.onLocalMove = (from, to) => {
+    window.dispatchEvent(new CustomEvent(FILE_MOVED_EVENT, { detail: { from, to, vaultId: v.vaultId } satisfies FileMovedDetail }));
+    window.dispatchEvent(new CustomEvent("m-vault-changed"));
+  };
   // Pulls write through the backup adapter (not the queueing chain) — the
   // worker does its own merge and manages sync_state (desktop pattern).
   // Smaller download windows than the desktop (P3.3): phones have tighter
