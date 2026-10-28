@@ -266,6 +266,32 @@ describe("the real mobile account redirect after a process restart", () => {
     expect(accept).toHaveBeenCalledTimes(1);
     expect(state.nativeAuthorize).not.toHaveBeenCalled();
   });
+  it("tells a Microsoft refusal, keeps a Microsoft cancel quiet, and leaves both in the diagnostics (device finding 2026-10-28)", async () => {
+    state.platform = "android";
+    const { beginPimOAuth, setOAuthPurposeHandler, handlePimOAuthRedirect } = await import("./pimOAuth");
+    const { getDiagnostics } = await import("@plainva/ui");
+    setOAuthPurposeHandler("calendar", vi.fn());
+    const options = { clientId: "ms-client", serviceContext: { vaultId: "original-vault" } };
+    const stateOf = (index: number) => new URL(state.urls[index]).searchParams.get("state");
+    await beginPimOAuth("microsoft", options);
+    expect(getDiagnostics()[getDiagnostics().length - 1]?.message).toBe("microsoft (calendar): browser opened");
+    // The person pressed "Cancel" at Microsoft: their own decision, nothing to tell.
+    expect(await handlePimOAuthRedirect(`com.plainva.app://oauth?error=access_denied&error_subcode=cancel&state=${stateOf(0)}`)).toBe(true);
+    expect(state.error).not.toHaveBeenCalled();
+    expect(getDiagnostics().some((entry) => entry.message.startsWith("microsoft answered access_denied (cancel)"))).toBe(true);
+    // Microsoft refused: said, with Microsoft's own words.
+    await beginPimOAuth("microsoft", options);
+    expect(await handlePimOAuthRedirect(`com.plainva.app://oauth?error=access_denied&error_description=${encodeURIComponent("AADSTS65001: consent needed")}&state=${stateOf(1)}`)).toBe(true);
+    expect(state.error).toHaveBeenCalledTimes(1);
+    // An answer nobody waits for is in the diagnostics too.
+    expect(await handlePimOAuthRedirect("com.plainva.app://oauth?code=late&state=gone")).toBe(false);
+    expect(getDiagnostics()[getDiagnostics().length - 1]?.message).toBe("answer arrived, no sign-in waits for it");
+  });
+  it("describes an app URL by its address and parameter names, never their values", async () => {
+    const { describeAppUrl } = await import("../appUrlRoutes");
+    expect(describeAppUrl("com.plainva.app://oauth?code=SECRET&state=abc")).toBe("com.plainva.app://oauth (code, state)");
+    expect(describeAppUrl("com.plainva.app://shortcut/journal")).toBe("com.plainva.app://shortcut/journal");
+  });
   it("opens the browser for an Android user's own Drive client", async () => {
     state.platform = "android";
     const { beginOAuth } = await import("../oauthService");

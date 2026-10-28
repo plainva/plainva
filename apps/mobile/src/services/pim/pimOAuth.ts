@@ -11,7 +11,7 @@ import {
   GOOGLE_CALENDAR_SCOPES,
   GRAPH_CALENDAR_SCOPES,
 } from "@plainva/core";
-import { getPlatformServices, PLAINVA_ONEDRIVE_CLIENT_ID, ServiceConnectionError, toast, withAccountCredentialLock } from "@plainva/ui";
+import { getPlatformServices, logDiagnostic, PLAINVA_ONEDRIVE_CLIENT_ID, ServiceConnectionError, toast, withAccountCredentialLock } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../../adapters/webdavHttp";
 import { addPimAccount, reauthorizePimAccount } from "./pimService";
@@ -425,7 +425,29 @@ async function beginPimOAuthFlow(
     provider === "microsoft"
       ? buildOneDriveAuthUrl({ clientId, redirectUri: MS_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope, loginHint: opts.signIn?.loginHint })
       : buildAuthUrl({ clientId, redirectUri: GOOGLE_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope, loginHint: opts.signIn?.loginHint });
+  logDiagnostic("sign-in", `${provider} (${purpose}): browser opened`);
+  watchBrowserClosed(provider, state);
   await Browser.open({ url });
+}
+
+/**
+ * The browser closed and no answer came: the provider never sent the person
+ * back to the app (device finding 2026-10-28, Android: back on the services
+ * screen, nothing in the diagnostics). Said in the diagnostics, so the next
+ * export tells a missing answer from a refused one.
+ */
+function watchBrowserClosed(provider: PimOAuthProvider, state: string): void {
+  let listener: { remove: () => Promise<void> } | undefined;
+  try {
+    void Promise.resolve(Browser.addListener("browserFinished", () => {
+      void listener?.remove().catch(() => {});
+      setTimeout(() => {
+        void loadPending().then((flow) => {
+          if (flow?.state === state) logDiagnostic("sign-in", `${provider}: browser closed without an answer from the provider`);
+        }).catch(() => {});
+      }, 3000);
+    })).then((handle) => { listener = handle; }).catch(() => {});
+  } catch { /* no browser events on this shell */ }
 }
 
 /**
@@ -437,9 +459,9 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
   const base = urlStr.split(/[?#]/)[0];
   if (base !== MS_REDIRECT_URI && base !== GOOGLE_REDIRECT_URI) return false;
   const flow = await loadPending();
-  if (!flow) return false; // no PIM flow pending — let the sync handler try
+  if (!flow) { logDiagnostic("sign-in", "answer arrived, no sign-in waits for it"); return false; } // let the sync handler try
   const params = new URLSearchParams(urlStr.split("?")[1] ?? "");
-  if (params.get("state") !== flow.state) return false; // a different (e.g. sync) redirect
+  if (params.get("state") !== flow.state) { logDiagnostic("sign-in", "answer of another sign-in"); return false; } // a different (e.g. sync) redirect
   // Ours — consume the single-use transaction before any await.
   pending = null;
   void Browser.close().catch(() => {});
@@ -451,13 +473,15 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
       await creds.removeSecret(PENDING_KEY);
       return true;
     });
-    if (!claimed) return true;
+    if (!claimed) { logDiagnostic("sign-in", "answer already taken"); return true; }
     const error = params.get("error");
-    if (error === "access_denied") {
+    if (error) logDiagnostic("sign-in", `${flow.provider} answered ${error}${params.get("error_subcode") ? ` (${params.get("error_subcode")})` : ""}: ${params.get("error_description") ?? ""}`);
+    // Microsoft says "access_denied" for a refusal too; only its "cancel" is the person's own (device finding 2026-10-28).
+    if (error === "access_denied" && (flow.provider !== "microsoft" || params.get("error_subcode") === "cancel")) {
       await recordConnectOutcome(flow.serviceContext, (flow.purpose === "mail" || flow.purpose === "gmail") ? "mail" : "calendar", { state: "cancelled" });
       return true;
     }
-    if (error) throw new Error(error);
+    if (error) throw new Error([error, params.get("error_description")].filter(Boolean).join(": "));
     const code = params.get("code");
     if (!code) throw new Error("no authorization code");
     let refreshToken: string;
@@ -493,6 +517,7 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
     // and the notice that offered that vault goes with it — not before: a
     // write that failed has left that grant, and its offer, where they were.
     releaseFlowVault(SIGN_IN_FLOW);
+    logDiagnostic("sign-in", `${flow.provider} (${flow.purpose ?? "calendar"}): answer received`);
     await resumePimOAuthResult();
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

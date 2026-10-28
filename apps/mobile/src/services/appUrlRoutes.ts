@@ -1,3 +1,4 @@
+import { logDiagnostic } from "@plainva/ui";
 import { APP_URL } from "./appScheme";
 import { handleOAuthRedirect } from "./oauthService";
 import { handlePimOAuthRedirect } from "./pim/pimOAuth";
@@ -17,6 +18,7 @@ import { handlePimOAuthRedirect } from "./pim/pimOAuth";
  * anything it does not recognise falls through to the sync handler.
  */
 export async function routeAppUrl(url: string): Promise<void> {
+  logDiagnostic("app-url", describeAppUrl(url));
   // Launcher shortcuts (package J) ride the app scheme.
   if (url.startsWith(`${APP_URL}shortcut/`)) {
     const which = url.split("/").pop();
@@ -33,4 +35,16 @@ export async function routeAppUrl(url: string): Promise<void> {
   }
   if (await handlePimOAuthRedirect(url)) return;
   void handleOAuthRedirect(url);
+}
+
+/**
+ * What arrived, for the diagnostics export: the address without its query and
+ * the names of the parameters (`code`, `state`, `error`), never their values -
+ * a sign-in that "came back to the same screen" must show whether its answer
+ * reached the app at all (device finding 2026-10-28).
+ */
+export function describeAppUrl(url: string): string {
+  const [address, query = ""] = url.split(/[?#]/, 2);
+  const names = [...new URLSearchParams(query).keys()];
+  return names.length ? `${address} (${names.join(", ")})` : address;
 }
