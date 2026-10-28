@@ -48,7 +48,7 @@ import { findCloudAccountByRef } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 import { credentialManager } from "../../services/CredentialManager";
-import { accountSignInStateHere } from "../../services/deviceSignIn";
+import { accountSignInStateHere, deviceSignInState } from "../../services/deviceSignIn";
 import { readFileSyncAccess, type FileSyncAccess } from "../../services/fileSyncAccess";
 import { getPimCredentials } from "../../services/pim/pimCredentials";
 import {
@@ -245,6 +245,26 @@ export const CloudAccountsPage: React.FC<{
   // account of another kind keeps its credential in the provider's own slot,
   // and the sync status answers that better than a chip.
   const [signInStates, setSignInStates] = useState<Map<string, DeviceSignInState>>(new Map());
+  /**
+   * The calendar's and the mailbox's own sign-in on this device, per account -
+   * the facts the check reads. A card can be signed in while one of its
+   * services is not; its row says so (device finding 2026-10-27, both shells).
+   */
+  const [serviceSignIn, setServiceSignIn] = useState<Map<string, Partial<Record<CloudServiceId, DeviceSignInState>>>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all(
+      records.map(async (r) => {
+        const states: Partial<Record<CloudServiceId, DeviceSignInState>> = {};
+        if (r.services.calendar && r.family !== "device") states.calendar = await deviceSignInState("pim", selectedVault, r.services.calendar.pimAccountId);
+        if (r.services.mail) states.mail = await deviceSignInState("mail", selectedVault, r.services.mail.mailAccountId);
+        return [r.id, states] as const;
+      }),
+    )
+      .then((pairs) => { if (!cancelled) setServiceSignIn(new Map(pairs)); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [records, selectedVault]);
   useEffect(() => {
     let cancelled = false;
     void Promise.all(
@@ -643,6 +663,7 @@ export const CloudAccountsPage: React.FC<{
       signIn: signInStates.get(detail.id),
       canSignIn: true,
       signedInHere: false,
+      serviceStates: serviceSignIn.get(detail.id),
     }).services.find((entry) => entry.service === mode.service);
     return (
       <div>
@@ -675,6 +696,7 @@ export const CloudAccountsPage: React.FC<{
       canSignIn: renewable,
       signedInHere: detailState !== undefined && detailState !== "signin",
       summaries: facts?.id === detail.id ? facts.facts.summaries : undefined,
+      serviceStates: serviceSignIn.get(detail.id),
     });
     const accountFacts = facts?.id === detail.id ? facts.facts : null;
     const passwordServices = passwordServicesOf(detail);

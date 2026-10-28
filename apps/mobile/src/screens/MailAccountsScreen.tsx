@@ -27,9 +27,9 @@ import { AppBar } from "../components/AppBar";
 import { FolderField } from "../components/FolderField";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
-import { ConnectRunBanner } from "../components/ConnectRunBanner";
+import { ConnectRunFooter, ConnectRunFrame } from "../components/ConnectRunFrame";
 import { useConnectionRun } from "../hooks/useConnectionRun";
-import { clearConnectQueue, recordConnectOutcome } from "../services/connectQueue";
+import { recordConnectOutcome, skipConnectStep } from "../services/connectQueue";
 import { loadCloudAccounts } from "../services/cloudAccountsStore";
 import { bindMailToConnection } from "../services/cloudAccountConnections";
 import { listMailAccounts, removeMailAccount } from "@plainva/ui/mail";
@@ -370,8 +370,19 @@ export function MailAccountsScreen({
 
   return (
     <div className="m-page">
-      <AppBar onBack={mailRun ? () => { void clearConnectQueue().then(onBack); } : onBack} title={t(mailRun ? "connection.mailTitle" : "mail.accounts")} />
-      <ConnectRunBanner service="mail" onCancel={() => { setFormOpen(false); onBack?.(); }} />
+      {/* A step of the account setup (plan "Verbinden-Assistent", 2026-10-28). */}
+      {mailRun ? (
+        <ConnectRunFrame
+          run={mailRun}
+          service="mail"
+          heading={t("connectRun.mailHeading")}
+          onLeave={() => { setFormOpen(false); onBack?.(); }}
+          onRetry={() => setFormOpen(true)}
+          onSignIn={() => setFormOpen(true)}
+        />
+      ) : (
+        <AppBar onBack={onBack} title={t("mail.accounts")} />
+      )}
 
       <div className="m-settings">
         {/* Same truth as the calendar screen: settings sync, sign-ins do not. */}
@@ -668,7 +679,7 @@ export function MailAccountsScreen({
                 available={imapAvailable}
                 busy={busy}
                 editing={editing ?? undefined}
-                onCancel={() => { setEditing(null); setFormOpen(false); if (mailRun) void clearConnectQueue().then(onBack); }}
+                onCancel={() => { setEditing(null); setFormOpen(false); if (mailRun) void skipConnectStep("mail").catch((error: unknown) => toast.error(serviceConnectionMessage(error, t))); }}
                 onSubmit={(v) => void submitImap(v)}
                 prefill={editing ? undefined : { user: accountEmail || runSecrets.email || runSecrets.user, pass: runSecrets.password }}
                 presetId={editing ? undefined : mailPreset?.presetId}
@@ -709,6 +720,7 @@ export function MailAccountsScreen({
           vault={vault}
         />
       )}
+      {mailRun && <ConnectRunFooter run={mailRun} service="mail" />}
     </div>
   );
 }

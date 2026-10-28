@@ -1,11 +1,12 @@
 import { SyncQueue, REMOTE_REFUSAL } from "./SyncQueue.js";
-import { ISyncTarget, RemoteChangedError, SyncContentRef, type ExpectedRemote } from "./ISyncTarget.js";
+import { ISyncTarget, RemoteChangedError, SyncContentRef, type ExpectedRemote, type SyncOperation } from "./ISyncTarget.js";
 import { SyncStateRepository } from "../vault/SyncStateRepository.js";
 import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
 import { findCollidingPath, foldPathForCollision, foldPathNormalization, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
 import { withPathSpellings } from "./spellingSyncTarget.js";
 import { isTextFile, mergeableText } from "./fileType.js";
 import { hasAppleDoubleHeader, isAppleDoubleName, isSystemJunkPath } from "../vault/systemJunk.js";
+import { unsyncableCopyPath } from "./unsyncablePaths.js";
 
 async function sha256Bytes(bytes: Uint8Array): Promise<string> {
   const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", bytes as BufferSource);
@@ -112,6 +113,140 @@ export class SyncEngine {
     private readonly resolveContentRef?: ContentRefResolver
   ) {
     this.target = withPathSpellings(target);
+  }
+
+  /**
+   * Told when the engine moved a file on this device (a refused file's
+   * content to its copy), so a shell can let the open editor follow it - the
+   * chain does not report the engine's own writes (review 2026-10-27).
+   */
+  public onLocalMove?: (from: string, to: string) => void;
+  /** Per refused path: the copy its content last went to, and that content's hash. */
+  private readonly unsyncableCopies = new Map<string, { copy: string; sha: string }>();
+
+  private tellMoved(from: string, to: string): void {
+    try {
+      this.onLocalMove?.(from, to);
+    } catch (e) {
+      console.error("[SyncEngine] onLocalMove consumer failed:", e);
+    }
+  }
+
+  /**
+   * Moves this device's content at a refused path to a copy that goes up -
+   * once per content (second review 2026-10-27): an editor that saves the old
+   * path again before it followed the file brings the same bytes, and those
+   * are in the copy already. Then the stray file goes, and the editor is told
+   * again where its file is.
+   */
+  private async moveOffUnsyncable(path: string): Promise<void> {
+    const sha = await sha256Bytes(await this.vault.readBinaryFile(path));
+    const kept = this.unsyncableCopies.get(path);
+    if (kept && kept.sha === sha && await this.vault.exists(kept.copy)
+      && await sha256Bytes(await this.vault.readBinaryFile(kept.copy)) === sha) {
+      // Compare and delete as one step with the chain's other writes: a save
+      // that lands after the read above is never deleted (third review
+      // 2026-10-27). Where the file changed meanwhile - or this storage cannot
+      // compare and delete - its content gets a copy of its own below.
+      if (this.vault.deleteItemIfUnchanged && await this.vault.deleteItemIfUnchanged(path, sha)) {
+        console.warn(`[SyncEngine] ${path} held what ${kept.copy} holds already; the stray file went`);
+        this.tellMoved(path, kept.copy);
+        return;
+      }
+      if (!(await this.vault.exists(path))) return;
+    }
+    let copy = unsyncableCopyPath(path, new Date());
+    // Never onto another copy: two moves within a second get distinct names.
+    for (let n = 2; await this.vault.exists(copy); n++) copy = unsyncableCopyPath(path, new Date(), n);
+    console.warn(`[SyncEngine] not pushing ${path} over a remote file the provider never handed out; it goes up as ${copy}`);
+    await this.vault.renameItem(path, copy);
+    // What the copy holds now - a save may have landed since the read above.
+    this.unsyncableCopies.set(path, { copy, sha: await sha256Bytes(await this.vault.readBinaryFile(copy)) });
+    this.tellMoved(path, copy);
+  }
+
+  /** Starter files held back, by path; none where the store cannot say. */
+  private async heldBackStarters(): Promise<Map<string, string>> {
+    if (!this.stateRepo) return new Map();
+    try {
+      return await this.stateRepo.listHeldBackStarters();
+    } catch {
+      return new Map();
+    }
+  }
+
+  /**
+   * Whether this operation is held back as untouched starter content. A write
+   * of the bytes held back is; anything else the person does to such a file -
+   * changes it, moves it, deletes it - makes it theirs: the mark goes, and the
+   * operation runs as any other.
+   */
+  private async keepsStarterBack(op: SyncOperation, held: Map<string, string>): Promise<boolean> {
+    const path = op.file_path;
+    const hash = held.get(path);
+    if (hash === undefined) return false;
+    if (op.operation === "write") {
+      const bytes = await this.vault.readBinaryFile(path).catch(() => null);
+      if (bytes && (await sha256Bytes(bytes)) === hash) return true;
+    }
+    held.delete(path);
+    await this.stateRepo?.releaseHeldBackStarter(path).catch(() => undefined);
+    return false;
+  }
+
+  /** The files the provider refused for good, as stored; none where the store cannot say. */
+  private async unsyncablePaths(): Promise<Set<string>> {
+    if (!this.stateRepo) return new Set();
+    try {
+      return new Set((await this.stateRepo.listUnsyncable()).map((entry) => entry.path));
+    } catch {
+      return new Set();
+    }
+  }
+
+  /**
+   * Keeps every upload off a file the provider will never hand out here
+   * (review 2026-10-27). The remote copy at such a path is the only one; this
+   * device never had its bytes, and Drive updates a file by its name:
+   *
+   * - a queued write there is not pushed. Content this device holds at the
+   *   path moves to a sibling that says it is a conflicting copy, and goes up
+   *   under that name (the move is queued like any rename);
+   * - a rename FROM such a path moved local content only: it goes up as a new
+   *   file under its new name, and the remote file stays where it is;
+   * - a rename ONTO such a path goes to the copy's name instead, here and on
+   *   the remote;
+   * - a queued delete there is not pushed: what this device removed was never
+   *   the remote file.
+   *
+   * `"done"` retires the operation; otherwise the operation to carry on with.
+   */
+  private async keepOffUnsyncable(op: SyncOperation, refused: ReadonlySet<string>): Promise<SyncOperation | "done"> {
+    if (op.operation === "delete" && refused.has(op.file_path)) {
+      console.warn(`[SyncEngine] not pushing deletion of ${op.file_path}: the provider never handed it out here`);
+      return "done";
+    }
+    if (op.operation === "write" && refused.has(op.file_path)) {
+      if (await this.vault.exists(op.file_path)) await this.moveOffUnsyncable(op.file_path);
+      return "done";
+    }
+    if (op.operation === "rename" && op.new_path) {
+      if (refused.has(op.file_path)) {
+        console.warn(`[SyncEngine] not moving the remote file ${op.file_path}: the provider never handed it out; ${op.new_path} goes up as a new file`);
+        return this.keepOffUnsyncable({ ...op, operation: "write", file_path: op.new_path, new_path: undefined }, refused);
+      }
+      if (refused.has(op.new_path)) {
+        const copy = unsyncableCopyPath(op.new_path, new Date());
+        console.warn(`[SyncEngine] not moving ${op.file_path} over a remote file the provider never handed out; it goes to ${copy}`);
+        if (await this.vault.exists(op.new_path)) {
+          await this.vault.renameItem(op.new_path, copy);
+          this.unsyncableCopies.set(op.new_path, { copy, sha: await sha256Bytes(await this.vault.readBinaryFile(copy)) });
+          this.tellMoved(op.new_path, copy);
+        }
+        return { ...op, new_path: copy };
+      }
+    }
+    return op;
   }
 
   /**
@@ -268,6 +403,8 @@ export class SyncEngine {
     let consecutiveFailures = 0;
     let pushIdx = 0;
     const refusedThisPass = new Set<string>();
+    const refusedForGood = await this.unsyncablePaths();
+    const heldBack = await this.heldBackStarters();
     const localListings = new Map<string, Promise<VaultFileInfo[] | null>>();
     const remoteFolders: { value?: Map<string, Set<string>> } = {};
     for (let op of pending) {
@@ -333,6 +470,25 @@ export class SyncEngine {
             file_path: toPathIdentity(op.file_path),
             ...(op.new_path ? { new_path: toPathIdentity(op.new_path) } : {}),
           };
+        }
+        // A file the provider never hands out here (unsyncablePaths.ts): its
+        // remote copy is the only one, so nothing of this device goes over it.
+        if (refusedForGood.size > 0) {
+          const kept = await this.keepOffUnsyncable(op, refusedForGood);
+          if (kept === "done") {
+            await this.queue.markSynced(op.id, op.file_path, op.file_path);
+            consecutiveFailures = 0;
+            continue;
+          }
+          op = kept;
+        }
+        // Starter content this vault keeps here (heldBackStarters.ts): while a
+        // file still has the bytes it was held back with, it does not go up.
+        if (heldBack.size > 0 && await this.keepsStarterBack(op, heldBack)) {
+          console.log(`[SyncEngine] not pushing ${op.file_path}: starter content kept on this device`);
+          await this.queue.markSynced(op.id, op.file_path, op.file_path);
+          consecutiveFailures = 0;
+          continue;
         }
         // The twin lock on the push side (issue #112). A DELETE whose path has
         // a twin here that differs only in letter case is the SAME file for

@@ -21,6 +21,7 @@ import { phoneSqlite, type PhonePlatform } from "../../../packages/core/test/hel
 vi.mock("@capacitor-community/sqlite", async () => (await import("../../../packages/core/test/helpers/phoneSqlitePlugin")).phoneSqlite.module);
 
 const { CapacitorSqliteAdapter } = await import("./adapters/CapacitorSqliteAdapter");
+const { resetDatabasesForTests } = await import("./adapters/sqliteConnections");
 
 const DATABASE = "plainva-index";
 const PLATFORMS: PhonePlatform[] = ["android", "ios"];
@@ -31,6 +32,7 @@ const hops = async (n: number) => {
 
 async function open(platform: PhonePlatform = "android") {
   phoneSqlite.reset(platform);
+  resetDatabasesForTests();
   const adapter = new CapacitorSqliteAdapter(DATABASE);
   await adapter.initialize();
   await adapter.execute("CREATE TABLE t (k TEXT PRIMARY KEY)");
@@ -42,6 +44,7 @@ async function open(platform: PhonePlatform = "android") {
 
 beforeEach(() => {
   phoneSqlite.reset();
+  resetDatabasesForTests();
 });
 
 describe("transactions on the phone's one connection", () => {

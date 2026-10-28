@@ -285,6 +285,8 @@ export interface ServiceSignInResult {
   state: ServiceSignInState;
   /** Shown under the row; already a sentence for the person. */
   detail?: string;
+  /** The failure itself, so a surface can say who it came from (plan "Verbinden-Assistent", E7). */
+  error?: unknown;
 }
 
 /**
@@ -292,10 +294,10 @@ export interface ServiceSignInResult {
  * A service that was asked for and not granted says so; a service outside the
  * consent (Gmail without a mail-enabled access) asks for an app password.
  */
-export function signInResultRows(prepared: PreparedSignIn, completed: Pick<CompletedSignIn, "granted" | "notGranted">, failed: Partial<Record<SignInService, string>> = {}): ServiceSignInResult[] {
+export function signInResultRows(prepared: PreparedSignIn, completed: Pick<CompletedSignIn, "granted" | "notGranted">, failed: Partial<Record<SignInService, string>> = {}, errors: Partial<Record<SignInService, unknown>> = {}): ServiceSignInResult[] {
   const rows: ServiceSignInResult[] = [];
   for (const service of ORDER) {
-    if (failed[service]) rows.push({ service, state: "failed", detail: failed[service] });
+    if (failed[service]) rows.push({ service, state: "failed", detail: failed[service], ...(service in errors ? { error: errors[service] } : {}) });
     else if (completed.granted.includes(service)) rows.push({ service, state: "active" });
     else if (completed.notGranted.includes(service)) rows.push({ service, state: "notGranted" });
     else if (prepared.outside.includes(service)) rows.push({ service, state: "needsPassword" });
@@ -358,6 +360,7 @@ export async function bindSignedInAccount(prepared: PreparedSignIn, completed: C
   const family = prepared.intent.family;
   const cardId = completed.cardId;
   const failed: Partial<Record<SignInService, string>> = {};
+  const errors: Partial<Record<SignInService, unknown>> = {};
   const before = (await ports.loadCards()).find((record) => record.id === cardId);
   const services = { ...before?.services };
   let calendarAccountId: string | undefined;
@@ -382,6 +385,7 @@ export async function bindSignedInAccount(prepared: PreparedSignIn, completed: C
         }
       } catch (error) {
         failed[service] = ports.describeFailure(error);
+        errors[service] = error;
       }
     }
     let passwordMail = false;
@@ -394,6 +398,7 @@ export async function bindSignedInAccount(prepared: PreparedSignIn, completed: C
         }
       } catch (error) {
         failed.mail = ports.describeFailure(error);
+        errors.mail = error;
       }
     }
     const current = await ports.loadCards();
@@ -412,7 +417,7 @@ export async function bindSignedInAccount(prepared: PreparedSignIn, completed: C
       .map((entry) => (filesChanged && entry.services.files ? { ...entry, services: { ...entry.services, files: undefined } } : entry));
     await ports.saveCards([...others, record]);
     await ports.afterBinding({ cardId, filesChanged, ...(calendarAccountId ? { calendarAccountId } : {}) });
-    const rows = signInResultRows(prepared, completed, failed)
+    const rows = signInResultRows(prepared, completed, failed, errors)
       .map((row) => (row.service === "mail" && passwordMail && row.state === "needsPassword" ? { ...row, state: "active" as const } : row));
     return { record, rows };
   } finally {

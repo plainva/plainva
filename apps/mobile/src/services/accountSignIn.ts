@@ -132,9 +132,10 @@ export async function beginMobileSignIn(vaultId: string, request: { family: OAut
     record ? { record, mailKind: await mailKindOf(vaultId, record) } : undefined,
   );
   if (!needsConsent(prepared)) return { kind: "nothingToAsk" };
-  if (record) {
-    announceAccountLogin({ vaultId, accountId: record.id, services: Object.fromEntries(prepared.requested.map((s) => [s, i18n.t("cloudAccounts.statusWaiting")])) });
-  }
+  // Nothing is announced before the provider answers: a sign-in that never
+  // came back (the browser closed, the app ended) left every row of the card
+  // on "waiting for sign-in" while it worked (device finding 2026-10-27). The
+  // rows say what the facts say until the answer is there.
   await beginPimOAuth(request.family, {
     clientId: resolution.access.clientId,
     ...(resolution.access.clientSecret ? { clientSecret: resolution.access.clientSecret } : {}),
@@ -226,7 +227,7 @@ export function registerSignInHandler(): void {
             : row.detail ?? "";
     }
     for (const service of completed.notGranted) services[service] = i18n.t("cloudAccounts.notGranted");
-    for (const service of added) services[service] = i18n.t("cloudAccounts.statusWaiting");
+    // What was added goes on in the run's own screens; its rows follow its facts.
     announceAccountLogin({
       vaultId, accountId: completed.cardId, services,
       ...(completed.joinedExistingCard ? { message: i18n.t("cloudAccounts.joinedExisting", { account: finished.record.label }) } : {}),

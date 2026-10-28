@@ -69,6 +69,10 @@ export interface ServiceRunStatus {
   reason?: "permissions";
   /** i18n-ready detail: an error message, or a small success note. */
   detail?: string;
+  /** Who a failure came from - "Google refused", "Error on this device" (plan "Verbinden-Assistent", E7). */
+  title?: string;
+  /** The failure's own words, where they say what a diagnosis needs. */
+  raw?: string;
 }
 export type ServiceStatusCb = (service: CloudServiceId, status: ServiceRunStatus) => void;
 

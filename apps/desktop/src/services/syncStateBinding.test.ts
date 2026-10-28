@@ -308,7 +308,7 @@ describe("a vault that synced before stays one, whatever its records say (fifth 
   it("is what the desktop asks before it builds a target, and records on the first cycle", () => {
     const source = readFileSync(join(__dirname, "..", "contexts", "VaultContext.tsx"), "utf8");
     expect(source).toMatch(/const hasSyncedBefore = !rootCreationAllowed\(await syncedBeforeForVault\(path, syncRepo\)/);
-    expect(source).toMatch(/onFirstCycleComplete = \(\) => \{\s*\/\/[^\n]*\n\s*void markVaultSyncedBefore\(path\)/);
+    expect(source).toMatch(/onFirstCycleComplete = \(outcome\) => \{\s*\/\/[^\n]*\n\s*void markVaultSyncedBefore\(path\)/);
     expect(source).not.toMatch(/hasSyncedBefore = await syncRepo\.hasConfirmedRemoteFiles/);
   });
 });

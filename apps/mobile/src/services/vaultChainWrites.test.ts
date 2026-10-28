@@ -20,6 +20,7 @@ import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaul
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { phoneSqlite, type PhonePlatform } from "../../../../packages/core/test/helpers/phoneSqlitePlugin";
 import { CapacitorSqliteAdapter } from "../adapters/CapacitorSqliteAdapter";
+import { resetDatabasesForTests } from "../adapters/sqliteConnections";
 import { createSaveCoordinator, type SaveCoordinator } from "./saveCoordinator";
 import type { MobileVault } from "./vaultService";
 
@@ -602,6 +603,7 @@ let onAsk: (() => void) | null = null;
 /** The phone's database as `boot` opens it: its own adapter over the plugin's stand-in, with the schema. */
 async function phoneDatabase(platform: PhonePlatform): Promise<IDatabaseAdapter> {
   phoneSqlite.reset(platform);
+  resetDatabasesForTests();
   const inner = new CapacitorSqliteAdapter("plainva-index");
   await inner.initialize();
   await initializeSchema(inner);

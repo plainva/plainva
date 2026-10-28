@@ -9,6 +9,8 @@ import { screenForService } from "../routes";
 
 /** One run at a time, so one run can wait for its vault. */
 const RUN_FLOW = "connect-run";
+/** Runs whose summary was put on screen in this lifetime of the app. */
+const summaryShown = new Set<string>();
 
 /** A run whose vault was deleted is over — the same as giving it up (`ConnectRunBanner`). */
 async function endRun(run: string): Promise<void> {
@@ -50,7 +52,15 @@ export function useConnectRun(setNav: (fn: (state: NavState) => NavState) => voi
             }))) continue;
           }
           const service = q.pending[0];
-          if (!service) continue;
+          if (!service) {
+            // Every step done or skipped - the last one skipped leaves no
+            // account change to advance on: the summary, once per run.
+            if (!summaryShown.has(run)) {
+              summaryShown.add(run);
+              setNav(st => navTop(st)?.kind === "cloudaccounts" ? st : pushEntry(st, { kind: "cloudaccounts", path: "" }));
+            }
+            continue;
+          }
           const result = await advanceOnAccountsChanged(service);
           if (!alive) continue;
           const entry = result.advanced && !result.next ? { kind: "cloudaccounts" as const, path: "" } : { kind: screenForService(result.advanced ? result.next! : service), path: "", family: q.family };

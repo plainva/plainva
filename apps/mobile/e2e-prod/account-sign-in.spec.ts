@@ -2,6 +2,7 @@ import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { FakeOAuthProvider, type FakeConsentChoice } from "../../../packages/ui/src/testing/fakeOAuthProvider";
 import { waitForVaultDirectory } from "./exampleVault";
+import { E2E_STANDARD_GOOGLE_IOS_CLIENT_ID } from "../scripts/e2e-build-env.mjs";
 
 /**
  * The one account sign-in on the phone, against a stand-in for Google
@@ -17,8 +18,10 @@ import { waitForVaultDirectory } from "./exampleVault";
 
 const ANNA = { subject: "sub-anna", email: "anna@gmail.com" };
 const BERT = { subject: "sub-bert", email: "bert@gmail.com" };
-// An iOS-type client: the phone's own Google access has no secret.
-const CLIENT = { clientId: "1234-plainva-test.apps.googleusercontent.com" };
+// An iOS-type client: the phone's own Google access has no secret. The same
+// client is the e2e build's standard one (`scripts/e2e-build-env.mjs`), so a
+// test can sign in either way against the one fake provider.
+const CLIENT = { clientId: E2E_STANDARD_GOOGLE_IOS_CLIENT_ID };
 
 interface Harness {
   provider: FakeOAuthProvider;
@@ -28,6 +31,8 @@ interface Harness {
    * token whose grant covers it, the way Google answers. Off, they are blocked.
    */
   answerApis: boolean;
+  /** The app's SQLite, to seed rows a single test needs. */
+  sql: Awaited<ReturnType<typeof installSqlBridge>>;
 }
 
 const API_SCOPES: [prefix: string, scope: string][] = [
@@ -39,7 +44,7 @@ const API_SCOPES: [prefix: string, scope: string][] = [
 ];
 
 async function boot(context: BrowserContext, page: Page, seed?: (storage: Record<string, unknown>) => void, withCalendar = false): Promise<Harness> {
-  const harness: Harness = { provider: new FakeOAuthProvider({ family: "google", accounts: [ANNA, BERT], clients: [CLIENT] }), choice: {}, answerApis: false };
+  const harness = { provider: new FakeOAuthProvider({ family: "google", accounts: [ANNA, BERT], clients: [CLIENT] }), choice: {}, answerApis: false } as Harness;
   const origin = new URL(test.info().project.use.baseURL ?? "http://localhost:4174").origin;
   await context.route((url) => url.origin !== origin, async (route) => {
     const url = route.request().url();
@@ -74,6 +79,7 @@ async function boot(context: BrowserContext, page: Page, seed?: (storage: Record
     await route.abort("blockedbyclient");
   });
   const sql = await installSqlBridge(context);
+  harness.sql = sql;
 
   // The browser step: the consent URL the app opened, answered by the provider,
   // and its redirect handed back as the system would.
@@ -413,4 +419,268 @@ test("an IMAP account: the same sections, a check that names the failing mailbox
   await page.getByTestId("cloudacct-remove").click();
   await page.getByTestId("confirm-act").click();
   await expect.poll(async () => (await storedCards(page)).some((card) => card.id === "card-imap"), { timeout: 15000 }).toBe(false);
+});
+
+/*
+ * A first connect from nothing (device finding 2026-10-27, TestFlight 146):
+ * no card, no slot, no cloud vault. Google is chosen with files and a
+ * calendar, the sign-in returns, "Connect" opens the Drive folder picker, a
+ * folder is taken. On the iPhone the wizard then stood on step 1, files,
+ * again - with nothing said. Everything after the pick was dropped in
+ * silence: an error, the long read of the cloud folder, a cancelled copy.
+ * The wizard's own end-to-end test never got past the files form (it ran
+ * without the index the files step needs), so none of this was ever run.
+ */
+async function firstGoogleConnect(context: BrowserContext, page: Page, access: "own" | "standard" = "own", withMail = false): Promise<Harness> {
+  const harness = await boot(context, page, (storage) => {
+    // The standard sign-in: the client this build ships (the e2e build, `scripts/e2e-build-env.mjs`).
+    if (access === "standard") storage.secret_oauth_access_google = { source: "plainva" };
+    storage.cloudAccounts_local = (storage.cloudAccounts_local as { id: string }[]).filter((card) => card.id !== "acct-fixture-cal");
+    const registry = storage.vault_registry as { vaults: Record<string, unknown>[] };
+    registry.vaults = registry.vaults.map((vault) => {
+      if (vault.id !== "local") return vault;
+      const rest = { ...vault };
+      delete rest.provider;
+      delete rest.paused;
+      return rest;
+    });
+    delete storage.secret_sync_provider_mobile_local;
+  });
+  harness.answerApis = true;
+  page.on("pageerror", (error) => console.log("PAGE ERROR:", error.message));
+
+  await page.locator('[data-testid="nav-settings"]').first().click();
+  await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
+  await page.getByTestId("cloudacct-connect").click();
+  await page.getByTestId("connect-family-google").click();
+  await page.getByTestId("connect-service-files").click();
+  await page.getByTestId("connect-service-calendar").click();
+  if (withMail) await page.getByTestId("connect-service-mail").click();
+  await page.getByTestId("connect-start").click();
+
+  // Back from Google: the setup's frame on its folder step, the sign-in counted as done
+  // (plan "Verbinden-Assistent", E1). Provider and sign-in are settled, so the step does not
+  // ask for them again (E5).
+  await expect(page.getByTestId("connectrun-frame")).toHaveAttribute("data-step", "files", { timeout: 20000 });
+  await expect(page.locator('[data-testid="connectrun-steps"] li')).toHaveCount(withMail ? 4 : 3);
+  await expect(page.locator('[data-testid="connectrun-steps"] li[data-state="done"]')).toHaveText(["Sign in"]);
+  await expect(page.getByTestId("connectrun-account")).toContainText(ANNA.email);
+  await expect(page.getByTestId("vault-access")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Connect", exact: true })).toHaveCount(0);
+  return harness;
+}
+
+/** The step on screen, as the frame names it. */
+async function expectStep(page: Page, step: "files" | "calendar" | "mail" | "summary"): Promise<void> {
+  await expect(page.getByTestId("connectrun-frame")).toHaveAttribute("data-step", step, { timeout: 20000 });
+}
+
+/** "Choose folder", then the folder picker's own folder. */
+async function connectAndPick(page: Page): Promise<void> {
+  await page.getByTestId("connectrun-choose-folder").click();
+  await page.getByRole("button", { name: "Use this folder" }).click({ timeout: 15000 });
+}
+
+
+test("a first Google connect from nothing goes from the files step on to the next one", async ({ context, page }, testInfo) => {
+  await firstGoogleConnect(context, page);
+  await connectAndPick(page);
+  // The vault the run started in has nothing local to copy: no question, straight on.
+  try {
+    await expectStep(page, "calendar");
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("first-connect-step-2.png"), fullPage: true });
+  }
+});
+
+test("a files step that fails after the folder pick says why, with its sender", async ({ context, page }, testInfo) => {
+  // An iPhone's width: the step label and a long message share the banner (device finding 2026-10-27).
+  await page.setViewportSize({ width: 375, height: 812 });
+  await firstGoogleConnect(context, page);
+  // From now on Google cannot say whose account this is.
+  await context.route("https://openidconnect.googleapis.com/v1/userinfo", (route) => route.fulfill({ status: 500, contentType: "application/json", body: "{}" }));
+  await connectAndPick(page);
+  try {
+    await expect(page.getByTestId("connectrun-outcome")).toHaveText(/identity could not be verified/, { timeout: 20000 });
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("first-connect-failed.png"), fullPage: true });
+  }
+  await expectStep(page, "files");
+  await expect(page.getByTestId("connectrun-choose-folder")).toBeEnabled();
+  // The sender first: Plainva could not confirm whose account this is - its own check, not a refusal.
+  await expect(page.getByTestId("connectrun-outcome")).toHaveAttribute("data-source", "plainva");
+  await expect(page.getByTestId("connectrun-signin")).toBeVisible();
+  // Nothing in the frame is squeezed below a few characters: the step label broke letter by letter.
+  const squeezed = await page.locator(".m-connectrun").evaluate((root) => [...root.querySelectorAll("span, button, strong")]
+    .filter((el) => (el.textContent ?? "").trim().length > 0 && el.children.length === 0)
+    .map((el) => {
+      const text = (el.textContent ?? "").trim();
+      const size = parseFloat(getComputedStyle(el).fontSize);
+      return { text: text.slice(0, 24), width: Math.round(el.getBoundingClientRect().width), min: Math.round(Math.min(4, text.length) * size * 0.5) };
+    })
+    .filter((entry) => entry.width < entry.min));
+  expect(squeezed).toEqual([]);
+  const labels = await page.locator(".pv-wizstep-label").evaluateAll((els) => els.map((el) => ({ height: el.getBoundingClientRect().height, line: parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.4 })));
+  for (const label of labels) expect(label.height, "a step label stays on one line").toBeLessThanOrEqual(label.line + 1);
+});
+
+test("leaving the wizard after the sign-in keeps the account, with its services off (device finding 2026-10-27)", async ({ context, page }, testInfo) => {
+  await firstGoogleConnect(context, page);
+  // "Stop" asks first (E2); keeping on changes nothing.
+  await page.getByTestId("connectrun-cancel").click();
+  await expect(page.getByText("Stop the setup?")).toBeVisible();
+  await page.getByRole("button", { name: "Continue setup" }).click();
+  await expectStep(page, "files");
+  await page.getByTestId("connectrun-cancel").click();
+  await page.getByTestId("confirm-act").click();
+  // Back from the wizard's provider list to the accounts.
+  await page.getByRole("button", { name: "Back" }).first().click();
+  try {
+    await expect(page.getByTestId("cloudacct-row").filter({ hasText: ANNA.email })).toBeVisible({ timeout: 15000 });
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("left-wizard-account-stays.png"), fullPage: true });
+  }
+  await page.getByTestId("cloudacct-row").filter({ hasText: ANNA.email }).click();
+  await expect(page.getByTestId("cloudacct-state")).toHaveAttribute("data-state", "connected", { timeout: 15000 });
+  await expect(page.getByTestId("cloudacct-service-files")).toHaveAttribute("data-on", "false");
+  await expect(page.getByTestId("cloudacct-service-calendar")).toHaveAttribute("data-on", "false");
+});
+
+test("a first Google connect with the standard sign-in goes from the files step on to the next one", async ({ context, page }, testInfo) => {
+  await firstGoogleConnect(context, page, "standard");
+  await connectAndPick(page);
+  try {
+    await expectStep(page, "calendar");
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("standard-after-pick.png"), fullPage: true });
+  }
+});
+
+test("a first Google connect with the standard sign-in and all three services goes on from the files step", async ({ context, page }, testInfo) => {
+  await firstGoogleConnect(context, page, "standard", true);
+  await connectAndPick(page);
+  try {
+    await expectStep(page, "calendar");
+    await expect(page.locator('[data-testid="connectrun-steps"] li[data-state="done"]')).toHaveText(["Sign in", "Folder"]);
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("standard-three-after-pick.png"), fullPage: true });
+  }
+});
+
+/*
+ * Device finding 2026-10-27 (TestFlight 147): a Google card with a sign-in,
+ * files working, its calendar "not signed in" - and signing in again from the
+ * check changed nothing. An older calendar row of the same account, folded
+ * into the card first, was the row the check read and the row line showed,
+ * while the sign-in bound the row the card's record names.
+ */
+test("a calendar not signed in under a signed-in card says so on its row, and signing in from the check repairs it", async ({ context, page }, testInfo) => {
+  const harness = await boot(context, page, withGoogleCalendar, true);
+  harness.answerApis = true;
+  harness.choice = { account: ANNA.email };
+  // An older calendar row of the same account, without a sign-in, listed first.
+  harness.sql.run("plainva-index", "INSERT OR REPLACE INTO pim_accounts (id, provider, label, config, enabled) VALUES (?, ?, ?, ?, 1)", ["pim-a-old", "google", "Anna@gmail.com", JSON.stringify({ clientId: "fixture-client" })]);
+  await page.reload();
+  await waitForVaultDirectory(page);
+  await openGoogleCard(page);
+  await page.getByTestId("cloudacct-signin").click();
+  await expect(page.getByTestId("cloudacct-state")).toHaveAttribute("data-state", "connected", { timeout: 15000 });
+  // The card keeps its sign-in; its calendar's sign-in on this phone is gone.
+  await page.evaluate(() => localStorage.removeItem("CapacitorStorage.secret_pim_local_pim-fixture-1"));
+  await page.reload();
+  await waitForVaultDirectory(page);
+  await openGoogleCard(page);
+  await expect(page.getByTestId("cloudacct-state")).toHaveAttribute("data-state", "connected", { timeout: 15000 });
+  // The card is signed in; its calendar is not - the row says so.
+  await expect(page.getByTestId("cloudacct-service-calendar")).toContainText("Not signed in", { timeout: 15000 });
+
+  await page.getByTestId("cloudacct-check-open").click();
+  await expect(page.getByTestId("cloudacct-check-files")).toHaveAttribute("data-state", "ok", { timeout: 15000 });
+  await expect(page.getByTestId("cloudacct-check-calendar")).toHaveAttribute("data-state", "signin", { timeout: 15000 });
+  await page.getByTestId("cloudacct-check-action-calendar-signIn").click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("CapacitorStorage.secret_pim_local_pim-fixture-1")), { timeout: 15000 }).not.toBeNull();
+
+  await page.getByTestId("cloudacct-check-open").click();
+  try {
+    await expect(page.getByTestId("cloudacct-check-calendar")).toHaveAttribute("data-state", "ok", { timeout: 15000 });
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("calendar-repaired-check.png"), fullPage: true });
+  }
+  await page.locator(".m-sheet-backdrop").click({ position: { x: 10, y: 10 } });
+  await expect(page.getByTestId("cloudacct-service-calendar")).not.toContainText("Not signed in");
+  await expect(page.getByTestId("cloudacct-service-calendar")).not.toContainText("waiting");
+});
+
+/**
+ * A Drive folder "Vault" with `count` notes, answered ahead of the generic API
+ * stand-in. Downloads wait for `release()`, so a test can tell "the step went
+ * on" from "the files arrived".
+ */
+async function driveVaultFolder(context: BrowserContext, count: number) {
+  const notes = Array.from({ length: count }, (_, i) => ({ id: `n${i + 1}`, name: `Note ${i + 1}.md`, mimeType: "text/markdown", md5Checksum: `m${i + 1}`, modifiedTime: "2026-10-20T10:00:00.000Z" }));
+  const state = { started: 0, finished: 0, release: () => {} };
+  const released = new Promise<void>((resolve) => { state.release = resolve; });
+  const json = (body: unknown) => ({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  await context.route((url) => url.href.startsWith("https://www.googleapis.com/drive/v3/files"), async (route) => {
+    const url = new URL(route.request().url());
+    const media = /\/files\/(n\d+)$/.exec(url.pathname);
+    if (media && url.searchParams.get("alt") === "media") {
+      state.started++;
+      await released;
+      state.finished++;
+      await route.fulfill({ status: 200, contentType: "text/markdown", body: `# ${media[1]}\n` });
+      return;
+    }
+    const q = url.searchParams.get("q") ?? "";
+    if (route.request().method() === "GET" && q) {
+      if (/name='Vault' and 'root' in parents/.test(q)) return route.fulfill(json({ files: [{ id: "vault-id", name: "Vault" }] }));
+      if (/^'root' in parents and mimeType='application\/vnd\.google-apps\.folder'/.test(q)) return route.fulfill(json({ files: [{ id: "vault-id", name: "Vault" }] }));
+      if (/^'vault-id' in parents and mimeType=/.test(q)) return route.fulfill(json({ files: [] }));
+      if (/^'vault-id' in parents and trashed=false$/.test(q)) return route.fulfill(json({ files: notes }));
+    }
+    await route.fallback();
+  });
+  return state;
+}
+
+test("a first connect onto a folder with many files goes on to step 2 before a file is pulled, and the files arrive through the sync", async ({ context, page }, testInfo) => {
+  await firstGoogleConnect(context, page);
+  const drive = await driveVaultFolder(context, 60);
+  await page.getByTestId("connectrun-choose-folder").click();
+  await page.getByRole("button", { name: "Vault" }).click({ timeout: 15000 });
+  await page.getByRole("button", { name: "Use this folder" }).click();
+  // Nothing of the folder is read up front: the run is on its next step while no file has come in.
+  try {
+    await expectStep(page, "calendar");
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("many-files-step-2.png"), fullPage: true });
+  }
+  expect(drive.finished).toBe(0);
+  // The sync takes them in, in the background.
+  drive.release();
+  await expect.poll(() => drive.finished, { timeout: 60000 }).toBe(60);
+});
+
+/*
+ * Plan "Verbinden-Assistent" (2026-10-28), E6: a step can be left out, and the
+ * setup ends on a summary that names it - no account change to advance on, so
+ * the summary comes from the skip itself.
+ */
+test("skipping the calendar ends the setup on a summary that names it, and Done leaves", async ({ context, page }, testInfo) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await firstGoogleConnect(context, page);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("setup-folder-step.png"), fullPage: true });
+  await connectAndPick(page);
+  await expectStep(page, "calendar");
+  await page.getByTestId("connectrun-skip").click();
+  try {
+    await expectStep(page, "summary");
+    await expect(page.getByTestId("connectrun-summary-files")).toHaveAttribute("data-state", "connected");
+    await expect(page.getByTestId("connectrun-summary-calendar")).toHaveAttribute("data-state", "skipped");
+    await expect(page.locator('[data-testid="connectrun-steps"] li[data-state="skipped"]')).toHaveText(["Calendar"]);
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("setup-summary.png"), fullPage: true });
+  }
+  await page.getByTestId("connectrun-done").click();
+  await expect(page.getByTestId("connectrun-frame")).toHaveCount(0, { timeout: 15000 });
 });

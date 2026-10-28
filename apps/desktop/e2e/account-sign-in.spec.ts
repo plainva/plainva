@@ -41,6 +41,8 @@ interface Seed {
   pim?: { id: string; label: string };
   /** Further settings entries (a mailbox list, say). */
   settings?: Record<string, unknown>;
+  /** A Drive folder "Plainva" with this many notes; their downloads wait for `window.__releaseDownloads()`. */
+  driveNotes?: number;
 }
 
 async function wire(page: Page, seed: Seed = {}): Promise<Harness> {
@@ -73,7 +75,7 @@ async function wire(page: Page, seed: Seed = {}): Promise<Harness> {
     return { status: response.status, body: await response.text() };
   });
 
-  await page.addInitScript((seedIn: { cards: unknown[]; keychain: Record<string, string>; client: typeof CLIENT; splash: boolean; pickDir: string | null; pim: { id: string; label: string } | null; settings: Record<string, unknown> }) => {
+  await page.addInitScript((seedIn: { cards: unknown[]; keychain: Record<string, string>; client: typeof CLIENT; splash: boolean; pickDir: string | null; pim: { id: string; label: string } | null; settings: Record<string, unknown>; driveNotes: number }) => {
     const fs: Record<string, any> = {
       '/test-vault': { isDir: true },
       '/test-vault/.plainva': { isDir: true },
@@ -119,6 +121,25 @@ async function wire(page: Page, seed: Seed = {}): Promise<Harness> {
     const isProvider = (url: string) => url.startsWith('https://oauth2.googleapis.com/') || url.startsWith('https://openidconnect.googleapis.com/');
     // Anything else of Google's (the Drive sync starting up) gets an empty answer.
     const otherGoogle = (method: string): unknown => (method === 'GET' ? { files: [], items: [] } : { id: 'created-1', name: 'Plainva' });
+    // A Drive folder "Plainva" with notes, when the case asks for one; downloads wait to be released.
+    const notes = Array.from({ length: seedIn.driveNotes }, (_, i) => ({ id: `n${i + 1}`, name: `Note ${i + 1}.md`, mimeType: 'text/markdown', md5Checksum: `m${i + 1}`, modifiedTime: '2026-10-20T10:00:00.000Z' }));
+    // `files`: the notes pulled at least once (the SQL stand-in keeps no sync
+    // state, so a later cycle pulls them again).
+    const downloads = { started: 0, finished: 0, files: [] as string[] };
+    (window as any).__driveDownloads = downloads;
+    let release = () => {};
+    const released = new Promise<void>((resolve) => { release = resolve; });
+    (window as any).__releaseDownloads = () => release();
+    const driveAnswer = (url: string): { media: string } | { json: unknown } | null => {
+      if (!seedIn.driveNotes || !url.startsWith('https://www.googleapis.com/drive/v3/files')) return null;
+      const u = new URL(url);
+      const media = /\/files\/(n\d+)$/.exec(u.pathname);
+      if (media && u.searchParams.get('alt') === 'media') return { media: media[1] };
+      const q = u.searchParams.get('q') ?? '';
+      if (/name='Plainva' and 'root' in parents/.test(q)) return { json: { files: [{ id: 'vault-id', name: 'Plainva' }] } };
+      if (/^'vault-id' in parents and trashed=false$/.test(q)) return { json: { files: notes } };
+      return null;
+    };
 
     (window as any).__TAURI_INTERNALS__ = {
       plugins: { path: { sep: '/' } },
@@ -175,6 +196,12 @@ async function wire(page: Page, seed: Seed = {}): Promise<Harness> {
           if (isProvider(cfg.url)) {
             const answer = await (window as any).__fakeFetch(cfg.url, cfg.method, cfg.headers, body);
             responses.set(id, { status: answer.status, url: cfg.url, body: answer.body, read: false });
+          } else if (driveAnswer(cfg.url)) {
+            const drive = driveAnswer(cfg.url)!;
+            if ('media' in drive) {
+              downloads.started++;
+              responses.set(id, { status: 200, url: cfg.url, body: `# ${drive.media}\n`, read: false, type: 'text/markdown', wait: released } as any);
+            } else responses.set(id, { status: 200, url: cfg.url, body: JSON.stringify(drive.json), read: false });
           } else if (isDav(cfg.url)) {
             responses.set(id, { status: cfg.method === 'PROPFIND' ? 207 : 200, url: cfg.url, body: cfg.method === 'PROPFIND' ? EMPTY_LISTING : '', read: false, type: 'application/xml' });
           } else {
@@ -183,7 +210,16 @@ async function wire(page: Page, seed: Seed = {}): Promise<Harness> {
           return id;
         }
         if (cmd === 'plugin:http|fetch_send') {
-          const response = responses.get(args.rid)!;
+          const response = responses.get(args.rid)! as any;
+          if (response.wait) {
+            await response.wait;
+            if (!response.counted) {
+              response.counted = true;
+              downloads.finished++;
+              const note = /\/files\/(n\d+)\?/.exec(response.url)?.[1];
+              if (note && !downloads.files.includes(note)) downloads.files.push(note);
+            }
+          }
           return { status: response.status, statusText: '', url: response.url, headers: [['content-type', response.type ?? 'application/json']], rid: args.rid };
         }
         if (cmd === 'plugin:http|fetch_read_body') {
@@ -287,7 +323,7 @@ async function wire(page: Page, seed: Seed = {}): Promise<Harness> {
         return null;
       },
     };
-  }, { cards: seed.cards ?? [], keychain: seed.keychain ?? {}, client: CLIENT, splash: !!seed.splash, pickDir: seed.pickDir ?? null, pim: seed.pim ?? null, settings: seed.settings ?? {} });
+  }, { cards: seed.cards ?? [], keychain: seed.keychain ?? {}, client: CLIENT, splash: !!seed.splash, pickDir: seed.pickDir ?? null, pim: seed.pim ?? null, settings: seed.settings ?? {}, driveNotes: seed.driveNotes ?? 0 });
   return harness;
 }
 
@@ -696,4 +732,49 @@ test('an IMAP account signs out on this device and in again, and its mail page s
   await dialog.getByTestId('cloudacct-remove').click();
   await confirmDialog(page);
   await expect.poll(async () => (await cards(page)).length, { timeout: 15_000 }).toBe(0);
+});
+
+/*
+ * Device finding 2026-10-27, the desktop's side: connecting files to a cloud
+ * folder that already holds many files goes on at once - nothing of the folder
+ * is read up front -, and the files arrive through the vault's sync, which the
+ * desktop has always done. The phone now does the same. The calendar of the
+ * same consent ends connected: the files sync starting in the folder - the
+ * vault reload the sign-in triggers - takes no binding with it.
+ */
+test('connecting files and calendar to a folder with many files goes on before a file is pulled, the calendar connects, and the files arrive through the sync', async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  const harness = await wire(page, { driveNotes: 40 });
+  const dialog = await openCloudAccounts(page);
+  await dialog.getByTestId('cloudacct-add').click();
+  await dialog.getByTestId('cloudacct-provider-google').click();
+  await dialog.getByTestId('cloudacct-svc-files').check();
+  await dialog.getByTestId('cloudacct-svc-calendar').check();
+  await dialog.getByTestId('cloudacct-to-signin').click();
+  harness.choice = { account: ANNA.email };
+  await dialog.getByTestId('cloudacct-connect').click();
+
+  await expect(dialog.getByTestId('cloudacct-status-files')).toContainText(/verbunden|connected/, { timeout: 15_000 });
+  // Connected: the row says what it found (here: no calendars), never that the account changed.
+  await expect(dialog.getByTestId('cloudacct-status-calendar')).toHaveClass(/pv-svcstat--ok/, { timeout: 30_000 });
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('many-files-connected.png') });
+  // (The card's calendar reference is not read here: this stand-in database keeps
+  // no calendar rows, so the account registry's reconcile drops it again.)
+  const [card] = await cards(page);
+  expect(card.services.files).toBeTruthy();
+  expect(await page.evaluate(() => (window as any).__driveDownloads.finished)).toBe(0);
+  // Back to the vault - the settings closed, the one reload of the sign-in runs - and its sync takes the folder in.
+  await expect(async () => {
+    if (await dialog.isVisible()) await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden({ timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
+  await page.evaluate(() => (window as any).__releaseDownloads());
+  await expect.poll(() => page.evaluate(() => (window as any).__driveDownloads.files.length), { timeout: 60_000 }).toBe(40);
+  // ... and land in the vault.
+  await expect.poll(() => page.evaluate(async () => {
+    const invoke = (window as any).__TAURI_INTERNALS__.invoke;
+    let present = 0;
+    for (let i = 1; i <= 40; i++) if (await invoke('plugin:fs|exists', { path: `/test-vault/Note ${i}.md` })) present++;
+    return present;
+  }), { timeout: 30_000 }).toBe(40);
 });

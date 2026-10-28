@@ -187,6 +187,15 @@ export interface IVaultAdapter {
   deleteItem(path: string, recursive?: boolean, confirmation?: DeletionConfirmation): Promise<void>;
 
   /**
+   * Deletes a file only while it still holds the bytes whose sha256 (hex) is
+   * `expectedSha256` - as one step with every other write of the chain to it,
+   * so a save landing in between is never deleted. Resolves false, and leaves
+   * the file, where it changed or is gone. Owned by the conflict-aware
+   * pipeline; a storage without it cannot compare and delete.
+   */
+  deleteItemIfUnchanged?(path: string, expectedSha256: string): Promise<boolean>;
+
+  /**
    * Renames/moves a file or directory.
    * @throws VaultFileNotFoundError if oldPath does not exist
    * @throws VaultFileExistsError if newPath already exists

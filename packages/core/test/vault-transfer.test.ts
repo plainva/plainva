@@ -25,6 +25,33 @@ function cloud(initial: Record<string, string>) {
 }
 
 describe("reviewed vault transfer", () => {
+  it("without a cloud folder to read, copies only what is local and leaves the folder to the sync (device finding 2026-10-27)", async () => {
+    const source = disk({ "Notes.md": "local" });
+    const destination = disk({});
+    const plan = await planVaultTransfer(source.adapter, null, destination.adapter);
+    expect(plan.remote).toEqual([]);
+    expect(plan.files.map((file) => file.path)).toEqual(["Notes.md"]);
+    await commitVaultTransfer(plan, source.adapter, destination.adapter, null);
+    expect(destination.files.get("Notes.md")).toBe("local");
+  });
+  it("leaves the starter content of a fresh vault behind and copies only the person's own files (review 2026-10-27)", async () => {
+    const source = disk({ "Willkommen.md": "starter", "Meine Notiz.md": "mine" });
+    const destination = disk({});
+    const plan = await planVaultTransfer(source.adapter, null, destination.adapter, undefined, (file) => file.path === "Willkommen.md");
+    expect(plan.local.map((file) => file.path)).toEqual(["Meine Notiz.md"]);
+    expect(plan.keptBack.map((file) => file.path)).toEqual(["Willkommen.md"]);
+    await commitVaultTransfer(plan, source.adapter, destination.adapter, null);
+    expect([...destination.files.keys()]).toEqual(["Meine Notiz.md"]);
+    // The source keeps it.
+    expect(source.files.get("Willkommen.md")).toBe("starter");
+  });
+  it("says how far it read the cloud folder, file by file (device finding 2026-10-27)", async () => {
+    const source = disk({ "Notes.md": "new" });
+    const remote = cloud({ "Daily.md": "remote", "Archive.md": "old" });
+    const seen: Array<[number, number]> = [];
+    await planVaultTransfer(source.adapter, remote.target, undefined, (done, total) => seen.push([done, total]));
+    expect(seen).toEqual([[0, 2], [1, 2], [2, 2]]);
+  });
   it("shows every collision before writes and preserves source, remote and unsynced destination content", async () => {
     const source = disk({ "Daily.md": "source", "Notes.md": "new" });
     const remote = cloud({ "Daily.md": "remote", "Archive.md": "old" });

@@ -1,22 +1,23 @@
 import { sameStoredValue, trimEndChars } from "@plainva/core";
 import { commitVaultTransfer, planVaultTransfer, PimCacheRepository, refreshDriveAccessToken, refreshOneDriveAccessToken, refreshDropboxAccessToken, type ISyncTarget } from "@plainva/core";
-import { assertConnectionIdentity, getPlatformServices, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
+import { assertConnectionIdentity, getPlatformServices, starterFilesToHoldBack, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
 import { getMailPassword, getMailRefreshToken, listMailAccounts, mailAccountKind, saveMailAccount, saveMicrosoftMailAccount } from "@plainva/ui/mail";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { webdavFetch } from "../adapters/webdavHttp";
-import { reviewVaultTransfer } from "../components/TransferReviewHost";
+import { cancelTransferReview, reviewVaultTransfer } from "../components/TransferReviewHost";
 import { fileGrantProbe, getAccountToken, saveAccountToken } from "./accountBroker";
 import { bindRunTokenToAccount } from "./connectConsent";
 import { runServices } from "./connectQueue";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
-import { finishConnectVault, loadConnectQueue, outcomeBelongsToRun, prepareConnectVault, recordConnectOutcome } from "./connectQueue";
+import { finishConnectVault, loadConnectQueue, outcomeBelongsToRun, prepareConnectVault, recordConnectOutcome, releaseConnectVault } from "./connectQueue";
 import { CONNECT_FORM_GUARD, foreignInputOnScreen, whileEntering } from "./flowVault";
 import { copyProfilePreferences } from "./profileImportJournal";
+import { setFilesConnectProgress } from "./filesConnectProgress";
 import { getPimCredentials, savePimCredentials } from "./pim/pimCredentials";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import { readSyncRootFolder } from "./syncRootFolder";
 import { addVault, getActiveVaultEntry, getVaultEntry, listVaults, newVaultId } from "./vaultRegistry";
-import { noteSaver, openPreparedVaultDatabase, switchVault, type MobileVault } from "./vaultService";
+import { discardPreparedContainer, noteSaver, openPreparedVaultDatabase, switchVault, type MobileVault } from "./vaultService";
 
 /** Destination identity excludes tokens and local labels. */
 export function fileDestinationKey(p: MobileSyncProvider, identity?: VerifiedProviderIdentity): string | null {
@@ -54,9 +55,44 @@ async function verifyIdentity(p: MobileSyncProvider, context: ServiceConnectionC
   return profile!;
 }
 
+/** The name of the cloud folder a connection points at, as the person chose it. */
+function chosenFolder(p: MobileSyncProvider): string {
+  const last = (path: string) => path.split("/").filter(Boolean).pop() ?? "";
+  if (p.provider === "drive" || p.provider === "onedrive") return last(p.creds.rootFolderName || "Plainva") || "Plainva";
+  if (p.provider === "dropbox") return last(p.creds.rootPath || "/") || "Dropbox";
+  if (p.provider === "webdav") { try { return decodeURIComponent(last(new URL(p.creds.url).pathname)) || p.creds.url; } catch { return p.creds.url; } }
+  return last(p.creds.prefix || "") || p.creds.bucket;
+}
+
 /** Copies into an isolated, resumable target. Source services and files remain
  * usable throughout; no cloud writes occur until review and storage succeed. */
 const transfers = new Map<string, Promise<void>>();
+/**
+ * The setup leaves its files step without a vault - "Skip files", or Stop -
+ * while a destination is prepared (third review 2026-10-28): the run lets go
+ * of it, and a destination that never became a vault goes with what a broken
+ * copy wrote for it. A connected files step keeps everything.
+ */
+export async function abandonPreparedFiles(): Promise<"connected" | "released"> {
+  const before = await loadConnectQueue();
+  if (before) cancelTransferReview(before.id);
+  // The copy answers its own review (it releases and discards for itself) or
+  // finishes; only what is left after it is this step's to let go of.
+  await transfersSettled();
+  const q = await loadConnectQueue();
+  if (!q || (before && q.id !== before.id)) return "released";
+  if (q.outcomes.files?.state === "connected") return "connected";
+  const id = q.preparedVaultId;
+  if (!id) return "released";
+  await releaseConnectVault(q.context, id);
+  await discardPreparedContainer(id, q.sourceVaultId);
+  return "released";
+}
+
+/** Settles once no copy is in flight: "Choose another folder" picks only after the old one has let go. */
+export function transfersSettled(): Promise<void> {
+  return Promise.allSettled([...transfers.values()]).then(() => undefined);
+}
 export function connectAccountFiles(v: MobileVault, p: MobileSyncProvider, context: ServiceConnectionContext, createRemote: () => Promise<ISyncTarget>, name: string): Promise<void> {
   const key = context.runId ?? context.vaultId;
   const existing = transfers.get(key);
@@ -79,6 +115,16 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
   const key = fileDestinationKey(p, profile?.identity);
   const secrets = getPlatformServices().credentials;
   let id = run.preparedVaultId;
+  // A destination prepared for another folder - the app was closed during its
+  // review, or a copy was interrupted - and never made a vault: it goes, and
+  // this pick prepares its own instead of failing as "destination changed"
+  // (second review 2026-10-28).
+  // Also where that destination was a vault that existed before: it stays, the run lets go of it.
+  if (id && key && run.preparedDestinationKey && run.preparedDestinationKey !== key && run.outcomes.files?.state !== "connected") {
+    await releaseConnectVault(context, id);
+    await discardPreparedContainer(id, run.sourceVaultId ?? v.vaultId);
+    id = undefined;
+  }
   if (!id && key) {
     const matches: string[] = [];
     for (const entry of await listVaults()) {
@@ -98,14 +144,43 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
   const target = new CapacitorVaultAdapter(`vaults/${id}`);
   await target.initialize();
   await noteSaver.flushAll();
-  const plan = await planVaultTransfer(v.adapter, remote, target);
-  // Encrypted workspaces must be opened through their pairing flow, never
-  // copied as raw ciphertext into an ordinary connection.
-  if ([...plan.etags.keys()].some(path => path.startsWith(".pvws/"))) throw new Error("pair-required");
-  if (!await reviewVaultTransfer(plan, (await getActiveVaultEntry()).name, existing?.name ?? name)) {
-    await recordConnectOutcome(context, "files", { state: "cancelled" });
-    return;
+  // The cloud folder's files are NOT read here (device finding 2026-10-27): a
+  // folder of 1246 files kept the step reading for minutes, and one file the
+  // read refused failed the whole step. The new vault takes them through its
+  // sync - in the background, resumable, with its progress, an unreadable file
+  // skipped and named. What is copied here is what is local: the notes of the
+  // vault the run started in (where both sides have a file, the sync keeps
+  // both versions) and, below, the accounts and settings. An encrypted
+  // workspace was refused above by its genesis file.
+  // The starter notes of a fresh vault stay behind where the folder already
+  // holds notes (review 2026-10-27): they are the app's, and went up into the
+  // person's existing wiki. One rule with the desktop's binding
+  // (starterFilesToHoldBack): a new, empty folder takes the vault as it is,
+  // and a listing that fails counts as a folder with notes. Only the folder's
+  // listing is asked for, none of its files; the source vault is only read.
+  const listing = await remote.pull().catch(() => null);
+  const held = await starterFilesToHoldBack(v.adapter, listing && !listing.needsFullListing ? listing.etagMap.keys() : null);
+  const plan = await planVaultTransfer(v.adapter, null, target, undefined, held.size > 0 ? (file) => held.get(file.path) === file.hash : undefined);
+  setFilesConnectProgress(null);
+  // Asked only when there is something of the person's to copy - the question
+  // says how many notes go up; a fresh vault goes on at once.
+  if (plan.local.length > 0 || plan.collisions.length > 0) {
+    // Shown as the content of the files step (plan "Verbinden-Assistent", E4).
+    const answer = await reviewVaultTransfer(plan, { source: (await getActiveVaultEntry()).name, target: existing?.name ?? name, folder: chosenFolder(p), existing: !!existing, runId: context.runId });
+    if (answer !== "apply") {
+      // The run forgets the destination of this pick, so another folder
+      // prepares its own (review 2026-10-28) - also where it was a vault that
+      // existed before, which itself stays; only a never-listed one goes.
+      await releaseConnectVault(context, id);
+      if (!existing) await discardPreparedContainer(id, v.vaultId);
+      // "Choose another folder" is no cancel: the step simply opens the picker again.
+      if (answer === "otherFolder") return;
+      // Said in the step: the person is back at the files step on purpose.
+      await recordConnectOutcome(context, "files", { state: "cancelled" });
+      return;
+    }
   }
+  setFilesConnectProgress({ phase: "copying" });
   const currentRun = await loadConnectQueue();
   if ((await getActiveVaultEntry()).id !== v.vaultId || !currentRun || !outcomeBelongsToRun(currentRun, context, "files")) throw new Error("accountChanged");
   const targetRecords = await loadCloudAccounts(id);
@@ -132,7 +207,7 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
     // Validate binding collisions before copying anything.
     for (const row of accounts) { const old = existingPim.find(a => a.id === row.id); if (old && !sameStoredValue(old, row)) throw new Error("transfer_binding_collision"); }
     for (const mail of mailAccounts) { const old = existingMail.find(a => a.id === mail.id); if (old && !sameStoredValue(old, mail)) throw new Error("transfer_binding_collision"); }
-    await commitVaultTransfer(plan, v.adapter, target, remote);
+    await commitVaultTransfer(plan, v.adapter, target, null);
     for (const row of accounts) {
       const creds = await getPimCredentials(v.vaultId, row.id);
       if (creds) await savePimCredentials(id, row.id, creds);

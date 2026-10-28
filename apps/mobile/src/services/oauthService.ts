@@ -11,7 +11,7 @@ import {
   generatePkcePair,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { getPlatformServices, getVaultTemplates, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID, ServiceConnectionError, serviceConnectionMessage, toast, withAccountCredentialLock } from "@plainva/ui";
+import { getPlatformServices, getVaultTemplates, logDiagnostic, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID, ServiceConnectionError, serviceConnectionMessage, toast, withAccountCredentialLock } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../adapters/webdavHttp";
 import { connectProvider, createProviderVault, createProviderFolder, listProviderFolders, getStoredProvider, reauthorizeVault, type MobileSyncProvider } from "./syncService";
@@ -25,6 +25,7 @@ import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConn
 import { getActiveVaultEntry } from "./vaultRegistry";
 import { APP_ID, APP_URL } from "./appScheme";
 import { connectionFailureToast } from "./connectionToast";
+import { setFilesConnectProgress } from "./filesConnectProgress";
 
 /**
  * Mobile OAuth: the system browser and PKCE with the custom-scheme callback,
@@ -228,12 +229,43 @@ export async function createPendingConnectFolder(path: string): Promise<void> {
   await persistPendingConnect(provider);
 }
 
-/** Bind the chosen cloud folder and create the (fresh, isolated) vault. */
+/** The reason as the outcome keeps it: the code `serviceConnectionMessage` turns into words. */
+function failureCode(error: unknown): string {
+  if (error instanceof ServiceConnectionError) return error.reason;
+  if (error instanceof Error) return error.message || error.name;
+  return String(error);
+}
+
+/**
+ * Bind the chosen cloud folder and create the (fresh, isolated) vault.
+ *
+ * Never ends in silence (device finding 2026-10-27): the picker hands over and
+ * closes, so whatever fails after it was dropped - the wizard stood on its
+ * files step again with nothing said, which looked like a loop. A failure is
+ * the step's outcome now, said on its banner, logged for the diagnostics, and
+ * a toast where no run carries a banner.
+ */
 export async function finishConnect(rootFolder: string): Promise<void> {
+  const context = pendingServiceContext;
+  setFilesConnectProgress({ phase: "checking" });
+  try {
+    await finishConnectSteps(rootFolder);
+  } catch (error) {
+    logDiagnostic("connect", `files step failed: ${failureCode(error)}`);
+    const said = await recordConnectOutcome(context, "files", { state: "failed", message: failureCode(error) }).catch(() => false);
+    if (!said) toast.error(serviceConnectionMessage(error, i18n.t));
+  } finally {
+    setFilesConnectProgress(null);
+  }
+}
+
+async function finishConnectSteps(rootFolder: string): Promise<void> {
   const p = pendingConnect;
   const createTemplateId = pendingCreateTemplateId;
   const access = pendingAccess;
-  if (!p) return;
+  // Nothing waits for a folder any more (given up, or taken by another pick):
+  // said, not dropped - the person picked a folder and has to know it went nowhere.
+  if (!p) throw new ServiceConnectionError("needsConsent");
   const context = pendingServiceContext;
   if (context?.runId) {
     const run = await loadConnectQueue();

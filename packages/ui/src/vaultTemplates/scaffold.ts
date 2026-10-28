@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { ensureOkfFrontmatter, generateIndexContent, isSystemJunkName, upsertFrontmatterKeys } from "@plainva/core";
+import { ensureOkfFrontmatter, generateIndexContent, isSystemJunkName, starterHash, upsertFrontmatterKeys, writeStarterManifest } from "@plainva/core";
 import { serializeBaseConfig } from "../base/baseFormat";
 import type { VaultTemplateDefinition, VaultTemplateNote } from "./types";
 
@@ -50,7 +50,7 @@ function interpolateValue(value: unknown, now: Date): unknown {
 }
 
 /** A template note with `{{today±N}}` resolved in its path, text and properties. */
-function interpolateNote(note: VaultTemplateNote, now: Date): VaultTemplateNote {
+export function interpolateNote(note: VaultTemplateNote, now: Date): VaultTemplateNote {
   const out: VaultTemplateNote = {
     ...note,
     path: interpolateScaffoldDates(note.path, now),
@@ -96,8 +96,20 @@ export async function scaffoldVaultTemplate(opts: {
   subfoldersHeading: string;
   /** Reference date for `{{today±N}}` (injected by tests; defaults to now). */
   now?: Date;
+  /**
+   * Remember what was written as starter content (starterFiles.ts in the
+   * core), so none of it goes into a cloud folder the vault is connected to
+   * later. False for a vault created to go online at once: its template is
+   * what the person asked that new folder to hold.
+   */
+  recordStarter?: boolean;
 }): Promise<void> {
   const { adapter, template, vaultName, subfoldersHeading } = opts;
+  const written: Record<string, string> = {};
+  const write = async (path: string, content: string) => {
+    await adapter.writeTextFile(path, content);
+    written[path] = starterHash(content);
+  };
   // Check before ANY write, including settings in the callers. A missing or
   // unreadable listing is not permission to fill gaps in a user's vault.
   // Operating-system bookkeeping does not count as content (the core's one
@@ -120,7 +132,7 @@ export async function scaffoldVaultTemplate(opts: {
 
   for (const note of notes) {
     if (await adapter.exists(note.path)) continue;
-    await adapter.writeTextFile(note.path, buildTemplateNoteContent(note));
+    await write(note.path, buildTemplateNoteContent(note));
   }
 
   // `.base` databases: serialized to Obsidian-native YAML, byte-identical to
@@ -128,7 +140,7 @@ export async function scaffoldVaultTemplate(opts: {
   // index.md listings below. Never overwrite.
   for (const base of bases) {
     if (await adapter.exists(base.path)) continue;
-    await adapter.writeTextFile(base.path, serializeBaseConfig(base.config));
+    await write(base.path, serializeBaseConfig(base.config));
   }
 
   // Attachments (SVG illustrations): written verbatim, no frontmatter, no
@@ -138,7 +150,7 @@ export async function scaffoldVaultTemplate(opts: {
   // first auto-update. Never overwrite.
   for (const file of rawFiles) {
     if (await adapter.exists(file.path)) continue;
-    await adapter.writeTextFile(file.path, file.content);
+    await write(file.path, file.content);
   }
 
   // Managed index.md for the bundle root and every template folder (SPEC §11:
@@ -166,6 +178,9 @@ export async function scaffoldVaultTemplate(opts: {
       bundleRoot: folder === "",
       managedMarker: true,
     });
-    await adapter.writeTextFile(indexPath, content);
+    await write(indexPath, content);
   }
+  // An empty record for a vault made to go online: nothing in it is held back,
+  // and it is not recognised as starter content later either.
+  await writeStarterManifest(adapter, opts.recordStarter === false ? {} : written);
 }

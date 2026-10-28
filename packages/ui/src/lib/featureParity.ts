@@ -1497,6 +1497,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
+    id: "connect-run-steps",
+    title: "Account setup after the sign-in, one step per service with Skip",
+    area: "sync",
+    kind: "decision",
+    desktop: "partial",
+    desktopReason:
+      "A deliberately different interaction model, not a missing piece (plan " +
+      "Verbinden-Assistent, 2026-10-28). The desktop's connect dialog binds every " +
+      "ticked service on ONE page after the sign-in, each with its status row and " +
+      "the failure's sender; a service is left out by not ticking it or by finishing " +
+      "with it unconnected, so there is no step to skip. The phone pushes one " +
+      "screen per service, where Skip is the way past a step. Both draw the same " +
+      "WizardSteps, names and senders from @plainva/ui.",
+    mobile: "yes",
+    verified: "2026-10-28",
+  },
+  {
     id: "external-folder-sync",
     title: "Cloud sync for a vault that lives in a folder another program keeps",
     area: "sync",

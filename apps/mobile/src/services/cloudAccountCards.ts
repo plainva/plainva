@@ -187,6 +187,72 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
       serviceStates: { mail: mailStates.get(a.id) ?? "signin" },
     });
   }
+  // An account with no service running on this phone is still an account
+  // (device finding 2026-10-27): leaving the wizard after the sign-in, before
+  // its first service was done, left a signed-in card that no list showed - as
+  // if the wizard had deleted it. It is listed with its services off, and the
+  // account page switches them on. The desktop lists every record already.
+  // Verified records first: a leftover record with only the address must not
+  // take the row a verified record of the same account is owed.
+  const verifiedFirst = [...records].sort((a, b) => Number(!!b.verifiedProviderIdentity) - Number(!!a.verifiedProviderIdentity));
+  for (const record of verifiedFirst) {
+    if (cards.some((card) => card.record?.id === record.id)) continue;
+    const services = (["files", "calendar", "mail"] as const).filter((service) => !!record.services[service]);
+    // A row of this account that found no record above is this account's
+    // card, not a second one (review 2026-10-27): the same account by verified
+    // identity where both have one. By address only where exactly one record
+    // of the family has that address - a work and a personal Microsoft account
+    // can share one (second review 2026-10-27); where it is ambiguous, the
+    // cards stay apart.
+    const recordIdentity = record.verifiedProviderIdentity ? verifiedProviderIdentityKey(record.verifiedProviderIdentity) : null;
+    const address = identityKey(record.label);
+    const addressIsTheAccount = !!address && records.filter((other) => other.family === record.family && identityKey(other.label) === address).length === 1;
+    const owner = cards.find((card) => {
+      if (card.record || card.family !== record.family) return false;
+      const cardIdentity = card.verifiedProviderIdentity ? verifiedProviderIdentityKey(card.verifiedProviderIdentity) : null;
+      if (cardIdentity && recordIdentity) return cardIdentity === recordIdentity;
+      return addressIsTheAccount && identityKey(card.label) === address;
+    });
+    if (owner) {
+      owner.record = record;
+      owner.verifiedProviderIdentity ??= record.verifiedProviderIdentity;
+      for (const service of services) {
+        if (owner.services.includes(service)) continue;
+        owner.services.push(service);
+        owner.serviceStates = { ...owner.serviceStates, [service]: "signin" };
+      }
+      continue;
+    }
+    add({
+      // Its own card where the address does not say which account it is.
+      key: recordIdentity || addressIsTheAccount ? keyOf(record.family, record.label, record.id, record.verifiedProviderIdentity) : `${record.family}|#${record.id}`,
+      family: record.family,
+      label: record.label,
+      services: [...services],
+      record,
+      verifiedProviderIdentity: record.verifiedProviderIdentity,
+      // Carried here but without its row on this phone: it needs a sign-in here.
+      serviceStates: Object.fromEntries(services.map((service) => [service, "signin" as const])),
+    });
+  }
+  // The rows a card's record binds are the card's (device finding 2026-10-27):
+  // a second, older row of the same account folded in first named the
+  // calendar the check read and the row line showed, while a sign-in bound the
+  // record's own row - so signing in again repaired a row nobody looked at,
+  // and the calendar stayed "not signed in" for good. The record decides.
+  for (const card of cards) {
+    const boundPim = card.record?.services.calendar?.pimAccountId;
+    if (boundPim && pim.some((a) => a.id === boundPim)) {
+      card.pimAccountId = boundPim;
+      const row = pim.find((a) => a.id === boundPim)!;
+      card.serviceStates = { ...card.serviceStates, calendar: row.provider === "device" ? "active" : accountRowState(pimStates.get(boundPim) ?? "signin") };
+    }
+    const boundMail = card.record?.services.mail?.mailAccountId;
+    if (boundMail && mail.some((a) => a.id === boundMail)) {
+      card.mailAccountId = boundMail;
+      card.serviceStates = { ...card.serviceStates, mail: mailStates.get(boundMail) ?? "signin" };
+    }
+  }
   // One state per card, from the card's own sign-in where it has one (plan
   // "Verbinden", V0) - the same rule as the desktop's account list.
   for (const card of cards) {

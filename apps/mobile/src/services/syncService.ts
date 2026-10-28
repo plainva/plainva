@@ -22,7 +22,7 @@ import {
   type JournalCheckResult,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { connectionErrorText, formatListingReport, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision } from "@plainva/ui";
+import { connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision } from "@plainva/ui";
 import { assertEmptyRemoteVault } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
@@ -43,6 +43,7 @@ import { getMobileVault, type MobileVault } from "./vaultService";
 import { enterMadeVault } from "./flowVault";
 import { mobileSyncDeviceId, prepareMobileSettingsSync } from "./mobileSettingsSync";
 import { notifyPulledFiles } from "./pulledFiles";
+import { FILE_MOVED_EVENT, type FileMovedDetail } from "./fileMoved";
 import { loadMobilePublicationRuntime } from "./mobileWorkspaceSecurity";
 import {
   addVault,
@@ -495,6 +496,8 @@ export async function createProviderVault(
     template: opts.template,
     vaultName: opts.vaultName,
     subfoldersHeading: opts.subfoldersHeading,
+    // Made for this new cloud folder: the template is what it is to hold.
+    recordStarter: false,
   });
   await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
   await adoptOrForget(id, adopt);
@@ -1185,6 +1188,12 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     // this resolver is never asked for one; the fallback only satisfies the type.
     createContentRefResolver(v.adapter.sandboxRoot ?? "", v.adapter),
   );
+  // A refused file's content moved to its copy: the note open on it switches
+  // to the copy at once (third review 2026-10-27).
+  engine.onLocalMove = (from, to) => {
+    window.dispatchEvent(new CustomEvent(FILE_MOVED_EVENT, { detail: { from, to, vaultId: v.vaultId } satisfies FileMovedDetail }));
+    window.dispatchEvent(new CustomEvent("m-vault-changed"));
+  };
   // Pulls write through the backup adapter (not the queueing chain) — the
   // worker does its own merge and manages sync_state (desktop pattern).
   // Smaller download windows than the desktop (P3.3): phones have tighter
@@ -1229,7 +1238,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   w.onProgress = (p) => {
     setProgress(p ? { current: p.current, total: p.total } : null);
   };
-  w.onFirstCycleComplete = () => {
+  w.onFirstCycleComplete = (outcome) => {
     // From now on a missing cloud folder is an error, never a new one (fifth review, 2).
     void markMobileSyncedBefore(v.vaultId).catch((e) => console.error("[syncService] could not record the first sync", e));
     void v.syncQueue!.enqueueLocalOnlyFiles().catch(() => {});
@@ -1237,6 +1246,9 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     // The remote content is here now, so anchored notes exist and can be
     // ADOPTED rather than imported a second time.
     firstCycleSettled = true;
+    // Never silently: the copies kept where both sides differed (review 2026-10-27).
+    sayFirstSyncConflictCopies(outcome.conflictCopies, (key, options) => i18n.t(key, options), (copy) =>
+      window.dispatchEvent(new CustomEvent("m-reveal-file", { detail: { path: copy, vaultId: v.vaultId } })));
   };
   w.onFilesChanged = (paths) => {
     void v.reindexPaths(paths);

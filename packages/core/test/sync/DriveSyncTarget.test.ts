@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DriveSyncTarget } from "../../src/sync/DriveSyncTarget.js";
+import { UnsyncableFileError } from "../../src/sync/errorKind.js";
 import type { FetchFn } from "../../src/sync/WebDavSyncTarget.js";
 
 const FOLDER_MIME = "application/vnd.google-apps.folder";
@@ -454,6 +455,8 @@ describe("DriveSyncTarget", () => {
     });
 
     await expect(target.download("note.md")).rejects.toThrow("cannotDownloadAbusiveFile");
+    // A refusal that waiting cannot change: the sync skips and names the file (device finding 2026-10-27).
+    await expect(target.download("note.md")).rejects.toBeInstanceOf(UnsyncableFileError);
   });
 
   describe("listFolders (settings picker, 2026-07-06)", () => {

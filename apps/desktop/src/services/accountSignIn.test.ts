@@ -301,7 +301,8 @@ describe("binding after the sign-in (E2: write everything, then reload once)", (
     const done = await bindSignedInAccount(prepared, completedFor(["files", "calendar", "mail"]), b.ports);
     expect(done.rows).toEqual([
       { service: "files", state: "active" },
-      { service: "calendar", state: "failed", detail: "pim runtime changed" },
+      // The failure itself rides along, so the wizard can name its sender.
+      { service: "calendar", state: "failed", detail: "pim runtime changed", error: new Error("pim runtime changed") },
       { service: "mail", state: "active" },
     ]);
     expect(done.record.services.calendar).toBeUndefined();

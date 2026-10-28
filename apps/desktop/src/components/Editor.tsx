@@ -58,6 +58,7 @@ import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { isOwnerWindow } from "../services/windowContext";
 import { applyIndexChanges, duplicateFile, promptRenameFile } from "../services/fileActions";
 import { retargetDesktopBookmarks } from "../services/bookmarks";
+import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { getTemplateFolder } from "../services/newItemFlow";
 import { getConfiguredNoteType } from "../services/newNote";
@@ -2171,14 +2172,15 @@ export const Editor: React.FC<{
   // (searchMissingFile removes it once the file is PROVEN missing). The first
   // answer comes from the parent folder; a vault-wide pass may still change
   // it, and the surface updates when it does.
-  const followMovedFile = useStableHandler((from: string, to: string) => {
+  const followMovedFile = useStableHandler((from: string, to: string, movedOutside = true) => {
     // Every surface that shows an editor can navigate; one that could not
     // would be left "looking" forever, so it settles on the missing state.
     if (!onRenamed && !onOpenPath) {
       setMissingLookup({ kind: "settled", searching: false });
       return;
     }
-    toast.info(t("editor.movedFileFollowed", {
+    // A move the sync made here is no move outside Plainva: the tab shows the new name.
+    if (movedOutside) toast.info(t("editor.movedFileFollowed", {
       defaultValue: "Moved outside Plainva. The tab now shows the file in {{folder}}.",
       folder: movedFolderLabel(to, vaultDisplayName(vaultPath ?? "")),
     }));
@@ -2258,7 +2260,7 @@ export const Editor: React.FC<{
   useEffect(() => () => { if (vanishTimerRef.current !== null) window.clearTimeout(vanishTimerRef.current); }, []);
   const liveText = () => sessionRef.current?.view.state.doc.toString() ?? contentRef.current;
   /** Writes the unsaved text to where the file lives now, then follows it there. */
-  const carryAndFollow = useStableHandler(async (from: string, to: string, picked: boolean) => {
+  const carryAndFollow = useStableHandler(async (from: string, to: string, picked: boolean, movedOutside = true) => {
     if (!vaultAdapter || !aliveRef.current) return;
     if (saveTimeoutRef.current !== null) { window.clearTimeout(saveTimeoutRef.current); saveTimeoutRef.current = null; }
     if (draftTimerRef.current !== null) { window.clearTimeout(draftTimerRef.current); draftTimerRef.current = null; }
@@ -2297,8 +2299,22 @@ export const Editor: React.FC<{
       void import("../services/draftJournal").then(({ clearDraft }) => clearDraft(vaultPath, from, saveState.revision, saveState.id)).catch(() => {});
     }
     setVanished(null);
-    followMovedFile(from, to);
+    followMovedFile(from, to, movedOutside);
   });
+  // The sync moved the open file here (fileMoved.ts): the editor switches to
+  // the new name directly, its unsaved text with it - never a save at the old
+  // place, never the lookup for a file moved outside Plainva.
+  useEffect(() => {
+    const onMoved = (event: Event) => {
+      const moved = (event as CustomEvent<FileMovedDetail>).detail;
+      if (!moved || moved.from !== activePathRef.current || (vaultPath && moved.vaultPath !== vaultPath)) return;
+      if (vanishTimerRef.current !== null) { window.clearTimeout(vanishTimerRef.current); vanishTimerRef.current = null; }
+      if (saveState.dirty) void carryAndFollow(moved.from, moved.to, false, false);
+      else followMovedFile(moved.from, moved.to, false);
+    };
+    window.addEventListener(FILE_MOVED_EVENT, onMoved);
+    return () => window.removeEventListener(FILE_MOVED_EVENT, onMoved);
+  }, [vaultPath, saveState, carryAndFollow, followMovedFile]);
   /** "Save here again": the reader brings the file back where it was. */
   const restoreHere = useStableHandler(async () => {
     const path = activePath;

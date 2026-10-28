@@ -32,7 +32,8 @@ import {
 } from "../services/accountRepair";
 import { mConfirm } from "../services/mobileDialogs";
 import { AppBar } from "../components/AppBar";
-import { ConnectRunSummary } from "../components/ConnectRunBanner";
+import { ConnectRunSummary } from "../components/ConnectRunFrame";
+import { useConnectionRun } from "../hooks/useConnectionRun";
 
 /**
  * Mobile Cloud-Konten overview (cloud-accounts plan, P4): the ACTIVE vault's
@@ -72,14 +73,18 @@ export function CloudAccountsScreen({
   onBack,
   onOpenAccount,
   onConnect,
+  onFinishRun,
 }: {
   onBack: () => void;
+  /** "Done" at the end of an account setup: back to where the app was before it. */
+  onFinishRun?: () => void;
   /** Opens THIS account's detail (E4) — never the list of all of a service. */
   onOpenAccount: (accountKey: string) => void;
   /** Opens the provider-first connect wizard (G4). */
   onConnect: () => void;
 }) {
   const { t } = useTranslation();
+  const connectRun = useConnectionRun();
   const [cards, setCards] = useState<AccountCard[]>([]);
   const [cloudRecords, setCloudRecords] = useState<CloudAccountRecord[]>([]);
   const [repairNeeds, setRepairNeeds] = useState<AccountRepairNeed[]>([]);
@@ -170,6 +175,16 @@ export function CloudAccountsScreen({
     }
   };
 
+  // The end of an account setup is its summary, on its own (plan
+  // "Verbinden-Assistent", E6) - not a banner over the list of accounts.
+  if (connectRun && connectRun.pending.length === 0) {
+    return (
+      <div className="m-page">
+        <ConnectRunSummary run={connectRun} onDone={onFinishRun ?? onBack} />
+      </div>
+    );
+  }
+
   return (
     <div className="m-page">
       <AppBar
@@ -183,7 +198,6 @@ export function CloudAccountsScreen({
       />
 
       <div className="m-settings">
-      <ConnectRunSummary />
       <p className="m-hint">{t("settings.pageDescCloudAccounts")}</p>
 
       {repairNeeds.length > 0 && (

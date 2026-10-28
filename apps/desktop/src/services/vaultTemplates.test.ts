@@ -161,8 +161,9 @@ describe("vault templates (Gesamtplan 2026-07-04, P4; alle Sprachen seit Plan Sp
       it("empty vault: only the bundle-root index.md is written", async () => {
         const adapter = new FakeAdapter();
         await scaffoldVaultTemplate({ isNewVault: true, adapter, template: null, vaultName: "Leer", subfoldersHeading: "Unterordner" });
-        expect([...adapter.files.keys()]).toEqual(["index.md"]);
-        expect(adapter.dirs.size).toBe(0);
+        // Beside it only the vault's record of its starter content, in its own folder (review 2026-10-27).
+        expect([...adapter.files.keys()].filter((p) => !p.startsWith(".plainva/"))).toEqual(["index.md"]);
+        expect([...adapter.dirs].filter((d) => d !== ".plainva")).toEqual([]);
         expect(adapter.files.get("index.md")).toContain('okf_version: "0.2"');
       });
 

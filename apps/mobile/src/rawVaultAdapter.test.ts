@@ -106,6 +106,7 @@ const SITES: Record<string, Site[]> = {
     ["builds CapacitorVaultAdapter", 1, NOT_OPEN],
     ["handed to planVaultTransfer", 1, TRANSFER_SOURCE],
     ["handed to commitVaultTransfer", 1, TRANSFER_SOURCE],
+    ["handed to starterFilesToHoldBack", 1, READS_ONLY],
   ],
   "services/ai/mobileAi.ts": [
     ["handed to adapterInstructionVersions", 1, "reads: a skill's earlier versions, listed and read where the versions layer keeps them (AI harness P6)"],

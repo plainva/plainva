@@ -2,6 +2,8 @@ import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { conflictSessionKey, decodeConflictSession, type ConflictDiagnostic, type ConflictEditSession } from "./conflictSession.js";
 import { ConflictFileStore } from "./ConflictFileStore.js";
 import type { IVaultAdapter } from "./IVaultAdapter.js";
+import { clearHeldBackStarters, holdBackStarters, listHeldBackStarters, releaseHeldBackStarter } from "../sync/heldBackStarters.js";
+import { clearAllUnsyncablePaths, clearUnsyncablePath, listUnsyncablePaths, markUnsyncablePath, type UnsyncableEntry } from "../sync/unsyncablePaths.js";
 
 export interface SyncState {
   path: string;
@@ -42,6 +44,36 @@ export class SyncStateRepository {
    */
   async clearAll(): Promise<void> {
     await this.db.execute("DELETE FROM sync_state");
+    // What the other folder refused is no fact about this one.
+    await clearAllUnsyncablePaths(this.db);
+    // Which starter files stay here is decided again for the other folder.
+    await clearHeldBackStarters(this.db);
+  }
+
+  /** Starter files kept on this device, by path, with the hash held back (see heldBackStarters.ts). */
+  async listHeldBackStarters(): Promise<Map<string, string>> {
+    return listHeldBackStarters(this.db);
+  }
+
+  async holdBackStarters(files: ReadonlyMap<string, string>): Promise<void> {
+    await holdBackStarters(this.db, files);
+  }
+
+  async releaseHeldBackStarter(path: string): Promise<void> {
+    await releaseHeldBackStarter(this.db, path);
+  }
+
+  /** Files the provider never hands out here (see unsyncablePaths.ts). */
+  async listUnsyncable(): Promise<UnsyncableEntry[]> {
+    return listUnsyncablePaths(this.db);
+  }
+
+  async markUnsyncable(path: string, reason: string, etag: string, now: number = Date.now()): Promise<UnsyncableEntry> {
+    return markUnsyncablePath(this.db, path, reason, etag, now);
+  }
+
+  async clearUnsyncable(path: string): Promise<void> {
+    await clearUnsyncablePath(this.db, path);
   }
 
   constructor(private readonly db: IDatabaseAdapter, files?: IVaultAdapter, deviceId?: string) {

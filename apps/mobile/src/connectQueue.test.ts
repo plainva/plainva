@@ -7,7 +7,7 @@ vi.mock("@plainva/ui", async original => ({ ...await original<typeof import("@pl
   save: async () => { if (state.fail) throw Error("storage unavailable"); },
 }) }) }));
 vi.mock("./services/vaultRegistry", () => ({ getActiveVaultEntry: async () => ({ id: "vault" }) }));
-import { buildQueue, withCompleted, nextService, isExpired, QUEUE_TTL_MS, outcomeBelongsToRun, startConnectQueue, loadConnectQueue, recordConnectOutcome, advanceOnAccountsChanged, confirmConnectSelection, clearConnectQueue } from "./services/connectQueue";
+import { buildQueue, withCompleted, nextService, isExpired, QUEUE_TTL_MS, outcomeBelongsToRun, startConnectQueue, loadConnectQueue, recordConnectOutcome, advanceOnAccountsChanged, confirmConnectSelection, clearConnectQueue, skipConnectStep, runServices, prepareConnectVault, releaseConnectVault } from "./services/connectQueue";
 
 beforeEach(async () => { state.fail = false; await clearConnectQueue(); });
 describe("exact account connection progress", () => {
@@ -53,6 +53,52 @@ describe("exact account connection progress", () => {
     await clearConnectQueue(); await startConnectQueue("google", ["calendar"]);
     await recordConnectOutcome(context, "calendar", { state: "connected", bindingId: "late" });
     expect((await loadConnectQueue())!.outcomes).toEqual({});
+  });
+  it("skips only the step on screen, keeps it in the run's services, and ends with an empty queue for the summary (E6)", async () => {
+    await startConnectQueue("google", ["files", "calendar"], { vaultId: "vault", cloudAccountId: "account" });
+    await skipConnectStep("calendar");
+    expect((await loadConnectQueue())?.pending).toEqual(["files", "calendar"]);
+    await skipConnectStep("files");
+    let q = (await loadConnectQueue())!;
+    expect(q.pending).toEqual(["calendar"]);
+    expect(q.skipped).toEqual(["files"]);
+    await skipConnectStep("calendar");
+    q = (await loadConnectQueue())!;
+    expect(q.pending).toEqual([]);
+    expect(q.skipped).toEqual(["files", "calendar"]);
+    // The consent scope of the run does not change because a step was skipped.
+    expect(runServices(q)).toEqual(["files", "calendar"]);
+  });
+  it("a finished run's summary expires after the limit, counted from its last step; a prepared destination keeps only an unfinished run", () => {
+    const q = buildQueue("google", ["files"], 1, { vaultId: "vault" })!;
+    expect(isExpired({ ...q, preparedVaultId: "p" }, 1 + QUEUE_TTL_MS)).toBe(false);
+    expect(isExpired({ ...q, preparedVaultId: "p", pending: [], done: ["files"] }, 1 + QUEUE_TTL_MS)).toBe(true);
+  });
+  it("releasing a turned-down destination forgets it, its old outcome, and restarts the time limit", async () => {
+    await startConnectQueue("google", ["files"], { vaultId: "vault", cloudAccountId: "account" });
+    let q = (await loadConnectQueue())!;
+    await prepareConnectVault(q.context, "prepared", "key-a");
+    await recordConnectOutcome(q.context, "files", { state: "cancelled" });
+    const before = (await loadConnectQueue())!.createdAt;
+    await releaseConnectVault(q.context, "prepared");
+    q = (await loadConnectQueue())!;
+    expect(q.preparedVaultId).toBeUndefined();
+    expect(q.preparedDestinationKey).toBeUndefined();
+    expect(q.outcomes.files).toBeUndefined();
+    expect(q.createdAt).toBeGreaterThanOrEqual(before);
+    // Another folder prepares its own destination now.
+    await prepareConnectVault(q.context, "prepared-2", "key-b");
+    expect((await loadConnectQueue())?.preparedVaultId).toBe("prepared-2");
+  });
+  it("reads a run saved before skipping existed", async () => {
+    const q = buildQueue("google", ["calendar"], Date.now(), { vaultId: "vault" })!;
+    const old = { ...q } as Partial<typeof q>;
+    delete old.skipped;
+    state.settings.set("mobileConnectQueue", old);
+    await clearConnectQueue().catch(() => {});
+    state.settings.set("mobileConnectQueue", old);
+    await skipConnectStep("calendar");
+    expect((await loadConnectQueue())?.skipped).toEqual(["calendar"]);
   });
   it("does not claim durable progress when storage fails", async () => {
     await startConnectQueue("google", ["calendar"]);

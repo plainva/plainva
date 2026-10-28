@@ -52,6 +52,20 @@ export class SyncRootMissingError extends Error {
   }
 }
 
+/**
+ * One remote file this device can never take in - the provider refuses its
+ * bytes (Google Drive: a file flagged as abusive, or one with no downloadable
+ * content). Retrying does not change the answer, so the sync skips the file,
+ * names it, and goes on with the rest: one such file must never hold up a
+ * whole vault (device finding 2026-10-27).
+ */
+export class UnsyncableFileError extends Error {
+  constructor(public readonly path: string, public readonly reason: string) {
+    super(`${path} cannot be synced: ${reason}`);
+    this.name = "UnsyncableFileError";
+  }
+}
+
 /** Keep a server's retry delay when a provider turns a response into an error. */
 export function syncHttpError(message: string, response: Response): SyncProviderError {
   return new SyncProviderError(message, response.status, false, parseRetryAfterMs(response.headers?.get?.("Retry-After") ?? null) ?? undefined);
