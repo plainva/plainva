@@ -5,9 +5,11 @@ import {
   accountStateKey,
   checkRowActionKey,
   checkRowActions,
+  filesCarrier,
   isGmailAccessRefused,
   removeAccountConfirm,
   type AccountPageInput,
+  type CloudAccountRecord,
 } from "@plainva/ui";
 
 /**
@@ -126,5 +128,21 @@ describe("checkRowActions", () => {
     expect(isGmailAccessRefused("Error 403: access_denied - The app has not completed the Google verification process")).toBe(true);
     expect(isGmailAccessRefused("This app has reached its user cap")).toBe(true);
     expect(isGmailAccessRefused("invalid_grant: Token has been expired or revoked.")).toBe(false);
+  });
+});
+
+describe("filesCarrier", () => {
+  // Device finding 2026-10-28: the phone offered files for a second account while Google carried them.
+  const google = { id: "g", family: "google", label: "anna@gmail.com", services: { files: { provider: "drive" } } } as CloudAccountRecord;
+  const microsoft = { id: "m", family: "microsoft", label: "carla@outlook.com", services: { calendar: { pimAccountId: "p" } } } as CloudAccountRecord;
+
+  it("names the account that carries the files, for every other account", () => {
+    expect(filesCarrier([microsoft, google])?.id).toBe("g");
+    expect(filesCarrier([microsoft, google], "m")?.id).toBe("g");
+  });
+
+  it("never names the account itself, and nothing while no account carries files", () => {
+    expect(filesCarrier([microsoft, google], "g")).toBeUndefined();
+    expect(filesCarrier([microsoft])).toBeUndefined();
   });
 });

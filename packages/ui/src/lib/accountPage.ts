@@ -21,6 +21,17 @@ import type { ServiceCheck } from "./accountCheck";
  * `rowActions` decides what a row can do.
  */
 
+/**
+ * The account that carries the vault's files, other than `except`. Files go
+ * through one account per vault, so every place that offers files for another
+ * account offers them switched off and names this one - the desktop did, the
+ * phone's service choice and account page offered them freely (device finding
+ * 2026-10-28).
+ */
+export function filesCarrier(records: readonly CloudAccountRecord[], except?: string): CloudAccountRecord | undefined {
+  return records.find((record) => record.id !== except && !!record.services.files);
+}
+
 /** The ONE state an account shows, in the list and in its head. */
 export type AccountState = "connected" | "signin" | "expired";
 

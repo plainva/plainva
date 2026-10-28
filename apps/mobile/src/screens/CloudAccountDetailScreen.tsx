@@ -15,6 +15,7 @@ import {
   Button,
   cx,
   familyLabel,
+  filesCarrier,
   GroupCard,
   hasStoredAccountGrant,
   ICON,
@@ -103,6 +104,8 @@ export function CloudAccountDetailScreen({
   const [signedInHere, setSignedInHere] = useState(false);
   /** The other cards of this provider the person may name "the same account" (E3/E6). */
   const [mergeCandidates, setMergeCandidates] = useState<CloudAccountRecord[]>([]);
+  /** Another account that carries this vault's files: this one's files switch stays off. */
+  const [filesTakenBy, setFilesTakenBy] = useState<CloudAccountRecord | undefined>();
   const [facts, setFacts] = useState<MobileAccountFacts | null>(null);
   const [ready, setReady] = useState(false);
   const [loginVaultId, setLoginVaultId] = useState<string | null>(null);
@@ -128,9 +131,11 @@ export function CloudAccountDetailScreen({
         }
         const nextFacts = found && vaultId ? await readMobileAccountFacts(vaultId, found).catch(() => null) : null;
         if (turn !== loadGeneration.current) return;
-        const others = found?.record && vaultId ? manualMergeCandidates(await loadCloudAccounts(vaultId).catch(() => []), found.record) : [];
+        const records = vaultId ? await loadCloudAccounts(vaultId).catch(() => []) : [];
+        const others = found?.record ? manualMergeCandidates(records, found.record) : [];
         if (turn !== loadGeneration.current) return;
         setCard(found); setReady(true); setUnifiable(unifiable); setSignedInHere(here); setFacts(nextFacts); setMergeCandidates(others);
+        setFilesTakenBy(filesCarrier(records, found?.record?.id));
         setLoginVaultId(vaultId);
         setLoginStatus(found?.record && vaultId ? getAccountLoginStatus(vaultId, found.record.id) : undefined);
       })
@@ -431,6 +436,7 @@ export function CloudAccountDetailScreen({
             <RowList>
               {model.services.map((row) => {
                 const Icon = SERVICE_ICON[row.service];
+                const takenElsewhere = row.service === "files" && !row.on && !!filesTakenBy;
                 return (
                   <Row
                     key={row.service}
@@ -440,13 +446,15 @@ export function CloudAccountDetailScreen({
                     title={serviceLabel(row.service)}
                     // What a sign-in said about a service stands only while the facts do not say it works:
                     // the line and the check read the same facts (device finding 2026-10-27).
-                    subtitle={(card.serviceStates?.[row.service] !== "active" ? loginStatus?.services[row.service] : undefined) ?? row.summary ?? t(row.stateKey)}
+                    subtitle={takenElsewhere && filesTakenBy
+                      ? t("cloudAccounts.filesTakenDetail", { account: filesTakenBy.label || familyLabel(filesTakenBy.family, filesTakenBy.flavor) })
+                      : (card.serviceStates?.[row.service] !== "active" ? loginStatus?.services[row.service] : undefined) ?? row.summary ?? t(row.stateKey)}
                     wrap
                     controls
                     onClick={row.target ? () => onOpenService(card, row.service) : undefined}
                     end={
                       <>
-                        <Switch checked={row.on} disabled={busy || !loginVaultId} label={serviceLabel(row.service)} onChange={(next) => switchService(row.service, next)} testId={`cloudacct-switch-${row.service}`} />
+                        <Switch checked={row.on} disabled={busy || !loginVaultId || takenElsewhere} label={serviceLabel(row.service)} onChange={(next) => switchService(row.service, next)} testId={`cloudacct-switch-${row.service}`} />
                         {row.target && <ChevronRight className="m-chevron" size={ICON.ui} />}
                       </>
                     }

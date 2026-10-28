@@ -40,6 +40,7 @@ import {
   SignInWrongAccountError,
   type AccessResolution,
   type StoredOAuthAccess,
+  filesCarrier,
 } from "@plainva/ui";
 import { Select } from "../Select";
 import {
@@ -185,7 +186,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
   const gmailPassword = family === "google" && svc.mail && (gmailNeedsPassword || gmailByPassword);
   const suiteDef = family ? suiteProvider(family) : null;
   const available = family ? FAMILY_SERVICES[family] : [];
-  const filesTakenBy = records.find((r) => r.services.files);
+  const filesTakenBy = filesCarrier(records);
   const selected = SERVICE_ORDER.filter((s) => svc[s] && available.includes(s));
   const allDone = selected.length > 0 && selected.every((s) => status[s]?.state === "ok");
   useEffect(() => {

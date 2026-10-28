@@ -44,7 +44,7 @@ import {
   isOwnClientRejected,
   standardAccessAvailable,
 } from "@plainva/ui";
-import { findCloudAccountByRef } from "@plainva/ui";
+import { filesCarrier, findCloudAccountByRef } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 import { credentialManager } from "../../services/CredentialManager";
@@ -287,7 +287,7 @@ export const CloudAccountsPage: React.FC<{
    */
   const unifyOffered = (id: string) => unifiable.has(id) && signInStates.get(id) !== "signin";
 
-  const filesAccount = records.find((r) => r.services.files);
+  const filesAccount = filesCarrier(records);
   const detail = mode.kind === "detail" || mode.kind === "service" ? records.find((r) => r.id === mode.id) : undefined;
   /** What the open account's page shows besides its state: who signs in where, one line per service. */
   const [facts, setFacts] = useState<{ id: string; facts: AccountPageFacts } | null>(null);

@@ -3,6 +3,7 @@ import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.
 import { FakeOAuthProvider, type FakeConsentChoice } from "../../../packages/ui/src/testing/fakeOAuthProvider";
 import { waitForVaultDirectory } from "./exampleVault";
 import { E2E_STANDARD_GOOGLE_IOS_CLIENT_ID } from "../scripts/e2e-build-env.mjs";
+import { PLAINVA_ONEDRIVE_CLIENT_ID } from "../../../packages/ui/src/services/providerDefaults";
 
 /**
  * The one account sign-in on the phone, against a stand-in for Google
@@ -23,8 +24,12 @@ const BERT = { subject: "sub-bert", email: "bert@gmail.com" };
 // test can sign in either way against the one fake provider.
 const CLIENT = { clientId: E2E_STANDARD_GOOGLE_IOS_CLIENT_ID };
 
+const CARLA = { subject: "ms-carla", email: "carla@outlook.com" };
+
 interface Harness {
   provider: FakeOAuthProvider;
+  /** A stand-in for Microsoft, with Plainva's own client. */
+  microsoft: FakeOAuthProvider;
   choice: FakeConsentChoice;
   /**
    * Answer Google's APIs (Drive, Calendar, Tasks) - each only for an access
@@ -44,12 +49,22 @@ const API_SCOPES: [prefix: string, scope: string][] = [
 ];
 
 async function boot(context: BrowserContext, page: Page, seed?: (storage: Record<string, unknown>) => void, withCalendar = false): Promise<Harness> {
-  const harness = { provider: new FakeOAuthProvider({ family: "google", accounts: [ANNA, BERT], clients: [CLIENT] }), choice: {}, answerApis: false } as Harness;
+  const harness = {
+    provider: new FakeOAuthProvider({ family: "google", accounts: [ANNA, BERT], clients: [CLIENT] }),
+    microsoft: new FakeOAuthProvider({ family: "microsoft", accounts: [CARLA], clients: [{ clientId: PLAINVA_ONEDRIVE_CLIENT_ID }] }),
+    choice: {},
+    answerApis: false,
+  } as Harness;
   const origin = new URL(test.info().project.use.baseURL ?? "http://localhost:4174").origin;
   await context.route((url) => url.origin !== origin, async (route) => {
     const url = route.request().url();
     if (url.startsWith("https://oauth2.googleapis.com/") || url.startsWith("https://openidconnect.googleapis.com/")) {
       const response = await harness.provider.fetch(url, { method: route.request().method(), headers: route.request().headers(), body: route.request().postData() ?? undefined });
+      await route.fulfill({ status: response.status, contentType: "application/json", body: await response.text() });
+      return;
+    }
+    if (/^https:\/\/login\.microsoftonline\.com\/.*\/oauth2\/v2\.0\/token/.test(url) || url.startsWith("https://graph.microsoft.com/v1.0/me")) {
+      const response = await harness.microsoft.fetch(url, { method: route.request().method(), headers: route.request().headers(), body: route.request().postData() ?? undefined });
       await route.fulfill({ status: response.status, contentType: "application/json", body: await response.text() });
       return;
     }
@@ -85,8 +100,9 @@ async function boot(context: BrowserContext, page: Page, seed?: (storage: Record
   // and its redirect handed back as the system would.
   await context.exposeFunction("__fakeConsent", (url: string) => {
     const params = new URL(url).searchParams;
+    const provider = new URL(url).hostname === "login.microsoftonline.com" ? harness.microsoft : harness.provider;
     try {
-      const code = harness.provider.consent({
+      const code = provider.consent({
         clientId: params.get("client_id") ?? "",
         scope: params.get("scope") ?? "",
         loginHint: params.get("login_hint") ?? undefined,
@@ -683,4 +699,33 @@ test("skipping the calendar ends the setup on a summary that names it, and Done 
   }
   await page.getByTestId("connectrun-done").click();
   await expect(page.getByTestId("connectrun-frame")).toHaveCount(0, { timeout: 15000 });
+});
+
+/*
+ * Device finding 2026-10-28 (TestFlight 150): with the vault's files on a
+ * Google account, a Microsoft account for calendar and mail came back from
+ * Microsoft's sign-in to the service choice, and nothing went on.
+ */
+test("a Microsoft account for calendar and mail, next to a Google account that carries the files, goes on to its calendar step", async ({ context, page }, testInfo) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await boot(context, page, (storage) => {
+    storage.secret_oauth_access_microsoft = { source: "plainva" };
+  });
+  page.on("pageerror", (error) => console.log("PAGE ERROR:", error.message));
+  await page.locator('[data-testid="nav-settings"]').first().click();
+  await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
+  await page.getByTestId("cloudacct-connect").click();
+  await page.getByTestId("connect-family-microsoft").click();
+  try {
+    // Files go through one account per vault: Google carries them, so they are offered off, named.
+    await expect(page.getByTestId("connect-service-files")).toBeDisabled();
+    await expect(page.getByTestId("connect-service-files")).toContainText(ANNA.email);
+    await page.getByTestId("connect-service-calendar").click();
+    await page.getByTestId("connect-service-mail").click();
+    await page.getByTestId("connect-start").click();
+    await expectStep(page, "calendar");
+    await expect(page.getByTestId("connectrun-account")).toContainText(CARLA.email);
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("microsoft-next-to-google.png"), fullPage: true });
+  }
 });
