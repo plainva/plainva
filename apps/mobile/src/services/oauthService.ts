@@ -1,5 +1,6 @@
 import { sameStoredValue } from "@plainva/core";
 import { Browser } from "@capacitor/browser";
+import { openSignInPage } from "../platform/webAuth";
 import { authorizeNativeGoogle, googleSignInFlow, hasGooglePlayServices } from "./googleNativeAuthorization";
 import {
   buildAuthUrl,
@@ -437,7 +438,7 @@ async function beginBrowserOAuth(provider: OAuthProviderId, extras: OAuthExtras)
             state,
             ...(extras.scope ? { scope: extras.scope } : {}),
           });
-  await Browser.open({ url });
+  await openSignInPage(url);
 }
 
 /** Handles an incoming app URL; returns true when it was an OAuth redirect. */

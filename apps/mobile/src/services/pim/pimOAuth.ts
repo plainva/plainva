@@ -23,6 +23,7 @@ import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConn
 import { getMobileVault } from "../vaultService";
 import { enterFlowVault, releaseFlowVault, waitsAtOffer } from "../flowVault";
 import { APP_ID, APP_URL } from "../appScheme";
+import { openSignInPage } from "../../platform/webAuth";
 import { connectionFailureToast } from "../connectionToast";
 
 /** Stored beside the PKCE verifier, never inferred from the current screen. */
@@ -427,7 +428,7 @@ async function beginPimOAuthFlow(
       : buildAuthUrl({ clientId, redirectUri: GOOGLE_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope, loginHint: opts.signIn?.loginHint });
   logDiagnostic("sign-in", `${provider} (${purpose}): browser opened`);
   watchBrowserClosed(provider, state);
-  await Browser.open({ url });
+  await openSignInPage(url);
 }
 
 /**
