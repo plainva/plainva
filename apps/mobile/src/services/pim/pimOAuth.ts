@@ -22,7 +22,7 @@ import { getActiveVaultEntry } from "../vaultRegistry";
 import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConnectOutcome } from "../connectQueue";
 import { getMobileVault } from "../vaultService";
 import { enterFlowVault, releaseFlowVault, waitsAtOffer } from "../flowVault";
-import { APP_ID, APP_URL } from "../appScheme";
+import { APP_ID, APP_URL, redirectAddress } from "../appScheme";
 import { openSignInPage } from "../../platform/webAuth";
 import { connectionFailureToast } from "../connectionToast";
 
@@ -457,8 +457,8 @@ function watchBrowserClosed(provider: PimOAuthProvider, state: string): void {
  * otherwise false, so the sync oauthService handler still gets its turn.
  */
 export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
-  const base = urlStr.split(/[?#]/)[0];
-  if (base !== MS_REDIRECT_URI && base !== GOOGLE_REDIRECT_URI) return false;
+  const base = redirectAddress(urlStr);
+  if (base !== redirectAddress(MS_REDIRECT_URI) && base !== redirectAddress(GOOGLE_REDIRECT_URI)) return false;
   const flow = await loadPending();
   if (!flow) { logDiagnostic("sign-in", "answer arrived, no sign-in waits for it"); return false; } // let the sync handler try
   const params = new URLSearchParams(urlStr.split("?")[1] ?? "");

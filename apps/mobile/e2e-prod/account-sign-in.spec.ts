@@ -109,7 +109,9 @@ async function boot(context: BrowserContext, page: Page, seed?: (storage: Record
         codeChallenge: params.get("code_challenge") ?? undefined,
         redirectUri: params.get("redirect_uri") ?? undefined,
       }, harness.choice);
-      return `${params.get("redirect_uri")}?code=${encodeURIComponent(code)}&state=${encodeURIComponent(params.get("state") ?? "")}`;
+      // Microsoft answers at the address with the slash of its empty path (device finding 2026-10-28).
+      const address = provider === harness.microsoft ? `${params.get("redirect_uri")}/` : params.get("redirect_uri");
+      return `${address}?code=${encodeURIComponent(code)}&state=${encodeURIComponent(params.get("state") ?? "")}`;
     } catch {
       return `${params.get("redirect_uri")}?error=access_denied&state=${encodeURIComponent(params.get("state") ?? "")}`;
     }

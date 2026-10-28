@@ -24,7 +24,7 @@ import { enterFlowVault, releaseFlowVault } from "./flowVault";
 import type { OAuthAccess, ServiceConnectionContext } from "@plainva/ui";
 import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConnectOutcome } from "./connectQueue";
 import { getActiveVaultEntry } from "./vaultRegistry";
-import { APP_ID, APP_URL } from "./appScheme";
+import { APP_ID, APP_URL, redirectAddress } from "./appScheme";
 import { connectionFailureToast } from "./connectionToast";
 import { setFilesConnectProgress } from "./filesConnectProgress";
 
@@ -446,8 +446,8 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
   // EXACT redirect prefixes (P4.4): any app can register the same custom
   // scheme — only URLs matching one of OUR registered redirect URIs are
   // treated as OAuth at all; everything else is not our business.
-  const base = urlStr.split(/[?#]/)[0];
-  if (base !== OAUTH_REDIRECT_URI && base !== DRIVE_REDIRECT_URI) return false;
+  const base = redirectAddress(urlStr);
+  if (base !== redirectAddress(OAUTH_REDIRECT_URI) && base !== redirectAddress(DRIVE_REDIRECT_URI)) return false;
   const flow = await loadPending(); // module var OR secure store (cold start)
   void Browser.close().catch(() => {});
   const params = new URLSearchParams(urlStr.split("?")[1] ?? "");

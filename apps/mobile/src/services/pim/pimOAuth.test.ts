@@ -57,6 +57,7 @@ vi.mock("@plainva/core", async (original) => ({
   ...await original<typeof import("@plainva/core")>(),
   generatePkcePair: async () => ({ codeVerifier: "verifier", codeChallenge: "challenge" }),
   exchangeCode: async () => ({ accessToken: "access", refreshToken: "new-account", scope: state.granted }),
+  exchangeOneDriveCode: async () => ({ accessToken: "access", refreshToken: "new-microsoft", scope: "Calendars.ReadWrite" }),
 }));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (key: string) => key } }));
 
@@ -286,6 +287,26 @@ describe("the real mobile account redirect after a process restart", () => {
     // An answer nobody waits for is in the diagnostics too.
     expect(await handlePimOAuthRedirect("com.plainva.app://oauth?code=late&state=gone")).toBe(false);
     expect(getDiagnostics()[getDiagnostics().length - 1]?.message).toBe("answer arrived, no sign-in waits for it");
+  });
+  it("takes Microsoft's answer at the address with the slash of its empty path (device finding 2026-10-28)", async () => {
+    state.platform = "android";
+    const { beginPimOAuth, setOAuthPurposeHandler, handlePimOAuthRedirect } = await import("./pimOAuth");
+    const accept = vi.fn(); setOAuthPurposeHandler("calendar", accept);
+    await beginPimOAuth("microsoft", { clientId: "ms-client", serviceContext: { vaultId: "original-vault" } });
+    const sent = new URL(state.urls[0]).searchParams;
+    expect(sent.get("redirect_uri")).toBe("com.plainva.app://oauth");
+    // What Android handed to the app on the device: the same address, with the slash.
+    expect(await handlePimOAuthRedirect(`com.plainva.app://oauth/?code=code&state=${sent.get("state")}`)).toBe(true);
+    expect(accept).toHaveBeenCalledTimes(1);
+  });
+  it("reads an answer's address without query, fragment and the slash of an empty path", async () => {
+    const { redirectAddress } = await import("../appScheme");
+    expect(redirectAddress("com.plainva.app://oauth/?code=a&state=b")).toBe("com.plainva.app://oauth");
+    expect(redirectAddress("com.plainva.app://oauth?code=a")).toBe("com.plainva.app://oauth");
+    expect(redirectAddress("com.plainva.app:/oauth2redirect/#x")).toBe("com.plainva.app:/oauth2redirect");
+    expect(redirectAddress("com.plainva.app://")).toBe("com.plainva.app://");
+    // Another address stays another address.
+    expect(redirectAddress("com.plainva.app://oauth/other")).toBe("com.plainva.app://oauth/other");
   });
   it("describes an app URL by its address and parameter names, never their values", async () => {
     const { describeAppUrl } = await import("../appUrlRoutes");
