@@ -187,6 +187,36 @@ function createIndexDatabase(dbName: string): IDatabaseAdapter {
   return isFixtureSqliteAvailable() ? new FixtureSqliteAdapter(dbName) : new CapacitorSqliteAdapter(dbName);
 }
 
+/**
+ * Removes the container a connect run prepared and the person then turned
+ * down, before it ever became a vault. Never a listed or the active vault.
+ */
+export async function discardPreparedContainer(vaultId: string, sourceVaultId?: string): Promise<void> {
+  if (vaultId === LOCAL_VAULT_ID || (await getActiveVaultEntry()).id === vaultId || (await getVaultEntry(vaultId).catch(() => null))) return;
+  // The calendar rows a partial copy wrote name the slots to forget; they live in the prepared index.
+  const prepared = await openPreparedVaultDatabase(vaultId)
+    .then(async (db) => {
+      try { return (await new PimCacheRepository(db).listAccounts()).map((row) => row.id); } finally { await db.close().catch(() => {}); }
+    })
+    .catch(() => [] as string[]);
+  // A copy that broke off may have written a slot before the record naming it
+  // (third review 2026-10-28): the copy takes its ids from the vault it came
+  // from, so those name every slot it can have written.
+  const current = sourceVaultId && bootPromise ? await bootPromise.catch(() => null) : null;
+  const sourceDb = current && current.vaultId === sourceVaultId ? current.db : null;
+  const sourcePim = sourceDb
+    ? await new PimCacheRepository(sourceDb).listAccounts().then((rows) => rows.map((row) => row.id)).catch(() => [] as string[])
+    : [];
+  const also = sourceVaultId
+    ? {
+        cloud: await loadCloudAccounts(sourceVaultId).then((rows) => rows.map((r) => r.id)).catch(() => [] as string[]),
+        mail: await listMailAccounts(sourceVaultId).then((rows) => rows.map((r) => r.id)).catch(() => [] as string[]),
+      }
+    : {};
+  await forgetVaultData(vaultId, [...new Set([...prepared, ...sourcePim])], [], { ...also, keepSyncState: true });
+  await Filesystem.rmdir({ path: `vaults/${vaultId}`, directory: Directory.Data, recursive: true }).catch(() => {});
+}
+
 /** Open an inactive connection's index while preparing its service bindings. */
 export async function openPreparedVaultDatabase(vaultId: string): Promise<IDatabaseAdapter> {
   if ((await getActiveVaultEntry()).id === vaultId) throw new Error("transfer_destination_active");
@@ -338,6 +368,48 @@ async function readPublicationIds(vaultId: string, open: IDatabaseAdapter | null
 }
 
 /**
+ * Everything of a vault id on this device except its registry entry and its
+ * container: the per-service secrets, the index database, the sync state, the
+ * account registry, drafts, journals, settings records. Shared by deleting a
+ * vault and by discarding a destination a connect run prepared and the person
+ * turned down - a retry after a partial copy had written copies of real
+ * credentials under that id (second review 2026-10-28).
+ */
+async function forgetVaultData(id: string, pimIds: string[], publicationIds: string[], also: { cloud?: string[]; mail?: string[]; keepSyncState?: boolean } = {}): Promise<void> {
+  // The per-service slots are named after account ids, so they have to be
+  // collected while the registries that hold those ids still exist (finding
+  // 2026-08-19): an account that is already gone cannot have its slot removed.
+  const secretKeys = await collectVaultSecretKeys(id, {
+    cloud: [...new Set([...await loadCloudAccounts(id).then((rows) => rows.map((r) => r.id)).catch(() => [] as string[]), ...(also.cloud ?? [])])],
+    pim: pimIds,
+    mail: [...new Set([...await listMailAccounts(id).then((rows) => rows.map((r) => r.id)).catch(() => [] as string[]), ...(also.mail ?? [])])],
+    publications: publicationIds,
+  }).catch(() => [] as string[]);
+
+  await CapacitorSqliteAdapter.deleteDatabase(`plainva-${id}`).catch(() => {});
+  // Drop the connection E2E pin + vault-scoped settings-sync state BEFORE the
+  // provider secret is purged (the connection id is derived from it), so
+  // re-connecting the same cloud folder never reanimates the fail-closed guard.
+  // Not for a destination that never synced: its connection's state is keyed
+  // by provider and folder, and may be another vault's (fourth review 2026-10-28).
+  if (!also.keepSyncState) {
+    await getStoredProvider(id)
+      .then((provider) => clearMobileSyncState(id, provider))
+      .catch(() => {});
+  }
+  // The cloud-account registry is vault-scoped too; leaving it behind would
+  // resurrect stale accounts if the same vault id were ever reused.
+  await clearCloudAccounts(id).catch(() => {});
+  await purgeCredentials(id).catch(() => {});
+  // Everything the old delete left on the device: the per-service secrets, the
+  // drafts, the repair/import journals, the settings record, the bar layout.
+  await forgetVaultSecrets(secretKeys);
+  await forgetVaultFiles(id).catch(() => {});
+  await forgetVaultStoreKeys(id).catch(() => {});
+  forgetVaultMemories(id);
+}
+
+/**
  * Deletes a connection vault: device-local container, index database,
  * credential slot and registry entry. The cloud storage is never touched.
  */
@@ -379,33 +451,7 @@ export async function deleteVault(id: string): Promise<void> {
       /* container may not exist (never synced) */
     }
   }
-  // The per-service slots are named after account ids, so they have to be
-  // collected while the registries that hold those ids still exist (finding
-  // 2026-08-19): an account that is already gone cannot have its slot removed.
-  const secretKeys = await collectVaultSecretKeys(id, {
-    cloud: await loadCloudAccounts(id).then((rows) => rows.map((r) => r.id)).catch(() => []),
-    pim: pimIds,
-    mail: await listMailAccounts(id).then((rows) => rows.map((r) => r.id)).catch(() => []),
-    publications: publicationIds,
-  }).catch(() => [] as string[]);
-
-  await CapacitorSqliteAdapter.deleteDatabase(`plainva-${id}`).catch(() => {});
-  // Drop the connection E2E pin + vault-scoped settings-sync state BEFORE the
-  // provider secret is purged (the connection id is derived from it), so
-  // re-connecting the same cloud folder never reanimates the fail-closed guard.
-  await getStoredProvider(id)
-    .then((provider) => clearMobileSyncState(id, provider))
-    .catch(() => {});
-  // The cloud-account registry is vault-scoped too; leaving it behind would
-  // resurrect stale accounts if the same vault id were ever reused.
-  await clearCloudAccounts(id).catch(() => {});
-  await purgeCredentials(id).catch(() => {});
-  // Everything the old delete left on the device: the per-service secrets, the
-  // drafts, the repair/import journals, the settings record, the bar layout.
-  await forgetVaultSecrets(secretKeys);
-  await forgetVaultFiles(id).catch(() => {});
-  await forgetVaultStoreKeys(id).catch(() => {});
-  forgetVaultMemories(id);
+  await forgetVaultData(id, pimIds, publicationIds);
   await removeVault(id);
 }
 

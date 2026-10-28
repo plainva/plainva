@@ -47,3 +47,4 @@ export { DateJumpPicker, DateJumpTrigger, DateJumpPopover, type DateJumpPickerPr
 export { DuePicker, type DuePickerProps } from "./DuePicker";
 export { useShowWeekNumbers, getShowWeekNumbers, setShowWeekNumbers, weekNumbersShown, SHOW_WEEK_NUMBERS_KEY } from "./useShowWeekNumbers";
 export { WeekNumbersToggle } from "./WeekNumbersToggle";
+export { WizardSteps, type WizardStepsProps, type WizardStepItem } from "./WizardSteps";

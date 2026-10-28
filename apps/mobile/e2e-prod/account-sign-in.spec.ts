@@ -458,15 +458,26 @@ async function firstGoogleConnect(context: BrowserContext, page: Page, access: "
   if (withMail) await page.getByTestId("connect-service-mail").click();
   await page.getByTestId("connect-start").click();
 
-  // Back from Google: step 1, files.
-  await expect(page.getByText(withMail ? /Step 1 of 3/ : /Step 1 of 2/)).toBeVisible({ timeout: 20000 });
-  await expect(page.getByTestId("vault-access")).toContainText(access === "standard" ? "Standard" : "Own client");
+  // Back from Google: the setup's frame on its folder step, the sign-in counted as done
+  // (plan "Verbinden-Assistent", E1). Provider and sign-in are settled, so the step does not
+  // ask for them again (E5).
+  await expect(page.getByTestId("connectrun-frame")).toHaveAttribute("data-step", "files", { timeout: 20000 });
+  await expect(page.locator('[data-testid="connectrun-steps"] li')).toHaveCount(withMail ? 4 : 3);
+  await expect(page.locator('[data-testid="connectrun-steps"] li[data-state="done"]')).toHaveText(["Sign in"]);
+  await expect(page.getByTestId("connectrun-account")).toContainText(ANNA.email);
+  await expect(page.getByTestId("vault-access")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Connect", exact: true })).toHaveCount(0);
   return harness;
 }
 
-/** "Connect", then the folder picker's own folder. */
+/** The step on screen, as the frame names it. */
+async function expectStep(page: Page, step: "files" | "calendar" | "mail" | "summary"): Promise<void> {
+  await expect(page.getByTestId("connectrun-frame")).toHaveAttribute("data-step", step, { timeout: 20000 });
+}
+
+/** "Choose folder", then the folder picker's own folder. */
 async function connectAndPick(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await page.getByTestId("connectrun-choose-folder").click();
   await page.getByRole("button", { name: "Use this folder" }).click({ timeout: 15000 });
 }
 
@@ -476,13 +487,13 @@ test("a first Google connect from nothing goes from the files step on to the nex
   await connectAndPick(page);
   // The vault the run started in has nothing local to copy: no question, straight on.
   try {
-    await expect(page.getByText(/Step 2 of 2/)).toBeVisible({ timeout: 20000 });
+    await expectStep(page, "calendar");
   } finally {
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("first-connect-step-2.png"), fullPage: true });
   }
 });
 
-test("a files step that fails after the folder pick says why, on its banner", async ({ context, page }, testInfo) => {
+test("a files step that fails after the folder pick says why, with its sender", async ({ context, page }, testInfo) => {
   // An iPhone's width: the step label and a long message share the banner (device finding 2026-10-27).
   await page.setViewportSize({ width: 375, height: 812 });
   await firstGoogleConnect(context, page);
@@ -494,9 +505,12 @@ test("a files step that fails after the folder pick says why, on its banner", as
   } finally {
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("first-connect-failed.png"), fullPage: true });
   }
-  await expect(page.getByText(/Step 1 of 2/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Connect", exact: true })).toBeEnabled();
-  // Nothing in the banner is squeezed below a few characters: the step label broke letter by letter.
+  await expectStep(page, "files");
+  await expect(page.getByTestId("connectrun-choose-folder")).toBeEnabled();
+  // The sender first: Plainva could not confirm whose account this is - its own check, not a refusal.
+  await expect(page.getByTestId("connectrun-outcome")).toHaveAttribute("data-source", "plainva");
+  await expect(page.getByTestId("connectrun-signin")).toBeVisible();
+  // Nothing in the frame is squeezed below a few characters: the step label broke letter by letter.
   const squeezed = await page.locator(".m-connectrun").evaluate((root) => [...root.querySelectorAll("span, button, strong")]
     .filter((el) => (el.textContent ?? "").trim().length > 0 && el.children.length === 0)
     .map((el) => {
@@ -506,13 +520,19 @@ test("a files step that fails after the folder pick says why, on its banner", as
     })
     .filter((entry) => entry.width < entry.min));
   expect(squeezed).toEqual([]);
-  const step = await page.locator(".m-connectrun span").first().evaluate((el) => ({ height: el.getBoundingClientRect().height, line: parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.4 }));
-  expect(step.height, "the step label stays on one or two lines").toBeLessThanOrEqual(step.line * 2 + 1);
+  const labels = await page.locator(".pv-wizstep-label").evaluateAll((els) => els.map((el) => ({ height: el.getBoundingClientRect().height, line: parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.4 })));
+  for (const label of labels) expect(label.height, "a step label stays on one line").toBeLessThanOrEqual(label.line + 1);
 });
 
 test("leaving the wizard after the sign-in keeps the account, with its services off (device finding 2026-10-27)", async ({ context, page }, testInfo) => {
   await firstGoogleConnect(context, page);
+  // "Stop" asks first (E2); keeping on changes nothing.
   await page.getByTestId("connectrun-cancel").click();
+  await expect(page.getByText("Stop the setup?")).toBeVisible();
+  await page.getByRole("button", { name: "Continue setup" }).click();
+  await expectStep(page, "files");
+  await page.getByTestId("connectrun-cancel").click();
+  await page.getByTestId("confirm-act").click();
   // Back from the wizard's provider list to the accounts.
   await page.getByRole("button", { name: "Back" }).first().click();
   try {
@@ -530,7 +550,7 @@ test("a first Google connect with the standard sign-in goes from the files step 
   await firstGoogleConnect(context, page, "standard");
   await connectAndPick(page);
   try {
-    await expect(page.getByText(/Step 2 of 2/)).toBeVisible({ timeout: 20000 });
+    await expectStep(page, "calendar");
   } finally {
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("standard-after-pick.png"), fullPage: true });
   }
@@ -540,7 +560,8 @@ test("a first Google connect with the standard sign-in and all three services go
   await firstGoogleConnect(context, page, "standard", true);
   await connectAndPick(page);
   try {
-    await expect(page.getByText(/Step 2 of 3/)).toBeVisible({ timeout: 20000 });
+    await expectStep(page, "calendar");
+    await expect(page.locator('[data-testid="connectrun-steps"] li[data-state="done"]')).toHaveText(["Sign in", "Folder"]);
   } finally {
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("standard-three-after-pick.png"), fullPage: true });
   }
@@ -625,12 +646,12 @@ async function driveVaultFolder(context: BrowserContext, count: number) {
 test("a first connect onto a folder with many files goes on to step 2 before a file is pulled, and the files arrive through the sync", async ({ context, page }, testInfo) => {
   await firstGoogleConnect(context, page);
   const drive = await driveVaultFolder(context, 60);
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await page.getByTestId("connectrun-choose-folder").click();
   await page.getByRole("button", { name: "Vault" }).click({ timeout: 15000 });
   await page.getByRole("button", { name: "Use this folder" }).click();
   // Nothing of the folder is read up front: the run is on its next step while no file has come in.
   try {
-    await expect(page.getByText(/Step 2 of 2/)).toBeVisible({ timeout: 20000 });
+    await expectStep(page, "calendar");
   } finally {
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("many-files-step-2.png"), fullPage: true });
   }
@@ -638,4 +659,28 @@ test("a first connect onto a folder with many files goes on to step 2 before a f
   // The sync takes them in, in the background.
   drive.release();
   await expect.poll(() => drive.finished, { timeout: 60000 }).toBe(60);
+});
+
+/*
+ * Plan "Verbinden-Assistent" (2026-10-28), E6: a step can be left out, and the
+ * setup ends on a summary that names it - no account change to advance on, so
+ * the summary comes from the skip itself.
+ */
+test("skipping the calendar ends the setup on a summary that names it, and Done leaves", async ({ context, page }, testInfo) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await firstGoogleConnect(context, page);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("setup-folder-step.png"), fullPage: true });
+  await connectAndPick(page);
+  await expectStep(page, "calendar");
+  await page.getByTestId("connectrun-skip").click();
+  try {
+    await expectStep(page, "summary");
+    await expect(page.getByTestId("connectrun-summary-files")).toHaveAttribute("data-state", "connected");
+    await expect(page.getByTestId("connectrun-summary-calendar")).toHaveAttribute("data-state", "skipped");
+    await expect(page.locator('[data-testid="connectrun-steps"] li[data-state="skipped"]')).toHaveText(["Calendar"]);
+  } finally {
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("setup-summary.png"), fullPage: true });
+  }
+  await page.getByTestId("connectrun-done").click();
+  await expect(page.getByTestId("connectrun-frame")).toHaveCount(0, { timeout: 15000 });
 });

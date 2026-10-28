@@ -11,8 +11,9 @@ import type { CloudAccountRecord, CloudServiceId } from "./cloudAccounts";
 import { hasStoredAccountGrant, sameOAuthClient, tokenCoversService, type StoredAccountToken } from "./tokenBroker";
 import { AccountGrantMissingPermissionsError } from "./accountLoginGrant";
 import { connectionFailureCode } from "@plainva/core";
-import { googleAuthorizationMessage } from "./googleAuthorization";
+import { googleAuthorizationMarker, googleAuthorizationMessage } from "./googleAuthorization";
 import type { AccessPlatform } from "./oauthAccess";
+import { SignInNothingGrantedError, SignInWrongAccountError } from "./accountSignIn";
 
 /** Non-secret destination carried across screens and native browser returns. */
 export interface ServiceConnectionContext {
@@ -164,6 +165,88 @@ export function serviceConnectionMessage(error: unknown, t: ConnectionTranslate,
   if (isDeviceDatabaseFailure(value)) return t("connection.deviceStorageFailed", { detail: value });
   if (!value || value === "failed" || value === "loginFailed" || value === "[object Object]") return t("connection.loginFailed");
   return t("connection.providerResponse", { detail: value });
+}
+
+/** Who a failed connection step failed at (plan "Verbinden-Assistent", E7). */
+export type ConnectionFailureSource = "device" | "provider" | "network" | "plainva";
+
+export interface ConnectionFailure {
+  source: ConnectionFailureSource;
+  /** "Error on this device", "Google refused", "No connection", "Not completed"; none for a cancel. */
+  title: string | null;
+  /** The sentence for the person. */
+  text: string;
+  /** The words of the failure itself, shown small under the sentence where they say something a diagnosis needs. */
+  raw?: string;
+  /** Signing in again is what helps. */
+  signIn: boolean;
+}
+
+/** The provider no longer accepts the sign-in (its own answer to a refresh). */
+const PROVIDER_SIGN_IN = /invalid_grant/;
+/**
+ * Plainva's own check of the sign-in, asked of no provider (second review
+ * 2026-10-28): no stored grant, another client, a scope missing, another
+ * account, an identity it could not confirm.
+ */
+const OWN_SIGN_IN_CHECK = /needsConsent|no_stored_sign_in|identityUnavailable|wrongAccount/;
+/** Words that come from a provider's answer: an HTTP status or an OAuth error code. */
+const PROVIDER_ANSWER = /\b[45]\d\d\b|access_denied|invalid_[a-z]+|unauthorized|insufficient|forbidden|quota|rate.?limit|error_description|"error"/i;
+const PROVIDER_REFUSAL = /deleted_client|unauthorized_client|invalid_client|invalid_request|Custom URI scheme|redirect_uri_mismatch|oauth error in redirect|access_denied/;
+const OWN_STEPS = /accountChanged|destination_active|runtime changed|transfer_|pair-required|oauth loopback|^cancelled$|^failed$|^loginFailed$|^\[object Object\]$/;
+
+/**
+ * The failure of a connection step WITH its sender (E7): "Google refused"
+ * only when Google answered, "Error on this device" for the device's own
+ * storage, "No connection" when nothing came back. The sentence is the one
+ * `serviceConnectionMessage` gives, except for the two cases where that
+ * sentence carried the raw words: those move under it, small.
+ */
+export function serviceConnectionFailure(error: unknown, t: ConnectionTranslate, context: ConnectionMessageContext & { provider: string }): ConnectionFailure {
+  const value = rawText(error);
+  // The person's own cancel is no failure of anybody's: said, not alerted.
+  const marker = error instanceof ServiceConnectionError ? null : googleAuthorizationMarker(error);
+  if (!(error instanceof ServiceConnectionError) && (value === "cancelled" || value.includes("oauth loopback cancelled") || marker?.code === "CANCELLED")) {
+    return { source: "plainva", title: null, text: serviceConnectionMessage(error, t, context), signIn: false };
+  }
+  if (error instanceof SignInWrongAccountError || error instanceof SignInNothingGrantedError) {
+    // The person chose another account, or ticked nothing, in the provider's dialog: Plainva's check says so.
+    const text = error instanceof SignInWrongAccountError ? t("cloudAccounts.wrongAccount", { expected: error.expected, actual: error.actual }) : t("cloudAccounts.nothingGranted");
+    return { source: "plainva", title: failureTitle("plainva", t, context.provider), text, signIn: true };
+  }
+  if (error instanceof ServiceConnectionError) {
+    const source: ConnectionFailureSource = error.reason === "storageFailed" ? "device" : "plainva";
+    return { source, title: failureTitle(source, t, context.provider), text: t(REASON_KEYS[error.reason]), signIn: error.reason !== "storageFailed" && error.reason !== "accountChanged" };
+  }
+  if (isDeviceDatabaseFailure(value)) {
+    return { source: "device", title: failureTitle("device", t, context.provider), text: t("connectRun.deviceText"), raw: value, signIn: false };
+  }
+  const text = serviceConnectionMessage(error, t, context);
+  if (marker) {
+    // Android's Play services name the class: no network is no refusal, a busy or interrupted sheet is the app's.
+    const source: ConnectionFailureSource = marker.code === "NETWORK_ERROR" || marker.code === "TIMEOUT" ? "network" : marker.code === "INTERRUPTED" || marker.code === "BUSY" ? "plainva" : "provider";
+    return { source, title: failureTitle(source, t, context.provider), text, signIn: marker.code === "SIGN_IN_REQUIRED" || marker.code === "CONSENT_REQUIRED" };
+  }
+  if (googleAuthorizationMessage(error, t)) return { source: "provider", title: failureTitle("provider", t, context.provider), text, signIn: false };
+  if (connectionFailureCode(error)) return { source: "network", title: failureTitle("network", t, context.provider), text, signIn: false };
+  // The device's own storage full or refusing: never the provider, whatever the words share with a quota.
+  if (/QuotaExceededError|^The quota has been exceeded|ENOSPC|no space left on device/.test(value)) return { source: "device", title: failureTitle("device", t, context.provider), text, raw: value, signIn: false };
+  if (/storageFailed|storage_failed|secure storage/.test(value) || hasOrderedWords(value, "not", "saved")) return { source: "device", title: failureTitle("device", t, context.provider), text, signIn: false };
+  if (PROVIDER_SIGN_IN.test(value)) return { source: "provider", title: failureTitle("provider", t, context.provider), text, signIn: true };
+  if (OWN_SIGN_IN_CHECK.test(value)) return { source: "plainva", title: failureTitle("plainva", t, context.provider), text, signIn: true };
+  if (PROVIDER_REFUSAL.test(value) || error instanceof AccountGrantMissingPermissionsError) return { source: "provider", title: failureTitle("provider", t, context.provider), text, signIn: false };
+  if (!value || OWN_STEPS.test(value)) return { source: "plainva", title: failureTitle("plainva", t, context.provider), text, signIn: false };
+  // Words nobody here knows: the provider's own answer only where they read as one; else
+  // Plainva's step that did not complete. Either way the words stand below.
+  if (PROVIDER_ANSWER.test(value)) return { source: "provider", title: failureTitle("provider", t, context.provider), text: t("connectRun.providerText", { provider: context.provider }), raw: value, signIn: false };
+  return { source: "plainva", title: failureTitle("plainva", t, context.provider), text: t("connection.loginFailed"), raw: value, signIn: false };
+}
+
+function failureTitle(source: ConnectionFailureSource, t: ConnectionTranslate, provider: string): string {
+  if (source === "device") return t("connectRun.failedOnDevice");
+  if (source === "provider") return t("connectRun.providerRefused", { provider });
+  if (source === "network") return t("connectRun.noConnection");
+  return t("connectRun.notCompleted");
 }
 
 /**

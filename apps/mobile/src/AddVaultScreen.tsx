@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "./hooks/useLeaveGuard";
-import { ChevronRight, CloudOff } from "lucide-react";
-import { Banner, Button, EmptyState, accessProblemKey, filesTargetForFamily, foldMachineText, ICON, Row, Switch, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, serviceConnectionMessage, unionScope, type AccessResolution, type CloudProviderFamily, type OAuthFamily } from "@plainva/ui";
+import { ChevronRight, CloudOff, FolderOpen } from "lucide-react";
+import { Banner, Button, EmptyState, GroupCard, RowList, accessProblemKey, filesTargetForFamily, foldMachineText, ICON, Row, Switch, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, serviceConnectionMessage, unionScope, type AccessResolution, type CloudProviderFamily, type OAuthFamily } from "@plainva/ui";
 import { mSelect } from "./services/mobileDialogs";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
 import {
@@ -23,7 +23,8 @@ import { loadCloudAccounts } from "./services/cloudAccountsStore";
 import { useConnectionRun } from "./hooks/useConnectionRun";
 import { reloadActiveMobileVault, type MobileVault } from "./services/vaultService";
 import { AppBar } from "./components/AppBar";
-import { ConnectRunBanner } from "./components/ConnectRunBanner";
+import { ConnectRunFooter, ConnectRunFrame } from "./components/ConnectRunFrame";
+import { TransferReviewStep, useInlineTransferReview } from "./components/TransferReviewHost";
 import { rememberConnectSecrets } from "./services/connectSecrets";
 import { loadConnectQueue, runServices } from "./services/connectQueue";
 import { runConsentScope } from "./services/connectConsent";
@@ -71,6 +72,10 @@ export function AddVaultScreen({
   const { t, i18n } = useTranslation();
   const connectionRun = useConnectionRun();
   const createMode = createTemplateId !== undefined;
+  const runFiles = !createMode && family && connectionRun?.pending[0] === "files" ? connectionRun : null;
+  const pendingReview = useInlineTransferReview(!!runFiles);
+  // Only this run's review: one a replaced run left is answered by the host, never shown here.
+  const review = pendingReview && (!pendingReview.runId || pendingReview.runId === runFiles?.id) ? pendingReview : null;
   // A family that cannot carry files never reaches this screen (the wizard only
   // offers the services FAMILY_SERVICES lists), so a null target here means the
   // user came in directly and picks the provider as before.
@@ -104,7 +109,7 @@ export function AddVaultScreen({
     return () => { alive = false; };
   }, [accessFamily]);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   // After the folder pick the step goes on without the form (device finding
   // 2026-10-27): what it is doing is said here, and Connect waits for it.
   const [filesProgress, setFilesProgress] = useState<FilesConnectProgress | null>(() => filesConnectProgress());
@@ -182,7 +187,7 @@ export function AddVaultScreen({
         serviceContext: connectionRun?.context,
         });
       })()
-        .catch((e) => setError(serviceConnectionMessage(e, t)))
+        .catch((e: unknown) => setError(e ?? "failed"))
         .finally(() => setBusy(false));
       return;
     }
@@ -237,7 +242,7 @@ export function AddVaultScreen({
           subfoldersHeading: t("indexMd.subfoldersHeading"),
         })
       : connectProvider(vault, withRoot);
-    void run.catch((e) => setError(serviceConnectionMessage(e, t))).finally(() => setBusy(false));
+    void run.catch((e: unknown) => setError(e ?? "failed")).finally(() => setBusy(false));
   };
 
   const canConnect =
@@ -250,68 +255,8 @@ export function AddVaultScreen({
           s3.secretAccessKey.length > 0
         : true;
 
-  return (
-    <div className="m-page">
-      <AppBar onBack={onBack} title={createMode ? t("mobile.vaultCreateOnlineTitle") : t("mobile.vaultAdd")} />
-      <ConnectRunBanner service="files" onCancel={onBack} />
-
-      {!syncPossible(vault) ? (
-        /* NOT "coming in a later step": sync is shipped. The offline queue and
-           the sync state live in the same index database, so a failed index
-           build is what takes connecting with it (N7). */
-        <EmptyState
-          action={
-            <Button data-testid="addvault-needs-index-retry" onClick={() => void reloadActiveMobileVault()} variant="tonal">
-              {t("sync.retryNow")}
-            </Button>
-          }
-          icon={<CloudOff size={ICON.head} />}
-        >
-          {t("mobile.needsIndex")}
-        </EmptyState>
-      ) : (
-        <div className="m-settings">
-          <p className="m-hint">{t("mobile.syncCreatesVaultHint")}</p>
-          {error && <Banner kind="error" rounded>{error}</Banner>}
-          {filesProgress && (
-            <Banner kind="info" rounded>
-              <span data-testid="files-connect-progress">
-                {t(filesProgress.phase === "copying" ? "connection.filesCopying" : "connection.filesChecking")}
-              </span>
-            </Banner>
-          )}
-
-          {/* Came through the wizard: the provider is settled, so this states it
-              rather than asking a second time. Suite families (Fastmail, Koofr,
-              …) technically bind WebDAV, but the row names the FAMILY — showing
-              "WebDAV" after someone tapped the Fastmail tile would be the same
-              break in a quieter form. */}
-          {family ? (
-            <div className="m-row" data-testid="sync-provider-fixed">
-              <span>{t("mobile.syncProvider")}</span>
-              <span className="m-prop-val">{familyLabel(family)}</span>
-            </div>
-          ) : (
-            <button
-              className="m-row"
-              onClick={() =>
-                void mSelect({
-                  title: t("mobile.syncProvider"),
-                  options: PROVIDER_OPTIONS,
-                  value: provider,
-                }).then((v) => {
-                  if (v !== null) setProvider(v as ProviderId);
-                })
-              }
-            >
-              <span>{t("mobile.syncProvider")}</span>
-              <span className="m-prop-val">
-                {PROVIDER_OPTIONS.find((o) => o.value === provider)?.label}
-              </span>
-              <ChevronRight className="m-chevron" size={ICON.head} />
-            </button>
-          )}
-
+  const credentialFields = (
+    <>
           {provider === "webdav" && (
             <>
               {isInsecurePublicUrl(webdav.url) && (
@@ -417,6 +362,156 @@ export function AddVaultScreen({
             </>
           )}
 
+    </>
+  );
+  const sheets = (
+    <>
+      {pickFor && (
+        <CloudFolderPickerSheet
+          listFolders={(path) => listProviderFolders(pickFor, path)}
+          createFolder={(path) => createProviderFolder(pickFor, path)}
+          onClose={() => setPickFor(null)}
+          onPick={(folder) => connectAt(pickFor, folder)}
+          title={t("settings.browseFolders")}
+        />
+      )}
+      {accessSheet && accessFamily && (
+        <AccountAccessSheet
+          family={accessFamily}
+          onCancel={() => setAccessSheet(false)}
+          onSaved={() => { setAccessSheet(false); void deviceAccess(accessFamily).then(setAccess); }}
+        />
+      )}
+    </>
+  );
+  /* NOT "coming in a later step": sync is shipped. The offline queue and
+     the sync state live in the same index database, so a failed index
+     build is what takes connecting with it (N7). */
+  const needsIndex = (
+        <EmptyState
+          action={
+            <Button data-testid="addvault-needs-index-retry" onClick={() => void reloadActiveMobileVault()} variant="tonal">
+              {t("sync.retryNow")}
+            </Button>
+          }
+          icon={<CloudOff size={ICON.head} />}
+        >
+          {t("mobile.needsIndex")}
+        </EmptyState>
+  );
+
+  // A step of the account setup (plan "Verbinden-Assistent", 2026-10-28;
+  // device finding 2026-10-28): the frame of the setup and ONE question -
+  // which folder. Provider and sign-in are settled by now (E5); the review of
+  // what the copy does is the step's content (E4).
+  if (runFiles && family) {
+    const oauth = OAUTH_PROVIDERS.has(provider);
+    return (
+      <div className="m-page">
+        <ConnectRunFrame
+          run={runFiles}
+          service="files"
+          // The files service by its product name: "Google Drive", not "Google".
+          heading={review ? t("connectRun.reviewHeading", { folder: review.folder }) : t("connectRun.filesHeading", { provider: oauth ? PROVIDER_OPTIONS.find((o) => o.value === provider)?.label ?? familyLabel(family) : familyLabel(family) })}
+          hint={review || filesProgress ? undefined : t("connectRun.filesHint")}
+          onLeave={onBack}
+          failure={error ?? undefined}
+          hideOutcome={!!review || !!filesProgress}
+          onRetry={busy ? undefined : connect}
+          onSignIn={busy ? undefined : connect}
+        >
+          {!syncPossible(vault) ? needsIndex : review ? (
+            <TransferReviewStep review={review} onOtherFolder={() => { void import("./services/accountVaultTransfer").then((m) => m.transfersSettled()).then(connect); }} />
+          ) : filesProgress ? (
+            <GroupCard>
+              <RowList>
+                <Row
+                  icon={<span className="m-actionspin" aria-hidden />}
+                  title={t(filesProgress.phase === "copying" ? "connectRun.copying" : "connectRun.checking")}
+                  data-testid="files-connect-progress"
+                />
+              </RowList>
+            </GroupCard>
+          ) : (
+            <>
+              {!oauth && credentialFields}
+              {oauth && (
+                <GroupCard>
+                  <RowList>
+                    <Row
+                      icon={<FolderOpen size={ICON.ui} />}
+                      title={t("connectRun.folder")}
+                      subtitle={t("connectRun.folderNone")}
+                      end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                      onClick={busy ? undefined : connect}
+                      data-testid="connectrun-folder"
+                    />
+                  </RowList>
+                </GroupCard>
+              )}
+              <ConnectRunFooter
+                run={runFiles}
+                service="files"
+                disabled={busy}
+                primary={<Button variant="primary" disabled={busy || !canConnect} onClick={connect} data-testid="connectrun-choose-folder">{t("connectRun.chooseFolder")}</Button>}
+              />
+            </>
+          )}
+        </ConnectRunFrame>
+        {sheets}
+      </div>
+    );
+  }
+
+  return (
+    <div className="m-page">
+      <AppBar onBack={onBack} title={createMode ? t("mobile.vaultCreateOnlineTitle") : t("mobile.vaultAdd")} />
+
+      {!syncPossible(vault) ? needsIndex : (
+        <div className="m-settings">
+          <p className="m-hint">{t("mobile.syncCreatesVaultHint")}</p>
+          {error !== null && <Banner kind="error" rounded>{serviceConnectionMessage(error, t)}</Banner>}
+          {filesProgress && (
+            <Banner kind="info" rounded>
+              <span data-testid="files-connect-progress">
+                {t(filesProgress.phase === "copying" ? "connection.filesCopying" : "connection.filesChecking")}
+              </span>
+            </Banner>
+          )}
+
+          {/* Came through the wizard: the provider is settled, so this states it
+              rather than asking a second time. Suite families (Fastmail, Koofr,
+              …) technically bind WebDAV, but the row names the FAMILY — showing
+              "WebDAV" after someone tapped the Fastmail tile would be the same
+              break in a quieter form. */}
+          {family ? (
+            <div className="m-row" data-testid="sync-provider-fixed">
+              <span>{t("mobile.syncProvider")}</span>
+              <span className="m-prop-val">{familyLabel(family)}</span>
+            </div>
+          ) : (
+            <button
+              className="m-row"
+              onClick={() =>
+                void mSelect({
+                  title: t("mobile.syncProvider"),
+                  options: PROVIDER_OPTIONS,
+                  value: provider,
+                }).then((v) => {
+                  if (v !== null) setProvider(v as ProviderId);
+                })
+              }
+            >
+              <span>{t("mobile.syncProvider")}</span>
+              <span className="m-prop-val">
+                {PROVIDER_OPTIONS.find((o) => o.value === provider)?.label}
+              </span>
+              <ChevronRight className="m-chevron" size={ICON.head} />
+            </button>
+          )}
+
+          {credentialFields}
+
           {accessFamily && (
             <Row
               data-testid="vault-access"
@@ -448,22 +543,7 @@ export function AddVaultScreen({
         </div>
       )}
 
-      {pickFor && (
-        <CloudFolderPickerSheet
-          listFolders={(path) => listProviderFolders(pickFor, path)}
-          createFolder={(path) => createProviderFolder(pickFor, path)}
-          onClose={() => setPickFor(null)}
-          onPick={(folder) => connectAt(pickFor, folder)}
-          title={t("settings.browseFolders")}
-        />
-      )}
-      {accessSheet && accessFamily && (
-        <AccountAccessSheet
-          family={accessFamily}
-          onCancel={() => setAccessSheet(false)}
-          onSaved={() => { setAccessSheet(false); void deviceAccess(accessFamily).then(setAccess); }}
-        />
-      )}
+      {sheets}
     </div>
   );
 }

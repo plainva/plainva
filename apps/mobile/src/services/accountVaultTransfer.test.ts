@@ -7,7 +7,7 @@ const state = vi.hoisted(() => ({
   settings: new Map<string, unknown>(), secrets: new Map<string, unknown>(),
   disks: new Map<string, Map<string, string>>(), databases: new Map<string, IDatabaseAdapter>(),
   active: "source", entries: [{ id: "source", name: "Source", provider: undefined as string | undefined }],
-  failSecret: "", accepted: true, afterReview: async () => {}, allocations: 0,
+  failSecret: "", accepted: true, answer: null as null | "apply" | "cancel" | "otherFolder", afterReview: async () => {}, cancelReview: null as null | (() => void), allocations: 0,
   switches: [] as string[], events: [] as string[],
 }));
 function memoryDisk(id: string): IVaultAdapter {
@@ -29,7 +29,7 @@ function memoryDisk(id: string): IVaultAdapter {
 }
 vi.mock("../adapters/CapacitorVaultAdapter", () => ({ CapacitorVaultAdapter: class { constructor(path: string) { return memoryDisk(path.slice("vaults/".length)); } } }));
 vi.mock("../adapters/webdavHttp", () => ({ webdavFetch: vi.fn() }));
-vi.mock("../components/TransferReviewHost", () => ({ reviewVaultTransfer: async () => { state.events.push("review"); await state.afterReview(); return state.accepted; } }));
+vi.mock("../components/TransferReviewHost", () => ({ cancelTransferReview: () => { state.cancelReview?.(); }, reviewVaultTransfer: async () => { state.events.push("review"); await state.afterReview(); return state.answer ?? (state.accepted ? "apply" : "cancel"); } }));
 vi.mock("./profileImportJournal", () => ({ copyProfilePreferences: async () => { state.events.push("preferences"); } }));
 vi.mock("./connectConsent", () => ({ bindRunTokenToAccount: async () => { state.events.push("grant"); } }));
 vi.mock("./pim/pimService", () => ({ listPimAccounts: async () => [] }));
@@ -52,6 +52,7 @@ vi.mock("./vaultService", () => ({
     return { ...db, close: async () => {} };
   },
   switchVault: async (id: string) => { state.events.push("activate"); state.switches.push(id); state.active = id; },
+  discardPreparedContainer: async (id: string) => { state.events.push("discard"); state.disks.delete(id); },
 }));
 vi.mock("@plainva/ui", async original => ({
   ...await original<typeof import("@plainva/ui")>(),
@@ -69,7 +70,7 @@ vi.mock("@plainva/ui", async original => ({
   }),
 }));
 
-import { connectAccountFiles } from "./accountVaultTransfer";
+import { abandonPreparedFiles, connectAccountFiles } from "./accountVaultTransfer";
 import { armLeaveGuard, resetLeaveGuard } from "./leaveGuard";
 import { clearConnectQueue, loadConnectQueue, startConnectQueue } from "./connectQueue";
 import { getMailPassword, listMailAccounts, saveMailAccount } from "@plainva/ui/mail";
@@ -86,7 +87,7 @@ beforeEach(async () => {
   setPlatformServices(getPlatformServices());
   state.settings.clear(); state.secrets.clear(); state.disks.clear(); state.active = "source";
   state.entries = [{ id: "source", name: "Source", provider: undefined }];
-  state.switches = []; state.events = []; state.allocations = 0; state.failSecret = ""; state.accepted = true; state.afterReview = async () => {};
+  state.switches = []; state.events = []; state.allocations = 0; state.failSecret = ""; state.accepted = true; state.answer = null; state.cancelReview = null; state.afterReview = async () => {};
   await clearConnectQueue();
   const db = await realSqlite(); state.databases.set("source", db);
   source = { vaultId: "source", db, adapter: memoryDisk("source") } as MobileVault;
@@ -166,12 +167,87 @@ describe("the account-to-files transfer before vault activation", () => {
     expect(state.switches).toHaveLength(1);
     expect([...state.disks.get(state.switches[0])!.keys()].filter((p) => !p.startsWith(".plainva"))).toEqual([]);
   });
-  it("cancels review without copying or publishing a vault", async () => {
+  it("cancels review without copying or publishing a vault, and forgets the destination it prepared", async () => {
     state.accepted = false;
     await connect();
-    expect(state.events).toEqual(["review"]);
+    expect(state.events).toEqual(["review", "discard"]);
     expect(state.entries).toHaveLength(1);
     expect((await loadConnectQueue())?.outcomes.files?.state).toBe("cancelled");
+    expect((await loadConnectQueue())?.preparedVaultId).toBeUndefined();
+  });
+  /*
+   * Review 2026-10-28: "Choose another folder" left the run bound to the
+   * destination of the first pick, and a pick of a different folder failed as
+   * "destination changed" - the person could never pick another folder.
+   */
+  it("goes on with another folder after Choose another folder", async () => {
+    state.answer = "otherFolder";
+    await connect();
+    expect(state.events).toEqual(["review", "discard"]);
+    let q = (await loadConnectQueue())!;
+    expect(q.preparedVaultId).toBeUndefined();
+    expect(q.outcomes.files).toBeUndefined();
+    state.answer = "apply";
+    const other = { provider: "webdav" as const, creds: { ...provider.creds, url: "https://example.invalid/other" } };
+    q = (await loadConnectQueue())!;
+    await connectAccountFiles(source, other, q.context, async () => remote, "Cloud");
+    expect(state.switches).toHaveLength(1);
+    expect(state.entries).toHaveLength(2);
+  });
+  /*
+   * Second review 2026-10-28: the app closed during the review (the answer
+   * lived only in memory), and on return the person picks another folder. The
+   * run still holds the first pick's destination; it goes, and the new pick
+   * prepares its own instead of failing as "destination changed".
+   */
+  it("Skip files or Stop lets go of a destination the step prepared, and drops it with what a broken copy wrote", async () => {
+    state.afterReview = async () => { throw new Error("app closed"); };
+    await expect(connect()).rejects.toThrow("app closed");
+    expect((await loadConnectQueue())!.preparedVaultId).toBeDefined();
+    state.events = [];
+    await abandonPreparedFiles();
+    expect(state.events).toEqual(["discard"]);
+    expect((await loadConnectQueue())!.preparedVaultId).toBeUndefined();
+  });
+  /*
+   * Fourth review 2026-10-28: Stop while the review was open waited for the
+   * copy, and the copy waited for an answer to the review - nothing happened.
+   * The review of this run is answered first.
+   */
+  it("Stop while the review is open answers it, and the copy lets go of its destination itself", async () => {
+    let release!: () => void;
+    state.afterReview = () => new Promise<void>((resolve) => { release = resolve; });
+    state.cancelReview = () => { state.accepted = false; release(); };
+    const copy = connect();
+    await vi.waitFor(() => expect(state.events).toContain("review"));
+    await expect(abandonPreparedFiles()).resolves.toBe("released");
+    await copy;
+    expect(state.events).toEqual(["review", "discard"]);
+    expect((await loadConnectQueue())!.preparedVaultId).toBeUndefined();
+  });
+  it("never takes back a files step that connected", async () => {
+    await connect();
+    const q = (await loadConnectQueue())!;
+    expect(q.outcomes.files?.state).toBe("connected");
+    const prepared = q.preparedVaultId;
+    state.events = [];
+    await expect(abandonPreparedFiles()).resolves.toBe("connected");
+    expect(state.events).toEqual([]);
+    expect((await loadConnectQueue())!.preparedVaultId).toBe(prepared);
+  });
+  it("a pick of another folder after an interrupted review prepares its own destination", async () => {
+    state.afterReview = async () => { throw new Error("app closed"); };
+    await expect(connect()).rejects.toThrow("app closed");
+    const first = (await loadConnectQueue())!.preparedVaultId!;
+    expect(first).toBeDefined();
+    state.afterReview = async () => {};
+    state.events = [];
+    const other = { provider: "webdav" as const, creds: { ...provider.creds, url: "https://example.invalid/other" } };
+    const q = (await loadConnectQueue())!;
+    await connectAccountFiles(source, other, q.context, async () => remote, "Cloud");
+    expect(state.events[0]).toBe("discard");
+    expect(state.switches).toHaveLength(1);
+    expect(state.switches[0]).not.toBe(first);
   });
   it("reuses its prepared destination after a credential-storage interruption", async () => {
     state.failSecret = "pim";

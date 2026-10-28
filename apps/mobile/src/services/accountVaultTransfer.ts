@@ -4,12 +4,12 @@ import { assertConnectionIdentity, getPlatformServices, starterFilesToHoldBack, 
 import { getMailPassword, getMailRefreshToken, listMailAccounts, mailAccountKind, saveMailAccount, saveMicrosoftMailAccount } from "@plainva/ui/mail";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { webdavFetch } from "../adapters/webdavHttp";
-import { reviewVaultTransfer } from "../components/TransferReviewHost";
+import { cancelTransferReview, reviewVaultTransfer } from "../components/TransferReviewHost";
 import { fileGrantProbe, getAccountToken, saveAccountToken } from "./accountBroker";
 import { bindRunTokenToAccount } from "./connectConsent";
 import { runServices } from "./connectQueue";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
-import { finishConnectVault, loadConnectQueue, outcomeBelongsToRun, prepareConnectVault, recordConnectOutcome } from "./connectQueue";
+import { finishConnectVault, loadConnectQueue, outcomeBelongsToRun, prepareConnectVault, recordConnectOutcome, releaseConnectVault } from "./connectQueue";
 import { CONNECT_FORM_GUARD, foreignInputOnScreen, whileEntering } from "./flowVault";
 import { copyProfilePreferences } from "./profileImportJournal";
 import { setFilesConnectProgress } from "./filesConnectProgress";
@@ -17,7 +17,7 @@ import { getPimCredentials, savePimCredentials } from "./pim/pimCredentials";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import { readSyncRootFolder } from "./syncRootFolder";
 import { addVault, getActiveVaultEntry, getVaultEntry, listVaults, newVaultId } from "./vaultRegistry";
-import { noteSaver, openPreparedVaultDatabase, switchVault, type MobileVault } from "./vaultService";
+import { discardPreparedContainer, noteSaver, openPreparedVaultDatabase, switchVault, type MobileVault } from "./vaultService";
 
 /** Destination identity excludes tokens and local labels. */
 export function fileDestinationKey(p: MobileSyncProvider, identity?: VerifiedProviderIdentity): string | null {
@@ -55,9 +55,44 @@ async function verifyIdentity(p: MobileSyncProvider, context: ServiceConnectionC
   return profile!;
 }
 
+/** The name of the cloud folder a connection points at, as the person chose it. */
+function chosenFolder(p: MobileSyncProvider): string {
+  const last = (path: string) => path.split("/").filter(Boolean).pop() ?? "";
+  if (p.provider === "drive" || p.provider === "onedrive") return last(p.creds.rootFolderName || "Plainva") || "Plainva";
+  if (p.provider === "dropbox") return last(p.creds.rootPath || "/") || "Dropbox";
+  if (p.provider === "webdav") { try { return decodeURIComponent(last(new URL(p.creds.url).pathname)) || p.creds.url; } catch { return p.creds.url; } }
+  return last(p.creds.prefix || "") || p.creds.bucket;
+}
+
 /** Copies into an isolated, resumable target. Source services and files remain
  * usable throughout; no cloud writes occur until review and storage succeed. */
 const transfers = new Map<string, Promise<void>>();
+/**
+ * The setup leaves its files step without a vault - "Skip files", or Stop -
+ * while a destination is prepared (third review 2026-10-28): the run lets go
+ * of it, and a destination that never became a vault goes with what a broken
+ * copy wrote for it. A connected files step keeps everything.
+ */
+export async function abandonPreparedFiles(): Promise<"connected" | "released"> {
+  const before = await loadConnectQueue();
+  if (before) cancelTransferReview(before.id);
+  // The copy answers its own review (it releases and discards for itself) or
+  // finishes; only what is left after it is this step's to let go of.
+  await transfersSettled();
+  const q = await loadConnectQueue();
+  if (!q || (before && q.id !== before.id)) return "released";
+  if (q.outcomes.files?.state === "connected") return "connected";
+  const id = q.preparedVaultId;
+  if (!id) return "released";
+  await releaseConnectVault(q.context, id);
+  await discardPreparedContainer(id, q.sourceVaultId);
+  return "released";
+}
+
+/** Settles once no copy is in flight: "Choose another folder" picks only after the old one has let go. */
+export function transfersSettled(): Promise<void> {
+  return Promise.allSettled([...transfers.values()]).then(() => undefined);
+}
 export function connectAccountFiles(v: MobileVault, p: MobileSyncProvider, context: ServiceConnectionContext, createRemote: () => Promise<ISyncTarget>, name: string): Promise<void> {
   const key = context.runId ?? context.vaultId;
   const existing = transfers.get(key);
@@ -80,6 +115,16 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
   const key = fileDestinationKey(p, profile?.identity);
   const secrets = getPlatformServices().credentials;
   let id = run.preparedVaultId;
+  // A destination prepared for another folder - the app was closed during its
+  // review, or a copy was interrupted - and never made a vault: it goes, and
+  // this pick prepares its own instead of failing as "destination changed"
+  // (second review 2026-10-28).
+  // Also where that destination was a vault that existed before: it stays, the run lets go of it.
+  if (id && key && run.preparedDestinationKey && run.preparedDestinationKey !== key && run.outcomes.files?.state !== "connected") {
+    await releaseConnectVault(context, id);
+    await discardPreparedContainer(id, run.sourceVaultId ?? v.vaultId);
+    id = undefined;
+  }
   if (!id && key) {
     const matches: string[] = [];
     for (const entry of await listVaults()) {
@@ -119,10 +164,21 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
   setFilesConnectProgress(null);
   // Asked only when there is something of the person's to copy - the question
   // says how many notes go up; a fresh vault goes on at once.
-  if ((plan.local.length > 0 || plan.collisions.length > 0) && !await reviewVaultTransfer(plan, (await getActiveVaultEntry()).name, existing?.name ?? name)) {
-    // Said on the step's banner: the person is back at the files step on purpose.
-    await recordConnectOutcome(context, "files", { state: "cancelled" });
-    return;
+  if (plan.local.length > 0 || plan.collisions.length > 0) {
+    // Shown as the content of the files step (plan "Verbinden-Assistent", E4).
+    const answer = await reviewVaultTransfer(plan, { source: (await getActiveVaultEntry()).name, target: existing?.name ?? name, folder: chosenFolder(p), existing: !!existing, runId: context.runId });
+    if (answer !== "apply") {
+      // The run forgets the destination of this pick, so another folder
+      // prepares its own (review 2026-10-28) - also where it was a vault that
+      // existed before, which itself stays; only a never-listed one goes.
+      await releaseConnectVault(context, id);
+      if (!existing) await discardPreparedContainer(id, v.vaultId);
+      // "Choose another folder" is no cancel: the step simply opens the picker again.
+      if (answer === "otherFolder") return;
+      // Said in the step: the person is back at the files step on purpose.
+      await recordConnectOutcome(context, "files", { state: "cancelled" });
+      return;
+    }
   }
   setFilesConnectProgress({ phase: "copying" });
   const currentRun = await loadConnectQueue();

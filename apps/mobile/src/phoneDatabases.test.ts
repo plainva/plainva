@@ -21,6 +21,8 @@ import { phoneSqlite, type PhonePlatform } from "../../../packages/core/test/hel
 vi.mock("@capacitor-community/sqlite", async () => (await import("../../../packages/core/test/helpers/phoneSqlitePlugin")).phoneSqlite.module);
 
 const { CapacitorSqliteAdapter } = await import("./adapters/CapacitorSqliteAdapter");
+// Loaded once with the file: a dynamic import inside the test ran into the 20 s limit under the full suite's load.
+const { serviceConnectionMessage } = await import("@plainva/ui");
 const { resetDatabasesForTests } = await import("./adapters/sqliteConnections");
 
 const PLATFORMS: PhonePlatform[] = ["android", "ios"];
@@ -68,7 +70,6 @@ describe("the phone's databases", () => {
   });
 
   it("the wizard names a failure of the device's database as such, not as the provider's answer", async () => {
-    const { serviceConnectionMessage } = await import("@plainva/ui");
     const t = (key: string) => key;
     expect(serviceConnectionMessage(new Error("Query: Connection to plainva-45e9259f not available"), t)).toBe("connection.deviceStorageFailed");
     expect(serviceConnectionMessage(new Error("No available connection for database plainva-x"), t)).toBe("connection.deviceStorageFailed");

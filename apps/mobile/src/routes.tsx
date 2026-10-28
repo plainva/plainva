@@ -225,6 +225,8 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   cloudaccounts: (_e, c) => (
     <CloudAccountsScreen
       onBack={c.pop}
+      // "Done" ends the setup where the app was: the root of the tab.
+      onFinishRun={() => c.setNav((st) => ({ ...st, overlay: [], stacks: { ...st.stacks, [st.activeTab]: [] } }))}
       onConnect={() => c.push({ kind: "cloudconnect", path: "" })}
       onOpenAccount={(key) => c.push({ kind: "cloudaccount", path: key })}
     />

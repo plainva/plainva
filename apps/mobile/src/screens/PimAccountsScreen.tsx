@@ -34,8 +34,8 @@ import { AppBar } from "../components/AppBar";
 import { FolderField } from "../components/FolderField";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
-import { ConnectRunBanner } from "../components/ConnectRunBanner";
-import { clearConnectQueue, loadConnectQueue, recordConnectOutcome, runServices } from "../services/connectQueue";
+import { ConnectRunFooter, ConnectRunFrame } from "../components/ConnectRunFrame";
+import { confirmConnectSelection, loadConnectQueue, recordConnectOutcome, runServices } from "../services/connectQueue";
 import { useConnectionRun } from "../hooks/useConnectionRun";
 import { brokerFamilyOf, canSkipConsent } from "../services/connectConsent";
 import { accountTokenCovers, getAccountToken, tokenCoversService } from "../services/accountBroker";
@@ -597,8 +597,21 @@ export function PimAccountsScreen({
 
   return (
     <div className="m-page">
-      <AppBar onBack={() => { if (calendarRun) void clearConnectQueue().then(() => onBack?.()); else onBack?.(); }} title={calendarRun ? t("connection.calendarTitle") : t("pim.accounts", { defaultValue: "Kalenderkonten" })} />
-      <ConnectRunBanner service="calendar" selectionPending={selectionPending > 0} onCancel={() => { setFormOpen(false); onBack?.(); }} />
+      {/* A step of the account setup (plan "Verbinden-Assistent", 2026-10-28):
+          the setup's frame instead of the screen's bar and a banner. */}
+      {calendarRun ? (
+        <ConnectRunFrame
+          run={calendarRun}
+          service="calendar"
+          heading={t("connectRun.calendarHeading")}
+          failure={connectionError ?? undefined}
+          onLeave={() => { setFormOpen(false); onBack?.(); }}
+          onRetry={() => setFormOpen(true)}
+          onSignIn={() => setFormOpen(true)}
+        />
+      ) : (
+        <AppBar onBack={() => onBack?.()} title={t("pim.accounts", { defaultValue: "Kalenderkonten" })} />
+      )}
 
       <div className="m-settings">
         {!calendarRun && <>
@@ -882,7 +895,8 @@ export function PimAccountsScreen({
         <div className={calendarRun ? "m-connect-form" : "m-sheet-backdrop"} onClick={() => { if (!calendarRun) setFormOpen(false); }}>
           <div className={calendarRun ? "m-settings" : "pv-sheet m-sheet"} onClick={(e) => e.stopPropagation()}>
             {!calendarRun && <SheetGrip onClose={() => setFormOpen(false)} />}
-            {(connectionError || calendarOutcome?.state === "failed") && <Banner kind={isGoogleAuthorizationCancelled(connectionError) ? "info" : "warning"} rounded>{serviceConnectionMessage(new Error(connectionError ?? (calendarOutcome?.state === "failed" ? calendarOutcome.message : undefined) ?? "loginFailed"), t)}</Banner>}
+            {/* In a setup run the frame says it, once, with its sender. */}
+            {!calendarRun && (connectionError || calendarOutcome?.state === "failed") && <Banner kind={isGoogleAuthorizationCancelled(connectionError) ? "info" : "warning"} rounded>{serviceConnectionMessage(new Error(connectionError ?? (calendarOutcome?.state === "failed" ? calendarOutcome.message : undefined) ?? "loginFailed"), t)}</Banner>}
             <p className="m-sheet-title">
               {family ? familyLabel(family) : t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}
             </p>
@@ -964,6 +978,15 @@ export function PimAccountsScreen({
           family={accessFor}
           onCancel={() => setAccessFor(null)}
           onSaved={() => { const family = accessFor; setAccessFor(null); void deviceAccess(family).then(setAccess); }}
+        />
+      )}
+      {calendarRun && (
+        <ConnectRunFooter
+          run={calendarRun}
+          service="calendar"
+          primary={calendarRun.outcomes.calendar && "bindingId" in calendarRun.outcomes.calendar
+            ? <Button variant="primary" disabled={selectionPending > 0} data-testid="connectrun-next" onClick={() => void confirmConnectSelection()}>{t("common.next")}</Button>
+            : undefined}
         />
       )}
     </div>

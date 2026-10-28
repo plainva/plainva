@@ -449,6 +449,7 @@ export * from "./lib/accountLoginGrant";
 export * from "./lib/fileBrokerBinding";
 export * from "./lib/accountBrokerLookup";
 export * from "./lib/serviceConnection";
+export * from "./lib/connectRun";
 export * from "./lib/firstSyncCopies";
 export * from "./components/FileComparisonDetails";
 export * from "./components/ConflictHistory";

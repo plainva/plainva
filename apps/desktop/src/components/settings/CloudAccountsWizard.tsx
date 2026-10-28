@@ -24,6 +24,9 @@ import {
   presetForEmail,
   getPlatformServices,
   serviceConnectionMessage,
+  serviceConnectionFailure,
+  WizardSteps,
+  type WizardStepItem,
   toast,
   type CloudAccountRecord,
   type CloudProviderFamily,
@@ -290,6 +293,13 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
     };
   };
 
+  const providerName = family ? familyLabel(family, tile?.flavor) : "";
+  /** A failure with its sender (plan "Verbinden-Assistent", E7), as the phone's setup says it. */
+  const failedStatus = (err: unknown): ServiceRunStatus => {
+    const view = serviceConnectionFailure(err, t, { provider: providerName, platform: "desktop" });
+    return { state: "error", ...(view.title ? { title: view.title } : {}), detail: view.text, ...(view.raw ? { raw: view.raw } : {}) };
+  };
+
   const signInText = (err: unknown): string => {
     if (err instanceof SignInWrongAccountError) return t("cloudAccounts.wrongAccount", { expected: err.expected, actual: err.actual });
     if (err instanceof SignInNothingGrantedError) return t("cloudAccounts.nothingGranted");
@@ -319,10 +329,12 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
         next[row.service] = row.state === "active"
           ? { state: "ok" }
           : row.state === "notGranted"
-            ? { state: "error", reason: "permissions", detail: t("cloudAccounts.notGranted") }
+            ? { state: "error", reason: "permissions", title: t("connectRun.notCompleted"), detail: t("cloudAccounts.notGranted") }
             : row.state === "needsPassword"
-              ? { state: "error", detail: t("cloudAccounts.needsAppPassword") }
-              : { state: "error", detail: row.detail };
+              ? { state: "error", title: t("connectRun.notCompleted"), detail: t("cloudAccounts.needsAppPassword") }
+              // The failure itself says who it came from; a row with only its
+              // sentence keeps that sentence, never reread as the provider's words.
+              : "error" in row ? failedStatus(row.error) : { state: "error", title: t("connectRun.notCompleted"), detail: row.detail };
       }
       setStatus((prev) => ({ ...prev, ...next }));
       const services = outcome.record.services;
@@ -335,8 +347,10 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
         setStatus((prev) => ({ ...prev, calendar: { state: "ok", detail: t("cloudAccounts.calendarsFound", { count: cals.length }) } }));
       }
     } catch (err) {
-      const detail = signInText(err);
-      setStatus((prev) => ({ ...prev, ...Object.fromEntries(todo.map((s) => [s, { state: "error", detail } as ServiceRunStatus])) }));
+      const failed = err instanceof AccessUnavailableError
+          ? { state: "error" as const, title: t("connectRun.notCompleted"), detail: signInText(err) }
+          : failedStatus(err);
+      setStatus((prev) => ({ ...prev, ...Object.fromEntries(todo.map((s) => [s, failed as ServiceRunStatus])) }));
     } finally {
       setRunning(false);
     }
@@ -391,20 +405,19 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
     else onCancel();
   };
 
-  const stepChip = (n: 1 | 2 | 3, label: string) => (
-    <span className={cx("pv-wizstep", step === n && "is-active", step > n && "is-done")}>
-      <span className="pv-wizstep-num">{step > n ? "✓" : n}</span>
-      {label}
-    </span>
-  );
-
+  // The steps of the whole way, drawn as the phone's setup draws them (plan
+  // "Verbinden-Assistent", E1); the sign-in is done once every service said its result.
+  const stepState = (n: 1 | 2 | 3) => (step > n || (n === 3 && allDone) ? "done" : step === n ? "active" : "pending") as WizardStepItem["state"];
   const steps = (
-    <div className="pv-wizsteps" style={{ marginBottom: "var(--space-3)" }}>
-      {stepChip(1, tile ? familyLabel(tile.family, tile.flavor) : t("cloudAccounts.stepProvider"))}
-      <span className="pv-wizstep-arrow">›</span>
-      {stepChip(2, t("cloudAccounts.stepServices"))}
-      <span className="pv-wizstep-arrow">›</span>
-      {stepChip(3, t("cloudAccounts.stepSignIn"))}
+    <div style={{ marginBottom: "var(--space-3)" }}>
+      <WizardSteps
+        label={t("connectRun.stepsLabel")}
+        steps={[
+          { key: "provider", label: tile ? familyLabel(tile.family, tile.flavor) : t("cloudAccounts.stepProvider"), state: stepState(1) },
+          { key: "services", label: t("cloudAccounts.stepServices"), state: stepState(2) },
+          { key: "signin", label: t("cloudAccounts.stepSignIn"), state: stepState(3) },
+        ]}
+      />
     </div>
   );
 
@@ -873,6 +886,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
                 </span>
                 <span className="pv-svcstat-label">{serviceLabel(service)}</span>
                 <span className="pv-svcstat-sub">
+                  {st?.state === "error" && st.title && <strong>{st.title}: </strong>}
                   {st?.state === "ok"
                     ? (st.detail ?? t("cloudAccounts.statusConnected"))
                     : st?.state === "error"
@@ -880,6 +894,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
                       : st?.state === "pending"
                         ? t("pim.connecting")
                         : t("cloudAccounts.statusWaiting")}
+                  {st?.state === "error" && st.raw && <code className="pv-svcstat-raw">{st.raw}</code>}
                 </span>
               </div>
             );
@@ -888,8 +903,8 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
           {allDone && result.filesProvider && result.filesProvider !== "webdav" && (
             <SettingRow label={t("cloudAccounts.cloudFolder")} desc={t("cloudAccounts.cloudFolderHint")}>
               <TextInput value={rootFolder} readOnly style={{ width: 160 }} />
-              <Button variant="secondary" onClick={() => setShowFolderPicker(true)}>
-                {t("settings.browseFolders")}
+              <Button variant="secondary" onClick={() => setShowFolderPicker(true)} data-testid="cloudacct-choose-folder">
+                {t("connectRun.chooseFolder")}
               </Button>
             </SettingRow>
           )}

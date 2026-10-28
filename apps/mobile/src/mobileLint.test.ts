@@ -3205,7 +3205,9 @@ describe("a picked provider family survives the hand-over (S0a)", () => {
   it("shows the run's progress on every surface it opens", () => {
     for (const file of ["AddVaultScreen.tsx", "screens/PimAccountsScreen.tsx", "screens/MailAccountsScreen.tsx"]) {
       const src = stripComments(readFileSync(join(SRC, file), "utf8"));
-      expect(src, `${file} must say where the run stands`).toMatch(/<ConnectRunBanner service="(files|calendar|mail)"[\s\S]*?\/>/);
+      // The setup's frame (plan "Verbinden-Assistent", 2026-10-28): the steps and the step's question, and a way to skip it.
+      expect(src, `${file} must say where the run stands`).toMatch(/<ConnectRunFrame[\s\S]*?service="(files|calendar|mail)"[\s\S]*?\/?>/);
+      expect(src, `${file} must let the step be skipped`).toMatch(/<ConnectRunFooter[\s\S]*?service="(files|calendar|mail)"/);
     }
   });
 

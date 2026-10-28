@@ -3833,35 +3833,66 @@ textarea {
 
 /* Cloud accounts overview (cloud-accounts plan, P4): the account monogram
    mirrors the desktop `.pv-acct-mark` family→chip-pair mapping. */
-/* A run banner carries its own way out, so the text and the control share the
-   line instead of the control sitting under it (finding 2026-08-19). */
+/* The account setup after the sign-in (plan "Verbinden-Assistent",
+   2026-10-28): one column in the page's rhythm - who is signed in, the steps,
+   the one question, the step's content, its buttons. Every row shares the
+   page's edge; nothing in it is a banner. */
 .m-connectrun {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  width: 100%;
-}
-/* The step and its message, one column: wide enough for the step label before
-   the buttons get a line of their own, and words break only between words
-   (the banner's own text breaks anywhere, which let a squeezed label break
-   letter by letter). */
-.m-connectrun-text {
-  display: flex;
-  flex: 1 1 14rem;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-3);
+  padding-top: var(--space-1);
   min-width: 0;
+}
+.m-connectrun > * { margin-top: 0; margin-bottom: 0; }
+.m-connectrun-account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--surface-container-low);
+  min-width: 0;
+}
+.m-connectrun-who {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.m-connectrun-who strong { color: var(--text-main); font-weight: 600; }
+.m-connectrun-who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-connectrun-heading {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.3;
+  text-wrap: balance;
   overflow-wrap: break-word;
 }
-.m-connectrun-step { font-weight: 600; }
-.m-connectrun-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-left: auto;
+/* A failure or a note of the step: icon, sentence (sender in bold first, the
+   raw words small under it), then its action - stacked, so a long sentence
+   never squeezes the sender (device finding 2026-10-27). */
+.m-connectrun-note {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) var(--space-2);
+  align-items: start;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--info-bg);
+  color: var(--info-text);
+  font-size: var(--text-sm);
 }
+.m-connectrun-note--error { background: var(--error-bg); color: var(--error-text); }
+.m-connectrun-note-text { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; overflow-wrap: break-word; }
+.m-connectrun-raw { font-size: var(--text-xs); opacity: 0.85; overflow-wrap: anywhere; white-space: pre-wrap; }
+.m-connectrun-note-actions { grid-column: 2; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.m-connectrun-foot { display: flex; flex-direction: column; gap: var(--space-2); }
+.m-connectrun-foot .pv-btn { width: 100%; justify-content: center; }
+.m-connectrun-progress { display: flex; align-items: center; gap: var(--space-2); }
+.m-connectrun-summary-row { align-items: flex-start; }
 
 .m-acctmark {
   width: 28px;
@@ -4901,7 +4932,6 @@ textarea {
 
 /* Focused setup and a stationary comparison context share the sheet rhythm. */
 .m-connect-form { width: 100%; min-width: 0; }
-.m-connect-summary { margin: var(--space-2) 0; }
 .m-conflict-sheet { max-height: calc(100dvh - var(--m-safe-top) - var(--space-4)); overflow: hidden; }
 .m-conflict-sheet .pv-comparison-context { max-height: 38dvh; overflow: auto; }
 .m-conflict-sheet .m-conflict-body { flex: 1 1 auto; min-height: 0; overflow: auto; }

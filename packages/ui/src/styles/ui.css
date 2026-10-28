@@ -2845,6 +2845,16 @@ button.pv-acct:hover { background: var(--state-hover); }
 .pv-wizstep.is-done { color: var(--text-muted); }
 .pv-wizstep.is-done .pv-wizstep-num { background: var(--accent-container); color: var(--on-accent-container); }
 .pv-wizstep-arrow { color: var(--text-faint); font-size: var(--text-xs); }
+/* The steps are a list (`WizardSteps`); the list's own indent and markers go. */
+ol.pv-wizsteps { margin: 0; padding: 0; list-style: none; }
+.pv-wizstep.is-skipped .pv-wizstep-num { background: transparent; border: 1px dashed var(--border-color); }
+/* A phone's width (plan "Verbinden-Assistent", E1): equal columns, the label
+   under its number, so four steps fit 320 px without wrapping a label. */
+.pv-wizsteps--stacked { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--space-1); }
+.pv-wizsteps--stacked .pv-wizstep { flex-direction: column; gap: var(--space-1); font-size: var(--text-xs); font-weight: 500; text-align: center; min-width: 0; }
+.pv-wizsteps--stacked .pv-wizstep-num { width: 22px; height: 22px; }
+.pv-wizsteps--stacked .pv-wizstep.is-active { color: var(--text-main); font-weight: 600; }
+.pv-wizstep-label { min-width: 0; overflow-wrap: anywhere; }
 
 .pv-svcline {
   display: flex;
@@ -2906,6 +2916,8 @@ button.pv-acct:hover { background: var(--state-hover); }
   overflow-wrap: anywhere;
 }
 .pv-svcstat--err .pv-svcstat-sub { color: var(--error-text); }
+/* The failure's own words under its sentence (plan "Verbinden-Assistent", E7). */
+.pv-svcstat-raw { display: block; margin-top: 2px; font-size: var(--text-xs); opacity: 0.85; overflow-wrap: anywhere; }
 
 /* ── Cascade deletion dialog (plan Kaskadenloeschung 2026-07-21) ─────────────
    One danger dialog rendered from the precomputed deletion plan. Cards reuse
