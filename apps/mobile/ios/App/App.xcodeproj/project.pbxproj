@@ -26,7 +26,7 @@
 		7C0002000000000000000002 /* VaultFolderListing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C0001000000000000000002 /* VaultFolderListing.swift */; };
 		7D0002000000000000000001 /* DevicePimPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D0001000000000000000001 /* DevicePimPlugin.swift */; };
 		7F0002000000000000000001 /* WidgetBridgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0001000000000000000001 /* WidgetBridgePlugin.swift */; };
-		7E0002000000000000000001 /* WebAuthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0001000000000000000001 /* WebAuthPlugin.swift */; };
+		7A0E02000000000000000001 /* WebAuthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0E01000000000000000001 /* WebAuthPlugin.swift */; };
 		7F0002000000000000000002 /* WidgetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0001000000000000000002 /* WidgetStore.swift */; };
 		7B1008010000000000000001 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1009020000000000000001 /* ShareViewController.swift */; };
 		7B1008020000000000000001 /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7B1009040000000000000001 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -98,7 +98,7 @@
 		7C0001000000000000000002 /* VaultFolderListing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFolderListing.swift; sourceTree = "<group>"; };
 		7D0001000000000000000001 /* DevicePimPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicePimPlugin.swift; sourceTree = "<group>"; };
 		7F0001000000000000000001 /* WidgetBridgePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBridgePlugin.swift; sourceTree = "<group>"; };
-		7E0001000000000000000001 /* WebAuthPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthPlugin.swift; sourceTree = "<group>"; };
+		7A0E01000000000000000001 /* WebAuthPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthPlugin.swift; sourceTree = "<group>"; };
 		7F0001000000000000000002 /* WidgetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/WidgetStore.swift; sourceTree = SOURCE_ROOT; };
 		7B0001000000000000000002 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		7B1009010000000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -188,7 +188,7 @@
 				7C0001000000000000000002 /* VaultFolderListing.swift */,
 				7D0001000000000000000001 /* DevicePimPlugin.swift */,
 				7F0001000000000000000001 /* WidgetBridgePlugin.swift */,
-				7E0001000000000000000001 /* WebAuthPlugin.swift */,
+				7A0E01000000000000000001 /* WebAuthPlugin.swift */,
 				7B0001000000000000000002 /* App.entitlements */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
@@ -379,7 +379,7 @@
 				7C0002000000000000000002 /* VaultFolderListing.swift in Sources */,
 				7D0002000000000000000001 /* DevicePimPlugin.swift in Sources */,
 				7F0002000000000000000001 /* WidgetBridgePlugin.swift in Sources */,
-				7E0002000000000000000001 /* WebAuthPlugin.swift in Sources */,
+				7A0E02000000000000000001 /* WebAuthPlugin.swift in Sources */,
 				7F0002000000000000000002 /* WidgetStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
