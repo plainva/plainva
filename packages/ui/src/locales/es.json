@@ -4871,6 +4871,7 @@
     "needsConsent": "Este servicio necesita una nueva autorización. Vuelve a iniciar sesión y permite el acceso solicitado.",
     "identityUnavailable": "No se pudo verificar la identidad de la cuenta. Vuelve a iniciar sesión con el proveedor.",
     "storageFailed": "No se pudo confirmar el guardado. Inténtalo de nuevo; el asistente reanudará la misma conexión.",
+    "deviceStorageFailed": "Plainva no pudo usar su propia base de datos en este dispositivo ({{detail}}). No se debe al proveedor. Inténtalo de nuevo; el asistente reanudará la misma conexión.",
     "signedInNotSaved": "El inicio de sesión funcionó, pero los datos de la cuenta no se pudieron guardar en este dispositivo. No quedó nada a medio crear.",
     "transferTitle": "Copiar archivos y cuentas",
     "transferSummary": "{{source}} → {{target}}. Se copian {{local}} de tus archivos al nuevo vault y se suben a la carpeta en la nube; la estructura inicial de un vault nuevo se queda atrás. Los archivos de la carpeta en la nube llegan con la sincronización y, donde ambos tienen un archivo, se conservan las dos versiones. Se conserva el vault de origen. Los calendarios y el correo se configurarán en el destino.",

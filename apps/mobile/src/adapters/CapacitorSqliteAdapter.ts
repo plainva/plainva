@@ -1,9 +1,6 @@
-import {
-  CapacitorSQLite,
-  SQLiteConnection,
-  type SQLiteDBConnection,
-} from "@capacitor-community/sqlite";
+import type { SQLiteDBConnection } from "@capacitor-community/sqlite";
 import type { BatchOptions, BatchStatement, IDatabaseAdapter } from "@plainva/core";
+import { acquireDatabase, deleteDatabaseFile, releaseDatabase } from "./sqliteConnections";
 import { TransactionTurns } from "./transactionTurns";
 
 /** How long `close()` waits for the transactions already asked for before it closes all the same. */
@@ -19,12 +16,13 @@ const CLOSE_WAITS_MS = 10_000;
  *
  * One connection means one transaction: the plugin refuses a second one while
  * one is open, so transactions — and batches, which are transactions of their
- * own — take turns here (transactionTurns.ts).
+ * own — take turns here (transactionTurns.ts). The connection and its turns
+ * come from `sqliteConnections.ts`, which every database of the phone opens
+ * through: a second adapter on one name shares both.
  */
 export class CapacitorSqliteAdapter implements IDatabaseAdapter {
-  private readonly sqlite = new SQLiteConnection(CapacitorSQLite);
   private db: SQLiteDBConnection | null = null;
-  private readonly turns = new TransactionTurns();
+  private turns = new TransactionTurns();
   /** The body of a `transaction()` is running, between its BEGIN and its COMMIT or ROLLBACK. `runBatch` reads it. */
   private inTransaction = false;
 
@@ -32,17 +30,14 @@ export class CapacitorSqliteAdapter implements IDatabaseAdapter {
 
   /** Removes a per-vault database file (vault deletion). Best effort. */
   static async deleteDatabase(dbName: string): Promise<void> {
-    await CapacitorSQLite.deleteDatabase({ database: dbName });
+    await deleteDatabaseFile(dbName);
   }
 
   async initialize(): Promise<void> {
-    const consistency = await this.sqlite.checkConnectionsConsistency();
-    const existing = await this.sqlite.isConnection(this.dbName, false);
-    this.db =
-      consistency.result && existing.result
-        ? await this.sqlite.retrieveConnection(this.dbName, false)
-        : await this.sqlite.createConnection(this.dbName, false, "no-encryption", 1, false);
-    await this.db.open();
+    if (this.db) return;
+    const handle = await acquireDatabase(this.dbName);
+    this.turns = handle.turns;
+    this.db = handle.connection;
   }
 
   /**
@@ -58,8 +53,7 @@ export class CapacitorSqliteAdapter implements IDatabaseAdapter {
       const db = this.db;
       if (!db) return;
       this.db = null;
-      await db.close();
-      await this.sqlite.closeConnection(this.dbName, false);
+      await releaseDatabase(this.dbName);
     };
     const inTurn = this.turns.take(shut);
     let timer: ReturnType<typeof setTimeout> | undefined;

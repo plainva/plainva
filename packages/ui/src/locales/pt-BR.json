@@ -4871,6 +4871,7 @@
     "needsConsent": "Este serviço precisa de uma nova autorização. Entre novamente e permita o acesso solicitado.",
     "identityUnavailable": "Não foi possível verificar a identidade da conta. Entre novamente no provedor.",
     "storageFailed": "Não foi possível confirmar o salvamento. Tente novamente; o assistente retomará a mesma conexão.",
+    "deviceStorageFailed": "O Plainva não conseguiu usar o próprio banco de dados neste dispositivo ({{detail}}). Isso não é do provedor. Tente novamente; o assistente retomará a mesma conexão.",
     "signedInNotSaved": "O login funcionou, mas os dados da conta não puderam ser salvos neste dispositivo. Nada ficou criado pela metade.",
     "transferTitle": "Copiar arquivos e contas",
     "transferSummary": "{{source}} → {{target}}. {{local}} dos seus arquivos são copiados para o novo vault e enviados para a pasta na nuvem; a estrutura inicial de um vault novo fica para trás. Os arquivos da pasta na nuvem chegam pela sincronização e, onde os dois têm um arquivo, as duas versões são mantidas. O vault de origem será mantido. Calendários e email serão configurados no destino.",

@@ -4810,6 +4810,7 @@
     "needsConsent": "Voor deze dienst is nieuwe toestemming nodig. Meld je opnieuw aan en sta de gevraagde toegang toe.",
     "identityUnavailable": "De identiteit van het account kon niet worden bevestigd. Meld je opnieuw aan bij de aanbieder.",
     "storageFailed": "Het opslaan kon niet worden bevestigd. Probeer het opnieuw; de wizard hervat dezelfde verbinding.",
+    "deviceStorageFailed": "Plainva kon zijn eigen database op dit apparaat niet gebruiken ({{detail}}). Dit ligt niet aan de aanbieder. Probeer het opnieuw; de wizard hervat dezelfde verbinding.",
     "signedInNotSaved": "Het aanmelden is gelukt, maar de accountgegevens konden niet op dit apparaat worden opgeslagen. Er is niets half aangemaakt achtergebleven.",
     "transferTitle": "Bestanden en accounts overnemen",
     "transferSummary": "{{source}} → {{target}}. {{local}} van je bestanden worden naar de nieuwe vault gekopieerd en gaan naar de cloudmap; de startstructuur van een nieuwe vault blijft achter. De bestanden van de cloudmap komen via de synchronisatie, en waar beide een bestand hebben, blijven beide versies bewaard. De bronvault blijft behouden. Agenda’s en e-mail worden in de doelvault ingesteld.",

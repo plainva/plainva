@@ -4810,6 +4810,7 @@
     "needsConsent": "This service needs a new authorization. Sign in again and allow the requested access.",
     "identityUnavailable": "The account identity could not be verified. Sign in to the provider again.",
     "storageFailed": "Storage could not be confirmed. Try again; setup will resume the same connection.",
+    "deviceStorageFailed": "Plainva could not use its own database on this device ({{detail}}). This is not the provider. Try again; setup will resume the same connection.",
     "signedInNotSaved": "The sign-in worked, but the account data could not be saved on this device. Nothing was left half-created.",
     "transferTitle": "Copy files and accounts",
     "transferSummary": "{{source}} → {{target}}. {{local}} of your files are copied into the new vault and go up into the cloud folder; the starter structure of a new vault stays behind. The files of the cloud folder arrive through the sync, and where both have a file, both versions are kept. The source vault is kept. Calendars and email will be set up in the destination.",

@@ -4810,6 +4810,7 @@
     "needsConsent": "Für diesen Dienst ist eine neue Freigabe nötig. Melde Dich erneut an und erlaube den gewünschten Zugriff.",
     "identityUnavailable": "Die Identität des Kontos konnte nicht bestätigt werden. Melde Dich erneut beim Anbieter an.",
     "storageFailed": "Die Speicherung konnte nicht bestätigt werden. Versuche es erneut; der Assistent setzt dieselbe Verbindung fort.",
+    "deviceStorageFailed": "Plainva konnte auf diesem Gerät nicht in seine eigene Datenbank schreiben ({{detail}}). Das liegt nicht am Anbieter. Versuche es erneut; der Assistent setzt dieselbe Verbindung fort.",
     "signedInNotSaved": "Die Anmeldung hat geklappt, aber die Kontodaten ließen sich auf diesem Gerät nicht speichern. Es wurde nichts halb angelegt.",
     "transferTitle": "Dateien und Konten übernehmen",
     "transferSummary": "{{source}} → {{target}}. {{local}} Deiner Dateien werden in den neuen Vault kopiert und gehen in den Cloud-Ordner; die Startstruktur eines neuen Vaults bleibt zurück. Die Dateien des Cloud-Ordners kommen über die Synchronisierung, und wo beide eine Datei haben, bleiben beide Fassungen erhalten. Der Quell-Vault bleibt erhalten. Kalender und E-Mail werden im Ziel eingerichtet.",

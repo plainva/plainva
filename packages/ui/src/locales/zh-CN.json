@@ -4749,6 +4749,7 @@
     "needsConsent": "此服务需要重新授权。请重新登录并允许所需的访问权限。",
     "identityUnavailable": "无法验证账号身份，请重新登录服务提供商。",
     "storageFailed": "无法确认保存结果。请重试，向导将继续设置同一连接。",
+    "deviceStorageFailed": "Plainva 无法使用此设备上自身的数据库（{{detail}}）。这不是提供商的问题。请重试，向导将继续设置同一连接。",
     "signedInNotSaved": "登录成功，但账户数据无法保存到此设备。没有留下任何未完成的内容。",
     "transferTitle": "复制文件和账号",
     "transferSummary": "{{source}} → {{target}}。将你的 {{local}} 个文件复制到新仓库并上传到云文件夹；新仓库的起始结构不会复制。云文件夹中的文件通过同步传入，两边都有的文件会保留两个版本。保留源仓库，并在目标仓库配置日历和邮箱。",

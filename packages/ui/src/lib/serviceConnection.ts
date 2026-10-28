@@ -159,8 +159,22 @@ export function serviceConnectionMessage(error: unknown, t: ConnectionTranslate,
   if (/transfer_binding_collision|transfer_ambiguous_destination/.test(value)) return t("connection.transferAccountCollision");
   if (/transfer_incomplete_inventory|transfer_invalid_path/.test(value)) return t("connection.transferInventoryFailed");
   if (/pair-required/.test(value)) return t("connection.transferPairRequired");
+  // The device's own database failing is not "the provider's answer"; the
+  // banner said so of an iPhone's closed index (device finding 2026-10-28).
+  if (isDeviceDatabaseFailure(value)) return t("connection.deviceStorageFailed", { detail: value });
   if (!value || value === "failed" || value === "loginFailed" || value === "[object Object]") return t("connection.loginFailed");
   return t("connection.providerResponse", { detail: value });
+}
+
+/**
+ * Errors of the device's own SQLite, in the words each shell's driver uses:
+ * the phone's plugin (iOS "Connection to … not available", Android "No
+ * available connection for database …"), its adapter ("database not
+ * initialized"), SQLite itself, and the desktop's sqlx ("error returned from
+ * database").
+ */
+export function isDeviceDatabaseFailure(value: string): boolean {
+  return /Connection to \S+ not available|No available connection for database|database not initialized|SQLITE_[A-Z]+|disk I\/O error|database is locked|database disk image is malformed|error returned from database/.test(value);
 }
 
 export function assertConnectionIdentity(expected: VerifiedProviderIdentity | undefined, actual: VerifiedProviderIdentity | null): void {

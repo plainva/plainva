@@ -29,6 +29,16 @@ const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof
  *  - `commitTransaction` without an open transaction fails on both; Android's
  *    `rollbackTransaction` without one answers as if it had worked, iOS's
  *    fails.
+ *  - Two lists of connections (device finding 2026-10-28): the native one,
+ *    and one per `SQLiteConnection` object on the JavaScript side.
+ *    `createConnection` refuses a name the native list has ("Connection … already
+ *    exists"); `retrieveConnection` and `isConnection` read only the object's
+ *    own list. `checkConnectionsConsistency` sends the object's list and the
+ *    native side answers as both platforms' sources do: an empty list, a
+ *    shorter native list, or names that differ close EVERY native connection
+ *    (`closeAllConnections`) and answer false; a longer native list drops the
+ *    names it was not told of, without closing them. A call on a database that
+ *    is not open natively fails with the platform's message.
  */
 export type PhonePlatform = "android" | "ios";
 
@@ -92,10 +102,25 @@ export function createPhoneSqlitePlugin(platform: PhonePlatform = "android") {
     });
   }
 
+  /** The native list of connections: name → whether its database is open. */
+  const native = new Map<string, { open: boolean }>();
+
+  const notAvailable = (name: string) =>
+    new Error(state.platform === "ios" ? `Connection to ${name} not available` : `No available connection for database ${name}`);
+
   function connection(name: string): Connection {
     const found = connections.get(name);
-    if (!found) throw new Error(`No available connection for database ${name}`);
+    if (!found || !native.get(name)?.open) throw notAvailable(name);
     return found;
+  }
+
+  function closeAllConnections() {
+    for (const [name, entry] of native) {
+      const c = connections.get(name);
+      if (entry.open && c?.inTransaction) end(c, "ROLLBACK");
+      entry.open = false;
+    }
+    native.clear();
   }
 
   const begin = (c: Connection) => { c.sqlite.exec("BEGIN"); c.inTransaction = true; };
@@ -139,13 +164,19 @@ export function createPhoneSqlitePlugin(platform: PhonePlatform = "android") {
   function connectionFor(name: string) {
     return {
       open: () => serve("open", () => {
+        const entry = native.get(name);
+        if (!entry) throw notAvailable(name);
         if (!connections.has(name)) connections.set(name, { sqlite: new DatabaseSync(":memory:"), inTransaction: false });
+        entry.open = true;
       }),
       close: () => serve("close", () => {
         // A closed connection takes its open transaction with it. The rows of
         // this stand-in live as long as the plugin object, as a file would.
+        const entry = native.get(name);
+        if (!entry) throw notAvailable(name);
         const c = connections.get(name);
         if (c?.inTransaction) end(c, "ROLLBACK");
+        entry.open = false;
       }),
       run: (statement: string, values?: unknown[], transaction = true) =>
         serve(transaction ? "run+tx" : "run", () => {
@@ -217,25 +248,53 @@ export function createPhoneSqlitePlugin(platform: PhonePlatform = "android") {
     };
   }
 
+  /** The native answer to `checkConnectionsConsistency` (CapacitorSQLite.swift / .java). */
+  function consistent(told: Set<string>): boolean {
+    if (told.size === 0 || native.size < told.size) { closeAllConnections(); return false; }
+    if (native.size > told.size) for (const name of [...native.keys()]) if (!told.has(name)) native.delete(name);
+    if (native.size === told.size && [...told].every((name) => native.has(name))) return true;
+    closeAllConnections();
+    return false;
+  }
+
+  /** The plugin's JavaScript class: its own list of the connections it made (`_connectionDict`). */
   class SQLiteConnection {
+    private readonly own = new Map<string, ReturnType<typeof connectionFor>>();
     async checkConnectionsConsistency() {
-      return { result: false };
+      const result = consistent(new Set(this.own.keys()));
+      if (!result) this.own.clear();
+      return { result };
     }
-    async isConnection() {
-      return { result: false };
+    async isConnection(name: string) {
+      return { result: this.own.has(name) };
     }
     async createConnection(name: string) {
-      return connectionFor(name);
+      if (native.has(name)) throw new Error(`Connection ${name} already exists`);
+      native.set(name, { open: false });
+      const made = connectionFor(name);
+      this.own.set(name, made);
+      return made;
     }
     async retrieveConnection(name: string) {
-      return connectionFor(name);
+      const found = this.own.get(name);
+      if (!found) throw new Error(`Connection ${name} does not exist`);
+      return found;
     }
-    async closeConnection() {}
+    async closeConnection(name: string) {
+      const entry = native.get(name);
+      if (!entry) throw new Error(`CloseConnection: No available connection for ${name}`);
+      const c = connections.get(name);
+      if (entry.open && c?.inTransaction) end(c, "ROLLBACK");
+      native.delete(name);
+      this.own.delete(name);
+    }
   }
 
   return {
     /** What stands in for the module `@capacitor-community/sqlite`. */
     module: { CapacitorSQLite: { deleteDatabase: async () => {} }, SQLiteConnection },
+    /** Whether `name` is open on the native side. */
+    isOpen: (name: string) => native.get(name)?.open ?? false,
     counts,
     log,
     /** Which platform's plugin answers from here on. */
@@ -270,6 +329,7 @@ export function createPhoneSqlitePlugin(platform: PhonePlatform = "android") {
     reset(next: PhonePlatform = "android") {
       for (const c of connections.values()) c.sqlite.close();
       connections.clear();
+      native.clear();
       for (const key of Object.keys(counts) as Array<keyof typeof counts>) counts[key] = 0;
       log.length = 0;
       state.platform = next;
