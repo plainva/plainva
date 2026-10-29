@@ -25,7 +25,17 @@ interface WebAuthNative {
 
 const WebAuth = registerPlugin<WebAuthNative>("WebAuth");
 
-export async function openSignInPage(url: string): Promise<void> {
+export interface SignInPageOptions {
+  /**
+   * The system's sign-in window closed without an answer - the person closed
+   * it, or it failed. A caller who waits for the answer (the sign-in to an
+   * MCP server, plan KI-Harness P4.5) stops waiting; where the browser opened
+   * instead, the browser reports its own closing.
+   */
+  onClosed?: () => void;
+}
+
+export async function openSignInPage(url: string, options: SignInPageOptions = {}): Promise<void> {
   if (Capacitor.getPlatform() !== "ios" || typeof WebAuth.start !== "function") {
     await Browser.open({ url });
     return;
@@ -45,9 +55,11 @@ export async function openSignInPage(url: string): Promise<void> {
       }
       if (code === "CANCELLED") {
         logDiagnostic("sign-in", "the sign-in window was closed without an answer from the provider");
+        options.onClosed?.();
         return;
       }
       toast.error(...connectionFailureToast(error));
+      options.onClosed?.();
     },
   );
 }

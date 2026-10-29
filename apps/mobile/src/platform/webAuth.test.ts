@@ -62,6 +62,22 @@ describe("openSignInPage", () => {
     expect(state.routed).toEqual([]);
   });
 
+  it("tells a caller who waits that the window closed without an answer, and only then", async () => {
+    const { openSignInPage } = await import("./webAuth");
+    const closed: string[] = [];
+    state.start = async () => ({ url: "com.plainva.app://mcp/oauth?code=c&state=s" });
+    await openSignInPage("https://example.test/answered", { onClosed: () => closed.push("answered") });
+    state.start = async () => { throw Object.assign(new Error("closed"), { code: "CANCELLED" }); };
+    await openSignInPage("https://example.test/closed", { onClosed: () => closed.push("closed") });
+    state.start = async () => { throw Object.assign(new Error("the sign-in window could not open"), { code: "FAILED" }); };
+    await openSignInPage("https://example.test/failed", { onClosed: () => closed.push("failed") });
+    state.start = async () => { throw Object.assign(new Error("not implemented"), { code: "UNIMPLEMENTED" }); };
+    await openSignInPage("https://example.test/old-build", { onClosed: () => closed.push("old-build") });
+    await settle();
+    expect(closed).toEqual(["closed", "failed"]);
+    expect(state.opened).toEqual(["https://example.test/old-build"]);
+  });
+
   it("opens the browser on Android, and on an iPhone build without the plugin", async () => {
     const { openSignInPage } = await import("./webAuth");
     state.platform = "android";

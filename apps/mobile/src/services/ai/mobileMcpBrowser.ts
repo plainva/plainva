@@ -2,12 +2,14 @@ import { Browser } from "@capacitor/browser";
 import type { McpOAuthBrowser, McpOAuthRedirect } from "@plainva/core";
 import { toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
-import { APP_URL } from "../appScheme";
+import { openSignInPage } from "../../platform/webAuth";
+import { APP_URL, redirectAddress } from "../appScheme";
 
 /**
  * The browser of a sign-in to a remote MCP server, and the way back from it
- * (plan KI-Harness P4.5): the system's browser, and the app's own address —
- * the same road every account sign-in of the phone takes (`appUrlRoutes`).
+ * (plan KI-Harness P4.5): the road every account sign-in of the phone takes —
+ * the system's sign-in window on the iPhone, the browser on Android
+ * (`openSignInPage`), and the app's own address (`appUrlRoutes`).
  *
  * What comes back is handed on as it is. Whether it is the answer to what
  * was begun is the native side's decision (`AiMcpAuth`): it kept the state
@@ -26,6 +28,8 @@ interface Waiter {
 }
 
 let waiting: Waiter | null = null;
+/** The sign-in window opened last: it says when it closed without an answer, even before the wait began. */
+let opened: { closed: boolean } | null = null;
 
 /**
  * Opens a page a foreign server asked the user to open (plan KI-Harness
@@ -45,7 +49,16 @@ export function createMobileMcpBrowser(): McpOAuthBrowser {
     async open(url) {
       // The plugin built it from an endpoint it checked; a browser is still only ever opened at a web address.
       if (!/^https?:\/\//i.test(url)) throw new Error("oauth-address");
-      await Browser.open({ url });
+      // On the iPhone the system's sign-in window, as for every account (main, 2026-10-28): an in-app Safari
+      // view drops the way back when its last hop does not follow a tap. The window reports its own closing.
+      const own = { closed: false };
+      opened = own;
+      await openSignInPage(url, {
+        onClosed: () => {
+          own.closed = true;
+          if (opened === own) waiting?.reject(new Error("cancelled"));
+        },
+      });
     },
     wait(signal) {
       return new Promise<McpOAuthRedirect>((resolve, reject) => {
@@ -74,7 +87,7 @@ export function createMobileMcpBrowser(): McpOAuthBrowser {
           void Browser.close().catch(() => undefined);
         };
         waiting = own;
-        if (signal?.aborted) {
+        if (signal?.aborted || opened?.closed) {
           stop();
           return;
         }
@@ -98,7 +111,8 @@ export function createMobileMcpBrowser(): McpOAuthBrowser {
  * what the native side kept, and a toast says what came of it.
  */
 export async function handleMcpOAuthRedirect(url: string): Promise<boolean> {
-  if (url.split(/[?#]/)[0] !== MCP_OAUTH_REDIRECT) return false;
+  // Compared as every sign-in of the phone compares its answer (`redirectAddress`): a slash at its end is the same address.
+  if (redirectAddress(url) !== redirectAddress(MCP_OAUTH_REDIRECT)) return false;
   void Browser.close().catch(() => undefined);
   const params = new URLSearchParams(url.split("?")[1]?.split("#")[0] ?? "");
   const value = (name: string) => params.get(name) ?? undefined;
