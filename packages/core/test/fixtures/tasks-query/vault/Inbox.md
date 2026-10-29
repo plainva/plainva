@@ -1,0 +1,4 @@
+- [ ] Zahnarzt Termin #privat
+- [ ] Steuer 📅 2026-02-30
+- [x] Rechnung bezahlen 📅 2026-10-15 ✅ 2026-10-16 #finanzen
+- [ ] Wöchentlicher Bericht 🔁 every week ⏳ 2026-11-02 ➕ 2026-10-01 #arbeit

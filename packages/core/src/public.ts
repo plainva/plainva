@@ -19,6 +19,7 @@ export * from "./vault/LinkResolver.js";
 export * from "./vault/taskScan.js";
 export * from "./vault/taskMetadata.js";
 export * from "./vault/taskMutation.js";
+export * from "./tasksQuery/index.js";
 export * from "./vault/rollup.js";
 export * from "./vault/obsidianRollup.js";
 export * from "./vault/summary.js";

@@ -47,6 +47,7 @@ export * from "./vault/VaultQueryService.js";
 export * from "./vault/taskScan.js";
 export * from "./vault/taskMetadata.js";
 export * from "./vault/taskMutation.js";
+export * from "./tasksQuery/index.js";
 export * from "./vault/pathMutation.js";
 export * from "./vault/findReplace.js";
 export * from "./vault/renameTag.js";
