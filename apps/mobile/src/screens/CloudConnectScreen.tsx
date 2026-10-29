@@ -353,9 +353,10 @@ export function CloudConnectScreen({
   const failureView = failure ? serviceConnectionFailure(failure, t, { provider: providerName }) : null;
   const failureNote = failureView && (
     <Banner kind="error" rounded>
-      <span data-testid="connect-failure">
-        {failureView.title && <strong>{failureView.title}: </strong>}
-        {failureView.text}
+      <span data-testid="connect-failure" className="m-connectrun-note-text">
+        {failureView.title && <strong>{failureView.title}</strong>}
+        <span>{failureView.text}</span>
+        {failureView.raw && <code className="m-connectrun-raw">{failureView.raw}</code>}
       </span>
     </Banner>
   );
@@ -373,7 +374,11 @@ export function CloudConnectScreen({
           {steps("active")}
           {head}
           {insecure && <Banner kind="warning" rounded>{t("settings.insecureUrlWarning")}</Banner>}
-          <ConnectForm fields={fields} values={values} disabled={running} onChange={(id, value) => { setValues((prev) => ({ ...prev, [id]: value })); setProbe({}); }} />
+          <ConnectForm fields={fields} values={values} disabled={running} onChange={(id, value) => {
+            // The address names the mail provider anew, as on the desktop: a GMX choice does not hold an Outlook address.
+            setValues((prev) => ({ ...prev, [id]: value, ...(family === "imap" && id === "email" ? { mailProvider: "custom" } : {}) }));
+            setProbe({});
+          }} />
           {plan.notes.map((note) => (
             <p className="m-hint" key={note.key} data-testid="connect-note">
               {t(note.key, note.values)}
@@ -457,7 +462,8 @@ export function CloudConnectScreen({
                   disabled={off}
                   end={<Checkbox aria-label={serviceLabel(service)} checked={!off && picked.includes(service)} disabled={off} readOnly tabIndex={-1} />}
                   icon={<Icon className="m-accent" size={ICON.head} />}
-                  onClick={off ? undefined : () => toggle(service)}
+                  // Always a button, so an offered-off row is a disabled one (a row without a handler is plain text).
+                  onClick={() => { if (!off) toggle(service); }}
                   subtitle={unavailable
                     ? t(unavailable, { provider: providerName })
                     : taken && filesTakenBy ? t("cloudAccounts.filesTakenDetail", { account: filesTakenBy.label || familyLabel(filesTakenBy.family, filesTakenBy.flavor) }) : undefined}
@@ -617,7 +623,8 @@ export function ConnectStatusRows({ services, probe, waitingKey, provider }: {
               icon={<Icon size={ICON.ui} className={state?.state === "error" ? "m-danger" : state?.state === "ok" ? "m-accent" : undefined} />}
               title={serviceLabel(service)}
               subtitle={view
-                ? <span>{view.title && <strong>{view.title}: </strong>}{view.text}{view.raw && <code className="m-connectrun-raw">{view.raw}</code>}</span>
+                // Sender, sentence and the failure's own words stacked, as the run's frame says a failure.
+                ? <span className="m-connectrun-note-text">{view.title && <strong>{view.title}</strong>}<span>{view.text}</span>{view.raw && <code className="m-connectrun-raw">{view.raw}</code>}</span>
                 : t(state?.state === "ok" ? "cloudAccounts.statusConnected" : state?.state === "pending" ? "pim.connecting" : waitingKey)}
               wrap
             />

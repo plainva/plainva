@@ -475,9 +475,10 @@ async function firstGoogleConnect(context: BrowserContext, page: Page, access: "
   await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
   await page.getByTestId("cloudacct-connect").click();
   await page.getByTestId("connect-family-google").click();
-  await page.getByTestId("connect-service-files").click();
-  await page.getByTestId("connect-service-calendar").click();
-  if (withMail) await page.getByTestId("connect-service-mail").click();
+  // Preselected as on the desktop (settings plan 2026-10-29): files, calendar and mail.
+  await expect(page.getByTestId("connect-service-files").getByRole("checkbox")).toBeChecked();
+  await expect(page.getByTestId("connect-service-calendar").getByRole("checkbox")).toBeChecked();
+  if (!withMail) await page.getByTestId("connect-service-mail").click();
   await page.getByTestId("connect-start").click();
 
   // Back from Google: the setup's frame on its folder step, the sign-in counted as done
@@ -726,8 +727,9 @@ test("a Microsoft account for calendar and mail, next to a Google account that c
     // Files go through one account per vault: Google carries them, so they are offered off, named.
     await expect(page.getByTestId("connect-service-files")).toBeDisabled();
     await expect(page.getByTestId("connect-service-files")).toContainText(ANNA.email);
-    await page.getByTestId("connect-service-calendar").click();
-    await page.getByTestId("connect-service-mail").click();
+    // Calendar and mail are ticked from the start (settings plan 2026-10-29).
+    await expect(page.getByTestId("connect-service-calendar").getByRole("checkbox")).toBeChecked();
+    await expect(page.getByTestId("connect-service-mail").getByRole("checkbox")).toBeChecked();
     await page.getByTestId("connect-start").click();
     await expectStep(page, "calendar");
     await expect(page.getByTestId("connectrun-account")).toContainText(CARLA.email);

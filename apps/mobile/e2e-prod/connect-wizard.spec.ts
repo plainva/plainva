@@ -49,34 +49,22 @@ test("picking a service opens its sign-in surface", async ({ page }) => {
   const files = page.locator('[data-testid="connect-service-files"]');
   await expect(files).toBeVisible({ timeout: 10000 });
 
-  // Since S0b1 the rows TICK and a button starts the run. Both services of the
-  // family go in, in the wrong order on purpose: files has to open first no
-  // matter how they were ticked, because on mobile it creates the vault
-  // container the other services then bind to.
-  await page.locator('[data-testid="connect-service-calendar"]').click();
-  await files.click();
+  // The rows TICK and a button goes on; both services of WebDAV are ticked
+  // from the start (settings plan 2026-10-29: preselected as on the desktop).
+  await expect(files.getByRole("checkbox")).toBeChecked();
+  await expect(page.locator('[data-testid="connect-service-calendar"]').getByRole("checkbox")).toBeChecked();
   await page.locator('[data-testid="connect-start"]').click();
 
-  // The defect: the wizard's own rows are still the thing on screen. Waiting
-  // for the target to appear is the assertion — with the old wiring the push
-  // did land for a frame, so "the target was never there" would be the wrong
-  // question. What has to hold is that it is STILL there once the microtask
-  // queue has drained.
+  // The defect: the wizard's own rows are still the thing on screen. What has
+  // to hold is that the next surface is STILL there once the microtask queue
+  // has drained - for WebDAV the one form of the sign-in step, asking for both
+  // services' addresses at once (E5).
   await page.waitForTimeout(500);
   await expect(
     page.locator('[data-testid="connect-service-files"]'),
-    "the wizard is still on screen — starting the run did nothing (#47)",
+    "the wizard is still on screen — going on did nothing (#47)",
   ).toHaveCount(0);
   await expect(page.locator('[data-testid="connect-family-webdav"]')).toHaveCount(0);
-  // …and it is the FILES screen, not the calendar one that was ticked first.
-  // Its form needs a search index the fixture has no vault for, so the screen
-  // shows its "needs the index" state — which is still only ever rendered by
-  // this screen, and so answers the question that is asked here. That the row
-  // inside the form states the family rather than asking again is covered by
-  // the source guard in mobileLint; seeing it on a phone stays a maintainer
-  // step (Sammelplan § 2.28).
-  await expect(
-    page.locator('[data-testid="addvault-needs-index-retry"]'),
-    "files runs first, before the calendar that was ticked before it",
-  ).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('[data-testid="connect-field-filesUrl"]')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('[data-testid="connect-field-caldavUrl"]')).toBeVisible();
 });
