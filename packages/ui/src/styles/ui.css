@@ -2125,6 +2125,17 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
   border-top: 1px solid var(--border-color);
 }
 
+/* A row that acts is a <button>, so the user-agent border has to go first:
+   what was left drew a dark line along the top of the card and a sliver down
+   each side. The desktop reset in App.css does not reach the phone.
+   The reset carries NO weight (:where): as a plain class rule on the row it
+   matched the hairline rule above in strength and, coming later, erased it on
+   every row that is itself a child of the list - the divider only survived
+   where a row sits inside a swipe container (the Tasks tab). Today, Home,
+   settings and every other plain list had none (TestFlight 2026-10-28). */
+:where(.pv-grouprow) {
+  border: 0;
+}
 .pv-grouprow {
   display: flex;
   align-items: center;
@@ -2132,11 +2143,6 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
   width: 100%;
   min-height: var(--pv-row-min);
   padding: var(--pv-row-pad-y) var(--pv-row-pad-x);
-  /* A row that acts is a <button>, so the user-agent border has to go first:
-     the hairline below replaces only the BOTTOM of it, and what was left drew
-     a dark line along the top of the card and a sliver down each side. The
-     desktop reset in App.css does not reach the phone. */
-  border: 0;
   background: transparent;
   color: inherit;
   font: inherit;

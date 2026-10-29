@@ -332,6 +332,25 @@ describe("hover tint (--state-hover paints only :hover rules)", () => {
   });
 });
 
+describe("list dividers (the hairline between rows is not reset away)", () => {
+  it("keeps every border reset of a list row weightless", () => {
+    // `.pv-grouprows > * + *` draws the divider at the strength of one class.
+    // `.pv-grouprow { border: 0 }` had the same strength and came later, so it
+    // erased the divider on every row that is a direct child of its list
+    // (TestFlight 2026-10-28: no lines in Today). A border reset on a row may
+    // only sit in :where(), which weighs nothing.
+    const ui = sourceFile(STYLE_FILES.ui).replace(/\/\*[\s\S]*?\*\//g, "");
+    const offenders: string[] = [];
+    for (const m of ui.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const selectors = m[1].trim().split(",").map((s) => s.trim());
+      if (!selectors.includes(".pv-grouprow")) continue;
+      if (/(^|;)\s*border(-top)?\s*:/.test(m[2])) offenders.push(m[1].trim());
+    }
+    expect(offenders, offenders.join(", ")).toEqual([]);
+    expect(ui).toMatch(/:where\(\.pv-grouprow\)\s*\{\s*border:\s*0;/);
+  });
+});
+
 describe("theme reach (every mobile surface can be re-themed)", () => {
   it("paints mobile surfaces from shared tokens, never from literals", () => {
     // The plan's finding was "2 of 14 themes know mobile". The cause is not a
