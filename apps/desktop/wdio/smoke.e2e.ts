@@ -46,6 +46,7 @@ const en = JSON.parse(readFileSync(resolve(process.cwd(), "../../packages/ui/src
 // WebDriver's codes for the modifier keys in Element Send Keys (W3C §17.4.2).
 const CTRL = String.fromCharCode(0xe009);
 const ALT = String.fromCharCode(0xe00a);
+const ENTER = String.fromCharCode(0xe007);
 
 /** How the settings show Control+Alt+K: `⌃ + ⌥ + K` on a Mac, `Ctrl + Alt + K` elsewhere. */
 const recordedLabel = isMac ? `${String.fromCharCode(0x2303)} + ${String.fromCharCode(0x2325)} + K` : "Ctrl + Alt + K";
@@ -88,6 +89,36 @@ async function screenCentre(selector: string): Promise<{ x: number; y: number }>
   return { x: Math.round(frame.x + box.left + box.width / 2), y: Math.round(frame.y + titleBar + box.top + box.height / 2) };
 }
 
+/** The app's own list of its windows, for a failure message: what exists, whether the driver sees it or not. */
+async function appWindows(): Promise<string> {
+  try {
+    const labels = await browser.execute(async () => {
+      const internals = (window as unknown as { __TAURI_INTERNALS__?: { invoke: (cmd: string) => Promise<unknown> } }).__TAURI_INTERNALS__;
+      return internals ? await internals.invoke("plugin:window|get_all_windows") : "no Tauri internals";
+    });
+    return JSON.stringify(labels);
+  } catch (error) {
+    return `unknown (${error instanceof Error ? error.message : String(error)})`;
+  }
+}
+
+/**
+ * `browser.waitUntil` whose failure message is written when it fails, not when
+ * the wait starts — "now" in a message has to be the state at the timeout.
+ */
+async function waitFor(
+  condition: () => boolean | Promise<boolean>,
+  timeout: number,
+  explain: () => string | Promise<string>,
+  interval = 500,
+): Promise<void> {
+  try {
+    await browser.waitUntil(condition, { timeout, interval });
+  } catch (error) {
+    throw new Error(`${await explain()} [${error instanceof Error ? error.message : String(error)}]`, { cause: error });
+  }
+}
+
 function fileHolds(file: string, text: string): boolean {
   return existsSync(file) && readFileSync(file, "utf8").includes(text);
 }
@@ -109,6 +140,16 @@ describe("Plainva native smoke", () => {
     // is always present once a vault is open.
     await $('[data-testid="ribbon-tasks"]').waitForExist({ timeout: 60_000 });
     mainHandle = await browser.getWindowHandle();
+    // An explicit switch tells the service that this spec chooses its window
+    // itself. Without it the service looks for the active window before every
+    // find and click, through a helper plugin this app does not carry, and
+    // waits five seconds for it each time (first run with S4, 2026-10-29: the
+    // case ran out of its three minutes on that alone).
+    await browser.switchToWindow(mainHandle);
+    // A person's app is in front; one started by the service is not
+    // necessarily (macOS: the name field of S2 never heard its Enter in a
+    // window that was not key, 2026-10-29).
+    if (isMac) mac.activatePlainva();
     await dismissDialogs();
   });
 
@@ -120,7 +161,8 @@ describe("Plainva native smoke", () => {
     const name = $('[data-testid="file-tree"] input.pv-field');
     await name.waitForExist({ timeout: 10_000 });
     await name.setValue("smoke-note");
-    await browser.keys("Enter");
+    // To the field itself, like the marker below.
+    await name.addValue(ENTER);
 
     const editor = $(".cm-content");
     await editor.waitForExist({ timeout: 10_000 });
@@ -131,11 +173,11 @@ describe("Plainva native smoke", () => {
 
     // Autosave runs about a second after the last key; give the atomic write
     // its time and then read what is actually in the vault.
-    await browser.waitUntil(() => fileHolds(note(), marker), {
-      timeout: 20_000,
-      interval: 500,
-      timeoutMsg: `the marker never reached ${note()}; the vault holds: ${existsSync(vault) ? readdirSync(vault).join(", ") : "nothing"}`,
-    });
+    await waitFor(
+      () => fileHolds(note(), marker),
+      20_000,
+      () => `the marker never reached ${note()}; the vault holds: ${existsSync(vault) ? readdirSync(vault).join(", ") : "nothing"}`,
+    );
   });
 
   it("S3 hands the editor to the platform's spell checker", async () => {
@@ -195,10 +237,11 @@ describe("Plainva native smoke", () => {
     }
 
     const shown = card.$('[data-testid="quick-capture-shortcut"]');
-    await browser.waitUntil(async () => (await shown.getAttribute("aria-label")) === recordedLabel, {
-      timeout: 10_000,
-      timeoutMsg: `the recorder did not take Control+Alt+K (shows "${await shown.getAttribute("aria-label")}")`,
-    });
+    await waitFor(
+      async () => (await shown.getAttribute("aria-label")) === recordedLabel,
+      10_000,
+      async () => `the recorder did not take Control+Alt+K (shows "${await shown.getAttribute("aria-label")}")`,
+    );
     // Registered, not just written down: the system refusing it would stand
     // under the switch.
     await browser.waitUntil(async () => (await toggle.getAttribute("disabled")) === null, { timeout: 10_000 });
@@ -210,15 +253,17 @@ describe("Plainva native smoke", () => {
 
   (isMac ? it : it.skip)("S4b opens the capture window from the system-wide shortcut (macOS)", async () => {
     mac.activateFinder();
-    await browser.waitUntil(async () => mac.frontmostProcess() === "Finder", {
-      timeout: 10_000,
-      timeoutMsg: `the Finder did not come to the front (in front: ${mac.frontmostProcess()})`,
-    });
+    await waitFor(
+      () => mac.frontmostProcess() === "Finder",
+      10_000,
+      () => `the Finder did not come to the front (in front: ${mac.frontmostProcess()})`,
+    );
     mac.keystroke("k", ["control", "option"]);
-    await browser.waitUntil(async () => (await browser.getWindowHandles()).includes(CAPTURE_WINDOW), {
-      timeout: 15_000,
-      timeoutMsg: `Control+Option+K with the Finder in front opened no capture window (windows: ${(await browser.getWindowHandles()).join(", ")})`,
-    });
+    await waitFor(
+      async () => (await browser.getWindowHandles()).includes(CAPTURE_WINDOW),
+      15_000,
+      async () => `Control+Option+K with the Finder in front opened no capture window (windows: ${(await browser.getWindowHandles()).join(", ")})`,
+    );
     await browser.switchToWindow(CAPTURE_WINDOW);
     await $('[data-testid="quick-capture"]').waitForExist({ timeout: 10_000 });
     await $('[data-testid="quick-capture-close"]').click();
@@ -238,16 +283,16 @@ describe("Plainva native smoke", () => {
     await item.click();
 
     let second = "";
-    await browser.waitUntil(
+    await waitFor(
       async () => {
         const now = await browser.getWindowHandles();
         second = now.find((handle) => !before.includes(handle) && handle !== CAPTURE_WINDOW) ?? "";
         return second !== "";
       },
-      {
-        timeout: 20_000,
-        timeoutMsg: `no second window appeared to the driver (before: ${before.join(", ")}; now: ${(await browser.getWindowHandles()).join(", ")})`,
-      },
+      20_000,
+      async () =>
+        `no second window appeared to the driver (before: ${before.join(", ")}; now: ${(await browser.getWindowHandles()).join(", ")}; ` +
+        `the app's own windows: ${await appWindows()})`,
     );
     await browser.switchToWindow(second);
     const editor = $(".cm-content");
@@ -258,11 +303,11 @@ describe("Plainva native smoke", () => {
     });
     await editor.click();
     await editor.addValue(` ${secondMarker}`);
-    await browser.waitUntil(() => fileHolds(note(), secondMarker), {
-      timeout: 20_000,
-      interval: 500,
-      timeoutMsg: `the second window's text never reached ${note()}`,
-    });
+    await waitFor(
+      () => fileHolds(note(), secondMarker),
+      20_000,
+      () => `the second window's text never reached ${note()}; the file holds: ${existsSync(note()) ? JSON.stringify(readFileSync(note(), "utf8")) : "nothing"}`,
+    );
     if (!fileHolds(note(), marker)) throw new Error("the second window's save lost the first marker");
     await browser.switchToWindow(mainHandle);
   });
