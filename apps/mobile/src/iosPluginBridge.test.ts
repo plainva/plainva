@@ -123,6 +123,36 @@ describe("iOS plugin bridge contract", () => {
     });
   }
 
+  /*
+   * The Xcode project is written by hand here, and two of its mistakes compile
+   * nothing wrong into the TypeScript side: an object ID used twice (the
+   * second definition wins, so a new file silently takes another file's place)
+   * and a plugin file missing from the App target's Sources. The first sign
+   * was "cannot find 'WebAuthPlugin' in scope" on a macOS runner (2026-10-28).
+   */
+  const project = readFileSync(join(here, "..", "ios", "App", "App.xcodeproj", "project.pbxproj"), "utf8");
+
+  it("defines every object ID of the Xcode project once", () => {
+    const defined = [...project.matchAll(/^\t\t([0-9A-F]{24}) \/\*[^*]*\*\/ = \{/gm)].map((m) => m[1]);
+    const twice = [...new Set(defined.filter((id, index) => defined.indexOf(id) !== index))];
+    expect(twice, `object IDs defined more than once: ${twice.join(", ")}`).toEqual([]);
+  });
+
+  it("builds every registered plugin's Swift file in the App target", () => {
+    const target = /\/\* App \*\/ = \{\s*isa = PBXNativeTarget;[\s\S]*?buildPhases = \(([\s\S]*?)\);/.exec(project);
+    expect(target, "no App target in the Xcode project").not.toBeNull();
+    const sourcesId = /([0-9A-F]{24}) \/\* Sources \*\//.exec(target![1])?.[1];
+    expect(sourcesId, "the App target has no Sources phase").toBeTruthy();
+    const phase = new RegExp(`\\t\\t${sourcesId} \\/\\* Sources \\*\\/ = \\{[\\s\\S]*?files = \\(([\\s\\S]*?)\\);`).exec(project);
+    const built = new Set([...phase![1].matchAll(/([0-9A-F]{24}) \/\* ([^*]+?) in Sources \*\//g)].map((m) => {
+      const buildFile = new RegExp(`\\t\\t${m[1]} \\/\\*[^*]*\\*\\/ = \\{isa = PBXBuildFile; fileRef = ([0-9A-F]{24})`).exec(project);
+      const reference = buildFile && new RegExp(`\\t\\t${buildFile[1]} \\/\\*[^*]*\\*\\/ = \\{[^}]*path = ([^;]+);`).exec(project);
+      return reference ? reference[1].split("/").pop()! : "";
+    }));
+    const missing = registeredPlugins(mainViewController!).filter((plugin) => !built.has(`${plugin}.swift`));
+    expect(missing, `registered but not built in the App target: ${missing.join(", ")}`).toEqual([]);
+  });
+
   it("every plugin the TypeScript side registers exists natively with that jsName", () => {
     const declared = new Set(
       registeredPlugins(mainViewController!)

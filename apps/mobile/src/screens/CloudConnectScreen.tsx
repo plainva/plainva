@@ -3,7 +3,8 @@ import { isDevicePimSupported } from "../platform/devicePim";
 import { hasDevicePimAccount } from "../services/pim/pimService";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, ChevronRight, Folder, Mail } from "lucide-react";
-import { accountMonogram, Button, Checkbox, type CloudProviderFamily, type CloudServiceId, FAMILY_SERVICES, GroupCard, ICON, Row, RowList, suiteProvider, Switch } from "@plainva/ui";
+import { accountMonogram, Button, Checkbox, type CloudAccountRecord, type CloudProviderFamily, type CloudServiceId, FAMILY_SERVICES, familyLabel, filesCarrier, GroupCard, ICON, Row, RowList, suiteProvider, Switch } from "@plainva/ui";
+import { loadCloudAccounts } from "../services/cloudAccountsStore";
 import { AppBar } from "../components/AppBar";
 import { AccountAccessSheet } from "../components/AccountAccessSheet";
 import { AccessUnavailableError, beginMobileSignIn } from "../services/accountSignIn";
@@ -83,6 +84,16 @@ export function CloudConnectScreen({
     return () => { alive = false; };
   }, [onConnectDevice]);
   const tiles: CloudProviderFamily[] = deviceTile ? ["device", ...TILES] : TILES;
+  // Files go through one account per vault: while one carries them, they are offered off, named.
+  const [filesTakenBy, setFilesTakenBy] = useState<CloudAccountRecord | undefined>();
+  useEffect(() => {
+    let alive = true;
+    void getActiveVaultEntry()
+      .then((entry) => loadCloudAccounts(entry.id))
+      .then((records) => { if (alive) setFilesTakenBy(filesCarrier(records)); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const start = async () => {
     if (!family) return;
@@ -92,6 +103,7 @@ export function CloudConnectScreen({
     }
     setStarting(true);
     try {
+      if (filesTakenBy && picked.includes("files")) return;
       // Gmail by app password goes outside the consent and on to the mail screen, bound to the card (E5).
       const outside: CloudServiceId[] = family === "google" && gmailByPassword && picked.includes("mail") ? ["mail"] : [];
       const out = await beginMobileSignIn((await getActiveVaultEntry()).id, { family, add: picked, ...(outside.length ? { outside } : {}) });
@@ -160,14 +172,18 @@ export function CloudConnectScreen({
       <RowList>
         {offered.map((s) => {
           const Icon = SERVICE_ICON[s];
+          const taken = s === "files" && !!filesTakenBy;
           return (
             <Row
               key={s}
               data-testid={`connect-service-${s}`}
-              end={<Checkbox aria-label={serviceName(s)} checked={picked.includes(s)} readOnly tabIndex={-1} />}
+              disabled={taken}
+              end={<Checkbox aria-label={serviceName(s)} checked={picked.includes(s)} disabled={taken} readOnly tabIndex={-1} />}
               icon={<Icon className="m-accent" size={ICON.head} />}
               onClick={() => toggle(s)}
+              subtitle={taken && filesTakenBy ? t("cloudAccounts.filesTakenDetail", { account: filesTakenBy.label || familyLabel(filesTakenBy.family, filesTakenBy.flavor) }) : undefined}
               title={serviceName(s)}
+              wrap={taken}
             />
           );
         })}

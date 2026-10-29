@@ -38,6 +38,7 @@
 		9D0002000000000000000001 /* LocalModelPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D0001000000000000000001 /* LocalModelPlugin.swift */; };
 		9E0002000000000000000001 /* PlatformModelPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E0001000000000000000001 /* PlatformModelPlugin.swift */; };
 		9D0005000000000000000001 /* PlainvaOrt in Frameworks */ = {isa = PBXBuildFile; productRef = 9D0004000000000000000001 /* PlainvaOrt */; };
+		7A0E02000000000000000001 /* WebAuthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0E01000000000000000001 /* WebAuthPlugin.swift */; };
 		7F0002000000000000000002 /* WidgetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0001000000000000000002 /* WidgetStore.swift */; };
 		7B1008010000000000000001 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1009020000000000000001 /* ShareViewController.swift */; };
 		7B1008020000000000000001 /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7B1009040000000000000001 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -132,6 +133,7 @@
 		A10001000000000000000006 /* AiMcpAuthPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiMcpAuthPlugin.swift; sourceTree = "<group>"; };
 		9D0001000000000000000001 /* LocalModelPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModelPlugin.swift; sourceTree = "<group>"; };
 		9E0001000000000000000001 /* PlatformModelPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformModelPlugin.swift; sourceTree = "<group>"; };
+		7A0E01000000000000000001 /* WebAuthPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthPlugin.swift; sourceTree = "<group>"; };
 		7F0001000000000000000002 /* WidgetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/WidgetStore.swift; sourceTree = SOURCE_ROOT; };
 		7B0001000000000000000002 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		7B1009010000000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -239,6 +241,7 @@
 				A10001000000000000000006 /* AiMcpAuthPlugin.swift */,
 				9D0001000000000000000001 /* LocalModelPlugin.swift */,
 				9E0001000000000000000001 /* PlatformModelPlugin.swift */,
+				7A0E01000000000000000001 /* WebAuthPlugin.swift */,
 				7B0001000000000000000002 /* App.entitlements */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
@@ -477,6 +480,7 @@
 				A10002000000000000000005 /* AiMcpOAuthRules.swift in Sources */,
 				9D0002000000000000000001 /* LocalModelPlugin.swift in Sources */,
 				9E0002000000000000000001 /* PlatformModelPlugin.swift in Sources */,
+				7A0E02000000000000000001 /* WebAuthPlugin.swift in Sources */,
 				7F0002000000000000000002 /* WidgetStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
