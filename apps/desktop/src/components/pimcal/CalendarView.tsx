@@ -5,7 +5,7 @@ import { CalendarRange, ChevronLeft, Diamond, ChevronRight, Link2, ListChecks, M
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { errorText, etagStamp, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, markFreshNote, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
+import { errorText, etagStamp, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, markFreshNote, dayRangeLabel, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
 import { PimConflictError, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
 import {
   blockLinkKey,
@@ -677,9 +677,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     const first = gridDays[0];
     const last = gridDays[gridDays.length - 1];
     if (!first || !last) return monthTitle;
-    const dayNum = new Intl.DateTimeFormat(i18n.language, { day: "numeric" });
-    const dayMonth = new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "long" });
-    return `${dayNum.format(first)}.–${dayMonth.format(last)}${week}`;
+    return `${dayRangeLabel(first, last, i18n.language, "long")}${week}`;
   }, [viewMode, monthTitle, dayTitle, gridDays, i18n.language, t, showWeeks]);
 
   // Prev/next steps by the visible period (1 / 3 / 7 days, or one month).

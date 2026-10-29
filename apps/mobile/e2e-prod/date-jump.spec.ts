@@ -59,7 +59,7 @@ test("tapping the period opens the date jump sheet, and a picked day moves the c
   await expect(title).not.toHaveText(before);
   // Every view names the day or the month it shows; a jump to March of next
   // year is visible in the period whichever view was remembered.
-  await expect(title).toContainText(/March|3/);
+  await expect(title).toContainText(/March|Mar/);
 });
 
 test("daily-note marks use the configured path, and the action opens or creates it", async ({ page, context }, testInfo) => {

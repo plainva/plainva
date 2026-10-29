@@ -114,9 +114,12 @@ export function AppBar({
     return () => target.removeEventListener("scroll", read);
   }, [scrollState]);
 
+  // A title slot that is a control (the search field) has no context line.
+  const hasSub = !titleAs && subtitle !== undefined && subtitle !== null && subtitle !== "";
+
   return (
     <header
-      className={`m-appbar${large ? " m-appbar--lg" : ""}${(scrollState?.scrolled ?? scrolled) ? " is-scrolled" : ""}${className ? ` ${className}` : ""}`}
+      className={`m-appbar${large ? " m-appbar--lg" : ""}${hasSub ? " m-appbar--sub" : ""}${(scrollState?.scrolled ?? scrolled) ? " is-scrolled" : ""}${className ? ` ${className}` : ""}`}
       data-testid={testId}
       ref={ref}
     >
@@ -142,9 +145,7 @@ export function AppBar({
           {titleAs ?? (
             <>
               <h1>{title}</h1>
-              {subtitle !== undefined && subtitle !== null && subtitle !== "" && (
-                <p className="m-appbar-sub">{subtitle}</p>
-              )}
+              {hasSub && <p className="m-appbar-sub">{subtitle}</p>}
             </>
           )}
         </div>

@@ -65,6 +65,22 @@ export function isoWeeksForCells(cells: Date[]): number[] {
  * ("KW 43", "KW 43–44" when three days cross a Monday). `weekShort` is the
  * localized prefix (`calendar.weekShort`). Empty for no days.
  */
+/**
+ * A run of days as one label in the app language: "26. Okt. – 1. Nov.",
+ * "2.–8. Nov.", "Oct 26 – Nov 1". The language decides the shape through
+ * `formatRange`; both calendars used to glue a fixed "." after the first day,
+ * which read "26.–Nov 1" in English (feedback 2026-10-29). A single day is
+ * the day itself; without `formatRange` the two ends are joined by a dash.
+ */
+export function dayRangeLabel(first: Date, last: Date, language: string, month: "short" | "long" = "short"): string {
+  const fmt = new Intl.DateTimeFormat(language, { day: "numeric", month });
+  if (first.getFullYear() === last.getFullYear() && first.getMonth() === last.getMonth() && first.getDate() === last.getDate()) {
+    return fmt.format(first);
+  }
+  const range = (fmt as Intl.DateTimeFormat & { formatRange?: (a: Date, b: Date) => string }).formatRange;
+  return typeof range === "function" ? range.call(fmt, first, last) : `${fmt.format(first)} – ${fmt.format(last)}`;
+}
+
 export function isoWeekLabel(days: Date[], weekShort: string): string {
   if (days.length === 0) return "";
   const first = getISOWeek(days[0]);

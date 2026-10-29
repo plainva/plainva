@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ChevronLeft, ChevronRight, Diamond, Link2, ListChecks, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Diamond, Link2, ListChecks, RefreshCw, CalendarPlus } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { haptics } from "../services/haptics";
-import { chunkWeeks, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge, fillAllDayRoom, planAllDayRows, CalendarSyncNotice, hiddenBeyondDots, syncProblemsFor, dueRowsByDay, isOpenState, setPendingSearchJump, TaskStateIcon, errorText, type PlannerRow } from "@plainva/ui";
+import { chunkWeeks, dayRangeLabel, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge, fillAllDayRoom, planAllDayRows, CalendarSyncNotice, hiddenBeyondDots, syncProblemsFor, dueRowsByDay, isOpenState, setPendingSearchJump, TaskStateIcon, errorText, type PlannerRow } from "@plainva/ui";
 import type { PimEventRow, PimSyncProblem } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -518,27 +518,31 @@ export function PimCalendarScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusedKey]);
 
+  // The period between the arrows that move it (feedback 2026-10-29). Short
+  // forms, because the row is about 150pt wide on a small phone; the week
+  // number is not part of it, it stands in the corner of the time grid.
   const periodTitle = () => {
-    // A time grid names its week when week numbers are on; the month has its
-    // own column for them.
-    const week = showWeeks && days.length > 0 ? ` · ${isoWeekLabel(days, t("calendar.weekShort"))}` : "";
-    if (view === "day") return `${new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(anchor)}${week}`;
-    if (view === "agenda") return t("pim.viewAgenda", { defaultValue: "Agenda" });
+    if (view === "day") return new Intl.DateTimeFormat(i18n.language, { weekday: "short", day: "numeric", month: "short" }).format(anchor);
     if (view === "month") return new Intl.DateTimeFormat(i18n.language, { month: "long", year: "numeric" }).format(anchor);
-    const first = days[0];
-    const last = days[days.length - 1];
-    const d = new Intl.DateTimeFormat(i18n.language, { day: "numeric" });
-    const dm = new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "short" });
-    return `${d.format(first)}.–${dm.format(last)}${week}`;
+    if (days.length === 0) return t("pim.viewAgenda", { defaultValue: "Agenda" });
+    // The agenda names the days it lists, like the time grids.
+    return dayRangeLabel(days[0], days[days.length - 1], i18n.language);
   };
+  // "Today" has nothing to do while today is on screen: it stays in place,
+  // faded, so the button beside it never moves.
+  const todayShown =
+    view === "month"
+      ? anchor.getFullYear() === new Date().getFullYear() && anchor.getMonth() === new Date().getMonth()
+      : days.some((day) => isoOf(day) === todayIso);
 
-  // The period is a BUTTON in the bar's subtitle slot (N5.1 put the period
-  // there; P3 makes it the way to the date jump). It stays the subtitle: the
-  // toolbar below has no room for it, and the bar answers "where am I".
+  // The period is the button between the arrows (P3 made it the way to the
+  // date jump). It used to be the app bar's subtitle, because the toolbar had
+  // no room; the room came from moving sync up next to search and dropping the
+  // settings shortcut, which no other surface has (feedback 2026-10-29).
   const periodNode = (
     <button
       type="button"
-      className="m-appbar-sub-btn"
+      className="m-pimbar-period"
       data-testid="pim-title"
       aria-haspopup="dialog"
       aria-expanded={jumpOpen}
@@ -594,11 +598,13 @@ export function PimCalendarScreen({
         onBack={onBack}
         onMenu={onMenu}
         onSearch={onSearch}
-        /* The period belongs in the bar (N5.1): the toolbar below has to fit
-           two arrows, "today" and two more buttons beside it, and a German
-           weekday date was being cut to "Sonnt…" there. Here it has the width
-           it needs, and it answers the bar's question — where am I. */
-        subtitle={periodNode}
+        /* The same head as every other area: menu, title, and on the right
+           what concerns the whole area — search and sync, as in Tasks. */
+        actions={
+          <IconButton label={t("mobile.syncNow")} onClick={() => pimSyncNow()} data-testid="pim-sync">
+            <RefreshCw size={ICON.head} className={status.status === "syncing" ? "m-spin" : undefined} />
+          </IconButton>
+        }
         title={t("mobile.tabCalendar", { defaultValue: "Kalender" })}
       />
       {jumpOpen && (
@@ -628,23 +634,20 @@ export function PimCalendarScreen({
         <IconButton label={t("pim.prevPeriod", { defaultValue: "Zurück" })} onClick={() => navPeriod(-1)}>
           <ChevronLeft size={ICON.head} />
         </IconButton>
-
+        {periodNode}
         <IconButton label={t("pim.nextPeriod", { defaultValue: "Weiter" })} onClick={() => navPeriod(1)}>
           <ChevronRight size={ICON.head} />
         </IconButton>
-        {/* "Today" belongs WITH the arrows: all three move the period, and
-            since the period label moved up into the app bar the spacer between
-            them left a hole in the middle of the row where a label used to be.
-            Navigation on the left, actions on the right — the ordinary shape of
-            a toolbar, and no gap that looks like something is missing. */}
+        <span className="m-pimbar-spacer" />
         <IconButton
           label={t("pim.today", { defaultValue: "Heute" })}
           className="m-pimbar-today"
+          disabled={todayShown}
           onClick={() => setAnchor(new Date())}
+          data-testid="pim-today"
         >
           {t("pim.today", { defaultValue: "Heute" })}
         </IconButton>
-        <span className="m-pimbar-spacer" />
         {/* Creating lives in the calendar's own bar, not in a second floating
             button (S24): the tab already carries the vault's capture FAB, and
             two stacked FABs mean the surface has no primary action at all. */}
@@ -660,17 +663,11 @@ export function PimCalendarScreen({
         >
           <CalendarPlus size={ICON.head} />
         </IconButton>
-        <IconButton
-          label={t("mobile.syncNow")}
-          onClick={() => pimSyncNow()}
-        >
-          <RefreshCw size={ICON.head} className={status.status === "syncing" ? "m-spin" : undefined} />
-        </IconButton>
-        {onOpenSettings && (
-          <IconButton label={t("pim.accounts", { defaultValue: "Kalenderkonten" })} onClick={onOpenSettings}>
-            <CalendarCog size={ICON.head} />
-          </IconButton>
-        )}
+        {/* No shortcut into the calendar accounts here (feedback 2026-10-29):
+            no other area jumps into its settings from its toolbar, and the
+            desktop has none. The accounts are under Settings -> Calendar; the
+            sign-in banner and the empty calendar keep their own way there,
+            because they fix a state rather than navigate. */}
       </div>
 
       {/* View segment */}
@@ -935,7 +932,11 @@ export function PimCalendarScreen({
               keep the screen. */}
           <div style={{ position: "sticky", top: 0, zIndex: "var(--z-m-bar)", background: "var(--bg-primary)" }} data-testid="pim-timegrid-head">
           <div style={{ display: "flex", borderBottom: "1px solid var(--border-color-light)" }}>
-            <div style={{ width: GUTTER_PX, flexShrink: 0 }} />
+            {/* The corner over the hours carries the week number when week
+                numbers are on: it left the period label, which has no room. */}
+            <div className="m-pimcal-week" style={{ width: GUTTER_PX }} data-testid="pim-week-label">
+              {showWeeks && days.length > 0 ? isoWeekLabel(days, t("calendar.weekShort")) : null}
+            </div>
             {days.map((day) => {
               const key = isoOf(day);
               const isToday = key === todayIso;

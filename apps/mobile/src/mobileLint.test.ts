@@ -2195,14 +2195,16 @@ describe("empty states", () => {
     expect(tasks).toMatch(/tasks\.dueCount/);
     expect(tasks).toMatch(/subtitle=\{barSummary\}/);
 
-    // The calendar's period moved OUT of the toolbar, where five controls beside
-    // it cut a German weekday date down to "Sonnt…".
-    // Since the date jump (plan Kalender 2026-09-10, P3) the period is a
-    // BUTTON in that slot — still the subtitle, now the way to the picker.
+    // The calendar's period is a BUTTON (the date jump, plan Kalender
+    // 2026-09-10, P3) BETWEEN the arrows that move it (feedback 2026-10-29).
+    // It once left the toolbar because five controls beside it cut a German
+    // weekday date to "Sonnt…"; sync moved up next to search and the accounts
+    // shortcut went, which is the room it has now.
     const cal = src("screens", "PimCalendarScreen.tsx");
-    expect(cal).toMatch(/const periodNode = \([\s\S]*?className="m-appbar-sub-btn"[\s\S]*?\{periodTitle\(\)\}/);
-    expect(cal).toMatch(/subtitle=\{periodNode\}/);
-    expect(cal, "the period is still in the toolbar too").not.toMatch(/m-pimbar-title/);
+    expect(cal).toMatch(/const periodNode = \([\s\S]*?className="m-pimbar-period"[\s\S]*?\{periodTitle\(\)\}/);
+    expect(cal).toMatch(/<ChevronLeft[\s\S]*?\{periodNode\}[\s\S]*?<ChevronRight/);
+    expect(cal, "the period is the app bar's subtitle again").not.toMatch(/subtitle=\{periodNode\}/);
+    expect(cal, "a toolbar shortcut into the settings").not.toMatch(/CalendarCog/);
 
     expect(src("screens", "ImportWizardScreen.tsx")).toMatch(/mobile\.stepOf/);
   });

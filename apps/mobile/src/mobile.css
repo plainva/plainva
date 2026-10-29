@@ -328,6 +328,23 @@ textarea {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* With a line of context under the title, the buttons sit level with the
+   title, not with the middle of the two lines (feedback 2026-10-29: the menu
+   hung between "Heute" and its date). The title line is as tall as a button,
+   so the two share a centre; the context line follows under the title. */
+.m-appbar--sub .m-appbar-row {
+  align-items: flex-start;
+}
+.m-appbar--sub .m-appbar-ttl {
+  gap: 0;
+}
+.m-appbar--sub .m-appbar-ttl h1 {
+  line-height: var(--touch-sm);
+}
+.m-appbar--sub .m-appbar-sub {
+  margin-top: calc(-1 * var(--space-1));
+  padding-bottom: var(--space-1);
+}
 
 /* An open note uses nearly the full width, so its bar keeps the page inset. */
 .m-page--note .m-appbar {
@@ -3127,7 +3144,7 @@ textarea {
   overflow: hidden;
   padding-bottom: 0;
 }
-/* Calendar toolbar (period nav + today/sync/settings). NOT an .m-appbar: on the
+/* Calendar toolbar (period between its arrows, today, new event). NOT an .m-appbar: on the
    Calendar TAB the shell's .m-appbar already sits above, and a second bar would
    add the status-bar inset a second time (that was the phantom gap on Android)
    and bleed 16px past the page inset (the settings icon touched the screen
@@ -3139,9 +3156,7 @@ textarea {
   min-height: var(--touch-sm);
   padding: var(--space-1) 0;
 }
-/* The period label moved into the app bar's subtitle (N5.1/N7): five controls
-   plus a German weekday date never fit this row, and the date was the part that
-   got cut. What remains is a spacer that keeps "today" at the right edge. */
+/* The spacer between the period and the actions on the right. */
 .m-pimbar-spacer {
   flex: 1;
   min-width: 0;
@@ -4839,39 +4854,52 @@ textarea {
 .pv-seltoolbar[data-compact] .m-selverb { width: var(--touch-sm); padding: 0; justify-content: center; }
 .pv-seltoolbar[data-compact] .m-selverb > span { display: none; }
 
-/* The period under the app bar's title is a BUTTON (plan Kalender 2026-09-10,
-   P3): the same look as .m-appbar-sub, plus a chevron, and the accent pair
-   while its sheet is up. It stays in the subtitle slot — the toolbar below
-   never had room for a German weekday date (N5.1). */
-.m-appbar-sub-btn {
+/* The period between the calendar's arrows is a BUTTON (plan Kalender
+   2026-09-10, P3; between the arrows since the feedback of 2026-10-29): a
+   chevron, and the accent pair while its sheet is up. It gives way first when
+   the row is short - the text ends in "…" and never wraps. */
+.m-pimbar-period {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-1);
-  max-width: 100%;
-  margin: 0 0 0 calc(-1 * var(--space-1));
-  padding: 0 var(--space-1);
-  border: none;
-  border-radius: var(--radius-xs);
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: var(--text-xs);
-  text-transform: capitalize;
+  flex: 0 1 auto;
+  min-width: 0;
   min-height: var(--touch-sm);
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--surface-container);
+  color: var(--text-main);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: capitalize;
 }
-.m-appbar-sub-btn > span {
+.m-pimbar-period > span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.m-appbar-sub-btn > svg {
+.m-pimbar-period > svg {
   flex-shrink: 0;
   opacity: 0.7;
 }
-.m-appbar-sub-btn[aria-expanded="true"] {
+.m-pimbar-period[aria-expanded="true"] {
   background: var(--accent-container);
   color: var(--on-accent-container);
+}
+/* The week number in the corner over the hours. */
+.m-pimcal-week {
+  flex-shrink: 0;
+  align-self: center;
+  padding: var(--space-1) 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-muted);
+  text-align: center;
 }
 /* The database calendar's month title carries the same chevron. */
 .m-cal-month--btn {
