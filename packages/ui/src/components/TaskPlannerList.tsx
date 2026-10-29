@@ -70,6 +70,24 @@ export interface TaskPlannerListProps {
    * until opened, remembered by the device. Absent or empty: no fold.
    */
   doneToday?: readonly PlannerRow[];
+  /**
+   * What a row shows besides its title (a Tasks query's `hide …` lines, plan
+   * Tasks-Abfragen T3). Every part is shown unless it says `false`.
+   */
+  display?: PlannerRowDisplay;
+  /** Rows only to look at — an embedded note: the box is drawn, a press does nothing. */
+  readOnly?: boolean;
+}
+
+export interface PlannerRowDisplay {
+  /** The note (or database) a row comes from. */
+  source?: boolean;
+  /** The same for a subtask under its task. */
+  childSource?: boolean;
+  due?: boolean;
+  tags?: boolean;
+  priority?: boolean;
+  repeat?: boolean;
 }
 
 function dayHeading(dayKey: string, locale: string): string {
@@ -81,7 +99,7 @@ function clock(minutes: number, locale: string): string {
   return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date(2000, 0, 1, Math.floor(minutes / 60), minutes % 60));
 }
 
-export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle, onOpen, onMenu, wrapRow, rowProps, onDue, canDue, onOverdueToToday, links, linkLookup, subtasks, details, doneToday }: TaskPlannerListProps) {
+export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle, onOpen, onMenu, wrapRow, rowProps, onDue, canDue, onOverdueToToday, links, linkLookup, subtasks, details, doneToday, display, readOnly }: TaskPlannerListProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
   // Which tasks show their subtasks folded away — for as long as the list is
@@ -93,7 +111,9 @@ export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle,
     [sections, subtasks],
   );
   const finished = doneToday ?? [];
-  const shown = sections.filter((s) => s.rows.length > 0 || s.kind === "today");
+  // A query's group heading over further groups has no rows of its own and still stands.
+  const shown = sections.filter((s) => s.rows.length > 0 || s.kind === "today" || (s.kind === "group" && s.label !== undefined));
+  const show = (part: keyof PlannerRowDisplay) => display?.[part] !== false;
   if (sections.every((s) => s.rows.length === 0) && finished.length === 0) {
     return <EmptyState icon={<CheckSquare size={ICON.empty} />}>{emptyLabel}</EmptyState>;
   }
@@ -109,17 +129,26 @@ export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle,
     if (section.kind === "today") return t("tasks.plannerToday");
     if (section.kind === "day") return dayHeading(section.key, locale);
     if (section.kind === "inbox") return t("tasks.plannerInbox");
+    if (section.kind === "group") {
+      return section.late ? (
+        <span className="pv-planner-late">
+          <AlertTriangle size={ICON.meta} /> {section.label}
+        </span>
+      ) : (
+        section.label
+      );
+    }
     return t("tasks.done");
   };
 
   const when = (row: PlannerRow, section: PlannerSection): ReactNode => {
-    if (!row.due) return null;
+    if (!row.due || !show("due")) return null;
     // The date is the way to change it (W2): where the shell can move this
     // row's day, the chip is a button, and it says so with the calendar glyph.
     const press = onDue && (canDue?.(row) ?? true) ? (e: MouseEvent<HTMLButtonElement>) => onDue(row, e.currentTarget) : undefined;
     const glyph = press ? <CalendarClock size={ICON.meta} /> : undefined;
     // Inside a day the day is the heading; the row only adds its time.
-    if (section.kind === "today" || section.kind === "day") {
+    if (section.kind === "today" || section.kind === "day" || section.dayHeading) {
       return row.dueMinutes != null ? <Chip size="sm" tone="muted" icon={glyph} onClick={press} testId="task-planner-due">{clock(row.dueMinutes, locale)}</Chip> : null;
     }
     const label = formatDueLabel(row.due, { locale, t });
@@ -155,13 +184,14 @@ export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle,
             state={row.state}
             label={closed ? t("tasks.open") : t("tasks.done")}
             onToggle={() => onToggle(row)}
+            disabled={readOnly}
             testId="task-planner-toggle"
           />
         }
         indent={depth === 0 ? undefined : depth === 1 ? 1 : 2}
         title={
           <span className={closed ? "pv-planner-closed" : undefined}>
-            <TaskPriorityFlag rank={row.priority} />
+            {show("priority") && <TaskPriorityFlag rank={row.priority} />}
             {row.source === "database" ? noteDisplayName(row.title) : <TaskTitle text={row.title} notePath={row.path} links={links} linkLookup={linkLookup} />}
           </span>
         }
@@ -175,17 +205,19 @@ export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle,
               </span>
             )}
             {when(row, section)}
-            {(row.repeats || row.repeatsAtProvider) && (
+            {show("repeat") && (row.repeats || row.repeatsAtProvider) && (
               <Chip size="sm" tone="muted" icon={<Repeat size={ICON.meta} />}>
                 {row.repeatsAtProvider ? t("tasks.repeatsAtProvider") : t("tasks.repeat")}
               </Chip>
             )}
-            {row.tags.map((tag) => (
+            {show("tags") && row.tags.map((tag) => (
               <Chip key={tag} size="sm" tone="muted">#{tag}</Chip>
             ))}
-            <span className="pv-planner-source">
-              {row.source === "database" ? databaseLabel : noteDisplayName(row.noteTitle ?? row.path)}
-            </span>
+            {show(depth === 0 ? "source" : "childSource") && (
+              <span className="pv-planner-source">
+                {row.source === "database" ? databaseLabel : noteDisplayName(row.noteTitle ?? row.path)}
+              </span>
+            )}
           </>
         }
         // The fold sits at the row's end, away from the box: two small targets
@@ -223,8 +255,12 @@ export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle,
   return (
     <div className="pv-planner-list" data-testid="task-planner-list">
       {shown.map((section) => (
-        <section key={section.key} data-testid={`task-planner-section-${section.kind}`}>
-          <SectionLabel
+        <section
+          key={section.key}
+          data-testid={`task-planner-section-${section.kind}`}
+          className={section.kind === "group" && section.level === 2 ? "pv-planner-group--l2" : section.kind === "group" && section.level === 3 ? "pv-planner-group--l3" : undefined}
+        >
+          {(section.kind !== "group" || section.label !== undefined) && <SectionLabel
             end={
               section.kind === "overdue" && onOverdueToToday ? (
                 <>
@@ -235,14 +271,16 @@ export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle,
                   </Button>
                   {section.rows.length}
                 </>
+              ) : section.kind === "group" ? (
+                section.count
               ) : (
                 section.rows.length || undefined
               )
             }
           >
             {heading(section)}
-          </SectionLabel>
-          {section.rows.length === 0 && !(section.kind === "today" && finished.length > 0) ? (
+          </SectionLabel>}
+          {section.kind === "group" && section.rows.length === 0 ? null : section.rows.length === 0 && !(section.kind === "today" && finished.length > 0) ? (
             <p className="pv-planner-none">{t("tasks.plannerEmptyToday")}</p>
           ) : (
             <GroupCard>

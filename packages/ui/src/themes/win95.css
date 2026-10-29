@@ -743,3 +743,9 @@
 [data-theme-name="win95"] .pv-rating-mark--on {
   color: #000080;
 }
+
+/* Tasks query block: a sunken list box, the way 95 drew a list view. */
+[data-theme-name="win95"] .pv-tasksquery {
+  border-radius: 0;
+  border: 2px inset #DFDFDF;
+}

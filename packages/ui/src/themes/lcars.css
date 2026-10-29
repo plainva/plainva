@@ -888,3 +888,11 @@ html[data-theme-name="lcars"][data-tag-colors="on"] [data-tag-color] { backgroun
 [data-theme-name="lcars"] .pv-rating-mark--on {
   color: var(--lcars-1);
 }
+
+/* Tasks query block: a console panel with the Okuda edge, square corners. */
+[data-theme-name="lcars"] .pv-tasksquery {
+  background: #000000;
+  border-radius: 0;
+  border: 1px solid var(--lcars-4);
+  border-left: 6px solid var(--lcars-1);
+}

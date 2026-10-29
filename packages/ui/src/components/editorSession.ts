@@ -18,6 +18,7 @@ import {
 import { imagePreviewPlugin, type ImageLookupFn } from "./ImagePreviewPlugin";
 import { selectAllBridge } from "./selectAllBridge";
 import { mathInlinePlugin, mathMermaidBlockField } from "./mathMermaidLive";
+import { tasksQueryBlockField, type TasksQueryHost } from "./tasksQueryLive";
 import { anchorAwareHtmlBlock } from "./anchorBlockParser";
 import { wikiLinkPlugin, type LinkKind } from "./WikiLinkPlugin";
 import { tagPillPlugin } from "./TagPillPlugin";
@@ -132,6 +133,11 @@ export interface EditorSessionDeps {
   onOpenImage?: (absolutePath: string) => void;
   /** Builds the app-shell extension rendering ![[...]] note/base embeds. */
   buildNoteEmbedExtension: (context: EmbedHostContext, isLive: boolean) => Extension;
+  /**
+   * Fills a ```tasks query block in the live mode (plan Tasks-Abfragen, T4).
+   * Absent: the block stays text.
+   */
+  tasksQueryHost?: TasksQueryHost;
   onOpenPath?: (path: string, newTab: boolean) => void;
   /**
    * Opens a clicked in-app link. `kind` distinguishes a wiki target (a NAME the
@@ -384,6 +390,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
               loading: cfg.i18n.t("reader.mermaidLoading"),
               error: cfg.i18n.t("reader.mermaidError"),
             }),
+            tasksQueryBlockField(() => deps.current.tasksQueryHost),
           ]
         : [],
       markdownDecorationPlugin(isLive),

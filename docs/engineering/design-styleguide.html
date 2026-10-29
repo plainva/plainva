@@ -1213,6 +1213,25 @@
     </div>
   </section>
 
+  <section id="tasks-query">
+    <h2>A query of the Tasks plugin as a task list</h2>
+    <p class="sec-sub">A ```tasks block draws the tasks it finds with the planner's rows. A line Plainva leaves out is a hint above the list; a line the Tasks plugin rejects too is an error with the query below it and no list. The foot carries the count, the explanation switch and the way back to the text.</p>
+    <div class="card" style="max-width: 640px; padding: 0; overflow: hidden">
+      <div style="display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--warning-bg); color: var(--warning-text); border-bottom: 1px solid var(--warning-border); font-size: var(--text-sm)"><span aria-hidden="true">⚠</span><span>Line 4 <code>filter by function task.urgency &gt; 8</code> — Plainva never runs code from notes. The list may show more tasks than in Obsidian.</span></div>
+      <div style="padding: var(--space-2)">
+        <p style="margin: var(--space-1) var(--space-2); font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--warning-text)">⚠ Friday, October 23</p>
+        <div style="border-radius: var(--radius-md); background: var(--bg-secondary); padding: var(--space-2) var(--space-3)">☐ Check the offer for Kühn &amp; Partner <span style="float: right; color: var(--text-faint); font-size: var(--text-sm)">Project Atlas</span></div>
+      </div>
+      <div style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); border-top: 1px solid var(--border-color-light); font-size: var(--text-sm); color: var(--text-muted)"><span>5 tasks</span><span style="flex: 1"></span><span>◯ Explanation</span><span style="color: var(--accent-color)">&lt;/&gt; Edit query</span></div>
+    </div>
+    <div class="card" style="max-width: 640px; padding: 0; overflow: hidden; margin-top: var(--space-3)">
+      <div style="padding: var(--space-2) var(--space-3); background: var(--error-bg); color: var(--error-text); border-bottom: 1px solid var(--error-border)"><strong>⊗ The Tasks plugin does not understand this query either</strong><br>Line 2 <code>(not done) AND "is recurring"</code>: All parts of an expression with AND, OR or NOT need the same kind of brackets.</div>
+      <pre style="margin: 0; padding: var(--space-2) var(--space-3); font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted)"><span style="color: var(--text-faint)">1 </span>path includes Routinen
+<span style="color: var(--text-faint)">2 </span><span style="color: var(--error-text); text-decoration: underline wavy">(not done) AND "is recurring"</span></pre>
+      <div style="display: flex; padding: var(--space-1) var(--space-3); border-top: 1px solid var(--border-color-light); font-size: var(--text-sm); color: var(--text-muted)"><span>No result</span><span style="flex: 1"></span><span style="color: var(--accent-color)">&lt;/&gt; Edit query</span></div>
+    </div>
+  </section>
+
   <!-- ================= FRAGEN ================= -->
   <section id="fragen">
     <h2><span class="no">13</span>Entscheidungen</h2>
