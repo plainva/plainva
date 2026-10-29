@@ -214,7 +214,7 @@ importers:
         specifier: '9'
         version: 9.32.0
       '@wdio/tauri-service':
-        specifier: '1'
+        specifier: 1.5.1
         version: 1.5.1(expect-webdriverio@6.1.0)(tsx@4.23.15)(webdriverio@9.32.0)
       jsdom:
         specifier: ^30.1.3

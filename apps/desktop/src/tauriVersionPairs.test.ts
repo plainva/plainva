@@ -60,6 +60,20 @@ function npmHalf(crate: string): string {
 
 const majorMinor = (version: string) => version.split(".").slice(0, 2).join(".");
 
+/**
+ * The resolved version and the specifier of one dev dependency of the desktop
+ * app in pnpm-lock.yaml, e.g. `'@wdio/tauri-service'`.
+ */
+function npmEntry(name: string): { specifier: string; version: string } | null {
+  const lock = readFileSync(join(REPO, "pnpm-lock.yaml"), "utf8").replace(/\r\n/g, "\n");
+  const start = lock.indexOf("\n  apps/desktop:\n");
+  const rest = lock.slice(start + 1);
+  const next = rest.search(/\n {2}\S/);
+  const importer = next < 0 ? rest : rest.slice(0, next);
+  const match = new RegExp(`\\n {6}'${name.replace(/[/.]/g, "\\$&")}':\\n {8}specifier: (\\S+)\\n {8}version: (\\d+\\.\\d+\\.\\d+)`).exec(importer);
+  return match ? { specifier: match[1]!, version: match[2]! } : null;
+}
+
 describe("Tauri version pairs", () => {
   it("finds the pairs in both lockfiles", () => {
     const crates = crateVersions();
@@ -85,5 +99,21 @@ describe("Tauri version pairs", () => {
         "(npm: a ~X.Y.0 range keeps pnpm from running ahead of the crate).\n  " +
         mismatched.join("\n  "),
     ).toEqual([]);
+  });
+
+  // The native smoke on macOS (docs/engineering/WebDriver_Smoke.md): the
+  // WebDriver server in the smoke build and the service that talks to it come
+  // from one repository and are released together under one version number.
+  // Both are pinned exactly, so a Dependabot pull request that moves one half
+  // turns red here instead of in the smoke.
+  it("keeps the embedded WebDriver crate and @wdio/tauri-service on the same version", () => {
+    const crate = crateVersions().get("tauri-plugin-wdio-webdriver");
+    const service = npmEntry("@wdio/tauri-service");
+    expect(crate, "Cargo.lock resolves tauri-plugin-wdio-webdriver (an optional dependency is still locked)").toBeDefined();
+    expect(service, "pnpm-lock.yaml has @wdio/tauri-service for apps/desktop").not.toBeNull();
+    expect(service!.specifier, "@wdio/tauri-service is pinned exactly in apps/desktop/package.json").toBe(service!.version);
+    expect(`tauri-plugin-wdio-webdriver ${crate} / @wdio/tauri-service ${service!.version}`).toBe(
+      `tauri-plugin-wdio-webdriver ${service!.version} / @wdio/tauri-service ${service!.version}`,
+    );
   });
 });

@@ -80,6 +80,18 @@ mail-parser = "0.11"
 mail-builder = "2.0"
 tauri-plugin-notification = "2.3.3"
 tauri-plugin-autostart = "2.5.1"
+# The embedded WebDriver server for the native smoke on macOS
+# (docs/engineering/WebDriver_Smoke.md): a full remote control on
+# 127.0.0.1:4445, so it exists ONLY in a build with the `webdriver-smoke`
+# feature, never through `debug_assertions` — a developer build opens no
+# port. Exact pin: the crate and `@wdio/tauri-service` share one version
+# (src/tauriVersionPairs.test.ts); src/webdriverSmokeIsolation.test.ts and
+# the `strings` check in release.yml keep it out of every other build.
+tauri-plugin-wdio-webdriver = { version = "=1.5.1", optional = true }
+
+[features]
+# Native smoke build only (.github/workflows/native-smoke.yml, macOS job).
+webdriver-smoke = ["dep:tauri-plugin-wdio-webdriver"]
 
 # One process per installation (multi-window, P0). Two processes would open the
 # same appData index database and the same sync queue; nothing in the app is

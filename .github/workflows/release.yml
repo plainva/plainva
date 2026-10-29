@@ -65,6 +65,21 @@ jobs:
           REBUILD_WINDOWS_TAG: ${{ inputs.rebuild_windows_tag }}
         run: node apps/desktop/scripts/prepare-release.mjs
 
+  # The native smoke on the three systems, parallel to the build legs (it adds
+  # no time before the Windows leg, which alone takes over an hour). A red
+  # Linux or Windows smoke turns the release run red. macOS is on probation
+  # until its smoke has been green five runs in a row: it runs and its result
+  # goes into the release record, but it does not stop the release
+  # (docs/engineering/Release_Gate_Checklist.md). A Windows rebuild of an
+  # existing draft does not run it again.
+  native-smoke:
+    if: ${{ !inputs.rebuild_windows_tag }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/native-smoke.yml
+    with:
+      macos_may_fail: true
+
   release:
     needs: prepare
     if: ${{ !cancelled() && ((github.event_name == 'workflow_dispatch' && !inputs.rebuild_windows_tag) || needs.prepare.result == 'success') }}
@@ -243,6 +258,25 @@ jobs:
           args: >-
             ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin'
             || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json' || '') }}
+
+      # The embedded WebDriver server of the native smoke (a full remote control
+      # of the app on a local port) is compiled in only by the smoke build's
+      # cargo feature. src/webdriverSmokeIsolation.test.ts reads the sources;
+      # this reads what was built, on every leg, and stops the release if the
+      # server got in. The native-smoke workflow runs the same script on its
+      # smoke build as the positive control, so a check that cannot see the
+      # server would be noticed there.
+      - name: No embedded WebDriver server in the release binary
+        if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.platform }}" in
+            macos-latest) binaries=(apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app/Contents/MacOS/*) ;;
+            windows-latest) binaries=(apps/desktop/src-tauri/target/release/plainva-desktop.exe) ;;
+            *) binaries=(apps/desktop/src-tauri/target/release/plainva-desktop) ;;
+          esac
+          bash apps/desktop/scripts/check-webdriver-server.sh "${binaries[@]}"
 
       # Manual AppImage test build (see the workflow_dispatch input above). Uses
       # the same signing key as a release so `createUpdaterArtifacts` does not

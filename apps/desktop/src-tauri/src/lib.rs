@@ -357,6 +357,16 @@ pub fn run() {
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
 
+    // The embedded WebDriver server of the native smoke on macOS, where no
+    // external driver reaches WKWebView (docs/engineering/WebDriver_Smoke.md).
+    // It is a full remote control of the app on a local port, so it is
+    // compiled in only with the `webdriver-smoke` cargo feature — never in a
+    // release and never in a plain debug build. Two guards hold that line:
+    // src/webdriverSmokeIsolation.test.ts and the `strings` check of the
+    // macOS release binary in release.yml.
+    #[cfg(feature = "webdriver-smoke")]
+    let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
+
     builder
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_sql::Builder::default().build())
