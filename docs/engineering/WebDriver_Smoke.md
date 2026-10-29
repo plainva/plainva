@@ -173,11 +173,11 @@ new dependency, decided separately.
 | Case | Linux | Windows | macOS | Proves |
 |---|---|---|---|---|
 | S1 start, vault opens | yes | yes | yes | start, store, index |
-| S2 note typed, marker in the file | yes | yes | yes | the write path down to the disk |
+| S2 note typed, marker in the file | yes | yes | yes (real Return and typing) | the write path down to the disk |
 | S3 spell checking | attribute | attribute | attribute + `defaults read … WebContinuousSpellCheckingEnabled` = 1 | #135 at its cause, not at the attribute |
 | S4a quick capture on, shortcut recorded | driver input | driver input | real click, real keys | #123 with real focus behaviour; the system accepts the key |
 | S4b shortcut from the Finder opens the capture window | — | — | yes | the system-wide key reaches the app |
-| S5 note in a second window writes to the file | yes | — (see below) | yes | #86, the second window's write path |
+| S5 note in a second window writes to the file | yes | — (see below) | yes (real typing) | #86, the second window's write path |
 
 S5 does not run on Windows, and not because of the app: the Windows smoke
 build gives the main window a WebView2 debugging port in its browser
@@ -188,9 +188,15 @@ so in that build the second window is never created (measured 2026-10-29: the
 app's own window list held `main` alone). Release builds give every window the
 same arguments.
 
-On macOS the embedded driver's Enter reaches a field's key handlers but never
-submits its form (implicit submission is for trusted keys only); S2 names the
-new note with a real Return through System Events there.
+On macOS the embedded driver's synthetic input fell short twice more
+(2026-10-29), so the spec uses real input there for every step a person's
+keyboard decides: its Enter reaches a field's key handlers but never submits
+the field's form (implicit submission is for trusted keys only), so S2 names
+the new note with a real Return; and its text (`execCommand('insertText')`)
+reached CodeMirror in one run and not in the next, so S2 and S5 click into the
+editor, go to the end of the note with Cmd+Down and type through System
+Events. What still goes through the driver on macOS — opening the settings,
+the switch, the menu, reading the page — is page logic, not input behaviour.
 
 Not proven: that WebKit actually draws the red line (only on a screenshot),
 printing, keychain and folder picker (OS dialogs, §6 of the Release Gate
