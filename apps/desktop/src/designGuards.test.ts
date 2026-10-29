@@ -309,6 +309,29 @@ describe("touch targets (nothing tappable falls under the app's own minimum)", (
   });
 });
 
+describe("hover tint (--state-hover paints only :hover rules)", () => {
+  it("leaves every other state to --state-highlight, which a touch screen keeps", () => {
+    // A touch screen applies :hover on a tap and keeps it; base-colors.css
+    // takes --state-hover away below the root on such a screen (TestFlight
+    // 2026-10-28: the tapped "more" button stayed tinted). A rule that paints
+    // a keyboard row, a press or a mark with --state-hover would lose its tint
+    // there too, so those read --state-highlight.
+    const rels = [...Object.values(STYLE_FILES), ...themeFiles().filter((rel) => rel.endsWith(".css"))];
+    const offenders: string[] = [];
+    for (const rel of rels) {
+      const clean = sourceFile(rel).replace(/\/\*[\s\S]*?\*\//g, "");
+      for (const m of clean.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const usesHover = [...m[2].matchAll(/(^|;)\s*([a-z][a-z-]*)\s*:[^;]*var\(--state-hover\)/g)];
+        if (usesHover.length === 0) continue;
+        const selectors = m[1].trim().split(",").map((s) => s.trim());
+        const notHover = selectors.filter((s) => !s.includes(":hover"));
+        if (notHover.length) offenders.push(`${rel} — ${notHover.join(", ")}`);
+      }
+    }
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+});
+
 describe("theme reach (every mobile surface can be re-themed)", () => {
   it("paints mobile surfaces from shared tokens, never from literals", () => {
     // The plan's finding was "2 of 14 themes know mobile". The cause is not a

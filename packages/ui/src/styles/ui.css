@@ -311,7 +311,8 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   text-align: left;
   cursor: pointer;
 }
-.pv-selectopt:hover:not(:disabled), .pv-selectopt.is-hilite { background: var(--state-hover); }
+.pv-selectopt:hover:not(:disabled) { background: var(--state-hover); }
+.pv-selectopt.is-hilite { background: var(--state-highlight); }
 .pv-selectopt:disabled { opacity: 0.45; cursor: default; }
 .pv-selectopt.is-selected { background: var(--accent-container); color: var(--on-accent-container); font-weight: 600; }
 .pv-selectopt-ic { display: inline-flex; width: 15px; flex-shrink: 0; justify-content: center; margin-top: 1px; }
@@ -819,12 +820,14 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   white-space: nowrap;
   cursor: pointer;
 }
-.pv-menu-item:hover:not(:disabled), .pv-menu-item:focus-visible { background: var(--state-hover); }
+.pv-menu-item:hover:not(:disabled) { background: var(--state-hover); }
+.pv-menu-item:focus-visible { background: var(--state-highlight); }
 /* Keyboard highlight for a menu whose focus stays in the field below it (the
    mention picker): :focus-visible can never mark that row, so the owner sets
-   .is-active. Same token as hover on purpose - it IS the hover of the arrow
-   keys, not a selected state. */
-.pv-menu-item.is-active:not(:disabled) { background: var(--state-hover); }
+   .is-active. Same tint as hover on purpose - it IS the hover of the arrow
+   keys, not a selected state - but through --state-highlight, which a touch
+   screen keeps (base-colors.css). */
+.pv-menu-item.is-active:not(:disabled) { background: var(--state-highlight); }
 .pv-menu-item:active:not(:disabled) { background: var(--state-press); }
 .pv-menu-item:disabled { opacity: 0.45; cursor: default; }
 .pv-menu-item--danger, .pv-menu-item--danger .pv-menu-ic { color: var(--error-text); }
@@ -4307,7 +4310,7 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
   padding: 0 0.15em;
 }
 .pv-fr-mark--hit {
-  background: var(--state-hover);
+  background: var(--state-highlight);
   color: var(--text-muted);
   text-decoration: line-through;
 }

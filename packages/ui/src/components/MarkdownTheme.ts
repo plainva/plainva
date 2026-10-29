@@ -78,6 +78,9 @@ export const editorTheme = EditorView.theme({
     border: "none",
   },
   ".cm-activeLine": { backgroundColor: "var(--active-line-bg)" },
+  // Without focus there is no caret, so no line is "the active one": the tint
+  // stayed on the last line touched after the keyboard went down.
+  "&:not(.cm-focused) .cm-activeLine": { backgroundColor: "transparent" },
   ".cm-activeLineGutter": { backgroundColor: "var(--bg-hover)" },
   // Remove CodeMirror's always-on focus box; the keyboard focus ring still comes
   // from the global :focus-visible rule (App.css), so a mouse click shows no box

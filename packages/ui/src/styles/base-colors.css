@@ -147,9 +147,25 @@
   --state-hover: color-mix(in srgb, var(--accent-color) 8%, transparent);
   --state-focus: color-mix(in srgb, var(--accent-color) 12%, transparent);
   --state-press: color-mix(in srgb, var(--accent-color) 16%, transparent);
+  /* The same tint for a state that is not a pointer resting on something: the
+     row the arrow keys are on, a pressed row, a marked hit. It is resolved
+     here, on the root, so the touch rule below does not reach it. */
+  --state-highlight: var(--state-hover);
   /* Scroll-edge treatment (fade + faint shadow at overflow boundaries). */
   --edge-scrim: linear-gradient(to top, rgba(18, 38, 34, 0.16), rgba(18, 38, 34, 0.04) 35%, transparent 72%);
   --edge-shadow: 0 -1px 6px rgba(20, 40, 36, 0.06);
+}
+
+/* A screen without a hovering pointer (every phone, a tablet without a
+   trackpad) applies :hover on a tap and keeps it until the next tap lands
+   somewhere else: the button just tapped, or the row under the finger, stayed
+   tinted as if it were marked (TestFlight 2026-10-28, build 149: the "more"
+   button of a note stayed tinted). Every hover rule paints with --state-hover,
+   so taking the tint away below the root takes the hover away on such a
+   screen without touching a single rule. The root keeps its value, which is
+   what --state-highlight resolves against. */
+@media (hover: none) {
+  * { --state-hover: transparent; }
 }
 
 [data-theme="dark"] {

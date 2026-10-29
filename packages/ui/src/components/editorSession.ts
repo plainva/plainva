@@ -1,6 +1,6 @@
 import type { i18n as I18nInstance } from "i18next";
 import { Annotation, Compartment, EditorState, Extension, Prec, Transaction } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, type KeyBinding } from "@codemirror/view";
+import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, type KeyBinding } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
 import { basicSetup } from "@uiw/codemirror-extensions-basic-setup";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
@@ -319,6 +319,13 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
   // doc above for why the touch profile no longer makes an exception.
   const editableExtensions = (on: boolean): Extension => [
     EditorView.editable.of(on),
+    // The line the caret is on, and only while there is a caret: read mode
+    // has none, so it marks no line. basicSetup's own highlight is switched
+    // off in both profiles - it marked the first line of every note in read
+    // mode, where it looked like a selection nobody made (TestFlight
+    // 2026-10-28, build 149). MarkdownTheme drops the tint while the editor
+    // has no focus, for the same reason.
+    on ? highlightActiveLine() : [],
     EditorState.readOnly.of(!on),
     // Read-only content must still receive focus: otherwise a native DOM
     // selection never reaches CodeMirror's range/toolbar listener. Keeping it
@@ -490,7 +497,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
   const extensions: Extension = plainFile ? [
     EditorView.contentAttributes.of({ "aria-label": "Text Editor" }),
     // The search keys come from searchSetup() alone (see there: Mod+Shift+G).
-    basicSetup({ foldGutter: false, highlightActiveLineGutter: false, searchKeymap: false }),
+    basicSetup({ foldGutter: false, highlightActiveLine: false, highlightActiveLineGutter: false, searchKeymap: false }),
     keymap.of([indentWithTab]),
     EditorView.theme({ "&": { height: "100%" }, "& .cm-scroller": { height: "100% !important" } }),
     // What a shell lays over the top edge stays out of every scroll's way.
@@ -530,6 +537,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     basicSetup({
       lineNumbers: false,
       foldGutter: false,
+      highlightActiveLine: false,
       highlightActiveLineGutter: false,
       searchKeymap: false,
       ...(cfg.touchInput ? { drawSelection: false } : {}),

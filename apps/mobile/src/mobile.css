@@ -4306,7 +4306,7 @@ textarea {
   color: var(--text-main);
   text-align: left;
 }
-.m-mailrow:active { background: var(--state-hover); }
+.m-mailrow:active { background: var(--state-highlight); }
 .m-mailrow-lines {
   display: flex;
   flex-direction: column;

@@ -289,6 +289,22 @@ describe("editorSession", () => {
     expect(content.getAttribute("contenteditable")).toBe("true");
   });
 
+  it("marks the caret's line only while writing: read mode marks none, in both profiles (TestFlight 2026-10-28)", () => {
+    // Read mode has no caret, yet basicSetup's highlight marked the first line
+    // of every note; on an empty note it read as a stray selection.
+    for (const touch of [true, false]) {
+      const { session } = makeSession("live", DOC, false, touch);
+      expect(session.view.contentDOM.querySelectorAll(".cm-activeLine")).toHaveLength(0);
+      session.setEditable(true);
+      expect(session.view.contentDOM.querySelectorAll(".cm-activeLine")).toHaveLength(1);
+      session.setEditable(false);
+      expect(session.view.contentDOM.querySelectorAll(".cm-activeLine")).toHaveLength(0);
+    }
+    // A text file opened read-only marks no line either.
+    const { session: file } = makeSession("source", "a\nb\n", false, true, "notes.txt");
+    expect(file.view.contentDOM.querySelectorAll(".cm-activeLine")).toHaveLength(0);
+  });
+
   it("off-touch read mode flips the editable facet directly (desktop unchanged)", () => {
     const { session } = makeSession("live", DOC, false, false);
     expect(session.view.state.facet(EditorView.editable)).toBe(false);
