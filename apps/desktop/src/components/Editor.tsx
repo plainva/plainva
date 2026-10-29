@@ -53,6 +53,7 @@ import { dirtyStore } from "../services/dirtyStore";
 import { openPath, openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { noteEmbedPlugin } from "./NoteEmbedPlugin";
+import { createTasksQueryHost } from "./TasksQueryPlugin";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { isOwnerWindow } from "../services/windowContext";
 import { applyIndexChanges, duplicateFile, promptRenameFile } from "../services/fileActions";
@@ -1062,6 +1063,24 @@ export const Editor: React.FC<{
   const handleToggleTask = (index: number, checked: boolean) => {
     const result = toggleTaskAtIndex(contentRef.current, index, checked);
     if (result.changed) applyNonViewEdit(result.content);
+  };
+  /**
+   * "Edit query" on a ```tasks block in the reading view (plan Tasks-Abfragen,
+   * T5): back to writing, with the caret at the end of that line of the query
+   * — the block then shows its text, as with the caret in it while writing.
+   */
+  const handleEditAtLine = (line: number) => {
+    const next = lastEditModeRef.current || "live";
+    setViewMode(next);
+    if (activePath) rememberSessionViewMode(activePath, next);
+    // Two frames: one for React to commit the mode, one for the editor to lay out.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const view = sessionRef.current?.view;
+      if (!view) return;
+      const target = view.state.doc.line(Math.max(1, Math.min(line, view.state.doc.lines)));
+      view.dispatch({ selection: { anchor: target.to }, scrollIntoView: true });
+      view.focus();
+    }));
   };
   /** A box written as HTML — a checklist in a table cell (finding 2026-09-22). */
   const handleToggleHtmlBox = (index: number, checked: boolean) => {
@@ -2589,6 +2608,12 @@ export const Editor: React.FC<{
   // the latest-ref pattern: deliberately no dependency array, nothing is
   // called here — only stored for the session to read later.
   const sessionDepsRef = useRef<EditorSessionDeps>(null as unknown as EditorSessionDeps);
+  // The ```tasks blocks of this editor (plan Tasks-Abfragen, T4): one host for
+  // all of them, drawn again whenever the vault context changes.
+  const [tasksQueryHost] = useState(() => createTasksQueryHost());
+  useEffect(() => {
+    tasksQueryHost.update({ i18n, vaultContext, notePath: activePath ?? "", onOpenPath });
+  }, [tasksQueryHost, i18n, vaultContext, activePath, onOpenPath]);
   // The pill on an inline suggestion (K5) reaches the accept/decline handlers
   // through this ref: they are declared further down (they need the anchor
   // resolutions), and a closure taken here would read them before their line.
@@ -2649,6 +2674,7 @@ export const Editor: React.FC<{
         image: { open: () => { const root = (vaultPath ?? "").replace(/\\/g, "/").replace(/\/$/, "") + "/"; if (absolutePath.startsWith(root)) onOpenPath?.(absolutePath.slice(root.length), false); }, loadBytes: () => readFile(absolutePath), filename: absolutePath.split(/[/\\]/).pop() ?? "image", mime: imageMimeType(absolutePath) },
       }),
       buildNoteEmbedExtension: (context, isLive) => noteEmbedPlugin(context, isLive),
+      tasksQueryHost,
     };
   });
 
@@ -3727,6 +3753,7 @@ export const Editor: React.FC<{
                 showLinkIcons={managedIndex}
                 onToggleTask={managedIndex ? undefined : handleToggleTask}
                 onToggleHtmlBox={managedIndex ? undefined : handleToggleHtmlBox}
+                onEditAtLine={managedIndex ? undefined : handleEditAtLine}
                 anchors={anchorHighlights}
                 onActivateAnchor={setActiveCommentId}
               />

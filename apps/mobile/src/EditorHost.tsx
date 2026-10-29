@@ -1,6 +1,7 @@
 import { chromeScrollPublisher, getChromeScroll, readerScrollSource, resetChromeScroll, scrolledToEnd } from "./services/chromeScroll";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./components/SheetGrip";
+import { createPhoneTasksQueryHost } from "./components/phoneTasksQueryHost";
 import { useTranslation } from "react-i18next";
 import i18n from "@plainva/ui/i18n";
 import { mobileCommentOperations } from "./services/commentOperations";
@@ -333,6 +334,12 @@ export function EditorHost({
   }, [path, jumpAnchor]);
 
   const depsRef = useRef<EditorSessionDeps>(null as unknown as EditorSessionDeps);
+  // The ```tasks blocks of this note (plan Tasks-Abfragen, T6): one host for
+  // all of them, drawn again when the mode or the note changes.
+  const [tasksQueryHost] = useState(() => createPhoneTasksQueryHost());
+  useEffect(() => {
+    tasksQueryHost.update({ vault, notePath: path, editable, onOpenNote, onEditAt });
+  }, [tasksQueryHost, vault, path, editable, onOpenNote, onEditAt]);
   useLayoutEffect(() => {
     depsRef.current = {
       queryService: vault.queryService,
@@ -457,6 +464,7 @@ export function EditorHost({
       // Note embeds (package H): the shared CM core scans ![[...]] lines;
       // mobile renders a tappable preview card — note text stripped to
       // plain prose, .base as a database card, both opening their target.
+      tasksQueryHost,
       buildNoteEmbedExtension: (_ctx, isLive) =>
         buildNoteEmbedCoreExtension(
           {

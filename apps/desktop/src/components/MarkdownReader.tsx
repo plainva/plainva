@@ -20,6 +20,7 @@ import { BaseViewer } from './BaseViewer';
 import { formatRelativeDate } from '@plainva/ui';
 import { isDoneTaskItem, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills, remarkTaskStates } from './markdownReaderModel';
 import { openLink } from '../services/openLink';
+import { TasksQueryView } from './tasks/TasksQueryView';
 import { DocIcon, isRenderableDocIcon } from '@plainva/ui';
 import type { DocIconEntry } from '../hooks/useDocumentIcons';
 import { ICON } from "@plainva/ui";
@@ -57,6 +58,12 @@ interface MarkdownReaderProps {
   anchors?: readonly AnchorHighlight[];
   /** A click on a tint, frame or region opens that comment's card. */
   onActivateAnchor?: (commentId: string) => void;
+  /**
+   * "Edit query" of a ```tasks block (plan Tasks-Abfragen, T5): the editor
+   * switches to writing with the caret on this 1-based line of the note.
+   * Absent (embeds, managed index.md): no such button.
+   */
+  onEditAtLine?: (line: number) => void;
 }
 
 /**
@@ -299,7 +306,7 @@ export function taskCheckboxOrdinal(box: HTMLInputElement): number {
   return ord;
 }
 
-export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenPath, embedDepth = 0, fullWidth = false, sourcePath, docIcons, showLinkIcons = false, onToggleTask, onToggleHtmlBox, anchors, onActivateAnchor }) => {
+export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenPath, embedDepth = 0, fullWidth = false, sourcePath, docIcons, showLinkIcons = false, onToggleTask, onToggleHtmlBox, anchors, onActivateAnchor, onEditAtLine }) => {
   const { vaultAdapter, queryService } = useVault();
   const { t, i18n } = useTranslation();
   const source = useMemo(() => prepareReaderSource(content, {
@@ -664,7 +671,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
           // and opens its comment on click.
           th: ({ node, ...props }) => { const id = (node as { properties?: { dataCommentId?: unknown } } | undefined)?.properties?.dataCommentId; return <th style={{ border: '1px solid var(--border-color)', padding: 'var(--pad-cell)', minWidth: '90px', lineHeight: 1.6, textAlign: 'start', verticalAlign: 'top', color: 'var(--text-main)' }} onClick={typeof id === 'string' ? () => onActivateAnchor?.(id) : undefined} {...props} />; },
           td: ({ node, ...props }) => { const id = (node as { properties?: { dataCommentId?: unknown } } | undefined)?.properties?.dataCommentId; return <td style={{ border: '1px solid var(--border-color)', padding: 'var(--pad-cell)', minWidth: '90px', lineHeight: 1.6, verticalAlign: 'top', color: 'var(--text-main)' }} onClick={typeof id === 'string' ? () => onActivateAnchor?.(id) : undefined} {...props} />; },
-          code: ({ node: _node, className, children, ...props }) => {
+          code: ({ node, className, children, ...props }) => {
             const text = Array.isArray(children) ? children.join("") : String(children ?? "");
             const isBlock = !!className || text.includes("\n");
             if (isBlock) {
@@ -673,6 +680,20 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
               // loads lazily inside the component.
               if (lang === "mermaid") {
                 return <MermaidDiagram code={text.replace(/\n$/, "")} />;
+              }
+              // A query of the Tasks plugin draws its tasks (plan Tasks-Abfragen,
+              // T5) — in an embedded note only to look at.
+              if (lang === "tasks") {
+                const fenceLine = Number((node as { properties?: { dataSourceLine?: unknown } } | undefined)?.properties?.dataSourceLine) || 0;
+                return (
+                  <TasksQueryView
+                    source={text.replace(/\n$/, "")}
+                    notePath={sourcePath ?? ""}
+                    readOnly={embedDepth > 0}
+                    onOpenPath={onOpenPath}
+                    onEditQuery={onEditAtLine && fenceLine > 0 && embedDepth === 0 ? (line) => onEditAtLine(fenceLine + (line ?? 1)) : undefined}
+                  />
+                );
               }
               return <CodeBlock code={text.replace(/\n$/, "")} lang={lang} />;
             }
