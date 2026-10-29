@@ -13,11 +13,11 @@ import { ThemePickerCards } from "../ThemePickerCards";
 import { CustomThemeEditor } from "./CustomThemeEditor";
 import { CustomThemeSync, type CustomThemeSyncProps } from "@plainva/ui";
 import { CUSTOM_THEME_ID, FONT_SLOT_FAMILIES, FontField, fontKindsForSlot, Switch, type CustomThemeDesign } from "@plainva/ui";
-import type { JournalCheckResult } from "@plainva/core";
 import { AutostartRow, BackgroundSettings } from "./BackgroundSettings";
 import { QuickCaptureSettings } from "./QuickCaptureSettings";
 import { WindowRestoreRow } from "./WindowSettings";
 import { LinkStyleSettings } from "./LinkStyleSettings";
+import { StoredCredentialsCard } from "./StoredCredentialsCard";
 import { Select } from "../Select";
 import { getThemeDef, isModePinned, type ThemePref } from "../../services/theme";
 import { pinnedModeHintKey } from "@plainva/ui";
@@ -465,32 +465,10 @@ export interface AboutPageProps {
   onReportIssue: () => void;
   /** The update controls, shown as the page's second group (E10). */
   updates: UpdatesGroupProps;
-  /**
-   * Checks the synced deletion log against the cloud and takes back entries
-   * whose file still exists (finding 2026-09-20). Absent without a file sync.
-   */
-  onCheckDeletionLog?: (onProgress: (done: number, total: number) => void) => Promise<JournalCheckResult>;
 }
 
 export const AboutPage: React.FC<AboutPageProps> = (p) => {
   const { t } = useTranslation();
-  const [journalBusy, setJournalBusy] = React.useState(false);
-  const [journalNote, setJournalNote] = React.useState<string | null>(null);
-  const checkDeletionLog = async () => {
-    if (!p.onCheckDeletionLog || journalBusy) return;
-    setJournalBusy(true);
-    try {
-      const result = await p.onCheckDeletionLog((done, total) => setJournalNote(t("sync.journalCheckProgress", { done, total })));
-      setJournalNote(result.checked === 0 && result.unknown === 0
-        ? t("sync.journalCheckEmpty")
-        : t("sync.journalCheckDone", { retracted: result.retracted, absent: result.absent, unknown: result.unknown }));
-    } catch (e) {
-      console.error("[settings] deletion log check failed", e);
-      setJournalNote(t("sync.journalCheckFailed"));
-    } finally {
-      setJournalBusy(false);
-    }
-  };
   return (
     <div>
       <AreaHead areaId="about" />
@@ -500,26 +478,15 @@ export const AboutPage: React.FC<AboutPageProps> = (p) => {
             {t("settings.exportDiagnostics")}
           </Button>
         </SettingRow>
-        <SettingRow label={t("settings.osKeychain")}>
-          <strong style={{ color: p.keychainStatus === "native" ? "var(--accent-color)" : "var(--error-text)", fontSize: "var(--text-md)" }}>
-            {p.keychainStatus === "checking" ? t("settings.keychainChecking") : p.keychainStatus === "native" ? t("settings.keychainNative") : t("settings.keychainFallback")}
-          </strong>
-        </SettingRow>
       </SettingCard>
 
       <UpdatesGroup {...p.updates} />
 
+      {/* Stored access and the OS keychain (settings plan 2026-10-29, move 15, B1):
+          app-wide, so here, beside each other. */}
+      <StoredCredentialsCard keychainStatus={p.keychainStatus} />
+
       <SettingCard label={t("settings.groupDiagnostics", { defaultValue: "Diagnose" })}>
-        {/* The deletion log travels to every device and explains absences there
-            without a question — so a wrong entry is worth a way to find it
-            (finding 2026-09-20). The result replaces the hint. */}
-        {p.onCheckDeletionLog && (
-          <SettingRow label={t("sync.journalCheck")} desc={journalNote ?? t("sync.journalCheckHint")}>
-            <Button variant="secondary" size="sm" disabled={journalBusy} onClick={() => void checkDeletionLog()} data-testid="check-deletion-log">
-              {t("sync.journalCheck")}
-            </Button>
-          </SettingRow>
-        )}
         <SettingRow label={t("settings.perfMetrics", { defaultValue: "Performance-Messwerte" })} info={t("settings.perfMetricsDesc", { defaultValue: "Lokale Messpunkte dieser Sitzung (Median/p95 in ms) — verlassen das Gerät nie." })}>
           <div style={{ display: "flex", gap: "8px" }}>
             <Button variant="secondary" size="sm" onClick={p.onRefreshPerfStats}>

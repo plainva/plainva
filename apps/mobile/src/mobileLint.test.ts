@@ -1983,7 +1983,9 @@ describe("the vault detail screen", () => {
   it("groups the actions and keeps the destructive ones apart", () => {
     const screen = stripComments(readFileSync(join(SRC, "VaultDetailScreen.tsx"), "utf8"));
     expect(screen).toMatch(/mobile\.vaultGroupConnection/);
-    expect(screen).toMatch(/mobile\.vaultGroupContents/);
+    // The vault's own rows (rename, export, its sync) since the settings plan
+    // of 2026-10-29 (E11): the archive went to Backup & versioning.
+    expect(screen).toMatch(/settings\.sectionVault/);
     // Deleting the vault belongs to the danger group, not to the row that also
     // offers restoring files.
     const danger = screen.slice(screen.indexOf('tone="danger"'));

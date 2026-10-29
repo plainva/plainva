@@ -3,7 +3,7 @@ import { loadProcessExits, processExitLabelKey, type ProcessExitRecord } from ".
 import { useTranslation } from "react-i18next";
 import { Banner, Button, deviceStateKey, diagnosticsState, emptyDiagnostics, GroupCard, Row, RowList, SectionLabel, SETTINGS_SYNC_FAILURES_BEFORE_ERROR, settingsSyncFailureIsWaiting, type SyncDiagnostics } from "@plainva/ui";
 import { mConfirm } from "../services/mobileDialogs";
-import { getSyncStatus, subscribeSyncStatus, syncNow } from "../services/syncService";
+import { deletionLogChecker, getSyncStatus, subscribeSyncStatus, syncNow } from "../services/syncService";
 import {
   SYNC_DIAGNOSTICS_EVENT,
   isMobileSettingsSyncEnabled,
@@ -39,6 +39,25 @@ export function SyncDiagnosticsScreen({
   const [exits, setExits] = useState<ProcessExitRecord[]>([]);
   const [settingsSyncOn, setSettingsSyncOn] = useState(false);
   const [encryption, setEncryption] = useState<"none" | "locked" | "unlocked">("none");
+  // "Check deletion log" (finding 2026-09-20), here since the settings plan of
+  // 2026-10-29 (move 16) — it was a row of About. Present only while a plain
+  // file sync runs: the encrypted workspace keeps no log.
+  const checkJournal = deletionLogChecker();
+  const [journalBusy, setJournalBusy] = useState(false);
+  const [journalNote, setJournalNote] = useState<string | null>(null);
+  const runJournalCheck = () => {
+    if (!checkJournal || journalBusy) return;
+    setJournalBusy(true);
+    void checkJournal((done, total) => setJournalNote(t("sync.journalCheckProgress", { done, total })))
+      .then((result) => setJournalNote(result.checked === 0 && result.unknown === 0
+        ? t("sync.journalCheckEmpty")
+        : t("sync.journalCheckDone", { retracted: result.retracted, absent: result.absent, unknown: result.unknown })))
+      .catch((e) => {
+        console.error("[settings] deletion log check failed", e);
+        setJournalNote(t("sync.journalCheckFailed"));
+      })
+      .finally(() => setJournalBusy(false));
+  };
 
   // Re-read on the event rather than poll: the record changes on a sync cycle,
   // which nobody sits watching this screen for.
@@ -65,11 +84,13 @@ export function SyncDiagnosticsScreen({
 
   return (
     <div className="m-page" data-testid="sync-diagnostics">
-      <AppBar onBack={onBack} title={t("settingsSync.diagTitle")} />
+      <AppBar onBack={onBack} title={t("settings.groupDiagnostics")} />
       <div className="m-settings">
         <QueuePeek vault={activeVault} />
         {/* The same statement as on the desktop: which of the three silent
-            states this device is in, and what actually moved. */}
+            states this device is in, and what actually moved. What stays on
+            this device is the info of the heading (settings plan 2026-10-29). */}
+        <SectionLabel info={t("settingsSync.diagStays")}>{t("settingsSync.diagTitle")}</SectionLabel>
         <div className="pv-card m-card">
         <p className="m-hint" data-testid="sync-diag-state">
           {t(deviceStateKey(diagnosticsState(diag, {
@@ -89,6 +110,7 @@ export function SyncDiagnosticsScreen({
             </small>
             {diag.lastCheck?.names?.length ? <small>{diag.lastCheck.names.join(", ")}</small> : null}
           </>}
+          info={diag.previousClientActivity ? t("settingsSync.diagPreviousActivity") : undefined}
           title={t("settingsSync.diagLastCheck")}
           wrap
         />
@@ -154,9 +176,6 @@ export function SyncDiagnosticsScreen({
           title={t("settingsSync.diagSecretResult")}
           wrap
         />
-        {diag.previousClientActivity && (
-          <p className="m-hint">{t("settingsSync.diagPreviousActivity")}</p>
-        )}
         {/* The one finding with a way out gets the way out, same as the
             desktop: a warning a phone can only read, never act on, is a
             warning that repeats forever. */}
@@ -220,7 +239,6 @@ export function SyncDiagnosticsScreen({
           ) : (
             <Banner kind="error" rounded>{t("settingsSync.commentsFailed", { error: diag.lastCommentsError.message })}</Banner>
           ))}
-        <p className="m-hint">{t("settingsSync.diagStays")}</p>
       </div>
       {/* Android's own record of why the app last ended (plan 2026-09-04, P1):
           the memory limiter kills without a trace the user could see. */}
@@ -252,6 +270,20 @@ export function SyncDiagnosticsScreen({
             </RowList>
           </GroupCard>
         </>
+      )}
+      {checkJournal && (
+        <GroupCard>
+          <RowList>
+            <Row
+              data-testid="check-deletion-log"
+              disabled={journalBusy}
+              info={t("sync.journalCheckHint")}
+              onClick={runJournalCheck}
+              subtitle={journalNote ?? undefined}
+              title={t("sync.journalCheck")}
+            />
+          </RowList>
+        </GroupCard>
       )}
       </div>
     </div>

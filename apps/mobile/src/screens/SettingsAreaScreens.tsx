@@ -5,12 +5,12 @@ import { ChevronRight } from "lucide-react";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
 import { DeletedFilesSheet } from "../components/DeletedFilesSheet";
+import { ZipBackupGroup } from "../components/ZipBackupGroup";
 import { placeStampEnabled, setPlaceStampEnabled, createTaskDatabase, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, SettingField, Switch, CommittedTextInput, travelsWithVault } from "@plainva/ui";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { type DefaultView, NOTE_HEAD_BUTTONS, type NoteHeadButton } from "../services/mobileSettings";
 import { noteTypeOf } from "../services/newNote";
 import { getMobileVault, type MobileVault } from "../services/vaultService";
-import { deletionLogChecker } from "../services/syncService";
 import { AppBar } from "../components/AppBar";
 import { TemplateRules } from "../components/TemplateRules";
 import { FolderField } from "../components/FolderField";
@@ -429,6 +429,8 @@ export function BackupAreaScreen({ vault, onBack }: { vault: MobileVault; onBack
     <div className="m-page">
       <AreaHeader id="backup" onBack={onBack} title={t("settings.backupSection")} />
       <div className="m-settings">
+        {/* The scheduled ZIP archive came here from the sync screen (move 21). */}
+        <ZipBackupGroup vault={vault} />
         <SectionLabel>{t("versions.title")}</SectionLabel>
         <GroupCard>
           <RowList>
@@ -479,24 +481,6 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
       .then((info) => setAppVersion(info.version))
       .catch(() => {});
   }, []);
-  // "Check deletion log" (finding 2026-09-20): the desktop's row, the same
-  // worker call. Present only while a plain file sync runs.
-  const checkJournal = deletionLogChecker();
-  const [journalBusy, setJournalBusy] = useState(false);
-  const [journalNote, setJournalNote] = useState<string | null>(null);
-  const runJournalCheck = () => {
-    if (!checkJournal || journalBusy) return;
-    setJournalBusy(true);
-    void checkJournal((done, total) => setJournalNote(t("sync.journalCheckProgress", { done, total })))
-      .then((result) => setJournalNote(result.checked === 0 && result.unknown === 0
-        ? t("sync.journalCheckEmpty")
-        : t("sync.journalCheckDone", { retracted: result.retracted, absent: result.absent, unknown: result.unknown })))
-      .catch((e) => {
-        console.error("[settings] deletion log check failed", e);
-        setJournalNote(t("sync.journalCheckFailed"));
-      })
-      .finally(() => setJournalBusy(false));
-  };
   const taps = useRef<{ n: number; t: number }>({ n: 0, t: 0 });
   const logoTap = () => {
     const now = Date.now();
@@ -560,16 +544,8 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
               onClick={exportDiagnostics}
               title={t("settings.exportDiagnostics")}
             />
-            {checkJournal && (
-              <Row
-                end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                onClick={runJournalCheck}
-                title={t("sync.journalCheck")}
-              />
-            )}
           </RowList>
         </GroupCard>
-        {checkJournal && <p className="m-hint" data-testid="deletion-log-note">{journalNote ?? t("sync.journalCheckHint")}</p>}
       </div>
 
       {hailing && <HailingSheet onChanged={() => setTick((n) => n + 1)} onClose={() => setHailing(false)} />}

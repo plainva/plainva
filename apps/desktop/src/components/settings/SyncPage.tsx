@@ -4,10 +4,14 @@ import { Users } from "lucide-react";
 import {
   Button,
   EmptyState,
+  InfoTip,
   SettingCard,
+  SettingCardBlock,
   SettingCardNote,
   SettingRow,
+  SettingsPageHead,
   Switch,
+  travelsWithVault,
   ICON,
   familyOfSyncProvider,
   hasCloudService,
@@ -48,13 +52,19 @@ import { EncryptionSetupModal } from "./EncryptionSetupModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAccounts";
 import { getSyncRootFolder } from "../../services/cloudAccountsActions";
 import { AccountMark, familyLabel } from "./cloudAccountsShared";
-import { StoredCredentialsCard } from "./StoredCredentialsCard";
+import type { JournalCheckResult } from "@plainva/core";
 
 /**
  * The Sync settings page after the cloud-accounts split (mockup screen 5):
  * NO connection forms anymore — the connection is a reference card onto the
- * account (managed in the Cloud-Konten area); this page keeps the service
- * BEHAVIOR: remote folder, interval, queue insight, error history.
+ * account (managed in the Cloud-Konten area).
+ *
+ * Settings plan 2026-10-29 (§ 3.2): one "Connection" group (the account line,
+ * the waiting transfers, the row into the chain), the chain "Accounts on all
+ * your devices" as a page of its own as on the phone (move 19), and one folded
+ * "Diagnostics" group at the end with what the sync last did, the error
+ * history and the deletion-log check from About (moves 16, 20). The stored
+ * credentials are app-wide and went to About › Keychain (move 15).
  */
 
 export type SyncProvider = "none" | "webdav" | "drive" | "onedrive" | "dropbox" | "s3";
@@ -85,7 +95,30 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const [diag, setDiag] = useState<SyncDiagnostics>(emptyDiagnostics());
   const [everyStart, setEveryStart] = useState(false);
   const [encModal, setEncModal] = useState<null | "create" | "unlock">(null);
+  /** The chain's own page (move 19): UI state only, the page returns to it on a re-render. */
+  const [chainOpen, setChainOpen] = useState(false);
   const provider = p.activeProvider;
+
+  // "Check deletion log" (finding 2026-09-20), here since 2026-10-29 (move 16):
+  // it concerns this vault's cloud, and only the plain file sync keeps a log —
+  // the encrypted workspace worker stores sealed objects and has none.
+  const [journalBusy, setJournalBusy] = useState(false);
+  const [journalNote, setJournalNote] = useState<string | null>(null);
+  const checkDeletionLog = async () => {
+    if (!syncWorker?.verifyDeletionJournal || journalBusy) return;
+    setJournalBusy(true);
+    try {
+      const result: JournalCheckResult = await syncWorker.verifyDeletionJournal((done, total) => setJournalNote(t("sync.journalCheckProgress", { done, total })));
+      setJournalNote(result.checked === 0 && result.unknown === 0
+        ? t("sync.journalCheckEmpty")
+        : t("sync.journalCheckDone", { retracted: result.retracted, absent: result.absent, unknown: result.unknown }));
+    } catch (e) {
+      console.error("[settings] deletion log check failed", e);
+      setJournalNote(t("sync.journalCheckFailed"));
+    } finally {
+      setJournalBusy(false);
+    }
+  };
 
   /**
    * Asks the next cycle to drop the retired entries (P7). The question in the
@@ -227,15 +260,254 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
       ? familyLabel(familyOfSyncProvider(provider))
       : "";
 
+  const collisions = p.isActiveVault ? syncStatusStore.get(p.selectedVault).collisions : [];
+  const errorHistory = p.isActiveVault ? syncStatusStore.getErrorHistory(p.selectedVault) : [];
+  /** The chain in one word, for its row on the page (B2) — the same words as the phone's row. */
+  const chainState = !settingsSyncOn
+    ? t("common.off")
+    : encState === "locked"
+      ? t("settingsSync.needsPassphrase")
+      : encState === "unlocked"
+        ? t("settingsSync.chainStateEncrypted")
+        : t("common.on");
+  /** The one info of the chain (Q8): what the three steps are for, once, at its title. */
+  const chainInfo = [t("settingsSync.chainIntro"), t("settingsSync.step1Desc"), t("settingsSync.step3Desc")].join("\n\n");
+  // The chain's switches are this device's decision: no profile field carries them (E14).
+  const chainDeviceOnly = !travelsWithVault(undefined, "desktop");
+
+  const encryptionModal = encModal && p.isActiveVault && backupAdapter && (
+    <EncryptionSetupModal
+      vaultPath={p.selectedVault}
+      raw={backupAdapter}
+      mode={encModal}
+      onDone={() => {
+        const wasCreate = encModal === "create";
+        setEncModal(null);
+        // E5: credentials travel by default on a FRESHLY encrypted vault —
+        // without that, every further device sits in "account here,
+        // sign-in missing", which is the exact pain this plan started
+        // from. Never silent: the switch is visible right above, and the
+        // toast says what just changed.
+        const stance = secretsSyncStance(secretsDecided ? secretsSyncOn : undefined, {
+          freshlyEncrypted: wasCreate,
+          unlocked: true,
+          settingsSync: settingsSyncOn,
+        });
+        const enable = pendingSecretsEnable || stance === "enable-by-default";
+        if (enable) {
+          setPendingSecretsEnable(false);
+          setSecretsSyncOn(true);
+          setSecretsDecided(true);
+          void getSettingsStore().then(async (s) => {
+            await s.set(secretsSyncEnabledKey(p.selectedVault), true);
+            await s.save();
+            window.dispatchEvent(new CustomEvent("plainva-settings-sync-toggled"));
+          });
+          if (!pendingSecretsEnable) toast.info(t("settingsSync.secretsOnByDefault"));
+        }
+      }}
+      onCancel={() => { setEncModal(null); setPendingSecretsEnable(false); }}
+    />
+  );
+
+  /* The chain is a page of its own (settings plan 2026-10-29, move 19), as on
+     the phone: five explaining texts stood before its switches, a second topic
+     on a page about the files. The page keeps one row that says its state. */
+  if (chainOpen && connected) {
+    return (
+      <div data-testid="sync-chain-page">
+        <div style={{ marginBottom: "var(--space-2)" }}>
+          <Button variant="ghost" size="sm" onClick={() => setChainOpen(false)} data-testid="sync-chain-back">
+            ‹ {t("settings.syncSection")}
+          </Button>
+        </div>
+        <SettingsPageHead title={t("settingsSync.chainLabel")} info={{ text: chainInfo, guide: "Sync_Setup.md" }} />
+
+        {/* One chain instead of three switches in two places (plan P5). The
+            steps build on each other, and the page says so: a user who only
+            set the passphrase waited forever for accounts that were never
+            going to travel. */}
+        <SettingCard label={t("settingsSync.chainLabel")} deviceOnly={chainDeviceOnly} testId="sync-chain-card">
+            <div className="pv-chain">
+              {/* Step 1 stands alone: syncing settings and accounts needs NO
+                  passphrase — without one the profile is plaintext JSON in the
+                  vault. Only step 3 carries passwords and therefore needs a key.
+                  …with ONE exception, and it has to be visible: once any device
+                  has set a passphrase, the profile in the vault is sealed, so a
+                  locked device can neither read nor write it. */}
+              <div className={`pv-chain-step ${settingsSyncOn && encState === "locked" ? "is-todo" : settingsSyncOn ? "is-done" : "is-todo"}`}>
+                <div className="pv-chain-node">{settingsSyncOn && encState !== "locked" ? "✓" : settingsSyncOn ? "!" : "1"}</div>
+                <div className="pv-chain-body">
+                  <div className="pv-chain-head">
+                    <span className="pv-chain-title">
+                      {t("settingsSync.step1")}
+                      {settingsSyncOn && encState === "locked" && (
+                        <span className="pv-chain-chip is-excluded">{t("settingsSync.needsPassphrase")}</span>
+                      )}
+                    </span>
+                    <Switch checked={settingsSyncOn} onChange={(on) => void toggleSettingsSync(on)} label={t("settingsSync.step1")} />
+                  </div>
+                  {settingsSyncOn && encState === "locked" && (
+                    <p className="pv-chain-desc">
+                      {t("settingsSync.step1SealedShort")}
+                      <InfoTip label={t("settingsSync.step1")} info={t("settingsSync.step1Sealed")} />
+                    </p>
+                  )}
+                  {/* Generated from the shared field catalog, not written by
+                      hand: a list that promises more than the code delivers is
+                      worse than none. */}
+                  <div className="pv-chain-carries">
+                    {travellingAreas("desktop").map((area) => (
+                      <span className="pv-chain-chip" key={area}>{t(`settingsSync.area_${area}`)}</span>
+                    ))}
+                    <span className="pv-chain-chip is-excluded">{t("settingsSync.chipPasswords")}</span>
+                    <span className="pv-chain-chip is-excluded">{t("settingsSync.chipPaths")}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 2 is OPTIONAL — it exists for step 3, and encrypts step 1
+                  as a side effect. The only passphrase surface on this page. */}
+              {p.isActiveVault && backupAdapter && (
+                <div className={`pv-chain-step ${encState === "unlocked" ? "is-done" : ""}`}>
+                  <div className="pv-chain-node">{encState === "unlocked" ? "✓" : "2"}</div>
+                  <div className="pv-chain-body">
+                    <div className="pv-chain-head">
+                      <span className="pv-chain-title">
+                        {t("settingsSync.step2")}
+                        {encState !== "unlocked" && <span className="pv-chain-chip">{t("settingsSync.step2Optional")}</span>}
+                      </span>
+                      <span className="pv-chain-extra">
+                        {encState === "none" && (
+                          <Button variant="secondary" onClick={() => setEncModal("create")} data-testid="encryption-set">
+                            {t("encryption.setPassphrase")}
+                          </Button>
+                        )}
+                        {encState === "locked" && (
+                          <Button variant="primary" onClick={() => setEncModal("unlock")} data-testid="encryption-unlock-open">
+                            {t("encryption.enterPassphrase")}
+                          </Button>
+                        )}
+                        {encState === "unlocked" && (
+                          <Button variant="ghost" onClick={() => void doLock()} data-testid="encryption-lock">{t("encryption.lock")}</Button>
+                        )}
+                      </span>
+                    </div>
+                    <p className="pv-chain-desc">
+                      {encState === "unlocked" ? t("encryption.statusUnlocked") : t("settingsSync.step2Hint")}
+                      {encState !== "unlocked" && <InfoTip label={t("settingsSync.step2")} info={t("settingsSync.step2Desc")} />}
+                    </p>
+                    {encState !== "none" && (
+                      <span className="pv-chain-extra">
+                        <Switch checked={everyStart} onChange={(on) => void toggleEveryStart(on)} label={t("encryption.everyStart")} />
+                        <span className="pv-chain-desc">{t("encryption.everyStart")}</span>
+                        <InfoTip label={t("encryption.everyStart")} info={t("encryption.everyStartDesc")} />
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* E3: locked, not uselessly switchable. It needs BOTH — the
+                  accounts from step 1 (a password can only reach an account
+                  this device knows) and the key from step 2. */}
+              <div className={`pv-chain-step ${secretsSyncOn && settingsSyncOn ? "is-done" : !settingsSyncOn || encState !== "unlocked" ? "is-locked" : ""}`}>
+                <div className="pv-chain-node">{secretsSyncOn && settingsSyncOn ? "✓" : "3"}</div>
+                <div className="pv-chain-body">
+                  <div className="pv-chain-head">
+                    <span className="pv-chain-title">
+                      {t("settingsSync.step3")}
+                      {!settingsSyncOn && <span className="pv-chain-chip is-excluded">{t("settingsSync.needsStep1")}</span>}
+                      {settingsSyncOn && encState !== "unlocked" && <span className="pv-chain-chip is-excluded">{t("settingsSync.needsPassphrase")}</span>}
+                    </span>
+                    <Switch
+                      checked={secretsSyncOn && settingsSyncOn}
+                      disabled={!settingsSyncOn}
+                      onChange={(on) => void toggleSecretsSync(on)}
+                      label={t("settingsSync.step3")}
+                    />
+                  </div>
+                  {!settingsSyncOn && <p className="pv-chain-desc">{t("settingsSync.needsStep1Body")}</p>}
+                  {settingsSyncOn && <p className="pv-chain-desc">{t("settingsSync.oauthNote")}</p>}
+                  {/* E5: an EXISTING vault is never switched over silently.
+                      Moving credentials into the sealed sideband puts them in
+                      the user's cloud — a change of behaviour that deserves one
+                      question. Answering it either way makes it go away. */}
+                  {secretsSyncStance(secretsDecided ? secretsSyncOn : undefined, {
+                    freshlyEncrypted: false,
+                    unlocked: encState === "unlocked",
+                    settingsSync: settingsSyncOn,
+                  }) === "ask" && (
+                    <Banner kind="info" data-testid="secrets-offer">
+                      <p>
+                        {t("settingsSync.secretsOfferQuestion")}
+                        <InfoTip label={t("settingsSync.step3")} info={t("settingsSync.secretsOfferTitle")} />
+                      </p>
+                      <div className="pv-banner-actions">
+                        <Button variant="primary" onClick={() => void toggleSecretsSync(true)} data-testid="secrets-offer-yes">
+                          {t("settingsSync.step3")}
+                        </Button>
+                        <Button variant="ghost" onClick={() => void toggleSecretsSync(false)} data-testid="secrets-offer-no">
+                          {t("settingsSync.secretsOfferDecline")}
+                        </Button>
+                      </div>
+                    </Banner>
+                  )}
+                </div>
+              </div>
+            </div>
+
+          {settingsSyncOn && p.isActiveVault && (
+            <SettingRow label={t("settingsSync.pullNow")} info={t("settingsSync.pullNowDesc")}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  toast.info(t("settingsSync.pullStarted"));
+                  window.dispatchEvent(new CustomEvent("plainva-sync-queued"));
+                }}
+                data-testid="chain-pull-now"
+              >
+                {t("mobile.syncNow")}
+              </Button>
+            </SettingRow>
+          )}
+        </SettingCard>
+        {encryptionModal}
+      </div>
+    );
+  }
+
   return (
     <div>
       <AreaHead areaId="sync" />
 
+      {/* A decision, not a failure (finding 2026-08-21): every other file keeps
+          syncing. On top of the page, where a bar belongs (B1). */}
+      {collisions.length > 0 && (
+        <Banner kind="warning" rounded data-testid="sync-collisions">
+          <strong>{t("sync.collisionTitle")}</strong>
+          <InfoTip label={t("sync.collisionTitle")} info={t("sync.collisionBody")} />
+          <div style={{ marginTop: "0.3rem" }}>{t("sync.collisionHint")}</div>
+          <ul style={{ margin: "0.4rem 0 0", paddingLeft: "1.1rem", fontSize: "var(--text-sm)", overflowWrap: "anywhere" }}>
+            {collisions.map((c) => (
+              <li key={`${c.path}|${c.twin}`}>
+                {c.path}
+                <span aria-hidden="true"> ↔ </span>
+                {c.twin}
+              </li>
+            ))}
+          </ul>
+        </Banner>
+      )}
+
+      {/* "Connection" and "Behaviour" are one group since the cloud folder and
+          the interval moved to the account's files page (B1, move 18): the
+          account line, the waiting transfers, and the row into the chain. */}
       <SettingCard label={t("settings.groupConnection", { defaultValue: "Verbindung" })}>
         {!connected && (
           <EmptyState title={t("cloudAccounts.noneYet")} icon={<Users size={ICON.empty} />}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-2)" }}>
-              {t("settings.pageDescCloudAccounts")}
+              {t("settings.syncNeedsFilesAccount")}
               <Button variant="primary" onClick={() => p.onOpenCloudAccounts()} data-testid="sync-open-cloudaccounts">
                 {t("cloudAccounts.openArea")}
               </Button>
@@ -251,7 +523,9 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
             )}
             <div className="pv-acct-who">
               <div className="pv-acct-name">{t("cloudAccounts.filesVia", { name: accountName || provider })}</div>
-              <div className="pv-acct-id">{rootFolder || t("cloudAccounts.cloudFolderHint")}</div>
+              {/* The folder, or "/" for the root — the old fallback line only
+                  repeated what the row already says (3.2, cloudFolderHint). */}
+              <div className="pv-acct-id">{rootFolder || "/"}</div>
             </div>
             {/* Cloud folder, interval and pausing belong to the files of THIS account (plan "Verbinden", V3). */}
             <Button variant="ghost" onClick={() => p.onOpenCloudAccounts(filesAccount?.id, "files")} data-testid="sync-manage-account">
@@ -259,235 +533,52 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
             </Button>
           </div>
         )}
+        {connected && p.isActiveVault && p.hasSyncWorker && (
+          <SettingRow
+            label={t("settings.syncQueue", { defaultValue: "Ausstehende Übertragungen" })}
+            info={t("settings.syncQueueDesc")}
+          >
+            <Button variant="secondary" size="sm" onClick={p.onLoadQueue}>
+              {t("settings.perfMetricsRefresh", { defaultValue: "Anzeigen/Aktualisieren" })}
+            </Button>
+          </SettingRow>
+        )}
+        {connected && p.isActiveVault && p.syncQueueSnapshot && (
+          <SettingCardNote>
+            {p.syncQueueSnapshot.total === 0
+              ? t("settings.syncQueueEmpty", { defaultValue: "Nichts ausstehend — alles übertragen." })
+              : (
+                <>
+                  <div style={{ marginBottom: "0.3rem" }}>
+                    {t("settings.syncQueueCount", { defaultValue: "{{n}} Operation(en) ausstehend:", n: p.syncQueueSnapshot.total })}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem", maxHeight: 140, overflowY: "auto", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-sm)", padding: "0.4rem 0.6rem" }}>
+                    {p.syncQueueSnapshot.items.map((it, i) => (
+                      <div key={`${it.file_path}-${i}`} style={{ overflowWrap: "anywhere" }}>
+                        <span style={{ color: "var(--text-faint)" }}>{it.operation}</span>{" "}
+                        {it.file_path}
+                        {it.retry_count > 0 ? ` (${t("settings.syncQueueRetries", { defaultValue: "Versuch {{n}}", n: it.retry_count + 1 })})` : ""}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+          </SettingCardNote>
+        )}
+        {connected && (
+          <SettingRow label={t("settingsSync.chainLabel")} desc={chainState} info={{ text: chainInfo, guide: "Sync_Setup.md" }}>
+            <Button variant="secondary" size="sm" onClick={() => setChainOpen(true)} data-testid="sync-open-chain">
+              {t("mobile.open")} ›
+            </Button>
+          </SettingRow>
+        )}
       </SettingCard>
 
+      {/* What the sync actually did (P1/S11), the error history and the
+          deletion-log check (move 16, from About) — rare, but they belong
+          together: one folded group at the end of the page (Q6, move 20). */}
       {connected && (
-        <SettingCard label={t("settings.groupSyncBehavior", { defaultValue: "Verhalten" })}>
-          {p.isActiveVault && p.hasSyncWorker && (
-            <SettingRow
-              label={t("settings.syncQueue", { defaultValue: "Ausstehende Übertragungen" })}
-              desc={t("settings.syncQueueDesc", { defaultValue: "Zeigt, was noch zur Cloud übertragen wird (älteste zuerst)." })}
-            >
-              <Button variant="secondary" size="sm" onClick={p.onLoadQueue}>
-                {t("settings.perfMetricsRefresh", { defaultValue: "Anzeigen/Aktualisieren" })}
-              </Button>
-            </SettingRow>
-          )}
-          {p.isActiveVault && p.syncQueueSnapshot && (
-            <SettingCardNote>
-              {p.syncQueueSnapshot.total === 0
-                ? t("settings.syncQueueEmpty", { defaultValue: "Nichts ausstehend — alles übertragen." })
-                : (
-                  <>
-                    <div style={{ marginBottom: "0.3rem" }}>
-                      {t("settings.syncQueueCount", { defaultValue: "{{n}} Operation(en) ausstehend:", n: p.syncQueueSnapshot.total })}
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem", maxHeight: 140, overflowY: "auto", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-sm)", padding: "0.4rem 0.6rem" }}>
-                      {p.syncQueueSnapshot.items.map((it, i) => (
-                        <div key={`${it.file_path}-${i}`} style={{ overflowWrap: "anywhere" }}>
-                          <span style={{ color: "var(--text-faint)" }}>{it.operation}</span>{" "}
-                          {it.file_path}
-                          {it.retry_count > 0 ? ` (${t("settings.syncQueueRetries", { defaultValue: "Versuch {{n}}", n: it.retry_count + 1 })})` : ""}
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-            </SettingCardNote>
-          )}
-          {p.isActiveVault && syncStatusStore.get(p.selectedVault).collisions.length > 0 && (
-            // A decision, not a failure (finding 2026-08-21): every other file
-            // keeps syncing, so this no longer paints the status red — and the
-            // sentence is no longer built in English inside the core.
-            <SettingCardNote>
-              <Banner kind="warning" data-testid="sync-collisions">
-                <strong>{t("sync.collisionTitle")}</strong>
-                <div style={{ marginTop: "0.3rem" }}>{t("sync.collisionBody")}</div>
-                <ul style={{ margin: "0.4rem 0 0", paddingLeft: "1.1rem", fontSize: "var(--text-sm)", overflowWrap: "anywhere" }}>
-                  {syncStatusStore.get(p.selectedVault).collisions.map((c) => (
-                    <li key={`${c.path}|${c.twin}`}>
-                      {c.path}
-                      <span aria-hidden="true"> ↔ </span>
-                      {c.twin}
-                    </li>
-                  ))}
-                </ul>
-              </Banner>
-            </SettingCardNote>
-          )}
-          {p.isActiveVault && syncStatusStore.getErrorHistory(p.selectedVault).length > 0 && (
-            <SettingCardNote>
-              <div style={{ fontSize: "var(--text-ui)", fontWeight: 600, color: "var(--text-main)", marginBottom: "0.3rem" }}>{t("settings.syncErrorHistory")}</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", maxHeight: 140, overflowY: "auto", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-sm)", padding: "0.4rem 0.6rem" }}>
-                {[...syncStatusStore.getErrorHistory(p.selectedVault)].reverse().map((e, i) => (
-                  <div key={`${e.ts}-${i}`} style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", overflowWrap: "anywhere" }}>
-                    <span style={{ color: "var(--text-faint)" }}>{new Intl.DateTimeFormat(i18n.language, { dateStyle: "short", timeStyle: "medium" }).format(new Date(e.ts))}</span>{" — "}{e.message}
-                  </div>
-                ))}
-              </div>
-            </SettingCardNote>
-          )}
-        </SettingCard>
-      )}
-
-      {/* One chain instead of three switches in two places (plan P5). The steps
-          build on each other, and until now nothing on screen said so: a user
-          who only set the passphrase waited forever for accounts that were
-          never going to travel. */}
-      {connected && (
-        <SettingCard label={t("settingsSync.chainLabel")}>
-          <SettingCardNote>{t("settingsSync.chainIntro")}</SettingCardNote>
-
-          <div className="pv-chain">
-            {/* Step 1 stands alone: syncing settings and accounts needs NO
-                passphrase — without one the profile is simply plaintext JSON in
-                the vault. Only step 3 carries passwords and therefore needs a key. */}
-            {/* …with ONE exception, and it has to be visible: once any device
-                has set a passphrase, the profile in the vault is sealed, so a
-                locked device can neither read nor write it. The switch stays
-                on, but the step must not claim to be running. */}
-            <div className={`pv-chain-step ${settingsSyncOn && encState === "locked" ? "is-todo" : settingsSyncOn ? "is-done" : "is-todo"}`}>
-              <div className="pv-chain-node">{settingsSyncOn && encState !== "locked" ? "✓" : settingsSyncOn ? "!" : "1"}</div>
-              <div className="pv-chain-body">
-                <div className="pv-chain-head">
-                  <span className="pv-chain-title">
-                    {t("settingsSync.step1")}
-                    {settingsSyncOn && encState === "locked" && (
-                      <span className="pv-chain-chip is-excluded">{t("settingsSync.needsPassphrase")}</span>
-                    )}
-                  </span>
-                  <Switch checked={settingsSyncOn} onChange={(on) => void toggleSettingsSync(on)} label={t("settingsSync.step1")} />
-                </div>
-                <p className="pv-chain-desc">
-                  {settingsSyncOn && encState === "locked" ? t("settingsSync.step1Sealed") : t("settingsSync.step1Desc")}
-                </p>
-                {/* Generated from the shared field catalog, not written by
-                    hand: a list that promises more than the code delivers is
-                    worse than none, and a hand-written one is exactly how the
-                    two shells drifted apart. */}
-                <div className="pv-chain-carries">
-                  {travellingAreas("desktop").map((area) => (
-                    <span className="pv-chain-chip" key={area}>{t(`settingsSync.area_${area}`)}</span>
-                  ))}
-                  <span className="pv-chain-chip is-excluded">{t("settingsSync.chipPasswords")}</span>
-                  <span className="pv-chain-chip is-excluded">{t("settingsSync.chipPaths")}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Step 2 is OPTIONAL — it exists for step 3, and encrypts step 1 as
-                a side effect. This is also the only passphrase surface on this
-                page now; a second one below used to offer the same thing twice. */}
-            {p.isActiveVault && backupAdapter && (
-              <div className={`pv-chain-step ${encState === "unlocked" ? "is-done" : ""}`}>
-                <div className="pv-chain-node">{encState === "unlocked" ? "✓" : "2"}</div>
-                <div className="pv-chain-body">
-                  <div className="pv-chain-head">
-                    <span className="pv-chain-title">
-                      {t("settingsSync.step2")}
-                      {encState !== "unlocked" && <span className="pv-chain-chip">{t("settingsSync.step2Optional")}</span>}
-                    </span>
-                    <span className="pv-chain-extra">
-                      {encState === "none" && (
-                        <Button variant="secondary" onClick={() => setEncModal("create")} data-testid="encryption-set">
-                          {t("encryption.setPassphrase")}
-                        </Button>
-                      )}
-                      {encState === "locked" && (
-                        <Button variant="primary" onClick={() => setEncModal("unlock")} data-testid="encryption-unlock-open">
-                          {t("encryption.enterPassphrase")}
-                        </Button>
-                      )}
-                      {encState === "unlocked" && (
-                        <Button variant="ghost" onClick={() => void doLock()} data-testid="encryption-lock">{t("encryption.lock")}</Button>
-                      )}
-                    </span>
-                  </div>
-                  <p className="pv-chain-desc">
-                    {encState === "unlocked" ? t("encryption.statusUnlocked") : t("settingsSync.step2Desc")}
-                  </p>
-                  {encState !== "none" && (
-                    <span className="pv-chain-extra">
-                      <Switch checked={everyStart} onChange={(on) => void toggleEveryStart(on)} label={t("encryption.everyStart")} />
-                      <span className="pv-chain-desc">{t("encryption.everyStart")}</span>
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* E3: locked, not uselessly switchable. It needs BOTH — the accounts
-                from step 1 (a password can only reach an account this device
-                knows) and the key from step 2 (the bundle is sealed with it). */}
-            <div className={`pv-chain-step ${secretsSyncOn && settingsSyncOn ? "is-done" : !settingsSyncOn || encState !== "unlocked" ? "is-locked" : ""}`}>
-              <div className="pv-chain-node">{secretsSyncOn && settingsSyncOn ? "✓" : "3"}</div>
-              <div className="pv-chain-body">
-                <div className="pv-chain-head">
-                  <span className="pv-chain-title">
-                    {t("settingsSync.step3")}
-                    {!settingsSyncOn && <span className="pv-chain-chip is-excluded">{t("settingsSync.needsStep1")}</span>}
-                    {settingsSyncOn && encState !== "unlocked" && <span className="pv-chain-chip is-excluded">{t("settingsSync.needsPassphrase")}</span>}
-                  </span>
-                  <Switch
-                    checked={secretsSyncOn && settingsSyncOn}
-                    disabled={!settingsSyncOn}
-                    onChange={(on) => void toggleSecretsSync(on)}
-                    label={t("settingsSync.step3")}
-                  />
-                </div>
-                <p className="pv-chain-desc">
-                  {!settingsSyncOn ? t("settingsSync.needsStep1Body") : t("settingsSync.step3Desc")}
-                </p>
-                {settingsSyncOn && <p className="pv-chain-desc">{t("settingsSync.oauthNote")}</p>}
-                {/* E5: an EXISTING vault is never switched over silently. Moving
-                    credentials into the sealed sideband puts them in the user's
-                    cloud — a change of behaviour that deserves one question
-                    rather than a tick appearing after an update. Answering it
-                    either way makes it go away for good. */}
-                {secretsSyncStance(secretsDecided ? secretsSyncOn : undefined, {
-                  freshlyEncrypted: false,
-                  unlocked: encState === "unlocked",
-                  settingsSync: settingsSyncOn,
-                }) === "ask" && (
-                  <Banner kind="info" data-testid="secrets-offer">
-                    <p>{t("settingsSync.secretsOfferTitle")}</p>
-                    <div className="pv-banner-actions">
-                      <Button variant="primary" onClick={() => void toggleSecretsSync(true)} data-testid="secrets-offer-yes">
-                        {t("settingsSync.step3")}
-                      </Button>
-                      <Button variant="ghost" onClick={() => void toggleSecretsSync(false)} data-testid="secrets-offer-no">
-                        {t("settingsSync.secretsOfferDecline")}
-                      </Button>
-                    </div>
-                  </Banner>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {settingsSyncOn && p.isActiveVault && (
-            <SettingRow label={t("settingsSync.pullNow")} desc={t("settingsSync.pullNowDesc")}>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  toast.info(t("settingsSync.pullStarted"));
-                  window.dispatchEvent(new CustomEvent("plainva-sync-queued"));
-                }}
-                data-testid="chain-pull-now"
-              >
-                {t("mobile.syncNow")}
-              </Button>
-            </SettingRow>
-          )}
-        </SettingCard>
-      )}
-
-      {/* What the sync actually did (P1/S11). The finding was never "settings
-          do not arrive" but "nobody can tell whether they did" — three states
-          look identical from the outside, and the locked one used to be a toast
-          that appeared once per session and was gone. */}
-      {connected && (
-        <SettingCard label={t("settingsSync.diagTitle")}>
+        <SettingCard label={t("settings.groupDiagnostics", { defaultValue: "Diagnose" })} collapsible testId="sync-diagnostics">
           {(() => {
             const state = diagnosticsState(diag, {
               enabled: settingsSyncOn,
@@ -497,16 +588,23 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
             const when = (iso?: string) => (iso ? new Date(iso).toLocaleString() : t("settingsSync.diagNever"));
             return (
               <>
-                <Banner
-                  kind={state === "running" ? "success" : state === "locked" ? "warning" : "info"}
-                  data-testid="sync-diag-state"
-                >
-                  {t(deviceStateKey(state))}
-                </Banner>
+                <SettingRow label={t("settingsSync.diagTitle")} info={t("settingsSync.diagStays")}>
+                  <span />
+                </SettingRow>
+                <SettingCardBlock>
+                  <Banner
+                    kind={state === "running" ? "success" : state === "locked" ? "warning" : "info"}
+                    data-testid="sync-diag-state"
+                  >
+                    {t(deviceStateKey(state))}
+                  </Banner>
+                </SettingCardBlock>
                 {/* The field NAMES below the count: "12 fields" cannot tell a
                     working sync from one that re-publishes the same setting on
                     every cycle, and the import line names what changed. */}
-                <SettingRow label={t("settingsSync.diagLastCheck")}>
+                {/* An older version called a check "sent": the explanation of that
+                    earlier time stamp stands behind the row's info (3.2). */}
+                <SettingRow label={t("settingsSync.diagLastCheck")} info={diag.previousClientActivity ? t("settingsSync.diagPreviousActivity") : undefined}>
                   <span className="pv-chain-desc" data-testid="sync-diag-check">
                     {when(diag.lastCheck?.at)}
                     {diag.lastCheck ? ` · ${t("settingsSync.diagFields")}: ${diag.lastCheck.fields}` : ""}
@@ -559,126 +657,106 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
                     ) : null}
                   </span>
                 </SettingRow>
-                {diag.previousClientActivity && (
-                  <Banner kind="info" data-testid="sync-diag-previous-client">
-                    {t("settingsSync.diagPreviousActivity")}
-                  </Banner>
-                )}
                 {/* One banner per finding, and only the removable one offers a
-                    way out. Until P7 all three findings shared the sentence
-                    "an older Plainva version is still publishing…", including
-                    the case where the document in question is this device's
-                    own — nobody to update, and no way to make it stop. */}
-                {/* The CURRENT count, not the history: `legacyClient.reasons`
-                    only ever grew, so this banner outlived its cause and the
-                    cleanup button truthfully answered "nothing to remove" while
-                    the accusation stayed on screen (finding 2026-08-19). The
-                    last cycle read the shared document — its answer is the
-                    state. */}
+                    way out. The CURRENT count decides, not the history: the
+                    last cycle read the shared document (finding 2026-08-19). */}
                 {(diag.lastSecrets
                   ? diag.lastSecrets.legacy > 0
                   : diag.legacyClient?.reasons.includes("legacy-google-client-entry")) && (
-                  <Banner kind="warning" data-testid="sync-diag-legacy-client">
-                    <div>{t("settingsSync.legacyEntriesCleanupDesc")}</div>
-                    <div style={{ marginTop: "0.4rem" }}>
-                      <Button variant="secondary" size="sm" onClick={() => void requestCleanup()}>
-                        {t("settingsSync.legacyEntriesCleanup")}
-                      </Button>
-                    </div>
-                  </Banner>
+                  <SettingCardBlock>
+                    <Banner kind="warning" data-testid="sync-diag-legacy-client">
+                      <div>{t("settingsSync.legacyEntriesCleanupDesc")}</div>
+                      <div style={{ marginTop: "0.4rem" }}>
+                        <Button variant="secondary" size="sm" onClick={() => void requestCleanup()}>
+                          {t("settingsSync.legacyEntriesCleanup")}
+                        </Button>
+                      </div>
+                    </Banner>
+                  </SettingCardBlock>
                 )}
                 {diag.legacyClient?.reasons.includes("legacy-profile-capability-remote") && (
-                  <Banner kind="info" data-testid="sync-diag-legacy-profile-remote">
-                    {t("settingsSync.legacyProfileRemote")}
-                  </Banner>
+                  <SettingCardBlock>
+                    <Banner kind="info" data-testid="sync-diag-legacy-profile-remote">
+                      {t("settingsSync.legacyProfileRemote")}
+                    </Banner>
+                  </SettingCardBlock>
                 )}
                 {diag.skipped && (
-                  <Banner kind="warning" data-testid="sync-diag-refused">
-                    {t("settingsSync.diagRefused")}: {diag.skipped.reasons.join("; ")}
-                  </Banner>
+                  <SettingCardBlock>
+                    <Banner kind="warning" data-testid="sync-diag-refused">
+                      {t("settingsSync.diagRefused")}: {diag.skipped.reasons.join("; ")}
+                    </Banner>
+                  </SettingCardBlock>
                 )}
-                {diag.lastError &&
-                  (settingsSyncFailureIsWaiting(diag.lastError) ? (
-                    // A dropped request is a wait, not an answer (finding
-                    // 2026-08-21): neutral, with the count, until the third one.
-                    <Banner kind="info" data-testid="sync-diag-retrying">
-                      {t("settingsSync.diagRetrying", {
-                        error: diag.lastError.message,
-                        count: diag.lastError.streak ?? 1,
-                        max: SETTINGS_SYNC_FAILURES_BEFORE_ERROR,
-                        time: new Date(diag.lastError.at).toLocaleTimeString(),
-                      })}
-                    </Banner>
-                  ) : (
-                    <Banner kind="error" data-testid="sync-diag-error">
-                      {t("settingsSync.diagError", { error: diag.lastError.message })}
-                    </Banner>
-                  ))}
-                {/* The comment step's own record (issue 113), rendered by the same
-                    rule: neutral while it is waited out, red once it is an
-                    answer. Unreadable comment files are not here. */}
-                {diag.lastCommentsError &&
-                  (settingsSyncFailureIsWaiting(diag.lastCommentsError) ? (
-                    <Banner kind="info" data-testid="sync-diag-comments-retrying">
-                      {t("settingsSync.commentsDiagRetrying", {
-                        error: diag.lastCommentsError.message,
-                        count: diag.lastCommentsError.streak ?? 1,
-                        max: SETTINGS_SYNC_FAILURES_BEFORE_ERROR,
-                        time: new Date(diag.lastCommentsError.at).toLocaleTimeString(),
-                      })}
-                    </Banner>
-                  ) : (
-                    <Banner kind="error" data-testid="sync-diag-comments-error">
-                      {t("settingsSync.commentsFailed", { error: diag.lastCommentsError.message })}
-                    </Banner>
-                  ))}
-                <SettingCardNote>{t("settingsSync.diagStays")}</SettingCardNote>
+                {diag.lastError && (
+                  <SettingCardBlock>
+                    {settingsSyncFailureIsWaiting(diag.lastError) ? (
+                      // A dropped request is a wait, not an answer (finding
+                      // 2026-08-21): neutral, with the count, until the third one.
+                      <Banner kind="info" data-testid="sync-diag-retrying">
+                        {t("settingsSync.diagRetrying", {
+                          error: diag.lastError.message,
+                          count: diag.lastError.streak ?? 1,
+                          max: SETTINGS_SYNC_FAILURES_BEFORE_ERROR,
+                          time: new Date(diag.lastError.at).toLocaleTimeString(),
+                        })}
+                      </Banner>
+                    ) : (
+                      <Banner kind="error" data-testid="sync-diag-error">
+                        {t("settingsSync.diagError", { error: diag.lastError.message })}
+                      </Banner>
+                    )}
+                  </SettingCardBlock>
+                )}
+                {/* The comment step's own record (issue 113), by the same rule. */}
+                {diag.lastCommentsError && (
+                  <SettingCardBlock>
+                    {settingsSyncFailureIsWaiting(diag.lastCommentsError) ? (
+                      <Banner kind="info" data-testid="sync-diag-comments-retrying">
+                        {t("settingsSync.commentsDiagRetrying", {
+                          error: diag.lastCommentsError.message,
+                          count: diag.lastCommentsError.streak ?? 1,
+                          max: SETTINGS_SYNC_FAILURES_BEFORE_ERROR,
+                          time: new Date(diag.lastCommentsError.at).toLocaleTimeString(),
+                        })}
+                      </Banner>
+                    ) : (
+                      <Banner kind="error" data-testid="sync-diag-comments-error">
+                        {t("settingsSync.commentsFailed", { error: diag.lastCommentsError.message })}
+                      </Banner>
+                    )}
+                  </SettingCardBlock>
+                )}
+                {errorHistory.length > 0 && (
+                  <SettingCardNote>
+                    <div style={{ fontSize: "var(--text-ui)", fontWeight: 600, color: "var(--text-main)", marginBottom: "0.3rem" }}>{t("settings.syncErrorHistory")}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", maxHeight: 140, overflowY: "auto", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-sm)", padding: "0.4rem 0.6rem" }}>
+                      {[...errorHistory].reverse().map((e, i) => (
+                        <div key={`${e.ts}-${i}`} style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", overflowWrap: "anywhere" }}>
+                          <span style={{ color: "var(--text-faint)" }}>{new Intl.DateTimeFormat(i18n.language, { dateStyle: "short", timeStyle: "medium" }).format(new Date(e.ts))}</span>{" — "}{e.message}
+                        </div>
+                      ))}
+                    </div>
+                  </SettingCardNote>
+                )}
+                {/* The deletion log travels to every device and explains
+                    absences there without a question — so a wrong entry is
+                    worth a way to find it (finding 2026-09-20). Only the plain
+                    file sync keeps one; the result replaces nothing visible. */}
+                {p.isActiveVault && syncWorker?.verifyDeletionJournal && (
+                  <SettingRow label={t("sync.journalCheck")} desc={journalNote ?? undefined} info={t("sync.journalCheckHint")}>
+                    <Button variant="secondary" size="sm" disabled={journalBusy} onClick={() => void checkDeletionLog()} data-testid="check-deletion-log">
+                      {t("sync.journalCheck")}
+                    </Button>
+                  </SettingRow>
+                )}
               </>
             );
           })()}
         </SettingCard>
       )}
 
-      {encModal && p.isActiveVault && backupAdapter && (
-        <EncryptionSetupModal
-          vaultPath={p.selectedVault}
-          raw={backupAdapter}
-          mode={encModal}
-          onDone={() => {
-            const wasCreate = encModal === "create";
-            setEncModal(null);
-            // E5: credentials travel by default on a FRESHLY encrypted vault —
-            // without that, every further device sits in "account here,
-            // sign-in missing", which is the exact pain this plan started
-            // from. Never silent: the switch is visible right above, and the
-            // toast says what just changed.
-            const stance = secretsSyncStance(secretsDecided ? secretsSyncOn : undefined, {
-              freshlyEncrypted: wasCreate,
-              unlocked: true,
-              settingsSync: settingsSyncOn,
-            });
-            const enable = pendingSecretsEnable || stance === "enable-by-default";
-            if (enable) {
-              setPendingSecretsEnable(false);
-              setSecretsSyncOn(true);
-              setSecretsDecided(true);
-              void getSettingsStore().then(async (s) => {
-                await s.set(secretsSyncEnabledKey(p.selectedVault), true);
-                await s.save();
-                window.dispatchEvent(new CustomEvent("plainva-settings-sync-toggled"));
-              });
-              if (!pendingSecretsEnable) toast.info(t("settingsSync.secretsOnByDefault"));
-            }
-          }}
-          onCancel={() => { setEncModal(null); setPendingSecretsEnable(false); }}
-        />
-      )}
-
-      {/* Deliberately outside the `connected` gate: leftovers are exactly the
-          entries whose vault no longer has a connection, and they are the ones
-          worth finding (E2). */}
-      <StoredCredentialsCard />
-
+      {encryptionModal}
     </div>
   );
 };

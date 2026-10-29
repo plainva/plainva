@@ -1,21 +1,13 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Archive, Check, ChevronRight, Cloud, FolderOpen, KeyRound, Layers, Pencil, Play, RefreshCw, Stethoscope, Trash2, Unplug, Upload } from "lucide-react";
-import { mConfirm, mPrompt, mSelect } from "./services/mobileDialogs";
+import { AlertTriangle, Check, ChevronRight, Cloud, FolderOpen, KeyRound, Pencil, RefreshCw, Stethoscope, Trash2, Unplug, Upload } from "lucide-react";
+import { mConfirm, mPrompt } from "./services/mobileDialogs";
 import {
-  canChangeRemoteFolder,
-  changeRemoteFolder,
-  openDriveDestination,
-  getStoredProvider,
   getSyncStatus,
-  listProviderFolders,
   pauseSyncHere,
   resumeSyncHere,
-  restartSync,
   subscribeSyncStatus,
   syncNow,
-  type MobileSyncProvider,
-  createProviderFolder,
 } from "./services/syncService";
 import { SYNC_DIAGNOSTICS_EVENT, loadSyncDiagnostics, isMobileSettingsSyncEnabled, mobileEncryptionStatus } from "./services/mobileSettingsSync";
 import { reconnectVault } from "./services/oauthService";
@@ -23,36 +15,49 @@ import { getVaultEntry, updateVault, LOCAL_VAULT_ID, isExternalVault, type Vault
 import { currentVaultFolderPlatform, getVaultFolderPlugin, pickVaultFolder, type VaultFolderAccess } from "./platform/vaultFolder";
 import { deleteVault, reloadActiveMobileVault, switchVault, type MobileVault } from "./services/vaultService";
 import { exportVault } from "./services/vaultExport";
-import { backupFolderFor, backupState, backupVaultNow, dismissUnreadableBackups, listBackups } from "./services/vaultBackup";
-import type { BackupListing } from "./services/backupListing";
-import { readSyncRootFolder } from "./services/syncRootFolder";
-import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
-import { getMobileSettings, applyVaultSettings } from "./services/mobileSettings";
-import { MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
-import { Banner, Button, emptyDiagnostics, familyLabel, familyOfSyncProvider, GroupCard, ICON, Row, RowList, SectionLabel, Switch, type SyncDiagnostics, type SyncProviderId, toast } from "@plainva/ui";
+import { getMobileSettings } from "./services/mobileSettings";
+import { Banner, Button, emptyDiagnostics, familyLabel, familyOfSyncProvider, GroupCard, ICON, InfoTip, Row, RowList, SectionLabel, type SyncDiagnostics, type SyncProviderId, toast } from "@plainva/ui";
 import { AppBar } from "./components/AppBar";
 import { syncStateLabel } from "./components/syncSubtitle";
-import { DriveDestinationDialog } from "@plainva/ui";
 
 /* The provider NAME comes from the shared family table (N5.1). This file kept
    its own map, which is how the phone ended up with two spellings of the same
    cloud on two of its surfaces. */
 const providerNameOf = (provider: string) => familyLabel(familyOfSyncProvider(provider as SyncProviderId));
 
+/** The vault record, re-read whenever the registry changes. */
+function useVaultEntry(vaultId: string): VaultEntry | null {
+  const [entry, setEntry] = useState<VaultEntry | null>(null);
+  useEffect(() => {
+    void getVaultEntry(vaultId).then(setEntry);
+    const reload = () => void getVaultEntry(vaultId).then(setEntry);
+    window.addEventListener("m-vaults-changed", reload);
+    return () => window.removeEventListener("m-vaults-changed", reload);
+  }, [vaultId]);
+  return entry;
+}
+
 /**
- * Per-vault management screen (M3.6): use/rename/pause/resume/delete live
- * HERE, on the vault itself (maintainer feedback — not on a global sync
- * page). "Trennen" pauses sync but keeps the stored credentials, so
- * "Wieder verbinden" is one tap; deleting removes the device-local
- * container, database and credentials — never the cloud storage.
+ * Synchronisation of one vault (settings plan 2026-10-29, E11/B5): the
+ * settings area "Sync" carries the sync and nothing else. Until then this
+ * screen was "vault details" with four topics — state, connection, a ZIP
+ * archive and the vault's own name, export and deletion. The ZIP archive went
+ * to Backup & versioning (move 21), rename, export and delete to the vault's
+ * own page below (moves 22, 23); the cloud folder and the interval live on the
+ * account's files page, as on the desktop, and are one row away (move 26).
+ *
+ * N3.1 — the grammar, not a stack of buttons: a chevron means the row LEADS
+ * somewhere, a row without one ACTS, and a button remains only for the single
+ * call to action a state asks for. The danger group outlines itself.
  */
-export function VaultDetailScreen({
+export function VaultSyncScreen({
   vaultId,
   activeVault,
   onBack,
   onOpenSyncChain,
   onOpenSyncDiagnostics,
   onOpenFilesAccount,
+  onOpenFilesSettings,
 }: {
   vaultId: string;
   activeVault: MobileVault;
@@ -63,39 +68,21 @@ export function VaultDetailScreen({
   onOpenSyncDiagnostics: () => void;
   /** The account that carries this vault's files, where it signs in on this phone (third review, finding 3). */
   onOpenFilesAccount: () => void;
+  /** That account's files page: cloud folder and interval (move 26). */
+  onOpenFilesSettings: () => void;
 }) {
   const { t } = useTranslation();
   const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
-  const [entry, setEntry] = useState<VaultEntry | null>(null);
+  const entry = useVaultEntry(vaultId);
   const [busy, setBusy] = useState(false);
-  const isLocal = vaultId === LOCAL_VAULT_ID;
   const isActive = activeVault.vaultId === vaultId;
   const [settingsSyncOn, setSettingsSyncOn] = useState(false);
   const [encryption, setEncryption] = useState<"none" | "locked" | "unlocked">("none");
-  /** H2a: cycle interval, per vault and syncable (was hard-coded to 30 s). */
   const [interval, setIntervalSeconds] = useState(() => getMobileSettings().syncIntervalSeconds);
   /** Waiting operations — part of the one state line (S36), null until read. */
   const [pending, setPending] = useState<number | null>(null);
-  /** Scheduled archive (S36): how many exist, and its two settings. */
-  const [archives, setArchives] = useState<BackupListing | null>(null);
-  const [zipOn, setZipOn] = useState(() => backupState(vaultId).enabled);
-  const [zipKeep, setZipKeep] = useState(() => backupState(vaultId).keep);
-  const [zipLast, setZipLast] = useState(() => backupState(vaultId).lastRun);
-  /** H2d: change the remote folder of an existing connection. */
-  const [folderPick, setFolderPick] = useState<MobileSyncProvider | null>(null);
-  const [drivePicker, setDrivePicker] = useState<(Awaited<ReturnType<typeof openDriveDestination>> & { vault: MobileVault }) | null>(null);
-  // The folder as it is CONFIGURED, for the confirmation text. Since the
-  // finding of 2026-08-19 it lives in the settings, not the credential blob.
-  const [pickStart, setPickStart] = useState("");
   /** What the settings sync last did here (P1/S10) — a report, not a control. */
   const [diag, setDiag] = useState<SyncDiagnostics>(emptyDiagnostics());
-
-  useEffect(() => {
-    void getVaultEntry(vaultId).then(setEntry);
-    const reload = () => void getVaultEntry(vaultId).then(setEntry);
-    window.addEventListener("m-vaults-changed", reload);
-    return () => window.removeEventListener("m-vaults-changed", reload);
-  }, [vaultId]);
 
   // Re-read on the event rather than poll: the record changes on a sync cycle,
   // which nobody sits watching this screen for.
@@ -126,8 +113,8 @@ export function VaultDetailScreen({
     };
   }, [activeVault, isActive, vaultId]);
 
-  // The two numbers the state line and the contents group show. Re-read when a
-  // cycle settles, so "0 waiting" is a reading rather than a claim.
+  // The number the state line shows. Re-read when a cycle settles, so
+  // "0 waiting" is a reading rather than a claim.
   useEffect(() => {
     if (!isActive) return;
     let alive = true;
@@ -139,15 +126,267 @@ export function VaultDetailScreen({
     };
   }, [activeVault, isActive, status.status, status.lastSyncAt]);
 
-  useEffect(() => {
-    let alive = true;
-    void listBackups(entry?.name || "", zipLast).then((list) => {
-      if (alive) setArchives(list);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [entry?.name, busy, zipLast]);
+  if (!entry) return <div className="m-page" />;
+
+  const providerName = entry.provider ? providerNameOf(entry.provider) : "";
+  const connected = isActive && status.status !== "off";
+  const externalRef = isExternalVault(entry) ? entry.external : null;
+
+  const statusLabel =
+    status.status === "syncing" && status.progress
+      ? t("sync.syncingCount", { current: status.progress.current, total: status.progress.total })
+      : syncStateLabel(status, t);
+
+  /** The one reading: which cloud, when it last ran, how much waits, how often
+   *  it runs. Four answers that used to be a headline, a hint, a sub-list and
+   *  a settings row — four places for one question. */
+  const providerLine = [
+    entry.provider ? providerName : null,
+    status.lastSyncAt
+      ? t("mobile.lastSync", {
+          time: new Date(status.lastSyncAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+        })
+      : null,
+    pending === null ? null : t("mobile.pendingCount", { count: pending }),
+    t("mobile.syncIntervalValue", { seconds: interval }),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  /** The chain in one word, the same words as the desktop's row. */
+  const chainState = !settingsSyncOn
+    ? t("common.off")
+    : encryption === "locked"
+      ? t("settingsSync.needsPassphrase")
+      : encryption === "unlocked"
+        ? t("settingsSync.chainStateEncrypted")
+        : t("common.on");
+
+  return (
+    <div className="m-page">
+      <AppBar onBack={onBack} subtitle={entry.provider ? providerName : ""} title={t("settings.syncSection")} testId="appbar-area-sync" />
+
+      <div className="m-settings">
+        {/* State first (S36). The headline is the STATE (N4.3) — the one
+            question someone opens this page with: is it running? Which cloud
+            it is reports itself in the meta line with the rest of the reading. */}
+        <div className="m-statcard">
+          <span className="m-statcard-head">
+            {isActive && entry.provider && !entry.pausedHere ? (
+              <>
+                {status.status === "error" ? (
+                  <AlertTriangle className="m-error" size={ICON.ui} />
+                ) : (
+                  // `retrying` keeps the cloud and only dims it: it is not a
+                  // problem yet, and red is reserved for one that is.
+                  <Cloud
+                    className={status.status === "retrying" || !connected ? "m-chevron" : "m-accent"}
+                    size={ICON.ui}
+                  />
+                )}
+                {statusLabel}
+              </>
+            ) : entry.provider ? (
+              // The STATE, not the action: "Trennen" is the danger row below.
+              t("mobile.syncDisconnected")
+            ) : (
+              t("mobile.vaultNoCloudTitle")
+            )}
+          </span>
+          {isActive && entry.provider ? (
+            <p className="m-statcard-meta">{providerLine}</p>
+          ) : !entry.provider ? (
+            // Without a provider there is no state to report — say why.
+            <p className="m-statcard-meta">{externalRef ? t("mobile.vaultExternalNoCloud") : t("mobile.vaultNoCloud")}</p>
+          ) : (
+            <p className="m-statcard-meta">{providerName}</p>
+          )}
+          {isActive && connected && (
+            <Button variant="ghost" disabled={busy} onClick={() => syncNow()}>
+              {t("mobile.syncNow")}
+            </Button>
+          )}
+        </div>
+        {/* A listing its own files contradict (finding 2026-09-20): said with
+            the numbers behind the info, as a state — nothing was deleted, nobody
+            is asked, and the way on is to list again. */}
+        {isActive && status.listingIncomplete && (
+          <Banner kind="warning" rounded>
+            <strong data-testid="sync-listing-incomplete">{t("sync.listingIncompleteTitle")}</strong>
+            <InfoTip
+              label={t("sync.listingIncompleteTitle")}
+              info={t(status.listingIncomplete.empty ? "sync.listingIncompleteEmpty" : "sync.listingIncompleteBody", {
+                missing: status.listingIncomplete.missing,
+                total: status.listingIncomplete.confirmed,
+                present: status.listingIncomplete.present,
+                probed: status.listingIncomplete.probed,
+              })}
+            />
+            <Button variant="tonal" disabled={busy} onClick={() => syncNow()}>{t("sync.listingIncompleteRetry")}</Button>
+          </Banner>
+        )}
+        {/* The cloud folder of a vault that has synced before is gone: Plainva
+            created no replacement (plan A4); the account's files page picks it. */}
+        {isActive && status.rootMissing && !status.listingIncomplete && (
+          <Banner kind="error" rounded>{t("sync.rootMissingBody")}</Banner>
+        )}
+        {isActive && status.message && !status.listingIncomplete && !status.rootMissing && <Banner kind={status.status === "retrying" ? "info" : "error"} rounded>{status.message}</Banner>}
+        {isActive && status.collisions.length > 0 && (
+          // A decision, not a failure: the sync keeps running for every other
+          // file (finding 2026-08-21).
+          <Banner kind="warning" rounded>
+            <strong>{t("sync.collisionTitle")}</strong>
+            <InfoTip label={t("sync.collisionTitle")} info={t("sync.collisionBody")} />
+            <p className="m-hint">{t("sync.collisionHint")}</p>
+            <ul className="m-collide">
+              {status.collisions.map((c) => (
+                <li key={`${c.path}|${c.twin}`}>
+                  {c.path}
+                  <span aria-hidden="true"> ↔ </span>
+                  {c.twin}
+                </li>
+              ))}
+            </ul>
+          </Banner>
+        )}
+        {/* Signed out on this phone: the status says "Sign-in needed" and leads
+            to the account, where the sign-in is - as the desktop's sync dialog
+            does (third review, finding 3). */}
+        {isActive && status.errorKind === "signed-out" && (
+          <Button variant="tonal" onClick={onOpenFilesAccount} data-testid="vault-files-signin">
+            {t("deviceSignIn.submit")}
+          </Button>
+        )}
+        {isActive && (status.errorKind === "pair-required" || status.errorKind === "workspace-integrity") && (
+          <Button variant="tonal" onClick={() => window.dispatchEvent(new CustomEvent("m-open-security"))}>
+            {t("workspaceSecurity.openSecurity", { defaultValue: "Open Security & Sharing" })}
+          </Button>
+        )}
+        {/* A paused sync has exactly one thing to say, so it says it as the
+            call to action rather than as the fourth row of a list. */}
+        {entry.provider && entry.pausedHere && (
+          <div className="m-sync-actions m-sync-actions--column">
+            <Button
+              variant="primary"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true);
+                void resumeSyncHere(vaultId).finally(() => setBusy(false));
+              }}
+            >
+              {t("mobile.syncResume")}
+            </Button>
+          </div>
+        )}
+
+        {entry.provider && (
+          <>
+            <SectionLabel>{t("mobile.vaultGroupConnection")}</SectionLabel>
+            <GroupCard>
+              <RowList>
+                {(entry.provider === "drive" || entry.provider === "onedrive" || entry.provider === "dropbox") && (
+                  <Row
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    icon={<Cloud size={ICON.ui} />}
+                    onClick={() => {
+                      setBusy(true);
+                      void reconnectVault(vaultId).finally(() => setBusy(false));
+                    }}
+                    title={t("cloudAccounts.reconnect")}
+                  />
+                )}
+                {/* The folder and the cadence used to stand here AND on the
+                    account's files page; they live there, as on the desktop. */}
+                {isActive && (
+                  <Row
+                    data-testid="vault-sync-files-settings"
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    icon={<RefreshCw size={ICON.ui} />}
+                    onClick={onOpenFilesSettings}
+                    subtitle={t("mobile.syncIntervalValue", { seconds: interval })}
+                    title={t("cloudAccounts.openAccountFiles")}
+                  />
+                )}
+                {/* E3: the chain and the report each get their own destination.
+                    A row can say what state they are in; only the destination
+                    has room to say why. */}
+                {isActive && (
+                  <Row
+                    data-testid="vault-sync-chain"
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    icon={<KeyRound size={ICON.ui} />}
+                    onClick={onOpenSyncChain}
+                    subtitle={chainState}
+                    title={t("settingsSync.chainLabel")}
+                  />
+                )}
+                {isActive && (
+                  <Row
+                    data-testid="vault-sync-diagnostics"
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    icon={<Stethoscope size={ICON.ui} />}
+                    onClick={onOpenSyncDiagnostics}
+                    subtitle={
+                      diag.lastCheck
+                        ? new Date(diag.lastCheck.at).toLocaleString()
+                        : t("settingsSync.diagNever")
+                    }
+                    title={t("settings.groupDiagnostics")}
+                  />
+                )}
+              </RowList>
+            </GroupCard>
+          </>
+        )}
+
+        {/* Pausing concerns the sync, so it ends THIS page (B6). */}
+        {entry.provider && !entry.pausedHere && (
+          <>
+            <SectionLabel className="m-danger">{t("mobile.vaultGroupDanger")}</SectionLabel>
+            <GroupCard tone="danger">
+              <RowList>
+                <Row
+                  icon={<Unplug className="m-danger" size={ICON.ui} />}
+                  onClick={() => {
+                    setBusy(true);
+                    void pauseSyncHere(vaultId).finally(() => setBusy(false));
+                  }}
+                  title={<span className="m-danger">{t("cloudAccounts.pauseSync")}</span>}
+                />
+              </RowList>
+            </GroupCard>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The vault itself (settings plan 2026-10-29, § 4.2): reached through
+ * "Active vault" → Vaults → a vault's row. Its head says what it is and where
+ * it lives; then using it, renaming, exporting, the way to its sync, and at the
+ * end deleting it. Deleting removes the device-local container, database and
+ * credentials — never the cloud storage.
+ */
+export function VaultDetailScreen({
+  vaultId,
+  activeVault,
+  onBack,
+  onOpenSync,
+}: {
+  vaultId: string;
+  activeVault: MobileVault;
+  onBack: () => void;
+  /** This vault's sync page. */
+  onOpenSync: () => void;
+}) {
+  const { t } = useTranslation();
+  const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
+  const entry = useVaultEntry(vaultId);
+  const [busy, setBusy] = useState(false);
+  const isLocal = vaultId === LOCAL_VAULT_ID;
+  const isActive = activeVault.vaultId === vaultId;
 
   // External folder (P7): what the platform says about the grant right now.
   // Asked on every open of this page — a grant can go away between two looks.
@@ -167,7 +406,6 @@ export function VaultDetailScreen({
 
   const name = entry.name || t("mobile.vaultLocal");
   const providerName = entry.provider ? providerNameOf(entry.provider) : "";
-  const connected = isActive && status.status !== "off";
 
   const rename = () => {
     void (async () => {
@@ -218,88 +456,24 @@ export function VaultDetailScreen({
     })();
   };
 
-  const statusLabel =
-    status.status === "syncing" && status.progress
-      ? t("sync.syncingCount", { current: status.progress.current, total: status.progress.total })
-      : syncStateLabel(status, t);
-
-  /**
-   * One line that answers "is it healthy?": when it last ran, how much is
-   * waiting, how often it runs. Those three readings were a hint, a sub-list
-   * and a settings row before — three places for one question.
-   */
-  const hasConnectionRows =
-    !isLocal ||
-    (isActive && !!entry.provider) ||
-    (isActive && canChangeRemoteFolder(entry.provider)) ||
-    !!(entry.provider && entry.pausedHere) ||
-    entry.provider === "drive" ||
-    entry.provider === "onedrive" ||
-    entry.provider === "dropbox";
-
-  /** The one reading: which cloud, when it last ran, how much waits, how often
-   *  it runs. Four answers that used to be a headline, a hint, a sub-list and
-   *  a settings row — four places for one question. */
-  const providerLine = [
-    entry.provider ? providerName : null,
-    status.lastSyncAt
-      ? t("mobile.lastSync", {
-          time: new Date(status.lastSyncAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
-        })
-      : null,
-    pending === null ? null : t("mobile.pendingCount", { count: pending }),
-    t("mobile.syncIntervalValue", { seconds: interval }),
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  /** Where it lives and how it is: the head line of the vault. */
+  const stateLine = entry.provider
+    ? [providerName, isActive ? syncStateLabel(status, t) : entry.pausedHere ? t("mobile.syncDisconnected") : null].filter(Boolean).join(" · ")
+    : externalRef
+      ? t("mobile.vaultExternalTitle")
+      : t("mobile.vaultNoCloudTitle");
 
   return (
     <div className="m-page">
       <AppBar onBack={onBack} subtitle={entry.provider ? providerName : ""} title={name} />
 
       <div className="m-settings">
-        {/* State first (S36). The screen used to open with a provider row, a
-            status row and a "last sync" hint scattered among nine controls; the
-            one question someone opens this page with — is it running? — took
-            three separate readings to answer. */}
         <div className="m-statcard">
-          {/* The headline is the STATE (N4.3). It used to name the provider —
-              "Google Drive" — and put "Synchron" a line below it, which answers
-              the question nobody asks first: the vault detail is opened to find
-              out whether the thing is running. Which cloud it is has not
-              changed since it was connected, so it reports itself in the meta
-              line together with the rest of the reading. */}
           <span className="m-statcard-head">
-            {isActive && entry.provider && !entry.pausedHere ? (
-              <>
-                {status.status === "error" ? (
-                  <AlertTriangle className="m-error" size={ICON.ui} />
-                ) : (
-                  // `retrying` keeps the cloud and only dims it: it is not a
-                  // problem yet, and red is reserved for one that is.
-                  <Cloud
-                    className={status.status === "retrying" || !connected ? "m-chevron" : "m-accent"}
-                    size={ICON.ui}
-                  />
-                )}
-                {statusLabel}
-              </>
-            ) : entry.provider ? (
-              // The STATE, not the action. Both the title and the badge below
-              // it read `syncDisconnect` ("Trennen"), so a paused vault
-              // announced itself as "Trennen Trennen" — and the action it
-              // seemed to offer is a danger row further down. The badge goes
-              // with it: the title now says the same thing once.
-              t("mobile.syncDisconnected")
-            ) : externalRef ? (
-              <>
-                {folderAccess?.state === "expired" ? <AlertTriangle className="m-error" size={ICON.ui} /> : <FolderOpen className="m-accent" size={ICON.ui} />}
-                {t("mobile.vaultExternalTitle")}
-              </>
-            ) : (
-              t("mobile.vaultNoCloudTitle")
-            )}
+            {externalRef && folderAccess?.state === "expired" ? <AlertTriangle className="m-error" size={ICON.ui} /> : externalRef ? <FolderOpen className="m-accent" size={ICON.ui} /> : null}
+            {name}
           </span>
+          <p className="m-statcard-meta" data-testid="vault-detail-state">{stateLine}</p>
           {externalRef && (
             <>
               <p className="m-statcard-meta" data-testid="vault-external-state">
@@ -307,8 +481,6 @@ export function VaultDetailScreen({
                   ? t("mobile.vaultExternalExpired", { label: externalRef.label })
                   : t("mobile.vaultExternalOk", { label: folderAccess?.state === "ok" && folderAccess.label ? folderAccess.label : externalRef.label })}
               </p>
-              {/* E4, in words: no cloud sync for a folder another program keeps. */}
-              <p className="m-statcard-meta">{t("mobile.vaultExternalNoCloud")}</p>
               {folderAccess?.state === "expired" && (
                 <Button variant="tonal" disabled={busy} onClick={reconnectFolder} data-testid="vault-external-reconnect">
                   {t("mobile.vaultExternalReconnect")}
@@ -316,95 +488,8 @@ export function VaultDetailScreen({
               )}
             </>
           )}
-          {isActive && entry.provider ? (
-            <p className="m-statcard-meta">{providerLine}</p>
-          ) : !entry.provider && !externalRef ? (
-            // Without a provider there is no state to report — say that rather
-            // than leave a card that only repeats the title.
-            <p className="m-statcard-meta">{t("mobile.vaultNoCloud")}</p>
-          ) : !entry.provider ? null : (
-            <p className="m-statcard-meta">{providerName}</p>
-          )}
-          {isActive && connected && (
-            <Button variant="ghost" disabled={busy} onClick={() => syncNow()}>
-              {t("mobile.syncNow")}
-            </Button>
-          )}
         </div>
-        {/* A listing its own files contradict (finding 2026-09-20): said in the
-            user's language with the numbers, as a state — nothing was deleted,
-            nobody is asked, and the way on is to list again. It replaces the
-            worker's English status sentence for the same cycle. */}
-        {isActive && status.listingIncomplete && (
-          <Banner kind="warning" rounded>
-            <strong data-testid="sync-listing-incomplete">{t("sync.listingIncompleteTitle")}</strong>
-            <p className="m-hint">
-              {t(status.listingIncomplete.empty ? "sync.listingIncompleteEmpty" : "sync.listingIncompleteBody", {
-                missing: status.listingIncomplete.missing,
-                total: status.listingIncomplete.confirmed,
-                present: status.listingIncomplete.present,
-                probed: status.listingIncomplete.probed,
-              })}
-            </p>
-            <Button variant="tonal" disabled={busy} onClick={() => syncNow()}>{t("sync.listingIncompleteRetry")}</Button>
-          </Banner>
-        )}
-        {/* The cloud folder of a vault that has synced before is gone: Plainva
-            created no replacement (plan A4), and the row below picks the folder. */}
-        {isActive && status.rootMissing && !status.listingIncomplete && (
-          <Banner kind="error" rounded>{t("sync.rootMissingBody")}</Banner>
-        )}
-        {isActive && status.message && !status.listingIncomplete && !status.rootMissing && <Banner kind={status.status === "retrying" ? "info" : "error"} rounded>{status.message}</Banner>}
-        {isActive && status.collisions.length > 0 && (
-          // A decision, not a failure: the sync keeps running for every other
-          // file. It used to arrive as one English sentence inside the error
-          // status, which German users read in English and nobody could act on
-          // (finding 2026-08-21).
-          <Banner kind="warning" rounded>
-            <strong>{t("sync.collisionTitle")}</strong>
-            <p className="m-hint">{t("sync.collisionBody")}</p>
-            <ul className="m-collide">
-              {status.collisions.map((c) => (
-                <li key={`${c.path}|${c.twin}`}>
-                  {c.path}
-                  <span aria-hidden="true"> ↔ </span>
-                  {c.twin}
-                </li>
-              ))}
-            </ul>
-          </Banner>
-        )}
-        {/* Signed out on this phone: the status says "Sign-in needed" and leads
-            to the account, where the sign-in is - as the desktop's sync dialog
-            does (third review, finding 3). */}
-        {isActive && status.errorKind === "signed-out" && (
-          <Button variant="tonal" onClick={onOpenFilesAccount} data-testid="vault-files-signin">
-            {t("deviceSignIn.submit")}
-          </Button>
-        )}
-        {isActive && (status.errorKind === "pair-required" || status.errorKind === "workspace-integrity") && (
-          <Button variant="tonal" onClick={() => window.dispatchEvent(new CustomEvent("m-open-security"))}>
-            {t("workspaceSecurity.openSecurity", { defaultValue: "Open Security & Sharing" })}
-          </Button>
-        )}
-        {/* The interval, the chain and the diagnostics used to stand here in
-            full — some 280 lines between the status card and the vault's own
-            actions, on a screen someone opens to ask one question. They are
-            named rows with their own destinations now (E3); the queue moved
-            with the diagnostics, where a list of waiting operations belongs. */}
 
-        {/* N3.1 — the grammar, not a stack of buttons.
-            Nine identical full-width buttons used to end this screen, seven of
-            them visible at once for a cloud vault, putting the mildest action
-            beside the most destructive one and rendering them alike. They are
-            grouped rows now, under the name of what they are FOR, and the
-            arrangement follows one rule: a chevron means the row LEADS
-            somewhere, a row without one ACTS, and a button remains only for the
-            single call to action a state asks for. The danger group outlines
-            itself and carries the destructive colour, so "Vault löschen" can no
-            longer look like "Umbenennen".
-            S39 moved the index actions to the maintenance area — this screen is
-            the vault's connection and identity, that one is its contents. */}
         {!isActive && (
           <div className="m-sync-actions m-sync-actions--column">
             <Button variant="primary" disabled={busy} onClick={() => void switchVault(vaultId)}>
@@ -412,29 +497,10 @@ export function VaultDetailScreen({
             </Button>
           </div>
         )}
-        {/* A paused sync has exactly one thing to say, so it says it as the
-            call to action rather than as the fourth row of a list. */}
-        {entry.provider && entry.pausedHere && (
-          <div className="m-sync-actions m-sync-actions--column">
-            <Button
-              variant="primary"
-              disabled={busy}
-              onClick={() => {
-                setBusy(true);
-                void resumeSyncHere(vaultId).finally(() => setBusy(false));
-              }}
-            >
-              {t("mobile.syncResume")}
-            </Button>
-          </div>
-        )}
 
-        {/* A heading over an empty group is a promise the page does not keep:
-            the on-device vault has no provider and cannot be renamed, so this
-            whole block has nothing to show for it. */}
-        {hasConnectionRows && (
+        {(!isLocal || isActive || entry.provider) && (
           <>
-            <SectionLabel>{t("mobile.vaultGroupConnection")}</SectionLabel>
+            <SectionLabel>{t("settings.sectionVault")}</SectionLabel>
             <GroupCard>
               <RowList>
                 {!isLocal && (
@@ -445,301 +511,49 @@ export function VaultDetailScreen({
                     title={t("mobile.vaultRename")}
                   />
                 )}
-                {/* H2d: the folder was only choosable while connecting; the
-                    desktop has had this on its sync page. Not offered for
-                    WebDAV, where the folder is baked into the base URL. */}
-                {isActive && canChangeRemoteFolder(entry.provider) && (
+                {isActive && (
                   <Row
-                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                    icon={<Cloud size={ICON.ui} />}
+                    icon={<Upload size={ICON.ui} />}
                     onClick={() => {
                       setBusy(true);
-                      void getStoredProvider(vaultId)
-                        .then(async (stored) => {
-                          if (!stored) return;
-                          if (stored.provider === "drive") { setDrivePicker({ ...await openDriveDestination(vaultId), vault: activeVault }); return; }
-                          setPickStart(await readSyncRootFolder(vaultId, stored.provider, stored));
-                          setFolderPick(stored);
-                        })
-                        .catch(error => toast.warning(String(error))).finally(() => setBusy(false));
-                    }}
-                    title={t("mobile.changeCloudFolder")}
-                  />
-                )}
-                {entry.provider && (entry.provider === "drive" || entry.provider === "onedrive" || entry.provider === "dropbox") && (
-                  <Row
-                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                    icon={<Cloud size={ICON.ui} />}
-                    onClick={() => {
-                      setBusy(true);
-                      void reconnectVault(vaultId).finally(() => setBusy(false));
-                    }}
-                    title={t("cloudAccounts.reconnect")}
-                  />
-                )}
-                {/* H2a: the cycle interval was hard-coded to 30 s on mobile
-                    while the desktop exposed it AND synced it in the profile —
-                    a value set there never arrived here. Same field, same lower
-                    bound, applied live. It picks from a list, so it acts. */}
-                {isActive && entry.provider && (
-                  <Row
-                    disabled={busy}
-                    icon={<RefreshCw size={ICON.ui} />}
-                    onClick={() => {
-                      void mSelect({
-                        title: t("settings.syncInterval"),
-                        options: [15, 30, 60, 300, 900].map((seconds) => ({
-                          value: String(seconds),
-                          label: t("mobile.syncIntervalValue", { seconds }),
-                        })),
-                        value: String(interval),
-                      }).then(async (picked) => {
-                        if (picked === null) return;
-                        const seconds = Math.max(MIN_SYNC_INTERVAL_SECONDS, Number(picked));
-                        setBusy(true);
-                        try {
-                          await applyVaultSettings(vaultId, { syncIntervalSeconds: seconds });
-                          setIntervalSeconds(seconds);
-                          await restartSync(activeVault); // the worker takes the interval at construction
-                        } finally {
-                          setBusy(false);
-                        }
-                      });
-                    }}
-                    subtitle={t("mobile.syncIntervalValue", { seconds: interval })}
-                    title={t("settings.syncInterval")}
-                  />
-                )}
-                {/* E3: the chain and the report each get their own destination.
-                    Both used to stand open on this screen — a stepper and a
-                    five-reading table between the status card and the vault's
-                    own actions. A row can say what state they are in; only the
-                    destination has room to say why. */}
-                {isActive && entry.provider && (
-                  <Row
-                    data-testid="vault-sync-chain"
-                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                    icon={<KeyRound size={ICON.ui} />}
-                    onClick={onOpenSyncChain}
-                    subtitle={
-                      settingsSyncOn
-                        ? encryption === "locked"
-                          ? t("settingsSync.needsPassphrase")
-                          : t("common.on")
-                        : t("common.off")
-                    }
-                    title={t("settingsSync.chainLabel")}
-                  />
-                )}
-                {isActive && entry.provider && (
-                  <Row
-                    data-testid="vault-sync-diagnostics"
-                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                    icon={<Stethoscope size={ICON.ui} />}
-                    onClick={onOpenSyncDiagnostics}
-                    subtitle={
-                      diag.lastCheck
-                        ? new Date(diag.lastCheck.at).toLocaleString()
-                        : t("settingsSync.diagNever")
-                    }
-                    title={t("settingsSync.diagTitle")}
-                  />
-                )}
-              </RowList>
-            </GroupCard>
-          </>
-        )}
-
-        {isActive && (
-          <>
-            <SectionLabel>{t("mobile.vaultGroupContents")}</SectionLabel>
-            <GroupCard>
-              <RowList>
-                <Row
-                  icon={<Upload size={ICON.ui} />}
-                  onClick={() => {
-                    setBusy(true);
-                    void exportVault(activeVault, entry.name)
-                      .catch(() => toast.warning(t("mobile.vaultExportFailed")))
-                      .finally(() => setBusy(false));
-                  }}
-                  title={t("mobile.vaultExport")}
-                />
-                {/* The scheduled archive (S36). The desktop has had a daily ZIP
-                    with retention since its backup package; the phone had the
-                    on-demand export above and nothing else — so a vault nobody
-                    thought to export by hand had no archive at all. */}
-                <Row
-                  /* The title breaks rather than clips. A settings title
-                     normally may clip because the VALUE beside it carries the
-                     meaning — but the value here is a switch, which carries
-                     none, and what got cut was "(ZIP)": the part that says what
-                     kind of backup this is. By the rule's own reasoning this is
-                     a content title. */
-                  wrap
-                  end={
-                    <Switch
-                      label={t("settings.backupZipEnabled")}
-                      checked={zipOn}
-                      onChange={(on) => {
-                        setZipOn(on);
-                        void applyVaultSettings(vaultId, { backupZipEnabled: on });
-                      }}
-                    />
-                  }
-                  icon={<Archive size={ICON.ui} />}
-                  /* The count of retained backups has its own editable row
-                     below; repeating it here would be the same number twice.
-                     What that row cannot say is whether the schedule has ever
-                     actually run — which is the only way an archive that
-                     silently never happens becomes visible. */
-                  subtitle={
-                    !zipOn
-                      ? t("mobile.backupZipOff")
-                      : zipLast
-                        ? t("mobile.backupZipOn", {
-                            count: archives?.archives.length ?? 0,
-                            when: new Date(zipLast).toLocaleDateString(),
-                          })
-                        : t("mobile.backupZipNever")
-                  }
-                  title={t("settings.backupZipEnabled")}
-                />
-                {zipOn && (
-                  <Row
-                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                    /* These two rows belong to the schedule above, and until now
-                       they said so with an indent (N9.2). On a phone that read as
-                       a mistake rather than as belonging: it was the only indent
-                       on this screen, and an indent that appears once has no
-                       sibling to be read against. What carries the dependency
-                       instead is the thing that was already true — both rows
-                       exist ONLY while the switch is on (E2). */
-                    icon={<Layers size={ICON.ui} />}
-                    onClick={() => {
-                      void mSelect({
-                        title: t("settings.backupZipKeep"),
-                        options: [3, 7, 14, 30].map((n) => ({ value: String(n), label: String(n) })),
-                        value: String(zipKeep),
-                      }).then(async (picked) => {
-                        if (picked === null) return;
-                        const keep = Math.max(1, Number(picked));
-                        setZipKeep(keep);
-                        await applyVaultSettings(vaultId, { backupZipKeep: keep });
-                      });
-                    }}
-                    subtitle={String(zipKeep)}
-                    title={t("settings.backupZipKeep")}
-                  />
-                )}
-                {zipOn && (
-                  <Row
-                    icon={<Play size={ICON.ui} />}
-                    onClick={() => {
-                      setBusy(true);
-                      // The run and its answer are shared with the palette's
-                      // command (services/vaultBackup).
-                      void backupVaultNow(activeVault, entry.name)
-                        // The sub-line reports the last run; leaving it stale
-                        // right after a manual one would be the one moment it
-                        // is provably wrong.
-                        .then(() => setZipLast(backupState(vaultId).lastRun))
+                      void exportVault(activeVault, entry.name)
+                        .catch(() => toast.warning(t("mobile.vaultExportFailed")))
                         .finally(() => setBusy(false));
                     }}
-                    title={t("settings.backupNowButton")}
+                    title={t("mobile.vaultExport")}
+                  />
+                )}
+                {entry.provider && (
+                  <Row
+                    data-testid="vault-open-sync"
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    icon={<Cloud size={ICON.ui} />}
+                    onClick={onOpenSync}
+                    title={t("settings.syncSection")}
                   />
                 )}
               </RowList>
-              {/* C25: after a reinstall on Android the folder still holds the
-                  old archives, but this installation cannot see them — the
-                  count above would read "0" and the pruning would never touch
-                  them. Say so, next to the number it corrects. */}
-              {archives?.unreadable && (
-                <Banner
-                  kind="warning"
-                  rounded
-                  actions={
-                    <Button
-                      variant="ghost"
-                      data-testid="vault-backups-unreadable-dismiss"
-                      onClick={() => {
-                        dismissUnreadableBackups(entry.name);
-                        setArchives((current) => (current ? { ...current, unreadable: false } : current));
-                      }}
-                    >
-                      {t("common.dismiss")}
-                    </Button>
-                  }
-                >
-                  <strong>{t("mobile.backupUnreadableTitle")}</strong>
-                  <p className="m-hint" data-testid="vault-backups-unreadable">
-                    {t("mobile.backupUnreadableBody", { folder: backupFolderFor(entry.name) })}
-                  </p>
-                </Banner>
-              )}
             </GroupCard>
           </>
         )}
 
         {/* Everything that cannot be undone by tapping again, behind its own
-            outline and in the destructive colour — not the fourth tonal button
-            of the same run. */}
-        {(!isLocal || (entry.provider && !entry.pausedHere)) && (
+            outline and in the destructive colour (B1). */}
+        {!isLocal && (
           <>
             <SectionLabel className="m-danger">{t("mobile.vaultGroupDanger")}</SectionLabel>
             <GroupCard tone="danger">
               <RowList>
-                {entry.provider && !entry.pausedHere && (
-                  <Row
-                    icon={<Unplug className="m-danger" size={ICON.ui} />}
-                    onClick={() => {
-                      setBusy(true);
-                      void pauseSyncHere(vaultId).finally(() => setBusy(false));
-                    }}
-                    title={<span className="m-danger">{t("cloudAccounts.pauseSync")}</span>}
-                  />
-                )}
-                {!isLocal && (
-                  <Row
-                    icon={<Trash2 className="m-danger" size={ICON.ui} />}
-                    onClick={remove}
-                    title={<span className="m-danger">{t("mobile.vaultDelete")}</span>}
-                  />
-                )}
+                <Row
+                  icon={<Trash2 className="m-danger" size={ICON.ui} />}
+                  onClick={remove}
+                  title={<span className="m-danger">{t("mobile.vaultDelete")}</span>}
+                />
               </RowList>
             </GroupCard>
           </>
         )}
       </div>
-      {drivePicker && <DriveDestinationDialog session={drivePicker} onClose={() => setDrivePicker(null)}
-        onSave={selected => changeRemoteFolder(drivePicker.vault, selected.path, selected.id)} />}
-      {folderPick && (
-        <CloudFolderPickerSheet
-          title={t("mobile.changeCloudFolder")}
-          listFolders={(path) => listProviderFolders(folderPick, path)}
-          createFolder={(path) => createProviderFolder(folderPick, path)}
-          onClose={() => setFolderPick(null)}
-          onPick={(path) => {
-            const target = path || pickStart;
-            setFolderPick(null);
-            void mConfirm({
-              title: t("mobile.changeCloudFolder"),
-              message: t("mobile.changeCloudFolderConfirm", { folder: target || "/" }),
-              confirmLabel: t("common.ok"),
-            }).then(async (ok) => {
-              if (!ok) return;
-              setBusy(true);
-              try {
-                await changeRemoteFolder(activeVault, path);
-              } catch (e) {
-                toast.warning(String(e));
-              } finally {
-                setBusy(false);
-              }
-            });
-          }}
-        />
-      )}
     </div>
   );
 }

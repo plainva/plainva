@@ -2010,6 +2010,25 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
   text-transform: uppercase;
   color: var(--text-faint);
 }
+/* A folded group (settings plan 2026-10-29, Q6): the heading is the
+   disclosure, a chevron in front turns when it opens. Same label look, so a
+   theme that restyles .pv-setgroup-label restyles this one too. */
+.pv-setgroup.pv-setgroup--fold {
+  display: block;
+  margin-top: var(--space-5);
+}
+.pv-setgroup--fold > .pv-setcard { margin-top: var(--space-2); }
+.pv-setgroup-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+  list-style: none;
+}
+.pv-setgroup-summary::-webkit-details-marker { display: none; }
+.pv-setgroup-summary:hover { color: var(--text-muted); }
+.pv-setgroup-chevron { flex-shrink: 0; transition: transform var(--dur-1) var(--ease-1); }
+.pv-setgroup--fold[open] > .pv-setgroup-summary .pv-setgroup-chevron { transform: rotate(90deg); }
 .pv-setcard {
   background: var(--surface-container-low);
   border: 1px solid var(--border-color-light);

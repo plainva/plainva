@@ -2934,9 +2934,11 @@ test('Settings APP pages: groups as the settings plan orders them, explanations 
   await expect(start.getByText(/Ungesendete Entwürfe|Unsent drafts/)).toBeVisible();
   await shoot('behavior');
 
-  // About & diagnostics: Application → Updates → Diagnostics.
+  // About & diagnostics: Application → Updates → Keychain → Diagnostics. The
+  // keychain group (OS keychain state + stored access) came from Sync (move 15).
   await dialog.getByRole('button', { name: /^(Über & Diagnose|About & diagnostics)$/ }).click();
-  await expect(groups()).toHaveText([/^(Programm|Application)$/, /^(Updates)$/, /^(Diagnose|Diagnostics)$/]);
+  await expect(groups()).toHaveText([/^(Programm|Application)$/, /^(Updates)$/, /^(Schlüsselbund|Keychain)$/, /^(Diagnose|Diagnostics)$/]);
+  await expect(dialog.getByTestId('settings-stored-access')).toContainText(/OS-Keychain|OS keychain/);
   await expect(dialog.getByRole('checkbox', { name: /Beim Start nach Updates suchen|Check for updates on startup/ })).toBeVisible();
   await expect(dialog.getByRole('button', { name: /^(Nach Updates suchen|Check for Updates)$/ })).toBeVisible();
   await shoot('about');

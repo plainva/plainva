@@ -29,7 +29,7 @@ import { setRefusedSendOpener } from "../services/mail/refusedSend";
 export function useDeepLinkNav(setNav: (fn: (state: NavState) => NavState) => void): void {
   useEffect(() => {
     const openSecurity = () => leaveThen(() => setNav((s) => pushEntry(s, { kind: "settingsArea", path: "security" })));
-    const openVault = () => leaveThen(() => setNav((s) => pushEntry(s, { kind: "vault", path: "" })));
+    const openVault = () => leaveThen(() => setNav((s) => pushEntry(s, { kind: "vaultsync", path: "" })));
     window.addEventListener("m-open-security", openSecurity);
     window.addEventListener("m-open-settings", openVault);
     // The other fields of such a draft are empty and are not read: the screen

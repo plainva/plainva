@@ -30,7 +30,8 @@ const KIND_KEYS: Record<StoredCredentialEntry["kind"], string> = {
   vault: "settings.storedAccessVault",
 };
 
-export const StoredCredentialsCard: React.FC = () => {
+/** `keychainStatus`: "checking" | "native" | anything else = fallback — the OS keychain row of About › Keychain (B1). */
+export const StoredCredentialsCard: React.FC<{ keychainStatus: string }> = ({ keychainStatus }) => {
   const { t } = useTranslation();
   const [entries, setEntries] = useState<StoredCredentialEntry[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -68,8 +69,17 @@ export const StoredCredentialsCard: React.FC = () => {
   );
 
   return (
-    <SettingCard label={t("settings.storedAccess")}>
-      <SettingRow label={t("settings.storedAccess")} desc={t("settings.storedAccessDesc")}>
+    // About › Keychain since the settings plan of 2026-10-29 (move 15): it is
+    // app-wide, and it used to stand on a VAULT page. What the list is, and
+    // what it cannot find, are behind the info; the list itself stays.
+    <SettingCard label={t("settings.groupKeychain")} testId="settings-stored-access">
+      {/* The keychain's state and what Plainva keeps in it, at one place (2.6 B1). */}
+      <SettingRow label={t("settings.osKeychain")}>
+        <strong style={{ color: keychainStatus === "native" ? "var(--accent-color)" : "var(--error-text)", fontSize: "var(--text-md)" }}>
+          {keychainStatus === "checking" ? t("settings.keychainChecking") : keychainStatus === "native" ? t("settings.keychainNative") : t("settings.keychainFallback")}
+        </strong>
+      </SettingRow>
+      <SettingRow label={t("settings.storedAccess")} info={[t("settings.storedAccessDesc"), t("settings.storedAccessLimit")].join("\n\n")}>
         <Button variant="secondary" size="sm" onClick={load} disabled={busy}>
           {t("settings.perfMetricsRefresh", { defaultValue: "Anzeigen/Aktualisieren" })}
         </Button>
@@ -106,9 +116,6 @@ export const StoredCredentialsCard: React.FC = () => {
               ))}
             </div>
           )}
-          <div style={{ marginTop: "0.5rem", fontSize: "var(--text-sm)", color: "var(--text-faint)" }}>
-            {t("settings.storedAccessLimit")}
-          </div>
         </SettingCardNote>
       )}
     </SettingCard>

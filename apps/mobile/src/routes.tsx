@@ -52,7 +52,7 @@ import { CommentsScreen } from "./screens/CommentsScreen";
 import { JournalScreen } from "./screens/JournalScreen";
 import { TasksScreen } from "./screens/TasksScreen";
 import { TodayScreen } from "./screens/TodayScreen";
-import { VaultDetailScreen } from "./VaultDetailScreen";
+import { VaultDetailScreen, VaultSyncScreen } from "./VaultDetailScreen";
 import { VaultsScreen } from "./screens/VaultsScreen";
 import { AboutAreaScreen, BackupAreaScreen, ContentAreaScreen, EditorAreaScreen } from "./screens/SettingsAreaScreens";
 import { JournalAreaScreen } from "./screens/JournalAreaScreen";
@@ -199,7 +199,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
           : id === "cloudAccounts"
             ? c.push({ kind: "cloudaccounts", path: "" })
             : id === "sync"
-              ? c.push({ kind: "vault", path: c.vault.vaultId })
+              ? c.push({ kind: "vaultsync", path: c.vault.vaultId })
               : id === "pim"
                 ? c.push({ kind: "pimaccounts", path: "" })
                 : id === "mail"
@@ -268,7 +268,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
         vault={c.vault}
         onBack={c.pop}
         // What every account shares (E4): the vault's page for files, the Calendar and E-Mail pages.
-        onOpenGlobal={(target) => c.push(target === "files" ? { kind: "vault", path: c.vault.vaultId } : { kind: target === "calendar" ? "pimaccounts" : "mailaccounts", path: "" })}
+        onOpenGlobal={(target) => c.push(target === "files" ? { kind: "vaultsync", path: c.vault.vaultId } : { kind: target === "calendar" ? "pimaccounts" : "mailaccounts", path: "" })}
       />
     );
   },
@@ -312,24 +312,47 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     />
   ),
   sync: (e, c) => <AddVaultScreen createTemplateId={e.createTemplateId} family={e.family} onBack={c.pop} vault={c.vault} />,
+  // The vault itself — reached from the vault list (settings plan 2026-10-29, § 4.2).
   vault: (e, c) => (
     <VaultDetailScreen
       activeVault={c.vault}
       onBack={c.pop}
-      onOpenSyncChain={() => c.push({ kind: "syncchain", path: e.path })}
-      onOpenSyncDiagnostics={() => c.push({ kind: "syncdiag", path: e.path })}
+      onOpenSync={() => c.push({ kind: "vaultsync", path: e.path })}
+      vaultId={e.path}
+    />
+  ),
+  // The settings area "Sync" of a vault (E11): the sync and nothing else.
+  // The deep link "open the sync settings" arrives without a vault: the active one.
+  vaultsync: (e, c) => {
+    const id = e.path || c.vault.vaultId;
+    return (
+    <VaultSyncScreen
+      activeVault={c.vault}
+      onBack={c.pop}
+      onOpenFilesSettings={() => {
+        // The files page of the account that carries this vault (move 26); the account list when none is found.
+        void loadAccountCards()
+          .then(({ cards }) => {
+            const card = cards.find((entry) => entry.vaultId === id && entry.services.includes("files"));
+            c.push(card ? { kind: "accountservice", path: `files:${card.key}` } : { kind: "cloudaccounts", path: "" });
+          })
+          .catch(() => c.push({ kind: "cloudaccounts", path: "" }));
+      }}
+      onOpenSyncChain={() => c.push({ kind: "syncchain", path: id })}
+      onOpenSyncDiagnostics={() => c.push({ kind: "syncdiag", path: id })}
       onOpenFilesAccount={() => {
         // The card that carries this vault's files; the list when none is found.
         void loadAccountCards()
           .then(({ cards }) => {
-            const card = cards.find((entry) => entry.vaultId === e.path && entry.services.includes("files"));
+            const card = cards.find((entry) => entry.vaultId === id && entry.services.includes("files"));
             c.push(card ? { kind: "cloudaccount", path: card.key } : { kind: "cloudaccounts", path: "" });
           })
           .catch(() => c.push({ kind: "cloudaccounts", path: "" }));
       }}
-      vaultId={e.path}
+      vaultId={id}
     />
-  ),
+  );
+  },
   syncchain: (e, c) => (
     <SyncChainScreen
       activeVault={c.vault}
