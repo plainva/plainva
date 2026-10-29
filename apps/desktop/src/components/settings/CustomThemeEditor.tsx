@@ -135,13 +135,15 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec: desi
         <SettingRow label={t("settings.customThemeText")} desc={t("settings.customThemeTextHint")}>
           <SwatchGrid presets={[colors.textMain, colors.textMuted, colors.textFaint]} readOnly />
         </SettingRow>
-        <CustomThemePreviewBanner mood={pair.mode} stored={pair.stored} />
+        <SettingCardBlock><CustomThemePreviewBanner mood={pair.mode} stored={pair.stored} /></SettingCardBlock>
         {lastCorrection && (
-          <Banner kind="warning" rounded>
-            {lastCorrection.field === "accent"
-              ? t("settings.customThemeCorrected", { from: lastCorrection.from, ratio: formatRatio(lastCorrection.ratio ?? 0), to: lastCorrection.to })
-              : t("settings.customThemeBgCorrected", { from: lastCorrection.from, to: lastCorrection.to })}
-          </Banner>
+          <SettingCardBlock>
+            <Banner kind="warning" rounded>
+              {lastCorrection.field === "accent"
+                ? t("settings.customThemeCorrected", { from: lastCorrection.from, ratio: formatRatio(lastCorrection.ratio ?? 0), to: lastCorrection.to })
+                : t("settings.customThemeBgCorrected", { from: lastCorrection.from, to: lastCorrection.to })}
+            </Banner>
+          </SettingCardBlock>
         )}
       </SettingCard>
 

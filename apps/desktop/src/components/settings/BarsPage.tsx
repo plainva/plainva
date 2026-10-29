@@ -182,7 +182,9 @@ const BarBlock: React.FC<BarBlockProps> = ({ def, layout, inherited, onChange, o
   return (
     <SettingCard label={t(def.titleKey, { defaultValue: def.id })}>
       <SettingCardNote>{t(def.descriptionKey, { defaultValue: "" })}</SettingCardNote>
-      <div ref={rootRef}>
+      {/* The drag scope (rows are found under it while dragging). It adds no
+          box of its own: its children are the card's rows. */}
+      <div ref={rootRef} className="pv-setcard-rows">
         <div className="pv-barlabel">{t("bars.visible", { defaultValue: "Sichtbar" })}</div>
         {shown.map((id) => (
           <AreaRow

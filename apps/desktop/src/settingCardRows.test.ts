@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import ts from "typescript";
-import { sourceTexts } from "./test-sourceTree";
+import { sourceFile, sourceTexts } from "./test-sourceTree";
 
 /**
  * Everything directly inside a settings card is a row (Design_Language,
@@ -15,14 +15,26 @@ import { sourceTexts } from "./test-sourceTree";
  * that end up as the card's direct children, looking through conditions,
  * fragments and `map` callbacks, and accepts only the row primitives, elements
  * whose own class brings the row inset, and the components listed below with
- * the reason they are rows themselves.
+ * the reason they are rows themselves. A wrapper that adds no box
+ * (`.pv-setcard-rows`) is read through.
  */
 
 /** The primitives that ARE a card row. */
 const ROW_PRIMITIVES = new Set(["SettingRow", "SettingCardNote", "SettingCardBlock", "SettingCardActions"]);
 
-/** Classes whose own rule brings the row inset (checked in ui.css by their owners). */
-const INSET_CLASSES = ["pv-setrow", "pv-barfoot", "pv-barrow", "pv-barlabel", "pv-chain", "pv-acct", "pv-svcline", "pv-svcstat"];
+/** Classes whose own rule brings the row inset (a test below reads ui.css for it). */
+const INSET_CLASSES = [
+  "pv-setrow", "pv-barfoot", "pv-barrow", "pv-barlabel", "pv-chain", "pv-acct", "pv-svcline", "pv-svcstat",
+  // The integrity card: a filter line, an empty line, a subhead and one group
+  // per cause, each with the row inset (the group adds its coloured edge).
+  "pv-quarantine-head", "pv-quarantine-empty", "pv-quarantine-subhead", "pv-quarantine-group",
+];
+
+/**
+ * A wrapper that adds no box (`display: contents`) and whose children are the
+ * card's rows — the drag scope of a bar list. The guard reads through it.
+ */
+const ROWS_WRAPPER = "pv-setcard-rows";
 
 /** Components that render a card row of their own, with the reason. */
 const ROW_COMPONENTS: Record<string, string> = {
@@ -32,6 +44,8 @@ const ROW_COMPONENTS: Record<string, string> = {
   RoleMatrix: "renders a SettingCardNote",
   TechDetails: "renders a SettingCardNote",
   MailAccountRow: "renders a .pv-acct row",
+  OrphanedMailNotice: "renders a SettingCardBlock banner and .pv-acct rows",
+  AreaRow: "renders a .pv-barrow row (Bars & areas)",
   EmptyState: ".pv-empty brings its own padding (--space-6)",
 };
 
@@ -75,13 +89,17 @@ function bareChildren(rel: string, text: string): string[] {
   const found: string[] = [];
   const walk = (node: ts.Node): void => {
     if (ts.isJsxElement(node) && tagName(node, file) === "SettingCard") {
-      for (const child of directChildren(node.children)) {
-        const name = tagName(child, file);
-        if (ROW_PRIMITIVES.has(name) || ROW_COMPONENTS[name]) continue;
-        const cls = classNameOf(child, file);
-        if (INSET_CLASSES.some((c) => new RegExp(`\\b${c}\\b`).test(cls))) continue;
-        found.push(`${rel} <${name}>`);
-      }
+      const check = (children: readonly ts.Node[]): void => {
+        for (const child of directChildren(children)) {
+          const name = tagName(child, file);
+          if (ROW_PRIMITIVES.has(name) || ROW_COMPONENTS[name]) continue;
+          const cls = classNameOf(child, file);
+          if (ts.isJsxElement(child) && new RegExp(`\\b${ROWS_WRAPPER}\\b`).test(cls)) { check(child.children); continue; }
+          if (INSET_CLASSES.some((c) => new RegExp(`\\b${c}\\b`).test(cls))) continue;
+          found.push(`${rel} <${name}>`);
+        }
+      };
+      check(node.children);
     }
     ts.forEachChild(node, walk);
   };
@@ -96,24 +114,11 @@ function bareChildren(rel: string, text: string): string[] {
  * one more of a listed kind, fails the run.
  */
 const BASELINE: Record<string, number> = {
-  "apps/desktop/src/components/mail/MailAccountsSection.tsx <OrphanedMailNotice>": 1,
-  "apps/desktop/src/components/security/QuarantineCard.tsx <div>": 1,
-  "apps/desktop/src/components/security/QuarantineCard.tsx <p>": 2,
-  "apps/desktop/src/components/security/QuarantineCard.tsx <section>": 2,
-  "apps/desktop/src/components/security/SecuritySharingPage.tsx <Banner>": 5,
-  // A card inside a card: RekeyProgressCard renders a SettingCard of its own.
-  "apps/desktop/src/components/security/SecuritySharingPage.tsx <RekeyProgressCard>": 2,
-  "apps/desktop/src/components/security/securityPanels.tsx <Banner>": 1,
-  "apps/desktop/src/components/settings/AccountServicePage.tsx <Banner>": 1,
-  "apps/desktop/src/components/settings/AccountServicePage.tsx <SwatchGrid>": 1,
-  "apps/desktop/src/components/settings/BarsPage.tsx <div>": 1,
-  // A card inside a card: the sign-in editor is a SettingCard of its own.
+  // A card inside a card: the sign-in editor is a SettingCard of its own. Both
+  // files are rebuilt by the connect package of the same plan (P5), which
+  // takes the editor out of the card.
   "apps/desktop/src/components/settings/CloudAccountsPage.tsx <OAuthAccessEditor>": 1,
   "apps/desktop/src/components/settings/CloudAccountsWizard.tsx <OAuthAccessEditor>": 1,
-  "apps/desktop/src/components/settings/CustomThemeEditor.tsx <Banner>": 1,
-  "apps/desktop/src/components/settings/CustomThemeEditor.tsx <CustomThemePreviewBanner>": 1,
-  "packages/ui/src/components/CustomThemeSync.tsx <p>": 1,
-  "packages/ui/src/components/accounts/AccountPasswordChangePanel.tsx <div>": 1,
 };
 
 function counted(list: readonly string[]): Record<string, number> {
@@ -142,7 +147,26 @@ describe("everything directly inside a settings card is a row", () => {
       {open && <div>bare</div>}
       <>{list.map((x) => <Banner key={x} />)}</>
       <div className="pv-barfoot" />
+      <div ref={root} className="pv-setcard-rows"><SettingCardNote>row</SettingCardNote><p>bare inside</p></div>
     </SettingCard>;`;
-    expect(bareChildren("sample.tsx", sample)).toEqual(["sample.tsx <div>", "sample.tsx <Banner>"]);
+    expect(bareChildren("sample.tsx", sample)).toEqual(["sample.tsx <div>", "sample.tsx <Banner>", "sample.tsx <p>"]);
+  });
+
+  it("every inset class brings the row's horizontal inset (--space-4) in ui.css", () => {
+    const css = sourceFile("packages/ui/src/styles/ui.css").replace(/\/\*[\s\S]*?\*\//g, "");
+    const wrong: string[] = [];
+    for (const cls of INSET_CLASSES) {
+      const rule = new RegExp(`(?:^|\\n)\\s*\\.${cls}\\s*\\{([^}]*)\\}`).exec(css);
+      const padding = rule ? /(?:^|[;\s])padding:\s*([^;]+)/.exec(rule[1])?.[1].trim() : undefined;
+      const parts = padding ? padding.split(/\s+/) : [];
+      const sides = parts.length === 1 ? [parts[0]] : parts.length === 4 ? [parts[1], parts[3]] : [parts[1]];
+      if (!sides.every((side) => side === "var(--space-4)")) wrong.push(`.${cls}: padding ${padding ?? "none"}`);
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it("the rows wrapper adds no box", () => {
+    const css = sourceFile("packages/ui/src/styles/ui.css");
+    expect(css).toMatch(new RegExp(`\\.${ROWS_WRAPPER}\\s*\\{\\s*display:\\s*contents;\\s*\\}`));
   });
 });

@@ -390,6 +390,10 @@ test("a WebDAV account shows its server and user, checks its files, signs out he
   await page.getByTestId("cloudacct-signin").click();
   await expect(page.getByTestId("account-password-change")).toBeVisible();
   await expect(page.getByTestId("cloudacct-new-password")).toBeVisible();
+  if (process.env.PLAINVA_EVIDENCE) {
+    await page.getByTestId("account-password-change").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath("webdav-password-panel.png") });
+  }
 
   await page.getByTestId("cloudacct-remove").click();
   await page.getByTestId("confirm-act").click();

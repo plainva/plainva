@@ -9,6 +9,7 @@ import {
   ICON,
   IconButton,
   SettingCard,
+  SettingCardBlock,
   SettingCardNote,
   SettingRow,
   SwatchGrid,
@@ -291,14 +292,16 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
                 <Switch checked={calendar.selected} label={calendar.name} onChange={(next) => void toggleCalendar(calendar, next)} testId={`account-calendar-${calendar.id}`} />
               </SettingRow>
               {colorFor === calendar.id && (
-                <SwatchGrid
-                  ariaLabel={t("cloudAccounts.calendarColor", { name: calendar.name })}
-                  presets={EVENT_COLOR_PALETTE}
-                  value={colors[`${pimAccountId} ${calendar.id}`] ?? ""}
-                  onPick={(hex) => void pickColor(calendar, hex)}
-                  none={{ label: t("cloudAccounts.providerColor"), active: !colors[`${pimAccountId} ${calendar.id}`], onPick: () => void pickColor(calendar, ""), glyph: "slash" }}
-                  testIdPrefix={`account-calendar-swatch-${calendar.id}-`}
-                />
+                <SettingCardBlock>
+                  <SwatchGrid
+                    ariaLabel={t("cloudAccounts.calendarColor", { name: calendar.name })}
+                    presets={EVENT_COLOR_PALETTE}
+                    value={colors[`${pimAccountId} ${calendar.id}`] ?? ""}
+                    onPick={(hex) => void pickColor(calendar, hex)}
+                    none={{ label: t("cloudAccounts.providerColor"), active: !colors[`${pimAccountId} ${calendar.id}`], onPick: () => void pickColor(calendar, ""), glyph: "slash" }}
+                    testIdPrefix={`account-calendar-swatch-${calendar.id}-`}
+                  />
+                </SettingCardBlock>
               )}
             </React.Fragment>
           );
@@ -318,9 +321,11 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
       {scope.provider !== "device" || lists.length > 0 ? (
         <SettingCard label={t("pim.taskLists")}>
           {listState === "failed" && (
-            <Banner kind="error" rounded actions={<Button variant="ghost" size="sm" onClick={lookAgain}>{t("pim.lookAgain")}</Button>}>
-              {t("pim.taskListsFailed")} {scope.lists}
-            </Banner>
+            <SettingCardBlock>
+              <Banner kind="error" rounded actions={<Button variant="ghost" size="sm" onClick={lookAgain}>{t("pim.lookAgain")}</Button>}>
+                {t("pim.taskListsFailed")} {scope.lists}
+              </Banner>
+            </SettingCardBlock>
           )}
           {listState === "unknown" && <SettingCardNote><span data-testid="pim-tasklists-unknown">{t("pim.taskListsUnknown")}</span></SettingCardNote>}
           {listState === "empty" && (

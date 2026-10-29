@@ -35,13 +35,15 @@ export interface SettingCardProps {
   /** Group label rendered ABOVE the card (uppercase mini label). */
   label?: string;
   className?: string;
+  /** Test id on the card's section. */
+  testId?: string;
   children: ReactNode;
 }
 
 /** Named group card — the framed container settings rows live in. */
-export function SettingCard({ label, className, children }: SettingCardProps) {
+export function SettingCard({ label, className, testId, children }: SettingCardProps) {
   return (
-    <section className={cx("pv-setgroup", className)}>
+    <section className={cx("pv-setgroup", className)} data-testid={testId}>
       {label && <div className="pv-setgroup-label">{label}</div>}
       <div className="pv-setcard" role="group" aria-label={label}>
         {children}

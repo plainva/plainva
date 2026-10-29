@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Banner, Button, GroupCard, Row, RowList, SectionLabel, SettingCard, SettingRow, Switch } from "./ui";
+import { Banner, Button, GroupCard, Row, RowList, SectionLabel, SettingCard, SettingCardNote, SettingRow, Switch } from "./ui";
 import { customThemeSpecForMode, type CustomThemeDesign } from "../lib/customThemeDesign";
 import { customThemeVariantId } from "../lib/customThemeProfile";
 import type { PersonalDesignStatus } from "../lib/personalDesignSync";
@@ -34,7 +34,7 @@ export function CustomThemeSync(props: CustomThemeSyncProps) {
       <SettingRow label={t("settings.customThemeSyncEnabled")} desc={t("settings.customThemeSyncHint")}>
         {toggle}
       </SettingRow>
-      <p style={{ padding: "var(--space-3) var(--space-4)", margin: 0 }}>{source}</p>
+      <SettingCardNote>{source}</SettingCardNote>
     </SettingCard>}
     {props.failed && <Banner kind="error" rounded>{t("settings.customThemeSyncFailed")}</Banner>}
     {props.status?.enabled && variants.length > 1 && <Banner kind="warning" rounded>

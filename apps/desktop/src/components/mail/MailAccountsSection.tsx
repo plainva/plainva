@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Users } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, SettingCard, SettingCardNote, SettingRow, familyOfMailAccount, serviceConnectionMessage, toast, type CloudServiceId } from "@plainva/ui";
+import { Banner, Button, EmptyState, ICON, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, familyOfMailAccount, serviceConnectionMessage, toast, type CloudServiceId } from "@plainva/ui";
 import { RulesSettings } from "./RulesSettings";
 import { VacationSettings } from "./VacationSettings";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
@@ -183,24 +183,28 @@ export function OrphanedMailNotice({ vaultPath, reloadToken, onRemoved, onSignIn
     }
   };
 
+  // A row of the mailboxes card like the account rows below it (settings plan
+  // 2026-10-29, P1): the banner gets the row inset, the orphans are .pv-acct rows.
   return (
     <>
-      <Banner
-        kind="warning"
-        rounded
-        actions={
-          <>
-            <Button size="sm" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="mail-orphans-review">
-              {t("mail.orphans.review")}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => void notice.later()} data-testid="mail-orphans-later">
-              {t("mail.orphans.later")}
-            </Button>
-          </>
-        }
-      >
-        <strong>{t("mail.orphans.title", { count: notice.orphans.length })}</strong> {t("mail.orphans.body")}
-      </Banner>
+      <SettingCardBlock>
+        <Banner
+          kind="warning"
+          rounded
+          actions={
+            <>
+              <Button size="sm" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="mail-orphans-review">
+                {t("mail.orphans.review")}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => void notice.later()} data-testid="mail-orphans-later">
+                {t("mail.orphans.later")}
+              </Button>
+            </>
+          }
+        >
+          <strong>{t("mail.orphans.title", { count: notice.orphans.length })}</strong> {t("mail.orphans.body")}
+        </Banner>
+      </SettingCardBlock>
       {open &&
         notice.orphans.map((account) => (
           <div className="pv-acct" data-testid="mail-orphan" key={account.id}>

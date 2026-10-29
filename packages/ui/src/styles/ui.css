@@ -2441,6 +2441,10 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
 }
 .pv-setrow--block { display: block; }
 .pv-setrow--actions { justify-content: flex-end; gap: var(--space-2); }
+/* A wrapper inside a card whose children are the card's rows (a drag scope, a
+   ref target): it adds no box, so its rows sit in the card as if they were the
+   card's own children, and the guard of settingCardRows.test.ts reads through it. */
+.pv-setcard-rows { display: contents; }
 .pv-setrow-main {
   min-width: 0;
 }
