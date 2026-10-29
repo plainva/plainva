@@ -1,6 +1,6 @@
 # Import z innej aplikacji
 
-Stan na: 2026-10-06
+Stan na: 2026-10-29
 
 Plainva importuje notatki z innych aplikacji do nowego sejfu lub podfolderu o nowej nazwie w otwartym sejfie. Pozostała zawartość się nie zmienia; folder importu można potem przenieść lub usunąć.
 
@@ -79,7 +79,7 @@ Duża przestrzeń robocza może zająć chwilę, dlatego import można zatrzyma�
 | **Folder / ZIP HTML** | Folder, pliki lub ZIP ze stronami HTML | Strony jako notatki Markdown, z przekierowanymi linkami między nimi |
 | **Folder Markdown / ZIP** | Folder, pliki lub ZIP | Pliki `.md` i ich struktura folderów |
 
-**Obsidian** też jest na liście, ale nie uruchamia żadnego importu — i żadnego nie potrzebuje. Plainva pracuje na tych samych plikach Markdown: pozycja to wyjaśnia i oferuje **Otwórz vault**. Linki wiki, tagi, frontmatter i pliki `.base` nadal działają, a Twój vault pozostaje użyteczny w Obsidianie. Trzeba przy tym uczciwie dodać: nie ma ekosystemu wtyczek, nie ma Canvasa ani Dataview — w zamian masz filtry w `.base`, a składnia wtyczek w Twoich notatkach pozostaje zwykłym tekstem.
+**Obsidian** też jest na liście, ale nie uruchamia żadnego importu — i żadnego nie potrzebuje. Plainva pracuje na tych samych plikach Markdown: pozycja to wyjaśnia i oferuje **Otwórz vault**. Linki wiki, tagi, frontmatter i pliki `.base` nadal działają, a Twój vault pozostaje użyteczny w Obsidianie. Trzeba przy tym uczciwie dodać: nie ma ekosystemu wtyczek, nie ma Canvasa ani Dataview — w zamian masz filtry w `.base`, a składnia wtyczek w Twoich notatkach pozostaje zwykłym tekstem. Wyjątkiem jest blok `tasks` wtyczki Tasks: Plainva pokazuje go jako listę zadań ([Zapytania wtyczki Tasks](Tasks.md#zapytania-wtyczki-tasks)).
 
 ## Dlaczego nie ma tu mojej aplikacji?
 

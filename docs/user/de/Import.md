@@ -1,6 +1,6 @@
 # Aus einer anderen App importieren
 
-Stand: 2026-10-06
+Stand: 2026-10-29
 
 Plainva übernimmt Notizen aus anderen Apps in einen neuen Vault oder einen neu benannten Unterordner des offenen Vaults. Der restliche Vault bleibt unverändert; der Importordner lässt sich anschließend verschieben oder löschen.
 
@@ -79,7 +79,7 @@ Ein großer Workspace dauert, deshalb lässt sich ein Import stoppen: **Import s
 | **HTML-Ordner / ZIP** | Ein Ordner, Dateien oder ein ZIP mit HTML-Seiten | Die Seiten als Markdown-Notizen, die Links untereinander umgebogen |
 | **Markdown-Ordner / ZIP** | Einen Ordner, Dateien oder ein ZIP | Die `.md`-Dateien und ihre Ordnerstruktur |
 
-**Obsidian** steht mit in der Liste, startet aber keinen Import — und braucht auch keinen. Plainva arbeitet mit denselben Markdown-Dateien: Der Eintrag erklärt das und bietet Dir **Vault öffnen** an. Wiki-Links, Tags, Frontmatter und `.base`-Dateien funktionieren weiter, und Dein Vault bleibt mit Obsidian nutzbar. Ehrlich dazu gehört: Es gibt kein Plugin-Ökosystem, kein Canvas und kein Dataview — dafür Filter in `.base`; Plugin-Syntax in Deinen Notizen bleibt als Text stehen.
+**Obsidian** steht mit in der Liste, startet aber keinen Import — und braucht auch keinen. Plainva arbeitet mit denselben Markdown-Dateien: Der Eintrag erklärt das und bietet Dir **Vault öffnen** an. Wiki-Links, Tags, Frontmatter und `.base`-Dateien funktionieren weiter, und Dein Vault bleibt mit Obsidian nutzbar. Ehrlich dazu gehört: Es gibt kein Plugin-Ökosystem, kein Canvas und kein Dataview — dafür Filter in `.base`; Plugin-Syntax in Deinen Notizen bleibt als Text stehen. Eine Ausnahme ist ein `tasks`-Block des Tasks-Plugins: Plainva zeigt ihn als Aufgabenliste ([Abfragen aus dem Tasks-Plugin](Tasks.md#abfragen-aus-dem-tasks-plugin)).
 
 ## Warum fehlt meine App?
 

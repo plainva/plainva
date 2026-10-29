@@ -1,6 +1,6 @@
 # 任务
 
-更新日期：2026-10-25
+更新日期：2026-10-29
 
 任务视图会把仓库中的每一个复选框汇集到一处：所有笔记中的`- [ ]`和`- [x]`列表项，会按照它们所在的笔记分组显示。这是一个基于纯Markdown、回答"我还有哪些事要做？"的视图——不需要插件，也不需要特殊文件。
 
@@ -114,6 +114,68 @@ plainva:
 ## Obsidian兼容性
 
 任务本身是普通的GFM（GitHub-Flavored Markdown）复选框。Plainva从不添加特殊语法：同样的`- [ ]`这一行，在Obsidian中会渲染为复选框，在任何编辑器中都能干净地读取。`📅 date`和`#tag`这样的约定是Obsidian Tasks插件常用的写法，但在你的笔记里，它们不过是普通文本。
+
+## Tasks 插件的查询
+
+为 Obsidian 的 Tasks 插件写的笔记里，可能带有一个包含查询的 `tasks` 代码块。Plainva 会把它绘制成任务列表——在实时预览和阅读模式中、在桌面端和手机端都一样，放在引用或标注里也一样：
+
+````markdown
+```tasks
+not done
+tags include #project
+show tree
+sort by filename reverse
+```
+````
+
+查询会原样保留在笔记中；Plainva 从不写入这个代码块。源码模式始终显示纯文本。
+
+### 使用列表
+
+- 勾选任务的复选框：Plainva 会把该任务自己的那一行写回它所在的笔记——同时写入完成日期和重复规则，与任务视图一致。
+- 单击或点按一行：笔记会在该任务所在行打开。
+- 在桌面端右键单击一行，或在手机端长按一行，即可打开行菜单：**已完成**/**未完成**、**更改截止日期**、**设置优先级**、**设置状态**。
+- 在嵌入的笔记（`![[…]]`）中，列表是只读的：不能勾选，也没有菜单。
+- 光标位于代码块内时，编辑器会把查询显示为文本。**编辑查询**会把光标放进查询中；在手机端会先切换到编辑状态。
+
+代码块底部显示任务数量（“12 个任务”）、**说明**开关和**编辑查询**。**说明**会展示 Plainva 如何解读查询的每一行，日期以具体的日子呈现。较大的结果不会被悄悄截断：Plainva 先显示前 100 行，随后是**显示全部 n 个**。
+
+### Plainva 能理解的内容
+
+Plainva 会读取 Tasks 查询语言中的这些行：
+
+| 主题 | 行 |
+|---|---|
+| 状态 | `done`、`not done`、`status.type is …` |
+| 日期 | `due`、`scheduled`、`starts`、`done`、`created`、`cancelled`、`happens`，每个都可搭配 `on`、`before`、`after`、`on or before`、`on or after` 或 `in`；日期写法：`2026-11-04`、`today`、`tomorrow`、`yesterday`、星期几、`3 days ago`、`in 2 weeks`、`last week`、`this month`、`next quarter`、`2026-W44`、`2026-10`、`2026-Q4`、`2026`——与 Tasks 一样，每周从周一到周日 |
+| 是否有日期 | `has due date`、`no scheduled date`、`due date is invalid` |
+| 重复 | `is recurring`、`recurrence includes …` |
+| 优先级 | `priority is high`、`priority is above none`——从最高到最低共六级 |
+| 文本与位置 | `description`、`path`、`filename`、`folder`、`root` 和 `heading`，每个都可搭配 `includes` 或 `does not include` |
+| 标签 | `tags include #project`、`tags do not include #project`、`has tags`、`no tags` |
+| 子项 | `exclude sub-items` |
+| 组合 | `AND`、`OR`、`NOT`、`XOR`，各部分用 `( )`、`[ ]`、`{ }` 或 `" "` 括起 |
+| 排序 | 使用除 `random`、`status.name` 和 `id` 之外所有键的 `sort by …`，也可加 `reverse`；在你自己写的行之后，按 Tasks 插件的默认顺序排列，其中包含紧急度 |
+| 分组 | `group by …`，最多三层 |
+| 显示与数量 | `show tree`、`hide backlink`、`hide task count` 等，`limit 20`、`limit groups 5`、`explain` |
+| 注释与占位符 | 以 `#` 开头的行；`{{query.file.path}}` 这样的占位符，指向查询所在的笔记 |
+
+### Plainva 无法照做的行
+
+查询的每一行都属于以下三种情况之一：
+
+- Tasks 插件认识而 Plainva 暂时还不认识的行——例如代码（`filter by function`；Plainva 绝不会运行笔记中的代码）、正则表达式（`regex matches`）、依赖关系（`is blocked`）、预设或其他日期写法。列表上方的提示会指出这一行及原因；这一行会被略过，因此列表可能比 Obsidian 中显示更多任务——对于 `sort by` 和 `group by` 行，顺序也可能不同。
+- 在 Plainva 中没有对应效果的显示类行（`hide edit button`、`short mode` 等）会被静默接受。
+- Tasks 插件同样会拒绝的行（拼写错误、混用括号、不存在的日期）会显示一条错误，写明这一行和原因，并且不显示列表。
+
+### 与 Obsidian 的差别
+
+- “今天”指日历上的这一天。
+- 带有 `plainva.tasks: false` 的笔记在这里也会计入；Obsidian 不认识这个属性。
+- Tasks 插件的全局筛选器和全局查询会在**说明**中被提到，但不会被应用。
+- 自定义状态字符（`[>]`、`[!]` 等）在 Plainva 中不是任务。
+
+Dataview 代码块仍然是纯文本。
 
 ## 另请参阅
 

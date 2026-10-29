@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-10-25
+Laatst bijgewerkt: 2026-10-29
 
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
@@ -114,6 +114,68 @@ Nieuw aangemaakte sjablonen dragen de marker automatisch. Maak je een notitie **
 ## Obsidian-compatibiliteit
 
 Taken zijn gewone GFM-selectievakjes (GitHub-Flavored Markdown). Plainva voegt nooit een speciale syntax toe: dezelfde `- [ ]`-regels worden in Obsidian weergegeven als selectievakjes en zijn in elke editor gewoon leesbaar. De conventies `📅 datum` en `#tag` zijn de gangbare Obsidian-Tasks-stijl, maar ze zijn gewoon tekst in je notitie.
+
+## Query's van de Tasks-plugin
+
+Een notitie die voor de Obsidian-plugin Tasks is geschreven, kan een codeblok `tasks` met een query bevatten. Plainva tekent het als takenlijst — in het live-voorbeeld en in leesmodus, op de desktop en op de telefoon, ook binnen een citaat of callout:
+
+````markdown
+```tasks
+not done
+tags include #project
+show tree
+sort by filename reverse
+```
+````
+
+De query blijft precies zo in de notitie staan als je haar hebt geschreven; Plainva schrijft nooit in het blok. De broncodemodus toont altijd de platte tekst.
+
+### Werken met de lijst
+
+- Vink het selectievakje van een taak aan: Plainva schrijft de regel van de taak in haar eigen notitie — met de voltooiingsdatum en de herhaling, zoals in de Taken-weergave.
+- Klik of tik op een rij: de notitie opent bij de regel van de taak.
+- Rechtsklikken op een rij op de desktop, of ingedrukt houden op de telefoon, opent het menu van de rij: **Klaar**/**Open**, **Vervaldatum wijzigen**, **Prioriteit instellen**, **Status instellen**.
+- In een ingesloten notitie (`![[…]]`) is de lijst alleen-lezen: geen vinkje, geen menu.
+- Staat de cursor in het blok, dan toont de editor de query als tekst. **Query bewerken** zet de cursor in de query; op de telefoon schakelt de notitie daarvoor eerst naar bewerken.
+
+Onderaan het blok staan het aantal taken ("12 taken"), de schakelaar **Uitleg** en **Query bewerken**. **Uitleg** laat zien hoe Plainva elke regel van de query heeft gelezen, met datums als echte dagen. Een groot resultaat wordt niet stilletjes afgekapt: Plainva toont de eerste 100 rijen, daarna **Alle n tonen**.
+
+### Wat Plainva begrijpt
+
+Plainva leest deze regels van de querytaal van Tasks:
+
+| Onderwerp | Regels |
+|---|---|
+| Status | `done`, `not done`, `status.type is …` |
+| Datums | `due`, `scheduled`, `starts`, `done`, `created`, `cancelled`, `happens`, elk met `on`, `before`, `after`, `on or before`, `on or after` of `in`; als dagen: `2026-11-04`, `today`, `tomorrow`, `yesterday`, weekdagen, `3 days ago`, `in 2 weeks`, `last week`, `this month`, `next quarter`, `2026-W44`, `2026-10`, `2026-Q4`, `2026` — weken lopen van maandag tot en met zondag, zoals in Tasks |
+| Datum aanwezig of niet | `has due date`, `no scheduled date`, `due date is invalid` |
+| Herhaling | `is recurring`, `recurrence includes …` |
+| Prioriteit | `priority is high`, `priority is above none` — zes niveaus, van hoogste tot laagste |
+| Tekst en plaats | `description`, `path`, `filename`, `folder`, `root` en `heading`, elk met `includes` of `does not include` |
+| Tags | `tags include #project`, `tags do not include #project`, `has tags`, `no tags` |
+| Subitems | `exclude sub-items` |
+| Combineren | `AND`, `OR`, `NOT`, `XOR`, met `( )`, `[ ]`, `{ }` of `" "` rond de delen |
+| Sorteren | `sort by …` met elke sleutel behalve `random`, `status.name` en `id`, desgewenst met `reverse`; na je eigen regels geldt de standaardvolgorde van de Tasks-plugin, urgentie inbegrepen |
+| Groeperen | `group by …`, tot drie niveaus |
+| Weergave en aantal | `show tree`, `hide backlink`, `hide task count` en dergelijke, `limit 20`, `limit groups 5`, `explain` |
+| Opmerkingen en plaatshouders | regels die met `#` beginnen; plaatshouders zoals `{{query.file.path}}`, die verwijzen naar de notitie waarin de query staat |
+
+### Regels die Plainva niet kan volgen
+
+Elke regel van een query valt in een van drie gevallen:
+
+- Een regel die de Tasks-plugin kent en Plainva nog niet — bijvoorbeeld code (`filter by function`; Plainva voert nooit code uit notities uit), reguliere expressies (`regex matches`), afhankelijkheden (`is blocked`), presets of andere datumuitdrukkingen. Een aanwijzing boven de lijst noemt de regel en de reden; de regel wordt overgeslagen, dus de lijst kan meer taken tonen dan in Obsidian — of in een andere volgorde, bij `sort by`- en `group by`-regels.
+- Een weergaveregel zonder tegenhanger in Plainva (`hide edit button`, `short mode`, …) wordt stilzwijgend aanvaard.
+- Een regel die ook de Tasks-plugin afwijst (een typfout, door elkaar gebruikte haakjes, een onmogelijke datum) toont een fout met de regel en de reden, en geen lijst.
+
+### Verschillen met Obsidian
+
+- "Vandaag" is de kalenderdag.
+- Notities met `plainva.tasks: false` tellen hier mee; Obsidian kent die eigenschap niet.
+- Het globale filter en de globale query van de Tasks-plugin worden in de **Uitleg** genoemd, maar niet toegepast.
+- Eigen statustekens (`[>]`, `[!]`, …) zijn in Plainva geen taken.
+
+Dataview-blokken blijven gewone tekst.
 
 ## Zie ook
 

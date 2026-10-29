@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-10-25
+Ultimo aggiornamento: 2026-10-29
 
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
@@ -114,6 +114,68 @@ I modelli appena creati portano il marcatore automaticamente. Quando crei una no
 ## Compatibilità con Obsidian
 
 Le attività sono normali caselle di controllo GFM (GitHub-Flavored Markdown). Plainva non aggiunge mai una sintassi speciale: le stesse righe `- [ ]` vengono renderizzate come caselle di controllo in Obsidian e si leggono correttamente in qualsiasi editor. Le convenzioni `📅 data` e `#tag` sono lo stile comune di Obsidian-Tasks, ma sono solo testo nella tua nota.
+
+## Query del plugin Tasks
+
+Una nota scritta per il plugin Obsidian Tasks può contenere un blocco di codice `tasks` con una query. Plainva lo disegna come elenco di attività — nell'anteprima dal vivo e nella modalità lettura, sul desktop e sul telefono, anche dentro una citazione o un callout:
+
+````markdown
+```tasks
+not done
+tags include #project
+show tree
+sort by filename reverse
+```
+````
+
+La query resta nella nota esattamente come l'hai scritta; Plainva non scrive mai nel blocco. La modalità sorgente mostra sempre il testo semplice.
+
+### Lavorare con l'elenco
+
+- Spunta la casella di un'attività: Plainva scrive la riga dell'attività nella sua nota — con la data di completamento e la ricorrenza, come nella vista Attività.
+- Clicca o tocca una riga: la nota si apre alla riga dell'attività.
+- Clic destro su una riga sul desktop, o tocco prolungato sul telefono, apre il menu della riga: **Completate**/**Aperte**, **Cambia scadenza**, **Imposta priorità**, **Imposta stato**.
+- In una nota incorporata (`![[…]]`) l'elenco è di sola lettura: niente casella, niente menu.
+- Con il cursore dentro il blocco, l'editor mostra la query come testo. **Modifica query** mette il cursore nella query; sul telefono prima passa alla modifica.
+
+In fondo al blocco compaiono il numero di attività («12 attività»), l'interruttore **Spiegazione** e **Modifica query**. **Spiegazione** mostra come Plainva ha letto ogni riga della query, con le date come giorni reali. Un risultato grande non viene tagliato in silenzio: Plainva mostra le prime 100 righe, poi **Mostra tutte (n)**.
+
+### Che cosa capisce Plainva
+
+Plainva legge queste righe del linguaggio di query di Tasks:
+
+| Argomento | Righe |
+|---|---|
+| Stato | `done`, `not done`, `status.type is …` |
+| Date | `due`, `scheduled`, `starts`, `done`, `created`, `cancelled`, `happens`, ciascuna con `on`, `before`, `after`, `on or before`, `on or after` oppure `in`; come giorni: `2026-11-04`, `today`, `tomorrow`, `yesterday`, giorni della settimana, `3 days ago`, `in 2 weeks`, `last week`, `this month`, `next quarter`, `2026-W44`, `2026-10`, `2026-Q4`, `2026` — le settimane vanno da lunedì a domenica, come in Tasks |
+| Data presente o no | `has due date`, `no scheduled date`, `due date is invalid` |
+| Ricorrenza | `is recurring`, `recurrence includes …` |
+| Priorità | `priority is high`, `priority is above none` — sei livelli, dal più alto al più basso |
+| Testo e posizione | `description`, `path`, `filename`, `folder`, `root` e `heading`, ciascuno con `includes` oppure `does not include` |
+| Tag | `tags include #project`, `tags do not include #project`, `has tags`, `no tags` |
+| Sotto-elementi | `exclude sub-items` |
+| Combinazione | `AND`, `OR`, `NOT`, `XOR`, con `( )`, `[ ]`, `{ }` oppure `" "` attorno alle parti |
+| Ordinamento | `sort by …` con ogni chiave tranne `random`, `status.name` e `id`, a richiesta con `reverse`; dopo le tue righe vale l'ordine predefinito del plugin Tasks, urgenza compresa |
+| Raggruppamento | `group by …`, fino a tre livelli |
+| Layout e quantità | `show tree`, `hide backlink`, `hide task count` e simili, `limit 20`, `limit groups 5`, `explain` |
+| Commenti e segnaposto | righe che iniziano con `#`; segnaposto come `{{query.file.path}}`, che rimandano alla nota in cui si trova la query |
+
+### Righe che Plainva non può seguire
+
+Ogni riga di una query rientra in uno di tre casi:
+
+- Una riga che il plugin Tasks conosce e Plainva non ancora — per esempio codice (`filter by function`; Plainva non esegue mai codice preso dalle note), espressioni regolari (`regex matches`), dipendenze (`is blocked`), preset o altre espressioni di data. Un avviso sopra l'elenco indica la riga e il motivo; la riga viene saltata, quindi l'elenco può mostrare più attività che in Obsidian — oppure in un altro ordine, per le righe `sort by` e `group by`.
+- Una riga di layout senza equivalente in Plainva (`hide edit button`, `short mode`, …) viene accettata in silenzio.
+- Una riga che anche il plugin Tasks rifiuta (un errore di battitura, parentesi miste, una data impossibile) mostra un errore con la riga e il motivo, e nessun elenco.
+
+### Differenze rispetto a Obsidian
+
+- «Oggi» è il giorno del calendario.
+- Le note con `plainva.tasks: false` qui contano; Obsidian non conosce questa proprietà.
+- Il filtro globale e la query globale del plugin Tasks sono nominati nella **Spiegazione**, ma non applicati.
+- I caratteri di stato personalizzati (`[>]`, `[!]`, …) in Plainva non sono attività.
+
+I blocchi Dataview restano testo semplice.
 
 ## Vedi anche
 

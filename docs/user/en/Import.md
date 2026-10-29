@@ -1,6 +1,6 @@
 # Importing from another app
 
-Last reviewed: 2026-10-06
+Last reviewed: 2026-10-29
 
 Plainva imports notes from other apps into a new vault or a newly named subfolder of the open vault. The rest of the vault stays unchanged; you can then move or delete the import folder.
 
@@ -79,7 +79,7 @@ A large workspace can take a while, so an import can be stopped: **Stop import**
 | **HTML folder / ZIP** | A folder, files or a ZIP of HTML pages | The pages as Markdown notes, with the links between them repointed |
 | **Markdown folder / ZIP** | A folder, files or a ZIP | The `.md` files and their folder structure |
 
-**Obsidian** is in the list too, but it starts no import — and needs none. Plainva works with the same Markdown files: the entry says so and offers you **Open vault**. Wiki links, tags, frontmatter and `.base` files keep working, and your vault stays usable in Obsidian. Honestly alongside that: there is no plugin ecosystem, no Canvas and no Dataview — you get filters in `.base` instead, and plugin syntax in your notes stays there as plain text.
+**Obsidian** is in the list too, but it starts no import — and needs none. Plainva works with the same Markdown files: the entry says so and offers you **Open vault**. Wiki links, tags, frontmatter and `.base` files keep working, and your vault stays usable in Obsidian. Honestly alongside that: there is no plugin ecosystem, no Canvas and no Dataview — you get filters in `.base` instead, and plugin syntax in your notes stays there as plain text. The exception is a `tasks` block of the Tasks plugin: Plainva shows it as a task list ([Queries from the Tasks plugin](Tasks.md#queries-from-the-tasks-plugin)).
 
 ## Why is my app missing?
 

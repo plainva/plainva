@@ -1,6 +1,6 @@
 # Aufgaben
 
-Stand: 2026-10-25
+Stand: 2026-10-29
 
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
@@ -114,6 +114,68 @@ Neu erstellte Vorlagen tragen den Marker automatisch. Erstellst Du eine Notiz **
 ## Obsidian-Kompatibilität
 
 Aufgaben sind gewöhnliche GFM-Checkboxen (GitHub Flavored Markdown). Plainva fügt nie eine Sondersyntax hinzu: Dieselben `- [ ]`-Zeilen werden in Obsidian als Checkboxen dargestellt und lesen sich in jedem Editor sauber. Die Konventionen `📅 Datum` und `#tag` sind der übliche Obsidian-Tasks-Stil, aber sie sind nur Text in Deiner Notiz.
+
+## Abfragen aus dem Tasks-Plugin
+
+Eine Notiz, die für das Obsidian-Plugin Tasks geschrieben wurde, kann einen Codeblock `tasks` mit einer Abfrage enthalten. Plainva zeichnet ihn als Aufgabenliste — in der Live-Vorschau und im Lesemodus, am Desktop und am Telefon, auch innerhalb eines Zitats oder Callouts:
+
+````markdown
+```tasks
+not done
+tags include #project
+show tree
+sort by filename reverse
+```
+````
+
+Die Abfrage bleibt genau so in der Notiz, wie Du sie geschrieben hast; Plainva schreibt nie in den Block. Der Quelltext-Modus zeigt immer den Text.
+
+### Mit der Liste arbeiten
+
+- Hake das Kästchen einer Aufgabe ab: Plainva schreibt die Zeile der Aufgabe in ihrer eigenen Notiz — mit Erledigt-Datum und Wiederholung, wie in der Aufgabenansicht.
+- Klicke oder tippe auf eine Zeile: Die Notiz öffnet sich an der Zeile der Aufgabe.
+- Rechtsklick auf eine Zeile am Desktop oder gedrückt halten am Telefon öffnet das Zeilenmenü: **Erledigt**/**Offen**, **Fälligkeit ändern**, **Priorität setzen**, **Zustand setzen**.
+- In einer eingebetteten Notiz (`![[…]]`) ist die Liste nur zum Ansehen: kein Abhaken, kein Menü.
+- Steht die Schreibmarke im Block, zeigt der Editor die Abfrage als Text. **Abfrage bearbeiten** setzt die Schreibmarke in die Abfrage; am Telefon wechselt die Ansicht dafür zuerst ins Bearbeiten.
+
+Am Fuß des Blocks stehen die Anzahl der Aufgaben („12 Aufgaben“), der Schalter **Erklärung** und **Abfrage bearbeiten**. **Erklärung** zeigt, wie Plainva jede Zeile der Abfrage gelesen hat, Daten als echte Tage. Ein großes Ergebnis wird nicht stillschweigend abgeschnitten: Plainva zeigt die ersten 100 Zeilen, danach **Alle n zeigen**.
+
+### Was Plainva versteht
+
+Plainva liest diese Zeilen der Abfragesprache des Tasks-Plugins:
+
+| Thema | Zeilen |
+|---|---|
+| Zustand | `done`, `not done`, `status.type is …` |
+| Daten | `due`, `scheduled`, `starts`, `done`, `created`, `cancelled`, `happens`, jeweils mit `on`, `before`, `after`, `on or before`, `on or after` oder `in`; als Tage: `2026-11-04`, `today`, `tomorrow`, `yesterday`, Wochentage, `3 days ago`, `in 2 weeks`, `last week`, `this month`, `next quarter`, `2026-W44`, `2026-10`, `2026-Q4`, `2026` — Wochen laufen von Montag bis Sonntag, wie in Tasks |
+| Datum vorhanden oder nicht | `has due date`, `no scheduled date`, `due date is invalid` |
+| Wiederholung | `is recurring`, `recurrence includes …` |
+| Priorität | `priority is high`, `priority is above none` — sechs Stufen von der höchsten bis zur niedrigsten |
+| Text und Ort | `description`, `path`, `filename`, `folder`, `root` und `heading`, jeweils mit `includes` oder `does not include` |
+| Tags | `tags include #project`, `tags do not include #project`, `has tags`, `no tags` |
+| Unteraufgaben | `exclude sub-items` |
+| Verknüpfen | `AND`, `OR`, `NOT`, `XOR`, mit `( )`, `[ ]`, `{ }` oder `" "` um die Teile |
+| Sortieren | `sort by …` mit jedem Schlüssel außer `random`, `status.name` und `id`, auf Wunsch mit `reverse`; nach Deinen eigenen Zeilen gilt die Standardreihenfolge des Tasks-Plugins, Dringlichkeit eingeschlossen |
+| Gruppieren | `group by …`, bis zu drei Ebenen |
+| Darstellung und Umfang | `show tree`, `hide backlink`, `hide task count` und Ähnliches, `limit 20`, `limit groups 5`, `explain` |
+| Kommentare und Platzhalter | Zeilen, die mit `#` beginnen; Platzhalter wie `{{query.file.path}}`, die sich auf die Notiz beziehen, in der die Abfrage steht |
+
+### Zeilen, denen Plainva nicht folgen kann
+
+Jede Zeile einer Abfrage fällt in einen von drei Fällen:
+
+- Eine Zeile, die das Tasks-Plugin kennt und Plainva noch nicht — etwa Code (`filter by function`; Plainva führt nie Code aus Notizen aus), reguläre Ausdrücke (`regex matches`), Abhängigkeiten (`is blocked`), Presets oder andere Datumsangaben. Ein Hinweis über der Liste nennt die Zeile und den Grund; die Zeile wird ausgelassen, die Liste zeigt dann womöglich mehr Aufgaben als in Obsidian — bei `sort by`- und `group by`-Zeilen eine andere Reihenfolge.
+- Eine Darstellungszeile ohne Gegenstück in Plainva (`hide edit button`, `short mode`, …) wird stillschweigend angenommen.
+- Eine Zeile, die auch das Tasks-Plugin ablehnt (Tippfehler, gemischte Klammern, ein unmögliches Datum), zeigt einen Fehler mit der Zeile und dem Grund — und keine Liste.
+
+### Unterschiede zu Obsidian
+
+- „Heute“ ist der Kalendertag.
+- Notizen mit `plainva.tasks: false` zählen hier mit; Obsidian kennt diese Eigenschaft nicht.
+- Der globale Filter und die globale Abfrage des Tasks-Plugins werden in der **Erklärung** genannt, aber nicht angewendet.
+- Eigene Zustandszeichen (`[>]`, `[!]`, …) sind in Plainva keine Aufgaben.
+
+Dataview-Blöcke bleiben einfacher Text.
 
 ## Siehe auch
 

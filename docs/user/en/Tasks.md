@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2026-10-25
+Last updated: 2026-10-29
 
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
@@ -114,6 +114,68 @@ Newly created templates carry the marker automatically. When you create a note *
 ## Obsidian compatibility
 
 Tasks are ordinary GFM (GitHub-Flavored Markdown) checkboxes. Plainva never adds a special syntax: the same `- [ ]` lines render as checkboxes in Obsidian and read cleanly in any editor. The `📅 date` and `#tag` conventions are the common Obsidian-Tasks style, but they are just text in your note.
+
+## Queries from the Tasks plugin
+
+A note written for the Obsidian Tasks plugin may hold a fenced `tasks` block with a query. Plainva draws it as a task list — in Live Preview and in reading mode, on the desktop and on the phone, also inside a quote or callout:
+
+````markdown
+```tasks
+not done
+tags include #project
+show tree
+sort by filename reverse
+```
+````
+
+The query stays in the note exactly as you wrote it; Plainva never writes into the block. Source mode always shows the plain text.
+
+### Working with the list
+
+- Tick a task's checkbox: Plainva writes the task's own line in its note — with the done date and the recurrence, as in the Tasks view.
+- Click or tap a row: the note opens at the task's line.
+- Right-click a row on the desktop, or press and hold it on the phone, to open the row menu: **Done**/**Open**, **Change due date**, **Set priority**, **Set state**.
+- In an embedded note (`![[…]]`) the list is read-only: no tick, no menu.
+- With the caret inside the block, the editor shows the query as text. **Edit query** puts the caret into the query; on the phone it first switches to editing.
+
+The foot of the block shows the number of tasks ("12 tasks"), the **Explanation** switch and **Edit query**. **Explanation** shows how Plainva read each line of the query, with dates as real days. A large result is not cut silently: Plainva shows the first 100 rows, then **Show all n**.
+
+### What Plainva understands
+
+Plainva reads these lines of the Tasks query language:
+
+| Topic | Lines |
+|---|---|
+| Status | `done`, `not done`, `status.type is …` |
+| Dates | `due`, `scheduled`, `starts`, `done`, `created`, `cancelled`, `happens`, each with `on`, `before`, `after`, `on or before`, `on or after` or `in`; as days: `2026-11-04`, `today`, `tomorrow`, `yesterday`, weekdays, `3 days ago`, `in 2 weeks`, `last week`, `this month`, `next quarter`, `2026-W44`, `2026-10`, `2026-Q4`, `2026` — weeks run Monday to Sunday, as in Tasks |
+| Date set or not | `has due date`, `no scheduled date`, `due date is invalid` |
+| Recurrence | `is recurring`, `recurrence includes …` |
+| Priority | `priority is high`, `priority is above none` — six levels from highest to lowest |
+| Text and place | `description`, `path`, `filename`, `folder`, `root` and `heading`, each with `includes` or `does not include` |
+| Tags | `tags include #project`, `tags do not include #project`, `has tags`, `no tags` |
+| Sub-items | `exclude sub-items` |
+| Combining | `AND`, `OR`, `NOT`, `XOR`, with `( )`, `[ ]`, `{ }` or `" "` around the parts |
+| Sorting | `sort by …` with every key except `random`, `status.name` and `id`, optionally with `reverse`; after your own lines, the default order of the Tasks plugin, urgency included |
+| Grouping | `group by …`, up to three levels |
+| Layout and size | `show tree`, `hide backlink`, `hide task count` and the like, `limit 20`, `limit groups 5`, `explain` |
+| Comments and placeholders | lines starting with `#`; placeholders such as `{{query.file.path}}`, which refer to the note the query stands in |
+
+### Lines Plainva cannot follow
+
+A line of a query falls into one of three cases:
+
+- A line the Tasks plugin knows and Plainva does not yet — for example code (`filter by function`; Plainva never runs code from notes), regular expressions (`regex matches`), dependencies (`is blocked`), presets or other date phrases. A hint above the list names the line and the reason; the line is left out, so the list may show more tasks than in Obsidian — or in a different order, for `sort by` and `group by` lines.
+- A layout line without a counterpart in Plainva (`hide edit button`, `short mode`, …) is accepted silently.
+- A line the Tasks plugin rejects too (a typo, mixed brackets, an impossible date) shows an error with the line and the reason, and no list.
+
+### Differences from Obsidian
+
+- "Today" is the calendar day.
+- Notes with `plainva.tasks: false` count here; Obsidian does not know that property.
+- The global filter and the global query of the Tasks plugin are named in the **Explanation** but not applied.
+- Custom status characters (`[>]`, `[!]`, …) are not tasks in Plainva.
+
+Dataview blocks stay plain text.
 
 ## See also
 

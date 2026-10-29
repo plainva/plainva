@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-10-25
+Stan na: 2026-10-29
 
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
@@ -114,6 +114,68 @@ Nowo utworzone szablony automatycznie niosą znacznik. Gdy tworzysz notatkę **z
 ## Zgodność z Obsidian
 
 Zadania to zwykłe pola wyboru GFM (GitHub-Flavored Markdown). Plainva nigdy nie dodaje specjalnej składni: te same linie `- [ ]` renderują się jako pola wyboru w Obsidian i czytelnie wyświetlają się w dowolnym edytorze. Konwencje `📅 data` i `#tag` to typowy styl wtyczki Obsidian Tasks, ale w Twojej notatce są to zwykły tekst.
+
+## Zapytania wtyczki Tasks
+
+Notatka napisana dla wtyczki Obsidian Tasks może zawierać blok kodu `tasks` z zapytaniem. Plainva rysuje go jako listę zadań — w podglądzie na żywo i w trybie czytania, na komputerze i na telefonie, także wewnątrz cytatu lub calloutu:
+
+````markdown
+```tasks
+not done
+tags include #project
+show tree
+sort by filename reverse
+```
+````
+
+Zapytanie zostaje w notatce dokładnie tak, jak je napisano; Plainva nigdy nie zapisuje niczego w tym bloku. Tryb źródłowy zawsze pokazuje zwykły tekst.
+
+### Praca z listą
+
+- Zaznacz pole wyboru zadania: Plainva zapisuje wiersz zadania w jego własnej notatce — z datą ukończenia i powtarzaniem, jak w widoku Zadania.
+- Kliknij lub dotknij wiersza: notatka otwiera się w wierszu zadania.
+- Prawy klik na wierszu na komputerze albo przytrzymanie na telefonie otwiera menu wiersza: **Ukończone**/**Otwarte**, **Zmień termin**, **Ustaw priorytet**, **Ustaw stan**.
+- W osadzonej notatce (`![[…]]`) lista jest tylko do odczytu: bez zaznaczania i bez menu.
+- Gdy kursor jest wewnątrz bloku, edytor pokazuje zapytanie jako tekst. **Edytuj zapytanie** ustawia kursor w zapytaniu; na telefonie najpierw przełącza na edycję.
+
+Dół bloku pokazuje liczbę zadań („12 zadań”), przełącznik **Wyjaśnienie** i **Edytuj zapytanie**. **Wyjaśnienie** pokazuje, jak Plainva odczytała każdy wiersz zapytania, z datami jako rzeczywistymi dniami. Duży wynik nie jest po cichu ucinany: Plainva pokazuje pierwsze 100 wierszy, a potem **Pokaż wszystkie (n)**.
+
+### Co Plainva rozumie
+
+Plainva czyta te wiersze języka zapytań Tasks:
+
+| Temat | Wiersze |
+|---|---|
+| Stan | `done`, `not done`, `status.type is …` |
+| Daty | `due`, `scheduled`, `starts`, `done`, `created`, `cancelled`, `happens`, każdy z `on`, `before`, `after`, `on or before`, `on or after` albo `in`; jako dni: `2026-11-04`, `today`, `tomorrow`, `yesterday`, dni tygodnia, `3 days ago`, `in 2 weeks`, `last week`, `this month`, `next quarter`, `2026-W44`, `2026-10`, `2026-Q4`, `2026` — tygodnie biegną od poniedziałku do niedzieli, jak w Tasks |
+| Data jest lub jej nie ma | `has due date`, `no scheduled date`, `due date is invalid` |
+| Powtarzanie | `is recurring`, `recurrence includes …` |
+| Priorytet | `priority is high`, `priority is above none` — sześć poziomów, od najwyższego do najniższego |
+| Tekst i miejsce | `description`, `path`, `filename`, `folder`, `root` i `heading`, każdy z `includes` albo `does not include` |
+| Tagi | `tags include #project`, `tags do not include #project`, `has tags`, `no tags` |
+| Elementy podrzędne | `exclude sub-items` |
+| Łączenie | `AND`, `OR`, `NOT`, `XOR`, z `( )`, `[ ]`, `{ }` albo `" "` wokół części |
+| Sortowanie | `sort by …` z każdym kluczem oprócz `random`, `status.name` i `id`, w razie potrzeby z `reverse`; po Twoich własnych wierszach obowiązuje domyślna kolejność wtyczki Tasks, wraz z pilnością |
+| Grupowanie | `group by …`, do trzech poziomów |
+| Wygląd i liczba | `show tree`, `hide backlink`, `hide task count` i podobne, `limit 20`, `limit groups 5`, `explain` |
+| Komentarze i symbole zastępcze | wiersze zaczynające się od `#`; symbole zastępcze takie jak `{{query.file.path}}`, które odnoszą się do notatki, w której stoi zapytanie |
+
+### Wiersze, za którymi Plainva nie nadąży
+
+Każdy wiersz zapytania należy do jednego z trzech przypadków:
+
+- Wiersz, który wtyczka Tasks zna, a Plainva jeszcze nie — na przykład kod (`filter by function`; Plainva nigdy nie uruchamia kodu z notatek), wyrażenia regularne (`regex matches`), zależności (`is blocked`), ustawienia wstępne albo inne zapisy dat. Wskazówka nad listą podaje wiersz i powód; wiersz jest pomijany, więc lista może pokazywać więcej zadań niż w Obsidian — albo w innej kolejności, w wierszach `sort by` i `group by`.
+- Wiersz układu bez odpowiednika w Plainva (`hide edit button`, `short mode`, …) jest po cichu przyjmowany.
+- Wiersz, który odrzuca także wtyczka Tasks (literówka, pomieszane nawiasy, niemożliwa data), pokazuje błąd z wierszem i powodem, i żadnej listy.
+
+### Różnice względem Obsidian
+
+- „Dziś” to dzień kalendarzowy.
+- Notatki z `plainva.tasks: false` są tu liczone; Obsidian nie zna tej właściwości.
+- Globalny filtr i globalne zapytanie wtyczki Tasks są wymienione w **Wyjaśnieniu**, ale nie są stosowane.
+- Własne znaki stanu (`[>]`, `[!]`, …) nie są w Plainva zadaniami.
+
+Bloki Dataview pozostają zwykłym tekstem.
 
 ## Zobacz też
 

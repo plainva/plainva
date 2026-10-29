@@ -1,6 +1,6 @@
 # Importeren uit een andere app
 
-Laatst bijgewerkt: 2026-10-06
+Laatst bijgewerkt: 2026-10-29
 
 Plainva importeert notities uit andere apps in een nieuwe vault of een nieuw benoemde submap van de geopende vault. De rest blijft ongewijzigd; je kunt de importmap daarna verplaatsen of verwijderen.
 
@@ -79,7 +79,7 @@ Een grote werkruimte kan even duren, dus een import kan worden gestopt: **Import
 | **HTML-map / ZIP** | Een map, bestanden of een ZIP met HTML-pagina’s | De pagina’s als Markdown-notities, met de links ertussen omgeleid |
 | **Markdown-map / ZIP** | Een map, bestanden of een ZIP | De `.md`-bestanden en hun mapstructuur |
 
-**Obsidian** staat ook in de lijst, maar start geen import — en heeft er ook geen nodig. Plainva werkt met dezelfde Markdown-bestanden: het item legt dat uit en biedt je **Vault openen** aan. Wiki-links, tags, frontmatter en `.base`-bestanden blijven werken, en je vault blijft bruikbaar in Obsidian. Eerlijk gezegd: er is geen plugin-ecosysteem, geen Canvas en geen Dataview — daarvoor in de plaats krijg je filters in `.base`, en plugin-syntax in je notities blijft daar gewoon als platte tekst staan.
+**Obsidian** staat ook in de lijst, maar start geen import — en heeft er ook geen nodig. Plainva werkt met dezelfde Markdown-bestanden: het item legt dat uit en biedt je **Vault openen** aan. Wiki-links, tags, frontmatter en `.base`-bestanden blijven werken, en je vault blijft bruikbaar in Obsidian. Eerlijk gezegd: er is geen plugin-ecosysteem, geen Canvas en geen Dataview — daarvoor in de plaats krijg je filters in `.base`, en plugin-syntax in je notities blijft daar gewoon als platte tekst staan. Een uitzondering is een `tasks`-blok van de Tasks-plugin: Plainva toont het als takenlijst ([Query's van de Tasks-plugin](Tasks.md#querys-van-de-tasks-plugin)).
 
 ## Waarom ontbreekt mijn app?
 

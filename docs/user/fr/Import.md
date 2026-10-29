@@ -1,6 +1,6 @@
 # Importer depuis une autre application
 
-Dernière mise à jour : 2026-10-13
+Dernière mise à jour : 2026-10-29
 
 Plainva importe les notes d’autres applications dans un nouveau vault ou un sous-dossier nouvellement nommé du vault ouvert. Le reste du vault reste inchangé ; vous pouvez ensuite déplacer ou supprimer le dossier importé.
 
@@ -79,7 +79,7 @@ Un grand espace de travail peut prendre du temps, c'est pourquoi un import peut 
 | **Dossier / ZIP HTML** | Un dossier, des fichiers ou un ZIP de pages HTML | Les pages en notes Markdown, les liens entre elles réorientés |
 | **Dossier Markdown / ZIP** | Un dossier, des fichiers ou un ZIP | Les fichiers `.md` et leur structure de dossiers |
 
-**Obsidian** figure aussi dans la liste, mais ne déclenche aucun import — et n'en a d'ailleurs pas besoin. Plainva fonctionne avec les mêmes fichiers Markdown : l'entrée l'explique et vous propose **Ouvrir le vault**. Les liens wiki, les tags, le frontmatter et les fichiers `.base` continuent de fonctionner, et votre vault reste utilisable dans Obsidian. En toute honnêteté : il n'y a pas d'écosystème de plugins, pas de Canvas et pas de Dataview — vous avez à la place des filtres dans `.base`, et la syntaxe de plugin dans vos notes y reste sous forme de texte brut.
+**Obsidian** figure aussi dans la liste, mais ne déclenche aucun import — et n'en a d'ailleurs pas besoin. Plainva fonctionne avec les mêmes fichiers Markdown : l'entrée l'explique et vous propose **Ouvrir le vault**. Les liens wiki, les tags, le frontmatter et les fichiers `.base` continuent de fonctionner, et votre vault reste utilisable dans Obsidian. En toute honnêteté : il n'y a pas d'écosystème de plugins, pas de Canvas et pas de Dataview — vous avez à la place des filtres dans `.base`, et la syntaxe de plugin dans vos notes y reste sous forme de texte brut. Seule exception : un bloc `tasks` du plugin Tasks, que Plainva affiche comme liste de tâches ([Requêtes du plugin Tasks](Tasks.md#requêtes-du-plugin-tasks)).
 
 ## Pourquoi mon application manque-t-elle ?
 

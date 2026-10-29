@@ -1,6 +1,6 @@
 # Tareas
 
-Última actualización: 2026-10-25
+Última actualización: 2026-10-29
 
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 
@@ -114,6 +114,68 @@ Las plantillas recién creadas llevan el marcador automáticamente. Cuando creas
 ## Compatibilidad con Obsidian
 
 Las tareas son casillas GFM (GitHub-Flavored Markdown) normales. Plainva nunca añade una sintaxis especial: las mismas líneas `- [ ]` se renderizan como casillas en Obsidian y se leen con claridad en cualquier editor. Las convenciones `📅 date` y `#tag` son el estilo habitual de Obsidian-Tasks, pero son solo texto en tu nota.
+
+## Consultas del plugin Tasks
+
+Una nota escrita para el plugin Obsidian Tasks puede contener un bloque de código `tasks` con una consulta. Plainva lo dibuja como una lista de tareas — en la vista previa en vivo y en el modo lectura, en el escritorio y en el teléfono, también dentro de una cita o un callout:
+
+````markdown
+```tasks
+not done
+tags include #project
+show tree
+sort by filename reverse
+```
+````
+
+La consulta se queda en la nota exactamente como la escribiste; Plainva nunca escribe dentro del bloque. El modo fuente siempre muestra el texto plano.
+
+### Trabajar con la lista
+
+- Marca la casilla de una tarea: Plainva escribe la línea de la tarea en su propia nota — con la fecha de finalización y la repetición, como en la vista Tareas.
+- Haz clic o toca una fila: la nota se abre en la línea de la tarea.
+- Clic derecho en una fila en el escritorio, o mantener pulsada en el teléfono, abre el menú de la fila: **Hechas**/**Abiertas**, **Cambiar vencimiento**, **Establecer prioridad**, **Establecer estado**.
+- En una nota incrustada (`![[…]]`) la lista es de solo lectura: sin casilla ni menú.
+- Con el cursor dentro del bloque, el editor muestra la consulta como texto. **Editar consulta** coloca el cursor en la consulta; en el teléfono primero pasa a edición.
+
+El pie del bloque muestra el número de tareas («12 tareas»), el interruptor **Explicación** y **Editar consulta**. **Explicación** muestra cómo ha leído Plainva cada línea de la consulta, con las fechas como días reales. Un resultado grande no se corta en silencio: Plainva muestra las primeras 100 filas y después **Mostrar todas (n)**.
+
+### Lo que Plainva entiende
+
+Plainva lee estas líneas del lenguaje de consultas de Tasks:
+
+| Tema | Líneas |
+|---|---|
+| Estado | `done`, `not done`, `status.type is …` |
+| Fechas | `due`, `scheduled`, `starts`, `done`, `created`, `cancelled`, `happens`, cada una con `on`, `before`, `after`, `on or before`, `on or after` o `in`; como días: `2026-11-04`, `today`, `tomorrow`, `yesterday`, días de la semana, `3 days ago`, `in 2 weeks`, `last week`, `this month`, `next quarter`, `2026-W44`, `2026-10`, `2026-Q4`, `2026` — las semanas van de lunes a domingo, como en Tasks |
+| Fecha presente o no | `has due date`, `no scheduled date`, `due date is invalid` |
+| Repetición | `is recurring`, `recurrence includes …` |
+| Prioridad | `priority is high`, `priority is above none` — seis niveles, del más alto al más bajo |
+| Texto y ubicación | `description`, `path`, `filename`, `folder`, `root` y `heading`, cada uno con `includes` o `does not include` |
+| Etiquetas | `tags include #project`, `tags do not include #project`, `has tags`, `no tags` |
+| Subelementos | `exclude sub-items` |
+| Combinación | `AND`, `OR`, `NOT`, `XOR`, con `( )`, `[ ]`, `{ }` o `" "` alrededor de las partes |
+| Orden | `sort by …` con todas las claves excepto `random`, `status.name` e `id`, si quieres con `reverse`; después de tus propias líneas, el orden predeterminado del plugin Tasks, urgencia incluida |
+| Agrupación | `group by …`, hasta tres niveles |
+| Presentación y cantidad | `show tree`, `hide backlink`, `hide task count` y similares, `limit 20`, `limit groups 5`, `explain` |
+| Comentarios y marcadores de posición | líneas que empiezan por `#`; marcadores de posición como `{{query.file.path}}`, que se refieren a la nota en la que está la consulta |
+
+### Líneas que Plainva no puede seguir
+
+Cada línea de una consulta cae en uno de tres casos:
+
+- Una línea que el plugin Tasks conoce y Plainva todavía no — por ejemplo código (`filter by function`; Plainva nunca ejecuta código de las notas), expresiones regulares (`regex matches`), dependencias (`is blocked`), ajustes preestablecidos u otras expresiones de fecha. Un aviso sobre la lista nombra la línea y el motivo; la línea se omite, así que la lista puede mostrar más tareas que en Obsidian — o en otro orden, en las líneas `sort by` y `group by`.
+- Una línea de presentación sin equivalente en Plainva (`hide edit button`, `short mode`, …) se acepta sin avisar.
+- Una línea que el plugin Tasks también rechaza (una errata, paréntesis mezclados, una fecha imposible) muestra un error con la línea y el motivo, y ninguna lista.
+
+### Diferencias con Obsidian
+
+- «Hoy» es el día del calendario.
+- Las notas con `plainva.tasks: false` cuentan aquí; Obsidian no conoce esa propiedad.
+- El filtro global y la consulta global del plugin Tasks se nombran en la **Explicación**, pero no se aplican.
+- Los caracteres de estado personalizados (`[>]`, `[!]`, …) no son tareas en Plainva.
+
+Los bloques de Dataview siguen siendo texto plano.
 
 ## Ver también
 

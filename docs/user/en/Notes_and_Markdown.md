@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-10-23
+Last updated: 2026-10-29
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -156,6 +156,7 @@ A daily note can also hold a **journal**: short entries with a time (`- 14:05 Te
   ````
 
 - **Footnotes**: `Text[^1]` plus `[^1]: The footnote.` at the end — read mode renders the reference and the footnote apparatus with jump marks. The fastest way is the **Footnote** slash command (`/footnote`): it inserts the next free reference and jumps straight into the definition at the end of the note.
+- **Tasks queries**: a fenced `tasks` block written for the Obsidian Tasks plugin is drawn as a task list in the live preview and in read mode — you can tick the tasks right there. The query itself stays untouched in the note; see [Queries from the Tasks plugin](Tasks.md#queries-from-the-tasks-plugin).
 
 ## Right-to-left text
 

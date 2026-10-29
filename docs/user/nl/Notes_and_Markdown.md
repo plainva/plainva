@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-10-23
+Laatst bijgewerkt: 2026-10-29
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -156,6 +156,7 @@ Een dagnotitie kan ook een **journaal** bevatten: korte items met een tijdstip (
   ````
 
 - **Voetnoten**: `Tekst[^1]` plus `[^1]: De voetnoot.` aan het einde — leesmodus rendert de verwijzing en het voetnotenapparaat met sprongmarkeringen. Het snelst gaat het via het slash-commando **Voetnoot** (`/footnote`): het voegt de eerstvolgende vrije verwijzing in en springt meteen naar de definitie aan het einde van de notitie.
+- **Tasks-query's**: een codeblok `tasks` dat voor de Obsidian-plugin Tasks is geschreven, wordt in het live-voorbeeld en in leesmodus als takenlijst getekend — de taken vink je daar direct af. De query zelf blijft ongewijzigd in de notitie; zie [Query's van de Tasks-plugin](Tasks.md#querys-van-de-tasks-plugin).
 
 ## Tekst van rechts naar links
 

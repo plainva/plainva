@@ -1,6 +1,6 @@
 # Importare da un'altra app
 
-Ultimo aggiornamento: 2026-10-06
+Ultimo aggiornamento: 2026-10-29
 
 Plainva importa note da altre app in un nuovo vault o in una sottocartella con un nome nuovo del vault aperto. Il resto rimane invariato; puoi poi spostare o eliminare la cartella importata.
 
@@ -79,7 +79,7 @@ Un'area di lavoro grande può richiedere tempo, perciò un'importazione può ess
 | **Cartella / ZIP HTML** | Una cartella, dei file o uno ZIP di pagine HTML | Le pagine come note Markdown, con i collegamenti fra loro riorientati |
 | **Cartella Markdown / ZIP** | Una cartella, dei file o uno ZIP | I file `.md` e la loro struttura di cartelle |
 
-**Obsidian** è presente anche nell'elenco, ma non avvia alcuna importazione — e non ne serve nessuna. Plainva lavora con gli stessi file Markdown: la voce lo spiega e ti offre **Apri vault**. Wiki-link, tag, frontmatter e file `.base` continuano a funzionare, e il tuo vault resta utilizzabile in Obsidian. Onestamente: non c'è un ecosistema di plugin, non c'è Canvas e non c'è Dataview — al loro posto hai i filtri in `.base`, e la sintassi dei plugin nelle tue note resta lì come testo semplice.
+**Obsidian** è presente anche nell'elenco, ma non avvia alcuna importazione — e non ne serve nessuna. Plainva lavora con gli stessi file Markdown: la voce lo spiega e ti offre **Apri vault**. Wiki-link, tag, frontmatter e file `.base` continuano a funzionare, e il tuo vault resta utilizzabile in Obsidian. Onestamente: non c'è un ecosistema di plugin, non c'è Canvas e non c'è Dataview — al loro posto hai i filtri in `.base`, e la sintassi dei plugin nelle tue note resta lì come testo semplice. L'eccezione è un blocco `tasks` del plugin Tasks: Plainva lo mostra come elenco di attività ([Query del plugin Tasks](Tasks.md#query-del-plugin-tasks)).
 
 ## Perché manca la mia app?
 
