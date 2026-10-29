@@ -89,6 +89,30 @@ async function screenCentre(selector: string): Promise<{ x: number; y: number }>
   return { x: Math.round(frame.x + box.left + box.width / 2), y: Math.round(frame.y + titleBar + box.top + box.height / 2) };
 }
 
+/**
+ * Types into the editor of the current window, at the end of the note.
+ *
+ * Linux and Windows: to the element through the driver — on WebKitGTK the
+ * global key actions went nowhere (fifth run, 2026-10-06), the element's own
+ * did. macOS: for real, a click into the editor, Cmd+Down to the end of the
+ * note and typed keys through System Events. The embedded driver's synthetic
+ * text (`execCommand('insertText')`) reached CodeMirror in one run and not in
+ * the next, in the main window and in the second (2026-10-29), so it proves
+ * nothing either way there.
+ */
+async function typeIntoEditor(text: string): Promise<void> {
+  const editor = $(".cm-content");
+  if (isMac) {
+    const at = await screenCentre(".cm-content");
+    mac.clickAt(at.x, at.y);
+    mac.keyCode(125, ["command"]);
+    mac.typeText(text);
+    return;
+  }
+  await editor.click();
+  await editor.addValue(text);
+}
+
 /** The app's own list of its windows, for a failure message: what exists, whether the driver sees it or not. */
 async function appWindows(): Promise<string> {
   try {
@@ -174,10 +198,7 @@ describe("Plainva native smoke", () => {
 
     const editor = $(".cm-content");
     await editor.waitForExist({ timeout: 10_000 });
-    await editor.click();
-    // Sent to the element, not to "whatever has the focus": on WebKitGTK the
-    // global key actions went nowhere (fifth run, 2026-10-06).
-    await editor.addValue(marker);
+    await typeIntoEditor(marker);
 
     // Autosave runs about a second after the last key; give the atomic write
     // its time and then read what is actually in the vault.
@@ -316,19 +337,7 @@ describe("Plainva native smoke", () => {
       timeout: 10_000,
       timeoutMsg: "the second window does not show the note's text",
     });
-    if (isMac) {
-      // Real input into the second window: the embedded driver's synthetic
-      // text reached the editor of the main window (S2) and not the one of
-      // the second (2026-10-29: the window showed the note, the file never
-      // got the marker). A click into the editor and typed keys, as a person
-      // does it, through the system.
-      const at = await screenCentre(".cm-content");
-      mac.clickAt(at.x, at.y);
-      mac.typeText(` ${secondMarker}`);
-    } else {
-      await editor.click();
-      await editor.addValue(` ${secondMarker}`);
-    }
+    await typeIntoEditor(` ${secondMarker}`);
     await waitFor(
       () => fileHolds(note(), secondMarker),
       20_000,

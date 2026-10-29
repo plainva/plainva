@@ -98,6 +98,12 @@ export function keystroke(key: string, modifiers: Array<"command" | "control" | 
   osa(`tell application "System Events" to keystroke "${key}"${using}`);
 }
 
+/** A real key by its virtual key code (125 is the down arrow), with modifiers. */
+export function keyCode(code: number, modifiers: Array<"command" | "control" | "option" | "shift"> = []): void {
+  const using = modifiers.length ? ` using {${modifiers.map((m) => `${m} down`).join(", ")}}` : "";
+  osa(`tell application "System Events" to key code ${code}${using}`);
+}
+
 /** Real typing: the characters as key presses, through System Events, to the app in front. */
 export function typeText(text: string): void {
   const quoted = text.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
