@@ -10,7 +10,7 @@ import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { usePageSwipe } from "../lib/usePageSwipe";
 import { reauthorizeCalendarAccount } from "../services/pim/pimReauth";
 import { AccountAccessSheet } from "../components/AccountAccessSheet";
-import type { OAuthFamily } from "@plainva/ui";
+import type { AccessFamily } from "@plainva/ui";
 import { calendarColor } from "@plainva/ui";
 import { toastConnectionFailure } from "../services/connectionToast";
 import {
@@ -134,7 +134,7 @@ export function PimCalendarScreen({
    * the calendar stayed empty, and the reason sat unread in the cache (§2.9).
    */
   /** This phone has no usable access for the account's provider: the sheet asks, then the sign-in runs. */
-  const [accessFor, setAccessFor] = useState<OAuthFamily | null>(null);
+  const [accessFor, setAccessFor] = useState<AccessFamily | null>(null);
   const [needsSignIn, setNeedsSignIn] = useState<{ id: string; label: string; provider: string; state: DeviceSignInState; reason?: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const ptrRef = useRef<HTMLDivElement>(null);

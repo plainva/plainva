@@ -78,7 +78,7 @@ export function ConnectRunFrame({
     return () => { alive = false; };
   }, [run.context.vaultId, run.context.cloudAccountId]);
 
-  const provider = familyLabel(run.family);
+  const provider = familyLabel(run.family, run.flavor);
   const steps = connectRunSteps(run).map((step) => ({ key: step.id, label: t(connectStepLabelKey(step.id)), state: step.state }));
   const finished = !service;
 
@@ -111,12 +111,13 @@ export function ConnectRunFrame({
       />
       <div className="m-connectrun" data-testid="connectrun-frame" data-step={service ?? "summary"}>
         <div className="m-connectrun-account" data-testid="connectrun-account">
-          <span aria-hidden className={`m-acctmark m-acctmark--${run.family}`}>{accountMonogram(run.family)}</span>
+          <span aria-hidden className={`m-acctmark m-acctmark--${run.family}`}>{accountMonogram(run.family, run.flavor)}</span>
           <span className="m-connectrun-who">
             <strong>{provider}</strong>
             {account && <span>{account}</span>}
           </span>
-          <span className={cx("pv-acct-state", "pv-acct-state--connected")}>{t("connectRun.signedIn")}</span>
+          {/* Only after a sign-in that took place (settings plan 2026-10-29, § 5.1). */}
+          {run.signedIn !== false && <span className={cx("pv-acct-state", "pv-acct-state--connected")} data-testid="connectrun-signed-in">{t("connectRun.signedIn")}</span>}
         </div>
         <WizardSteps steps={steps} layout="stacked" label={t("connectRun.stepsLabel")} testId="connectrun-steps" />
         <h2 className="m-connectrun-heading" data-testid="connectrun-heading">{heading}</h2>
@@ -184,7 +185,7 @@ export function ConnectRunFooter({ run, service, primary, disabled = false }: { 
     void hasReceivedPimOAuthResult(run.context, service).then((value) => { if (alive) setRetrySaved(value); }).catch(() => {});
     return () => { alive = false; };
   }, [run, service]);
-  const provider = familyLabel(run.family);
+  const provider = familyLabel(run.family, run.flavor);
   return (
     <div className="m-connectrun-foot">
       {retrySaved && (
@@ -231,7 +232,7 @@ async function abandonPrepared(): Promise<"connected" | "released"> {
 export function ConnectRunSummary({ run, onDone }: { run: ConnectQueue; onDone: () => void }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
-  const provider = familyLabel(run.family);
+  const provider = familyLabel(run.family, run.flavor);
   const services = runServices(run);
   // "Done", the back arrow and Android's back gesture all end the run: a
   // summary left without ending it would come back every time the accounts

@@ -2471,7 +2471,6 @@
     "syncUrl": "Server URL",
     "syncUser": "Username",
     "syncPassword": "Password",
-    "syncConnect": "Connect",
     "syncNow": "Sync now",
     "syncIdle": "Connected",
     "syncDisconnected": "Sync paused",
@@ -2479,17 +2478,13 @@
     "syncError": "Sync error",
     "syncRetryingAt": "No connection — trying again at {{time}}",
     "syncRetrying": "No connection — will try again",
-    "syncProvider": "Provider",
     "s3Endpoint": "Endpoint",
     "s3Region": "Region",
     "s3Bucket": "Bucket",
     "s3AccessKeyId": "Access Key ID",
     "s3SecretAccessKey": "Secret Access Key",
     "s3Prefix": "Prefix (optional)",
-    "syncOwnAppKey": "Your own app key (optional)",
-    "syncOwnAppIdHint": "Leave empty to use Plainva's central app registration. Your own app sidesteps its user limit.",
     "syncFolder": "Remote folder (optional)",
-    "syncFolderAfterConnect": "The cloud folder is chosen after connecting.",
     "vaults": "Vaults",
     "vaultLocal": "On this device",
     "syncCreatesVaultHint": "Connecting creates a new, separate vault for this cloud location.",
@@ -2514,7 +2509,6 @@
     "vaultExternalRemoveConfirm": "Remove “{{name}}” from Plainva? The connection to “{{label}}” goes; the files stay where they are.",
     "vaultExternalSubtitle": "Folder: {{label}}",
     "vaultFolderNotPickable": "The system does not hand out this location (for example Downloads or the storage root). Pick a folder inside it.",
-    "vaultCreateOnlineTitle": "New vault in the cloud",
     "onboardingCloudExisting": "Connect an existing vault",
     "onboardingCloudExistingDesc": "Bring cloud content onto this device.",
     "onboardingCloudNew": "Create a new vault in the cloud",
@@ -3299,7 +3293,6 @@
     "empty": "No email account connected",
     "noAccounts": "No email account connected yet.",
     "imapHint": "Plainva reads without marking messages as read; flag, move and delete actions only run when you request them. Gmail: imap.gmail.com, port 993, with an app password.",
-    "backend": "Connection type",
     "microsoftHint": "For Outlook.com / Microsoft 365: sign in directly in the browser — no app password, no IMAP.",
     "connectMicrosoft": "Sign in with Microsoft",
     "folder": "Mail folder",
@@ -3584,10 +3577,6 @@
     "addAccount": "Connect account…",
     "pickProvider": "Which provider is the account with?",
     "pickServices": "What should Plainva use it for? You can pick more than one.",
-    "connectServices_one": "Connect {{count}} service",
-    "connectServices_other": "Connect {{count}} services",
-    "noFilesForFamily": "This provider has no file storage Plainva can use.",
-    "appPasswordHint": "This provider needs an app password rather than your normal one — its own help page explains where to create it.",
     "filesXorNote": "Only one account per vault can carry Files — currently {{account}}.",
     "stepProvider": "Provider",
     "stepServices": "Services",
@@ -4820,8 +4809,6 @@
     "storageFailed": "Storage could not be confirmed. Try again; setup will resume the same connection.",
     "deviceStorageFailed": "Plainva could not use its own database on this device ({{detail}}). This is not the provider. Try again; setup will resume the same connection.",
     "signedInNotSaved": "The sign-in worked, but the account data could not be saved on this device. Nothing was left half-created.",
-    "filesChecking": "Checking the account and the cloud folder …",
-    "filesCopying": "Copying files and accounts into the new vault …",
     "transferCancelled": "Copying was cancelled; nothing changed. Use “Choose folder” to pick the folder again.",
     "transferCopy": "Local file as a separate copy",
     "transferKeepHint": "Review both contents. “Keep both files” preserves the local file at the new path shown.",
@@ -5118,7 +5105,8 @@
     "providerRefused": "{{provider}} refused",
     "providerText": "{{provider}} did not accept the request. Try again; if that does not help, send the text below with a diagnostics export.",
     "noConnection": "No connection",
-    "notCompleted": "Not completed"
+    "notCompleted": "Not completed",
+    "continueWithout": "Continue without {{services}}"
   },
   "tasksQuery": {
     "editQuery": "Edit query",
@@ -5260,6 +5248,7 @@
       "mail": "{{provider}} has no mailbox Plainva can fetch."
     },
     "guide": "Open the guide",
-    "statusNotYet": "not connected yet"
+    "statusNotYet": "not connected yet",
+    "stepSetUp": "Set up"
   }
 }

@@ -270,9 +270,12 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       />
     );
   },
-  cloudconnect: (_e, c) => (
+  cloudconnect: (e, c) => (
     <CloudConnectScreen
       onBack={c.pop}
+      // A side door names its service in the path (E7 of the settings plan 2026-10-29).
+      only={e.path === "files" || e.path === "calendar" || e.path === "mail" ? e.path : undefined}
+      createTemplateId={e.createTemplateId}
       // The wizard hands over to the form and steps out of the way: back from
       // the form returns to Cloud-Konten, where the new account now stands,
       // instead of to a provider list the user is done with (N4.2). One atomic
@@ -290,12 +293,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       // persisted queue rather than one combined form: the browser round trip
       // and (for files) the vault switch both tear the navigation stack down
       // mid-run. This opens the first service; the queue holds the rest.
-      onPickServices={(services, family) => {
-        void startConnectQueue(family, services).then((first) => {
-          if (!first) return;
-          c.replace({ kind: screenForService(first), path: "", family });
-        });
-      }}
+      onOpenStep={(first, family) => c.replace({ kind: screenForService(first), path: "", family })}
       // The device's calendars (EventKit plan E5): the system asks for access,
       // the account is written, and the calendar list is where it lands —
       // there is no form to hand over to.
@@ -414,7 +412,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })}
     />
   ),
-  pimaccounts: (e, c) => <PimAccountsScreen accountId={e.path || undefined} bump={c.bump} family={e.family} onBack={c.pop} vault={c.vault} onOpenAccountCalendar={(id) => c.push({ kind: "accountservice", path: `calendar:${id}` })} />,
+  pimaccounts: (e, c) => <PimAccountsScreen onAddAccount={() => c.push({ kind: "cloudconnect", path: "calendar" })} accountId={e.path || undefined} bump={c.bump} family={e.family} onBack={c.pop} vault={c.vault} onOpenAccountCalendar={(id) => c.push({ kind: "accountservice", path: `calendar:${id}` })} />,
   mail: (_e, c) => (
     <MailListScreen
       vault={c.vault}
@@ -446,7 +444,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     />
   ),
   mailaccounts: (e, c) => (
-    <MailAccountsScreen accountId={e.path || undefined} bump={c.bump} family={e.family} onBack={c.pop} onOpenAccountMail={(id) => c.push({ kind: "accountservice", path: `mail:${id}` })} onOpenRule={(id) => c.push({ kind: "mailrule", path: id })} vault={c.vault} />
+    <MailAccountsScreen onAddAccount={() => c.push({ kind: "cloudconnect", path: "mail" })} accountId={e.path || undefined} bump={c.bump} family={e.family} onBack={c.pop} onOpenAccountMail={(id) => c.push({ kind: "accountservice", path: `mail:${id}` })} onOpenRule={(id) => c.push({ kind: "mailrule", path: id })} vault={c.vault} />
   ),
   mailrule: (e, c) => <MailRuleScreen ruleId={e.path} onBack={c.pop} />,
   tasks: (_e, c) => (

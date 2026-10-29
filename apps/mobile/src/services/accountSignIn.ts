@@ -1,6 +1,8 @@
 import { devicePlatform } from "./devicePlatform";
 import {
   adoptFilesSignIn,
+  adoptedDropboxAccess,
+  resolveDropboxAccess,
   bindSignedInAccount,
   completeSignIn,
   getPlatformServices,
@@ -16,7 +18,9 @@ import {
   SignInNothingGrantedError,
   SignInWrongAccountError,
   validClientId,
+  type AccessFamily,
   type AccessResolution,
+  type DropboxAccessResolution,
   type CloudAccountRecord,
   type CloudServiceId,
   type OAuthAccess,
@@ -32,7 +36,7 @@ import { getAccountToken, saveAccountToken } from "./accountBroker";
 import { getPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 import { restartPimAccountAfterLogin } from "./pim/pimService";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
-import { switchProviderToAccountBroker } from "./syncService";
+import { getStoredProvider, switchProviderToAccountBroker } from "./syncService";
 import type { MobileSyncProvider } from "./syncSlot";
 import { authorizeNativeGoogle } from "./googleNativeAuthorization";
 import { accountCredentialStore } from "./accountCredentialStore";
@@ -56,7 +60,7 @@ import { markSignInAnnounced } from "./signInNotice";
  */
 
 export class AccessUnavailableError extends Error {
-  constructor(readonly family: OAuthFamily, readonly problem: Exclude<AccessResolution, { ok: true }>["problem"]) {
+  constructor(readonly family: AccessFamily, readonly problem: Exclude<AccessResolution, { ok: true }>["problem"]) {
     super(`No usable ${family} access on this device: ${problem}`);
     this.name = "AccessUnavailableError";
   }
@@ -66,9 +70,10 @@ const env = (): Record<string, unknown> => import.meta.env as unknown as Record<
 
 export { devicePlatform };
 
-export async function readDeviceAccess(family: OAuthFamily, vaultId?: string): Promise<StoredOAuthAccess | null> {
+export async function readDeviceAccess(family: AccessFamily, vaultId?: string): Promise<StoredOAuthAccess | null> {
   const credentials = getPlatformServices().credentials;
   const stored = readStoredOAuthAccess(await credentials.readSecret<unknown>(oauthAccessKey(family)));
+  if (family === "dropbox") return readDropboxDeviceAccess(stored, vaultId);
   const replacement = retiredAccessReplacement(family, stored);
   if (replacement) {
     await credentials.writeSecret(oauthAccessKey(family), replacement);
@@ -103,13 +108,47 @@ export async function readDeviceAccess(family: OAuthFamily, vaultId?: string): P
   return standard;
 }
 
-export async function saveDeviceAccess(family: OAuthFamily, access: StoredOAuthAccess): Promise<void> {
+/**
+ * Dropbox's app key became the phone's choice like the Google and Microsoft
+ * client (settings plan 2026-10-29, E6). A phone without a choice takes over
+ * what the vault's Dropbox account kept - its own app id, or the key its
+ * stored sign-in was made with - once, and keeps it as its choice. The
+ * account's value stays: nothing is lost, and every other device of the
+ * vault takes it over the same way.
+ */
+async function readDropboxDeviceAccess(stored: StoredOAuthAccess | null, vaultId?: string): Promise<StoredOAuthAccess | null> {
+  if (stored || !vaultId) return stored;
+  const records = await loadCloudAccounts(vaultId).catch(() => []);
+  const signedIn = await getStoredProvider(vaultId).catch(() => null);
+  const adopted = adoptedDropboxAccess([
+    ...records.filter((record) => record.family === "dropbox").map((record) => record.byoClientId),
+    signedIn?.provider === "dropbox" ? signedIn.creds.appKey : undefined,
+  ]);
+  if (adopted) await getPlatformServices().credentials.writeSecret(oauthAccessKey("dropbox"), adopted);
+  return adopted;
+}
+
+export async function saveDeviceAccess(family: AccessFamily, access: StoredOAuthAccess): Promise<void> {
   if (access.source === "own" && (!access.clientId || !validClientId(family, access.clientId))) throw new Error("invalid client id");
   await getPlatformServices().credentials.writeSecret(oauthAccessKey(family), access);
 }
 
-export async function deviceAccess(family: OAuthFamily, vaultId?: string): Promise<AccessResolution> {
+export async function deviceAccess(family: OAuthFamily, vaultId?: string): Promise<AccessResolution>;
+export async function deviceAccess(family: "dropbox", vaultId?: string): Promise<DropboxAccessResolution>;
+export async function deviceAccess(family: AccessFamily, vaultId?: string): Promise<AccessResolution | DropboxAccessResolution>;
+export async function deviceAccess(family: AccessFamily, vaultId?: string): Promise<AccessResolution | DropboxAccessResolution> {
+  if (family === "dropbox") return resolveDropboxAccess(await readDeviceAccess(family, vaultId));
   return resolveOAuthAccess(family, devicePlatform(), await readDeviceAccess(family, vaultId), env());
+}
+
+/**
+ * The Dropbox app key this phone signs in with (E6). A choice the phone
+ * cannot use is said, never replaced by another key in silence.
+ */
+export async function dropboxDeviceKey(vaultId?: string): Promise<string> {
+  const resolved = await deviceAccess("dropbox", vaultId);
+  if (!resolved.ok) throw new AccessUnavailableError("dropbox", resolved.problem);
+  return resolved.access.clientId;
 }
 
 async function mailKindOf(vaultId: string, record: CloudAccountRecord | undefined): Promise<string | undefined> {

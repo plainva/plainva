@@ -457,7 +457,7 @@ export default function App() {
           ],
         });
         if (choice === "existing") {
-          push({ kind: "sync", path: "" });
+          push({ kind: "cloudconnect", path: "files" });
         } else if (choice === "new") {
           const defs = getVaultTemplates(i18n.language);
           const pick = await mActions({
@@ -468,7 +468,7 @@ export default function App() {
             ],
           });
           if (pick === null) return;
-          push({ kind: "sync", path: "", createTemplateId: pick });
+          push({ kind: "cloudconnect", path: "files", createTemplateId: pick });
         }
       })();
       return;
@@ -518,7 +518,7 @@ export default function App() {
       });
       if (pick === null) return;
       if (where === "online") {
-        push({ kind: "sync", path: "", createTemplateId: pick });
+        push({ kind: "cloudconnect", path: "files", createTemplateId: pick });
         return;
       }
       const { value: rawName, cancelled } = await mPrompt({

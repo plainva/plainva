@@ -111,16 +111,15 @@ describe("the mailbox screen with no mailbox", () => {
    */
   it("never prefills outside a run", async () => {
     rememberConnectSecrets({ email: "ada@example.com", password: "app-pw" });
-    await render();
+    // "Add mailbox" opens the connect assistant with mail ticked (E7 of the
+    // settings plan 2026-10-29): no form of this screen can show a leftover.
+    const opened: string[] = [];
+    await render({ onAddAccount: () => opened.push("assistant") });
     const add = container.querySelector<HTMLElement>('[data-testid="mail-account-add"]');
     await act(async () => add?.click());
-    // Without a family the form starts on Microsoft and the switch is offered;
-    // the IMAP side is where a prefill could show up at all.
-    const imap = container.querySelectorAll<HTMLElement>('[role="radio"]')[1];
-    await act(async () => imap?.click());
-    const address = container.querySelector<HTMLInputElement>('input[placeholder="name@example.com"]');
-    expect(address).not.toBeNull();
-    expect(address?.value).toBe("");
+    expect(opened).toEqual(["assistant"]);
+    expect(container.querySelector('input[placeholder="name@example.com"]')).toBeNull();
+    expect(container.querySelector('[role="radiogroup"]')).toBeNull();
   });
 
   it("does not take that decision once a mailbox exists", async () => {

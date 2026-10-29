@@ -5,7 +5,7 @@ import { beginMobileSignIn } from "../services/accountSignIn";
 import { toastConnectionFailure } from "../services/connectionToast";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil, Plus } from "lucide-react";
-import { Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailTargetForFamily, Row, RowList, SectionLabel, Segmented, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
+import { Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
 import type { MailAccountConfig, MailRule } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, saveMailAccount, setVacation, orphanedMailServer, useOrphanedMailAccounts, vacationSupport } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
@@ -45,6 +45,7 @@ import { listMailAccounts, removeMailAccount } from "@plainva/ui/mail";
  * "sign in on this device" badge, because credentials never travel.
  */
 export function MailAccountsScreen({
+  onAddAccount,
   bump,
   onBack,
   onOpenRule,
@@ -65,6 +66,8 @@ export function MailAccountsScreen({
    */
   family?: CloudProviderFamily;
   accountId?: string;
+  /** "Add mailbox" opens the connect assistant with mail ticked (E7 of the settings plan 2026-10-29). */
+  onAddAccount?: () => void;
   /** The mail page of one mailbox's account (plan "Verbinden", V3). */
   onOpenAccountMail?: (mailAccountId: string) => void;
 }) {
@@ -74,6 +77,15 @@ export function MailAccountsScreen({
   const mailPreset = family ? mailTargetForFamily(family) : null;
   // Only inside a run (a screen opened directly carries no family).
   const runSecrets = family ? getConnectSecrets() : {};
+  /**
+   * The mailbox of a provider with credentials, proven by the one form of the
+   * sign-in step (E5): the step binds it without asking again. Absent in a run
+   * resumed after the app was gone - then the form asks once more.
+   */
+  const provenImap = mailRun && family ? runSecrets.request?.imap ?? null : null;
+  /** A failure of the run's mail step, with its sender in the frame - no toast (settings plan § 5.1). */
+  const [mailFailure, setMailFailure] = useState<unknown>(null);
+  const autoSubmitted = useRef<string | null>(null);
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [mailFolder, setMailFolder] = useState(() => getMobileSettings().mailFolder);
   const [remoteImages, setRemoteImages] = useState(() => getMobileSettings().mailRemoteImages === true);
@@ -178,6 +190,8 @@ export function MailAccountsScreen({
   useEffect(() => {
     if (!loaded || autoOpened.current || (!mailRun && !accountId && (!family || accounts.length > 0))) return;
     autoOpened.current = true;
+    // The sign-in step proved the mailbox: no form, the step binds it.
+    if (mailRun && getConnectSecrets().request?.imap) return;
     const existing = accounts.find(a => a.id === accountId);
     if (existing?.kind === "gmail") { setFormOpen(false); return; }
     setKind(existing ? existing.kind ?? "imap" : mailPreset?.backend ?? "microsoft");
@@ -313,11 +327,12 @@ export function MailAccountsScreen({
     const context = mailRun?.context;
     if (context && context.vaultId !== vault) return;
     setBusy(true);
+    setMailFailure(null);
     try {
       // An untouched password field means "keep the stored one" — changing a
       // server address must not cost the user their app password.
       const password = v.pass || (editing ? ((await getMailPassword(vault, editing.id)) ?? "") : "");
-      if (!password) { toast.error(t("mail.passwordMissing")); return; }
+      if (!password) { if (mailRun) setMailFailure(new Error(t("mail.passwordMissing"))); else toast.error(t("mail.passwordMissing")); return; }
       const record = context?.cloudAccountId ? (await loadCloudAccounts(vault)).find(r => r.id === context.cloudAccountId) : undefined;
       if (context?.cloudAccountId && !record) throw new ServiceConnectionError("accountChanged");
       if (record?.label.includes("@") && record.label.trim().toLowerCase() !== v.user.trim().toLowerCase()) throw new ServiceConnectionError("wrongAccount");
@@ -361,11 +376,25 @@ export function MailAccountsScreen({
     } catch (e) {
       // One translation for both shells (finding 2026-09-24): a known code as
       // its sentence, the server's own answer word for word — never a raw code.
-      toast.error(serviceConnectionMessage(e, t));
+      // In the setup the frame says it, with its sender.
+      if (mailRun) setMailFailure(e);
+      else toast.error(serviceConnectionMessage(e, t));
     } finally {
       setBusy(false);
     }
   };
+  /** The proven mailbox, bound as the form would bind it. */
+  const submitProven = () => {
+    if (!provenImap) return;
+    void submitImap({ label: provenImap.email, host: provenImap.host, port: provenImap.port, smtpHost: provenImap.smtpHost ?? "", smtpPort: provenImap.smtpPort ?? 587, user: provenImap.email, pass: provenImap.pass });
+  };
+  // Once per run; a retry is the frame's button.
+  useEffect(() => {
+    if (!mailRun || !provenImap || mailRun.outcomes.mail || autoSubmitted.current === mailRun.id || !loaded) return;
+    autoSubmitted.current = mailRun.id;
+    submitProven();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per run: the effect is the step starting
+  }, [mailRun?.id, provenImap, loaded]);
 
 
   return (
@@ -376,9 +405,10 @@ export function MailAccountsScreen({
           run={mailRun}
           service="mail"
           heading={t("connectRun.mailHeading")}
+          failure={mailFailure ?? undefined}
           onLeave={() => { setFormOpen(false); onBack?.(); }}
-          onRetry={() => setFormOpen(true)}
-          onSignIn={() => setFormOpen(true)}
+          onRetry={provenImap ? submitProven : () => setFormOpen(true)}
+          onSignIn={provenImap ? submitProven : () => setFormOpen(true)}
         />
       ) : (
         <AppBar onBack={onBack} title={t("mail.accounts")} />
@@ -415,6 +445,13 @@ export function MailAccountsScreen({
                   title={a.label || a.user}
                 />
               ))}
+            </RowList>
+          </GroupCard>
+        )}
+        {mailRun && provenImap && busy && (
+          <GroupCard>
+            <RowList>
+              <Row icon={<span className="m-actionspin" aria-hidden />} title={t("pim.connecting")} data-testid="mail-imap-progress" />
             </RowList>
           </GroupCard>
         )}
@@ -503,7 +540,7 @@ export function MailAccountsScreen({
             {!mailRun && <Row
               data-testid="mail-account-add"
               icon={<Plus size={ICON.ui} />}
-              onClick={() => { setEditing(null); setFormOpen(true); }}
+              onClick={() => { if (onAddAccount) { onAddAccount(); return; } setEditing(null); setFormOpen(true); }}
               title={t("mail.addAccount", { defaultValue: "Postfach hinzufügen" })}
             />}
           </RowList>
@@ -661,17 +698,6 @@ export function MailAccountsScreen({
             </p>
         {/* The backend switch is hidden once the wizard settled the provider
                 (S0a) — offering it again would let a Microsoft tile end on IMAP. */}
-            {!editing && !family && (
-              <Segmented
-                ariaLabel={t("mail.backend")}
-                options={[
-                  { value: "microsoft", label: "Microsoft" },
-                  { value: "imap", label: "IMAP" },
-                ]}
-                value={kind}
-                onChange={(v) => setKind(v as "microsoft" | "imap")}
-              />
-            )}
 
             {kind === "imap" ? (
               <MailImapForm
@@ -681,6 +707,7 @@ export function MailAccountsScreen({
                 editing={editing ?? undefined}
                 onCancel={() => { setEditing(null); setFormOpen(false); if (mailRun) void skipConnectStep("mail").catch((error: unknown) => toast.error(serviceConnectionMessage(error, t))); }}
                 onSubmit={(v) => void submitImap(v)}
+                onUseMicrosoft={mailRun ? undefined : () => { setEditing(null); setKind("microsoft"); }}
                 prefill={editing ? undefined : { user: accountEmail || runSecrets.email || runSecrets.user, pass: runSecrets.password }}
                 presetId={editing ? undefined : mailPreset?.presetId}
               />

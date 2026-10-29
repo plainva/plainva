@@ -332,6 +332,18 @@ async function fetchVerifiedProfile(
   return kind === "google" ? parseGoogleUserInfo(body) : parseMicrosoftMe(body);
 }
 
+/**
+ * Whether a CalDAV address and its credentials find calendars - the
+ * sign-in step's question (settings plan 2026-10-29, E5). The same probe
+ * `addPimAccount` runs, without writing anything.
+ */
+export async function probeCalDav(creds: { url: string; user: string; pass: string }): Promise<number> {
+  await allowHttpOrigin(creds.url);
+  const calendars = await new CalDavPimTarget({ url: creds.url, user: creds.user, pass: creds.pass }, webdavFetch).listCalendars();
+  if (!calendars.length) throw new Error("No calendars found on this server.");
+  return calendars.length;
+}
+
 export async function addPimAccount(
   provider: PimStoredCredentials["kind"], label: string, creds: PimStoredCredentials, context?: ServiceConnectionContext,
 ): Promise<string> {

@@ -2471,7 +2471,6 @@
     "syncUrl": "Server-URL",
     "syncUser": "Benutzername",
     "syncPassword": "Passwort",
-    "syncConnect": "Verbinden",
     "syncNow": "Jetzt synchronisieren",
     "syncIdle": "Verbunden",
     "syncDisconnected": "Abgleich pausiert",
@@ -2479,17 +2478,13 @@
     "syncError": "Sync-Fehler",
     "syncRetryingAt": "Kein Netz — neuer Versuch um {{time}}",
     "syncRetrying": "Kein Netz — neuer Versuch folgt",
-    "syncProvider": "Anbieter",
     "s3Endpoint": "Endpoint",
     "s3Region": "Region",
     "s3Bucket": "Bucket",
     "s3AccessKeyId": "Access Key ID",
     "s3SecretAccessKey": "Secret Access Key",
     "s3Prefix": "Präfix (optional)",
-    "syncOwnAppKey": "Eigener App-Key (optional)",
-    "syncOwnAppIdHint": "Leer lassen, um Plainvas zentrale App-Registrierung zu nutzen. Eine eigene App umgeht deren Nutzergrenze.",
     "syncFolder": "Remote-Ordner (optional)",
-    "syncFolderAfterConnect": "Der Cloud-Ordner wird nach dem Verbinden ausgewählt.",
     "vaults": "Vaults",
     "vaultLocal": "Auf diesem Gerät",
     "syncCreatesVaultHint": "Verbinden legt einen neuen, getrennten Vault für diesen Cloud-Speicherort an.",
@@ -2514,7 +2509,6 @@
     "vaultExternalRemoveConfirm": "„{{name}}“ aus Plainva entfernen? Die Verbindung zu „{{label}}“ geht; die Dateien bleiben, wo sie sind.",
     "vaultExternalSubtitle": "Ordner: {{label}}",
     "vaultFolderNotPickable": "Diesen Ort gibt das System nicht frei (zum Beispiel Downloads oder die Speicherwurzel). Wähle einen Ordner darin.",
-    "vaultCreateOnlineTitle": "Neuer Vault in der Cloud",
     "onboardingCloudExisting": "Bestehenden Vault verbinden",
     "onboardingCloudExistingDesc": "Inhalte aus der Cloud auf dieses Gerät holen.",
     "onboardingCloudNew": "Neuen Vault in der Cloud anlegen",
@@ -3299,7 +3293,6 @@
     "empty": "Kein E-Mail-Konto verbunden",
     "noAccounts": "Noch kein E-Mail-Konto verbunden.",
     "imapHint": "Plainva liest, ohne Nachrichten als gelesen zu markieren; Markieren, Verschieben und Löschen erfolgen nur auf deinen ausdrücklichen Befehl. Gmail: imap.gmail.com, Port 993, mit App-Passwort.",
-    "backend": "Verbindungsart",
     "microsoftHint": "Für Outlook.com / Microsoft 365: direkte Anmeldung im Browser — kein App-Passwort, kein IMAP.",
     "connectMicrosoft": "Mit Microsoft anmelden",
     "folder": "E-Mail-Ordner",
@@ -3584,10 +3577,6 @@
     "addAccount": "Konto verbinden…",
     "pickProvider": "Bei welchem Anbieter liegt das Konto?",
     "pickServices": "Wofür soll Plainva es nutzen? Du kannst mehrere auswählen.",
-    "connectServices_one": "{{count}} Dienst verbinden",
-    "connectServices_other": "{{count}} Dienste verbinden",
-    "noFilesForFamily": "Dieser Anbieter hat keinen Dateispeicher, den Plainva nutzen kann.",
-    "appPasswordHint": "Dieser Anbieter braucht ein App-Passwort statt Deines normalen — wo Du es anlegst, steht auf seiner Hilfeseite.",
     "filesXorNote": "Dateien kann pro Vault nur ein Konto übernehmen — aktuell {{account}}.",
     "stepProvider": "Anbieter",
     "stepServices": "Dienste",
@@ -4820,8 +4809,6 @@
     "storageFailed": "Die Speicherung konnte nicht bestätigt werden. Versuche es erneut; der Assistent setzt dieselbe Verbindung fort.",
     "deviceStorageFailed": "Plainva konnte auf diesem Gerät nicht in seine eigene Datenbank schreiben ({{detail}}). Das liegt nicht am Anbieter. Versuche es erneut; der Assistent setzt dieselbe Verbindung fort.",
     "signedInNotSaved": "Die Anmeldung hat geklappt, aber die Kontodaten ließen sich auf diesem Gerät nicht speichern. Es wurde nichts halb angelegt.",
-    "filesChecking": "Konto und Cloud-Ordner werden geprüft …",
-    "filesCopying": "Dateien und Konten werden in den neuen Vault kopiert …",
     "transferCancelled": "Das Kopieren wurde abgebrochen, es hat sich nichts geändert. Mit „Ordner wählen“ wählst Du den Ordner noch einmal.",
     "transferCopy": "Lokale Datei als eigene Kopie",
     "transferKeepHint": "Prüfe beide Inhalte. „Beide Dateien behalten“ erhält die lokale Datei unter dem angezeigten neuen Pfad.",
@@ -5118,7 +5105,8 @@
     "providerRefused": "{{provider}} hat abgelehnt",
     "providerText": "{{provider}} hat die Anfrage nicht angenommen. Versuche es erneut; hilft das nicht, schick den Text darunter mit einem Diagnose-Export.",
     "noConnection": "Keine Verbindung",
-    "notCompleted": "Nicht abgeschlossen"
+    "notCompleted": "Nicht abgeschlossen",
+    "continueWithout": "Ohne {{services}} weiter"
   },
   "tasksQuery": {
     "editQuery": "Abfrage bearbeiten",
@@ -5260,6 +5248,7 @@
       "mail": "{{provider}} hat kein Postfach, das Plainva abrufen kann."
     },
     "guide": "Anleitung öffnen",
-    "statusNotYet": "noch nicht verbunden"
+    "statusNotYet": "noch nicht verbunden",
+    "stepSetUp": "Einrichten"
   }
 }

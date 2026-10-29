@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "./hooks/useLeaveGuard";
 import { ChevronRight, CloudOff, FolderOpen } from "lucide-react";
-import { Banner, Button, EmptyState, GroupCard, RowList, accessProblemKey, filesTargetForFamily, foldMachineText, ICON, Row, Switch, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, serviceConnectionMessage, unionScope, type AccessResolution, type CloudProviderFamily, type OAuthFamily } from "@plainva/ui";
-import { mSelect } from "./services/mobileDialogs";
+import { Banner, Button, EmptyState, GroupCard, RowList, filesTargetForFamily, foldMachineText, ICON, Row, Switch, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, unionScope, type CloudProviderFamily, type OAuthFamily } from "@plainva/ui";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
 import {
   connectProvider,
@@ -16,7 +15,7 @@ import {
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { beginOAuth, beginStoredFilesConnection, type OAuthProviderId } from "./services/oauthService";
 import { FILES_CONNECT_PROGRESS_EVENT, filesConnectProgress, type FilesConnectProgress } from "./services/filesConnectProgress";
-import { deviceAccess } from "./services/accountSignIn";
+import { AccessUnavailableError, deviceAccess, dropboxDeviceKey } from "./services/accountSignIn";
 import { AccountAccessSheet } from "./components/AccountAccessSheet";
 import { getPimCredentials } from "./services/pim/pimCredentials";
 import { loadCloudAccounts } from "./services/cloudAccountsStore";
@@ -25,7 +24,7 @@ import { reloadActiveMobileVault, type MobileVault } from "./services/vaultServi
 import { AppBar } from "./components/AppBar";
 import { ConnectRunFooter, ConnectRunFrame } from "./components/ConnectRunFrame";
 import { TransferReviewStep, useInlineTransferReview } from "./components/TransferReviewHost";
-import { rememberConnectSecrets } from "./services/connectSecrets";
+import { getConnectSecrets, rememberConnectSecrets } from "./services/connectSecrets";
 import { loadConnectQueue, runServices } from "./services/connectQueue";
 import { runConsentScope } from "./services/connectConsent";
 import { trimEndChars } from "@plainva/core";
@@ -34,55 +33,52 @@ type ProviderId = MobileSyncProvider["provider"];
 
 const OAUTH_PROVIDERS: ReadonlySet<ProviderId> = new Set(["drive", "onedrive", "dropbox"]);
 
-const PROVIDER_OPTIONS: Array<{ value: ProviderId; label: string }> = [
-  { value: "webdav", label: "WebDAV / Nextcloud" },
-  { value: "s3", label: "S3 (AWS / R2 / MinIO …)" },
-  { value: "drive", label: "Google Drive" },
-  { value: "onedrive", label: "OneDrive" },
-  { value: "dropbox", label: "Dropbox" },
-];
+/** The files service by its product name: "Google Drive", not "Google". */
+const PRODUCT_NAME: Partial<Record<ProviderId, string>> = { drive: "Google Drive", onedrive: "OneDrive", dropbox: "Dropbox" };
 
 /**
- * "Add cloud vault" screen (M3.6 vault-management rework): pure connect
- * form. Connecting creates a fresh, isolated vault container for that
- * cloud location and switches to it; per-vault actions (rename, pause,
- * delete) live on the vault detail screen.
+ * The files step of the account setup (plan "Verbinden-Assistent",
+ * 2026-10-28; settings plan 2026-10-29): the setup's frame and ONE question -
+ * which folder. The provider and its sign-in are settled before this step:
+ * Google and Microsoft by the one sign-in, Dropbox by its consent started on
+ * the services page, a provider with credentials or keys by the one form of
+ * the sign-in step, whose proven credential this step reuses. Only a run
+ * resumed after the app was gone - the credential lived in memory - asks for
+ * it here again, the safe direction.
  *
- * Create mode (2026-07-13, `createTemplateId` set — "" = empty vault): same
- * form, but the fresh container is scaffolded with the pre-picked structure
- * template before the first sync uploads it into the (new) cloud folder.
+ * "Connect with cloud" and "New vault in the cloud" are the connect assistant
+ * with files ticked (E7); a new vault's template travels in the run and is
+ * scaffolded into the fresh container before the first sync uploads it.
  */
 export function AddVaultScreen({
   vault,
   onBack,
-  createTemplateId,
+  createTemplateId: createTemplateProp,
   family,
 }: {
   vault: MobileVault;
   onBack: () => void;
   createTemplateId?: string;
-  /**
-   * Set when the user came through the connect wizard and already picked a
-   * provider there (S0a). The provider row then SHOWS that family instead of
-   * asking again — the reported bug was that this screen started on "webdav"
-   * regardless, so choosing Google led straight to a WebDAV form.
-   */
+  /** The run's provider family (S0a): the step states it rather than asking again. */
   family?: CloudProviderFamily;
 }) {
   const { t, i18n } = useTranslation();
   const connectionRun = useConnectionRun();
+  const runFiles = family && connectionRun?.pending[0] === "files" ? connectionRun : null;
+  const createTemplateId = runFiles?.createTemplateId ?? createTemplateProp;
   const createMode = createTemplateId !== undefined;
-  const runFiles = !createMode && family && connectionRun?.pending[0] === "files" ? connectionRun : null;
   const pendingReview = useInlineTransferReview(!!runFiles);
   // Only this run's review: one a replaced run left is answered by the host, never shown here.
   const review = pendingReview && (!pendingReview.runId || pendingReview.runId === runFiles?.id) ? pendingReview : null;
-  // A family that cannot carry files never reaches this screen (the wizard only
-  // offers the services FAMILY_SERVICES lists), so a null target here means the
-  // user came in directly and picks the provider as before.
   const preset = family ? filesTargetForFamily(family) : null;
   const [runScope, setRunScope] = useState<string | null>(null);
 
-  const [provider, setProvider] = useState<ProviderId>(preset?.provider ?? "webdav");
+  const provider: ProviderId = preset?.provider ?? "webdav";
+  // What the sign-in step proved to work, for this provider (in memory, E4).
+  const proven = (() => {
+    const files = getConnectSecrets().request?.files;
+    return files && files.provider === provider ? files : null;
+  })();
   const [webdav, setWebdav] = useState<WebDavCredentials>({ url: preset?.webdavUrl ?? "", user: "", pass: "" });
   const [s3, setS3] = useState<S3Credentials>({
     endpoint: "",
@@ -95,19 +91,10 @@ export function AddVaultScreen({
     // turns it off for the ones that only answer on the bucket's own host.
     forcePathStyle: true,
   });
-  // Dropbox ships with a central Plainva registration, so its own app key
-  // stays optional. Google Drive and OneDrive sign in with this device's
-  // access, like every other sign-in (account sign-in plan K4b).
-  const [ownAppId, setOwnAppId] = useState("");
+  // Google Drive and OneDrive sign in with this device's access, Dropbox with
+  // its app key (E6) - like every other sign-in.
   const accessFamily: OAuthFamily | null = provider === "drive" ? "google" : provider === "onedrive" ? "microsoft" : null;
-  const [access, setAccess] = useState<AccessResolution | null>(null);
-  const [accessSheet, setAccessSheet] = useState(false);
-  useEffect(() => {
-    if (!accessFamily) return;
-    let alive = true;
-    void deviceAccess(accessFamily).then((resolved) => { if (alive) setAccess(resolved); });
-    return () => { alive = false; };
-  }, [accessFamily]);
+  const [accessSheet, setAccessSheet] = useState<"google" | "microsoft" | "dropbox" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   // After the folder pick the step goes on without the form (device finding
@@ -125,7 +112,6 @@ export function AddVaultScreen({
   useEffect(() => {
     let alive = true;
     setRunScope(null);
-    setOwnAppId("");
     void loadConnectQueue().then(async (q) => {
       if (!alive || !q) return;
       const record = q.context.cloudAccountId ? (await loadCloudAccounts(q.context.vaultId)).find(r => r.id === q.context.cloudAccountId) : undefined;
@@ -145,7 +131,7 @@ export function AddVaultScreen({
   // navigation bar used to discard them — including a pasted S3 secret.
   useLeaveGuard(
     "vault-connect",
-    !!(webdav.url || webdav.user || webdav.pass || s3.bucket || s3.accessKeyId || s3.secretAccessKey || ownAppId),
+    !proven && !!(webdav.user || webdav.pass || s3.bucket || s3.accessKeyId || s3.secretAccessKey),
     t("mobile.leaveCredentials", { defaultValue: "Die eingegebenen Zugangsdaten gehen verloren." }),
   );
 
@@ -154,21 +140,15 @@ export function AddVaultScreen({
     setError(null);
     if (OAUTH_PROVIDERS.has(provider)) {
       // Opens the system browser; the redirect handler finishes the connect
-      // (which creates and activates the new vault).
-      // The cloud folder is chosen AFTER the browser returns a token (#10),
-      // via the folder picker — there is no token to browse with beforehand.
-      // In create mode the template id travels in the persisted transaction,
-      // so it survives a cold start during consent.
-      // Inside a multi-service run this ONE consent covers the whole account
-      // (S0b3), so the services after it need none. Outside a run — the direct
-      // "connect with cloud" entry — `runScope` is null and the provider's own
-      // default scope applies, exactly as before.
+      // (which creates and activates the new vault). The cloud folder is
+      // chosen AFTER the browser returns a token (#10), via the folder picker.
+      // The template of a new vault travels in the persisted transaction, so
+      // it survives a cold start during consent.
       void (async () => {
-        if (!createMode && connectionRun?.context && await beginStoredFilesConnection(connectionRun.context)) return;
+        if (connectionRun?.context && await beginStoredFilesConnection(connectionRun.context, createTemplateId)) return;
         if (accessFamily) {
           const resolved = await deviceAccess(accessFamily);
-          setAccess(resolved);
-          if (!resolved.ok) { setAccessSheet(true); return; }
+          if (!resolved.ok) { setAccessSheet(accessFamily); return; }
           await beginOAuth(provider as OAuthProviderId, {
             clientId: resolved.access.clientId,
             ...(resolved.access.clientSecret ? { clientSecret: resolved.access.clientSecret } : {}),
@@ -181,17 +161,20 @@ export function AddVaultScreen({
           return;
         }
         await beginOAuth(provider as OAuthProviderId, {
-        clientId: ownAppId.trim() || undefined,
-        ...(runScope ? { scope: runScope } : {}),
-        ...(createMode ? { createTemplateId } : {}),
-        serviceContext: connectionRun?.context,
+          clientId: await dropboxDeviceKey(),
+          ...(runScope ? { scope: runScope } : {}),
+          ...(createMode ? { createTemplateId } : {}),
+          serviceContext: connectionRun?.context,
         });
       })()
-        .catch((e: unknown) => setError(e ?? "failed"))
+        .catch((e: unknown) => {
+          if (e instanceof AccessUnavailableError) setAccessSheet(e.family);
+          else setError(e ?? "failed");
+        })
         .finally(() => setBusy(false));
       return;
     }
-    const p: MobileSyncProvider =
+    const p: MobileSyncProvider = proven ?? (
       provider === "webdav"
         ? { provider: "webdav", creds: { ...webdav, url: foldMachineText(webdav.url) } }
         : {
@@ -206,7 +189,7 @@ export function AddVaultScreen({
               accessKeyId: foldMachineText(s3.accessKeyId),
               prefix: s3.prefix?.trim() || undefined,
             },
-          };
+          });
     setBusy(false);
     setPickFor(p);
   };
@@ -214,10 +197,7 @@ export function AddVaultScreen({
   const connectAt = (p: MobileSyncProvider, folder: string) => {
     setPickFor(null);
     setBusy(true);
-    // A suite (Nextcloud, Fastmail, …) asks for the same credentials at every
-    // step of the run. Carried in memory only, never persisted (E4); the later
-    // screens read it only when they were opened BY the run (they carry a
-    // family), so a direct visit never sees a stale prefill.
+    // The later screens of the run reuse the credential - in memory only (E4).
     if (p.provider === "webdav") {
       rememberConnectSecrets({ baseUrl: p.creds.url, user: p.creds.user, password: p.creds.pass });
     }
@@ -246,15 +226,17 @@ export function AddVaultScreen({
   };
 
   const canConnect =
-    provider === "webdav"
-      ? webdav.url.trim().length > 0
-      : provider === "s3"
-        ? s3.endpoint.trim().length > 0 &&
+    OAUTH_PROVIDERS.has(provider) || !!proven
+      ? true
+      : provider === "webdav"
+        ? webdav.url.trim().length > 0
+        : s3.endpoint.trim().length > 0 &&
           s3.bucket.trim().length > 0 &&
           s3.accessKeyId.length > 0 &&
-          s3.secretAccessKey.length > 0
-        : true;
+          s3.secretAccessKey.length > 0;
 
+  // Only for a run resumed after the app was gone: the credential the sign-in
+  // step proved lived in memory and is asked for once more.
   const credentialFields = (
     <>
           {provider === "webdav" && (
@@ -351,17 +333,13 @@ export function AddVaultScreen({
                   value={s3.prefix ?? ""}
                 />
               </label>
-              {/* The desktop's form has had this switch from the start; the
-                  phone's had none, so a store that only answers on the
-                  bucket's own host (virtual-hosted style) could not be set up
-                  here at all (Play feedback 2026-09-30). */}
+              {/* Path-style for stores that only answer on the bucket's own host (Play feedback 2026-09-30). */}
               <Row
                 title={t("settings.s3PathStyle")}
                 end={<Switch checked={s3.forcePathStyle !== false} label={t("settings.s3PathStyle")} onChange={(on) => setS3({ ...s3, forcePathStyle: on })} />}
               />
             </>
           )}
-
     </>
   );
   const sheets = (
@@ -375,11 +353,11 @@ export function AddVaultScreen({
           title={t("settings.browseFolders")}
         />
       )}
-      {accessSheet && accessFamily && (
+      {accessSheet && (
         <AccountAccessSheet
-          family={accessFamily}
-          onCancel={() => setAccessSheet(false)}
-          onSaved={() => { setAccessSheet(false); void deviceAccess(accessFamily).then(setAccess); }}
+          family={accessSheet}
+          onCancel={() => setAccessSheet(null)}
+          onSaved={() => { setAccessSheet(null); connect(); }}
         />
       )}
     </>
@@ -400,149 +378,72 @@ export function AddVaultScreen({
         </EmptyState>
   );
 
-  // A step of the account setup (plan "Verbinden-Assistent", 2026-10-28;
-  // device finding 2026-10-28): the frame of the setup and ONE question -
-  // which folder. Provider and sign-in are settled by now (E5); the review of
-  // what the copy does is the step's content (E4).
-  if (runFiles && family) {
-    const oauth = OAUTH_PROVIDERS.has(provider);
+  // Outside a run there is nothing to set up here: connecting starts in the assistant.
+  if (!runFiles || !family) {
     return (
       <div className="m-page">
-        <ConnectRunFrame
-          run={runFiles}
-          service="files"
-          // The files service by its product name: "Google Drive", not "Google".
-          heading={review ? t("connectRun.reviewHeading", { folder: review.folder }) : t("connectRun.filesHeading", { provider: oauth ? PROVIDER_OPTIONS.find((o) => o.value === provider)?.label ?? familyLabel(family) : familyLabel(family) })}
-          hint={review || filesProgress ? undefined : t("connectRun.filesHint")}
-          onLeave={onBack}
-          failure={error ?? undefined}
-          hideOutcome={!!review || !!filesProgress}
-          onRetry={busy ? undefined : connect}
-          onSignIn={busy ? undefined : connect}
-        >
-          {!syncPossible(vault) ? needsIndex : review ? (
-            <TransferReviewStep review={review} onOtherFolder={() => { void import("./services/accountVaultTransfer").then((m) => m.transfersSettled()).then(connect); }} />
-          ) : filesProgress ? (
-            <GroupCard>
-              <RowList>
-                <Row
-                  icon={<span className="m-actionspin" aria-hidden />}
-                  title={t(filesProgress.phase === "copying" ? "connectRun.copying" : "connectRun.checking")}
-                  data-testid="files-connect-progress"
-                />
-              </RowList>
-            </GroupCard>
-          ) : (
-            <>
-              {!oauth && credentialFields}
-              {oauth && (
-                <GroupCard>
-                  <RowList>
-                    <Row
-                      icon={<FolderOpen size={ICON.ui} />}
-                      title={t("connectRun.folder")}
-                      subtitle={t("connectRun.folderNone")}
-                      end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                      onClick={busy ? undefined : connect}
-                      data-testid="connectrun-folder"
-                    />
-                  </RowList>
-                </GroupCard>
-              )}
-              <ConnectRunFooter
-                run={runFiles}
-                service="files"
-                disabled={busy}
-                primary={<Button variant="primary" disabled={busy || !canConnect} onClick={connect} data-testid="connectrun-choose-folder">{t("connectRun.chooseFolder")}</Button>}
-              />
-            </>
-          )}
-        </ConnectRunFrame>
-        {sheets}
+        <AppBar onBack={onBack} title={t("mobile.vaultAdd")} />
+        <div className="m-settings">
+          {!syncPossible(vault) ? needsIndex : <p className="m-hint">{t("mobile.vaultAddViaCloudAccounts")}</p>}
+        </div>
       </div>
     );
   }
 
+  const oauth = OAUTH_PROVIDERS.has(provider);
+  // The folder is chosen with the sign-in that already happened: Google, Microsoft, Dropbox, or the proven credential.
+  const folderRow = oauth || !!proven;
   return (
     <div className="m-page">
-      <AppBar onBack={onBack} title={createMode ? t("mobile.vaultCreateOnlineTitle") : t("mobile.vaultAdd")} />
-
-      {!syncPossible(vault) ? needsIndex : (
-        <div className="m-settings">
-          <p className="m-hint">{t("mobile.syncCreatesVaultHint")}</p>
-          {error !== null && <Banner kind="error" rounded>{serviceConnectionMessage(error, t)}</Banner>}
-          {filesProgress && (
-            <Banner kind="info" rounded>
-              <span data-testid="files-connect-progress">
-                {t(filesProgress.phase === "copying" ? "connection.filesCopying" : "connection.filesChecking")}
-              </span>
-            </Banner>
-          )}
-
-          {/* Came through the wizard: the provider is settled, so this states it
-              rather than asking a second time. Suite families (Fastmail, Koofr,
-              …) technically bind WebDAV, but the row names the FAMILY — showing
-              "WebDAV" after someone tapped the Fastmail tile would be the same
-              break in a quieter form. */}
-          {family ? (
-            <div className="m-row" data-testid="sync-provider-fixed">
-              <span>{t("mobile.syncProvider")}</span>
-              <span className="m-prop-val">{familyLabel(family)}</span>
-            </div>
-          ) : (
-            <button
-              className="m-row"
-              onClick={() =>
-                void mSelect({
-                  title: t("mobile.syncProvider"),
-                  options: PROVIDER_OPTIONS,
-                  value: provider,
-                }).then((v) => {
-                  if (v !== null) setProvider(v as ProviderId);
-                })
-              }
-            >
-              <span>{t("mobile.syncProvider")}</span>
-              <span className="m-prop-val">
-                {PROVIDER_OPTIONS.find((o) => o.value === provider)?.label}
-              </span>
-              <ChevronRight className="m-chevron" size={ICON.head} />
-            </button>
-          )}
-
-          {credentialFields}
-
-          {accessFamily && (
-            <Row
-              data-testid="vault-access"
-              title={t("accountAccess.lineLabel")}
-              subtitle={!access ? "" : access.ok ? (access.access.source === "plainva" ? t("accountAccess.plainva") : t("accountAccess.ownLine", { id: access.access.clientId })) : t(accessProblemKey(access.problem))}
-              end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-              onClick={() => setAccessSheet(true)}
-              wrap
+      <ConnectRunFrame
+        run={runFiles}
+        service="files"
+        heading={review ? t("connectRun.reviewHeading", { folder: review.folder }) : t("connectRun.filesHeading", { provider: PRODUCT_NAME[provider] ?? familyLabel(family, runFiles.flavor) })}
+        hint={review || filesProgress ? undefined : t("connectRun.filesHint")}
+        onLeave={onBack}
+        failure={error ?? undefined}
+        hideOutcome={!!review || !!filesProgress}
+        onRetry={busy ? undefined : connect}
+        onSignIn={busy ? undefined : connect}
+      >
+        {!syncPossible(vault) ? needsIndex : review ? (
+          <TransferReviewStep review={review} onOtherFolder={() => { void import("./services/accountVaultTransfer").then((m) => m.transfersSettled()).then(connect); }} />
+        ) : filesProgress ? (
+          <GroupCard>
+            <RowList>
+              <Row
+                icon={<span className="m-actionspin" aria-hidden />}
+                title={t(filesProgress.phase === "copying" ? "connectRun.copying" : "connectRun.checking")}
+                data-testid="files-connect-progress"
+              />
+            </RowList>
+          </GroupCard>
+        ) : (
+          <>
+            {!folderRow && credentialFields}
+            {folderRow && (
+              <GroupCard>
+                <RowList>
+                  <Row
+                    icon={<FolderOpen size={ICON.ui} />}
+                    title={t("connectRun.folder")}
+                    subtitle={t("connectRun.folderNone")}
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    onClick={busy ? undefined : connect}
+                    data-testid="connectrun-folder"
+                  />
+                </RowList>
+              </GroupCard>
+            )}
+            <ConnectRunFooter
+              run={runFiles}
+              service="files"
+              disabled={busy}
+              primary={<Button variant="primary" disabled={busy || !canConnect} onClick={connect} data-testid="connectrun-choose-folder">{t("connectRun.chooseFolder")}</Button>}
             />
-          )}
-
-          {provider === "dropbox" && (
-            <label className="m-field">
-              <span>{t("mobile.syncOwnAppKey")}</span>
-              <TextInput onChange={(e) => setOwnAppId(e.target.value)} value={ownAppId} />
-              <small className="m-hint">{t("mobile.syncOwnAppIdHint")}</small>
-            </label>
-          )}
-
-          {OAUTH_PROVIDERS.has(provider) && (
-            <p className="m-hint">{t("mobile.syncFolderAfterConnect")}</p>
-          )}
-
-          <div className="m-sync-actions">
-            <Button variant="primary" disabled={busy || !!filesProgress || !canConnect} onClick={connect}>
-              {t("mobile.syncConnect")}
-            </Button>
-          </div>
-        </div>
-      )}
-
+          </>
+        )}
+      </ConnectRunFrame>
       {sheets}
     </div>
   );

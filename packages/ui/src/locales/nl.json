@@ -2471,7 +2471,6 @@
     "syncUrl": "Server-URL",
     "syncUser": "Gebruikersnaam",
     "syncPassword": "Wachtwoord",
-    "syncConnect": "Verbinden",
     "syncNow": "Nu synchroniseren",
     "syncIdle": "Verbonden",
     "syncDisconnected": "Synchronisatie gepauzeerd",
@@ -2479,17 +2478,13 @@
     "syncError": "Syncfout",
     "syncRetryingAt": "Geen verbinding — nieuwe poging om {{time}}",
     "syncRetrying": "Geen verbinding — nieuwe poging volgt",
-    "syncProvider": "Provider",
     "s3Endpoint": "Endpoint",
     "s3Region": "Regio",
     "s3Bucket": "Bucket",
     "s3AccessKeyId": "Access Key ID",
     "s3SecretAccessKey": "Secret Access Key",
     "s3Prefix": "Prefix (optioneel)",
-    "syncOwnAppKey": "Eigen app-sleutel (optioneel)",
-    "syncOwnAppIdHint": "Laat leeg om Plainva's centrale app-registratie te gebruiken. Een eigen app omzeilt de gebruikerslimiet daarvan.",
     "syncFolder": "Externe map (optioneel)",
-    "syncFolderAfterConnect": "De cloudmap wordt na het verbinden gekozen.",
     "vaults": "Kluizen",
     "vaultLocal": "Op dit apparaat",
     "syncCreatesVaultHint": "Verbinden maakt een nieuwe, gescheiden kluis voor deze cloudlocatie.",
@@ -2514,7 +2509,6 @@
     "vaultExternalRemoveConfirm": "‘{{name}}’ uit Plainva verwijderen? De verbinding met ‘{{label}}’ vervalt; de bestanden blijven waar ze zijn.",
     "vaultExternalSubtitle": "Map: {{label}}",
     "vaultFolderNotPickable": "Het systeem geeft deze locatie niet vrij (bijvoorbeeld Downloads of de opslagroot). Kies een map daarbinnen.",
-    "vaultCreateOnlineTitle": "Nieuwe vault in de cloud",
     "onboardingCloudExisting": "Bestaande vault verbinden",
     "onboardingCloudExistingDesc": "Cloudinhoud naar dit apparaat halen.",
     "onboardingCloudNew": "Nieuwe vault in de cloud aanmaken",
@@ -3299,7 +3293,6 @@
     "empty": "Geen e-mailaccount verbonden",
     "noAccounts": "Nog geen e-mailaccount verbonden.",
     "imapHint": "Plainva leest zonder berichten als gelezen te markeren; markeren, verplaatsen en verwijderen gebeuren alleen op jouw verzoek. Gmail: imap.gmail.com, poort 993, met een app-wachtwoord.",
-    "backend": "Verbindingstype",
     "microsoftHint": "Voor Outlook.com / Microsoft 365: rechtstreeks aanmelden in de browser — geen app-wachtwoord, geen IMAP.",
     "connectMicrosoft": "Aanmelden met Microsoft",
     "folder": "E-mailmap",
@@ -3584,10 +3577,6 @@
     "addAccount": "Account verbinden…",
     "pickProvider": "Bij welke provider staat het account?",
     "pickServices": "Waarvoor moet Plainva het gebruiken? Je kunt er meerdere kiezen.",
-    "connectServices_one": "{{count}} dienst verbinden",
-    "connectServices_other": "{{count}} diensten verbinden",
-    "noFilesForFamily": "Deze provider heeft geen bestandsopslag die Plainva kan gebruiken.",
-    "appPasswordHint": "Deze provider vraagt om een app-wachtwoord in plaats van je gewone — op de helppagina staat waar je het aanmaakt.",
     "filesXorNote": "Slechts één account per vault kan bestanden beheren — momenteel {{account}}.",
     "stepProvider": "Provider",
     "stepServices": "Diensten",
@@ -4820,8 +4809,6 @@
     "storageFailed": "Het opslaan kon niet worden bevestigd. Probeer het opnieuw; de wizard hervat dezelfde verbinding.",
     "deviceStorageFailed": "Plainva kon zijn eigen database op dit apparaat niet gebruiken ({{detail}}). Dit ligt niet aan de aanbieder. Probeer het opnieuw; de wizard hervat dezelfde verbinding.",
     "signedInNotSaved": "Het aanmelden is gelukt, maar de accountgegevens konden niet op dit apparaat worden opgeslagen. Er is niets half aangemaakt achtergebleven.",
-    "filesChecking": "Account en cloudmap worden gecontroleerd …",
-    "filesCopying": "Bestanden en accounts worden naar de nieuwe vault gekopieerd …",
     "transferCancelled": "Het kopiëren is geannuleerd: er is niets veranderd. Tik op ‘Map kiezen’ om de map opnieuw te kiezen.",
     "transferCopy": "Lokaal bestand als afzonderlijke kopie",
     "transferKeepHint": "Controleer beide inhouden. “Beide bestanden bewaren” bewaart het lokale bestand op het getoonde nieuwe pad.",
@@ -5118,7 +5105,8 @@
     "providerRefused": "{{provider}} heeft geweigerd",
     "providerText": "{{provider}} heeft het verzoek niet geaccepteerd. Probeer het opnieuw; helpt dat niet, stuur dan de tekst hieronder mee met een diagnose-export.",
     "noConnection": "Geen verbinding",
-    "notCompleted": "Niet voltooid"
+    "notCompleted": "Niet voltooid",
+    "continueWithout": "Verder zonder {{services}}"
   },
   "tasksQuery": {
     "editQuery": "Query bewerken",
@@ -5260,6 +5248,7 @@
       "mail": "{{provider}} heeft geen mailbox die Plainva kan ophalen."
     },
     "guide": "Handleiding openen",
-    "statusNotYet": "nog niet verbonden"
+    "statusNotYet": "nog niet verbonden",
+    "stepSetUp": "Instellen"
   }
 }

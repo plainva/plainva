@@ -3136,19 +3136,24 @@ describe("a chip's icon uses the slot", () => {
  */
 describe("a picked provider family survives the hand-over (S0a)", () => {
   const routes = stripComments(readFileSync(join(SRC, "routes.tsx"), "utf8"));
-  /** The `onPickServices` handler, from the prop to the end of its `c.replace(…)`. */
+  /**
+   * The `onOpenStep` handler, from the prop to the end of its `c.replace(…)`.
+   * Since the settings plan of 2026-10-29 the screen starts the run itself
+   * (a Dropbox run starts before its sign-in, a run with credentials after
+   * the one form) and hands the router its first step and the family.
+   */
   const handler = (() => {
-    const from = routes.indexOf("onPickServices=");
+    const from = routes.indexOf("onOpenStep=");
     expect(from, "the connect wizard must hand its pick to the router").toBeGreaterThan(0);
     const rest = routes.slice(from);
-    return rest.slice(0, rest.indexOf("})", rest.indexOf("c.replace(")));
+    return rest.slice(0, rest.indexOf("})", rest.indexOf("c.replace(")) + 2);
   })();
 
   it("takes the family from the wizard instead of dropping it", () => {
     expect(
       handler.slice(0, handler.indexOf("=>")),
-      "onPickServices must accept the family, not only the services",
-    ).toMatch(/services\s*,\s*family/);
+      "onOpenStep must accept the family, not only the first step",
+    ).toMatch(/first\s*,\s*family/);
     // …and put it into the entry it replaces the top with.
     expect(handler, "the family belongs in the nav entry").toMatch(/c\.replace\(\{[\s\S]*\bfamily\b/);
   });
@@ -3214,7 +3219,8 @@ describe("a picked provider family survives the hand-over (S0a)", () => {
   });
 
   it("starts a persisted run rather than opening one service and forgetting the rest", () => {
-    expect(handler, "the picked services must go into the queue").toMatch(/startConnectQueue\(\s*family\s*,\s*services\s*\)/);
+    const screen = stripComments(readFileSync(join(SRC, "screens/CloudConnectScreen.tsx"), "utf8"));
+    expect(screen, "the picked services must go into the queue").toMatch(/startConnectQueue\(\s*family!\s*,\s*services/);
     expect(handler, "the queue decides which screen opens first").toMatch(/screenForService\(\s*first\s*\)/);
   });
 
@@ -3232,17 +3238,19 @@ describe("a picked provider family survives the hand-over (S0a)", () => {
   });
 
   it("stops the destinations from choosing a provider once one was picked", () => {
-    // Each form keeps its own default for the direct entry point ("Mit Cloud
-    // verbinden"), so the assertion is that the CHOOSER is gated on `family`,
-    // not that the default is gone.
+    // Since the settings plan of 2026-10-29 (E7) every way in - "Connect with
+    // cloud", "Add account…", "Add mailbox" - is the connect assistant, which
+    // asks for the provider once. The destinations are steps of its run and
+    // have no provider chooser left that could ask a second time.
     const add = stripComments(readFileSync(join(SRC, "AddVaultScreen.tsx"), "utf8"));
-    expect(add, "the provider row must state the family instead of asking again").toMatch(/family \?[\s\S]{0,400}familyLabel\(family\)/);
+    expect(add, "the files step takes the provider from the family").toMatch(/filesTargetForFamily\(family\)/);
+    expect(add, "the files step must not offer a provider choice").not.toMatch(/PROVIDER_OPTIONS|mSelect\(/);
 
     const pim = stripComments(readFileSync(join(SRC, "screens/PimAccountsScreen.tsx"), "utf8"));
-    expect(pim, "the calendar provider switch must be hidden once it is settled").toMatch(/\{!family && \(\s*<Segmented/);
+    expect(pim, "the calendar form must not offer a provider switch").not.toMatch(/<Segmented/);
 
     const mail = stripComments(readFileSync(join(SRC, "screens/MailAccountsScreen.tsx"), "utf8"));
-    expect(mail, "the mail backend switch must be hidden once it is settled").toMatch(/!editing && !family/);
+    expect(mail, "the mail form must not offer a backend switch").not.toMatch(/mail\.backend/);
   });
 });
 

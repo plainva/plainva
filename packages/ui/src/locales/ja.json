@@ -2458,7 +2458,6 @@
     "syncUrl": "サーバー URL",
     "syncUser": "ユーザー名",
     "syncPassword": "パスワード",
-    "syncConnect": "接続",
     "syncNow": "今すぐ同期",
     "syncIdle": "接続済み",
     "syncDisconnected": "同期一時停止中",
@@ -2466,17 +2465,13 @@
     "syncError": "同期エラー",
     "syncRetryingAt": "接続がありません — {{time}} に再試行します",
     "syncRetrying": "接続がありません — あとで再試行します",
-    "syncProvider": "プロバイダー",
     "s3Endpoint": "エンドポイント",
     "s3Region": "リージョン",
     "s3Bucket": "バケット",
     "s3AccessKeyId": "アクセスキー ID",
     "s3SecretAccessKey": "シークレットアクセスキー",
     "s3Prefix": "プレフィックス（任意）",
-    "syncOwnAppKey": "独自のアプリキー（任意）",
-    "syncOwnAppIdHint": "空欄のままにすると Plainva の中央アプリ登録を使います。独自のアプリならその利用者数の上限を回避できます。",
     "syncFolder": "リモートフォルダ（任意）",
-    "syncFolderAfterConnect": "クラウドフォルダは接続後に選択します。",
     "vaults": "保管庫",
     "vaultLocal": "この端末上",
     "syncCreatesVaultHint": "接続すると、このクラウドの場所専用の新しい保管庫が作成されます。",
@@ -2501,7 +2496,6 @@
     "vaultExternalRemoveConfirm": "「{{name}}」を Plainva から削除しますか？「{{label}}」への接続は解除され、ファイルはそのまま残ります。",
     "vaultExternalSubtitle": "フォルダー: {{label}}",
     "vaultFolderNotPickable": "この場所はシステムが提供しません（例: ダウンロードやストレージのルート）。その中のフォルダーを選んでください。",
-    "vaultCreateOnlineTitle": "クラウドに新しい保管庫",
     "onboardingCloudExisting": "既存の保管庫に接続",
     "onboardingCloudExistingDesc": "クラウドの内容をこの端末に取り込みます。",
     "onboardingCloudNew": "クラウドに新しい保管庫を作成",
@@ -3269,7 +3263,6 @@
     "empty": "メールアカウントが接続されていません",
     "noAccounts": "メールアカウントはまだ接続されていません。",
     "imapHint": "Plainva は既読にせず読み込みます。フラグ、移動、削除は明示的な操作時のみ実行されます。Gmail: imap.gmail.com、ポート 993、アプリパスワードを使用。",
-    "backend": "接続方法",
     "microsoftHint": "Outlook.com / Microsoft 365 の場合：ブラウザーで直接サインイン — アプリパスワードや IMAP は不要です。",
     "connectMicrosoft": "Microsoft でサインイン",
     "folder": "メールフォルダー",
@@ -3549,9 +3542,6 @@
     "addAccount": "アカウントを接続…",
     "pickProvider": "アカウントはどのプロバイダーのものですか？",
     "pickServices": "Plainva でどう使いますか？複数選べます。",
-    "connectServices_other": "{{count}} 件のサービスを接続",
-    "noFilesForFamily": "このプロバイダーには Plainva が使えるファイルストレージがありません。",
-    "appPasswordHint": "このプロバイダーは通常のパスワードではなくアプリパスワードが必要です。作成場所はプロバイダーのヘルプページをご覧ください。",
     "filesXorNote": "ファイルを扱えるのは保管庫ごとに1つのアカウントのみです——現在は{{account}}。",
     "stepProvider": "プロバイダー",
     "stepServices": "サービス",
@@ -4759,8 +4749,6 @@
     "storageFailed": "保存を確認できませんでした。再試行すると同じ接続の設定を再開します。",
     "deviceStorageFailed": "Plainva はこのデバイス上の自身のデータベースを使用できませんでした（{{detail}}）。プロバイダー側の問題ではありません。再試行すると同じ接続の設定を再開します。",
     "signedInNotSaved": "サインインには成功しましたが、アカウント情報をこのデバイスに保存できませんでした。途中まで作成されたものは残っていません。",
-    "filesChecking": "アカウントとクラウドフォルダーを確認しています …",
-    "filesCopying": "ファイルとアカウントを新しい保管庫にコピーしています …",
     "transferCancelled": "コピーはキャンセルされました。何も変更されていません。もう一度フォルダーを選ぶには「フォルダーを選択」をタップしてください。",
     "transferCopy": "ローカルファイルを別のコピーとして保存",
     "transferKeepHint": "両方の内容を確認してください。「両方のファイルを保持」は、表示された新しいパスにローカルファイルを保存します。",
@@ -5053,7 +5041,8 @@
     "providerRefused": "{{provider}} に拒否されました",
     "providerText": "{{provider}} がリクエストを受け付けませんでした。もう一度お試しください。改善しない場合は、下のテキストを診断エクスポートと一緒に送ってください。",
     "noConnection": "接続できません",
-    "notCompleted": "完了していません"
+    "notCompleted": "完了していません",
+    "continueWithout": "{{services}} なしで続ける"
   },
   "tasksQuery": {
     "editQuery": "クエリを編集",
@@ -5194,6 +5183,7 @@
       "mail": "{{provider}} には Plainva が受信できるメールボックスがありません。"
     },
     "guide": "ガイドを開く",
-    "statusNotYet": "未接続"
+    "statusNotYet": "未接続",
+    "stepSetUp": "設定"
   }
 }

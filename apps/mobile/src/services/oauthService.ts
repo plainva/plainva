@@ -16,13 +16,13 @@ import { getPlatformServices, getVaultTemplates, logDiagnostic, PLAINVA_DROPBOX_
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../adapters/webdavHttp";
 import { connectProvider, createProviderVault, createProviderFolder, listProviderFolders, getStoredProvider, reauthorizeVault, type MobileSyncProvider } from "./syncService";
-import { adoptAddedVaultSignIn, beginMobileSignIn } from "./accountSignIn";
+import { adoptAddedVaultSignIn, beginMobileSignIn, dropboxDeviceKey } from "./accountSignIn";
 import { fileGrantProbe, getAccountToken, tokenCoversService } from "./accountBroker";
 import { loadCloudAccounts } from "./cloudAccountsStore";
 import { getMobileVault } from "./vaultService";
 import { enterFlowVault, releaseFlowVault } from "./flowVault";
 import type { OAuthAccess, ServiceConnectionContext } from "@plainva/ui";
-import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConnectOutcome } from "./connectQueue";
+import { connectionContextFor, loadConnectQueue, markConnectSignedIn, outcomeBelongsToRun, recordConnectOutcome } from "./connectQueue";
 import { getActiveVaultEntry } from "./vaultRegistry";
 import { APP_ID, APP_URL, redirectAddress } from "./appScheme";
 import { connectionFailureToast } from "./connectionToast";
@@ -182,7 +182,7 @@ export async function persistPendingConnect(provider: MobileSyncProvider): Promi
   });
 }
 
-export async function beginStoredFilesConnection(context: ServiceConnectionContext): Promise<boolean> {
+export async function beginStoredFilesConnection(context: ServiceConnectionContext, createTemplateId?: string): Promise<boolean> {
   if (!context.cloudAccountId) return false;
   const record = (await loadCloudAccounts(context.vaultId)).find(r => r.id === context.cloudAccountId);
   if (!record || (record.family !== "google" && record.family !== "microsoft")) return false;
@@ -190,9 +190,10 @@ export async function beginStoredFilesConnection(context: ServiceConnectionConte
   if (!token?.clientId || !tokenCoversService(token, "files", record.family)) return false;
   try { await (await fileGrantProbe(context.vaultId, record.id, record.family, token)).getAccessToken(); } catch { return false; }
   pendingConnect = record.family === "google" ? { provider: "drive", creds: { clientId: token.clientId, clientSecret: token.clientSecret, refreshToken: "" } } : { provider: "onedrive", creds: { clientId: token.clientId, refreshToken: "" } };
-  pendingCreateTemplateId = null; pendingServiceContext = context; pendingAccess = undefined;
+  // A new vault in the cloud (E7 of the settings plan 2026-10-29) keeps its template through the folder pick.
+  pendingCreateTemplateId = createTemplateId ?? null; pendingServiceContext = context; pendingAccess = undefined;
   releaseFlowVault(FILE_FLOW);
-  const saved: PendingFolder = { provider: pendingConnect, createTemplateId: null, context, createdAt: Date.now() };
+  const saved: PendingFolder = { provider: pendingConnect, createTemplateId: createTemplateId ?? null, context, createdAt: Date.now() };
   await getPlatformServices().credentials.writeSecret(FOLDER_KEY, saved);
   if (!sameStoredValue(await getPlatformServices().credentials.readSecret(FOLDER_KEY), saved)) throw new ServiceConnectionError("storageFailed");
   window.dispatchEvent(new CustomEvent("plainva-oauth-choose-folder"));
@@ -370,7 +371,8 @@ export async function reconnectVault(vaultId: string): Promise<void> {
   } else if (stored.provider === "onedrive") {
     await beginOAuth("onedrive", { clientId: stored.creds.clientId, rootFolderName: stored.creds.rootFolderName, reconnectVaultId: vaultId });
   } else if (stored.provider === "dropbox") {
-    await beginOAuth("dropbox", { rootPath: stored.creds.rootPath, reconnectVaultId: vaultId });
+    // Signing in again uses this phone's choice (E6 of the settings plan), like Google and Microsoft.
+    await beginOAuth("dropbox", { clientId: await dropboxDeviceKey(vaultId), rootPath: stored.creds.rootPath, reconnectVaultId: vaultId });
   }
 }
 
@@ -573,6 +575,8 @@ async function offerFolderPicker(provider: MobileSyncProvider, extras: OAuthExtr
   pendingCreateTemplateId = folderState.createTemplateId;
   pendingAccess = folderState.access;
   pendingServiceContext = folderState.context;
+  // A run that started before its sign-in (Dropbox) is signed in now.
+  await markConnectSignedIn(folderState.context).catch(() => undefined);
   releaseFlowVault(FILE_FLOW);
   window.dispatchEvent(new CustomEvent("plainva-oauth-choose-folder"));
 }

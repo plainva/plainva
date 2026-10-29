@@ -2458,7 +2458,6 @@
     "syncUrl": "服务器 URL",
     "syncUser": "用户名",
     "syncPassword": "密码",
-    "syncConnect": "连接",
     "syncNow": "立即同步",
     "syncIdle": "已连接",
     "syncDisconnected": "同步已暂停",
@@ -2466,17 +2465,13 @@
     "syncError": "同步错误",
     "syncRetryingAt": "无网络连接 — 将于 {{time}} 重试",
     "syncRetrying": "无网络连接 — 稍后重试",
-    "syncProvider": "服务商",
     "s3Endpoint": "端点",
     "s3Region": "区域",
     "s3Bucket": "存储桶",
     "s3AccessKeyId": "Access Key ID",
     "s3SecretAccessKey": "Secret Access Key",
     "s3Prefix": "前缀（可选）",
-    "syncOwnAppKey": "自己的应用密钥（可选）",
-    "syncOwnAppIdHint": "留空则使用 Plainva 的中央应用注册。使用自己的应用可绕过其用户数上限。",
     "syncFolder": "远程文件夹（可选）",
-    "syncFolderAfterConnect": "云文件夹将在连接后选择。",
     "vaults": "仓库",
     "vaultLocal": "在此设备上",
     "syncCreatesVaultHint": "连接会为此云端位置创建一个新的独立仓库。",
@@ -2501,7 +2496,6 @@
     "vaultExternalRemoveConfirm": "从 Plainva 中移除“{{name}}”？与“{{label}}”的连接将解除；文件保留在原处。",
     "vaultExternalSubtitle": "文件夹：{{label}}",
     "vaultFolderNotPickable": "系统不提供此位置（例如“下载”或存储根目录）。请选择其中的一个文件夹。",
-    "vaultCreateOnlineTitle": "在云端新建仓库",
     "onboardingCloudExisting": "连接现有仓库",
     "onboardingCloudExistingDesc": "把云端内容同步到此设备。",
     "onboardingCloudNew": "在云端创建新仓库",
@@ -3269,7 +3263,6 @@
     "empty": "尚未连接邮件账户",
     "noAccounts": "尚未连接任何邮件账户。",
     "imapHint": "Plainva 读取邮件时不会标记为已读；仅在你明确操作时才会标星、移动或删除。Gmail：imap.gmail.com，端口 993，使用应用专用密码。",
-    "backend": "连接方式",
     "microsoftHint": "适用于 Outlook.com / Microsoft 365：在浏览器中直接登录——无需应用专用密码，也无需 IMAP。",
     "connectMicrosoft": "使用 Microsoft 登录",
     "folder": "邮件文件夹",
@@ -3549,9 +3542,6 @@
     "addAccount": "连接账户…",
     "pickProvider": "这个账户在哪个提供商？",
     "pickServices": "Plainva 用它做什么？可以多选。",
-    "connectServices_other": "连接 {{count}} 项服务",
-    "noFilesForFamily": "该提供商没有 Plainva 可以使用的文件存储。",
-    "appPasswordHint": "该提供商需要应用专用密码，而不是常用密码——具体在哪里创建，请见其帮助页面。",
     "filesXorNote": "每个仓库只能有一个账户负责文件——当前是 {{account}}。",
     "stepProvider": "服务商",
     "stepServices": "服务",
@@ -4759,8 +4749,6 @@
     "storageFailed": "无法确认保存结果。请重试，向导将继续设置同一连接。",
     "deviceStorageFailed": "Plainva 无法使用此设备上自身的数据库（{{detail}}）。这不是提供商的问题。请重试，向导将继续设置同一连接。",
     "signedInNotSaved": "登录成功，但账户数据无法保存到此设备。没有留下任何未完成的内容。",
-    "filesChecking": "正在检查账户和云文件夹 …",
-    "filesCopying": "正在将文件和账户复制到新仓库 …",
     "transferCancelled": "复制已取消，没有任何更改。点按“选择文件夹”可重新选择文件夹。",
     "transferCopy": "将本地文件另存为副本",
     "transferKeepHint": "请检查两份内容。“保留两个文件”会将本地文件保存在显示的新路径下。",
@@ -5053,7 +5041,8 @@
     "providerRefused": "{{provider}} 拒绝了请求",
     "providerText": "{{provider}} 没有接受该请求。请重试；仍不行的话，请把下面的文字连同诊断信息一起发送。",
     "noConnection": "无连接",
-    "notCompleted": "未完成"
+    "notCompleted": "未完成",
+    "continueWithout": "不包含{{services}}继续"
   },
   "tasksQuery": {
     "editQuery": "编辑查询",
@@ -5194,6 +5183,7 @@
       "mail": "{{provider}} 没有 Plainva 可以收取的邮箱。"
     },
     "guide": "打开指南",
-    "statusNotYet": "尚未连接"
+    "statusNotYet": "尚未连接",
+    "stepSetUp": "设置"
   }
 }

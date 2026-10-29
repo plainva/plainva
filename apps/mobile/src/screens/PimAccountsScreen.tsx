@@ -3,9 +3,9 @@ import { devicePermissionKey } from "../services/pim/devicePermission";
 import { devicePimAuthorization, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Circle, Plus } from "lucide-react";
-import { Banner, Button, calendarTargetForFamily, classifyAuthError, foldMachineText, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, listTemplates, MEETING_TEMPLATE_TOKENS, minutesToTime, reminderDiagnosis, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
+import { Banner, Button, calendarTargetForFamily, classifyAuthError, foldMachineText, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, listTemplates, MEETING_TEMPLATE_TOKENS, minutesToTime, reminderDiagnosis, Row, RowList, SectionLabel, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
-import { accessProblemKey, isGoogleAuthorizationCancelled, serviceConnectionMessage, type AccessResolution, type OAuthFamily } from "@plainva/ui";
+import { accessProblemKey, isGoogleAuthorizationCancelled, serviceConnectionMessage, type AccessFamily, type AccessResolution } from "@plainva/ui";
 import { getReminderState, subscribeReminderState } from "../services/reminderScheduler";
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
 import { mConfirm, mDayTime, mMultiSelect, mSelect } from "../services/mobileDialogs";
@@ -60,6 +60,7 @@ type CalRow = PimCalendar & { accountId: string; selected: boolean };
 const HOUR_CHIPS = [7 * 60, 8 * 60, 9 * 60, 12 * 60, 18 * 60];
 
 export function PimAccountsScreen({
+  onAddAccount,
   bump,
   onBack,
   family,
@@ -81,6 +82,8 @@ export function PimAccountsScreen({
    * Google, and connecting the wrong provider looked completely normal.
    */
   family?: CloudProviderFamily;
+  /** "Add account…" opens the connect assistant with the calendar ticked (E7 of the settings plan 2026-10-29). */
+  onAddAccount?: () => void;
 }) {
   const { t } = useTranslation();
   const run = useConnectionRun();
@@ -88,6 +91,15 @@ export function PimAccountsScreen({
   const calendarOutcome = calendarRun?.outcomes.calendar;
   const selectedAccountId = calendarOutcome && "bindingId" in calendarOutcome ? calendarOutcome.bindingId : accountId;
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  /** A CalDAV failure of the run's calendar step, with its sender in the frame - no toast (settings plan § 5.1). */
+  const [caldavFailure, setCaldavFailure] = useState<unknown>(null);
+  /**
+   * The calendar of a provider with credentials, proven by the one form of the
+   * sign-in step (E5): the step binds it without asking again. Absent in a run
+   * resumed after the app was gone - then the form asks once more.
+   */
+  const provenCaldav = calendarRun && family ? getConnectSecrets().request?.caldav ?? null : null;
+  const autoConnected = useRef<string | null>(null);
   const [forceConsent, setForceConsent] = useState(false);
   const calPreset = family ? calendarTargetForFamily(family) : null;
   const [accounts, setAccounts] = useState<PimAccountRow[]>([]);
@@ -128,7 +140,7 @@ export function PimAccountsScreen({
   // Google and Microsoft sign in through the one account sign-in with this
   // device's access (account sign-in plan K4b): no client fields here.
   const [access, setAccess] = useState<AccessResolution | null>(null);
-  const [accessFor, setAccessFor] = useState<OAuthFamily | null>(null);
+  const [accessFor, setAccessFor] = useState<AccessFamily | null>(null);
 
   // A CalDAV app password lives in this state until "connect" runs - and a
   // tap on the navigation bar clears the overlay. P0 fixed this class for the
@@ -155,7 +167,7 @@ export function PimAccountsScreen({
     if (!calendarRun) return;
     if (calendarOutcome && "bindingId" in calendarOutcome) { setFormOpen(false); return; }
     if (openedRun.current !== calendarRun.id) {
-      openedRun.current = calendarRun.id; setFormOpen(true); setConnectionError(null); setForceConsent(false);
+      openedRun.current = calendarRun.id; setFormOpen(!getConnectSecrets().request?.caldav); setConnectionError(null); setCaldavFailure(null); setForceConsent(false);
       setRunShare(null);
     }
   }, [calendarRun, calendarOutcome]);
@@ -455,22 +467,25 @@ export function PimAccountsScreen({
   /** The account this form repairs, if it is of the provider being filled in. */
   const reconnectFor = (provider: string) => (reconnect?.provider === provider ? reconnect : null);
 
-  const connectCaldav = async () => {
+  const connectCaldav = async (proven?: { url: string; user: string; pass: string }) => {
     // An address as a machine reads it (lib/machineText.ts).
-    const u = foldMachineText(url);
-    if (!u || !user.trim() || !pass) return;
+    const u = foldMachineText(proven?.url ?? url);
+    const name = (proven?.user ?? user).trim();
+    const secret = proven?.pass ?? pass;
+    if (!u || !name || !secret) return;
     setBusy(true);
+    setCaldavFailure(null);
     try {
       const host = (() => { try { return new URL(u).host; } catch { return u; } })();
       const target = reconnectFor("caldav");
       if (target) {
-        await reauthorizePimAccount(target.id, { kind: "caldav", url: u, user: user.trim(), pass }, calendarRun?.context);
+        await reauthorizePimAccount(target.id, { kind: "caldav", url: u, user: name, pass: secret }, calendarRun?.context);
         await recordConnectOutcome(calendarRun?.context, "calendar", { state: "alreadyConnected", bindingId: target.id });
       } else {
-        await addPimAccount("caldav", label.trim() || host, { kind: "caldav", url: u, user: user.trim(), pass }, calendarRun?.context);
+        await addPimAccount("caldav", label.trim() || host, { kind: "caldav", url: u, user: name, pass: secret }, calendarRun?.context);
       }
       // Carried to the mail step of the same run — in memory only (E4).
-      rememberConnectSecrets({ baseUrl: u, user: user.trim(), password: pass });
+      rememberConnectSecrets({ baseUrl: u, user: name, password: secret });
       setLabel(""); setUrl(""); setUser(""); setPass(""); setReconnect(null);
       toast.success(
         target
@@ -479,11 +494,20 @@ export function PimAccountsScreen({
       );
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      // In the setup the frame says it, with its sender; outside it the sheet's toast.
+      if (calendarRun) setCaldavFailure(e);
+      else toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
   };
+  // The proven calendar binds on its own, once per run; a retry is the frame's button.
+  useEffect(() => {
+    if (!calendarRun || !provenCaldav || calendarOutcome || autoConnected.current === calendarRun.id) return;
+    autoConnected.current = calendarRun.id;
+    void connectCaldav(provenCaldav);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per run: the effect is the step starting
+  }, [calendarRun?.id, provenCaldav, calendarOutcome]);
 
   // Google/Microsoft open the system browser (OAuth); the account is added when
   // the redirect returns (handlePimOAuthRedirect -> addPimAccount -> m-pim-changed),
@@ -604,16 +628,23 @@ export function PimAccountsScreen({
           run={calendarRun}
           service="calendar"
           heading={t("connectRun.calendarHeading")}
-          failure={connectionError ?? undefined}
+          failure={caldavFailure ?? connectionError ?? undefined}
           onLeave={() => { setFormOpen(false); onBack?.(); }}
-          onRetry={() => setFormOpen(true)}
-          onSignIn={() => setFormOpen(true)}
+          onRetry={provenCaldav ? () => void connectCaldav(provenCaldav) : () => setFormOpen(true)}
+          onSignIn={provenCaldav ? () => void connectCaldav(provenCaldav) : () => setFormOpen(true)}
         />
       ) : (
         <AppBar onBack={() => onBack?.()} title={t("pim.accounts", { defaultValue: "Kalenderkonten" })} />
       )}
 
       <div className="m-settings">
+        {calendarRun && provenCaldav && busy && (
+          <GroupCard>
+            <RowList>
+              <Row icon={<span className="m-actionspin" aria-hidden />} title={t("pim.connecting")} data-testid="pim-caldav-progress" />
+            </RowList>
+          </GroupCard>
+        )}
         {!calendarRun && <>
         {/* Per-device sign-in (package D): app settings sync, but credentials
             never do — this answers "settings synced yet no calendar login". */}
@@ -738,7 +769,7 @@ export function PimAccountsScreen({
             <Row
               data-testid="pim-account-add"
               icon={<Plus size={ICON.ui} />}
-              onClick={() => setFormOpen(true)}
+              onClick={() => (onAddAccount ? onAddAccount() : setFormOpen(true))}
               title={t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}
             />
           </RowList>
@@ -904,18 +935,6 @@ export function PimAccountsScreen({
                 Hidden when the wizard already settled it (S0a): leaving it here was
                 the silent half of the bug, because the control defaults to Google
                 and arriving from the Microsoft tile looked entirely plausible. */}
-            {!family && (
-              <Segmented
-                ariaLabel={t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}
-                options={[
-                  { value: "google", label: "Google" },
-                  { value: "microsoft", label: "Microsoft" },
-                  { value: "caldav", label: "CalDAV" },
-                ]}
-                value={addProvider}
-                onChange={(v) => setAddProvider(v as "google" | "microsoft" | "caldav")}
-              />
-            )}
 
             <SettingField label={t("pim.accountLabel", { defaultValue: "Bezeichnung (optional)" })}>
               <TextInput onChange={(e) => setLabel(e.target.value)} value={label} placeholder={addProvider === "google" ? "Google" : addProvider === "microsoft" ? "Outlook" : "Fastmail"} />
@@ -953,7 +972,7 @@ export function PimAccountsScreen({
                 <SettingField label={t("mobile.syncPassword", { defaultValue: "Passwort" })}>
                   <TextInput type="password" onChange={(e) => setPass(e.target.value)} value={pass} />
                 </SettingField>
-                <Button variant="primary" disabled={!canConnect} onClick={() => void connectCaldav()}>
+                <Button variant="primary" disabled={!canConnect} onClick={() => void connectCaldav()} data-testid="pim-caldav-connect">
                   <Plus size={ICON.ui} /> {t("pim.connectAccount", { defaultValue: "Konto verbinden" })}
                 </Button>
               </>
@@ -977,7 +996,7 @@ export function PimAccountsScreen({
         <AccountAccessSheet
           family={accessFor}
           onCancel={() => setAccessFor(null)}
-          onSaved={() => { const family = accessFor; setAccessFor(null); void deviceAccess(family).then(setAccess); }}
+          onSaved={() => { const family = accessFor; setAccessFor(null); if (family !== "dropbox") void deviceAccess(family).then(setAccess); }}
         />
       )}
       {calendarRun && (

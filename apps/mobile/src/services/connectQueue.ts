@@ -18,6 +18,17 @@ export interface ConnectQueue {
   /** Left out by the person on the way ("Skip calendar"); absent in runs saved before skipping existed. */
   skipped?: CloudServiceId[];
   outcomes: Partial<Record<CloudServiceId, ServiceConnectionOutcome>>;
+  /**
+   * Whether the run's sign-in has happened (settings plan 2026-10-29, § 5.1).
+   * Google and Microsoft start their run after it; Dropbox, the providers with
+   * credentials and S3 start it before - the frame says "Signed in" only once
+   * one took place. Absent in runs saved before = signed in.
+   */
+  signedIn?: boolean;
+  /** Nextcloud is WebDAV with a name of its own: the frame and the card say it. */
+  flavor?: "nextcloud";
+  /** A new vault in the cloud (the "new vault" door): the files step scaffolds this template ("" = empty). */
+  createTemplateId?: string;
   selectionConfirmed: boolean;
   createdAt: number;
   preparedVaultId?: string;
@@ -25,11 +36,27 @@ export interface ConnectQueue {
   sourceVaultId?: string;
 }
 
-export function buildQueue(family: CloudProviderFamily, services: readonly CloudServiceId[], now: number, context: ServiceConnectionContext = { vaultId: "" }): ConnectQueue | null {
-  const pending = SERVICE_ORDER.filter(s => services.includes(s) && FAMILY_SERVICES[family].includes(s));
+/** What a run knows from its start besides its services. */
+export interface ConnectQueueOptions {
+  signedIn?: boolean;
+  flavor?: "nextcloud";
+  createTemplateId?: string;
+  /** Services the sign-in could not reach: the run leaves them out, as skipped. */
+  skipped?: readonly CloudServiceId[];
+}
+
+export function buildQueue(family: CloudProviderFamily, services: readonly CloudServiceId[], now: number, context: ServiceConnectionContext = { vaultId: "" }, options: ConnectQueueOptions = {}): ConnectQueue | null {
+  const offered = SERVICE_ORDER.filter(s => services.includes(s) && FAMILY_SERVICES[family].includes(s));
+  const skipped = offered.filter(s => (options.skipped ?? []).includes(s));
+  const pending = offered.filter(s => !skipped.includes(s));
   if (!pending.length) return null;
   const id = crypto.randomUUID();
-  return { id, family, context: { ...context, runId: id }, pending, done: [], skipped: [], outcomes: {}, selectionConfirmed: false, createdAt: now, sourceVaultId: context.vaultId };
+  return {
+    id, family, context: { ...context, runId: id }, pending, done: [], skipped, outcomes: {}, selectionConfirmed: false, createdAt: now, sourceVaultId: context.vaultId,
+    ...(options.signedIn === false ? { signedIn: false } : {}),
+    ...(options.flavor ? { flavor: options.flavor } : {}),
+    ...(options.createTemplateId !== undefined ? { createTemplateId: options.createTemplateId } : {}),
+  };
 }
 export function nextService(queue: ConnectQueue | null): CloudServiceId | null { return queue?.pending[0] ?? null; }
 export function runServices(queue: ConnectQueue): CloudServiceId[] { return SERVICE_ORDER.filter(s => queue.done.includes(s) || queue.pending.includes(s) || (queue.skipped ?? []).includes(s)); }
@@ -71,11 +98,24 @@ export async function loadConnectQueue(): Promise<ConnectQueue | null> {
   current = stored;
   return stored;
 }
-export async function startConnectQueue(family: CloudProviderFamily, services: readonly CloudServiceId[], context?: ServiceConnectionContext): Promise<CloudServiceId | null> {
+export async function startConnectQueue(family: CloudProviderFamily, services: readonly CloudServiceId[], context?: ServiceConnectionContext, options?: ConnectQueueOptions): Promise<CloudServiceId | null> {
   const target = context ?? { vaultId: (await getActiveVaultEntry()).id };
-  const queue = buildQueue(family, services, Date.now(), target);
+  const queue = buildQueue(family, services, Date.now(), target, options);
   await persist(queue);
   return nextService(queue);
+}
+
+/**
+ * The run's sign-in took place (Dropbox's consent came back): "Signed in" and
+ * the done step show from now on. Only the run the sign-in belongs to.
+ */
+export async function markConnectSignedIn(context: ServiceConnectionContext | undefined): Promise<void> {
+  if (!context?.runId) return;
+  await withAccountCredentialLock(KEY, async () => {
+    const q = await loadConnectQueue();
+    if (!q || q.id !== context.runId || q.signedIn !== false) return;
+    await persist({ ...q, signedIn: true });
+  });
 }
 export async function connectionContextFor(service: CloudServiceId): Promise<ServiceConnectionContext | undefined> {
   const q = await loadConnectQueue();

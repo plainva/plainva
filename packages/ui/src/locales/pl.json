@@ -2497,7 +2497,6 @@
     "syncUrl": "Adres serwera",
     "syncUser": "Nazwa użytkownika",
     "syncPassword": "Hasło",
-    "syncConnect": "Połącz",
     "syncNow": "Synchronizuj teraz",
     "syncIdle": "Połączono",
     "syncDisconnected": "Synchronizacja wstrzymana",
@@ -2505,17 +2504,13 @@
     "syncError": "Błąd synchronizacji",
     "syncRetryingAt": "Brak połączenia — kolejna próba o {{time}}",
     "syncRetrying": "Brak połączenia — kolejna próba wkrótce",
-    "syncProvider": "Dostawca",
     "s3Endpoint": "Endpoint",
     "s3Region": "Region",
     "s3Bucket": "Bucket",
     "s3AccessKeyId": "Access Key ID",
     "s3SecretAccessKey": "Secret Access Key",
     "s3Prefix": "Prefiks (opcjonalny)",
-    "syncOwnAppKey": "Własny klucz aplikacji (opcjonalnie)",
-    "syncOwnAppIdHint": "Zostaw puste, aby użyć centralnej rejestracji aplikacji Plainvy. Własna aplikacja omija jej limit użytkowników.",
     "syncFolder": "Folder zdalny (opcjonalnie)",
-    "syncFolderAfterConnect": "Folder w chmurze wybierzesz po połączeniu.",
     "vaults": "Sejfy",
     "vaultLocal": "Na tym urządzeniu",
     "syncCreatesVaultHint": "Połączenie tworzy nowy, osobny sejf dla tej lokalizacji w chmurze.",
@@ -2540,7 +2535,6 @@
     "vaultExternalRemoveConfirm": "Usunąć „{{name}}” z Plainva? Połączenie z „{{label}}” zniknie; pliki zostaną tam, gdzie są.",
     "vaultExternalSubtitle": "Folder: {{label}}",
     "vaultFolderNotPickable": "System nie udostępnia tej lokalizacji (na przykład Pobrane lub katalogu głównego pamięci). Wybierz folder w jej wnętrzu.",
-    "vaultCreateOnlineTitle": "Nowy vault w chmurze",
     "onboardingCloudExisting": "Połącz istniejący vault",
     "onboardingCloudExistingDesc": "Pobierz zawartość z chmury na to urządzenie.",
     "onboardingCloudNew": "Utwórz nowy vault w chmurze",
@@ -3359,7 +3353,6 @@
     "empty": "Brak połączonego konta e-mail",
     "noAccounts": "Nie połączono jeszcze konta e-mail.",
     "imapHint": "Plainva odczytuje wiadomości bez oznaczania ich jako przeczytane; flagowanie, przenoszenie i usuwanie odbywa się tylko na żądanie. Gmail: imap.gmail.com, port 993, z hasłem aplikacji.",
-    "backend": "Typ połączenia",
     "microsoftHint": "Dla Outlook.com / Microsoft 365: logowanie bezpośrednio w przeglądarce — bez hasła aplikacji, bez IMAP.",
     "connectMicrosoft": "Zaloguj się przez Microsoft",
     "folder": "Folder e-mail",
@@ -3654,12 +3647,6 @@
     "addAccount": "Połącz konto…",
     "pickProvider": "U którego dostawcy jest to konto?",
     "pickServices": "Do czego Plainva ma go używać? Możesz wybrać kilka.",
-    "connectServices_one": "Połącz {{count}} usługę",
-    "connectServices_few": "Połącz {{count}} usługi",
-    "connectServices_many": "Połącz {{count}} usług",
-    "connectServices_other": "Połącz {{count}} usługi",
-    "noFilesForFamily": "Ten dostawca nie ma magazynu plików, z którego Plainva mogłaby korzystać.",
-    "appPasswordHint": "Ten dostawca wymaga hasła aplikacji zamiast zwykłego — gdzie je utworzyć, opisuje jego strona pomocy.",
     "filesXorNote": "Tylko jedno konto na vault może obsługiwać Pliki — obecnie {{account}}.",
     "stepProvider": "Dostawca",
     "stepServices": "Usługi",
@@ -4942,8 +4929,6 @@
     "storageFailed": "Nie udało się potwierdzić zapisu. Spróbuj ponownie; kreator wznowi to samo połączenie.",
     "deviceStorageFailed": "Plainva nie mogła użyć własnej bazy danych na tym urządzeniu ({{detail}}). To nie wina dostawcy. Spróbuj ponownie; kreator wznowi to samo połączenie.",
     "signedInNotSaved": "Logowanie się powiodło, ale nie udało się zapisać danych konta na tym urządzeniu. Nic nie zostało utworzone połowicznie.",
-    "filesChecking": "Sprawdzanie konta i folderu w chmurze …",
-    "filesCopying": "Kopiowanie plików i kont do nowego vaultu …",
     "transferCancelled": "Kopiowanie zostało anulowane - nic się nie zmieniło. Stuknij „Wybierz folder”, aby ponownie wybrać folder.",
     "transferCopy": "Plik lokalny jako osobna kopia",
     "transferKeepHint": "Sprawdź obie treści. „Zachowaj oba pliki” zapisze plik lokalny pod nową wskazaną ścieżką.",
@@ -5248,7 +5233,8 @@
     "providerRefused": "{{provider}} odmówił",
     "providerText": "{{provider}} nie przyjął żądania. Spróbuj ponownie; jeśli to nie pomoże, wyślij poniższy tekst razem z eksportem diagnostyki.",
     "noConnection": "Brak połączenia",
-    "notCompleted": "Nie ukończono"
+    "notCompleted": "Nie ukończono",
+    "continueWithout": "Kontynuuj bez: {{services}}"
   },
   "tasksQuery": {
     "editQuery": "Edytuj zapytanie",
@@ -5392,6 +5378,7 @@
       "mail": "{{provider}} nie ma skrzynki, z której Plainva mogłaby pobierać pocztę."
     },
     "guide": "Otwórz instrukcję",
-    "statusNotYet": "jeszcze niepołączone"
+    "statusNotYet": "jeszcze niepołączone",
+    "stepSetUp": "Konfiguracja"
   }
 }

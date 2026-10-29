@@ -2484,7 +2484,6 @@
     "syncUrl": "URL du serveur",
     "syncUser": "Nom d'utilisateur",
     "syncPassword": "Mot de passe",
-    "syncConnect": "Connecter",
     "syncNow": "Synchroniser maintenant",
     "syncIdle": "Connecté",
     "syncDisconnected": "Synchronisation suspendue",
@@ -2492,17 +2491,13 @@
     "syncError": "Erreur de sync",
     "syncRetryingAt": "Pas de connexion — nouvelle tentative à {{time}}",
     "syncRetrying": "Pas de connexion — nouvelle tentative à venir",
-    "syncProvider": "Fournisseur",
     "s3Endpoint": "Endpoint",
     "s3Region": "Région",
     "s3Bucket": "Bucket",
     "s3AccessKeyId": "Access Key ID",
     "s3SecretAccessKey": "Secret Access Key",
     "s3Prefix": "Préfixe (optionnel)",
-    "syncOwnAppKey": "Votre propre clé d'application (facultatif)",
-    "syncOwnAppIdHint": "Laissez vide pour utiliser l'enregistrement d'application central de Plainva. Votre propre application contourne sa limite d'utilisateurs.",
     "syncFolder": "Dossier distant (optionnel)",
-    "syncFolderAfterConnect": "Le dossier cloud est choisi après la connexion.",
     "vaults": "Coffres",
     "vaultLocal": "Sur cet appareil",
     "syncCreatesVaultHint": "La connexion crée un nouveau coffre séparé pour cet emplacement cloud.",
@@ -2527,7 +2522,6 @@
     "vaultExternalRemoveConfirm": "Retirer « {{name}} » de Plainva ? La connexion à « {{label}} » disparaît ; les fichiers restent où ils sont.",
     "vaultExternalSubtitle": "Dossier : {{label}}",
     "vaultFolderNotPickable": "Le système ne cède pas cet emplacement (par exemple Téléchargements ou la racine du stockage). Choisissez un dossier à l’intérieur.",
-    "vaultCreateOnlineTitle": "Nouveau vault dans le cloud",
     "onboardingCloudExisting": "Connecter un vault existant",
     "onboardingCloudExistingDesc": "Récupérer le contenu du cloud sur cet appareil.",
     "onboardingCloudNew": "Créer un nouveau vault dans le cloud",
@@ -3329,7 +3323,6 @@
     "empty": "Aucun compte e-mail connecté",
     "noAccounts": "Aucun compte e-mail connecté pour l’instant.",
     "imapHint": "Plainva lit sans marquer les messages comme lus ; le marquage, le déplacement et la suppression ne s’exécutent qu’à votre demande. Gmail : imap.gmail.com, port 993, avec un mot de passe d’application.",
-    "backend": "Type de connexion",
     "microsoftHint": "Pour Outlook.com / Microsoft 365 : connexion directe dans le navigateur — sans mot de passe d'application, sans IMAP.",
     "connectMicrosoft": "Se connecter avec Microsoft",
     "folder": "Dossier e-mail",
@@ -3619,11 +3612,6 @@
     "addAccount": "Connecter un compte…",
     "pickProvider": "Chez quel fournisseur se trouve le compte ?",
     "pickServices": "À quoi Plainva doit-il servir ? Tu peux en choisir plusieurs.",
-    "connectServices_one": "Connecter {{count}} service",
-    "connectServices_many": "Connecter {{count}} services",
-    "connectServices_other": "Connecter {{count}} services",
-    "noFilesForFamily": "Ce fournisseur n’a pas de stockage de fichiers utilisable par Plainva.",
-    "appPasswordHint": "Ce fournisseur exige un mot de passe d’application plutôt que le mot de passe habituel — sa page d’aide indique où le créer.",
     "filesXorNote": "Un seul compte par vault peut gérer les fichiers — actuellement {{account}}.",
     "stepProvider": "Fournisseur",
     "stepServices": "Services",
@@ -4881,8 +4869,6 @@
     "storageFailed": "L’enregistrement n’a pas pu être confirmé. Réessayez ; l’assistant reprendra la même connexion.",
     "deviceStorageFailed": "Plainva n’a pas pu utiliser sa propre base de données sur cet appareil ({{detail}}). Le fournisseur n’y est pour rien. Réessayez ; l’assistant reprendra la même connexion.",
     "signedInNotSaved": "La connexion a réussi, mais les données du compte n’ont pas pu être enregistrées sur cet appareil. Rien n’a été laissé à moitié créé.",
-    "filesChecking": "Vérification du compte et du dossier cloud …",
-    "filesCopying": "Copie des fichiers et des comptes dans le nouveau vault …",
     "transferCancelled": "La copie a été annulée : rien n’a changé. Touchez « Choisir un dossier » pour choisir à nouveau le dossier.",
     "transferCopy": "Fichier local en copie séparée",
     "transferKeepHint": "Vérifiez les deux contenus. « Conserver les deux fichiers » garde le fichier local au nouveau chemin indiqué.",
@@ -5183,7 +5169,8 @@
     "providerRefused": "{{provider}} a refusé",
     "providerText": "{{provider}} n’a pas accepté la requête. Réessayez ; si cela ne suffit pas, envoyez le texte ci-dessous avec un export du diagnostic.",
     "noConnection": "Pas de connexion",
-    "notCompleted": "Non terminé"
+    "notCompleted": "Non terminé",
+    "continueWithout": "Continuer sans {{services}}"
   },
   "tasksQuery": {
     "editQuery": "Modifier la requête",
@@ -5326,6 +5313,7 @@
       "mail": "{{provider}} n’a pas de boîte mail que Plainva peut relever."
     },
     "guide": "Ouvrir le guide",
-    "statusNotYet": "pas encore connecté"
+    "statusNotYet": "pas encore connecté",
+    "stepSetUp": "Configurer"
   }
 }

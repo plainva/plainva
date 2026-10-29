@@ -2484,7 +2484,6 @@
     "syncUrl": "URL del server",
     "syncUser": "Nome utente",
     "syncPassword": "Password",
-    "syncConnect": "Connetti",
     "syncNow": "Sincronizza ora",
     "syncIdle": "Connesso",
     "syncDisconnected": "Sincronizzazione sospesa",
@@ -2492,17 +2491,13 @@
     "syncError": "Errore di sync",
     "syncRetryingAt": "Nessuna connessione — nuovo tentativo alle {{time}}",
     "syncRetrying": "Nessuna connessione — nuovo tentativo in arrivo",
-    "syncProvider": "Provider",
     "s3Endpoint": "Endpoint",
     "s3Region": "Regione",
     "s3Bucket": "Bucket",
     "s3AccessKeyId": "Access Key ID",
     "s3SecretAccessKey": "Secret Access Key",
     "s3Prefix": "Prefisso (opzionale)",
-    "syncOwnAppKey": "La tua chiave applicazione (facoltativa)",
-    "syncOwnAppIdHint": "Lascia vuoto per usare la registrazione dell'app centrale di Plainva. Un'app tua aggira il suo limite di utenti.",
     "syncFolder": "Cartella remota (opzionale)",
-    "syncFolderAfterConnect": "La cartella cloud viene scelta dopo la connessione.",
     "vaults": "Vault",
     "vaultLocal": "Su questo dispositivo",
     "syncCreatesVaultHint": "La connessione crea un nuovo vault separato per questa posizione cloud.",
@@ -2527,7 +2522,6 @@
     "vaultExternalRemoveConfirm": "Rimuovere “{{name}}” da Plainva? Il collegamento a “{{label}}” viene tolto; i file restano dove sono.",
     "vaultExternalSubtitle": "Cartella: {{label}}",
     "vaultFolderNotPickable": "Il sistema non concede questa posizione (per esempio Download o la radice dell’archivio). Scegli una cartella al suo interno.",
-    "vaultCreateOnlineTitle": "Nuovo vault nel cloud",
     "onboardingCloudExisting": "Collega un vault esistente",
     "onboardingCloudExistingDesc": "Porta i contenuti dal cloud su questo dispositivo.",
     "onboardingCloudNew": "Crea un nuovo vault nel cloud",
@@ -3329,7 +3323,6 @@
     "empty": "Nessun account e-mail collegato",
     "noAccounts": "Nessun account e-mail collegato finora.",
     "imapHint": "Plainva legge senza contrassegnare i messaggi come letti; contrassegno, spostamento ed eliminazione avvengono solo su tua richiesta. Gmail: imap.gmail.com, porta 993, con password per le app.",
-    "backend": "Tipo di connessione",
     "microsoftHint": "Per Outlook.com / Microsoft 365: accedi direttamente nel browser — senza password per l'app, senza IMAP.",
     "connectMicrosoft": "Accedi con Microsoft",
     "folder": "Cartella e-mail",
@@ -3619,11 +3612,6 @@
     "addAccount": "Collega account…",
     "pickProvider": "Presso quale provider si trova l’account?",
     "pickServices": "Per cosa deve usarlo Plainva? Puoi sceglierne più di uno.",
-    "connectServices_one": "Collega {{count}} servizio",
-    "connectServices_many": "Collega {{count}} servizi",
-    "connectServices_other": "Collega {{count}} servizi",
-    "noFilesForFamily": "Questo provider non ha uno spazio file utilizzabile da Plainva.",
-    "appPasswordHint": "Questo provider richiede una password per app anziché quella normale — la sua pagina di aiuto spiega dove crearla.",
     "filesXorNote": "Solo un account per vault può gestire i file — attualmente {{account}}.",
     "stepProvider": "Provider",
     "stepServices": "Servizi",
@@ -4881,8 +4869,6 @@
     "storageFailed": "Impossibile confermare il salvataggio. Riprova: la procedura riprenderà lo stesso collegamento.",
     "deviceStorageFailed": "Plainva non è riuscito a usare il proprio database su questo dispositivo ({{detail}}). Non dipende dal provider. Riprova: la procedura riprenderà lo stesso collegamento.",
     "signedInNotSaved": "L’accesso è riuscito, ma i dati dell’account non si sono potuti salvare su questo dispositivo. Non è rimasto nulla di creato a metà.",
-    "filesChecking": "Controllo dell'account e della cartella cloud …",
-    "filesCopying": "Copia di file e account nel nuovo vault …",
     "transferCancelled": "La copia è stata annullata: non è cambiato nulla. Tocca «Scegli cartella» per scegliere di nuovo la cartella.",
     "transferCopy": "File locale come copia separata",
     "transferKeepHint": "Controlla entrambi i contenuti. «Conserva entrambi i file» mantiene il file locale nel nuovo percorso indicato.",
@@ -5183,7 +5169,8 @@
     "providerRefused": "{{provider}} ha rifiutato",
     "providerText": "{{provider}} non ha accettato la richiesta. Riprova; se non basta, invia il testo qui sotto con un’esportazione della diagnostica.",
     "noConnection": "Nessuna connessione",
-    "notCompleted": "Non completato"
+    "notCompleted": "Non completato",
+    "continueWithout": "Continua senza {{services}}"
   },
   "tasksQuery": {
     "editQuery": "Modifica query",
@@ -5326,6 +5313,7 @@
       "mail": "{{provider}} non ha una casella di posta che Plainva possa scaricare."
     },
     "guide": "Apri la guida",
-    "statusNotYet": "non ancora collegato"
+    "statusNotYet": "non ancora collegato",
+    "stepSetUp": "Configura"
   }
 }
