@@ -98,6 +98,15 @@ export function keystroke(key: string, modifiers: Array<"command" | "control" | 
   osa(`tell application "System Events" to keystroke "${key}"${using}`);
 }
 
+/**
+ * A real Return key, to the app in front. A synthetic Enter reaches a field's
+ * key handlers but never submits its form: implicit submission belongs to
+ * trusted events only.
+ */
+export function pressReturn(): void {
+  osa(`tell application "System Events" to key code 36`);
+}
+
 /** `defaults read <domain> <key>`, or null when the key is not set. */
 export function readDefault(key: string): string | null {
   try {

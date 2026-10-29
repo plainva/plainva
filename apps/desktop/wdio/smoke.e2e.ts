@@ -161,8 +161,16 @@ describe("Plainva native smoke", () => {
     const name = $('[data-testid="file-tree"] input.pv-field');
     await name.waitForExist({ timeout: 10_000 });
     await name.setValue("smoke-note");
-    // To the field itself, like the marker below.
-    await name.addValue(ENTER);
+    if (isMac) {
+      // The name field is a form, and a form submits on Enter only for a
+      // trusted key: the embedded driver's synthetic Enter reached the field
+      // and submitted nothing (2026-10-29, twice). A real Return does.
+      mac.activatePlainva();
+      mac.pressReturn();
+    } else {
+      // To the field itself, like the marker below.
+      await name.addValue(ENTER);
+    }
 
     const editor = $(".cm-content");
     await editor.waitForExist({ timeout: 10_000 });
@@ -271,7 +279,14 @@ describe("Plainva native smoke", () => {
     mac.activatePlainva();
   });
 
-  it("S5 moves the note into a second window that writes to the file", async () => {
+  // Not on Windows, and not because of the app: the Windows smoke build gives
+  // the main window a WebView2 debugging port in its browser arguments (the
+  // Edge driver reaches the WebView no other way, tauri.smoke.conf.json), and
+  // WebView2 refuses a second WebView with different arguments in the same
+  // data folder. A window opened at run time has the default ones, so in this
+  // build the second window is never created (2026-10-29: the app's own window
+  // list held "main" alone). Linux and macOS run it.
+  (process.platform === "win32" ? it.skip : it)("S5 moves the note into a second window that writes to the file", async () => {
     await browser.switchToWindow(mainHandle);
     await closeDialog();
     const before = await browser.getWindowHandles();
