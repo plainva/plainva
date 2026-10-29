@@ -5046,11 +5046,13 @@
     "signInAgainHint": "Signing in again uses this device's setting.",
     "title": {
       "google": "Google sign-in on this device",
-      "microsoft": "Microsoft sign-in on this device"
+      "microsoft": "Microsoft sign-in on this device",
+      "dropbox": "Dropbox sign-in on this device"
     },
     "ownDesc": {
       "google": "A client from your own Google project.",
-      "microsoft": "An app registration from your own Microsoft account."
+      "microsoft": "An app registration from your own Microsoft account.",
+      "dropbox": "An app from your own Dropbox App Console."
     },
     "ownTypeMismatch": {
       "desktop": "If Google shows “Error 400: redirect_uri_mismatch”, the client is not of type “Desktop app”; a client of type “iOS” only works on a phone.",
@@ -5059,14 +5061,17 @@
     "ownType": {
       "desktop": "Type “Desktop app”: create it in the Google Cloud Console under “Credentials”; client ID and client secret come from there.",
       "ios": "Type “iOS” with the bundle ID com.plainva.app: create it in the Google Cloud Console under “Credentials”. An iOS client has no secret; it works on the iPhone and on Android phones.",
-      "microsoft": "The application (client) ID of your app registration."
+      "microsoft": "The application (client) ID of your app registration.",
+      "dropbox": "The app key of your app in the Dropbox App Console."
     },
     "problem": {
       "noPlainvaClient": "This build includes no standard sign-in for Google. Enter your own client ID under “Change”.",
       "ownClientMissing": "The client ID is missing.",
       "ownClientInvalid": "This client ID does not have the expected form.",
       "ownSecretMissing": "The client secret for your own client ID is missing."
-    }
+    },
+    "ownKey": "Own app key",
+    "ownKeyLine": "Own app key ({{id}})"
   },
   "connectRun": {
     "title": "Set up account",
@@ -5198,5 +5203,63 @@
       "booleanMalformed": "This expression with AND, OR or NOT is incomplete.",
       "placeholderWithoutFile": "This placeholder needs the note the query stands in."
     }
+  },
+  "connectAccess": {
+    "secret": {
+      "appPassword": "App password",
+      "password": "Password",
+      "authCode": "Authorization code",
+      "mailPassword": "Mail password",
+      "secretKey": "Secret key"
+    },
+    "newSecret": {
+      "appPassword": "New app password",
+      "password": "New password",
+      "authCode": "New authorization code",
+      "mailPassword": "New mail password",
+      "secretKey": "New secret key"
+    },
+    "step": {
+      "appPassword": "Create it at {{provider}} and paste it here.",
+      "authCode": "Get the code from {{provider}} and paste it here.",
+      "mailPassword": "Create it in the mail settings of {{provider}} and paste it here."
+    },
+    "summary": {
+      "standard": "Standard sign-in — you enter nothing.",
+      "secretOne": {
+        "appPassword": "With your app password.",
+        "password": "With your password.",
+        "authCode": "With your authorization code.",
+        "mailPassword": "With your mail password."
+      },
+      "secretAll": {
+        "appPassword": "One app password for every chosen service.",
+        "password": "One password for every chosen service.",
+        "authCode": "One authorization code for every chosen service.",
+        "mailPassword": "One mail password for every chosen service."
+      },
+      "keys": "With your bucket's access key.",
+      "permission": "Plainva shows this device's calendars and reminders; the system asks once."
+    },
+    "button": {
+      "password": "Connect with password",
+      "authCode": "Connect with authorization code",
+      "mailPassword": "Connect with mail password",
+      "permission": "Allow access"
+    },
+    "other": {
+      "appKey": "own app key",
+      "endpoints": "endpoints one by one",
+      "servers": "servers one by one",
+      "advancedLabel": "Advanced",
+      "keysAdvanced": "region, prefix, path style"
+    },
+    "unavailable": {
+      "files": "{{provider}} has no file storage Plainva can use.",
+      "calendar": "{{provider}} has no calendar Plainva can read.",
+      "mail": "{{provider}} has no mailbox Plainva can fetch."
+    },
+    "guide": "Open the guide",
+    "statusNotYet": "not connected yet"
   }
 }

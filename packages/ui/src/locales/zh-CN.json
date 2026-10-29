@@ -4983,11 +4983,13 @@
     "signInAgainHint": "重新登录将使用此设备的设置。",
     "title": {
       "google": "此设备的 Google 登录",
-      "microsoft": "此设备的 Microsoft 登录"
+      "microsoft": "此设备的 Microsoft 登录",
+      "dropbox": "此设备的 Dropbox 登录"
     },
     "ownDesc": {
       "google": "来自你自己 Google 项目的客户端。",
-      "microsoft": "来自你自己 Microsoft 账户的应用注册。"
+      "microsoft": "来自你自己 Microsoft 账户的应用注册。",
+      "dropbox": "来自你自己 Dropbox App Console 的应用。"
     },
     "ownTypeMismatch": {
       "desktop": "如果 Google 显示“错误 400：redirect_uri_mismatch”，说明该客户端的类型不是“桌面应用”；类型为“iOS”的客户端只能在手机上使用。",
@@ -4996,14 +4998,17 @@
     "ownType": {
       "desktop": "类型选“桌面应用”：在 Google Cloud Console 的“凭据”中创建；客户端ID和客户端密钥从那里获取。",
       "ios": "类型选“iOS”，Bundle ID 为 com.plainva.app：在 Google Cloud Console 的“凭据”中创建。iOS 客户端没有密钥；它适用于 iPhone 和 Android 手机。",
-      "microsoft": "应用注册中的应用程序（客户端）ID。"
+      "microsoft": "应用注册中的应用程序（客户端）ID。",
+      "dropbox": "你在 Dropbox App Console 中的应用的 App Key。"
     },
     "problem": {
       "noPlainvaClient": "此版本不包含 Google 的标准登录。请在“更改”中填写你自己的客户端 ID。",
       "ownClientMissing": "缺少客户端 ID。",
       "ownClientInvalid": "此客户端ID的格式不符合要求。",
       "ownSecretMissing": "缺少你自有客户端 ID 的客户端密钥。"
-    }
+    },
+    "ownKey": "自己的 App Key",
+    "ownKeyLine": "自己的 App Key（{{id}}）"
   },
   "connectRun": {
     "title": "设置账户",
@@ -5132,5 +5137,63 @@
       "booleanMalformed": "这个使用 AND、OR 或 NOT 的表达式不完整。",
       "placeholderWithoutFile": "这个占位符需要查询所在的笔记。"
     }
+  },
+  "connectAccess": {
+    "secret": {
+      "appPassword": "应用专用密码",
+      "password": "密码",
+      "authCode": "授权码",
+      "mailPassword": "邮箱密码",
+      "secretKey": "私密密钥"
+    },
+    "newSecret": {
+      "appPassword": "新的应用专用密码",
+      "password": "新密码",
+      "authCode": "新的授权码",
+      "mailPassword": "新的邮箱密码",
+      "secretKey": "新的私密密钥"
+    },
+    "step": {
+      "appPassword": "在 {{provider}} 创建后粘贴到这里。",
+      "authCode": "从 {{provider}} 获取授权码后粘贴到这里。",
+      "mailPassword": "在 {{provider}} 的邮箱设置中创建后粘贴到这里。"
+    },
+    "summary": {
+      "standard": "标准登录——无需输入任何内容。",
+      "secretOne": {
+        "appPassword": "使用你的应用专用密码。",
+        "password": "使用你的密码。",
+        "authCode": "使用你的授权码。",
+        "mailPassword": "使用你的邮箱密码。"
+      },
+      "secretAll": {
+        "appPassword": "所有已选服务共用一个应用专用密码。",
+        "password": "所有已选服务共用一个密码。",
+        "authCode": "所有已选服务共用一个授权码。",
+        "mailPassword": "所有已选服务共用一个邮箱密码。"
+      },
+      "keys": "使用你的存储桶的访问密钥。",
+      "permission": "Plainva 显示此设备的日历和提醒事项；系统只询问一次。"
+    },
+    "button": {
+      "password": "使用密码连接",
+      "authCode": "使用授权码连接",
+      "mailPassword": "使用邮箱密码连接",
+      "permission": "允许访问"
+    },
+    "other": {
+      "appKey": "自己的 App Key",
+      "endpoints": "分别设置端点",
+      "servers": "分别设置服务器",
+      "advancedLabel": "高级",
+      "keysAdvanced": "区域、前缀、路径样式"
+    },
+    "unavailable": {
+      "files": "{{provider}} 没有 Plainva 可以使用的文件存储。",
+      "calendar": "{{provider}} 没有 Plainva 可以读取的日历。",
+      "mail": "{{provider}} 没有 Plainva 可以收取的邮箱。"
+    },
+    "guide": "打开指南",
+    "statusNotYet": "尚未连接"
   }
 }

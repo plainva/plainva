@@ -5172,11 +5172,13 @@
     "signInAgainHint": "Ponowne zalogowanie używa ustawienia tego urządzenia.",
     "title": {
       "google": "Logowanie Google na tym urządzeniu",
-      "microsoft": "Logowanie Microsoft na tym urządzeniu"
+      "microsoft": "Logowanie Microsoft na tym urządzeniu",
+      "dropbox": "Logowanie Dropbox na tym urządzeniu"
     },
     "ownDesc": {
       "google": "Klient z Twojego własnego projektu Google.",
-      "microsoft": "Rejestracja aplikacji z Twojego własnego konta Microsoft."
+      "microsoft": "Rejestracja aplikacji z Twojego własnego konta Microsoft.",
+      "dropbox": "Aplikacja z Twojej własnej konsoli aplikacji Dropbox."
     },
     "ownTypeMismatch": {
       "desktop": "Jeśli Google pokazuje „Błąd 400: redirect_uri_mismatch”, klient nie jest typu „Aplikacja komputerowa”; klient typu „iOS” działa tylko na telefonie.",
@@ -5185,14 +5187,17 @@
     "ownType": {
       "desktop": "Typ „Aplikacja komputerowa”: utwórz go w Google Cloud Console w sekcji „Dane logowania”; Client ID i Client Secret pochodzą stamtąd.",
       "ios": "Typ „iOS” z identyfikatorem pakietu com.plainva.app: utwórz go w Google Cloud Console w sekcji „Dane logowania”. Klient iOS nie ma sekretu; działa na iPhonie i na telefonach z Androidem.",
-      "microsoft": "Identyfikator aplikacji (klienta) z Twojej rejestracji aplikacji."
+      "microsoft": "Identyfikator aplikacji (klienta) z Twojej rejestracji aplikacji.",
+      "dropbox": "App Key Twojej aplikacji z konsoli aplikacji Dropbox."
     },
     "problem": {
       "noPlainvaClient": "Ta kompilacja nie zawiera logowania standardowego dla Google. Wpisz własny identyfikator klienta w „Zmień”.",
       "ownClientMissing": "Brakuje identyfikatora klienta.",
       "ownClientInvalid": "Ten Client ID nie ma oczekiwanej postaci.",
       "ownSecretMissing": "Brakuje sekretu klienta dla własnego identyfikatora klienta."
-    }
+    },
+    "ownKey": "Własny App Key",
+    "ownKeyLine": "Własny App Key ({{id}})"
   },
   "connectRun": {
     "title": "Konfiguracja konta",
@@ -5330,5 +5335,63 @@
       "booleanMalformed": "To wyrażenie z AND, OR lub NOT jest niekompletne.",
       "placeholderWithoutFile": "Ten symbol zastępczy wymaga notatki, w której znajduje się zapytanie."
     }
+  },
+  "connectAccess": {
+    "secret": {
+      "appPassword": "Hasło aplikacji",
+      "password": "Hasło",
+      "authCode": "Kod autoryzacyjny",
+      "mailPassword": "Hasło poczty",
+      "secretKey": "Klucz tajny"
+    },
+    "newSecret": {
+      "appPassword": "Nowe hasło aplikacji",
+      "password": "Nowe hasło",
+      "authCode": "Nowy kod autoryzacyjny",
+      "mailPassword": "Nowe hasło poczty",
+      "secretKey": "Nowy klucz tajny"
+    },
+    "step": {
+      "appPassword": "Utwórz je w {{provider}} i wklej tutaj.",
+      "authCode": "Pobierz kod w {{provider}} i wklej go tutaj.",
+      "mailPassword": "Utwórz je w ustawieniach poczty {{provider}} i wklej tutaj."
+    },
+    "summary": {
+      "standard": "Logowanie standardowe — nic nie wpisujesz.",
+      "secretOne": {
+        "appPassword": "Za pomocą hasła aplikacji.",
+        "password": "Za pomocą hasła.",
+        "authCode": "Za pomocą kodu autoryzacyjnego.",
+        "mailPassword": "Za pomocą hasła poczty."
+      },
+      "secretAll": {
+        "appPassword": "Jedno hasło aplikacji dla wszystkich wybranych usług.",
+        "password": "Jedno hasło dla wszystkich wybranych usług.",
+        "authCode": "Jeden kod autoryzacyjny dla wszystkich wybranych usług.",
+        "mailPassword": "Jedno hasło poczty dla wszystkich wybranych usług."
+      },
+      "keys": "Za pomocą klucza dostępu do Twojego bucketu.",
+      "permission": "Plainva pokazuje kalendarze i przypomnienia tego urządzenia; system zapyta raz."
+    },
+    "button": {
+      "password": "Połącz hasłem",
+      "authCode": "Połącz kodem autoryzacyjnym",
+      "mailPassword": "Połącz hasłem poczty",
+      "permission": "Zezwól na dostęp"
+    },
+    "other": {
+      "appKey": "własny App Key",
+      "endpoints": "punkty końcowe osobno",
+      "servers": "serwery osobno",
+      "advancedLabel": "Zaawansowane",
+      "keysAdvanced": "region, prefiks, path style"
+    },
+    "unavailable": {
+      "files": "{{provider}} nie ma magazynu plików, z którego Plainva mogłaby korzystać.",
+      "calendar": "{{provider}} nie ma kalendarza, który Plainva mogłaby odczytać.",
+      "mail": "{{provider}} nie ma skrzynki, z której Plainva mogłaby pobierać pocztę."
+    },
+    "guide": "Otwórz instrukcję",
+    "statusNotYet": "jeszcze niepołączone"
   }
 }

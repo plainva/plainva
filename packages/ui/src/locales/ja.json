@@ -4983,11 +4983,13 @@
     "signInAgainHint": "再度ログインすると、この端末の設定が使われます。",
     "title": {
       "google": "この端末の Google ログイン",
-      "microsoft": "この端末の Microsoft ログイン"
+      "microsoft": "この端末の Microsoft ログイン",
+      "dropbox": "この端末の Dropbox ログイン"
     },
     "ownDesc": {
       "google": "ご自身の Google プロジェクトのクライアントです。",
-      "microsoft": "ご自身の Microsoft アカウントでのアプリの登録です。"
+      "microsoft": "ご自身の Microsoft アカウントでのアプリの登録です。",
+      "dropbox": "ご自身の Dropbox App Console のアプリです。"
     },
     "ownTypeMismatch": {
       "desktop": "Google に「エラー 400: redirect_uri_mismatch」と表示される場合、そのクライアントは種類「デスクトップ アプリ」ではありません。種類「iOS」のクライアントはスマートフォンでしか使えません。",
@@ -4996,14 +4998,17 @@
     "ownType": {
       "desktop": "種類は「デスクトップ アプリ」です。Google Cloud Console の「認証情報」で作成し、クライアントIDとクライアントシークレットをそこから取得します。",
       "ios": "種類は「iOS」で、バンドルIDは com.plainva.app です。Google Cloud Console の「認証情報」で作成します。iOS クライアントにはシークレットがなく、iPhone と Android スマートフォンで使えます。",
-      "microsoft": "アプリの登録の「アプリケーション (クライアント) ID」です。"
+      "microsoft": "アプリの登録の「アプリケーション (クライアント) ID」です。",
+      "dropbox": "Dropbox App Console にあるアプリのアプリキーです。"
     },
     "problem": {
       "noPlainvaClient": "このビルドには Google 用の標準のログインが含まれていません。「変更」から独自のクライアント ID を入力してください。",
       "ownClientMissing": "クライアント ID がありません。",
       "ownClientInvalid": "このクライアントIDの形式が正しくありません。",
       "ownSecretMissing": "独自のクライアント ID のクライアントシークレットがありません。"
-    }
+    },
+    "ownKey": "独自のアプリキー",
+    "ownKeyLine": "独自のアプリキー（{{id}}）"
   },
   "connectRun": {
     "title": "アカウントを設定",
@@ -5132,5 +5137,63 @@
       "booleanMalformed": "AND、OR、NOTを使ったこの式は不完全です。",
       "placeholderWithoutFile": "このプレースホルダーには、クエリが書かれているノートが必要です。"
     }
+  },
+  "connectAccess": {
+    "secret": {
+      "appPassword": "アプリパスワード",
+      "password": "パスワード",
+      "authCode": "認証コード",
+      "mailPassword": "メールパスワード",
+      "secretKey": "シークレットキー"
+    },
+    "newSecret": {
+      "appPassword": "新しいアプリパスワード",
+      "password": "新しいパスワード",
+      "authCode": "新しい認証コード",
+      "mailPassword": "新しいメールパスワード",
+      "secretKey": "新しいシークレットキー"
+    },
+    "step": {
+      "appPassword": "{{provider}} で作成し、ここに貼り付けてください。",
+      "authCode": "{{provider}} でコードを取得し、ここに貼り付けてください。",
+      "mailPassword": "{{provider}} のメール設定で作成し、ここに貼り付けてください。"
+    },
+    "summary": {
+      "standard": "標準のサインイン — 入力は不要です。",
+      "secretOne": {
+        "appPassword": "アプリパスワードで接続します。",
+        "password": "パスワードで接続します。",
+        "authCode": "認証コードで接続します。",
+        "mailPassword": "メールパスワードで接続します。"
+      },
+      "secretAll": {
+        "appPassword": "選んだすべてのサービスに 1 つのアプリパスワードを使います。",
+        "password": "選んだすべてのサービスに 1 つのパスワードを使います。",
+        "authCode": "選んだすべてのサービスに 1 つの認証コードを使います。",
+        "mailPassword": "選んだすべてのサービスに 1 つのメールパスワードを使います。"
+      },
+      "keys": "バケットのアクセスキーで接続します。",
+      "permission": "Plainva はこの端末のカレンダーとリマインダーを表示します。システムが一度だけ確認します。"
+    },
+    "button": {
+      "password": "パスワードで接続",
+      "authCode": "認証コードで接続",
+      "mailPassword": "メールパスワードで接続",
+      "permission": "アクセスを許可"
+    },
+    "other": {
+      "appKey": "独自のアプリキー",
+      "endpoints": "エンドポイントを個別に",
+      "servers": "サーバーを個別に",
+      "advancedLabel": "詳細設定",
+      "keysAdvanced": "リージョン、プレフィックス、パススタイル"
+    },
+    "unavailable": {
+      "files": "{{provider}} には Plainva が使えるファイルストレージがありません。",
+      "calendar": "{{provider}} には Plainva が読めるカレンダーがありません。",
+      "mail": "{{provider}} には Plainva が受信できるメールボックスがありません。"
+    },
+    "guide": "ガイドを開く",
+    "statusNotYet": "未接続"
   }
 }

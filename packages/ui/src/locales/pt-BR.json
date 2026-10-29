@@ -5109,11 +5109,13 @@
     "signInAgainHint": "Entrar novamente usa a configuração deste dispositivo.",
     "title": {
       "google": "Login do Google neste dispositivo",
-      "microsoft": "Login da Microsoft neste dispositivo"
+      "microsoft": "Login da Microsoft neste dispositivo",
+      "dropbox": "Login do Dropbox neste dispositivo"
     },
     "ownDesc": {
       "google": "Um cliente do seu próprio projeto do Google.",
-      "microsoft": "Um registro de aplicativo da sua própria conta Microsoft."
+      "microsoft": "Um registro de aplicativo da sua própria conta Microsoft.",
+      "dropbox": "Um app do seu próprio console de apps do Dropbox."
     },
     "ownTypeMismatch": {
       "desktop": "Se o Google mostrar “Erro 400: redirect_uri_mismatch”, o cliente não é do tipo “App para computador”; um cliente do tipo “iOS” só funciona no celular.",
@@ -5122,14 +5124,17 @@
     "ownType": {
       "desktop": "Tipo “App para computador”: crie-o no Google Cloud Console, em “Credenciais”; o Client ID e o Client Secret vêm de lá.",
       "ios": "Tipo “iOS” com o ID do pacote com.plainva.app: crie-o no Google Cloud Console, em “Credenciais”. Um cliente iOS não tem secret; ele vale no iPhone e em celulares Android.",
-      "microsoft": "O ID do aplicativo (cliente) do seu registro de aplicativo."
+      "microsoft": "O ID do aplicativo (cliente) do seu registro de aplicativo.",
+      "dropbox": "A App Key do seu app no console de apps do Dropbox."
     },
     "problem": {
       "noPlainvaClient": "Esta versão não inclui um login padrão para o Google. Informe seu próprio ID de cliente em “Alterar”.",
       "ownClientMissing": "Falta o ID de cliente.",
       "ownClientInvalid": "Este Client ID não tem o formato esperado.",
       "ownSecretMissing": "Falta a chave secreta do seu ID de cliente próprio."
-    }
+    },
+    "ownKey": "App Key própria",
+    "ownKeyLine": "App Key própria ({{id}})"
   },
   "connectRun": {
     "title": "Configurar conta",
@@ -5264,5 +5269,63 @@
       "booleanMalformed": "Esta expressão com AND, OR ou NOT está incompleta.",
       "placeholderWithoutFile": "Este espaço reservado precisa da nota em que a consulta está."
     }
+  },
+  "connectAccess": {
+    "secret": {
+      "appPassword": "Senha de app",
+      "password": "Senha",
+      "authCode": "Código de autorização",
+      "mailPassword": "Senha de e-mail",
+      "secretKey": "Chave secreta"
+    },
+    "newSecret": {
+      "appPassword": "Nova senha de app",
+      "password": "Nova senha",
+      "authCode": "Novo código de autorização",
+      "mailPassword": "Nova senha de e-mail",
+      "secretKey": "Nova chave secreta"
+    },
+    "step": {
+      "appPassword": "Crie-a em {{provider}} e cole aqui.",
+      "authCode": "Obtenha o código em {{provider}} e cole aqui.",
+      "mailPassword": "Crie-a nas configurações de e-mail de {{provider}} e cole aqui."
+    },
+    "summary": {
+      "standard": "Login padrão — você não digita nada.",
+      "secretOne": {
+        "appPassword": "Com sua senha de app.",
+        "password": "Com sua senha.",
+        "authCode": "Com seu código de autorização.",
+        "mailPassword": "Com sua senha de e-mail."
+      },
+      "secretAll": {
+        "appPassword": "Uma senha de app para todos os serviços escolhidos.",
+        "password": "Uma senha para todos os serviços escolhidos.",
+        "authCode": "Um código de autorização para todos os serviços escolhidos.",
+        "mailPassword": "Uma senha de e-mail para todos os serviços escolhidos."
+      },
+      "keys": "Com a chave de acesso do seu bucket.",
+      "permission": "O Plainva mostra os calendários e lembretes deste dispositivo; o sistema pergunta uma vez."
+    },
+    "button": {
+      "password": "Conectar com senha",
+      "authCode": "Conectar com código de autorização",
+      "mailPassword": "Conectar com senha de e-mail",
+      "permission": "Permitir acesso"
+    },
+    "other": {
+      "appKey": "App Key própria",
+      "endpoints": "endpoints um a um",
+      "servers": "servidores um a um",
+      "advancedLabel": "Avançado",
+      "keysAdvanced": "região, prefixo, path style"
+    },
+    "unavailable": {
+      "files": "{{provider}} não tem armazenamento de arquivos que o Plainva possa usar.",
+      "calendar": "{{provider}} não tem um calendário que o Plainva possa ler.",
+      "mail": "{{provider}} não tem uma caixa de e-mail que o Plainva possa buscar."
+    },
+    "guide": "Abrir o guia",
+    "statusNotYet": "ainda não conectado"
   }
 }

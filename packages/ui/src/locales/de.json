@@ -5046,11 +5046,13 @@
     "signInAgainHint": "Erneut anmelden nutzt die Einstellung dieses Geräts.",
     "title": {
       "google": "Google-Anmeldung auf diesem Gerät",
-      "microsoft": "Microsoft-Anmeldung auf diesem Gerät"
+      "microsoft": "Microsoft-Anmeldung auf diesem Gerät",
+      "dropbox": "Dropbox-Anmeldung auf diesem Gerät"
     },
     "ownDesc": {
       "google": "Ein Client aus Deinem eigenen Google-Projekt.",
-      "microsoft": "Eine App-Registrierung aus Deinem eigenen Microsoft-Konto."
+      "microsoft": "Eine App-Registrierung aus Deinem eigenen Microsoft-Konto.",
+      "dropbox": "Eine App aus Deiner eigenen Dropbox-App-Konsole."
     },
     "ownTypeMismatch": {
       "desktop": "Zeigt Google „Fehler 400: redirect_uri_mismatch“, ist der Client nicht vom Typ „Desktop-App“; ein Client vom Typ „iOS“ funktioniert nur am Telefon.",
@@ -5059,14 +5061,17 @@
     "ownType": {
       "desktop": "Typ „Desktop-App“: in der Google Cloud Console unter „Anmeldedaten“ anlegen; Client-ID und Client-Secret von dort.",
       "ios": "Typ „iOS“ mit der Bundle-ID com.plainva.app: in der Google Cloud Console unter „Anmeldedaten“ anlegen. Ein iOS-Client hat kein Secret; er gilt am iPhone und am Android-Telefon.",
-      "microsoft": "Die Anwendungs-ID (Client-ID) Deiner App-Registrierung."
+      "microsoft": "Die Anwendungs-ID (Client-ID) Deiner App-Registrierung.",
+      "dropbox": "Der App-Key Deiner App aus der Dropbox-App-Konsole."
     },
     "problem": {
       "noPlainvaClient": "Dieser Build enthält keine Standard-Anmeldung für Google. Trag unter „Ändern“ eine eigene Client-ID ein.",
       "ownClientMissing": "Es fehlt die Client-ID.",
       "ownClientInvalid": "Diese Client-ID hat nicht die erwartete Form.",
       "ownSecretMissing": "Zur eigenen Client-ID fehlt das Client-Secret."
-    }
+    },
+    "ownKey": "Eigener App-Key",
+    "ownKeyLine": "Eigener App-Key ({{id}})"
   },
   "connectRun": {
     "title": "Konto einrichten",
@@ -5198,5 +5203,63 @@
       "booleanMalformed": "Dieser Ausdruck mit AND, OR oder NOT ist unvollständig.",
       "placeholderWithoutFile": "Dieser Platzhalter braucht die Notiz, in der die Abfrage steht."
     }
+  },
+  "connectAccess": {
+    "secret": {
+      "appPassword": "App-Passwort",
+      "password": "Passwort",
+      "authCode": "Autorisierungscode",
+      "mailPassword": "E-Mail-Passwort",
+      "secretKey": "Geheimer Schlüssel"
+    },
+    "newSecret": {
+      "appPassword": "Neues App-Passwort",
+      "password": "Neues Passwort",
+      "authCode": "Neuer Autorisierungscode",
+      "mailPassword": "Neues E-Mail-Passwort",
+      "secretKey": "Neuer geheimer Schlüssel"
+    },
+    "step": {
+      "appPassword": "Lege es bei {{provider}} an und füge es hier ein.",
+      "authCode": "Lass Dir den Code bei {{provider}} geben und füge ihn hier ein.",
+      "mailPassword": "Lege es in den E-Mail-Einstellungen von {{provider}} an und füge es hier ein."
+    },
+    "summary": {
+      "standard": "Standard-Anmeldung – Du gibst nichts ein.",
+      "secretOne": {
+        "appPassword": "Mit Deinem App-Passwort.",
+        "password": "Mit Deinem Passwort.",
+        "authCode": "Mit Deinem Autorisierungscode.",
+        "mailPassword": "Mit Deinem E-Mail-Passwort."
+      },
+      "secretAll": {
+        "appPassword": "Ein App-Passwort für alle gewählten Dienste.",
+        "password": "Ein Passwort für alle gewählten Dienste.",
+        "authCode": "Ein Autorisierungscode für alle gewählten Dienste.",
+        "mailPassword": "Ein E-Mail-Passwort für alle gewählten Dienste."
+      },
+      "keys": "Mit dem Zugangsschlüssel Deines Buckets.",
+      "permission": "Plainva zeigt die Kalender und Erinnerungen dieses Geräts; das System fragt einmal."
+    },
+    "button": {
+      "password": "Mit Passwort verbinden",
+      "authCode": "Mit Autorisierungscode verbinden",
+      "mailPassword": "Mit E-Mail-Passwort verbinden",
+      "permission": "Zugriff erlauben"
+    },
+    "other": {
+      "appKey": "eigener App-Key",
+      "endpoints": "Endpunkte einzeln",
+      "servers": "Server einzeln",
+      "advancedLabel": "Erweitert",
+      "keysAdvanced": "Region, Präfix, Path-Style"
+    },
+    "unavailable": {
+      "files": "{{provider}} hat keinen Dateispeicher, den Plainva nutzen kann.",
+      "calendar": "{{provider}} hat keinen Kalender, den Plainva lesen kann.",
+      "mail": "{{provider}} hat kein Postfach, das Plainva abrufen kann."
+    },
+    "guide": "Anleitung öffnen",
+    "statusNotYet": "noch nicht verbunden"
   }
 }

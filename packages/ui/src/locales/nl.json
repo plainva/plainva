@@ -5046,11 +5046,13 @@
     "signInAgainHint": "Opnieuw aanmelden gebruikt de instelling van dit apparaat.",
     "title": {
       "google": "Google-aanmelding op dit apparaat",
-      "microsoft": "Microsoft-aanmelding op dit apparaat"
+      "microsoft": "Microsoft-aanmelding op dit apparaat",
+      "dropbox": "Dropbox-aanmelding op dit apparaat"
     },
     "ownDesc": {
       "google": "Een client uit je eigen Google-project.",
-      "microsoft": "Een app-registratie uit je eigen Microsoft-account."
+      "microsoft": "Een app-registratie uit je eigen Microsoft-account.",
+      "dropbox": "Een app uit je eigen Dropbox App Console."
     },
     "ownTypeMismatch": {
       "desktop": "Toont Google “Fout 400: redirect_uri_mismatch”, dan is de client niet van het type “Desktop-app”; een client van het type “iOS” werkt alleen op een telefoon.",
@@ -5059,14 +5061,17 @@
     "ownType": {
       "desktop": "Type “Desktop-app”: maak het aan in de Google Cloud Console onder “Inloggegevens”; de client-ID en het client secret haal je daar.",
       "ios": "Type “iOS” met de bundle-ID com.plainva.app: maak het aan in de Google Cloud Console onder “Inloggegevens”. Een iOS-client heeft geen secret; hij werkt op de iPhone en op Android-telefoons.",
-      "microsoft": "De toepassings-ID (client) van je app-registratie."
+      "microsoft": "De toepassings-ID (client) van je app-registratie.",
+      "dropbox": "De app-key van je app in de Dropbox App Console."
     },
     "problem": {
       "noPlainvaClient": "Deze build bevat geen standaardaanmelding voor Google. Voer je eigen client-ID in onder “Wijzigen”.",
       "ownClientMissing": "De client-ID ontbreekt.",
       "ownClientInvalid": "Deze client-ID heeft niet de verwachte vorm.",
       "ownSecretMissing": "Het clientgeheim van je eigen client-ID ontbreekt."
-    }
+    },
+    "ownKey": "Eigen app-key",
+    "ownKeyLine": "Eigen app-key ({{id}})"
   },
   "connectRun": {
     "title": "Account instellen",
@@ -5198,5 +5203,63 @@
       "booleanMalformed": "Deze uitdrukking met AND, OR of NOT is onvolledig.",
       "placeholderWithoutFile": "Deze plaatshouder heeft de notitie nodig waarin de query staat."
     }
+  },
+  "connectAccess": {
+    "secret": {
+      "appPassword": "App-wachtwoord",
+      "password": "Wachtwoord",
+      "authCode": "Autorisatiecode",
+      "mailPassword": "E-mailwachtwoord",
+      "secretKey": "Geheime sleutel"
+    },
+    "newSecret": {
+      "appPassword": "Nieuw app-wachtwoord",
+      "password": "Nieuw wachtwoord",
+      "authCode": "Nieuwe autorisatiecode",
+      "mailPassword": "Nieuw e-mailwachtwoord",
+      "secretKey": "Nieuwe geheime sleutel"
+    },
+    "step": {
+      "appPassword": "Maak het aan bij {{provider}} en plak het hier.",
+      "authCode": "Haal de code op bij {{provider}} en plak hem hier.",
+      "mailPassword": "Maak het aan in de e-mailinstellingen van {{provider}} en plak het hier."
+    },
+    "summary": {
+      "standard": "Standaardaanmelding — je vult niets in.",
+      "secretOne": {
+        "appPassword": "Met je app-wachtwoord.",
+        "password": "Met je wachtwoord.",
+        "authCode": "Met je autorisatiecode.",
+        "mailPassword": "Met je e-mailwachtwoord."
+      },
+      "secretAll": {
+        "appPassword": "Eén app-wachtwoord voor alle gekozen diensten.",
+        "password": "Eén wachtwoord voor alle gekozen diensten.",
+        "authCode": "Eén autorisatiecode voor alle gekozen diensten.",
+        "mailPassword": "Eén e-mailwachtwoord voor alle gekozen diensten."
+      },
+      "keys": "Met de toegangssleutel van je bucket.",
+      "permission": "Plainva toont de agenda's en herinneringen van dit apparaat; het systeem vraagt het één keer."
+    },
+    "button": {
+      "password": "Verbinden met wachtwoord",
+      "authCode": "Verbinden met autorisatiecode",
+      "mailPassword": "Verbinden met e-mailwachtwoord",
+      "permission": "Toegang toestaan"
+    },
+    "other": {
+      "appKey": "eigen app-key",
+      "endpoints": "endpoints afzonderlijk",
+      "servers": "servers afzonderlijk",
+      "advancedLabel": "Geavanceerd",
+      "keysAdvanced": "regio, prefix, path-style"
+    },
+    "unavailable": {
+      "files": "{{provider}} heeft geen bestandsopslag die Plainva kan gebruiken.",
+      "calendar": "{{provider}} heeft geen agenda die Plainva kan lezen.",
+      "mail": "{{provider}} heeft geen mailbox die Plainva kan ophalen."
+    },
+    "guide": "Handleiding openen",
+    "statusNotYet": "nog niet verbonden"
   }
 }

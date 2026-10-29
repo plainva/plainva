@@ -5109,11 +5109,13 @@
     "signInAgainHint": "Al iniciar sesión de nuevo se usa el ajuste de este dispositivo.",
     "title": {
       "google": "Inicio de sesión de Google en este dispositivo",
-      "microsoft": "Inicio de sesión de Microsoft en este dispositivo"
+      "microsoft": "Inicio de sesión de Microsoft en este dispositivo",
+      "dropbox": "Inicio de sesión de Dropbox en este dispositivo"
     },
     "ownDesc": {
       "google": "Un cliente de tu propio proyecto de Google.",
-      "microsoft": "Un registro de aplicación de tu propia cuenta de Microsoft."
+      "microsoft": "Un registro de aplicación de tu propia cuenta de Microsoft.",
+      "dropbox": "Una app de tu propia consola de apps de Dropbox."
     },
     "ownTypeMismatch": {
       "desktop": "Si Google muestra «Error 400: redirect_uri_mismatch», el cliente no es de tipo «Aplicación de escritorio»; un cliente de tipo «iOS» solo funciona en un teléfono.",
@@ -5122,14 +5124,17 @@
     "ownType": {
       "desktop": "Tipo «Aplicación de escritorio»: créalo en la Google Cloud Console, en «Credenciales»; el Client ID y el Client Secret salen de ahí.",
       "ios": "Tipo «iOS» con el ID de paquete com.plainva.app: créalo en la Google Cloud Console, en «Credenciales». Un cliente iOS no tiene Client Secret; sirve en el iPhone y en teléfonos Android.",
-      "microsoft": "El ID de aplicación (cliente) de tu registro de aplicación."
+      "microsoft": "El ID de aplicación (cliente) de tu registro de aplicación.",
+      "dropbox": "La app key de tu app en la consola de apps de Dropbox."
     },
     "problem": {
       "noPlainvaClient": "Esta compilación no incluye un inicio de sesión estándar para Google. Introduce tu propio ID de cliente en «Cambiar».",
       "ownClientMissing": "Falta el ID de cliente.",
       "ownClientInvalid": "Este Client ID no tiene la forma esperada.",
       "ownSecretMissing": "Falta el secreto de cliente de tu ID de cliente propio."
-    }
+    },
+    "ownKey": "App key propia",
+    "ownKeyLine": "App key propia ({{id}})"
   },
   "connectRun": {
     "title": "Configurar cuenta",
@@ -5264,5 +5269,63 @@
       "booleanMalformed": "Esta expresión con AND, OR o NOT está incompleta.",
       "placeholderWithoutFile": "Este marcador de posición necesita la nota en la que está la consulta."
     }
+  },
+  "connectAccess": {
+    "secret": {
+      "appPassword": "Contraseña de aplicación",
+      "password": "Contraseña",
+      "authCode": "Código de autorización",
+      "mailPassword": "Contraseña de correo",
+      "secretKey": "Clave secreta"
+    },
+    "newSecret": {
+      "appPassword": "Nueva contraseña de aplicación",
+      "password": "Nueva contraseña",
+      "authCode": "Nuevo código de autorización",
+      "mailPassword": "Nueva contraseña de correo",
+      "secretKey": "Nueva clave secreta"
+    },
+    "step": {
+      "appPassword": "Créala en {{provider}} y pégala aquí.",
+      "authCode": "Obtén el código en {{provider}} y pégalo aquí.",
+      "mailPassword": "Créala en la configuración de correo de {{provider}} y pégala aquí."
+    },
+    "summary": {
+      "standard": "Inicio de sesión estándar: no escribes nada.",
+      "secretOne": {
+        "appPassword": "Con tu contraseña de aplicación.",
+        "password": "Con tu contraseña.",
+        "authCode": "Con tu código de autorización.",
+        "mailPassword": "Con tu contraseña de correo."
+      },
+      "secretAll": {
+        "appPassword": "Una contraseña de aplicación para todos los servicios elegidos.",
+        "password": "Una contraseña para todos los servicios elegidos.",
+        "authCode": "Un código de autorización para todos los servicios elegidos.",
+        "mailPassword": "Una contraseña de correo para todos los servicios elegidos."
+      },
+      "keys": "Con la clave de acceso de tu bucket.",
+      "permission": "Plainva muestra los calendarios y recordatorios de este dispositivo; el sistema pregunta una vez."
+    },
+    "button": {
+      "password": "Conectar con contraseña",
+      "authCode": "Conectar con código de autorización",
+      "mailPassword": "Conectar con contraseña de correo",
+      "permission": "Permitir acceso"
+    },
+    "other": {
+      "appKey": "app key propia",
+      "endpoints": "endpoints uno por uno",
+      "servers": "servidores uno por uno",
+      "advancedLabel": "Avanzado",
+      "keysAdvanced": "región, prefijo, path style"
+    },
+    "unavailable": {
+      "files": "{{provider}} no tiene almacenamiento de archivos que Plainva pueda usar.",
+      "calendar": "{{provider}} no tiene un calendario que Plainva pueda leer.",
+      "mail": "{{provider}} no tiene un buzón que Plainva pueda consultar."
+    },
+    "guide": "Abrir la guía",
+    "statusNotYet": "aún no conectado"
   }
 }
