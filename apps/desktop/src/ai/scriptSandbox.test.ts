@@ -319,21 +319,40 @@ describe("kill: what a script cannot take", () => {
     expect(played.end.usage.ms).toBeLessThan(500);
   });
 
-  it("memory: what does not fit is refused, and a script that goes on asking is ended", async () => {
-    const hoard = await play("const hold = []; for (;;) hold.push(new Array(5000).fill('x'.repeat(50)));", { limits: { memoryMb: 8, fuel: 200_000, seconds: 20 } });
+  // One case per test, so that no case shares a test's time limit with the others (together they took up to 19 s
+  // of 20 in CI).
+  const MEMORY_LIMITS = { memoryMb: 8, fuel: 200_000, seconds: 20 };
+
+  it("memory: a script that goes on asking is ended", async () => {
+    const hoard = await play("const hold = []; for (;;) hold.push(new Array(5000).fill('x'.repeat(50)));", { limits: MEMORY_LIMITS });
     expect(hoard.end).toMatchObject({ kind: "killed", why: "memory" });
-    for (const code of ["return 'x'.repeat(1 << 28).length;", "return new Uint8Array(1 << 28).length;", "return new Array(1 << 27).fill(0).length;", "let s = 'x'; for (;;) s += s;"]) {
-      const played = await play(code, { limits: { memoryMb: 8, fuel: 200_000, seconds: 20 } });
-      expect(played.end, code).toMatchObject({ kind: "killed", why: "memory" });
-    }
-    // Catching the refusal gives it nothing: the memory is not there.
-    const caught = await play("const hold = []; for (;;) { try { hold.push('x'.repeat(1 << 20)); } catch (e) {} }", { limits: { memoryMb: 8, fuel: 3000, seconds: 20 } });
+  });
+
+  it.each([
+    "return 'x'.repeat(1 << 28).length;",
+    "return new Uint8Array(1 << 28).length;",
+    "return new Array(1 << 27).fill(0).length;",
+    "let s = 'x'; for (;;) s += s;",
+  ])("memory: what does not fit is refused — %s", async (code) => {
+    const played = await play(code, { limits: MEMORY_LIMITS });
+    expect(played.end, code).toMatchObject({ kind: "killed", why: "memory" });
+  });
+
+  it("memory: catching the refusal gives it nothing — the memory is not there", async () => {
+    // 64 kilobytes at a time. A megabyte built by `repeat` at the limit kept the engine inside that one built-in
+    // call for seconds — the case took 18 s of the test's 20 in CI and ran past them on a slower computer —, and
+    // inside a built-in call only the worker's watchdog ends a script, which this direct engine does not have.
+    const caught = await play("const hold = []; for (;;) { try { hold.push('x'.repeat(1 << 16)); } catch (e) {} }", { limits: { ...MEMORY_LIMITS, fuel: 3000 } });
     expect(caught.end.kind).toBe("killed");
     expect(["memory", "fuel"]).toContain((caught.end as { why: string }).why);
-    // A chain of promises that grows without end takes memory, not steps: it ends at the memory.
-    const chain = await play("const loop = () => Promise.resolve().then(loop); await loop();", { limits: { memoryMb: 8, fuel: 200_000, seconds: 20 } });
+  });
+
+  it("memory: a chain of promises that grows without end takes memory, not steps — it ends at the memory", async () => {
+    const chain = await play("const loop = () => Promise.resolve().then(loop); await loop();", { limits: MEMORY_LIMITS });
     expect(chain.end).toMatchObject({ kind: "killed", why: "memory" });
-    // An error that is nothing is the script's own where its memory is not used up.
+  });
+
+  it("memory: an error that is nothing is the script's own where its memory is not used up", async () => {
     expect(await play("throw null;")).toMatchObject({ end: { kind: "error", message: "The script failed." } });
     expect(await play("throw undefined;", { limits: { memoryMb: 8 } })).toMatchObject({ end: { kind: "error" } });
   });
