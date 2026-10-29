@@ -32,8 +32,9 @@ export function taskBoxChar(state: TaskBoxState): string {
 /** In progress still counts as open; cancelled counts as closed. */
 export const isOpenTaskState = (state: TaskBoxState): boolean => state === "open" || state === "progress";
 const TASK_LINE = GFM_TASK_LINE;
-import { readTasksMetadata, readTasksPriority } from "./taskMetadata.js";
+import { readTasksMetadata, readTasksPriorityLevel, type TasksPriorityLevel } from "./taskMetadata.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
+import { frontmatterSpan } from "../frontmatter-block.js";
 import { findInlineTagsInLine } from "../tagRule.js";
 import { createFenceTracker } from "../markdownFence.js";
 
@@ -61,6 +62,25 @@ export interface ScannedTask {
   recurrenceSupported?: boolean;
   /** 1 = high … 3 = low, from a Tasks-plugin priority mark; absent = none. */
   priority?: 1 | 2 | 3;
+  /**
+   * The same mark in the Tasks plugin's six levels (🔺 highest … ⏬ lowest),
+   * for its queries; absent = none. `priority` above stays the Tasks tab's.
+   */
+  priorityLevel?: Exclude<TasksPriorityLevel, "none">;
+  /** ISO date from a `❌` marker: the day the task was cancelled. */
+  cancelled?: string;
+  /**
+   * The text of the closest heading above the task, whatever its level — the
+   * Tasks plugin's `heading` (ATX headings outside code, quotes and the
+   * properties block). Absent when no heading stands above it.
+   */
+  heading?: string;
+  /**
+   * The task's list marker stands in from the left edge of its quote: a
+   * sub-item, under a task or a plain bullet (the Tasks plugin's
+   * `exclude sub-items`). Absent for a top-level item.
+   */
+  indented?: true;
   /**
    * The ordinal of the task this one is indented under — its nearest enclosing
    * checkbox in the same list (a subtask, the Tasks plugin's `show tree`).
@@ -95,6 +115,59 @@ function lineIndent(line: string): number {
   return width;
 }
 
+/**
+ * The text of an ATX heading line (`# Title`, `## Title ##`), or null. At most
+ * three blanks in front, one to six `#`, then a blank or the end; a closing
+ * run of `#` behind a blank is no part of the text. Written by hand, no
+ * backtracking pattern.
+ */
+export function atxHeadingText(line: string): string | null {
+  let at = 0;
+  while (at < 3 && line[at] === " ") at++;
+  let hashes = 0;
+  while (line[at + hashes] === "#") hashes++;
+  if (hashes < 1 || hashes > 6) return null;
+  const after = line[at + hashes];
+  if (after !== undefined && after !== " " && after !== "\t" && after !== "\r") return null;
+  let text = line.slice(at + hashes).trim();
+  let end = text.length;
+  while (end > 0 && text[end - 1] === "#") end--;
+  if (end === 0) text = "";
+  else if (end < text.length && (text[end - 1] === " " || text[end - 1] === "\t")) text = text.slice(0, end).trimEnd();
+  return text;
+}
+
+/**
+ * Whether a task's list marker stands in, as the Tasks plugin reads it: the
+ * blanks and quote marks in front of the marker, where in a quote one blank
+ * behind the last `>` is still the left edge.
+ */
+function isIndentedItem(line: string, first: boolean): boolean {
+  let at = first && line.charCodeAt(0) === 0xfeff ? 1 : 0;
+  let lead = "";
+  for (; at < line.length; at++) {
+    const ch = line[at];
+    if (ch !== " " && ch !== "\t" && ch !== ">") break;
+    lead += ch;
+  }
+  const lastQuote = lead.lastIndexOf(">");
+  const rest = lastQuote < 0 ? lead : lead.slice(lastQuote + 1);
+  return lastQuote < 0 ? rest.length > 0 : rest !== "" && rest !== " ";
+}
+
+/** The three ranks of the Tasks tab, read off the six levels. */
+const PRIORITY_RANK_OF: Record<TasksPriorityLevel, 0 | 1 | 2 | 3> = { highest: 1, high: 1, medium: 2, none: 0, low: 3, lowest: 3 };
+
+/** How many lines the properties block at the top takes (0 without one). */
+function propertiesLineCount(content: string): number {
+  const span = frontmatterSpan(content);
+  if (!span) return 0;
+  let count = 0;
+  for (let k = 0; k < span.end; k++) if (content.charCodeAt(k) === 10) count++;
+  // A block that ends at the end of the text has no line break behind it.
+  return span.end === content.length ? count + 1 : count;
+}
+
 /** Extracts every GFM task checkbox from a note's raw markdown, in order. */
 export function scanTasks(content: string): ScannedTask[] {
   const lines = content.split("\n");
@@ -102,6 +175,11 @@ export function scanTasks(content: string): ScannedTask[] {
   const fence = createFenceTracker();
   let ordinal = 0;
   let nativeRecurrenceOwner: boolean | undefined;
+  // The closest heading above the current line. The properties block is no
+  // text: its `# comment` lines are YAML. Its extent is only looked up once
+  // the first heading-like line shows up.
+  let heading: string | undefined;
+  let propertiesEnd = -1;
   // The list items above the current line that are still open, innermost
   // last: a task's parent and a bullet's task are read off it. A line that
   // stands no further in than an item ends that item (a heading, a paragraph,
@@ -117,6 +195,13 @@ export function scanTasks(content: string): ScannedTask[] {
     while (open.length > 0 && open[open.length - 1].indent >= indent) open.pop();
     const m = lines[i].match(TASK_LINE);
     if (!m) {
+      const raw = i === 0 && lines[0].charCodeAt(0) === 0xfeff ? lines[0].slice(1) : lines[i];
+      const headingText = raw.includes("#") ? atxHeadingText(raw) : null;
+      if (headingText !== null) {
+        if (propertiesEnd < 0) propertiesEnd = propertiesLineCount(content);
+        if (i >= propertiesEnd) heading = headingText;
+        continue;
+      }
       const plain = lines[i].match(PLAIN_ITEM);
       if (!plain) continue;
       const owner = open.length > 0 ? open[open.length - 1].task : null;
@@ -129,7 +214,8 @@ export function scanTasks(content: string): ScannedTask[] {
     }
     const text = lines[i].slice(m[0].length).trim();
     const metadata = readTasksMetadata(text);
-    const priority = readTasksPriority(text);
+    const priorityLevel = readTasksPriorityLevel(text);
+    const priority = PRIORITY_RANK_OF[priorityLevel];
     if (metadata.recurrence !== null && nativeRecurrenceOwner === undefined) nativeRecurrenceOwner = readFrontmatterPath(content, ["plainva", "repeat"]) != null || readFrontmatterPath(content, ["plainva", "pim", "uid"]) != null;
     let following = i + 1;
     while (following < lines.length && !lines[following].trim()) following++;
@@ -159,6 +245,10 @@ export function scanTasks(content: string): ScannedTask[] {
       ...(metadata.start ? { start: metadata.start } : {}),
       ...(metadata.taskId ? { taskId: metadata.taskId } : {}),
       ...(priority ? { priority } : {}),
+      ...(priorityLevel !== "none" ? { priorityLevel } : {}),
+      ...(metadata.cancelled ? { cancelled: metadata.cancelled } : {}),
+      ...(heading !== undefined ? { heading } : {}),
+      ...(isIndentedItem(lines[i], i === 0) ? { indented: true as const } : {}),
       ...(metadata.recurrence !== null ? { recurrence: metadata.recurrence, recurrenceSupported: !!metadata.repeatRule && !nativeRecurrenceOwner && !continuation } : {}),
       ...(parent !== undefined ? { parent } : {}),
     };

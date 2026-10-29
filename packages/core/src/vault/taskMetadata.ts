@@ -4,13 +4,15 @@ export interface TasksRepeatRule { unit: "day" | "week" | "month" | "year"; inte
 export interface TasksMetadata {
   created: string | null; completed: string | null; due: string | null;
   scheduled: string | null; start: string | null; taskId: string | null;
+  /** The day a task was cancelled (`❌`), as the Tasks plugin writes it. */
+  cancelled: string | null;
   recurrence: string | null; repeatRule: TasksRepeatRule | null;
   unsafeRecurrence: boolean;
 }
-type Field = "created" | "completed" | "due" | "scheduled" | "start" | "taskId" | "recurrence";
+type Field = "created" | "completed" | "due" | "scheduled" | "start" | "cancelled" | "taskId" | "recurrence";
 interface Token { field: Field; from: number; to: number; value: string }
-const symbols: Record<string, Field> = { "➕": "created", "✅": "completed", "📅": "due", "⏳": "scheduled", "🛫": "start", "🆔": "taskId", "🔁": "recurrence" };
-const markers = /(?:^|(?<=\s))(➕|✅|📅|⏳|🛫|🆔|🔁)\uFE0F?\s*/gu;
+const symbols: Record<string, Field> = { "➕": "created", "✅": "completed", "📅": "due", "⏳": "scheduled", "🛫": "start", "❌": "cancelled", "🆔": "taskId", "🔁": "recurrence" };
+const markers = /(?:^|(?<=\s))(➕|✅|📅|⏳|🛫|❌|🆔|🔁)\uFE0F?\s*/gu;
 const boundary = /\s(?=[➕✅📅⏳🛫🆔🔁⛔🏁🔺⏫🔼🔽⏬❌]|#[\p{L}\p{N}]|\^[\w-]+(?:\s|$))/u;
 
 /** Civil calendar days, validated without interpreting the device timezone. */
@@ -40,7 +42,7 @@ function tokens(text: string, ranges = codeSpanRanges(text)): Token[] {
   return out;
 }
 export function readTasksMetadata(text: string): TasksMetadata {
-  const result: TasksMetadata = { created: null, completed: null, due: null, scheduled: null, start: null, taskId: null, recurrence: null, repeatRule: null, unsafeRecurrence: false };
+  const result: TasksMetadata = { created: null, completed: null, due: null, scheduled: null, start: null, cancelled: null, taskId: null, recurrence: null, repeatRule: null, unsafeRecurrence: false };
   const ranges = codeSpanRanges(text), found = tokens(text, ranges), counts = new Map<Field, number>();
   for (const token of found) counts.set(token.field, (counts.get(token.field) ?? 0) + 1);
   for (const token of found) {
@@ -55,6 +57,30 @@ export function readTasksMetadata(text: string): TasksMetadata {
   if (rule && !result.unsafeRecurrence) result.repeatRule = { unit: rule[2].toLowerCase() as TasksRepeatRule["unit"], interval: Number(rule[1] ?? 1), whenDone: !!rule[3] };
   return result;
 }
+/** The dated fields of a task line, by the names the Tasks plugin's queries use. */
+export type TasksDateField = "created" | "done" | "due" | "scheduled" | "start" | "cancelled";
+const DATE_FIELD_OF: Partial<Record<Field, TasksDateField>> = { created: "created", completed: "done", due: "due", scheduled: "scheduled", start: "start", cancelled: "cancelled" };
+
+/**
+ * The dated fields whose value has the shape of a day but is none, such as
+ * `📅 2026-02-30`. The Tasks plugin keeps such a date as "Invalid date" (its
+ * `due date is invalid` finds it); `readTasksMetadata` drops it, so a query
+ * asks here. Only marks outside code count, as everywhere else.
+ */
+export function readTasksInvalidDates(text: string): TasksDateField[] {
+  if (!/\d{4}-\d{2}-\d{2}/.test(text)) return [];
+  const ranges = codeSpanRanges(text);
+  const out: TasksDateField[] = [];
+  for (const match of text.matchAll(markers)) {
+    if (!outsideCode(text, match.index, ranges)) continue;
+    const field = DATE_FIELD_OF[symbols[match[1]]];
+    if (!field) continue;
+    const raw = /^\d{4}-\d{2}-\d{2}(?!\d)/.exec(text.slice(match.index + match[0].length))?.[0];
+    if (raw && tasksDayNumber(raw) === null && !out.includes(field)) out.push(field);
+  }
+  return out;
+}
+
 /** Remove only unambiguous fields displayed separately in the metadata row. */
 export function tasksDescription(text: string): string {
   const found = tokens(text), counts = new Map<Field, number>();
@@ -87,6 +113,27 @@ export function setTasksField(text: string, field: Field, value: string | null):
 const PRIORITY_RANK: Record<string, 1 | 2 | 3> = { "🔺": 1, "⏫": 1, "🔼": 2, "🔽": 3, "⏬": 3 };
 const PRIORITY_MARK: Record<1 | 2 | 3, string> = { 1: "⏫", 2: "🔼", 3: "🔽" };
 const priorityMarks = /(?:^|(?<=\s))(🔺|⏫|🔼|🔽|⏬)\uFE0F?(?=\s|$)/gu;
+
+/**
+ * The six priorities of the Tasks plugin, highest first. `none` is a level of
+ * its own between medium and low: a task without a mark ranks above a low one.
+ */
+export type TasksPriorityLevel = "highest" | "high" | "medium" | "none" | "low" | "lowest";
+export const TASKS_PRIORITY_LEVELS: readonly TasksPriorityLevel[] = ["highest", "high", "medium", "none", "low", "lowest"];
+const PRIORITY_LEVEL: Record<string, TasksPriorityLevel> = { "🔺": "highest", "⏫": "high", "🔼": "medium", "🔽": "low", "⏬": "lowest" };
+
+/**
+ * The priority in the six levels of the Tasks plugin, for its queries; the
+ * Tasks tab keeps its three ranks ({@link readTasksPriority}). Same rule: the
+ * first mark outside code counts.
+ */
+export function readTasksPriorityLevel(text: string): TasksPriorityLevel {
+  const ranges = codeSpanRanges(text);
+  for (const match of text.matchAll(priorityMarks)) {
+    if (outsideCode(text, match.index, ranges)) return PRIORITY_LEVEL[match[1]];
+  }
+  return "none";
+}
 
 /** 1 = high … 3 = low, 0 = none. The first mark outside code counts. */
 export function readTasksPriority(text: string): 0 | 1 | 2 | 3 {

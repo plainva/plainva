@@ -37,7 +37,7 @@ export function setChecklistTaskDone(content: string, index: number, checked: bo
   const suffix = match[3].replace(/\r$/, "");
   let body = raw.slice(match[0].length).replace(/\r$/, "");
   const metadata = readTasksMetadata(body);
-  const hasFields = [metadata.created, metadata.completed, metadata.due, metadata.start, metadata.scheduled, metadata.taskId, metadata.recurrence].some(value => value !== null);
+  const hasFields = [metadata.created, metadata.completed, metadata.due, metadata.start, metadata.scheduled, metadata.cancelled, metadata.taskId, metadata.recurrence].some(value => value !== null);
   let successor: string | null = null;
   if (checked && task.recurrenceSupported) {
     const nextDates = nextTasksDates(metadata, today);
@@ -51,6 +51,8 @@ export function setChecklistTaskDone(content: string, index: number, checked: bo
       if (!tasks.some(t => t.taskId === nextId)) {
         let nextBody = setTasksField(body, "taskId", nextId);
         nextBody = setTasksField(nextBody, "completed", null);
+        // The next occurrence is neither done nor cancelled, as in the Tasks plugin.
+        nextBody = setTasksField(nextBody, "cancelled", null);
         if (metadata.created) nextBody = setTasksField(nextBody, "created", today);
         for (const field of ["due", "scheduled", "start"] as const) if (nextDates[field]) nextBody = setTasksField(nextBody, field, nextDates[field]);
         successor = lead + " " + suffix + nextBody + cr;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readTasksMetadata, nextTasksDates, tasksDescription } from "../src/vault/taskMetadata.js";
+import { readTasksMetadata, nextTasksDates, readTasksInvalidDates, setTasksField, tasksDescription } from "../src/vault/taskMetadata.js";
 import { scanTasks } from "../src/vault/taskScan.js";
 import { resolveTaskOrdinal, setChecklistTaskDone } from "../src/vault/taskMutation.js";
 
@@ -72,5 +72,24 @@ describe("Tasks emoji metadata and source edits", () => {
       expect(scanTasks(raw)[0].recurrenceSupported).toBe(false);
       expect(scanTasks(setChecklistTaskDone(raw, 0, true, options).content)).toHaveLength(scanTasks(raw).length);
     }
+  });
+});
+
+describe("the cancelled date and invalid dates (plan Tasks-Abfragen, T1)", () => {
+  it("reads ❌ as a field: kept in the source, left out of the description", () => {
+    const text = "Dropped 📅 2026-10-20 ❌ 2026-10-24";
+    expect(readTasksMetadata(text)).toMatchObject({ due: "2026-10-20", cancelled: "2026-10-24" });
+    expect(tasksDescription(text)).toBe("Dropped");
+    expect(setTasksField(text, "cancelled", null)).toBe("Dropped 📅 2026-10-20");
+  });
+  it("names the dated fields whose value is no day", () => {
+    expect(readTasksInvalidDates("a 📅 2026-02-30 ⏳ 2026-02-28 ✅ 2026-13-01")).toEqual(["due", "done"]);
+    expect(readTasksInvalidDates("a `📅 2026-02-30` 📅 2026-02-27")).toEqual([]);
+    expect(readTasksInvalidDates("a 📅 tomorrow")).toEqual([]);
+    expect(readTasksInvalidDates("a ❌ 2026-02-31 🛫 2026-04-31 ➕ 2025-02-29")).toEqual(["cancelled", "start", "created"]);
+  });
+  it("a recurring successor carries no cancelled date, and a cancelled task with fields gets its done date", () => {
+    const done = setChecklistTaskDone("- [ ] Water 📅 2026-09-14 🔁 every week ❌ 2026-09-01\n", 0, true, options);
+    expect(done.content).toBe("- [ ] Water 📅 2026-09-21 🔁 every week 🆔 pv-" + done.content.split("🆔 pv-")[1].split("\n")[0] + "\n- [x] Water 📅 2026-09-14 🔁 every week ❌ 2026-09-01 🆔 test-origin ✅ 2026-09-14\n");
   });
 });
