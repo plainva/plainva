@@ -9,7 +9,7 @@ import { boundaryLabel, Button, clampBoundary, createTaskDatabase, DAY_END_CHOIC
 import { Browser } from "@capacitor/browser";
 import { DEFAULT_JOURNAL_HEADING, normalizeJournalHeading } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
-import { type DefaultView } from "../services/mobileSettings";
+import { type DefaultView, NOTE_HEAD_BUTTONS, type NoteHeadButton } from "../services/mobileSettings";
 import { dailyNoteTypeOf, noteTypeOf } from "../services/newNote";
 import { getMobileVault, type MobileVault } from "../services/vaultService";
 import { deletionLogChecker } from "../services/syncService";
@@ -59,6 +59,18 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
   const { settings, update } = useSettingsState();
   const viewLabel = (view: DefaultView) =>
     t(view === "edit" ? "mobile.defaultViewEdit" : "mobile.defaultViewRead");
+  // The first button of a note's app bar (F9): the same names the note uses.
+  const headLabel = (button: NoteHeadButton) =>
+    t(button === "outline" ? "rightPanel.outline" : button === "backlinks" ? "rightPanel.backlinks" : "mobile.toggleBookmark");
+  const pickHeadButton = () => {
+    void mSelect({
+      title: t("mobile.noteHeadButton"),
+      options: NOTE_HEAD_BUTTONS.map((b) => ({ value: b, label: headLabel(b) })),
+      value: settings.noteHeadButton,
+    }).then((v) => {
+      if (v !== null) update({ noteHeadButton: v as NoteHeadButton });
+    });
+  };
   const pickDefaultView = () => {
     void mSelect({
       title: t("mobile.settingDefaultView"),
@@ -78,7 +90,13 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
           value={viewLabel(settings.defaultView)}
         />
           <Row title={t("mobile.readerAutoHide")} end={<Switch checked={settings.readerAutoHide} label={t("mobile.readerAutoHide")} onChange={(readerAutoHide) => update({ readerAutoHide })} />} />
+          <MobileSettingRow
+            label={t("mobile.noteHeadButton")}
+            onClick={pickHeadButton}
+            value={headLabel(settings.noteHeadButton)}
+          />
         </RowList></GroupCard>
+        <p className="m-hint">{t("mobile.noteHeadButtonHint")}</p>
         {/* A note just created opens to be written in either way (wish 2026-10-19). */}
         <p className="m-hint">{t("mobile.defaultViewNewNotes")}</p>
 

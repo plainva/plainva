@@ -2734,7 +2734,15 @@
     "swipeHintAck": "Rozumiem",
     "propertyWriteFailed": "Nie udało się zapisać właściwości: {{message}}",
     "selectMany": "Zaznacz kilka",
-    "readerAutoHide": "Automatycznie ukrywaj elementy sterujące podczas czytania"
+    "readerAutoHide": "Ukrywaj paski podczas przewijania",
+    "outdentLine": "Zmniejsz wcięcie",
+    "indentLine": "Zwiększ wcięcie",
+    "keyboardHide": "Ukryj klawiaturę",
+    "keyboardShow": "Pokaż klawiaturę",
+    "backHistoryTitle": "Wróć do",
+    "backPreviousPage": "Poprzednia strona",
+    "noteHeadButton": "Pierwszy przycisk na pasku notatki",
+    "noteHeadButtonHint": "Tylko na tym urządzeniu. To, czego nie wybrano, pozostaje pod ręką: Zakładka w menu ⋮, Konspekt i Linki zwrotne w Szczegóły notatki."
   },
   "tasks": {
     "hideFromView": "Ukryj z zadań",

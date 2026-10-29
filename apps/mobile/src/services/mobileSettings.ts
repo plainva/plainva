@@ -67,6 +67,10 @@ export type MotionPref = "system" | "on" | "off";
  * per-vault field left this type behind (caught while adding the remembered
  * mailbox, B1). One declaration, one place to document a field.
  */
+/** Which button leads a note's app bar (F9). */
+export type NoteHeadButton = "bookmark" | "outline" | "backlinks";
+export const NOTE_HEAD_BUTTONS: readonly NoteHeadButton[] = ["bookmark", "outline", "backlinks"];
+
 export interface MobileSettings extends VaultScopedSettings {
   themeMode: ThemeMode;
   /** Bundled theme id from the shared registry (package D3); single-mode
@@ -77,6 +81,13 @@ export interface MobileSettings extends VaultScopedSettings {
   defaultView: DefaultView;
   /** Device-local touch reading preference. Desktop uses its explicit focus mode. */
   readerAutoHide: boolean;
+  /**
+   * The first button of a note's app bar (F9, 2026-10-29): bookmark (as it
+   * always was), outline or backlinks. What is not chosen stays reachable -
+   * the bookmark through the note menu, outline and backlinks through the
+   * note details.
+   */
+  noteHeadButton: NoteHeadButton;
   /** Empty = follow the system language. */
   language: string;
   /** First-start onboarding shown and answered. */
@@ -221,6 +232,7 @@ function defaults(): MobileSettings {
     codeFontCustom: "",
     motion: "system",
     readerAutoHide: true,
+    noteHeadButton: "bookmark",
     contextPanelDocked: false,
     tagColors: false,
     noteLinkStyle: "underline",

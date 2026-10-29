@@ -2714,7 +2714,15 @@
     "swipeHintAck": "Compris",
     "propertyWriteFailed": "La propriété n'a pas pu être enregistrée : {{message}}",
     "selectMany": "Sélectionner plusieurs",
-    "readerAutoHide": "Masquer automatiquement les commandes pendant la lecture"
+    "readerAutoHide": "Masquer les barres pendant le défilement",
+    "outdentLine": "Diminuer le retrait",
+    "indentLine": "Augmenter le retrait",
+    "keyboardHide": "Masquer le clavier",
+    "keyboardShow": "Afficher le clavier",
+    "backHistoryTitle": "Revenir à",
+    "backPreviousPage": "Page précédente",
+    "noteHeadButton": "Premier bouton de la barre de note",
+    "noteHeadButtonHint": "Sur cet appareil uniquement. Ce qui n'est pas choisi reste accessible : Signet dans le menu ⋮, Plan et Backlinks sous Détails de la note."
   },
   "tasks": {
     "hideFromView": "Masquer des tâches",

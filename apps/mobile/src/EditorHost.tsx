@@ -1,4 +1,4 @@
-import { chromeScrollPublisher, getChromeScroll, readerScrollSource, resetChromeScroll } from "./services/chromeScroll";
+import { chromeScrollPublisher, getChromeScroll, readerScrollSource, resetChromeScroll, scrolledToEnd } from "./services/chromeScroll";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./components/SheetGrip";
 import { useTranslation } from "react-i18next";
@@ -30,8 +30,12 @@ import {
   TextSelect,
   Image as ImageIcon,
   Paperclip,
+  IndentDecrease,
+  IndentIncrease,
+  Keyboard,
+  KeyboardOff,
 } from "lucide-react";
-import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo, shiftListIndent } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { selectNoteFragment, planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, noteBodyOf, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
@@ -191,6 +195,11 @@ export function EditorHost({
   // that position becomes the selection toolbar in S18, so it is not stored
   // here yet — state nothing reads is the thing this redesign keeps deleting.
   const [selectionStats, setSelectionStats] = useState<{ chars: number; words: number } | null>(null);
+  // The keyboard toolbar's two context buttons (W1, W2): indent/outdent while
+  // the caret is in a list, and a fixed button that puts the keyboard away or
+  // brings it back - the note stays in writing mode either way (F7).
+  const [caretInList, setCaretInList] = useState(false);
+  const [editorFocused, setEditorFocused] = useState(false);
   // Where the selection sits, so the formatting toolbar can stand over it
   // (S18). The same component the desktop uses — six actions, one definition.
   const [selectionAt, setSelectionAt] = useState<SelectionToolbarPosition | null>(null);
@@ -420,6 +429,7 @@ export function EditorHost({
       onSelectionRange: (range) => setSelectionRange(range),
       onFindPanel: (open) => setFinding(open),
       onSelectionStats: (stats) => setSelectionStats(stats),
+      onCaretInList: (inList) => setCaretInList(inList),
       // C3: the header widget's icon/stripe buttons open the mobile sheets.
       onPickIcon: () => setEmojiPick("icon"),
       onPickColor: () => setColorPick(true),
@@ -599,7 +609,7 @@ export function EditorHost({
     publishScroll(session.view.scrollDOM.scrollTop);
     let scrollTimer: number | null = null;
     const onScroll = () => {
-      publishScroll(session.view.scrollDOM.scrollTop);
+      publishScroll(session.view.scrollDOM.scrollTop, false, scrolledToEnd(session.view.scrollDOM));
       if (scrollTimer !== null) window.clearTimeout(scrollTimer);
       scrollTimer = window.setTimeout(() => {
         scrollTimer = null;
@@ -1369,6 +1379,8 @@ export function EditorHost({
       <div
         className={`m-editor${showEditToolbar ? " is-docked" : ""}`}
         ref={containerRef}
+        onFocusCapture={() => setEditorFocused(true)}
+        onBlurCapture={() => { queueMicrotask(() => setEditorFocused(!!containerRef.current?.contains(document.activeElement))); }}
         onContextMenu={(event) => {
           if (editable) return;
           const selection = window.getSelection();
@@ -1522,12 +1534,26 @@ export function EditorHost({
             {t("statusbar.chars")}
           </p>
         )}
-        {showEditToolbar && <DockedToolbar aria-label={t("mobile.editToolbar")} className="m-edit-toolbar">
+        {/* A press on the toolbar must not take the focus from the text: in a
+            Chromium WebView a tapped button takes it, the editor blurs and the
+            keyboard drops after every formatting tap (found while building W1). */}
+        {showEditToolbar && <DockedToolbar aria-label={t("mobile.editToolbar")} className="m-edit-toolbar" onMouseDown={(e) => e.preventDefault()}>
           {/* Insert menu (slash commands) sits FIRST and reads as a ＋ — the
               trailing "/" glyph was unintuitive (maintainer feedback). */}
           <button aria-label={t("mobile.insertMenu")} className="is-primary" onClick={() => run(openSlashMenu)}>
             <Plus size={ICON.head} />
           </button>
+          {/* Only in a list (W2): right after "+", where the thumb already is. */}
+          {caretInList && (
+            <>
+              <button aria-label={t("mobile.outdentLine")} data-testid="toolbar-outdent" onClick={() => run((v) => shiftListIndent(v, -1))}>
+                <IndentDecrease size={ICON.head} />
+              </button>
+              <button aria-label={t("mobile.indentLine")} data-testid="toolbar-indent" onClick={() => run((v) => shiftListIndent(v, 1))}>
+                <IndentIncrease size={ICON.head} />
+              </button>
+            </>
+          )}
           <button aria-label={t("editor.fmtBold")} onClick={() => run((v) => toggleInlineMark(v, "**"))}>
             <Bold size={ICON.head} />
           </button>
@@ -1560,6 +1586,23 @@ export function EditorHost({
           </button>
           <button aria-label={t("common.redo")} onClick={() => run(redo)}>
             <Redo2 size={ICON.head} />
+          </button>
+          {/* Fixed at the end, outside the scrolling run (W1, S1): the
+              keyboard goes, the note stays in writing mode and the caret
+              where it was; a second tap brings the keyboard back there. */}
+          <button
+            aria-label={editorFocused ? t("mobile.keyboardHide") : t("mobile.keyboardShow")}
+            className="m-edit-toolbar-end"
+            data-testid="toolbar-keyboard"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => {
+              const view = sessionRef.current?.view;
+              if (!view) return;
+              if (editorFocused) view.contentDOM.blur();
+              else view.focus();
+            }}
+          >
+            {editorFocused ? <KeyboardOff size={ICON.head} /> : <Keyboard size={ICON.head} />}
           </button>
         </DockedToolbar>}
         </>

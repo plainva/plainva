@@ -146,6 +146,8 @@ textarea {
 .m-screen {
   flex: 1;
   min-height: 0;
+  /* The app comes up with a short fade (F5; keyframes m-app-in below). */
+  animation: m-app-in var(--dur-2) var(--ease-effects);
   /* Beside the rail this is a flex ITEM, and a flex item's automatic minimum
      size is its content (finding 2026-08-21). Two columns of content asked for
      1131 px inside a 1024 px window, the shell handed that width down, and every
@@ -595,7 +597,7 @@ textarea {
   /* A monotone curve, not the spatial spring: an overshoot here would carry
      the bar past its target and back, which on a shrinking bar reads as a
      wobble rather than as momentum (§ 3.8). */
-  transition: padding var(--dur-2) var(--ease-effects);
+  transition: padding var(--dur-2) var(--ease-effects), transform var(--dur-2) var(--ease-effects), opacity var(--dur-2) var(--ease-effects);
 }
 
 /* The capsule is the PHONE form; a rail is a column of the layout and stays in
@@ -635,6 +637,23 @@ textarea {
 }
 .m-tabbar.is-away .m-tab {
   gap: 0;
+}
+/* With "Hide bars while scrolling" on, the capsule leaves the screen while
+   reading downwards and comes back on the way up or at the end of the list
+   (W3). It floats, so nothing below it moves. */
+.m-tabbar.is-hidden {
+  transform: translateY(calc(100% + var(--m-bar-inset) + env(safe-area-inset-bottom)));
+  opacity: 0;
+  pointer-events: none;
+}
+/* The "+" goes with it (W3). It floats too, so this moves nothing in the page. */
+.m-fabmenu .m-fab-float {
+  transition: transform var(--dur-2) var(--ease-effects), opacity var(--dur-2) var(--ease-effects);
+}
+.m-fabmenu.is-stepped-aside .m-fab-float {
+  transform: translateY(calc(100% + var(--m-bar-inset) + env(safe-area-inset-bottom)));
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Adaptive shell (S13, M3 Canonical Layouts). From the medium class the bar
@@ -1397,6 +1416,15 @@ textarea {
   padding: 10px;
   color: var(--text-main);
   border-radius: var(--radius-pill);
+}
+/* The keyboard button stays at the end while the rest scrolls under it
+   (W1, S1): it is the way out of the keyboard, so it is never scrolled away. */
+.m-edit-toolbar .m-edit-toolbar-end {
+  position: sticky;
+  right: 0;
+  margin-left: auto;
+  background: var(--surface-container);
+  border-left: 1px solid var(--border-color-light);
 }
 .m-stepper {
   display: inline-flex;
@@ -4980,6 +5008,9 @@ textarea {
    picked in the outline starts below it, not under it (lineJump.ts). */
 .m-page--note[data-reader-overlay] .m-editor .cm-scroller { --pv-editor-covered-top: var(--m-reader-chrome-height); }
 .m-note-chrome.is-away { transform: translateY(-100%); pointer-events: none; }
+/* Writing with the keyboard up: the bar gives its height to the text (F8);
+   pulling the text down or putting the keyboard away brings it back. */
+.m-note-chrome.is-tucked { display: none; }
 .m-note-pencil { transition: transform var(--dur-2) var(--ease-effects), opacity var(--dur-2) var(--ease-effects); }
 .m-note-pencil.is-away { transform: translateY(calc(100% + 32px)); opacity: 0; pointer-events: none; }
 
@@ -5039,4 +5070,29 @@ textarea {
 }
 .m-cal-note-box[data-state="done"] {
   color: var(--accent-color);
+}
+
+/* Opening and going back (F5, S6). The working column slides in from the
+   right on a push and from the left on a pop; the motion tokens collapse to
+   nothing under "Animations off" and the system's reduced motion. */
+@keyframes m-nav-push-0 { from { transform: translateX(24%); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes m-nav-push-1 { from { transform: translateX(24%); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes m-nav-pop-0 { from { transform: translateX(-16%); opacity: 0.6; } to { transform: none; opacity: 1; } }
+@keyframes m-nav-pop-1 { from { transform: translateX(-16%); opacity: 0.6; } to { transform: none; opacity: 1; } }
+.m-col.is-nav-push-0 { animation: m-nav-push-0 var(--dur-2) var(--ease-spatial); }
+.m-col.is-nav-push-1 { animation: m-nav-push-1 var(--dur-2) var(--ease-spatial); }
+.m-col.is-nav-pop-0 { animation: m-nav-pop-0 var(--dur-2) var(--ease-spatial); }
+.m-col.is-nav-pop-1 { animation: m-nav-pop-1 var(--dur-2) var(--ease-spatial); }
+/* The app comes up with a short fade instead of appearing at once (F5). */
+@keyframes m-app-in { from { opacity: 0; } to { opacity: 1; } }
+/* Back from the left edge on iOS (W5): the column follows the finger, then
+   slides out before the step is taken. */
+.m-col.is-edge-dragging {
+  transform: translateX(var(--m-edge-dx, 0));
+  box-shadow: var(--shadow-2);
+}
+.m-col.is-edge-leaving {
+  transform: translateX(100%);
+  box-shadow: var(--shadow-2);
+  transition: transform var(--dur-2) var(--ease-effects);
 }

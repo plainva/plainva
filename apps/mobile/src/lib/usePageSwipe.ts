@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Capacitor } from "@capacitor/core";
 import { haptics } from "../services/haptics";
 import { SWIPE_SLOP } from "./gestureConstants";
+import { BACK_EDGE_PX, startsInBackEdge } from "./gestureConstants";
 
 /**
  * A horizontal drag on a calendar page means PAGING (plan Kalender,
@@ -40,8 +40,8 @@ import { SWIPE_SLOP } from "./gestureConstants";
 export const PAGE_SWIPE_RATIO = 0.25;
 /** A flick faster than this commits regardless of distance (px per ms). */
 export const PAGE_SWIPE_FLICK = 0.4;
-/** Android's back gesture owns the first pixels of the left edge. */
-export const ANDROID_EDGE_PX = 24;
+/** Back owns the first pixels of the left edge - Android's gesture, and the app's own on iOS. */
+export const ANDROID_EDGE_PX = BACK_EDGE_PX;
 /** The settle animation; 0 under reduced motion. */
 export const PAGE_SETTLE_MS = 200;
 
@@ -74,7 +74,7 @@ export function usePageSwipe(onCommit: (dir: -1 | 1) => void): [PageSwipeState, 
     const el = e.target as HTMLElement | null;
     if (el?.closest("[data-no-page-swipe]")) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    if (Capacitor.getPlatform() === "android" && e.clientX - rect.left < ANDROID_EDGE_PX) return;
+    if (startsInBackEdge(e.clientX, rect.left)) return;
     drag.current = { x: e.clientX, y: e.clientY, t: e.timeStamp, w: Math.max(1, rect.width), axis: "", id: e.pointerId, mx: 0, at: e.timeStamp };
   }, []);
 

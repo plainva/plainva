@@ -2674,7 +2674,15 @@
     "swipeHintAck": "了解",
     "propertyWriteFailed": "プロパティを保存できませんでした: {{message}}",
     "selectMany": "複数を選択",
-    "readerAutoHide": "閲覧中に操作バーを自動的に隠す"
+    "readerAutoHide": "スクロール中はバーを隠す",
+    "outdentLine": "インデントを減らす",
+    "indentLine": "インデントを増やす",
+    "keyboardHide": "キーボードを隠す",
+    "keyboardShow": "キーボードを表示",
+    "backHistoryTitle": "戻る先",
+    "backPreviousPage": "前のページ",
+    "noteHeadButton": "ノートバーの最初のボタン",
+    "noteHeadButtonHint": "この端末のみ。選ばなかったものもすぐ使えます。ブックマークは⋮メニュー、アウトラインとバックリンクはノートの詳細にあります。"
   },
   "tasks": {
     "hideFromView": "タスクから隠す",

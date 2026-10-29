@@ -2714,7 +2714,15 @@
     "swipeHintAck": "Entendi",
     "propertyWriteFailed": "Não foi possível salvar a propriedade: {{message}}",
     "selectMany": "Selecionar vários",
-    "readerAutoHide": "Ocultar controles automaticamente durante a leitura"
+    "readerAutoHide": "Ocultar as barras ao rolar",
+    "outdentLine": "Diminuir recuo",
+    "indentLine": "Aumentar recuo",
+    "keyboardHide": "Ocultar teclado",
+    "keyboardShow": "Mostrar teclado",
+    "backHistoryTitle": "Voltar para",
+    "backPreviousPage": "Página anterior",
+    "noteHeadButton": "Primeiro botão da barra da nota",
+    "noteHeadButtonHint": "Somente neste dispositivo. O que não for escolhido continua à mão: Favorito no menu ⋮, Estrutura e Backlinks em Detalhes da nota."
   },
   "tasks": {
     "hideFromView": "Ocultar das tarefas",

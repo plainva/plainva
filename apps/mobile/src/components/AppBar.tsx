@@ -1,8 +1,10 @@
+import { useLongPress } from "../lib/useLongPress";
+import { BACK_HISTORY_EVENT } from "../services/backHistory";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, Menu, Search } from "lucide-react";
 import { ICON, IconButton } from "@plainva/ui";
-import { chromeScrollPublisher, resetChromeScroll, type ChromeScroll } from "../services/chromeScroll";
+import { chromeScrollPublisher, resetChromeScroll, scrolledToEnd, type ChromeScroll } from "../services/chromeScroll";
 
 /**
  * The app bar — ONE header for every surface (redesign P2 / S11).
@@ -106,7 +108,7 @@ export function AppBar({
     const publish = chromeScrollPublisher();
     const read = () => {
       const top = scroller ? scroller.scrollTop : window.scrollY;
-      setScrolled(top > 2); publish(top);
+      setScrolled(top > 2); publish(top, false, scroller ? scrolledToEnd(scroller) : false);
     };
     resetChromeScroll();
     read();
@@ -114,6 +116,9 @@ export function AppBar({
     return () => target.removeEventListener("scroll", read);
   }, [scrollState]);
 
+  // Holding Back lists the places behind this screen (F6); the shell owns the
+  // stack, so the bar only asks for it.
+  const backPress = useLongPress<undefined>(() => window.dispatchEvent(new Event(BACK_HISTORY_EVENT)));
   // A title slot that is a control (the search field) has no context line.
   const hasSub = !titleAs && subtitle !== undefined && subtitle !== null && subtitle !== "";
 
@@ -125,7 +130,16 @@ export function AppBar({
     >
       <div className="m-appbar-row">
         {onBack ? (
-          <IconButton label={t("common.back")} onClick={onBack}>
+          <IconButton
+            data-testid="appbar-back"
+            label={t("common.back")}
+            onClick={() => { if (backPress.clicked()) onBack(); }}
+            onContextMenu={(e) => { e.preventDefault(); window.dispatchEvent(new Event(BACK_HISTORY_EVENT)); }}
+            onPointerCancel={backPress.clear}
+            onPointerDown={() => backPress.start(undefined)}
+            onPointerLeave={backPress.clear}
+            onPointerUp={backPress.clear}
+          >
             <ChevronLeft size={ICON.touch} />
           </IconButton>
         ) : (

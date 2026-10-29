@@ -514,6 +514,33 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-22",
   },
   {
+    id: "keyboard-toolbar-keyboard",
+    title: "Put the on-screen keyboard away from the writing toolbar",
+    area: "editor",
+    kind: "decision",
+    desktop: null,
+    desktopReason:
+      "A desktop has a hardware keyboard and no on-screen keyboard covering the " +
+      "text. On the phone the keyboard toolbar ends in a fixed button that puts the " +
+      "keyboard away and brings it back while the note stays in writing mode (W1).",
+    mobile: "yes",
+    verified: "2026-10-29",
+  },
+  {
+    id: "list-indent-controls",
+    title: "Indent and outdent list items",
+    area: "editor",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Same commands, different trigger: Tab and Shift+Tab on the desktop, and on " +
+      "the phone two toolbar buttons that appear while the caret stands in a list " +
+      "(W2, shiftListIndent). The phone has no Tab key; there is no swipe gesture " +
+      "for it.",
+    verified: "2026-10-29",
+  },
+  {
     id: "managed-index-tiles",
     title: "A managed index.md shown as tiles",
     area: "editor",
@@ -529,6 +556,20 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "and a long name wraps instead of running into a neighbour, so the finding " +
       "has no counterpart there. Tiles would be a reader of their own for one file.",
     verified: "2026-10-21",
+  },
+  {
+    id: "note-head-button-choice",
+    title: "Choose the first button of a note's bar (bookmark, outline or backlinks)",
+    area: "editor",
+    kind: "decision",
+    desktop: null,
+    desktopReason:
+      "The desktop shows outline, backlinks and properties side by side in the " +
+      "right sidebar and the bookmark in the tab's menu and the palette - nothing " +
+      "competes for one slot. On the phone the bar has room for one such button " +
+      "(F9); the others stay in the note menu and the note details.",
+    mobile: "yes",
+    verified: "2026-10-29",
   },
   {
     id: "print-note",
@@ -560,13 +601,20 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
   },
   {
     id: "reader-chrome-auto-hide",
-    title: "Automatically hide controls while reading",
+    title: "Automatically hide controls while reading and writing",
     area: "editor",
     kind: "decision",
     desktop: "partial",
-    desktopReason: "Desktop uses its explicit focus-mode command and shortcut. Touch readers hide the header and pencil on downward scrolling, with a device-local opt-out; the tablet navigation rail stays available.",
+    desktopReason:
+      "Desktop uses its explicit focus-mode command and shortcut. On a touch screen " +
+      "one device setting (\"Hide bars while scrolling\") hides the note's header " +
+      "and pencil, the bottom bar and the \"+\" while scrolling down, brings them " +
+      "back on the way up and at the end of a list, and takes the note's header " +
+      "away while writing with the keyboard up (wishes 2026-10-25, W3/F8). A " +
+      "desktop window has no soft keyboard and no floating bottom bar to make " +
+      "room from; the tablet navigation rail stays available.",
     mobile: "yes",
-    verified: "2026-09-16",
+    verified: "2026-10-29",
   },
   {
     id: "spell-checking",
@@ -843,6 +891,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "apply on both shells (plan Aufgaben-Oberflaeche B4, 2026-09-20).",
     mobile: "yes",
     verified: "2026-09-20",
+  },
+  {
+    id: "back-history",
+    title: "Jump back several steps at once by holding Back",
+    area: "platform",
+    kind: "decision",
+    desktop: null,
+    desktopReason:
+      "The desktop has no back button and no screen stack: notes open in tabs and " +
+      "panes that stay visible, and each tab has its own back and forward " +
+      "(Mod+Alt+Left/Right). Holding Back on the phone (F6, 2026-10-29) lists the " +
+      "places behind the current screen - the tab's root first - because there " +
+      "the stack is the only way back.",
+    mobile: "yes",
+    verified: "2026-10-29",
   },
   {
     id: "camera-capture",
@@ -1131,16 +1194,12 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "A desktop window has no navigation stack to go back in: tabs, panes and " +
       "windows are all visible at once, and the browser-style history lives inside " +
       "one tab (its own back/forward arrows). There is nothing here for a system " +
-      "back to act on.",
-    mobile: "partial",
-    mobileReason:
-      "Android has a system back trigger (gesture or button) and it pops the same " +
-      "navigation stack as the app bar's arrow; iOS has none of ours — the maintainer " +
-      "ruled out an own edge gesture on 2026-09-01 (the same movement with two " +
-      "origins on two platforms is the kind of asymmetry nobody can explain later). " +
-      "On iOS the app bar's arrow is THE way back, so it carries the full 44px " +
-      "touch target. Both shells run through one pop path; only the trigger differs.",
-    verified: "2026-09-03",
+      "back to act on. On the phone Android's system trigger and, since " +
+      "2026-10-29, the app's own swipe from the left edge on iOS (wish W5; the " +
+      "ruling of 2026-09-01 against it was reversed after a tester missed it) pop " +
+      "the same stack as the app bar's arrow.",
+    mobile: "yes",
+    verified: "2026-10-29",
   },
   {
     id: "window-bounds-restore",

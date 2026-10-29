@@ -2694,7 +2694,15 @@
     "swipeHintAck": "Verstanden",
     "propertyWriteFailed": "Eigenschaft konnte nicht gespeichert werden: {{message}}",
     "selectMany": "Mehrere auswählen",
-    "readerAutoHide": "Beim Lesen Leisten automatisch ausblenden"
+    "readerAutoHide": "Leisten beim Scrollen ausblenden",
+    "outdentLine": "Ausrücken",
+    "indentLine": "Einrücken",
+    "keyboardHide": "Tastatur ausblenden",
+    "keyboardShow": "Tastatur einblenden",
+    "backHistoryTitle": "Zurück zu",
+    "backPreviousPage": "Vorige Seite",
+    "noteHeadButton": "Erster Knopf im Notizkopf",
+    "noteHeadButtonHint": "Nur auf diesem Gerät. Was nicht gewählt ist, bleibt erreichbar: Lesezeichen im ⋮-Menü, Gliederung und Backlinks unter Notiz-Details."
   },
   "tasks": {
     "hideFromView": "Aus Aufgaben ausblenden",

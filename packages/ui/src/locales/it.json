@@ -2714,7 +2714,15 @@
     "swipeHintAck": "Ho capito",
     "propertyWriteFailed": "Impossibile salvare la proprietà: {{message}}",
     "selectMany": "Seleziona più elementi",
-    "readerAutoHide": "Nascondi automaticamente i controlli durante la lettura"
+    "readerAutoHide": "Nascondi le barre durante lo scorrimento",
+    "outdentLine": "Riduci rientro",
+    "indentLine": "Aumenta rientro",
+    "keyboardHide": "Nascondi tastiera",
+    "keyboardShow": "Mostra tastiera",
+    "backHistoryTitle": "Torna a",
+    "backPreviousPage": "Pagina precedente",
+    "noteHeadButton": "Primo pulsante nella barra della nota",
+    "noteHeadButtonHint": "Solo su questo dispositivo. Ciò che non è scelto resta a portata di mano: Segnalibro nel menu ⋮, Struttura e Backlink in Dettagli della nota."
   },
   "tasks": {
     "hideFromView": "Nascondi dalle attività",

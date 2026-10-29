@@ -2694,7 +2694,15 @@
     "swipeHintAck": "Got it",
     "propertyWriteFailed": "Property could not be saved: {{message}}",
     "selectMany": "Select several",
-    "readerAutoHide": "Automatically hide controls while reading"
+    "readerAutoHide": "Hide bars while scrolling",
+    "outdentLine": "Outdent",
+    "indentLine": "Indent",
+    "keyboardHide": "Hide keyboard",
+    "keyboardShow": "Show keyboard",
+    "backHistoryTitle": "Back to",
+    "backPreviousPage": "Previous page",
+    "noteHeadButton": "First button in the note bar",
+    "noteHeadButtonHint": "On this device only. What is not chosen stays within reach: Bookmark in the ⋮ menu, Outline and Backlinks under Note details."
   },
   "tasks": {
     "hideFromView": "Hide from tasks",

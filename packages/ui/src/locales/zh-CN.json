@@ -2674,7 +2674,15 @@
     "swipeHintAck": "知道了",
     "propertyWriteFailed": "无法保存属性：{{message}}",
     "selectMany": "选择多项",
-    "readerAutoHide": "阅读时自动隐藏操作栏"
+    "readerAutoHide": "滚动时隐藏工具栏",
+    "outdentLine": "减少缩进",
+    "indentLine": "增加缩进",
+    "keyboardHide": "隐藏键盘",
+    "keyboardShow": "显示键盘",
+    "backHistoryTitle": "返回到",
+    "backPreviousPage": "上一页",
+    "noteHeadButton": "笔记栏的第一个按钮",
+    "noteHeadButtonHint": "仅限此设备。未选中的项目仍可使用：书签在⋮菜单中，大纲和反向链接在笔记详情中。"
   },
   "tasks": {
     "hideFromView": "从任务中隐藏",

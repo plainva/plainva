@@ -230,6 +230,15 @@ Lists on the phone (correction of 2026-09-24, E20) — **only a choice wears a m
 
 The desktop needed none of this: navigation there is `MenuItem active` and choices are native checkboxes and radios.
 
+**Bars on the phone make room, and every step moves** (wishes of 2026-10-25 and 2026-10-28, W1–W5, F5–F9):
+
+- **One setting decides whether bars step aside** ("Hide bars while scrolling", `readerAutoHide`, on by default). Scrolling down takes away the note's header and pencil, the floating bottom bar (`.m-tabbar.is-hidden`) and the "+" (`.m-fabmenu.is-away`); scrolling up or reaching the end of the list (`scrolledToEnd`) brings them back. Off, the bottom bar only folds its words (`.is-away`) as before. Everything floats, so nothing in the page moves when a bar goes. The calendar is not affected: its grid scrolls inside the page and publishes nothing.
+- **Writing with the keyboard up, the note's header gives its height to the text** (`.m-note-chrome.is-tucked`, `noteChromeTucked`). Pulling the text down or putting the keyboard away brings it back.
+- **The keyboard toolbar has a fixed end and context buttons.** Its last button ("Hide keyboard" / "Show keyboard") is sticky at the right edge and never scrolls away (`.m-edit-toolbar-end`); buttons that only make sense in one place appear only there, right after "+" (indent and outdent while the caret is in a list). The note stays in writing mode when the keyboard goes.
+- **Opening slides in from the right, going back from the left** (`.m-col.is-nav-push-*` / `.is-nav-pop-*`, `navMotion`): a tab switch does not slide. The app comes up with a short fade. All of it runs on the motion tokens, so "Animations off" and the system's reduced motion turn it off.
+- **Back from the left edge on iOS** follows the finger (`.m-col.is-edge-dragging`, shadow `--shadow-2`) and slides out before the step is taken (`.is-edge-leaving`). The first `BACK_EDGE_PX` of the left edge belong to back on both platforms; swipe rows and the calendar's page swipe do not start there.
+- **Holding Back lists the places behind the screen** in a sheet of targets (the list kind above): the tab's root first, then newest first, at most eight. A tap jumps there in one step.
+
 ## Theming duties (docking matrix)
 
 ### Account setup, file comparison and compact navigation

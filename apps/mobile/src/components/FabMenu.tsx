@@ -1,8 +1,10 @@
-import { Fragment, useEffect, type ReactNode } from "react";
+import { Fragment, useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { Fab, ICON, useStableHandler } from "@plainva/ui";
 import { haptics } from "../services/haptics";
 import { registerSheet } from "../services/sheetStack";
+import { getChromeScroll, subscribeChromeScroll } from "../services/chromeScroll";
+import { useAutoHideChrome } from "../hooks/useAutoHideChrome";
 
 export interface FabItem {
   icon: ReactNode;
@@ -39,6 +41,10 @@ export function FabMenu({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  // Scrolling down with "Hide bars while scrolling" on, the button steps
+  // aside with the bottom bar (W3); an open menu stays.
+  const scrolledAway = useSyncExternalStore(subscribeChromeScroll, () => getChromeScroll().away);
+  const away = useAutoHideChrome() && scrolledAway;
   const change = useStableHandler(onOpenChange);
   // Open choices are navigation state like a sheet: back closes them (S12).
   useEffect(() => {
@@ -51,7 +57,7 @@ export function FabMenu({
       {open && (
         <div className="m-fabmenu-scrim" onClick={() => onOpenChange(false)} />
       )}
-      <div className={`m-fabmenu${open ? " is-open" : ""}`}>
+      <div className={`m-fabmenu${open ? " is-open" : ""}${away && !open ? " is-stepped-aside" : ""}`}>
         {open && (
           <div className="m-fabmenu-items">
             {items.map((it, i) => (

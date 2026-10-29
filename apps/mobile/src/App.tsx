@@ -658,7 +658,7 @@ export default function App() {
         </div>
       )}
 
-      <AdaptiveLayout activeTab={nav.activeTab} ctx={routeCtx} top={top} twoColumn={twoColumn} />
+      <AdaptiveLayout activeTab={nav.activeTab} ctx={routeCtx} nav={nav} top={top} twoColumn={twoColumn} />
 
       {/* Capture floats above the bar on tab roots and folder screens only. */}
       {hasFab && (

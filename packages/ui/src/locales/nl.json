@@ -2694,7 +2694,15 @@
     "swipeHintAck": "Begrepen",
     "propertyWriteFailed": "Eigenschap kon niet worden opgeslagen: {{message}}",
     "selectMany": "Meerdere selecteren",
-    "readerAutoHide": "Bediening tijdens het lezen automatisch verbergen"
+    "readerAutoHide": "Balken verbergen tijdens het scrollen",
+    "outdentLine": "Inspringing verkleinen",
+    "indentLine": "Inspringing vergroten",
+    "keyboardHide": "Toetsenbord verbergen",
+    "keyboardShow": "Toetsenbord tonen",
+    "backHistoryTitle": "Terug naar",
+    "backPreviousPage": "Vorige pagina",
+    "noteHeadButton": "Eerste knop in de notitiebalk",
+    "noteHeadButtonHint": "Alleen op dit apparaat. Wat niet gekozen is, blijft bereikbaar: Bladwijzer in het ⋮-menu, Structuur en Backlinks onder Notitiedetails."
   },
   "tasks": {
     "hideFromView": "Verbergen uit taken",

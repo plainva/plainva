@@ -27,6 +27,8 @@ import {
   FileText,
   PenLine,
   SquareChevronRight,
+  ListTree,
+  Link2,
 } from "lucide-react";
 import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
@@ -159,8 +161,9 @@ export function NoteScreen({
   // below DOCK_MIN it opens the sheet exactly as on a phone.
   const canDock = useSyncExternalStore(subscribeWindowClass, getCanDock);
   const [dockPref, setDockPref] = useState(getMobileSettings().contextPanelDocked);
+  const [headButton, setHeadButton] = useState(getMobileSettings().noteHeadButton);
   useEffect(() => {
-    const onChanged = () => setDockPref(getMobileSettings().contextPanelDocked);
+    const onChanged = () => { setDockPref(getMobileSettings().contextPanelDocked); setHeadButton(getMobileSettings().noteHeadButton); };
     window.addEventListener("m-settings-changed", onChanged);
     return () => window.removeEventListener("m-settings-changed", onChanged);
   }, []);
@@ -1243,12 +1246,23 @@ export function NoteScreen({
   // the Dynamic Island, its field and its close button out of reach. While it
   // is open the bar stands in the flow and the panel directly under it.
   const readerOverlay = !loadFailed && !vanished && !readerConflict && !editing && !suggesting && !draft && !managedIndex && !staleSince && !finding;
-  const { chromeRef, away: chromeAway, scroll: chromeScroll, pageStyle: chromeStyle, onFocusCapture: focusChrome, onBlurCapture: blurChrome } = useReaderChrome(vault.vaultId, path, readerOverlay, readerBlocked || menu || moving || !!info || commentsOpen || !!decisionReview);
+  const { chromeRef, away: chromeAway, tucked: chromeTucked, scroll: chromeScroll, pageStyle: chromeStyle, onFocusCapture: focusChrome, onBlurCapture: blurChrome } = useReaderChrome(vault.vaultId, path, readerOverlay, readerBlocked || menu || moving || !!info || commentsOpen || !!decisionReview, editing);
   const page = (
     <div className="m-page m-page--note" data-reader-overlay={readerOverlay || undefined} style={chromeStyle}>
       {decisionReview && decisionReview.path === path && decisionReview.vaultId === vault.vaultId && <CommentDecisionReview comment={decisionReview.comment} text={decisionReview.snapshot.text} onDecision={confirmCommentDecision} onClose={() => setDecisionReview(null)} />}
-      <div ref={chromeRef} className={`m-note-chrome${chromeAway ? " is-away" : ""}`} onFocusCapture={focusChrome} onBlurCapture={blurChrome}>
-      <AppBar scrollState={chromeScroll} onBack={onBack} subtitle={folder} title={title} actions={<>{!editing && (
+      <div ref={chromeRef} className={`m-note-chrome${chromeAway ? " is-away" : ""}${chromeTucked ? " is-tucked" : ""}`} onFocusCapture={focusChrome} onBlurCapture={blurChrome}>
+      <AppBar scrollState={chromeScroll} onBack={onBack} subtitle={folder} title={title} actions={<>{!editing && headButton !== "bookmark" && (
+            // The first button is the reader's choice (F9): outline or backlinks
+            // open the note details at that section; the bookmark moves to the menu.
+            <IconButton
+              data-testid="note-head-button"
+              label={t(headButton === "outline" ? "rightPanel.outline" : "rightPanel.backlinks")}
+              onClick={() => setInfo(headButton)}
+            >
+              {headButton === "outline" ? <ListTree size={ICON.head} /> : <Link2 size={ICON.head} />}
+            </IconButton>
+          )}
+          {!editing && headButton === "bookmark" && (
             <IconButton
               label={t("mobile.toggleBookmark")}
               active={marked}
@@ -1625,6 +1639,15 @@ export function NoteScreen({
              * mode. The rest (find, rename, move, send, share, export, delete)
              * are file actions and stay.
              */
+            // The bookmark stays one tap away when the bar's first button is another (F9).
+            ...(headButton === "bookmark" ? [] : [{
+              icon: <Bookmark fill={marked ? "currentColor" : "none"} size={ICON.head} />,
+              label: t("mobile.toggleBookmark"),
+              onClick: () => {
+                setMenu(false);
+                void vaultOps.toggleBookmark(vault, path).then((next) => setMarked(next));
+              },
+            }]),
             ...(resolveOpenAction(path) === "text" ? [] : [
             {
               icon: <Smile size={ICON.head} />,

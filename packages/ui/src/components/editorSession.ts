@@ -28,6 +28,7 @@ import { editorCompletion } from "./editorCompletion";
 import { documentHeaderExtension, type DocumentHeaderTexts } from "./documentHeader";
 import { listKeymap } from "./listKeymap";
 import { listIndentPlugin } from "./listIndent";
+import { caretInListItem } from "./editorTouchCommands";
 import { textDirectionExtension } from "./textDirectionExtension";
 import { markdownFolding } from "./foldingExtension";
 import { searchPanelOpen } from "@codemirror/search";
@@ -173,6 +174,8 @@ export interface EditorSessionDeps {
   onSuggestionChunks?: (count: number) => void;
   /** Selection word/char counts for the status bar (P3.9); null = no selection. */
   onSelectionStats: (stats: { chars: number; words: number } | null) => void;
+  /** Whether the caret stands in a list item; fires with the selection (W2, keyboard toolbar). */
+  onCaretInList?: (inList: boolean) => void;
   /**
    * The main selection, or null when it is empty. Fires on every selection
    * change - the HOST decides what is worth a re-render (D2 shows the quote a
@@ -446,6 +449,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       }
       deps.current.onSelectionStats(chars > 0 ? { chars, words } : null);
     }
+    if (deps.current.onCaretInList && (update.selectionSet || update.docChanged)) deps.current.onCaretInList(caretInListItem(v.state));
     const main = v.state.selection.main;
     deps.current.onSelectionRange?.(main.empty ? null : { from: main.from, to: main.to });
     const range = v.state.selection.main;

@@ -463,3 +463,38 @@ export function currentArea(state: NavState): TabScreenId {
   }
   return state.activeTab;
 }
+
+/** A place the long press on Back can jump to (F6): what it shows, and the state after the jump. */
+export interface BackStop {
+  /** The entry the jump lands on; null for the root of the active tab. */
+  entry: NavEntry | null;
+  next: NavState;
+}
+
+/**
+ * The places behind the current screen, for the long press on Back (F6,
+ * S7): the root of the active tab first, then the screens below the current
+ * one, newest first, at most `limit` of them. Jumping drops everything above
+ * the chosen place - the same as pressing Back that many times. Empty on a
+ * tab root, where there is nothing to go back to.
+ */
+export function backStops(state: NavState, limit = 8): BackStop[] {
+  const stack = state.stacks[state.activeTab];
+  const layers = stack.length + state.overlay.length;
+  if (layers === 0) return [];
+  const stops: BackStop[] = [];
+  // Below the current screen, newest first: the overlay floats above the stack.
+  for (let i = layers - 2; i >= 0 && stops.length < limit; i -= 1) {
+    if (i >= stack.length) {
+      const o = i - stack.length;
+      stops.push({ entry: state.overlay[o]!, next: { ...state, overlay: state.overlay.slice(0, o + 1) } });
+    } else {
+      stops.push({
+        entry: stack[i]!,
+        next: { ...state, overlay: [], stacks: { ...state.stacks, [state.activeTab]: stack.slice(0, i + 1) } },
+      });
+    }
+  }
+  const root: BackStop = { entry: null, next: { ...state, overlay: [], stacks: { ...state.stacks, [state.activeTab]: [] } } };
+  return [root, ...stops];
+}
