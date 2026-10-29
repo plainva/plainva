@@ -1,6 +1,6 @@
 # Copias de seguridad y versionado
 
-Última actualización: 2026-09-15
+Última actualización: 2026-10-29
 
 Plainva protege tu trabajo en dos niveles: **versiones de archivo** (snapshots automáticos de cada archivo individual al editar y eliminar) y **copias de seguridad del vault** (archivos ZIP periódicos de todo el vault, guardados fuera de la carpeta del vault). Ambos funcionan en segundo plano sin ninguna configuración y se pueden ajustar en la configuración bajo **Copias de seguridad y versionado**.
 
@@ -31,7 +31,7 @@ Las imágenes también tienen versiones (con vista previa); otros archivos binar
 
 ## Restaurar archivos eliminados
 
-Como cada eliminación crea antes un snapshot del archivo, Plainva puede recuperar archivos eliminados: haz clic derecho en el nombre del vault en la parte superior del árbol de archivos → **Restaurar archivos eliminados…** (también accesible desde la configuración). La lista muestra todos los archivos cuyos snapshots todavía existen mientras el original ha desaparecido — **Restaurar** recrea el estado más reciente en la ubicación original (las carpetas se recrean según sea necesario), **Versiones…** abre el historial completo del archivo eliminado.
+Como cada eliminación crea antes un snapshot del archivo, Plainva puede recuperar archivos eliminados: haz clic derecho en el nombre del vault en la parte superior del árbol de archivos → **Restaurar archivos eliminados…** (también accesible en **Configuración → Vault → Copias de seguridad y versionado → Historial de versiones**). La lista muestra todos los archivos cuyos snapshots todavía existen mientras el original ha desaparecido — **Restaurar** recrea el estado más reciente en la ubicación original (las carpetas se recrean según sea necesario), **Versiones…** abre el historial completo del archivo eliminado.
 
 Nota: eliminar una **carpeta entera** la traslada a la papelera del sistema operativo — en ese caso la papelera del sistema es la vía principal de recuperación; en Plainva es posible que solo encuentres snapshots más antiguos de los archivos que contenía.
 

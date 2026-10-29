@@ -1,6 +1,6 @@
 # Bases de datos (.base)
 
-Última actualización: 2026-10-21
+Última actualización: 2026-10-29
 
 Con los archivos `.base` conviertes notas en bases de datos: tablas, tableros, calendarios — con filtros, propiedades tipadas y relaciones entre bases de datos. El concepto se parece a las bases de datos de Notion, con una diferencia decisiva: **los datos no viven en la base de datos, viven en tus notas.**
 
@@ -26,7 +26,7 @@ El formato de archivo es compatible con el formato Bases de Obsidian (detalles a
 
 Cada base de datos puede llevar su propio icono con un **Color del icono de la base de datos** — visible en el árbol de archivos, las pestañas y el encabezado.
 
-Una base de datos también puede servir como la **Base de datos de tareas predeterminada** del vault (Configuración → **Contenido y estructura**): la [vista Tareas](Tasks.md) muestra entonces sus entradas como una sección propia y puede mover casillas desde las notas a ella.
+Una base de datos también puede servir como la **Base de datos de tareas predeterminada** del vault (Configuración → **Notas y organización**): la [vista Tareas](Tasks.md) muestra entonces sus entradas como una sección propia y puede mover casillas desde las notas a ella.
 
 ## Vistas
 
@@ -63,7 +63,7 @@ Al hacer clic en el encabezado de una columna se abre el editor de propiedades (
 - **Nombre** — renombrar afecta a las notas: al guardar, la propiedad se renombra en el frontmatter de todas las notas coincidentes (con confirmación e indicador de progreso). Plainva pregunta antes a cada nota: si alguna no puede recibir el nuevo nombre —ya tiene una propiedad con ese nombre, o el bloque al principio no se puede leer como propiedades—, no se renombra nada y un mensaje nombra esas notas.
 - **Tipo de campo** — Texto, Número, Valoración, Casilla de verificación, Fecha, Fecha y hora, Lista, Etiquetas, Selección, Estado, Selección múltiple, URL, Correo electrónico, Teléfono, Relación (el mismo menú de tipos agrupado que en el panel de **Propiedades** de las notas).
   Una **Valoración** es un número dibujado como puntos (cinco, salvo que la columna diga otra cosa). El archivo guarda `animo: 4`, un número simple que también leen Obsidian y cualquier hoja de cálculo; se ordena y se filtra como un número. Pulsas el punto que debe contar; pulsar el valor actual lo borra.
-- **Día del nombre del archivo** (`file.day`) — los calendarios y las líneas de tiempo pueden colocar las notas diarias por su **nombre de archivo**, sin que la fecha esté además en el frontmatter. El campo aparece en el selector de campo de fecha en cuanto la bóveda nombra notas diarias (carpeta y formato en **Ajustes → Tu bóveda → Contenido y estructura**); se calcula a partir del nombre, no está en ninguna nota y no se puede editar, así que una tarjeta colocada de este modo tampoco se puede arrastrar a otro día (eso renombraría el archivo). Obsidian no conoce este campo: una vista que lo use queda vacía allí.
+- **Día del nombre del archivo** (`file.day`) — los calendarios y las líneas de tiempo pueden colocar las notas diarias por su **nombre de archivo**, sin que la fecha esté además en el frontmatter. El campo aparece en el selector de campo de fecha en cuanto la bóveda nombra notas diarias (carpeta y formato en **Ajustes → Tu bóveda → Notas diarias y diario**); se calcula a partir del nombre, no está en ninguna nota y no se puede editar, así que una tarjeta colocada de este modo tampoco se puede arrastrar a otro día (eso renombraría el archivo). Obsidian no conoce este campo: una vista que lo use queda vacía allí.
 - **Opciones** (para Selección/Estado/Selección múltiple) — valores fijos con un **Color** y, para **Estado**, un **Grupo**/etapa (p. ej. pendiente → en curso → hecho); reordenar arrastrando. Al abrir el editor de la columna, la lista de opciones ya viene rellenada con los valores que se usan en la base de datos, así que puedes asignarle un color a cada uno sin necesidad de volver a escribirlo.
 - **Eliminar propiedad** — quita la columna, el esquema, los filtros y las reglas de orden de la base de datos. La casilla **Quitarla también del frontmatter de las notas** (activada por defecto) limpia además las notas de origen. Una nota que no se puede cambiar conserva la propiedad; un mensaje cuenta las notas modificadas y las que fallaron.
 

@@ -1,6 +1,6 @@
 # FAQ & Fehlerbehebung
 
-Stand: 2026-10-26
+Stand: 2026-10-29
 
 Antworten auf die häufigsten Fragen — von Obsidian-Kompatibilität über Konfliktdateien bis zu Backups.
 
@@ -56,7 +56,7 @@ Mit Sync über WebDAV oder S3 hat Plainva 0.8.3 eine synchronisierte Notiz entfe
 
 Hat es Dich getroffen, liegt die Notiz noch an bis zu drei Orten:
 
-- **Der Snapshot im Vault.** Bevor Plainva eine Datei entfernt, sichert es sie als `.plainva/backups/<Ordner>/<Name>.md.<Zeitstempel>.bak`; `<Ordner>` ist der Ordner, in den Du die Notiz verschoben hast. Am Desktop Rechtsklick auf den Vault-Namen → **Gelöschte Dateien wiederherstellen…**, am Telefon **Einstellungen** → **Wartung** → **Gelöschte Dateien wiederherstellen**. Die Liste zeigt die Notiz unter ihrem neuen Pfad, **Wiederherstellen** legt sie dort wieder ab. Die `.bak`-Datei ist reiner Text, Du kannst sie also auch in jedem Dateimanager oder Texteditor öffnen.
+- **Der Snapshot im Vault.** Bevor Plainva eine Datei entfernt, sichert es sie als `.plainva/backups/<Ordner>/<Name>.md.<Zeitstempel>.bak`; `<Ordner>` ist der Ordner, in den Du die Notiz verschoben hast. Am Desktop Rechtsklick auf den Vault-Namen → **Gelöschte Dateien wiederherstellen…**, am Telefon **Einstellungen** → **Backup & Versionierung** → **Gelöschte Dateien wiederherstellen**. Die Liste zeigt die Notiz unter ihrem neuen Pfad, **Wiederherstellen** legt sie dort wieder ab. Die `.bak`-Datei ist reiner Text, Du kannst sie also auch in jedem Dateimanager oder Texteditor öffnen.
 - **Der Papierkorb des Systems** (Desktop): Die Datei selbst liegt im Papierkorb Deines Betriebssystems.
 - **Der Papierkorb Deines Servers**, falls die Notiz auch dort gelöscht wurde (in Nextcloud etwa unter „Gelöschte Dateien“).
 

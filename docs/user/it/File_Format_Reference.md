@@ -1,6 +1,6 @@
 # File Format Reference
 
-Ultimo aggiornamento: 2026-10-24
+Ultimo aggiornamento: 2026-10-29
 
 Questa pagina è il contratto esatto, così come sta su disco, per **ogni file in un vault Plainva**. È scritta in modo che uno strumento — un altro programma, uno script o un assistente IA — possa leggere e modificare in sicurezza i file del vault direttamente, senza passare dall'interfaccia di Plainva. Se usi solo l'app, non ti serve mai questa pagina; le [altre pagine della guida](README.md) coprono l'uso normale.
 
@@ -548,7 +548,7 @@ Per una relazione la cui destinazione è lo stesso database, punta `relationBase
 
 `index.md` è un nome riservato per il sommario di una cartella.
 
-- **Solo la `index.md` radice può portare frontmatter**, e solo `okf_version` — la versione della convenzione seguita dal vault (attualmente `"0.2"`; contrassegna il vault come OKF-attivo). Un vault che dichiara ancora `"0.1"` viene aggiornato in **Impostazioni → Vault → Contenuto e struttura → Versione del bundle → Aggiorna…**; il campo `okf_version` legacy può essere rimosso dalle note nello stesso passaggio. Una `index.md` non radice deve essere **priva di frontmatter** — il frontmatter lì è una violazione del nome riservato.
+- **Solo la `index.md` radice può portare frontmatter**, e solo `okf_version` — la versione della convenzione seguita dal vault (attualmente `"0.2"`; contrassegna il vault come OKF-attivo). Un vault che dichiara ancora `"0.1"` viene aggiornato in **Impostazioni → Vault → Manutenzione → Formato OKF → Versione del bundle → Aggiorna…**; il campo `okf_version` legacy può essere rimosso dalle note nello stesso passaggio. Una `index.md` non radice deve essere **priva di frontmatter** — il frontmatter lì è una violazione del nome riservato.
 - Una `index.md` **gestita** da Plainva termina con il marcatore `<!-- plainva:index generated -->` (un commento HTML, invisibile in modalità lettura). La sua presenza significa che Plainva mantiene il file aggiornato automaticamente. Se modifichi a mano un file simile, conserva il marcatore (e mantieni la forma generata) oppure rimuovilo deliberatamente per assumere il file in modo permanente.
 - Gli elenchi generati sono sezioni di link nella forma `* [Titolo](url/relativo) - descrizione`.
 

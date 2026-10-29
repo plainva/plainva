@@ -105,8 +105,13 @@ describe("one place names the type of a new note", () => {
    * sync moves the two through the shared field catalog and names neither.
    */
   const MAY_NAME_THE_SETTINGS = ["services/newNote.ts", "services/mobileSettingsScope.ts"];
-  /** The settings fields show and save the stored text: each setting twice there, as the value and as the save. */
-  const FIELDS = "screens/SettingsAreaScreens.tsx";
+  /** The settings fields show and save the stored text: each setting twice there, as the value and as the save.
+   *  Since the settings plan of 2026-10-29 the two fields stand on two screens (E9). */
+  const FIELD_OF: Record<string, string> = {
+    defaultNoteType: "screens/SettingsAreaScreens.tsx",
+    dailyNoteType: "screens/JournalAreaScreen.tsx",
+  };
+  const FIELDS = Object.values(FIELD_OF);
   const SETTINGS = ["defaultNoteType", "dailyNoteType"];
   const namesASetting = (node: ts.Node) =>
     (ts.isIdentifier(node) && SETTINGS.includes(node.text)) ||
@@ -117,14 +122,14 @@ describe("one place names the type of a new note", () => {
     // Eleven places did, one of them with a fallback of its own; a blank field
     // wrote an empty `type` through the other ten.
     const offenders = sources
-      .filter((file) => !MAY_NAME_THE_SETTINGS.includes(file.fileName) && file.fileName !== FIELDS)
+      .filter((file) => !MAY_NAME_THE_SETTINGS.includes(file.fileName) && !FIELDS.includes(file.fileName))
       .flatMap((file) => places(file, namesASetting))
       .map((place) => `${place}: ask configuredNoteType() or configuredDailyNoteType() from services/newNote.ts`);
     expect(offenders).toEqual([]);
-    const fields = sources.find((file) => file.fileName === FIELDS)!;
     for (const name of SETTINGS) {
+      const fields = sources.find((file) => file.fileName === FIELD_OF[name])!;
       const named = places(fields, (node) => namesASetting(node) && (node as ts.Identifier).text === name);
-      expect(named, `${FIELDS} names ${name} for its field's value and save only — anything else asks services/newNote.ts`).toHaveLength(2);
+      expect(named, `${FIELD_OF[name]} names ${name} for its field's value and save only — anything else asks services/newNote.ts`).toHaveLength(2);
     }
   });
 
@@ -148,7 +153,7 @@ describe("one place names the type of a new note", () => {
     expect(places(probe('const a = getMobileSettings()["defaultNoteType"];'), namesASetting)).toEqual(["probe.ts:1"]);
     // A comment or a sentence that mentions the setting is not a reader.
     expect(places(probe('// defaultNoteType\nconst hint = "defaultNoteType";'), namesASetting)).toEqual([]);
-    expect([...MAY_NAME_THE_SETTINGS, FIELDS].every((rel) => sources.some((file) => file.fileName === rel))).toBe(true);
+    expect([...MAY_NAME_THE_SETTINGS, ...FIELDS].every((rel) => sources.some((file) => file.fileName === rel))).toBe(true);
   });
 });
 

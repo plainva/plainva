@@ -1,6 +1,6 @@
 # Backup i historia wersji
 
-Stan na: 2026-09-15
+Stan na: 2026-10-29
 
 Plainva chroni Twoją pracę na dwóch poziomach: **wersje plików** (automatyczne migawki każdego pojedynczego pliku podczas edycji i usuwania) oraz **kopie zapasowe vaultu** (regularne archiwa ZIP całego vaultu, przechowywane poza folderem vaultu). Obie funkcje działają w tle bez żadnej konfiguracji i można je dostosować w ustawieniach, w sekcji **Backup i historia wersji**.
 
@@ -31,7 +31,7 @@ Obrazy również mają wersje (z podglądem); pozostałe pliki binarne można pr
 
 ## Przywracanie usuniętych plików
 
-Ponieważ każde usunięcie najpierw tworzy migawkę pliku, Plainva może przywrócić usunięte pliki: kliknij prawym przyciskiem myszy nazwę vaultu na górze drzewa plików → **Przywróć usunięte pliki…** (dostępne też z ustawień). Lista pokazuje wszystkie pliki, których migawki nadal istnieją, mimo że oryginał zniknął — **Przywróć** odtwarza najnowszy stan w pierwotnej lokalizacji (foldery są odtwarzane w razie potrzeby), **Wersje…** otwiera pełną historię usuniętego pliku.
+Ponieważ każde usunięcie najpierw tworzy migawkę pliku, Plainva może przywrócić usunięte pliki: kliknij prawym przyciskiem myszy nazwę vaultu na górze drzewa plików → **Przywróć usunięte pliki…** (dostępne też w **Ustawienia → Vault → Backup i historia wersji → Historia wersji**). Lista pokazuje wszystkie pliki, których migawki nadal istnieją, mimo że oryginał zniknął — **Przywróć** odtwarza najnowszy stan w pierwotnej lokalizacji (foldery są odtwarzane w razie potrzeby), **Wersje…** otwiera pełną historię usuniętego pliku.
 
 Uwaga: usunięcie **całego folderu** przenosi go do kosza systemu operacyjnego — w tym przypadku kosz systemowy jest głównym sposobem odzyskania; w Plainva mogą znajdować się co najwyżej starsze migawki zawartych w nim plików.
 

@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-10-24
+Last reviewed: 2026-10-29
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -548,7 +548,7 @@ For a relation whose target is the same database, point `relationBase` at that s
 
 `index.md` is a reserved name for a folder's table of contents.
 
-- **Only the root `index.md` may carry frontmatter**, and only `okf_version` — the version of the convention the vault follows (currently `"0.2"`; it marks the vault as OKF-active). A vault that still declares `"0.1"` is lifted under **Settings → Vault → Content & structure → Bundle version → Upgrade…**; the legacy `okf_version` field can be removed from the notes in the same step. A non-root `index.md` must be **frontmatter-free** — frontmatter there is a reserved-name violation.
+- **Only the root `index.md` may carry frontmatter**, and only `okf_version` — the version of the convention the vault follows (currently `"0.2"`; it marks the vault as OKF-active). A vault that still declares `"0.1"` is lifted under **Settings → Vault → Maintenance → OKF format → Bundle version → Upgrade…**; the legacy `okf_version` field can be removed from the notes in the same step. A non-root `index.md` must be **frontmatter-free** — frontmatter there is a reserved-name violation.
 - A Plainva-**managed** `index.md` ends with the marker `<!-- plainva:index generated -->` (an HTML comment, invisible in reading view). Its presence means Plainva keeps the file up to date automatically. If you hand-edit such a file, either preserve the marker (and keep the generated shape) or remove it deliberately to take over the file permanently.
 - Generated listings are sections of links in the form `* [Title](relative/url) - description`.
 

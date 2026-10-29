@@ -1,6 +1,6 @@
 # Referencia del formato de archivo
 
-Última actualización: 2026-10-24
+Última actualización: 2026-10-29
 
 Esta página es el contrato exacto, tal como queda en el disco, para **cada archivo de un vault de Plainva**. Está escrita para que una herramienta — u otro programa, un script o un asistente de IA — pueda leer y editar con seguridad los archivos del vault directamente, sin pasar por la interfaz de Plainva. Si solo usas la aplicación, nunca necesitas esta página; las [demás páginas de la guía](README.md) cubren el uso normal.
 
@@ -548,7 +548,7 @@ Para una relación cuyo destino es la misma base de datos, apunta `relationBase`
 
 `index.md` es un nombre reservado para el índice de contenidos de una carpeta.
 
-- **Solo el `index.md` de la raíz puede llevar frontmatter**, y solo `okf_version` — la versión de la convención que sigue el vault (actualmente `"0.2"`; marca el vault como activo en OKF). Un vault que todavía declara `"0.1"` se actualiza en **Configuración → Vault → Contenido y estructura → Versión del bundle → Actualizar…**; el campo heredado `okf_version` se puede eliminar de las notas en el mismo paso. Un `index.md` que no esté en la raíz debe estar **libre de frontmatter** — el frontmatter ahí es una infracción del nombre reservado.
+- **Solo el `index.md` de la raíz puede llevar frontmatter**, y solo `okf_version` — la versión de la convención que sigue el vault (actualmente `"0.2"`; marca el vault como activo en OKF). Un vault que todavía declara `"0.1"` se actualiza en **Configuración → Vault → Mantenimiento → Formato OKF → Versión del bundle → Actualizar…**; el campo heredado `okf_version` se puede eliminar de las notas en el mismo paso. Un `index.md` que no esté en la raíz debe estar **libre de frontmatter** — el frontmatter ahí es una infracción del nombre reservado.
 - Un `index.md` **gestionado** por Plainva termina con el marcador `<!-- plainva:index generated -->` (un comentario HTML, invisible en el modo de lectura). Su presencia significa que Plainva mantiene el archivo actualizado automáticamente. Si editas ese archivo a mano, conserva el marcador (y mantén la forma generada) o elimínalo deliberadamente para hacerte cargo del archivo de forma permanente.
 - Los listados generados son secciones de enlaces con la forma `* [Título](url/relativa) - descripción`.
 

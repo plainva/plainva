@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-10-26
+Last reviewed: 2026-10-29
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
@@ -56,7 +56,7 @@ With WebDAV or S3 sync, Plainva 0.8.3 removed a synced note that you moved or re
 
 If it happened to you, the note still exists in up to three places:
 
-- **The snapshot inside the vault.** Before Plainva removes a file it saves it as `.plainva/backups/<folder>/<name>.md.<timestamp>.bak`, where `<folder>` is the folder you moved the note *to*. On the desktop, right-click the vault name → **Restore deleted files…**; on the phone **Settings** → **Maintenance** → **Restore deleted files**. The list shows the note under its new path, and **Restore** puts it back there. The `.bak` file is plain text, so any file manager or text editor can open it too.
+- **The snapshot inside the vault.** Before Plainva removes a file it saves it as `.plainva/backups/<folder>/<name>.md.<timestamp>.bak`, where `<folder>` is the folder you moved the note *to*. On the desktop, right-click the vault name → **Restore deleted files…**; on the phone **Settings** → **Backup & version history** → **Restore deleted files**. The list shows the note under its new path, and **Restore** puts it back there. The `.bak` file is plain text, so any file manager or text editor can open it too.
 - **The system trash** (desktop): the file itself went to your operating system's trash.
 - **Your server's trash**, if the note was deleted there too (in Nextcloud, for example, under deleted files).
 

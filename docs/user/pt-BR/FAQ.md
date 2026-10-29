@@ -1,6 +1,6 @@
 # FAQ e Solução de Problemas
 
-Última revisão: 2026-10-26
+Última revisão: 2026-10-29
 
 Respostas para as perguntas mais comuns — da compatibilidade com o Obsidian a arquivos de conflito e backups.
 
@@ -56,7 +56,7 @@ Com a sincronização por WebDAV ou S3, o Plainva 0.8.3 removia uma nota sincron
 
 Se aconteceu com você, a nota ainda existe em até três lugares:
 
-- **O snapshot dentro do vault.** Antes de remover um arquivo, o Plainva o salva como `.plainva/backups/<pasta>/<nome>.md.<carimbo de data/hora>.bak`, onde `<pasta>` é a pasta *para onde* você moveu a nota. No desktop, clique com o botão direito no nome do vault → **Restaurar arquivos excluídos…**; no celular, **Configurações** → **Manutenção** → **Restaurar arquivos excluídos**. A lista mostra a nota com o novo caminho, e **Restaurar** a coloca de volta lá. O arquivo `.bak` é texto simples, então qualquer gerenciador de arquivos ou editor de texto também consegue abri-lo.
+- **O snapshot dentro do vault.** Antes de remover um arquivo, o Plainva o salva como `.plainva/backups/<pasta>/<nome>.md.<carimbo de data/hora>.bak`, onde `<pasta>` é a pasta *para onde* você moveu a nota. No desktop, clique com o botão direito no nome do vault → **Restaurar arquivos excluídos…**; no celular, **Configurações** → **Backup e versionamento** → **Restaurar arquivos excluídos**. A lista mostra a nota com o novo caminho, e **Restaurar** a coloca de volta lá. O arquivo `.bak` é texto simples, então qualquer gerenciador de arquivos ou editor de texto também consegue abri-lo.
 - **A lixeira do sistema** (desktop): o próprio arquivo foi para a lixeira do seu sistema operacional.
 - **A lixeira do seu servidor**, se a nota também foi excluída lá (no Nextcloud, por exemplo, nos arquivos excluídos).
 

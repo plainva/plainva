@@ -1,6 +1,6 @@
 # Backups & Version History
 
-Last reviewed: 2026-09-15
+Last reviewed: 2026-10-29
 
 Plainva protects your work on two levels: **file versions** (automatic snapshots of every single file as you edit and delete) and **vault backups** (regular ZIP archives of the whole vault, stored outside the vault folder). Both run in the background without any setup and can be tuned in the settings under **Backup & version history**.
 
@@ -31,7 +31,7 @@ Images have versions too (with preview); other binary files can be restored with
 
 ## Restoring deleted files
 
-Because every deletion snapshots the file first, Plainva can bring deleted files back: right-click the vault name at the top of the file tree → **Restore deleted files…** (also reachable from the settings). The list shows all files whose snapshots still exist while the original is gone — **Restore** recreates the newest state at the original location (folders are recreated as needed), **Versions…** opens the full history of the deleted file.
+Because every deletion snapshots the file first, Plainva can bring deleted files back: right-click the vault name at the top of the file tree → **Restore deleted files…** (also reachable under **Settings → Vault → Backup & version history → Version history**). The list shows all files whose snapshots still exist while the original is gone — **Restore** recreates the newest state at the original location (folders are recreated as needed), **Versions…** opens the full history of the deleted file.
 
 Note: deleting a **whole folder** moves it to the operating system's trash — for that case the system trash is the primary way back; in Plainva you may only find older snapshots of the contained files.
 

@@ -145,13 +145,14 @@ function App() {
           return;
         }
         // A toast, not a dialog: it does not stand between the user and their
-        // notes, and its action leads to where the conversion lives anyway.
+        // notes, and its action leads to where the conversion lives anyway —
+        // Maintenance › OKF format since the settings plan of 2026-10-29.
         // The settings section keeps showing the offer while violations exist.
         toast.info(t("okf.openPromptMsg", { count: scan.violations.length }), {
           label: t("okf.openPromptAction"),
           run: () =>
             window.dispatchEvent(
-              new CustomEvent("plainva-open-sync-settings", { detail: { area: "content" } })
+              new CustomEvent("plainva-open-sync-settings", { detail: { area: "maintenance" } })
             ),
         });
         await store.set(okfPromptDismissedKey(vaultPath), true);

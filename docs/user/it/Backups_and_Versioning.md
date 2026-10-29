@@ -1,6 +1,6 @@
 # Backup e cronologia delle versioni
 
-Ultimo aggiornamento: 2026-09-15
+Ultimo aggiornamento: 2026-10-29
 
 Plainva protegge il tuo lavoro su due livelli: **versioni dei file** (snapshot automatici di ogni singolo file durante la modifica e l'eliminazione) e **backup del vault** (archivi ZIP regolari dell'intero vault, salvati fuori dalla cartella del vault). Entrambi funzionano in background senza alcuna configurazione e possono essere regolati nelle impostazioni sotto **Backup e cronologia delle versioni**.
 
@@ -31,7 +31,7 @@ Anche le immagini hanno versioni (con anteprima); gli altri file binari possono 
 
 ## Ripristinare i file eliminati
 
-Poiché ogni eliminazione crea prima uno snapshot del file, Plainva può recuperare i file eliminati: clic destro sul nome del vault in cima all'albero dei file → **Ripristina i file eliminati…** (raggiungibile anche dalle impostazioni). L'elenco mostra tutti i file i cui snapshot esistono ancora mentre l'originale è sparito — **Ripristina** ricrea lo stato più recente nella posizione originale (le cartelle vengono ricreate se necessario), **Versioni…** apre la cronologia completa del file eliminato.
+Poiché ogni eliminazione crea prima uno snapshot del file, Plainva può recuperare i file eliminati: clic destro sul nome del vault in cima all'albero dei file → **Ripristina i file eliminati…** (raggiungibile anche in **Impostazioni → Vault → Backup e cronologia delle versioni → Cronologia delle versioni**). L'elenco mostra tutti i file i cui snapshot esistono ancora mentre l'originale è sparito — **Ripristina** ricrea lo stato più recente nella posizione originale (le cartelle vengono ricreate se necessario), **Versioni…** apre la cronologia completa del file eliminato.
 
 Nota: eliminare un'**intera cartella** la sposta nel cestino del sistema operativo — in questo caso il cestino di sistema è il modo principale per recuperarla; in Plainva potresti trovare solo snapshot più vecchi dei file contenuti.
 

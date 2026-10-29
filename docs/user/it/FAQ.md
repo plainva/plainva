@@ -1,6 +1,6 @@
 # FAQ e risoluzione dei problemi
 
-Ultimo aggiornamento: 2026-10-26
+Ultimo aggiornamento: 2026-10-29
 
 Risposte alle domande più comuni — dalla compatibilità con Obsidian ai file in conflitto e ai backup.
 
@@ -56,7 +56,7 @@ Con la sincronizzazione WebDAV o S3, Plainva 0.8.3 rimuoveva una nota sincronizz
 
 Se è successo a te, la nota esiste ancora in fino a tre posti:
 
-- **Lo snapshot nel vault.** Prima di rimuovere un file, Plainva lo salva come `.plainva/backups/<cartella>/<nome>.md.<timestamp>.bak`, dove `<cartella>` è la cartella in cui hai spostato la nota. Sul desktop, clic destro sul nome del vault → **Ripristina i file eliminati…**; sul telefono **Impostazioni** → **Manutenzione** → **Ripristina i file eliminati**. L'elenco mostra la nota con il nuovo percorso e **Ripristina** la rimette lì. Il file `.bak` è testo semplice, quindi puoi aprirlo anche con qualsiasi file manager o editor di testo.
+- **Lo snapshot nel vault.** Prima di rimuovere un file, Plainva lo salva come `.plainva/backups/<cartella>/<nome>.md.<timestamp>.bak`, dove `<cartella>` è la cartella in cui hai spostato la nota. Sul desktop, clic destro sul nome del vault → **Ripristina i file eliminati…**; sul telefono **Impostazioni** → **Backup e cronologia delle versioni** → **Ripristina i file eliminati**. L'elenco mostra la nota con il nuovo percorso e **Ripristina** la rimette lì. Il file `.bak` è testo semplice, quindi puoi aprirlo anche con qualsiasi file manager o editor di testo.
 - **Il cestino di sistema** (desktop): il file stesso è finito nel cestino del sistema operativo.
 - **Il cestino del tuo server**, se la nota è stata eliminata anche lì (in Nextcloud, per esempio, tra i file eliminati).
 

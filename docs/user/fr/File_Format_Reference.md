@@ -1,6 +1,6 @@
 # Référence du format de fichier
 
-Dernière mise à jour : 2026-10-24
+Dernière mise à jour : 2026-10-29
 
 Cette page est le contrat précis, tel qu'il est stocké sur le disque, pour **chaque fichier d'un vault Plainva**. Elle est écrite pour qu'un outil — un autre programme, un script ou un assistant IA — puisse lire et modifier en toute sécurité les fichiers du vault directement, sans passer par l'interface de Plainva. Si vous utilisez seulement l'application, vous n'avez jamais besoin de cette page ; les [autres pages du guide](README.md) couvrent l'usage normal.
 
@@ -548,7 +548,7 @@ Pour une relation dont la cible est la même base de données, faites pointer `r
 
 `index.md` est un nom réservé pour la table des matières d'un dossier.
 
-- **Seule la `index.md` racine peut porter un frontmatter**, et seulement `okf_version` — la version de la convention que suit le vault (actuellement `"0.2"` ; il marque le vault comme actif pour OKF). Un vault qui déclare encore `"0.1"` est mis à niveau sous **Paramètres → Vault → Contenu et structure → Version du bundle → Mettre à niveau…** ; le champ `okf_version` hérité peut être retiré des notes à la même étape. Une `index.md` non racine doit être **sans frontmatter** — un frontmatter là-bas est une infraction au nom réservé.
+- **Seule la `index.md` racine peut porter un frontmatter**, et seulement `okf_version` — la version de la convention que suit le vault (actuellement `"0.2"` ; il marque le vault comme actif pour OKF). Un vault qui déclare encore `"0.1"` est mis à niveau sous **Paramètres → Vault → Maintenance → Format OKF → Version du bundle → Mettre à niveau…** ; le champ `okf_version` hérité peut être retiré des notes à la même étape. Une `index.md` non racine doit être **sans frontmatter** — un frontmatter là-bas est une infraction au nom réservé.
 - Une `index.md` **gérée** par Plainva se termine par le marqueur `<!-- plainva:index generated -->` (un commentaire HTML, invisible en mode lecture). Sa présence signifie que Plainva garde le fichier à jour automatiquement. Si vous modifiez un tel fichier à la main, préservez le marqueur (et gardez la forme générée) ou retirez-le délibérément pour reprendre le fichier de façon permanente.
 - Les listings générés sont des sections de liens sous la forme `* [Titre](url/relative) - description`.
 

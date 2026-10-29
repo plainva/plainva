@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Última revisão: 2026-10-21
+Última revisão: 2026-10-29
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 
@@ -26,7 +26,7 @@ O formato do arquivo é compatível com o formato Bases do Obsidian (detalhes ao
 
 Todo banco de dados pode ter seu próprio ícone com uma **Cor do ícone do banco de dados** — visível na árvore de arquivos, nas abas e no cabeçalho.
 
-Um banco de dados também pode servir como o **Banco de tarefas padrão** do vault (**Configurações → Vault → Conteúdo e estrutura**): a [visualização de Tarefas](Tasks.md) passa então a mostrar suas entradas como uma seção própria e pode mover caixas de seleção de notas para ele.
+Um banco de dados também pode servir como o **Banco de tarefas padrão** do vault (**Configurações → Vault → Notas e organização**): a [visualização de Tarefas](Tasks.md) passa então a mostrar suas entradas como uma seção própria e pode mover caixas de seleção de notas para ele.
 
 ## Visualizações
 
@@ -63,7 +63,7 @@ Clicar no cabeçalho de uma coluna abre o editor de propriedade (**Propriedade: 
 - **Nome** — renomear afeta as notas: ao salvar, a propriedade é renomeada no frontmatter de todas as notas correspondentes (com confirmação e um indicador de progresso). O Plainva consulta antes cada nota: se alguma não puder receber o novo nome — ela já tem uma propriedade com esse nome, ou o bloco no início não pode ser lido como propriedades —, nada é renomeado e uma mensagem cita essas notas.
 - **Tipo de campo** — Texto, Número, Avaliação, Caixa de seleção, Data, Data e hora, Lista, Tags, Seleção, Status, Seleção múltipla, URL, E-mail, Telefone, Relação (o mesmo menu de tipo agrupado do painel de **Propriedades** das notas).
   Uma **Avaliação** é um número desenhado como pontos (cinco, a menos que a coluna diga outra coisa). O arquivo guarda `humor: 4` — um número simples que o Obsidian e qualquer planilha também leem; a ordenação e o filtro são os de um número. Você pressiona o ponto que deve contar; pressionar o valor atual o apaga.
-- **Dia do nome do arquivo** (`file.day`) — calendários e linhas do tempo podem colocar notas diárias pelo seu **nome de arquivo**, sem que a data esteja também no frontmatter. O campo aparece no seletor de campo de data assim que o cofre dá nome às notas diárias (pasta e formato em **Configurações → Seu cofre → Conteúdo e estrutura**); é calculado a partir do nome, não está em nenhuma nota e não pode ser editado — então um cartão colocado assim também não pode ser arrastado para outro dia (isso renomearia o arquivo). O Obsidian não conhece este campo: uma visão que o use fica vazia lá.
+- **Dia do nome do arquivo** (`file.day`) — calendários e linhas do tempo podem colocar notas diárias pelo seu **nome de arquivo**, sem que a data esteja também no frontmatter. O campo aparece no seletor de campo de data assim que o cofre dá nome às notas diárias (pasta e formato em **Configurações → Seu cofre → Notas diárias e diário**); é calculado a partir do nome, não está em nenhuma nota e não pode ser editado — então um cartão colocado assim também não pode ser arrastado para outro dia (isso renomearia o arquivo). O Obsidian não conhece este campo: uma visão que o use fica vazia lá.
 - **Opções** (para Seleção/Status/Seleção múltipla) — valores fixos com uma **Cor** e, para **Status**, um **Grupo**/etapa (por exemplo, a fazer → em andamento → concluído); reordene arrastando. Ao abrir o editor de propriedade, a lista de opções já vem preenchida com os valores já usados no banco de dados, para que você possa atribuir uma cor a cada um sem precisar digitá-lo novamente.
 - **Excluir propriedade** — remove a coluna, o esquema, os filtros e as regras de ordenação do banco de dados. A caixa de seleção **Também remover do frontmatter das notas** (ativada por padrão) limpa adicionalmente as notas de origem. Uma nota que não pode ser alterada mantém a propriedade; uma mensagem conta as notas alteradas e as que falharam.
 

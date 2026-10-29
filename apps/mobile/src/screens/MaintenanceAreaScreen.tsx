@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, Download, FileClock, FileCog, FileUp, ListTree, RefreshCw } from "lucide-react";
+import { ChevronRight, Download, FileCog, FileUp, ListTree, RefreshCw } from "lucide-react";
 import { GroupCard, ICON, Row, RowList, SectionLabel, okfBundleStatusLines } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
-import { DeletedFilesSheet } from "../components/DeletedFilesSheet";
 import { rebuildVaultIndex } from "../services/indexMaintenance";
 import { scanVaultOkfVersion } from "../services/okfMigration";
 import type { MobileVault } from "../services/vaultService";
@@ -38,7 +37,6 @@ export function MaintenanceAreaScreen({
 }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
-  const [deleted, setDeleted] = useState(false);
   const [stats, setStats] = useState<{ notes: number; attachments: number } | null>(null);
   /** One line on what the root index.md declares — the row's subtitle. */
   const [bundleLine, setBundleLine] = useState("");
@@ -101,36 +99,32 @@ export function MaintenanceAreaScreen({
           </RowList>
         </GroupCard>
 
-        {/* Three cards, each a bold line, a paragraph and a full-width tonal
-            button, are three rows: the description is what a row's second line is
-            for. Import stands with them because it is the vault's contents, like
-            the two above — and because the desktop keeps it a vault action too. */}
-        <SectionLabel>{t("mobile.vaultGroupContents")}</SectionLabel>
+        {/* The order of the desktop (settings plan 2026-10-29, § 3.9): the
+            state, then the index, then the OKF format — "What is OKF?" is the
+            info of its group (move 17), it was a row in About before — and the
+            import, which is the vault's contents too. Restoring deleted files
+            moved to Backup & versioning, beside the version history (move 53). */}
+        <SectionLabel info={{ text: t("settings.searchIndexInfo"), guide: "Search.md" }}>{t("settings.rebuildIndex")}</SectionLabel>
         <GroupCard>
           <RowList>
             <Row
               disabled={busy || !vault.indexer}
               icon={<RefreshCw size={ICON.ui} />}
-              info={{ text: t("settings.searchIndexInfo"), guide: "Search.md" }}
+              info={t("settings.rebuildIndexDesc")}
               onClick={rebuildIndex}
-              subtitle={busy ? t("settings.rebuildIndexRunning") : ""}
+              subtitle={busy ? t("settings.rebuildIndexRunning") : t("settings.rebuildIndexHint")}
               title={t("settings.rebuildIndexAction")}
             />
-            <Row
-              disabled={busy}
-              end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-              icon={<FileClock size={ICON.ui} />}
-              onClick={() => setDeleted(true)}
-              title={t("versions.deletedTitle")}
-            />
-            <Row
-              data-testid="open-overviews"
-              disabled={busy || !vault.queryService}
-              end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-              icon={<ListTree size={ICON.ui} />}
-              onClick={onOverviews}
-              title={t("indexMd.overviewsTitle")}
-            />
+          </RowList>
+        </GroupCard>
+
+        <SectionLabel
+          info={{ text: [t("okfInfo.short1"), t("okfInfo.short2"), t("okfInfo.short3")].join("\n\n"), guide: "OKF.md" }}
+        >
+          {t("settings.groupOkfFormat")}
+        </SectionLabel>
+        <GroupCard>
+          <RowList>
             <Row
               data-testid="open-okf"
               disabled={busy || !vault.queryService}
@@ -149,6 +143,20 @@ export function MaintenanceAreaScreen({
               title={t("settings.okfBundleLabel")}
             />
             <Row
+              data-testid="open-overviews"
+              disabled={busy || !vault.queryService}
+              end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+              icon={<ListTree size={ICON.ui} />}
+              onClick={onOverviews}
+              title={t("indexMd.overviewsTitle")}
+            />
+          </RowList>
+        </GroupCard>
+
+        <SectionLabel>{t("import.title")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
               data-testid="open-import"
               disabled={busy}
               end={<ChevronRight className="m-chevron" size={ICON.ui} />}
@@ -159,8 +167,6 @@ export function MaintenanceAreaScreen({
           </RowList>
         </GroupCard>
       </div>
-
-      {deleted && <DeletedFilesSheet onClose={() => setDeleted(false)} vault={vault} />}
     </div>
   );
 }

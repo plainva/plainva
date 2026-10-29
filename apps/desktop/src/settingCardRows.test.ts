@@ -49,6 +49,7 @@ const ROW_COMPONENTS: Record<string, string> = {
   OrphanedMailNotice: "renders a SettingCardBlock banner and .pv-acct rows",
   AreaRow: "renders a .pv-barrow row (Bars & areas)",
   EmptyState: ".pv-empty brings its own padding (--space-6)",
+  CommentNotificationRows: "renders SettingRows (the remark notifications in Notes & filing › Annotations)",
 };
 
 function tagName(node: ts.JsxElement | ts.JsxSelfClosingElement, file: ts.SourceFile): string {

@@ -1971,8 +1971,8 @@ test('Settings: X and overlay close the modal; plain settings persist without a 
   // (the sync-provider forms would have one, but no provider is configured).
   await expect(page.getByRole('button', { name: /^(Speichern|Save)$/ })).toHaveCount(0);
 
-  // The daily-notes folder lives on the Content & structure page (pages redesign).
-  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(Inhalt & Struktur|Content & structure)$/ }).click();
+  // The daily-notes folder lives on the Daily notes & journal page (settings plan 2026-10-29, E9).
+  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(Tagesnotizen & Journal|Daily notes & journal)$/ }).click();
   const folderInput = page.getByPlaceholder('Tagebuch/');
   await folderInput.fill('Journal');
 
@@ -1981,7 +1981,7 @@ test('Settings: X and overlay close the modal; plain settings persist without a 
   await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /Schließen|Close/ }).click();
   await expect(page.getByRole('heading', { name: /Einstellungen|Settings/ })).toHaveCount(0);
   await page.keyboard.press('Control+,');
-  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(Inhalt & Struktur|Content & structure)$/ }).click();
+  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(Tagesnotizen & Journal|Daily notes & journal)$/ }).click();
   await expect(page.getByPlaceholder('Tagebuch/')).toHaveValue('Journal');
 
   // Clicking the overlay closes it as well.
@@ -2667,8 +2667,9 @@ test('Vault folder picker: browsing fills the daily-notes and template folder fi
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
-  // The folder fields live on the Content & structure page (pages redesign).
-  await dialog.getByRole('button', { name: /^(Inhalt & Struktur|Content & structure)$/ }).click();
+  // The daily-notes folder lives on the Daily notes & journal page, the
+  // template folder on Notes & filing (settings plan 2026-10-29, E9).
+  await dialog.getByRole('button', { name: /^(Tagesnotizen & Journal|Daily notes & journal)$/ }).click();
 
   // Daily-notes folder: browse → navigate into "Tagebuch" → use this folder.
   await page.getByTestId('browse-daily-folder').click();
@@ -2680,7 +2681,8 @@ test('Vault folder picker: browsing fills the daily-notes and template folder fi
   await expect(picker).toHaveCount(0);
   await expect(page.getByPlaceholder('Tagebuch/')).toHaveValue('Tagebuch');
 
-  // Template folder: same picker, second field.
+  // Template folder: same picker, on the other page.
+  await dialog.getByRole('button', { name: /^(Notizen & Ablage|Notes & filing)$/ }).click();
   await page.getByTestId('browse-template-folder').click();
   await picker.getByText('Vorlagen', { exact: true }).click();
   await picker.getByRole('button', { name: /Diesen Ordner verwenden|Use this folder/ }).click();
@@ -2758,8 +2760,8 @@ test('Settings: creating a standard task database scaffolds folder + .base and s
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
-  // The task-database row lives on the Content & structure page (pages redesign).
-  await dialog.getByRole('button', { name: /^(Inhalt & Struktur|Content & structure)$/ }).click();
+  // The task-database row lives on the Notes & filing page (settings plan 2026-10-29).
+  await dialog.getByRole('button', { name: /^(Notizen & Ablage|Notes & filing)$/ }).click();
 
   await page.getByTestId('create-task-db').click();
   const dlg = page.getByRole('dialog', { name: /Neue Datenbank anlegen|Create new database/ });
@@ -3180,7 +3182,7 @@ test('Folder templates: a new note in a mapped folder starts from its template',
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: /^(Inhalt & Struktur|Content & structure)$/ }).click();
+  await dialog.getByRole('button', { name: /^(Notizen & Ablage|Notes & filing)$/ }).click();
   await dialog.getByTestId('add-folder-template').click();
   const rules = dialog.getByTestId('folder-template-rules');
   await rules.getByPlaceholder(/Ordner|Folder/).fill('Projekte');

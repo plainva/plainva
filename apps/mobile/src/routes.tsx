@@ -55,6 +55,7 @@ import { TodayScreen } from "./screens/TodayScreen";
 import { VaultDetailScreen } from "./VaultDetailScreen";
 import { VaultsScreen } from "./screens/VaultsScreen";
 import { AboutAreaScreen, BackupAreaScreen, ContentAreaScreen, EditorAreaScreen } from "./screens/SettingsAreaScreens";
+import { JournalAreaScreen } from "./screens/JournalAreaScreen";
 import { SecurityAreaScreen } from "./screens/SecurityAreaScreen";
 import { SecurityWizardScreen, type SecurityWizardFlow } from "./screens/SecurityWizardScreen";
 import { draftPath, mailRefPath, parseDraft, parseMailRef } from "./screens/mail/mailNavRefs";
@@ -151,7 +152,8 @@ function settingsAreaScreen(id: string, ctx: RouteContext): ReactNode {
   switch (id) {
     case "editor": return <EditorAreaScreen onBack={ctx.pop} />;
     case "content": return <ContentAreaScreen onBack={ctx.pop} vault={ctx.vault} />;
-    case "backup": return <BackupAreaScreen onBack={ctx.pop} />;
+    case "journal": return <JournalAreaScreen onBack={ctx.pop} vault={ctx.vault} />;
+    case "backup": return <BackupAreaScreen onBack={ctx.pop} vault={ctx.vault} />;
     case "behavior": return <BehaviorAreaScreen onBack={ctx.pop} />;
     case "maintenance": return <MaintenanceAreaScreen onBack={ctx.pop} onConvertOkf={() => ctx.push({ kind: "okfconversion", path: "" })} onMigrateOkf={() => ctx.push({ kind: "okfmigration", path: "" })} onImport={() => ctx.push({ kind: "importwizard", path: "" })} onOverviews={() => ctx.push({ kind: "overviews", path: "" })} vault={ctx.vault} />;
     // "Bars & areas" IS the navigation bar on a phone — the fifth bar of the

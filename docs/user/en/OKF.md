@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Last reviewed: 2026-10-21
+Last reviewed: 2026-10-29
 
 OKF (Open Knowledge Format) is an open convention for Markdown knowledge collections: plain Markdown files with a small, uniform frontmatter header. This page explains what OKF is, what Plainva does for it automatically — and why you do not *have* to use any of it.
 
@@ -34,13 +34,13 @@ Plain Markdown is wonderfully portable — but on its own it has no reliable str
 
 ## What Plainva does automatically
 
-**New files** get the OKF header automatically: every note created in Plainva receives `type` in its frontmatter — since OKF 0.2 the version marker `okf_version` lives once in the root `index.md`, no longer in every note. You configure the values per vault: **Settings → Vault → Content & structure → OKF (Open Knowledge Format)** → **type for new notes** (default `Note`) and **type for daily notes** (default `Daily Note`). If a template brings its own `type`, the template wins.
+**New files** get the OKF header automatically: every note created in Plainva receives `type` in its frontmatter — since OKF 0.2 the version marker `okf_version` lives once in the root `index.md`, no longer in every note. You configure the values per vault: **type for new notes** (default `Note`) under **Settings → Vault → Notes & filing → New notes** and **type for daily notes** (default `Daily Note`) under **Settings → Vault → Daily notes & journal → Daily notes**. If a template brings its own `type`, the template wins.
 
 **Existing files are never changed unasked.** Plainva only adds OKF fields when creating new files or when you explicitly start the conversion.
 
 **Protected system fields:** In the **Properties** panel, `type` and — where older notes still carry it — `okf_version` are marked as OKF system fields ("OKF system field – managed by Plainva"): the `type` value is selectable from a dropdown of known types, `okf_version` is display-only; renaming, type changes and deletion are locked so the convention cannot break by accident.
 
-**The explainer:** **What is OKF?** in the settings gives you the short version in three sentences plus a link to this page. It no longer opens by itself; if a vault contains files that do not follow OKF, Plainva says so once in a small message with a button that takes you straight to the conversion.
+**The short version in the settings:** the info button (ⓘ) of the **OKF format** group under **Settings → Vault → Maintenance** gives you the explanation in three sentences plus a link to this page. It does not open by itself; if a vault contains files that do not follow OKF, Plainva says so once in a small message with a button that takes you straight to the conversion.
 
 ## Provenance, review and lifecycle (OKF 0.2)
 
@@ -55,16 +55,16 @@ Since OKF 0.2 a note can say where it came from, who reviewed it and whether it 
 **What Plainva writes.**
 
 - `generated` (and, where a source is known, `sources`) is set by exactly three machine write paths: the **importer** (`plainva-import/<version>`, one instant per run — the import report carries it too), **mail capture** (`plainva-mail-capture/<version>`, with the message's Message-ID as the source) and the **task sync** (`plainva-task-sync/<version>`, only when it creates a note).
-- `verified` is written only by **Mark as reviewed** in the **Trust & provenance** section: Plainva appends `human:<your name>` with the current instant to the list — a second review never overwrites the first. Your name is asked for once per vault; it stays on this device and can be changed under **Settings → Vault → Content & structure → Reviewer name**.
+- `verified` is written only by **Mark as reviewed** in the **Trust & provenance** section: Plainva appends `human:<your name>` with the current instant to the list — a second review never overwrites the first. Your name is asked for once per vault; it stays on this device and can be changed under **Settings → Vault → Notes & filing → Annotations → Your name (remarks and reviews)**.
 - The editor never touches any of these fields on its own, and existing notes are never stamped after the fact. `status` and `stale_after` are yours to set, as a property or in the frontmatter.
 
-**Upgrading the bundle version.** The version of the convention lives once in the root `index.md`. A vault that still declares `"0.1"` keeps working unchanged — under **Settings → Vault → Content & structure → Bundle version** (on the phone: **Settings → Vault → Maintenance → Bundle version**) you lift it to 0.2 with **Upgrade…**. The dialog shows beforehand what changes: the line in the root `index.md` and, as a checkbox (on by default), removing the legacy `okf_version` field from the notes that still carry it. Every file is backed up before it changes; **Clean up…** does only the second part. The field table and the write rules in detail are in the [File Format Reference](File_Format_Reference.md).
+**Upgrading the bundle version.** The version of the convention lives once in the root `index.md`. A vault that still declares `"0.1"` keeps working unchanged — under **Settings → Vault → Maintenance → OKF format → Bundle version** (on the phone the same) you lift it to 0.2 with **Upgrade…**. The dialog shows beforehand what changes: the line in the root `index.md` and, as a checkbox (on by default), removing the legacy `okf_version` field from the notes that still carry it. Every file is backed up before it changes; **Clean up…** does only the second part. The field table and the write rules in detail are in the [File Format Reference](File_Format_Reference.md).
 
 ## index.md: the table of contents per folder
 
 An `index.md` is a folder's table of contents: a list of the notes and subfolders it contains, with descriptions and relative links.
 
-- **Generating** — always on your action, never out of nowhere: right-click a folder → **Create overview** / **Refresh overview**, or in bulk via the **index.md manager** (**Settings → Vault → Content & structure**).
+- **Generating** — always on your action, never out of nowhere: right-click a folder → **Create overview** / **Refresh overview**, or in bulk via the **index.md manager** (**Settings → Vault → Maintenance → OKF format**).
 - **Adopting instead of generating** — if you already have overview notes (MOC, Overview, folder note, README …), the manager suggests them as candidates. **Adopt** renames the file to `index.md` (links are updated vault-wide). With **Prepare adopted files for OKF (remove frontmatter, convert this file's wikilinks to markdown links)** — ticked by default — the note is prepared on the way: its frontmatter is removed (the note as it was is backed up first) and its wikilinks become relative Markdown links, each where it stands; nothing else in the note changes. The note's links to itself then lead to the new `index.md`, and a link from another note that reached it through the `title` in its frontmatter — which goes with the frontmatter — names the file from then on. Embeds, wikilinks that lead to no note and a wikilink inside the text of another link are not converted; the result line counts them. If the folder already has an `index.md`, nothing is adopted and the note stays untouched.
 - **Automatic upkeep** — listings *generated* by Plainva carry an invisible marker at the end of the file (an HTML comment). Only such marked files are kept up to date automatically whenever the folder changes — and only in OKF vaults (recognizable by `okf_version` in the root `index.md`).
 - **Read-only with an exit** — managed index.md files open in read mode with the banner "This index.md is managed by Plainva and updated automatically." There you can **Refresh** — or choose **Edit anyway**: that removes the marker and the file is fully yours again (no more automatic updates).
@@ -75,7 +75,7 @@ An `index.md` is a folder's table of contents: a list of the notes and subfolder
 
 ## Converting an existing vault (opt-in)
 
-If files in the vault do not conform to the OKF format (missing `type` field, or reserved names used as regular notes), Plainva offers the conversion — once when opening the vault, and permanently under **Settings → Vault → Content & structure** (the entry only appears while there is something to do).
+If files in the vault do not conform to the OKF format (missing `type` field, or reserved names used as regular notes), Plainva offers the conversion — once when opening the vault, and permanently under **Settings → Vault → Maintenance → OKF format** (the entry only appears while there is something to do).
 
 The **Convert to OKF format** wizard works in clear steps:
 

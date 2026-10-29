@@ -33,7 +33,6 @@ import { scanVaultOkf } from "../services/okfConversion";
 import { scanVaultOkfVersion, type OkfVersionState } from "../services/okfMigration";
 import { OkfConversionModal } from "./OkfConversionModal";
 import { OkfMigrationModal } from "./OkfMigrationModal";
-import { OkfInfoModal } from "./OkfInfoModal";
 import { IndexMdModal } from "./IndexMdModal";
 import { ThemePref, getStoredThemePref, setStoredThemePref, setStoredThemeName, getStoredCustomThemeDesign, setStoredCustomTheme } from "../services/theme";
 import { defaultCustomThemeDesign, setCustomThemePreview, usePersonalDesignSync, type CustomThemeDesign } from "@plainva/ui";
@@ -58,7 +57,7 @@ import { SecurityNav } from "./settings/SecurityNav";
 import { VaultPickerModal } from "./settings/VaultPickerModal";
 import { AppearancePage, EditorPage, BehaviorPage, AboutPage, CustomThemePage } from "./settings/AppPages";
 import { SyncPage, type SyncProvider } from "./settings/SyncPage";
-import { PimPage, MailPage, ContentPage, BackupPage, MaintenancePage, clampZipKeep, clampVersionMaxCount } from "./settings/VaultPages";
+import { PimPage, MailPage, ContentPage, JournalPage, BackupPage, MaintenancePage, clampZipKeep, clampVersionMaxCount } from "./settings/VaultPages";
 import { BarsPage } from "./settings/BarsPage";
 import { CloudAccountsPage } from "./settings/CloudAccountsPage";
 import { SecuritySharingPage } from "./security/SecuritySharingPage";
@@ -233,7 +232,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [okfViolations, setOkfViolations] = useState<number | null>(null);
   const [showOkfWizard, setShowOkfWizard] = useState(false);
   const [showIndexManager, setShowIndexManager] = useState(false);
-  const [showOkfInfo, setShowOkfInfo] = useState(false);
   // Bundle version (OKF v0.2 plan, P2): what the root index.md declares and
   // how many notes still carry the legacy per-note key. Null until scanned.
   const [okfVersionState, setOkfVersionState] = useState<OkfVersionState | null>(null);
@@ -911,19 +909,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                   <SettingsPage active={!inAppWorld && vaultPage === "content"}>
                     <ContentPage
                       isActiveVault={isActiveVault}
-                      dailyNotesFolder={dailyNotesFolder}
-                      onDailyNotesFolder={(v) => { setDailyNotesFolder(v); void persistFeature(section, dailyNotesFolderKey(section), v); }}
-                      onBrowseDailyFolder={() => setVaultFolderPicker("daily")}
-                      dailyNotesFormat={dailyNotesFormat}
-                      onDailyNotesFormat={(v) => { setDailyNotesFormat(v); void persistFeature(section, dailyNotesFormatKey(section), v); }}
                       templateFolder={templateFolder}
                       onTemplateFolder={(v) => { setTemplateFolder(v); void persistFeature(section, templateFolderKey(section), v); }}
-                  folderTemplates={folderTemplates}
-                  onFolderTemplates={(rules) => { setFolderTemplates(rules); void persistFeature(section, folderTemplatesKey(section), rules); }}
-                  templateChoices={templateChoices}
-                  onBrowseRuleFolder={(index) => setVaultFolderPicker({ rule: index })}
-                  typeTemplates={typeTemplates}
-                  onTypeTemplates={(rules) => { setTypeTemplates(rules); void persistFeature(section, typeTemplatesKey(section), rules); }}
+                      folderTemplates={folderTemplates}
+                      onFolderTemplates={(rules) => { setFolderTemplates(rules); void persistFeature(section, folderTemplatesKey(section), rules); }}
+                      templateChoices={templateChoices}
+                      onBrowseRuleFolder={(index) => setVaultFolderPicker({ rule: index })}
+                      typeTemplates={typeTemplates}
+                      onTypeTemplates={(rules) => { setTypeTemplates(rules); void persistFeature(section, typeTemplatesKey(section), rules); }}
                       onBrowseTemplateFolder={() => setVaultFolderPicker("templates")}
                       attachmentFolder={attachmentFolder}
                       inboxFolder={inboxFolder}
@@ -941,9 +934,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         void persistFeature(section, textFileExtensionsKey(section), list);
                         setExtraTextExtensions(list);
                       }}
-                      dailyNoteTemplate={dailyNoteTemplate}
-                      onDailyNoteTemplate={(v) => { setDailyNoteTemplate(v); void persistFeature(section, dailyNoteTemplateKey(section), v); }}
-                      templateFiles={templateFiles}
                       taskDatabase={taskDatabase}
                       onTaskDatabase={(v) => { setTaskDatabase(v); void persistFeature(section, taskDatabaseKey(section), v); }}
                       baseFiles={baseFiles}
@@ -951,6 +941,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       canCreateTaskDb={isActiveVault && !!vaultAdapter}
                       defaultNoteType={defaultNoteType}
                       onDefaultNoteType={(v) => { setDefaultNoteType(v); void persistFeature(section, defaultNoteTypeKey(section), v.trim() || DEFAULT_NOTE_TYPE); }}
+                      verifierName={verifierName}
+                      onVerifierName={(v) => { setVerifierName(v); void persistFeature(section, verifierNameKey(section), v.trim()); }}
+                      extendedDatabases={extendedDatabases}
+                      onExtendedDatabases={(v) => { setExtendedDatabases(v); void persistFeature(section, extendedDatabasesKey(section), v); }}
+                      commentAnchors={commentAnchors}
+                      onCommentAnchors={(v) => { setCommentAnchors(v); void persistFeature(section, commentAnchorsKey(section), v); }}
+                    />
+                  </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "journal"}>
+                    <JournalPage
+                      isActiveVault={isActiveVault}
+                      dailyNotesFolder={dailyNotesFolder}
+                      onDailyNotesFolder={(v) => { setDailyNotesFolder(v); void persistFeature(section, dailyNotesFolderKey(section), v); }}
+                      onBrowseDailyFolder={() => setVaultFolderPicker("daily")}
+                      dailyNotesFormat={dailyNotesFormat}
+                      onDailyNotesFormat={(v) => { setDailyNotesFormat(v); void persistFeature(section, dailyNotesFormatKey(section), v); }}
+                      dailyNoteTemplate={dailyNoteTemplate}
+                      onDailyNoteTemplate={(v) => { setDailyNoteTemplate(v); void persistFeature(section, dailyNoteTemplateKey(section), v); }}
+                      templateFiles={templateFiles}
                       dailyNoteType={dailyNoteType}
                       onDailyNoteType={(v) => { setDailyNoteType(v); void persistFeature(section, dailyNoteTypeKey(section), v.trim() || DEFAULT_DAILY_NOTE_TYPE); }}
                       journalHeading={journalHeading}
@@ -959,19 +968,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onDayEndsAt={(v) => { setDayEndsAt(v); void persistFeature(section, dayEndsAtKey(section), v); }}
                       journalMoodProperty={journalMoodProperty}
                       onJournalMoodProperty={(v) => { setJournalMoodProperty(v); void persistFeature(section, journalMoodPropertyKey(section), v.trim()); }}
-                      verifierName={verifierName}
-                      onVerifierName={(v) => { setVerifierName(v); void persistFeature(section, verifierNameKey(section), v.trim()); }}
-                      okfViolations={okfViolations}
-                      okfVersionState={okfVersionState}
-                      onShowOkfMigration={() => setShowOkfMigration(true)}
-                      onShowOkfWizard={() => setShowOkfWizard(true)}
-                      onShowOkfInfo={() => setShowOkfInfo(true)}
-                      onShowIndexManager={() => setShowIndexManager(true)}
-                      onUpdateAllIndexes={() => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes"))}
-                      extendedDatabases={extendedDatabases}
-                      onExtendedDatabases={(v) => { setExtendedDatabases(v); void persistFeature(section, extendedDatabasesKey(section), v); }}
-                      commentAnchors={commentAnchors}
-                      onCommentAnchors={(v) => { setCommentAnchors(v); void persistFeature(section, commentAnchorsKey(section), v); }}
                     />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "bars"}>
@@ -1025,6 +1021,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       }}
                       versionMaxAgeDays={versionMaxAgeDays}
                       onVersionMaxAge={(v) => { setVersionMaxAgeDays(v); void persistBackupSetting(section, backupMaxAgeDaysKey(section), parseInt(v, 10)); }}
+                      onShowDeletedFiles={() => { window.dispatchEvent(new CustomEvent("plainva-show-deleted-files")); onClose(); }}
                     />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "maintenance"}>
@@ -1040,8 +1037,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                           .catch((e) => console.error("[Settings] reindex failed", e))
                           .finally(() => setReindexRunning(false));
                       }}
-                      onShowDeletedFiles={() => { window.dispatchEvent(new CustomEvent("plainva-show-deleted-files")); onClose(); }}
                       vaultStats={vaultStats}
+                      okfViolations={okfViolations}
+                      okfVersionState={okfVersionState}
+                      onShowOkfMigration={() => setShowOkfMigration(true)}
+                      onShowOkfWizard={() => setShowOkfWizard(true)}
+                      onShowIndexManager={() => setShowIndexManager(true)}
+                      onUpdateAllIndexes={() => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes"))}
                     />
                   </SettingsPage>
               </div>
@@ -1109,7 +1111,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         />
       )}
       {showIndexManager && <IndexMdModal onClose={() => { setShowIndexManager(false); refreshOkfScan(); }} />}
-      {showOkfInfo && <OkfInfoModal onClose={() => setShowOkfInfo(false)} />}
     </>
   );
 };

@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-10-26
+Laatst bijgewerkt: 2026-10-29
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -56,7 +56,7 @@ Met synchronisatie via WebDAV of S3 verwijderde Plainva 0.8.3 een gesynchronisee
 
 Is het jou overkomen, dan bestaat de notitie nog op maximaal drie plekken:
 
-- **De snapshot in de vault.** Voordat Plainva een bestand verwijdert, bewaart het dat als `.plainva/backups/<map>/<naam>.md.<tijdstempel>.bak`, waarbij `<map>` de map is waarnaar je de notitie verplaatste. Op de desktop: rechtsklik op de vaultnaam → **Verwijderde bestanden herstellen…**; op de telefoon: **Instellingen** → **Onderhoud** → **Verwijderde bestanden herstellen**. De lijst toont de notitie onder haar nieuwe pad, en **Herstellen** zet haar daar terug. Het `.bak`-bestand is platte tekst, dus elke bestandsbeheerder of teksteditor kan het ook openen.
+- **De snapshot in de vault.** Voordat Plainva een bestand verwijdert, bewaart het dat als `.plainva/backups/<map>/<naam>.md.<tijdstempel>.bak`, waarbij `<map>` de map is waarnaar je de notitie verplaatste. Op de desktop: rechtsklik op de vaultnaam → **Verwijderde bestanden herstellen…**; op de telefoon: **Instellingen** → **Backup & versiegeschiedenis** → **Verwijderde bestanden herstellen**. De lijst toont de notitie onder haar nieuwe pad, en **Herstellen** zet haar daar terug. Het `.bak`-bestand is platte tekst, dus elke bestandsbeheerder of teksteditor kan het ook openen.
 - **De prullenbak van het systeem** (desktop): het bestand zelf ging naar de prullenbak van je besturingssysteem.
 - **De prullenbak van je server**, als de notitie daar ook is verwijderd (in Nextcloud bijvoorbeeld bij de verwijderde bestanden).
 

@@ -100,7 +100,8 @@ const SITES: Record<string, Site[]> = {
   "screens/PimAccountsScreen.tsx": [["handed to listTemplates", 1, READS_ONLY]],
   "screens/SecurityAreaScreen.tsx": [["handed to resumeMobileWorkspaceSetup as vault", 1, WORKSPACE]],
   "screens/SecurityWizardScreen.tsx": [["handed to activatePreparedMobileWorkspace as vault", 1, WORKSPACE]],
-  "screens/SettingsAreaScreens.tsx": [["handed to listTemplates", 1, READS_ONLY]],
+  // The daily note's template picker; on the journal page since 2026-10-29 (E9).
+  "screens/JournalAreaScreen.tsx": [["handed to listTemplates", 1, READS_ONLY]],
   "screens/useOpenFileLookup.ts": [["handed to renameBookmarksOnDisk", 1, BOOKMARKS]],
   "services/accountVaultTransfer.ts": [
     ["builds CapacitorVaultAdapter", 1, NOT_OPEN],

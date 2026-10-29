@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-10-24
+Stan na: 2026-10-29
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -548,7 +548,7 @@ Dla relacji, której celem jest ta sama baza danych, skieruj `relationBase` na t
 
 `index.md` to zarezerwowana nazwa dla spisu treści folderu.
 
-- **Tylko główna `index.md` może nieść frontmatter**, i tylko `okf_version` — wersję konwencji, którą przestrzega vault (obecnie `"0.2"`; oznacza to vault jako aktywny w OKF). Vault, który wciąż deklaruje `"0.1"`, jest podnoszony w **Ustawienia → Vault → Treść i struktura → Wersja pakietu → Podnieś…**; w tym samym kroku można usunąć przestarzałe pole `okf_version` z notatek. `index.md` poza folderem głównym musi być **wolna od frontmatter** — frontmatter tam jest naruszeniem nazwy zarezerwowanej.
+- **Tylko główna `index.md` może nieść frontmatter**, i tylko `okf_version` — wersję konwencji, którą przestrzega vault (obecnie `"0.2"`; oznacza to vault jako aktywny w OKF). Vault, który wciąż deklaruje `"0.1"`, jest podnoszony w **Ustawienia → Vault → Konserwacja → Format OKF → Wersja pakietu → Podnieś…**; w tym samym kroku można usunąć przestarzałe pole `okf_version` z notatek. `index.md` poza folderem głównym musi być **wolna od frontmatter** — frontmatter tam jest naruszeniem nazwy zarezerwowanej.
 - **Zarządzana** przez Plainva `index.md` kończy się znacznikiem `<!-- plainva:index generated -->` (komentarz HTML, niewidoczny w trybie czytania). Jego obecność oznacza, że Plainva automatycznie utrzymuje plik aktualny. Jeśli edytujesz taki plik ręcznie, albo zachowaj znacznik (i utrzymaj wygenerowany kształt), albo usuń go świadomie, aby na stałe przejąć plik.
 - Generowane listingi to sekcje linków w formie `* [Tytuł](względny/url) - opis`.
 

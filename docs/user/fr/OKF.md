@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Dernière mise à jour : 2026-10-21
+Dernière mise à jour : 2026-10-29
 
 OKF (Open Knowledge Format) est une convention ouverte pour les collections de connaissances en Markdown : des fichiers Markdown purs avec un petit en-tête frontmatter uniforme. Cette page explique ce qu'est l'OKF, ce que Plainva fait automatiquement pour lui — et pourquoi vous n'êtes *obligé* d'utiliser rien de tout cela.
 
@@ -34,13 +34,13 @@ Le Markdown pur est merveilleusement portable — mais à lui seul, il n'a aucun
 
 ## Ce que Plainva fait automatiquement
 
-**Les nouveaux fichiers** reçoivent l'en-tête OKF automatiquement : chaque note créée dans Plainva reçoit `type` dans son frontmatter — depuis l'OKF 0.2, le marqueur de version `okf_version` vit une seule fois dans l'`index.md` racine, et non plus dans chaque note. Vous configurez les valeurs par vault : **Paramètres → Vault → Contenu et structure → OKF (Open Knowledge Format)** → **type pour les nouvelles notes** (par défaut `Note`) et **type pour les notes quotidiennes** (par défaut `Daily Note`). Si un modèle apporte son propre `type`, le modèle l'emporte.
+**Les nouveaux fichiers** reçoivent l'en-tête OKF automatiquement : chaque note créée dans Plainva reçoit `type` dans son frontmatter — depuis l'OKF 0.2, le marqueur de version `okf_version` vit une seule fois dans l'`index.md` racine, et non plus dans chaque note. Vous configurez les valeurs par vault : **type pour les nouvelles notes** (par défaut `Note`) sous **Paramètres → Vault → Notes et rangement → Nouvelles notes** et **type pour les notes quotidiennes** (par défaut `Daily Note`) sous **Paramètres → Vault → Notes quotidiennes et journal → Notes quotidiennes**. Si un modèle apporte son propre `type`, le modèle l'emporte.
 
 **Les fichiers existants ne sont jamais modifiés sans votre accord.** Plainva n'ajoute des champs OKF qu'à la création de nouveaux fichiers ou lorsque vous démarrez explicitement la conversion.
 
 **Champs système protégés :** dans le panneau **Propriétés**, `type` et — là où d'anciennes notes le portent encore — `okf_version` sont marqués comme champs système OKF (« Champ système OKF – géré par Plainva ») : la valeur de `type` se choisit dans une liste déroulante de types connus, `okf_version` est en affichage seul ; le renommage, le changement de type et la suppression sont verrouillés pour que la convention ne puisse pas se casser par accident.
 
-**Le modal explicatif :** **Qu'est-ce que l'OKF ?** dans les paramètres vous donne la version courte en trois phrases, plus un lien vers cette page. Il ne s'ouvre plus tout seul ; si un vault contient des fichiers qui ne sont pas conformes au format OKF, Plainva le signale une fois dans un petit message avec un bouton qui vous mène directement à la conversion.
+**La version courte dans les paramètres :** le bouton d'information (ⓘ) du groupe **Format OKF** sous **Paramètres → Vault → Maintenance** vous donne l'explication en trois phrases, plus un lien vers cette page. Elle ne s'ouvre pas toute seule ; si un vault contient des fichiers qui ne sont pas conformes au format OKF, Plainva le signale une fois dans un petit message avec un bouton qui vous mène directement à la conversion.
 
 ## Provenance, relecture et cycle de vie (OKF 0.2)
 
@@ -55,16 +55,16 @@ Depuis l'OKF 0.2, une note peut dire d'où elle vient, qui l'a relue et si elle 
 **Ce que Plainva écrit.**
 
 - `generated` (et, quand une source est connue, `sources`) n'est défini que par exactement trois chemins d'écriture automatiques : l'**importeur** (`plainva-import/<version>`, un instant par exécution — le rapport d'import le porte aussi), la **capture d'e-mails** (`plainva-mail-capture/<version>`, avec le Message-ID du message comme source) et la **synchronisation des tâches** (`plainva-task-sync/<version>`, uniquement quand elle crée une note).
-- `verified` n'est écrit que par **Marquer comme relue** dans la section **Confiance et provenance** : Plainva ajoute `human:<votre nom>` avec l'instant actuel à la liste — une seconde relecture n'écrase jamais la première. Votre nom est demandé une fois par vault ; il reste sur cet appareil et peut être modifié sous **Paramètres → Vault → Contenu et structure → Nom du relecteur**.
+- `verified` n'est écrit que par **Marquer comme relue** dans la section **Confiance et provenance** : Plainva ajoute `human:<votre nom>` avec l'instant actuel à la liste — une seconde relecture n'écrase jamais la première. Votre nom est demandé une fois par vault ; il reste sur cet appareil et peut être modifié sous **Paramètres → Vault → Notes et rangement → Annotations → Votre nom (annotations et relectures)**.
 - L'éditeur ne touche jamais lui-même à ces champs, et les notes existantes ne sont jamais tamponnées après coup. `status` et `stale_after` sont à vous de définir, comme une propriété ou dans le frontmatter.
 
-**Faire évoluer la version du bundle.** La version de la convention vit une seule fois dans l'`index.md` racine. Un vault qui déclare encore `"0.1"` continue de fonctionner sans changement — sous **Paramètres → Vault → Contenu et structure → Version du bundle** (sur le téléphone : **Paramètres → Vault → Maintenance → Version du bundle**), vous la faites passer à 0.2 avec **Mettre à niveau…**. La boîte de dialogue montre au préalable ce qui change : la ligne dans l'`index.md` racine et, via une case à cocher (activée par défaut), la suppression du champ hérité `okf_version` des notes qui le portent encore. Chaque fichier est sauvegardé avant d'être modifié ; **Nettoyer…** ne fait que la seconde partie. Le tableau des champs et les règles d'écriture en détail se trouvent dans la [Référence du format de fichier](File_Format_Reference.md).
+**Faire évoluer la version du bundle.** La version de la convention vit une seule fois dans l'`index.md` racine. Un vault qui déclare encore `"0.1"` continue de fonctionner sans changement — sous **Paramètres → Vault → Maintenance → Format OKF → Version du bundle** (sur le téléphone, de même), vous la faites passer à 0.2 avec **Mettre à niveau…**. La boîte de dialogue montre au préalable ce qui change : la ligne dans l'`index.md` racine et, via une case à cocher (activée par défaut), la suppression du champ hérité `okf_version` des notes qui le portent encore. Chaque fichier est sauvegardé avant d'être modifié ; **Nettoyer…** ne fait que la seconde partie. Le tableau des champs et les règles d'écriture en détail se trouvent dans la [Référence du format de fichier](File_Format_Reference.md).
 
 ## index.md : la table des matières par dossier
 
 Une `index.md` est la table des matières d'un dossier : une liste des notes et sous-dossiers qu'il contient, avec des descriptions et des liens relatifs.
 
-- **Générer** — toujours sur votre action, jamais spontanément : clic droit sur un dossier → **Créer un aperçu** / **Actualiser l’aperçu**, ou en bloc via le **gestionnaire d'index.md** (**Paramètres → Vault → Contenu et structure → Ouvrir…**).
+- **Générer** — toujours sur votre action, jamais spontanément : clic droit sur un dossier → **Créer un aperçu** / **Actualiser l’aperçu**, ou en bloc via le **gestionnaire d'index.md** (**Paramètres → Vault → Maintenance → Format OKF**).
 - **Adopter plutôt que générer** — si vous avez déjà des notes de synthèse (MOC, Overview, note de dossier, README…), le gestionnaire les suggère comme candidates. **Adopter** renomme le fichier en `index.md` (les liens sont mis à jour dans tout le vault). Avec **Préparer les fichiers adoptés pour l'OKF (retirer le frontmatter, convertir les liens wiki de ce fichier en liens Markdown)** — coché par défaut — la note est préparée au passage : son frontmatter est retiré (la note telle qu'elle était est sauvegardée d'abord) et ses liens wiki deviennent des liens Markdown relatifs, chacun à sa place ; rien d'autre ne change dans la note. Les liens de la note vers elle-même mènent ensuite au nouvel `index.md`, et un lien d'une autre note qui l'atteignait par le `title` de son frontmatter — qui disparaît avec le frontmatter — nomme désormais le fichier. Les intégrations, les liens wiki qui ne mènent à aucune note et un lien wiki placé dans le texte d'un autre lien ne sont pas convertis ; la ligne de résultat les compte. Si le dossier a déjà un `index.md`, rien n'est adopté et la note reste intacte.
 - **Entretien automatique** — les listings *générés* par Plainva portent un marqueur invisible à la fin du fichier (un commentaire HTML). Seuls ces fichiers marqués sont maintenus à jour automatiquement à chaque changement dans le dossier — et uniquement dans les vaults OKF (reconnaissables par `okf_version` dans l'`index.md` racine).
 - **Lecture seule avec une échappatoire** — les fichiers index.md gérés s'ouvrent en mode lecture avec la bannière « Cet index.md est géré par Plainva et mis à jour automatiquement. » Vous pouvez y **Actualiser** — ou choisir **Modifier quand même** : cela retire le marqueur et le fichier redevient entièrement le vôtre (plus de mises à jour automatiques).
@@ -75,7 +75,7 @@ Une `index.md` est la table des matières d'un dossier : une liste des notes et 
 
 ## Convertir un vault existant (opt-in)
 
-Si des fichiers du vault ne sont pas conformes au format OKF (champ `type` manquant, ou noms réservés utilisés comme notes normales), Plainva propose la conversion — une fois à l'ouverture du vault, et en permanence sous **Paramètres → Vault → Contenu et structure → Conversion OKF** (l'entrée n'apparaît que tant qu'il y a quelque chose à faire).
+Si des fichiers du vault ne sont pas conformes au format OKF (champ `type` manquant, ou noms réservés utilisés comme notes normales), Plainva propose la conversion — une fois à l'ouverture du vault, et en permanence sous **Paramètres → Vault → Maintenance → Format OKF** (l'entrée n'apparaît que tant qu'il y a quelque chose à faire).
 
 L'assistant **Convertir au format OKF** fonctionne en étapes claires :
 

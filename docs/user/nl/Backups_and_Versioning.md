@@ -1,6 +1,6 @@
 # Back-ups & versiegeschiedenis
 
-Laatst bijgewerkt: 2026-09-15
+Laatst bijgewerkt: 2026-10-29
 
 Plainva beschermt je werk op twee niveaus: **bestandsversies** (automatische snapshots van elk afzonderlijk bestand terwijl je bewerkt en verwijdert) en **vault-back-ups** (regelmatige ZIP-archieven van de hele vault, opgeslagen buiten de vault-map). Beide draaien op de achtergrond zonder enige instelling en zijn af te stemmen in de instellingen onder **Backup & versiegeschiedenis**.
 
@@ -31,7 +31,7 @@ Ook afbeeldingen hebben versies (met voorbeeld); andere binaire bestanden kunnen
 
 ## Verwijderde bestanden herstellen
 
-Omdat elke verwijdering eerst een snapshot van het bestand maakt, kan Plainva verwijderde bestanden terughalen: rechtsklik op de vaultnaam bovenaan de bestandsboom → **Verwijderde bestanden herstellen…** (ook bereikbaar via de instellingen). De lijst toont alle bestanden waarvan de snapshots nog bestaan terwijl het origineel weg is — **Herstellen** maakt de nieuwste staat opnieuw aan op de oorspronkelijke locatie (mappen worden zo nodig opnieuw aangemaakt), **Versies…** opent de volledige geschiedenis van het verwijderde bestand.
+Omdat elke verwijdering eerst een snapshot van het bestand maakt, kan Plainva verwijderde bestanden terughalen: rechtsklik op de vaultnaam bovenaan de bestandsboom → **Verwijderde bestanden herstellen…** (ook bereikbaar onder **Instellingen → Vault → Backup & versiegeschiedenis → Versiegeschiedenis**). De lijst toont alle bestanden waarvan de snapshots nog bestaan terwijl het origineel weg is — **Herstellen** maakt de nieuwste staat opnieuw aan op de oorspronkelijke locatie (mappen worden zo nodig opnieuw aangemaakt), **Versies…** opent de volledige geschiedenis van het verwijderde bestand.
 
 Let op: het verwijderen van een **hele map** verplaatst deze naar de prullenbak van het besturingssysteem — in dat geval is de systeemprullenbak de eerste weg terug; in Plainva vind je dan mogelijk alleen oudere snapshots van de bevatte bestanden.
 

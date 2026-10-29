@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Stand: 2026-10-21
+Stand: 2026-10-29
 
 OKF (Open Knowledge Format) ist eine offene Konvention für Markdown-Wissenssammlungen: reine Markdown-Dateien mit einem kleinen, einheitlichen Frontmatter-Kopf. Diese Seite erklärt, was OKF ist, was Plainva dafür automatisch tut — und warum Du nichts davon nutzen *musst*.
 
@@ -34,13 +34,13 @@ Reines Markdown ist wunderbar portabel — hat für sich genommen aber keine ver
 
 ## Was Plainva automatisch macht
 
-**Neue Dateien** bekommen den OKF-Kopf automatisch: Jede in Plainva angelegte Notiz erhält `type` ins Frontmatter — die Versionsangabe `okf_version` steht seit OKF 0.2 nur noch einmal in der Wurzel-`index.md`, nicht mehr in jeder Notiz. Welche Werte, stellst Du pro Vault ein: **Einstellungen → Vault → Inhalt & Struktur → OKF (Open Knowledge Format)** → **type für neue Notizen** (Standard `Note`) und **type für Daily Notes** (Standard `Daily Note`). Bringt eine Vorlage ein eigenes `type` mit, gewinnt die Vorlage.
+**Neue Dateien** bekommen den OKF-Kopf automatisch: Jede in Plainva angelegte Notiz erhält `type` ins Frontmatter — die Versionsangabe `okf_version` steht seit OKF 0.2 nur noch einmal in der Wurzel-`index.md`, nicht mehr in jeder Notiz. Welche Werte, stellst Du pro Vault ein: **type für neue Notizen** (Standard `Note`) unter **Einstellungen → Vault → Notizen & Ablage → Neue Notizen** und **type für Daily Notes** (Standard `Daily Note`) unter **Einstellungen → Vault → Tagesnotizen & Journal → Tagesnotizen**. Bringt eine Vorlage ein eigenes `type` mit, gewinnt die Vorlage.
 
 **Bestehende Dateien werden nie ungefragt verändert.** Plainva ergänzt OKF-Felder nur beim Anlegen neuer Dateien oder wenn Du die Konvertierung ausdrücklich startest.
 
 **Geschützte Systemfelder:** Im **Eigenschaften**-Panel sind `type` und — wo es in älteren Notizen noch steht — `okf_version` als OKF-Systemfelder gekennzeichnet („OKF-Systemfeld – wird von Plainva verwaltet"): Der `type`-Wert ist per Dropdown bekannter Typen wählbar, `okf_version` ist reine Anzeige; Umbenennen, Typwechsel und Löschen sind gesperrt, damit die Konvention nicht versehentlich bricht.
 
-**Das Erklärmodal:** **Was ist OKF?** in den Einstellungen gibt Dir die Kurzfassung in drei Sätzen und einen Link auf diese Seite. Es öffnet sich nicht mehr von selbst; enthält ein Vault Dateien, die dem OKF nicht folgen, sagt Plainva das einmalig in einer kleinen Meldung mit einem Knopf, der direkt zur Umwandlung führt.
+**Die Kurzfassung in den Einstellungen:** Der Info-Knopf (ⓘ) der Gruppe **OKF-Format** unter **Einstellungen → Vault → Wartung** gibt Dir die Erklärung in drei Sätzen und einen Link auf diese Seite. Sie öffnet sich nicht von selbst; enthält ein Vault Dateien, die dem OKF nicht folgen, sagt Plainva das einmalig in einer kleinen Meldung mit einem Knopf, der direkt zur Umwandlung führt.
 
 ## Herkunft, Prüfung und Lebenszyklus (OKF 0.2)
 
@@ -55,16 +55,16 @@ Seit OKF 0.2 kann eine Notiz sagen, woher sie stammt, wer sie geprüft hat und o
 **Was Plainva schreibt.**
 
 - `generated` (und, wo eine Quelle vorliegt, `sources`) setzen genau drei maschinelle Schreibwege: der **Import** (`plainva-import/<Version>`, ein Zeitpunkt je Lauf — auch der Import-Bericht trägt ihn), die **E-Mail-Erfassung** (`plainva-mail-capture/<Version>`, mit der Message-ID der Nachricht als Quelle) und der **Aufgaben-Abgleich** (`plainva-task-sync/<Version>`, nur beim Anlegen einer Notiz).
-- `verified` schreibt nur **Als geprüft markieren** im Abschnitt **Vertrauen & Herkunft**: Plainva hängt `human:<Dein Name>` mit dem aktuellen Zeitpunkt an die Liste an — eine zweite Prüfung überschreibt die erste nie. Deinen Namen fragt Plainva einmal pro Vault ab; er bleibt auf diesem Gerät und ist unter **Einstellungen → Vault → Inhalt & Struktur → Prüfername** änderbar.
+- `verified` schreibt nur **Als geprüft markieren** im Abschnitt **Vertrauen & Herkunft**: Plainva hängt `human:<Dein Name>` mit dem aktuellen Zeitpunkt an die Liste an — eine zweite Prüfung überschreibt die erste nie. Deinen Namen fragt Plainva einmal pro Vault ab; er bleibt auf diesem Gerät und ist unter **Einstellungen → Vault → Notizen & Ablage → Anmerkungen → Dein Name (Anmerkungen und Prüfungen)** änderbar.
 - Der Editor rührt keines dieser Felder von sich aus an, und bestehende Notizen werden nie nachträglich bestempelt. `status` und `stale_after` setzt Du selbst, als Eigenschaft oder im Frontmatter.
 
-**Bundle-Version anheben.** Die Version der Konvention steht einmal in der Wurzel-`index.md`. Ein Vault, der noch `"0.1"` deklariert, funktioniert unverändert weiter — unter **Einstellungen → Vault → Inhalt & Struktur → Bundle-Version** (am Telefon: **Einstellungen → Vault → Wartung → Bundle-Version**) hebst Du ihn mit **Anheben…** auf 0.2. Der Dialog zeigt vorher, was sich ändert: die Zeile in der Wurzel-`index.md` und, als Häkchen (standardmäßig an), das Entfernen des veralteten `okf_version`-Feldes aus den Notizen, die es noch tragen. Vor jeder Änderung wird ein Backup angelegt; **Aufräumen…** erledigt nur den zweiten Teil. Die Feldtabelle und die Schreibregeln im Einzelnen stehen in der [Dateiformat-Referenz](File_Format_Reference.md).
+**Bundle-Version anheben.** Die Version der Konvention steht einmal in der Wurzel-`index.md`. Ein Vault, der noch `"0.1"` deklariert, funktioniert unverändert weiter — unter **Einstellungen → Vault → Wartung → OKF-Format → Bundle-Version** (am Telefon ebenso) hebst Du ihn mit **Anheben…** auf 0.2. Der Dialog zeigt vorher, was sich ändert: die Zeile in der Wurzel-`index.md` und, als Häkchen (standardmäßig an), das Entfernen des veralteten `okf_version`-Feldes aus den Notizen, die es noch tragen. Vor jeder Änderung wird ein Backup angelegt; **Aufräumen…** erledigt nur den zweiten Teil. Die Feldtabelle und die Schreibregeln im Einzelnen stehen in der [Dateiformat-Referenz](File_Format_Reference.md).
 
 ## index.md: das Inhaltsverzeichnis je Ordner
 
 Eine `index.md` ist das Inhaltsverzeichnis eines Ordners: eine Liste der enthaltenen Notizen und Unterordner mit Beschreibungen und relativen Links.
 
-- **Erzeugen** — immer auf Deine Aktion hin, nie automatisch aus dem Nichts: Rechtsklick auf einen Ordner → **Übersicht erzeugen** / **Übersicht aktualisieren**, oder gesammelt über die **index.md-Verwaltung** (**Einstellungen → Vault → Inhalt & Struktur**).
+- **Erzeugen** — immer auf Deine Aktion hin, nie automatisch aus dem Nichts: Rechtsklick auf einen Ordner → **Übersicht erzeugen** / **Übersicht aktualisieren**, oder gesammelt über die **index.md-Verwaltung** (**Einstellungen → Vault → Wartung → OKF-Format**).
 - **Übernehmen statt erzeugen** — hast Du bereits Überblicksnotizen (MOC, Übersicht, Folder-Note, README …), schlägt die Verwaltung sie als Kandidaten vor. **Übernehmen** benennt die Datei zu `index.md` um (Links werden vault-weit aktualisiert). Mit **Übernommene Dateien OKF-konform aufbereiten (Frontmatter entfernen, Wikilinks dieser Datei zu Markdown-Links)** — vorbelegt — wird die Notiz dabei aufbereitet: Ihr Frontmatter wird entfernt (vorher wird die Notiz, wie sie war, gesichert), und ihre Wikilinks werden zu relativen Markdown-Links, jeder an seiner Stelle; sonst ändert sich an der Notiz nichts. Links der Notiz auf sich selbst führen danach zur neuen `index.md`, und ein Link aus einer anderen Notiz, der sie über den `title` ihres Frontmatters erreicht hat — er geht mit dem Frontmatter —, nennt von da an die Datei. Embeds, Wikilinks, die zu keiner Notiz führen, und ein Wikilink im Linktext eines anderen Links werden nicht umgewandelt; die Ergebniszeile zählt sie. Hat der Ordner schon eine `index.md`, wird nichts übernommen, und die Notiz bleibt unberührt.
 - **Automatische Pflege** — von Plainva *erzeugte* Listings tragen am Dateiende eine unsichtbare Markierung (ein HTML-Kommentar). Nur solche markierten Dateien hält Plainva automatisch aktuell, sobald sich im Ordner etwas ändert — und nur in OKF-Vaults (erkennbar an `okf_version` in der Wurzel-`index.md`).
 - **Schreibgeschützt mit Ausweg** — verwaltete index.md-Dateien öffnen im Lesemodus mit dem Banner „Diese index.md wird von Plainva verwaltet und automatisch aktualisiert." Dort kannst Du **Aktualisieren** — oder **Trotzdem bearbeiten**: Das entfernt die Markierung, und die Datei gehört wieder ganz Dir (keine automatischen Updates mehr).
@@ -75,7 +75,7 @@ Eine `index.md` ist das Inhaltsverzeichnis eines Ordners: eine Liste der enthalt
 
 ## Einen bestehenden Vault konvertieren (Opt-in)
 
-Wenn Dateien im Vault nicht dem OKF-Format entsprechen (fehlendes `type`-Feld oder reservierte Namen als normale Notiz), bietet Plainva die Konvertierung an — einmalig beim Öffnen des Vaults und dauerhaft unter **Einstellungen → Vault → Inhalt & Struktur** (der Eintrag erscheint nur, solange es etwas zu tun gibt).
+Wenn Dateien im Vault nicht dem OKF-Format entsprechen (fehlendes `type`-Feld oder reservierte Namen als normale Notiz), bietet Plainva die Konvertierung an — einmalig beim Öffnen des Vaults und dauerhaft unter **Einstellungen → Vault → Wartung → OKF-Format** (der Eintrag erscheint nur, solange es etwas zu tun gibt).
 
 Der Wizard **In OKF-Format überführen** arbeitet in klaren Schritten:
 

@@ -34,8 +34,10 @@ test("the info button opens a sheet, not the row, and Escape closes it", async (
     const sheet = page.getByTestId("grouprow-info-sheet");
     await expect(sheet).toBeVisible();
     await expect(sheet.locator(".m-sheet-title")).toHaveText("Rebuild index");
-    await expect(sheet).toContainText("The search index is Plainva's record of what your notes contain");
-    await expect(sheet.getByRole("button", { name: "Read more in the handbook" })).toBeVisible();
+    // What the row does is behind its own button; the search index itself is
+    // explained at the group heading (settings plan 2026-10-29, § 3.9).
+    await expect(sheet).toContainText("Rebuilds this vault's search index from scratch.");
+    await expect(page.getByRole("button", { name: "More about Search index" })).toBeVisible();
     await expect(info).toHaveAttribute("aria-expanded", "true");
     // The tap went to the button, not to the row: no rebuild started.
     await expect(page.getByText("Search index rebuilt.")).toHaveCount(0);

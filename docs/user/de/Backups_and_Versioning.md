@@ -1,6 +1,6 @@
 # Backups & Versionsverlauf
 
-Stand: 2026-09-15
+Stand: 2026-10-29
 
 Plainva sichert Deine Arbeit auf zwei Ebenen: **Datei-Versionen** (automatische Snapshots jeder einzelnen Datei beim Bearbeiten und Löschen) und **Vault-Backups** (regelmäßige ZIP-Sicherungen des ganzen Vaults außerhalb des Vault-Ordners). Beides läuft ohne Zutun im Hintergrund und lässt sich in den Einstellungen unter **Backup & Versionierung** anpassen.
 
@@ -31,7 +31,7 @@ Auch Bilder haben Versionen (mit Vorschau); andere Binärdateien lassen sich ohn
 
 ## Gelöschte Dateien wiederherstellen
 
-Da jedes Löschen vorher einen Snapshot anlegt, kann Plainva gelöschte Dateien zurückholen: Rechtsklick auf den Vault-Namen ganz oben im Dateibaum → **Gelöschte Dateien wiederherstellen…** (auch über die Einstellungen erreichbar). Die Liste zeigt alle Dateien, deren Snapshots noch da sind, das Original aber fehlt — **Wiederherstellen** legt die jüngste Fassung am ursprünglichen Ort wieder an (Ordner werden bei Bedarf neu erstellt), **Versionen…** öffnet die komplette Historie der gelöschten Datei.
+Da jedes Löschen vorher einen Snapshot anlegt, kann Plainva gelöschte Dateien zurückholen: Rechtsklick auf den Vault-Namen ganz oben im Dateibaum → **Gelöschte Dateien wiederherstellen…** (auch unter **Einstellungen → Vault → Backup & Versionierung → Versionsverlauf** erreichbar). Die Liste zeigt alle Dateien, deren Snapshots noch da sind, das Original aber fehlt — **Wiederherstellen** legt die jüngste Fassung am ursprünglichen Ort wieder an (Ordner werden bei Bedarf neu erstellt), **Versionen…** öffnet die komplette Historie der gelöschten Datei.
 
 Hinweis: Wird ein **ganzer Ordner** gelöscht, landet er im Papierkorb des Betriebssystems — für diesen Fall ist der System-Papierkorb der erste Weg; in Plainva findest Du dann ggf. nur ältere Snapshots der enthaltenen Dateien.
 

@@ -59,6 +59,7 @@ vi.mock("react-i18next", async (orig) => ({
 }));
 
 import { ContentAreaScreen } from "./screens/SettingsAreaScreens";
+import { JournalAreaScreen } from "./screens/JournalAreaScreen";
 import { useSettingsState } from "./hooks/useSettingsState";
 import type { MobileVault } from "./services/vaultService";
 
@@ -90,7 +91,9 @@ beforeEach(async () => {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
-  await act(async () => { root.render(<ContentAreaScreen vault={VAULT} onBack={() => {}} />); });
+  // The two halves of the former "Content & structure" (settings plan
+  // 2026-10-29, E9): the date format and the daily type are on the journal page.
+  await act(async () => { root.render(<><ContentAreaScreen vault={VAULT} onBack={() => {}} /><JournalAreaScreen vault={VAULT} onBack={() => {}} /></>); });
 });
 afterEach(async () => {
   await act(async () => { root.unmount(); });
@@ -181,9 +184,10 @@ describe("a settings field while its save is in flight (E23)", () => {
  */
 describe("the type fields save a type", () => {
   const NEW = "settings.defaultNoteType", DAILY = "settings.dailyNoteType";
-  /** The field under this label (the test's `t` answers with the key). */
+  /** The field under this label (the test's `t` answers with the key). A field
+   *  with an info button is a container whose label names the input by id. */
   const typeField = (label: string) =>
-    [...host.querySelectorAll("label.pv-rowfield")]
+    [...host.querySelectorAll(".pv-rowfield")]
       .find((row) => row.querySelector(".pv-rowfield-label")?.textContent === label)!
       .querySelector<HTMLInputElement>("input")!;
   async function stored(patch: Record<string, unknown>) {

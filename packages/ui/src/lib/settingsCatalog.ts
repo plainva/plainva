@@ -6,6 +6,7 @@ import {
   FolderTree,
   Info,
   Mail,
+  NotebookText,
   Palette,
   PanelsTopLeft,
   Pencil,
@@ -65,7 +66,10 @@ export const SETTINGS_AREAS: readonly SettingsAreaDef[] = [
   { id: "security", world: "vault", labelKey: "settings.sectionSecurity", descKey: "settings.pageDescSecurity", icon: ShieldCheck },
   { id: "pim", world: "vault", labelKey: "settings.sectionPim", descKey: "settings.pageDescPim", icon: CalendarDays },
   { id: "mail", world: "vault", labelKey: "settings.sectionMail", descKey: "settings.pageDescMail", icon: Mail },
+  // "Content & structure" became two pages (settings plan 2026-10-29, E9):
+  // "Notes & filing" keeps the id "content", "Daily notes & journal" is new.
   { id: "content", world: "vault", labelKey: "settings.sectionContent", descKey: "settings.pageDescContent", icon: FolderTree },
+  { id: "journal", world: "vault", labelKey: "settings.sectionJournal", descKey: "settings.pageDescJournal", icon: NotebookText },
   { id: "bars", world: "vault", labelKey: "settings.sectionBars", descKey: "settings.pageDescBars", icon: PanelsTopLeft },
   { id: "backup", world: "vault", labelKey: "settings.backupSection", descKey: "settings.pageDescBackup", icon: Archive },
   { id: "maintenance", world: "vault", labelKey: "settings.sectionMaintenance", descKey: "settings.pageDescMaintenance", icon: Wrench },

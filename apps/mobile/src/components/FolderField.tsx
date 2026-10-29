@@ -1,5 +1,5 @@
 import { FolderSearch } from "lucide-react";
-import { CommittedTextInput, ICON, IconButton, SettingField } from "@plainva/ui";
+import { CommittedTextInput, ICON, IconButton, SettingField, type InfoContent } from "@plainva/ui";
 
 /**
  * A vault path as a card row: free text plus the vault-internal folder browser.
@@ -19,6 +19,7 @@ import { CommittedTextInput, ICON, IconButton, SettingField } from "@plainva/ui"
 export function FolderField({
   label,
   hint,
+  info,
   value,
   placeholder,
   normalize,
@@ -27,6 +28,8 @@ export function FolderField({
 }: {
   label: string;
   hint?: string;
+  /** What stands behind the info button at the end of the label (settings plan 2026-10-29). */
+  info?: InfoContent;
   /** The stored folder. */
   value: string;
   placeholder?: string;
@@ -44,6 +47,7 @@ export function FolderField({
         </IconButton>
       }
       hint={hint}
+      info={info}
       label={label}
     >
       <CommittedTextInput normalize={normalize} onSave={onSave} placeholder={placeholder} value={value} />

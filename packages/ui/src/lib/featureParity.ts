@@ -1497,4 +1497,20 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     mobile: "yes",
     verified: "2026-10-26",
   },
+  {
+    id: "settings-reread-vault-row",
+    title: "\"Re-read vault\" as a row of Maintenance › Search index",
+    area: "vault",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The phone's Maintenance › Search index offers only \"Rebuild index\" " +
+      "(settings plan 2026-10-29, F8). The cheap reconcile the desktop's row " +
+      "starts (F5 there) is already a gesture on the phone: pull-to-refresh on " +
+      "every list, and a re-read on every return to the app (see " +
+      "external-change-watcher). A settings row for it would be a second way to " +
+      "the same reconcile, so the phone keeps the gesture.",
+    verified: "2026-10-29",
+  },
 ];

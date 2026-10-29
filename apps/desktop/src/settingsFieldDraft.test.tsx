@@ -6,7 +6,7 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import ts from "typescript";
 import { FIELD_DRAFT_DELAY_MS, useFieldDraft } from "@plainva/ui";
-import { ContentPage, type ContentPageProps } from "./components/settings/VaultPages";
+import { JournalPage, type JournalPageProps } from "./components/settings/VaultPages";
 
 /**
  * A settings field keeps the caret and every key (E23, TestFlight finding
@@ -183,33 +183,24 @@ describe("useFieldDraft", () => {
   });
 });
 
-describe("desktop: Content & structure keeps the caret (E23)", () => {
+describe("desktop: Daily notes & journal keeps the caret (E23)", () => {
   const persisted: string[] = [];
 
   /** The page with its date format wired the way SettingsModal wires it. */
   function Page() {
     const [format, setFormat] = useState("YYYY-MM-DD");
     const noop = () => {};
-    const props: ContentPageProps = {
+    const props: JournalPageProps = {
       isActiveVault: false,
       dailyNotesFolder: "", onDailyNotesFolder: noop, onBrowseDailyFolder: noop,
       dailyNotesFormat: format,
       onDailyNotesFormat: (v) => { setFormat(v); persisted.push(v); },
-      templateFolder: "", folderTemplates: [], onFolderTemplates: noop, templateChoices: [], onBrowseRuleFolder: noop,
-      typeTemplates: [], onTypeTemplates: noop, onTemplateFolder: noop, onBrowseTemplateFolder: noop,
-      inboxFolder: "", onInboxFolder: noop, onBrowseInboxFolder: noop,
-      attachmentFolder: "", onAttachmentFolder: noop, onBrowseAttachmentFolder: noop,
-      textFileExtensions: "", onTextFileExtensions: noop,
       dailyNoteTemplate: "", onDailyNoteTemplate: noop, templateFiles: [],
-      taskDatabase: "", onTaskDatabase: noop, baseFiles: [], onCreateTaskDb: noop, canCreateTaskDb: false,
-      defaultNoteType: "", onDefaultNoteType: noop, dailyNoteType: "", onDailyNoteType: noop,
+      dailyNoteType: "", onDailyNoteType: noop,
       journalHeading: "", onJournalHeading: noop, dayEndsAt: 0, onDayEndsAt: noop,
-      journalMoodProperty: "", onJournalMoodProperty: noop, verifierName: "", onVerifierName: noop,
-      okfViolations: null, okfVersionState: null,
-      onShowOkfMigration: noop, onShowOkfWizard: noop, onShowOkfInfo: noop, onShowIndexManager: noop, onUpdateAllIndexes: noop,
-      extendedDatabases: false, commentAnchors: false, onCommentAnchors: noop, onExtendedDatabases: noop,
+      journalMoodProperty: "", onJournalMoodProperty: noop,
     };
-    return <ContentPage {...props} />;
+    return <JournalPage {...props} />;
   }
 
   beforeEach(() => {

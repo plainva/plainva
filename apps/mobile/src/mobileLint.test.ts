@@ -2502,6 +2502,7 @@ describe("the settings surfaces", () => {
   const FILES = [
     "SettingsScreen.tsx",
     "screens/SettingsAreaScreens.tsx",
+    "screens/JournalAreaScreen.tsx",
     "screens/AppearanceScreen.tsx",
     "screens/BehaviorAreaScreen.tsx",
     "screens/MaintenanceAreaScreen.tsx",
@@ -2562,7 +2563,9 @@ describe("the settings surfaces", () => {
     // Three cards each carried a bold line, a sentence and a full-width button.
     // The sentences restated their own titles and truncated mid-word in a row —
     // a row's second line is a short STATE, not prose.
-    expect(screen).not.toMatch(/rebuildIndexDesc|deletedFilesDesc|step3Hint/);
+    // Since 2026-10-29 what a row DOES may stand behind its info button — never
+    // as its second line.
+    expect(screen).not.toMatch(/subtitle=\{t\("settings\.(rebuildIndexDesc|deletedFilesDesc)|step3Hint/);
     expect(screen).toMatch(/title=\{t\("settings\.rebuildIndexAction"\)\}/);
     // The one thing the second line is good for here: that it is running.
     expect(screen).toMatch(/subtitle=\{busy \? t\("settings\.rebuildIndexRunning"\)/);

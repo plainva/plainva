@@ -1,6 +1,6 @@
 # Referência do Formato de Arquivo
 
-Última revisão: 2026-10-24
+Última revisão: 2026-10-29
 
 Esta página é o contrato exato, tal como gravado em disco, para **todo arquivo em um vault do Plainva**. Ela é escrita para que uma ferramenta — outro programa, script ou assistente de IA — possa ler e editar arquivos do vault diretamente, com segurança, sem passar pela interface do Plainva. Se você só usa o app, nunca precisa desta página; as [demais páginas do guia](README.md) cobrem o uso normal.
 
@@ -548,7 +548,7 @@ Para uma relação cujo destino é o mesmo banco de dados, aponte `relationBase`
 
 `index.md` é um nome reservado para o sumário de uma pasta.
 
-- **Somente o `index.md` da raiz pode carregar frontmatter**, e apenas `okf_version` — a versão da convenção que o vault segue (atualmente `"0.2"`; ele marca o vault como ativo no OKF). Um vault que ainda declara `"0.1"` é atualizado em **Configurações → Vault → Conteúdo e estrutura → Versão do bundle → Atualizar…**; o campo legado `okf_version` pode ser removido das notas na mesma etapa. Um `index.md` fora da raiz precisa ser **livre de frontmatter** — frontmatter ali é uma violação de nome reservado.
+- **Somente o `index.md` da raiz pode carregar frontmatter**, e apenas `okf_version` — a versão da convenção que o vault segue (atualmente `"0.2"`; ele marca o vault como ativo no OKF). Um vault que ainda declara `"0.1"` é atualizado em **Configurações → Vault → Manutenção → Formato OKF → Versão do bundle → Atualizar…**; o campo legado `okf_version` pode ser removido das notas na mesma etapa. Um `index.md` fora da raiz precisa ser **livre de frontmatter** — frontmatter ali é uma violação de nome reservado.
 - Um `index.md` **gerenciado** pelo Plainva termina com o marcador `<!-- plainva:index generated -->` (um comentário HTML, invisível no modo de leitura). Sua presença significa que o Plainva mantém o arquivo atualizado automaticamente. Se você editar esse arquivo à mão, preserve o marcador (e mantenha a forma gerada) ou remova-o deliberadamente para assumir o arquivo permanentemente.
 - Listagens geradas são seções de links no formato `* [Título](url/relativa) - descrição`.
 

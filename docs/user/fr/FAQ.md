@@ -1,6 +1,6 @@
 # FAQ & dépannage
 
-Dernière mise à jour : 2026-10-26
+Dernière mise à jour : 2026-10-29
 
 Réponses aux questions les plus courantes — de la compatibilité Obsidian aux fichiers en conflit et aux sauvegardes.
 
@@ -56,7 +56,7 @@ Avec la synchronisation WebDAV ou S3, Plainva 0.8.3 supprimait une note synchron
 
 Si cela vous est arrivé, la note existe encore à trois endroits au plus :
 
-- **L'instantané dans le vault.** Avant de retirer un fichier, Plainva l'enregistre sous `.plainva/backups/<dossier>/<nom>.md.<horodatage>.bak`, où `<dossier>` est le dossier *vers lequel* vous avez déplacé la note. Sur ordinateur, clic droit sur le nom du vault → **Restaurer les fichiers supprimés…** ; sur téléphone, **Paramètres** → **Maintenance** → **Restaurer les fichiers supprimés**. La liste affiche la note sous son nouveau chemin, et **Restaurer** la remet à cet endroit. Le fichier `.bak` est du texte brut : n'importe quel gestionnaire de fichiers ou éditeur de texte peut aussi l'ouvrir.
+- **L'instantané dans le vault.** Avant de retirer un fichier, Plainva l'enregistre sous `.plainva/backups/<dossier>/<nom>.md.<horodatage>.bak`, où `<dossier>` est le dossier *vers lequel* vous avez déplacé la note. Sur ordinateur, clic droit sur le nom du vault → **Restaurer les fichiers supprimés…** ; sur téléphone, **Paramètres** → **Sauvegarde & historique des versions** → **Restaurer les fichiers supprimés**. La liste affiche la note sous son nouveau chemin, et **Restaurer** la remet à cet endroit. Le fichier `.bak` est du texte brut : n'importe quel gestionnaire de fichiers ou éditeur de texte peut aussi l'ouvrir.
 - **La corbeille du système** (ordinateur) : le fichier lui-même est allé dans la corbeille de votre système d'exploitation.
 - **La corbeille de votre serveur**, si la note y a aussi été supprimée (dans Nextcloud, par exemple, sous les fichiers supprimés).
 

@@ -1,6 +1,6 @@
 # Backups & Histórico de Versões
 
-Última revisão: 2026-09-15
+Última revisão: 2026-10-29
 
 O Plainva protege seu trabalho em dois níveis: **versões de arquivo** (snapshots automáticos de cada arquivo individual ao editar e excluir) e **backups do vault** (arquivos ZIP regulares de todo o vault, armazenados fora da pasta do vault). Ambos rodam em segundo plano sem qualquer configuração e podem ser ajustados nas configurações em **Backup e versionamento**.
 
@@ -31,7 +31,7 @@ Imagens também têm versões (com pré-visualização); outros arquivos binári
 
 ## Restaurando arquivos excluídos
 
-Como toda exclusão gera um snapshot do arquivo antes, o Plainva pode trazer arquivos excluídos de volta: clique com o botão direito no nome do vault no topo da árvore de arquivos → **Restaurar arquivos excluídos…** (também acessível pelas configurações). A lista mostra todos os arquivos cujos snapshots ainda existem enquanto o original desapareceu — **Restaurar** recria o estado mais recente no local original (pastas são recriadas conforme necessário), **Versões…** abre o histórico completo do arquivo excluído.
+Como toda exclusão gera um snapshot do arquivo antes, o Plainva pode trazer arquivos excluídos de volta: clique com o botão direito no nome do vault no topo da árvore de arquivos → **Restaurar arquivos excluídos…** (também acessível em **Configurações → Vault → Backup e versionamento → Histórico de versões**). A lista mostra todos os arquivos cujos snapshots ainda existem enquanto o original desapareceu — **Restaurar** recria o estado mais recente no local original (pastas são recriadas conforme necessário), **Versões…** abre o histórico completo do arquivo excluído.
 
 Observação: excluir uma **pasta inteira** a move para a lixeira do sistema operacional — nesse caso, a lixeira do sistema é o meio principal de recuperação; no Plainva você pode encontrar apenas snapshots mais antigos dos arquivos contidos.
 

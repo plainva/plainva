@@ -1,6 +1,6 @@
 # Sauvegardes & historique des versions
 
-Dernière mise à jour : 2026-09-15
+Dernière mise à jour : 2026-10-29
 
 Plainva protège votre travail à deux niveaux : les **versions de fichiers** (instantanés automatiques de chaque fichier lors de l'édition et de la suppression) et les **sauvegardes du vault** (archives ZIP régulières de tout le vault, stockées en dehors du dossier du vault). Les deux fonctionnent en arrière-plan sans aucune configuration et peuvent être ajustés dans les paramètres sous **Sauvegarde & historique des versions**.
 
@@ -31,7 +31,7 @@ Les images ont aussi des versions (avec aperçu) ; les autres fichiers binaires 
 
 ## Restaurer des fichiers supprimés
 
-Comme chaque suppression crée d'abord un instantané du fichier, Plainva peut ramener des fichiers supprimés : un clic droit sur le nom du vault en haut de l'arborescence → **Restaurer les fichiers supprimés…** (également accessible depuis les paramètres). La liste affiche tous les fichiers dont les instantanés existent encore alors que l'original a disparu — **Restaurer** recrée l'état le plus récent à l'emplacement d'origine (les dossiers sont recréés si nécessaire), **Versions…** ouvre l'historique complet du fichier supprimé.
+Comme chaque suppression crée d'abord un instantané du fichier, Plainva peut ramener des fichiers supprimés : un clic droit sur le nom du vault en haut de l'arborescence → **Restaurer les fichiers supprimés…** (également accessible sous **Paramètres → Vault → Sauvegarde & historique des versions → Historique des versions**). La liste affiche tous les fichiers dont les instantanés existent encore alors que l'original a disparu — **Restaurer** recrée l'état le plus récent à l'emplacement d'origine (les dossiers sont recréés si nécessaire), **Versions…** ouvre l'historique complet du fichier supprimé.
 
 Remarque : la suppression de tout un **dossier** le déplace vers la corbeille du système d'exploitation — dans ce cas, la corbeille du système est le premier moyen de récupération ; dans Plainva, vous ne trouverez éventuellement que d'anciens instantanés des fichiers qu'il contenait.
 

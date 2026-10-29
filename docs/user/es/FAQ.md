@@ -1,6 +1,6 @@
 # FAQ y solución de problemas
 
-Última actualización: 2026-10-26
+Última actualización: 2026-10-29
 
 Respuestas a las preguntas más frecuentes — desde la compatibilidad con Obsidian hasta los archivos en conflicto y las copias de seguridad.
 
@@ -56,7 +56,7 @@ Con la sincronización por WebDAV o S3, Plainva 0.8.3 eliminaba una nota sincron
 
 Si te ocurrió, la nota sigue existiendo en hasta tres lugares:
 
-- **El snapshot dentro del vault.** Antes de quitar un archivo, Plainva lo guarda como `.plainva/backups/<carpeta>/<nombre>.md.<marca de tiempo>.bak`, donde `<carpeta>` es la carpeta a la que moviste la nota. En el escritorio, clic derecho en el nombre del vault → **Restaurar archivos eliminados…**; en el teléfono, **Ajustes** → **Mantenimiento** → **Restaurar archivos eliminados**. La lista muestra la nota con su nueva ruta y **Restaurar** la devuelve allí. El archivo `.bak` es texto plano, así que también puedes abrirlo con cualquier gestor de archivos o editor de texto.
+- **El snapshot dentro del vault.** Antes de quitar un archivo, Plainva lo guarda como `.plainva/backups/<carpeta>/<nombre>.md.<marca de tiempo>.bak`, donde `<carpeta>` es la carpeta a la que moviste la nota. En el escritorio, clic derecho en el nombre del vault → **Restaurar archivos eliminados…**; en el teléfono, **Ajustes** → **Copias de seguridad y versionado** → **Restaurar archivos eliminados**. La lista muestra la nota con su nueva ruta y **Restaurar** la devuelve allí. El archivo `.bak` es texto plano, así que también puedes abrirlo con cualquier gestor de archivos o editor de texto.
 - **La papelera del sistema** (escritorio): el propio archivo fue a la papelera de tu sistema operativo.
 - **La papelera de tu servidor**, si la nota también se borró allí (en Nextcloud, por ejemplo, en los archivos eliminados).
 

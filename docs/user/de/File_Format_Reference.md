@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-10-24
+Stand: 2026-10-29
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -548,7 +548,7 @@ Für eine Relation, deren Ziel dieselbe Datenbank ist, zeigt `relationBase` auf 
 
 `index.md` ist ein reservierter Name für das Inhaltsverzeichnis eines Ordners.
 
-- **Nur die Wurzel-`index.md` darf Frontmatter tragen**, und dort nur `okf_version` — die Version der Konvention, der der Vault folgt (aktuell `"0.2"`; sie kennzeichnet den Vault als OKF-aktiv). Einen Vault, der noch `"0.1"` deklariert, hebst Du unter **Einstellungen → Vault → Inhalt & Struktur → Bundle-Version → Anheben…** an; dabei kann das veraltete `okf_version`-Feld aus den Notizen mit entfernt werden. Eine `index.md` außerhalb der Wurzel muss **frontmatter-frei** sein — Frontmatter dort ist ein Reservname-Verstoß.
+- **Nur die Wurzel-`index.md` darf Frontmatter tragen**, und dort nur `okf_version` — die Version der Konvention, der der Vault folgt (aktuell `"0.2"`; sie kennzeichnet den Vault als OKF-aktiv). Einen Vault, der noch `"0.1"` deklariert, hebst Du unter **Einstellungen → Vault → Wartung → OKF-Format → Bundle-Version → Anheben…** an; dabei kann das veraltete `okf_version`-Feld aus den Notizen mit entfernt werden. Eine `index.md` außerhalb der Wurzel muss **frontmatter-frei** sein — Frontmatter dort ist ein Reservname-Verstoß.
 - Eine Plainva-**verwaltete** `index.md` endet mit dem Marker `<!-- plainva:index generated -->` (ein HTML-Kommentar, in der Leseansicht unsichtbar). Sein Vorhandensein bedeutet, dass Plainva die Datei automatisch aktuell hält. Bearbeitest Du so eine Datei von Hand, dann erhalte entweder den Marker (und die generierte Form) oder entferne ihn bewusst, um die Datei dauerhaft zu übernehmen.
 - Generierte Listings sind Abschnitte aus Links in der Form `* [Titel](relativer/url) - beschreibung`.
 

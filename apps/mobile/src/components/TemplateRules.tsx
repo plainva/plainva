@@ -64,7 +64,14 @@ export function TemplateRules({
           row is a static field rather than a label: it labels no control. It
           lives in the card with everything else on this page — as a loose row
           it carried a left edge of its own. */}
-      <SectionLabel>{t("settings.folderTemplates")}</SectionLabel>
+      {/* The precedence rule ties the two lists together, so ONE info carries
+          it, on the first of them (settings plan 2026-10-29, Q8) — the two
+          hints below the cards said half of it each. */}
+      <SectionLabel
+        info={[t("settings.folderTemplatesDesc"), t("settings.typeTemplatesDesc"), t("settings.templateRuleHint")].join("\n\n")}
+      >
+        {t("settings.folderTemplates")}
+      </SectionLabel>
       <GroupCard>
         <RowList>
           {settings.folderTemplates.map((rule, index) => (
@@ -108,7 +115,6 @@ export function TemplateRules({
           />
         </RowList>
       </GroupCard>
-      <p className="m-hint">{t("settings.folderTemplatesDesc")}</p>
 
       <SectionLabel>{t("settings.typeTemplates")}</SectionLabel>
       <GroupCard>
@@ -156,7 +162,6 @@ export function TemplateRules({
           />
         </RowList>
       </GroupCard>
-      <p className="m-hint">{t("settings.typeTemplatesDesc")}</p>
 
       {pickFolderFor !== null && (
         <FolderPickerSheet

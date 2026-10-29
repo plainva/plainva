@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Laatst bijgewerkt: 2026-10-21
+Laatst bijgewerkt: 2026-10-29
 
 OKF (Open Knowledge Format) is een open conventie voor Markdown-kenniscollecties: pure Markdown-bestanden met een kleine, uniforme frontmatter-kop. Deze pagina legt uit wat OKF is, wat Plainva daarvoor automatisch doet — en waarom je er niets van *hoeft* te gebruiken.
 
@@ -34,13 +34,13 @@ Gewone Markdown is fantastisch draagbaar — maar heeft op zichzelf geen betrouw
 
 ## Wat Plainva automatisch doet
 
-**Nieuwe bestanden** krijgen de OKF-kop automatisch: elke in Plainva aangemaakte notitie krijgt `type` in de frontmatter — sinds OKF 0.2 staat de versiemarkering `okf_version` eenmalig in de root-`index.md`, niet meer in elke notitie. Welke waarden, stel je per vault in: **Instellingen → Vault → Inhoud en structuur → OKF (Open Knowledge Format)** → **type voor nieuwe notities** (standaard `Note`) en **type voor dagelijkse notities** (standaard `Daily Note`). Brengt een sjabloon een eigen `type` mee, dan wint het sjabloon.
+**Nieuwe bestanden** krijgen de OKF-kop automatisch: elke in Plainva aangemaakte notitie krijgt `type` in de frontmatter — sinds OKF 0.2 staat de versiemarkering `okf_version` eenmalig in de root-`index.md`, niet meer in elke notitie. Welke waarden, stel je per vault in: **type voor nieuwe notities** (standaard `Note`) onder **Instellingen → Vault → Notities en ordening → Nieuwe notities** en **type voor dagelijkse notities** (standaard `Daily Note`) onder **Instellingen → Vault → Dagnotities en journaal → Dagnotities**. Brengt een sjabloon een eigen `type` mee, dan wint het sjabloon.
 
 **Bestaande bestanden worden nooit ongevraagd gewijzigd.** Plainva voegt OKF-velden alleen toe bij het aanmaken van nieuwe bestanden of wanneer je de conversie expliciet start.
 
 **Beschermde systeemvelden:** in het paneel **Eigenschappen** zijn `type` en — waar oudere notities het nog dragen — `okf_version` gemarkeerd als OKF-systeemvelden ("OKF-systeemveld – wordt beheerd door Plainva"): de `type`-waarde is kiesbaar uit een vervolgkeuzelijst met bekende typen, `okf_version` is alleen ter weergave; hernoemen, typewijziging en verwijderen zijn vergrendeld zodat de conventie niet per ongeluk kan breken.
 
-**Het uitlegvenster:** **Wat is OKF?** in de instellingen geeft je de korte versie in drie zinnen plus een link naar deze pagina. Het opent niet meer vanzelf; bevat een vault bestanden die niet aan het OKF-formaat voldoen, dan meldt Plainva dat eenmalig in een klein bericht met een knop die je direct naar de conversie brengt.
+**De korte uitleg in de instellingen:** de infoknop (ⓘ) van de groep **OKF-formaat** onder **Instellingen → Vault → Onderhoud** geeft je de uitleg in drie zinnen plus een link naar deze pagina. Ze opent niet vanzelf; bevat een vault bestanden die niet aan het OKF-formaat voldoen, dan meldt Plainva dat eenmalig in een klein bericht met een knop die je direct naar de conversie brengt.
 
 ## Herkomst, controle en levenscyclus (OKF 0.2)
 
@@ -55,16 +55,16 @@ Sinds OKF 0.2 kan een notitie zeggen waar ze vandaan komt, wie haar heeft gecont
 **Wat Plainva schrijft.**
 
 - `generated` (en, waar een bron bekend is, `sources`) wordt gezet door precies drie machinale schrijfpaden: de **import** (`plainva-import/<versie>`, één moment per run — het importrapport draagt het ook), **e-mail vastleggen** (`plainva-mail-capture/<versie>`, met het Message-ID van het bericht als bron) en de **takensynchronisatie** (`plainva-task-sync/<versie>`, alleen wanneer die een notitie aanmaakt).
-- `verified` wordt alleen geschreven door **Markeren als gecontroleerd** in de sectie **Vertrouwen en herkomst**: Plainva voegt `human:<jouw naam>` met het huidige moment toe aan de lijst — een tweede controle overschrijft de eerste nooit. Je naam wordt eenmaal per vault gevraagd; hij blijft op dit apparaat en is wijzigbaar onder **Instellingen → Vault → Inhoud en structuur → Naam van de controleur**.
+- `verified` wordt alleen geschreven door **Markeren als gecontroleerd** in de sectie **Vertrouwen en herkomst**: Plainva voegt `human:<jouw naam>` met het huidige moment toe aan de lijst — een tweede controle overschrijft de eerste nooit. Je naam wordt eenmaal per vault gevraagd; hij blijft op dit apparaat en is wijzigbaar onder **Instellingen → Vault → Notities en ordening → Opmerkingen → Je naam (opmerkingen en controles)**.
 - De editor raakt geen van deze velden ooit uit zichzelf aan, en bestaande notities krijgen nooit achteraf een stempel. `status` en `stale_after` stel je zelf in, als eigenschap of in de frontmatter.
 
-**De bundleversie bijwerken.** De versie van de conventie staat eenmalig in de root-`index.md`. Een vault die nog `"0.1"` declareert, blijft ongewijzigd werken — onder **Instellingen → Vault → Inhoud en structuur → Bundleversie** (op de telefoon: **Instellingen → Vault → Onderhoud → Bundleversie**) til je hem met **Bijwerken…** naar 0.2. Het dialoogvenster toont vooraf wat er verandert: de regel in de root-`index.md` en, als selectievakje (standaard aan), het verwijderen van het verouderde `okf_version`-veld uit de notities die het nog dragen. Elk bestand krijgt eerst een back-up voordat het verandert; **Opschonen…** doet alleen het tweede deel. De veldtabel en de schrijfregels in detail staan in de [Bestandsformaat-referentie](File_Format_Reference.md).
+**De bundleversie bijwerken.** De versie van de conventie staat eenmalig in de root-`index.md`. Een vault die nog `"0.1"` declareert, blijft ongewijzigd werken — onder **Instellingen → Vault → Onderhoud → OKF-formaat → Bundleversie** (op de telefoon net zo) til je hem met **Bijwerken…** naar 0.2. Het dialoogvenster toont vooraf wat er verandert: de regel in de root-`index.md` en, als selectievakje (standaard aan), het verwijderen van het verouderde `okf_version`-veld uit de notities die het nog dragen. Elk bestand krijgt eerst een back-up voordat het verandert; **Opschonen…** doet alleen het tweede deel. De veldtabel en de schrijfregels in detail staan in de [Bestandsformaat-referentie](File_Format_Reference.md).
 
 ## index.md: de inhoudsopgave per map
 
 Een `index.md` is de inhoudsopgave van een map: een lijst van de bevatte notities en submappen, met beschrijvingen en relatieve links.
 
-- **Genereren** — altijd op jouw actie, nooit zomaar uit het niets: rechtsklik op een map → **Overzicht maken** / **Overzicht bijwerken**, of gebundeld via het **index.md-beheer** (**Instellingen → Vault → Inhoud en structuur**).
+- **Genereren** — altijd op jouw actie, nooit zomaar uit het niets: rechtsklik op een map → **Overzicht maken** / **Overzicht bijwerken**, of gebundeld via het **index.md-beheer** (**Instellingen → Vault → Onderhoud → OKF-formaat**).
 - **Overnemen in plaats van genereren** — heb je al overzichtsnotities (MOC, Overzicht, mapnotitie, README …), dan stelt het beheer ze voor als kandidaten. **Overnemen** hernoemt het bestand naar `index.md` (links worden vault-breed bijgewerkt). Met **Overgenomen bestanden voorbereiden voor OKF (frontmatter verwijderen, wikilinks van dit bestand omzetten naar Markdown-links)** — standaard aangevinkt — wordt de notitie meteen voorbereid: de frontmatter wordt verwijderd (eerst wordt de notitie zoals ze was veiliggesteld) en de wikilinks worden relatieve Markdown-links, elk op zijn plaats; verder verandert er niets aan de notitie. Links van de notitie naar zichzelf leiden daarna naar de nieuwe `index.md`, en een link uit een andere notitie die haar via de `title` in haar frontmatter bereikte — die met de frontmatter verdwijnt — noemt voortaan het bestand. Insluitingen, wikilinks die naar geen notitie leiden en een wikilink in de tekst van een andere link worden niet omgezet; de resultaatregel telt ze. Heeft de map al een `index.md`, dan wordt er niets overgenomen en blijft de notitie onaangeroerd.
 - **Automatisch bijhouden** — listings die door Plainva *gegenereerd* zijn, dragen aan het einde van het bestand een onzichtbare markering (een HTML-commentaar). Alleen zulke gemarkeerde bestanden houdt Plainva automatisch actueel zodra er iets in de map verandert — en alleen in OKF-vaults (herkenbaar aan `okf_version` in de root-`index.md`).
 - **Alleen-lezen met een uitweg** — beheerde index.md-bestanden openen in leesmodus met de banner "Deze index.md wordt beheerd door Plainva en automatisch bijgewerkt." Daar kun je **Vernieuwen** — of kiezen voor **Toch bewerken**: dat verwijdert de markering en het bestand is weer helemaal van jou (geen automatische updates meer).
@@ -75,7 +75,7 @@ Een `index.md` is de inhoudsopgave van een map: een lijst van de bevatte notitie
 
 ## Een bestaande vault converteren (opt-in)
 
-Als bestanden in de vault niet voldoen aan het OKF-formaat (ontbrekend `type`-veld, of gereserveerde namen gebruikt als gewone notitie), biedt Plainva de conversie aan — eenmalig bij het openen van de vault en permanent onder **Instellingen → Vault → Inhoud en structuur** (het item verschijnt alleen zolang er iets te doen is).
+Als bestanden in de vault niet voldoen aan het OKF-formaat (ontbrekend `type`-veld, of gereserveerde namen gebruikt als gewone notitie), biedt Plainva de conversie aan — eenmalig bij het openen van de vault en permanent onder **Instellingen → Vault → Onderhoud → OKF-formaat** (het item verschijnt alleen zolang er iets te doen is).
 
 De wizard **Naar OKF-formaat converteren** werkt in duidelijke stappen:
 
