@@ -343,6 +343,27 @@ export function isMemberProfileField(logical: string): boolean {
   return BY_LOGICAL.get(logical)?.scope === "member";
 }
 
+/**
+ * Whether a setting travels with the vault on this shell — the source of the
+ * "On this device only" badge (settings plan 2026-10-29, decision E14).
+ *
+ * `logical` names the profile field the setting is kept in. A part of an
+ * account travels inside the account's field: a mail signature with
+ * `mailAccounts` (`ACCOUNT_FIELD_SCOPE.mail.signatures` is "shared"), a calendar
+ * choice with `pimSelections`. A setting that has no profile field at all —
+ * reminders, comment notifications — passes
+ * `undefined` and stays on the device: that is the rule, not a guess.
+ *
+ * A name the catalog does not know throws. A typo must not turn a setting that
+ * travels into one that is labelled as staying here.
+ */
+export function travelsWithVault(logical: string | undefined, shell: "desktop" | "mobile"): boolean {
+  if (logical === undefined) return false;
+  const field = BY_LOGICAL.get(logical);
+  if (!field) throw new Error(`travelsWithVault: "${logical}" is no profile field`);
+  return (shell === "desktop" ? field.desktop : field.mobile) !== null;
+}
+
 /** Fields a shell reads from and writes to its settings store. */
 export function storeBackedFields(shell: "desktop" | "mobile"): ProfileFieldDef[] {
   return PROFILE_FIELDS.filter((f) => (shell === "desktop" ? f.desktop === "store" : typeof f.mobile === "string" && f.mobile !== "own"));

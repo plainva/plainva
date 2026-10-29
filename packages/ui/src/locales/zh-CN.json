@@ -480,6 +480,8 @@
     "rebuildIndex": "搜索索引",
     "rebuildIndexAction": "重建索引",
     "rebuildIndexDesc": "从头重建此 Vault 的搜索索引——当搜索、反向链接或数据库显得过时时很有用。",
+    "searchIndexInfo": "搜索索引是 Plainva 对你笔记内容的记录：搜索、反向链接、标签和数据库都从中读取。重建索引会重新读取每个文件，笔记本身保持不变。",
+    "deviceOnlyBadge": "仅在此设备上",
     "rebuildIndexRunning": "进行中…",
     "reportIssue": "报告问题",
     "reportIssueAction": "打开 Issue…",
@@ -1411,6 +1413,10 @@
     "viewOnly": "仅查看——可编辑的格式为PNG、JPG和WebP。",
     "loadError": "无法加载图片。",
     "zoomReset": "重置缩放"
+  },
+  "infoTip": {
+    "more": "关于{{label}}的更多信息",
+    "guide": "在用户指南中了解更多"
   },
   "okfInfo": {
     "title": "什么是OKF？",

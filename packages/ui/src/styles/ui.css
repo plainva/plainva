@@ -2445,6 +2445,103 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
    ref target): it adds no box, so its rows sit in the card as if they were the
    card's own children, and the guard of settingCardRows.test.ts reads through it. */
 .pv-setcard-rows { display: contents; }
+
+/* The info button (ⓘ) at the end of a label or heading, and what it opens
+   (settings plan 2026-10-29, § 3, E1). A general explanation stands behind it;
+   what someone needs to decide stays visible. The wrapper resets what it would
+   inherit from an uppercase group label or a heading. */
+.pv-infotip-wrap {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-inline-start: var(--space-1);
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
+/* A 24px box — the smallest target WCAG 2.2 allows — that keeps the line it
+   ends: the negative block margin gives back what the box adds to the line. */
+.pv-infotip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-block: -4px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-1), color var(--dur-1) var(--ease-1);
+}
+.pv-infotip:hover { background: var(--state-hover); color: var(--text-main); }
+.pv-infotip[aria-expanded="true"] { background: var(--accent-container); color: var(--on-accent-container); }
+/* Under a finger the target grows to the touch size; the box does not. */
+[data-density="touch"] .pv-infotip::after {
+  content: "";
+  position: absolute;
+  inset: calc((var(--touch-sm) - 24px) / -2);
+}
+/* The desktop's panel: the popover contract, body text, one column. */
+.pv-infotip-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 18rem;
+  padding: var(--space-3);
+  text-align: start;
+  white-space: normal;
+  font-size: var(--text-ui);
+  line-height: 1.5;
+  color: var(--text-main);
+}
+.pv-infotip-text { display: block; }
+.pv-infotip-guide {
+  align-self: flex-start;
+  color: var(--accent-color);
+  font-weight: 600;
+  text-decoration: none;
+}
+.pv-infotip-guide:hover { text-decoration: underline; }
+/* The phone shows the text in its sheet; the live region then carries it
+   for the screen reader alone. */
+.pv-infotip-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.pv-infotip-sheettext {
+  margin: 0;
+  padding: 0 var(--space-2);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--text-main);
+}
+/* "On this device only" (E3): a word, not a count — the badge's look on the
+   accent-container pair, in the label's case. */
+.pv-badge--text {
+  font-weight: 600;
+  font-variant-numeric: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: nowrap;
+}
+/* The page title and its info button stay together in the head row. */
+.pv-setpage-titleline { display: inline-flex; align-items: center; min-width: 0; }
+/* A phone row's title with its info button: the title gives way, the button stays. */
+.pv-grouprow-titleline { display: flex; align-items: center; min-width: 0; }
+.pv-grouprow-titleline > .pv-grouprow-title { min-width: 0; }
+/* A typed setting's label line with its info button. */
+.pv-rowfield-head { display: flex; align-items: center; min-width: 0; }
+/* A group heading already spaces its parts with its gap. */
+.pv-grouplabel > .pv-infotip-wrap { margin-inline-start: 0; }
 .pv-setrow-main {
   min-width: 0;
 }

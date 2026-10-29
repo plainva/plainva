@@ -111,6 +111,7 @@ export function MaintenanceAreaScreen({
             <Row
               disabled={busy || !vault.indexer}
               icon={<RefreshCw size={ICON.ui} />}
+              info={{ text: t("settings.searchIndexInfo"), guide: "Search.md" }}
               onClick={rebuildIndex}
               subtitle={busy ? t("settings.rebuildIndexRunning") : ""}
               title={t("settings.rebuildIndexAction")}

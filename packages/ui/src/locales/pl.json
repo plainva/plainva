@@ -486,6 +486,8 @@
     "rebuildIndex": "Indeks wyszukiwania",
     "rebuildIndexAction": "Odbuduj indeks",
     "rebuildIndexDesc": "Odbudowuje od zera indeks wyszukiwania tego sejfu — pomaga, gdy wyszukiwanie, backlinki lub bazy wyglądają na nieaktualne.",
+    "searchIndexInfo": "Indeks wyszukiwania to zapis tego, co zawierają notatki, prowadzony przez Plainva: wyszukiwanie, backlinki, tagi i bazy czytają z niego. Odbudowa odczytuje każdy plik ponownie; notatki pozostają dokładnie takie, jakie są.",
+    "deviceOnlyBadge": "Tylko na tym urządzeniu",
     "rebuildIndexRunning": "Trwa…",
     "reportIssue": "Zgłoś problem",
     "reportIssueAction": "Otwórz zgłoszenie…",
@@ -1435,6 +1437,10 @@
     "viewOnly": "Tylko podgląd – edytowalne formaty to PNG, JPG i WebP.",
     "loadError": "Nie udało się wczytać obrazu.",
     "zoomReset": "Resetuj powiększenie"
+  },
+  "infoTip": {
+    "more": "Więcej o: {{label}}",
+    "guide": "Więcej w instrukcji obsługi"
   },
   "okfInfo": {
     "title": "Czym jest OKF?",

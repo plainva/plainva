@@ -1,3 +1,4 @@
+import type { ComponentType, ReactNode } from "react";
 import type { ISettingsStore } from "./settings";
 import type { ICredentialStore } from "./credentials";
 import type { KeychainSlotInput } from "../lib/keychainSlots";
@@ -52,6 +53,26 @@ export interface PlatformServices {
    * (the shells' `noteAccountAddedLocally`).
    */
   noteAccountAdded?(vaultKey: string, kind: "pim" | "mail", localId: string): Promise<void>;
+  /**
+   * The shell's bottom sheet, for a small panel that shared code opens — the
+   * explanation behind the info button of a setting (`InfoTip`). A shell that
+   * registers one (the phone) shows such a panel as a sheet, with the grip,
+   * the back-button handling and the layer every other sheet of that shell
+   * has; a shell without one (the desktop) shows it as a popover anchored at
+   * the button. Shared code learns the shell's presentation here, through the
+   * same seam that hands it the shell's storage and browser.
+   */
+  Sheet?: ComponentType<PlatformSheetProps>;
+}
+
+/** What shared code hands the shell's sheet (`PlatformServices.Sheet`). */
+export interface PlatformSheetProps {
+  /** The sheet's title line. */
+  title: string;
+  /** Closes the sheet: grip, backdrop, the system back button. */
+  onClose(): void;
+  testId?: string;
+  children: ReactNode;
 }
 
 let current: PlatformServices | null = null;

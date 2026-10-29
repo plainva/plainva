@@ -601,6 +601,17 @@
     inset -1px -1px 0 #DFDFDF,
     inset 1px 1px 0 #808080;
 }
+/* The info button (settings plan 2026-10-29): a square system button in the
+   help blue; held down (a sunken bevel) while its panel is open. The panel is
+   a .pv-popover, which is already the raised silver menu panel. */
+[data-theme-name="win95"] .pv-infotip { border-radius: 0; color: #000080; }
+[data-theme-name="win95"] .pv-infotip[aria-expanded="true"] {
+  background: #C0C0C0;
+  color: #000080;
+  box-shadow:
+    inset 1px 1px 0 #0A0A0A,
+    inset -1px -1px 0 #FFFFFF;
+}
 [data-theme-name="win95"] .pv-dbinsp-nav {
   border-radius: 0;
   background: #FFFFFF;

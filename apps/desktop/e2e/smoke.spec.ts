@@ -2308,6 +2308,64 @@ test('Settings two-worlds nav: vault card switch opens the picker; cross-world c
   await expect(dialog.getByRole('button', { name: /neu aufbauen|Rebuild the index/ })).toHaveCount(0);
 });
 
+test('Settings info button: a press opens the explanation beside the label, Escape closes it before the settings window', async ({ page }, testInfo) => {
+  // The info button of a setting (settings plan 2026-10-29, § 3): the
+  // explanation stands behind it, in a popover anchored at the button, with
+  // the way into the handbook. Escape is the popover's first — the settings
+  // window around it is a dialog that closes on Escape as well.
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Wartung|Maintenance)$/ }).click();
+
+  const infoName = /^(Mehr zu Suchindex|More about Search index)$/;
+  const info = dialog.getByRole('button', { name: infoName });
+  await expect(info).toBeVisible();
+  await expect(info).toHaveAttribute('aria-expanded', 'false');
+  // The ⓘ ends the card's heading: it sits right of the heading's text, on its line.
+  const heading = dialog.locator('.pv-setgroup-label').filter({ has: page.getByRole('button', { name: infoName }) });
+  await expect(heading).toHaveText(/^(Suchindex|Search index)$/);
+
+  // Keyboard first: the button takes the focus and Enter opens it.
+  await info.focus();
+  await page.keyboard.press('Enter');
+  const panel = dialog.locator('.pv-infotip-panel');
+  await expect(panel).toBeVisible();
+  await expect(info).toHaveAttribute('aria-expanded', 'true');
+  await expect(panel).toContainText(/Suchindex ist Plainvas Verzeichnis|search index is Plainva's record/);
+  await expect(panel.getByRole('link', { name: /Mehr im Handbuch|Read more in the handbook/ })).toBeVisible();
+  // The text lives in a live region, announced when it appears.
+  await expect(dialog.locator('[role="status"] .pv-infotip-panel')).toHaveCount(1);
+  // The panel lies inside the window, next to its button.
+  const box = (await panel.boundingBox())!;
+  const at = (await info.boundingBox())!;
+  expect(Math.abs(box.y - (at.y + at.height))).toBeLessThan(24);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ animations: 'disabled', path: testInfo.outputPath('info-popover-light.png') });
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ animations: 'disabled', path: testInfo.outputPath('info-popover-dark.png') });
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+
+  // Escape closes the popover — and only the popover.
+  await page.keyboard.press('Escape');
+  await expect(panel).toHaveCount(0);
+  await expect(info).toHaveAttribute('aria-expanded', 'false');
+  await expect(info).toBeFocused();
+  await expect(dialog).toBeVisible();
+
+  // Space opens it, a press beside it closes it, a second press on the button too.
+  await page.keyboard.press(' ');
+  await expect(panel).toBeVisible();
+  await dialog.getByRole('heading', { name: /^(Wartung|Maintenance)$/ }).click();
+  await expect(panel).toHaveCount(0);
+  await info.click();
+  await expect(panel).toBeVisible();
+  await info.click();
+  await expect(panel).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+});
+
 test('Creating from another tab switches to Files instead of vanishing', async ({ page }) => {
   // The create request is answered by the FILE TREE, which is not mounted on
   // the Tags or Databases tab. Sent from there the event used to disappear

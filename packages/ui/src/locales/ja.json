@@ -480,6 +480,8 @@
     "rebuildIndex": "検索インデックス",
     "rebuildIndexAction": "インデックスを再構築",
     "rebuildIndexDesc": "この Vault の検索インデックスをゼロから再構築します。検索・バックリンク・データベースが古く見えるときに有効です。",
+    "searchIndexInfo": "検索インデックスは、ノートの内容を Plainva が記録したものです。検索・バックリンク・タグ・データベースはここから読み取ります。再構築するとすべてのファイルを読み直しますが、ノート自体は一切変わりません。",
+    "deviceOnlyBadge": "この端末のみ",
     "rebuildIndexRunning": "実行中…",
     "reportIssue": "問題を報告",
     "reportIssueAction": "Issue を開く…",
@@ -1411,6 +1413,10 @@
     "viewOnly": "表示のみ——編集可能な形式はPNG、JPG、WebPです。",
     "loadError": "画像を読み込めませんでした。",
     "zoomReset": "ズームをリセット"
+  },
+  "infoTip": {
+    "more": "{{label}}の詳細",
+    "guide": "ユーザーガイドで詳しく見る"
   },
   "okfInfo": {
     "title": "OKFとは？",

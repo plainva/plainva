@@ -253,6 +253,11 @@
 [data-theme-name="lcars"] .pv-iconbtn {
   border-radius: var(--radius-pill);
 }
+/* The info button (settings plan 2026-10-29): a small Okuda lamp in the
+   primary bar colour that lights up while its panel is open. The panel is a
+   .pv-popover (square tile with a colour edge, below) or the phone's sheet. */
+[data-theme-name="lcars"] .pv-infotip { color: var(--lcars-1); }
+[data-theme-name="lcars"] .pv-infotip[aria-expanded="true"] { background: var(--lcars-1); color: #000000; }
 
 /* Tabs as true Okuda pills (P12): floating capsules instead of flat tiles.
    The active tab fills with the primary bar colour and flips to black type —

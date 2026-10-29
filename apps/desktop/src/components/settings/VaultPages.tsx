@@ -628,7 +628,7 @@ export const MaintenancePage: React.FC<MaintenancePageProps> = (p) => {
           {/* Two actions where there used to be one mislabelled button: the
               old "Index neu aufbauen" ran the cheap reconcile, so the expensive
               rebuild had no entry point at all (plan P1b). */}
-          <SettingCard label={t("settings.rebuildIndex", { defaultValue: "Suchindex" })}>
+          <SettingCard label={t("settings.rebuildIndex", { defaultValue: "Suchindex" })} info={{ text: t("settings.searchIndexInfo"), guide: "Search.md" }}>
             <SettingRow
               label={t("refresh.action", { defaultValue: "Vault neu einlesen" })}
               desc={t("refresh.actionDesc", { defaultValue: "Gleicht den Index mit dem Ordner ab und holt bei Online-Vaults die Cloud-Dateien. Schnell und verlustfrei — dasselbe wie F5." })}

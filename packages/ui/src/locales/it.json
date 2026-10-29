@@ -484,6 +484,8 @@
     "rebuildIndex": "Indice di ricerca",
     "rebuildIndexAction": "Ricostruisci indice",
     "rebuildIndexDesc": "Ricostruisce da zero l'indice di ricerca di questo vault — utile se ricerca, backlink o database sembrano obsoleti.",
+    "searchIndexInfo": "L'indice di ricerca è il registro in cui Plainva tiene ciò che contengono le tue note: ricerca, backlink, tag e database leggono da lì. Ricostruirlo rilegge ogni file; le tue note restano esattamente come sono.",
+    "deviceOnlyBadge": "Solo su questo dispositivo",
     "rebuildIndexRunning": "In corso…",
     "reportIssue": "Segnala un problema",
     "reportIssueAction": "Apri issue…",
@@ -1427,6 +1429,10 @@
     "viewOnly": "Solo visualizzazione – i formati modificabili sono PNG, JPG e WebP.",
     "loadError": "Impossibile caricare l'immagine.",
     "zoomReset": "Reimposta zoom"
+  },
+  "infoTip": {
+    "more": "Altro su {{label}}",
+    "guide": "Scopri di più nella guida utente"
   },
   "okfInfo": {
     "title": "Cos'è OKF?",

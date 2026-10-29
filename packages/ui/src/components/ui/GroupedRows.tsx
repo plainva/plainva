@@ -1,7 +1,14 @@
-import type { ReactNode } from "react";
+import { cloneElement, isValidElement, useId, type ReactElement, type ReactNode } from "react";
 import { Check, ChevronRight } from "lucide-react";
 import { ICON } from "../../lib/iconSizes";
 import { cx } from "./cx";
+import { DeviceOnlyBadge } from "./DeviceOnlyBadge";
+import { InfoTip, type InfoContent } from "./InfoTip";
+
+/** The name an info button takes from a label that may be markup. */
+function nameOf(label: ReactNode, infoLabel: string | undefined): string {
+  return infoLabel ?? (typeof label === "string" || typeof label === "number" ? String(label) : "");
+}
 
 /**
  * The container grammar (mobile rework N2) — shared, and additive.
@@ -27,6 +34,9 @@ export function SectionLabel({
   className,
   onOpen,
   openTestId,
+  info,
+  infoLabel,
+  deviceOnly,
 }: {
   children: ReactNode;
   /** A count, or exactly one action. Never a second heading. */
@@ -41,6 +51,15 @@ export function SectionLabel({
    */
   onOpen?: () => void;
   openTestId?: string;
+  /**
+   * What stands behind the info button at the end of the heading (settings
+   * plan 2026-10-29, § 3) — a group's introduction.
+   */
+  info?: InfoContent;
+  /** The button's name when the heading is markup rather than text. */
+  infoLabel?: string;
+  /** The whole group stays on this device (E3). */
+  deviceOnly?: boolean;
 }) {
   return (
     <p className={cx("pv-grouplabel", className)}>
@@ -52,6 +71,8 @@ export function SectionLabel({
       ) : (
         children
       )}
+      {info !== undefined && <InfoTip label={nameOf(children, infoLabel)} info={info} testId="grouplabel-info" />}
+      {deviceOnly && <DeviceOnlyBadge />}
       {end !== undefined && end !== null && end !== "" && <span className="pv-grouplabel-end">{end}</span>}
     </p>
   );
@@ -112,6 +133,9 @@ export function SettingField({
   children,
   isStatic,
   className,
+  info,
+  infoLabel,
+  deviceOnly,
 }: {
   label: ReactNode;
   /**
@@ -134,19 +158,52 @@ export function SettingField({
    */
   isStatic?: boolean;
   className?: string;
+  /** What stands behind the info button at the end of the label (settings plan 2026-10-29, § 3). */
+  info?: InfoContent;
+  /** The button's name when the label is markup rather than text. */
+  infoLabel?: string;
+  /** The setting stays on this device: the badge on the line under the label (E3). */
+  deviceOnly?: boolean;
 }) {
-  const Tag = isStatic ? "div" : "label";
+  const controlId = useId();
+  const badge = deviceOnly && <span className="pv-rowfield-hint"><DeviceOnlyBadge /></span>;
+  const hintLine = hint !== undefined && hint !== null && hint !== "" && <span className="pv-rowfield-hint">{hint}</span>;
+  if (info === undefined) {
+    const Tag = isStatic ? "div" : "label";
+    return (
+      <Tag className={cx("pv-rowfield", className)}>
+        <span className="pv-rowfield-label">{label}</span>
+        {badge}
+        {hintLine}
+        <span className="pv-rowfield-control">
+          {children}
+          {action}
+        </span>
+      </Tag>
+    );
+  }
+  // With an info button the field cannot be one <label>: a button inside it
+  // would join the control's name ("Folder More about Folder"), and before the
+  // control it would even become the label's control. So the label names its
+  // control by id and the button stands beside it.
+  const own = isValidElement<{ id?: string }>(children) ? children.props.id : undefined;
+  const control = !isStatic && isValidElement<{ id?: string }>(children) && own === undefined
+    ? cloneElement(children as ReactElement<{ id?: string }>, { id: controlId })
+    : children;
+  const target = isStatic || !isValidElement(children) ? undefined : own ?? controlId;
   return (
-    <Tag className={cx("pv-rowfield", className)}>
-      <span className="pv-rowfield-label">{label}</span>
-      {hint !== undefined && hint !== null && hint !== "" && (
-        <span className="pv-rowfield-hint">{hint}</span>
-      )}
+    <div className={cx("pv-rowfield", className)}>
+      <span className="pv-rowfield-head">
+        {target ? <label className="pv-rowfield-label" htmlFor={target}>{label}</label> : <span className="pv-rowfield-label">{label}</span>}
+        <InfoTip label={nameOf(label, infoLabel)} info={info} testId="rowfield-info" />
+      </span>
+      {badge}
+      {hintLine}
       <span className="pv-rowfield-control">
-        {children}
+        {control}
         {action}
       </span>
-    </Tag>
+    </div>
   );
 }
 
@@ -162,6 +219,9 @@ export function Row({
   onClick,
   disabled,
   className,
+  info,
+  infoLabel,
+  deviceOnly,
   ...rest
 }: {
   icon?: ReactNode;
@@ -212,7 +272,22 @@ export function Row({
    * with `aria-disabled`, which would announce a control that is not one. */
   disabled?: boolean;
   className?: string;
+  /**
+   * What stands behind the info button at the end of the title (settings plan
+   * 2026-10-29, § 3). A row that leads somewhere then cannot be one native
+   * button — a button may not hold another — and becomes the container form
+   * of `controls`, named by its title alone.
+   */
+  info?: InfoContent;
+  /** The button's name when the title is markup rather than text. */
+  infoLabel?: string;
+  /** The setting stays on this device: the badge on the second line (E3). */
+  deviceOnly?: boolean;
 } & Omit<React.HTMLAttributes<HTMLElement>, "onClick" | "title" | "className">) {
+  const titleId = useId();
+  const hasInfo = info !== undefined;
+  const titleSpan = <span className="pv-grouprow-title" id={hasInfo ? titleId : undefined}><bdi>{title}</bdi></span>;
+  const hasSub = subtitle !== undefined && subtitle !== null && subtitle !== "";
   const body = (
     <>
       {icon !== undefined && icon !== null && <span className="pv-grouprow-icon">{icon}</span>}
@@ -220,9 +295,18 @@ export function Row({
         {/* A name may be written right to left (issue 111). The interface is
             not mirrored, so the name keeps its place in the row; <bdi> only
             puts its own characters in the right order. */}
-        <span className="pv-grouprow-title"><bdi>{title}</bdi></span>
-        {subtitle !== undefined && subtitle !== null && subtitle !== "" && (
-          <span className="pv-grouprow-sub">{subtitle}</span>
+        {hasInfo ? (
+          <span className="pv-grouprow-titleline">
+            {titleSpan}
+            <InfoTip label={nameOf(title, infoLabel)} info={info} testId="grouprow-info" />
+          </span>
+        ) : titleSpan}
+        {(hasSub || deviceOnly) && (
+          <span className="pv-grouprow-sub">
+            {deviceOnly && <DeviceOnlyBadge />}
+            {deviceOnly && hasSub && " "}
+            {hasSub && subtitle}
+          </span>
         )}
       </span>
       {current && (
@@ -244,11 +328,15 @@ export function Row({
   );
   // "page" is the target list's meaning — the place shown now. A caller with a
   // narrower one (a step, a date) passes its own `aria-current` through `rest`.
-  const attrs = current && rest["aria-current"] === undefined ? { ...rest, "aria-current": "page" as const } : rest;
+  const withCurrent = current && rest["aria-current"] === undefined ? { ...rest, "aria-current": "page" as const } : rest;
+  // A row with an info button is named by its title, not by its title and the button's name.
+  const attrs = hasInfo && onClick && withCurrent["aria-labelledby"] === undefined && withCurrent["aria-label"] === undefined
+    ? { ...withCurrent, "aria-labelledby": titleId }
+    : withCurrent;
   // A row that does something is a button; one that only shows something is
   // not. Handing every row a button element would put a control in the
   // accessibility tree for text that cannot be acted on.
-  if (onClick && controls) {
+  if (onClick && (controls || hasInfo)) {
     return (
       <div
         className={cls}
