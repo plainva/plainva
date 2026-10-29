@@ -309,13 +309,23 @@ export function forgetAccountBroker(vaultPath: string, accountId: string): void 
 }
 
 export function calendarGrantProbe(vaultPath: string, accountId: string, family: "google" | "microsoft", client: { clientId: string; clientSecret?: string }, allowUnbound = false) {
-  return createServiceGrantProbe({ accountId, family, service: "calendar", ...client, allowUnbound }, {
+  // Only the client goes on. The callers hand in their whole connect options,
+  // and spreading them carried `expectedIdentity` into the probe, which then
+  // compared it with a card that a first sign-in has not written yet: the
+  // calendar failed as "account changed" and only a second sign-in got through
+  // (finding 2026-10-29, Google and Microsoft). The identity of a new sign-in is
+  // checked against the provider's own profile (`assertConnectionIdentity`),
+  // which is all the phone ever did: its connect never read a card's identity
+  // for a first sign-in, so the phone has nothing to follow.
+  const { clientId, clientSecret } = client;
+  const ownClient = { clientId, ...(clientSecret !== undefined ? { clientSecret } : {}) };
+  return createServiceGrantProbe({ accountId, family, service: "calendar", ...ownClient, allowUnbound }, {
     records: () => loadCloudAccounts(vaultPath),
-    token: () => getAccountToken(vaultPath, accountId, "calendar", family, client),
+    token: () => getAccountToken(vaultPath, accountId, "calendar", family, ownClient),
     accessToken: async (force) => {
       const broker = getAccountBroker(vaultPath, accountId, family);
       if (force) broker.forget();
-      return broker.getAccessToken("calendar", client);
+      return broker.getAccessToken("calendar", ownClient);
     },
   });
 }

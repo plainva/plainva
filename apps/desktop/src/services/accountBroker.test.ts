@@ -45,6 +45,7 @@ import { microsoftAuthFetch } from "./authFetch";
 import {
   accountSecretKey,
   brokerFamily,
+  calendarGrantProbe,
   brokerTokenProvider,
   claimPendingMailbox,
   fileBrokerTokenProvider,
@@ -365,6 +366,38 @@ describe("the broker answers for the account that is asking", () => {
  * vault renews from a token that has since been rotated away, and it also heals
  * a vault that is currently closed).
  */
+/**
+ * A first sign-in binds the calendar BEFORE the card is written (the card is
+ * written once, after every service). The connect hands its whole options to
+ * the probe, and the identity it expects used to travel along and be compared
+ * with that unwritten card: the calendar failed as "account changed" and only
+ * a second sign-in, with the card on disk, got through (finding 2026-10-29).
+ */
+describe("the calendar probe of a first sign-in", () => {
+  const cases = [
+    { family: "google" as const, scopes: googleScopeFor("calendar"), token: "AT-GOOGLE", issuer: "https://accounts.google.com", secret: { clientSecret: "secret" } },
+    { family: "microsoft" as const, scopes: microsoftScopeFor("calendar"), token: "AT-MICROSOFT", issuer: "https://login.microsoftonline.com/tid/v2.0", secret: {} },
+  ];
+  for (const { family, scopes, token, issuer, secret } of cases) {
+    it(`reads the ${family} grant although no card exists yet`, async () => {
+      const vault = `/first-${family}`;
+      cloudByVault.set(vault, []);
+      secrets.set(accountSecretKey(vault, "new-card"), { clientId: "cid", refreshToken: "RT", scopes, ...secret });
+      // What the calendar connect passes: its own options, identity included.
+      const connectOptions = { clientId: "cid", ...secret, viaBroker: true, brokerAccountId: "new-card", expectedIdentity: { issuer, subject: "person-1" } };
+      const probe = await calendarGrantProbe(vault, "new-card", family, connectOptions, true);
+      await expect(probe.getAccessToken()).resolves.toBe(token);
+    });
+  }
+
+  it("still refuses a card of the other family", async () => {
+    const vault = "/first-mixed";
+    cloudByVault.set(vault, [{ id: "card", family: "microsoft", label: "x", services: {} }]);
+    secrets.set(accountSecretKey(vault, "card"), { clientId: "cid", refreshToken: "RT", scopes: googleScopeFor("calendar") });
+    await expect(calendarGrantProbe(vault, "card", "google", { clientId: "cid" }, true)).rejects.toThrow(/accountChanged/);
+  });
+});
+
 describe("two vaults holding the same account", () => {
   const A = "/vault-a";
   const B = "/vault-b";
