@@ -117,7 +117,7 @@ Per provider, a file round trip (create → appears on device B → change on B 
 ## 7. Automated coverage (run, do not skip)
 
 - [ ] Full CI green on the release commit (lint + typecheck + unit + Playwright E2E incl. axe a11y checks at zero violations). `main` only accepts a commit whose CI is green; a `git push` no longer runs the suite locally — by hand it is `pnpm lint && pnpm typecheck && pnpm run test:all`.
-- [ ] WebDriver smoke (B2/P8): build the app, then `pnpm --filter desktop test:native` (or dispatch `.github/workflows/native-smoke.yml`) — start → vault auto-opens → type → save → restart → content present. Windows/Linux/macOS as available. See `WebDriver_Smoke.md`.
+- [ ] WebDriver smoke: the job `native-smoke` of the release run (`.github/workflows/native-smoke.yml`, called from `release.yml`, parallel to the build legs) — the built app on Linux, Windows and macOS: start → vault opens → a typed note in the file → spell checking → quick capture shortcut → a second window writes. **Linux and Windows block:** red there turns the release run red. **macOS is on probation** until it has been green five runs in a row: it runs, its result goes into the release record, it does not stop the release. Every release leg also checks its binary for the smoke build's embedded WebDriver server (step "No embedded WebDriver server in the release binary"); that one always blocks. See `WebDriver_Smoke.md`.
 - [ ] `cargo test` + `cargo clippy -- -D warnings` in `apps/desktop/src-tauri`.
 - [ ] Performance: `node scripts/measure-performance.mjs` (one command — generates the vaults,
       measures, and rewrites its own block in `Performance_Notes.md`). It covers the harness

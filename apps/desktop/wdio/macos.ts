@@ -98,6 +98,12 @@ export function keystroke(key: string, modifiers: Array<"command" | "control" | 
   osa(`tell application "System Events" to keystroke "${key}"${using}`);
 }
 
+/** Real typing: the characters as key presses, through System Events, to the app in front. */
+export function typeText(text: string): void {
+  const quoted = text.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  osa(`tell application "System Events" to keystroke "${quoted}"`);
+}
+
 /**
  * A real Return key, to the app in front. A synthetic Enter reaches a field's
  * key handlers but never submits its form: implicit submission belongs to

@@ -316,8 +316,19 @@ describe("Plainva native smoke", () => {
       timeout: 10_000,
       timeoutMsg: "the second window does not show the note's text",
     });
-    await editor.click();
-    await editor.addValue(` ${secondMarker}`);
+    if (isMac) {
+      // Real input into the second window: the embedded driver's synthetic
+      // text reached the editor of the main window (S2) and not the one of
+      // the second (2026-10-29: the window showed the note, the file never
+      // got the marker). A click into the editor and typed keys, as a person
+      // does it, through the system.
+      const at = await screenCentre(".cm-content");
+      mac.clickAt(at.x, at.y);
+      mac.typeText(` ${secondMarker}`);
+    } else {
+      await editor.click();
+      await editor.addValue(` ${secondMarker}`);
+    }
     await waitFor(
       () => fileHolds(note(), secondMarker),
       20_000,
