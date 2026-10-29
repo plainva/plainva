@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil } from "lucide-react";
 import { LinkStylePreview, NOTE_LINK_STYLES, WEB_LINK_STYLES, readNoteLinkStyle, readWebLinkStyle } from "@plainva/ui";
-import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, placeStampEnabled, PlainvaLogo, Row, RowList, SectionLabel, Segmented, setPlaceStampEnabled, setWeekStartSetting, Switch, type FontChoice, type FontSlot, type WeekStartSetting, CUSTOM_THEME_ID, themesWithCustom, IconButton } from "@plainva/ui";
+import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, Row, RowList, SectionLabel, Segmented, SettingField, setWeekStartSetting, Switch, type FontChoice, type FontSlot, type WeekStartSetting, CUSTOM_THEME_ID, themesWithCustom, IconButton } from "@plainva/ui";
 import { FontSlotSheet } from "../components/FontSlotSheet";
-import { HailingSheet } from "../components/HailingSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
 import { LCARS_VARIANTS } from "@plainva/ui";
 import { getThemeDef, pinnedModeHintKey } from "@plainva/ui";
@@ -18,19 +17,16 @@ import { useSettingsState } from "../hooks/useSettingsState";
 
 /**
  * Appearance screen (M3E mockup 9): theme cards with three-stripe previews
- * (easter-egg themes gated + marked ✦), an inline mode segmented control,
- * the content font-size slider, the motion switch and the About row — whose
- * logo keeps the desktop's 5-tap hailing gesture, followed by the mockup's
- * deliberately cryptic hint.
+ * (easter-egg themes gated + marked ✦) and the mode, the fonts, language and
+ * region, display, links and tags — the desktop page's five groups (settings
+ * plan 2026-10-29, appendix 2.1). The logo with its 5-tap hailing gesture
+ * lives on About & diagnostics.
  */
 export function AppearanceScreen({ onBack, onEditCustomTheme }: { onBack: () => void; onEditCustomTheme: () => void }) {
   const { t } = useTranslation();
-  // Device-local, off by default (plan Journal-Erweiterungen, E6).
-  const [placeStamp, setPlaceStamp] = useState(placeStampEnabled);
   // The one optimistic settings hook (E23): the size slider snapped back while
   // its save was in flight.
   const { settings, update, refresh } = useSettingsState();
-  const [hailing, setHailing] = useState(false);
   const [fontSheet, setFontSheet] = useState<FontSlot | null>(null);
   /** What the row says: the custom name, or the words for a preset/theme. */
   const fontChoiceLabel = (c: FontChoice): string =>
@@ -39,24 +35,6 @@ export function AppearanceScreen({ onBack, onEditCustomTheme }: { onBack: () => 
   useEffect(() => {
     void getWeekStartSetting().then(setWeekStart);
   }, []);
-  const taps = useRef<{ n: number; t: number }>({ n: 0, t: 0 });
-  const logoTap = () => {
-    const now = Date.now();
-    taps.current = now - taps.current.t > 3000 ? { n: 1, t: now } : { n: taps.current.n + 1, t: taps.current.t };
-    if (taps.current.n >= 5) {
-      taps.current = { n: 0, t: 0 };
-      setHailing(true);
-    }
-  };
-
-  const [version, setVersion] = useState("");
-  useEffect(() => {
-    void import("@capacitor/app")
-      .then(({ App }) => App.getInfo())
-      .then((info) => setVersion(info.version))
-      .catch(() => {});
-  }, []);
-
   const pinnedHint = pinnedModeHintKey(settings.themeName);
   const MODES: Array<[ThemeMode, string]> = [
     ["system", t("mobile.themeSystem")],
@@ -107,17 +85,12 @@ const MOTIONS: Array<[MotionPref, string]> = [
       <AppBar onBack={onBack} title={t("settings.sectionAppearance")} />
 
       <div className="m-settings">
-        <GroupCard>
-          <RowList>
-            <Row
-              end={<><span className="m-prop-val">{languageLabel(settings.language)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
-              onClick={pickLanguage}
-              title={t("mobile.settingLanguage")}
-            />
-          </RowList>
-        </GroupCard>
-
-        <SectionLabel>{t("settings.theme")}</SectionLabel>
+        {/* The same five groups as the desktop page (settings plan 2026-10-29,
+            appendix 2.1 B3/B4): Design, Fonts, Language & region, Display,
+            Links & tags. Eleven headings used to stand here, most over a single
+            row. The place stamp went to Editor & notes › Journal, the logo with
+            its hint to About & diagnostics (B5). */}
+        <SectionLabel>{t("settings.groupDesign")}</SectionLabel>
         <div className="m-themegrid">
           {themesWithCustom(AVAILABLE_THEMES.filter((th) => !th.unlock || settings.unlockedThemes.includes(th.id)), settings.customTheme).map((th) => {
             const mode = th.modes.includes(
@@ -162,6 +135,27 @@ const MOTIONS: Array<[MotionPref, string]> = [
             );
           })}
         </div>
+        {/* The mode is a row of the Design group, as on the desktop ("Mode"). A
+            one-mode theme pins it: the choice shows the pinned mode and says
+            why, like the desktop's locked select — a tap on the other mode used
+            to do nothing without a word (plan Befunde 2026-09-24, E22). */}
+        <GroupCard>
+          <RowList>
+            <SettingField
+              isStatic
+              label={t("settings.themeMode")}
+              hint={pinnedHint ? <span data-testid="theme-mode-pinned">{t(pinnedHint)}</span> : undefined}
+            >
+              <Segmented
+                ariaLabel={t("settings.themeMode")}
+                options={MODES.map(([id, label]) => ({ value: id, label }))}
+                value={pinnedHint ? (getThemeDef(settings.themeName)?.modes[0] ?? settings.themeMode) : settings.themeMode}
+                onChange={(v) => update({ themeMode: v as (typeof MODES)[number][0] })}
+                disabled={!!pinnedHint}
+              />
+            </SettingField>
+          </RowList>
+        </GroupCard>
 
         {settings.unlockedThemeVariants.length > 0 && (
           <>
@@ -176,38 +170,12 @@ const MOTIONS: Array<[MotionPref, string]> = [
           </>
         )}
 
-        <SectionLabel>{t("mobile.settingTheme")}</SectionLabel>
-        {/* A one-mode theme pins the mode: the choice shows the pinned mode and
-            says why, like the desktop's locked select — a tap on the other
-            mode used to do nothing without a word (plan Befunde 2026-09-24, E22). */}
-        <Segmented
-          ariaLabel={t("mobile.settingTheme")}
-          options={MODES.map(([id, label]) => ({ value: id, label }))}
-          value={pinnedHint ? (getThemeDef(settings.themeName)?.modes[0] ?? settings.themeMode) : settings.themeMode}
-          onChange={(v) => update({ themeMode: v as (typeof MODES)[number][0] })}
-          disabled={!!pinnedHint}
-        />
-        {pinnedHint && <p className="m-hint" data-testid="theme-mode-pinned">{t(pinnedHint)}</p>}
-
-        {/* The heading carries the current value; a row underneath repeating the
-            heading's own words was the second of the two slider rows this screen
-            used as headings (feedback 2026-08-15, point 7). */}
-        <SectionLabel end={`${settings.contentFontSize} px`}>{t("settings.contentFontSize")}</SectionLabel>
-        <input
-          aria-label={t("settings.contentFontSize")}
-          className="m-slider"
-          max={24}
-          min={12}
-          onChange={(e) => update({ contentFontSize: clampContentFontSize(Number(e.target.value)) })}
-          step={1}
-          type="range"
-          value={settings.contentFontSize}
-        />
         {/* The three font slots (issue #82, plan 2026-09-06 P2): interface,
             content, code — each a row that opens its sheet with the theme's
-            font, the generic presets, the catalogue and a free name. The same
-            three values the desktop's Appearance card has, saved per device. */}
-        <SectionLabel>{t("settings.groupFonts")}</SectionLabel>
+            font, the generic presets, the catalogue and a free name — and the
+            content size, the same four values the desktop's card has. Why
+            fonts belong to the device is behind the group's ⓘ. */}
+        <SectionLabel info={t("settings.fontsDeviceHint")}>{t("settings.groupFonts")}</SectionLabel>
         <GroupCard>
           <RowList>
             {FONT_SLOT_ROWS.map(([slot, labelKey, familyKey, customKey]) => (
@@ -219,46 +187,94 @@ const MOTIONS: Array<[MotionPref, string]> = [
                 data-testid={`font-slot-${slot}`}
               />
             ))}
+            <SettingField
+              label={t("settings.contentFontSize")}
+              info={t("settings.contentFontSizeDesc")}
+              action={<span className="m-prop-val">{settings.contentFontSize} px</span>}
+            >
+              <input
+                aria-label={t("settings.contentFontSize")}
+                className="m-slider"
+                max={24}
+                min={12}
+                onChange={(e) => update({ contentFontSize: clampContentFontSize(Number(e.target.value)) })}
+                step={1}
+                type="range"
+                value={settings.contentFontSize}
+              />
+            </SettingField>
           </RowList>
         </GroupCard>
-        <p className="m-hint">{t("settings.fontsDeviceHint")}</p>
 
-        {/* A slider row is a label WITH a value; it was standing in for a heading
-            here, which is why this one had no value to show. */}
-        <SectionLabel>{t("mobile.settingMotion")}</SectionLabel>
-        <Segmented
-          ariaLabel={t("mobile.settingMotion")}
-          options={MOTIONS.map(([id, label]) => ({ value: id, label }))}
-          value={settings.motion}
-          onChange={(v) => update({ motion: v as (typeof MOTIONS)[number][0] })}
-        />
-
-        {/* "Colour tags" (finding 2026-09-19): the same device switch as on the
-            desktop. The pill is always there; this only decides about colour. */}
-        <SectionLabel>{t("settings.tagsSection")}</SectionLabel>
+        {/* Language sits in the appearance area (desktop parity, redesign P4);
+            the first day of the week (S26) beside it — the same app-wide
+            setting the desktop has, read from the same key. */}
+        <SectionLabel>{t("settings.groupLanguageRegion")}</SectionLabel>
         <GroupCard>
           <RowList>
             <Row
+              end={<><span className="m-prop-val">{languageLabel(settings.language)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              onClick={pickLanguage}
+              title={t("mobile.settingLanguage")}
+            />
+            <SettingField isStatic label={t("settings.weekStart")} info={t("settings.weekStartDesc")}>
+              <Segmented
+                ariaLabel={t("settings.weekStart")}
+                options={[
+                  { value: "monday", label: t("settings.weekStartMonday") },
+                  { value: "saturday", label: t("settings.weekStartSaturday") },
+                  { value: "sunday", label: t("settings.weekStartSunday") },
+                ]}
+                value={weekStart}
+                onChange={(v) => {
+                  setWeekStart(v as WeekStartSetting);
+                  void setWeekStartSetting(v as WeekStartSetting);
+                }}
+              />
+            </SettingField>
+          </RowList>
+        </GroupCard>
+
+        {/* Display: motion, and the third column (finding 2026-08-21). The
+            column only APPLIES from 1024 px, and the row says so rather than
+            hiding on a phone: a setting that appears and disappears with the
+            window is one nobody finds twice. Density and interface zoom are
+            desktop-only by decision (parity catalog density-mode, ui-zoom). */}
+        <SectionLabel>{t("settings.groupDisplay")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <SettingField isStatic label={t("mobile.settingMotion")}>
+              <Segmented
+                ariaLabel={t("mobile.settingMotion")}
+                options={MOTIONS.map(([id, label]) => ({ value: id, label }))}
+                value={settings.motion}
+                onChange={(v) => update({ motion: v as (typeof MOTIONS)[number][0] })}
+              />
+            </SettingField>
+            <Row
               end={<Switch
-                checked={settings.tagColors === true}
-                label={t("settings.tagColors")}
-                onChange={(next) => update({ tagColors: next })}
+                checked={settings.contextPanelDocked}
+                label={t("settings.contextPanelDocked")}
+                onChange={(next) => update({ contextPanelDocked: next })}
               />}
-              title={t("settings.tagColors")}
+              title={t("settings.contextPanelDocked")}
+              subtitle={t("settings.contextPanelDockedWidth")}
+              info={t("settings.contextPanelDockedDesc")}
+              wrap
             />
           </RowList>
         </GroupCard>
-        <p className="m-hint">{t("settings.tagColorsDesc")}</p>
 
-        {/* Appearance -> Links (maintainer, 2026-10-23): the same two choices as
-            on the desktop, with the sentence that shows them as notes draw them. */}
-        {/* Rows with a choice sheet, like the font slots: four words do not fit a
-            segmented bar at phone width. */}
-        <SectionLabel>{t("settings.linksSection")}</SectionLabel>
+        {/* Links & tags (maintainer, 2026-10-23; finding 2026-09-19): the same
+            choices as on the desktop, with the sentence that shows them as
+            notes draw them. Rows with a choice sheet, like the font slots: four
+            words do not fit a segmented bar at phone width. */}
+        <SectionLabel>{t("settings.groupLinksTags")}</SectionLabel>
         <GroupCard>
           <RowList>
             <Row
               title={t("settings.noteLinkStyle")}
+              info={t("settings.noteLinkStyleDesc")}
               end={<><span className="m-prop-val">{t(LINK_STYLE_LABEL[readNoteLinkStyle(settings.noteLinkStyle)])}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
               onClick={() => {
                 void mSelect({
@@ -276,7 +292,6 @@ const MOTIONS: Array<[MotionPref, string]> = [
               onClick={() => {
                 void mSelect({
                   title: t("settings.webLinkStyle"),
-                  message: t("settings.webLinkStyleDesc"),
                   options: WEB_LINK_STYLES.map((style) => ({ value: style, label: t(LINK_STYLE_LABEL[style]) })),
                   value: readWebLinkStyle(settings.webLinkStyle),
                 }).then((v) => { if (v !== null) update({ webLinkStyle: readWebLinkStyle(v) }); });
@@ -285,82 +300,21 @@ const MOTIONS: Array<[MotionPref, string]> = [
             />
           </RowList>
           <LinkStylePreview className="m-link-preview" />
-        </GroupCard>
-
-        {/* May the journal capture offer the place button (plan
-            Journal-Erweiterungen, E6)? Device-local and OFF by default: one's
-            phone and one's desk are different places to be asked about one's
-            position. The microphone-style permission is asked on the first
-            press, never here. */}
-        <GroupCard>
           <RowList>
+            {/* The pill is always there; this only decides about colour. */}
             <Row
               end={<Switch
-                checked={placeStamp}
-                data-testid="place-stamp-switch"
-                label={t("settings.placeStamp")}
-                onChange={(next) => { setPlaceStamp(next); setPlaceStampEnabled(next); }}
+                checked={settings.tagColors === true}
+                label={t("settings.tagColors")}
+                onChange={(next) => update({ tagColors: next })}
               />}
-              title={t("settings.placeStamp")}
+              title={t("settings.tagColors")}
+              info={t("settings.tagColorsDesc")}
             />
           </RowList>
         </GroupCard>
-        <p className="m-hint">{t("settings.placeStampDesc")}</p>
-
-        {/* The third column (finding 2026-08-21). It only APPLIES from 1024 px,
-            and the row says so rather than hiding on a phone: a setting that
-            appears and disappears with the window is one nobody finds twice. */}
-        <SectionLabel>{t("settings.layout")}</SectionLabel>
-        <GroupCard>
-          <RowList>
-            <Row
-              end={<Switch
-                checked={settings.contextPanelDocked}
-                label={t("settings.contextPanelDocked")}
-                onChange={(next) => update({ contextPanelDocked: next })}
-              />}
-              title={t("settings.contextPanelDocked")}
-            />
-          </RowList>
-        </GroupCard>
-        <p className="m-hint">{t("settings.contextPanelDockedDesc")}</p>
-
-        {/* First day of the week (S26): the same app-wide setting the desktop
-            has, read from the same key — a vault whose week starts on Sunday
-            must start on Sunday on both devices. */}
-        <SectionLabel>{t("settings.weekStart")}</SectionLabel>
-        <Segmented
-          ariaLabel={t("settings.weekStart")}
-          options={[
-            { value: "monday", label: t("settings.weekStartMonday") },
-            { value: "saturday", label: t("settings.weekStartSaturday") },
-            { value: "sunday", label: t("settings.weekStartSunday") },
-          ]}
-          value={weekStart}
-          onChange={(v) => {
-            setWeekStart(v as WeekStartSetting);
-            void setWeekStartSetting(v as WeekStartSetting);
-          }}
-        />
-        <p className="m-hint">{t("settings.weekStartDesc")}</p>
-
-        {/* About (D5): the logo keeps the desktop's 5-tap gesture. */}
-        <SectionLabel>{t("settings.about")}</SectionLabel>
-        <GroupCard>
-          <RowList>
-            <Row
-              end={version ? <span className="m-prop-val">v{version}</span> : undefined}
-              icon={<PlainvaLogo size={ICON.touch} />}
-              onClick={logoTap}
-              title="Plainva"
-            />
-          </RowList>
-        </GroupCard>
-        <p className="m-hint">{t("mobile.aboutTip")}</p>
-
       </div>
 
-      {hailing && <HailingSheet onChanged={refresh} onClose={() => setHailing(false)} />}
       {fontSheet && (
         <FontSlotSheet
           slot={fontSheet}

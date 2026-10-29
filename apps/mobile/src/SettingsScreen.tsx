@@ -84,7 +84,7 @@ export function SettingsScreen({
           </RowList>
         </GroupCard>
 
-        <SectionLabel>{t("settings.sectionApp")}</SectionLabel>
+        <SectionLabel info={t("settings.sectionAppInfo")}>{t("settings.sectionApp")}</SectionLabel>
         <GroupCard><RowList>{settingsAreas("app", { mobile: true }).map(renderArea)}</RowList></GroupCard>
 
         <SectionLabel>{t("settings.sectionVault")}</SectionLabel>

@@ -44,7 +44,7 @@ test("the whole app wears the mood being edited, there and back, and leaving res
     await page.locator('[data-testid="nav-settings"]').first().click();
     await page.locator('[data-testid="settings-area-appearance"]').click();
     // One adopted mood pins Mode: the choice shows it, takes no tap, and says why.
-    const modes = page.getByRole("radiogroup", { name: "Appearance" });
+    const modes = page.getByRole("radiogroup", { name: "Mode" });
     await expect(modes.getByRole("radio", { name: "Dark" })).toHaveAttribute("aria-checked", "true");
     await expect(modes.getByRole("radio", { name: "Light" })).toBeDisabled();
     await expect(page.getByTestId("theme-mode-pinned")).toHaveText("Adopt the other mood under My theme.");

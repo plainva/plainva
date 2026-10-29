@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeftRight, Cloud, Folder, Keyboard, Settings2 } from "lucide-react";
-import { ICON, settingsAreas, type SettingsWorld } from "@plainva/ui";
+import { ICON, InfoTip, settingsAreas, type SettingsWorld } from "@plainva/ui";
 
 /**
  * Left settings rail (redesign 2026-07-18, P2 — variant "quiet cards").
@@ -97,6 +97,9 @@ export const SettingsNav: React.FC<SettingsNavProps> = ({
       <div style={groupLabel}>
         <Settings2 size={ICON.ui} color="var(--accent-color)" style={{ flexShrink: 0 }} />
         {t("settings.sectionApp", { defaultValue: "App" })}
+        {/* Said once for the section (settings plan 2026-10-29, Q1): no app page
+            repeats "on this device only" on a row of its own. */}
+        <InfoTip label={t("settings.sectionApp", { defaultValue: "App" })} info={t("settings.sectionAppInfo")} testId="settings-nav-app-info" />
       </div>
       {renderArea("app")}
 

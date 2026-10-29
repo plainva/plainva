@@ -790,8 +790,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onDensity={(v) => { setDensity(v); void setStoredDensity(v); }}
                       tagColors={tagColors}
                       onTagColors={(v) => { setTagColors(v); void setStoredTagColors(v); }}
-                      placeStamp={placeStamp}
-                      onPlaceStamp={(v) => { setPlaceStamp(v); setPlaceStampEnabled(v); }}
                       uiZoom={uiZoom}
                       onUiZoom={(z) => { setUiZoom(z); void setStoredUiZoom(z); }}
                       fonts={fonts}
@@ -818,6 +816,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onSpellcheck={(v) => { setSpellcheck(v); void setStoredSpellcheck(v); }}
                       newNotesInNewTab={newNotesInNewTab}
                       onNewNotesInNewTab={(v) => { setNewNotesInNewTab(v); void setStoredNewNotesInNewTab(v); }}
+                      placeStamp={placeStamp}
+                      onPlaceStamp={(v) => { setPlaceStamp(v); setPlaceStampEnabled(v); }}
                     />
                   </SettingsPage>
                   <SettingsPage active={inAppWorld && appPage === "behavior"}>

@@ -22,7 +22,7 @@ const STYLE_LABEL: Record<NoteLinkStyle, string> = {
 };
 
 /**
- * Appearance -> Links (maintainer, 2026-10-23): how a link to a note and a
+ * Appearance -> Links & tags (maintainer, 2026-10-23): how a link to a note and a
  * link to the web look on this device, with a sentence that shows the choice
  * as notes draw it. The phone has the same two choices (AppearanceScreen).
  */
@@ -46,7 +46,7 @@ export const LinkStyleSettings: React.FC = () => {
   };
   return (
     <>
-      <SettingRow label={t("settings.noteLinkStyle")} desc={t("settings.noteLinkStyleDesc")}>
+      <SettingRow label={t("settings.noteLinkStyle")} info={t("settings.noteLinkStyleDesc")}>
         <div style={{ width: "100%" }}>
           <Select
             ariaLabel={t("settings.noteLinkStyle")}
@@ -57,7 +57,7 @@ export const LinkStyleSettings: React.FC = () => {
           />
         </div>
       </SettingRow>
-      <SettingRow label={t("settings.webLinkStyle")} desc={t("settings.webLinkStyleDesc")}>
+      <SettingRow label={t("settings.webLinkStyle")}>
         <div style={{ width: "100%" }}>
           <Select
             ariaLabel={t("settings.webLinkStyle")}

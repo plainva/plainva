@@ -5,7 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
-import { boundaryLabel, Button, clampBoundary, createTaskDatabase, DAY_END_CHOICES, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, listTemplates, PlainvaLogo, Row, RowList, sanitizeDailyNoteFormat, SectionLabel, SettingField, Switch, CommittedTextInput, userGuideUrl } from "@plainva/ui";
+import { boundaryLabel, Button, placeStampEnabled, setPlaceStampEnabled, clampBoundary, createTaskDatabase, DAY_END_CHOICES, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, listTemplates, PlainvaLogo, Row, RowList, sanitizeDailyNoteFormat, SectionLabel, SettingField, Switch, CommittedTextInput, userGuideUrl } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { DEFAULT_JOURNAL_HEADING, normalizeJournalHeading } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
@@ -53,10 +53,12 @@ function AreaHeader({ id, title, onBack }: { id: string; title: string; onBack: 
   );
 }
 
-/** Editor & notes: the default note view. */
+/** Editor & notes: the view, writing, and the journal's device settings. */
 export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
   const { settings, update } = useSettingsState();
+  // Device-local, off by default (plan Journal-Erweiterungen, E6).
+  const [placeStamp, setPlaceStamp] = useState(placeStampEnabled);
   const viewLabel = (view: DefaultView) =>
     t(view === "edit" ? "mobile.defaultViewEdit" : "mobile.defaultViewRead");
   // The first button of a note's app bar (F9): the same names the note uses.
@@ -84,24 +86,30 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
     <div className="m-page">
       <AreaHeader id="editor" onBack={onBack} title={t("settings.sectionEditor")} />
       <div className="m-settings">
-        <GroupCard><RowList><MobileSettingRow
-          label={t("mobile.settingDefaultView")}
-          onClick={pickDefaultView}
-          value={viewLabel(settings.defaultView)}
-        />
+        {/* The explanations sit behind each row's ⓘ (settings plan 2026-10-29,
+            appendix 2.3): a note just created opens to be written in either way
+            (wish 2026-10-19), and what the head button leaves out stays within
+            reach. */}
+        <SectionLabel>{t("settings.groupView")}</SectionLabel>
+        <GroupCard><RowList>
+          <Row
+            end={<><span className="m-prop-val">{viewLabel(settings.defaultView)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+            info={t("mobile.defaultViewNewNotes")}
+            onClick={pickDefaultView}
+            title={t("mobile.settingDefaultView")}
+          />
           <Row title={t("mobile.readerAutoHide")} end={<Switch checked={settings.readerAutoHide} label={t("mobile.readerAutoHide")} onChange={(readerAutoHide) => update({ readerAutoHide })} />} />
-          <MobileSettingRow
-            label={t("mobile.noteHeadButton")}
+          <Row
+            end={<><span className="m-prop-val">{headLabel(settings.noteHeadButton)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+            info={t("mobile.noteHeadButtonHint")}
             onClick={pickHeadButton}
-            value={headLabel(settings.noteHeadButton)}
+            title={t("mobile.noteHeadButton")}
           />
         </RowList></GroupCard>
-        <p className="m-hint">{t("mobile.noteHeadButtonHint")}</p>
-        {/* A note just created opens to be written in either way (wish 2026-10-19). */}
-        <p className="m-hint">{t("mobile.defaultViewNewNotes")}</p>
 
-        {/* Spell checking (plan Befunde 2026-10-06, E3): the same device switch
-            as on the desktop. What checks is the keyboard and the system. */}
+        {/* Spell checking (plan Befunde 2026-10-06, E3) and asking before an
+            empty link becomes a note (S39) — one group, as on the desktop
+            (appendix 2.3 B1). What checks is the keyboard and the system. */}
         <SectionLabel>{t("settings.groupWriting")}</SectionLabel>
         <GroupCard>
           <RowList>
@@ -111,30 +119,41 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
                 label={t("settings.spellcheck")}
                 onChange={(next) => update({ spellcheck: next })}
               />}
+              info={t("settings.spellcheckDesc")}
               title={t("settings.spellcheck")}
             />
-          </RowList>
-        </GroupCard>
-        <p className="m-hint">{t("settings.spellcheckDesc")}</p>
-
-        {/* S39: the desktop has had this since the unresolved-links work; the
-            phone created the note without asking because the toggle had no
-            mobile control, not because anyone decided it should differ. */}
-        <SectionLabel>{t("settings.groupLinks")}</SectionLabel>
-        <GroupCard>
-          <RowList>
             <Row
               end={<Switch
                 checked={settings.askBeforeCreateLink}
                 label={t("settings.askBeforeCreateLink")}
                 onChange={(next) => update({ askBeforeCreateLink: next })}
               />}
+              info={t("settings.askBeforeCreateLinkDesc")}
               title={t("settings.askBeforeCreateLink")}
             />
           </RowList>
         </GroupCard>
-        {/* Describes the whole card, so it keeps the page edge. */}
-        <p className="m-hint">{t("settings.askBeforeCreateLinkDesc")}</p>
+
+        {/* The journal's device settings (appendix 2.3 B2): the place stamp
+            came from Appearance. Device-local and OFF by default: one's phone
+            and one's desk are different places to be asked about one's
+            position; the permission is asked on the first press, never here
+            (plan Journal-Erweiterungen, E6). */}
+        <SectionLabel>{t("settings.editorGroupJournal")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              end={<Switch
+                checked={placeStamp}
+                data-testid="place-stamp-switch"
+                label={t("settings.placeStamp")}
+                onChange={(next) => { setPlaceStamp(next); setPlaceStampEnabled(next); }}
+              />}
+              info={t("settings.placeStampDesc")}
+              title={t("settings.placeStamp")}
+            />
+          </RowList>
+        </GroupCard>
       </div>
     </div>
   );
@@ -598,9 +617,16 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
     <div className="m-page">
       <AreaHeader id="about" onBack={onBack} title={t("settings.about")} />
       <div className="m-settings">
+        {/* The logo with its five-tap gesture and the hint (D5); both used to
+            stand on Appearance as well (settings plan 2026-10-29, appendix 2.1 B5). */}
         <GroupCard>
           <RowList>
             <Row icon={<PlainvaLogo size={ICON.touch} />} onClick={logoTap} subtitle={[appVersion, formatBuildLine()].filter(Boolean).join(" · ")} title="Plainva" />
+          </RowList>
+        </GroupCard>
+        <p className="m-hint">{t("mobile.aboutTip")}</p>
+        <GroupCard>
+          <RowList>
             <Row
               end={<ChevronRight className="m-chevron" size={ICON.ui} />}
               onClick={exportDiagnostics}

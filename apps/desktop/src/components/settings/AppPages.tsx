@@ -50,12 +50,12 @@ const FONT_PRESET_LABEL: Record<Exclude<ContentFontFamily, "theme" | "custom">, 
 
 /** One font slot: a family choice, and the catalogue field once it is "custom".
  * The code slot offers monospace only — presets and catalogue alike (P2). */
-const FontSlotRow: React.FC<{ slot: FontSlot; label: string; desc: string; choice: FontChoice; onChange: (choice: FontChoice) => void }> = ({ slot, label, desc, choice, onChange }) => {
+const FontSlotRow: React.FC<{ slot: FontSlot; label: string; info: string; choice: FontChoice; onChange: (choice: FontChoice) => void }> = ({ slot, label, info, choice, onChange }) => {
   const { t } = useTranslation();
   // The content slot keeps the test ids the E2E smoke has used since A3.
   const idBase = slot === "content" ? "content-font" : `${slot}-font`;
   return (
-    <SettingRow label={label} desc={desc}>
+    <SettingRow label={label} info={info}>
       <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
         <Select
           ariaLabel={label}
@@ -102,9 +102,6 @@ export interface AppearancePageProps {
   onDensity: (d: Density) => void;
   /** "Colour tags" (finding 2026-09-19): device-local, off by default. */
   tagColors: boolean;
-  /** May the journal capture offer the place button (plan Journal-Erweiterungen, E6)? Device-local, off by default. */
-  placeStamp: boolean;
-  onPlaceStamp: (v: boolean) => void;
   onTagColors: (on: boolean) => void;
   uiZoom: number;
   onUiZoom: (z: number) => void;
@@ -162,14 +159,16 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
       {/* One card for the three font slots (issue #82, plan 2026-09-06 P2/E2):
           interface, content, code — the content font used to live on the
           Editor page and the interface font inside "My design"; the code font
-          could not be set at all. Device-local: installed fonts differ per device. */}
-      <SettingCard label={t("settings.groupFonts")}>
-        <FontSlotRow slot="ui" label={t("settings.fontUi")} desc={t("settings.fontUiDesc")} choice={p.fonts.fonts.ui} onChange={(c) => p.onFonts({ ...p.fonts, fonts: { ...p.fonts.fonts, ui: c } })} />
-        <FontSlotRow slot="content" label={t("settings.fontContent")} desc={t("settings.fontContentDesc")} choice={p.fonts.fonts.content} onChange={(c) => p.onFonts({ ...p.fonts, fonts: { ...p.fonts.fonts, content: c } })} />
-        <FontSlotRow slot="code" label={t("settings.fontCode")} desc={t("settings.fontCodeDesc")} choice={p.fonts.fonts.code} onChange={(c) => p.onFonts({ ...p.fonts, fonts: { ...p.fonts.fonts, code: c } })} />
+          could not be set at all. What each slot covers is behind its ⓘ, and
+          the card's ⓘ says why fonts are a matter of the device (settings plan
+          2026-10-29, appendix 2.1). */}
+      <SettingCard label={t("settings.groupFonts")} info={t("settings.fontsDeviceHint")} testId="appearance-fonts">
+        <FontSlotRow slot="ui" label={t("settings.fontUi")} info={t("settings.fontUiDesc")} choice={p.fonts.fonts.ui} onChange={(c) => p.onFonts({ ...p.fonts, fonts: { ...p.fonts.fonts, ui: c } })} />
+        <FontSlotRow slot="content" label={t("settings.fontContent")} info={t("settings.fontContentDesc")} choice={p.fonts.fonts.content} onChange={(c) => p.onFonts({ ...p.fonts, fonts: { ...p.fonts.fonts, content: c } })} />
+        <FontSlotRow slot="code" label={t("settings.fontCode")} info={t("settings.fontCodeDesc")} choice={p.fonts.fonts.code} onChange={(c) => p.onFonts({ ...p.fonts, fonts: { ...p.fonts.fonts, code: c } })} />
         <SettingRow
           label={t("settings.contentFontSize", { defaultValue: "Inhalts-Schriftgröße" })}
-          desc={t("settings.contentFontSizeDesc", { defaultValue: "Schriftgröße von Editor und Leseansicht; die Oberfläche bleibt unverändert." })}
+          info={t("settings.contentFontSizeDesc", { defaultValue: "Schriftgröße von Editor und Leseansicht; die Oberfläche bleibt unverändert." })}
         >
           <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
             <input
@@ -187,10 +186,12 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
             </span>
           </div>
         </SettingRow>
-        <SettingCardNote>{t("settings.fontsDeviceHint")}</SettingCardNote>
       </SettingCard>
 
-      <SettingCard label={t("settings.groupLanguageDisplay", { defaultValue: "Sprache & Darstellung" })}>
+      {/* "Sprache & Darstellung" held eight unlike rows; it is three cards now,
+          one subject each (settings plan 2026-10-29, appendix 2.1 B1). The
+          place stamp went to Editor & notes › Journal (B2). */}
+      <SettingCard label={t("settings.groupLanguageRegion")} testId="appearance-language-region">
         <SettingRow label={t("settings.language")}>
           <div style={{ width: "100%" }}>
             <Select
@@ -203,7 +204,7 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
         </SettingRow>
         <SettingRow
           label={t("settings.weekStart", { defaultValue: "Wochenbeginn" })}
-          desc={t("settings.weekStartDesc", { defaultValue: "Erster Wochentag in allen Kalender-Ansichten." })}
+          info={t("settings.weekStartDesc", { defaultValue: "Erster Wochentag in allen Kalender-Ansichten." })}
         >
           <div style={{ width: "100%" }}>
             <Select
@@ -218,9 +219,12 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
             />
           </div>
         </SettingRow>
+      </SettingCard>
+
+      <SettingCard label={t("settings.groupDisplay")} testId="appearance-display">
         <SettingRow
           label={t("settings.density", { defaultValue: "Kompaktheitsgrad" })}
-          desc={t("settings.densityDesc", { defaultValue: "Kompakt verdichtet Dateibaum, Listen, Menüs und Tabellen; der Notiz-Inhalt bleibt unverändert." })}
+          info={t("settings.densityDesc", { defaultValue: "Kompakt verdichtet Dateibaum, Listen, Menüs und Tabellen; der Notiz-Inhalt bleibt unverändert." })}
         >
           <div style={{ width: "100%" }}>
             <Select
@@ -234,16 +238,9 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
             />
           </div>
         </SettingRow>
-        <SettingRow label={t("settings.placeStamp")} desc={t("settings.placeStampDesc")}>
-          <Switch checked={p.placeStamp} label={t("settings.placeStamp")} onChange={p.onPlaceStamp} data-testid="place-stamp-switch" />
-        </SettingRow>
-        <SettingRow label={t("settings.tagColors")} desc={t("settings.tagColorsDesc")}>
-          <Switch checked={p.tagColors} label={t("settings.tagColors")} onChange={p.onTagColors} />
-        </SettingRow>
-        <LinkStyleSettings />
         <SettingRow
           label={t("settings.uiZoom", { defaultValue: "Oberflächen-Zoom" })}
-          desc={t("settings.uiZoomDesc", { defaultValue: "Skaliert die gesamte Oberfläche. Auch per Strg/Cmd + Plus/Minus; 0 setzt zurück." })}
+          info={t("settings.uiZoomDesc", { defaultValue: "Skaliert die gesamte Oberfläche. Auch per Strg/Cmd + Plus/Minus; 0 setzt zurück." })}
         >
           <div style={{ width: "100%" }}>
             <Select
@@ -256,6 +253,13 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
               ).map((z) => ({ value: String(z), label: `${z} %${z === DEFAULT_UI_ZOOM ? ` (${t("settings.uiZoomDefault", { defaultValue: "Standard" })})` : ""}` }))}
             />
           </div>
+        </SettingRow>
+      </SettingCard>
+
+      <SettingCard label={t("settings.groupLinksTags")} testId="appearance-links-tags">
+        <LinkStyleSettings />
+        <SettingRow label={t("settings.tagColors")} info={t("settings.tagColorsDesc")}>
+          <Switch checked={p.tagColors} label={t("settings.tagColors")} onChange={p.onTagColors} />
         </SettingRow>
       </SettingCard>
     </div>
@@ -274,6 +278,9 @@ export interface EditorPageProps {
   /** Open a new note in a tab of its own (issue 135): device-local, off by default. */
   newNotesInNewTab: boolean;
   onNewNotesInNewTab: (on: boolean) => void;
+  /** May the journal capture offer the place button (plan Journal-Erweiterungen, E6)? Device-local, off by default. */
+  placeStamp: boolean;
+  onPlaceStamp: (v: boolean) => void;
 }
 
 /**
@@ -291,7 +298,7 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
       <SettingCard label={t("settings.groupView", { defaultValue: "Ansicht" })}>
         <SettingRow
           label={t("settings.defaultViewMode", { defaultValue: "Standard-Ansicht" })}
-          desc={t("settings.defaultViewModeDesc", { defaultValue: "Notizen öffnen in dieser Ansicht; ein manueller Wechsel gilt je Datei für die laufende Sitzung." })}
+          info={t("settings.defaultViewModeDesc", { defaultValue: "Notizen öffnen in dieser Ansicht; ein manueller Wechsel gilt je Datei für die laufende Sitzung." })}
         >
           <div style={{ width: "100%" }}>
             <Select
@@ -306,24 +313,26 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
             />
           </div>
         </SettingRow>
-        <SettingRow label={t("settings.newNotesInNewTab")} desc={t("settings.newNotesInNewTabDesc")}>
+        <SettingRow label={t("settings.newNotesInNewTab")} info={t("settings.newNotesInNewTabDesc")}>
           <Switch checked={p.newNotesInNewTab} label={t("settings.newNotesInNewTab")} onChange={p.onNewNotesInNewTab} />
         </SettingRow>
       </SettingCard>
 
-      <SettingCard label={t("settings.groupWriting")}>
+      {/* "Writing" and "Links" were two cards of one row each; one card now
+          (settings plan 2026-10-29, appendix 2.3 B1). What spell checking
+          covers and what the right-click does are behind its ⓘ; that the
+          switch does nothing on Linux stays visible. */}
+      <SettingCard label={t("settings.groupWriting")} testId="editor-writing">
         <SettingRow
           label={t("settings.spellcheck")}
-          desc={`${t("settings.spellcheckDesc")} ${t("settings.spellcheckMenuDesc")}${IS_LINUX_DESKTOP ? ` ${t("settings.spellcheckLinux")}` : ""}`}
+          info={`${t("settings.spellcheckDesc")}\n\n${t("settings.spellcheckMenuDesc")}`}
+          desc={IS_LINUX_DESKTOP ? t("settings.spellcheckLinux") : undefined}
         >
           <Switch checked={p.spellcheck} label={t("settings.spellcheck")} onChange={p.onSpellcheck} />
         </SettingRow>
-      </SettingCard>
-
-      <SettingCard label={t("settings.groupLinks", { defaultValue: "Links" })}>
         <SettingRow
           label={t("settings.askBeforeCreateLink", { defaultValue: "Vor dem Anlegen leerer Links fragen" })}
-          desc={t("settings.askBeforeCreateLinkDesc", { defaultValue: "Ein Klick auf einen Link zu einer noch nicht existierenden Notiz legt sie normalerweise sofort an. Mit dieser Option wird vorher gefragt." })}
+          info={t("settings.askBeforeCreateLinkDesc", { defaultValue: "Ein Klick auf einen Link zu einer noch nicht existierenden Notiz legt sie normalerweise sofort an. Mit dieser Option wird vorher gefragt." })}
         >
           <input
             type="checkbox"
@@ -332,6 +341,16 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
             checked={p.askBeforeCreateLink}
             onChange={(e) => p.onAskBeforeCreateLink(e.target.checked)}
           />
+        </SettingRow>
+      </SettingCard>
+
+      {/* The journal's device settings (appendix 2.3 B2): the place stamp came
+          from Appearance — it is about capturing, not about how Plainva looks.
+          The global quick capture stays in Startup & behavior, beside running
+          in the background it depends on (B3). */}
+      <SettingCard label={t("settings.editorGroupJournal")} testId="editor-journal">
+        <SettingRow label={t("settings.placeStamp")} info={t("settings.placeStampDesc")}>
+          <Switch checked={p.placeStamp} label={t("settings.placeStamp")} onChange={p.onPlaceStamp} data-testid="place-stamp-switch" />
         </SettingRow>
       </SettingCard>
     </div>
