@@ -504,32 +504,36 @@ fn body_has_attachment(body: &imap_proto::types::BodyStructure<'_>) -> bool {
     }
 }
 
+/// What an envelope reads from the header block a FETCH returns. Pure over
+/// the bytes, so the reading is held by tests without a server.
+#[derive(Debug, Default, PartialEq)]
+struct EnvelopeHeaders {
+    subject: String,
+    from: String,
+    message_id: Option<String>,
+    in_reply_to: Option<String>,
+    references: Option<String>,
+}
+
+fn envelope_headers(header_bytes: &[u8]) -> EnvelopeHeaders {
+    let Some(m) = mail_parser::MessageParser::default().parse(header_bytes) else {
+        return EnvelopeHeaders::default();
+    };
+    EnvelopeHeaders {
+        subject: header_text(&m, mail_parser::HeaderName::Subject),
+        from: address_text(m.header(mail_parser::HeaderName::From).and_then(|h| h.as_address())),
+        message_id: first_message_id(&m, mail_parser::HeaderName::MessageId),
+        in_reply_to: first_message_id(&m, mail_parser::HeaderName::InReplyTo),
+        references: message_id_list(&m, mail_parser::HeaderName::References),
+    }
+}
+
 fn fetch_to_envelope(f: &imap::types::Fetch, uid_validity: Option<u32>) -> Option<MailEnvelope> {
     let uid = f.uid?;
-    let header_bytes = f.header().unwrap_or_default();
-    let parsed = mail_parser::MessageParser::default().parse(header_bytes);
-    let (subject, from) = parsed
-        .as_ref()
-        .map(|m| {
-            (
-                header_text(m, mail_parser::HeaderName::Subject),
-                address_text(m.header(mail_parser::HeaderName::From).and_then(|h| h.as_address())),
-            )
-        })
-        .unwrap_or_default();
+    let EnvelopeHeaders { subject, from, message_id, in_reply_to, references } = envelope_headers(f.header().unwrap_or_default());
     let date_ts = f.internal_date().map(|d| d.timestamp_millis()).unwrap_or(0);
     let seen = f.flags().iter().any(|fl| matches!(fl, imap::types::Flag::Seen));
     let flagged = f.flags().iter().any(|fl| matches!(fl, imap::types::Flag::Flagged));
-    let (message_id, in_reply_to, references) = parsed
-        .as_ref()
-        .map(|m| {
-            (
-                first_message_id(m, mail_parser::HeaderName::MessageId),
-                first_message_id(m, mail_parser::HeaderName::InReplyTo),
-                message_id_list(m, mail_parser::HeaderName::References),
-            )
-        })
-        .unwrap_or((None, None, None));
     let has_attachments = f.bodystructure().map(body_has_attachment);
     Some(MailEnvelope { uid, uid_validity, has_attachments, subject, from, date_ts, seen, flagged, message_id, in_reply_to, references })
 }
@@ -635,6 +639,42 @@ fn raw_message_base64(raw: &[u8]) -> String {
     base64::engine::general_purpose::STANDARD.encode(raw)
 }
 
+/// The message as the reader receives it, out of the bytes the server sent.
+/// Pure, so what is read from a message is held by tests without a server.
+fn message_from_raw(raw: &[u8], uid: u32, uid_validity: Option<u32>) -> Result<MailMessage, String> {
+    let parsed = parse_message(raw)?;
+    let attachments = parsed
+        .attachments()
+        .enumerate()
+        .map(|(index, part)| MailAttachmentInfo {
+            index,
+            name: part.attachment_name().unwrap_or("attachment").to_string(),
+            mime: part
+                .content_type()
+                .map(|c| match c.subtype() {
+                    Some(sub) => format!("{}/{}", c.ctype(), sub),
+                    None => c.ctype().to_string(),
+                })
+                .unwrap_or_else(|| "application/octet-stream".to_string()),
+            size: part.contents().len(),
+        })
+        .collect();
+    Ok(MailMessage {
+        uid,
+        subject: header_text(&parsed, mail_parser::HeaderName::Subject),
+        from: address_text(parsed.header(mail_parser::HeaderName::From).and_then(|h| h.as_address())),
+        to: address_text(parsed.header(mail_parser::HeaderName::To).and_then(|h| h.as_address())),
+        date_ts: parsed.date().map(|d| d.to_timestamp() * 1000).unwrap_or(0),
+        text: plain_text_body(&parsed),
+        html: parsed.body_html(0).map(|c| c.to_string()),
+        attachments,
+        uid_validity,
+        provider_message_id: parsed.message_id().map(str::to_string),
+        list_unsubscribe: raw_header(&parsed, "List-Unsubscribe"),
+        list_unsubscribe_post: raw_header(&parsed, "List-Unsubscribe-Post"),
+    })
+}
+
 #[tauri::command]
 pub async fn mail_fetch_message(
     host: String,
@@ -651,37 +691,7 @@ pub async fn mail_fetch_message(
                 .map_err(|e| format!("examine failed: {e}"))?;
             let uid_validity = selected.uid_validity;
             let raw = fetch_raw(session, uid)?;
-            let parsed = parse_message(&raw)?;
-            let attachments = parsed
-                .attachments()
-                .enumerate()
-                .map(|(index, part)| MailAttachmentInfo {
-                    index,
-                    name: part.attachment_name().unwrap_or("attachment").to_string(),
-                    mime: part
-                        .content_type()
-                        .map(|c| match c.subtype() {
-                            Some(sub) => format!("{}/{}", c.ctype(), sub),
-                            None => c.ctype().to_string(),
-                        })
-                        .unwrap_or_else(|| "application/octet-stream".to_string()),
-                    size: part.contents().len(),
-                })
-                .collect();
-            Ok(MailMessage {
-                uid,
-                subject: header_text(&parsed, mail_parser::HeaderName::Subject),
-                from: address_text(parsed.header(mail_parser::HeaderName::From).and_then(|h| h.as_address())),
-                to: address_text(parsed.header(mail_parser::HeaderName::To).and_then(|h| h.as_address())),
-                date_ts: parsed.date().map(|d| d.to_timestamp() * 1000).unwrap_or(0),
-                text: plain_text_body(&parsed),
-                html: parsed.body_html(0).map(|c| c.to_string()),
-                attachments,
-                uid_validity,
-                provider_message_id: parsed.message_id().map(str::to_string),
-                list_unsubscribe: raw_header(&parsed, "List-Unsubscribe"),
-                list_unsubscribe_post: raw_header(&parsed, "List-Unsubscribe-Post"),
-            })
+            message_from_raw(&raw, uid, uid_validity)
         })
     })
     .await
@@ -1861,5 +1871,195 @@ mod tests {
         assert_eq!(first_message_id(&parsed, mail_parser::HeaderName::MessageId), None);
         assert_eq!(first_message_id(&parsed, mail_parser::HeaderName::InReplyTo), None);
         assert_eq!(message_id_list(&parsed, mail_parser::HeaderName::References), None);
+    }
+
+    /// Everything the reader receives from one message, and the bytes of each
+    /// file it lists (base64, as `mail_fetch_attachments` hands them out), as
+    /// one JSON value — the shape the pinned readings below are written in.
+    fn read_out(raw: &[u8]) -> serde_json::Value {
+        let message = message_from_raw(raw, 7, Some(3)).expect("parses");
+        let indexes: Vec<usize> = message.attachments.iter().map(|a| a.index).collect();
+        let files: Vec<String> = attachment_contents(raw, &indexes).unwrap().into_iter().map(|f| f.content_base64).collect();
+        let mut value = serde_json::to_value(&message).unwrap();
+        value["files"] = serde_json::json!(files);
+        value
+    }
+
+    /// A newsletter as the big senders build it: a plain and an HTML version
+    /// (the HTML with an inline picture), a file with an RFC 2231 name, a
+    /// forwarded message, encoded words in the subject and in names, a group
+    /// in the recipients and the RFC 2369/8058 unsubscribe fields.
+    const NEWSLETTER: &[u8] = b"From: \"Beispiel, Anna\" <anna@example.org>\r\n\
+To: =?iso-8859-1?q?J=F6rg_M=FCller?= <joerg@example.org>, ben@example.org, Team: carla@example.org, \"Dora D.\" <dora@example.org>;\r\n\
+Subject: =?utf-8?q?Gr=C3=BC=C3=9Fe?= aus\r\n =?iso-8859-1?b?TfxuY2hlbg==?= und =?utf-8?b?5pel5pys?=\r\n\
+Date: Tue, 21 Jul 2026 09:30:00 +0200\r\n\
+Message-ID: <news-1@example.org>\r\n\
+List-Unsubscribe: <https://example.org/u?id=1>, <mailto:unsub@example.org?subject=stop>\r\n\
+List-Unsubscribe-Post: List-Unsubscribe=One-Click\r\n\
+MIME-Version: 1.0\r\n\
+Content-Type: multipart/mixed; boundary=\"mix\"\r\n\
+\r\n\
+--mix\r\n\
+Content-Type: multipart/alternative; boundary=\"alt\"\r\n\
+\r\n\
+--alt\r\n\
+Content-Type: text/plain; charset=utf-8\r\n\
+Content-Transfer-Encoding: quoted-printable\r\n\
+\r\n\
+Hallo J=C3=B6rg,=0D=0Aeine lange Zei=\r\nle.\r\n\
+--alt\r\n\
+Content-Type: multipart/related; boundary=\"rel\"\r\n\
+\r\n\
+--rel\r\n\
+Content-Type: text/html; charset=utf-8\r\n\
+\r\n\
+<p>Hallo J\xc3\xb6rg,</p><img src=\"cid:logo\">\r\n\
+--rel\r\n\
+Content-Type: image/png\r\n\
+Content-ID: <logo>\r\n\
+Content-Disposition: inline; filename=\"logo.png\"\r\n\
+Content-Transfer-Encoding: base64\r\n\
+\r\n\
+iVBORw==\r\n\
+--rel--\r\n\
+--alt--\r\n\
+--mix\r\n\
+Content-Type: application/pdf\r\n\
+Content-Disposition: attachment; filename*=utf-8''Gr%C3%BC%C3%9Fe%20Liste.pdf\r\n\
+Content-Transfer-Encoding: base64\r\n\
+\r\n\
+JVBERi0=\r\n\
+--mix\r\n\
+Content-Type: message/rfc822\r\n\
+\r\n\
+From: ben@example.org\r\n\
+Subject: Weitergeleitet\r\n\
+\r\n\
+Der Text der weitergeleiteten.\r\n\
+--mix--\r\n";
+
+    /// What the reader receives from the newsletter, as mail-parser 0.11 read
+    /// it. `List-Unsubscribe` is absent: the parser reads that field as an
+    /// address list, and `raw_header` asks for text.
+    #[test]
+    fn reads_a_newsletter_as_pinned() {
+        assert_eq!(
+            read_out(NEWSLETTER),
+            serde_json::json!({
+                "uid": 7,
+                "uidValidity": 3,
+                "subject": "Grüße aus München und 日本",
+                "from": "Beispiel, Anna <anna@example.org>",
+                "to": "Jörg Müller <joerg@example.org>, ben@example.org, carla@example.org, Dora D. <dora@example.org>",
+                "dateTs": 1_784_619_000_000_i64,
+                "text": "Hallo Jörg,\r\neine lange Zeile.",
+                "html": "<p>Hallo Jörg,</p><img src=\"cid:logo\">",
+                "providerMessageId": "news-1@example.org",
+                "listUnsubscribePost": "List-Unsubscribe=One-Click",
+                "attachments": [
+                    { "index": 0, "name": "logo.png", "mime": "image/png", "size": 4 },
+                    { "index": 1, "name": "Grüße Liste.pdf", "mime": "application/pdf", "size": 5 },
+                    { "index": 2, "name": "attachment", "mime": "message/rfc822", "size": 80 },
+                ],
+                "files": [
+                    "iVBORw==",
+                    "JVBERi0=",
+                    "RnJvbTogYmVuQGV4YW1wbGUub3JnDQpTdWJqZWN0OiBXZWl0ZXJnZWxlaXRldA0KDQpEZXIgVGV4dCBkZXIgd2VpdGVyZ2VsZWl0ZXRlbi4=",
+                ],
+            })
+        );
+    }
+
+    /// An HTML-only mail in Latin-1, quoted-printable, with no file.
+    const HTML_LATIN1: &[u8] = b"From: =?ISO-8859-1?Q?B=E4cker?= <baecker@example.org>\r\nTo: <marco@example.org>\r\nSubject: =?ISO-8859-1?Q?Br=F6tchen?=\r\nDate: 21 Jul 2026 07:00:00 -0000\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=ISO-8859-1\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n<p>Fr=FChst=FCck</p>\r\n";
+
+    /// A mail without MIME header lines, without a subject and with a group
+    /// that names nobody as its recipients.
+    const BARE: &[u8] = b"From: anna@example.org\r\nTo: undisclosed-recipients:;\r\nSubject:\r\nDate: Wed, 22 Jul 2026 12:00:00 +0000\r\n\r\nNur Text.\r\n";
+
+    /// Files with a name only in the type, with no name at all, an inline
+    /// calendar and a text file.
+    const UNNAMED_FILES: &[u8] = b"From: anna@example.org\r\nSubject: Dateien\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=b\r\n\r\n--b\r\nContent-Type: text/plain\r\n\r\nSiehe unten.\r\n--b\r\nContent-Type: image/jpeg; name=\"foto.jpg\"\r\nContent-Transfer-Encoding: base64\r\n\r\n/9j/\r\n--b\r\nContent-Type: application/octet-stream\r\nContent-Transfer-Encoding: base64\r\n\r\nAAEC\r\n--b\r\nContent-Type: text/calendar; method=REQUEST; charset=utf-8\r\n\r\nBEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n--b\r\nContent-Type: text/plain; charset=utf-8; name=notiz.txt\r\nContent-Disposition: attachment\r\n\r\nNotiz\r\n--b--\r\n";
+
+    /// How Outlook builds a mail with pictures in its text: multipart/related
+    /// around the alternative.
+    const OUTLOOK_RELATED: &[u8] = b"From: Ben <ben@example.org>\r\nTo: anna@example.org; carla@example.org\r\nSubject: Bild\r\nMIME-Version: 1.0\r\nContent-Type: multipart/related; boundary=r; type=\"multipart/alternative\"\r\n\r\n--r\r\nContent-Type: multipart/alternative; boundary=a\r\n\r\n--a\r\nContent-Type: text/plain; charset=us-ascii\r\n\r\nSiehe Bild.\r\n--a\r\nContent-Type: text/html; charset=us-ascii\r\n\r\n<p>Siehe <img src=\"cid:image001.png@01DA\"></p>\r\n--a--\r\n--r\r\nContent-Type: image/png; name=\"image001.png\"\r\nContent-Description: image001.png\r\nContent-Disposition: inline; filename=\"image001.png\"; size=4\r\nContent-ID: <image001.png@01DA>\r\nContent-Transfer-Encoding: base64\r\n\r\niVBORw==\r\n--r--\r\n";
+
+    /// What the reader receives from the other shapes, as mail-parser 0.11
+    /// read them.
+    #[test]
+    fn reads_the_other_shapes_as_pinned() {
+        assert_eq!(
+            read_out(HTML_LATIN1),
+            serde_json::json!({
+                "uid": 7, "uidValidity": 3,
+                "subject": "Brötchen", "from": "Bäcker <baecker@example.org>", "to": "marco@example.org",
+                "dateTs": 1_784_617_200_000_i64,
+                "text": null, "html": "<p>Frühstück</p>\r\n",
+                "attachments": [], "files": [],
+            })
+        );
+        assert_eq!(
+            read_out(BARE),
+            serde_json::json!({
+                "uid": 7, "uidValidity": 3,
+                "subject": "", "from": "anna@example.org", "to": "",
+                "dateTs": 1_784_721_600_000_i64,
+                "text": "Nur Text.\r\n", "html": "<html><body>Nur Text.<br/></body></html>",
+                "attachments": [], "files": [],
+            })
+        );
+        assert_eq!(
+            read_out(UNNAMED_FILES),
+            serde_json::json!({
+                "uid": 7, "uidValidity": 3,
+                "subject": "Dateien", "from": "anna@example.org", "to": "",
+                "dateTs": 0,
+                "text": "Siehe unten.", "html": "<html><body>Siehe unten.</body></html>",
+                "attachments": [
+                    { "index": 0, "name": "foto.jpg", "mime": "image/jpeg", "size": 3 },
+                    { "index": 1, "name": "attachment", "mime": "application/octet-stream", "size": 3 },
+                    { "index": 2, "name": "attachment", "mime": "text/calendar", "size": 30 },
+                    { "index": 3, "name": "notiz.txt", "mime": "text/plain", "size": 5 },
+                ],
+                "files": ["/9j/", "AAEC", "QkVHSU46VkNBTEVOREFSDQpFTkQ6VkNBTEVOREFS", "Tm90aXo="],
+            })
+        );
+        assert_eq!(
+            read_out(OUTLOOK_RELATED),
+            serde_json::json!({
+                "uid": 7, "uidValidity": 3,
+                "subject": "Bild", "from": "Ben <ben@example.org>", "to": "anna@example.org, carla@example.org",
+                "dateTs": 0,
+                "text": "Siehe Bild.", "html": "<p>Siehe <img src=\"cid:image001.png@01DA\"></p>",
+                "attachments": [{ "index": 0, "name": "image001.png", "mime": "image/png", "size": 4 }],
+                "files": ["iVBORw=="],
+            })
+        );
+    }
+
+    #[test]
+    fn reads_envelope_headers_as_pinned() {
+        let blocks: [&[u8]; 4] = [
+            b"From: =?iso-8859-1?q?J=F6rg?= <joerg@example.org>\r\nSubject: =?utf-8?B?R3LDvMOfZQ==?=\r\n =?utf-8?B?IGF1cyBNw7xuY2hlbg==?=\r\nDate: Tue, 21 Jul 2026 09:30:00 +0200\r\nMessage-ID: <m1@example.org>\r\nIn-Reply-To: <m0@example.org> <older@example.org>\r\nReferences: <a@example.org> <b@example.org>\r\n\r\n",
+            b"From: Team: anna@example.org, ben@example.org;\r\nSubject: Gruppe\r\n\r\n",
+            b"\r\n",
+            b"",
+        ];
+        let expected = [
+            EnvelopeHeaders {
+                subject: "Grüße aus München".into(),
+                from: "Jörg <joerg@example.org>".into(),
+                message_id: Some("m1@example.org".into()),
+                in_reply_to: Some("m0@example.org".into()),
+                references: Some("a@example.org b@example.org".into()),
+            },
+            EnvelopeHeaders { subject: "Gruppe".into(), from: "anna@example.org, ben@example.org".into(), ..EnvelopeHeaders::default() },
+            EnvelopeHeaders::default(),
+            EnvelopeHeaders::default(),
+        ];
+        for (block, expected) in blocks.into_iter().zip(expected) {
+            assert_eq!(envelope_headers(block), expected, "{:?}", String::from_utf8_lossy(block));
+        }
     }
 }
