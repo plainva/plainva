@@ -379,6 +379,13 @@ test('My design opts in, retains concurrent variants and keeps its appearance af
   });
   const variants = sync.getByRole('button', { name: /Use variant|Variante .* übernehmen/ });
   await expect(variants).toHaveCount(2);
+  // What to do stays visible; that nothing is lost meanwhile sits behind the
+  // info button (settings plan 2026-10-29, appendix 2.2).
+  await expect(sync).toContainText(/choose a variant|wähle eine Variante/);
+  await sync.getByTestId('custom-theme-conflict-info').click();
+  await expect(page.locator('.pv-infotip-panel')).toContainText(/All variants are kept|Alle Varianten bleiben erhalten/);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.pv-infotip-panel')).toHaveCount(0);
   await variants.last().scrollIntoViewIfNeeded();
   await sync.screenshot({ path: test.info().outputPath('personal-design-conflict.png') });
   await variants.last().click(); await expect(variants).toHaveCount(0);

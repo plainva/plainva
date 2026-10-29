@@ -91,7 +91,8 @@ describe("the recorder of the global quick-capture shortcut", () => {
     await clickWithoutFocus(recordButton());
     await press({ key: "j", code: "KeyJ" });
     expect(saved).toEqual([]);
-    expect(host.querySelector('[role="status"]')?.textContent).toMatch(/Ctrl, Alt/);
+    // The info button of the switch brings a live region of its own; the hint is one of the status lines.
+    expect(Array.from(host.querySelectorAll('[role="status"]'), (el) => el.textContent).join(" ")).toMatch(/Ctrl, Alt/);
     expect(isRecording()).toBe(true);
 
     await press({ key: "l", code: "KeyL", metaKey: true, shiftKey: true });

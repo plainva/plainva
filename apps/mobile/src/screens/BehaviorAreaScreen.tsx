@@ -26,6 +26,41 @@ export function BehaviorAreaScreen({ onBack }: { onBack: () => void }) {
     <div className="m-page">
       <AppBar onBack={onBack} title={t("settings.sectionBehavior")} testId="appbar-area-behavior" />
       <div className="m-settings">
+        {/* Settings before commands, as on the desktop (settings plan 2026-10-29,
+            appendix 2.4 B4/C): the widget switches first, the two hints after.
+            What the widget leaves out stands behind the group's ⓘ. */}
+        {/* What the home-screen widgets may show (plan Widgets, E4).
+
+            Device-local, and that is the point: a home screen is a place other
+            people look at, and which people those are is a fact about THIS
+            phone, not about the vault. Titles on by default, because a widget
+            that only counts is barely a widget; off keeps the rows, so the
+            counter still works.
+
+            A sealed workspace is not covered by these two - it shows nothing
+            either way, because the app empties the snapshot when it locks. */}
+        <SectionLabel info={t("settings.widgetsDesc")}>{t("settings.widgetsSection")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              end={<Switch
+                checked={settings.widgetShowTitles !== false}
+                label={t("settings.widgetShowTitles")}
+                onChange={(next) => update({ widgetShowTitles: next })}
+              />}
+              title={t("settings.widgetShowTitles")}
+            />
+            <Row
+              end={<Switch
+                checked={settings.widgetShowEvents !== false}
+                label={t("settings.widgetShowEvents")}
+                onChange={(next) => update({ widgetShowEvents: next })}
+              />}
+              title={t("settings.widgetShowEvents")}
+            />
+          </RowList>
+        </GroupCard>
+
         <SectionLabel>{t("settings.groupHints")}</SectionLabel>
         {/* Two cards, each a bold line and a "Show" button, are two rows. The
             shared description explains the DESKTOP's splash ("lands on the start
@@ -55,39 +90,6 @@ export function BehaviorAreaScreen({ onBack }: { onBack: () => void }) {
             />
           </RowList>
         </GroupCard>
-
-        {/* What the home-screen widgets may show (plan Widgets, E4).
-
-            Device-local, and that is the point: a home screen is a place other
-            people look at, and which people those are is a fact about THIS
-            phone, not about the vault. Titles on by default, because a widget
-            that only counts is barely a widget; off keeps the rows, so the
-            counter still works.
-
-            A sealed workspace is not covered by these two - it shows nothing
-            either way, because the app empties the snapshot when it locks. */}
-        <SectionLabel>{t("settings.widgetsSection")}</SectionLabel>
-        <GroupCard>
-          <RowList>
-            <Row
-              end={<Switch
-                checked={settings.widgetShowTitles !== false}
-                label={t("settings.widgetShowTitles")}
-                onChange={(next) => update({ widgetShowTitles: next })}
-              />}
-              title={t("settings.widgetShowTitles")}
-            />
-            <Row
-              end={<Switch
-                checked={settings.widgetShowEvents !== false}
-                label={t("settings.widgetShowEvents")}
-                onChange={(next) => update({ widgetShowEvents: next })}
-              />}
-              title={t("settings.widgetShowEvents")}
-            />
-          </RowList>
-        </GroupCard>
-        <p className="m-hint">{t("settings.widgetsDesc")}</p>
       </div>
     </div>
   );

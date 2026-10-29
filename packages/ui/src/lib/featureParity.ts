@@ -1185,6 +1185,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
+    id: "startup-and-background",
+    title: "Start with the system, keep running in the tray, open the last vault on start",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop's Startup & behavior page carries these as the groups Startup and " +
+      "Background (settings plan 2026-10-29, appendix 2.4). On Android and iOS the " +
+      "system owns an app's lifecycle: an app does not register itself to start at " +
+      "sign-in, there is no tray to keep running in, and the phone always reopens its " +
+      "active vault, so a switch for it would decide nothing. The phone's page keeps " +
+      "what does apply there - the widgets and the two hints.",
+    verified: "2026-10-29",
+  },
+  {
     id: "system-back",
     title: "Go back with a system gesture or button, not only through the app's own arrow",
     area: "platform",

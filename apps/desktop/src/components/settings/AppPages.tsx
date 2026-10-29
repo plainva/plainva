@@ -14,9 +14,9 @@ import { CustomThemeEditor } from "./CustomThemeEditor";
 import { CustomThemeSync, type CustomThemeSyncProps } from "@plainva/ui";
 import { CUSTOM_THEME_ID, FONT_SLOT_FAMILIES, FontField, fontKindsForSlot, Switch, type CustomThemeDesign } from "@plainva/ui";
 import type { JournalCheckResult } from "@plainva/core";
-import { BackgroundSettings } from "./BackgroundSettings";
+import { AutostartRow, BackgroundSettings } from "./BackgroundSettings";
 import { QuickCaptureSettings } from "./QuickCaptureSettings";
-import { WindowSettings } from "./WindowSettings";
+import { WindowRestoreRow } from "./WindowSettings";
 import { LinkStyleSettings } from "./LinkStyleSettings";
 import { Select } from "../Select";
 import { getThemeDef, isModePinned, type ThemePref } from "../../services/theme";
@@ -372,12 +372,16 @@ export const BehaviorPage: React.FC<BehaviorPageProps> = (p) => {
   return (
     <div>
       <AreaHead areaId="behavior" />
-      <SettingCard label={t("settings.groupStart", { defaultValue: "Start" })}>
-        <SettingRow label={t("splash.autoOpenLastVault")} desc={t("settings.autoOpenLastVaultDesc")}>
+      {/* "Startup" and "Windows" were cards of one row each; starting with the
+          system is a start behaviour too (settings plan 2026-10-29, appendix
+          2.4 B1). Background, quick capture and hints follow (B2-B4). */}
+      <SettingCard label={t("settings.groupStart", { defaultValue: "Start" })} testId="behavior-start">
+        <AutostartRow />
+        <SettingRow label={t("splash.autoOpenLastVault")} info={t("settings.autoOpenLastVaultDesc")}>
           <input type="checkbox" id="autoOpenLastVault" aria-label={t("splash.autoOpenLastVault")} checked={p.autoOpenLastVault} onChange={(e) => p.onAutoOpenLastVault(e.target.checked)} />
         </SettingRow>
+        <WindowRestoreRow />
       </SettingCard>
-      <WindowSettings />
       <BackgroundSettings />
       <QuickCaptureSettings />
       <SettingCard label={t("settings.groupHints", { defaultValue: "Hinweise" })}>
@@ -578,9 +582,10 @@ export const CustomThemePage: React.FC<CustomThemePageProps> = ({ spec, onChange
           ‹ {t("settings.sectionAppearance")}
         </Button>
       </div>
-      <SettingsPageHead title={t("themes.names.custom")} desc={t("settings.customThemePageDesc")} />
-      <CustomThemeEditor spec={spec} onChange={onChange} active={active} />
-      <CustomThemeSync {...designSync} />
+      <SettingsPageHead title={t("themes.names.custom")} desc={t("settings.customThemePageDesc")} info={t("settings.customThemePairHint")} />
+      <CustomThemeEditor spec={spec} onChange={onChange} active={active}>
+        <CustomThemeSync {...designSync} />
+      </CustomThemeEditor>
     </div>
   );
 };

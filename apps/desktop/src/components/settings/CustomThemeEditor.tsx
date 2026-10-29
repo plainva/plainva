@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AVAILABLE_THEMES,
@@ -45,9 +45,11 @@ export interface CustomThemeEditorProps {
   /** Is the page on screen? Every settings page stays mounted, so the live
    * preview must end when another page is chosen, not only on unmount. */
   active: boolean;
+  /** Rendered after the design groups and before the commands at the page end (appendix 2.2 B1/B2): the personal sync card. */
+  children?: ReactNode;
 }
 
-export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec: design, onChange, active }) => {
+export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec: design, onChange, active, children }) => {
   const { t } = useTranslation();
   const pair = useCustomThemePair(design, onChange, { active }), spec = pair.spec;
   const [lastCorrection, setLastCorrection] = useState<CustomThemeCorrection | null>(null);
@@ -84,7 +86,6 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec: desi
 
   return (
     <div data-testid="custom-theme-editor">
-      <p>{t("settings.customThemePairHint")}</p>
       {pair.pending && <Banner kind="info" rounded><p>{t("settings.customThemeProposal")}</p><Button onClick={pair.adopt} data-testid="custom-theme-adopt-mood">{t("settings.customThemeAdoptMood")}</Button></Banner>}
       {pair.saveFailed && <Banner kind="error" rounded>{t("settings.customThemeSaveFailed")}</Banner>}
       {/* The preview paints from the resolved colours, not from the live tokens:
@@ -147,7 +148,9 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec: desi
         )}
       </SettingCard>
 
-      <SettingCard label={t("settings.groupShape")}>
+      {/* "Shape" (one row) and "Contrast" (a readout) were two cards; one now
+          (settings plan 2026-10-29, appendix 2.2 B1). */}
+      <SettingCard label={t("settings.groupShapeContrast")} testId="custom-theme-shape-contrast">
         <SettingRow label={t("settings.customThemeRadius")}>
           <Segmented
             ariaLabel={t("settings.customThemeRadius")}
@@ -161,9 +164,6 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec: desi
             ]}
           />
         </SettingRow>
-      </SettingCard>
-
-      <SettingCard label={t("settings.customThemeContrast")}>
         {/* A block with the row inset (finding 2026-09-04: the lines sat on the card's edge). */}
         <SettingCardBlock>
         <div style={{ display: "grid", gap: "var(--space-1)" }}>
@@ -174,6 +174,9 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec: desi
         </SettingCardBlock>
       </SettingCard>
 
+      {children}
+
+      {/* The two commands close the page, after every group (appendix 2.2 B1). */}
       <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", alignItems: "center", paddingTop: "var(--space-2)" }}>
         <Button variant="ghost" size="sm" onClick={() => { setLastCorrection(null); pair.update(defaultCustomTheme(spec.mode)); }}>
           {t("settings.customThemeReset")}

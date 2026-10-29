@@ -6,6 +6,7 @@ import {
   Button,
   CustomThemePreviewBanner,
   GroupCard,
+  InfoTip,
   Row,
   RowList,
   SectionLabel,
@@ -111,8 +112,10 @@ export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
     <div className="m-page">
       <AppBar onBack={onBack} title={t("themes.names.custom")} />
       <div className="m-settings">
-        <p className="m-hint">{t("settings.customThemePageDesc")}</p>
-        <p className="m-hint">{t("settings.customThemePairHint")}</p>
+        {/* The phone has no page heading below the app bar; the info button
+            ends the page's one line, as it ends the desktop's page head
+            (settings plan 2026-10-29, appendix 2.2). */}
+        <p className="m-hint">{t("settings.customThemePageDesc")} <InfoTip label={t("themes.names.custom")} info={t("settings.customThemePairHint")} testId="custom-theme-info" /></p>
         {pair.pending && <Banner kind="info" rounded><p>{t("settings.customThemeProposal")}</p><Button onClick={pair.adopt} data-testid="custom-theme-adopt-mood">{t("settings.customThemeAdoptMood")}</Button></Banner>}
         {pair.saveFailed && <Banner kind="error" rounded>{t("settings.customThemeSaveFailed")}</Banner>}
         <div aria-hidden="true" className="pv-card pv-card--flush" data-testid="custom-theme-preview" style={{ background: colors.background, color: colors.textMain, borderColor: colors.border, overflow: "hidden" }}>
@@ -147,27 +150,24 @@ export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
           </Banner>
         )}
 
-        <SectionLabel>{t("settings.groupShape")}</SectionLabel>
+        {/* Shape and contrast: one group, as on the desktop (appendix 2.2 B1). */}
+        <SectionLabel>{t("settings.groupShapeContrast")}</SectionLabel>
         <GroupCard>
           <RowList>
             <Row title={t("settings.customThemeRadius")} end={<span className="m-prop-val">{radiusLabel}</span>} onClick={pickRadius} />
-          </RowList>
-        </GroupCard>
-
-        <SectionLabel>{t("settings.customThemeContrast")}</SectionLabel>
-        <GroupCard>
-          <RowList>
             <Row title={t("settings.contrastTextOnBg")} end={<span className="m-prop-val">{ratioText(ratios.textOnBackground, CUSTOM_TEXT_SECONDARY_MIN_CONTRAST)}</span>} />
             <Row title={t("settings.contrastAccentOnBg")} end={<span className="m-prop-val">{ratioText(ratios.accentOnBackground, CUSTOM_ACCENT_MIN_CONTRAST)}</span>} />
             <Row title={t("settings.contrastOnAccent")} subtitle={t("settings.contrastAuto")} end={<span className="m-prop-val">{ratioText(ratios.onAccent, CUSTOM_ACCENT_MIN_CONTRAST)}</span>} />
           </RowList>
         </GroupCard>
 
+        <CustomThemeSync {...designSync} mobile />
+
+        {/* The two commands close the page, after every group (appendix 2.2 B1). */}
         <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
           <Button variant="ghost" onClick={() => { setLastCorrection(null); commit(defaultCustomTheme(spec.mode)); }}>{t("settings.customThemeReset")}</Button>
           <Button variant="ghost" onClick={adoptFrom}>{t("settings.customThemeAdoptFrom")}</Button>
         </div>
-        <CustomThemeSync {...designSync} mobile />
       </div>
 
       {sheet === "background" && (

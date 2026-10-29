@@ -100,7 +100,8 @@ export function QuickCaptureSettings() {
 
   return (
     <SettingCard label={t("quickCapture.section")}>
-      <SettingRow label={t("quickCapture.enable")} desc={t("quickCapture.enableDesc")}>
+      {/* The limit stays visible, what the window is behind the ⓘ (settings plan 2026-10-29, appendix 2.4). */}
+      <SettingRow label={t("quickCapture.enable")} desc={t("quickCapture.enableLimit")} info={t("quickCapture.enableDesc")}>
         <Switch
           checked={config.enabled}
           disabled={busy}
@@ -139,8 +140,6 @@ export function QuickCaptureSettings() {
           <Banner kind="warning" rounded>{t(FAILURE_KEY[failure.reason])}</Banner>
         </SettingCardNote>
       )}
-
-      <SettingCardNote>{t("quickCapture.note")}</SettingCardNote>
     </SettingCard>
   );
 }

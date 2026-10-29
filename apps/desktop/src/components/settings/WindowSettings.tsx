@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SettingCard, SettingRow, Switch } from "@plainva/ui";
+import { SettingRow, Switch } from "@plainva/ui";
 import { getRestoreWindowsSetting, setRestoreWindowsSetting } from "../../services/windowManager";
 
 /**
- * Windows — Settings → Startup & behavior (multi-window P4/E5).
+ * Restore the window layout — a row of Settings → Startup & behavior → Startup
+ * (multi-window P4/E5; the card "Windows" held this one row and joined
+ * "Startup", settings plan 2026-10-29, appendix 2.4 B1).
  *
  * One switch, on by default: a window arrangement is something the user built,
  * and dropping it on every start would make the whole feature feel accidental.
@@ -12,9 +14,10 @@ import { getRestoreWindowsSetting, setRestoreWindowsSetting } from "../../servic
  *
  * Compose windows are never restored, whatever this says: what they hold is
  * unsaved text that lives in memory, and reopening one would produce an empty
- * composer that claims to have kept something.
+ * composer that claims to have kept something. That consequence stays visible
+ * under the switch; what the switch does is behind its ⓘ.
  */
-export function WindowSettings() {
+export function WindowRestoreRow() {
   const { t } = useTranslation();
   const [restore, setRestore] = useState(true);
 
@@ -36,10 +39,8 @@ export function WindowSettings() {
   }, []);
 
   return (
-    <SettingCard label={t("window.settingsGroup")}>
-      <SettingRow label={t("window.restoreWindows")} desc={t("window.restoreWindowsDesc")}>
-        <Switch checked={restore} onChange={toggle} label={t("window.restoreWindows")} />
-      </SettingRow>
-    </SettingCard>
+    <SettingRow label={t("window.restoreWindows")} desc={t("window.restoreWindowsDrafts")} info={t("window.restoreWindowsDesc")}>
+      <Switch checked={restore} onChange={toggle} label={t("window.restoreWindows")} />
+    </SettingRow>
   );
 }
