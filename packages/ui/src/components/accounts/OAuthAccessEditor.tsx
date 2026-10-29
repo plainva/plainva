@@ -4,7 +4,7 @@ import { Button } from "../ui/Button";
 import { Banner } from "../ui/Banner";
 import { Radio } from "../ui/Radio";
 import { TextInput } from "../ui/Field";
-import { SettingCard, SettingCardNote, SettingRow } from "../ui/SettingsSurface";
+import { SettingCard, SettingCardActions, SettingCardBlock, SettingCardNote, SettingRow } from "../ui/SettingsSurface";
 import {
   ownAccessRequirements,
   validClientId,
@@ -63,6 +63,7 @@ export function OAuthAccessEditor({
     <div data-testid={`oauth-access-${family}`}>
     <SettingCard>
       <SettingCardNote>{t("accountAccess.deviceOnly")}</SettingCardNote>
+      <SettingCardBlock>
       <div role="radiogroup" style={{ display: "grid", gap: "var(--space-2)" }} aria-label={t(`accountAccess.title.${family}`)}>
         <Radio
           name={name}
@@ -80,6 +81,7 @@ export function OAuthAccessEditor({
           label={<span><b>{t("accountAccess.own")}</b><br />{t(`accountAccess.ownDesc.${family}`)}</span>}
         />
       </div>
+      </SettingCardBlock>
       {source === "own" && (
         <>
           <SettingRow label={t("settings.clientId")} wide>
@@ -94,7 +96,7 @@ export function OAuthAccessEditor({
           {/* issue 142: Google answers a client of the wrong type on its own error
               page, which never reaches Plainva — so the editor says it first. */}
           {family === "google" && <SettingCardNote>{t(`accountAccess.ownTypeMismatch.${needs.clientType}`)}</SettingCardNote>}
-          <div>
+          <SettingCardBlock>
             <Button
               variant="ghost"
               size="sm"
@@ -103,13 +105,13 @@ export function OAuthAccessEditor({
             >
               {t("cloudAccounts.providerHelp", { provider: family === "google" ? "Google" : "Microsoft" })}
             </Button>
-          </div>
-          {idInvalid && <Banner kind="warning" rounded>{t("accountAccess.problem.ownClientInvalid")}</Banner>}
+          </SettingCardBlock>
+          {idInvalid && <SettingCardBlock><Banner kind="warning" rounded>{t("accountAccess.problem.ownClientInvalid")}</Banner></SettingCardBlock>}
         </>
       )}
       <SettingCardNote>{t("accountAccess.signInAgainHint")}</SettingCardNote>
-      {error && <Banner kind="error" rounded>{error}</Banner>}
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)" }}>
+      {error && <SettingCardBlock><Banner kind="error" rounded>{error}</Banner></SettingCardBlock>}
+      <SettingCardActions>
         {onCancel && <Button variant="ghost" onClick={onCancel}>{t("common.cancel")}</Button>}
         <Button
           variant="primary"
@@ -131,7 +133,7 @@ export function OAuthAccessEditor({
         >
           {t("common.save")}
         </Button>
-      </div>
+      </SettingCardActions>
     </SettingCard>
     </div>
   );

@@ -26,6 +26,7 @@ import {
   type CustomThemeRadius,
   type CustomThemeSpec,
   type CustomThemeDesign,
+  SettingCardBlock,
 } from "@plainva/ui";
 import { Select } from "../Select";
 
@@ -161,12 +162,14 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec: desi
       </SettingCard>
 
       <SettingCard label={t("settings.customThemeContrast")}>
-        {/* Same inset as a settings row (finding 2026-09-04: the lines sat on the card's edge). */}
-        <div style={{ display: "grid", gap: "var(--space-1)", padding: "var(--space-3) var(--space-4)" }}>
+        {/* A block with the row inset (finding 2026-09-04: the lines sat on the card's edge). */}
+        <SettingCardBlock>
+        <div style={{ display: "grid", gap: "var(--space-1)" }}>
           {ratioLine(t("settings.contrastTextOnBg"), ratios.textOnBackground, CUSTOM_TEXT_SECONDARY_MIN_CONTRAST)}
           {ratioLine(t("settings.contrastAccentOnBg"), ratios.accentOnBackground, CUSTOM_ACCENT_MIN_CONTRAST)}
           {ratioLine(t("settings.contrastOnAccent"), ratios.onAccent, CUSTOM_ACCENT_MIN_CONTRAST, t("settings.contrastAuto"))}
         </div>
+        </SettingCardBlock>
       </SettingCard>
 
       <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", alignItems: "center", paddingTop: "var(--space-2)" }}>

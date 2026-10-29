@@ -2439,6 +2439,8 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+.pv-setrow--block { display: block; }
+.pv-setrow--actions { justify-content: flex-end; gap: var(--space-2); }
 .pv-setrow-main {
   min-width: 0;
 }

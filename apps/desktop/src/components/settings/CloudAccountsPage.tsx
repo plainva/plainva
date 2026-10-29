@@ -20,6 +20,7 @@ import {
   EmptyState,
   SettingCard,
   SettingCardNote,
+  SettingCardActions,
   SettingRow,
   ICON,
   cx,
@@ -800,7 +801,7 @@ export const CloudAccountsPage: React.FC<{
             <SettingRow label={t("cloudAccounts.appPassword")} wide>
               <TextInput type="password" value={gmailPassword} onChange={(e) => setGmailPassword(e.target.value)} data-testid="cloudacct-gmail-password" />
             </SettingRow>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)" }}>
+            <SettingCardActions>
               <Button variant="ghost" onClick={() => setGmailPasswordFor(null)}>{t("common.cancel")}</Button>
               <Button
                 variant="primary"
@@ -810,7 +811,7 @@ export const CloudAccountsPage: React.FC<{
               >
                 {t("pim.connect")}
               </Button>
-            </div>
+            </SettingCardActions>
           </SettingCard>
         )}
 

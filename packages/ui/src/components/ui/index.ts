@@ -31,6 +31,8 @@ export {
   SettingCard,
   SettingRow,
   SettingCardNote,
+  SettingCardBlock,
+  SettingCardActions,
   type SettingsPageHeadProps,
   type SettingCardProps,
   type SettingRowProps,

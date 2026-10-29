@@ -86,3 +86,17 @@ export interface SettingCardNoteProps {
 export function SettingCardNote({ className, children }: SettingCardNoteProps) {
   return <div className={cx("pv-setrow", "pv-setrow--note", className)}>{children}</div>;
 }
+
+/**
+ * A free block inside a card in body text (a radio group, a list, a few
+ * measured lines). `.pv-setcard` has no padding of its own, so anything placed
+ * in a card bare sits on its edge — this brings the row inset and hairline.
+ */
+export function SettingCardBlock({ className, children }: SettingCardNoteProps) {
+  return <div className={cx("pv-setrow", "pv-setrow--block", className)}>{children}</div>;
+}
+
+/** The button row of a card (Cancel, Save): right-aligned, with the row inset. */
+export function SettingCardActions({ className, children }: SettingCardNoteProps) {
+  return <div className={cx("pv-setrow", "pv-setrow--actions", className)}>{children}</div>;
+}
