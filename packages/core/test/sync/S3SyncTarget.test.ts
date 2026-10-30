@@ -77,6 +77,9 @@ describe("S3SyncTarget", () => {
     expect(result.etagMap.get("a.md")).toBe("e1");
     expect(result.etagMap.get("sub/b.md")).toBe("e2");
     expect(result.etagMap.size).toBe(2);
+    // `LastModified` of each object (Sammelplan § 3.164).
+    expect(result.mtimeMap?.get("a.md")).toBe(Date.UTC(2026, 6, 4));
+    expect(result.mtimeMap?.size).toBe(2);
     expect(result.nextCursor).toBeUndefined();
     // Empty-folder sync (2026-07-17): the zero-byte "key/" marker object is
     // reported as a folder, never as a file.

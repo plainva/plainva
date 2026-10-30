@@ -1178,7 +1178,8 @@ export class SyncWorker {
     remoteEtag: string,
     state: SyncState | null,
     now: number,
-    changedPaths: string[]
+    changedPaths: string[],
+    remoteModifiedAt?: number
   ): Promise<void> {
     const adoptBaseText = async () => {
       if (!isTextFile(path)) return;
@@ -1257,6 +1258,9 @@ export class SyncWorker {
     await this.stateRepo.updateRemoteState(path, remoteEtag, state?.remote_id ?? null, now);
     await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
     await adoptBaseText();
+    // What was written here is the remote's version: when it changed there is
+    // when it was edited, not now (see `recordPulledVersion`).
+    if (writeNeeded) await this.stateRepo.recordPulledVersion(path, remoteSha, remoteModifiedAt ?? null);
     await this.lookedAt(path, state);
     this.keptByteCopies.delete(path);
   }
@@ -1709,7 +1713,8 @@ export class SyncWorker {
     _state: SyncState | null,
     now: number,
     changedPaths: string[],
-    download?: () => Promise<Uint8Array | null>
+    download?: () => Promise<Uint8Array | null>,
+    remoteModifiedAt?: number
   ): Promise<void> {
     // A pending DELETE or RENAME must still short-circuit reconcile: re-downloading
     // and rewriting a file the user is deleting/renaming would resurrect it.
@@ -1735,13 +1740,14 @@ export class SyncWorker {
       // The listing snapshot can predate a local save or another window's
       // conflict resolution. Re-read only after entering their shared gate.
       const current = await this.stateRepo.getSyncState(path);
-      await this.reconcileDownloadedFile(path, contentBytes, remoteEtag, current, now, changedPaths, gate);
+      await this.reconcileDownloadedFile(path, contentBytes, remoteEtag, current, now, changedPaths, gate, remoteModifiedAt);
     });
   }
 
   private async reconcileDownloadedFile(
     path: string, contentBytes: Uint8Array, remoteEtag: string,
-    state: SyncState | null, now: number, changedPaths: string[], gate: ConflictSessionGate
+    state: SyncState | null, now: number, changedPaths: string[], gate: ConflictSessionGate,
+    remoteModifiedAt?: number
   ): Promise<void> {
 
     // Defensive end-to-end-encryption guard (A3): if the remote bytes are a PVE1
@@ -1778,7 +1784,7 @@ export class SyncWorker {
     const localBytes = remoteContent !== null && await this.vault.exists(path) ? await this.vault.readBinaryFile(path) : null;
     const localContent = localBytes === null ? null : mergeableText(path, localBytes);
     if (remoteContent === null || (localBytes !== null && localContent === null)) {
-      await this.reconcileBinaryFile(path, contentBytes, remoteEtag, state, now, changedPaths);
+      await this.reconcileBinaryFile(path, contentBytes, remoteEtag, state, now, changedPaths, remoteModifiedAt);
       return;
     }
     const remoteSha = await sha256Hash(remoteContent);
@@ -1901,6 +1907,10 @@ export class SyncWorker {
       // Fully in sync with the remote version.
       await this.stateRepo.updateRemoteState(path, remoteEtag, null, now);
       await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
+      // Written here AS the remote's version: when it changed there is when it
+      // was edited, not the moment of this download (Sammelplan § 3.164). A
+      // merge is this device's work and keeps the local time.
+      if (writeNeeded) await this.stateRepo.recordPulledVersion(path, newLocalSha, remoteModifiedAt ?? null);
     }
     await this.lookedAt(path, state);
   }
@@ -2146,8 +2156,8 @@ export class SyncWorker {
         if (unchanged(stateMap.get(path) ?? null, remoteEtag, path)) continue;
         reconcileOrder.push(path);
       }
-      // Prefer the most-recently-modified remote files first (Drive reports
-      // mtimes) so recent edits reconcile — and appear — first.
+      // Prefer the most-recently-modified remote files first (every target
+      // reports mtimes) so recent edits reconcile — and appear — first.
       if (pullResult.mtimeMap) {
         const m = pullResult.mtimeMap;
         reconcileOrder.sort((a, b) => (m.get(b) ?? 0) - (m.get(a) ?? 0));
@@ -2185,7 +2195,7 @@ export class SyncWorker {
         if (unchanged(state, remoteEtag, path)) continue;
 
         await guardPullStep(path, () =>
-          this.reconcilePulledFile(path, remoteEtag, state, now, changedPaths, () => prefetcher.get(path))
+          this.reconcilePulledFile(path, remoteEtag, state, now, changedPaths, () => prefetcher.get(path), pullMtime?.get(path))
         , remoteEtag);
       }
       if (unreached.size > 0) this.engine.keepRefusedPaths?.(unreached);

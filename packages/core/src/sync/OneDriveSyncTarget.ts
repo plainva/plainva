@@ -54,6 +54,12 @@ interface GraphItem {
   cTag?: string;
   eTag?: string;
   lastModifiedDateTime?: string;
+  /**
+   * The time the file itself was last changed, as the client that wrote it
+   * reported it — OneDrive's own clients keep a file's modification time here
+   * when they upload it, while `lastModifiedDateTime` is the upload.
+   */
+  fileSystemInfo?: { lastModifiedDateTime?: string };
   folder?: object;
   file?: object;
   size?: number;
@@ -290,6 +296,19 @@ export class OneDriveSyncTarget implements ISyncTarget {
 
   private itemEtag(item: GraphItem): string {
     return item.cTag || item.eTag || item.lastModifiedDateTime || item.id;
+  }
+
+  /**
+   * When the file last changed (epoch ms) — the time the file carries, else
+   * the time OneDrive got it. What the index shows as "edited" for a file this
+   * device only downloaded.
+   */
+  private itemModifiedAt(item: GraphItem): number | undefined {
+    for (const value of [item.fileSystemInfo?.lastModifiedDateTime, item.lastModifiedDateTime]) {
+      const t = value ? Date.parse(value) : Number.NaN;
+      if (!Number.isNaN(t)) return t;
+    }
+    return undefined;
   }
 
   /**
@@ -558,18 +577,19 @@ export class OneDriveSyncTarget implements ISyncTarget {
   public async pull(cursor?: string): Promise<PullResult> {
     if (cursor) return this.pullDelta(cursor);
     const etagMap = new Map<string, string>();
+    const mtimeMap = new Map<string, number>();
     // Empty-folder sync (2026-07-17): the walk reports every remote folder so
     // the worker can create locally missing (possibly empty) ones.
     const folders: string[] = [];
     const startedAt = Date.now();
-    const rootExists = await this.listInto("", etagMap, folders);
+    const rootExists = await this.listInto("", etagMap, folders, mtimeMap);
     if (!rootExists) {
       if (!this.allowRootCreation) throw new SyncRootMissingError(this.rootName, "OneDrive");
       // First connect: the app root doesn't exist yet — create it, report empty.
       await this.ensureFolder("");
     }
     console.log(`[OneDrive] listing -> ${etagMap.size} file(s), ${folders.length} folder(s)`);
-    return { etagMap, folders, listing: { folders: folders.length + 1, pages: 0, files: etagMap.size, ms: Date.now() - startedAt } };
+    return { etagMap, folders, mtimeMap, listing: { folders: folders.length + 1, pages: 0, files: etagMap.size, ms: Date.now() - startedAt } };
   }
 
   /**
@@ -590,6 +610,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
   /** Incremental delta pull: only items changed/deleted since `cursor` (a deltaLink URL). */
   private async pullDelta(cursor: string): Promise<PullResult> {
     const etagMap = new Map<string, string>();
+    const mtimeMap = new Map<string, number>();
     const deleted: string[] = [];
     let url: string | undefined = cursor;
     let nextCursor = cursor;
@@ -606,12 +627,16 @@ export class OneDriveSyncTarget implements ISyncTarget {
         const path = this.deltaItemPath(item);
         if (!path || path.includes(".CONFLICT")) continue;
         if (item.deleted) deleted.push(path);
-        else etagMap.set(path, this.itemEtag(item));
+        else {
+          etagMap.set(path, this.itemEtag(item));
+          const modifiedAt = this.itemModifiedAt(item);
+          if (modifiedAt !== undefined) mtimeMap.set(path, modifiedAt);
+        }
       }
       url = json["@odata.nextLink"];
       if (json["@odata.deltaLink"]) nextCursor = json["@odata.deltaLink"];
     }
-    return { etagMap, deleted, nextCursor };
+    return { etagMap, deleted, nextCursor, mtimeMap };
   }
 
   /**
@@ -631,9 +656,9 @@ export class OneDriveSyncTarget implements ISyncTarget {
   }
 
   /** Lists one folder level (paginated) and recurses into subfolders. false = folder missing. */
-  private async listInto(relFolder: string, etagMap: Map<string, string>, folders?: string[]): Promise<boolean> {
+  private async listInto(relFolder: string, etagMap: Map<string, string>, folders?: string[], mtimeMap?: Map<string, number>): Promise<boolean> {
     let url: string | undefined =
-      this.itemUrl(relFolder, "children") + "?$select=id,name,folder,file,cTag,eTag,lastModifiedDateTime";
+      this.itemUrl(relFolder, "children") + "?$select=id,name,folder,file,cTag,eTag,lastModifiedDateTime,fileSystemInfo";
     while (url) {
       const res: Response = await this.authedFetch("GET", url);
       if (res.status === 404) return false;
@@ -643,9 +668,11 @@ export class OneDriveSyncTarget implements ISyncTarget {
         const path = relFolder ? `${relFolder}/${item.name}` : item.name;
         if (item.folder) {
           if (folders && !path.includes(".CONFLICT")) folders.push(path);
-          await this.listInto(path, etagMap, folders);
+          await this.listInto(path, etagMap, folders, mtimeMap);
         } else if (!path.includes(".CONFLICT")) {
           etagMap.set(path, this.itemEtag(item));
+          const modifiedAt = this.itemModifiedAt(item);
+          if (mtimeMap && modifiedAt !== undefined) mtimeMap.set(path, modifiedAt);
         }
       }
       url = json["@odata.nextLink"];

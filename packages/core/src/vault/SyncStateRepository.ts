@@ -32,6 +32,13 @@ export interface SyncState {
    * clears the mark. Absent on a row no version ever marked.
    */
   recheck?: number | null;
+  /**
+   * The hash of the version this device last DOWNLOADED and wrote, and when
+   * that version last changed on the remote (epoch ms, null when the remote
+   * did not say). See `recordPulledVersion`.
+   */
+  pulled_sha256?: string | null;
+  pulled_mtime?: number | null;
 }
 
 export class SyncStateRepository {
@@ -408,6 +415,32 @@ export class SyncStateRepository {
    */
   async clearRecheck(path: string): Promise<void> {
     await this.db.execute(`UPDATE sync_state SET recheck = NULL WHERE path = ? AND recheck IS NOT NULL`, [path]);
+  }
+
+  /**
+   * Records that the file at `path` now holds a version the sync downloaded
+   * and wrote: `sha256` is the hash of what it wrote (the hash the index
+   * records for the file's bytes), `remoteModifiedAt` when that version last
+   * changed on the remote.
+   *
+   * The file's own modification time is the moment of the download, and that
+   * is what "edited at" used to show: the phone's Today list counted every
+   * note a fresh connection pulled as edited today (Sammelplan § 3.164). While
+   * the index still holds this hash for the file, the remote's time stands for
+   * when it was edited (`EDITED_AT_SQL`); a change made here changes the hash,
+   * and the local time counts again. A version that only LOOKS like the
+   * remote one — the file here already held it, nothing was written — is not
+   * recorded: its local time is the one of a real edit.
+   */
+  async recordPulledVersion(path: string, sha256: string, remoteModifiedAt: number | null): Promise<void> {
+    await this.db.execute(
+      `INSERT INTO sync_state (path, pulled_sha256, pulled_mtime)
+       VALUES (?, ?, ?)
+       ON CONFLICT(path) DO UPDATE SET
+         pulled_sha256 = excluded.pulled_sha256,
+         pulled_mtime = excluded.pulled_mtime`,
+      [path, sha256, remoteModifiedAt]
+    );
   }
 
   async deleteSyncState(path: string): Promise<void> {

@@ -163,6 +163,7 @@ describe("WebDavSyncTarget", () => {
           <d:propstat>
             <d:prop>
               <d:getetag>"12345"</d:getetag>
+              <d:getlastmodified>Tue, 03 Mar 2026 10:15:00 GMT</d:getlastmodified>
             </d:prop>
             <d:status>HTTP/1.1 200 OK</d:status>
           </d:propstat>
@@ -198,8 +199,21 @@ describe("WebDavSyncTarget", () => {
 
     expect(pullRes.etagMap.size).toBe(1);
     expect(pullRes.etagMap.get("test.md")).toBe("12345");
+    // When the file last changed on the server: "edited at" of a file this
+    // device only downloads (Sammelplan § 3.164).
+    expect(pullRes.mtimeMap?.get("test.md")).toBe(Date.UTC(2026, 2, 3, 10, 15));
+    expect(pullRes.mtimeMap?.size).toBe(1);
     // Empty-folder sync (2026-07-17): the collection is reported as a folder.
     expect(pullRes.folders).toEqual(["folder"]);
+  });
+
+  it("sends when the file was edited as X-OC-Mtime (whole seconds), and nothing without a time", async () => {
+    mockFetch.mockResolvedValue({ ok: true, headers: new Headers({ ETag: '"e"' }) });
+    const op = { id: 1, file_path: "a.md", operation: "write" as const, content: new Uint8Array([1]), retry_count: 0, next_retry_at: 0, queued_at: 0 };
+    await target.push({ ...op, localModifiedAt: Date.UTC(2025, 0, 2, 3, 4, 5, 678) });
+    expect(mockFetch.mock.calls[0][1].headers["X-OC-Mtime"]).toBe(String(Date.UTC(2025, 0, 2, 3, 4, 5) / 1000));
+    await target.push(op);
+    expect(mockFetch.mock.calls[1][1].headers["X-OC-Mtime"]).toBeUndefined();
   });
 
   it("ignores the optional cursor argument and always returns a full listing", async () => {

@@ -8,8 +8,12 @@
  */
 export interface ByteExactDav {
   fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-  /** Files by decoded vault-relative path. */
-  files: Map<string, { bytes: Uint8Array; etag: string }>;
+  /**
+   * Files by decoded vault-relative path. `modified` (epoch ms) is listed as
+   * `getlastmodified` where set: a PUT with `X-OC-Mtime` sets it, as Nextcloud
+   * does, and so does `options.clock`.
+   */
+  files: Map<string, { bytes: Uint8Array; etag: string; modified?: number }>;
   /** Collections by decoded vault-relative path ("" is the vault folder). */
   folders: Set<string>;
   log: string[];
@@ -23,11 +27,13 @@ export interface ByteExactDavOptions {
   conditions?: "honor" | "ignore";
   /** Weak entity tags (`W/"…"`): a strong comparison, as If-Match demands, never matches them. */
   weakEtags?: boolean;
+  /** The server's clock: a PUT without `X-OC-Mtime` records this time. Absent: such a PUT records none. */
+  clock?: () => number;
 }
 
 export function byteExactDav(base = "https://dav.example.com/dav/Vault/", options: ByteExactDavOptions = {}): ByteExactDav {
   const basePath = new URL(base).pathname;
-  const files = new Map<string, { bytes: Uint8Array; etag: string }>();
+  const files = new Map<string, { bytes: Uint8Array; etag: string; modified?: number }>();
   const folders = new Set<string>([""]);
   const log: string[] = [];
   let seq = 0;
@@ -47,7 +53,8 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
       return `<d:response><d:href>${href(p, true)}</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat></d:response>`;
     }
     const f = files.get(p)!;
-    return `<d:response><d:href>${href(p, false)}</d:href><d:propstat><d:prop><d:resourcetype/><d:getetag>${tag(f.etag)}</d:getetag><d:getcontentlength>${f.bytes.length}</d:getcontentlength></d:prop></d:propstat></d:response>`;
+    const modified = f.modified === undefined ? "" : `<d:getlastmodified>${new Date(f.modified).toUTCString()}</d:getlastmodified>`;
+    return `<d:response><d:href>${href(p, false)}</d:href><d:propstat><d:prop><d:resourcetype/><d:getetag>${tag(f.etag)}</d:getetag><d:getcontentlength>${f.bytes.length}</d:getcontentlength>${modified}</d:prop></d:propstat></d:response>`;
   };
   const multistatus = (paths: string[]) =>
     new Response(`<?xml version="1.0"?><d:multistatus xmlns:d="DAV:">${paths.map(entry).join("")}</d:multistatus>`, { status: 207 });
@@ -89,7 +96,9 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
         if (!folders.has(parent(p))) return status(409);
         const body = init?.body as Uint8Array | undefined;
         const etag = `e${++seq}`;
-        files.set(p, { bytes: body ? new Uint8Array(body) : new Uint8Array(), etag });
+        const mtime = headers.get("X-OC-Mtime");
+        const modified = mtime !== null ? Number(mtime) * 1000 : options.clock?.();
+        files.set(p, { bytes: body ? new Uint8Array(body) : new Uint8Array(), etag, ...(modified === undefined ? {} : { modified }) });
         return status(201, { ETag: tag(etag) });
       }
       case "MKCOL": {

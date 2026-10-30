@@ -3,6 +3,7 @@ import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { SyncOperation } from "./ISyncTarget.js";
 import { isTwinSpelling } from "./pathIdentity.js";
 import { indexedRowStamp, type IndexedRowStamp } from "../vault/indexedRowStamp.js";
+import { EDITED_AT_SQL } from "../vault/editedAt.js";
 
 function containsPath(parent: string, path: string): boolean {
   return path === parent || path.startsWith(parent + "/");
@@ -475,12 +476,20 @@ export class SyncQueue {
    * across clock changes; mtime only prioritizes independent ready operations.
    */
   async getPendingOperations(now: number = Date.now()): Promise<SyncOperation[]> {
-    const rows = await this.db.query<SyncOperation & { requires_manual_intervention?: number | null; _mtime?: number | null }>(
-      `SELECT offline_queue.*, files.mtime_local AS _mtime
+    const rows = await this.db.query<SyncOperation & { requires_manual_intervention?: number | null; _mtime?: number | null; _edited?: number | null }>(
+      `SELECT offline_queue.*, f.mtime_local AS _mtime, ${EDITED_AT_SQL} AS _edited
          FROM offline_queue
-         LEFT JOIN files ON files.path = offline_queue.file_path
+         LEFT JOIN files f ON f.path = offline_queue.file_path
+         LEFT JOIN sync_state s ON s.path = offline_queue.file_path
         ORDER BY offline_queue.id ASC`
     );
+    // When the file was edited goes along with a write: the targets that can
+    // keep it give the remote copy that time instead of the upload's, so the
+    // next device to download it sees when it was edited (Sammelplan § 3.164).
+    for (const row of rows) {
+      const edited = Number(row._edited ?? 0);
+      if (row.operation === "write" && edited > 0) row.localModifiedAt = edited;
+    }
     const ordered = [...rows].sort((a, b) => a.id - b.id);
     const renames = ordered.filter((op) => op.operation === "rename" && op.new_path);
     const structures = ordered.filter((op) => op.operation !== "write");

@@ -31,7 +31,8 @@ const NO_DUE_TASKS: PhoneDueTasks = { rows: [], dueKey: null, database: false, d
  * Today tab as a day view (R3.5; M3E mockup 6): the strip SELECTS a day
  * (today preselected, dots mark days with an existing daily note); below it
  * a daily-note card (template + folder line, open/create) and the notes
- * edited on that day (index mtime window, folder · time meta).
+ * edited on that day (`listNotesModifiedBetween` — a pulled note counts by
+ * its remote time, not the download; folder · time meta).
  *
  * S32 makes it an actual DAY rather than a file listing with a date on it:
  * the day's appointments and the tasks due on it sit between the daily note
@@ -79,7 +80,7 @@ export function TodayScreen({
   const [selectedIso, setSelectedIso] = useState(todayIso);
   const [dailyExists, setDailyExists] = useState(false);
   const [dailyDays, setDailyDays] = useState<Set<string>>(new Set());
-  const [edited, setEdited] = useState<Array<{ path: string; title: string; mtime_local: number }>>([]);
+  const [edited, setEdited] = useState<Array<{ path: string; title: string; editedAt: number }>>([]);
   const [dayEventItems, setDayEventItems] = useState<Parameters<typeof buildDayAgenda>[1]>([]);
   // The tasks of the vault, both sources — loaded once per change, not per
   // selected day: a tap on the strip only chooses among them (`buildDayAgenda`).
@@ -520,7 +521,7 @@ export function TodayScreen({
                 subtitle={
                   <>
                     <Chip size="sm">{folderOf(n.path)}</Chip>
-                    <Chip size="sm">{timeOf.format(new Date(n.mtime_local))}</Chip>
+                    <Chip size="sm">{timeOf.format(new Date(n.editedAt))}</Chip>
                   </>
                 }
                 title={n.title}

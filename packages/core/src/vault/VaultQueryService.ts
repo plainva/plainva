@@ -23,6 +23,9 @@ import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } fro
 import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from "./searchOccurrences.js";
 import { hasSpacelessText } from "./spacelessText.js";
 import { decodeIndexedProperty } from "./indexedProperty.js";
+import { EDITED_AT_SQL } from "./editedAt.js";
+
+export { EDITED_AT_SQL };
 
 export interface FileRecord {
   id: string;
@@ -344,24 +347,31 @@ export class VaultQueryService {
   }
 
   /**
-   * Notes touched inside a time window (mtime_local, [from, to) in ms) —
+   * Notes edited inside a time window ([from, to) in ms, `EDITED_AT_SQL`) —
    * the mobile Today tab's "edited on this day" list (R3.5). Attachments
    * and .base files never appear; newest first.
+   *
+   * "Edited" is not the file's modification time: a file the sync downloaded
+   * carries the moment of the download, and a fresh connection listed every
+   * pulled note as edited today (Sammelplan § 3.164).
    */
   async listNotesModifiedBetween(
     fromMs: number,
     toMs: number,
-  ): Promise<{ path: string; title: string; mtime_local: number }[]> {
-    const rows = await this.db.query<{ path: string; title: string | null; mtime_local: number }>(
-      `SELECT path, title, mtime_local FROM files
-       WHERE mode != 'attachment' AND path NOT LIKE '%.base'
-         AND mtime_local >= ? AND mtime_local < ?
-       ORDER BY mtime_local DESC`,
+  ): Promise<{ path: string; title: string; editedAt: number }[]> {
+    const rows = await this.db.query<{ path: string; title: string | null; edited_at: number }>(
+      `SELECT path, title, edited_at FROM (
+         SELECT f.path AS path, f.title AS title, ${EDITED_AT_SQL} AS edited_at
+           FROM files f LEFT JOIN sync_state s ON s.path = f.path
+          WHERE f.mode != 'attachment' AND f.path NOT LIKE '%.base'
+       )
+       WHERE edited_at >= ? AND edited_at < ?
+       ORDER BY edited_at DESC`,
       [fromMs, toMs],
     );
     return rows
       .filter((r) => !!r.path)
-      .map((r) => ({ path: r.path, title: r.title || r.path, mtime_local: r.mtime_local }));
+      .map((r) => ({ path: r.path, title: r.title || r.path, editedAt: Number(r.edited_at) }));
   }
 
   /** Every .base database in the vault (mobile databases hub, R2.4). */

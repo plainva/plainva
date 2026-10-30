@@ -103,6 +103,7 @@ describe("SyncWorker", () => {
       updateLocalHashGuarded: vi.fn().mockResolvedValue(undefined),
       updateRemoteState: vi.fn().mockResolvedValue(undefined),
       updateBaseState: vi.fn().mockResolvedValue(undefined),
+      recordPulledVersion: vi.fn().mockResolvedValue(undefined),
       updateBaseText: vi.fn().mockResolvedValue(undefined),
       clearPendingPushSha: vi.fn().mockResolvedValue(undefined),
       deleteSyncState: vi.fn().mockResolvedValue(undefined),

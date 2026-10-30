@@ -66,6 +66,17 @@ export interface SyncOperation {
    * engine's probe (3b) is their guard.
    */
   expectedRemote?: ExpectedRemote;
+  /**
+   * Writes only: when the file was edited (epoch ms), as the index knows it.
+   * A target whose store keeps a client-given modification time with the file
+   * sends it along — Dropbox `client_modified`, Nextcloud/ownCloud
+   * `X-OC-Mtime`, Drive `modifiedTime` on a new file — so a device that
+   * downloads the file later sees when it was edited, not when it was
+   * uploaded (Sammelplan § 3.164: a vault uploaded today would otherwise list
+   * every note as edited today on the next device). Absent: the store keeps
+   * its own time.
+   */
+  localModifiedAt?: number;
 }
 
 /**
@@ -141,10 +152,18 @@ export interface PullResult {
    */
   folders?: string[];
   /**
-   * Optional: path -> remote modified time (epoch ms) for a FULL listing. Lets
-   * the worker reconcile (and prefetch) the most-recently-modified files first.
-   * Only providers that surface a modified time set this (Drive); others leave
-   * it undefined and the worker keeps the remote listing order.
+   * Optional: path -> when the file last changed on the remote (epoch ms), for
+   * the files of this pull — a full listing or a cursor pull. Where the store
+   * keeps the time the writing client gave the file (Dropbox `client_modified`,
+   * OneDrive `fileSystemInfo`, Drive `modifiedTime`), that one; else the time
+   * the store got the file (WebDAV `getlastmodified`, S3 `LastModified`).
+   *
+   * Two readers: the worker reconciles (and prefetches) the most recently
+   * changed files first, and it records the time with every version it
+   * downloads — "edited at" of a file this device only downloaded is this
+   * time, not the moment of the download (Sammelplan § 3.164: a fresh
+   * connection listed every pulled note as edited today). Every target sets
+   * it; a path without a time is reconciled last and keeps its local time.
    */
   mtimeMap?: Map<string, number>;
   /**

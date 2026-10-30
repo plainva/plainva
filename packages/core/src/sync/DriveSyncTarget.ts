@@ -744,7 +744,14 @@ export class DriveSyncTarget implements ISyncTarget {
       }
 
       const boundary = `plainva-${name.length}-${op.file_path.length}`;
-      const body = this.multipartBody({ name, parents: [parentId], mimeType }, content, boundary, mimeType);
+      // When the file was edited, as the new file's `modifiedTime`: the next
+      // device to download it lists it by that time, not by this upload's. (An
+      // update keeps Drive's own time — a media upload sets it — and so does
+      // the streamed creation above, whose content arrives by media upload.)
+      const edited = op.localModifiedAt !== undefined && Number.isFinite(op.localModifiedAt) && op.localModifiedAt > 0
+        ? { modifiedTime: new Date(op.localModifiedAt).toISOString() }
+        : {};
+      const body = this.multipartBody({ name, parents: [parentId], mimeType, ...edited }, content, boundary, mimeType);
       const res = await this.authedFetch(
         "POST",
         `${DRIVE_UPLOAD}/files?uploadType=multipart&fields=id,md5Checksum,modifiedTime`,
@@ -900,6 +907,7 @@ export class DriveSyncTarget implements ISyncTarget {
 
   private async pullChanges(cursor: string): Promise<PullResult> {
     const etagMap = new Map<string, string>();
+    const mtimeMap = new Map<string, number>();
     const idMap = new Map<string, string>();
     const deleted: string[] = [];
     // Empty-folder sync (2026-07-17): folders the cursor pull registers as
@@ -1010,6 +1018,8 @@ export class DriveSyncTarget implements ISyncTarget {
         if (path && !path.includes(".CONFLICT")) {
           etagMap.set(path, f.md5Checksum || f.modifiedTime || f.id);
           idMap.set(path, ch.fileId);
+          const t = f.modifiedTime ? Date.parse(f.modifiedTime) : Number.NaN;
+          if (!Number.isNaN(t)) mtimeMap.set(path, t);
         }
       }
 
@@ -1019,6 +1029,7 @@ export class DriveSyncTarget implements ISyncTarget {
 
     return {
       etagMap,
+      mtimeMap,
       idMap,
       deleted,
       nextCursor,
