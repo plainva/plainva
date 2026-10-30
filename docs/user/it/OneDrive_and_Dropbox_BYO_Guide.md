@@ -1,8 +1,8 @@
 # Configurare OneDrive e Dropbox (registrazione app personale)
 
-Ultimo aggiornamento: 2026-10-23
+Ultimo aggiornamento: 2026-10-30
 
-**Normalmente non hai bisogno di questa pagina:** Plainva fornisce già un proprio ID app per OneDrive **e** Dropbox — scegli il provider, fai clic su **Connetti** e accedi. Ti serve una registrazione app **personale** (gratuita) solo in due casi: quando una restrizione aziendale blocca l'accesso incluso, oppure quando vuoi mettere deliberatamente la connessione sotto il tuo controllo. Per **OneDrive** lo inserisci in **Accesso su questo dispositivo** → **Cambia** → **ID client personale** — nella pagina dell'account o nella procedura, sul desktop come sul telefono, solo per questo dispositivo. Per **Dropbox** il campo resta dov'era: sul **desktop** **Usa il tuo ID applicazione** presso l'account, sul **telefono** nel modulo di connessione, subito sotto il provider. In entrambi i casi inserisci un unico valore pubblico:
+**Normalmente non hai bisogno di questa pagina:** Plainva fornisce già un proprio ID app per OneDrive **e** Dropbox — scegli il provider, fai clic su **Accedi con Microsoft…** oppure **Accedi con Dropbox…** e accedi. Ti serve una registrazione app **personale** (gratuita) solo in due casi: quando una restrizione aziendale blocca l'accesso incluso, oppure quando vuoi mettere deliberatamente la connessione sotto il tuo controllo. Per **OneDrive** lo inserisci in **Accesso su questo dispositivo** → **Cambia** → **ID client personale** — nella pagina dell'account o nella procedura, sul desktop come sul telefono, solo per questo dispositivo. Per **Dropbox** vale lo stesso: nella procedura sotto **Altro accesso** → **Chiave dell'app personale**, oppure nella pagina dell'account sotto **Accesso su questo dispositivo** → **Accesso su questo dispositivo** → **Cambia**. La chiave dell'app vale per questo dispositivo, gli altri dispositivi mantengono la propria impostazione; una chiave dell'app che un account aveva già in precedenza viene ripresa automaticamente. In entrambi i casi inserisci un unico valore pubblico:
 
 - **OneDrive** → un **ID client** (formato `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → una **App Key** (una breve stringa)
@@ -106,10 +106,10 @@ Scheda **Settings**: copia il valore **App key** — questo è il tuo valore per
 
 ### Inseriscilo in Plainva
 
-1. **Impostazioni → Vault → Sincronizzazione**.
-2. Imposta il **Provider di sincronizzazione** su **Dropbox**.
-3. Incolla l'App key copiata nel campo **Chiave dell'app**; facoltativamente imposta la **Cartella Dropbox (percorso)** (predefinita `/Plainva`).
-4. **Connetti a Dropbox** → accedi nel browser e conferma l'accesso.
+1. **Impostazioni → Vault → Account cloud**: apri l'account Dropbox oppure avvia **Collega account…** con la scheda **Dropbox**.
+2. Nella procedura apri **Altro accesso** e scegli **Chiave dell'app personale**; nella pagina dell'account invece **Accesso su questo dispositivo** → **Accesso su questo dispositivo** → **Cambia**.
+3. Incolla l'App key copiata e premi **Salva**.
+4. **Accedi con Dropbox…** (nella pagina dell'account **Riconnetti**) → accedi nel browser e conferma l'accesso. La cartella cloud (predefinita `/Plainva`) la scegli poi tramite **Scegli cartella…**.
 
 ---
 

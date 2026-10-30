@@ -1,8 +1,8 @@
 # OneDrive & Dropbox instellen (eigen app-registratie)
 
-Laatst bijgewerkt: 2026-10-23
+Laatst bijgewerkt: 2026-10-30
 
-**Normaal gesproken heb je deze pagina niet nodig:** Plainva levert voor OneDrive **en** Dropbox een eigen app-ID mee — je kiest de provider, klikt op **Verbinden** en meldt je aan. Een **eigen** (gratis) app-registratie heb je alleen in twee gevallen nodig: als een bedrijfsbeperking de meegeleverde aanmelding blokkeert, of als je de verbinding bewust onder je eigen controle wilt houden. Voor **OneDrive** voer je haar in onder **Aanmelding op dit apparaat** → **Wijzigen** → **Eigen client-ID** — op de accountpagina of in de wizard, op de desktop en op de telefoon, alleen voor dit apparaat. Voor **Dropbox** blijft het veld waar het was: op de **desktop** **Eigen app-ID gebruiken** bij het account, op de **telefoon** in het verbindingsformulier, vlak onder de provider. Hoe dan ook voer je precies één publieke waarde in:
+**Normaal gesproken heb je deze pagina niet nodig:** Plainva levert voor OneDrive **en** Dropbox een eigen app-ID mee — je kiest de provider, klikt op **Aanmelden met Microsoft…** resp. **Aanmelden met Dropbox…** en meldt je aan. Een **eigen** (gratis) app-registratie heb je alleen in twee gevallen nodig: als een bedrijfsbeperking de meegeleverde aanmelding blokkeert, of als je de verbinding bewust onder je eigen controle wilt houden. Voor **OneDrive** voer je haar in onder **Aanmelding op dit apparaat** → **Wijzigen** → **Eigen client-ID** — op de accountpagina of in de wizard, op de desktop en op de telefoon, alleen voor dit apparaat. Voor **Dropbox** werkt het hetzelfde: in de wizard onder **Andere aanmelding** → **Eigen app-key**, of op de accountpagina onder **Toegang op dit apparaat** → **Aanmelding op dit apparaat** → **Wijzigen**. De app-key geldt voor dit apparaat, andere apparaten behouden hun instelling; een app-key die een account eerder al had, wordt automatisch overgenomen. Hoe dan ook voer je precies één publieke waarde in:
 
 - **OneDrive** → een **Client-ID** (formaat `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → een **App-key** (korte tekenreeks)
@@ -106,10 +106,10 @@ Tabblad **Settings**: kopieer de waarde **App key** — dat is jouw waarde voor 
 
 ### In Plainva invoeren
 
-1. **Instellingen → Vault → Synchronisatie**.
-2. Zet de **Sync-provider** op **Dropbox**.
-3. Plak de gekopieerde App-key in het veld **App-key**; stel optioneel de **Dropbox-map (pad)** in (standaard `/Plainva`).
-4. **Verbinden met Dropbox** → meld je aan in de browser en bevestig de toegang.
+1. **Instellingen → Vault → Cloudaccounts**: open het Dropbox-account of start **Account verbinden…** met de tegel **Dropbox**.
+2. Open in de wizard **Andere aanmelding** en kies **Eigen app-key**; op de accountpagina in plaats daarvan **Toegang op dit apparaat** → **Aanmelding op dit apparaat** → **Wijzigen**.
+3. Plak de gekopieerde App-key en kies **Opslaan**.
+4. **Aanmelden met Dropbox…** (op de accountpagina **Opnieuw verbinden**) → meld je aan in de browser en bevestig de toegang. De cloudmap (standaard `/Plainva`) kies je daarna via **Map kiezen…**.
 
 ---
 

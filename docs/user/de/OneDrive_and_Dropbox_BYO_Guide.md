@@ -1,8 +1,8 @@
 # OneDrive & Dropbox einrichten (eigene App-Registrierung)
 
-Stand: 2026-10-26
+Stand: 2026-10-30
 
-**Normalerweise brauchst Du diese Seite nicht:** Für OneDrive **und** Dropbox bringt Plainva eine eigene App-ID mit — Du wählst den Anbieter, klickst **Verbinden** und meldest Dich an. Eine **eigene** (kostenlose) App-Registrierung brauchst Du nur in zwei Fällen: wenn eine Firmen-Sperre die mitgelieferte Anmeldung blockiert, oder wenn Du die Verbindung bewusst unter Deine eigene Kontrolle stellen willst. Für **OneDrive** trägst Du sie unter **Anmeldung auf diesem Gerät** → **Ändern** → **Eigene Client-ID** ein — auf der Konto-Seite oder im Assistenten, am Rechner wie am Telefon, nur für dieses Gerät. Für **Dropbox** bleibt das Feld, wo es war: am **Desktop** **Eigene App-ID verwenden** beim Konto, am **Telefon** im Verbinden-Formular direkt unter dem Anbieter. Trag dort genau einen öffentlichen Wert ein:
+**Normalerweise brauchst Du diese Seite nicht:** Für OneDrive **und** Dropbox bringt Plainva eine eigene App-ID mit — Du wählst den Anbieter, klickst **Bei Microsoft anmelden…** bzw. **Bei Dropbox anmelden…** und meldest Dich an. Eine **eigene** (kostenlose) App-Registrierung brauchst Du nur in zwei Fällen: wenn eine Firmen-Sperre die mitgelieferte Anmeldung blockiert, oder wenn Du die Verbindung bewusst unter Deine eigene Kontrolle stellen willst. Für **OneDrive** trägst Du sie unter **Anmeldung auf diesem Gerät** → **Ändern** → **Eigene Client-ID** ein — auf der Konto-Seite oder im Assistenten, am Rechner wie am Telefon, nur für dieses Gerät. Für **Dropbox** geht es genauso: im Assistenten unter **Andere Anmeldung** → **Eigener App-Key**, oder auf der Konto-Seite unter **Zugang auf diesem Gerät** → **Anmeldung auf diesem Gerät** → **Ändern**. Der App-Key gilt für dieses Gerät, andere Geräte behalten ihre Einstellung; ein App-Key, den ein Konto früher schon hatte, wird automatisch übernommen. Trag dort genau einen öffentlichen Wert ein:
 
 - **OneDrive** → eine **Client-ID** (Format `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → einen **App-Key** (kurze Zeichenkette)
@@ -106,10 +106,10 @@ Reiter **Settings**: den Wert **App key** kopieren — das ist Dein Wert für Pl
 
 ### In Plainva eintragen
 
-1. **Einstellungen → Vault → Synchronisation**.
-2. **Sync Provider** auf **Dropbox** stellen.
-3. Ins Feld **App-Key** den kopierten App-Key einfügen; optional **Dropbox-Ordner (Pfad)** (Standard `/Plainva`).
-4. **Mit Dropbox verbinden** → im Browser anmelden und Zugriff bestätigen.
+1. **Einstellungen → Dein Vault → Cloud-Konten**: das Dropbox-Konto öffnen oder **Konto verbinden…** mit der Kachel **Dropbox** starten.
+2. Im Assistenten **Andere Anmeldung** öffnen und **Eigener App-Key** wählen; auf der Konto-Seite stattdessen **Zugang auf diesem Gerät** → **Anmeldung auf diesem Gerät** → **Ändern**.
+3. Den kopierten App-Key einfügen und **Speichern**.
+4. **Bei Dropbox anmelden…** (auf der Konto-Seite **Erneut anmelden**) → im Browser anmelden und Zugriff bestätigen. Den Cloud-Ordner (Standard `/Plainva`) wählst Du danach über **Ordner auswählen…**.
 
 ---
 
