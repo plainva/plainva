@@ -1256,9 +1256,16 @@ test('calendar tab without accounts: ribbon entry is gated away, palette still o
   await expect(page.getByTestId('calendar-view')).toBeVisible();
   await expect(page.getByTestId('calendar-open-settings')).toBeVisible();
   await page.getByTestId('calendar-open-settings').click();
-  // The empty state deep-links into the new Cloud accounts area.
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByTestId('cloudacct-add')).toBeVisible();
+  // The empty state deep-links into Cloud accounts - into the connect
+  // assistant, with its own service ticked (settings plan 2026-10-29, E7).
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: /^(Cloud-Konten|Cloud accounts)$/ })).toBeVisible();
+  await expect(dialog.getByTestId('cloudacct-tile-search')).toBeVisible();
+  await dialog.getByTestId('cloudacct-provider-google').click();
+  await expect(dialog.getByTestId('cloudacct-svc-calendar')).toBeChecked();
+  await expect(dialog.getByTestId('cloudacct-svc-files')).not.toBeChecked();
+  await expect(dialog.getByTestId('cloudacct-svc-mail')).not.toBeChecked();
 });
 
 test('a pinned note tab and the calendar tab both survive a restart (report 2026-07-29)', async ({ page }) => {

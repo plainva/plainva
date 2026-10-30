@@ -382,14 +382,15 @@ test('the window settings offer restoring the arrangement, on by default', async
   const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await dlg.getByRole('button', { name: /^(Start & Verhalten|Startup & behavior)$/ }).click();
 
-  const card = dlg.getByRole('group', { name: /^(Fenster|Windows)$/ });
+  // Move 12 of the settings plan (2026-10-29): the row stands in the Startup card.
+  const card = dlg.getByRole('group', { name: /^(Start|Startup)$/ });
   await expect(card).toBeVisible();
-  const restore = card.getByRole('switch');
+  const restore = card.getByRole('switch', { name: /^(Fensteraufteilung wiederherstellen|Restore window layout)$/ });
   await expect(restore).toHaveAttribute('aria-checked', 'true');
 
   // Turning it off must stick — and say what it means: an unsent message is
   // never restored, whatever this switch says.
   await restore.click();
   await expect(restore).toHaveAttribute('aria-checked', 'false');
-  await expect(card).toContainText(/nicht wiederhergestellt|never restored/);
+  await expect(card).toContainText(/nicht wiederhergestellt|not restored/);
 });

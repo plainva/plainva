@@ -2211,13 +2211,13 @@ test('Density setting switches compact mode on the html element', async ({ page 
   // The density select lives in the Appearance area of the APP world
   // (settings redesign 2026-07-11); the modal opens on the active vault by default.
   await dialog.getByRole('button', { name: /^(Erscheinungsbild|Appearance)$/ }).click();
-  await dialog.getByLabel(/Dichte|Density/).click();
+  await dialog.getByLabel(/^(Kompaktheitsgrad|Dichte|Density)$/).click();
   await page.getByRole('option', { name: /Kompakt|Compact/ }).click();
   await expect
     .poll(async () => await page.evaluate(() => document.documentElement.getAttribute('data-density')))
     .toBe('compact');
 
-  await dialog.getByLabel(/Dichte|Density/).click();
+  await dialog.getByLabel(/^(Kompaktheitsgrad|Dichte|Density)$/).click();
   await page.getByRole('option', { name: /Komfortabel|Comfortable/ }).click();
   await expect
     .poll(async () => await page.evaluate(() => document.documentElement.getAttribute('data-density')))
@@ -2237,7 +2237,7 @@ test('Default view mode: files open in the configured mode, manual switches stic
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: /^(Editor & Notizen|Editor & notes)$/ }).click();
-  await dialog.getByLabel(/Standard-Ansicht|Default view/).click();
+  await dialog.getByLabel(/^(Standard-Ansicht|Default view)$/).click();
   await page.getByRole('option', { name: /Lesemodus|Read Mode/ }).click();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
@@ -3757,7 +3757,7 @@ test('global quick capture: off by default, the shortcut is recorded, and a refu
   await expect(card).toContainText(/Strg, Alt|Ctrl, Alt/);
   // One another application holds: the old one is released, the refusal is said, nothing is half-on.
   await page.keyboard.press('Control+Alt+K');
-  await expect(card).toContainText(/nicht registrieren|could not be registered/);
+  await expect(card).toContainText(/ist belegt|is taken/);
   await expect(card.getByTestId('quick-capture-shortcut')).toHaveText(/Ctrl\s*Alt\s*K/);
   expect(await page.evaluate(() => (window as any).__shortcutCalls)).toEqual(['register:CommandOrControl+Alt+J', 'unregister:CommandOrControl+Alt+J']);
 
@@ -3765,7 +3765,7 @@ test('global quick capture: off by default, the shortcut is recorded, and a refu
   await card.getByTestId('quick-capture-record').click();
   await page.keyboard.press('Control+Alt+L');
   await expect(card.getByTestId('quick-capture-shortcut')).toHaveText(/Ctrl\s*Alt\s*L/);
-  await expect(card).not.toContainText(/nicht registrieren|could not be registered/);
+  await expect(card).not.toContainText(/ist belegt|is taken/);
   await expect.poll(() => page.evaluate(() => (window as any).__shortcutCalls.slice(-1))).toEqual(['register:Control+Alt+L']);
 
   // Off releases it.
