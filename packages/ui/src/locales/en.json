@@ -2033,6 +2033,7 @@
     "recoveryLater": "Later",
     "rollbackDone": "{{count}} file(s) restored.",
     "rollbackFailed": "{{count}} file(s) could not be restored.",
+    "rollbackKept": "{{count}} file(s) changed after the conversion and were left as they are. Their earlier text stays in {{dir}}.",
     "migrationTitle": "Upgrade bundle to OKF {{version}}",
     "migrationIntro": "This vault declares OKF {{declared}}. Upgrading changes the following:",
     "migrationIntroCurrent": "This vault already declares OKF {{version}}.",

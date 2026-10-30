@@ -2033,6 +2033,7 @@
     "recoveryLater": "Later",
     "rollbackDone": "{{count}} bestand(en) hersteld.",
     "rollbackFailed": "{{count}} bestand(en) konden niet worden hersteld.",
+    "rollbackKept": "{{count}} bestand(en) zijn na de conversie gewijzigd en blijven zoals ze zijn. Hun eerdere tekst blijft in {{dir}}.",
     "migrationTitle": "Bundle naar OKF {{version}} bijwerken",
     "migrationIntro": "Deze vault declareert OKF {{declared}}. De bijwerking verandert het volgende:",
     "migrationIntroCurrent": "Deze vault declareert al OKF {{version}}.",

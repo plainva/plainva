@@ -56,6 +56,19 @@ describe("isExcludedFromOkfScan", () => {
     expect(isExcludedFromOkfScan("TemplatesX/daily.md", ["Templates"])).toBe(false);
     expect(isExcludedFromOkfScan("Notes/a.md", ["Templates"])).toBe(false);
   });
+
+  it("skips the working copy of an open conflict, which is no note of its own", async () => {
+    // Finding § 3.87 Nr. 17 (a): the index lists `….CONFLICT-….md` on purpose,
+    // so the check counted them as violations the run would then never touch.
+    const copy = "Notes/a.CONFLICT-2026-10-30T10-00-00-000Z-0f3c.md";
+    expect(isExcludedFromOkfScan(copy)).toBe(true);
+    expect(isExcludedFromOkfScan("Notes/CONFLICT-notes.md")).toBe(false);
+    const files: Record<string, string> = { "Notes/a.md": "# a\n", [copy]: "# mine\n" };
+    const scan = await scanOkfConformance({ paths: Object.keys(files), readTextFile: async (p) => files[p] });
+    expect(scan.scanned).toBe(1);
+    expect(scan.violations.map((v) => v.path)).toEqual(["Notes/a.md"]);
+    expect(scan.convertiblePaths).toEqual(["Notes/a.md"]);
+  });
 });
 
 describe("scanOkfConformance", () => {

@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Dernière mise à jour : 2026-10-29
+Dernière mise à jour : 2026-10-30
 
 OKF (Open Knowledge Format) est une convention ouverte pour les collections de connaissances en Markdown : des fichiers Markdown purs avec un petit en-tête frontmatter uniforme. Cette page explique ce qu'est l'OKF, ce que Plainva fait automatiquement pour lui — et pourquoi vous n'êtes *obligé* d'utiliser rien de tout cela.
 
@@ -79,7 +79,7 @@ Si des fichiers du vault ne sont pas conformes au format OKF (champ `type` manqu
 
 L'assistant **Convertir au format OKF** fonctionne en étapes claires :
 
-1. **Analyse** — montre combien de fichiers sont concernés (les dossiers de modèles et système sont exclus ; les fichiers avec un frontmatter illisible sont ignorés, jamais « réparés »).
+1. **Analyse** — montre combien de fichiers sont concernés (les dossiers de modèles et système sont exclus ; les fichiers avec un frontmatter illisible sont ignorés, jamais « réparés » ; la copie de travail d'un conflit ouvert n'est pas comptée, et l'exécution ignore une note avec un conflit ouvert — résolvez-le, puis convertissez à nouveau).
 2. **Décisions** — un `type` par défaut pour les fichiers qui n'en ont pas ; les valeurs `type` existantes peuvent être **conservées** (recommandé — ce sont déjà des types OKF valides) ou renommées vers un autre champ.
 3. **Aperçu (sans modifications)** — un essai à blanc montre à l'avance ce qui changerait.
 4. **Convertir** — chaque fichier est sauvegardé dans `.plainva/backups/` avant d'être modifié ; un rapport résume ce qui a changé, ce qui a été ignoré, et le dossier de sauvegarde. Ensuite, vous pouvez éventuellement **continuer vers le gestionnaire d'index.md**.
@@ -92,10 +92,10 @@ Le même chemin existe sur mobile : **Paramètres → Vault → Maintenance → 
 
 Deux choses s'y ajoutent, parce qu'un téléphone peut retirer une application de la mémoire à tout moment :
 
-- **Mettre en pause et continuer.** L'exécution s'arrête au fichier suivant lorsque vous touchez **Pause** ou que l'application passe en arrière-plan. La reprise écrit dans le même dossier de sauvegarde — il n'en apparaît pas un second.
+- **Mettre en pause et continuer.** L'exécution s'arrête au fichier suivant lorsque vous touchez **Pause** ou que l'application passe en arrière-plan. La reprise écrit dans le même dossier de sauvegarde — il n'en apparaît pas un second. La reprise conserve aussi les options avec lesquelles l'exécution a commencé, et une note déjà convertie ne l'est pas une seconde fois.
 - **La question au démarrage.** Si une exécution reste inachevée, Plainva le signale à la prochaine ouverture et propose **Continuer** ou **Revenir en arrière** ; **Plus tard** est une réponse valable. Une exécution interrompue laisse un vault partiellement converti, pas cassé : seuls des champs de frontmatter sont ajoutés, et chaque note reste du Markdown valide.
 
-**Revenir en arrière** restaure les fichiers depuis le dossier de sauvegarde — sur le bureau aussi, depuis le rapport de fin d'exécution. Le dossier de sauvegarde reste ensuite en place ; c'est la seule copie de l'état d'avant la conversion.
+**Revenir en arrière** restaure les fichiers depuis le dossier de sauvegarde — sur le bureau aussi, depuis le rapport de fin d'exécution. Le dossier de sauvegarde reste ensuite en place ; c'est la seule copie de l'état d'avant la conversion. Une note modifiée, déplacée ou supprimée après la conversion reste telle quelle ; Plainva indique combien il y en a, et leur texte précédent reste dans le dossier de sauvegarde.
 
 ## Dois-je utiliser l'OKF ?
 

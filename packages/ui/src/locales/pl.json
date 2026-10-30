@@ -2049,6 +2049,7 @@
     "recoveryLater": "Później",
     "rollbackDone": "Przywrócono plików: {{count}}.",
     "rollbackFailed": "Nie udało się przywrócić plików: {{count}}.",
+    "rollbackKept": "Pliki zmienione po konwersji pozostawiono bez zmian: {{count}}. Ich wcześniejszy tekst pozostaje w {{dir}}.",
     "migrationTitle": "Podnieś pakiet do OKF {{version}}",
     "migrationIntro": "Ten vault deklaruje OKF {{declared}}. Podniesienie zmieni następujące elementy:",
     "migrationIntroCurrent": "Ten vault już deklaruje OKF {{version}}.",

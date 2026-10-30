@@ -2033,6 +2033,7 @@
     "recoveryLater": "Später",
     "rollbackDone": "{{count}} Datei(en) wiederhergestellt.",
     "rollbackFailed": "{{count}} Datei(en) konnten nicht wiederhergestellt werden.",
+    "rollbackKept": "{{count}} Datei(en) wurden nach der Konvertierung geändert und bleiben, wie sie sind. Ihr früherer Text liegt weiter in {{dir}}.",
     "migrationTitle": "Bundle auf OKF {{version}} anheben",
     "migrationIntro": "Dieser Vault deklariert OKF {{declared}}. Die Anhebung ändert Folgendes:",
     "migrationIntroCurrent": "Dieser Vault deklariert bereits OKF {{version}}.",

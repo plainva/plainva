@@ -119,7 +119,7 @@ describe("the OKF bundle migration from the phone", () => {
     expect(again.rootIndex.current).toBe(true);
     expect(okfMigrationPending(again, true)).toBe(false);
 
-    const undo = await undoOkfMigration(vault, report.backupDir);
+    const undo = await undoOkfMigration(vault, report.backupDir, report.recipe);
     expect(undo.failed).toEqual([]);
     expect([...undo.restored].sort()).toEqual(["Sub/b.md", "a.md", "index.md"]);
     for (const [path, content] of Object.entries(vaultFiles())) {

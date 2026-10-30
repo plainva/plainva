@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Last reviewed: 2026-10-29
+Last reviewed: 2026-10-30
 
 OKF (Open Knowledge Format) is an open convention for Markdown knowledge collections: plain Markdown files with a small, uniform frontmatter header. This page explains what OKF is, what Plainva does for it automatically — and why you do not *have* to use any of it.
 
@@ -79,7 +79,7 @@ If files in the vault do not conform to the OKF format (missing `type` field, or
 
 The **Convert to OKF format** wizard works in clear steps:
 
-1. **Scan** — shows how many files are affected (template and system folders are excluded; files with unreadable frontmatter are skipped, never "repaired").
+1. **Scan** — shows how many files are affected (template and system folders are excluded; files with unreadable frontmatter are skipped, never "repaired"; the working copy of an open conflict is not counted, and the run skips a note with an open conflict — resolve it, then convert again).
 2. **Decisions** — a default `type` for files without one; existing `type` values can be **kept** (recommended — they are already valid OKF types) or renamed into a different field.
 3. **Preview (no changes)** — a dry run shows in advance what would change.
 4. **Convert** — every file is backed up to `.plainva/backups/` before it is changed; a report summarizes what changed, what was skipped, and the backup folder. Afterwards you can optionally **continue to the index.md manager**.
@@ -92,10 +92,10 @@ The same route exists on mobile: **Settings → Vault → Maintenance → Conver
 
 Two things are added, because a phone may take an app out of memory at any moment:
 
-- **Pause and continue.** The run stops at the next file when you tap **Pause** or the app goes to the background. Continuing writes into the same backup folder — no second one appears.
+- **Pause and continue.** The run stops at the next file when you tap **Pause** or the app goes to the background. Continuing writes into the same backup folder — no second one appears. Continuing also keeps the options the run began with, and a note the run has already converted is not converted a second time.
 - **Asked at start-up.** If a run is left unfinished, Plainva says so the next time you open the vault and offers **Continue** or **Roll back**; **Later** is a valid answer. An interrupted run leaves a partly converted vault, not a broken one: only frontmatter fields are added, and every note stays valid Markdown.
 
-**Roll back** restores the files from the backup folder — on the desktop too, from the report at the end of the run. The backup folder stays afterwards; it is the only copy of the state before the conversion.
+**Roll back** restores the files from the backup folder — on the desktop too, from the report at the end of the run. The backup folder stays afterwards; it is the only copy of the state before the conversion. A note you changed, moved or deleted after the conversion is left as it is; Plainva says how many there are, and their earlier text stays in the backup folder.
 
 ## Do I have to use OKF?
 

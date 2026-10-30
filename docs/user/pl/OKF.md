@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Stan na: 2026-10-29
+Stan na: 2026-10-30
 
 OKF (Open Knowledge Format) to otwarta konwencja dla kolekcji wiedzy w Markdown: zwykłe pliki Markdown z małym, jednolitym nagłówkiem frontmatter. Ta strona wyjaśnia, czym jest OKF, co Plainva robi dla niego automatycznie — i dlaczego niczego z tego nie *musisz* używać.
 
@@ -79,7 +79,7 @@ Jeśli pliki w vaulcie nie są zgodne z formatem OKF (brak pola `type` lub zarez
 
 Kreator **Konwertuj do formatu OKF** działa w jasnych krokach:
 
-1. **Skanowanie** — pokazuje, ile plików jest dotkniętych (foldery szablonów i systemowe są wykluczone; pliki z nieczytelnym frontmatter są pomijane, nigdy „naprawiane”).
+1. **Skanowanie** — pokazuje, ile plików jest dotkniętych (foldery szablonów i systemowe są wykluczone; pliki z nieczytelnym frontmatter są pomijane, nigdy „naprawiane”; kopia robocza otwartego konfliktu nie jest liczona, a przebieg pomija notatkę z otwartym konfliktem — rozwiąż go, a potem skonwertuj ponownie).
 2. **Decyzje** — domyślny `type` dla plików bez niego; istniejące wartości `type` możesz **zachować** (zalecane — są już prawidłowymi typami OKF) lub zmienić nazwę na inne pole.
 3. **Podgląd (bez zmian)** — dry run pokazuje z wyprzedzeniem, co by się zmieniło.
 4. **Konwersja** — przed każdą zmianą plik jest kopiowany do `.plainva/backups/`; raport podsumowuje zmienione, pominięte i folder kopii zapasowej. Potem możesz opcjonalnie **przejść do zarządzania index.md**.
@@ -92,10 +92,10 @@ Ta sama droga istnieje też mobilnie: **Ustawienia → Vault → Konserwacja →
 
 Dochodzą dwie rzeczy, ponieważ telefon może w każdej chwili usunąć aplikację z pamięci:
 
-- **Wstrzymanie i wznowienie.** Przebieg zatrzymuje się przy następnym pliku, gdy dotkniesz **Wstrzymaj** albo aplikacja przejdzie w tło. Wznowienie zapisuje do tego samego folderu kopii zapasowej — drugi nie powstaje.
+- **Wstrzymanie i wznowienie.** Przebieg zatrzymuje się przy następnym pliku, gdy dotkniesz **Wstrzymaj** albo aplikacja przejdzie w tło. Wznowienie zapisuje do tego samego folderu kopii zapasowej — drugi nie powstaje. Wznowienie zachowuje też opcje, z którymi przebieg się zaczął, a notatka już skonwertowana nie jest konwertowana drugi raz.
 - **Pytanie przy starcie.** Jeśli przebieg pozostanie niedokończony, Plainva powie o tym przy następnym otwarciu vaulta i zaproponuje **Kontynuuj** lub **Wycofaj**; **Później** to poprawna odpowiedź. Przerwany przebieg zostawia vault przekonwertowany częściowo, a nie uszkodzony: dodawane są wyłącznie pola frontmattera, a każda notatka pozostaje poprawnym Markdownem.
 
-**Wycofaj** przywraca pliki z folderu kopii zapasowej — także na komputerze, z raportu na końcu przebiegu. Folder kopii zostaje potem na miejscu; to jedyna kopia stanu sprzed konwersji.
+**Wycofaj** przywraca pliki z folderu kopii zapasowej — także na komputerze, z raportu na końcu przebiegu. Folder kopii zostaje potem na miejscu; to jedyna kopia stanu sprzed konwersji. Notatka zmieniona, przeniesiona lub usunięta po konwersji zostaje taka, jaka jest; Plainva podaje, ile ich jest, a ich wcześniejszy tekst zostaje w folderze kopii.
 
 ## Czy muszę używać OKF?
 

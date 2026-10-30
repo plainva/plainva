@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Laatst bijgewerkt: 2026-10-29
+Laatst bijgewerkt: 2026-10-30
 
 OKF (Open Knowledge Format) is een open conventie voor Markdown-kenniscollecties: pure Markdown-bestanden met een kleine, uniforme frontmatter-kop. Deze pagina legt uit wat OKF is, wat Plainva daarvoor automatisch doet — en waarom je er niets van *hoeft* te gebruiken.
 
@@ -79,7 +79,7 @@ Als bestanden in de vault niet voldoen aan het OKF-formaat (ontbrekend `type`-ve
 
 De wizard **Naar OKF-formaat converteren** werkt in duidelijke stappen:
 
-1. **Scannen** — toont hoeveel bestanden zijn betrokken (sjabloon- en systeemmappen zijn uitgezonderd; bestanden met onleesbare frontmatter worden overgeslagen, nooit "gerepareerd").
+1. **Scannen** — toont hoeveel bestanden zijn betrokken (sjabloon- en systeemmappen zijn uitgezonderd; bestanden met onleesbare frontmatter worden overgeslagen, nooit "gerepareerd"; de werkkopie van een open conflict telt niet mee, en de run slaat een notitie met een open conflict over — los het op en zet daarna opnieuw om).
 2. **Beslissingen** — een standaard-`type` voor bestanden zonder één; bestaande `type`-waarden kun je **behouden** (aanbevolen — ze zijn al geldige OKF-typen) of hernoemen naar een ander veld.
 3. **Voorbeeld (geen wijzigingen)** — een dry run toont vooraf wat er zou veranderen.
 4. **Converteren** — van elk bestand wordt vóór de wijziging een back-up gemaakt naar `.plainva/backups/`; een rapport vat samen wat er is gewijzigd, overgeslagen en waar de back-upmap staat. Daarna kun je optioneel **verdergaan naar het index.md-beheer**.
@@ -92,10 +92,10 @@ Dezelfde weg bestaat ook mobiel: **Instellingen → Vault → Onderhoud → Naar
 
 Er komen twee dingen bij, omdat een telefoon een app op elk moment uit het geheugen mag halen:
 
-- **Pauzeren en doorgaan.** De run stopt bij het volgende bestand wanneer je op **Pauze** tikt of de app naar de achtergrond gaat. Doorgaan schrijft in dezelfde back-upmap — er komt geen tweede bij.
+- **Pauzeren en doorgaan.** De run stopt bij het volgende bestand wanneer je op **Pauze** tikt of de app naar de achtergrond gaat. Doorgaan schrijft in dezelfde back-upmap — er komt geen tweede bij. Doorgaan houdt ook de opties aan waarmee de run begon, en een al omgezette notitie wordt geen tweede keer omgezet.
 - **Bij de start gevraagd.** Blijft een run onafgemaakt, dan zegt Plainva dat de volgende keer dat je de vault opent en biedt **Doorgaan** of **Terugdraaien** aan; **Later** is een geldig antwoord. Een onderbroken run laat een deels omgezette vault achter, geen kapotte: er worden alleen frontmatter-velden toegevoegd en elke notitie blijft geldige Markdown.
 
-**Terugdraaien** zet de bestanden terug uit de back-upmap — op de desktop ook, vanuit het rapport aan het eind van de run. De back-upmap blijft daarna staan; het is de enige kopie van de toestand vóór de omzetting.
+**Terugdraaien** zet de bestanden terug uit de back-upmap — op de desktop ook, vanuit het rapport aan het eind van de run. De back-upmap blijft daarna staan; het is de enige kopie van de toestand vóór de omzetting. Een notitie die je na de omzetting hebt gewijzigd, verplaatst of verwijderd, blijft zoals ze is; Plainva meldt hoeveel het er zijn, en hun eerdere tekst blijft in de back-upmap.
 
 ## Moet ik OKF gebruiken?
 

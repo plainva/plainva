@@ -7,10 +7,12 @@ import {
 } from "@plainva/core";
 import { templateFolderKey } from "../contexts/VaultContext";
 import {
-  rollbackOkfConversion,
-  runOkfConversion,
+  convertWithOkfJournal,
+  undoWithOkfJournal,
   type OkfConversionAdapter,
+  type OkfJournalStore,
   type OkfRollbackReport,
+  type OkfRunRecipe,
   type OkfRunReport,
 } from "@plainva/ui";
 import { clearOkfJournal, readOkfJournal, writeOkfJournal, type OkfJournal } from "./okfJournal";
@@ -47,6 +49,7 @@ export {
   type OkfConversionAdapter,
   type OkfConversionSample,
   type OkfRunReport,
+  type OkfRunRecipe,
   type OkfRollbackReport,
 } from "@plainva/ui";
 export type { OkfJournal };
@@ -58,74 +61,57 @@ export interface PendingOkfRun {
   remaining: number;
 }
 
+/** This vault's journal, in the shape the shared run asks for. */
+function journalOf(vaultPath: string): OkfJournalStore {
+  return {
+    read: () => readOkfJournal(vaultPath),
+    write: (journal) => writeOkfJournal({ ...journal, vaultPath }),
+    clear: () => clearOkfJournal(vaultPath),
+  };
+}
+
 /**
- * Runs the conversion with the journal around it.
+ * Runs the conversion with the journal around it (`convertWithOkfJournal`,
+ * shared with the phone): journal first, then the first write.
  *
- * The order is the whole point: journal first, then the first write. A journal
- * that cannot be written aborts the run — a conversion nobody could recover
- * from is worse than one that never started.
- *
- * `backupDir` may be handed in to CONTINUE an interrupted run: the new pass
- * then keeps writing its backups into the same folder, so one undo still
- * covers everything both passes touched. Two folders would mean two undos,
- * neither of which restores the vault on its own. Files the earlier pass
- * already converted come back `unchanged` — `convertFileToOkf` is idempotent,
- * which is what makes continuing safe at all.
+ * `resume` CONTINUES the open run — into its backup folder, with the options
+ * its journal holds; a fresh run (`options`) is refused while one is open.
+ * Notes the earlier pass converted are left alone: "rename" is not
+ * idempotent, and a second pass wrote the converted text over the original's
+ * backup (§ 3.129 Nr. 1).
  */
 export async function convertVaultToOkf(opts: {
   vaultPath: string;
   adapter: OkfConversionAdapter;
   scan: OkfScanResult;
-  options: OkfConversionOptions;
-  backupDir?: string;
+  options?: OkfConversionOptions;
+  resume?: boolean;
   onProgress?: (done: number, total: number) => void;
   isCancelled?: () => boolean;
 }): Promise<OkfRunReport> {
-  const backupDir =
-    opts.backupDir ?? `.plainva/backups/okf-conversion-${new Date().toISOString().replace(/[:.]/g, "-")}`;
-
-  await writeOkfJournal({
-    startedAt: new Date().toISOString(),
-    vaultPath: opts.vaultPath,
-    backupDir,
-    total: opts.scan.convertiblePaths.length,
-    options: {
-      defaultType: opts.options.defaultType,
-      existingTypeStrategy: opts.options.existingTypeStrategy,
-      renameTo: opts.options.renameTo,
-    },
-  });
-
-  const report = await runOkfConversion({
+  return convertWithOkfJournal({
+    journal: journalOf(opts.vaultPath),
     adapter: opts.adapter,
     scan: opts.scan,
     options: opts.options,
-    backupDir,
+    resume: opts.resume,
     onProgress: opts.onProgress,
     isCancelled: opts.isCancelled,
   });
-
-  // A cancelled run keeps its journal: it IS the interrupted state the
-  // recovery is for. Only a run that reached the end is done with it.
-  if (!report.cancelled) await clearOkfJournal(opts.vaultPath);
-  return report;
 }
 
 /**
- * Undoes a run from its backup folder and closes the journal.
- *
- * The journal is cleared only after a rollback that left nothing failed — a
- * partial restore must stay recoverable, so the next start offers it again.
+ * Undoes a run from its backup folder and closes the journal — only where a
+ * file still is what the run made of it (`rollbackOkfConversion`).
  */
 export async function undoOkfConversion(
   vaultPath: string,
   adapter: OkfConversionAdapter,
   backupDir: string,
+  recipe: OkfRunRecipe,
   onProgress?: (done: number, total: number) => void
 ): Promise<OkfRollbackReport> {
-  const report = await rollbackOkfConversion(adapter, backupDir, onProgress);
-  if (report.failed.length === 0) await clearOkfJournal(vaultPath);
-  return report;
+  return undoWithOkfJournal({ journal: journalOf(vaultPath), adapter, backupDir, recipe, onProgress });
 }
 
 /**

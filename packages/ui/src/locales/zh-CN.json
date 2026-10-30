@@ -2025,6 +2025,7 @@
     "recoveryLater": "以后再说",
     "rollbackDone": "已恢复 {{count}} 个文件。",
     "rollbackFailed": "有 {{count}} 个文件无法恢复。",
+    "rollbackKept": "有 {{count}} 个文件在转换后被修改过，已保持原样。它们之前的文本仍保存在 {{dir}}。",
     "migrationTitle": "将 bundle 升级到 OKF {{version}}",
     "migrationIntro": "此 vault 声明为 OKF {{declared}}。升级将进行以下更改：",
     "migrationIntroCurrent": "此 vault 已声明为 OKF {{version}}。",

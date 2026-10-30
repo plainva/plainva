@@ -1,7 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { App as CapApp } from "@capacitor/app";
-import { Button, Checkbox, GroupCard, Row, RowList, SectionLabel, TextInput, toast } from "@plainva/ui";
+import {
+  announceOkfRollback,
+  Button,
+  Checkbox,
+  GroupCard,
+  OkfRunOpenError,
+  Row,
+  RowList,
+  SectionLabel,
+  TextInput,
+  toast,
+  type OkfRunRecipe,
+} from "@plainva/ui";
 import type { OkfScanResult } from "@plainva/core";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
@@ -66,8 +78,6 @@ export function OkfConversionScreen({ vault, onBack }: { vault: MobileVault; onB
    * loop does not re-render to see a new value — it asks on every iteration.
    */
   const cancelRef = useRef(false);
-  /** The folder the run is writing its backups into, kept for undo and resume. */
-  const backupRef = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     const open = await pendingOkfRun(vault);
@@ -108,7 +118,13 @@ export function OkfConversionScreen({ vault, onBack }: { vault: MobileVault; onB
 
   useLeaveGuard("okf", step === "running", t("mobile.leaveWizard"));
 
-  const runPass = async (target: OkfScanResult, backupDir?: string) => {
+  /**
+   * One pass. `resume` continues the open run: the service takes its backup
+   * folder and its options from the journal, not from this screen's fields —
+   * a pass started from them ran with whatever the render before held
+   * (§ 3.129 Nr. 1 a).
+   */
+  const runPass = async (target: OkfScanResult, resume = false) => {
     cancelRef.current = false;
     setProgress({ done: 0, total: target.convertiblePaths.length, path: "" });
     setStep("running");
@@ -116,35 +132,44 @@ export function OkfConversionScreen({ vault, onBack }: { vault: MobileVault; onB
       const result = await convertVaultToOkf({
         vault,
         scan: target,
-        options: {
-          // Blank is the default type, as on the desktop.
-          defaultType: noteTypeOf(defaultType),
-          existingTypeStrategy: renameExisting ? "rename" : "keep",
-        },
-        backupDir,
+        ...(resume
+          ? { resume: true }
+          : {
+              options: {
+                // Blank is the default type, as on the desktop.
+                defaultType: noteTypeOf(defaultType),
+                existingTypeStrategy: renameExisting ? "rename" : "keep",
+              },
+            }),
         onProgress: (done, total, path) => setProgress({ done, total, path }),
         isCancelled: () => cancelRef.current,
       });
-      backupRef.current = result.backupDir || backupDir || null;
       setReport(result);
       setStep(result.cancelled ? "paused" : "report");
     } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      // A run that is open stays the only way on: back to its card, never to
+      // the preview, whose start would open a second backup folder that no
+      // undo of the first covers (§ 3.129 Nr. 1 b).
+      if (resume || e instanceof OkfRunOpenError) {
+        toast.error(message);
+        await load();
+        return;
+      }
       // A journal that could not be written lands here, and that is the whole
       // point of it being fail-closed: nothing was converted.
-      toast.error(`${t("okf.journalFailed")} ${e instanceof Error ? e.message : String(e)}`);
+      toast.error(`${t("okf.journalFailed")} ${message}`);
       setStep(scan ? "preview" : "recover");
     }
   };
 
-  /** Continue where the interrupted run stopped, into the SAME backup folder. */
-  const resume = async (backupDir: string, options: OkfJournal["options"]) => {
+  /** Continue where the interrupted run stopped: its folder, its options. */
+  const resume = async () => {
     setBusy(true);
     try {
-      setDefaultType(options.defaultType);
-      setRenameExisting(options.existingTypeStrategy === "rename");
       const fresh = await scanVaultOkf(vault);
       setScan(fresh);
-      await runPass(fresh, backupDir);
+      await runPass(fresh, true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -152,15 +177,16 @@ export function OkfConversionScreen({ vault, onBack }: { vault: MobileVault; onB
     }
   };
 
-  const undo = async (backupDir: string) => {
+  const undo = async (backupDir: string, recipe: OkfRunRecipe) => {
     setBusy(true);
     setProgress({ done: 0, total: 0, path: "" });
     try {
-      const result = await undoOkfConversion(vault, backupDir, (done, total) =>
+      // Only a file that still is what the run made of it goes back; one
+      // edited since is left and named (§ 3.87 Nr. 15).
+      const result = await undoOkfConversion(vault, backupDir, recipe, (done, total) =>
         setProgress({ done, total, path: "" }),
       );
-      if (result.failed.length > 0) toast.error(t("okf.rollbackFailed", { count: result.failed.length }));
-      else toast.info(t("okf.rollbackDone", { count: result.restored.length }));
+      announceOkfRollback(result, backupDir, t);
       setPending(null);
       setReport(null);
       await load();
@@ -195,12 +221,12 @@ export function OkfConversionScreen({ vault, onBack }: { vault: MobileVault; onB
             <Button
               data-testid="okf-resume"
               disabled={busy}
-              onClick={() => void resume(pending.backupDir, pending.options)}
+              onClick={() => void resume()}
               variant="primary"
             >
               {t("okf.recoveryResume")}
             </Button>
-            <Button data-testid="okf-rollback" disabled={busy} onClick={() => void undo(pending.backupDir)} variant="ghost">
+            <Button data-testid="okf-rollback" disabled={busy} onClick={() => void undo(pending.backupDir, { kind: "conversion", options: pending.options })} variant="ghost">
               {t("okf.recoveryRollback")}
             </Button>
           </div>
@@ -296,7 +322,7 @@ export function OkfConversionScreen({ vault, onBack }: { vault: MobileVault; onB
             <Button
               data-testid="okf-resume"
               disabled={busy}
-              onClick={() => void resume(backupRef.current ?? report.backupDir, { defaultType })}
+              onClick={() => void resume()}
               variant="primary"
             >
               {t("okf.recoveryResume")}
@@ -304,7 +330,7 @@ export function OkfConversionScreen({ vault, onBack }: { vault: MobileVault; onB
             <Button
               data-testid="okf-rollback"
               disabled={busy || !report.backupDir}
-              onClick={() => void undo(backupRef.current ?? report.backupDir)}
+              onClick={() => void undo(report.backupDir, report.recipe)}
               variant="ghost"
             >
               {t("okf.undoRun")}
@@ -338,7 +364,7 @@ export function OkfConversionScreen({ vault, onBack }: { vault: MobileVault; onB
             <Button
               data-testid="okf-rollback"
               disabled={busy || !report.backupDir}
-              onClick={() => void undo(report.backupDir)}
+              onClick={() => void undo(report.backupDir, report.recipe)}
               variant="ghost"
             >
               {t("okf.undoRun")}

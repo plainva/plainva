@@ -36,6 +36,7 @@ export {
   rollbackOkfConversion,
   runOkfMigration,
   type OkfRunReport,
+  type OkfRunRecipe,
   type OkfRollbackReport,
 } from "@plainva/ui";
 export { okfMigrationPending, type OkfVersionState } from "@plainva/core";

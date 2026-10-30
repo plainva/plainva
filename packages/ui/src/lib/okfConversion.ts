@@ -14,6 +14,7 @@ import {
   type OkfVersionState,
   type TextUpdateFiles,
 } from "@plainva/core";
+import { toast } from "../services/toastStore";
 
 /**
  * Running an OKF conversion over a vault (Gesamtplan W6, lifted in P8).
@@ -66,6 +67,30 @@ export interface OkfConversionSample {
   after: string;
 }
 
+/**
+ * What a run makes of a file's text, as data: the transform and its options.
+ *
+ * A run carries it in its report and an open conversion in its journal, so an
+ * undo can tell a file that still is what the run made of its backup from one
+ * somebody changed since (`rollbackOkfConversion`).
+ */
+export type OkfRunRecipe =
+  | { kind: "conversion"; options: OkfConversionOptions }
+  | { kind: "migration"; file: OkfMigrateFileOptions };
+
+/** A pure per-file transform: content in, content out. */
+export type OkfTransform = (path: string, content: string) => { content: string; changed: boolean };
+
+/** The one transform a recipe stands for — the run and its undo read the same. */
+export function okfRecipeTransform(recipe: OkfRunRecipe): OkfTransform {
+  if (recipe.kind === "conversion") {
+    const { options } = recipe;
+    return (_path, content) => convertFileToOkf(content, options);
+  }
+  const { file } = recipe;
+  return (path, content) => migrateOkfFile(path, content, file);
+}
+
 export interface OkfRunReport {
   changed: string[];
   unchanged: number;
@@ -74,6 +99,8 @@ export interface OkfRunReport {
   backupDir: string;
   samples: OkfConversionSample[];
   cancelled: boolean;
+  /** What the run made of a file — what its undo compares against. */
+  recipe: OkfRunRecipe;
 }
 
 function frontmatterPreview(content: string): string {
@@ -105,7 +132,8 @@ async function ensureDirs(adapter: OkfConversionAdapter, dirPath: string, create
 export async function runOkfTransform(opts: {
   adapter: OkfConversionAdapter;
   paths: string[];
-  transform: (path: string, content: string) => { content: string; changed: boolean };
+  /** The per-file edit (`okfRecipeTransform`); the report carries it for the undo. */
+  recipe: OkfRunRecipe;
   /** Returns an error text to skip the file, or null when the result may be written. */
   validate?: (path: string, before: string, after: string) => string | null;
   dryRun?: boolean;
@@ -120,12 +148,17 @@ export async function runOkfTransform(opts: {
    * Passed in to CONTINUE an interrupted run into the folder the first pass
    * already used: one undo then covers everything both passes touched, which
    * two folders could not. Left out, the run makes its own stamped folder.
+   *
+   * A backup that lies there already is never written over: it holds the
+   * file's text from before the run, and a file whose text has moved on from
+   * it was converted by the earlier pass and is left as it is (§ 3.129 Nr. 1).
    */
   backupDir?: string;
   /** Batch-folder prefix for a run that names its own folder (default `okf-conversion`). */
   backupPrefix?: string;
 }): Promise<OkfRunReport> {
-  const { adapter, paths, transform, dryRun = false } = opts;
+  const { adapter, paths, recipe, dryRun = false } = opts;
+  const transform = okfRecipeTransform(recipe);
   const sampleLimit = opts.sampleLimit ?? 5;
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const prefix = opts.backupPrefix ?? "okf-conversion";
@@ -138,12 +171,16 @@ export async function runOkfTransform(opts: {
     backupDir,
     samples: [],
     cancelled: false,
+    recipe,
   };
 
   const total = paths.length;
   let done = 0;
   const createdDirs = new Set<string>(); // per-run ensureDirs cache (WP4)
   let cancelled = false;
+  // Only a folder that was there before this pass can hold an earlier pass's
+  // backups; a fresh stamped one is not asked about every file.
+  const continuing = !dryRun && opts.backupDir !== undefined && (await adapter.exists(backupDir));
 
   /** What a file's text comes to: the text to write, or why none is written. */
   type Verdict = { next: string } | { unchanged: true } | { veto: string };
@@ -180,6 +217,11 @@ export async function runOkfTransform(opts: {
         const removed = adapter.deleteItem ? await adapter.deleteItem(backupPath).then(() => true, (error) => error instanceof VaultFileNotFoundError) : false;
         if (!removed && now !== null && now !== last.backedUp) await adapter.writeTextFile(backupPath, now);
       };
+      // A backup an earlier pass of this run wrote: the first write wins. It is
+      // the file's text from before the run, the only one an undo can bring
+      // back; writing it over with the text that pass made of it destroyed the
+      // original (§ 3.129 Nr. 1).
+      const earlier = continuing && (await adapter.exists(backupPath)) ? await adapter.readTextFile(backupPath) : null;
       // The backup holds exactly the text that is replaced, because the backup
       // is what an undo puts back: the file is written only if it still is the
       // text that was judged and backed up, and judged anew where somebody
@@ -188,8 +230,18 @@ export async function runOkfTransform(opts: {
       try {
         await replaceVaultText(adapter, path, async (content) => {
           last.content = content;
+          if (earlier !== null && content !== earlier) {
+            // Converted by an earlier pass — its text has moved on from the
+            // backup. A note is converted at most once per run: "rename" is
+            // not idempotent, a second pass moved the type it set itself.
+            last.verdict = { unchanged: true };
+            return null;
+          }
           last.verdict = judge(path, content);
           if (!("next" in last.verdict)) return null;
+          // Still the text of the earlier backup: that pass never got to the
+          // file. Its backup already holds exactly this text and stays.
+          if (earlier !== null) return last.verdict.next;
           await ensureDirs(adapter, backupPath.split("/").slice(0, -1).join("/"), createdDirs);
           await adapter.writeTextFile(backupPath, content);
           last.backedUp = content;
@@ -277,7 +329,7 @@ export async function runOkfConversion(opts: {
   return runOkfTransform({
     ...rest,
     paths: scan.convertiblePaths,
-    transform: (_path, content) => convertFileToOkf(content, options),
+    recipe: { kind: "conversion", options },
     validate: (path, _before, after) =>
       classifyOkfFile(path, after) === null ? null : "validation failed after conversion",
     backupPrefix: "okf-conversion",
@@ -324,7 +376,7 @@ export async function runOkfMigration(opts: {
   return runOkfTransform({
     ...rest,
     paths,
-    transform: (path, content) => migrateOkfFile(path, content, fileOptions),
+    recipe: { kind: "migration", file: fileOptions },
     validate: (path, before, after) => {
       if (path === rootIndexPath) {
         if (readRootOkfDeclaration(after) !== state.targetVersion) return "root declaration did not take";
@@ -353,11 +405,14 @@ export async function runOkfMigration(opts: {
  * the run removes the one it wrote. Only files that cannot remove leave one,
  * holding the text the file had when the run let go of it.
  *
- * What an undo does not do is compare: a file edited after the run is put
- * back to what it was before the run, the edit with it. And a file whose
- * conflict opened after the run is reported as failed: a whole text for a
- * file with an open conflict is refused by the vault's chain — or, where the
- * working copy is such a write's own, goes into that copy and not the file.
+ * An undo compares (§ 3.87 Nr. 15): a file is put back only while it still
+ * is exactly what the run made of its backup (`recipe`), and the write goes
+ * through only if it still is that text when it lands (`replaceVaultText`).
+ * A file somebody edited, moved or deleted since the run is left as it is and
+ * named in `changedSince` — its earlier text stays in the backup folder, and
+ * no edit is lost to an undo. A file whose conflict opened after the run is
+ * reported as failed: the vault's chain refuses to replace it until the
+ * conflict is resolved.
  *
  * Deliberately NOT deleted afterwards. The backup folder is the only copy of
  * the pre-conversion state; removing it as part of an undo would leave the
@@ -367,11 +422,23 @@ export async function runOkfMigration(opts: {
 export async function rollbackOkfConversion(
   adapter: OkfConversionAdapter,
   backupDir: string,
+  recipe: OkfRunRecipe,
   onProgress?: (done: number, total: number) => void,
 ): Promise<OkfRollbackReport> {
-  const report: OkfRollbackReport = { restored: [], failed: [] };
+  const report: OkfRollbackReport = { restored: [], failed: [], changedSince: [] };
   if (!adapter.listDir) throw new Error("adapter cannot list directories");
   if (!(await adapter.exists(backupDir))) return report;
+
+  const transform = okfRecipeTransform(recipe);
+  /** What the run made of a backed-up text, or null where it made nothing of it. */
+  const madeOf = (path: string, original: string): string | null => {
+    try {
+      const result = transform(path, original);
+      return result.changed ? result.content : null;
+    } catch {
+      return null;
+    }
+  };
 
   const prefix = `${backupDir}/`;
   const entries = (await adapter.listDir(backupDir, true)).filter((e) => !e.isDirectory);
@@ -387,8 +454,19 @@ export async function rollbackOkfConversion(
       continue;
     }
     try {
-      await adapter.writeTextFile(target, await adapter.readTextFile(entry.path));
-      report.restored.push(target);
+      const original = await adapter.readTextFile(entry.path);
+      const made = madeOf(target, original);
+      let kept = !(await adapter.exists(target));
+      if (!kept) {
+        await replaceVaultText(adapter, target, async (now) => {
+          // Already the original (a file the run let go of, an undo before):
+          // nothing to put back. The run's own text: back it goes. Anything
+          // else is somebody's edit since the run, and it stays.
+          kept = now !== original && now !== made;
+          return now === made && made !== null ? original : null;
+        });
+      }
+      (kept ? report.changedSince : report.restored).push(target);
     } catch (e) {
       report.failed.push({ path: target, error: e instanceof Error ? e.message : String(e) });
     }
@@ -401,6 +479,144 @@ export async function rollbackOkfConversion(
 export interface OkfRollbackReport {
   restored: string[];
   failed: { path: string; error: string }[];
+  /**
+   * Files that are no longer what the run made of them — edited, moved or
+   * deleted since. Left as they are; their earlier text stays in the backup.
+   */
+  changedSince: string[];
+}
+
+/**
+ * Says what an undo did, the same way in both shells: what failed, what was
+ * put back, and — never silently — what was left because it changed since.
+ */
+export function announceOkfRollback(
+  report: OkfRollbackReport,
+  backupDir: string,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): void {
+  if (report.failed.length > 0) toast.error(t("okf.rollbackFailed", { count: report.failed.length }));
+  else toast.info(t("okf.rollbackDone", { count: report.restored.length }));
+  if (report.changedSince.length > 0) {
+    toast.warning(t("okf.rollbackKept", { count: report.changedSince.length, dir: backupDir }));
+  }
+}
+
+/**
+ * The marker of an open conversion, as both shells keep it (desktop: appData,
+ * phone: the app's data container — each with its own atomic write).
+ */
+export interface OkfRunJournal {
+  startedAt: string;
+  /** Vault-relative backup folder of the open run. */
+  backupDir: string;
+  /** How many files the run set out to process, for the recovery wording. */
+  total: number;
+  /** The options the run started with, so continuing does not change its mind. */
+  options: OkfConversionOptions;
+}
+
+/** One vault's journal, however the shell stores it. */
+export interface OkfJournalStore {
+  read(): Promise<OkfRunJournal | null>;
+  /** Durable before it returns; throws where it could not be written. */
+  write(journal: OkfRunJournal): Promise<void>;
+  clear(): Promise<void>;
+}
+
+/** A fresh conversion was asked for while an earlier one is still open. */
+export class OkfRunOpenError extends Error {
+  constructor(readonly backupDir: string) {
+    super(`An interrupted OKF conversion is still open (${backupDir}). Continue or undo it first.`);
+    this.name = "OkfRunOpenError";
+  }
+}
+
+/**
+ * A conversion with its journal around it — the one way both shells run one.
+ *
+ * The order is the whole point: journal first, then the first write. A journal
+ * that cannot be written aborts the run — a conversion nobody could recover
+ * from is worse than one that never started.
+ *
+ * One run, one backup folder, one set of options (§ 3.129 Nr. 1):
+ * - `resume` continues the open run: into ITS folder, with ITS options, read
+ *   from the journal — never from what a screen happens to show. Two folders
+ *   would mean two undos, neither of which restores the vault on its own; other
+ *   options would give the vault two types, or a second rename.
+ * - A fresh run (`options`) is refused while a run is open (`OkfRunOpenError`),
+ *   so no screen — a failed continue that fell back to the preview, a second
+ *   window — can start a second folder beside it.
+ * Notes an earlier pass converted are left alone (`runOkfTransform`).
+ */
+export async function convertWithOkfJournal(opts: {
+  journal: OkfJournalStore;
+  adapter: OkfConversionAdapter;
+  scan: OkfScanResult;
+  /** A fresh run's options. */
+  options?: OkfConversionOptions;
+  /** Continue the open run instead. */
+  resume?: boolean;
+  onProgress?: (done: number, total: number, path: string) => void;
+  isCancelled?: () => boolean;
+  concurrency?: number;
+}): Promise<OkfRunReport> {
+  const open = await opts.journal.read();
+  let backupDir: string;
+  let options: OkfConversionOptions;
+  if (opts.resume) {
+    if (!open) throw new Error("There is no interrupted OKF conversion to continue.");
+    ({ backupDir, options } = open);
+  } else {
+    if (open) throw new OkfRunOpenError(open.backupDir);
+    if (!opts.options) throw new Error("A new OKF conversion needs its options.");
+    options = opts.options;
+    backupDir = `.plainva/backups/okf-conversion-${new Date().toISOString().replace(/[:.]/g, "-")}`;
+    await opts.journal.write({
+      startedAt: new Date().toISOString(),
+      backupDir,
+      total: opts.scan.convertiblePaths.length,
+      options: { defaultType: options.defaultType, existingTypeStrategy: options.existingTypeStrategy, renameTo: options.renameTo },
+    });
+  }
+
+  const report = await runOkfConversion({
+    adapter: opts.adapter,
+    scan: opts.scan,
+    options,
+    backupDir,
+    onProgress: opts.onProgress,
+    isCancelled: opts.isCancelled,
+    concurrency: opts.concurrency,
+  });
+
+  // A cancelled run keeps its journal: it IS the interrupted state the
+  // recovery is for. Only a run that reached the end is done with it.
+  if (!report.cancelled) await opts.journal.clear();
+  return report;
+}
+
+/**
+ * Undoes a run from its backup folder and closes its journal.
+ *
+ * The journal is cleared only after a rollback that left nothing failed — a
+ * partial restore must stay recoverable, so the next start offers it again —
+ * and only if it is this folder's: an undo of an older run's report does not
+ * close a run opened since.
+ */
+export async function undoWithOkfJournal(opts: {
+  journal: OkfJournalStore;
+  adapter: OkfConversionAdapter;
+  backupDir: string;
+  recipe: OkfRunRecipe;
+  onProgress?: (done: number, total: number) => void;
+}): Promise<OkfRollbackReport> {
+  const report = await rollbackOkfConversion(opts.adapter, opts.backupDir, opts.recipe, opts.onProgress);
+  if (report.failed.length === 0) {
+    const open = await opts.journal.read();
+    if (!open || open.backupDir === opts.backupDir) await opts.journal.clear();
+  }
+  return report;
 }
 
 /**

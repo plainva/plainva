@@ -3,6 +3,7 @@ import {
   rollbackOkfConversion,
   runOkfMigration,
   type OkfRollbackReport,
+  type OkfRunRecipe,
   type OkfRunReport,
 } from "@plainva/ui";
 import type { MobileVault } from "./vaultService";
@@ -61,11 +62,15 @@ export async function migrateVaultOkf(opts: {
   });
 }
 
-/** Undoes a run from its backup folder — the same undo the conversion has. */
+/**
+ * Undoes a run from its backup folder — the same undo the conversion has: a
+ * file goes back only while it still is what the run made of it (`recipe`).
+ */
 export async function undoOkfMigration(
   vault: MobileVault,
   backupDir: string,
+  recipe: OkfRunRecipe,
   onProgress?: (done: number, total: number) => void,
 ): Promise<OkfRollbackReport> {
-  return rollbackOkfConversion(vault.files, backupDir, onProgress);
+  return rollbackOkfConversion(vault.files, backupDir, recipe, onProgress);
 }

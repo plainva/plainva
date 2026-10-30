@@ -79,7 +79,7 @@ Wenn Dateien im Vault nicht dem OKF-Format entsprechen (fehlendes `type`-Feld od
 
 Der Wizard **In OKF-Format überführen** arbeitet in klaren Schritten:
 
-1. **Scan** — zeigt, wie viele Dateien betroffen sind (Vorlagen- und Systemordner sind ausgenommen; Dateien mit unlesbarem Frontmatter werden übersprungen, nie „repariert").
+1. **Scan** — zeigt, wie viele Dateien betroffen sind (Vorlagen- und Systemordner sind ausgenommen; Dateien mit unlesbarem Frontmatter werden übersprungen, nie „repariert"; die Arbeitskopie eines offenen Konflikts zählt nicht mit, und eine Notiz mit offenem Konflikt überspringt der Lauf — löse ihn, dann konvertiere erneut).
 2. **Entscheidungen** — Standard-`type` für Dateien ohne `type`; bestehende `type`-Werte kannst Du **übernehmen** (empfohlen — sie sind bereits gültige OKF-Typen) oder in ein anderes Feld umbenennen lassen.
 3. **Vorschau (ohne Änderungen)** — ein Dry-Run zeigt vorab, was sich ändern würde.
 4. **Konvertieren** — vor jeder Änderung wird die Datei nach `.plainva/backups/` gesichert; ein Bericht fasst Geändertes, Übersprungenes und den Backup-Ordner zusammen. Danach geht es optional **weiter zur index.md-Verwaltung**.
@@ -92,10 +92,10 @@ Denselben Weg gibt es auch mobil: **Einstellungen → Vault → Wartung → In O
 
 Zwei Dinge kommen dazu, weil ein Telefon eine App jederzeit aus dem Speicher nehmen darf:
 
-- **Anhalten und Fortsetzen.** Der Lauf hört an der nächsten Datei auf, wenn Du **Anhalten** tippst oder die App in den Hintergrund geht. Fortsetzen schreibt in denselben Backup-Ordner weiter — es entsteht kein zweiter.
+- **Anhalten und Fortsetzen.** Der Lauf hört an der nächsten Datei auf, wenn Du **Anhalten** tippst oder die App in den Hintergrund geht. Fortsetzen schreibt in denselben Backup-Ordner weiter — es entsteht kein zweiter. Fortsetzen behält auch die Optionen, mit denen der Lauf begann, und eine schon konvertierte Notiz wird kein zweites Mal konvertiert.
 - **Beim Start gefragt.** Bleibt ein Lauf unvollendet, sagt Plainva das beim nächsten Öffnen und bietet **Fortsetzen** oder **Zurückrollen** an; **Später** ist eine gültige Antwort. Ein unterbrochener Lauf lässt einen unvollständig konvertierten Vault zurück, keinen kaputten: Es werden nur Frontmatter-Felder ergänzt, jede Notiz bleibt gültiges Markdown.
 
-**Zurückrollen** stellt die Dateien aus dem Backup-Ordner wieder her — auch am Desktop, dort im Bericht am Ende des Laufs. Der Backup-Ordner bleibt danach liegen; er ist die einzige Kopie des Zustands vor der Konvertierung.
+**Zurückrollen** stellt die Dateien aus dem Backup-Ordner wieder her — auch am Desktop, dort im Bericht am Ende des Laufs. Der Backup-Ordner bleibt danach liegen; er ist die einzige Kopie des Zustands vor der Konvertierung. Eine Notiz, die Du nach der Konvertierung geändert, verschoben oder gelöscht hast, bleibt, wie sie ist; Plainva nennt, wie viele es sind, und ihr früherer Text bleibt im Backup-Ordner.
 
 ## Muss ich OKF nutzen?
 

@@ -29,6 +29,7 @@ vi.mock("./mobileSettings", () => ({
 
 import { convertVaultToOkf, pendingOkfRun, scanVaultOkf, undoOkfConversion } from "./okfConversion";
 import { okfJournalPath } from "./okfJournal";
+import { OkfRunOpenError } from "@plainva/ui";
 import type { MobileVault } from "./vaultService";
 
 const VAULT = "fixture-vault";
@@ -154,43 +155,90 @@ describe("converting a vault to OKF from the phone", () => {
     expect(open?.remaining).toBeGreaterThan(0);
   });
 
-  it("continues an interrupted run into the SAME backup folder", async () => {
+  it("continues an interrupted run into the SAME backup folder, with the options it began with", async () => {
+    const PERSON = "---\ntype: Person\n---\n# C\n";
+    const { vault, files } = fakeVault({ "a.md": NOTE, "b.md": NOTE, "c.md": PERSON });
+    const options = { defaultType: "Memo", existingTypeStrategy: "rename" as const };
+    const first = await convertVaultToOkf({
+      vault,
+      scan: await scanVaultOkf(vault),
+      options,
+      isCancelled: (() => {
+        let n = 0;
+        return () => n++ >= 2;
+      })(),
+    });
+    expect(first.cancelled).toBe(true);
+    expect(first.changed).toEqual(["a.md", "b.md"]);
+    const afterFirst = files.get("a.md");
+
+    // Continued with nothing but the wish to continue: the folder and the
+    // options come from the journal, never from what a screen happens to hold
+    // (finding § 3.129 Nr. 1 a — the phone continued with its vault type and "keep").
+    const second = await convertVaultToOkf({ vault, scan: await scanVaultOkf(vault), resume: true });
+
+    // Two folders would mean two undos, and neither of them complete.
+    expect(second.backupDir).toBe(first.backupDir);
+    const backupFolders = new Set(
+      [...files.keys()].filter((p) => p.startsWith(".plainva/backups/")).map((p) => p.split("/").slice(0, 3).join("/")),
+    );
+    expect([...backupFolders]).toEqual([first.backupDir]);
+    // The rest is converted with the run's options; what the first pass did is
+    // not done twice — "rename" is not idempotent (finding § 3.129 Nr. 1).
+    expect(second.changed).toEqual(["c.md"]);
+    expect(second.skipped).toEqual([]);
+    expect(files.get("a.md")).toBe(afterFirst);
+    expect(files.get("a.md")).not.toContain("type_original");
+    expect(files.get("c.md")).toContain("type_original: Person");
+    expect(files.get("c.md")).toContain("type: Memo");
+    // The first pass's backups still hold the originals.
+    expect(files.get(`${first.backupDir}/a.md`)).toBe(NOTE);
+    expect(await pendingOkfRun(vault)).toBeNull();
+
+    const undo = await undoOkfConversion(vault, second.backupDir, second.recipe);
+    expect(undo.restored.sort()).toEqual(["a.md", "b.md", "c.md"]);
+    expect(files.get("a.md")).toBe(NOTE);
+    expect(files.get("c.md")).toBe(PERSON);
+  });
+
+  it("does not start a second run while one is open", async () => {
+    // A continue that failed fell back to the preview, whose start opened a
+    // second backup folder no undo of the first covers (§ 3.129 Nr. 1 b).
     const { vault, files } = fakeVault({ "a.md": NOTE, "b.md": NOTE });
-    // The folder is asserted through the FILES, not the returned string: two
-    // runs a millisecond apart would stamp the same name by coincidence, and a
-    // test that passes because of a clock is not a test.
-    const FIRST = ".plainva/backups/okf-conversion-first-pass";
     const first = await convertVaultToOkf({
       vault,
       scan: await scanVaultOkf(vault),
       options: { defaultType: "note" },
-      backupDir: FIRST,
       isCancelled: (() => {
         let n = 0;
         return () => n++ >= 1;
       })(),
     });
-    expect(first.cancelled).toBe(true);
-    expect(first.backupDir).toBe(FIRST);
+    const before = new Map(files);
 
-    const second = await convertVaultToOkf({
-      vault,
-      scan: await scanVaultOkf(vault),
-      options: { defaultType: "note" },
-      backupDir: first.backupDir,
-    });
-
-    // Two folders would mean two undos, and neither of them complete.
-    expect(second.backupDir).toBe(FIRST);
-    const backupFolders = new Set(
-      [...files.keys()].filter((p) => p.startsWith(".plainva/backups/")).map((p) => p.split("/").slice(0, 3).join("/")),
+    await expect(convertVaultToOkf({ vault, scan: await scanVaultOkf(vault), options: { defaultType: "note" } })).rejects.toThrow(
+      OkfRunOpenError,
     );
-    expect([...backupFolders]).toEqual([FIRST]);
-    // Everything converted, and the already-converted file was not touched
-    // twice: convertFileToOkf is idempotent, which is what makes this safe.
-    expect(files.get("a.md")).toContain("type: note");
-    expect(files.get("b.md")).toContain("type: note");
-    expect(await pendingOkfRun(vault)).toBeNull();
+
+    expect(files).toEqual(before);
+    expect((await pendingOkfRun(vault))?.journal.backupDir).toBe(first.backupDir);
+  });
+
+  it("an undo leaves a note edited after the run, and names it", async () => {
+    // § 3.87 Nr. 15: the undo wrote every backup back, whatever lay there now.
+    const { vault, files } = fakeVault({ "a.md": NOTE, "b.md": NOTE });
+    const report = await convertVaultToOkf({ vault, scan: await scanVaultOkf(vault), options: { defaultType: "note" } });
+    const edited = `${files.get("b.md")}A line written after the run.\n`;
+    files.set("b.md", edited);
+
+    const undo = await undoOkfConversion(vault, report.backupDir, report.recipe);
+
+    expect(undo.restored).toEqual(["a.md"]);
+    expect(undo.changedSince).toEqual(["b.md"]);
+    expect(undo.failed).toEqual([]);
+    expect(files.get("a.md")).toBe(NOTE);
+    expect(files.get("b.md")).toBe(edited);
+    expect(files.get(`${report.backupDir}/b.md`)).toBe(NOTE);
   });
 
   it("undoes a run from its backup folder, byte for byte", async () => {
@@ -202,7 +250,7 @@ describe("converting a vault to OKF from the phone", () => {
     });
     expect(files.get("a.md")).not.toBe(NOTE);
 
-    const undo = await undoOkfConversion(vault, report.backupDir);
+    const undo = await undoOkfConversion(vault, report.backupDir, report.recipe);
 
     expect(undo.failed).toEqual([]);
     expect(undo.restored.sort()).toEqual(["a.md", "deep/b.md"]);

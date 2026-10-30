@@ -2025,6 +2025,7 @@
     "recoveryLater": "あとで",
     "rollbackDone": "{{count}} 個のファイルを復元しました。",
     "rollbackFailed": "{{count}} 個のファイルを復元できませんでした。",
+    "rollbackKept": "{{count}} 個のファイルは変換後に変更されたため、そのままにしました。以前のテキストは {{dir}} に残っています。",
     "migrationTitle": "バンドルを OKF {{version}} に更新",
     "migrationIntro": "この vault は OKF {{declared}} を宣言しています。更新により次の変更が行われます：",
     "migrationIntroCurrent": "この vault はすでに OKF {{version}} を宣言しています。",

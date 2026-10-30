@@ -2041,6 +2041,7 @@
     "recoveryLater": "Más tarde",
     "rollbackDone": "{{count}} archivo(s) restaurado(s).",
     "rollbackFailed": "No se pudieron restaurar {{count}} archivo(s).",
+    "rollbackKept": "{{count}} archivo(s) cambiaron después de la conversión y se dejaron como están. Su texto anterior sigue en {{dir}}.",
     "migrationTitle": "Actualizar el bundle a OKF {{version}}",
     "migrationIntro": "Este vault declara OKF {{declared}}. La actualización cambia lo siguiente:",
     "migrationIntroCurrent": "Este vault ya declara OKF {{version}}.",
