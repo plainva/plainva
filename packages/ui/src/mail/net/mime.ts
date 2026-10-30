@@ -163,16 +163,14 @@ const BASE64_VALUE = (() => {
  * part was the whole message's error — it could not be opened at all.
  *
  * A "=" ends a group wherever it stands, and the reading goes on behind it:
- * two characters are one byte, three are two. That is how the desktop's parser
- * reads it (mail-parser; `mail_imap.rs` holds the table `imapClient.test.ts`
- * holds), down to a single character in front of a "=", whose six bits begin a
- * byte there. The end of the data ends a group likewise, as it did with
- * `atob`; a single character left over at the end is no byte. Whatever is not
- * base64 is passed over, as RFC 2045 (6.8) asks and as it always was here.
- *
- * In two things the desktop's parser reads less than this — a last group
- * without its padding, and a part with a character that is no base64 in it:
- * parity catalog, `mail-base64-reading`.
+ * two characters are one byte, three are two. The end of the data ends a group
+ * likewise, as it did with `atob`. A single character of a group, in front of
+ * a "=" or at the end, is six bits and no byte. Whatever is not base64 is
+ * passed over, as RFC 2045 (6.8) asks and as it always was here. That is how
+ * the desktop's parser reads a body too (mail-parser 1.0; `mail_imap.rs` holds
+ * the table `imapClient.test.ts` holds). In an encoded word of a header it
+ * still gives up at a character that is no base64: parity catalog,
+ * `mail-base64-reading`.
  */
 function base64Bytes(s: string): Uint8Array {
   const out = new Uint8Array(Math.ceil((s.length * 3) / 4));
@@ -202,7 +200,6 @@ function base64Bytes(s: string): Uint8Array {
         count = 0;
       }
     } else if (value === BASE64_END) {
-      if (count === 1) out[length++] = group << 2;
       endGroup();
     }
   }
