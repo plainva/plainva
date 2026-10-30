@@ -47,7 +47,7 @@ When a refresh fails — no network, or the provider is throttling — the list 
 
 Three buttons on every message:
 
-- **Save as note** — creates a note in your mail folder (`YYYY-MM-DD Subject.md`) with the sender and date in the frontmatter and the plain-text body below the subject heading. Capturing the same message twice opens the existing note instead of duplicating it.
+- **Save as note** — creates a note in your mail folder (`YYYY-MM-DD Subject.md`) with the sender and date in the frontmatter and the plain-text body below the subject heading. Capturing the same message twice opens the existing note instead of duplicating it. If that note holds no text of the mail yet — at most the link to the raw copy —, **Save as note** adds the text now and says so; a note that already holds anything is only opened. A note that was once filed without its text gets it this way.
 - **+ .eml** — additionally stores the raw original next to the note and links it. The `.eml` contains everything, including attachments, and opens in any mail program. If the note already exists, the raw copy is added to it — unless one is already linked.
 - **→ Task** — creates an entry in your [standard task database](Tasks.md) with the subject as the title, today's date as the due date and the open status pre-filled.
 
@@ -138,7 +138,7 @@ Gmail rules are still set up in Google's own settings.
 
 **On the phone** you create rules yourself from start to finish: in the mail settings, tap a rule and you get it as **If** and **Then** — every condition and every action is a row, and tapping one asks for field, comparison and value on sheets of their own. That is deliberately not a shrunken form: five controls side by side at phone width is how a rule gets mistyped. The last condition cannot be removed — a rule without one would match every message.
 
-**File as a note** is the action no mail program has: the rule files the message as a note in your vault, with sender, date and text — the same capture as the button in the reader, only automatic. The same mail twice gives you the **same** note, and the message stays in its folder: what is filed is a copy, nothing is moved. A rule with this action always stays **local**, even on a mailbox that could run rules. That is deliberate: storing the rest of the rule with the provider would let the server move the message before there was anything to file.
+**File as a note** is the action no mail program has: the rule files the message as a note in your vault, with sender, date and text — the same capture as the button in the reader, only automatic. The same mail twice gives you the **same** note, and the message stays in its folder: what is filed is a copy, nothing is moved. A rule never fills a note that is already there; only the button in the reader does. A rule with this action always stays **local**, even on a mailbox that could run rules. That is deliberate: storing the rest of the rule with the provider would let the server move the message before there was anything to file.
 
 <!-- accounts-tasks-2026-09-11 -->
 ## Extend existing accounts

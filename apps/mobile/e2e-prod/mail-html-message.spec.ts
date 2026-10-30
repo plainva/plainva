@@ -142,3 +142,59 @@ test("a message that is HTML only: the reply quotes its text, and the filed note
     await sql.close();
   }
 });
+
+/**
+ * A note filed while the message had no text gets it from a second "Save as
+ * note" (finding 2026-10-09, decision b): until 0.8.6 every message of a
+ * Microsoft mailbox was filed that way. The note is first filed as today, then
+ * cut back to what such a capture wrote — properties and the title —, and the
+ * same message is filed again: the note holds the text, the editor shows it,
+ * and a note with a line of the user's in it is only opened. The desktop holds
+ * the same in `apps/desktop/e2e/mail.spec.ts`.
+ */
+test("a second Save as note fills the note that was filed without the text, and only opens a note with content", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const { mail, sql } = await bootMail(context, page);
+  const PATH = "Mail/2026-09-13 Rechnung Oktober.md";
+  const write = (text: string) =>
+    page.evaluate(async ([path, data]) => {
+      await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.writeFile({ path: "vault/" + path, data, directory: "DATA", encoding: "utf8" });
+    }, [PATH, text] as const);
+  const saveAsNote = page.getByRole("button", { name: /^Save as note$/ });
+  const editor = page.locator(".cm-content");
+  try {
+    await page.locator(".m-mboxline").click();
+    await page.locator(".m-sheet button.m-row", { hasText: "Archiv" }).click();
+    await page.locator("button.m-mailrow", { hasText: "Rechnung Oktober" }).click();
+    await expect(page.locator("iframe.m-mailframe")).toBeVisible();
+    await saveAsNote.click();
+    await expect.poll(() => filedNotes(page), { timeout: 15_000 }).toHaveLength(1);
+    const filed = await readVaultFile(page, PATH);
+    const TITLE = "# Rechnung Oktober\n";
+    const empty = filed.slice(0, filed.indexOf(TITLE) + TITLE.length);
+    expect(filed.endsWith(`${TITLE}\nHallo Marco,\n\nanbei die Rechnung für Oktober.\n`)).toBe(true);
+
+    // The note as a capture without the text left it.
+    await write(empty);
+    await page.getByRole("button", { name: /^Back$/ }).first().click();
+    await expect(page.locator("iframe.m-mailframe")).toBeVisible();
+    await saveAsNote.click();
+    await expect(page.locator(".pv-toast").filter({ hasText: "text was added to" })).toBeVisible({ timeout: 15_000 });
+    await expect.poll(() => readVaultFile(page, PATH)).toBe(filed);
+    await expect(editor.filter({ hasText: "anbei die Rechnung für Oktober." })).toHaveCount(1, { timeout: 15_000 });
+    expect(await filedNotes(page)).toEqual(["2026-09-13 Rechnung Oktober.md"]);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("mail-note-filled.png") });
+
+    // A line of the user's under the title: the note is only opened.
+    const mine = `${empty}\nMeine Notiz dazu.\n`;
+    await write(mine);
+    await page.getByRole("button", { name: /^Back$/ }).first().click();
+    await expect(page.locator("iframe.m-mailframe")).toBeVisible();
+    await saveAsNote.click();
+    await expect(page.locator(".pv-toast").filter({ hasText: "A note for this email already exists" })).toBeVisible({ timeout: 15_000 });
+    expect(await readVaultFile(page, PATH)).toBe(mine);
+    expect(mail.sent).toEqual([]);
+  } finally {
+    await sql.close();
+  }
+});

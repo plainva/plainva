@@ -3521,6 +3521,7 @@
     "sendingWithUndo": "Wird in {{seconds}} s gesendet",
     "sendCancelled": "Senden abgebrochen — die Nachricht wurde nicht verschickt.",
     "emlAdded": "Rohkopie zu „{{name}}“ ergänzt.",
+    "noteFilled": "Text der E-Mail in „{{name}}“ eingesetzt.",
     "filterAttachments": "Mit Anhängen",
     "attachmentsLoaded": "Metadaten für {{known}} von {{loaded}} geladenen Nachrichten. Weitere Nachrichten können Anhänge enthalten.",
     "bulkWorking": "Sammelaktion läuft. Abbrechen stoppt nach dem aktuellen Paket.",

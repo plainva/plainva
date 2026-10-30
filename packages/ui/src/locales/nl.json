@@ -3521,6 +3521,7 @@
     "sendingWithUndo": "Verzenden over {{seconds}} s",
     "sendCancelled": "Verzenden geannuleerd — het bericht is niet verstuurd.",
     "emlAdded": "Ruwe kopie toegevoegd aan ‘{{name}}’.",
+    "noteFilled": "Tekst van de e-mail toegevoegd aan ‘{{name}}’.",
     "filterAttachments": "Met bijlagen",
     "attachmentsLoaded": "Metadata voor {{known}} van {{loaded}} geladen berichten. Andere berichten kunnen ook bijlagen bevatten.",
     "bulkWorking": "Groepsactie wordt uitgevoerd. Annuleren stopt na de huidige groep.",

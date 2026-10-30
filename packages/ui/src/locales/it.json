@@ -3555,6 +3555,7 @@
     "sendingWithUndo": "Invio tra {{seconds}} s",
     "sendCancelled": "Invio annullato — il messaggio non è partito.",
     "emlAdded": "Copia originale aggiunta a «{{name}}».",
+    "noteFilled": "Testo dell’e-mail inserito in «{{name}}».",
     "filterAttachments": "Con allegati",
     "attachmentsLoaded": "Metadati per {{known}} di {{loaded}} messaggi caricati. Altri messaggi possono contenere allegati.",
     "bulkWorking": "Operazione multipla in corso. L’annullamento si applica dopo il lotto attuale.",

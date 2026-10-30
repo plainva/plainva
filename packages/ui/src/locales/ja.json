@@ -3487,6 +3487,7 @@
     "sendingWithUndo": "{{seconds}} 秒後に送信します",
     "sendCancelled": "送信を取り消しました——メッセージは送られていません。",
     "emlAdded": "「{{name}}」に元データを追加しました。",
+    "noteFilled": "「{{name}}」にメールの本文を追加しました。",
     "filterAttachments": "添付ファイルあり",
     "attachmentsLoaded": "読み込み済みの{{loaded}}通中{{known}}通のメタデータを確認済みです。他のメールにも添付ファイルがある場合があります。",
     "bulkWorking": "一括操作中です。キャンセルすると現在の処理単位の後で停止します。",

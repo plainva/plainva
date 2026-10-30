@@ -523,7 +523,9 @@ export function MailMessageScreen({
       }
       // OKF 0.2 provenance (plan P3b): the capture names its producer, the
       // Message-ID becomes the note's source — same stamp as the desktop.
-      const res = await captureMailAsNote({ adapter: vault.files, message, accountId: account.id, mailbox, folder, generatedBy: await plainvaProducer("mail-capture") });
+      // Asked for by hand, a note of this message that holds none of its text
+      // gets it now (finding 2026-10-09, decision b) - a rule never.
+      const res = await captureMailAsNote({ adapter: vault.files, message, accountId: account.id, mailbox, folder, generatedBy: await plainvaProducer("mail-capture"), fillEmpty: true });
       // The index hears of what was filed now, not at the next full scan (finding 2026-10-12).
       const filed = [res.path];
       let emlAdded = false;
@@ -544,12 +546,16 @@ export function MailMessageScreen({
         }
       }
       void vault.reindexPaths(filed);
+      // An editor that holds the note takes what was written into it: the chain does not report its own writes.
+      if (res.filled || emlAdded) window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path: res.path, vaultId: vault.vaultId } }));
       toast.success(
         res.created
           ? t("mail.captured", { name: res.path })
-          : emlAdded
-            ? t("mail.emlAdded", { name: res.path })
-            : t("mail.noteExists")
+          : res.filled
+            ? t("mail.noteFilled", { name: res.path })
+            : emlAdded
+              ? t("mail.emlAdded", { name: res.path })
+              : t("mail.noteExists")
       );
       onOpenNote(res.path);
     } catch (e) {

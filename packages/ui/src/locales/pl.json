@@ -3589,6 +3589,7 @@
     "sendingWithUndo": "Wysyłanie za {{seconds}} s",
     "sendCancelled": "Wysyłanie anulowane — wiadomość nie została wysłana.",
     "emlAdded": "Kopia źródłowa dodana do „{{name}}”.",
+    "noteFilled": "Treść wiadomości wstawiona do „{{name}}”.",
     "filterAttachments": "Z załącznikami",
     "attachmentsLoaded": "Metadane {{known}} z {{loaded}} wczytanych wiadomości. Inne wiadomości też mogą zawierać załączniki.",
     "bulkWorking": "Trwa operacja zbiorcza. Anulowanie zatrzyma ją po bieżącej partii.",

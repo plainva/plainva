@@ -3555,6 +3555,7 @@
     "sendingWithUndo": "Enviando em {{seconds}} s",
     "sendCancelled": "Envio cancelado — a mensagem não foi enviada.",
     "emlAdded": "Cópia original adicionada a “{{name}}”.",
+    "noteFilled": "Texto do e-mail inserido em “{{name}}”.",
     "filterAttachments": "Com anexos",
     "attachmentsLoaded": "Metadados de {{known}} de {{loaded}} mensagens carregadas. Outras mensagens podem conter anexos.",
     "bulkWorking": "Ação em lote em curso. Cancelar interrompe após o lote atual.",

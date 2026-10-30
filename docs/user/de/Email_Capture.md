@@ -47,7 +47,7 @@ Schlägt eine Aktualisierung fehl — kein Netz, oder der Anbieter drosselt —,
 
 Drei Knöpfe an jeder Nachricht:
 
-- **Als Notiz ablegen** — erstellt eine Notiz im E-Mail-Ordner (`JJJJ-MM-TT Betreff.md`) mit Absender und Datum im Frontmatter und dem Text der Mail unter der Betreff-Überschrift. Dieselbe Nachricht ein zweites Mal abzulegen öffnet die vorhandene Notiz, statt sie zu duplizieren.
+- **Als Notiz ablegen** — erstellt eine Notiz im E-Mail-Ordner (`JJJJ-MM-TT Betreff.md`) mit Absender und Datum im Frontmatter und dem Text der Mail unter der Betreff-Überschrift. Dieselbe Nachricht ein zweites Mal abzulegen öffnet die vorhandene Notiz, statt sie zu duplizieren. Steht in dieser Notiz noch kein Text der Mail — höchstens der Link zur Rohkopie —, setzt **Als Notiz ablegen** den Text jetzt ein und sagt es; eine Notiz, in der schon etwas steht, wird nur geöffnet. So bekommt eine Notiz, die früher ohne Text abgelegt wurde, ihren Text nachträglich.
 - **+ .eml** — legt zusätzlich das rohe Original neben die Notiz und verlinkt es. Die `.eml` enthält alles, auch die Anhänge, und öffnet sich in jedem Mail-Programm. Existiert die Notiz schon, wird die Rohkopie ergänzt — es sei denn, es ist bereits eine verlinkt.
 - **→ Aufgabe** — erstellt einen Eintrag in Deiner [Standard-Aufgabendatenbank](Tasks.md) mit dem Betreff als Titel, dem heutigen Datum als Fälligkeit und dem offenen Status vorbefüllt.
 
@@ -138,7 +138,7 @@ Regeln bei Gmail richtest Du weiterhin in Googles eigenen Einstellungen ein.
 
 **Am Telefon** legst Du Regeln vollständig selbst an: In den Mail-Einstellungen tippst Du auf eine Regel und bekommst sie als **Wenn** und **Dann** — jede Bedingung und jede Aktion ist eine Zeile, und ein Tipp darauf fragt in einzelnen Blättern nach Feld, Vergleich und Wert. Das ist bewusst kein geschrumpftes Formular: fünf Bedienelemente nebeneinander auf Handybreite sind der Weg, auf dem man eine Regel vertippt. Die letzte Bedingung lässt sich nicht entfernen — eine Regel ohne Bedingung würde auf jede Nachricht passen.
 
-**Als Notiz ablegen** ist die Aktion, die kein Mail-Programm hat: die Regel legt die Nachricht als Notiz in Deinem Vault ab, mit Absender, Datum und Text — dieselbe Erfassung wie der Knopf im Leser, nur automatisch. Dieselbe Mail zweimal ergibt **dieselbe** Notiz, und die Nachricht bleibt im Ordner liegen: abgelegt wird eine Kopie, nichts wird verschoben. Eine Regel mit dieser Aktion bleibt **immer lokal** — auch bei einem Postfach, das Regeln könnte. Das ist Absicht: würde Plainva den Rest der Regel hinterlegen, verschöbe der Server die Nachricht, bevor überhaupt etwas abzulegen wäre.
+**Als Notiz ablegen** ist die Aktion, die kein Mail-Programm hat: die Regel legt die Nachricht als Notiz in Deinem Vault ab, mit Absender, Datum und Text — dieselbe Erfassung wie der Knopf im Leser, nur automatisch. Dieselbe Mail zweimal ergibt **dieselbe** Notiz, und die Nachricht bleibt im Ordner liegen: abgelegt wird eine Kopie, nichts wird verschoben. Eine Regel füllt eine vorhandene Notiz nie nach; das tut nur der Knopf im Leser. Eine Regel mit dieser Aktion bleibt **immer lokal** — auch bei einem Postfach, das Regeln könnte. Das ist Absicht: würde Plainva den Rest der Regel hinterlegen, verschöbe der Server die Nachricht, bevor überhaupt etwas abzulegen wäre.
 
 <!-- accounts-tasks-2026-09-11 -->
 ## Vorhandene Konten erweitern

@@ -47,7 +47,7 @@ Gdy odświeżenie się nie powiedzie — brak sieci albo dostawca ogranicza żą
 
 Trzy przyciski przy każdej wiadomości:
 
-- **Zapisz jako notatkę** — tworzy notatkę w folderze e-mail (`RRRR-MM-DD Temat.md`) z nadawcą i datą we frontmatter oraz tekstem wiadomości w postaci zwykłego tekstu pod nagłówkiem tematu. Przechwycenie tej samej wiadomości po raz drugi otwiera istniejącą notatkę zamiast ją duplikować.
+- **Zapisz jako notatkę** — tworzy notatkę w folderze e-mail (`RRRR-MM-DD Temat.md`) z nadawcą i datą we frontmatter oraz tekstem wiadomości w postaci zwykłego tekstu pod nagłówkiem tematu. Przechwycenie tej samej wiadomości po raz drugi otwiera istniejącą notatkę zamiast ją duplikować. Jeśli w tej notatce nie ma jeszcze tekstu wiadomości — najwyżej link do kopii źródłowej —, **Zapisz jako notatkę** wstawia go teraz i o tym informuje; notatka, w której już coś jest, zostaje tylko otwarta. Tak notatka zapisana kiedyś bez tekstu otrzymuje go później.
 - **+ .eml** — dodatkowo zapisuje surowy oryginał obok notatki i go linkuje. Plik `.eml` zawiera wszystko, łącznie z załącznikami, i otwiera się w dowolnym programie pocztowym. Jeśli notatka już istnieje, kopia źródłowa zostanie do niej dodana — chyba że jakaś jest już podlinkowana.
 - **→ Zadanie** — tworzy wpis w Twojej [domyślnej bazie zadań](Tasks.md) z tematem jako tytułem, dzisiejszą datą jako terminem i wstępnie ustawionym statusem otwarte.
 
@@ -138,7 +138,7 @@ Reguły Gmaila nadal ustawia się we własnych ustawieniach Google.
 
 **Na telefonie** tworzysz reguły w całości sam: w ustawieniach poczty dotknij reguły, a zobaczysz ją jako **Jeżeli** i **To** — każdy warunek i każda akcja to wiersz, a dotknięcie pyta o pole, porównanie i wartość na osobnych arkuszach. To celowo nie jest zmniejszony formularz: pięć elementów obok siebie na szerokości telefonu to sposób, w jaki reguła zostaje źle wpisana. Ostatniego warunku nie da się usunąć — reguła bez warunku pasowałaby do każdej wiadomości.
 
-**Zapisz jako notatkę** to akcja, której nie ma żaden program pocztowy: reguła zapisuje wiadomość jako notatkę w Twoim sejfie, z nadawcą, datą i treścią — to samo przechwycenie co przycisk w czytniku, tylko automatycznie. Ta sama wiadomość dwa razy daje **tę samą** notatkę, a wiadomość zostaje w folderze: zapisywana jest kopia, nic nie jest przenoszone. Reguła z tą akcją **zawsze** pozostaje lokalna, nawet przy skrzynce, która potrafiłaby wykonywać reguły. To celowe: zapisanie reszty reguły u dostawcy pozwoliłoby serwerowi przenieść wiadomość, zanim byłoby co zapisywać.
+**Zapisz jako notatkę** to akcja, której nie ma żaden program pocztowy: reguła zapisuje wiadomość jako notatkę w Twoim sejfie, z nadawcą, datą i treścią — to samo przechwycenie co przycisk w czytniku, tylko automatycznie. Ta sama wiadomość dwa razy daje **tę samą** notatkę, a wiadomość zostaje w folderze: zapisywana jest kopia, nic nie jest przenoszone. Reguła nigdy nie uzupełnia istniejącej notatki; robi to tylko przycisk w czytniku. Reguła z tą akcją **zawsze** pozostaje lokalna, nawet przy skrzynce, która potrafiłaby wykonywać reguły. To celowe: zapisanie reszty reguły u dostawcy pozwoliłoby serwerowi przenieść wiadomość, zanim byłoby co zapisywać.
 
 <!-- accounts-tasks-2026-09-11 -->
 ## Rozszerz istniejące konta

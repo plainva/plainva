@@ -3521,6 +3521,7 @@
     "sendingWithUndo": "Sending in {{seconds}} s",
     "sendCancelled": "Sending cancelled — the message was not sent.",
     "emlAdded": "Raw copy added to “{{name}}”.",
+    "noteFilled": "The email’s text was added to “{{name}}”.",
     "filterAttachments": "With attachments",
     "attachmentsLoaded": "Metadata for {{known}} of {{loaded}} loaded messages. More messages may contain attachments.",
     "bulkWorking": "Bulk action running. Cancel stops after the current batch.",

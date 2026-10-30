@@ -3555,6 +3555,7 @@
     "sendingWithUndo": "Envoi dans {{seconds}} s",
     "sendCancelled": "Envoi annulé — le message n'est pas parti.",
     "emlAdded": "Copie brute ajoutée à « {{name}} ».",
+    "noteFilled": "Texte de l’e-mail ajouté à « {{name}} ».",
     "filterAttachments": "Avec pièces jointes",
     "attachmentsLoaded": "Métadonnées de {{known}} sur {{loaded}} messages chargés. D’autres messages peuvent contenir des pièces jointes.",
     "bulkWorking": "Action groupée en cours. L’annulation prend effet après le lot actuel.",

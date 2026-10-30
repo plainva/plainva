@@ -1763,7 +1763,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         const folder = await mailFolder();
         // OKF 0.2 provenance (plan P3b): a captured mail is a machine-written
         // note and names its producer; the Message-ID becomes its source.
-        const res = await captureMailAsNote({ adapter: vaultAdapter, message, accountId: account.id, mailbox, folder, generatedBy: await plainvaProducer("mail-capture") });
+        // Asked for by hand, a note of this message that holds none of its
+        // text gets it now (finding 2026-10-09, decision b) - a rule never.
+        const res = await captureMailAsNote({ adapter: vaultAdapter, message, accountId: account.id, mailbox, folder, generatedBy: await plainvaProducer("mail-capture"), fillEmpty: true });
         const touched = [res.path];
         if (withEml && res.created) {
           const raw = await fetchRawMessage(vaultPath, account, mailbox, message.id);
@@ -1775,6 +1777,11 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
           if (indexer) await applyIndexChanges(indexer, { added: touched }).catch(() => undefined);
           triggerFileTreeUpdate(touched);
           toast.info(t("mail.captured", { defaultValue: "E-Mail abgelegt: {{name}}", name: res.path.split("/").pop() }));
+        } else if (res.filled) {
+          if (indexer) await applyIndexChanges(indexer, { added: [res.path] }).catch(() => undefined);
+          // An editor that holds the note takes the text: the chain does not report its own writes.
+          window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: res.path } }));
+          toast.info(t("mail.noteFilled", { name: res.path.split("/").pop() }));
         }
         onOpenPath(res.path, true);
       } catch (e) {

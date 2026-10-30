@@ -3487,6 +3487,7 @@
     "sendingWithUndo": "{{seconds}} 秒后发送",
     "sendCancelled": "已取消发送——邮件没有发出。",
     "emlAdded": "已将原始副本添加到“{{name}}”。",
+    "noteFilled": "已将邮件正文添加到“{{name}}”。",
     "filterAttachments": "含附件",
     "attachmentsLoaded": "已加载的 {{loaded}} 封邮件中，已确认 {{known}} 封的元数据。其他邮件也可能含有附件。",
     "bulkWorking": "正在批量处理。取消将在当前批次完成后停止。",
