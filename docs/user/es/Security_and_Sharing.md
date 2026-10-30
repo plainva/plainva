@@ -10,7 +10,7 @@ Crea un Vault Slice con los cuatro pasos **Detalles → Contenido → Permisos �
 
 Una publicación saneada juzga las propiedades de una nota por sus nombres y solo deja pasar las que están en su lista. Por eso, una nota cuyo bloque inicial no se puede leer como propiedades — texto o una lista entre las dos líneas `---`, o YAML con un error — no se publica tal como está, y nada de ese bloque sale del vault. La vista previa — el paso **Revisión** en el escritorio, **Vista previa** en el teléfono — nombra entonces la nota en lugar de mostrar cifras, y una publicación que ya existe muestra **Error al actualizar** con el nombre de la nota. Corrige el bloque en el texto de la nota y la siguiente actualización la publica. Hasta entonces la actualización se detiene en esa nota y los cambios en otras notas esperan detrás de ella; una nota que ha salido de la porción se retira de todos modos. Una publicación exacta entrega cada nota tal como está y no se ve afectada.
 
-Revisado: 2026-10-21
+Revisado: 2026-10-29
 
 Plainva mantiene el vault como archivos legibles en el dispositivo y guarda la copia en la nube como objetos cifrados opacos. Tras conectar una cuenta, abre **Ajustes → tu vault → Seguridad y uso compartido**.
 
@@ -92,7 +92,7 @@ Eliminar un vault con **Olvidar los datos de la aplicación** (Splash → quitar
 Dos funciones necesitan un permiso del sistema operativo. Ambos se piden **al primer toque**, nunca al iniciar, y ambos escriben únicamente en tu bóveda.
 
 - **Micrófono** — para las **notas de voz** (captura del diario, el icono del micrófono). Plainva graba solo mientras tienes una toma en marcha; **Descartar** la tira, **Adjuntar** la escribe como archivo en la carpeta de adjuntos. No hay transcripción, ni subida, ni servicio que escuche. Si lo deniegas, el botón lo dice y el resto de la captura sigue funcionando.
-- **Ubicación** — para el **sello de lugar**, que además tiene un interruptor por dispositivo **desactivado por defecto** (Ajustes → Apariencia). El botón aparece solo cuando lo activas; el sistema pregunta solo cuando lo pulsas. Se escribe **una línea** — `📍 52.5200, 13.4050` — con cuatro decimales, unos once metros. Sin historial, sin mapa, sin seguimiento en segundo plano y sin servicio en línea que convierta coordenadas en un nombre.
+- **Ubicación** — para el **sello de lugar**, que además tiene un interruptor por dispositivo **desactivado por defecto** (Ajustes → Editor y notas → Diario). El botón aparece solo cuando lo activas; el sistema pregunta solo cuando lo pulsas. Se escribe **una línea** — `📍 52.5200, 13.4050` — con cuatro decimales, unos once metros. Sin historial, sin mapa, sin seguimiento en segundo plano y sin servicio en línea que convierta coordenadas en un nombre.
 
 La cámara y la fototeca se piden como siempre: al insertar una foto y al escanear un código QR de emparejamiento. Ninguno de estos permisos sale del dispositivo: lo que producen se convierte en un archivo o una línea de tu bóveda, y esa es tuya.
 

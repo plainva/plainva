@@ -1,6 +1,6 @@
 # Kalender & externe Aufgaben
 
-Stand: 2026-10-26
+Stand: 2026-10-29
 
 Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalender + Tasks) und **Microsoft** (Outlook-Kalender + To Do) — und in beide Richtungen damit arbeiten. Deine Notizen bleiben das Zentrum: Termine werden zu Meeting-Notizen, und externe Aufgabenlisten spiegeln sich als normale Notizen in Deine [Standard-Aufgabendatenbank](Tasks.md).
 
@@ -109,7 +109,7 @@ Am Telefon zählen dazu die **Erinnerungslisten** des Geräts (iOS), sobald das 
 
 ### Im Hintergrund weiterlaufen
 
-Weil eine Erinnerung am Rechner nur ankommt, solange Plainva läuft, gibt es unter **Einstellungen → Start & Verhalten → Hintergrund** zwei Schalter — getrennt, weil es zwei verschiedene Wünsche sind, und beide **standardmäßig aus**:
+Weil eine Erinnerung am Rechner nur ankommt, solange Plainva läuft, gibt es unter **Einstellungen → Start & Verhalten** zwei Schalter, getrennt in zwei Gruppen, weil es zwei verschiedene Wünsche sind — **Mit dem System starten** unter **Start** und **Beim Schließen im Infobereich weiterlaufen** unter **Hintergrund** — und beide **standardmäßig aus**:
 
 - **Mit dem System starten** trägt Plainva beim Anmelden ein.
 - **Beim Schließen im Infobereich weiterlaufen** legt ein Plainva-Symbol in den Infobereich; das Schließen des Fensters beendet die App dann nicht mehr, sondern legt sie dorthin ab. Über das Symbol kommst Du mit **Öffnen** zurück, siehst den **nächsten Termin** und beendest Plainva mit **Beenden**.

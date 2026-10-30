@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-10-26
+Última actualización: 2026-10-29
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -109,7 +109,7 @@ En el teléfono se incluyen las **listas de recordatorios** del dispositivo (iOS
 
 ### Seguir en segundo plano
 
-Como un recordatorio en el ordenador solo llega mientras Plainva está en marcha, en **Ajustes → Inicio y comportamiento → Segundo plano** hay dos interruptores —separados, porque son dos deseos distintos, y ambos **desactivados por defecto**:
+Como un recordatorio en el ordenador solo llega mientras Plainva está en marcha, en **Ajustes → Inicio y comportamiento** hay dos interruptores, separados en dos grupos porque son dos deseos distintos — **Iniciar con el sistema** en **Inicio** y **Seguir en el área de notificación al cerrar** en **Segundo plano** — y ambos **desactivados por defecto**:
 
 - **Iniciar con el sistema** registra Plainva al iniciar sesión.
 - **Seguir en el área de notificación al cerrar** coloca un icono de Plainva en el área de notificación; cerrar la ventana ya no cierra la aplicación, sino que la guarda ahí. Desde el icono vuelves con **Abrir**, ves la **próxima cita** y cierras Plainva con **Salir**.

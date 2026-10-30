@@ -10,7 +10,7 @@ Maak een Vault Slice met de vier stappen **Details → Inhoud → Rechten → Co
 
 Een opgeschoonde publicatie beoordeelt de eigenschappen van een notitie op hun naam en laat alleen door wat op haar lijst staat. Een notitie waarvan het blok bovenaan niet als eigenschappen kan worden gelezen — tekst of een lijst tussen de twee `---`-regels, of YAML met een fout erin — wordt daarom niet zo gepubliceerd, en niets uit dat blok verlaat de vault. De preview — op de desktop de stap **Controle**, op de telefoon **Preview** — noemt dan de notitie in plaats van aantallen te tonen, en een bestaande publicatie toont **Vernieuwen mislukt** met de naam van de notitie. Corrigeer het blok in de tekst van de notitie; de volgende vernieuwing publiceert haar. Tot die tijd stopt het vernieuwen bij die notitie en wachten wijzigingen in andere notities daarachter; een notitie die de slice heeft verlaten, wordt toch teruggetrokken. Een exacte publicatie geeft elke notitie door zoals ze is en wordt hier niet door geraakt.
 
-Laatst gecontroleerd: 2026-10-21
+Laatst gecontroleerd: 2026-10-29
 
 Plainva houdt de vault als leesbare bestanden op je apparaat en bewaart de cloudkopie als ondoorzichtige versleutelde objecten. Open na het verbinden van een account **Instellingen → je vault → Beveiliging en delen**.
 
@@ -92,7 +92,7 @@ Een vault verwijderen met **App-gegevens vergeten** (Splash → een vault verwij
 Twee functies hebben een toestemming van het besturingssysteem nodig. Beide worden **bij de eerste druk** gevraagd, nooit bij het starten, en beide schrijven uitsluitend in je kluis.
 
 - **Microfoon** — voor **spraaknotities** (journaalinvoer, het microfoonpictogram). Plainva neemt alleen op zolang je een opname laat lopen; **Weggooien** gooit haar weg, **Toevoegen** schrijft haar als bestand naar de bijlagenmap. Er is geen transcriptie, geen upload en geen dienst die meeluistert. Weiger je, dan zegt de knop dat en de rest van de invoer blijft werken.
-- **Locatie** — voor de **plaatsstempel**, die bovendien een schakelaar per apparaat heeft die **standaard uit** staat (Instellingen → Weergave). De knop verschijnt pas als je hem aanzet; het systeem vraagt pas als je hem indrukt. Er wordt **één regel** geschreven — `📍 52.5200, 13.4050` — met vier decimalen, ongeveer elf meter. Geen geschiedenis, geen kaart, geen achtergrondtracking en geen onlinedienst die van coördinaten een naam maakt.
+- **Locatie** — voor de **plaatsstempel**, die bovendien een schakelaar per apparaat heeft die **standaard uit** staat (Instellingen → Editor en notities → Journaal). De knop verschijnt pas als je hem aanzet; het systeem vraagt pas als je hem indrukt. Er wordt **één regel** geschreven — `📍 52.5200, 13.4050` — met vier decimalen, ongeveer elf meter. Geen geschiedenis, geen kaart, geen achtergrondtracking en geen onlinedienst die van coördinaten een naam maakt.
 
 Camera en fotobibliotheek worden gevraagd zoals altijd: bij het invoegen van een foto en bij het scannen van een koppel-QR-code. Geen van deze toestemmingen verlaat het apparaat: wat ze opleveren wordt een bestand of een regel in je kluis — en die is van jou.
 

@@ -10,7 +10,7 @@ Ein Vault Slice entsteht in **Details → Inhalt → Berechtigungen → Prüfen*
 
 Eine bereinigte Veröffentlichung beurteilt die Eigenschaften einer Notiz nach ihren Namen und lässt nur die durch, die auf ihrer Liste stehen. Eine Notiz, deren Block am Anfang sich nicht als Eigenschaften lesen lässt — Text oder eine Liste zwischen den beiden `---`-Zeilen, oder YAML mit einem Fehler —, wird deshalb so nicht veröffentlicht, und nichts aus diesem Block verlässt den Vault. Die Vorschau — am Desktop der Schritt **Prüfen**, am Telefon **Vorschau** — nennt dann die Notiz, statt Zahlen zu zeigen, und eine bestehende Veröffentlichung zeigt **Fehler beim Auffrischen** mit dem Namen der Notiz. Korrigiere den Block im Text der Notiz, dann veröffentlicht das nächste Auffrischen sie. Bis dahin bleibt das Auffrischen an dieser Notiz stehen, und Änderungen an anderen Notizen warten dahinter; eine Notiz, die den Slice verlassen hat, wird trotzdem zurückgezogen. Eine exakte Veröffentlichung gibt jede Notiz heraus, wie sie ist, und ist nicht betroffen.
 
-Zuletzt geprüft: 2026-10-21
+Zuletzt geprüft: 2026-10-29
 
 Plainva kann einen Vault auf Deinem Gerät als normal lesbare Dateien belassen und die Cloud-Kopie als undurchsichtige verschlüsselte Objekte speichern. Öffne nach dem Verbinden eines Cloud-Kontos **Einstellungen → Dein Vault → Sicherheit & Freigaben**.
 
@@ -92,7 +92,7 @@ Ein Vault, den Du über **App-Daten vergessen** entfernst (Splash → Vault entf
 Zwei Funktionen brauchen eine Berechtigung des Betriebssystems. Beide werden **beim ersten Drücken** erfragt, nie beim Start, und beide schreiben ausschließlich in Deinen Vault.
 
 - **Mikrofon** — für **Sprachnotizen** (Journal-Erfassung, Mikrofon-Symbol). Plainva nimmt nur auf, solange Du eine Aufnahme laufen lässt; **Verwerfen** wirft sie weg, **Anhängen** legt sie als Datei im Anhänge-Ordner ab. Es gibt keine Transkription, keinen Upload und keinen Dienst, der mithört. Verweigerst Du die Freigabe, sagt der Knopf das und die übrige Erfassung funktioniert weiter.
-- **Standort** — für den **Ortsstempel**, und der ist zusätzlich ein Geräteschalter, der **standardmäßig aus** ist (Einstellungen → Darstellung). Erst wenn Du ihn einschaltest, erscheint der Knopf; erst wenn Du ihn drückst, fragt das System. Geschrieben wird **eine Zeile** — `📍 52.5200, 13.4050` — mit vier Nachkommastellen, also etwa elf Metern. Kein Verlauf, keine Karte, keine Hintergrund-Ortung und kein Online-Dienst, der aus Koordinaten einen Namen macht.
+- **Standort** — für den **Ortsstempel**, und der ist zusätzlich ein Geräteschalter, der **standardmäßig aus** ist (Einstellungen → Editor & Notizen → Journal). Erst wenn Du ihn einschaltest, erscheint der Knopf; erst wenn Du ihn drückst, fragt das System. Geschrieben wird **eine Zeile** — `📍 52.5200, 13.4050` — mit vier Nachkommastellen, also etwa elf Metern. Kein Verlauf, keine Karte, keine Hintergrund-Ortung und kein Online-Dienst, der aus Koordinaten einen Namen macht.
 
 Kamera und Fotomediathek fragt Plainva wie bisher nur beim Einfügen eines Fotos und beim Scannen eines Kopplungs-QR-Codes. Keine dieser Freigaben verlässt das Gerät: was sie liefern, wird eine Datei oder eine Zeile in Deinem Vault — und der gehört Dir.
 

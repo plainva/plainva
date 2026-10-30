@@ -10,7 +10,7 @@ Create a Vault Slice with the four steps **Details → Content → Permissions �
 
 A sanitized publication judges a note’s properties by their names and lets through only those on its list. A note whose block at the top cannot be read as properties — text or a list between the two `---` lines, or YAML with a mistake in it — is therefore not published as it is, and nothing of that block leaves the vault. The preview — the **Review** step on the desktop, **Preview** on the phone — then names the note instead of showing numbers, and a publication that already exists shows **Refresh failed** with the note’s name. Correct the block in the note’s text and the next refresh publishes the note. Until then the refresh stops at that note and changes to other notes wait behind it; a note that has left the slice is withdrawn all the same. An exact publication hands every note out as it is and is not affected.
 
-Last reviewed: 2026-10-21
+Last reviewed: 2026-10-29
 
 Plainva can keep a vault as ordinary readable files on your device while storing its cloud copy as opaque encrypted objects. Open **Settings → your vault → Security & Sharing** after connecting a cloud account.
 
@@ -92,7 +92,7 @@ Removing a vault with **Forget app data** (Splash → remove a vault → also fo
 Two features need a permission from the operating system. Both are asked for **on the first press**, never at startup, and both write into your vault and nowhere else.
 
 - **Microphone** — for **voice memos** (journal capture, the microphone icon). Plainva records only while you have a take running; **Discard** throws it away, **Attach** writes it into the attachments folder as a file. There is no transcription, no upload and no service listening in. If you refuse, the button says so and the rest of the capture keeps working.
-- **Location** — for the **place stamp**, which additionally has a device switch that is **off by default** (Settings → Appearance). The button appears only once you switch it on; the system asks only once you press it. What is written is **one line** — `📍 52.5200, 13.4050` — at four decimals, about eleven metres. No history, no map, no background tracking and no online service to turn coordinates into a name.
+- **Location** — for the **place stamp**, which additionally has a device switch that is **off by default** (Settings → Editor & notes → Journal). The button appears only once you switch it on; the system asks only once you press it. What is written is **one line** — `📍 52.5200, 13.4050` — at four decimals, about eleven metres. No history, no map, no background tracking and no online service to turn coordinates into a name.
 
 Camera and photo library are asked for as before: when you insert a photo and when you scan a pairing QR code. None of these permissions leaves the device: what they produce becomes a file or a line in your vault — and that is yours.
 

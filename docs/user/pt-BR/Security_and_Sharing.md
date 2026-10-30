@@ -10,7 +10,7 @@ Crie um Vault Slice com as quatro etapas **Detalhes → Conteúdo → Permissõe
 
 Uma publicação higienizada avalia as propriedades de uma nota pelos nomes e só deixa passar as que estão na sua lista. Por isso, uma nota cujo bloco inicial não pode ser lido como propriedades — texto ou uma lista entre as duas linhas `---`, ou YAML com um erro — não é publicada como está, e nada desse bloco sai do vault. A prévia — a etapa **Revisão** no desktop, **Prévia** no telefone — então indica a nota em vez de mostrar números, e uma publicação já existente mostra **Falha ao atualizar** com o nome da nota. Corrija o bloco no texto da nota e a próxima atualização a publica. Até lá, a atualização para nessa nota e as alterações em outras notas esperam atrás dela; uma nota que saiu da fatia é retirada mesmo assim. Uma publicação exata entrega cada nota como está e não é afetada.
 
-Última revisão: 2026-10-21
+Última revisão: 2026-10-29
 
 Plainva mantém o vault como arquivos legíveis no dispositivo e armazena a cópia na nuvem como objetos criptografados opacos. Depois de conectar uma conta, abra **Configurações → vault → Segurança e compartilhamento**.
 
@@ -92,7 +92,7 @@ Remover um vault com **Esquecer os dados do aplicativo** (Splash → remover um 
 Duas funcionalidades precisam de uma permissão do sistema. Ambas são pedidas **no primeiro toque**, nunca ao iniciar, e ambas escrevem apenas no seu cofre.
 
 - **Microfone** — para as **notas de voz** (captura do diário, o ícone do microfone). O Plainva grava somente enquanto você mantém uma gravação em andamento; **Descartar** a joga fora, **Anexar** a escreve como arquivo na pasta de anexos. Não há transcrição, nem envio, nem serviço escutando. Se você recusar, o botão diz isso e o resto da captura continua funcionando.
-- **Localização** — para o **carimbo de lugar**, que ainda tem um interruptor por aparelho **desativado por padrão** (Configurações → Aparência). O botão só aparece depois de você liga-lo; o sistema só pergunta quando você o pressiona. É escrita **uma linha** — `📍 52.5200, 13.4050` — com quatro casas decimais, cerca de onze metros. Sem histórico, sem mapa, sem rastreamento em segundo plano e sem serviço on-line que transforme coordenadas em nome.
+- **Localização** — para o **carimbo de lugar**, que ainda tem um interruptor por aparelho **desativado por padrão** (Configurações → Editor e notas → Diário). O botão só aparece depois de você liga-lo; o sistema só pergunta quando você o pressiona. É escrita **uma linha** — `📍 52.5200, 13.4050` — com quatro casas decimais, cerca de onze metros. Sem histórico, sem mapa, sem rastreamento em segundo plano e sem serviço on-line que transforme coordenadas em nome.
 
 Câmera e fototeca são pedidas como sempre: ao inserir uma foto e ao escanear um QR code de pareamento. Nenhuma dessas permissões sai do aparelho: o que elas produzem vira um arquivo ou uma linha no seu cofre — e ele é seu.
 

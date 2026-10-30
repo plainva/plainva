@@ -10,7 +10,7 @@ Crea un Vault Slice con i quattro passaggi **Dettagli → Contenuto → Permessi
 
 Una pubblicazione ripulita giudica le proprietà di una nota dai loro nomi e lascia passare solo quelle presenti nel suo elenco. Una nota il cui blocco iniziale non può essere letto come proprietà — testo o un elenco tra le due righe `---`, oppure YAML con un errore — non viene quindi pubblicata così com’è, e nulla di quel blocco lascia il vault. L’anteprima — il passaggio **Verifica** sul desktop, **Anteprima** sul telefono — indica allora la nota invece di mostrare numeri, e una pubblicazione già esistente mostra **Aggiornamento non riuscito** con il nome della nota. Correggi il blocco nel testo della nota e l’aggiornamento successivo la pubblica. Fino ad allora l’aggiornamento si ferma a quella nota e le modifiche ad altre note attendono dietro di essa; una nota uscita dalla porzione viene ritirata comunque. Una pubblicazione esatta consegna ogni nota così com’è e non ne è interessata.
 
-Ultima verifica: 2026-10-21
+Ultima verifica: 2026-10-29
 
 Plainva mantiene il vault come file leggibili sul dispositivo e salva la copia cloud come oggetti cifrati opachi. Dopo aver collegato un account, apri **Impostazioni → vault → Sicurezza e condivisione**.
 
@@ -92,7 +92,7 @@ Rimuovere un vault con **Dimentica i dati dell’app** (Splash → rimuovere un 
 Due funzioni hanno bisogno di un permesso del sistema operativo. Entrambi vengono chiesti **alla prima pressione**, mai all'avvio, ed entrambi scrivono soltanto nel tuo vault.
 
 - **Microfono** — per le **note vocali** (acquisizione del diario, l'icona del microfono). Plainva registra solo mentre hai una ripresa in corso; **Scarta** la butta via, **Allega** la scrive come file nella cartella degli allegati. Non c'è trascrizione, non c'è caricamento e nessun servizio in ascolto. Se lo neghi, il pulsante lo dice e il resto dell'acquisizione continua a funzionare.
-- **Posizione** — per il **timbro del luogo**, che in più ha un interruttore per dispositivo **disattivato per impostazione predefinita** (Impostazioni → Aspetto). Il pulsante compare solo quando lo attivi; il sistema chiede solo quando lo premi. Viene scritta **una riga** — `📍 52.5200, 13.4050` — con quattro decimali, circa undici metri. Nessuna cronologia, nessuna mappa, nessun tracciamento in background e nessun servizio online che trasformi le coordinate in un nome.
+- **Posizione** — per il **timbro del luogo**, che in più ha un interruttore per dispositivo **disattivato per impostazione predefinita** (Impostazioni → Editor e note → Diario). Il pulsante compare solo quando lo attivi; il sistema chiede solo quando lo premi. Viene scritta **una riga** — `📍 52.5200, 13.4050` — con quattro decimali, circa undici metri. Nessuna cronologia, nessuna mappa, nessun tracciamento in background e nessun servizio online che trasformi le coordinate in un nome.
 
 Fotocamera e libreria foto vengono chieste come sempre: quando inserisci una foto e quando scansioni un codice QR di accoppiamento. Nessuno di questi permessi lascia il dispositivo: ciò che producono diventa un file o una riga nel tuo vault — ed è tuo.
 

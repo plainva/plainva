@@ -1,6 +1,6 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-10-26
+Ultimo aggiornamento: 2026-10-29
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
@@ -109,7 +109,7 @@ Sul telefono rientrano anche gli **elenchi di promemoria** del dispositivo (iOS)
 
 ### Restare in esecuzione sullo sfondo
 
-Poiché un promemoria sul computer arriva solo finché Plainva è in esecuzione, in **Impostazioni → Avvio e comportamento → Sfondo** ci sono due interruttori — separati, perché sono due desideri diversi, ed entrambi **disattivati di default**:
+Poiché un promemoria sul computer arriva solo finché Plainva è in esecuzione, in **Impostazioni → Avvio e comportamento** ci sono due interruttori, separati in due gruppi perché sono due desideri diversi — **Avvia con il sistema** in **Avvio** e **Resta nell'area di notifica alla chiusura** in **Sfondo** — ed entrambi **disattivati di default**:
 
 - **Avvia con il sistema** registra Plainva all'accesso.
 - **Resta nell'area di notifica alla chiusura** mette un'icona di Plainva nell'area di notifica; chiudere la finestra non termina più l'app ma la ripone lì. Dall'icona torni con **Apri**, vedi il **prossimo appuntamento** e chiudi Plainva con **Esci**.

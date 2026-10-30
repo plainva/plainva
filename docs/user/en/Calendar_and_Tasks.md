@@ -1,6 +1,6 @@
 # Calendar & external tasks
 
-Last reviewed: 2026-10-26
+Last reviewed: 2026-10-29
 
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
@@ -109,7 +109,7 @@ On the phone this includes the device's **reminder lists** (iOS) once the device
 
 ### Keeping it running in the background
 
-Because a reminder on the computer only arrives while Plainva is running, **Settings → Startup & behavior → Background** offers two switches — separate, because they are two different wishes, and both **off by default**:
+Because a reminder on the computer only arrives while Plainva is running, **Settings → Startup & behavior** offers two switches, kept apart in two groups because they are two different wishes — **Start with the system** under **Startup** and **Keep running in the tray when closed** under **Background** — and both **off by default**:
 
 - **Start with the system** registers Plainva at sign-in.
 - **Keep running in the tray when closed** puts a Plainva icon in the tray; closing the window then no longer quits the app but files it there. The icon brings you back with **Open**, shows the **next appointment**, and ends Plainva with **Quit**.

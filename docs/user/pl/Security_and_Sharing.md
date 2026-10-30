@@ -10,7 +10,7 @@ Vault Slice tworzysz w czterech krokach: **Szczegóły → Zawartość → Upraw
 
 Publikacja oczyszczona ocenia właściwości notatki po ich nazwach i przepuszcza tylko te, które są na jej liście. Dlatego notatka, której bloku na początku nie da się odczytać jako właściwości — tekst lub lista między dwiema liniami `---` albo YAML z błędem — nie jest publikowana w takiej postaci i nic z tego bloku nie opuszcza vaultu. Podgląd — na komputerze krok **Sprawdzenie**, na telefonie **Podgląd** — wskazuje wtedy tę notatkę zamiast pokazywać liczby, a istniejąca publikacja pokazuje **Odświeżanie nie powiodło się** z nazwą notatki. Popraw blok w tekście notatki, a następne odświeżanie ją opublikuje. Do tego czasu odświeżanie zatrzymuje się na tej notatce, a zmiany w innych notatkach czekają za nią; notatka, która opuściła wycinek, i tak zostaje wycofana. Publikacja dokładna przekazuje każdą notatkę taką, jaka jest, i nie jest tym objęta.
 
-Ostatni przegląd: 2026-10-21
+Ostatni przegląd: 2026-10-29
 
 Plainva pozostawia vault jako czytelne pliki na urządzeniu, a kopię w chmurze zapisuje jako nieprzezroczyste szyfrowane obiekty. Po połączeniu konta otwórz **Ustawienia → vault → Bezpieczeństwo i udostępnianie**.
 
@@ -92,7 +92,7 @@ Usunięcie vaulta za pomocą **Zapomnij dane aplikacji** (Splash → usuń vault
 Dwie funkcje potrzebują zgody systemu. Obie są proszone **przy pierwszym naciśnięciu**, nigdy przy starcie, i obie zapisują wyłącznie w Twoim sejfie.
 
 - **Mikrofon** — do **notatek głosowych** (zapis dziennika, ikona mikrofonu). Plainva nagrywa tylko wtedy, gdy nagranie trwa; **Odrzuć** je wyrzuca, **Dołącz** zapisuje je jako plik w folderze załączników. Nie ma transkrypcji, nie ma wysyłki i nie ma usługi, która słucha. Gdy odmówisz, przycisk to mówi, a reszta zapisu działa dalej.
-- **Lokalizacja** — do **stempla miejsca**, który ma dodatkowo przełącznik na urządzenie, **domyślnie wyłączony** (Ustawienia → Wygląd). Przycisk pojawia się dopiero po jego włączeniu; system pyta dopiero, gdy go naciśniesz. Zapisywany jest **jeden wiersz** — `📍 52.5200, 13.4050` — z czterema miejscami po przecinku, czyli około jedenastu metrów. Żadnej historii, żadnej mapy, żadnego śledzenia w tle i żadnej usługi online zamieniającej współrzędne w nazwę.
+- **Lokalizacja** — do **stempla miejsca**, który ma dodatkowo przełącznik na urządzenie, **domyślnie wyłączony** (Ustawienia → Edytor i notatki → Dziennik). Przycisk pojawia się dopiero po jego włączeniu; system pyta dopiero, gdy go naciśniesz. Zapisywany jest **jeden wiersz** — `📍 52.5200, 13.4050` — z czterema miejscami po przecinku, czyli około jedenastu metrów. Żadnej historii, żadnej mapy, żadnego śledzenia w tle i żadnej usługi online zamieniającej współrzędne w nazwę.
 
 O aparat i bibliotekę zdjęć Plainva prosi jak dotąd: przy wstawianiu zdjęcia i przy skanowaniu kodu QR parowania. Żadna z tych zgód nie opuszcza urządzenia: to, co powstaje, staje się plikiem albo wierszem w Twoim sejfie — a ten należy do Ciebie.
 
