@@ -5,6 +5,8 @@ import { Banner } from "../ui/Banner";
 import { Radio } from "../ui/Radio";
 import { TextInput } from "../ui/Field";
 import { SettingCard, SettingCardActions, SettingCardBlock, SettingCardNote, SettingRow } from "../ui/SettingsSurface";
+import { DeviceOnlyBadge } from "../ui/DeviceOnlyBadge";
+import type { InfoContent } from "../ui/InfoTip";
 import {
   ownAccessRequirements,
   validClientId,
@@ -41,7 +43,16 @@ export function OAuthAccessEditor({
   plainvaAvailable,
   onSave,
   onCancel,
+  label,
+  info,
 }: {
+  /**
+   * The group's name when the editor stands for it - on the account page it
+   * replaces the "Access on this device" card while it is open, so the name
+   * says the scope. Without one the editor says it with the badge (E3).
+   */
+  label?: string;
+  info?: InfoContent;
   family: AccessFamily;
   platform: AccessPlatform;
   value: StoredOAuthAccess | null;
@@ -64,8 +75,9 @@ export function OAuthAccessEditor({
 
   return (
     <div data-testid={`oauth-access-${family}`}>
-    <SettingCard>
-      <SettingCardNote>{t("accountAccess.deviceOnly")}</SettingCardNote>
+    <SettingCard label={label} info={info}>
+      {/* The choice is this device's (E6); one sentence used to say so, the badge says it now. */}
+      {label === undefined && <SettingCardNote><DeviceOnlyBadge testId="oauth-access-device-only" /></SettingCardNote>}
       <SettingCardBlock>
       <div role="radiogroup" style={{ display: "grid", gap: "var(--space-2)" }} aria-label={t(`accountAccess.title.${family}`)}>
         <Radio

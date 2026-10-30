@@ -240,6 +240,16 @@ export function emptyTaskListHintKey(provider: string): string {
 }
 
 /**
+ * Whether that hint stands visibly under the empty list (settings plan
+ * 2026-10-29, appendix 3.1): "this account offers no task lists" is a state;
+ * CalDAV's background - where a server may keep them instead - goes behind
+ * the info button.
+ */
+export function emptyTaskListHintVisible(provider: string): boolean {
+  return provider !== "caldav";
+}
+
+/**
  * The cards the person may declare "the same account" as this one (E3's
  * fallback, E6 on both shells): the other cards of the same provider. The
  * automatic fold needs a provider-confirmed identity on both sides; a card

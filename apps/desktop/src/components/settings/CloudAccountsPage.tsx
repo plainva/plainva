@@ -23,6 +23,7 @@ import {
   Switch,
   TextInput,
   EmptyState,
+  InfoTip,
   SettingCard,
   SettingCardNote,
   SettingCardActions,
@@ -105,8 +106,12 @@ type Mode = { kind: "list" } | { kind: "wizard" } | { kind: "detail"; id: string
 export const CloudAccountsPage: React.FC<{
   selectedVault: string;
   initialProvider?: string;
-  /** Open this account's detail page - or one service page of it - as soon as it is known (D2, V3). */
-  focusAccount?: { ref: string; nonce: number; service?: CloudServiceId } | null;
+  /**
+   * Open this account's detail page - or one service page of it - as soon as it
+   * is known (D2, V3). Without a `ref` (a settings search hit) the page takes
+   * the account that carries `service`, or the first one; `list` returns to the list.
+   */
+  focusAccount?: { ref?: string; nonce: number; service?: CloudServiceId; list?: boolean } | null;
   /** Opens the connect assistant, a side door's service ticked (settings plan 2026-10-29, E7). */
   connectRequest?: { service?: CloudServiceId; nonce: number } | null;
   /** Opens another settings page of the vault (the Calendar, E-Mail or Sync page, E4). */
@@ -188,7 +193,15 @@ export const CloudAccountsPage: React.FC<{
   const focusApplied = useRef(0);
   useEffect(() => {
     if (!focusAccount || focusApplied.current === focusAccount.nonce) return;
-    const hit = findCloudAccountByRef(records, focusAccount.ref);
+    if (focusAccount.list) {
+      focusApplied.current = focusAccount.nonce;
+      setMode({ kind: "list" });
+      return;
+    }
+    const wanted = focusAccount.service;
+    const hit = focusAccount.ref !== undefined
+      ? findCloudAccountByRef(records, focusAccount.ref)
+      : records.find((record) => !wanted || accountServices(record).includes(wanted));
     if (!hit) return;
     focusApplied.current = focusAccount.nonce;
     setReconStatus({});
@@ -743,6 +756,10 @@ export const CloudAccountsPage: React.FC<{
     const passwordServices = passwordServicesOf(detail);
     const lastCheck = lastChecks.get(detail.id);
     const confirm = removeAccountConfirm(accountServices(detail));
+    const oauthAccess = (model.access.kind === "oauth" || model.access.kind === "appKey") && !!detailFamily && accessInfo?.family === detailFamily;
+    const gmailOpen = gmailPasswordFor === detail.id;
+    /** The access group has a row to show: the sign-in line, the password rows or Gmail's app password. */
+    const accessCardShown = (oauthAccess && !editAccess) || model.access.kind === "password" || model.access.kind === "keys" || gmailOpen;
     return (
       <div>
         <AreaHead areaId="cloudAccounts" />
@@ -776,7 +793,10 @@ export const CloudAccountsPage: React.FC<{
           />
         )}
         {Object.values(reconStatus).some((status) => status.reason === "permissions") && (
-          <Banner kind="warning" rounded>{t("cloudAccounts.loginGrantIncomplete")}</Banner>
+          <Banner kind="warning" rounded>
+            {t("cloudAccounts.loginGrantIncomplete")}{" "}
+            <InfoTip label={t("accountAccess.lineLabel")} info={t("cloudAccounts.loginGrantKeptInfo")} testId="cloudacct-grant-info" />
+          </Banner>
         )}
         {Object.keys(reconStatus).length > 0 && (
           <ServiceStatusCard services={Object.keys(reconStatus) as CloudServiceId[]} status={reconStatus} waitingKey="pim.connecting" />
@@ -823,29 +843,12 @@ export const CloudAccountsPage: React.FC<{
           })}
         </SettingCard>
 
-        {gmailPasswordFor === detail.id && (
-          <SettingCard label={t("cloudAccounts.gmailPasswordGroup")}>
-            <SettingCardNote>{t("cloudAccounts.gmailPasswordHint", { account: gmailAddress || detail.label })}</SettingCardNote>
-            <SettingRow label={t("cloudAccounts.appPassword")} wide>
-              <TextInput type="password" value={gmailPassword} onChange={(e) => setGmailPassword(e.target.value)} data-testid="cloudacct-gmail-password" />
-            </SettingRow>
-            <SettingCardActions>
-              <Button variant="ghost" onClick={() => setGmailPasswordFor(null)}>{t("common.cancel")}</Button>
-              <Button
-                variant="primary"
-                disabled={busy || !gmailPassword || !gmailAddress}
-                data-testid="cloudacct-gmail-password-save"
-                onClick={() => void signInCard(detail, ["mail"], { email: gmailAddress, pass: gmailPassword }).then(() => setGmailPassword(""))}
-              >
-                {t("pim.connect")}
-              </Button>
-            </SettingCardActions>
-          </SettingCard>
-        )}
-
-        {/* 3 - how this device signs in: the same place for every provider. */}
-        <SettingCard label={t("cloudAccounts.accessGroup")}>
-          {(model.access.kind === "oauth" || model.access.kind === "appKey") && detailFamily && accessInfo?.family === detailFamily && !editAccess && (
+        {/* 3 - how this device signs in: the same place for every provider. While
+            the sign-in editor is open it IS this group: the card would otherwise
+            stand empty above it. */}
+        {accessCardShown && (
+        <SettingCard label={t("cloudAccounts.accessGroup")} info={t("cloudAccounts.accessGroupInfo")} testId="cloudacct-access-group">
+          {oauthAccess && !editAccess && (
             <SettingRow
               label={t("accountAccess.lineLabel")}
               desc={accessLineText(accessInfo.resolved, (key, options) => t(key, options), accessProblemKey)}
@@ -870,10 +873,35 @@ export const CloudAccountsPage: React.FC<{
               </SettingRow>
             </>
           )}
+
+          {/* Gmail through an app password (appendix 3.1 B4, move 25): part of how
+              this device signs in, not a card of its own. */}
+          {gmailOpen && (
+            <>
+              <SettingRow label={t("cloudAccounts.appPassword")} desc={t("cloudAccounts.gmailPasswordStep")} info={t("cloudAccounts.gmailPasswordHint")} wide>
+                <TextInput type="password" value={gmailPassword} onChange={(e) => setGmailPassword(e.target.value)} data-testid="cloudacct-gmail-password" />
+              </SettingRow>
+              <SettingCardActions>
+                <Button variant="ghost" onClick={() => setGmailPasswordFor(null)}>{t("common.cancel")}</Button>
+                <Button
+                  variant="primary"
+                  disabled={busy || !gmailPassword || !gmailAddress}
+                  data-testid="cloudacct-gmail-password-save"
+                  onClick={() => void signInCard(detail, ["mail"], { email: gmailAddress, pass: gmailPassword }).then(() => setGmailPassword(""))}
+                >
+                  {t("pim.connect")}
+                </Button>
+              </SettingCardActions>
+            </>
+          )}
         </SettingCard>
-        {/* The sign-in editor is a card of its own, after the section - never a card inside it. */}
-        {(model.access.kind === "oauth" || model.access.kind === "appKey") && detailFamily && accessInfo?.family === detailFamily && editAccess && (
+        )}
+        {/* The sign-in editor is a card of its own, after the section - never a card
+            inside it. Alone, it carries the group's name. */}
+        {oauthAccess && detailFamily && editAccess && (
           <OAuthAccessEditor
+            label={accessCardShown ? undefined : t("cloudAccounts.accessGroup")}
+            info={accessCardShown ? undefined : t("cloudAccounts.accessGroupInfo")}
             family={detailFamily}
             platform="desktop"
             value={accessInfo.stored}
@@ -893,7 +921,8 @@ export const CloudAccountsPage: React.FC<{
           <SettingCard label={t("cloudAccounts.checkConnection")}>
             <SettingRow
               label={lastCheck ? t("cloudAccounts.checkLast", { time: lastCheck.time }) : t("cloudAccounts.checkConnection")}
-              desc={lastCheck ? t(lastCheck.ok ? "cloudAccounts.checkAllOk" : "cloudAccounts.checkSomeFailed") : t("cloudAccounts.checkHint")}
+              desc={lastCheck ? t(lastCheck.ok ? "cloudAccounts.checkAllOk" : "cloudAccounts.checkSomeFailed") : undefined}
+              info={t("cloudAccounts.checkHint")}
             >
               <Button variant="secondary" size="sm" disabled={busy} onClick={() => setChecking(detail.id)} data-testid="cloudacct-check-open">
                 {t("cloudAccounts.checkConnection")}
@@ -915,29 +944,15 @@ export const CloudAccountsPage: React.FC<{
           />
         )}
 
-        {/* 5 - the end: sign out here, or remove from the vault. */}
-        <SettingCard label={t("cloudAccounts.endGroup")}>
-          <div className="pv-acct-ctlrow">
-            {model.end.signOut && (
-              <Button variant="secondary" icon={<LogOut size={ICON.meta} />} disabled={busy} onClick={() => void signOutHere(detail)} data-testid="cloudacct-signout" data-tip={t("cloudAccounts.signOutHereHint")}>
-                {t("cloudAccounts.signOutHere")}
-              </Button>
-            )}
-            <Button variant="danger-soft" icon={<Trash2 size={ICON.meta} />} disabled={busy} onClick={() => void remove(detail, confirm)} data-testid="cloudacct-remove">
-              {t("cloudAccounts.removeAccountEllipsis")}
-            </Button>
-          </div>
-          <SettingCardNote>{t("cloudAccounts.endHint")}</SettingCardNote>
-        </SettingCard>
-
-        {/* E3's fallback - only where there is a second card of the same provider to point at. */}
+        {/* E3's fallback - only where there is a second card of the same provider
+            to point at. Folded under "Advanced", BEFORE the end (appendix 3.1 B2,
+            move 24): the danger zone stays the last group of the page. */}
         {(() => {
           const others = manualMergeCandidates(records, detail);
           if (others.length === 0) return null;
           return (
-            <SettingCard label={t("cloudAccounts.mergeManualGroup")}>
-              <SettingCardNote>{t("cloudAccounts.mergeManualHint")}</SettingCardNote>
-              <SettingRow label={t("cloudAccounts.mergeManualPick")}>
+            <SettingCard label={t("cloudAccounts.advancedGroup")} collapsible testId="cloudacct-advanced">
+              <SettingRow label={t("cloudAccounts.mergeManualGroup")} desc={t("cloudAccounts.mergeManualStep")} info={t("cloudAccounts.mergeManualHint")} wide>
                 <Select
                   value={mergeSource}
                   onChange={setMergeSource}
@@ -963,6 +978,23 @@ export const CloudAccountsPage: React.FC<{
             </SettingCard>
           );
         })()}
+
+        {/* 5 - the end: sign out here, or remove from the vault. What signing out
+            leaves in place stands behind the info button; the difference to
+            removing is the visible line. */}
+        <SettingCard label={t("cloudAccounts.endGroup")} info={t("cloudAccounts.signOutHereHint")} testId="cloudacct-end">
+          <div className="pv-acct-ctlrow">
+            {model.end.signOut && (
+              <Button variant="secondary" icon={<LogOut size={ICON.meta} />} disabled={busy} onClick={() => void signOutHere(detail)} data-testid="cloudacct-signout">
+                {t("cloudAccounts.signOutHere")}
+              </Button>
+            )}
+            <Button variant="danger-soft" icon={<Trash2 size={ICON.meta} />} disabled={busy} onClick={() => void remove(detail, confirm)} data-testid="cloudacct-remove">
+              {t("cloudAccounts.removeAccountEllipsis")}
+            </Button>
+          </div>
+          <SettingCardNote>{t("cloudAccounts.endHint")}</SettingCardNote>
+        </SettingCard>
       </div>
     );
   }
@@ -973,8 +1005,8 @@ export const CloudAccountsPage: React.FC<{
       <AreaHead areaId="cloudAccounts" />
       {!isActiveVault && <SettingCardNote className="pv-setrow--note">{t("pim.openVaultFirst")}</SettingCardNote>}
       {repairNeeds.length > 0 && (
-        <SettingCard label={t("cloudAccounts.repairTitle")}>
-          <SettingCardNote>{t("cloudAccounts.repairHint")}</SettingCardNote>
+        <SettingCard label={t("cloudAccounts.repairTitle")} info={t("cloudAccounts.repairHint")}>
+          <SettingCardNote>{t("cloudAccounts.repairStep")}</SettingCardNote>
           {repairNeeds.flatMap((need, needIndex) =>
             need.accountIds.map((accountId) => {
               const record = records.find((candidate) => candidate.id === accountId);
@@ -1001,9 +1033,8 @@ export const CloudAccountsPage: React.FC<{
       )}
       <SettingCard label={t("cloudAccounts.connectedGroup")}>
         {records.length === 0 && (
-          <EmptyState title={t("cloudAccounts.noneYet")} icon={<Users size={ICON.empty} />}>
-            {t("settings.pageDescCloudAccounts")}
-          </EmptyState>
+          // The page head says what this page is for; the empty state does not repeat it (appendix 3.1 B3).
+          <EmptyState icon={<Users size={ICON.empty} />}>{t("cloudAccounts.noneYet")}</EmptyState>
         )}
         {records.map((record) => {
           const { name, identity } = accountTitle(record);
@@ -1044,12 +1075,6 @@ export const CloudAccountsPage: React.FC<{
             </button>
           );
         })}
-        {/* An account still signed in once per service goes half-dark when one
-            renewal fails (finding 2026-07-28): said once, the way out is "Sign in
-            again" on its page. */}
-        {[...unifiable].some(unifyOffered) && (
-          <SettingCardNote>{t("cloudAccounts.legacySignIn")}</SettingCardNote>
-        )}
         {filesAccount && (
           <SettingCardNote>
             {t("cloudAccounts.filesXorNote", { account: filesAccount.label || familyLabel(filesAccount.family, filesAccount.flavor) })}

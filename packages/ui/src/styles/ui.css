@@ -1965,6 +1965,25 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
   color: var(--on-accent-container);
 }
 
+/* Settings search (settings plan 2026-10-29, § 4.3, E2): the field at the top
+   of the settings rail (the phone: above the area list) and, while it holds a
+   query, the hits in place of the areas. A hit is the shared Row - its name,
+   and on the second line where it lives (page › card) and, for a page hidden
+   in this state, why. `.pv-setsearch-hits` also tells `revealSetting` that
+   these rows are hits, never a target. */
+.pv-setsearch { margin-bottom: var(--space-2); }
+.pv-setsearch-hits { min-width: 0; }
+/* The row a hit opened is lit on the accent pair for a moment (both shells;
+   `revealSetting` sets the class and clears it after SETTING_FOUND_MS). The
+   light itself does not depend on motion - with animations off, in the OS or
+   in the app or by a theme, it still shows; only its fade-in is motion. */
+.pv-setfound {
+  background: var(--accent-container);
+  box-shadow: inset 0 0 0 2px var(--accent-color);
+  animation: pv-setfound var(--dur-2) var(--ease-effects);
+}
+@keyframes pv-setfound { from { background: transparent; box-shadow: inset 0 0 0 2px transparent; } }
+
 /* Settings surface (settings redesign 2026-07-18, P1 — variant "quiet
    cards"): one page per area; settings live in named group cards with
    hairline-separated rows. Both shells share the AREA catalog

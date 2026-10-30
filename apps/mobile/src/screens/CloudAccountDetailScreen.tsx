@@ -303,7 +303,7 @@ export function CloudAccountDetailScreen({
       // The card to fold in is the target of an action (E20), not a value.
       const sourceId = await mTargets({
         title: t("cloudAccounts.mergeManualPick"),
-        message: t("cloudAccounts.mergeManualHint"),
+        message: t("cloudAccounts.mergeManualStep"),
         options: mergeCandidates.map((record) => ({ value: record.id, label: record.label || familyLabel(record.family) })),
       });
       if (!sourceId) return;
@@ -457,7 +457,7 @@ export function CloudAccountDetailScreen({
           </GroupCard>
 
           {/* 3 - how this phone signs in: the same place for every provider. */}
-          <SectionLabel>{t("cloudAccounts.accessGroup")}</SectionLabel>
+          <SectionLabel info={t("cloudAccounts.accessGroupInfo")}>{t("cloudAccounts.accessGroup")}</SectionLabel>
           <GroupCard>
             <RowList>
               {(model.access.kind === "oauth" || model.access.kind === "appKey") && accessFamily && (
@@ -507,7 +507,7 @@ export function CloudAccountDetailScreen({
                       onClick={deviceStatus && deviceStatus.reminders !== "fullAccess" ? () => void openDevicePimSettings() : undefined}
                     />
                   ) : (
-                    <Row icon={<ListChecks size={ICON.ui} />} title={t("pim.deviceRemindersRow")} subtitle={t("pim.deviceNoRemindersAndroid")} />
+                    <Row icon={<ListChecks size={ICON.ui} />} title={t("pim.deviceRemindersRow")} subtitle={t("pim.deviceNoRemindersAndroid")} info={t("pim.deviceNoRemindersAndroidInfo")} />
                   )}
                 </>
               )}
@@ -521,14 +521,17 @@ export function CloudAccountDetailScreen({
           {/* 4 - check connection: one row per service, the action that helps. */}
           {model.check && loginVaultId && (
             <>
-              <SectionLabel>{t("cloudAccounts.checkConnection")}</SectionLabel>
+              {/* The explanations of action rows stand at their group heading: a row
+                  that acts is tapped anywhere, an info button inside it would
+                  take the tap (and the desktop puts them at the card too). */}
+              <SectionLabel info={t("cloudAccounts.checkHint")}>{t("cloudAccounts.checkConnection")}</SectionLabel>
               <GroupCard>
                 <RowList>
                   <Row
                     data-testid="cloudacct-check-open"
                     icon={<Activity className="m-accent" size={ICON.ui} />}
                     title={t("cloudAccounts.checkConnection")}
-                    subtitle={lastCheck ? `${t("cloudAccounts.checkLast", { time: lastCheck.time })} · ${t(lastCheck.ok ? "cloudAccounts.checkAllOk" : "cloudAccounts.checkSomeFailed")}` : t("cloudAccounts.checkHint")}
+                    subtitle={lastCheck ? `${t("cloudAccounts.checkLast", { time: lastCheck.time })} · ${t(lastCheck.ok ? "cloudAccounts.checkAllOk" : "cloudAccounts.checkSomeFailed")}` : undefined}
                     end={<ChevronRight className="m-chevron" size={ICON.ui} />}
                     onClick={() => setChecking(true)}
                   />
@@ -553,45 +556,19 @@ export function CloudAccountDetailScreen({
             />
           )}
 
-          {/* 5 - the end: sign out here, or remove from the vault. */}
-          <SectionLabel>{t("cloudAccounts.endGroup")}</SectionLabel>
-          <GroupCard>
-            <RowList>
-              {model.end.signOut && (
-                <Row
-                  data-testid="cloudacct-signout"
-                  icon={<LogOut size={ICON.ui} />}
-                  title={t("cloudAccounts.signOutHere")}
-                  subtitle={t("cloudAccounts.signOutHereHint")}
-                  wrap
-                  disabled={busy || signingIn}
-                  onClick={signOutHere}
-                />
-              )}
-              <Row
-                data-testid="cloudacct-remove"
-                icon={<Trash2 className="m-danger" size={ICON.ui} />}
-                title={<span className="m-danger">{t("cloudAccounts.removeAccount")}</span>}
-                // The device's own calendars stay with the device; only the connection goes.
-                subtitle={t(card.family === "device" ? "pim.deviceRemoveNote" : "cloudAccounts.removeHint")}
-                wrap
-                disabled={busy}
-                onClick={removeAccount}
-              />
-            </RowList>
-          </GroupCard>
-
-          {/* E3's fallback, as on the desktop (E6): only where another card of the same provider can be named. */}
+          {/* E3's fallback, as on the desktop (E6): only where another card of the
+              same provider can be named - under "Advanced", BEFORE the end
+              (appendix 3.1 B2, move 24). */}
           {card.record && mergeCandidates.length > 0 && (
             <>
-              <SectionLabel>{t("cloudAccounts.mergeManualGroup")}</SectionLabel>
+              <SectionLabel info={t("cloudAccounts.mergeManualHint")}>{t("cloudAccounts.advancedGroup")}</SectionLabel>
               <GroupCard>
                 <RowList>
                   <Row
                     data-testid="cloudacct-merge-manual"
                     icon={<Merge size={ICON.ui} />}
-                    title={t("cloudAccounts.mergeManualAction")}
-                    subtitle={t("cloudAccounts.mergeManualHint")}
+                    title={t("cloudAccounts.mergeManualGroup")}
+                    subtitle={t("cloudAccounts.mergeManualStep")}
                     wrap
                     disabled={busy}
                     end={<ChevronRight className="m-chevron" size={ICON.ui} />}
@@ -601,6 +578,35 @@ export function CloudAccountDetailScreen({
               </GroupCard>
             </>
           )}
+
+          {/* 5 - the end: sign out here, or remove from the vault. The line under
+              the card says the difference, as on the desktop (appendix 3.1 B5);
+              what signing out leaves in place stands behind the heading's info. */}
+          <SectionLabel info={t("cloudAccounts.signOutHereHint")}>{t("cloudAccounts.endGroup")}</SectionLabel>
+          <GroupCard>
+            <RowList>
+              {model.end.signOut && (
+                <Row
+                  data-testid="cloudacct-signout"
+                  icon={<LogOut size={ICON.ui} />}
+                  title={t("cloudAccounts.signOutHere")}
+                  disabled={busy || signingIn}
+                  onClick={signOutHere}
+                />
+              )}
+              <Row
+                data-testid="cloudacct-remove"
+                icon={<Trash2 className="m-danger" size={ICON.ui} />}
+                title={<span className="m-danger">{t("cloudAccounts.removeAccount")}</span>}
+                // The device's own calendars stay with the device; only the connection goes.
+                subtitle={card.family === "device" ? t("pim.deviceRemoveNote") : undefined}
+                wrap
+                disabled={busy}
+                onClick={removeAccount}
+              />
+            </RowList>
+          </GroupCard>
+          {card.family !== "device" && <p className="m-hint" data-testid="cloudacct-end-hint">{t("cloudAccounts.endHint")}</p>}
         </>
       )}
     </div>

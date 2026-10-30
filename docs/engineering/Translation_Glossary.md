@@ -1,6 +1,6 @@
 # Translation Glossary
 
-Last reviewed: 2026-09-15. Reference for ALL translation work (locale JSONs, vault
+Last reviewed: 2026-10-30. Reference for ALL translation work (locale JSONs, vault
 templates, user guide). Every session that touches strings follows these
 conventions — this keeps subsequent translations consistent, even without
 native-speaker review.
@@ -144,6 +144,60 @@ Use these UI terms in the guide and tour. A summary belongs to the whole visible
 | ja | 集計 | 集計なし | ヘッダーの色 | タグ · ノート全体 |
 
 Tour lessons live beside the template modules as `tourLessons.<code>.json`; all ten languages share the builder and creation boundary.
+
+## Settings terms that must stay apart
+
+The settings pages name three German things with three German words. Languages that
+collapse two of them into one word make a path like "Appearance → Display" or
+"Access → Access" read as a repeat, and the user guide can no longer say which one it
+means. Keep them apart in every language (decision 2026-10-30):
+
+| Language | Appearance (page, `settings.sectionAppearance`) | View (group, `settings.groupView`: reading/editing view) | Display (group, `settings.groupDisplay`: motion, density, zoom, third column) |
+|---|---|---|---|
+| en | Appearance | View | Display |
+| de | Erscheinungsbild | Ansicht | Darstellung |
+| fr | Apparence | Vue | Affichage |
+| es | Apariencia | Vista | Visualización |
+| pt-BR | Aparência | Visualização | Exibição |
+| it | Aspetto | Vista | Visualizzazione |
+| nl | Uiterlijk | Weergave | Schermweergave |
+| pl | Wygląd | Widok | Wyświetlanie |
+| zh-CN | 外观 | 视图 | 显示 |
+| ja | 外観 | ビュー | 表示 |
+
+nl: "Weergave" is the word for a view (database view, reading view, `leesweergave`),
+so the page is "Uiterlijk" and the display group "Schermweergave" — never "Weergave"
+for all three. ja: "ビュー" is the view (閲覧ビュー, 編集ビュー, database ビュー), "表示"
+the display/presentation group, "外観" the page.
+
+The card on a cloud account's page and the row inside it are two things too:
+"Zugang auf diesem Gerät" (`cloudAccounts.accessGroup`: server, user, keys and the
+sign-in line) and "Anmeldung auf diesem Gerät" (`accountAccess.lineLabel`, with the
+provider titles "Google-Anmeldung …"): the sign-in itself.
+
+| Language | Access card (`cloudAccounts.accessGroup`) | Sign-in row (`accountAccess.lineLabel`) |
+|---|---|---|
+| en | Access on this device | Sign-in on this device |
+| de | Zugang auf diesem Gerät | Anmeldung auf diesem Gerät |
+| fr | Accès sur cet appareil | Connexion sur cet appareil |
+| es | Acceso en este dispositivo | Inicio de sesión en este dispositivo |
+| pt-BR | Acesso neste dispositivo | Login neste dispositivo |
+| it | Connessione su questo dispositivo | Accesso su questo dispositivo |
+| nl | Toegang op dit apparaat | Aanmelding op dit apparaat |
+| pl | Dostęp na tym urządzeniu | Logowanie na tym urządzeniu |
+| zh-CN | 此设备上的访问 | 此设备的登录方式 |
+| ja | このデバイスでのアクセス | この端末のログイン |
+
+it: "accesso"/"accedi" is the word for signing in throughout the file (Accesso standard,
+Accedi di nuovo), so the access card is "Connessione" — never "Accesso" for both.
+
+fr addresses the user with "vous" everywhere (see the table above); the settings,
+cloud-account and connect texts had drifted into "tu" and were brought back
+(2026-10-30). `apps/desktop/src/translationTerms.test.ts` is the place to pin it if
+it drifts again.
+
+ja: the authorization code of the connect assistant (`connectAccess.*.authCode`) is
+"認証コード" everywhere; "認可コード" is not used.
 
 A pinboard's **New entry** (window on the desktop, page on the phone) builds on the database's **Entry**: the same noun, never a second word for it. **Inherited** names the values the entry takes over from the board's active labels and the view's filters. **Discard** throws away what was written into THIS entry — keep it apart from **Delete**, which removes an existing note.
 

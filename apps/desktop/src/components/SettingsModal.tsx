@@ -21,7 +21,7 @@ import {
   loadZipBackupSettings,
 } from "../services/backupPolicy";
 import { credentialManager } from "../services/CredentialManager";
-import { firstSettingsArea, settingsArea, hasCloudService, parseFolderTemplateRules, parseTypeTemplateRules, type SettingsWorld, type CloudAccountRecord, type CloudServiceId, type SecurityAreaId, type FolderTemplateRule, type TypeTemplateRule } from "@plainva/ui";
+import { firstSettingsArea, settingsArea, revealSetting, securityArea as securityAreaDef, type SettingsSearchHit, hasCloudService, parseFolderTemplateRules, parseTypeTemplateRules, type SettingsWorld, type CloudAccountRecord, type CloudServiceId, type SecurityAreaId, type FolderTemplateRule, type TypeTemplateRule } from "@plainva/ui";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, observeSyncSlot } from "../services/cloudAccounts";
 import { listMailAccounts } from "@plainva/ui/mail";
@@ -680,7 +680,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // decides which WORLD the content shows and keys every persistence handler.
   // Which cloud account the accounts page should open (D2). The nonce lets the
   // same account be asked for twice in a row — the page applies each request once.
-  const [cloudAccountFocus, setCloudAccountFocus] = useState<{ ref: string; nonce: number; service?: CloudServiceId } | null>(() =>
+  const [cloudAccountFocus, setCloudAccountFocus] = useState<{ ref?: string; nonce: number; service?: CloudServiceId; list?: boolean } | null>(() =>
     initialAccountId ? { ref: initialAccountId, nonce: 1 } : null,
   );
   /** A request for the connect assistant, with the service a side door ticks (E7); the nonce applies each once. */
@@ -694,6 +694,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     if (accountRef) setCloudAccountFocus((prev) => ({ ref: accountRef, nonce: (prev?.nonce ?? 0) + 1, ...(service ? { service } : {}) }));
     else if (service) setConnectRequest((prev) => ({ service, nonce: (prev?.nonce ?? 0) + 1 }));
     openArea("vault", "cloudAccounts");
+  };
+
+  /** Opens or closes Sync's own sub-page (the chain) for a search hit; the nonce applies each once. */
+  const [syncChainRequest, setSyncChainRequest] = useState<{ open: boolean; nonce: number } | null>(null);
+
+  /**
+   * A search hit (settings plan 2026-10-29, § 4.3): open its page - and the
+   * sub-page it sits on - then scroll to the row and light it up. A page that
+   * is hidden in this state (no account carries its service) cannot open: the
+   * hit says why, and Cloud accounts is where that changes.
+   */
+  const openSearchHit = (hit: SettingsSearchHit) => {
+    if (hit.hidden) {
+      openArea("vault", "cloudAccounts");
+      return;
+    }
+    if (hit.world === "app") {
+      openArea("app", hit.sub === "customTheme" ? "customTheme" : hit.area);
+    } else {
+      openArea("vault", hit.area);
+      if (hit.area === "security" && hit.sub && securityAreaDef(hit.sub)) setSecurityArea(hit.sub as SecurityAreaId);
+      if (hit.area === "sync") setSyncChainRequest((prev) => ({ open: hit.sub === "syncChain", nonce: (prev?.nonce ?? 0) + 1 }));
+      if (hit.area === "cloudAccounts") {
+        const service = hit.sub?.startsWith("service:") ? (hit.sub.slice("service:".length) as CloudServiceId) : undefined;
+        setCloudAccountFocus((prev) => ({ nonce: (prev?.nonce ?? 0) + 1, ...(hit.sub ? (service ? { service } : {}) : { list: true }) }));
+      }
+    }
+    if (hit.kind === "page") return;
+    void revealSetting(
+      () => contentRef.current?.querySelector(".pv-setpage[data-active='true']") ?? null,
+      { title: hit.kind === "row" ? hit.title : undefined, cardText: hit.cardText },
+    );
   };
   const openArea = (world: SettingsWorld, areaId: string) => {
     setSecurityArea(null); // any nav click leaves the security second level
@@ -772,6 +804,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
               onSwitchVault={() => setShowVaultPicker(true)}
               onShowShortcuts={() => setShowShortcuts(true)}
               hiddenAreaIds={hiddenVaultAreas}
+              onOpenHit={openSearchHit}
             />
           )}
 
@@ -871,6 +904,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "sync"}>
                     <SyncPage
+                      chainRequest={syncChainRequest}
                       selectedVault={selectedVault}
                       isActiveVault={isActiveVault}
                       activeProvider={activeProvider}

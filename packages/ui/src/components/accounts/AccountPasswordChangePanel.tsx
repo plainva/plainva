@@ -91,7 +91,7 @@ export function AccountPasswordChangePanel({ ports, secret }: { ports: PasswordC
       </div>)}
     </div></SettingCardBlock>}
     {pending && !replacePending && !busy && checked && <SettingCardActions><Button variant="secondary" onClick={() => setReplacePending(true)}>{t("cloudAccounts.passwordRecheck")}</Button></SettingCardActions>}
-    {(!pending || replacePending) && <SettingRow label={fieldLabel} desc={t("cloudAccounts.newPasswordDesc")} wide>
+    {(!pending || replacePending) && <SettingRow label={fieldLabel} info={t("cloudAccounts.newPasswordDesc")} wide>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", width: "100%" }}>
         <TextInput id={fieldId} aria-label={fieldLabel} placeholder={t(secret ? connectSecretLabelKey(secret) : "settings.password")} type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy || !checked} style={{ flex: "1 1 auto", minWidth: 0 }} data-testid="cloudacct-new-password" />
         <Button variant="secondary" disabled={busy || !checked || !password.trim()} onClick={() => void run(false)} data-testid="cloudacct-update-password">{t(replacePending ? "cloudAccounts.passwordRecheck" : "cloudAccounts.updatePassword")}</Button>

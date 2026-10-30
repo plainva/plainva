@@ -7,8 +7,11 @@ import {
   Button,
   calendarColor,
   emptyTaskListHintKey,
+  emptyTaskListHintVisible,
+  calendarKey,
+  InfoTip,
+  travelsWithVault,
   taskListState,
-  calendarPickerOptions,
   DriveDestinationDialog,
   familyLabel,
   GroupCard,
@@ -121,7 +124,12 @@ export function AccountServiceScreen({
             </RowList>
           </GroupCard>
         )}
-        {card && !row?.on && <p className="m-hint">{t("cloudAccounts.serviceOffHint")}</p>}
+        {card && !row?.on && (
+          <p className="m-hint">
+            {t("cloudAccounts.serviceOffLine")}{" "}
+            <InfoTip label={serviceLabel(service)} info={t("cloudAccounts.serviceOffHint")} testId="account-service-off-info" />
+          </p>
+        )}
         {card && service === "files" && card.vaultId && <FilesPart vaultId={card.vaultId} vault={vault} on={!!row?.on} />}
         {card && service === "calendar" && card.pimAccountId && <CalendarPart pimAccountId={card.pimAccountId} />}
         {card && service === "mail" && card.mailAccountId && <MailPart mailAccountId={card.mailAccountId} />}
@@ -203,7 +211,7 @@ function FilesPart({ vaultId, vault, on }: { vaultId: string; vault: MobileVault
             data-testid="account-files-folder"
             icon={<Cloud size={ICON.ui} />}
             title={t("cloudAccounts.cloudFolder")}
-            subtitle={folder || t("cloudAccounts.cloudFolderHint")}
+            subtitle={folder || undefined}
             wrap
             disabled={busy || !active}
             end={<ChevronRight className="m-chevron" size={ICON.ui} />}
@@ -221,7 +229,9 @@ function FilesPart({ vaultId, vault, on }: { vaultId: string; vault: MobileVault
           <Row
             icon={<Pause size={ICON.ui} />}
             title={t("cloudAccounts.pauseSync")}
-            subtitle={t("cloudAccounts.pauseSyncHint")}
+            info={t("cloudAccounts.pauseSyncHint")}
+            // The pause is this phone's own (it never reaches the settings profile).
+            deviceOnly={!travelsWithVault(undefined, "mobile")}
             wrap
             controls
             end={<Switch checked={paused} disabled={busy || !on} label={t("cloudAccounts.pauseSync")} onChange={togglePause} testId="account-files-pause" />}
@@ -229,7 +239,10 @@ function FilesPart({ vaultId, vault, on }: { vaultId: string; vault: MobileVault
         </RowList>
       </GroupCard>
       {/* What "off" means for the other devices, said where it is switched (review finding 4). */}
-      <p className="m-hint" data-testid="account-files-limit">{t("cloudAccounts.filesOffLimit")}</p>
+      <p className="m-hint">
+        <span data-testid="account-files-limit">{t("cloudAccounts.filesOffLimitLine")}</span>{" "}
+        <InfoTip label={t("cloudAccounts.filesGroup")} info={t("cloudAccounts.filesOffLimit")} testId="account-files-limit-info" />
+      </p>
       {drivePicker && <DriveDestinationDialog session={drivePicker} onClose={() => setDrivePicker(null)}
         onSave={async (selected) => { await changeRemoteFolder(vault, selected.path, selected.id); await reload(); }} />}
       {folderPick && (
@@ -258,7 +271,8 @@ function CalendarPart({ pimAccountId }: { pimAccountId: string }) {
   const [lists, setLists] = useState<{ id: string; name: string; accountId: string; selected: boolean }[]>([]);
   const [colorFor, setColorFor] = useState<CalendarRow | null>(null);
   const [colors, setColors] = useState(() => getMobileSettings().calendarColors);
-  const [defaultCalendar, setDefaultCalendar] = useState(() => getMobileSettings().defaultCalendar);
+  // Read at each render: the Calendar page sets it, this page only marks it (E13).
+  const defaultCalendar = getMobileSettings().defaultCalendar;
   /** What the last cycle said about this account and its lists, and its provider (for the empty-list hint). */
   const [scope, setScope] = useState<{ account?: string; lists?: string; provider: string }>({ provider: "" });
   const reload = useCallback(async () => {
@@ -286,21 +300,11 @@ function CalendarPart({ pimAccountId }: { pimAccountId: string }) {
     setColorFor(null);
     void updateMobileSettings({ calendarColors: next });
   };
-  const writable = calendars.filter((calendar) => !calendar.readOnly && calendar.supportsEvents !== false);
-  const options = calendarPickerOptions(writable, new Map(), false);
   const listState = taskListState({ count: lists.length, listsError: scope.lists, accountError: scope.account });
   const lookAgain = () => { pimSyncNow(); window.setTimeout(() => void reload(), 1500); };
-  const pickDefault = () => {
-    void mSelect({
-      title: t("pim.defaultCalendar"),
-      options: [{ value: "", label: t("cloudAccounts.defaultElsewhere") }, ...options],
-      value: options.some((option) => option.value === defaultCalendar) ? defaultCalendar : "",
-    }).then((picked) => {
-      if (picked === null) return;
-      setDefaultCalendar(picked);
-      void updateMobileSettings({ defaultCalendar: picked });
-    });
-  };
+  // E13 of the settings plan: the default calendar is set on the Calendar page
+  // only; this page marks which of this account's calendars it is.
+  const isDefault = (calendar: CalendarRow) => calendarKey(calendar) === defaultCalendar;
 
   return (
     <>
@@ -313,22 +317,12 @@ function CalendarPart({ pimAccountId }: { pimAccountId: string }) {
               key={calendar.id}
               icon={<span className="pv-dot" style={{ color: calendarColor(calendar, colors) || "var(--accent-color)" }} />}
               title={calendar.name}
-              subtitle={calendar.readOnly ? t("cloudAccounts.readOnlyCalendar") : undefined}
+              subtitle={calendar.readOnly ? t("cloudAccounts.readOnlyCalendar") : isDefault(calendar) ? t("pim.defaultCalendar") : undefined}
               controls
               onClick={() => setColorFor(calendar)}
               end={<Switch checked={calendar.selected} label={calendar.name} onChange={(next) => toggleCalendar(calendar, next)} testId={`account-calendar-${calendar.id}`} />}
             />
           ))}
-          {options.length > 0 && (
-            <Row
-              data-testid="account-calendar-default"
-              icon={<CalendarDays size={ICON.ui} />}
-              title={t("pim.defaultCalendar")}
-              subtitle={options.find((option) => option.value === defaultCalendar)?.label ?? t("cloudAccounts.defaultElsewhere")}
-              end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-              onClick={pickDefault}
-            />
-          )}
         </RowList>
       </GroupCard>
       {(scope.provider !== "device" || lists.length > 0) && (
@@ -342,7 +336,10 @@ function CalendarPart({ pimAccountId }: { pimAccountId: string }) {
           {listState === "unknown" && <p className="m-hint" data-testid="pim-tasklists-unknown">{t("pim.taskListsUnknown")}</p>}
           {listState === "empty" && (
             <>
-              <p className="m-hint" data-testid="pim-tasklists-empty">{t("pim.noTaskLists")} {t(emptyTaskListHintKey(scope.provider))}</p>
+              <p className="m-hint">
+                <span data-testid="pim-tasklists-empty">{t("pim.noTaskLists")}{emptyTaskListHintVisible(scope.provider) && <> {t(emptyTaskListHintKey(scope.provider))}</>}</span>
+                {!emptyTaskListHintVisible(scope.provider) && <> <InfoTip label={t("pim.taskLists")} info={t(emptyTaskListHintKey(scope.provider))} testId="pim-tasklists-empty-info" /></>}
+              </p>
               <GroupCard>
                 <RowList>
                   <Row icon={<RefreshCw className="m-accent" size={ICON.ui} />} title={t("pim.lookAgain")} onClick={lookAgain} />
@@ -452,17 +449,15 @@ function MailPart({ mailAccountId }: { mailAccountId: string }) {
         </GroupCard>
       )}
       <GroupCard><RowList>
-        <SettingField label={t("mail.signature")}>
+        <SettingField label={t("mail.signature")} info={t("mail.signatureHint")}>
           <TextArea rows={4} value={signature} onChange={(e) => setSignature(e.target.value)} onBlur={() => void persistSignature(signature)} data-testid="mail-signature" />
         </SettingField>
       </RowList></GroupCard>
-      <p className="m-hint">{t("mail.signatureHint")}</p>
       <GroupCard><RowList>
-        <SettingField label={t("mail.senders")}>
+        <SettingField label={t("mail.senders")} hint={t("mail.sendersEnter")} info={t("mail.sendersHint")}>
           <TextArea rows={3} value={senders} onChange={(e) => setSenders(e.target.value)} onBlur={() => void persist({ senders: senders.split("\n").map((line) => line.trim()).filter(Boolean) })} data-testid="mail-senders" purpose="address" />
         </SettingField>
       </RowList></GroupCard>
-      <p className="m-hint">{t("mail.sendersHint")}</p>
     </>
   );
 }

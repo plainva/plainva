@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-10-29
+Laatst bijgewerkt: 2026-10-30
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -130,7 +130,7 @@ Plainva respecteert de systeeminstelling "beweging verminderen". Als overgangen 
 
 ### Hoe verander ik de taal?
 
-**Instellingen → App → Weergave → Taal**; op de telefoon **Instellingen → Weergave → Taal**. Plainva spreekt tien talen: Engels, Duits, Spaans, Frans, Italiaans, Japans, Nederlands, Pools, Portugees (Brazilië) en vereenvoudigd Chinees.
+**Instellingen → App → Uiterlijk → Taal**; op de telefoon **Instellingen → Uiterlijk → Taal**. Plainva spreekt tien talen: Engels, Duits, Spaans, Frans, Italiaans, Japans, Nederlands, Pools, Portugees (Brazilië) en vereenvoudigd Chinees.
 
 ### "Controleren op updates" vindt niets
 

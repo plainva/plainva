@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { rememberSearchSession, taskViewStore, toast } from "@plainva/ui";
+import { rememberSearchSession, revealSetting, taskViewStore, toast, type SettingsSearchHit } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { COMMAND_PREFIX } from "./lib/searchMode";
 import { connectDevicePimAccount } from "./services/pim/pimService";
@@ -148,7 +148,44 @@ function retargetTop(setNav: RouteContext["setNav"], newPath: string): void {
 }
 
 /** Settings area ids that have a screen of their own rather than a sub-page. */
-function settingsAreaScreen(id: string, ctx: RouteContext): ReactNode {
+/** The screen a settings area opens (the overview's rows and the search share it). */
+function settingsAreaEntry(id: string, c: RouteContext): NavEntry {
+  switch (id) {
+    case "appearance": return { kind: "appearance", path: "" };
+    case "cloudAccounts": return { kind: "cloudaccounts", path: "" };
+    case "sync": return { kind: "vaultsync", path: c.vault.vaultId };
+    case "pim": return { kind: "pimaccounts", path: "" };
+    case "mail": return { kind: "mailaccounts", path: "" };
+    default: return { kind: "settingsArea", path: id };
+  }
+}
+
+/**
+ * A settings search hit (settings plan 2026-10-29, § 4.3): the screen of its
+ * page - or of the sub-page it sits on - then the row, scrolled to and lit up.
+ * A row of an account's page goes to the account that carries the service.
+ */
+async function openSettingsHit(hit: SettingsSearchHit, c: RouteContext): Promise<void> {
+  let entry: NavEntry;
+  const sub = hit.sub;
+  if (hit.area === "appearance" && sub === "customTheme") entry = { kind: "customtheme", path: "" };
+  else if (hit.area === "sync" && sub === "syncChain") entry = { kind: "syncchain", path: c.vault.vaultId };
+  else if (hit.area === "sync" && sub === "syncDiagnostics") entry = { kind: "syncdiag", path: c.vault.vaultId };
+  else if (hit.area === "vaultDetails") entry = { kind: "vault", path: c.vault.vaultId };
+  else if (hit.area === "security" && sub) entry = { kind: "settingsArea", path: `security/${sub}` };
+  else if (hit.area === "cloudAccounts" && sub) {
+    const service = sub.startsWith("service:") ? (sub.slice("service:".length) as CloudServiceId) : undefined;
+    const { cards } = await loadAccountCards().catch(() => ({ cards: [] as Awaited<ReturnType<typeof loadAccountCards>>["cards"] }));
+    const card = cards.find((candidate) => !service || candidate.services.includes(service));
+    entry = !card ? { kind: "cloudaccounts", path: "" } : service ? { kind: "accountservice", path: `${service}:${card.key}` } : { kind: "cloudaccount", path: card.key };
+  } else entry = settingsAreaEntry(hit.area, c);
+  c.push(entry);
+  if (hit.kind !== "page") void revealSetting(() => document, { title: hit.kind === "row" ? hit.title : undefined, cardText: hit.cardText });
+}
+
+function settingsAreaScreen(path: string, ctx: RouteContext): ReactNode {
+  // "security/access": an area and the part of it a search hit opens.
+  const [id, sub] = path.split("/");
   switch (id) {
     case "editor": return <EditorAreaScreen onBack={ctx.pop} />;
     case "content": return <ContentAreaScreen onBack={ctx.pop} vault={ctx.vault} />;
@@ -163,6 +200,7 @@ function settingsAreaScreen(id: string, ctx: RouteContext): ReactNode {
     case "security":
       return (
         <SecurityAreaScreen
+          initialArea={sub === "access" || sub === "sharing" ? sub : undefined}
           onBack={ctx.pop}
           onConnectCloud={() => ctx.push({ kind: "cloudaccounts", path: "" })}
           onSetupWorkspace={() => ctx.push({ kind: "securitywizard", path: "workspace" })}
@@ -193,19 +231,8 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   settings: (_e, c) => (
     <SettingsScreen
       onBack={c.pop}
-      onOpenArea={(id) =>
-        id === "appearance"
-          ? c.push({ kind: "appearance", path: "" })
-          : id === "cloudAccounts"
-            ? c.push({ kind: "cloudaccounts", path: "" })
-            : id === "sync"
-              ? c.push({ kind: "vaultsync", path: c.vault.vaultId })
-              : id === "pim"
-                ? c.push({ kind: "pimaccounts", path: "" })
-                : id === "mail"
-                  ? c.push({ kind: "mailaccounts", path: "" })
-                  : c.push({ kind: "settingsArea", path: id })
-      }
+      onOpenArea={(id) => c.push(settingsAreaEntry(id, c))}
+      onOpenHit={(hit) => void openSettingsHit(hit, c)}
       barCount={c.barLayout.visibleCount}
       onOpenVaults={() => c.push({ kind: "vaults", path: "" })}
     />

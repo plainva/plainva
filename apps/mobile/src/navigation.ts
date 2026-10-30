@@ -303,6 +303,19 @@ export function commandNotePath(state: NavState): string | null {
   return activeNotePath(top?.kind === "search" ? navTop(popTop(state)) : top);
 }
 
+/**
+ * A focused setup runs without the bar: the connect assistant, and the form
+ * screens of a connect run while services are still queued. The assistant's
+ * last step ends in the button that signs in, and on a long sign-in form that
+ * button sat under the bar until the page was scrolled (settings plan
+ * 2026-10-29, leftover of P5) - without the bar it stays reachable, as in the
+ * security wizards.
+ */
+export function isFocusedSetup(top: NavEntry | undefined, runPending: boolean): boolean {
+  if (top?.kind === "cloudconnect") return true;
+  return runPending && ["sync", "pimaccounts", "mailaccounts"].includes(top?.kind ?? "");
+}
+
 export function hidesTabBar(top?: NavEntry): boolean {
   return !!top && (INPUT_KINDS.has(top.kind) || IMMERSIVE_KINDS.has(top.kind));
 }

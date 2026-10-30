@@ -237,6 +237,7 @@ export * from "./lib/templateContext";
 export * from "./lib/freshNote";
 export * from "./lib/searchSnippet";
 export * from "./lib/settingsCatalog";
+export * from "./lib/settingsSearch";
 export * from "./lib/securityCatalog";
 export * from "./lib/qr";
 export * from "./lib/taskToggle";

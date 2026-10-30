@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeftRight, Cloud, Folder, Keyboard, Settings2 } from "lucide-react";
-import { ICON, InfoTip, settingsAreas, type SettingsWorld } from "@plainva/ui";
+import { ArrowLeftRight, Cloud, Folder, Keyboard, Search, Settings2 } from "lucide-react";
+import { EmptyState, ICON, InfoTip, Row, RowList, SearchField, searchSettings, settingsAreas, type SettingsSearchHit, type SettingsWorld } from "@plainva/ui";
 
 /**
  * Left settings rail (redesign 2026-07-18, P2 — variant "quiet cards").
@@ -31,6 +31,8 @@ export interface SettingsNavProps {
   /** Vault areas hidden for the shown vault (service not carried by any
    * cloud account — mockup screen 6; Cloud-Konten itself is never hidden). */
   hiddenAreaIds?: string[];
+  /** Opens what a search hit names (settings plan 2026-10-29, § 4.3). */
+  onOpenHit: (hit: SettingsSearchHit) => void;
 }
 
 export const SettingsNav: React.FC<SettingsNavProps> = ({
@@ -45,8 +47,16 @@ export const SettingsNav: React.FC<SettingsNavProps> = ({
   onSwitchVault,
   onShowShortcuts,
   hiddenAreaIds,
+  onOpenHit,
 }) => {
   const { t } = useTranslation();
+  // The search over all settings (E2): while the field holds a query, the rail
+  // lists the hits - rows, as page › card › row - in place of the areas.
+  const [query, setQuery] = useState("");
+  const hits = useMemo(
+    () => (query.trim() ? searchSettings(query, { shell: "desktop", t, worlds: vaultName ? ["app", "vault"] : ["app"], hiddenAreas: hiddenAreaIds }) : []),
+    [query, t, vaultName, hiddenAreaIds],
+  );
 
   const groupLabel: React.CSSProperties = {
     padding: "0 0.4rem 0.25rem",
@@ -94,6 +104,44 @@ export const SettingsNav: React.FC<SettingsNavProps> = ({
         gap: "0.25rem",
       }}
     >
+      <SearchField
+        className="pv-setsearch"
+        value={query}
+        onValueChange={setQuery}
+        placeholder={t("settings.searchPlaceholder")}
+        aria-label={t("settings.searchPlaceholder")}
+        clearLabel={t("sidebar.clearSearch")}
+        data-testid="settings-search"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && hits[0]) {
+            e.preventDefault();
+            onOpenHit(hits[0]);
+          }
+        }}
+      />
+      {query.trim() ? (
+        hits.length > 0 ? (
+          // The same row the phone draws for a hit (one definition per interaction).
+          <div className="pv-setsearch-hits" role="group" aria-label={t("settings.searchHits")} data-testid="settings-search-hits">
+            <RowList>
+              {hits.map((hit) => (
+                <Row
+                  key={hit.id}
+                  data-testid="settings-search-hit"
+                  data-kind={hit.kind}
+                  title={hit.title}
+                  subtitle={[hit.path, hit.hidden ? t("settings.searchNeedsAccount") : ""].filter(Boolean).join(" · ") || undefined}
+                  wrap
+                  onClick={() => onOpenHit(hit)}
+                />
+              ))}
+            </RowList>
+          </div>
+        ) : (
+          <EmptyState icon={<Search size={ICON.empty} />}>{t("settings.searchNoHits")}</EmptyState>
+        )
+      ) : (
+      <>
       <div style={groupLabel}>
         <Settings2 size={ICON.ui} color="var(--accent-color)" style={{ flexShrink: 0 }} />
         {t("settings.sectionApp", { defaultValue: "App" })}
@@ -125,6 +173,8 @@ export const SettingsNav: React.FC<SettingsNavProps> = ({
           </div>
           {renderArea("vault")}
         </>
+      )}
+      </>
       )}
 
       <div style={{ marginTop: "auto", paddingTop: "1rem" }}>

@@ -202,8 +202,8 @@ export function CloudAccountsScreen({
 
       {repairNeeds.length > 0 && (
         <>
-          <SectionLabel>{t("cloudAccounts.repairTitle")}</SectionLabel>
-          <p className="m-hint">{t("cloudAccounts.repairHint")}</p>
+          <SectionLabel info={t("cloudAccounts.repairHint")}>{t("cloudAccounts.repairTitle")}</SectionLabel>
+          <p className="m-hint">{t("cloudAccounts.repairStep")}</p>
           <GroupCard tone="warn">
             <RowList>
               {repairNeeds.flatMap((need, needIndex) =>

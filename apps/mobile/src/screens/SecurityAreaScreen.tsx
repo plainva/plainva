@@ -61,8 +61,10 @@ type ConnectionState =
   /** Probe failed (offline / expired sign-in) — stay honest, offer a recheck. */
   | { kind: "unknown" };
 
-export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorkspace }: {
+export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorkspace, initialArea }: {
   vault: MobileVault;
+  /** The part a settings search hit opens ("Your access", "Sharing"). */
+  initialArea?: SecurityAreaGroup;
   onBack: () => void;
   onConnectCloud?: () => void;
   /** Opens the setup wizard, which is its own destination since S37. */
@@ -96,7 +98,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   // with two ways in — "Your access" (devices, recovery) and "Sharing"
   // (members, groups, slices, publications) — from the shared security
   // catalog. One page with nine sections and a tab strip before.
-  const [area, setArea] = useState<"overview" | SecurityAreaGroup>("overview");
+  const [area, setArea] = useState<"overview" | SecurityAreaGroup>(initialArea ?? "overview");
   const foreignLegacyComments = useForeignLegacyComments(vault.vaultId);
 
   // The recovery code is the single highest-stakes text the app ever asks for:

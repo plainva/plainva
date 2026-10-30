@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Users } from "lucide-react";
 import {
@@ -79,6 +79,8 @@ export interface SyncPageProps {
   hasSyncWorker: boolean;
   syncQueueSnapshot: { total: number; items: SyncQueueItem[] } | null;
   onLoadQueue: () => void;
+  /** A search hit asks for the chain's sub-page (open) or the page itself (closed); applied once per nonce. */
+  chainRequest?: { open: boolean; nonce: number } | null;
 }
 
 export const SyncPage: React.FC<SyncPageProps> = (p) => {
@@ -97,6 +99,12 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const [encModal, setEncModal] = useState<null | "create" | "unlock">(null);
   /** The chain's own page (move 19): UI state only, the page returns to it on a re-render. */
   const [chainOpen, setChainOpen] = useState(false);
+  const chainApplied = useRef(0);
+  useEffect(() => {
+    if (!p.chainRequest || chainApplied.current === p.chainRequest.nonce) return;
+    chainApplied.current = p.chainRequest.nonce;
+    setChainOpen(p.chainRequest.open);
+  }, [p.chainRequest]);
   const provider = p.activeProvider;
 
   // "Check deletion log" (finding 2026-09-20), here since 2026-10-29 (move 16):

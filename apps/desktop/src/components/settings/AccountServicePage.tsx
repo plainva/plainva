@@ -8,6 +8,7 @@ import {
   EVENT_COLOR_PALETTE,
   ICON,
   IconButton,
+  InfoTip,
   SettingCard,
   SettingCardBlock,
   SettingCardNote,
@@ -16,12 +17,14 @@ import {
   Switch,
   TextInput,
   calendarColor,
-  calendarPickerOptions,
   emptyTaskListHintKey,
+  emptyTaskListHintVisible,
+  calendarKey,
   familyLabel,
   taskListState,
   serviceLabel,
   toast,
+  travelsWithVault,
   type CalendarColorOverrides,
   type CloudAccountRecord,
   type CloudServiceId,
@@ -37,7 +40,6 @@ import { loadCalendarColors, saveCalendarColor } from "../../services/pim/calend
 import type { PimRuntime } from "../../services/pim/pimRuntime";
 import { SyncFolderPickerModal } from "../SyncFolderPickerModal";
 import { MailSendingCard } from "../mail/MailSendingCard";
-import { Select } from "../Select";
 import { AccountMark } from "./cloudAccountsShared";
 
 /**
@@ -75,7 +77,12 @@ export const AccountServicePage: React.FC<{
         </div>
         <Switch checked={p.on} disabled={p.busy || !p.isActiveVault} label={serviceLabel(p.service)} onChange={p.onToggle} testId="account-service-switch" />
       </div>
-      {!p.on && <SettingCardNote>{t("cloudAccounts.serviceOffHint")}</SettingCardNote>}
+      {!p.on && (
+        <SettingCardNote>
+          {t("cloudAccounts.serviceOffLine")}{" "}
+          <InfoTip label={serviceLabel(p.service)} info={t("cloudAccounts.serviceOffHint")} testId="account-service-off-info" />
+        </SettingCardNote>
+      )}
       {p.service === "files" && p.record.services.files && <FilesPart vaultPath={p.vaultPath} record={p.record} on={p.on} />}
       {p.service === "calendar" && p.record.services.calendar && <CalendarPart vaultPath={p.vaultPath} pimAccountId={p.record.services.calendar.pimAccountId} runtime={p.runtime} />}
       {p.service === "mail" && p.record.services.mail && <MailPart vaultPath={p.vaultPath} mailAccountId={p.record.services.mail.mailAccountId} />}
@@ -167,7 +174,7 @@ function FilesPart({ vaultPath, record, on }: { vaultPath: string; record: Cloud
   return (
     <>
       <SettingCard label={t("cloudAccounts.filesGroup")}>
-        <SettingRow label={t("cloudAccounts.cloudFolder")} desc={t("cloudAccounts.cloudFolderHint")}>
+        <SettingRow label={t("cloudAccounts.cloudFolder")}>
           <TextInput value={rootFolder} readOnly style={{ width: 180 }} data-testid="account-files-folder" />
           {provider !== "webdav" && (
             <Button variant="secondary" disabled={opening} onClick={() => {
@@ -179,7 +186,7 @@ function FilesPart({ vaultPath, record, on }: { vaultPath: string; record: Cloud
             </Button>
           )}
         </SettingRow>
-        <SettingRow label={t("settings.syncInterval")} desc={t("settings.syncIntervalDesc", { min: MIN_SYNC_INTERVAL_SECONDS })}>
+        <SettingRow label={t("settings.syncInterval")} desc={t("settings.syncIntervalMin", { min: MIN_SYNC_INTERVAL_SECONDS })} info={t("settings.syncIntervalDesc")}>
           <TextInput
             type="number"
             min={MIN_SYNC_INTERVAL_SECONDS}
@@ -191,11 +198,15 @@ function FilesPart({ vaultPath, record, on }: { vaultPath: string; record: Cloud
           />
         </SettingRow>
         <SettingRow label={t("cloudAccounts.syncState")} desc={state}>{null}</SettingRow>
-        <SettingRow label={t("cloudAccounts.pauseSync")} desc={t("cloudAccounts.pauseSyncHint")}>
+        {/* The pause is this device's own (it never reaches the settings profile). */}
+        <SettingRow label={t("cloudAccounts.pauseSync")} info={t("cloudAccounts.pauseSyncHint")} deviceOnly={!travelsWithVault(undefined, "desktop")}>
           <Switch checked={paused} disabled={!on} label={t("cloudAccounts.pauseSync")} onChange={(next) => void togglePause(next)} testId="account-files-pause" />
         </SettingRow>
         {/* What "off" means for the other devices, said where it is switched (review finding 4). */}
-        <SettingCardNote><span data-testid="account-files-limit">{t("cloudAccounts.filesOffLimit")}</span></SettingCardNote>
+        <SettingCardNote>
+          <span data-testid="account-files-limit">{t("cloudAccounts.filesOffLimitLine")}</span>{" "}
+          <InfoTip label={t("cloudAccounts.filesGroup")} info={t("cloudAccounts.filesOffLimit")} testId="account-files-limit-info" />
+        </SettingCardNote>
       </SettingCard>
       {drivePicker && <DriveDestinationDialog session={drivePicker} onClose={() => setDrivePicker(null)}
         onSave={async (selected) => { await saveSyncRootFolder(drivePicker.vaultPath, "drive", selected.path, selected.id); await reload(); }} />}
@@ -247,7 +258,12 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
     void reload();
     const onChanged = () => void reload();
     window.addEventListener("plainva-pim-changed", onChanged);
-    return () => window.removeEventListener("plainva-pim-changed", onChanged);
+    // The marker follows the Calendar page, where the default is set.
+    window.addEventListener("plainva-default-calendar-changed", onChanged);
+    return () => {
+      window.removeEventListener("plainva-pim-changed", onChanged);
+      window.removeEventListener("plainva-default-calendar-changed", onChanged);
+    };
   }, [reload]);
 
   if (!runtime) return <SettingCardNote>{t("pim.openVaultFirst")}</SettingCardNote>;
@@ -265,17 +281,11 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
   const pickColor = async (calendar: CalendarRow, color: string) => {
     setColors(await saveCalendarColor(vaultPath, pimAccountId, calendar.id, color));
   };
-  const pickDefault = async (value: string) => {
-    setDefaultCalendar(value);
-    const store = await getSettingsStore();
-    await store.set(defaultCalendarKey(vaultPath), value);
-    await store.save();
-    window.dispatchEvent(new CustomEvent("plainva-default-calendar-changed"));
-  };
-  const writable = calendars.filter((calendar) => !calendar.readOnly && calendar.supportsEvents !== false);
   const listState = taskListState({ count: lists.length, listsError: scope.lists, accountError: scope.account });
   const lookAgain = () => { void runtime.worker.triggerImmediate().then(() => reload()); };
-  const options = calendarPickerOptions(writable, new Map(), false);
+  // E13 of the settings plan: one place sets the default calendar - the Calendar
+  // page; this page only marks which of this account's calendars it is.
+  const isDefault = (calendar: CalendarRow) => calendarKey(calendar) === defaultCalendar;
 
   return (
     <>
@@ -285,7 +295,7 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
           const color = calendarColor(calendar, colors);
           return (
             <React.Fragment key={calendar.id}>
-              <SettingRow label={calendar.name} desc={calendar.readOnly ? t("cloudAccounts.readOnlyCalendar") : undefined}>
+              <SettingRow label={calendar.name} desc={calendar.readOnly ? t("cloudAccounts.readOnlyCalendar") : isDefault(calendar) ? t("pim.defaultCalendar") : undefined}>
                 <IconButton label={t("cloudAccounts.calendarColor", { name: calendar.name })} onClick={() => setColorFor(colorFor === calendar.id ? null : calendar.id)} data-testid={`account-calendar-color-${calendar.id}`}>
                   <span className="pv-dot" style={{ color: color || "var(--accent-color)" }} />
                 </IconButton>
@@ -306,17 +316,6 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
             </React.Fragment>
           );
         })}
-        {options.length > 0 && (
-          <SettingRow label={t("pim.defaultCalendar")} desc={t("cloudAccounts.defaultCalendarHint")}>
-            <Select
-              value={options.some((option) => option.value === defaultCalendar) ? defaultCalendar : ""}
-              onChange={(value) => void pickDefault(value)}
-              ariaLabel={t("pim.defaultCalendar")}
-              data-testid="account-calendar-default"
-              options={[{ value: "", label: t("cloudAccounts.defaultElsewhere") }, ...options]}
-            />
-          </SettingRow>
-        )}
       </SettingCard>
       {scope.provider !== "device" || lists.length > 0 ? (
         <SettingCard label={t("pim.taskLists")}>
@@ -330,7 +329,8 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
           {listState === "unknown" && <SettingCardNote><span data-testid="pim-tasklists-unknown">{t("pim.taskListsUnknown")}</span></SettingCardNote>}
           {listState === "empty" && (
             <SettingCardNote>
-              <span data-testid="pim-tasklists-empty">{t("pim.noTaskLists")} {t(emptyTaskListHintKey(scope.provider))}</span>{" "}
+              <span data-testid="pim-tasklists-empty">{t("pim.noTaskLists")}{emptyTaskListHintVisible(scope.provider) && <> {t(emptyTaskListHintKey(scope.provider))}</>}</span>{" "}
+              {!emptyTaskListHintVisible(scope.provider) && <InfoTip label={t("pim.taskLists")} info={t(emptyTaskListHintKey(scope.provider))} testId="pim-tasklists-empty-info" />}
               <Button variant="ghost" size="sm" onClick={lookAgain}>{t("pim.lookAgain")}</Button>
             </SettingCardNote>
           )}

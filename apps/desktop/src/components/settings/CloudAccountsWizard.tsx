@@ -533,7 +533,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
       <ServiceStatusCard services={selected} status={status} waitingKey={plan.waitingKey}>
         {allDone && result.filesProvider === "webdav" && <SettingCardNote>{t("cloudAccounts.cloudFolderInUrl")}</SettingCardNote>}
         {allDone && needsFolder && (
-          <SettingRow label={t("cloudAccounts.cloudFolder")} desc={t("cloudAccounts.cloudFolderHint")}>
+          <SettingRow label={t("cloudAccounts.cloudFolder")}>
             <TextInput value={rootFolder} readOnly style={{ width: 160 }} />
             <Button variant="secondary" onClick={() => setShowFolderPicker(true)} data-testid="cloudacct-choose-folder">
               {t("connectRun.chooseFolder")}

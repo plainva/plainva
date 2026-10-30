@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-10-29
+Laatst bijgewerkt: 2026-10-30
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -269,7 +269,7 @@ Het formaat komt overeen met Obsidians Bases-formaat; Plainva schrijft zijn uitb
 
 De kalenderweergave toont drie perioden — **Maand**, **Week** en **Dag**. De schakelaar staat bovenaan naast **Vandaag**; ◀ en ▶ bewegen altijd met de getoonde periode mee. Bij het wisselen blijft de dag behouden waar je naar kijkt: van **Maand** naar **Week** zie je de week waarin die dag valt.
 
-Draagt de datumkolom een **tijd**, dan staat die vóór de titel en zijn de items van een dag op de klok gesorteerd — items zonder tijd staan eronder. Het **weekbegin** volgt je instelling onder **Weergave**, precies als in de echte agenda.
+Draagt de datumkolom een **tijd**, dan staat die vóór de titel en zijn de items van een dag op de klok gesorteerd — items zonder tijd staan eronder. Het **weekbegin** volgt je instelling onder **Uiterlijk**, precies als in de echte agenda.
 
 Heeft de weergave ook een **einddatum** (Configureren → Weergave), dan wordt een item over meerdere dagen als **één balk** over zijn dagen getekend, niet als een ketting van gelijk uitziende kaartjes. Waar hij de week verlaat, wordt de balk aan de rand afgesneden en zonder titel voortgezet.
 

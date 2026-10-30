@@ -441,6 +441,8 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-cardhover": "hover-state utility on --state-hover",
   "pv-chips": "chip flow container, layout only",
   "pv-setgroup": "settings group wrapper, layout only",
+  "pv-setsearch": "settings search in the rail: a .pv-searchfield and hits that are .pv-navlink rows (both themed); the path and hint lines are --text-muted/--text-faint type",
+  "pv-setfound": "a moment's highlight of the row a search hit opened, on the --accent-container/--accent-color pair both themes override",
   "pv-acct": "account rows inside .pv-setcard — the card carries the theme look",
   "pv-svcchip": "service chip on the themed accent-container pair",
   "pv-wizsteps": "wizard step header, layout only",

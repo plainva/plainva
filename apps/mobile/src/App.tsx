@@ -64,7 +64,7 @@ import {
   activeFolderPath,
   backStep, calendarEntry, currentArea,
   ensureVisibleTab,
-  hidesTabBar,
+  hidesTabBar, isFocusedSetup,
   initialNavState,
   navTop,
   pushCapturedNote,
@@ -437,7 +437,7 @@ export default function App() {
   // it drops the overlay stack and the draft with it. A RAIL does not have that
   // problem — it is not under the thumb, and the leave guard asks either way —
   // so from medium the navigation stays where a wide window expects it (S14).
-  const focusedSetup = !!connectionRun?.pending.length && ["sync", "pimaccounts", "mailaccounts"].includes(top?.kind ?? "");
+  const focusedSetup = isFocusedSetup(top, !!connectionRun?.pending.length);
   const barHidden = focusedSetup || (hidesTabBar(top) && windowClass === "compact");
 
   const finishOnboarding = (connectCloud: boolean) => {
