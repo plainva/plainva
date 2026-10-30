@@ -3654,7 +3654,7 @@ test('Icon picker: both modes share one head zone, categories and recents (P4.2)
   await expect(picker.locator('button[aria-label="folder-open"]')).toBeVisible();
 });
 
-test('background settings: two switches, both off, and the reminder condition follows them', async ({ page }) => {
+test('background settings: start with the system and the tray, both off, and the reminder condition follows the tray', async ({ page }) => {
   await page.addInitScript(() => {
     const orig = (window as any).__TAURI_INTERNALS__.invoke;
     const saved: Record<string, any> = {};
@@ -3675,28 +3675,34 @@ test('background settings: two switches, both off, and the reminder condition fo
   const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await dlg.getByRole('button', { name: /^(Start & Verhalten|Startup & behavior)$/ }).click();
 
+  // Settings plan 2026-10-29, move 13: "start with the system" is a start
+  // behaviour and sits in the Startup card; the Background card keeps the tray.
+  const start = dlg.getByRole('group', { name: /^(Start|Startup)$/ });
+  await expect(start).toBeVisible();
+  const autostart = start.getByRole('switch', { name: /Mit dem System starten|Start with the system/ });
+  await expect(autostart).toHaveAttribute('aria-checked', 'false');
+
   const card = dlg.getByRole('group', { name: /Hintergrund|Background/ });
   await expect(card).toBeVisible();
-  const switches = card.getByRole('switch');
-  await expect(switches).toHaveCount(2);
-  // Both off by default — never registered unasked.
-  await expect(switches.nth(0)).toHaveAttribute('aria-checked', 'false');
-  await expect(switches.nth(1)).toHaveAttribute('aria-checked', 'false');
+  const tray = card.getByRole('switch');
+  await expect(tray).toHaveCount(1);
+  // Off by default — never registered unasked.
+  await expect(tray).toHaveAttribute('aria-checked', 'false');
   await expect(card).toContainText(/solange Plainva läuft|while Plainva is running/);
   await card.screenshot({ path: '/tmp/bg-off.png' });
 
   // Saying "no, I cannot see it" must leave the switch off — otherwise the
   // window could be closed with no way back.
-  await switches.nth(1).click();
+  await tray.click();
   await page.getByRole('button', { name: /^(Nein|No)$/ }).click();
-  await expect(switches.nth(1)).toHaveAttribute('aria-checked', 'false');
+  await expect(tray).toHaveAttribute('aria-checked', 'false');
   await expect(card).toContainText(/nicht erschienen|did not appear/);
   await card.screenshot({ path: '/tmp/bg-refused.png' });
 
   // Saying yes keeps it, and the condition line follows.
-  await switches.nth(1).click();
+  await tray.click();
   await page.getByRole('button', { name: /(Ja, ich sehe es|Yes, I see it)/ }).click();
-  await expect(switches.nth(1)).toHaveAttribute('aria-checked', 'true');
+  await expect(tray).toHaveAttribute('aria-checked', 'true');
   await expect(card).toContainText(/auch bei geschlossenem Fenster|even with the window closed/);
   await card.screenshot({ path: '/tmp/bg-on.png' });
 });
