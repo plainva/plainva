@@ -2985,7 +2985,7 @@ test('rules: filing as a note runs on a fetched message, and twice gives one not
   await page.keyboard.press('Control+,');
   const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
-  await expect(dlg.getByTestId('rules-local-action')).toContainText(/only Plainva|nur Plainva/i);
+  await expect(dlg.getByTestId('rules-local-action')).toContainText(/only in Plainva|nur in Plainva/i);
 });
 
 test('mail list: a mailbox never signed in HERE offers the sign-in instead of a raw error', async ({ page }) => {

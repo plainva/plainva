@@ -2288,7 +2288,7 @@ test('Settings two-worlds nav: vault card switch opens the picker; cross-world c
 
   // …and a VAULT area click returns to the vault world (maintenance holds the reindex row).
   await dialog.getByRole('button', { name: /^(Wartung|Maintenance)$/ }).click();
-  await expect(dialog.getByRole('button', { name: /neu aufbauen|Rebuild the index/ })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /^(Index vollständig neu aufbauen|Rebuild the index from scratch)$/ })).toBeVisible();
 
   // The identity card is no dropdown: its "switch" link opens the vault
   // picker; picking the not-open vault swaps the VAULT pages to it and the
@@ -2300,7 +2300,7 @@ test('Settings two-worlds nav: vault card switch opens the picker; cross-world c
   await picker.getByRole('button', { name: /zweiter-vault/ }).click();
   await expect(picker).toHaveCount(0);
   await expect(dialog.getByTestId('settings-vault-name')).toHaveText('zweiter-vault');
-  await expect(dialog.getByText(/Dieser Vault ist nicht geöffnet|This vault is not open/)).toBeVisible();
+  await expect(dialog.getByText(/Vault nicht geöffnet|Vault not open/)).toBeVisible();
   await expect(dialog.getByRole('button', { name: /neu aufbauen|Rebuild the index/ })).toHaveCount(0);
 });
 
@@ -2786,7 +2786,7 @@ test('Settings: creating a standard task database scaffolds folder + .base and s
   expect(state.base).toContain('render: board');
 
   // The row now shows the fresh database as the selected value.
-  await expect(dialog.getByLabel(/Standard-Aufgabendatenbank|Standard task database/)).toContainText('Aufgaben');
+  await expect(dialog.getByRole('button', { name: /^(Standard-Aufgabendatenbank|Standard task database)$/ })).toContainText('Aufgaben');
 });
 
 test('Settings nav: exactly the clicked area is active; one vault shows no switch link', async ({ page }) => {
@@ -2942,6 +2942,66 @@ test('Settings APP pages: groups as the settings plan orders them, explanations 
   await expect(dialog.getByRole('checkbox', { name: /Beim Start nach Updates suchen|Check for updates on startup/ })).toBeVisible();
   await expect(dialog.getByRole('button', { name: /^(Nach Updates suchen|Check for Updates)$/ })).toBeVisible();
   await shoot('about');
+});
+
+test('Settings VAULT pages: notes & filing and the journal are two pages, OKF and restore moved, explanations behind the info button', async ({ page }, testInfo) => {
+  // Settings plan 2026-10-29, § 3.6-3.9 (E9): "Content & structure" became two
+  // pages, the OKF commands joined Maintenance, restoring deleted files joined
+  // the version history.
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  const groups = () => dialog.locator('.pv-setpage[data-active="true"] .pv-setgroup-label');
+  const shoot = async (name: string) => {
+    if (!process.env.PLAINVA_EVIDENCE) return;
+    for (const mode of ['light', 'dark']) {
+      await page.evaluate((m) => document.documentElement.setAttribute('data-theme', m), mode);
+      await page.screenshot({ path: testInfo.outputPath(`${name}-${mode}.png`) });
+    }
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+  };
+
+  await dialog.getByRole('button', { name: /^(Notizen & Ablage|Notes & filing)$/ }).click();
+  await expect(groups()).toHaveText([
+    /^(Ordner|Folders)$/, /^(Vorlagen|Templates)$/, /^(Neue Notizen|New notes)$/, /^(Datenbanken|Databases)$/, /^(Anmerkungen|Annotations)$/,
+  ]);
+  // The precedence rule of the template rules is ONE info at the card (Q8).
+  await dialog.getByRole('button', { name: /^(Mehr zu Vorlagen|More about Templates)$/ }).click();
+  await expect(dialog.locator('.pv-infotip-panel')).toContainText(/Ordner schlägt Typ|Folder beats type/);
+  await page.keyboard.press('Escape');
+  // The reviewer name stays on this device: the badge, not a sentence (E3/E14).
+  await expect(dialog.getByTestId('settings-annotations').getByTestId('device-only-badge').first()).toBeVisible();
+  await shoot('notes-filing');
+
+  await dialog.getByRole('button', { name: /^(Tagesnotizen & Journal|Daily notes & journal)$/ }).click();
+  await expect(groups()).toHaveText([/^(Tagesnotizen|Daily notes)$/, /^(Journal)$/]);
+  await expect(dialog.getByTestId('journal-heading')).toBeVisible();
+  await shoot('daily-journal');
+
+  await dialog.getByRole('button', { name: /^(Wartung|Maintenance)$/ }).click();
+  await expect(groups().last()).toHaveText(/^(OKF-Format|OKF format)$/);
+  await dialog.getByRole('button', { name: /^(Mehr zu OKF-Format|More about OKF format)$/ }).click();
+  await expect(dialog.locator('.pv-infotip-panel')).toContainText(/Open Knowledge Format/);
+  await page.keyboard.press('Escape');
+  await expect(dialog.locator('.pv-setpage[data-active="true"]').getByTestId('settings-deleted-files')).toHaveCount(0);
+  await shoot('maintenance');
+
+  await dialog.getByRole('button', { name: /^(Backup & Versionierung|Backup & version history)$/ }).click();
+  await expect(groups()).toHaveText([/^(ZIP-Backups|ZIP backups)$/, /^(Versionsverlauf|Version history)$/]);
+  await expect(dialog.locator('.pv-setpage[data-active="true"]').getByTestId('settings-deleted-files')).toBeVisible();
+  await shoot('backup');
+
+  await dialog.getByRole('button', { name: /^(Leisten & Bereiche|Bars & areas)$/ }).click();
+  await dialog.getByRole('button', { name: /^(Mehr zu Als Standard übernehmen|More about Save as default)$/ }).first().click();
+  await expect(dialog.locator('.pv-infotip-panel')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await shoot('bars');
+
+  await dialog.getByRole('button', { name: /^(Sicherheit & Freigaben|Security & Sharing)$/ }).click();
+  await shoot('security');
 });
 
 /* -------------------- 2026-07-18: unresolved wiki links create the target note (Obsidian parity) */
