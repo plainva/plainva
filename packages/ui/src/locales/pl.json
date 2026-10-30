@@ -3541,6 +3541,7 @@
     "sendFailed": "Nie wysłano: {{reason}}",
     "sendReopen": "Otwórz ponownie",
     "sendTooLarge": "Serwer poczty nie przyjmuje wiadomości o tym rozmiarze.",
+    "sendUploadFailed": "Nie udało się przesłać „{{name}}” do skrzynki Microsoft, więc wiadomość nie została wysłana. Wyślij ją ponownie, aby spróbować jeszcze raz.",
     "offlineCopy": "Offline — pokazujemy ostatnią kopię z tego urządzenia.",
     "sendingGroup": "Wysyłanie",
     "signature": "Podpis",

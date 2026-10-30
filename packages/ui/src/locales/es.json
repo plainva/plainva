@@ -3508,6 +3508,7 @@
     "sendFailed": "No enviado: {{reason}}",
     "sendReopen": "Abrir de nuevo",
     "sendTooLarge": "El servidor de correo no acepta un mensaje de este tamaño.",
+    "sendUploadFailed": "No se pudo subir «{{name}}» al buzón de Microsoft, así que el mensaje no se ha enviado. Envíalo de nuevo para volver a intentarlo.",
     "offlineCopy": "Sin conexión: se muestra la última copia de este dispositivo.",
     "sendingGroup": "Envío",
     "signature": "Firma",

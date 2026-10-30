@@ -3442,6 +3442,7 @@
     "sendFailed": "未发送：{{reason}}",
     "sendReopen": "重新打开",
     "sendTooLarge": "邮件服务器不接受这么大的邮件。",
+    "sendUploadFailed": "无法将“{{name}}”上传到 Microsoft 邮箱，因此邮件未发送。再次发送即可重试。",
     "offlineCopy": "离线——显示的是本设备上的最后一份副本。",
     "sendingGroup": "发送",
     "signature": "签名",

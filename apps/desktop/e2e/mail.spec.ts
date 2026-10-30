@@ -1084,6 +1084,133 @@ test('a Microsoft mailbox sends from the composer: through Graph, never through 
 });
 
 /**
+ * A file over one Graph request goes along (Sammelplan § 3.95 Nr. 3): until
+ * 2026-10-30 a Microsoft mailbox left every file over 2.8 MB behind, because
+ * Plainva attached each file in one request. Now the message becomes a draft,
+ * the file goes through an upload session in ranges, and the draft is sent.
+ *
+ * The answers are what Microsoft's reference describes for an upload session;
+ * that a real mailbox takes the file is not something a fake can show.
+ */
+test('a Microsoft mailbox sends a 5 MB file through an upload session', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.addInitScript(() => {
+    (window as any).__mailAccountsOverride = [
+      { id: 'ms', kind: 'microsoft', label: 'marco@outlook.com', host: '', port: 0, user: 'marco@outlook.com', clientId: 'cid' },
+    ];
+    const SIZE = 5 * 1024 * 1024;
+    const file = new Uint8Array(SIZE);
+    for (let i = 0; i < SIZE; i += 1) file[i] = (i * 31 + (i >> 8)) & 0xff;
+    const UPLOAD = "https://outlook.office.com/api/v2.0/Users('u')/Messages('d1')/AttachmentSessions('s1')?authtoken=SESSION";
+    const received = new Uint8Array(SIZE);
+    let receivedBytes = 0;
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    const requests = new Map<number, { url: string; status: number; body: string; read: boolean }>();
+    let nextRequest = 1;
+    (window as any).__graphCalls = [];
+    (window as any).__uploadCheck = () => {
+      if (receivedBytes !== SIZE) return `received ${receivedBytes} of ${SIZE}`;
+      for (let i = 0; i < SIZE; i += 1) if (received[i] !== file[i]) return `byte ${i} differs`;
+      return 'same';
+    };
+    const reply = (method: string, url: string, headers: Record<string, string>, data: Uint8Array): { status: number; json: unknown } => {
+      if (url === UPLOAD) {
+        if (method === 'DELETE') return { status: 204, json: null };
+        const range = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(headers['content-range'] ?? '');
+        if (method !== 'PUT' || !range || Number(range[3]) !== SIZE || data.length !== Number(range[2]) - Number(range[1]) + 1) return { status: 400, json: { error: { code: 'badRange' } } };
+        received.set(data, Number(range[1]));
+        receivedBytes += data.length;
+        return Number(range[2]) + 1 >= SIZE ? { status: 201, json: null } : { status: 200, json: { nextExpectedRanges: [`${Number(range[2]) + 1}-`] } };
+      }
+      const path = url.replace('https://graph.microsoft.com/v1.0', '');
+      if (method === 'POST' && path === '/me/messages') return { status: 201, json: { id: 'd1' } };
+      if (method === 'POST' && path === '/me/messages/d1/attachments/createUploadSession') return { status: 201, json: { uploadUrl: UPLOAD, nextExpectedRanges: ['0-'] } };
+      if (method === 'POST' && path === '/me/messages/d1/send') return { status: 202, json: null };
+      if (method !== 'GET') return { status: 404, json: { error: { code: 'unexpected' } } };
+      if (path.startsWith('/me/mailFolders?')) {
+        return { status: 200, json: { value: [{ id: 'f-in', displayName: 'Posteingang', childFolderCount: 0 }, { id: 'f-dr', displayName: 'Entwürfe', childFolderCount: 0 }] } };
+      }
+      if (path.startsWith('/me/mailFolders/inbox?')) return { status: 200, json: { id: 'f-in' } };
+      if (path.startsWith('/me/mailFolders/drafts?')) return { status: 200, json: { id: 'f-dr' } };
+      if (/^\/me\/mailFolders\/[^/?]+\/messages\?/.test(path)) return { status: 200, json: { value: [], '@odata.count': 0 } };
+      if (/^\/me\/mailFolders\/f-(in|dr)\?/.test(path)) return { status: 200, json: { unreadItemCount: 0 } };
+      return { status: 404, json: { error: { code: 'ErrorItemNotFound' } } };
+    };
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'oauth_token_request') return { status: 200, body: JSON.stringify({ access_token: 'graph-token', refresh_token: 'rt', expires_in: 3600 }) };
+      if (cmd === 'plugin:dialog|open') return 'C:\\Videos\\Film.mp4';
+      if (cmd === 'plugin:fs|read_file' && String(args?.path ?? options?.headers?.path ?? '').includes('Film.mp4')) return file.buffer.slice(0);
+      if (cmd === 'plugin:http|fetch') {
+        const cfg = args.clientConfig;
+        const id = nextRequest++;
+        const headers: Record<string, string> = {};
+        for (const [k, v] of cfg.headers as string[][]) headers[k.toLowerCase()] = v;
+        const data = cfg.data ? new Uint8Array(cfg.data) : new Uint8Array(0);
+        const answer = reply(cfg.method, cfg.url, headers, data);
+        requests.set(id, { url: cfg.url, status: answer.status, body: answer.json === null ? '' : JSON.stringify(answer.json), read: false });
+        (window as any).__graphCalls.push({
+          method: cfg.method,
+          url: cfg.url,
+          authorization: headers.authorization ?? null,
+          range: headers['content-range'] ?? null,
+          body: cfg.url === UPLOAD ? '' : new TextDecoder().decode(data),
+        });
+        return id;
+      }
+      if (cmd === 'plugin:http|fetch_send') {
+        const request = requests.get(args.rid)!;
+        return { status: request.status, statusText: '', url: request.url, headers: [['content-type', 'application/json']], rid: args.rid };
+      }
+      if (cmd === 'plugin:http|fetch_read_body') {
+        const request = requests.get(args.rid)!;
+        if (request.read) return [1];
+        request.read = true;
+        return [...new TextEncoder().encode(request.body), 0];
+      }
+      return orig(cmd, args, options);
+    };
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+  await page.getByTestId('mail-compose').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await page.getByTestId('draft-to').fill('anna@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await page.getByTestId('draft-subject').fill('Film');
+  await page.getByTestId('draft-attach-file').click();
+  // The file goes: no "too large for this mailbox", no bound named.
+  await expect(page.getByTestId('draft-attachments')).toContainText('Film.mp4');
+  await expect(page.getByTestId('draft-files-limit')).toHaveCount(0);
+  await page.getByTestId('draft-send').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  const steps = () => page.evaluate(() => ((window as any).__graphCalls as any[])
+    .filter((c) => c.method !== 'GET')
+    .map((c) => (c.url.startsWith('https://outlook.office.com/') ? `${c.method} session ${c.range}` : `${c.method} ${c.url.replace('https://graph.microsoft.com/v1.0', '')}`)));
+  await expect.poll(async () => (await steps()).at(-1), { timeout: 30_000 }).toBe('POST /me/messages/d1/send');
+  const total = 5 * 1024 * 1024;
+  const chunk = 10 * 320 * 1024;
+  expect(await steps()).toEqual([
+    'POST /me/messages',
+    'POST /me/messages/d1/attachments/createUploadSession',
+    `PUT session bytes 0-${chunk - 1}/${total}`,
+    `PUT session bytes ${chunk}-${total - 1}/${total}`,
+    'POST /me/messages/d1/send',
+  ]);
+  const calls = await page.evaluate(() => (window as any).__graphCalls as any[]);
+  const session = calls.find((c) => c.url.endsWith('/createUploadSession'));
+  expect(JSON.parse(session.body)).toEqual({ AttachmentItem: { attachmentType: 'file', name: 'Film.mp4', size: total, contentType: 'application/octet-stream' } });
+  // The session's address carries its own authorisation: no token for outlook.office.com.
+  for (const put of calls.filter((c) => c.url.startsWith('https://outlook.office.com/'))) expect(put.authorization).toBeNull();
+  expect(await page.evaluate(() => (window as any).__uploadCheck())).toBe('same');
+  // The draft is the message, without the file in it.
+  const draft = JSON.parse(calls.find((c) => c.method === 'POST' && c.url.endsWith('/me/messages')).body);
+  expect(draft.subject).toBe('Film');
+  expect(draft).not.toHaveProperty('attachments');
+});
+
+/**
  * The counterpart: an account that really has no way to send keeps the hint.
  * A mailbox connected for reading only (IMAP without an SMTP host) is a valid
  * setup, and there the composer still says what is missing instead of offering

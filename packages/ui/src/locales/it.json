@@ -3508,6 +3508,7 @@
     "sendFailed": "Non inviato: {{reason}}",
     "sendReopen": "Riapri",
     "sendTooLarge": "Il server di posta non accetta un messaggio di queste dimensioni.",
+    "sendUploadFailed": "Non è stato possibile caricare «{{name}}» nella casella Microsoft, quindi il messaggio non è stato inviato. Invialo di nuovo per riprovare.",
     "offlineCopy": "Offline: viene mostrata l’ultima copia presente su questo dispositivo.",
     "sendingGroup": "Invio",
     "signature": "Firma",

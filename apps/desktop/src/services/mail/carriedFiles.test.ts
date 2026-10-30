@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CARRIED_TOTAL_LIMIT,
+  GRAPH_DIRECT_FILE_LIMIT,
   GRAPH_FILE_LIMIT,
   applyFetched,
   attachmentLimits,
@@ -247,13 +248,13 @@ describe("which files go for which sending mailbox", () => {
     expect(CARRIED_TOTAL_LIMIT).toBe(18 * MB);
   });
 
-  it("a file at Microsoft's bound still fits a request of its own under 4 MB", () => {
-    // The bound is only worth something while a file at it can be attached:
-    // one request per file, 4 MB at most (read as 4,000,000 — the smaller of
-    // the two things "4 MB" can mean).
-    const [attachment] = graphAttachments([{ name: "größte Datei.bin", mime: "application/octet-stream", contentBase64: packed(GRAPH_FILE_LIMIT) }]);
+  it("a file at the bound of one request still fits a request of its own under 4 MB", () => {
+    // Up to this bound a file goes in one request — 4 MB at most (read as
+    // 4,000,000, the smaller of the two things "4 MB" can mean); above it, an
+    // upload session takes it (graphUploadSession.test.ts).
+    const [attachment] = graphAttachments([{ name: "größte Datei.bin", mime: "application/octet-stream", contentBase64: packed(GRAPH_DIRECT_FILE_LIMIT) }]);
     expect(new TextEncoder().encode(JSON.stringify(attachment)).length).toBeLessThan(4_000_000);
-    expect(base64Size(packed(GRAPH_FILE_LIMIT))).toBe(GRAPH_FILE_LIMIT);
+    expect(base64Size(packed(GRAPH_DIRECT_FILE_LIMIT))).toBe(GRAPH_DIRECT_FILE_LIMIT);
   });
 
   it("over IMAP every file goes until the forward's own bound is reached, and a smaller one may still follow", () => {
@@ -269,9 +270,15 @@ describe("which files go for which sending mailbox", () => {
     expect(plan.wanted).toEqual([0, 2]);
   });
 
-  it("a Microsoft mailbox takes every file up to its bound, however many", () => {
-    const files = [file(0, GRAPH_FILE_LIMIT), file(1, GRAPH_FILE_LIMIT + 1), file(2, 2 * MB), file(3, 2 * MB), file(4, 2 * MB)];
-    const plan = planFiles(files, [], attachmentLimits(microsoft));
+  // The planner's rule against a mailbox with a per-file bound. Microsoft's is
+  // 150 MB since the upload session (§ 3.95 Nr. 3); a small stand-in keeps
+  // these files cheap — the rule does not depend on the number.
+  const BOUND = 3 * MB;
+  const bounded = { ...attachmentLimits(microsoft), perFile: BOUND };
+
+  it("a mailbox with a per-file bound takes every file up to it, however many", () => {
+    const files = [file(0, BOUND), file(1, BOUND + 1), file(2, 2 * MB), file(3, 2 * MB), file(4, 2 * MB)];
+    const plan = planFiles(files, [], bounded);
     expect(plan.rows.map((r) => [r.state, r.why])).toEqual([
       ["loading", undefined],
       ["left", "tooLarge"],
@@ -285,24 +292,24 @@ describe("which files go for which sending mailbox", () => {
   it("switching the sender switches the answer, and what has arrived stays", () => {
     const files = [ready(0, 1 * MB), ready(1, 5 * MB)];
     expect(planFiles(files, [], attachmentLimits(imap)).rows.map((r) => r.state)).toEqual(["ready", "ready"]);
-    const underMicrosoft = planFiles(files, [], attachmentLimits(microsoft));
+    const underMicrosoft = planFiles(files, [], bounded);
     expect(underMicrosoft.rows.map((r) => [r.state, r.why])).toEqual([["ready", undefined], ["left", "tooLarge"]]);
     // The bytes are still held: switching back needs no second download.
     expect(underMicrosoft.rows[1].file.attachment).toBeDefined();
     expect(carriedToSend(underMicrosoft).map((a) => a.name)).toEqual(["f0.bin"]);
     // And the other way round: a file left behind under Microsoft is asked for
     // once the sender takes it.
-    expect(planFiles([file(0, 5 * MB)], [], attachmentLimits(microsoft)).wanted).toEqual([]);
+    expect(planFiles([file(0, 5 * MB)], [], bounded).wanted).toEqual([]);
     expect(planFiles([file(0, 5 * MB)], [], attachmentLimits(imap)).wanted).toEqual([0]);
   });
 
   it("reckons with the real size once the bytes are here", () => {
     // Microsoft lists an attachment a few percent larger than the file is. Listed
     // just over the bound, it stays behind unseen; once loaded, the file decides.
-    const listedOver = file(0, GRAPH_FILE_LIMIT + 1000);
-    expect(planFiles([listedOver], [], attachmentLimits(microsoft)).rows[0].state).toBe("left");
-    const loaded = ready(0, GRAPH_FILE_LIMIT - 1000, GRAPH_FILE_LIMIT + 1000);
-    expect(planFiles([loaded], [], attachmentLimits(microsoft)).rows[0].state).toBe("ready");
+    const listedOver = file(0, BOUND + 1000);
+    expect(planFiles([listedOver], [], bounded).rows[0].state).toBe("left");
+    const loaded = ready(0, BOUND - 1000, BOUND + 1000);
+    expect(planFiles([loaded], [], bounded).rows[0].state).toBe("ready");
   });
 
   it("asks only for files nobody has asked for yet, and never again on its own", () => {
@@ -319,18 +326,18 @@ describe("which files go for which sending mailbox", () => {
   });
 
   it("holds a file attached by hand against the mailbox's bound only", () => {
-    const big: MailAttachment = { name: "video.mp4", mime: "video/mp4", contentBase64: packed(GRAPH_FILE_LIMIT + 1) };
+    const big: MailAttachment = { name: "video.mp4", mime: "video/mp4", contentBase64: packed(BOUND + 1) };
     const small: MailAttachment = { name: "note.md", mime: "text/markdown", contentBase64: packed(100) };
     // Over IMAP Plainva sets no bound for a file a person chose — not even the
     // forward's own, which counts the files of the original alone.
     const full = [ready(0, CARRIED_TOTAL_LIMIT)];
     expect(planFiles(full, [big, small], attachmentLimits(imap)).others).toEqual([true, true]);
     expect(planFiles(full, [big, small], attachmentLimits(imap)).rows[0].state).toBe("ready");
-    expect(planFiles([], [big, small], attachmentLimits(microsoft)).others).toEqual([false, true]);
+    expect(planFiles([], [big, small], bounded).others).toEqual([false, true]);
   });
 
   it("names everything a send would leave behind, each with its reason", () => {
-    const big: MailAttachment = { name: "video.mp4", mime: "video/mp4", contentBase64: packed(GRAPH_FILE_LIMIT + 1) };
+    const big: MailAttachment = { name: "video.mp4", mime: "video/mp4", contentBase64: packed(BOUND + 1) };
     const files = [
       ready(0, 100),
       file(1, 5 * MB),
@@ -338,12 +345,12 @@ describe("which files go for which sending mailbox", () => {
       file(3, 0, { load: "failed", failure: "notAFile", name: "Besprechung" }),
       file(4, 100, { load: "loading" }),
     ];
-    const plan = planFiles(files, [big], attachmentLimits(microsoft));
+    const plan = planFiles(files, [big], bounded);
     expect(leftBehind(plan, [big])).toEqual([
       { name: "f1.bin", size: 5 * MB, why: "tooLarge" },
       { name: "f2.bin", size: 100, why: "failed" },
       { name: "Besprechung", size: 0, why: "notAFile" },
-      { name: "video.mp4", size: GRAPH_FILE_LIMIT + 1, why: "tooLarge" },
+      { name: "video.mp4", size: BOUND + 1, why: "tooLarge" },
     ]);
     // A file still on its way is not "left behind": Send waits for it instead.
     expect(leftBehind(planFiles([file(0, 1, { load: "loading" })], [], attachmentLimits(imap)), [])).toEqual([]);
@@ -414,7 +421,7 @@ describe("sizes", () => {
     expect(formatAttachmentSize(1.8 * MB, "en")).toBe("1.8 MB");
     expect(formatAttachmentSize(1.8 * MB, "de")).toBe("1,8 MB");
     // The bounds read like the sizes next to them.
-    expect(formatAttachmentSize(GRAPH_FILE_LIMIT, "en")).toBe("2.8 MB");
+    expect(formatAttachmentSize(GRAPH_FILE_LIMIT, "en")).toBe("150 MB");
     expect(formatAttachmentSize(CARRIED_TOTAL_LIMIT, "en")).toBe("18 MB");
     expect(formatAttachmentSize(Number.NaN)).toBe("");
   });
@@ -449,13 +456,13 @@ describe("what a composer says about a file, and about the bounds", () => {
     const limits = attachmentLimits(microsoft);
     expect(carriedLimitText([row("ready"), row("loading"), row("failed")], [true], limits, t, "en")).toBeNull();
     expect(carriedLimitText([row("left", "notAFile")], [], limits, t, "en")).toBeNull();
-    expect(carriedLimitText([row("left", "tooLarge")], [], limits, t, "en")).toBe('mail.fileLimitMailbox{"size":"2.8 MB"}');
+    expect(carriedLimitText([row("left", "tooLarge")], [], limits, t, "en")).toBe('mail.fileLimitMailbox{"size":"150 MB"}');
     // A file attached by hand that the mailbox does not take: the mailbox's bound.
-    expect(carriedLimitText([row("ready")], [true, false], limits, t, "en")).toBe('mail.fileLimitMailbox{"size":"2.8 MB"}');
+    expect(carriedLimitText([row("ready")], [true, false], limits, t, "en")).toBe('mail.fileLimitMailbox{"size":"150 MB"}');
     // Both reasons on one draft: each file's note names its own, and each has
     // its number here.
     expect(carriedLimitText([row("left", "tooLarge"), row("left", "overTotal")], [], limits, t, "en")).toBe(
-      'mail.fileLimitMailbox{"size":"2.8 MB"} mail.fileLimitOwn{"size":"18 MB"}',
+      'mail.fileLimitMailbox{"size":"150 MB"} mail.fileLimitOwn{"size":"18 MB"}',
     );
   });
 });

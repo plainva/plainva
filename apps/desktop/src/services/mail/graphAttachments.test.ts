@@ -54,7 +54,7 @@ vi.mock("@plainva/core", async (importOriginal) => {
 });
 
 import {
-  GRAPH_FILE_LIMIT,
+  GRAPH_DIRECT_FILE_LIMIT,
   fetchAttachments,
   forgetGraphMailRuntime,
   graphAppendDraft,
@@ -240,8 +240,8 @@ describe("sending files from a Microsoft mailbox", () => {
     expect(posts[3].body).toBeUndefined();
   });
 
-  it("a file at the bound goes, on the draft way", async () => {
-    const largest = fileOf("groesste.bin", GRAPH_FILE_LIMIT);
+  it("a file at the bound of one request goes in one, on the draft way", async () => {
+    const largest = fileOf("groesste.bin", GRAPH_DIRECT_FILE_LIMIT);
     await graphSendMail("/vault", account, "anna@example.org", "Fwd", "<p>x</p>", [largest]);
     expect(mailboxCalls()).toEqual(["POST /me/messages", "POST /me/messages/draft1/attachments", "POST /me/messages/draft1/send"]);
     const attach = calls.find((c) => c.path === "/me/messages/draft1/attachments")!;

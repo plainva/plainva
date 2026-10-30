@@ -3442,6 +3442,7 @@
     "sendFailed": "送信できませんでした: {{reason}}",
     "sendReopen": "もう一度開く",
     "sendTooLarge": "メールサーバーがこのサイズのメッセージを受け付けません。",
+    "sendUploadFailed": "「{{name}}」を Microsoft のメールボックスにアップロードできなかったため、メッセージは送信されていません。もう一度送信すると再試行します。",
     "offlineCopy": "オフライン — この端末に残っている最後のコピーを表示しています。",
     "sendingGroup": "送信",
     "signature": "署名",

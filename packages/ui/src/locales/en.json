@@ -3475,6 +3475,7 @@
     "sendFailed": "Not sent: {{reason}}",
     "sendReopen": "Open again",
     "sendTooLarge": "The mail server does not accept a message of this size.",
+    "sendUploadFailed": "“{{name}}” could not be uploaded to the Microsoft mailbox, so the message was not sent. Send it again to try once more.",
     "offlineCopy": "Offline — showing the last copy from this device.",
     "sendingGroup": "Sending",
     "signature": "Signature",

@@ -3508,6 +3508,7 @@
     "sendFailed": "Non envoyé : {{reason}}",
     "sendReopen": "Rouvrir",
     "sendTooLarge": "Le serveur de messagerie n’accepte pas un message de cette taille.",
+    "sendUploadFailed": "« {{name}} » n’a pas pu être téléversé dans la boîte Microsoft, le message n’est donc pas parti. Renvoie-le pour réessayer.",
     "offlineCopy": "Hors ligne — affichage de la dernière copie de cet appareil.",
     "sendingGroup": "Envoi",
     "signature": "Signature",

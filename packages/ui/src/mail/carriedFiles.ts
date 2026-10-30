@@ -287,10 +287,11 @@ export interface AttachmentLimits {
 /**
  * What the mailbox a message is SENT from takes.
  *
- * A Microsoft mailbox has a hard bound per file: Plainva attaches through
- * Graph, one file per request at most, and has no upload session for more
- * (`GRAPH_FILE_LIMIT`). It holds for every file on the draft, one attached by
- * hand included — that one used to fail after the composer had closed.
+ * A Microsoft mailbox has a hard bound per file: what Graph takes through an
+ * upload session, 150 MB (`GRAPH_FILE_LIMIT`; 2.8 MB until 2026-10-30, when a
+ * file went in one request or not at all). It holds for every file on the
+ * draft, one attached by hand included — that one used to fail after the
+ * composer had closed.
  *
  * Over IMAP/SMTP the provider sets the bound and only says so by refusing, so
  * Plainva sets none for a file a person chose. What a forward loads on its own

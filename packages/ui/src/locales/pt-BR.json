@@ -3508,6 +3508,7 @@
     "sendFailed": "Não enviado: {{reason}}",
     "sendReopen": "Abrir de novo",
     "sendTooLarge": "O servidor de e-mail não aceita uma mensagem deste tamanho.",
+    "sendUploadFailed": "Não foi possível enviar “{{name}}” para a caixa da Microsoft, então a mensagem não foi enviada. Envie de novo para tentar outra vez.",
     "offlineCopy": "Offline — mostrando a última cópia deste dispositivo.",
     "sendingGroup": "Envio",
     "signature": "Assinatura",

@@ -77,8 +77,11 @@ const source: ForwardSource = {
   ],
 };
 /** The draft as the message screen hands it over — through the nav path, like the app. */
-const forwarded = (accountId = "m1"): MailDraft =>
-  parseDraft(draftPath({ accountId, to: "", subject: "Fwd: Angebot", body: "\n\n---------- Forwarded message ----------\n\nanbei", forward: source }));
+const forwarded = (accountId = "m1", forward: ForwardSource = source): MailDraft =>
+  parseDraft(draftPath({ accountId, to: "", subject: "Fwd: Angebot", body: "\n\n---------- Forwarded message ----------\n\nanbei", forward }));
+/** The same original with its video over a Microsoft mailbox's bound (listed only — nothing is fetched). */
+const HUGE = GRAPH_FILE_LIMIT + MB;
+const withHugeVideo: ForwardSource = { ...source, files: [source.files[0], { ...source.files[1], size: HUGE }] };
 
 /** One call to the mailbox for files, answered by the test. */
 interface Batch {
@@ -126,8 +129,9 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-const bigFile = new Uint8Array(GRAPH_FILE_LIMIT + 1);
-const vault = { vaultId: "/vault", files: { readBinaryFile: async () => bigFile } } as never;
+// Over a Microsoft mailbox's bound (150 MB): made once, when a test picks it.
+let bigFile: Uint8Array | null = null;
+const vault = { vaultId: "/vault", files: { readBinaryFile: async () => (bigFile ??= new Uint8Array(GRAPH_FILE_LIMIT + 1)) } } as never;
 
 /** Lets effects, the credential lookup and a settled answer play out — in
  *  microtasks only, so it works while a test holds the timers. */
@@ -380,12 +384,20 @@ describe("a file that did not come", () => {
 });
 
 describe("a mailbox that does not take every file", () => {
+  it("takes a file over one request from a Microsoft mailbox: it goes through an upload session", async () => {
+    // Until § 3.95 Nr. 3 the 7 MB video stayed behind here.
+    await open(forwarded("ms"));
+    expect(batches[0].args.indexes).toEqual([2, 3]);
+    expect(carried()).toEqual([`Angebot.pdf|loading|${loadingNote("412 KB")}`, `Begehung.mp4|loading|${loadingNote("7 MB")}`]);
+    expect(q("compose-files-limit")).toBeNull();
+  });
+
   it("leaves a file over Microsoft's bound behind by name, without fetching it, and asks before sending", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     // The message lies in the IMAP mailbox; it is sent from the Microsoft one.
-    await open(forwarded("ms"));
+    await open(forwarded("ms", withHugeVideo));
     expect(batches[0].args.indexes).toEqual([2]);
-    expect(carried()).toEqual([`Angebot.pdf|loading|${loadingNote("412 KB")}`, `Begehung.mp4|left|${tooLargeNote("7 MB")}`]);
+    expect(carried()).toEqual([`Angebot.pdf|loading|${loadingNote("412 KB")}`, `Begehung.mp4|left|${tooLargeNote(formatAttachmentSize(HUGE, i18n.language))}`]);
     // The bound is said with its number, as the reader writes sizes.
     expect(q("compose-files-limit")?.textContent).toBe(mailboxBound());
     expect(mailboxBound()).toContain(formatAttachmentSize(GRAPH_FILE_LIMIT, i18n.language));
@@ -426,7 +438,7 @@ describe("a mailbox that does not take every file", () => {
   });
 
   it("asks before a draft is filed without a file, in the draft's own words", async () => {
-    await open(forwarded("ms"));
+    await open(forwarded("ms", withHugeVideo));
     await answer(batches[0], [{ index: 2, contentBase64: "JVBERi0=" }]);
     await tap(q("compose-save-draft"));
     expect(question()?.title).toBe(i18n.t("mail.draftWithoutTitle"));

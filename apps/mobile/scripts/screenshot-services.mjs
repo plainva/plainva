@@ -90,8 +90,13 @@ const DEFAULT_ATTACHMENTS = [{ id: "attachment-1", name: "Projektübersicht.txt"
  * A message that does not fit one request goes the way Microsoft describes
  * for several files - `POST /me/messages` (a draft), one
  * `POST .../attachments` per file, `POST .../send` - and arrives in
- * `observed.sent` like any other, marked `viaDraft`. `refuseSends` makes the
- * first sends fail with that HTTP status, either way.
+ * `observed.sent` like any other, marked `viaDraft`. A file over one request
+ * goes through an upload session on the draft (`createUploadSession`, then
+ * PUTs of byte ranges to an address on outlook.office.com that carries its own
+ * authorisation): it arrives among the draft's files with `viaSession: true`,
+ * and `observed.uploads` keeps each range with the `Authorization` it came
+ * with (there should be none). `refuseSends` makes the first sends fail with
+ * that HTTP status, either way.
  *
  * WHOSE sign-in a request travels with can be read back: the token endpoint
  * answers every sign-in with an access token of its own
@@ -142,7 +147,29 @@ export async function installMailFixture(context, { extra = {}, attachments = DE
     })) : null,
   }]));
   const everything = () => [...messages, ...Object.values(others).flat(), ...[...accounts.values()].flatMap(a => a.inbox ?? [])];
-  const observed = { lists: 0, listed: [], bodies: 0, searches: [], flaggedQueries: [], flaggedAnswered: 0, sent: [], sentWith: [], attachmentFetches: [], tokenRefreshes: 0, tokenRequests: [], requests: [], unexpected: [] };
+  const observed = { lists: 0, listed: [], bodies: 0, searches: [], flaggedQueries: [], flaggedAnswered: 0, sent: [], sentWith: [], attachmentFetches: [], tokenRefreshes: 0, tokenRequests: [], requests: [], unexpected: [], uploads: [] };
+  // Upload sessions by their address: the draft, the file's item and the bytes so far.
+  const sessions = new Map();
+  await context.route("https://outlook.office.com/**", async (route) => {
+    const request = route.request();
+    const session = sessions.get(request.url());
+    if (!session) return route.fulfill({ status: 404, json: { error: { code: "ErrorItemNotFound" } } });
+    if (request.method() === "DELETE") {
+      sessions.delete(request.url());
+      return route.fulfill({ status: 204, body: "" });
+    }
+    const range = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(request.headers()["content-range"] ?? "");
+    const bytes = request.postDataBuffer() ?? Buffer.alloc(0);
+    observed.uploads.push({ range: request.headers()["content-range"] ?? null, length: bytes.length, authorization: request.headers().authorization ?? null });
+    if (request.method() !== "PUT" || !range || Number(range[1]) !== session.received.length || Number(range[3]) !== session.item.size || bytes.length !== Number(range[2]) - Number(range[1]) + 1) {
+      return route.fulfill({ status: 400, json: { error: { code: "InvalidRange", message: "The range does not follow on." } } });
+    }
+    session.received = Buffer.concat([session.received, bytes]);
+    if (session.received.length < session.item.size) return route.fulfill({ json: { nextExpectedRanges: [`${session.received.length}-`] } });
+    sessions.delete(request.url());
+    session.draft.attachments.push({ "@odata.type": FILE_ATTACHMENT, name: session.item.name, contentType: session.item.contentType, contentBytes: session.received.toString("base64"), viaSession: true });
+    return route.fulfill({ status: 201, headers: { Location: `${request.url().split("?")[0]}/done` }, body: "" });
+  });
   await context.route("https://login.microsoftonline.com/**", async (route) => {
     if (!route.request().url().includes("/oauth2/v2.0/token")) return route.abort("blockedbyclient");
     observed.tokenRefreshes++;
@@ -227,8 +254,14 @@ export async function installMailFixture(context, { extra = {}, attachments = DE
       drafts.set(id, { message: request.postDataJSON(), attachments: [] });
       return route.fulfill({ status: 201, json: { id } });
     }
-    const step = /^\/me\/messages\/(draft-\d+)(?:\/(attachments|send))?$/.exec(path);
+    const step = /^\/me\/messages\/(draft-\d+)(?:\/(attachments|send|attachments\/createUploadSession))?$/.exec(path);
     const draft = step && drafts.get(step[1]);
+    if (draft && request.method() === "POST" && step[2] === "attachments/createUploadSession") {
+      const item = request.postDataJSON().AttachmentItem;
+      const uploadUrl = `https://outlook.office.com/api/v2.0/Users('fixture')/Messages('${step[1]}')/AttachmentSessions('s${sessions.size + 1}')?authtoken=fixture-session`;
+      sessions.set(uploadUrl, { draft, item, received: Buffer.alloc(0) });
+      return route.fulfill({ status: 201, json: { uploadUrl, expirationDateTime: "2026-10-30T12:00:00Z", nextExpectedRanges: ["0-"] } });
+    }
     if (draft && request.method() === "POST" && step[2] === "attachments") {
       draft.attachments.push(request.postDataJSON());
       return route.fulfill({ status: 201, json: { id: `${step[1]}-file-${draft.attachments.length}` } });

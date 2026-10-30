@@ -3475,6 +3475,7 @@
     "sendFailed": "Nicht gesendet: {{reason}}",
     "sendReopen": "Wieder öffnen",
     "sendTooLarge": "Der Mail-Server nimmt eine Nachricht dieser Größe nicht an.",
+    "sendUploadFailed": "„{{name}}“ ließ sich nicht ins Microsoft-Postfach hochladen, die Nachricht ist nicht gesendet. Sende sie noch einmal, um es erneut zu versuchen.",
     "offlineCopy": "Offline — angezeigt wird die letzte Kopie von diesem Gerät.",
     "sendingGroup": "Senden",
     "signature": "Signatur",

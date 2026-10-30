@@ -1,5 +1,6 @@
 import { errorText } from "../lib/errorText";
 import { isMailCredentialsMissing } from "./credentialsError";
+import { GRAPH_UPLOAD_FAILED } from "./graphMail";
 
 /**
  * The sentence a mail failure gets on screen.
@@ -25,6 +26,10 @@ export function mailErrorText(err: unknown, t: (key: string, opts?: Record<strin
   // A size refusal has an action too — take a file off and send again — and a
   // message that was refused comes back for exactly that (`heldSend.ts`).
   if (isMailTooLarge(err)) return t("mail.sendTooLarge");
+  // A file that did not get through an upload session (Microsoft, over
+  // 2.8 MB): sending again tries again, and the message is back for that.
+  const upload = new RegExp(`${GRAPH_UPLOAD_FAILED} for "(.*?)":`).exec(errorText(err));
+  if (upload) return t("mail.sendUploadFailed", { name: upload[1] });
   return errorText(err);
 }
 

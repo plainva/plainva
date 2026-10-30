@@ -3475,6 +3475,7 @@
     "sendFailed": "Niet verzonden: {{reason}}",
     "sendReopen": "Opnieuw openen",
     "sendTooLarge": "De mailserver accepteert geen bericht van deze grootte.",
+    "sendUploadFailed": "„{{name}}” kon niet naar de Microsoft-postbus worden geüpload, dus het bericht is niet verzonden. Verzend het opnieuw om het nog eens te proberen.",
     "offlineCopy": "Offline — je ziet de laatste kopie van dit apparaat.",
     "sendingGroup": "Verzenden",
     "signature": "Handtekening",
