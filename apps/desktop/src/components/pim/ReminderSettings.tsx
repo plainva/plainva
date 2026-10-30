@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  travelsWithVault,
   Checkbox,
   reminderDiagnosis,
   SettingCard,
@@ -209,7 +210,10 @@ export function ReminderSettings() {
   );
 
   return (
-    <SettingCard label={t("reminders.section")}>
+    // Events first, then tasks (settings plan 2026-10-29, B3): each row under
+    // the switch it depends on. Reminders keep no profile field — they stay on
+    // this device (E14).
+    <SettingCard label={t("reminders.section")} deviceOnly={!travelsWithVault(undefined, "desktop")}>
       <SettingRow label={t("reminders.enable")}>
         <Switch
           checked={settings.enabled}
@@ -223,51 +227,6 @@ export function ReminderSettings() {
           }}
         />
       </SettingRow>
-
-      {/* Equal to the appointments switch, not tucked under it (feedback round
-          2026-09-01, P3/E3): it used to appear only once appointment reminders
-          were on, so whoever never switched those on never saw that task
-          reminders exist at all. Opt-in stays - a notification is something
-          you choose - but the choice is in plain sight. */}
-      <SettingRow label={t("reminders.tasks")}>
-        <Switch
-          checked={settings.tasks}
-          label={t("reminders.tasks")}
-          onChange={(on) => void save({ ...settings, tasks: on }, remindTasksKey(vaultPath ?? ""), on)}
-        />
-      </SettingRow>
-
-      {/* Directly under the switch it belongs to: on its own it would read
-          like a second, unrelated task setting. */}
-      {settings.tasks && (
-        <DayTimeRow
-          label={t("reminders.tasksNoTime")}
-          days={[
-            { value: 0, label: t("reminders.dayOfDue") },
-            { value: 1, label: t("reminders.dayBeforeDue") },
-          ]}
-          day={settings.rule.taskLeadDays}
-          minutes={settings.rule.taskAtMinutes}
-          preview={(d, m) =>
-            t(d > 0 ? "reminders.previewDueBefore" : "reminders.previewDueDay", { time: toField(m) })
-          }
-          testId="reminder-tasktime"
-          onChange={(d, m) => saveRule({ taskLeadDays: d, taskAtMinutes: m })}
-        />
-      )}
-
-      {/* A task with a time reminds at ITS time; this is how long before (E10). */}
-      {settings.tasks && (
-        <SettingRow label={t("reminders.tasksTimedLead")} desc={t("reminders.tasksTimedLeadDesc")}>
-          <Select
-            ariaLabel={t("reminders.tasksTimedLead")}
-            value={String(settings.rule.taskTimedLeadMinutes ?? 0)}
-            onChange={(v) => saveRule({ taskTimedLeadMinutes: Number(v) })}
-            options={LEAD_CHOICES.map((m) => ({ value: String(m), label: m === 0 ? t("reminders.leadAtTime") : leadLabel(m) }))}
-            data-testid="reminder-task-timed-lead"
-          />
-        </SettingRow>
-      )}
 
       {settings.enabled && (
         <>
@@ -322,16 +281,61 @@ export function ReminderSettings() {
             </SettingRow>
           )}
 
-          {diagnosis && (
-            <SettingCardNote>
-              {t("reminders.diagPlanned", diagnosis.planned)}
-              {diagnosis.reasonKey ? ` ${t(diagnosis.reasonKey)}` : ""}
-            </SettingCardNote>
-          )}
-
-          <SettingCardNote>{t("reminders.desktopWindow")}</SettingCardNote>
         </>
       )}
+
+      {/* Equal to the appointments switch, not tucked under it (feedback round
+          2026-09-01, P3/E3): it used to appear only once appointment reminders
+          were on, so whoever never switched those on never saw that task
+          reminders exist at all. Opt-in stays - a notification is something
+          you choose - but the choice is in plain sight. */}
+      <SettingRow label={t("reminders.tasks")}>
+        <Switch
+          checked={settings.tasks}
+          label={t("reminders.tasks")}
+          onChange={(on) => void save({ ...settings, tasks: on }, remindTasksKey(vaultPath ?? ""), on)}
+        />
+      </SettingRow>
+
+      {/* Directly under the switch it belongs to: on its own it would read
+          like a second, unrelated task setting. */}
+      {settings.tasks && (
+        <DayTimeRow
+          label={t("reminders.tasksNoTime")}
+          days={[
+            { value: 0, label: t("reminders.dayOfDue") },
+            { value: 1, label: t("reminders.dayBeforeDue") },
+          ]}
+          day={settings.rule.taskLeadDays}
+          minutes={settings.rule.taskAtMinutes}
+          preview={(d, m) =>
+            t(d > 0 ? "reminders.previewDueBefore" : "reminders.previewDueDay", { time: toField(m) })
+          }
+          testId="reminder-tasktime"
+          onChange={(d, m) => saveRule({ taskLeadDays: d, taskAtMinutes: m })}
+        />
+      )}
+
+      {/* A task with a time reminds at ITS time; this is how long before (E10). */}
+      {settings.tasks && (
+        <SettingRow label={t("reminders.tasksTimedLead")} info={t("reminders.tasksTimedLeadDesc")}>
+          <Select
+            ariaLabel={t("reminders.tasksTimedLead")}
+            value={String(settings.rule.taskTimedLeadMinutes ?? 0)}
+            onChange={(v) => saveRule({ taskTimedLeadMinutes: Number(v) })}
+            options={LEAD_CHOICES.map((m) => ({ value: String(m), label: m === 0 ? t("reminders.leadAtTime") : leadLabel(m) }))}
+            data-testid="reminder-task-timed-lead"
+          />
+        </SettingRow>
+      )}
+
+      {(settings.enabled || settings.tasks) && diagnosis && (
+        <SettingCardNote>
+          {t("reminders.diagPlanned", diagnosis.planned)}
+          {diagnosis.reasonKey ? ` ${t(diagnosis.reasonKey)}` : ""}
+        </SettingCardNote>
+      )}
+      {(settings.enabled || settings.tasks) && <SettingCardNote>{t("reminders.desktopWindow")}</SettingCardNote>}
     </SettingCard>
   );
 }

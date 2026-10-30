@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
-import { Banner, Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, Select, Switch, toast } from "@plainva/ui";
+import { Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, Select, Switch, toast, InfoTip } from "@plainva/ui";
 import {
   listMailRules,
   needsBody,
@@ -112,6 +112,24 @@ export function RulesSettings({ vaultPath, account }: { vaultPath: string; accou
 
   return (
     <SettingCard label={t("rules.section", { defaultValue: "Regeln" })}>
+      {/* WHERE the rules run, as one state line directly under the heading
+          (settings plan 2026-10-29, B3) — four banner variants before. What
+          that means in detail stands behind the info. */}
+      <SettingCardNote>
+        <span data-testid="rules-where">
+          {graph ? t("rules.graphHint") : sieve ? t("rules.sieveHint") : t("rules.localStatus")}
+        </span>
+        <InfoTip
+          label={t("rules.section", { defaultValue: "Regeln" })}
+          info={graph
+            ? t("rules.graphInfo")
+            : sieve
+              ? t("rules.sieveInfo", { host: support.kind === "sieve" ? support.host : "" })
+              : serverSide
+                ? t("rules.localForNow")
+                : t("rules.localOnly")}
+        />
+      </SettingCardNote>
       {rules.map((rule) => (
         /* Full width, not label + control: the mockup shows the rule as ONE
            readable line, and squeezing three dropdowns into half a card made it
@@ -168,35 +186,6 @@ export function RulesSettings({ vaultPath, account }: { vaultPath: string; accou
       </SettingRow>
 
       {/* The sentence the whole card exists for. */}
-      <SettingCardNote>
-        <Banner kind="info" rounded>
-          <span data-testid="rules-where">
-            {graph
-              ? t("rules.graphHint", {
-                  defaultValue:
-                    "Beim Anbieter hinterlegte Regeln laufen auch, wenn Plainva geschlossen ist (Microsoft). Plainva ersetzt dabei nur die Regeln, die es selbst angelegt hat.",
-                })
-              : sieve
-              ? // Name the server, as the target image does: "runs on the server"
-                // is only believable when it says WHICH one.
-                t("rules.sieveHint", {
-                  host: support.kind === "sieve" ? support.host : "",
-                  defaultValue:
-                    "Beim Anbieter hinterlegte Regeln laufen auch, wenn Plainva geschlossen ist ({{host}}). Bis dahin greifen sie nur hier, über abgerufene Nachrichten.",
-                })
-              : serverSide
-              ? t("rules.localForNow", {
-                  defaultValue:
-                    "Regeln laufen derzeit nur, während Plainva geöffnet ist, und nur über Nachrichten, die Plainva abgerufen hat. Dieses Postfach könnte sie serverseitig ausführen — das kommt in einem der nächsten Schritte.",
-                })
-              : t("rules.localOnly", {
-                  defaultValue:
-                    "Regeln laufen nur, während Plainva geöffnet ist, und nur über Nachrichten, die Plainva abgerufen hat. Dieses Postfach bietet keine serverseitigen Regeln an.",
-                })}
-          </span>
-        </Banner>
-      </SettingCardNote>
-
       {skipped.length > 0 && (
         <SettingCardNote>
           <span data-testid="rules-skipped">
@@ -220,10 +209,7 @@ export function RulesSettings({ vaultPath, account }: { vaultPath: string; accou
       {needsBody(rules) && (
         <SettingCardNote>
           <span data-testid="rules-body-note">
-            {t("rules.bodyNote", {
-              defaultValue:
-                "Eine Regel prüft den Nachrichtentext. Der steht nicht in der Übersicht — sie greift erst, wenn Du die Nachricht öffnest.",
-            })}
+            {t("rules.bodyNote")}
           </span>
         </SettingCardNote>
       )}

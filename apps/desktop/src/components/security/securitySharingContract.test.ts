@@ -230,7 +230,8 @@ describe("security centre: what the source still wires (source guard, not behavi
   });
 
   it("source: the mobile screen wires master/detail areas and QR fingerprint approval", () => {
-    expect(mobile).toContain('["overview", "devices", "team", "slices", "recovery"]');
+    // The desktop's second level, from the shared catalog (settings plan 2026-10-29, E12).
+    expect(mobile).toContain("SECURITY_AREA_GROUPS.map");
     expect(mobile).toContain("inspectMobileWorkspacePairing");
     expect(mobile).toContain("approveMobileWorkspacePairing");
     expect(mobile).toContain("pairPreview.fingerprint");

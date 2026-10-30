@@ -2593,7 +2593,8 @@ describe("the security area", () => {
     // Unlocking is part of the STATUS, so it sits with it and above the area
     // switch rather than below it.
     const status = screen.slice(screen.indexOf("workspaceSecurity.currentStatus"));
-    expect(status.indexOf("workspaceSecurity.unlock")).toBeLessThan(status.indexOf("m-security-tabs"));
+    // The way into the second level (settings plan 2026-10-29, E12) replaced the tab strip.
+    expect(status.indexOf("workspaceSecurity.unlock")).toBeLessThan(status.indexOf("security-open-"));
   });
 });
 

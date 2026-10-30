@@ -350,7 +350,7 @@ describe("publishing a slice reaches the vault with what the dialog chose", () =
     await renderPublicationsArea([PUBLICATION], []);
     // The wording matters more than the presence of a row: a publisher who
     // reads "no recipients" as a failure goes looking for something to fix.
-    expect(container.textContent).toContain("encrypted and unreadable");
+    expect(container.textContent).toContain("the publication is unreadable, which is not an error");
   });
 
   it("shows the invitation once and keeps the name it was asked for", async () => {

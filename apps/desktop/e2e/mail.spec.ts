@@ -2784,13 +2784,17 @@ test('out-of-office: with a Sieve server the form appears and names where the no
 
   await expect(dlg.getByTestId('vacation-enabled')).toBeVisible();
   await expect(dlg.getByTestId('vacation-message')).toBeVisible();
-  // The sentence that makes the feature honest: it keeps answering without us.
+  // The sentence that makes the feature honest: it keeps answering without us —
+  // one state line since the settings plan of 2026-10-29 (B3) …
   const where = dlg.getByTestId('vacation-where');
-  await expect(where).toContainText('sieve.example.org');
   await expect(where).toContainText(/Plainva is closed|Plainva geschlossen/i);
-  // ...and it never claims to own the whole script.
-  await expect(where).toContainText(/hand-written|von Hand/i);
-  await expect(where).not.toContainText('{{');
+  // … and WHICH server, and that it never claims the whole script, behind its info.
+  await dlg.getByRole('button', { name: /^(Mehr zu Abwesenheitsnotiz|More about Out-of-office notice)$/ }).click();
+  const info = dlg.locator('.pv-infotip-panel');
+  await expect(info).toContainText('sieve.example.org');
+  await expect(info).toContainText(/hand-written|von Hand/i);
+  await expect(info).not.toContainText('{{');
+  await page.keyboard.press('Escape');
 });
 
 test('rules: a local rule files a fetched message, and the card says what "local" means', async ({ page }) => {
@@ -2821,7 +2825,7 @@ test('rules: a local rule files a fetched message, and the card says what "local
   const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
   const where = dlg.getByTestId('rules-where');
-  await expect(where).toContainText(/only while Plainva is open|nur, während Plainva geöffnet/i);
+  await expect(where).toContainText(/only while Plainva is open|solange Plainva offen/i);
   await expect(where).toContainText(/fetched|abgerufen/i);
   await expect(where).not.toContainText('{{');
 });
@@ -2865,10 +2869,14 @@ test('rules: storing them with the provider writes the rule AND keeps a hand-wri
   const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
 
-  // With a Sieve server the card says the rule outlives a closed Plainva.
-  // "runs on the server" is only believable when it says WHICH one.
-  await expect(dlg.getByTestId('rules-where')).toContainText(/Plainva is closed|Plainva geschlossen/i);
-  await expect(dlg.getByTestId('rules-where')).toContainText('sieve.mailbox.org');
+  // With a Sieve server the state line says the rules run here until they are
+  // stored there; the info says they then outlive a closed Plainva — and on
+  // WHICH server, or "runs on the server" would not be believable.
+  await expect(dlg.getByTestId('rules-where')).toContainText(/store the rules|beim Anbieter hinterlegst/i);
+  await dlg.getByRole('button', { name: /^(Mehr zu Regeln|More about Rules)$/ }).click();
+  await expect(dlg.locator('.pv-infotip-panel')).toContainText(/Plainva is closed|Plainva geschlossen/i);
+  await expect(dlg.locator('.pv-infotip-panel')).toContainText('sieve.mailbox.org');
+  await page.keyboard.press('Escape');
 
   await dlg.getByTestId('rules-publish').click();
   const put = await expect
@@ -2934,10 +2942,11 @@ test('rules: a Microsoft mailbox is offered the server-side path and says so', a
   const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
 
-  await expect(dlg.getByTestId('rules-where')).toContainText('Microsoft');
   await expect(dlg.getByTestId('rules-where')).toContainText(/Plainva is closed|Plainva geschlossen/i);
-  // It never claims to own the mailbox's other rules.
-  await expect(dlg.getByTestId('rules-where')).toContainText(/created itself|selbst angelegt/i);
+  // It never claims to own the mailbox's other rules — said behind the info.
+  await dlg.getByRole('button', { name: /^(Mehr zu Regeln|More about Rules)$/ }).click();
+  await expect(dlg.locator('.pv-infotip-panel')).toContainText(/created itself|selbst angelegt/i);
+  await page.keyboard.press('Escape');
   await expect(dlg.getByTestId('rules-publish')).toBeVisible();
 });
 

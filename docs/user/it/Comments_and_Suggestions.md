@@ -1,6 +1,6 @@
 # Commenti e suggerimenti
 
-Stand: 2026-10-29
+Ultimo aggiornamento: 2026-10-29
 
 Commenti e suggerimenti esistono in **ogni** vault — con o senza sincronizzazione, con o senza cifratura. In un workspace cifrato sono oggetti firmati (vedi [Sicurezza e condivisione](Security_and_Sharing.md)); ovunque altrove portano il nome impostato in **Il tuo nome (annotazioni e revisioni)** nelle impostazioni. Un suggerimento è un commento con un testo sostitutivo: entrambi passano dallo stesso archivio, dalla stessa colonna, dallo stesso foglio. Se il nome manca, Plainva lo chiede una volta al primo commento; senza risposta il dispositivo firma con la propria etichetta (ad esempio «Dispositivo Windows 4f3a»). Le tue annotazioni compaiono come **Tu**.
 
@@ -44,7 +44,7 @@ Senza workspace le annotazioni stanno nel vault sotto `.plainva/sync/`, un file 
 
 Quando il file di un altro dispositivo arriva tramite una sincronizzazione esterna, il desktop lo mostra appena la cartella lo segnala; il telefono alla prossima apertura o al ritorno in primo piano.
 
-Se le annotazioni non possono raggiungere la destinazione di sincronizzazione — il server non risponde, rifiuta i file dei commenti o risponde in un modo che Plainva non può usare —, le tue note continuano a sincronizzarsi come prima; aspettano solo le annotazioni. Una breve interruzione viene semplicemente ritentata. Se persiste, Plainva lo dice **una volta**, non a ogni ciclo, e lo stesso guasto non viene riannunciato finché un ciclo non è riuscito. Lo stato attuale è nelle impostazioni di sincronizzazione, in **Che cosa ha fatto la sincronizzazione per ultimo**; un'esportazione diagnostica da **Informazioni e diagnostica** contiene il motivo tecnico, senza alcun testo dei commenti.
+Se le annotazioni non possono raggiungere la destinazione di sincronizzazione — il server non risponde, rifiuta i file dei commenti o risponde in un modo che Plainva non può usare —, le tue note continuano a sincronizzarsi come prima; aspettano solo le annotazioni. Una breve interruzione viene semplicemente ritentata. Se persiste, Plainva lo dice **una volta**, non a ogni ciclo, e lo stesso guasto non viene riannunciato finché un ciclo non è riuscito. Lo stato attuale è nelle impostazioni di sincronizzazione, nel gruppo **Diagnostica**, in **Che cosa ha fatto la sincronizzazione per ultimo**; un'esportazione diagnostica da **Informazioni e diagnostica** contiene il motivo tecnico, senza alcun testo dei commenti.
 
 Se il vault ha una passphrase di sincronizzazione non inserita su questo dispositivo, le annotazioni sono **bloccate**: colonna, foglio e panoramica lo dicono e offrono **Sblocca**. Fino ad allora nulla viene letto o scritto — un dispositivo bloccato non mette mai un file in chiaro accanto a quello sigillato.
 

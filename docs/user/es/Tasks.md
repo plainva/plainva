@@ -17,7 +17,7 @@ Se abre como una pestaña, igual que cualquier nota.
 
 ## En el teléfono
 
-La vista Tareas también existe en el móvil. La abres con **Áreas** en la barra de navegación (o manteniendo pulsada la barra), y puedes colocarla en la propia barra de navegación (**Ajustes** → **Barras y áreas**).
+La vista Tareas también existe en el móvil. La abres con **Áreas** en la barra de navegación (o manteniendo pulsada la barra), y puedes colocarla en la propia barra de navegación (**Ajustes** → **Barra de navegación**).
 
 Muestra las mismas dos secciones que en el escritorio: la **Base de datos de tareas** arriba, la lista de casillas bajo **Desde notas** abajo, con los filtros **Abiertas**/**Hechas**/**Todas** y la búsqueda en texto libre. Marcar, **Cambiar estado**, mover una casilla **a la base de datos**, **+ Nueva tarea**, **Bloquear tiempo** y la **Repetición** funcionan como se describe arriba y escriben los mismos archivos: la misma nota con frontmatter, el mismo `[[enlace interno]]` en la línea original, la misma regla bajo `plainva.repeat`.
 

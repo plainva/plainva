@@ -80,7 +80,7 @@ export function DeviceSignInCard({
       <p>
         {expired
           ? providerLabel === "google"
-            ? t("pim.authExpiredGoogle")
+            ? t("pim.authExpiredGoogleShort")
             : t("pim.authExpired")
           : oauth
             ? t("deviceSignIn.cardBodyOauth", { defaultValue: "Das Konto kam über die Einstellungs-Synchronisation. Anmeldungen werden aus Sicherheitsgründen nie mit synchronisiert — jedes Gerät meldet sich selbst an. Einmal anmelden reicht." })

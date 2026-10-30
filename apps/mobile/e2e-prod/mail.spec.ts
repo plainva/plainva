@@ -316,7 +316,8 @@ test("remote images: the phone has the switch, and it does not reach into the ju
     await expect(row).toContainText("Always load remote images");
     const toggle = row.getByRole("switch", { name: "Always load remote images" });
     await expect(toggle).toHaveAttribute("aria-checked", "false");
-    await expect(page.getByTestId("mail-remote-images-note")).toContainText("This does not apply to the spam folder");
+    // The spam exception stays visible in short (settings plan 2026-10-29, 3.5).
+    await expect(page.getByTestId("mail-remote-images-note")).toContainText("Does not apply to spam");
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-checked", "true");
     await page.screenshot({ path: testInfo.outputPath("mail-remote-images-switch.png") });

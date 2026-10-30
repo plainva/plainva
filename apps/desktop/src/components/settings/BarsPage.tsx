@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GripVertical, Eye, EyeOff, Square, type LucideIcon } from "lucide-react";
 import {
+  InfoTip,
   Button,
   cx,
   ICON,
@@ -180,8 +181,8 @@ const BarBlock: React.FC<BarBlockProps> = ({ def, layout, inherited, onChange, o
   };
 
   return (
-    <SettingCard label={t(def.titleKey, { defaultValue: def.id })}>
-      <SettingCardNote>{t(def.descriptionKey, { defaultValue: "" })}</SettingCardNote>
+    <SettingCard label={t(def.titleKey, { defaultValue: def.id })} info={def.infoKey ? t(def.infoKey) : undefined}>
+      {def.descriptionKey && <SettingCardNote>{t(def.descriptionKey)}</SettingCardNote>}
       {/* The drag scope (rows are found under it while dragging). It adds no
           box of its own: its children are the card's rows. */}
       <div ref={rootRef} className="pv-setcard-rows">
@@ -227,6 +228,9 @@ const BarBlock: React.FC<BarBlockProps> = ({ def, layout, inherited, onChange, o
         <Button variant="ghost" onClick={() => onSaveDefault(def.id)}>
           {t("bars.saveAsDefault", { defaultValue: "Als Standard übernehmen" })}
         </Button>
+        {/* What "the default" is, behind the info of its button (move 52) —
+            it was a card of its own, one sentence long, over all the bars. */}
+        <InfoTip label={t("bars.saveAsDefault", { defaultValue: "Als Standard übernehmen" })} info={t("bars.defaultHint")} />
       </div>
     </SettingCard>
   );
@@ -273,9 +277,6 @@ export const BarsPage: React.FC<{ isActiveVault: boolean; vaultPath: string | nu
         </SettingCard>
       ) : (
         <>
-          <SettingCard>
-            <SettingCardNote>{t("bars.defaultHint", { defaultValue: "Der Standard gilt in jedem Vault, der nichts Eigenes gesetzt hat." })}</SettingCardNote>
-          </SettingCard>
           {layouts
             && BAR_DEFS.map((def) => (
               <BarBlock

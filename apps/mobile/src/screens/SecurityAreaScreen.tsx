@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Check, Cloud, Copy, QrCode, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Upload } from "lucide-react";
+import { Check, ChevronRight, Cloud, Copy, Laptop, QrCode, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Upload, Users } from "lucide-react";
 import { QrScanner } from "../components/QrScanner";
 import { PublishSliceSheet, type PublishSliceValues } from "../components/PublishSliceSheet";
 import { PublicationRecipientsSheet } from "../components/PublicationRecipientsSheet";
@@ -8,7 +8,7 @@ import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { QuarantineList } from "../components/QuarantineList";
 import type { WorkspaceLocalForkRecord, WorkspaceQuarantineRecord } from "@plainva/core";
 import { useLongPress } from "../lib/useLongPress";
-import { Banner, Button, errorText, GroupCard, ICON, IconButton, publicationStatusText, QrImage, Row, RowList, SectionLabel, Segmented, SettingField, TextInput, toast } from "@plainva/ui";
+import { Banner, Button, errorText, GroupCard, ICON, IconButton, publicationStatusText, Segmented, QrImage, Row, RowList, SectionLabel, SettingField, TextInput, toast, InfoTip, SECURITY_AREA_GROUPS, type SecurityAreaGroup } from "@plainva/ui";
 import { decodeWorkspaceInvite, listBrokenWorkspaceSlices, loadWorkspaceSliceObjects, type PersonalWorkspaceRuntime, type PublicationRecipient, type WorkspaceObjectStore, type WorkspacePublicationRecord, type WorkspaceRole } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import { useForeignLegacyComments } from "@plainva/ui";
@@ -92,7 +92,11 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const [resumeProgress, setResumeProgress] = useState<{ done: number; total: number } | null>(null);
   /** A lift under way: when it started and how many files still wait in the plaintext queue (4.6). */
   const [lift, setLift] = useState<{ since: string; pending: number } | null>(null);
-  const [area, setArea] = useState<"overview" | "devices" | "team" | "slices" | "recovery">("overview");
+  // The desktop's second level (settings plan 2026-10-29, E12): an overview
+  // with two ways in — "Your access" (devices, recovery) and "Sharing"
+  // (members, groups, slices, publications) — from the shared security
+  // catalog. One page with nine sections and a tab strip before.
+  const [area, setArea] = useState<"overview" | SecurityAreaGroup>("overview");
   const foreignLegacyComments = useForeignLegacyComments(vault.vaultId);
 
   // The recovery code is the single highest-stakes text the app ever asks for:
@@ -716,14 +720,25 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
             : t("workspaceSecurity.notConfigured");
   const ConnectionIcon = connection.kind === "local" ? Smartphone : connection.kind === "plain" ? ShieldOff : ShieldCheck;
 
+  const groupLabel = (group: SecurityAreaGroup) => t(SECURITY_AREA_GROUPS.find((g) => g.group === group)!.labelKey);
   return <div className="m-page">
-    <AppBar onBack={onBack} title={t("settings.sectionSecurity")} testId="appbar-area-security" />
+    <AppBar
+      onBack={area === "overview" ? onBack : () => setArea("overview")}
+      title={area === "overview" ? t("settings.sectionSecurity") : groupLabel(area)}
+      testId="appbar-area-security"
+    />
     <div className="m-settings">
       {/* Honesty gate (H6): the "experimental, not independently reviewed" caveat
           used to live only in the desktop What's-New text and the handbook — not
           on the screen where a device actually joins a workspace. */}
-      <Banner kind="warning" rounded>{t("workspaceSecurity.experimentalNotice")}</Banner>
-      {status && foreignLegacyComments > 0 && <Banner kind="info" rounded>{t("workspaceSync.foreignLegacy")}</Banner>}
+      {/* Once, as on the desktop: on the overview and where recovery is made. */}
+      {(area === "overview" || area === "access") && <Banner kind="warning" rounded>{t("workspaceSecurity.experimentalNotice")}</Banner>}
+      {area === "overview" && status && foreignLegacyComments > 0 && (
+        <Banner kind="info" rounded>
+          {t("workspaceSync.foreignLegacyShort")}
+          <InfoTip label={t("workspaceSecurity.legacyPlaintext")} info={t("workspaceSync.foreignLegacy")} />
+        </Banner>
+      )}
       {lift && (
         <Banner kind="info" rounded>
           <strong>{t("workspaceSecurity.liftEncryption")}</strong>
@@ -734,7 +749,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           plain/local vault — only the joined and joinable cases add this row.
           Unlocking belongs to the status, not to an area, so it sits with it and
           above the area switch (N3.2). */}
-      {(status || connection.kind === "encrypted") && <>
+      {area === "overview" && (status || connection.kind === "encrypted") && <>
         <SectionLabel>{t("workspaceSecurity.currentStatus")}</SectionLabel>
         <GroupCard>
           <RowList>
@@ -769,20 +784,25 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           </RowList>
         </GroupCard>
       </>}
-      {runtime && (
-        <Segmented
-          ariaLabel={t("settings.sectionSecurity")}
-          className="m-security-tabs"
-          options={(["overview", "devices", "team", "slices", "recovery"] as const).map((value) => ({
-            value,
-            label: t(`workspaceSecurity.mobile.${value}`, { defaultValue: value[0].toUpperCase() + value.slice(1) }),
-          }))}
-          value={area}
-          onChange={(v) => setArea(v as typeof area)}
-        />
+      {runtime && area === "overview" && (
+        <GroupCard>
+          <RowList>
+            {SECURITY_AREA_GROUPS.map(({ group, labelKey }) => (
+              <Row
+                data-testid={`security-open-${group}`}
+                end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                icon={group === "access" ? <Laptop size={ICON.ui} /> : <Users size={ICON.ui} />}
+                key={group}
+                onClick={() => setArea(group)}
+                subtitle={t(group === "access" ? "workspaceSecurity.manageAccessDesc" : "workspaceSecurity.manageSharingDesc")}
+                title={t(labelKey)}
+              />
+            ))}
+          </RowList>
+        </GroupCard>
       )}
       {runtime ? <>
-        {(area === "overview" || area === "devices") && <>
+        {area === "access" && <>
         <SectionLabel end={runtime.policy.payload.devices.length}>{t("workspaceSecurity.devicesCard")}</SectionLabel>
         <GroupCard>
           <RowList>
@@ -816,12 +836,12 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           /></RowList></GroupCard>
         </div>}
         </>}
-        {(area === "overview" || area === "team" || area === "slices") && <>
+        {area === "sharing" && <>
         <SectionLabel>{t("workspaceSecurity.teamsCard")}</SectionLabel>
         <GroupCard>
           <RowList>
             <Row title={`${t("workspaceSecurity.members")}: ${runtime.policy.payload.members.filter((member) => member.state === "active").length} · ${t("workspaceSecurity.groups")}: ${runtime.policy.payload.groups.length} · ${t("workspaceSecurity.slices")}: ${runtime.policy.payload.slices.length}`} />
-            {area === "team" && runtime.policy.payload.members.map((member) => <Row
+            {runtime.policy.payload.members.map((member) => <Row
               key={member.memberId}
               subtitle={`${t(member.state === "active" ? "workspaceSecurity.active" : "workspaceSecurity.revoked")} · ${member.memberId.slice(0, 12)}`}
               title={member.displayName}
@@ -843,7 +863,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
             />)}
           </RowList>
         </GroupCard>
-        {area === "team" && <>
+        {area === "sharing" && <>
           {/* Inviting creates the member and its personal key group; the DEVICE
               is paired afterwards, which is what the toast says. */}
           <GroupCard><RowList>
@@ -888,7 +908,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
             {busyAction === "group" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.addGroup")}
           </Button>
         </>}
-        {area === "slices" && <>
+        {area === "sharing" && <>
           {/* A slice whose definition cannot be read grants nothing (fail-closed, P3) — so it
               says so, instead of showing "0 objects" as if it were merely empty. */}
           <GroupCard><RowList>{runtime.policy.payload.slices.map((slice) => {
@@ -917,7 +937,6 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
               <Button variant="ghost" onClick={() => setSliceFolderPick(true)}>{t("settings.browseFolders")}</Button>
             </SettingField>
           </RowList></GroupCard>
-          <Banner kind="info" rounded>{t("workspaceSecurity.slicePreview")}</Banner>
           {slicePreview && (
             <GroupCard><RowList>
               <Row title={t("workspaceSecurity.previewCount", { count: slicePreview.length })} />
@@ -927,6 +946,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           <Button variant="ghost" disabled={busy || !sliceFolder.trim()} onClick={previewSlice}>
             {busyAction === "slicePreview" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.preview")}
           </Button>
+          <InfoTip label={t("workspaceSecurity.preview")} info={t("workspaceSecurity.slicePreview")} />
           <Button variant="tonal" disabled={busy || !sliceName.trim() || !sliceFolder.trim()} onClick={addSlice}>
             {busyAction === "slice" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.addSlice")}
           </Button>
@@ -962,7 +982,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           </Button>
         </>}
         </>}
-        {(area === "overview" || area === "recovery") && <>
+        {area === "access" && <>
         <SectionLabel>{t("workspaceSecurity.rotateRecovery", { defaultValue: "Renew recovery" })}</SectionLabel>
         <GroupCard><RowList>
           <SettingField label={t("workspaceSecurity.recoveryFile", { defaultValue: "Current recovery file" })}><FilePickButton chooseLabel={t("workspaceSecurity.chooseFile", { defaultValue: "Choose file" })} fileName={recoveryFileName} disabled={busy} onPick={(event) => void chooseRecovery(event)} /></SettingField>
@@ -1045,7 +1065,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
             this field. The phone is the likelier place to be a recipient, so it
             is the place that has to say it. Creating one happens under Vault
             Slices on this same screen (M3). */}
-        <p className="m-hint">{t("workspaceSecurity.joinPublicationHint", { defaultValue: "A code for a shared publication works here too: connect this vault to the folder you were given, then paste the code. You only see what was published - not the rest of that vault." })}</p>
+        <p className="m-hint">{t("workspaceSecurity.joinPublicationShort")}<InfoTip label={t("workspaceSecurity.joinTitle", { defaultValue: "Join this workspace" })} info={t("workspaceSecurity.joinPublicationHint")} /></p>
         <GroupCard><RowList>
           <SettingField label={t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })}><TextInput value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} /></SettingField>
           <SettingField label={t("workspaceSecurity.deviceName")}><TextInput value={deviceName} onChange={(event) => setDeviceName(event.target.value)} /></SettingField>
@@ -1123,7 +1143,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
             <div>
               <p>{connectionLabel()}</p>
               <p className="m-onramp-sub">{
-                connection.kind === "local" ? t("workspaceSecurity.stateLocalBody", { defaultValue: "Encryption protects notes on their way into the cloud. This vault has no cloud connection, so there is nothing to encrypt — the notes stay in the app's private storage on this device." })
+                connection.kind === "local" ? <>{t("workspaceSecurity.stateLocalShort")}<InfoTip label={connectionLabel()} info={t("workspaceSecurity.stateLocalBody")} /></>
                   : connection.kind === "plain" ? t("workspaceSecurity.statePlainBody", { defaultValue: "Your notes sync to the cloud as ordinary Markdown files. Encryption is possible for this connection." })
                     : connection.kind === "unknown" ? t("workspaceSecurity.stateUnknownBody", { defaultValue: "Could not check this connection (offline, or the sign-in expired). The encryption status stays unknown until the next check." })
                       : t("workspaceSecurity.stateCheckingBody", { defaultValue: "Looking for an encrypted workspace on this cloud connection." })

@@ -220,7 +220,7 @@ const BUDGET: Record<string, Counts> = {
   "components/mail/mail.css": {hex:1},
   "components/mathMermaidLive.ts": {rawSpacing:2},
   "components/onboarding/FirstRunModal.tsx": {nakedButton:2,rawSpacing:1},
-  "components/pim/PimAccountsSection.tsx": {nakedInput:4,rawSpacing:29},
+  "components/pim/PimAccountsSection.tsx": {rawSpacing:29},
   "components/pimcal/BlockCalendarsModal.tsx": {rawSpacing:3},
   // rawSpacing 29 (was 28): not a new value - `marginInline: 3` has stood in
   // the bar layout since the calendar rework; the rule only learned the

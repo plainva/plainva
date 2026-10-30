@@ -27,11 +27,7 @@ export const PimPage: React.FC<{ isActiveVault: boolean; onOpenCloudAccounts: (a
       <AreaHead areaId="pim" />
       {isActiveVault ? (
         <>
-          <SettingCard label={t("settings.groupCalendars", { defaultValue: "Kalender" })}>
-            <SettingCardNote>
-              <PimAccountsSection onOpenCloudAccounts={onOpenCloudAccounts} />
-            </SettingCardNote>
-          </SettingCard>
+          <PimAccountsSection onOpenCloudAccounts={onOpenCloudAccounts} />
           <ReminderSettings />
         </>
       ) : (

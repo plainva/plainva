@@ -17,7 +17,7 @@ Ela abre como uma aba, como qualquer nota.
 
 ## No telefone
 
-A visualização de Tarefas também existe no mobile. Você a abre por **Seções** na barra de navegação (ou mantendo a barra pressionada), e pode colocá-la na própria barra de navegação (**Configurações** → **Barras e áreas**).
+A visualização de Tarefas também existe no mobile. Você a abre por **Seções** na barra de navegação (ou mantendo a barra pressionada), e pode colocá-la na própria barra de navegação (**Configurações** → **Barra de navegação**).
 
 Ela mostra as mesmas duas seções do desktop: o **Banco de tarefas** no topo, a lista de caixas de seleção em **Das notas** abaixo, com os filtros **Abertas**/**Concluídas**/**Todas** e a busca por texto livre. Marcar como concluída, **Alterar status**, mover uma caixa de seleção **para o banco de dados**, **+ Nova tarefa**, **Bloquear tempo** e **Repetição** funcionam como descrito acima e gravam os mesmos arquivos: a mesma nota com frontmatter, o mesmo `[[wiki link]]` na linha original, a mesma regra em `plainva.repeat`.
 

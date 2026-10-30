@@ -17,7 +17,7 @@ De weergave opent als tab, net als elke notitie.
 
 ## Op de telefoon
 
-De Taken-weergave bestaat ook mobiel. Je opent deze via **Onderdelen** in de navigatiebalk (of door lang op de balk te drukken), en je kunt deze in de navigatiebalk zelf plaatsen (**Instellingen** → **Balken en gebieden**).
+De Taken-weergave bestaat ook mobiel. Je opent deze via **Onderdelen** in de navigatiebalk (of door lang op de balk te drukken), en je kunt deze in de navigatiebalk zelf plaatsen (**Instellingen** → **Navigatiebalk**).
 
 De weergave toont dezelfde twee secties als op de desktop: bovenaan de **Takendatabase**, daaronder **Uit notities** de selectievakjeslijst, met de filters **Open**/**Klaar**/**Alle** en het vrijetekstveld. Afvinken, **Status wijzigen**, een selectievakje **naar de database verplaatsen**, **+ Nieuwe taak**, **Tijd blokkeren** en **Herhaling** werken zoals hierboven beschreven en schrijven dezelfde bestanden: dezelfde notitie met frontmatter, dezelfde `[[wiki-link]]` in de oorspronkelijke regel, dezelfde regel onder `plainva.repeat`.
 

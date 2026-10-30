@@ -17,7 +17,7 @@ Elle s'ouvre comme un onglet, comme n'importe quelle note.
 
 ## Sur le téléphone
 
-La vue Tâches existe aussi sur mobile. Vous l'ouvrez via **Rubriques** dans la barre de navigation (ou en appuyant longuement sur la barre), et vous pouvez la placer dans la barre de navigation elle-même (**Paramètres** → **Barres et zones**).
+La vue Tâches existe aussi sur mobile. Vous l'ouvrez via **Rubriques** dans la barre de navigation (ou en appuyant longuement sur la barre), et vous pouvez la placer dans la barre de navigation elle-même (**Paramètres** → **Barre de navigation**).
 
 Elle affiche les deux mêmes sections qu'au bureau : la **Base de tâches** en haut, la liste de cases à cocher **Depuis les notes** en dessous, avec les filtres **Ouvertes**/**Terminées**/**Toutes** et la recherche en texte libre. Cocher, **Changer le statut**, déplacer une case à cocher **vers la base de données**, **+ Nouvelle tâche**, **Bloquer du temps** et la **Répétition** fonctionnent comme décrit ci-dessus et écrivent les mêmes fichiers : la même note avec son frontmatter, le même `[[lien wiki]]` dans la ligne d'origine, la même règle sous `plainva.repeat`.
 

@@ -17,7 +17,7 @@ Widok otwiera się jako karta, tak jak każda notatka.
 
 ## Na telefonie
 
-Widok Zadania działa też na telefonie. Otwierasz go przez **Obszary** na pasku nawigacji (albo przytrzymując pasek) i możesz umieścić go w samym pasku nawigacji (**Ustawienia** → **Paski i obszary**).
+Widok Zadania działa też na telefonie. Otwierasz go przez **Obszary** na pasku nawigacji (albo przytrzymując pasek) i możesz umieścić go w samym pasku nawigacji (**Ustawienia** → **Pasek nawigacji**).
 
 Pokazuje te same dwie sekcje co na komputerze: na górze **Bazę zadań**, poniżej **Z notatek** — listę pól wyboru — z filtrami **Otwarte**/**Ukończone**/**Wszystkie** i wyszukiwaniem tekstowym. Odhaczanie, **Zmień status**, przenoszenie pola wyboru **do bazy**, **+ Nowe zadanie**, **Zablokuj czas** i **Powtarzanie** działają tak, jak opisano powyżej, i zapisują te same pliki: tę samą notatkę z frontmatterem, ten sam `[[link wiki]]` w oryginalnej linii, tę samą regułę pod `plainva.repeat`.
 

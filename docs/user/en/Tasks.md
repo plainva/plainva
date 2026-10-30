@@ -17,7 +17,7 @@ It opens as a tab, like any note.
 
 ## On the phone
 
-The Tasks view exists on mobile too. You open it through **Areas** in the navigation bar (or by pressing and holding the bar), and you can place it in the navigation bar itself (**Settings** → **Bars & areas**).
+The Tasks view exists on mobile too. You open it through **Areas** in the navigation bar (or by pressing and holding the bar), and you can place it in the navigation bar itself (**Settings** → **Navigation bar**).
 
 It shows the same two sections as the desktop: the **task database** on top, the checkbox list under **From notes** below, with the **Open**/**Done**/**All** filters and the free-text search. Checking off, **Change status**, moving a checkbox **into the database**, **+ New task**, **Block time** and **Repeat** work as described above and write the same files: the same note with frontmatter, the same `[[wiki link]]` in the original line, the same rule under `plainva.repeat`.
 

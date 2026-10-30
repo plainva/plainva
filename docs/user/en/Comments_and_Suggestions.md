@@ -44,7 +44,7 @@ Without a workspace the remarks live in the vault under `.plainva/sync/`, one fi
 
 When another device's file arrives through a foreign sync, the desktop shows it as soon as the folder reports it; the phone on the next open or on the return to the foreground.
 
-If the remarks cannot be carried to the sync target — the server is unreachable, refuses the comment files, or answers in a way Plainva cannot use — your notes keep syncing as before; only the remarks wait. A short interruption is simply retried. If it persists, Plainva says so **once**, not on every sync cycle, and the same failure is not announced again until a cycle has succeeded. The current state is shown in the sync settings under **What the sync last did**; a diagnostics export from **About & diagnostics** contains the technical reason, without any comment text.
+If the remarks cannot be carried to the sync target — the server is unreachable, refuses the comment files, or answers in a way Plainva cannot use — your notes keep syncing as before; only the remarks wait. A short interruption is simply retried. If it persists, Plainva says so **once**, not on every sync cycle, and the same failure is not announced again until a cycle has succeeded. The current state is shown in the sync settings in the **Diagnostics** group under **What the sync last did**; a diagnostics export from **About & diagnostics** contains the technical reason, without any comment text.
 
 When the vault has a sync passphrase that has not been entered on this device, the remarks are **locked**: column, sheet and overview say so and offer **Unlock**. Nothing is read or written until then — a locked device never puts a plaintext file beside the sealed one.
 

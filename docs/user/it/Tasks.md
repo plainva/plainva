@@ -17,7 +17,7 @@ Si apre come una scheda, come qualsiasi nota.
 
 ## Sul telefono
 
-La vista Attività esiste anche su mobile. La apri tramite **Aree** nella barra di navigazione (o tenendo premuta la barra), e puoi collocarla nella barra di navigazione stessa (**Impostazioni** → **Barre e aree**).
+La vista Attività esiste anche su mobile. La apri tramite **Aree** nella barra di navigazione (o tenendo premuta la barra), e puoi collocarla nella barra di navigazione stessa (**Impostazioni** → **Barra di navigazione**).
 
 Mostra le stesse due sezioni del desktop: in alto il **Database attività**, sotto l'elenco delle caselle di controllo in **Dalle note**, con i filtri **Aperte**/**Completate**/**Tutte** e la ricerca libera per testo. Spuntare, **Cambia stato**, spostare una casella di controllo **nel database**, **+ Nuova attività**, **Blocca tempo** e **Ripetizione** funzionano come descritto sopra e scrivono gli stessi file: la stessa nota con il frontmatter, lo stesso `[[wiki-link]]` nella riga originale, la stessa regola in `plainva.repeat`.
 

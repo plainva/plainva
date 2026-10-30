@@ -5,7 +5,7 @@ import { beginMobileSignIn } from "../services/accountSignIn";
 import { toastConnectionFailure } from "../services/connectionToast";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil, Plus } from "lucide-react";
-import { Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
+import { Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily, InfoTip } from "@plainva/ui";
 import type { MailAccountConfig, MailRule } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, saveMailAccount, setVacation, orphanedMailServer, useOrphanedMailAccounts, vacationSupport } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
@@ -415,8 +415,9 @@ export function MailAccountsScreen({
       )}
 
       <div className="m-settings">
-        {/* Same truth as the calendar screen: settings sync, sign-ins do not. */}
-        <p className="m-hint">{t("pim.perDeviceHint")}</p>
+        {/* Sign-ins do not travel: each account's own state says it now
+            (settings plan 2026-10-29, Q1), not a sentence over the page. */}
+        {!mailRun && <SectionLabel>{t("cloudAccounts.mailboxesGroup")}</SectionLabel>}
         {!mailRun && orphanNotice.visible && (
           <Banner
             kind="warning"
@@ -426,7 +427,9 @@ export function MailAccountsScreen({
               <Button size="sm" variant="ghost" onClick={() => void orphanNotice.later()} data-testid="mail-orphans-later">{t("mail.orphans.later")}</Button>
             </>}
           >
-            <strong>{t("mail.orphans.title", { count: orphanNotice.orphans.length })}</strong> {t("mail.orphans.body")}
+            <strong>{t("mail.orphans.title", { count: orphanNotice.orphans.length })}</strong>
+            <InfoTip label={t("mail.orphans.title", { count: orphanNotice.orphans.length })} info={t("mail.orphans.body")} />{" "}
+            {t("mail.orphans.bodyShort")}
           </Banner>
         )}
         {!mailRun && orphanNotice.visible && orphansOpen && (
@@ -463,46 +466,6 @@ export function MailAccountsScreen({
             void connectGmailFromCard().then(() => reload()).catch((e) => toastConnectionFailure(e)).finally(() => setBusy(false));
           }}>{t("cloudAccounts.signInGoogle")}</Button>
         )}
-
-        {/* Where captured mail lands. The setting has always travelled with the
-            profile and the mail screens have always read it — the phone simply
-            had no way to see or change it, so a value set on the desktop was
-            the only value it could ever have (feedback 2026-08-15, point 6). */}
-        {!mailRun && <GroupCard>
-          <RowList>
-            <FolderField
-              hint={t("mail.folderHint")}
-              label={t("mail.folder")}
-              normalize={(v) => v.trim() || "Mail"}
-              onSave={(v) => { setMailFolder(v); void updateMobileSettings({ mailFolder: v }); }}
-              onPick={() => setPickMailFolder(true)}
-              placeholder="Mail"
-              value={mailFolder}
-            />
-          </RowList>
-        </GroupCard>}
-
-        {/* "Always load remote images" (plan Befunde 06.10., E12). The value
-            has always travelled with the profile and the reader has always
-            obeyed it — but the phone had no switch, so it could only ever hold
-            what the desktop had set. Same words as the desktop, and the same
-            note that it does not reach into the spam folder. */}
-        {!mailRun && <>
-          <GroupCard>
-            <RowList>
-              <Row
-                data-testid="mail-remote-images"
-                end={<Switch
-                  checked={remoteImages}
-                  label={t("mail.loadRemoteImages")}
-                  onChange={(next) => { setRemoteImages(next); void updateMobileSettings({ mailRemoteImages: next }); }}
-                />}
-                title={t("mail.loadRemoteImages")}
-              />
-            </RowList>
-          </GroupCard>
-          <p className="m-hint" data-testid="mail-remote-images-note">{t("mail.loadRemoteImagesHint")} {t("mail.loadRemoteImagesJunk")}</p>
-        </>}
 
         {!mailRun && accounts.length === 0 && <p className="m-hint">{t("mail.noAccounts")}</p>}
         {/* The way in, ALWAYS. It lived inside the non-empty branch, so the one
@@ -564,6 +527,40 @@ export function MailAccountsScreen({
           );
         })}
 
+        {/* Filing & privacy, as on the desktop (settings plan 2026-10-29,
+            3.5 C): where captured mail lands — it always travelled with the
+            profile (feedback 2026-08-15, point 6) — and "Always load remote
+            images" (plan Befunde 06.10., E12) with its privacy consequence and
+            the spam exception visible; how the default works is behind the info. */}
+        {!mailRun && <>
+          <SectionLabel>{t("cloudAccounts.mailCaptureGroup")}</SectionLabel>
+          <GroupCard>
+            <RowList>
+              <FolderField
+                info={t("mail.folderHint")}
+                label={t("mail.folder")}
+                normalize={(v) => v.trim() || "Mail"}
+                onSave={(v) => { setMailFolder(v); void updateMobileSettings({ mailFolder: v }); }}
+                onPick={() => setPickMailFolder(true)}
+                placeholder="Mail"
+                value={mailFolder}
+              />
+              <Row
+                data-testid="mail-remote-images"
+                end={<Switch
+                  checked={remoteImages}
+                  label={t("mail.loadRemoteImages")}
+                  onChange={(next) => { setRemoteImages(next); void updateMobileSettings({ mailRemoteImages: next }); }}
+                />}
+                info={[t("mail.loadRemoteImagesHint"), t("mail.loadRemoteImagesJunk")].join("\n\n")}
+                subtitle={<span data-testid="mail-remote-images-note">{t("mail.loadRemoteImagesShort")} {t("mail.loadRemoteImagesJunkShort")}</span>}
+                title={t("mail.loadRemoteImages")}
+                wrap
+              />
+            </RowList>
+          </GroupCard>
+        </>}
+
         {!mailRun && accounts.length > 0 && (
           <>
             {/* Was a naked <h2> with an inline font size — it rendered LARGER
@@ -577,6 +574,31 @@ export function MailAccountsScreen({
                 narrower here than on a desktop — so the label says the narrower
                 thing. Editing them is its own step (S16b); what belongs here is
                 the truth about when they run. */}
+            {/* Rules and out-of-office belong to the mailbox picked here, so the
+                picker stands ABOVE them, as on the desktop (move 36); sender and
+                signature are on the mail page of each account (plan "Verbinden", V3). */}
+            {accounts.length > 1 && (
+              <>
+                <SectionLabel>{t("mail.account")}</SectionLabel>
+                <GroupCard>
+                  <RowList>
+                    <Row
+                      data-testid="mail-sending-account"
+                      end={<><span className="m-prop-val">{sendingAccount?.label || sendingAccount?.user}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+                      onClick={pickSendingAccount}
+                      title={t("mail.account")}
+                    />
+                  </RowList>
+                </GroupCard>
+                <p className="m-hint">
+                  {t("cloudAccounts.mailAccountPickHint")}{" "}
+                  {/* A link, not a sentence that names the place (Q4). */}
+                  <Button variant="ghost" size="sm" onClick={() => sendingAccount && onOpenAccountMail?.(sendingAccount.id)} data-testid="mail-sender-signature">
+                    {t("cloudAccounts.mailAccountPickLink")} ›
+                  </Button>
+                </p>
+              </>
+            )}
             <SectionLabel>{t("rules.section")}</SectionLabel>
             <GroupCard>
               <RowList>
@@ -604,12 +626,20 @@ export function MailAccountsScreen({
             </GroupCard>
             {/* Where the mailbox can run them, say so; where it cannot, say the
                 narrower truth instead of implying a server filter. */}
-            <p className="m-hint" data-testid="rules-where">
-              {vacationKind === "sieve"
-                ? t("rules.sieveHint", { host: sendingAccount?.sieveHost ?? "" })
-                : vacationKind === "graph"
-                  ? t("rules.graphHint")
-                  : t("rules.localMobile")}
+            <p className="m-hint">
+              <span data-testid="rules-where">
+                {vacationKind === "sieve"
+                  ? t("rules.sieveHint")
+                  : vacationKind === "graph"
+                    ? t("rules.graphHint")
+                    : t("rules.localMobile")}
+              </span>
+              {vacationKind !== "none" && (
+                <InfoTip
+                  label={t("rules.section")}
+                  info={vacationKind === "sieve" ? t("rules.sieveInfo", { host: sendingAccount?.sieveHost ?? "" }) : t("rules.graphInfo")}
+                />
+              )}
             </p>
             {mailRules.length > 0 && vacationKind !== "none" && (
               <Button variant="primary" disabled={publishing} onClick={() => void publishRules()} data-testid="rules-publish">
@@ -619,7 +649,10 @@ export function MailAccountsScreen({
 
             <SectionLabel>{t("vacation.section")}</SectionLabel>
             {vacationKind === "none" ? (
-              <p className="m-hint" data-testid="vacation-unsupported">{t("vacation.unsupported")}</p>
+              <p className="m-hint">
+                <span data-testid="vacation-unsupported">{t("vacation.unsupportedShort")}</span>
+                <InfoTip label={t("vacation.section")} info={t("vacation.unsupported")} />
+              </p>
             ) : (
               <>
                 <GroupCard>
@@ -654,28 +687,13 @@ export function MailAccountsScreen({
                 <Button variant="primary" disabled={vacBusy} onClick={() => void saveVacation()} data-testid="vacation-save">
                   {t("vacation.save")}
                 </Button>
-                <p className="m-hint">{vacationKind === "graph" ? t("vacation.viaGraph") : t("vacation.viaSieveShort")}</p>
+                <p className="m-hint">
+                  <span data-testid="vacation-where">{t("vacation.runsAtProvider")}</span>
+                  <InfoTip label={t("vacation.section")} info={vacationKind === "graph" ? t("vacation.viaGraph") : t("vacation.viaSieveShort")} />
+                </p>
               </>
             )}
 
-            {/* Rules and out-of-office belong to the mailbox picked here; sender and
-                signature moved to the mail page of each account (plan "Verbinden", V3). */}
-            {accounts.length > 1 && (
-              <>
-                <SectionLabel>{t("mail.account")}</SectionLabel>
-                <GroupCard>
-                  <RowList>
-                    <Row
-                      data-testid="mail-sending-account"
-                      end={<><span className="m-prop-val">{sendingAccount?.label || sendingAccount?.user}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
-                      onClick={pickSendingAccount}
-                      title={t("mail.account")}
-                    />
-                  </RowList>
-                </GroupCard>
-                <p className="m-hint">{t("cloudAccounts.mailAccountPickHint")}</p>
-              </>
-            )}
           </>
         )}
 

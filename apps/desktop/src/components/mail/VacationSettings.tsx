@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, SettingCard, SettingCardNote, SettingRow, TextArea, TextInput, toast } from "@plainva/ui";
+import { Button, SettingCard, SettingCardNote, SettingRow, TextArea, TextInput, toast, InfoTip } from "@plainva/ui";
 import { SIEVE_PORT, setVacation, vacationSupport, type MailAccountConfig } from "@plainva/ui/mail";
 
 /**
@@ -65,14 +65,8 @@ export function VacationSettings({ vaultPath, account }: { vaultPath: string; ac
     return (
       <SettingCard label={t("vacation.section", { defaultValue: "Abwesenheitsnotiz" })}>
         <SettingCardNote>
-          <Banner kind="info" rounded>
-            <span data-testid="vacation-unsupported">
-            {t("vacation.unsupported", {
-              defaultValue:
-                "Dieses Postfach bietet keine serverseitige Abwesenheitsnotiz. Plainva bietet sie deshalb nicht an — eine Antwort, die nur läuft, während Plainva offen ist, wäre keine.",
-            })}
-            </span>
-          </Banner>
+          <span data-testid="vacation-unsupported">{t("vacation.unsupportedShort")}</span>
+          <InfoTip label={t("vacation.section", { defaultValue: "Abwesenheitsnotiz" })} info={t("vacation.unsupported")} />
         </SettingCardNote>
       </SettingCard>
     );
@@ -80,6 +74,17 @@ export function VacationSettings({ vaultPath, account }: { vaultPath: string; ac
 
   return (
     <SettingCard label={t("vacation.section", { defaultValue: "Abwesenheitsnotiz" })}>
+      {/* Where it runs, as the rules card says it (B3): one state line, the
+          details behind the info. */}
+      <SettingCardNote>
+        <span data-testid="vacation-where">{t("vacation.runsAtProvider")}</span>
+        <InfoTip
+          label={t("vacation.section", { defaultValue: "Abwesenheitsnotiz" })}
+          info={support.kind === "graph"
+            ? t("vacation.viaGraph")
+            : t("vacation.viaSieve", { host: support.host, port: support.port === SIEVE_PORT ? "" : `:${support.port}` })}
+        />
+      </SettingCardNote>
       <SettingRow label={t("vacation.enabled", { defaultValue: "Abwesenheitsnotiz aktiv" })}>
         <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="pv-check" data-testid="vacation-enabled" />
       </SettingRow>
@@ -106,18 +111,6 @@ export function VacationSettings({ vaultPath, account }: { vaultPath: string; ac
         </Button>
       </SettingRow>
 
-      <SettingCardNote>
-        <span data-testid="vacation-where">
-        {support.kind === "graph"
-          ? t("vacation.viaGraph", { defaultValue: "Die Notiz liegt bei Microsoft und antwortet, auch wenn Plainva geschlossen ist." })
-          : t("vacation.viaSieve", {
-              host: support.host,
-              port: support.port === SIEVE_PORT ? "" : `:${support.port}`,
-              defaultValue:
-                "Die Notiz liegt als Filterregel auf {{host}}{{port}} und antwortet, auch wenn Plainva geschlossen ist. Plainva schreibt nur seinen eigenen, gekennzeichneten Abschnitt — von Hand geschriebene Regeln bleiben unangetastet.",
-            })}
-        </span>
-      </SettingCardNote>
     </SettingCard>
   );
 }

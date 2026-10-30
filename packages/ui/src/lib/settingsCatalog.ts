@@ -40,6 +40,12 @@ export interface SettingsAreaDef {
   labelKey: string;
   /** i18n key of the one-line page description shown under the title. */
   descKey: string;
+  /**
+   * The phone's name for the area where its screen is named otherwise — the
+   * row of the overview says what the screen it opens is called (settings plan
+   * 2026-10-29, 3.7 B3).
+   */
+  mobileLabelKey?: string;
   icon: LucideIcon;
   /**
    * Why this area has NO screen on the phone. Absent means the phone lists it.
@@ -70,7 +76,7 @@ export const SETTINGS_AREAS: readonly SettingsAreaDef[] = [
   // "Notes & filing" keeps the id "content", "Daily notes & journal" is new.
   { id: "content", world: "vault", labelKey: "settings.sectionContent", descKey: "settings.pageDescContent", icon: FolderTree },
   { id: "journal", world: "vault", labelKey: "settings.sectionJournal", descKey: "settings.pageDescJournal", icon: NotebookText },
-  { id: "bars", world: "vault", labelKey: "settings.sectionBars", descKey: "settings.pageDescBars", icon: PanelsTopLeft },
+  { id: "bars", world: "vault", labelKey: "settings.sectionBars", descKey: "settings.pageDescBars", icon: PanelsTopLeft, mobileLabelKey: "mobile.navBar" },
   { id: "backup", world: "vault", labelKey: "settings.backupSection", descKey: "settings.pageDescBackup", icon: Archive },
   { id: "maintenance", world: "vault", labelKey: "settings.sectionMaintenance", descKey: "settings.pageDescMaintenance", icon: Wrench },
 ];

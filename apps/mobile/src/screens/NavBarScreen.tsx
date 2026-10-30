@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Eye, EyeOff, GripVertical, LayoutGrid } from "lucide-react";
 import { TAB_POOL, type TabScreenId } from "../navigation";
-import {
+import { InfoTip,
   barDef,
   createDragAutoScroll,
   GroupCard,
@@ -158,7 +158,7 @@ export function NavBarScreen({
     <div className="m-page">
       <AppBar onBack={onBack} title={t("mobile.navBar", { defaultValue: "Navigationsleiste" })} />
 
-      <p className="m-hint">{t("mobile.navBarHint")}</p>
+      <p className="m-hint">{t("mobile.navBarHintShort")}<InfoTip label={t("mobile.navBar")} info={t("mobile.navBarHint")} /></p>
 
       <div className="m-stepper m-stepper--row">
         <span className="m-stepper-label">{t("mobile.navBarCount", { defaultValue: "Bereiche in der Leiste" })}</span>

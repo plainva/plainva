@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { readFile, writeFile } from "@tauri-apps/plugin-fs";
-import { Banner, Button, ICON, Modal, QrImage, Select, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, TextInput, publicationErrorText, publicationInstructionText, publicationStatusText, toast, type SecurityAreaId } from "@plainva/ui";
+import { InfoTip, Banner, Button, ICON, Modal, QrImage, Select, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, TextInput, publicationErrorText, publicationInstructionText, publicationStatusText, toast, type SecurityAreaId } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { useForeignLegacyComments } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
@@ -492,10 +492,12 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
       <AreaHead areaId="security" />
       {/* Honesty gate (H6): the "experimental, not independently reviewed"
           caveat lived only in the What's-New text and the handbook — not where
-          a workspace is actually created or joined. Shown in every sub-area. */}
-      <Banner kind="warning" rounded>{t("workspaceSecurity.experimentalNotice")}</Banner>
+          a workspace is actually created or joined. Since the settings plan of
+          2026-10-29 it stands ONCE: on the overview and in recovery, where the
+          file and code it names are made — not in every one of seven areas. */}
+      {(area === null || area === "recovery") && <Banner kind="warning" rounded>{t("workspaceSecurity.experimentalNotice")}</Banner>}
       {area === null && (<>
-      {!isActiveVault && <Banner kind="info" rounded>{t("workspaceSecurity.openVaultFirst")}</Banner>}
+      {!isActiveVault && <Banner kind="info" rounded>{t("pim.openVaultFirst")}</Banner>}
       {isActiveVault && !hasSyncConnection && <Banner kind="warning" rounded>{t("workspaceSecurity.connectionRequired")}</Banner>}
 
       <section className="pv-security-hero" aria-label={t("workspaceSecurity.currentStatus")}>
@@ -510,7 +512,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
             ? <Button variant="primary" disabled={busy} onClick={() => setShowJoin(true)} data-testid="workspace-security-join">{t("workspaceSecurity.joinCta", { defaultValue: "Join" })}</Button>
             : <Button variant="primary" disabled={busy} onClick={() => void requireWorkspace(() => setShowSetup(true), true)} data-testid="workspace-security-hero-setup">{t("workspaceSecurity.setup")}</Button>}
       </section>
-      {!status && joinable && <Banner kind="info" rounded>{t("workspaceSecurity.joinDetected", { defaultValue: "This vault is protected by an encrypted workspace. If you were invited, join it here — pairing this device hands over the key." })}</Banner>}
+      {!status && joinable && <Banner kind="info" rounded>{t("workspaceSecurity.joinDetectedShort")}<InfoTip label={t("workspaceSecurity.joinCta", { defaultValue: "Join" })} info={t("workspaceSecurity.joinDetected")} /></Banner>}
 
       {/* Two named entry cards (IA v2, P2) open the second level: "your access"
           (devices + recovery) and "sharing" (members, groups, slices,
@@ -533,7 +535,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           same "not configured yet", same button. The hero is the status. */}
       {status && (
         <SettingCard label={t("workspaceSecurity.statusCard")}>
-          <SettingRow label={t("workspaceSecurity.currentStatus")} desc={t("workspaceSecurity.workspaceProtected")}>
+          <SettingRow label={t("workspaceSecurity.currentStatus")}>
             <strong>{phaseLabel(t, status.phase)}</strong>
           </SettingRow>
           <>
@@ -564,13 +566,8 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
               </SettingRow>
             )}
             {status.phase === "error" && (
-              <SettingCardBlock><Banner kind="warning" rounded>{t("workspaceSecurity.orphanRecovery", { defaultValue: "If the encrypted workspace was deleted or damaged in the cloud, sync stays stopped to protect your data. Decommission the workspace on this device below to reset it." })}</Banner></SettingCardBlock>
+              <SettingCardBlock><Banner kind="warning" rounded>{t("workspaceSecurity.orphanRecovery")}</Banner></SettingCardBlock>
             )}
-            <SettingRow label={t("workspaceSecurity.details")}>
-              <Button variant="secondary" size="sm" onClick={() => { setShowDetails((value) => !value); void refreshDiagnostics(); }}>
-                {showDetails ? t("workspaceSecurity.hideDetails") : t("workspaceSecurity.showDetails")}
-              </Button>
-            </SettingRow>
             {showDetails && (
               <SettingCardNote>
                 <dl className="pv-security-details">
@@ -591,21 +588,6 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
 
       <RekeyProgressCard t={t} diagnostics={diagnostics} />
 
-      {/* Recovery restore/renew moved to its own second-level area (P2); the
-          overview keeps only the device-local "disconnect" action (E8). The
-          global "lift encryption" action lands in its own package (new .pvws
-          delete path) — see the plan E8. */}
-      {status && (
-        <SettingCard label={t("workspaceSecurity.encryptionCard", { defaultValue: "Encryption" })}>
-          <SettingRow label={t("workspaceSecurity.cloudDisconnect")} desc={t("workspaceSecurity.cloudDisconnectDesc")}>
-            <Button variant="danger-soft" disabled={busy} onClick={() => void decommission()} data-testid="workspace-decommission">{t("workspaceSecurity.cloudDisconnectAction")}</Button>
-          </SettingRow>
-          <SettingRow label={t("workspaceSecurity.liftEncryption", { defaultValue: "Lift encryption" })} desc={t("workspaceSecurity.liftEncryptionDesc", { defaultValue: "Turns this vault back into a normal, unencrypted cloud vault: your notes are uploaded to the same cloud as plain files." })}>
-            <Button variant="danger-soft" disabled={busy} onClick={() => void lift()} data-testid="workspace-lift-encryption">{t("workspaceSecurity.liftEncryptionAction", { defaultValue: "Lift encryption …" })}</Button>
-          </SettingRow>
-          <SettingCardNote>{t("workspaceSecurity.decommissionNote", { defaultValue: "This clears the local keys and workspace data and reopens the vault as a normal vault. Encrypted files already in the cloud are not deleted — remove the cloud folder yourself afterwards." })}</SettingCardNote>
-        </SettingCard>
-      )}
       </>)}
 
       {area !== null && (
@@ -613,7 +595,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           {area === "recovery" && (
             <>
               <SettingCard label={t("workspaceSecurity.recoveryStatus", { defaultValue: "Current status" })}>
-                <SettingRow label={t("workspaceSecurity.recoveryPackage")} desc={status ? t("workspaceSecurity.recoveryProtected") : t("workspaceSecurity.recoverySetupHint")}>
+                <SettingRow label={t("workspaceSecurity.recoveryPackage")} desc={status ? t("workspaceSecurity.recoveryProtected") : undefined} info={status ? undefined : t("workspaceSecurity.recoverySetupHint")}>
                   <span>{status?.recoveryConfirmedAt ? t("workspaceSecurity.recoverySaved") : "—"}</span>
                 </SettingRow>
                 {status && (
@@ -626,21 +608,20 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
                 <SettingRow label={t("workspaceSecurity.restore", { defaultValue: "Restore access" })} desc={t("workspaceSecurity.restoreDesc", { defaultValue: "Use the recovery file and its separate code when all devices are unavailable." })}>
                   <Button variant="danger-soft" disabled={busy} onClick={() => void requireWorkspace(() => setDialog("recovery"), true)}>{t("workspaceSecurity.restore", { defaultValue: "Restore" })}</Button>
                 </SettingRow>
-                <SettingRow label={t("workspaceSecurity.rotateRecovery", { defaultValue: "Renew recovery" })} desc={t("workspaceSecurity.rotateRecoveryDesc", { defaultValue: "Invalidate the old recovery identity by creating and anchoring a new two-piece recovery set." })}>
+                <SettingRow label={t("workspaceSecurity.rotateRecovery", { defaultValue: "Renew recovery" })} desc={t("workspaceSecurity.rotateRecoveryHint")} info={t("workspaceSecurity.rotateRecoveryDesc")}>
                   <Button variant="secondary" disabled={busy} onClick={() => void requireWorkspace(() => { setRotatedRecoveryCode(null); setDialog("rotate"); })}>{t("workspaceSecurity.renew", { defaultValue: "Renew" })}</Button>
                 </SettingRow>
-                <SettingCardNote>{t("workspaceSecurity.restoreVsJoin", { defaultValue: "Restore is a last resort: it creates a new owner device and revokes all other devices. To add a second or returning device normally, use the join flow — it keeps the other devices." })}</SettingCardNote>
-                <SettingCardNote>{t("workspaceSecurity.recoverySeparation")}</SettingCardNote>
+                <SettingCardNote>{t("workspaceSecurity.restoreVsJoinShort")}<InfoTip label={t("workspaceSecurity.restore", { defaultValue: "Restore access" })} info={t("workspaceSecurity.restoreVsJoin")} /></SettingCardNote>
+                <SettingCardNote>{t("workspaceSecurity.recoverySeparationShort")}<InfoTip label={t("workspaceSecurity.recoveryPackage")} info={t("workspaceSecurity.recoverySeparation")} /></SettingCardNote>
               </SettingCard>
             </>
           )}
           {area === "members" && (<>
             <SettingCard label={t("workspaceSecurity.members", { defaultValue: "Members" })}>
-              <SettingRow label={t("workspaceSecurity.members", { defaultValue: "Members" })} desc={t("workspaceSecurity.membersDesc", { defaultValue: "People with encrypted access. Inviting reserves a place — pairing their device hands over the key." })}>
+              <SettingRow label={t("workspaceSecurity.members", { defaultValue: "Members" })} info={t("workspaceSecurity.membersDesc")}>
                 <span>{governance?.members.filter((member) => member.state === "active").length ?? 0}</span>
                 <Button variant="secondary" size="sm" disabled={busy} onClick={() => void requireWorkspace(() => setDialog("invite"))}>{t("workspaceSecurity.invite", { defaultValue: "Invite" })}</Button>
               </SettingRow>
-              <SettingCardBlock><Banner kind="info" rounded>{t("workspaceSecurity.membersModel", { defaultValue: "Inviting reserves a place. The invited person opens Security & Sharing on their device, pastes the invitation code and requests to join; an existing device approves it, which hands over the key." })}</Banner></SettingCardBlock>
               {governance?.members.map((member) => <SettingRow key={member.memberId} label={member.displayName} desc={member.state === "active" ? t("workspaceSecurity.active", { defaultValue: "Active" }) : t("workspaceSecurity.revoked", { defaultValue: "Revoked" })}><span>{governance.assignments.filter((assignment) => (assignment.subjectKind === "member" && assignment.subjectId === member.memberId) || governance.groups.some((group) => group.groupId === assignment.subjectId && group.memberIds?.includes(member.memberId))).map((assignment) => `${roleName(t, assignment.role as WorkspaceRole)}/${assignment.scopeKind}`).join(", ") || "—"}</span>{member.state === "active" && <><Button variant="ghost" size="sm" disabled={busy} onClick={() => setInviteFor({ memberId: member.memberId, displayName: member.displayName, role: governance.assignments.find((a) => a.subjectKind === "member" && a.subjectId === member.memberId)?.role, self: member.memberId === governance.memberId })}>{t("workspaceSecurity.showInvite", { defaultValue: "Show invitation" })}</Button>{member.memberId !== governance.memberId && <><Button variant="ghost" size="sm" disabled={busy} onClick={() => { setForm((current) => ({ ...current, scopeId: member.memberId })); setRotatedRecoveryCode(null); setDialog("owner"); }}>{t("workspaceSecurity.transferOwner", { defaultValue: "Transfer ownership" })}</Button><Button variant="danger-soft" size="sm" disabled={busy} onClick={() => setRevokeFor({ kind: "member", id: member.memberId, displayName: member.displayName })} data-testid="workspace-revoke-member">{t("workspaceSecurity.revokeConfirm", { defaultValue: "Remove" })}</Button></>}</>}</SettingRow>)}
               <RoleMatrix t={t} />
               <TechDetails t={t} entries={(governance?.members ?? []).map((member) => [member.displayName, member.memberId] as const)} />
@@ -650,8 +631,9 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
             <RekeyProgressCard t={t} diagnostics={diagnostics} />
           </>)}
           {area === "groups" && (
-            <SettingCard label={t("workspaceSecurity.groups", { defaultValue: "Groups" })}>
-              <SettingRow label={t("workspaceSecurity.groups", { defaultValue: "Groups" })} desc={t("workspaceSecurity.groupsDesc", { defaultValue: "Encryption groups and their effective role." })}>
+            // No card title that repeats the one row's name (B3).
+            <SettingCard>
+              <SettingRow label={t("workspaceSecurity.groups", { defaultValue: "Groups" })} info={t("workspaceSecurity.groupsDesc")}>
                 <Button variant="secondary" size="sm" disabled={busy} onClick={() => void requireWorkspace(() => setDialog("group"))}>{t("workspaceSecurity.addGroup", { defaultValue: "Add group" })}</Button>
               </SettingRow>
               {governance?.groups.map((group) => <SettingRow key={group.groupId} label={group.name} desc={t("workspaceSecurity.memberCount", { count: group.memberIds?.length ?? 0, defaultValue: "{{count}} members" })}><span>{governance.assignments.filter((assignment) => assignment.subjectKind === "group" && assignment.subjectId === group.groupId).map((assignment) => `${roleName(t, assignment.role as WorkspaceRole)}/${assignment.scopeKind}`).join(", ") || "—"}</span></SettingRow>)}
@@ -659,8 +641,8 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
             </SettingCard>
           )}
           {area === "slices" && (
-            <SettingCard label={t("workspaceSecurity.slices", { defaultValue: "Slices" })}>
-              <SettingRow label={t("workspaceSecurity.slices", { defaultValue: "Slices" })} desc={t("workspaceSecurity.slicesDesc", { defaultValue: "Folder, explicit selection or dynamic rule." })}>
+            <SettingCard>
+              <SettingRow label={t("workspaceSecurity.slices", { defaultValue: "Slices" })} info={t("workspaceSecurity.slicesDesc")}>
                 <Button variant="secondary" size="sm" disabled={busy} onClick={() => void requireWorkspace(() => openSliceWizard())}>{t("workspaceSecurity.addSlice", { defaultValue: "Add slice" })}</Button>
               </SettingRow>
               {/* A slice whose definition cannot be read grants nothing (fail-closed, P3). It says
@@ -673,7 +655,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           )}
           {area === "devices" && (<>
             <SettingCard label={t("workspaceSecurity.devicesCard")}>
-              <SettingRow label={t("workspaceSecurity.addDevice")} desc={t("workspaceSecurity.addDeviceDesc")}>
+              <SettingRow label={t("workspaceSecurity.addDevice")} info={t("workspaceSecurity.addDeviceDesc")}>
                 <Button variant="primary" disabled={busy} onClick={() => void requireWorkspace(() => { if (governance) setInviteFor({ memberId: governance.memberId, displayName: governance.members.find((m) => m.memberId === governance.memberId)?.displayName ?? t("workspaceSecurity.thisDevice", { defaultValue: "This device" }), role: governance.assignments.find((a) => a.subjectKind === "member" && a.subjectId === governance.memberId)?.role, self: true }); })}>{t("workspaceSecurity.addDevice")}</Button>
               </SettingRow>
               <SettingRow label={t("workspaceSecurity.pairDevice", { defaultValue: "Approve device" })} desc={t("workspaceSecurity.pairHelp")}>
@@ -691,10 +673,9 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
             <RekeyProgressCard t={t} diagnostics={diagnostics} />
           </>)}
           {area === "publications" && (
-            <SettingCard label={t("workspaceSecurity.publications", { defaultValue: "Publications" })}>
-              <SettingCardBlock><Banner kind="info" rounded>{t("workspaceSecurity.publicationIsolation", { defaultValue: "Published slices use a separate encrypted workspace namespace. Provider permissions add defense in depth; they never replace encryption." })}</Banner></SettingCardBlock>
-              <SettingRow label={t("workspaceSecurity.publishSlice", { defaultValue: "Publish a Vault Slice" })} desc={t("workspaceSecurity.publishDesc", { defaultValue: "Choose exact or sanitized content, read/comment/suggestion access and a provider." })} />
-              {(governance?.slices ?? []).length === 0 && <SettingCardNote>{t("workspaceSecurity.publicationNeedsSlice", { defaultValue: "Publishing starts from a Vault Slice. Create one under Share with others, then come back." })}</SettingCardNote>}
+            <SettingCard label={t("workspaceSecurity.publications", { defaultValue: "Publications" })} info={t("workspaceSecurity.publicationIsolation")}>
+              <SettingRow label={t("workspaceSecurity.publishSlice", { defaultValue: "Publish a Vault Slice" })} info={t("workspaceSecurity.publishDesc")} />
+              {(governance?.slices ?? []).length === 0 && <SettingCardNote>{t("workspaceSecurity.publicationNeedsSlice")}</SettingCardNote>}
               {(governance?.slices ?? []).map((slice) => {
                 const record = publications?.find((entry) => entry.sliceId === slice.sliceId) ?? null;
                 if (!record) return (
@@ -716,7 +697,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
                       <Button variant="danger-soft" size="sm" disabled={busy} onClick={() => setWithdrawFor({ publicationId: record.publicationId, name: slice.name, provider: record.config.provider })} data-testid="workspace-withdraw-publication">{t("workspaceSecurity.withdrawPublication", { defaultValue: "Withdraw publication" })}</Button>
                     </SettingRow>
                     {people.length === 0
-                      ? <SettingRow label={t("workspaceSecurity.publicationRecipients", { defaultValue: "Recipients" })} desc={t("workspaceSecurity.publicationNoRecipients", { defaultValue: "Nobody has been invited yet. A publication without recipients is encrypted and unreadable - that is the safe state, not a broken one." })} />
+                      ? <SettingRow label={t("workspaceSecurity.publicationRecipients", { defaultValue: "Recipients" })} desc={t("workspaceSecurity.publicationNoRecipients")} />
                       : people.map((person) => (
                         // One row per person rather than a joined string: a name
                         // you cannot act on is a list, and withdrawing has to be
@@ -759,13 +740,27 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
         />
       )}
 
-      {status && foreignLegacyComments > 0 && <Banner kind="info" rounded>{t("workspaceSync.foreignLegacy")}</Banner>}
+      {status && foreignLegacyComments > 0 && <Banner kind="info" rounded>{t("workspaceSync.foreignLegacyShort")}<InfoTip label={t("workspaceSecurity.legacyPlaintext")} info={t("workspaceSync.foreignLegacy")} /></Banner>}
       {status && diagnostics && diagnostics.legacyPlaintextPaths > 0 && (
         <SettingCard label={t("workspaceSecurity.cleanupCard")}>
           <SettingCardBlock><Banner kind="warning" rounded>{t("workspaceSecurity.cleanupWarning", { n: diagnostics.legacyPlaintextPaths })}</Banner></SettingCardBlock>
           <SettingRow label={t("workspaceSecurity.cleanupLabel")} desc={t("workspaceSecurity.cleanupDesc")}>
             <Button variant="danger" disabled={busy || status.phase !== "active"} onClick={() => void cleanupPlaintext()}>{t("workspaceSecurity.cleanupAction")}</Button>
           </SettingRow>
+        </SettingCard>
+      )}
+      {/* The danger group ends the overview (settings plan 2026-10-29, B1,
+          move 28): disconnecting, lifting the encryption and decommissioning
+          stood in the middle of the page, in a card named "Encryption". */}
+      {status && (
+        <SettingCard label={t("mobile.vaultGroupDanger")} testId="workspace-danger">
+          <SettingRow label={t("workspaceSecurity.cloudDisconnect")} desc={t("workspaceSecurity.cloudDisconnectDesc")}>
+            <Button variant="danger-soft" disabled={busy} onClick={() => void decommission()} data-testid="workspace-decommission">{t("workspaceSecurity.cloudDisconnectAction")}</Button>
+          </SettingRow>
+          <SettingRow label={t("workspaceSecurity.liftEncryption", { defaultValue: "Lift encryption" })} desc={t("workspaceSecurity.liftEncryptionDesc")}>
+            <Button variant="danger-soft" disabled={busy} onClick={() => void lift()} data-testid="workspace-lift-encryption">{t("workspaceSecurity.liftEncryptionAction", { defaultValue: "Lift encryption …" })}</Button>
+          </SettingRow>
+          <SettingCardNote>{t("workspaceSecurity.decommissionNote")}</SettingCardNote>
         </SettingCard>
       )}
       </>)}

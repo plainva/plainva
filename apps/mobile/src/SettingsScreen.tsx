@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, FolderClosed } from "lucide-react";
 import { GroupCard, ICON, Row, RowList, SectionLabel, type SettingsAreaDef, settingsAreas } from "@plainva/ui";
-import { getActiveVaultEntry } from "./services/vaultRegistry";
+import { getActiveVaultEntry, type VaultEntry } from "./services/vaultRegistry";
+import { getSyncStatus, subscribeSyncStatus } from "./services/syncService";
+import { syncStateLabel } from "./components/syncSubtitle";
+import { backupState } from "./services/vaultBackup";
 import { AppBar } from "./components/AppBar";
 
 /**
@@ -36,8 +39,10 @@ export function SettingsScreen({
 }) {
   const { t } = useTranslation();
   const [vaultName, setVaultName] = useState("");
+  const [vaultEntry, setVaultEntry] = useState<VaultEntry | null>(null);
+  const syncStatus = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
   useEffect(() => {
-    const reload = () => void getActiveVaultEntry().then((e) => setVaultName(e.name || t("mobile.vaultLocal")));
+    const reload = () => void getActiveVaultEntry().then((e) => { setVaultEntry(e); setVaultName(e.name || t("mobile.vaultLocal")); });
     reload();
     window.addEventListener("m-vaults-changed", reload);
     window.addEventListener("m-vault-switched", reload);
@@ -47,11 +52,21 @@ export function SettingsScreen({
     };
   }, [t]);
 
+  const areaState = (id: string): string => {
+    if (id === "bars") return t("mobile.navBarSummary", { n: barCount });
+    if (id === "sync") return vaultEntry?.provider ? syncStateLabel(syncStatus, t) : t("common.off");
+    if (id === "backup" && vaultEntry) {
+      const zip = backupState(vaultEntry.id);
+      return !zip.enabled ? t("common.off") : zip.lastRun ? new Date(zip.lastRun).toLocaleDateString() : t("mobile.backupZipNever");
+    }
+    return "";
+  };
+
   const renderArea = (area: SettingsAreaDef) => {
     const Icon = area.icon;
-    // The bar area is the one whose current state fits in a word, and it is the
-    // one people come back to — so it carries its count on the row.
-    const summary = area.id === "bars" ? t("mobile.navBarSummary", { n: barCount }) : "";
+    // A state instead of a description where a state word exists (settings
+    // plan 2026-10-29, E15): the Android overview shows the current value.
+    const summary = areaState(area.id);
     return (
       <Row
         data-testid={`settings-area-${area.id}`}
@@ -59,7 +74,7 @@ export function SettingsScreen({
         icon={<Icon className="m-accent" size={ICON.ui} />}
         key={area.id}
         onClick={() => onOpenArea(area.id)}
-        title={t(area.labelKey)}
+        title={t(area.mobileLabelKey ?? area.labelKey)}
       />
     );
   };
