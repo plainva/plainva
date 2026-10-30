@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useVault } from "../contexts/VaultContext";
-import { FolderOpen, Cloud, Folder, Laptop, Plus, HardDrive, X, FilePlus2, CloudCog, Box, Server, Database, Download, SquareArrowOutUpRight } from "lucide-react";
+import { FolderOpen, Cloud, Folder, Laptop, Plus, X, FilePlus2, Database, Download, SquareArrowOutUpRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { OnlineVaultSetup, type OnlineProvider } from "./OnlineVaultSetup";
+import { OnlineVaultSetup } from "./OnlineVaultSetup";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Checkbox, ICON } from "@plainva/ui";
 import { ScrollEdge } from "@plainva/ui";
@@ -15,8 +15,6 @@ import { toast } from "@plainva/ui";
 import { PlainvaLogo } from "@plainva/ui";
 import { WindowChromeStrip } from "./WindowControls";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
-import { PLAINVA_ONEDRIVE_CLIENT_ID, PLAINVA_DROPBOX_APP_KEY } from "@plainva/ui";
-import { GDRIVE_BYO_GUIDE, ONEDRIVE_DROPBOX_BYO_GUIDE, userGuideUrl } from "../services/docsLinks";
 import {
   getVaultTemplates,
   templatePreviewFolders,
@@ -59,7 +57,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
   const [createTarget, setCreateTarget] = useState<"local" | "online">("local");
   const [onlineMode, setOnlineMode] = useState<"open" | "create">("open");
   const [pendingTemplate, setPendingTemplate] = useState<VaultTemplateDefinition | null>(null);
-  const [onlineSetupProvider, setOnlineSetupProvider] = useState<OnlineProvider | null>(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   // Remove-recent dialog (E1 2026-07-09): list-only removal vs. forgetting all
@@ -112,17 +109,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
   };
 
   /**
-   * All five providers (WebDAV joined the unified assistant, 2026-07-13) follow
-   * the same pattern: connect -> pick/create the cloud folder -> pick/create
-   * the local folder -> open. In create mode OnlineVaultSetup additionally
-   * scaffolds the template picked in the previous step.
-   */
-  const handleOnlineProvider = (provider: OnlineProvider) => {
-    setShowOnlineChooser(false);
-    setOnlineSetupProvider(provider);
-  };
-
-  /**
    * Template chooser result — the second step of "new vault" (place ->
    * template -> destination): local scaffolds right away, online carries the
    * template into the provider/connect assistant.
@@ -137,18 +123,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
     setOnlineMode("create");
     setShowOnlineChooser(true);
   };
-
-  // Honest onboarding (P3.12): OAuth providers without a central app
-  // registration need the user's OWN client id — the badge says so up front
-  // instead of a connect button that silently dead-ends. Disappears by itself
-  // once providerDefaults carries real ids (maintainer items M-A/M-B).
-  const onlineProviders: { id: "webdav" | "drive" | "onedrive" | "dropbox" | "s3"; name: string; desc: string; Icon: React.ElementType; byo?: boolean }[] = [
-    { id: "webdav", name: t("settings.providerWebDav"), desc: t("splash.providerWebDavDesc"), Icon: Cloud },
-    { id: "drive", name: t("settings.providerDrive"), desc: t("splash.providerDriveDesc"), Icon: HardDrive, byo: true },
-    { id: "onedrive", name: t("settings.providerOneDrive"), desc: t("splash.providerOneDriveDesc"), Icon: CloudCog, byo: !PLAINVA_ONEDRIVE_CLIENT_ID },
-    { id: "dropbox", name: t("settings.providerDropbox"), desc: t("splash.providerDropboxDesc"), Icon: Box, byo: !PLAINVA_DROPBOX_APP_KEY },
-    { id: "s3", name: t("settings.providerS3"), desc: t("splash.providerS3Desc"), Icon: Server },
-  ];
 
   /**
    * "Create New Vault" chooser result: pick/create a folder in the OS dialog,
@@ -221,12 +195,18 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
           </div>
         )}
 
-        {onlineSetupProvider ? (
+        {showOnlineChooser ? (
+          // "Vault in the cloud" is the connect assistant (settings plan
+          // 2026-10-29, E7): its provider tiles, its sign-in step, then the
+          // cloud folder and the local one.
           <OnlineVaultSetup
-            provider={onlineSetupProvider}
             mode={onlineMode}
             template={pendingTemplate}
-            onBack={() => { setOnlineSetupProvider(null); setShowOnlineChooser(true); }}
+            onBack={() => {
+              setShowOnlineChooser(false);
+              if (onlineMode === "create") setShowCreateChooser(true);
+              else setShowOpenWhere(true);
+            }}
           />
         ) : showCreateWhere ? (
           <>
@@ -374,74 +354,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
             <button
               onClick={() => { setShowCreateChooser(false); setShowCreateWhere(true); }}
               disabled={creating}
-              className="pv-btn pv-btn--secondary"
-              style={{ width: "100%" }}
-            >
-              {t("splash.back")}
-            </button>
-          </>
-        ) : showOnlineChooser ? (
-          <>
-            <h2 style={{ fontSize: "var(--text-headline)", marginBottom: "0.5rem" }}>
-              {onlineMode === "create" ? t("splash.newVaultOnlineTitle") : t("splash.openOnlineVault")}
-            </h2>
-            <p style={{ color: "var(--text-muted)", marginBottom: "1rem", fontSize: "var(--text-md)" }}>{t("splash.onlineVaultDesc")}</p>
-
-            <div style={{ border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-lg)", padding: "8px 8px 4px", marginBottom: "14px" }}>
-            <ScrollEdge className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "320px", paddingRight: "10px" }}>
-              {onlineProviders.map(({ id, name, desc, Icon, byo }) => (
-                <button
-                  key={id}
-                  onClick={() => handleOnlineProvider(id)}
-                  className="pv-cardhover"
-                  style={{ ...templateCardStyle, flexDirection: "row", alignItems: "center", gap: "11px" }}
-                >
-                  <Icon size={ICON.head} color="var(--accent-color)" style={{ flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: "var(--text-md)", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                      {name}
-                      {byo && (
-                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--warning-text)", background: "var(--warning-bg)", border: "1px solid var(--warning-border)", borderRadius: "var(--radius-pill)", padding: "0 7px", lineHeight: 1.6 }}>
-                          {t("splash.providerByoBadge")}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{byo ? t("splash.providerByoDesc") : desc}</div>
-                  </div>
-                </button>
-              ))}
-            </ScrollEdge>
-            </div>
-
-            {onlineProviders.some((p) => p.byo) && (
-              <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: "2px 2px 14px" }}>
-                {t("splash.byoGuideHint", { defaultValue: "Anleitungen für eigene App-IDs:" })}{" "}
-                {/* Links (not buttons): they leave the app for the handbook,
-                    and the provider CARDS already own the button role here. */}
-                <a
-                  href="#"
-                  onClick={(e) => { e.preventDefault(); void import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl(userGuideUrl(GDRIVE_BYO_GUIDE))); }}
-                  style={{ color: "var(--accent-color)", textDecoration: "underline" }}
-                >
-                  Google Drive
-                </a>
-                {" · "}
-                <a
-                  href="#"
-                  onClick={(e) => { e.preventDefault(); void import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl(userGuideUrl(ONEDRIVE_DROPBOX_BYO_GUIDE))); }}
-                  style={{ color: "var(--accent-color)", textDecoration: "underline" }}
-                >
-                  OneDrive / Dropbox
-                </a>
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                setShowOnlineChooser(false);
-                if (onlineMode === "create") setShowCreateChooser(true);
-                else setShowOpenWhere(true);
-              }}
               className="pv-btn pv-btn--secondary"
               style={{ width: "100%" }}
             >

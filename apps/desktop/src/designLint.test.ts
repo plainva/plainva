@@ -158,7 +158,7 @@ const BUDGET: Record<string, Counts> = {
   "components/NoteDatabasesSection.tsx": {nakedButton:5},
   "components/OkfConversionModal.tsx": {nakedInput:2,rawSpacing:15},
   "components/OkfMigrationModal.tsx": {rawSpacing:6},
-  "components/OnlineVaultSetup.tsx": {nakedInput:13,nakedButton:5,rawSpacing:13},
+  "components/OnlineVaultSetup.tsx": {nakedButton:1},
   "components/OutlineSection.tsx": {nakedButton:1,rawSpacing:3},
   "components/PaneTabStrip.tsx": {rawSpacing:2},
   "components/PropertiesSection.tsx": {nakedButton:1},
@@ -236,7 +236,10 @@ const BUDGET: Record<string, Counts> = {
   "components/security/WorkspaceGovernanceDialog.tsx": {nakedButton:1},
   "components/settings/AppPages.tsx": {nakedInput:5,nakedButton:2,rawSpacing:12},
   "components/settings/CloudAccountsPage.tsx": {nakedButton:1},
-  "components/settings/CloudAccountsWizard.tsx": {nakedButton:7},
+  // The guide and tile links (`.pv-linkbtn`) of the sign-in step moved to the shared
+  // ConnectSignInStep (settings plan 2026-10-29, P5): the wizard drops from 7 to 1.
+  "components/settings/CloudAccountsWizard.tsx": {nakedButton:1},
+  "components/settings/ConnectSignInStep.tsx": {nakedButton:2},
   "components/settings/EncryptionSetupModal.tsx": {nakedInput:3},
   "components/settings/SecurityNav.tsx": {nakedButton:2,rawSpacing:4},
   "components/settings/SettingsNav.tsx": {nakedButton:3,rawSpacing:8},

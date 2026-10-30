@@ -1,48 +1,49 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, CircleAlert, Clock } from "lucide-react";
-import { cancelOAuthLoopback, oauthErrorText } from "../../services/oauthLoopback";
+import { cancelOAuthLoopback } from "../../services/oauthLoopback";
 import {
   Button,
-  TextInput,
   Checkbox,
   Switch,
   SearchField,
   SettingCard,
   SettingCardNote,
-  Banner,
-  isInsecurePublicUrl,
-  foldMachineText,
   SettingRow,
+  TextInput,
   ICON,
   cx,
   FAMILY_SERVICES,
+  CONNECT_PROVIDERS,
   nextcloudEndpoints,
   suiteProvider,
-  MAIL_PRESETS,
-  presetById,
-  presetForEmail,
-  getPlatformServices,
+  foldMachineText,
   serviceConnectionMessage,
-  serviceConnectionFailure,
   WizardSteps,
   type WizardStepItem,
   toast,
+  type AccessFamily,
+  type AccessResolution,
   type CloudAccountRecord,
-  type CloudProviderFamily,
   type CloudServiceId,
-  type MailPreset,
-  type ProviderAuthMode,
+  type ConnectProvider,
+  type DropboxAccessResolution,
+  type StoredOAuthAccess,
   OAuthAccessEditor,
   accessProblemKey,
+  accessSummary,
+  connectAccessPlan,
+  connectFieldsComplete,
+  connectPresetFor,
   plainvaGoogleClient,
+  preselectedServices,
+  searchConnectProviders,
+  serviceUnavailableKey,
+  shortClientId,
+  shownConnectFields,
   SignInNothingGrantedError,
   SignInWrongAccountError,
-  type AccessResolution,
-  type StoredOAuthAccess,
   filesCarrier,
 } from "@plainva/ui";
-import { Select } from "../Select";
 import {
   runConnectSequence,
   bindConnectResult,
@@ -59,11 +60,15 @@ import { AccessUnavailableError, readDeviceAccess, saveDeviceAccess, deviceAcces
 import { loadCloudAccounts } from "../../services/cloudAccounts";
 import { SyncFolderPickerModal } from "../SyncFolderPickerModal";
 import { AccountMark, SERVICE_ICONS, familyLabel, serviceLabel } from "./cloudAccountsShared";
+import { ConnectFieldsCard, ConnectOtherCard, ConnectSummaryCard, ServiceStatusCard, connectValue, failedServiceStatus, type ConnectValues } from "./ConnectSignInStep";
 
 /**
- * The "Konto verbinden" flow (mockup screens 2–3): provider tiles → service
- * checks (the selection drives which permissions get requested) → sign-in with
- * an honest per-service status. Runs inline on the Cloud-Konten page.
+ * The "Konto verbinden" flow: provider → services → sign in → set up → done,
+ * for every provider the same frame (settings plan 2026-10-29, § 5). Only
+ * what the access kind needs differs inside "Sign in" - the browser for
+ * Google, Microsoft and Dropbox, one form for every chosen service of a
+ * provider with credentials, the keys of S3 - and that comes from
+ * `connectAccessPlan`, the description the phone draws too.
  */
 
 interface WizardProps {
@@ -72,74 +77,32 @@ interface WizardProps {
   records: CloudAccountRecord[];
   onDone: (records: CloudAccountRecord[]) => void;
   onCancel: () => void;
-  /** Provider id from the splash deep link — preselects its tile. */
+  /** Provider id from a deep link (the start screen, a sync error) - preselects its tile. */
   initialFamily?: string;
+  /** A side door (calendar, mail) ticks only its own service (E7). */
+  only?: CloudServiceId;
 }
 
-interface ProviderTileDef {
-  key: string;
-  family: CloudProviderFamily;
-  flavor?: "nextcloud";
-}
-
-/** Tiles sorted by real-world reach (maintainer decision 2026-07-20), the
- * generic mechanics (WebDAV/S3/IMAP) at the end. */
-const TILES: ProviderTileDef[] = [
-  { key: "google", family: "google" },
-  { key: "microsoft", family: "microsoft" },
-  { key: "apple", family: "apple" },
-  { key: "yahoo", family: "yahoo" },
-  { key: "dropbox", family: "dropbox" },
-  { key: "aol", family: "aol" },
-  { key: "yandex", family: "yandex" },
-  { key: "mailru", family: "mailru" },
-  { key: "nextcloud", family: "webdav", flavor: "nextcloud" },
-  { key: "zoho", family: "zoho" },
-  { key: "pcloud", family: "pcloud" },
-  { key: "fastmail", family: "fastmail" },
-  { key: "mailboxorg", family: "mailboxorg" },
-  { key: "koofr", family: "koofr" },
-  { key: "webdav", family: "webdav" },
-  { key: "s3", family: "s3" },
-  { key: "imap", family: "imap" },
-];
-
-/** Auth-mode hint line for a preset/suite ("" = plain password, no hint). */
-function authHintText(t: (k: string, o?: Record<string, unknown>) => string, mode: ProviderAuthMode, provider: string): string {
-  if (mode === "app-password") return t("cloudAccounts.hintAppPassword", { provider });
-  if (mode === "auth-code") return t("cloudAccounts.hintAuthCode", { provider });
-  if (mode === "mail-password") return t("cloudAccounts.hintMailPassword", { provider });
-  return "";
-}
+/** Older deep links name the files provider, not the account's. */
+const LEGACY_KEYS: Record<string, string> = { drive: "google", onedrive: "microsoft" };
 
 const SERVICE_ORDER: CloudServiceId[] = ["files", "calendar", "mail"];
 
-export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime, records, onDone, onCancel, initialFamily }) => {
+export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime, records, onDone, onCancel, initialFamily, only }) => {
   const { t } = useTranslation();
-  // A deep link that already names the provider skips the tile grid.
-  const preselected = initialFamily ? (TILES.find((t) => t.key === initialFamily) ?? null) : null;
+  const filesTakenBy = filesCarrier(records);
+  const preselect = (provider: ConnectProvider) => preselectedServices(provider.family, { filesTaken: !!filesTakenBy, calendarAvailable: !!runtime, only });
+  const preselected = initialFamily ? (CONNECT_PROVIDERS.find((p) => p.key === (LEGACY_KEYS[initialFamily] ?? initialFamily)) ?? null) : null;
   const [step, setStep] = useState<1 | 2 | 3>(preselected ? 2 : 1);
   /** Account id of the first successful bind — retries upsert the same record. */
   const boundIdRef = useRef<string | undefined>(undefined);
-  const [tile, setTile] = useState<ProviderTileDef | null>(preselected);
-  const [svc, setSvc] = useState<Record<CloudServiceId, boolean>>({ files: false, calendar: false, mail: false });
-  /**
-   * "Other sign-in" (plan "Verbinden", E5): the own client id, the Dropbox app
-   * key and - only when mail is chosen - Gmail by app password live folded
-   * away; the step shows the one button of the standard sign-in.
-   */
+  const [tile, setTile] = useState<ConnectProvider | null>(preselected);
+  const [svc, setSvc] = useState<Record<CloudServiceId, boolean>>(() => (preselected ? preselect(preselected) : { files: false, calendar: false, mail: false }));
+  /** "Other sign-in": the same disclosure for every provider, holding what that provider has besides its standard way. */
   const [otherOpen, setOtherOpen] = useState(false);
-  const [byoId, setByoId] = useState("");
   /** The person chose Gmail by app password under "Other sign-in". */
   const [gmailByPassword, setGmailByPassword] = useState(false);
-  /** IMAP: the servers behind "Advanced" once the address names a known provider. */
-  const [imapAdvanced, setImapAdvanced] = useState(false);
-  const [wd, setWd] = useState({ base: "", user: "", pass: "", advanced: false, filesUrl: "", caldavUrl: "" });
-  const [s3, setS3] = useState({ endpoint: "", region: "", bucket: "", accessKeyId: "", secretKey: "", prefix: "", pathStyle: true });
-  const [imap, setImap] = useState({ email: "", presetId: "custom", host: "", port: "993", smtpHost: "", smtpPort: "587", pass: "" });
-  /** App-password suite form (catalog providers): ONE credential, endpoints
-   * prefilled from the catalog, editable behind "advanced". */
-  const [suite, setSuite] = useState({ email: "", pass: "", advanced: false, imapHost: "", imapPort: "", smtpHost: "", smtpPort: "", caldavUrl: "", webdavUrl: "" });
+  const [values, setValues] = useState<ConnectValues>({});
   const [query, setQuery] = useState("");
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState<Partial<Record<CloudServiceId, ServiceRunStatus>>>({});
@@ -148,18 +111,15 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
   const [rootFolder, setRootFolder] = useState("");
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   /**
-   * Asked once, right after the files service is connected (K10): the splash
-   * flow always opened the folder picker on connect, this wizard only showed
-   * a "browse" button - which is how "Dropbox never asks for the folder"
-   * came to be reported. Cancelling the picker leaves the button as the way
-   * back; the question is not repeated.
+   * Asked once, right after the files service is connected (K10): cancelling
+   * the picker leaves the button as the way back; the question is not repeated.
    */
   const folderAskedRef = useRef(false);
   /** Read when the calendar step needs it: a runtime captured before a reload is a stopped one. */
   const runtimeRef = useRef(runtime);
   useEffect(() => { runtimeRef.current = runtime; }, [runtime]);
-  /** This device's access for Google/Microsoft (E3); null while it loads. */
-  const [access, setAccess] = useState<AccessResolution | null>(null);
+  /** This device's access for Google, Microsoft and Dropbox (E3, E6); null while it loads. */
+  const [access, setAccess] = useState<AccessResolution | DropboxAccessResolution | null>(null);
   const [storedAccess, setStoredAccess] = useState<StoredOAuthAccess | null>(null);
   /** Set when the sign-in found the account already connected in this vault. */
   const [joinedAccount, setJoinedAccount] = useState<string | null>(null);
@@ -167,145 +127,115 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
   const family = tile?.family ?? null;
   /** Google and Microsoft sign in through the one account sign-in. */
   const accountFamily = family === "google" || family === "microsoft" ? family : null;
+  const accessFamily: AccessFamily | null = accountFamily ?? (family === "dropbox" ? "dropbox" : null);
   useEffect(() => {
-    if (!accountFamily) return;
+    if (!accessFamily) return;
     let alive = true;
     void (async () => {
-      const stored = await readDeviceAccess(accountFamily, vaultPath);
-      const resolved = await deviceAccess(accountFamily, vaultPath);
+      const stored = await readDeviceAccess(accessFamily, vaultPath);
+      const resolved = await deviceAccess(accessFamily, vaultPath);
       if (!alive) return;
       setStoredAccess(stored);
       setAccess(resolved);
       if (!resolved.ok) setOtherOpen(true);
     })();
     return () => { alive = false; };
-  }, [accountFamily, vaultPath]);
+  }, [accessFamily, vaultPath]);
+  const googleAccess = accountFamily === "google" && access?.ok && "mail" in access.access ? access.access : null;
   /** Gmail outside the consent: the access cannot carry mail, so it asks for an app password (E5). */
-  const gmailNeedsPassword = family === "google" && svc.mail && !!access?.ok && !access.access.mail;
+  const gmailNeedsPassword = family === "google" && svc.mail && !!googleAccess && !googleAccess.mail;
   /** Gmail goes by app password: because the access cannot carry mail, or because the person chose it. */
   const gmailPassword = family === "google" && svc.mail && (gmailNeedsPassword || gmailByPassword);
-  const suiteDef = family ? suiteProvider(family) : null;
   const available = family ? FAMILY_SERVICES[family] : [];
-  const filesTakenBy = filesCarrier(records);
   const selected = SERVICE_ORDER.filter((s) => svc[s] && available.includes(s));
   const allDone = selected.length > 0 && selected.every((s) => status[s]?.state === "ok");
+  const needsFolder = !!result.filesProvider && result.filesProvider !== "webdav";
   useEffect(() => {
-    if (!allDone || !result.filesProvider || result.filesProvider === "webdav" || rootFolder || folderAskedRef.current) return;
+    if (!allDone || !needsFolder || rootFolder || folderAskedRef.current) return;
     folderAskedRef.current = true;
     setShowFolderPicker(true);
-  }, [allDone, result.filesProvider, rootFolder]);
+  }, [allDone, needsFolder, rootFolder]);
   const failed = selected.some((s) => status[s]?.state === "error");
+  const providerName = family ? familyLabel(family, tile?.flavor) : "";
+  const preset = family === "imap" ? connectPresetFor(values.mailProvider ?? "custom", values.email ?? "") : null;
+  const plan = family ? connectAccessPlan({ family, flavor: tile?.flavor, services: selected, providerName, preset, gmailByPassword: gmailPassword }) : null;
+  const otherShown = otherOpen || (!!accessFamily && !!access && !access.ok) || gmailNeedsPassword;
+  const fields = plan ? shownConnectFields(plan, otherShown && plan.other?.holds !== "clientId" && plan.other?.holds !== "appKey") : [];
 
-  const pickTile = (def: ProviderTileDef, presetId?: string) => {
+  const pickTile = (def: ConnectProvider, presetId?: string) => {
     setTile(def);
-    const services = FAMILY_SERVICES[def.family];
-    setSvc({
-      files: services.includes("files") && !filesTakenBy,
-      calendar: services.includes("calendar") && !!runtime,
-      mail: services.includes("mail"),
-    });
-    setWd((w) => ({ ...w, advanced: def.family === "webdav" && !def.flavor }));
-    if (def.family === "google") setImap((m) => ({ ...m, presetId: "gmail", host: "imap.gmail.com", port: "993", smtpHost: "smtp.gmail.com", smtpPort: "587" }));
+    setSvc(preselect(def));
+    setOtherOpen(false);
+    setGmailByPassword(false);
+    setAccess(null);
     // A preset hit in the tile search jumps to the mail tile WITH the provider preselected.
-    if (def.family === "imap" && presetId) applyMailPreset(presetId, "");
-    const sd = suiteProvider(def.family);
-    if (sd) {
-      setSuite((s) => ({
-        ...s,
-        advanced: false,
-        imapHost: sd.endpoints.imapHost ?? "",
-        imapPort: sd.endpoints.imapPort ? String(sd.endpoints.imapPort) : "",
-        smtpHost: sd.endpoints.smtpHost ?? "",
-        smtpPort: sd.endpoints.smtpPort ? String(sd.endpoints.smtpPort) : "",
-        caldavUrl: sd.endpoints.caldavUrl ?? "",
-        webdavUrl: sd.endpoints.webdavUrl ?? "",
-      }));
-    }
+    setValues(def.family === "imap" && presetId ? { mailProvider: presetId } : {});
+    setStatus({});
     setStep(2);
   };
 
-  const applyMailPreset = (id: string, email: string) => {
-    const preset = id === "custom" ? presetForEmail(email) : presetById(id);
-    setImap((m) => ({
-      ...m,
-      presetId: preset ? preset.id : "custom",
-      host: preset ? preset.host : m.host,
-      port: preset ? String(preset.port) : m.port,
-      smtpHost: preset ? preset.smtpHost : m.smtpHost,
-      smtpPort: preset ? String(preset.smtpPort) : m.smtpPort,
-    }));
+  const field = (id: keyof ConnectValues) => {
+    const entry = fields.find((f) => f.id === id) ?? plan?.other?.fields.find((f) => f.id === id) ?? plan?.fields.find((f) => f.id === id);
+    return (entry ? connectValue(values, entry) : (values[id] ?? "")).trim();
   };
+  /** Addresses as a machine reads them (lib/machineText.ts): a keyboard set to Japanese or Chinese types full-width forms no server answers to. */
+  const address = (id: keyof ConnectValues) => foldMachineText(field(id));
 
   const buildRequest = (services: CloudServiceId[]): ConnectRequest => {
-    // Addresses as a machine reads them (lib/machineText.ts): a keyboard set to
-    // Japanese or Chinese types full-width forms no server answers to.
-    const endpoints = wd.advanced ? { files: foldMachineText(wd.filesUrl), caldav: foldMachineText(wd.caldavUrl) } : nextcloudEndpoints(foldMachineText(wd.base), wd.user) ?? { files: "", caldav: "" };
-    // Suite families reuse the webdav (files+calendar) and imap (mail) request
-    // shapes — one credential, endpoints from the catalog unless edited.
-    const suiteDav = suiteDef
-      ? {
-          filesUrl: (suite.advanced ? foldMachineText(suite.webdavUrl) : suiteDef.endpoints.webdavUrl) ?? "",
-          caldavUrl: (suite.advanced ? foldMachineText(suite.caldavUrl) : suiteDef.endpoints.caldavUrl) ?? "",
-          user: suite.email.trim(),
-          pass: suite.pass,
-        }
-      : undefined;
-    const suiteImap =
-      suiteDef && services.includes("mail")
-        ? {
-            email: suite.email.trim(),
-            host: ((suite.advanced ? foldMachineText(suite.imapHost) : suiteDef.endpoints.imapHost) ?? "").trim(),
-            port: (suite.advanced ? Number(suite.imapPort) : suiteDef.endpoints.imapPort) || 993,
-            smtpHost: ((suite.advanced ? foldMachineText(suite.smtpHost) : suiteDef.endpoints.smtpHost) ?? "").trim() || undefined,
-            smtpPort: (suite.advanced ? Number(suite.smtpPort) : suiteDef.endpoints.smtpPort) || undefined,
-            pass: suite.pass,
+    const endpointsOpen = otherShown && plan?.other?.holds === "endpoints";
+    const suite = family ? suiteProvider(family) : null;
+    const secret = values.secret ?? "";
+    let webdav: ConnectRequest["webdav"];
+    if (family === "webdav" && tile?.flavor === "nextcloud" && !endpointsOpen) {
+      const derived = nextcloudEndpoints(address("server"), field("user")) ?? { files: "", caldav: "" };
+      webdav = { filesUrl: derived.files, caldavUrl: derived.caldav, user: field("user"), pass: secret };
+    } else if (family === "webdav") {
+      webdav = { filesUrl: address("filesUrl"), caldavUrl: address("caldavUrl"), user: field("user"), pass: secret };
+    } else if (suite) {
+      // Suites reuse the WebDAV (files + calendar) and IMAP (mail) shapes - one credential, endpoints from the catalog unless opened.
+      webdav = { filesUrl: endpointsOpen ? address("filesUrl") : (suite.endpoints.webdavUrl ?? ""), caldavUrl: endpointsOpen ? address("caldavUrl") : (suite.endpoints.caldavUrl ?? ""), user: field("email"), pass: secret };
+    }
+    const mailByForm = family === "imap" || (family === "google" && services.includes("mail")) || (!!suite && services.includes("mail"));
+    const imap: ConnectRequest["imap"] = mailByForm
+      ? suite && !endpointsOpen
+        ? { email: field("email"), host: suite.endpoints.imapHost ?? "", port: suite.endpoints.imapPort ?? 993, smtpHost: suite.endpoints.smtpHost, smtpPort: suite.endpoints.smtpPort, pass: secret }
+        : {
+            email: field("email"),
+            host: family === "google" ? "imap.gmail.com" : address("imapHost"),
+            port: family === "google" ? 993 : Number(field("imapPort")) || 993,
+            smtpHost: family === "google" ? "smtp.gmail.com" : address("smtpHost") || undefined,
+            smtpPort: family === "google" ? 587 : Number(field("smtpPort")) || undefined,
+            pass: secret,
           }
-        : undefined;
+      : undefined;
     return {
       family: family!,
       flavor: tile?.flavor,
       services,
-      byoClientId: otherOpen ? byoId.trim() || undefined : undefined,
-      webdav: family === "webdav" ? { filesUrl: endpoints.files, caldavUrl: endpoints.caldav, user: wd.user.trim(), pass: wd.pass } : suiteDav,
+      ...(family === "dropbox" && access?.ok ? { dropboxAppKey: access.access.clientId } : {}),
+      webdav,
       s3:
         family === "s3"
           ? {
-              endpoint: foldMachineText(s3.endpoint),
-              region: foldMachineText(s3.region) || "us-east-1",
-              bucket: foldMachineText(s3.bucket),
-              accessKeyId: foldMachineText(s3.accessKeyId),
-              secretAccessKey: s3.secretKey,
-              prefix: s3.prefix.trim() || undefined,
-              forcePathStyle: s3.pathStyle,
+              endpoint: address("endpoint"),
+              region: address("region") || "us-east-1",
+              bucket: address("bucket"),
+              accessKeyId: address("accessKeyId"),
+              secretAccessKey: secret,
+              prefix: field("prefix") || undefined,
+              forcePathStyle: field("pathStyle") !== "off",
             }
           : undefined,
-      imap:
-        suiteImap ??
-        (family === "imap" || (family === "google" && services.includes("mail"))
-          ? {
-              email: imap.email.trim(),
-              host: foldMachineText(imap.host),
-              port: Number(imap.port) || 993,
-              smtpHost: foldMachineText(imap.smtpHost) || undefined,
-              smtpPort: Number(imap.smtpPort) || undefined,
-              pass: imap.pass,
-            }
-          : undefined),
+      imap,
     };
   };
 
-  const providerName = family ? familyLabel(family, tile?.flavor) : "";
-  /** A failure with its sender (plan "Verbinden-Assistent", E7), as the phone's setup says it. */
-  const failedStatus = (err: unknown): ServiceRunStatus => {
-    const view = serviceConnectionFailure(err, t, { provider: providerName, platform: "desktop" });
-    return { state: "error", ...(view.title ? { title: view.title } : {}), detail: view.text, ...(view.raw ? { raw: view.raw } : {}) };
-  };
-
+  const failedStatus = (err: unknown): ServiceRunStatus => failedServiceStatus(err, t, providerName);
   const signInText = (err: unknown): string => {
     if (err instanceof SignInWrongAccountError) return t("cloudAccounts.wrongAccount", { expected: err.expected, actual: err.actual });
     if (err instanceof SignInNothingGrantedError) return t("cloudAccounts.nothingGranted");
     if (err instanceof AccessUnavailableError) return t(accessProblemKey(err.problem));
-    return oauthErrorText(err);
+    return failedStatus(err).detail ?? "";
   };
 
   /**
@@ -321,7 +251,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
         family: accountFamily!,
         ...(boundIdRef.current ? { cardId: boundIdRef.current } : {}),
         add: todo,
-        ...(gmailPassword && todo.includes("mail") ? { mailPassword: { email: imap.email.trim(), pass: imap.pass } } : {}),
+        ...(gmailPassword && todo.includes("mail") ? { mailPassword: { email: field("email"), pass: values.secret ?? "" } } : {}),
       });
       boundIdRef.current = outcome.record.id;
       if (outcome.completed?.joinedExistingCard) setJoinedAccount(outcome.record.label);
@@ -348,15 +278,20 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
         setStatus((prev) => ({ ...prev, calendar: { state: "ok", detail: t("cloudAccounts.calendarsFound", { count: cals.length }) } }));
       }
     } catch (err) {
-      const failed = err instanceof AccessUnavailableError
-          ? { state: "error" as const, title: t("connectRun.notCompleted"), detail: signInText(err) }
-          : failedStatus(err);
-      setStatus((prev) => ({ ...prev, ...Object.fromEntries(todo.map((s) => [s, failed as ServiceRunStatus])) }));
+      const failure = err instanceof AccessUnavailableError || err instanceof SignInWrongAccountError || err instanceof SignInNothingGrantedError
+        ? { state: "error" as const, title: t("connectRun.notCompleted"), detail: signInText(err) }
+        : failedStatus(err);
+      setStatus((prev) => ({ ...prev, ...Object.fromEntries(todo.map((s) => [s, failure as ServiceRunStatus])) }));
     } finally {
       setRunning(false);
     }
   };
 
+  /**
+   * Every other provider: each chosen service connects on its own and says
+   * its own result - a calendar the server turns away no longer stops the
+   * mailbox after it (settings plan § 5.1, step 4).
+   */
   const run = async () => {
     // Retry semantics: only services that are not OK yet run (again).
     const todo = selected.filter((s) => status[s]?.state !== "ok");
@@ -366,39 +301,34 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
     const merged: ConnectResult = { ...result };
     try {
       const req = buildRequest(todo);
-      const res = await runConnectSequence(vaultPath, runtime, req, (service, st) => setStatus((prev) => ({ ...prev, [service]: st })));
+      const res = await runConnectSequence(vaultPath, runtime, req, (service, st) =>
+        setStatus((prev) => ({ ...prev, [service]: st.state === "error" && st.cause !== undefined ? failedStatus(st.cause) : st })),
+      );
       Object.assign(merged, res);
     } catch (err) {
-      const partial = (err as { partialResult?: ConnectResult }).partialResult;
-      if (partial) Object.assign(merged, partial);
-    } finally {
-      setResult(merged);
-      // Bind whatever connected — a half-finished wizard must not lose services.
-      if (merged.filesProvider || merged.pimAccountId || merged.mailAccountId) {
-        try {
-          // Retries keep upserting the SAME record (finding #1: a fresh bind
-          // per attempt minted duplicate accounts over the bound services).
-          const { records: next, accountId } = await bindConnectResult(vaultPath, runtime, buildRequest(selected), merged, boundIdRef.current);
-          boundIdRef.current = accountId;
-          setBound(next);
-          if (merged.filesProvider && merged.filesProvider !== "webdav") {
-            setRootFolder(await getSyncRootFolder(vaultPath, merged.filesProvider));
-          }
-          if (merged.pimAccountId && runtime) {
-            const cals = await runtime.cache.listCalendars(merged.pimAccountId);
-            setStatus((prev) =>
-              prev.calendar?.state === "ok"
-                ? { ...prev, calendar: { state: "ok", detail: t("cloudAccounts.calendarsFound", { count: cals.length }) } }
-                : prev
-            );
-          }
-        } catch (err) {
-          // The shared sentence, never the raw code (finding 2026-09-24).
-          toast.error(oauthErrorText(err));
-        }
-      }
-      setRunning(false);
+      // A request the run could not start: every service it held says why.
+      setStatus((prev) => ({ ...prev, ...Object.fromEntries(todo.map((s) => [s, failedStatus(err)])) }));
     }
+    setResult(merged);
+    // Bind whatever connected — a half-finished wizard must not lose services.
+    if (merged.filesProvider || merged.pimAccountId || merged.mailAccountId) {
+      try {
+        // Retries keep upserting the SAME record (finding #1: a fresh bind
+        // per attempt minted duplicate accounts over the bound services).
+        const { records: next, accountId } = await bindConnectResult(vaultPath, runtime, buildRequest(selected), merged, boundIdRef.current);
+        boundIdRef.current = accountId;
+        setBound(next);
+        if (merged.filesProvider && merged.filesProvider !== "webdav") setRootFolder(await getSyncRootFolder(vaultPath, merged.filesProvider));
+        if (merged.pimAccountId && runtime) {
+          const cals = await runtime.cache.listCalendars(merged.pimAccountId);
+          setStatus((prev) => (prev.calendar?.state === "ok" ? { ...prev, calendar: { state: "ok", detail: t("cloudAccounts.calendarsFound", { count: cals.length }) } } : prev));
+        }
+      } catch (err) {
+        // Storing the account failed after its services connected: every one of them says so, with the sender.
+        setStatus((prev) => ({ ...prev, ...Object.fromEntries(todo.filter((s) => prev[s]?.state === "ok").map((s) => [s, failedStatus(err)])) }));
+      }
+    }
+    setRunning(false);
   };
 
   const finish = () => {
@@ -406,9 +336,15 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
     else onCancel();
   };
 
-  // The steps of the whole way, drawn as the phone's setup draws them (plan
-  // "Verbinden-Assistent", E1); the sign-in is done once every service said its result.
-  const stepState = (n: 1 | 2 | 3) => (step > n || (n === 3 && allDone) ? "done" : step === n ? "active" : "pending") as WizardStepItem["state"];
+  // The steps of the whole way, as the phone's setup draws them: provider,
+  // services, sign in, set up (the folder), done.
+  const setUpDone = allDone && (!needsFolder || !!rootFolder);
+  const stepState = (n: 1 | 2 | 3 | 4 | 5): WizardStepItem["state"] => {
+    if (n <= 2) return step > n ? "done" : step === n ? "active" : "pending";
+    if (n === 3) return allDone ? "done" : step === 3 ? "active" : "pending";
+    if (n === 4) return setUpDone ? "done" : allDone ? "active" : "pending";
+    return setUpDone ? "active" : "pending";
+  };
   const steps = (
     <div style={{ marginBottom: "var(--space-3)" }}>
       <WizardSteps
@@ -417,6 +353,8 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
           { key: "provider", label: tile ? familyLabel(tile.family, tile.flavor) : t("cloudAccounts.stepProvider"), state: stepState(1) },
           { key: "services", label: t("cloudAccounts.stepServices"), state: stepState(2) },
           { key: "signin", label: t("cloudAccounts.stepSignIn"), state: stepState(3) },
+          { key: "setup", label: t("connectAccess.stepSetUp"), state: stepState(4) },
+          { key: "done", label: t("cloudAccounts.finish"), state: stepState(5) },
         ]}
       />
     </div>
@@ -424,18 +362,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
 
   /* ---------- step 1: provider tiles ---------- */
   if (step === 1) {
-    const q = query.trim().toLowerCase();
-    // The search also matches IMAP preset providers: typing "Orange" surfaces
-    // the mail tile with the provider preselected on click. A dead-end preset
-    // ("Outlook") surfaces its TARGET tile instead — searching "Outlook" must
-    // land on Microsoft, not on nothing.
-    const presetHit: MailPreset | null = q
-      ? (MAIL_PRESETS.find((p) => p.label.toLowerCase().includes(q) || p.domains.some((d) => d.includes(q))) ?? null)
-      : null;
-    const presetTileKey = presetHit ? (presetHit.useTileInstead ?? "imap") : null;
-    const visible = q
-      ? TILES.filter((def) => familyLabel(def.family, def.flavor).toLowerCase().includes(q) || def.key === presetTileKey)
-      : TILES;
+    const { visible, presetHit, presetKey } = searchConnectProviders(query, (p) => familyLabel(p.family, p.flavor));
     return (
       <div>
         {steps}
@@ -459,7 +386,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
             >
               <AccountMark family={def.family} flavor={def.flavor} small />
               <span className="pv-provtile-name">{familyLabel(def.family, def.flavor)}</span>
-              {def.key === presetTileKey && presetHit && <span className="pv-provtile-hint">{presetHit.label}</span>}
+              {def.key === presetKey && presetHit && <span className="pv-provtile-hint">{presetHit.label}</span>}
               <span className="pv-provtile-caps">
                 {FAMILY_SERVICES[def.family].map((s) => {
                   const Icon = SERVICE_ICONS[s];
@@ -485,13 +412,15 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
       <div>
         {steps}
         <SettingCard>
-          {available.map((service) => {
+          {SERVICE_ORDER.map((service) => {
             const Icon = SERVICE_ICONS[service];
-            const takenByOther = service === "files" && !!filesTakenBy;
-            const needsRuntime = service === "calendar" && !runtime;
-            const disabled = takenByOther || needsRuntime;
+            // What the provider cannot carry stays in the list, off, with the reason (§ 5.1, step 2).
+            const unavailable = serviceUnavailableKey(family, service);
+            const takenByOther = service === "files" && !unavailable && !!filesTakenBy;
+            const needsRuntime = service === "calendar" && !unavailable && !runtime;
+            const disabled = !!unavailable || takenByOther || needsRuntime;
             return (
-              <div key={service} className={cx("pv-svcline", disabled && "is-off")}>
+              <div key={service} className={cx("pv-svcline", disabled && "is-off")} data-testid={`cloudacct-svcline-${service}`}>
                 <span className="pv-svcline-icon">
                   <Icon size={ICON.ui} />
                 </span>
@@ -503,23 +432,25 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
                         {t("cloudAccounts.filesTaken", { account: filesTakenBy!.label || familyLabel(filesTakenBy!.family, filesTakenBy!.flavor) })}
                       </span>
                     )}
-                    {service === "mail" && family === "google" && access?.ok && !access.access.mail && <span className="pv-svcchip pv-svcchip--off">{t("cloudAccounts.appPasswordBadge")}</span>}
+                    {service === "mail" && gmailNeedsPassword && <span className="pv-svcchip pv-svcchip--off">{t("cloudAccounts.appPasswordBadge")}</span>}
                   </div>
                   <div className="pv-svcline-desc">
-                    {takenByOther
-                      ? t("cloudAccounts.filesTakenDetail", { account: filesTakenBy!.label || familyLabel(filesTakenBy!.family, filesTakenBy!.flavor) })
-                      : needsRuntime
-                        ? t("pim.openVaultFirst")
-                        : service === "files"
-                          ? t("cloudAccounts.svcFilesDesc")
-                          : service === "calendar"
-                            ? t("cloudAccounts.svcCalendarDesc")
-                            : t("cloudAccounts.svcMailDesc")}
+                    {unavailable
+                      ? t(unavailable, { provider: providerName })
+                      : takenByOther
+                        ? t("cloudAccounts.filesTakenDetail", { account: filesTakenBy!.label || familyLabel(filesTakenBy!.family, filesTakenBy!.flavor) })
+                        : needsRuntime
+                          ? t("pim.openVaultFirst")
+                          : service === "files"
+                            ? t("cloudAccounts.svcFilesDesc")
+                            : service === "calendar"
+                              ? t("cloudAccounts.svcCalendarDesc")
+                              : t("cloudAccounts.svcMailDesc")}
                   </div>
                 </div>
                 <div className="pv-svcline-ctrl">
                   <Checkbox
-                    checked={svc[service]}
+                    checked={!unavailable && svc[service]}
                     disabled={disabled}
                     onChange={(e) => setSvc((prev) => ({ ...prev, [service]: e.target.checked }))}
                     aria-label={serviceLabel(service)}
@@ -529,8 +460,6 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
               </div>
             );
           })}
-          {gmailNeedsPassword && <SettingCardNote>{t("cloudAccounts.gmailHint")} <Button size="sm" variant="ghost" data-testid="gmail-app-password-link" onClick={() => void getPlatformServices().openExternal(presetById("gmail")!.appPasswordUrl!)}>{t("cloudAccounts.gmailAppPasswordLink")}</Button></SettingCardNote>}
-          {family === "apple" && <SettingCardNote>{t("cloudAccounts.appleNoFiles")}</SettingCardNote>}
           <SettingCardNote>{t("cloudAccounts.servicesHint")}</SettingCardNote>
         </SettingCard>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)", marginTop: "var(--space-3)" }}>
@@ -545,400 +474,88 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
     );
   }
 
-  /* ---------- step 3: sign in / connect ---------- */
-  const endpoints = !wd.advanced ? nextcloudEndpoints(wd.base, wd.user) : null;
-  const oauthFamily = family === "microsoft" || family === "dropbox";
-  const needsImapForm = family === "imap" || gmailPassword;
-  const otherShown = otherOpen || (!!accountFamily && !!access && !access.ok) || gmailNeedsPassword;
-  /** What "Other sign-in" holds for this provider and these services, said folded. */
-  const otherHint = [
-    accountFamily ? t("cloudAccounts.otherSignInClient") : family === "dropbox" ? t("settings.appKey") : null,
-    family === "google" && svc.mail ? t("cloudAccounts.mailByAppPassword") : null,
-  ].filter(Boolean).join(" · ");
-  /** IMAP servers show when the address names no known provider, or on request. */
-  const imapServersShown = family !== "google" && (imapAdvanced || imap.presetId === "custom");
-  const activePreset = needsImapForm && family !== "google" ? presetById(imap.presetId) : null;
-  const connectDisabled =
-    running ||
-    (!!accountFamily && !access?.ok) ||
-    (family === "webdav" && (wd.advanced ? !(svc.files ? wd.filesUrl.trim() : true) || !(svc.calendar ? wd.caldavUrl.trim() : true) : !wd.base.trim()) ) ||
-    (family === "webdav" && (!wd.user.trim() || !wd.pass)) ||
-    (family === "s3" && (!s3.endpoint.trim() || !s3.bucket.trim() || !s3.accessKeyId.trim() || !s3.secretKey)) ||
-    (needsImapForm && (!imap.email.trim() || !imap.host.trim() || !imap.pass)) ||
-    // Dead-end preset: outlook.com IMAP basic auth is gone — the Microsoft tile is the way.
-    !!activePreset?.useTileInstead ||
-    (!!suiteDef &&
-      (!suite.email.trim() ||
-        !suite.pass ||
-        (suite.advanced &&
-          ((svc.files && !suite.webdavUrl.trim()) ||
-            (svc.calendar && !suite.caldavUrl.trim()) ||
-            (svc.mail && !suite.imapHost.trim())))));
+  /* ---------- step 3: sign in, set up, done ---------- */
+  if (!plan || !family) return null;
+  const oauthKind = plan.kind === "oauthDevice" || plan.kind === "oauthAppKey";
+  const headText = oauthKind
+    ? access
+      ? accessSummary(plan, access.ok ? { ok: true, source: access.access.source, id: shortClientId(access.access.clientId) } : { ok: false, problemKey: accessProblemKey(access.problem) })
+      : null
+    : plan.summary;
+  const headLine = headText ? t(headText.key, headText.values) : "";
+  const connectDisabled = running || (oauthKind && !access?.ok) || !connectFieldsComplete(fields, values) || !!plan.useTileInstead;
+  const setValue = (id: keyof ConnectValues, value: string) => setValues((prev) => ({ ...prev, [id]: value }));
 
   return (
     <div>
       {steps}
-      {/* family-specific inputs */}
-      {/* Google and Microsoft: what gets asked, and how - the button below is the action (E5). */}
-      {accountFamily && access && (
-        <SettingCard>
-          <div className="pv-acct-head" data-testid="cloudacct-signin-summary">
-            <AccountMark family={accountFamily} />
-            <div className="pv-acct-who">
-              <div className="pv-acct-name">{selected.map(serviceLabel).join(" · ")}</div>
-              <div className="pv-acct-id">
-                {access.ok
-                  ? access.access.source === "plainva"
-                    ? t("cloudAccounts.standardSignInLine", { provider: familyLabel(accountFamily) })
-                    : t("accountAccess.ownLine", { id: access.access.clientId })
-                  : t(accessProblemKey(access.problem))}
-              </div>
-            </div>
-          </div>
-        </SettingCard>
+      <ConnectSummaryCard family={family} flavor={tile?.flavor} services={selected} line={headLine} />
+      <ConnectFieldsCard
+        plan={plan}
+        fields={fields}
+        values={values}
+        onChange={setValue}
+        disabled={running || allDone}
+        onUseTile={(target) => { const def = CONNECT_PROVIDERS.find((p) => p.family === target); if (def) pickTile(def); }}
+      />
+      {!allDone && <ConnectOtherCard plan={plan} open={otherShown} disabled={running} onToggle={() => setOtherOpen(!otherShown)} />}
+      {!allDone && otherShown && accessFamily && access && (
+        // Its own card, never one inside "Other sign-in" (a card holds rows).
+        <OAuthAccessEditor
+          family={accessFamily}
+          platform="desktop"
+          value={storedAccess}
+          plainvaAvailable={accessFamily !== "google" || !!plainvaGoogleClient(import.meta.env as unknown as Record<string, unknown>, "desktop")}
+          onSave={async (next) => {
+            await saveDeviceAccess(accessFamily, next);
+            setStoredAccess(next);
+            const resolved = await deviceAccess(accessFamily, vaultPath);
+            setAccess(resolved);
+            if (resolved.ok) setOtherOpen(false);
+          }}
+          onCancel={access.ok ? () => setOtherOpen(false) : undefined}
+        />
       )}
-      {(accountFamily || family === "dropbox") && !allDone && (
+      {!allDone && otherShown && family === "google" && svc.mail && (
         <SettingCard>
-          <SettingCardNote>
-            <Button variant="ghost" size="sm" aria-expanded={otherShown} onClick={() => setOtherOpen(!otherShown)} data-testid="cloudacct-other-signin">
-              {t("cloudAccounts.otherSignIn")}
-            </Button>
-            {!otherShown && otherHint && <> · {otherHint}</>}
-          </SettingCardNote>
-          {otherShown && accountFamily && access && (
-            <OAuthAccessEditor
-              family={accountFamily}
-              platform="desktop"
-              value={storedAccess}
-              plainvaAvailable={accountFamily === "microsoft" || !!plainvaGoogleClient(import.meta.env as unknown as Record<string, unknown>, "desktop")}
-              onSave={async (next) => {
-                await saveDeviceAccess(accountFamily, next);
-                setStoredAccess(next);
-                const resolved = await deviceAccess(accountFamily, vaultPath);
-                setAccess(resolved);
-                if (resolved.ok) setOtherOpen(false);
-              }}
-              onCancel={access.ok ? () => setOtherOpen(false) : undefined}
-            />
-          )}
-          {otherShown && family === "dropbox" && (
-            <SettingRow label={t("settings.appKey")} desc={t("cloudAccounts.byoAccountHint")} wide>
-              <TextInput value={byoId} onChange={(e) => setByoId(e.target.value)} placeholder={t("settings.appKey")} data-testid="cloudacct-byo-key" />
-            </SettingRow>
-          )}
-          {otherShown && family === "google" && svc.mail && (
-            <SettingRow label={t("cloudAccounts.mailByAppPassword")} desc={t("cloudAccounts.mailByAppPasswordHint")}>
-              <Switch
-                checked={gmailPassword}
-                disabled={gmailNeedsPassword || running}
-                label={t("cloudAccounts.mailByAppPassword")}
-                onChange={setGmailByPassword}
-                testId="cloudacct-gmail-by-password"
-              />
-            </SettingRow>
-          )}
-        </SettingCard>
-      )}
-      {family === "webdav" && (
-        <SettingCard>
-          {[wd.base, wd.filesUrl, wd.caldavUrl].some(isInsecurePublicUrl) && (
-            <SettingCardNote>
-              <Banner kind="warning">{t("settings.insecureUrlWarning")}</Banner>
-            </SettingCardNote>
-          )}
-          {!wd.advanced && (
-            <SettingRow label={t("cloudAccounts.serverAddress")} wide>
-              <TextInput purpose="address" value={wd.base} onChange={(e) => setWd({ ...wd, base: e.target.value })} placeholder="https://cloud.example.com" data-testid="cloudacct-wd-base" />
-            </SettingRow>
-          )}
-          {wd.advanced && svc.files && (
-            <SettingRow label={t("cloudAccounts.endpointFiles")} wide>
-              <TextInput purpose="address" value={wd.filesUrl} onChange={(e) => setWd({ ...wd, filesUrl: e.target.value })} />
-            </SettingRow>
-          )}
-          {wd.advanced && svc.calendar && (
-            <SettingRow label={t("cloudAccounts.endpointCalendar")} wide>
-              <TextInput purpose="address" value={wd.caldavUrl} onChange={(e) => setWd({ ...wd, caldavUrl: e.target.value })} />
-            </SettingRow>
-          )}
-          <SettingRow label={t("settings.username")} wide>
-            <TextInput value={wd.user} onChange={(e) => setWd({ ...wd, user: e.target.value })} data-testid="cloudacct-wd-user" />
-          </SettingRow>
-          <SettingRow label={t("pim.davPass")} wide>
-            <TextInput type="password" value={wd.pass} onChange={(e) => setWd({ ...wd, pass: e.target.value })} data-testid="cloudacct-wd-pass" />
-          </SettingRow>
-          {!wd.advanced && endpoints && (
-            <>
-              {svc.files && (
-                <div className="pv-svcstat pv-svcstat--ok">
-                  <span className="pv-svcstat-icon"><Check size={ICON.ui} /></span>
-                  <div className="pv-svcstat-main">
-                    <div className="pv-svcstat-label">{t("cloudAccounts.endpointFiles")}</div>
-                    <div className="pv-svcstat-sub">{t("cloudAccounts.endpointAuto")}</div>
-                  </div>
-                </div>
-              )}
-              {svc.calendar && (
-                <div className="pv-svcstat pv-svcstat--ok">
-                  <span className="pv-svcstat-icon"><Check size={ICON.ui} /></span>
-                  <div className="pv-svcstat-main">
-                    <div className="pv-svcstat-label">{t("cloudAccounts.endpointCalendar")}</div>
-                    <div className="pv-svcstat-sub">{t("cloudAccounts.endpointAuto")}</div>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-          <SettingCardNote>
-            <button type="button" className="pv-linkbtn" onClick={() => setWd({ ...wd, advanced: !wd.advanced })}>
-              {wd.advanced ? t("cloudAccounts.simpleEndpoints") : t("cloudAccounts.advancedEndpoints")}
-            </button>
-          </SettingCardNote>
-        </SettingCard>
-      )}
-      {suiteDef && (
-        <SettingCard>
-          <SettingRow label={t("mail.emailAddress")} wide>
-            <TextInput value={suite.email} onChange={(e) => setSuite({ ...suite, email: e.target.value })} data-testid="cloudacct-suite-email" />
-          </SettingRow>
-          <SettingRow label={t("pim.davPass")} wide>
-            <TextInput type="password" value={suite.pass} onChange={(e) => setSuite({ ...suite, pass: e.target.value })} data-testid="cloudacct-suite-pass" />
-          </SettingRow>
-          {suite.advanced && svc.files && (
-            <SettingRow label={t("cloudAccounts.endpointFiles")} wide>
-              <TextInput purpose="address" value={suite.webdavUrl} onChange={(e) => setSuite({ ...suite, webdavUrl: e.target.value })} />
-            </SettingRow>
-          )}
-          {suite.advanced && svc.calendar && (
-            <SettingRow label={t("cloudAccounts.endpointCalendar")} wide>
-              <TextInput purpose="address" value={suite.caldavUrl} onChange={(e) => setSuite({ ...suite, caldavUrl: e.target.value })} />
-            </SettingRow>
-          )}
-          {suite.advanced && svc.mail && (
-            <>
-              <SettingRow label={t("cloudAccounts.imapHost")} wide>
-                <TextInput purpose="address" value={suite.imapHost} onChange={(e) => setSuite({ ...suite, imapHost: e.target.value })} />
-              </SettingRow>
-              <SettingRow label={t("mail.imapPort")}>
-                <TextInput value={suite.imapPort} onChange={(e) => setSuite({ ...suite, imapPort: e.target.value })} style={{ width: 90 }} />
-              </SettingRow>
-              <SettingRow label={t("cloudAccounts.smtpHost")} wide>
-                <TextInput purpose="address" value={suite.smtpHost} onChange={(e) => setSuite({ ...suite, smtpHost: e.target.value })} />
-              </SettingRow>
-              <SettingRow label={t("mail.smtpPort")}>
-                <TextInput value={suite.smtpPort} onChange={(e) => setSuite({ ...suite, smtpPort: e.target.value })} style={{ width: 90 }} />
-              </SettingRow>
-            </>
-          )}
-          {!suite.advanced &&
-            selected.map((service) => (
-              <div key={service} className="pv-svcstat pv-svcstat--ok">
-                <span className="pv-svcstat-icon"><Check size={ICON.ui} /></span>
-                <div className="pv-svcstat-main">
-                  <div className="pv-svcstat-label">{serviceLabel(service)}</div>
-                  <div className="pv-svcstat-sub">{t("cloudAccounts.endpointAuto")}</div>
-                </div>
-              </div>
-            ))}
-          {authHintText(t, suiteDef.authMode, familyLabel(family!)) && (
-            <SettingCardNote>{authHintText(t, suiteDef.authMode, familyLabel(family!))}</SettingCardNote>
-          )}
-          <SettingCardNote>
-            <button type="button" className="pv-linkbtn" onClick={() => void getPlatformServices().openExternal(suiteDef.helpUrl)}>
-              {t("cloudAccounts.providerHelp", { provider: familyLabel(family!) })}
-            </button>
-          </SettingCardNote>
-          <SettingCardNote>
-            <button type="button" className="pv-linkbtn" onClick={() => setSuite({ ...suite, advanced: !suite.advanced })}>
-              {suite.advanced ? t("cloudAccounts.simpleEndpoints") : t("cloudAccounts.advancedEndpoints")}
-            </button>
-          </SettingCardNote>
-        </SettingCard>
-      )}
-      {family === "s3" && (
-        <SettingCard>
-          {isInsecurePublicUrl(s3.endpoint) && (
-            <SettingCardNote>
-              <Banner kind="warning">{t("settings.insecureUrlWarning")}</Banner>
-            </SettingCardNote>
-          )}
-          <SettingRow label={t("settings.s3Endpoint")} wide>
-            <TextInput purpose="address" value={s3.endpoint} onChange={(e) => setS3({ ...s3, endpoint: e.target.value })} />
-          </SettingRow>
-          <SettingRow label={t("settings.s3Bucket")} wide>
-            <TextInput purpose="address" value={s3.bucket} onChange={(e) => setS3({ ...s3, bucket: e.target.value })} />
-          </SettingRow>
-          <SettingRow label={t("settings.s3Region")} wide>
-            <TextInput purpose="address" value={s3.region} onChange={(e) => setS3({ ...s3, region: e.target.value })} />
-          </SettingRow>
-          <SettingRow label={t("settings.s3AccessKeyId")} wide>
-            <TextInput purpose="secret" value={s3.accessKeyId} onChange={(e) => setS3({ ...s3, accessKeyId: e.target.value })} />
-          </SettingRow>
-          <SettingRow label={t("settings.s3SecretAccessKey")} wide>
-            <TextInput type="password" value={s3.secretKey} onChange={(e) => setS3({ ...s3, secretKey: e.target.value })} />
-          </SettingRow>
-          <SettingRow label={t("settings.s3Prefix")} wide>
-            <TextInput value={s3.prefix} onChange={(e) => setS3({ ...s3, prefix: e.target.value })} />
-          </SettingRow>
-          <SettingRow label={t("settings.s3PathStyle")}>
-            <Checkbox checked={s3.pathStyle} onChange={(e) => setS3({ ...s3, pathStyle: e.target.checked })} aria-label={t("settings.s3PathStyle")} />
-          </SettingRow>
-        </SettingCard>
-      )}
-      {needsImapForm && (
-        <SettingCard>
-          <SettingRow label={t("mail.emailAddress")} wide>
-            <TextInput
-              value={imap.email}
-              onChange={(e) => {
-                const email = e.target.value;
-                setImap((m) => ({ ...m, email }));
-                if (family !== "google") applyMailPreset("custom", email);
-              }}
-              data-testid="cloudacct-imap-email"
+          <SettingRow label={t("cloudAccounts.mailByAppPassword")} desc={t("cloudAccounts.mailByAppPasswordHint")}>
+            <Switch
+              checked={gmailPassword}
+              disabled={gmailNeedsPassword || running}
+              label={t("cloudAccounts.mailByAppPassword")}
+              onChange={setGmailByPassword}
+              testId="cloudacct-gmail-by-password"
             />
           </SettingRow>
-          {imapServersShown && (
-            <SettingRow label={t("mail.provider")}>
-              <Select
-                value={imap.presetId}
-                onChange={(v) => applyMailPreset(v, imap.email)}
-                options={[...MAIL_PRESETS.map((p) => ({ value: p.id, label: p.label })), { value: "custom", label: t("mail.customProvider") }]}
-                ariaLabel={t("mail.provider")}
-              />
-            </SettingRow>
-          )}
-          {imapServersShown && (
-            <>
-              <SettingRow label={t("cloudAccounts.imapHost")} wide>
-                <TextInput purpose="address" value={imap.host} onChange={(e) => setImap({ ...imap, host: e.target.value })} />
-              </SettingRow>
-              <SettingRow label={t("mail.imapPort")}>
-                <TextInput value={imap.port} onChange={(e) => setImap({ ...imap, port: e.target.value })} style={{ width: 90 }} />
-              </SettingRow>
-              <SettingRow label={t("cloudAccounts.smtpHost")} wide>
-                <TextInput purpose="address" value={imap.smtpHost} onChange={(e) => setImap({ ...imap, smtpHost: e.target.value })} />
-              </SettingRow>
-              <SettingRow label={t("mail.smtpPort")}>
-                <TextInput value={imap.smtpPort} onChange={(e) => setImap({ ...imap, smtpPort: e.target.value })} style={{ width: 90 }} />
-              </SettingRow>
-            </>
-          )}
-          <SettingRow label={t("pim.davPass")} wide>
-            <TextInput type="password" value={imap.pass} onChange={(e) => setImap({ ...imap, pass: e.target.value })} data-testid="cloudacct-imap-pass" />
-          </SettingRow>
-          {family !== "google" && imap.presetId !== "custom" && (
-            <SettingCardNote>
-              <button type="button" className="pv-linkbtn" onClick={() => setImapAdvanced(!imapAdvanced)} data-testid="cloudacct-imap-advanced">
-                {imapAdvanced ? t("cloudAccounts.simpleEndpoints") : t("cloudAccounts.advancedEndpoints")}
-              </button>
-            </SettingCardNote>
-          )}
-          {family === "google" && <SettingCardNote>{t("cloudAccounts.gmailHint")} <Button size="sm" variant="ghost" data-testid="gmail-app-password-link" onClick={() => void getPlatformServices().openExternal(presetById("gmail")!.appPasswordUrl!)}>{t("cloudAccounts.gmailAppPasswordLink")}</Button></SettingCardNote>}
-          {activePreset?.useTileInstead && (
-            <SettingCardNote>
-              {t("cloudAccounts.presetUseMicrosoft")}{" "}
-              <button
-                type="button"
-                className="pv-linkbtn"
-                onClick={() => pickTile(TILES.find((d) => d.key === "microsoft")!)}
-                data-testid="cloudacct-open-microsoft"
-              >
-                {t("cloudAccounts.presetOpenMicrosoft")}
-              </button>
-            </SettingCardNote>
-          )}
-          {activePreset && !activePreset.useTileInstead && (
-            <>
-              {activePreset.bridge && <SettingCardNote>{t("cloudAccounts.hintBridge")}</SettingCardNote>}
-              {!activePreset.bridge && authHintText(t, activePreset.authMode, activePreset.label) && (
-                <SettingCardNote>{authHintText(t, activePreset.authMode, activePreset.label)}</SettingCardNote>
-              )}
-              {activePreset.enableHint && (
-                <SettingCardNote>{t("cloudAccounts.hintEnableFirst", { provider: activePreset.label })}</SettingCardNote>
-              )}
-              {activePreset.helpUrl && (
-                <SettingCardNote>
-                  <button
-                    type="button"
-                    className="pv-linkbtn"
-                    onClick={() => void getPlatformServices().openExternal(activePreset.helpUrl!)}
-                  >
-                    {t("cloudAccounts.providerHelp", { provider: activePreset.label })}
-                  </button>
-                </SettingCardNote>
-              )}
-            </>
-          )}
         </SettingCard>
       )}
 
-      {/* per-service status */}
-      {selected.length > 0 && (
-        <SettingCard className="pv-setgroup">
-          {selected.map((service) => {
-            const st = status[service];
-            const kind = st?.state === "ok" ? "ok" : st?.state === "error" ? "err" : "wait";
-            const Icon = kind === "ok" ? Check : kind === "err" ? CircleAlert : Clock;
-            return (
-              <div key={service} className={`pv-svcstat pv-svcstat--${kind}`} data-testid={`cloudacct-status-${service}`}>
-                <span className="pv-svcstat-icon">
-                  <Icon size={ICON.ui} />
-                </span>
-                <span className="pv-svcstat-label">{serviceLabel(service)}</span>
-                <span className="pv-svcstat-sub">
-                  {st?.state === "error" && st.title && <strong>{st.title}: </strong>}
-                  {st?.state === "ok"
-                    ? (st.detail ?? t("cloudAccounts.statusConnected"))
-                    : st?.state === "error"
-                      ? st.detail
-                      : st?.state === "pending"
-                        ? t("pim.connecting")
-                        : t("cloudAccounts.statusWaiting")}
-                  {st?.state === "error" && st.raw && <code className="pv-svcstat-raw">{st.raw}</code>}
-                </span>
-              </div>
-            );
-          })}
-          {allDone && result.filesProvider === "webdav" && <SettingCardNote>{t("cloudAccounts.cloudFolderInUrl")}</SettingCardNote>}
-          {allDone && result.filesProvider && result.filesProvider !== "webdav" && (
-            <SettingRow label={t("cloudAccounts.cloudFolder")} desc={t("cloudAccounts.cloudFolderHint")}>
-              <TextInput value={rootFolder} readOnly style={{ width: 160 }} />
-              <Button variant="secondary" onClick={() => setShowFolderPicker(true)} data-testid="cloudacct-choose-folder">
-                {t("connectRun.chooseFolder")}
-              </Button>
-            </SettingRow>
-          )}
-          {allDone && svc.calendar && <SettingCardNote>{t("cloudAccounts.calendarNext")}</SettingCardNote>}
-          {joinedAccount && <SettingCardNote><span data-testid="cloudacct-joined">{t("cloudAccounts.joinedExisting", { account: joinedAccount })}</span></SettingCardNote>}
-        </SettingCard>
-      )}
+      <ServiceStatusCard services={selected} status={status} waitingKey={plan.waitingKey}>
+        {allDone && result.filesProvider === "webdav" && <SettingCardNote>{t("cloudAccounts.cloudFolderInUrl")}</SettingCardNote>}
+        {allDone && needsFolder && (
+          <SettingRow label={t("cloudAccounts.cloudFolder")} desc={t("cloudAccounts.cloudFolderHint")}>
+            <TextInput value={rootFolder} readOnly style={{ width: 160 }} />
+            <Button variant="secondary" onClick={() => setShowFolderPicker(true)} data-testid="cloudacct-choose-folder">
+              {t("connectRun.chooseFolder")}
+            </Button>
+          </SettingRow>
+        )}
+        {allDone && svc.calendar && <SettingCardNote>{t("cloudAccounts.calendarNext")}</SettingCardNote>}
+        {joinedAccount && <SettingCardNote><span data-testid="cloudacct-joined">{t("cloudAccounts.joinedExisting", { account: joinedAccount })}</span></SettingCardNote>}
+      </ServiceStatusCard>
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)", marginTop: "var(--space-3)" }}>
         {/* A running consent can be abandoned in the browser; without this the
             wizard sat on "connecting" for three minutes with no way out
             (N1/S1). Aborting the wait is what "back" means while it runs. */}
         {!allDone && (
-          <Button
-            variant="ghost"
-            onClick={running ? () => void cancelOAuthLoopback() : () => setStep(2)}
-          >
-            {running ? t("common.cancel") : t("cloudAccounts.back")}
+          <Button variant="ghost" onClick={running && oauthKind ? () => void cancelOAuthLoopback() : () => setStep(2)} disabled={running && !oauthKind}>
+            {running && oauthKind ? t("common.cancel") : t("cloudAccounts.back")}
           </Button>
         )}
         {!allDone && (
           <Button variant="primary" disabled={connectDisabled} onClick={() => void run()} data-testid="cloudacct-connect">
-            {running
-              ? t("pim.connecting")
-              : failed
-                ? t("cloudAccounts.retry")
-                : oauthFamily
-                  ? family === "microsoft"
-                    ? t("cloudAccounts.signInMicrosoft")
-                    : t("cloudAccounts.signInDropbox")
-                  : family === "google" && (svc.files || svc.calendar || (svc.mail && !gmailPassword))
-                    ? t("cloudAccounts.signInGoogle")
-                    : t("pim.connect")}
+            {running ? t("pim.connecting") : failed ? t("cloudAccounts.retry") : t(plan.button.key, plan.button.values)}
           </Button>
         )}
         {allDone && (
@@ -948,13 +565,11 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
         )}
       </div>
 
-      {!allDone && <SettingCardNote>{t("cloudAccounts.sequenceHint")}</SettingCardNote>}
-
       {showFolderPicker && result.filesProvider && (
         <SyncFolderPickerModal
           listFolders={(p) => listSyncFoldersFromSlots(vaultPath, result.filesProvider!, p)}
           createFolder={(p) => createSyncFolderFromSlots(vaultPath, result.filesProvider!, p)}
-          rootLabel={familyLabel(family!, tile?.flavor)}
+          rootLabel={providerName}
           allowRoot={result.filesProvider === "s3"}
           onSelect={(picked) => {
             setShowFolderPicker(false);

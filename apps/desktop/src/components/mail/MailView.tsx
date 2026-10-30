@@ -1948,7 +1948,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
           action={
             <Button
               variant="primary"
-              onClick={() => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "cloudAccounts" } }))}
+              onClick={() => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "cloudAccounts", connect: "mail" } }))}
               data-testid="mail-open-settings"
             >
               {t("cloudAccounts.openArea")}

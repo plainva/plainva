@@ -2,6 +2,8 @@ import { isTauri } from "@tauri-apps/api/core";
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import {
   adoptFilesSignIn,
+  adoptedDropboxAccess,
+  resolveDropboxAccess,
   bindSignedInAccount,
   completeSignIn,
   needsConsent,
@@ -14,7 +16,9 @@ import {
   replaceProtectedSlot,
   resolveOAuthAccess,
   validClientId,
+  type AccessFamily,
   type AccessResolution,
+  type DropboxAccessResolution,
   type CloudAccountRecord,
   type CloudServiceId,
   type CompletedSignIn,
@@ -60,7 +64,7 @@ import { slot, legacySlot } from "./keychainSlots";
  */
 
 export class AccessUnavailableError extends Error {
-  constructor(readonly family: OAuthFamily, readonly problem: Exclude<AccessResolution, { ok: true }>["problem"]) {
+  constructor(readonly family: AccessFamily, readonly problem: Exclude<AccessResolution, { ok: true }>["problem"]) {
     super(`No usable ${family} access on this device: ${problem}`);
     this.name = "AccessUnavailableError";
   }
@@ -76,8 +80,9 @@ const env = (): Record<string, unknown> => import.meta.env as unknown as Record<
  * to type a client id again after the update - and writes it as the device's
  * choice, which is from then on the only place it is read from.
  */
-export async function readDeviceAccess(family: OAuthFamily, vaultPath?: string): Promise<StoredOAuthAccess | null> {
+export async function readDeviceAccess(family: AccessFamily, vaultPath?: string): Promise<StoredOAuthAccess | null> {
   const stored = readStoredOAuthAccess(await credentialManager.readSecret<unknown>(oauthAccessKey(family)));
+  if (family === "dropbox") return readDropboxDeviceAccess(stored, vaultPath);
   const replacement = retiredAccessReplacement(family, stored);
   if (replacement) {
     await credentialManager.writeSecret(oauthAccessKey(family), replacement);
@@ -95,12 +100,36 @@ export async function readDeviceAccess(family: OAuthFamily, vaultPath?: string):
   return adopted;
 }
 
-export async function saveDeviceAccess(family: OAuthFamily, access: StoredOAuthAccess): Promise<void> {
+/**
+ * Dropbox's app key became the device's choice (settings plan 2026-10-29,
+ * E6). A device without a choice takes over what this vault's Dropbox
+ * account kept - its own app id, or the key its stored sign-in was made
+ * with - once (`adoptedDropboxAccess`), and keeps it as its choice. The
+ * account's value stays where it was: nothing is lost, and another device
+ * of the vault takes it over the same way.
+ */
+async function readDropboxDeviceAccess(stored: StoredOAuthAccess | null, vaultPath?: string): Promise<StoredOAuthAccess | null> {
+  if (stored || !vaultPath) return stored;
+  const records = await loadCloudAccounts(vaultPath).catch(() => []);
+  const signedIn = await credentialManager.getDropboxCredentials(vaultPath).catch(() => null);
+  const adopted = adoptedDropboxAccess([
+    ...records.filter((record) => record.family === "dropbox").map((record) => record.byoClientId),
+    signedIn?.appKey,
+  ]);
+  if (adopted) await credentialManager.writeSecret(oauthAccessKey("dropbox"), adopted);
+  return adopted;
+}
+
+export async function saveDeviceAccess(family: AccessFamily, access: StoredOAuthAccess): Promise<void> {
   if (access.source === "own" && (!access.clientId || !validClientId(family, access.clientId))) throw new Error("invalid client id");
   await credentialManager.writeSecret(oauthAccessKey(family), access);
 }
 
-export async function deviceAccess(family: OAuthFamily, vaultPath?: string): Promise<AccessResolution> {
+export async function deviceAccess(family: OAuthFamily, vaultPath?: string): Promise<AccessResolution>;
+export async function deviceAccess(family: "dropbox", vaultPath?: string): Promise<DropboxAccessResolution>;
+export async function deviceAccess(family: AccessFamily, vaultPath?: string): Promise<AccessResolution | DropboxAccessResolution>;
+export async function deviceAccess(family: AccessFamily, vaultPath?: string): Promise<AccessResolution | DropboxAccessResolution> {
+  if (family === "dropbox") return resolveDropboxAccess(await readDeviceAccess(family, vaultPath));
   return resolveOAuthAccess(family, "desktop", await readDeviceAccess(family, vaultPath), env());
 }
 

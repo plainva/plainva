@@ -86,9 +86,13 @@ export async function accountSignedInHere(
 
   const calendar = record.services.calendar?.pimAccountId;
   const mail = record.services.mail?.mailAccountId;
-  // A password file account (WebDAV, S3) signs in through the vault's files slot
-  // (plan "Verbinden", V2: its head shows the same one state as every other card).
-  const files = record.services.files?.provider === "webdav" || record.services.files?.provider === "s3" ? record.services.files.provider : null;
+  // A file account of its own (WebDAV, S3, Dropbox) signs in through the vault's
+  // files slot (plan "Verbinden", V2: its head shows the same one state as every
+  // other card). Dropbox was missing, so its card had no state and no "Sign out
+  // on this device" on the desktop while the phone showed both (settings plan
+  // 2026-10-29, § 1.4).
+  const provider = record.services.files?.provider;
+  const files = provider === "webdav" || provider === "s3" || provider === "dropbox" ? provider : null;
   if (calendar && (await read(pimSecretKey(vaultPath, calendar), legacySlot.calendar(vaultPath, calendar)))) return true;
   if (mail && (await read(mailSecretKey(vaultPath, mail), legacySlot.mail(vaultPath, mail)))) return true;
   if (files && (await read(slot.files(vaultPath, files), legacySlot.files(vaultPath, files)))) return true;

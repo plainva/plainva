@@ -74,6 +74,8 @@ interface SettingsModalProps {
   /** Lands Cloud-Konten on this account's detail page (D2): the record id, or
    * the id of the mail/calendar account it owns. */
   initialAccountId?: string;
+  /** Opens the connect assistant on Cloud-Konten with this service ticked (E7 of the settings plan). */
+  initialConnect?: CloudServiceId;
 }
 
 const GENERAL = "general";
@@ -91,7 +93,7 @@ const SettingsPage: React.FC<{ active: boolean; children: React.ReactNode }> = (
   </div>
 );
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialProvider, initialArea, initialAccountId }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialProvider, initialArea, initialAccountId, initialConnect }) => {
   const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker, refreshVault, rebuildIndex } = useVault();
   const [reindexRunning, setReindexRunning] = useState(false);
   const [syncQueueSnapshot, setSyncQueueSnapshot] = useState<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> } | null>(null);
@@ -109,7 +111,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [vaultPage, setVaultPage] = useState<string>(() =>
     initialArea && settingsArea(initialArea)?.world === "vault"
       ? initialArea
-      : initialProvider
+      : initialProvider || initialConnect
         ? "cloudAccounts"
         : firstSettingsArea("vault").id
   );
@@ -683,9 +685,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [cloudAccountFocus, setCloudAccountFocus] = useState<{ ref: string; nonce: number; service?: CloudServiceId } | null>(() =>
     initialAccountId ? { ref: initialAccountId, nonce: 1 } : null,
   );
-  /** `service` lands on that service's page of the account (plan "Verbinden", V3). */
+  /** A request for the connect assistant, with the service a side door ticks (E7); the nonce applies each once. */
+  const [connectRequest, setConnectRequest] = useState<{ service?: CloudServiceId; nonce: number } | null>(() => (initialConnect ? { service: initialConnect, nonce: 1 } : null));
+  /**
+   * `service` lands on that service's page of the account (plan "Verbinden", V3);
+   * without an account it opens the connect assistant with that service ticked -
+   * the calendar's and the mail's way in (settings plan 2026-10-29, E7).
+   */
   const openCloudAccounts = (accountRef?: string, service?: CloudServiceId) => {
     if (accountRef) setCloudAccountFocus((prev) => ({ ref: accountRef, nonce: (prev?.nonce ?? 0) + 1, ...(service ? { service } : {}) }));
+    else if (service) setConnectRequest((prev) => ({ service, nonce: (prev?.nonce ?? 0) + 1 }));
     openArea("vault", "cloudAccounts");
   };
   const openArea = (world: SettingsWorld, areaId: string) => {
@@ -865,7 +874,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "cloudAccounts"}>
-                    <CloudAccountsPage selectedVault={selectedVault} initialProvider={initialProvider} focusAccount={cloudAccountFocus} onOpenArea={(areaId) => openArea("vault", areaId)} />
+                    <CloudAccountsPage selectedVault={selectedVault} initialProvider={initialProvider} connectRequest={connectRequest} focusAccount={cloudAccountFocus} onOpenArea={(areaId) => openArea("vault", areaId)} />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "sync"}>
                     <SyncPage

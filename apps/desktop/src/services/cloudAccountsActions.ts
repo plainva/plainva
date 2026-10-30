@@ -73,6 +73,11 @@ export interface ServiceRunStatus {
   title?: string;
   /** The failure's own words, where they say what a diagnosis needs. */
   raw?: string;
+  /**
+   * The failure itself, for a surface that says it with its sender
+   * (`serviceConnectionFailure`) - the services layer has no `t`.
+   */
+  cause?: unknown;
 }
 export type ServiceStatusCb = (service: CloudServiceId, status: ServiceRunStatus) => void;
 
@@ -90,8 +95,11 @@ export interface ConnectRequest {
    * (finding 2026-07-30). Defaults to `services`.
    */
   consentServices?: CloudServiceId[];
-  /** Own app id (Microsoft client id / Google client id / Dropbox app key). */
-  byoClientId?: string;
+  /**
+   * The Dropbox app key this device signs in with (settings plan 2026-10-29,
+   * E6): Plainva's or the device's own - never the account's any more.
+   */
+  dropboxAppKey?: string;
   /** Google OAuth client secret (BYO desktop client, ADR 0006). */
   googleClientSecret?: string;
   webdav?: { filesUrl: string; caldavUrl: string; user: string; pass: string };
@@ -107,6 +115,8 @@ export interface ConnectResult {
   mailAccountId?: string;
   identity?: string;
   verifiedProviderIdentity?: VerifiedProviderIdentity;
+  /** The services that failed, with their failure (`runConnectSequence`). */
+  failed?: Partial<Record<CloudServiceId, unknown>>;
 }
 
 const SERVICE_ORDER: CloudServiceId[] = ["files", "calendar", "mail"];
@@ -131,7 +141,7 @@ export { announceCredentials, holdCredentialsAnnouncements } from "./credentials
 async function connectFiles(vaultPath: string, req: ConnectRequest): Promise<SyncProviderId> {
   switch (req.family) {
     case "dropbox": {
-      const appKey = req.byoClientId?.trim() || PLAINVA_DROPBOX_APP_KEY;
+      const appKey = req.dropboxAppKey?.trim() || await dropboxDeviceKey(vaultPath);
       const existing = await credentialManager.getDropboxCredentials(vaultPath);
       const creds = await authorizeDropbox({ appKey });
       await clearOtherSyncSlots(vaultPath, "dropbox");
@@ -240,9 +250,12 @@ async function connectMail(vaultPath: string, req: ConnectRequest): Promise<{ id
 
 /**
  * Runs the selected services of a password or app-key account (WebDAV, S3,
- * CalDAV, IMAP, the app-password suites, Dropbox) in order. STOPS at the first
- * failure; everything already connected stays connected and is reported
- * through the returned partial result.
+ * CalDAV, IMAP, the app-password suites, Dropbox) in order. Each service
+ * says its own result and a failure does not stop the ones after it
+ * (settings plan 2026-10-29, § 5.1: a calendar the server turns away used to
+ * leave the mailbox after it "waiting" for ever). The failure travels as
+ * `cause` so the surface can name its sender; what connected is returned,
+ * with the failed services in `failed`.
  *
  * Google and Microsoft never come here: they sign in once for every service
  * through `signInCloudAccount` (account sign-in plan K3). This used to run
@@ -277,8 +290,8 @@ export async function runConnectSequence(
       }
       onStatus(service, { state: "ok" });
     } catch (err) {
-      onStatus(service, { state: "error", detail: oauthErrorText(err) });
-      throw Object.assign(err instanceof Error ? err : new Error(String(err)), { partialResult: result });
+      (result.failed ??= {})[service] = err;
+      onStatus(service, { state: "error", detail: oauthErrorText(err), cause: err });
     }
   }
   return result;
@@ -309,7 +322,6 @@ export async function bindConnectResult(
   if (result.filesProvider) record.services.files = { provider: result.filesProvider };
   if (result.pimAccountId) record.services.calendar = { pimAccountId: result.pimAccountId };
   if (result.mailAccountId) record.services.mail = { mailAccountId: result.mailAccountId };
-  if (req.byoClientId?.trim()) record.byoClientId = req.byoClientId.trim();
   if (result.identity && !record.label) record.label = result.identity;
   if (result.verifiedProviderIdentity) {
     record.verifiedProviderIdentity = result.verifiedProviderIdentity;
@@ -354,14 +366,27 @@ export async function rerunAccountAuth(
   onStatus("files", { state: "pending" });
   try {
     const existing = await credentialManager.getDropboxCredentials(vaultPath);
-    const creds = await authorizeDropbox({ appKey: existing?.appKey || record.byoClientId?.trim() || PLAINVA_DROPBOX_APP_KEY });
+    // Signing in again uses this device's choice (E6), like Google and Microsoft.
+    const creds = await authorizeDropbox({ appKey: await dropboxDeviceKey(vaultPath) });
     await credentialManager.saveDropboxCredentials(vaultPath, { ...creds, rootPath: existing?.rootPath });
     announceCredentials(false);
     onStatus("files", { state: "ok" });
   } catch (error) {
-    onStatus("files", { state: "error", detail: oauthErrorText(error) });
+    onStatus("files", { state: "error", detail: oauthErrorText(error), cause: error });
     throw error;
   }
+}
+
+/**
+ * The app key this device signs in to Dropbox with (E6). A choice the
+ * device cannot use (an own key that is gone) is the person's to fix on the
+ * account page or under "Other sign-in" - never a silent fallback.
+ */
+async function dropboxDeviceKey(vaultPath: string): Promise<string> {
+  const { deviceAccess, AccessUnavailableError } = await import("./accountSignIn");
+  const resolved = await deviceAccess("dropbox", vaultPath);
+  if (!resolved.ok) throw new AccessUnavailableError("dropbox", resolved.problem);
+  return resolved.access.clientId;
 }
 
 export { passwordServicesOf } from "@plainva/ui";

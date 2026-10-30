@@ -19,6 +19,8 @@ import { describe, expect, it } from "vitest";
 const SRC = dirname(fileURLToPath(import.meta.url));
 const form = readFileSync(join(SRC, "AddVaultScreen.tsx"), "utf8");
 const desktop = readFileSync(join(SRC, "..", "..", "desktop", "src", "components", "settings", "CloudAccountsWizard.tsx"), "utf8");
+/** The sign-in step both shells draw (settings plan 2026-10-29, P5): its fields, the S3 switch among them. */
+const model = readFileSync(join(SRC, "..", "..", "..", "packages", "ui", "src", "lib", "connectAccess.ts"), "utf8");
 
 /** The `<TextInput … />` whose change handler sets `field`. */
 const input = (field: string) => {
@@ -47,7 +49,8 @@ describe("the phone's sync target form", () => {
   });
 
   it("offers the path-style switch the desktop's form offers", () => {
-    expect(desktop).toContain('t("settings.s3PathStyle")');
+    expect(model).toContain('"settings.s3PathStyle"');
+    expect(desktop).toContain('forcePathStyle: field("pathStyle") !== "off"');
     expect(form).toContain('title={t("settings.s3PathStyle")}');
     expect(form).toContain("setS3({ ...s3, forcePathStyle: on })");
     // On by default, as on the desktop and in the sync target itself.
@@ -55,7 +58,8 @@ describe("the phone's sync target form", () => {
   });
 
   it("the desktop's wizard reads the same fields the same way", () => {
-    for (const field of ["endpoint", "bucket", "accessKeyId"]) expect(desktop).toContain(`${field}: foldMachineText(s3.${field})`);
-    expect(desktop).toContain("foldMachineText(wd.base)");
+    expect(desktop).toContain("const address = (id: keyof ConnectValues) => foldMachineText(field(id));");
+    for (const field of ["endpoint", "bucket", "accessKeyId"]) expect(desktop).toContain(`${field}: address("${field}")`);
+    expect(desktop).toContain('nextcloudEndpoints(address("server")');
   });
 });

@@ -115,7 +115,20 @@ async function wire(page: Page, seed: Seed = {}): Promise<Harness> {
     let pimGone = false;
     const responses = new Map<number, { status: number; url: string; body: string; read: boolean; type?: string }>();
     // A WebDAV server that lets anyone in: an empty folder for every listing.
-    const isDav = (url: string) => url.startsWith('https://dav.example/');
+    const isDav = (url: string) => url.startsWith('https://dav.example/') || url.startsWith('https://webdav.fastmail.com');
+    // Fastmail's calendar turns the app password away: one service fails, the others connect.
+    const isRefusingCalDav = (url: string) => url.startsWith('https://caldav.fastmail.com');
+    // An S3 bucket that lets anyone in, empty.
+    const isS3 = (url: string) => url.startsWith('https://s3.example/');
+    const EMPTY_BUCKET = '<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>plainva</Name><Prefix></Prefix><KeyCount>0</KeyCount><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated></ListBucketResult>';
+    // Dropbox: its token endpoint, an empty folder listing, the account.
+    const dropboxAnswer = (url: string): unknown => {
+      if (url.startsWith('https://api.dropboxapi.com/oauth2/token')) return { access_token: 'dbx-access', refresh_token: 'dbx-refresh', expires_in: 14400, token_type: 'bearer', account_id: 'dbid:anna' };
+      if (url.startsWith('https://api.dropboxapi.com/2/files/list_folder')) return { entries: [], cursor: 'c1', has_more: false };
+      if (url.startsWith('https://api.dropboxapi.com/') || url.startsWith('https://content.dropboxapi.com/')) return { account_id: 'dbid:anna', email: 'anna@dropbox.example', name: { display_name: 'Anna' } };
+      return null;
+    };
+    (window as any).__opened = [] as string[];
     const EMPTY_LISTING = '<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"><d:response><d:href>/files/anna/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>';
     let nextRequest = 1;
     const isProvider = (url: string) => url.startsWith('https://oauth2.googleapis.com/') || url.startsWith('https://openidconnect.googleapis.com/');
@@ -171,8 +184,14 @@ async function wire(page: Page, seed: Seed = {}): Promise<Harness> {
 
         // The consent: the system browser opens on the provider, the loopback
         // receives its redirect.
-        if (cmd === 'oauth_loopback_start') return 51234;
+        // Dropbox listens on its one registered port; the others take any.
+        if (cmd === 'oauth_loopback_start') return args?.port ?? 51234;
         if (cmd === 'plugin:opener|open_url') {
+          (window as any).__opened.push(String(args.url));
+          if (String(args.url).startsWith('https://www.dropbox.com/oauth2/authorize')) {
+            redirect = { code: 'dbx-code', state: new URL(String(args.url)).searchParams.get('state') };
+            return null;
+          }
           redirect = await (window as any).__fakeConsent(String(args.url));
           return null;
         }
@@ -193,7 +212,13 @@ async function wire(page: Page, seed: Seed = {}): Promise<Harness> {
           const cfg = args.clientConfig;
           const id = nextRequest++;
           const body = cfg.data ? new TextDecoder().decode(new Uint8Array(cfg.data)) : '';
-          if (isProvider(cfg.url)) {
+          if (dropboxAnswer(cfg.url)) {
+            responses.set(id, { status: 200, url: cfg.url, body: JSON.stringify(dropboxAnswer(cfg.url)), read: false });
+          } else if (isS3(cfg.url)) {
+            responses.set(id, { status: 200, url: cfg.url, body: EMPTY_BUCKET, read: false, type: 'application/xml' });
+          } else if (isRefusingCalDav(cfg.url)) {
+            responses.set(id, { status: 401, url: cfg.url, body: '', read: false, type: 'text/plain' });
+          } else if (isProvider(cfg.url)) {
             const answer = await (window as any).__fakeFetch(cfg.url, cfg.method, cfg.headers, body);
             responses.set(id, { status: answer.status, url: cfg.url, body: answer.body, read: false });
           } else if (driveAnswer(cfg.url)) {
@@ -423,14 +448,16 @@ test("opening an online vault signs in with this device's access and gives the n
   await page.goto('/');
   await page.getByRole('button', { name: /^(Vault öffnen|Open Vault)$/ }).click();
   await page.getByRole('button', { name: /Online-Vault|Online vault/ }).click();
-  await page.getByRole('button', { name: /Google Drive/ }).click();
+  // The connect assistant's tiles (settings plan 2026-10-29, E7).
+  await page.getByTestId('online-provider-google').click();
 
-  // No client fields: the device's access, here the own client.
-  await expect(page.getByTestId('online-access')).toContainText(CLIENT.clientId);
+  // No client fields: the head names the device's access, here the own client.
+  await expect(page.getByTestId('cloudacct-signin-line')).toContainText('a-test');
   await expect(page.getByPlaceholder('xxxxxxxx.apps.googleusercontent.com')).toHaveCount(0);
 
   harness.choice = { account: ANNA.email };
-  await page.getByRole('button', { name: /^(Verbinden|Connect)$/ }).click();
+  await expect(page.getByTestId('online-connect')).toHaveText(/Bei Google anmelden|Sign in with Google/);
+  await page.getByTestId('online-connect').click();
   // The cloud folder picker opens with the fresh sign-in; the root is fine.
   await page.getByRole('dialog').getByRole('button', { name: /^(Abbrechen|Cancel)$/ }).click();
   await page.getByRole('button', { name: /Lokalen Ordner wählen|Choose local folder and open/ }).click();
@@ -777,4 +804,161 @@ test('connecting files and calendar to a folder with many files goes on before a
     for (let i = 1; i <= 40; i++) if (await invoke('plugin:fs|exists', { path: `/test-vault/Note ${i}.md` })) present++;
     return present;
   }), { timeout: 30_000 }).toBe(40);
+});
+
+/* ---------- every provider through the same sign-in step (settings plan 2026-10-29, P5) ---------- */
+
+/** Light and dark, for the person checking the step by eye. */
+async function evidence(page: Page, testInfo: { outputPath(name: string): string }, name: string) {
+  if (!process.env.PLAINVA_EVIDENCE) return;
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.screenshot({ path: testInfo.outputPath(`${name}-${scheme}.png`) });
+  }
+  await page.emulateMedia({ colorScheme: 'light' });
+}
+
+test('Dropbox signs in like Google: the head, Other sign-in with the app key of this device, Bei Dropbox anmelden', async ({ page }, testInfo) => {
+  await wire(page);
+  const dialog = await openCloudAccounts(page);
+  await dialog.getByTestId('cloudacct-add').click();
+  await dialog.getByTestId('cloudacct-provider-dropbox').click();
+  // All three services listed; what Dropbox cannot carry is off, with its reason.
+  await expect(dialog.getByTestId('cloudacct-svc-files')).toBeChecked();
+  await expect(dialog.getByTestId('cloudacct-svc-mail')).toBeDisabled();
+  await expect(dialog.getByTestId('cloudacct-svcline-mail')).toContainText(/Dropbox/);
+  await dialog.getByTestId('cloudacct-to-signin').click();
+
+  await expect(dialog.getByTestId('cloudacct-signin-line')).toHaveText(/Standard-Anmeldung|Standard sign-in/);
+  await expect(dialog.getByTestId('cloudacct-other-signin')).toBeVisible();
+  await expect(dialog.getByTestId('cloudacct-connect')).toHaveText(/Bei Dropbox anmelden|Sign in with Dropbox/);
+  await expect(dialog.getByTestId('cloudacct-status-files')).toContainText(/wartet auf Anmeldung|waiting for sign-in/);
+  await evidence(page, testInfo, 'dropbox-signin');
+
+  // The own app key, in the editor Google and Microsoft use - for this device.
+  await dialog.getByTestId('cloudacct-other-signin').click();
+  await dialog.getByTestId('oauth-access-dropbox-own').check();
+  await dialog.getByTestId('oauth-access-dropbox-client-id').fill('abcd1234efgh');
+  await evidence(page, testInfo, 'dropbox-other-signin');
+  await dialog.getByTestId('oauth-access-dropbox-save').click();
+  await expect(dialog.getByTestId('cloudacct-signin-line')).toContainText('34efgh');
+  expect(await page.evaluate(() => JSON.parse((window as any).__keychain.get('oauth_access_dropbox')))).toEqual({ source: 'own', clientId: 'abcd1234efgh' });
+
+  await dialog.getByTestId('cloudacct-connect').click();
+  await expect(dialog.getByTestId('cloudacct-status-files')).toContainText(/verbunden|connected/, { timeout: 15_000 });
+  const opened: string[] = await page.evaluate(() => (window as any).__opened);
+  expect(opened.find((url) => url.startsWith('https://www.dropbox.com/oauth2/authorize'))).toContain('client_id=abcd1234efgh');
+  // The folder question follows the sign-in; left for later here.
+  await page.getByRole('dialog').getByRole('button', { name: /^(Abbrechen|Cancel)$/ }).last().click();
+  await expect(dialog.getByTestId('cloudacct-finish')).toBeVisible();
+  const [card] = await cards(page);
+  expect(card).toMatchObject({ family: 'dropbox', services: { files: { provider: 'dropbox' } } });
+  // The key is the device's, never written onto the account any more.
+  expect(card.byoClientId).toBeUndefined();
+});
+
+test('a Dropbox account takes its old app key over onto this device, shows its state and signs out here', async ({ page }, testInfo) => {
+  const card = { id: 'card-dbx', family: 'dropbox', label: 'anna@dropbox.example', byoClientId: 'abcd1234efgh', services: { files: { provider: 'dropbox' } } };
+  await wire(page, { cards: [card], keychain: { [`dropbox_credentials_${vaultKey}`]: JSON.stringify({ appKey: 'abcd1234efgh', refreshToken: 'dbx-refresh' }) } });
+  const dialog = await openCloudAccounts(page);
+  await dialog.getByTestId('cloudacct-row').click();
+  // State and "Sign out on this device", as for every other provider.
+  await expect(dialog.getByTestId('cloudacct-state')).toHaveAttribute('data-state', 'connected');
+  await expect(dialog.getByTestId('cloudacct-signout')).toBeVisible();
+  // The account's key became this device's choice, once.
+  await expect(dialog.getByText(/Eigener App-Key \(|Own app key \(/)).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as any).__keychain.get('oauth_access_dropbox'))).toBe(JSON.stringify({ source: 'own', clientId: 'abcd1234efgh' }));
+  await dialog.getByTestId('cloudacct-access-change').click();
+  await expect(dialog.getByTestId('oauth-access-dropbox')).toBeVisible();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('dropbox-account-page.png'), fullPage: true });
+});
+
+test('Fastmail: one form for all three services, the step to create the app password, a refused calendar does not stop the others', async ({ page }, testInfo) => {
+  await wire(page);
+  const dialog = await openCloudAccounts(page);
+  await dialog.getByTestId('cloudacct-add').click();
+  await dialog.getByTestId('cloudacct-tile-search').fill('Fastmail');
+  await dialog.getByTestId('cloudacct-provider-fastmail').click();
+  await dialog.getByTestId('cloudacct-svc-calendar').check();
+  await expect(dialog.getByTestId('cloudacct-svc-files')).toBeChecked();
+  await expect(dialog.getByTestId('cloudacct-svc-mail')).toBeChecked();
+  await dialog.getByTestId('cloudacct-to-signin').click();
+
+  await expect(dialog.getByTestId('cloudacct-signin-line')).toHaveText(/Ein App-Passwort für alle gewählten Dienste|One app password for every chosen service/);
+  await expect(dialog.getByTestId('connect-step-line')).toContainText('Fastmail');
+  await expect(dialog.getByTestId('cloudacct-other-signin')).toBeVisible();
+  const connect = dialog.getByTestId('cloudacct-connect');
+  await expect(connect).toHaveText(/Mit App-Passwort verbinden|Connect with app password/);
+  await expect(connect).toBeDisabled();
+  await dialog.getByTestId('connect-field-email').fill('anna@fastmail.example');
+  await dialog.getByTestId('connect-field-secret').fill('app-pass');
+  await evidence(page, testInfo, 'fastmail-signin');
+  await connect.click();
+
+  await expect(dialog.getByTestId('cloudacct-status-files')).toHaveAttribute('data-state', 'ok', { timeout: 15_000 });
+  await expect(dialog.getByTestId('cloudacct-status-mail')).toHaveAttribute('data-state', 'ok', { timeout: 15_000 });
+  await expect(dialog.getByTestId('cloudacct-status-calendar')).toHaveAttribute('data-state', 'error');
+  // The failure names its sender.
+  await expect(dialog.getByTestId('cloudacct-status-calendar').locator('strong')).toBeVisible();
+  await expect(connect).toHaveText(/Erneut versuchen|Try again/);
+  await evidence(page, testInfo, 'fastmail-one-refused');
+  // What connected is bound to one card.
+  await expect.poll(async () => (await cards(page)).length).toBe(1);
+  const [card] = await cards(page);
+  expect(card.family).toBe('fastmail');
+  expect(card.services.files).toBeTruthy();
+  expect(card.services.mail).toBeTruthy();
+  expect(card.services.calendar).toBeUndefined();
+});
+
+test('S3: four fields, Advanced holds region, prefix and path style, Verbinden connects', async ({ page }, testInfo) => {
+  await wire(page);
+  const dialog = await openCloudAccounts(page);
+  await dialog.getByTestId('cloudacct-add').click();
+  await dialog.getByTestId('cloudacct-provider-s3').click();
+  await dialog.getByTestId('cloudacct-to-signin').click();
+
+  await expect(dialog.getByTestId('cloudacct-signin-line')).toHaveText(/Zugangsschlüssel Deines Buckets|bucket's access key/);
+  await expect(dialog.getByTestId('connect-field-region')).toHaveCount(0);
+  await expect(dialog.getByTestId('cloudacct-other-signin')).toHaveText(/Erweitert|Advanced/);
+  await dialog.getByTestId('cloudacct-other-signin').click();
+  await expect(dialog.getByTestId('connect-field-region')).toBeVisible();
+  await expect(dialog.getByTestId('connect-field-pathStyle')).toBeChecked();
+  await dialog.getByTestId('connect-field-endpoint').fill('https://s3.example');
+  await dialog.getByTestId('connect-field-bucket').fill('plainva');
+  await dialog.getByTestId('connect-field-accessKeyId').fill('AKIAEXAMPLE');
+  await dialog.getByTestId('connect-field-secret').fill('secret');
+  await expect(dialog.getByTestId('cloudacct-connect')).toHaveText(/^(Verbinden|Connect)$/);
+  await evidence(page, testInfo, 's3-signin');
+  await dialog.getByTestId('cloudacct-connect').click();
+  await expect(dialog.getByTestId('cloudacct-status-files')).toHaveAttribute('data-state', 'ok', { timeout: 15_000 });
+  await page.getByRole('dialog').getByRole('button', { name: /^(Abbrechen|Cancel)$/ }).last().click();
+  const [card] = await cards(page);
+  expect(card).toMatchObject({ family: 's3', services: { files: { provider: 's3' } } });
+});
+
+test('IMAP: the address names the provider and its secret, a wrong password says who refused', async ({ page }, testInfo) => {
+  await wire(page);
+  const dialog = await openCloudAccounts(page);
+  await dialog.getByTestId('cloudacct-add').click();
+  await dialog.getByTestId('cloudacct-tile-search').fill('gmx');
+  await dialog.getByTestId('cloudacct-provider-imap').click();
+  await dialog.getByTestId('cloudacct-to-signin').click();
+
+  await dialog.getByTestId('connect-field-email').fill('anna@gmx.de');
+  // GMX is known: its servers fold under Other sign-in; it takes the normal password.
+  await expect(dialog.getByTestId('connect-field-imapHost')).toHaveCount(0);
+  await expect(dialog.getByTestId('connect-field-secret')).toHaveAttribute('aria-label', /^(Passwort|Password)$/);
+  await expect(dialog.getByTestId('cloudacct-connect')).toHaveText(/Mit Passwort verbinden|Connect with password/);
+  await dialog.getByTestId('connect-field-secret').fill('wrong');
+  await dialog.getByTestId('cloudacct-connect').click();
+  await expect(dialog.getByTestId('cloudacct-status-mail')).toHaveAttribute('data-state', 'error', { timeout: 15_000 });
+  await expect(dialog.getByTestId('cloudacct-status-mail').locator('strong')).toBeVisible();
+  await evidence(page, testInfo, 'imap-refused');
+
+  await dialog.getByTestId('connect-field-secret').fill('right');
+  await dialog.getByTestId('cloudacct-connect').click();
+  await expect(dialog.getByTestId('cloudacct-status-mail')).toHaveAttribute('data-state', 'ok', { timeout: 15_000 });
+  const [card] = await cards(page);
+  expect(card).toMatchObject({ family: 'imap', label: 'anna@gmx.de' });
 });

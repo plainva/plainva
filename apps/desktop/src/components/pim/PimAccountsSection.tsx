@@ -266,7 +266,7 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
             {t("pim.noAccounts", { defaultValue: "Noch keine Kalender-Konten verbunden." })}
           </p>
           {onOpenCloudAccounts && (
-            <Button variant="primary" onClick={() => onOpenCloudAccounts()} data-testid="pim-open-cloudaccounts">
+            <Button variant="primary" onClick={() => onOpenCloudAccounts(undefined, "calendar")} data-testid="pim-open-cloudaccounts">
               {t("cloudAccounts.openArea")}
             </Button>
           )}

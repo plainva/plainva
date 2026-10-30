@@ -2003,30 +2003,25 @@ test('Online vault: chooser lists all providers; picking one opens the in-splash
   await expect(page.getByText(/Wo liegt Dein Vault|Where is your vault/)).toBeVisible();
   await page.getByRole('button', { name: /Online-Vault|Online vault/ }).click();
 
-  // All five providers are offered; WebDAV now runs through the SAME unified
-  // in-splash setup as the other four (E5) — no separate form/picker path.
-  await expect(page.getByRole('button', { name: /OneDrive/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /S3/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Google Drive/ })).toBeVisible();
-  await page.getByRole('button', { name: /WebDAV/ }).click();
-  await expect(page.getByRole('heading', { name: /WebDAV \/ Nextcloud/ })).toBeVisible();
-  await expect(page.getByPlaceholder('https://nextcloud.example.com/remote.php/webdav')).toBeVisible();
-  await page.getByRole('button', { name: /Zurück|Back/ }).click();
+  // The connect assistant (settings plan 2026-10-29, E7): every provider that
+  // can hold files, the suites and Nextcloud included, as the settings' tiles.
+  for (const key of ['google', 'microsoft', 'dropbox', 'nextcloud', 'fastmail', 'webdav', 's3']) {
+    await expect(page.getByTestId(`online-provider-${key}`)).toBeVisible();
+  }
+  await expect(page.getByTestId('online-provider-imap')).toHaveCount(0);
+  await page.getByTestId('online-provider-webdav').click();
+  await expect(page.getByTestId('connect-field-filesUrl')).toBeVisible();
+  await page.getByRole('button', { name: /^(Zurück|Back)$/ }).click();
 
-  // The BYO handbook links sit under the provider grid; Google Drive stays BYO.
-  await expect(page.getByRole('link', { name: 'Google Drive', exact: true })).toBeVisible();
-
-  // Picking Dropbox opens the in-splash setup (CONNECT first), NOT a
-  // deep-link into Settings and NOT a local-folder dialog up front.
-  await page.getByRole('button', { name: /Dropbox/ }).click();
-  await expect(page.getByRole('heading', { name: /Dropbox verbinden|Connect Dropbox/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^(Verbinden|Connect)$/ })).toBeVisible();
+  // Dropbox: the sign-in step in the splash, NOT a deep-link into Settings and
+  // NOT a local-folder dialog up front; the button names the method.
+  await page.getByTestId('online-provider-dropbox').click();
+  await expect(page.getByTestId('online-connect')).toHaveText(/Bei Dropbox anmelden|Sign in with Dropbox/);
   await expect(page.getByRole('dialog', { name: /Einstellungen|Settings/ })).toHaveCount(0);
-  await page.getByRole('button', { name: /Zurück|Back/ }).click();
+  await page.getByRole('button', { name: /^(Zurück|Back)$/ }).click();
 
-  // S3: the credentials form appears right away (endpoint field), before any
-  // local folder dialog — the whole point of the unified flow.
-  await page.getByRole('button', { name: /S3/ }).click();
+  // S3: the keys right away (endpoint field), before any local folder dialog.
+  await page.getByTestId('online-provider-s3').click();
   await expect(page.getByPlaceholder('https://s3.eu-central-1.amazonaws.com')).toBeVisible();
 });
 
@@ -2072,19 +2067,20 @@ for (const occupied of [false, true]) test(`Create vault online: ${occupied ? 'a
   // The provider chooser carries the create-mode title.
   await expect(page.getByRole('heading', { name: /Neuer Vault bei einem Online-Dienst|New vault with an online service/ })).toBeVisible();
 
-  // S3 keeps everything local until the picker (no OAuth loopback needed).
-  await page.getByRole('button', { name: /S3/ }).click();
-  const fields = page.locator('input.pv-field');
-  await fields.nth(0).fill('https://s3.example.com');
-  await fields.nth(1).fill('vaults');
-  await fields.nth(2).fill('auto');
-  await fields.nth(3).fill('AK');
-  await fields.nth(4).fill('SK');
-  await page.getByRole('button', { name: /^(Weiter|Continue)$/ }).click();
+  // S3 keeps everything local until the picker (no OAuth loopback needed);
+  // the region sits under Advanced, as in the settings' assistant.
+  await page.getByTestId('online-provider-s3').click();
+  await page.getByTestId('connect-field-endpoint').fill('https://s3.example.com');
+  await page.getByTestId('connect-field-bucket').fill('vaults');
+  await page.getByTestId('connect-field-accessKeyId').fill('AK');
+  await page.getByTestId('connect-field-secret').fill('SK');
+  await page.getByTestId('cloudacct-other-signin').click();
+  await page.getByTestId('connect-field-region').fill('auto');
+  await page.getByTestId('online-connect').click();
 
   // Dismiss the folder picker and use the bucket root. The creation flow must
   // then check a complete inventory before scaffolding any local files.
-  await expect(page.getByText(/Connected to|verbunden/)).toBeVisible();
+  await expect(page.getByTestId('cloudacct-status-files')).toHaveAttribute('data-state', 'ok');
   await page.keyboard.press('Escape');
   await expect(page.getByText(/\(PARA\)/)).toBeVisible();
 
@@ -2604,7 +2600,8 @@ test('Provider catalog: tile search matches IMAP presets, dead-ends route to Mic
   await tiles.first().click();
   await dialog.getByTestId('cloudacct-to-signin').click();
   // Orange requires an app password — the catalog hint + official guide link show.
-  await expect(dialog.getByText(/App-Passwort|app password/)).toBeVisible();
+  await expect(dialog.getByTestId('connect-field-secret')).toHaveAttribute('aria-label', /App-Passwort|App password/);
+  await expect(dialog.getByTestId('connect-step-line')).toContainText('Orange');
   await expect(dialog.getByRole('button', { name: /Anleitung von Orange|Open the Orange guide/ })).toBeVisible();
 
   // Searching the dead Outlook IMAP preset routes to the MICROSOFT tile
@@ -2634,25 +2631,27 @@ test('Provider catalog: a suite tile connects every service through ONE credenti
   await expect(dialog.getByTestId('cloudacct-svc-mail')).toBeChecked();
   await dialog.getByTestId('cloudacct-to-signin').click();
 
-  // ONE credential form; endpoints derive from the catalog per service.
-  await expect(dialog.getByTestId('cloudacct-suite-email')).toBeVisible();
-  await expect(dialog.getByTestId('cloudacct-suite-pass')).toBeVisible();
-  await expect(dialog.getByText(/Endpunkt automatisch abgeleitet|Endpoint derived automatically/)).toHaveCount(3);
-  await expect(dialog.getByText(/Fastmail verlangt ein App-Passwort|Fastmail requires an app password/)).toBeVisible();
-  // Password mechanics: the connect button is the plain connect label, no OAuth.
+  // ONE credential form; the endpoints come from the catalog and fold under Other sign-in.
+  await expect(dialog.getByTestId('connect-field-email')).toBeVisible();
+  await expect(dialog.getByTestId('connect-field-secret')).toBeVisible();
+  await expect(dialog.getByTestId('connect-field-filesUrl')).toHaveCount(0);
+  await expect(dialog.getByTestId('connect-step-line')).toContainText('Fastmail');
+  // The button names the method.
   const connect = dialog.getByTestId('cloudacct-connect');
-  await expect(connect).toHaveText(/^(Verbinden|Connect)$/);
+  await expect(connect).toHaveText(/Mit App-Passwort verbinden|Connect with app password/);
   await expect(connect).toBeDisabled();
-  await dialog.getByTestId('cloudacct-suite-email').fill('m@fastmail.com');
-  await dialog.getByTestId('cloudacct-suite-pass').fill('app-pass');
+  await dialog.getByTestId('connect-field-email').fill('m@fastmail.com');
+  await dialog.getByTestId('connect-field-secret').fill('app-pass');
   await expect(connect).toBeEnabled();
+  await dialog.getByTestId('cloudacct-other-signin').click();
+  await expect(dialog.getByTestId('connect-field-filesUrl')).toHaveValue('https://webdav.fastmail.com');
 
-  // Apple: files is not offered at all and the tile explains why.
+  // Apple: files stays in the list, off, and says why.
   await dialog.getByRole('button', { name: /^(Zurück|Back)$/ }).click();
   await dialog.getByRole('button', { name: /^(Zurück|Back)$/ }).click();
   await dialog.getByTestId('cloudacct-tile-search').fill('Apple');
   await dialog.getByTestId('cloudacct-provider-apple').click();
-  await expect(dialog.getByTestId('cloudacct-svc-files')).toHaveCount(0);
+  await expect(dialog.getByTestId('cloudacct-svc-files')).toBeDisabled();
   await expect(dialog.getByText(/iCloud Drive/)).toBeVisible();
 });
 

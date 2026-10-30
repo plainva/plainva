@@ -1848,7 +1848,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           action={
             <Button
               variant="primary"
-              onClick={() => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "cloudAccounts" } }))}
+              onClick={() => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "cloudAccounts", connect: "calendar" } }))}
               data-testid="calendar-open-settings"
             >
               {t("cloudAccounts.openArea")}

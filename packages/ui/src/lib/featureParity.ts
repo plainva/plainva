@@ -1399,6 +1399,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-25",
   },
   {
+    id: "connect-credentials-in-memory",
+    title: "The credentials typed while connecting, until the setup ends",
+    area: "sync",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "One form takes the credentials for every chosen service in both shells. " +
+      "The phone's setup runs across screens and survives the app being killed " +
+      "(the browser round trip needs that), but a password must not outlive the " +
+      "run on the disk, so the phone holds what was typed in memory only; a run " +
+      "resumed after the app was killed asks once more in the step that still " +
+      "needs it. The desktop's wizard is one page and never loses them.",
+    verified: "2026-10-30",
+  },
+  {
     id: "connect-metering",
     title: "Consent and queue for metered network work",
     area: "sync",
@@ -1413,20 +1429,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
   },
   {
     id: "connect-run-steps",
-    title: "Account setup after the sign-in, one step per service with Skip",
+    title: "Connecting an account: provider, services, sign in, set up, done",
     area: "sync",
     kind: "decision",
     desktop: "partial",
     desktopReason:
-      "A deliberately different interaction model, not a missing piece (plan " +
-      "Verbinden-Assistent, 2026-10-28). The desktop's connect dialog binds every " +
-      "ticked service on ONE page after the sign-in, each with its status row and " +
-      "the failure's sender; a service is left out by not ticking it or by finishing " +
-      "with it unconnected, so there is no step to skip. The phone pushes one " +
-      "screen per service, where Skip is the way past a step. Both draw the same " +
-      "WizardSteps, names and senders from @plainva/ui.",
+      "The same steps in both shells, only drawn differently (settings plan " +
+      "2026-10-29, P5). Both walk provider > services > sign in > set up > done " +
+      "for every provider and draw the sign-in step from connectAccessPlan: the " +
+      "head, the form of the access kind, Other sign-in at one place, one status " +
+      "line per service with the failure's sender, the button that names the " +
+      "method. The desktop shows sign-in, status and setup on one wizard page, " +
+      "where a service is left out by not ticking it; the phone pushes one screen " +
+      "per step inside its run frame with Skip, because the browser round trip " +
+      "and the vault switch of the files step tear its navigation down.",
     mobile: "yes",
-    verified: "2026-10-28",
+    verified: "2026-10-30",
   },
   {
     id: "external-folder-sync",

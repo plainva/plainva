@@ -116,11 +116,6 @@ function bareChildren(rel: string, text: string): string[] {
  * one more of a listed kind, fails the run.
  */
 const BASELINE: Record<string, number> = {
-  // A card inside a card: the sign-in editor is a SettingCard of its own. Both
-  // files are rebuilt by the connect package of the same plan (P5), which
-  // takes the editor out of the card.
-  "apps/desktop/src/components/settings/CloudAccountsPage.tsx <OAuthAccessEditor>": 1,
-  "apps/desktop/src/components/settings/CloudAccountsWizard.tsx <OAuthAccessEditor>": 1,
 };
 
 function counted(list: readonly string[]): Record<string, number> {
