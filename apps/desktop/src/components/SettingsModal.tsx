@@ -348,7 +348,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       `Plainva ${aboutInfo?.appVersion ?? "dev"} (${formatBuildLine()}) · Tauri ${aboutInfo?.tauriVersion ?? "-"} · WebView ${webViewVersion} · ${aboutInfo?.os ?? "?"} · ${i18n.language}\n\n`
     );
     try {
-      const { openUrl } = await import("@tauri-apps/plugin-opener");
+      const { openExternalUrl: openUrl } = await import("../services/openExternal");
       await openUrl(`https://github.com/plainva/plainva/issues/new?body=${body}`);
     } catch (e) {
       toast.error(String(e));

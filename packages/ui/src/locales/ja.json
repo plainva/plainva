@@ -1492,6 +1492,7 @@
     "conflictSavedMsg": "このファイルは他のプログラムによって変更されており、自動的にマージできませんでした。あなたのバージョンは「{{path}}」として安全に保存されました。元のファイルはそのまま残っています。",
     "linkNotFoundMsg": "Wikiリンクの参照先が見つかりません:\n「{{target}}」\n\nファイルが存在することを確認してください。",
     "openWebLinkErrorMsg": "Webリンクを開けませんでした: {{error}}",
+    "linkSchemeBlocked": "安全のため、このリンクは開きません。Plainva が開くのは Web、メール、電話のリンクだけです。",
     "deleteFailedMsg": "削除に失敗しました: {{error}}",
     "renameLinksFailed": "名前を変更しましたが、リンクの確認と更新ができませんでした。古い名前への参照が残っている可能性があります。",
     "moveBlockedUnsaved": "「{{name}}」は移動していません。未保存の変更を先に保存できなかったためです。テキストは開いたままです。理由: {{error}}",

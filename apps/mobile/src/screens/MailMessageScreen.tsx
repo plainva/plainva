@@ -5,7 +5,6 @@ import { hasEmlWikiLink, updateVaultText } from "@plainva/core";
 import { Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, getPlatformServices, ICON, IconButton, plainvaProducer, toast, useStableHandler, type LinkTarget } from "@plainva/ui";
 import type { ForwardSource, MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
 import { parseUnsubscribe, preferredRoute, mailErrorText } from "@plainva/ui/mail";
-import { Browser } from "@capacitor/browser";
 import {
   applyFrameFit,
   attachMailLinks,
@@ -579,7 +578,7 @@ export function MailMessageScreen({
     const ok = await mConfirm({ title: t("mail.unsubscribe"), message: t("mail.unsubscribeConfirm", { host }) });
     if (!ok) return;
     try {
-      await Browser.open({ url: unsubRoute.target });
+      await getPlatformServices().openExternal(unsubRoute.target);
     } catch {
       toast.error(t("mail.unsubscribeFailed"));
     }

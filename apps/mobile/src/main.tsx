@@ -84,6 +84,7 @@ class FatalBoundary extends React.Component<{ children: React.ReactNode }, { fai
 }
 
 import { getMobileVault, noteSaver } from "./services/vaultService";
+import { openExternalUrl } from "./services/openExternal";
 import { mobileAppVersion } from "./services/mobileWhatsNew";
 
 setPlatformServices({
@@ -101,16 +102,9 @@ setPlatformServices({
   // Small panels opened by shared code (the info button of a setting) open as
   // this shell's sheet rather than as a popover (settings plan 2026-10-29).
   Sheet: PlatformSheet,
-  openExternal: async (url) => {
-    // window.open doesn't reliably reach the system browser inside the
-    // Capacitor WebView; open web links in the in-app browser instead.
-    if (/^https?:\/\//i.test(url)) {
-      const { Browser } = await import("@capacitor/browser");
-      await Browser.open({ url });
-    } else {
-      window.open(url, "_blank", "noopener");
-    }
-  },
+  // The phone's ONE way to hand an address to the system: only web, mail and
+  // phone addresses get through (Sammelplan § 3.138).
+  openExternal: openExternalUrl,
 });
 
 // The mail seam (feinplan G0.1/G1): registered once, before any mail screen

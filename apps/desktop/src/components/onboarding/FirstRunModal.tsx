@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, Button, ICON } from '@plainva/ui';
 import { useTranslation } from 'react-i18next';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { openExternalUrl as openUrl } from '../../services/openExternal';
 import { FileText, Database, Download, FolderOpen, Plus } from 'lucide-react';
 import { userGuideUrl } from '../../services/docsLinks';
 

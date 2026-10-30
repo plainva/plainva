@@ -10,7 +10,7 @@ import { openContextMenu } from '../services/contextMenuStore';
 import { parseHeadings, requestAnchorJump, slugify } from '@plainva/ui';
 import { isWikiTargetResolved, opensOutside } from '@plainva/ui';
 import { useWikiResolver } from '../hooks/useWikiResolver';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { openExternalUrl as openUrl } from '../services/openExternal';
 import { Folder, FileText } from 'lucide-react';
 import { useVault } from '../contexts/VaultContext';
 import { calloutColor, calloutColorKey, calloutLine, calloutTint, calloutIconPath, parseCalloutMarker } from '@plainva/ui';

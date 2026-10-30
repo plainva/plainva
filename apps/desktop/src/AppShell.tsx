@@ -1874,10 +1874,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               void (async () => {
                 try {
                   const content = await vaultAdapter.readTextFile(p);
-                  const [{ buildMailtoUrl }, { markdownToPlainText }, { openUrl }] = await Promise.all([
+                  const [{ buildMailtoUrl }, { markdownToPlainText }, { openExternalUrl: openUrl }] = await Promise.all([
                     import("@plainva/ui/mail"),
                     import("@plainva/ui"),
-                    import("@tauri-apps/plugin-opener"),
+                    import("./services/openExternal"),
                   ]);
                   const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
                   const res = buildMailtoUrl(title, markdownToPlainText(stripFrontmatter(content)), frontmatterToAddress(content) ?? "");

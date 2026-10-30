@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight } from "lucide-react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl as openUrl } from "../../services/openExternal";
 import type { JournalEntry } from "@plainva/core";
 import {
   Button, ICON, JournalDayList, MenuItem, MenuSurface, RowActionList, errorText, journalRowActions, loadImageBlob, localIsoKey, setPendingSearchJump, toast,

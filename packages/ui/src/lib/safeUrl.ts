@@ -6,13 +6,17 @@
  * click-execution; relative, scheme-relative and fragment URLs (which have no
  * scheme) pass through unchanged.
  */
-const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
-const SAFE_SCHEME = /^(?:https?|mailto|tel):/i;
+import { EXTERNAL_SCHEMES, urlAsTheBrowserReadsIt } from "./externalUrl";
+
+const HAS_SCHEME = /^([a-z][a-z0-9+.-]*):/i;
 
 /** Returns `url` if it is safe to use as an href, otherwise undefined (drop the
- * link so a hostile scheme cannot execute on click). */
+ * link so a hostile scheme cannot execute on click). The scheme is read as the
+ * browser reads it — a leading control character or a tab inside
+ * (`java\tscript:`) hid it from the check before (Sammelplan § 3.138) — and
+ * judged by the one allowlist of `externalUrl.ts`. */
 export function safeHref(url: string): string | undefined {
-  const u = url.trim();
-  if (!HAS_SCHEME.test(u)) return url; // relative / #fragment / //host — no scheme to execute
-  return SAFE_SCHEME.test(u) ? url : undefined;
+  const scheme = HAS_SCHEME.exec(urlAsTheBrowserReadsIt(url));
+  if (!scheme) return url; // relative / #fragment / //host — no scheme to execute
+  return EXTERNAL_SCHEMES.includes(`${scheme[1].toLowerCase()}:`) ? url : undefined;
 }

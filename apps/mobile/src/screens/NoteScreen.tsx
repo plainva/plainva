@@ -31,7 +31,6 @@ import {
   Link2,
 } from "lucide-react";
 import { Share } from "@capacitor/share";
-import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
 import { CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, renameBookmarksOnDisk, type KnownFileIdentity, type MissingFileOutcome, type MissingFileSearch } from "@plainva/ui";
@@ -993,7 +992,7 @@ export function NoteScreen({
   const sendViaMailto = () => {
     const res = buildMailtoUrl(title, noteBody());
     if (res.truncated) toast.info(t("mail.mailtoTruncated"));
-    void Browser.open({ url: res.url }).catch(() => toast.error(t("mail.mailtoFailed")));
+    void getPlatformServices().openExternal(res.url).catch(() => toast.error(t("mail.mailtoFailed")));
   };
 
   const composeMail = () => onComposeMail?.({ subject: title, body: noteBody() });

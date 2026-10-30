@@ -1,6 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Button, getLatestWhatsNew, getWhatsNewBlogUrl, WhatsNewIcon } from "@plainva/ui";
-import { Browser } from "@capacitor/browser";
+import { Button, getLatestWhatsNew, getWhatsNewBlogUrl, WhatsNewIcon, getPlatformServices } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 
 /**
@@ -52,7 +51,7 @@ export function WhatsNewSheet({ onClose }: { onClose: () => void }) {
         {blogUrl && (
           <Button
             variant="ghost"
-            onClick={() => void Browser.open({ url: blogUrl }).catch(() => undefined)}
+            onClick={() => void getPlatformServices().openExternal(blogUrl).catch(() => undefined)}
           >
             {t("whatsNew.readBlog")}
           </Button>

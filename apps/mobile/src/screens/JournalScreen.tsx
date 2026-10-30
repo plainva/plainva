@@ -8,8 +8,8 @@ import {
   type JournalShape,
   useJournalActions, useJournalDayKey, useJournalFeed, useWeekStartDay,
   type JournalDay, type JournalRowCaps,
+  getPlatformServices,
 } from "@plainva/ui";
-import { Browser } from "@capacitor/browser";
 import { AppBar } from "../components/AppBar";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { SheetGrip } from "../components/SheetGrip";
@@ -118,7 +118,7 @@ export function JournalScreen({
     onOpenNote: (target: string, _newTab: boolean, kind?: "wiki" | "markdown", fromPath?: string) => {
       void openLink({ text: target, kind: kind ?? "wiki", sourcePath: fromPath }, { vault, onOpenNote }).catch(() => undefined);
     },
-    onOpenUrl: (url: string) => { void Browser.open({ url }).catch(() => undefined); },
+    onOpenUrl: (url: string) => { void getPlatformServices().openExternal(url).catch(() => undefined); },
     onOpenTag: (tag: string) => setFilter((f) => ({ ...f, tag })),
   }), [vault, onOpenNote, setFilter]);
 

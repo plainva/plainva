@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Browser } from "@capacitor/browser";
-import { consumePendingNew } from "@plainva/ui";
+import { consumePendingNew, getPlatformServices } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { Banner, CalendarSyncNotice, errorText, syncProblemsFor, useTaskDuplicates } from "@plainva/ui";
 import type { PimSyncProblem } from "@plainva/core";
@@ -662,7 +661,7 @@ export function TasksScreen({
     onOpenNote: (target: string, _newTab: boolean, kind?: "wiki" | "markdown", fromPath?: string) => {
       void openLink({ text: target, kind: kind ?? "wiki", sourcePath: fromPath }, { vault, onOpenNote }).catch(() => undefined);
     },
-    onOpenUrl: (url: string) => { void Browser.open({ url }).catch(() => undefined); },
+    onOpenUrl: (url: string) => { void getPlatformServices().openExternal(url).catch(() => undefined); },
   }), [vault, onOpenNote]);
   // A link to a note that does not exist yet reads as unresolved, as in the editor.
   const linkLookup = useLinkTargetLookup(vault, bump);

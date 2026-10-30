@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from "react";
-import { asSingleLineValue, Button, GrowingField, IconButton, ICON, PropRow, Rating, tagColorAttrs, useFixedPopover, useOutsidePress, usePropertyValues, PropertyNameInput, type ValueSuggestionLoader, type PropertySuggestionSource } from "@plainva/ui";
+import { asSingleLineValue, Button, contactPropertyHref, GrowingField, IconButton, ICON, PropRow, Rating, tagColorAttrs, useFixedPopover, useOutsidePress, usePropertyValues, PropertyNameInput, type ValueSuggestionLoader, type PropertySuggestionSource } from "@plainva/ui";
 import {
   Type, Hash, CheckSquare, Calendar, Clock, List, Tag, Link2, Mail, Phone, Globe,
   CircleDot, ListChecks, ChevronsUpDown, ChevronDown, X, Plus, Trash2, Search, ExternalLink, Lock, Sigma, Star, MessageSquare,
 } from "lucide-react";
 import { CustomDatePicker } from "./DatePicker";
+import { openExternalUrl } from "../services/openExternal";
 import {
   PropertyType, tagSegments, stripWikiLink, toWikiLink, chipClass, parseWikiLinkValue,
   formatDateValue, filterTagSuggestions, TagSuggestion, CuratedOption, groupOptions,
@@ -59,8 +60,9 @@ export function typeLabel(t: TFn, type: MenuPropertyType): string {
 
 /* ------------------------------------------------------------------ helpers */
 
-function openExternal(href: string) {
-  try { window.open(href, "_blank", "noopener"); } catch { /* webview may block — no-op */ }
+/** A contact value opens through the one sink, which refuses what is no web, mail or phone address (§ 3.138). */
+function openExternal(href: string | null) {
+  if (href) void openExternalUrl(href).catch(() => undefined);
 }
 
 /** Look up a curated option's color/label by value (for the active chip + option rows). */
@@ -104,7 +106,7 @@ export function PlainInput({ value, onChange, type, t, propKey = "", getValueSug
   useEffect(() => setV(String(value ?? "")), [value]);
   const commit = () => { if (v !== String(value ?? "")) onChange(v); onClose?.(); };
   const pick = (next: string) => { setV(next); setOpen(false); onChange(next); onClose?.(); };
-  const href = type === "url" ? v : type === "email" ? `mailto:${v}` : type === "phone" ? `tel:${v}` : "";
+  const href = contactPropertyHref(type, v);
   // One set of keys for both shapes of the field. Enter saves in the growing
   // one too: a cell holds one value, its lines come from wrapping.
   const onFieldKey = (e: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {

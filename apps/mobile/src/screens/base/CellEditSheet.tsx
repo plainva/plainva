@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Check, ExternalLink, MessageSquare } from "lucide-react";
-import { asSingleLineValue, Button, calendarDay, type CuratedOption, DateJumpPicker, dateTimeEditorValue, GrowingField, useShowWeekNumbers, useWeekStartDay, weekNumbersShown, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, Rating, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
+import { asSingleLineValue, Button, calendarDay, contactPropertyHref, type CuratedOption, DateJumpPicker, dateTimeEditorValue, GrowingField, useShowWeekNumbers, useWeekStartDay, weekNumbersShown, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, Rating, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
 import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
 import { ChoiceMark, useChoiceBeat } from "../../components/ChoiceMark";
@@ -358,16 +358,9 @@ export function CellEditSheet({
               <button
                 className="m-row"
                 onClick={() => {
-                  const raw = text.trim();
-                  const href =
-                    input === "email"
-                      ? `mailto:${raw}`
-                      : input === "phone"
-                        ? `tel:${raw}`
-                        : /^[a-z][a-z0-9+.-]*:/i.test(raw)
-                          ? raw
-                          : `https://${raw}`;
-                  void getPlatformServices().openExternal(href);
+                  // The sink refuses what is no web, mail or phone address (§ 3.138).
+                  const href = contactPropertyHref(input, text);
+                  if (href) void getPlatformServices().openExternal(href).catch(() => undefined);
                 }}
               >
                 <ExternalLink size={ICON.head} />

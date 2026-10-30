@@ -30,7 +30,7 @@ import {
   type TaskPriority,
   type TaskRowSheet,
 } from "@plainva/ui";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl as openUrl } from "../../services/openExternal";
 import { useVault } from "../../contexts/VaultContext";
 import { writeTaskNote } from "../../services/taskCompletion";
 import { openLink } from "../../services/openLink";

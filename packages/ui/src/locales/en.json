@@ -1500,6 +1500,7 @@
     "conflictSavedMsg": "The file was modified by another program and could not be merged automatically. Your version was safely saved as '{{path}}'. The original remains untouched.",
     "linkNotFoundMsg": "Wiki-Link target not found:\n\"{{target}}\"\n\nMake sure the file exists.",
     "openWebLinkErrorMsg": "Could not open web link: {{error}}",
+    "linkSchemeBlocked": "This link was not opened for your safety: Plainva only opens web, mail and phone links.",
     "deleteFailedMsg": "Delete failed: {{error}}",
     "renameLinksFailed": "Renamed — but links could not be checked and updated. References to the old name may remain.",
     "moveBlockedUnsaved": "'{{name}}' stays where it is: its unsaved changes could not be saved first, and your text is still open. Reason: {{error}}",

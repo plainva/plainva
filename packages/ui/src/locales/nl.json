@@ -1500,6 +1500,7 @@
     "conflictSavedMsg": "Het bestand is door een ander programma gewijzigd en kon niet automatisch worden samengevoegd. Jouw versie is veilig opgeslagen als '{{path}}'. Het origineel blijft onaangetast.",
     "linkNotFoundMsg": "Wikilink-doel niet gevonden:\n\"{{target}}\"\n\nControleer of het bestand bestaat.",
     "openWebLinkErrorMsg": "Kon de weblink niet openen: {{error}}",
+    "linkSchemeBlocked": "Deze link is om veiligheidsredenen niet geopend: Plainva opent alleen web-, mail- en telefoonlinks.",
     "deleteFailedMsg": "Verwijderen mislukt: {{error}}",
     "renameLinksFailed": "Hernoemd — maar links konden niet worden gecontroleerd en bijgewerkt. Verwijzingen naar de oude naam kunnen blijven bestaan.",
     "moveBlockedUnsaved": "‘{{name}}’ blijft waar het is: de niet-opgeslagen wijzigingen konden niet eerst worden opgeslagen, en je tekst is nog open. Reden: {{error}}",

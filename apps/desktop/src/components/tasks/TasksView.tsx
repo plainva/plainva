@@ -33,7 +33,7 @@ import { formatDueLabel } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { convertDueColumnToDateTime, setDbTaskPriority, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
 import { buildPlanner, doneTasksOnDay, isOpenState, plannerRowsForTree, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, TaskTitle, useTodayKey, type CaptureResult, type InlineLinkHandlers, type PlannerRow } from "@plainva/ui";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl as openUrl } from "../../services/openExternal";
 import { openLink } from "../../services/openLink";
 import { useWikiResolver } from "../../hooks/useWikiResolver";
 import { applyTaskDueChanges, DateJumpPopover, DuePicker, dueTimeOf, offerDueTimeColumn, overdueToDayChanges, TaskCheckButton, taskDueFailureText, taskDueMovedText, useWeekStartDay, type DuePick, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";

@@ -1516,6 +1516,7 @@
     "conflictSavedMsg": "Plik został zmodyfikowany przez inny program i nie udało się automatycznie scalić zmian. Twoja wersja została bezpiecznie zapisana jako '{{path}}'. Oryginał pozostaje nietknięty.",
     "linkNotFoundMsg": "Nie znaleziono celu wikilinku:\n„{{target}}”\n\nUpewnij się, że plik istnieje.",
     "openWebLinkErrorMsg": "Nie udało się otworzyć linku internetowego: {{error}}",
+    "linkSchemeBlocked": "Ten link nie został otwarty ze względów bezpieczeństwa: Plainva otwiera tylko linki internetowe, e-mailowe i telefoniczne.",
     "deleteFailedMsg": "Usuwanie nie powiodło się: {{error}}",
     "renameLinksFailed": "Zmieniono nazwę — ale nie udało się sprawdzić i zaktualizować linków. Odwołania do starej nazwy mogą pozostać.",
     "moveBlockedUnsaved": "„{{name}}” zostaje na miejscu: nie udało się najpierw zapisać niezapisanych zmian, a Twój tekst jest nadal otwarty. Powód: {{error}}",

@@ -1,4 +1,5 @@
 import { explicitLinkPath, isInternalPath, markdownDestinationUrl, markdownLinkPlaces, markdownLinkTarget, type MarkdownLinkAnswer } from "@plainva/core";
+import { externalUrlToOpen } from "./externalUrl";
 import { splitLinkAnchor } from "./linkAnchor";
 import { wikiTargetToPath } from "./wikiResolver";
 
@@ -80,12 +81,9 @@ export interface LinkOpenDeps {
 }
 
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
-/** The schemes a shell hands to the system: the desktop's opener allows these and no other. */
-const OPENS_OUTSIDE = /^(?:https?|mailto|tel):/i;
-
-/** A web, mail or phone address: the only links a click hands to the system. */
+/** A web, mail or phone address: the only links a click hands to the system (the one rule of `externalUrl.ts`). */
 export function opensOutside(url: string): boolean {
-  return OPENS_OUTSIDE.test(url.trim());
+  return externalUrlToOpen(url) !== null;
 }
 
 /**
@@ -150,7 +148,7 @@ export async function planLinkOpen(link: LinkToOpen, deps: LinkOpenDeps): Promis
   }
 
   const url = link.parsed ? link.text : markdownDestinationUrl(link.text);
-  if (SCHEME.test(url)) return OPENS_OUTSIDE.test(url) ? { action: "external", url } : { action: "notFound", target: url };
+  if (SCHEME.test(url)) return opensOutside(url) ? { action: "external", url } : { action: "notFound", target: url };
   const { target, anchor } = markdownLinkTarget(url);
   if (!target) return anchor ? { action: "anchor", anchor } : { action: "notFound", target: url };
 

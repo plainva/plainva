@@ -1508,6 +1508,7 @@
     "conflictSavedMsg": "Le fichier a été modifié par un autre programme et n'a pas pu être fusionné automatiquement. Votre version a été enregistrée en sécurité sous « {{path}} ». L'original reste intact.",
     "linkNotFoundMsg": "Cible du lien wiki introuvable :\n« {{target}} »\n\nAssurez-vous que le fichier existe.",
     "openWebLinkErrorMsg": "Impossible d'ouvrir le lien web : {{error}}",
+    "linkSchemeBlocked": "Ce lien n'a pas été ouvert pour des raisons de sécurité : Plainva n'ouvre que les liens web, e-mail et téléphone.",
     "deleteFailedMsg": "Échec de la suppression : {{error}}",
     "renameLinksFailed": "Renommé — mais les liens n'ont pas pu être vérifiés et mis à jour. Des références à l'ancien nom peuvent subsister.",
     "moveBlockedUnsaved": "« {{name}} » reste où il est : ses modifications non enregistrées n'ont pas pu être enregistrées d'abord, et votre texte est toujours ouvert. Raison : {{error}}",

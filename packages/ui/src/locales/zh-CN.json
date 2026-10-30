@@ -1492,6 +1492,7 @@
     "conflictSavedMsg": "该文件已被其他程序修改，且无法自动合并。你的版本已安全保存为“{{path}}”。原文件保持不变。",
     "linkNotFoundMsg": "未找到Wiki链接目标：\n“{{target}}”\n\n请确认该文件存在。",
     "openWebLinkErrorMsg": "无法打开网页链接：{{error}}",
+    "linkSchemeBlocked": "出于安全考虑，此链接未打开：Plainva 只打开网页、邮件和电话链接。",
     "deleteFailedMsg": "删除失败：{{error}}",
     "renameLinksFailed": "已重命名——但无法检查并更新链接。指向旧名称的引用可能仍然存在。",
     "moveBlockedUnsaved": "“{{name}}”保持原位：未保存的更改无法先行保存，你的文本仍处于打开状态。原因：{{error}}",

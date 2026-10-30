@@ -7,7 +7,7 @@ import "@plainva/ui/styles/ui.css";
 import "@plainva/ui/themes/index.css";
 import App from "./App";
 import { TooltipHost, setPlatformServices, keychainSlotName } from "@plainva/ui";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl } from "./services/openExternal";
 import { getSettingsStore } from "./services/settingsStore";
 import { requestSaveFlush } from "./services/saveFlush";
 import { credentialManager } from "./services/CredentialManager";
@@ -75,7 +75,8 @@ if (isOwnerWindow) {
 setPlatformServices({
   loadSettings: getSettingsStore,
   credentials: credentialManager,
-  openExternal: (url) => openUrl(url),
+  // Only web, mail and phone addresses reach the opener (the shared rule, § 3.138).
+  openExternal: openExternalUrl,
   // Shared write paths wait for the open editor's pending save before they
   // rewrite a file (graph connect, mention linking, …).
   flushPendingSave: (path) => requestSaveFlush(path),

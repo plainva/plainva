@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type ReactElement } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { Browser } from "@capacitor/browser";
 import { resolveTaskOrdinal, setChecklistTaskDone, setChecklistTaskDue } from "@plainva/core";
 import {
   calendarDay,
@@ -17,6 +16,7 @@ import {
   type InlineLinkHandlers,
   type PlannerRow,
   type TaskRowSheet,
+  getPlatformServices,
 } from "@plainva/ui";
 import { TaskDueSheet } from "./TaskDueSheet";
 import { SwipeRow } from "./SwipeRow";
@@ -120,7 +120,7 @@ export function PhoneTasksQuery({ vault, source, notePath, onOpenNote, onEditQue
       void openLink({ text: target, kind: kind ?? "wiki", sourcePath: fromPath }, { vault, onOpenNote }).catch(() => undefined);
     },
     onOpenUrl: (url) => {
-      void Browser.open({ url }).catch(() => undefined);
+      void getPlatformServices().openExternal(url).catch(() => undefined);
     },
   }), [vault, onOpenNote]);
 

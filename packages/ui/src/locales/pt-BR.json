@@ -1508,6 +1508,7 @@
     "conflictSavedMsg": "O arquivo foi modificado por outro programa e não pôde ser mesclado automaticamente. Sua versão foi salva com segurança como '{{path}}'. O original permanece intacto.",
     "linkNotFoundMsg": "Destino do wiki link não encontrado:\n\"{{target}}\"\n\nVerifique se o arquivo existe.",
     "openWebLinkErrorMsg": "Não foi possível abrir o link da web: {{error}}",
+    "linkSchemeBlocked": "Este link não foi aberto por segurança: o Plainva abre apenas links da web, de e-mail e de telefone.",
     "deleteFailedMsg": "Falha ao excluir: {{error}}",
     "renameLinksFailed": "Renomeado — mas os links não puderam ser verificados e atualizados. Referências ao nome antigo podem permanecer.",
     "moveBlockedUnsaved": "“{{name}}” continua onde está: as alterações não salvas não puderam ser salvas antes, e seu texto continua aberto. Motivo: {{error}}",
