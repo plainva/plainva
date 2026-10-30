@@ -554,9 +554,49 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
 const EV_BROADCAST = "pv:broadcast";
 const EV_RPC = "pv:rpc";
 const EV_RPC_REPLY = "pv:rpc-reply";
+/** Owner → caller: "I have your write and am still at it." */
+const EV_RPC_ALIVE = "pv:rpc-alive";
+/** Caller → owner: "I heard nothing for a while — where is my write?" */
+const EV_RPC_ASK = "pv:rpc-ask";
 
 /** How long an aux window waits for the owner before it reports a failure. */
 export const RPC_TIMEOUT_MS = 15_000;
+
+/**
+ * The requests that change something on disk or at a provider (open-items
+ * plan 3.117). For these the deadline measures the OWNER'S SILENCE, not the
+ * write: the owner says "still at it" while the write runs (a write can wait
+ * well past 15 s for the pool's lock behind a full index run, or for another
+ * connection's lock), answers once it landed, and answers again when asked
+ * for a reply that went missing. A write the owner never took still fails
+ * after the short deadline — then nothing was written. One the owner took and
+ * then fell silent on fails with "it may still land" after a second deadline,
+ * never with a plain "failed"; and the bus never sends a write twice.
+ *
+ * Before, a save that took longer than 15 s was "failed" in the window and
+ * landed anyway: the window's editor merged its next save against the old
+ * text (a conflict copy), the quick capture wrote a line a second time.
+ */
+export const RPC_WRITE_KINDS: ReadonlySet<RpcKind> = new Set<RpcKind>([
+  "write",
+  "editor-write",
+  "update-write",
+  "write-binary",
+  "rename",
+  "delete",
+  "mkdir",
+  "conflict-preserve",
+  "conflict-resolve",
+  "conflict-resolve-bytes",
+  "journal-capture",
+  "pim-write",
+]);
+
+/** The longest a caller waits for a write the owner keeps saying it is at — a write that hangs for good. */
+export const RPC_WRITE_CEILING_MS = 10 * 60_000;
+
+/** How long the owner keeps the answer to a write, for a caller whose reply went missing. */
+const RPC_ANSWER_KEEP_MS = 2 * 60_000;
 
 /**
  * The owner-only surfaces, derived from the contract above rather than written
@@ -580,6 +620,8 @@ interface RpcEnvelope {
   /** The vault the CALLER is looking at — this is what picks the runtime. */
   vaultPath: string | null;
   args: unknown;
+  /** A write (`RPC_WRITE_KINDS`): how often the owner says it is still at it. */
+  aliveMs?: number;
 }
 
 interface RpcReply {
@@ -645,11 +687,29 @@ export function createWindowBus(
   vaultPathOf: () => string | null = () => null,
 ): WindowBus {
   const unlisteners: Array<() => void> = [];
-  const pending = new Map<
-    string,
-    { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }
-  >();
+  interface Waiting {
+    resolve: (v: unknown) => void;
+    reject: (e: Error) => void;
+    timer: ReturnType<typeof setTimeout>;
+    /** Writes only: the owner said it has the request. */
+    taken: boolean;
+    /** Writes only: the deadline that runs out on silence (restarted by every "still at it"). */
+    expire?: () => void;
+    ceiling?: ReturnType<typeof setTimeout>;
+  }
+  const pending = new Map<string, Waiting>();
+  /** Writes the caller gave up on — a late answer is said, not swallowed. */
+  const givenUp = new Map<string, string>();
   let replyListener: Promise<void> | null = null;
+
+  const settle = (id: string): Waiting | undefined => {
+    const waiting = pending.get(id);
+    if (!waiting) return undefined;
+    pending.delete(id);
+    clearTimeout(waiting.timer);
+    if (waiting.ceiling !== undefined) clearTimeout(waiting.ceiling);
+    return waiting;
+  };
 
   /**
    * One reply listener per bus, wired on the first request. Doing it eagerly
@@ -657,20 +717,56 @@ export function createWindowBus(
    */
   const ensureReplyListener = () => {
     if (replyListener) return replyListener;
-    replyListener = transport
-      .listen(EV_RPC_REPLY, (raw) => {
+    replyListener = Promise.all([
+      transport.listen(EV_RPC_REPLY, (raw) => {
         const reply = raw as RpcReply;
-        const waiting = pending.get(reply.id);
-        if (!waiting) return;
-        pending.delete(reply.id);
-        clearTimeout(waiting.timer);
+        const waiting = settle(reply.id);
+        if (!waiting) {
+          const kind = givenUp.get(reply.id);
+          if (kind !== undefined) {
+            givenUp.delete(reply.id);
+            console.warn(`[windowBus] "${kind}" answered after the window had given up: ${reply.ok ? "it landed" : reply.error}`);
+          }
+          return;
+        }
         if (reply.ok) waiting.resolve(reply.value);
         else waiting.reject(new Error(reply.error || "window RPC failed"));
+      }),
+      transport.listen(EV_RPC_ALIVE, (raw) => {
+        const waiting = pending.get((raw as { id?: string } | null)?.id ?? "");
+        if (!waiting?.expire) return;
+        waiting.taken = true;
+        clearTimeout(waiting.timer);
+        waiting.timer = setTimeout(waiting.expire, timeoutMs);
+      }),
+    ]).then((uns) => {
+      unlisteners.push(...uns);
+    });
+    return replyListener;
+  };
+
+  // Owner side: the writes being run and the answers given (for a caller that asks again).
+  const running = new Map<string, string>();
+  const answered = new Map<string, RpcReply>();
+  let askListener: Promise<void> | null = null;
+  const ensureAskListener = () => {
+    if (askListener) return askListener;
+    askListener = transport
+      .listen(EV_RPC_ASK, (raw) => {
+        const ask = raw as { id?: string; from?: string } | null;
+        if (!ask?.id || !ask.from) return;
+        if (running.has(ask.id)) {
+          void transport.emitTo(ask.from, EV_RPC_ALIVE, { id: ask.id }).catch(() => {});
+          return;
+        }
+        const reply = answered.get(ask.id);
+        // Not ours, or never received: silence, and the caller's deadline says so.
+        if (reply) void transport.emitTo(ask.from, EV_RPC_REPLY, reply).catch(() => {});
       })
       .then((un) => {
         unlisteners.push(un);
       });
-    return replyListener;
+    return askListener;
   };
 
   return {
@@ -706,13 +802,41 @@ export function createWindowBus(
       await ensureReplyListener();
       rpcCounter += 1;
       const id = `${transport.label}-${rpcCounter}-${Math.random().toString(36).slice(2, 8)}`;
+      const write = RPC_WRITE_KINDS.has(kind);
       const envelope: RpcEnvelope = { from: transport.label, id, kind, vaultPath, args };
+      if (write) envelope.aliveMs = Math.max(1, Math.floor(timeoutMs / 3));
       const result = new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-          pending.delete(id);
+        const waiting: Waiting = { resolve, reject, taken: false, timer: undefined as unknown as ReturnType<typeof setTimeout> };
+        const timedOut = () => {
+          settle(id);
           reject(new Error(`window RPC "${kind}" timed out after ${timeoutMs}ms`));
-        }, timeoutMs);
-        pending.set(id, { resolve, reject, timer });
+        };
+        if (write) {
+          let asked = false;
+          waiting.expire = () => {
+            // Never taken: the owner did not get it, and nothing was written.
+            if (!waiting.taken) return timedOut();
+            // Taken, then silence: ask once for the answer before giving up.
+            if (!asked) {
+              asked = true;
+              void transport.emitTo(OWNER_LABEL, EV_RPC_ASK, { id, from: transport.label }).catch(() => {});
+              waiting.timer = setTimeout(waiting.expire!, timeoutMs);
+              return;
+            }
+            settle(id);
+            givenUp.set(id, kind);
+            reject(new Error(`window RPC "${kind}" got no answer after the owner took it; it may still land`));
+          };
+          waiting.ceiling = setTimeout(() => {
+            settle(id);
+            givenUp.set(id, kind);
+            reject(new Error(`window RPC "${kind}" did not finish within ${RPC_WRITE_CEILING_MS}ms; it may still land`));
+          }, RPC_WRITE_CEILING_MS);
+          waiting.timer = setTimeout(waiting.expire, timeoutMs);
+        } else {
+          waiting.timer = setTimeout(timedOut, timeoutMs);
+        }
+        pending.set(id, waiting);
       });
       await transport.emitTo(OWNER_LABEL, EV_RPC, envelope);
       return (await result) as never;
@@ -720,6 +844,7 @@ export function createWindowBus(
 
     async handle(kind, handler, opts) {
       const boundVault = opts?.vaultPath ?? null;
+      if (RPC_WRITE_KINDS.has(kind)) await ensureAskListener();
       const un = await transport.listen(EV_RPC, (raw) => {
         const env = raw as RpcEnvelope;
         if (!env || env.kind !== kind || env.from === transport.label) return;
@@ -727,6 +852,16 @@ export function createWindowBus(
         // that names no vault is not something a vault-bound handler may guess
         // at, and answering it would mean one of several runtimes wins a race.
         if (boundVault !== null && env.vaultPath !== boundVault) return;
+        // A write: "still at it" now and while it runs, so the caller's
+        // deadline measures this window's silence and not the write (3.117).
+        const aliveMs = RPC_WRITE_KINDS.has(kind) && typeof env.aliveMs === "number" && env.aliveMs > 0 ? env.aliveMs : null;
+        const alive = () => void transport.emitTo(env.from, EV_RPC_ALIVE, { id: env.id }).catch(() => {});
+        let beat: ReturnType<typeof setInterval> | null = null;
+        if (aliveMs !== null) {
+          running.set(env.id, kind);
+          alive();
+          beat = setInterval(alive, aliveMs);
+        }
         void (async () => {
           let reply: RpcReply;
           try {
@@ -736,6 +871,14 @@ export function createWindowBus(
             // The caller gets the message, not a silent no-op: an aux window
             // whose write vanished must be able to say so.
             reply = { id: env.id, ok: false, error: e instanceof Error ? e.message : String(e) };
+          } finally {
+            if (beat !== null) clearInterval(beat);
+          }
+          if (aliveMs !== null) {
+            // Kept for a caller whose reply goes missing on the way: it asks, and gets this one.
+            answered.set(env.id, reply);
+            running.delete(env.id);
+            setTimeout(() => answered.delete(env.id), RPC_ANSWER_KEEP_MS);
           }
           await transport.emitTo(env.from, EV_RPC_REPLY, reply).catch((e) => {
             console.error("[windowBus] could not deliver RPC reply", e);
@@ -756,10 +899,12 @@ export function createWindowBus(
       }
       for (const waiting of pending.values()) {
         clearTimeout(waiting.timer);
+        if (waiting.ceiling !== undefined) clearTimeout(waiting.ceiling);
         waiting.reject(new Error("window bus disposed"));
       }
       pending.clear();
       replyListener = null;
+      askListener = null;
     },
   };
 }

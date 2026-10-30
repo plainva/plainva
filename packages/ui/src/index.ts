@@ -37,6 +37,7 @@ export * from "./lib/keychainSlots";
 export * from "./lib/keychainMigration";
 export * from "./lib/momentFormat";
 export * from "./lib/featureParity";
+export * from "./lib/draftJournalEntries";
 export * from "./lib/qrScan";
 export * from "./lib/largeFileBackupHint";
 export * from "./lib/recentSearches";

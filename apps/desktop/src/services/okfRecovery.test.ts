@@ -231,7 +231,7 @@ describe("OKF conversion journal", () => {
     // There would be nothing to continue into and nothing to roll back to;
     // offering a recovery that cannot work is worse than offering none.
     appData.set(
-      `APPDATA/okf-journal/${(await import("./draftJournal")).pathHash(VAULT)}.json`,
+      `APPDATA/okf-journal/${(await import("./draftJournal")).legacyPathHash(VAULT)}.json`,
       JSON.stringify({ startedAt: "x", vaultPath: VAULT, backupDir: "", total: 0, options: { defaultType: "Note" } })
     );
     expect(await readOkfJournal(VAULT)).toBeNull();

@@ -32,11 +32,11 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
   stat: async () => ({ mtime: new Date() }),
 }));
 
-import { clearDraft, pathHash, readDraft, recordDraft, releaseLeftoverDrafts, relocateDrafts, relocatedPath, takeLeftoverDrafts } from "./draftJournal";
+import { clearDraft, draftJournalFile, legacyPathHash, readDraft, recordDraft, releaseLeftoverDrafts, relocateDrafts, relocatedPath, takeLeftoverDrafts } from "./draftJournal";
 
 const VAULT = "C:/vaults/main";
 const NOTE = "Notes/A.md";
-const FILE = `APPDATA/drafts/${pathHash(VAULT)}/${pathHash(NOTE)}.json`;
+const FILE = `APPDATA/drafts/${draftJournalFile(VAULT, NOTE)}`;
 
 describe("draftJournal", () => {
   beforeEach(() => {
@@ -44,10 +44,14 @@ describe("draftJournal", () => {
     invokeMock.mockClear();
   });
 
-  it("pathHash is stable, distinct and file-name safe", () => {
-    expect(pathHash(VAULT)).toBe(pathHash(VAULT));
-    expect(pathHash(VAULT)).not.toBe(pathHash(NOTE));
-    expect(pathHash("Ünïcode/ノート.md")).toMatch(/^[0-9a-f]{16}$/);
+  it("names a journal file stably, distinctly and file-name safe — also where the old hash collided", () => {
+    expect(draftJournalFile(VAULT, NOTE)).toBe(draftJournalFile(VAULT, NOTE));
+    expect(draftJournalFile(VAULT, "Ünïcode/ノート.md")).toMatch(/^[0-9a-f]{32}\/[0-9a-f]{32}\.json$/);
+    // The old handle, kept bit for bit to find older journals, gave these one name.
+    expect(legacyPathHash("Notes/A.md")).toBe(legacyPathHash("Notes/B.md"));
+    expect(legacyPathHash("Notes/A.md")).toBe("3c9be3a18c7d4800");
+    expect(draftJournalFile(VAULT, "Notes/A.md")).not.toBe(draftJournalFile(VAULT, "Notes/B.md"));
+    expect(draftJournalFile("C:/vaults/A", NOTE)).not.toBe(draftJournalFile("C:/vaults/B", NOTE));
   });
 
   it("records snapshots through the atomic write command", async () => {
@@ -243,11 +247,63 @@ describe("drafts left from an earlier run (finding 2026-10-11)", () => {
   });
 
   it("hands a note none of the drafts of another note or vault that sit in its journal file", async () => {
-    // `pathHash` loses the end of a path: today Notes/B.md's entries land in Notes/A.md's file.
+    // Files of the old name (`legacyPathHash`) can hold another note's or another vault's entries.
     files.set(FILE, JSON.stringify({ version: 2, entries: [
       { vaultPath: VAULT, notePath: "Notes/B.md", text: "B's unsaved text", revision: 4, savedAt: 1, sessionId: "earlier-b" },
       { vaultPath: "C:/vaults/other", notePath: NOTE, text: "another vault's text", revision: 2, savedAt: 1, sessionId: "earlier-c" },
     ] }));
     expect(await takeLeftoverDrafts(VAULT, NOTE)).toEqual([]);
+  });
+});
+
+describe("a journal file per note and vault, without collisions (open-items plan 3.124)", () => {
+  beforeEach(() => { files.clear(); invokeMock.mockClear(); });
+
+  // The old hash lost the end of a path: both pairs shared one journal file.
+  const A = "Notes/A.md", B = "Notes/B.md";
+
+  it("never offers a note's draft at a note whose path differs only near the end", async () => {
+    await recordDraft(VAULT, A, "A's unsaved text", 1, "editor-a");
+    expect(await readDraft(VAULT, B, "B on disk")).toBeNull();
+    expect(await readDraft(VAULT, A, "A on disk")).toMatchObject({ text: "A's unsaved text", notePath: A });
+  });
+
+  it("keeps the drafts of two such notes side by side, also from one editor session", async () => {
+    await recordDraft(VAULT, A, "A's text", 3, "pane");
+    await recordDraft(VAULT, B, "B's text", 4, "pane");
+    expect(await readDraft(VAULT, A)).toMatchObject({ text: "A's text" });
+    expect(await readDraft(VAULT, B)).toMatchObject({ text: "B's text" });
+    await clearDraft(VAULT, B, 4, "pane");
+    expect(await readDraft(VAULT, A)).toMatchObject({ text: "A's text" });
+  });
+
+  it("keeps two vaults whose paths differ only near the end apart", async () => {
+    await recordDraft("C:/vaults/A", NOTE, "vault A's text", 1, "s");
+    expect(await readDraft("C:/vaults/B", NOTE, "on disk")).toBeNull();
+  });
+
+  it("moves only the moved note's drafts, never a neighbour's", async () => {
+    await recordDraft(VAULT, A, "A's text", 1, "a");
+    await recordDraft(VAULT, B, "B's text", 1, "b");
+    await relocateDrafts(VAULT, [{ from: A, to: "Archive/A.md" }]);
+    expect(await readDraft(VAULT, "Archive/A.md")).toMatchObject({ text: "A's text", notePath: "Archive/A.md" });
+    expect(await readDraft(VAULT, B)).toMatchObject({ text: "B's text", notePath: B });
+    expect(await readDraft(VAULT, A)).toBeNull();
+  });
+
+  it("still reads the journal files of the old names, each entry only for its own note", async () => {
+    // As an older version left them: A's and B's entries in one file under the old name.
+    const legacy = `APPDATA/drafts/${legacyPathHash(VAULT)}/${legacyPathHash(A)}.json`;
+    files.set(legacy, JSON.stringify({ version: 2, entries: [
+      { vaultPath: VAULT, notePath: A, text: "A from the old journal", revision: 2, savedAt: 1, sessionId: "old-a" },
+      { vaultPath: VAULT, notePath: B, text: "B from the old journal", revision: 5, savedAt: 2, sessionId: "old-b" },
+    ] }));
+    expect(await readDraft(VAULT, A)).toMatchObject({ text: "A from the old journal" });
+    expect(await readDraft(VAULT, B)).toMatchObject({ text: "B from the old journal" });
+    expect((await takeLeftoverDrafts(VAULT, B)).map((draft) => draft.text)).toEqual(["B from the old journal"]);
+    // Discarding B's offer takes B's entry out of the old file and leaves A's.
+    await clearDraft(VAULT, B, 5, "old-b");
+    expect(await readDraft(VAULT, B)).toBeNull();
+    expect(await readDraft(VAULT, A)).toMatchObject({ text: "A from the old journal" });
   });
 });

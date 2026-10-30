@@ -184,7 +184,7 @@ function createPimTarget(calls: string[], opts: { conflict?: boolean } = {}) {
   } as never;
 }
 
-async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimConflict?: boolean } = {}) {
+async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimConflict?: boolean; indexFails?: boolean } = {}) {
   const wire = createWire();
   const owner = createWindowBus(wire(OWNER_LABEL), undefined, () => "/vault");
   // The aux window belongs to a vault and says so on every message — that is
@@ -195,22 +195,30 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
   const calls: string[] = [];
   const refreshed: Array<string[] | undefined> = [];
   const indexed: string[] = [];
+  const indexFault = () => {
+    if (opts.indexFails) throw new Error("database is locked");
+  };
   const indexer = {
     indexFile: async (info: { path: string; mtime: number }) => {
+      indexFault();
       indexed.push(info.path + "@" + info.mtime);
       return opts.metaChanged ?? false;
     },
     indexPath: async (path: string) => {
+      indexFault();
       calls.push("indexPath:" + path);
       return "ok" as never;
     },
     removePathFromIndex: async (path: string) => {
+      indexFault();
       calls.push("removeFromIndex:" + path);
     },
     relocatePathInIndex: async (from: string, to: string) => {
+      indexFault();
       calls.push(`relocate:${from}->${to}`);
     },
     indexVaultFull: async () => {
+      indexFault();
       calls.push("indexVaultFull");
     },
   };
@@ -533,6 +541,23 @@ describe("delegated mutations", () => {
     expect(calls).toContain("relocate:Old.md->New.md");
     expect(calls).not.toContain("removeFromIndex:Old.md");
     expect(calls).toContain("indexPath:New.md");
+    dispose();
+  });
+
+  it("answers a write that landed as written, though the index after it fails (open-items plan 3.117)", async () => {
+    // The window's editor takes its text as saved only on a success; a failure
+    // here, for a write that is on disk, made the next save merge against the
+    // old text (a conflict copy) and a quick capture write its line twice.
+    const { aux, calls, dispose } = await setup({ indexFails: true });
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(aux.request("write", { path: "Note.md", content: "hi" })).resolves.toBeUndefined();
+    await expect(aux.request("write-binary", { path: "Pic.png", base64: "AA==" })).resolves.toBeUndefined();
+    await expect(aux.request("rename", { from: "Old.md", to: "New.md" })).resolves.toBeUndefined();
+    await expect(aux.request("delete", { path: "Gone.md" })).resolves.toBeUndefined();
+    expect(calls).toEqual(expect.arrayContaining(["write:Note.md", "write-binary:Pic.png", "rename:Old.md->New.md", "delete:Gone.md:single"]));
+    // Said as what it is: written, and the index did not follow.
+    expect(errors.mock.calls.map(([message]) => String(message)).filter((message) => /written.*index/i.test(message))).toHaveLength(4);
+    errors.mockRestore();
     dispose();
   });
 

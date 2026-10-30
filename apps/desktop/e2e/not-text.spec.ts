@@ -383,3 +383,40 @@ test('the copy a sync left beside such a table takes its place byte for byte fro
   // The table it replaced is in the version history, byte for byte.
   expect(state.kept).toContainEqual({ bytes: TABLE });
 });
+
+/**
+ * A draft journal file of the old name (open-items plan 3.124). The old hash
+ * gave "Kapitel 1.md" and "Kapitel 2.md" one file name: a draft of the one was
+ * offered at the other, and restoring it wrote it into the wrong note. Files of
+ * the old name are still read — each entry only at the note it names.
+ */
+test('a draft in a journal file of the old name is offered at its own note — never at a note whose name differs only at the end', async ({ page }) => {
+  const journal = `/drafts/${journalHash('/test-vault')}/${journalHash('Kapitel 1.md')}.json`;
+  expect(journalHash('Kapitel 2.md')).toBe(journalHash('Kapitel 1.md'));
+  await page.addInitScript(({ journal }) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Kapitel 1.md'] = '# Kapitel 1\n\nSaved.\n';
+    fs['/test-vault/Kapitel 2.md'] = '# Kapitel 2\n\nSaved.\n';
+    fs[journal] = JSON.stringify({ version: 2, entries: [
+      { vaultPath: '/test-vault', notePath: 'Kapitel 1.md', text: '# Kapitel 1\n\nLeft unsaved.\n', revision: 3, savedAt: 1, sessionId: 'earlier' },
+    ] });
+  }, { journal });
+  const restore = page.getByRole('button', { name: 'Restore draft' });
+  // Its own note offers it…
+  await open(page, 'Kapitel 1');
+  await expect(restore).toBeVisible({ timeout: 20000 });
+  // …the note next to it does not.
+  await page.getByTestId('file-tree').getByText('Kapitel 2', { exact: true }).click();
+  await expect(page.locator('.cm-content').first()).toContainText('Kapitel 2', { timeout: 20000 });
+  await page.waitForTimeout(1500);
+  await expect(restore).toHaveCount(0);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('draft-journal-desktop-neighbour.png') });
+  // Back at its own note it is offered again, and restoring it lands there.
+  await page.getByTestId('file-tree').getByText('Kapitel 1', { exact: true }).click();
+  await expect(restore).toBeVisible({ timeout: 20000 });
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('draft-journal-desktop-own.png') });
+  await restore.click();
+  await expect(page.locator('.cm-content').first()).toContainText('Left unsaved.');
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Kapitel 1.md']), { timeout: 20000 }).toContain('Left unsaved.');
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Kapitel 2.md'])).toBe('# Kapitel 2\n\nSaved.\n');
+});

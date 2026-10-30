@@ -493,23 +493,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-19",
   },
   {
-    id: "draft-offer-survives",
-    title: "An offered draft stays until it is restored or discarded",
-    area: "editor",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "The phone's draft journal holds one text per note: the first scheduled " +
-      "save after opening replaces an offered draft, and the confirmed save " +
-      "deletes it (draftJournal.ts, writeDraft/clearDraft). Whoever keeps typing " +
-      "without restoring or discarding the offer and then leaves the screen " +
-      "loses the offered text. The desktop keeps one entry per editor session " +
-      "and offers the old draft again on the next open. Written down on " +
-      "2026-10-30; open-items plan 3.125.",
-    verified: "2026-10-30",
-  },
-  {
     id: "image-editor",
     title: "Crop, rotate and draw on an attached image",
     area: "editor",

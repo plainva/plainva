@@ -267,11 +267,28 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
     if (metaChanged) deps.refresh([path]);
   };
 
+  /**
+   * What follows a write that landed — the index, the bookmarks, the views —
+   * cannot turn it into a failure (open-items plan 3.117). The window that
+   * asked takes a failure for "not written": its editor merges the next save
+   * against the old text (a conflict copy), its quick capture writes the line
+   * again. So the fault is said as what it is, and the answer stays "written";
+   * the next index pass repairs the derived data. The central window's own
+   * editor does the same (`Editor.tsx`).
+   */
+  const afterLanded = async (what: string, path: string, work: () => Promise<unknown> | unknown) => {
+    try {
+      await work();
+    } catch (error) {
+      console.error(`[ownerBus] ${what} of ${path} was written; the index did not follow`, error);
+    }
+  };
+
   offs.push(
     await bus.handle("editor-write", ({ path, content, baseText }) => withPendingWrite(deps.vaultPath, path, async () => {
       if (!deps.vaultAdapter.writeEditorText) throw new Error("Conflict-safe editing is unavailable");
       const result = await deps.vaultAdapter.writeEditorText(path, content, baseText);
-      await indexAfterWrite(result.session?.workingCopyPath ?? path);
+      await afterLanded("editor-write", path, () => indexAfterWrite(result.session?.workingCopyPath ?? path));
       return result;
     }), { vaultPath: deps.vaultPath }),
     // A change of a file where it lies, from a window that cannot run it
@@ -284,9 +301,11 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
     await bus.handle("update-write", ({ path, expected, next }) => withPendingWrite(deps.vaultPath, path, async () => {
       if (!deps.vaultAdapter.writeTextFileChange) throw new Error("Conflict-safe editing is unavailable");
       const written = await deps.vaultAdapter.writeTextFileChange(path, expected, next);
-      if (written?.changed) await indexAfterWrite(path);
-      // The person's own version of a file with an open conflict took the change as well.
-      if (written?.conflict?.changed && written.conflict.workingCopyPath !== path) await indexAfterWrite(written.conflict.workingCopyPath);
+      await afterLanded("update-write", path, async () => {
+        if (written?.changed) await indexAfterWrite(path);
+        // The person's own version of a file with an open conflict took the change as well.
+        if (written?.conflict?.changed && written.conflict.workingCopyPath !== path) await indexAfterWrite(written.conflict.workingCopyPath);
+      });
       return written;
     }), { vaultPath: deps.vaultPath }),
     await bus.handle("conflict-read", ({ path }) => deps.vaultAdapter.getConflictSession?.(path) ?? Promise.resolve(null), { vaultPath: deps.vaultPath }),
@@ -295,24 +314,28 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
     await bus.handle("conflict-preserve", ({ path, content, writer }) => withPendingWrite(deps.vaultPath, path, async () => {
       if (!deps.vaultAdapter.preserveConflict) throw new Error("Conflict-safe editing is unavailable");
       const session = await deps.vaultAdapter.preserveConflict(path, content, writer);
-      await indexAfterWrite(session.workingCopyPath);
+      await afterLanded("conflict-preserve", path, () => indexAfterWrite(session.workingCopyPath));
       return session;
     }), { vaultPath: deps.vaultPath }),
     await bus.handle("conflict-resolve", ({ path, resolution }) => withPendingWrite(deps.vaultPath, path, async () => {
       if (!deps.vaultAdapter.resolveConflict) throw new Error("Conflict-safe editing is unavailable");
       const session = await deps.vaultAdapter.getConflictSession?.(path);
       await deps.vaultAdapter.resolveConflict(path, resolution);
-      if (deps.indexer && session) await applyIndexChanges(deps.indexer, { removed: [session.workingCopyPath], added: [path, ...(resolution.keepCopyAs ? [resolution.keepCopyAs] : [])] });
-      deps.refresh();
-      await indexAfterWrite(path);
+      await afterLanded("conflict-resolve", path, async () => {
+        if (deps.indexer && session) await applyIndexChanges(deps.indexer, { removed: [session.workingCopyPath], added: [path, ...(resolution.keepCopyAs ? [resolution.keepCopyAs] : [])] });
+        deps.refresh();
+        await indexAfterWrite(path);
+      });
     }), { vaultPath: deps.vaultPath }),
     await bus.handle("conflict-resolve-bytes", ({ path, resolution }) => withPendingWrite(deps.vaultPath, path, async () => {
       if (!deps.vaultAdapter.resolveConflictBytes) throw new Error("Conflict-safe editing is unavailable");
       const session = await deps.vaultAdapter.getConflictSession?.(path);
       await deps.vaultAdapter.resolveConflictBytes(path, resolution);
-      if (deps.indexer && session) await applyIndexChanges(deps.indexer, { removed: [session.workingCopyPath], added: [path, ...(resolution.keepCopyAs ? [resolution.keepCopyAs] : [])] });
-      deps.refresh();
-      await indexAfterWrite(path);
+      await afterLanded("conflict-resolve-bytes", path, async () => {
+        if (deps.indexer && session) await applyIndexChanges(deps.indexer, { removed: [session.workingCopyPath], added: [path, ...(resolution.keepCopyAs ? [resolution.keepCopyAs] : [])] });
+        deps.refresh();
+        await indexAfterWrite(path);
+      });
     }), { vaultPath: deps.vaultPath }),
   );
 
@@ -320,7 +343,7 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
     await bus.handle("write", async ({ path, content }) => {
       await withPendingWrite(deps.vaultPath, path, async () => {
         await deps.vaultAdapter.writeTextFile(path, content);
-        await indexAfterWrite(path);
+        await afterLanded("write", path, () => indexAfterWrite(path));
       });
     }, { vaultPath: deps.vaultPath }),
   );
@@ -329,7 +352,7 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
     await bus.handle("write-binary", async ({ path, base64 }) => {
       await withPendingWrite(deps.vaultPath, path, async () => {
         await deps.vaultAdapter.writeBinaryFile(path, base64ToBytes(base64));
-        await indexAfterWrite(path);
+        await afterLanded("write-binary", path, () => indexAfterWrite(path));
       });
     }, { vaultPath: deps.vaultPath }),
   );
@@ -337,8 +360,10 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   offs.push(
     await bus.handle("rename", async ({ from, to }) => {
       await deps.vaultAdapter.renameItem(from, to);
-      await retargetDesktopBookmarks(deps.vaultAdapter, from, to);
-      if (deps.indexer) await applyIndexChanges(deps.indexer, { moved: [{ from, to }] });
+      await afterLanded("rename", from, async () => {
+        await retargetDesktopBookmarks(deps.vaultAdapter, from, to);
+        if (deps.indexer) await applyIndexChanges(deps.indexer, { moved: [{ from, to }] });
+      });
       deps.refresh();
     }, { vaultPath: deps.vaultPath }),
   );
@@ -346,11 +371,12 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   offs.push(
     await bus.handle("delete", async ({ path, recursive, confirmation }) => {
       await deps.vaultAdapter.deleteItem(path, recursive, confirmation);
-      if (deps.indexer) {
+      await afterLanded("delete", path, async () => {
+        if (!deps.indexer) return;
         // A recursive delete takes an unknown number of descendants with it, so
         // the index has to be reconciled rather than patched.
         await applyIndexChanges(deps.indexer, recursive ? { needsFullScan: true } : { removed: [path] });
-      }
+      });
       deps.refresh();
     }, { vaultPath: deps.vaultPath }),
   );

@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, readTextFile, remove } from "@tauri-apps/plugin-fs";
-import { pathHash } from "./draftJournal";
+import { draftPathKey, legacyPathHash } from "./draftJournal";
 
 /**
  * The marker that says an OKF conversion is open.
@@ -78,17 +78,38 @@ export async function writeOkfJournal(journal: OkfJournal): Promise<void> {
   const { rootId } = await journalRoot();
   await invoke("write_file_atomic", {
     rootId,
-    relPath: `${pathHash(journal.vaultPath)}.json`,
+    relPath: `${draftPathKey(journal.vaultPath)}.json`,
     contents: JSON.stringify(journal),
     encoding: "utf8",
   });
 }
 
+/**
+ * The journal's two possible files: the current name, and the name an older
+ * version used (open-items plan 3.124). That one was a lossy hash of the vault
+ * path — `C:/vaults/A` and `C:/vaults/B` shared it —, so a file there counts
+ * only when it names this vault.
+ */
+const journalFiles = (vaultPath: string) => [`${draftPathKey(vaultPath)}.json`, `${legacyPathHash(vaultPath)}.json`];
+
+async function readJournalAt(dir: string, name: string, vaultPath: string): Promise<OkfJournal | null> {
+  const file = await join(dir, name);
+  if (!(await exists(file))) return null;
+  const parsed = JSON.parse(await readTextFile(file)) as OkfJournal;
+  return parsed?.vaultPath === vaultPath ? parsed : null;
+}
+
 export async function clearOkfJournal(vaultPath: string): Promise<void> {
   try {
     const { dir } = await journalRoot();
-    const file = await join(dir, `${pathHash(vaultPath)}.json`);
-    if (await exists(file)) await remove(file);
+    for (const name of journalFiles(vaultPath)) {
+      try {
+        // Another vault's journal under the old name stays where it is.
+        if (await readJournalAt(dir, name, vaultPath)) await remove(await join(dir, name));
+      } catch {
+        // Unreadable: it says nothing about this vault, and it is not ours to remove.
+      }
+    }
   } catch {
     // Already gone, or never written — both mean there is nothing pending.
   }
@@ -97,13 +118,19 @@ export async function clearOkfJournal(vaultPath: string): Promise<void> {
 export async function readOkfJournal(vaultPath: string): Promise<OkfJournal | null> {
   try {
     const { dir } = await journalRoot();
-    const file = await join(dir, `${pathHash(vaultPath)}.json`);
-    if (!(await exists(file))) return null;
-    const parsed = JSON.parse(await readTextFile(file)) as OkfJournal;
-    // Without a backup folder there is nothing to roll back to and nothing to
-    // continue into; treat such a journal as absent rather than offer a
-    // recovery that cannot work.
-    return parsed?.backupDir && parsed?.options?.defaultType ? parsed : null;
+    for (const name of journalFiles(vaultPath)) {
+      let parsed: OkfJournal | null;
+      try {
+        parsed = await readJournalAt(dir, name, vaultPath);
+      } catch {
+        continue;
+      }
+      // Without a backup folder there is nothing to roll back to and nothing to
+      // continue into; treat such a journal as absent rather than offer a
+      // recovery that cannot work.
+      if (parsed) return parsed.backupDir && parsed.options?.defaultType ? parsed : null;
+    }
+    return null;
   } catch {
     return null;
   }

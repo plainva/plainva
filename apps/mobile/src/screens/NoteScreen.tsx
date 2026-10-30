@@ -49,7 +49,7 @@ import { openLink } from "../services/openLink";
 import { configuredNoteType } from "../services/newNote";
 import { mPrompt } from "../services/mobileDialogs";
 import { confirmDeleteFile } from "../lib/deleteFile";
-import { clearDraft, clearDraftIf, readDraft, releaseLeftoverDraft, takeLeftoverDraft, type NoteDraft } from "../services/draftJournal";
+import { adoptDraft, clearDraft, clearDraftIf, offerDraft, releaseLeftoverDrafts, takeLeftoverDrafts, type NoteDraft } from "../services/draftJournal";
 import { forgetFreshNote, isFreshNote, keepTextBeside, newestConflictCopy } from "@plainva/ui";
 import { NoteConflictCard } from "../components/NoteConflictCard";
 import { ConflictCompareSheet } from "../components/ConflictCompareSheet";
@@ -518,16 +518,17 @@ export function NoteScreen({
             .then((identity) => { if (!stale && identity) knownIdentityRef.current = identity; })
             .catch(() => {});
         }
-        // Draft recovery (package G): offer an unsaved draft that is newer
-        // than the file on disk and differs from it.
-        const stored = await readDraft(vault, path);
+        // Draft recovery (package G): offer an unsaved draft that differs
+        // from the file on disk — the shared rule, as on the desktop. The
+        // journal holds it for the offer, apart from this run's saver, until
+        // it is restored or discarded (open-items plan 3.125).
+        const stored = await offerDraft(vault, path, text);
         // A draft is an editor's text. One journalled before the editor
         // stopped holding a note's byte order mark still starts with it;
         // restoring that as it is would write the mark twice.
         const d = stored && { ...stored, text: editorTextOf(stored.text) };
         if (stale || !d || d.text === text) return;
-        const info = await vault.adapter.getFileInfo(path).catch(() => null);
-        if (!stale && (!info || d.ts > info.mtime)) setDraft(d);
+        setDraft(d);
       })
       .catch((error) => {
         if (stale) return;
@@ -548,9 +549,9 @@ export function NoteScreen({
         // none is noted yet, as the desktop's banner does.
         //
         // A draft still on offer from when the file was text is kept beside
-        // it as well, unless it is the one just taken from the journal: the
-        // journal may hold it no more (this phone journals one text per note,
-        // and typing since overwrote it, or a save cleared it). The offer is
+        // it as well, unless it is one just taken from the journal (an offer
+        // of this run is held in an entry of its own, which is no leftover of
+        // an earlier run, so it is kept from here). The offer is
         // taken down while it is kept — restored or discarded meanwhile, it
         // was kept a second time or against the reader's word — and comes
         // back if it could not be kept. A journal entry goes only while it is
@@ -562,7 +563,7 @@ export function NoteScreen({
             claimedOffersRef.current.add(claim);
             setDraft((current) => (current === claim ? null : current));
           }
-          let taken: NoteDraft | null = null;
+          let taken: NoteDraft[] = [];
           let offerKept = false;
           void (async () => {
             const keep = async (text: string, kept: () => void) => {
@@ -572,14 +573,14 @@ export function NoteScreen({
               try { await vault.reindexPaths([copy]); } catch { /* a later index pass repairs the derived data */ }
               toast.warning(t("dialogs.conflictSavedMsg", { path: copy }));
             };
-            const stored = await takeLeftoverDraft(vault, path);
-            const same = !!claim && !!stored && stored.ts === claim.ts && stored.revision === claim.revision;
-            if (stored) {
-              taken = stored;
-              await keep(stored.text, () => { taken = null; offerKept = same; });
+            const leftovers = await takeLeftoverDrafts(vault, path);
+            taken = [...leftovers];
+            const isClaim = (stored: NoteDraft) => !!claim && stored.ts === claim.ts && stored.revision === claim.revision && stored.sessionId === claim.sessionId;
+            for (const stored of leftovers) {
+              await keep(stored.text, () => { taken = taken.filter((other) => other !== stored); if (isClaim(stored)) offerKept = true; });
               clearDraftIf(vault, path, stored);
             }
-            if (claim && !same) {
+            if (claim && !leftovers.some(isClaim)) {
               await keep(claim.text, () => { offerKept = true; });
               clearDraftIf(vault, path, claim);
             }
@@ -588,7 +589,7 @@ export function NoteScreen({
           })().catch((keepError) => {
             // Not kept: the journal hands its draft out again, the offer comes
             // back, and a later load tries once more.
-            if (taken) releaseLeftoverDraft(vault, path, taken);
+            if (taken.length > 0) releaseLeftoverDrafts(vault, path, taken);
             if (claim && !offerKept) {
               claimedOffersRef.current.delete(claim);
               setDraft((current) => current ?? claim);
@@ -1339,6 +1340,9 @@ export function NoteScreen({
                 setDoc(d.text);
                 setReloadTick((n) => n + 1);
                 noteSaver.schedule(vault, path, d.text);
+                // The text is this run's to save now: once the journal holds
+                // it as such, the offer's own entry goes (3.125).
+                void adoptDraft(vault, path, d);
               }}
             >
               {t("editor.draftRestore")}
@@ -1348,7 +1352,8 @@ export function NoteScreen({
               size="sm"
               onClick={() => {
                 if (claimedOffersRef.current.has(draft)) return;
-                clearDraft(vault, path);
+                // Only the offered draft goes — this run's typing is its saver's.
+                clearDraftIf(vault, path, draft);
                 setDraft(null);
               }}
             >
