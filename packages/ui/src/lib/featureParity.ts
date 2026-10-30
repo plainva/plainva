@@ -736,18 +736,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     mobileReason:
       "The reader's list of attachments is what a forward carries and what can be " +
       "saved, and for an IMAP mailbox the two shells build it with two parsers. The " +
-      "desktop's (mail-parser, mail_imap.rs) lists every part that is not the body " +
-      "shown: an embedded image without a name, a named text part, the calendar " +
-      "alternative of an invitation, an attached message. The phone's (net/mime.ts) " +
-      "lists a part only when it carries a file name or is marked as an attachment, " +
-      "and never a text part that is not marked so. The same message can therefore " +
-      "show more files on the desktop - one for every such part, the logo of a " +
-      "signature included -, and a forward then carries them from there, each " +
-      "counted against what a forward loads on its own. A Microsoft mailbox is " +
-      "not affected: both shells read Graph's list. " +
+      "desktop's rule is its own (attachment_parts in mail_imap.rs, on top of " +
+      "mail-parser 1.0, whose RFC 8621 list would leave out a picture the body " +
+      "shows): every part that is not text is a file, and a text or HTML part that " +
+      "is in neither body - an embedded image without a name, a named text part, " +
+      "the calendar alternative of an invitation, an attached message. The phone's " +
+      "(net/mime.ts) lists a part only when it carries a file name or is marked as " +
+      "an attachment, and never a text part that is not marked so. Both list a " +
+      "named picture of a multipart/mixed with or without a disposition (held by " +
+      "the same messages in imapClient.test.ts and mail_imap.rs). The same message " +
+      "can still show more files on the desktop - one for every unnamed part, the " +
+      "logo of a signature included -, and a forward then carries them from there, " +
+      "each counted against what a forward loads on its own. A Microsoft mailbox " +
+      "is not affected: both shells read Graph's list. " +
       "Closing this means one rule for what counts, held by the same example " +
       "messages against both parsers (finding 2026-10-11).",
-    verified: "2026-10-12",
+    verified: "2026-10-30",
   },
   {
     id: "mail-base64-reading",
@@ -756,29 +760,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     kind: "gap",
     desktop: "partial",
     desktopReason:
-      "For an IMAP mailbox the two shells read a message with two parsers. Both " +
-      "read a \"=\" inside base64 as the end of a group and go on reading behind " +
-      "it - every line padded on its own, two encodings joined into one (finding " +
-      "2026-10-12; one table of examples is held against both, in " +
-      "imapClient.test.ts and in mail_imap.rs). In two things the desktop's parser " +
-      "(mail-parser) reads less than the phone's reader (net/mime.ts). A last group " +
-      "without its padding is dropped: the last one or two bytes of a file that is " +
-      "not a text file, of the message's text, of an encoded word in a header. And " +
-      "one character that is no base64 gives the whole part up - in a body any " +
-      "but a blank, a tab, a line break or a single hyphen, though RFC 2045 says " +
-      "to pass any of them over; in an encoded word any but a blank, a tab or a " +
-      "line break, so a hyphen too: a file, a text file too, is handed out as it " +
-      "stands in the message, undecoded; an encoded word in a header is shown as it " +
-      "was written; " +
-      "and the text of a message in such a part is shown undecoded or, inside a " +
-      "multipart, listed as a file instead. A Microsoft mailbox is not affected: Graph " +
-      "delivers the message decoded. Closing this means reading base64 in " +
-      "mail_imap.rs itself, from a part's own header and its raw body - for the " +
-      "text and for every file - instead of taking the parser's reading, or a " +
-      "parser that reads it (what_the_parser_gives_up_in_base64 in mail_imap.rs " +
-      "fails on the day one of the two is gone).",
+      "For an IMAP mailbox the two shells read a message with two parsers. In a " +
+      "body both read base64 alike since mail-parser 1.0 (one table of examples " +
+      "is held against both, in imapClient.test.ts and in mail_imap.rs): a \"=\" " +
+      "ends a group wherever it stands, a last group without its padding is read, " +
+      "a single character of a group is no byte, and whatever is no base64 is " +
+      "passed over. One thing is left where the desktop's parser reads less than " +
+      "the phone's reader (net/mime.ts): in an encoded word of a header, a " +
+      "character that is no base64 other than a blank, a tab or a line break - a " +
+      "hyphen too - leaves the word as it was written, though RFC 2045 says to " +
+      "pass it over; the subject or a name then shows its encoded form. A " +
+      "Microsoft mailbox is not affected: Graph delivers the message decoded. " +
+      "Closing this means decoding encoded words in mail_imap.rs itself, or a " +
+      "parser that reads them (what_the_parser_gives_up_in_base64 in mail_imap.rs " +
+      "fails on the day the difference is gone).",
     mobile: "yes",
-    verified: "2026-10-21",
+    verified: "2026-10-30",
   },
   {
     id: "mail-digest-parts",

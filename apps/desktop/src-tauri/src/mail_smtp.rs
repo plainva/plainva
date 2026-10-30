@@ -514,7 +514,6 @@ mod tests {
 
     #[test]
     fn mime_preserves_unicode_filenames_and_binary_attachments() {
-        use mail_parser::MimeHeaders as _;
         let name = format!("{}.pdf", "Grüße-日本語-".repeat(20));
         let attachments = [MailAttachment { name: name.clone(), mime: "application/pdf".into(), content_base64: "AAECA//+".into() }];
         let mime = build_send_mime("me@example.invalid", "you@example.invalid", "cc@example.invalid", "Grüße 日本語", "", Some("<p>Hallo</p>"), &attachments).unwrap();
@@ -524,7 +523,7 @@ mod tests {
         assert!(parsed.bcc().is_none());
         let attachment = parsed.attachments().next().unwrap();
         assert_eq!(attachment.attachment_name(), Some(name.as_str()));
-        assert_eq!(attachment.contents(), &[0, 1, 2, 3, 255, 254]);
+        assert_eq!(&*attachment.decoded(), &[0, 1, 2, 3, 255, 254]);
         assert!(mime.split(|b| *b == b'\n').all(|line| line.len() < 998));
     }
 
