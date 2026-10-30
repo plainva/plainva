@@ -493,6 +493,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-19",
   },
   {
+    id: "draft-offer-survives",
+    title: "An offered draft stays until it is restored or discarded",
+    area: "editor",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The phone's draft journal holds one text per note: the first scheduled " +
+      "save after opening replaces an offered draft, and the confirmed save " +
+      "deletes it (draftJournal.ts, writeDraft/clearDraft). Whoever keeps typing " +
+      "without restoring or discarding the offer and then leaves the screen " +
+      "loses the offered text. The desktop keeps one entry per editor session " +
+      "and offers the old draft again on the next open. Written down on " +
+      "2026-10-30; open-items plan 3.125.",
+    verified: "2026-10-30",
+  },
+  {
     id: "image-editor",
     title: "Crop, rotate and draw on an attached image",
     area: "editor",
@@ -597,6 +614,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "Android. The capability is reachable, the affordance is the platform's " +
       "rather than ours.",
     verified: "2026-08-20",
+  },
+  {
+    id: "properties-empty-state",
+    title: "A note without properties says so in the properties surface",
+    area: "editor",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The desktop's properties section shows \"No properties\" for a note " +
+      "without a block (PropertiesSection.tsx). The phone's note sheet shows " +
+      "an empty properties part with no line at all (NoteContextSheet.tsx); it " +
+      "speaks only for a block it cannot read. Written down on 2026-10-30; " +
+      "open-items plan 3.144 no. 6, to be closed together with no. 1 there.",
+    verified: "2026-10-30",
   },
   {
     id: "read-mode-edit-verb",
@@ -727,6 +759,24 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-04",
   },
   {
+    id: "entry-follows-its-event",
+    title: "A database entry follows the calendar event it was put into",
+    area: "pim",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Both shells put an entry into a calendar (createEntryEvent, the anchor " +
+      "plainva.events). Only the desktop lets the entry follow its event after " +
+      "every calendar fetch - the new date into its date column, the anchor " +
+      "gone when the provider drops the event (desktop " +
+      "services/pim/entryEventSync.ts). On the phone nothing calls " +
+      "reconcileEntryEvents, so an entry kept only from the phone keeps its old " +
+      "date. Closing this lifts the reconcile into packages/ui and wires the " +
+      "phone. Written down on 2026-10-30; open-items plan 3.87 no. 16.",
+    verified: "2026-10-30",
+  },
+  {
     id: "mail-attachment-list",
     title: "Which parts of an IMAP message count as its attachments",
     area: "pim",
@@ -803,6 +853,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-21",
   },
   {
+    id: "mail-eml-on-existing-note",
+    title: "\"+ .eml\" adds the original to a note captured before",
+    area: "pim",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "The desktop fetches and stores the original only when the note is " +
+      "created in the same step (MailView.tsx, withEml && res.created); a note " +
+      "that exists opens without its original and without a word. The phone " +
+      "asks whether the note already links an original (hasEmlWikiLink) and adds " +
+      "it otherwise, which is what the user guide promises for both. Closing " +
+      "this lifts the decision into packages/ui/src/mail. Written down on " +
+      "2026-10-30; open-items plan 3.77.",
+    mobile: "yes",
+    verified: "2026-10-30",
+  },
+  {
     id: "mail-imap-opening-line",
     title: "The opening words of a message in the list of an IMAP mailbox",
     area: "pim",
@@ -823,6 +890,54 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "(written down with the fix to the line's reading, finding 2026-10-12).",
     mobile: "yes",
     verified: "2026-10-13",
+  },
+  {
+    id: "mail-mailto-opens-composer",
+    title: "A mail address in a message opens Plainva's composer",
+    area: "pim",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "The desktop's reader hands every link to the system, a mailto: link " +
+      "included (MailView.tsx, openUrl on click and under Open in the link " +
+      "menu): the system's mail program opens, under its own sender, or " +
+      "nothing when none is registered. The phone opens Plainva's composer with " +
+      "recipient, subject and body from the link and the message's mailbox " +
+      "(MailMessageScreen.tsx, openLink). Written down on 2026-10-30; open-items " +
+      "plan 3.82.",
+    mobile: "yes",
+    verified: "2026-10-30",
+  },
+  {
+    id: "mail-trash-by-role",
+    title: "Delete finds the trash folder by its role, not its name",
+    area: "pim",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The desktop asks the backend's folder role first (pickTrashFolder, " +
+      "packages/ui/src/mail/mailOut.ts) and falls back to the name list. The " +
+      "phone's list and reader guess by name only (guessTrashMailbox), so a " +
+      "Microsoft mailbox whose trash has a localized name the list does not " +
+      "know - German Outlook's \"Gelöschte Elemente\" - reports that it has no " +
+      "trash on Delete. Written down on 2026-10-30; open-items plan 3.110 no. 7.",
+    verified: "2026-10-30",
+  },
+  {
+    id: "mail-unified-row-account",
+    title: "Each row of All inboxes names its mailbox",
+    area: "pim",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The desktop's flat merged list names each row's account; the phone's " +
+      "row shows sender, date, subject and preview only (MailListScreen.tsx), " +
+      "so the same message in two mailboxes reads as two equal rows. The user " +
+      "guide says every row names its account. Written down on 2026-10-30; " +
+      "open-items plan 3.110 no. 2.",
+    verified: "2026-10-30",
   },
   {
     id: "mail-unified-row-read-star",
@@ -919,6 +1034,25 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "the stack is the only way back.",
     mobile: "yes",
     verified: "2026-10-29",
+  },
+  {
+    id: "boot-guard-late-mount",
+    title: "The start guard clears its overlay once a slow start has rendered",
+    area: "platform",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Both shells show \"Plainva didn't start\" when nothing rendered in time " +
+      "(desktop after 8 s, phone after 12 s). The desktop's guard looks every " +
+      "250 ms whether the app has rendered since and then removes the overlay; " +
+      "the phone's guard (apps/mobile/public/boot-guard.js) never removes it, so " +
+      "a first start slower than 12 s leaves it over the running app. The " +
+      "desktop's clearing has its own hole (an error right after the first " +
+      "render holds the overlay for good); both are open-items plan 3.91. Both " +
+      "files are ES5 without imports, so the rule cannot be shared, only " +
+      "written alike. Written down on 2026-10-30.",
+    verified: "2026-10-30",
   },
   {
     id: "camera-capture",
@@ -1377,6 +1511,25 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-03",
   },
   {
+    id: "workspace-new-file-queue",
+    title: "A new file found beside the app goes into the workspace queue at once",
+    area: "security",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "On the phone a new file the index finds queues nothing while the " +
+      "first-sync deferral holds (vaultService.ts, onNewLocalFile), and only " +
+      "the regular sync worker lifts it after its first cycle " +
+      "(markFirstSyncComplete in syncService.ts); with an encrypted workspace's " +
+      "worker it stays, so a file another app put into a picked folder reaches " +
+      "the workspace queue only through the reconcile at the next start. " +
+      "Changes and deletions are not affected. The desktop lifts the deferral " +
+      "after its first index run. Experimental part. Written down on " +
+      "2026-10-30; open-items plan 3.119.",
+    verified: "2026-10-30",
+  },
+  {
     id: "workspace-passphrase-change",
     title: "Change the passphrase that seals the keys on this device",
     area: "security",
@@ -1526,6 +1679,25 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-26",
   },
   {
+    id: "profile-import-folder-check",
+    title: "A settings profile cannot point a folder setting into .plainva",
+    area: "vault",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The desktop's profile import refuses a folder or file setting that " +
+      "points into the app's own folder (validVaultPath in settingsProfile.ts). " +
+      "The phone's import refuses only a leading slash " +
+      "(mobileSettingsSync.ts), so a daily-notes, template or meeting folder " +
+      "under .plainva from another device is taken over; notes there are not " +
+      "indexed, not synced and get no versions. Typed in by hand, the desktop's " +
+      "fields take such a path as well - the same check belongs to every such " +
+      "field in both shells. Written down on 2026-10-30; open-items plan 3.127 " +
+      "no. 4.",
+    verified: "2026-10-30",
+  },
+  {
     id: "settings-comment-anchors",
     title: "\"Mark commented passages in the note\" in Notes & filing › Annotations",
     area: "vault",
@@ -1581,6 +1753,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "link and no management of its own. Found by the settings plan of " +
       "2026-10-29 (F9), deferred to the open-items plan.",
     mobile: "yes",
+    verified: "2026-10-30",
+  },
+  {
+    id: "version-image-preview",
+    title: "The version history shows an image version as an image",
+    area: "vault",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The desktop's version history draws an image version as an image " +
+      "(CompareModal.tsx). The phone's (VersionsPanel.tsx) asks comparesAsText " +
+      "and shows \"no preview\" for an image; restoring it works as on the " +
+      "desktop. Closing this draws the version from its bytes on the phone. " +
+      "Written down on 2026-10-30; open-items plan 3.123.",
     verified: "2026-10-30",
   },
 ];
