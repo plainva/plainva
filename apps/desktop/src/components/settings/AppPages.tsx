@@ -29,7 +29,8 @@ import type { EditorViewMode } from "../../services/viewModeDefault";
 import type { PerfStat } from "../../services/perfMetrics";
 
 /**
- * The five APP-world settings pages (redesign 2026-07-18, P2). All state and
+ * The APP-world settings pages (redesign 2026-07-18, P2; Updates became a
+ * group of About & diagnostics, settings plan 2026-10-29, E10). All state and
  * persistence stays in SettingsModal — these components only render the
  * quiet-cards layout for it (page head + named group cards).
  */
@@ -350,7 +351,7 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
           in the background it depends on (B3). */}
       <SettingCard label={t("settings.editorGroupJournal")} testId="editor-journal">
         <SettingRow label={t("settings.placeStamp")} info={t("settings.placeStampDesc")}>
-          <Switch checked={p.placeStamp} label={t("settings.placeStamp")} onChange={p.onPlaceStamp} data-testid="place-stamp-switch" />
+          <Switch checked={p.placeStamp} label={t("settings.placeStamp")} onChange={p.onPlaceStamp} testId="place-stamp-switch" />
         </SettingRow>
       </SettingCard>
     </div>
@@ -410,7 +411,8 @@ export const BehaviorPage: React.FC<BehaviorPageProps> = (p) => {
   );
 };
 
-export interface UpdatesPageProps {
+/** The update controls: a group of About & diagnostics on the desktop (E10). */
+export interface UpdatesGroupProps {
   autoUpdateCheckEnabled: boolean;
   onAutoUpdateCheck: (v: boolean) => void;
   updateStatus: string;
@@ -420,33 +422,36 @@ export interface UpdatesPageProps {
   onInstallUpdate: () => void;
 }
 
-export const UpdatesPage: React.FC<UpdatesPageProps> = (p) => {
+/**
+ * "Updates" was a page of two rows; it is the second group of About &
+ * diagnostics now — the version and the way to the next one belong together
+ * (settings plan 2026-10-29, appendix 2.5 B1). The phone has no such group:
+ * Google Play and TestFlight update the app (parity catalog in-app-updates).
+ */
+const UpdatesGroup: React.FC<UpdatesGroupProps> = (p) => {
   const { t } = useTranslation();
   return (
-    <div>
-      <AreaHead areaId="updates" />
-      <SettingCard label={t("settings.groupUpdate", { defaultValue: "Aktualisierung" })}>
-        <SettingRow label={t("settings.autoUpdateCheck")} desc={t("settings.autoUpdateCheckDesc")}>
-          <input type="checkbox" id="autoUpdateCheck" aria-label={t("settings.autoUpdateCheck")} checked={p.autoUpdateCheckEnabled} onChange={(e) => p.onAutoUpdateCheck(e.target.checked)} />
-        </SettingRow>
-        <SettingRow label={t("settings.updates", "Updates")} desc={p.updateStatus || undefined}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>
-            <button
-              onClick={p.onCheckUpdates}
-              disabled={p.isUpdating}
-              className="pv-btn pv-btn--secondary" style={{ cursor: p.isUpdating ? "not-allowed" : "pointer" }}
-            >
-              {t("settings.checkUpdates", "Nach Updates suchen")}
+    <SettingCard label={t("settings.updates", "Updates")} testId="about-updates">
+      <SettingRow label={t("settings.autoUpdateCheck")} info={t("settings.autoUpdateCheckDesc")}>
+        <input type="checkbox" id="autoUpdateCheck" aria-label={t("settings.autoUpdateCheck")} checked={p.autoUpdateCheckEnabled} onChange={(e) => p.onAutoUpdateCheck(e.target.checked)} />
+      </SettingRow>
+      <SettingRow label={t("settings.groupUpdate", { defaultValue: "Aktualisierung" })} desc={p.updateStatus || undefined}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>
+          <button
+            onClick={p.onCheckUpdates}
+            disabled={p.isUpdating}
+            className="pv-btn pv-btn--secondary" style={{ cursor: p.isUpdating ? "not-allowed" : "pointer" }}
+          >
+            {t("settings.checkUpdates", "Nach Updates suchen")}
+          </button>
+          {p.updateAvailable && !p.isUpdating && (
+            <button onClick={p.onInstallUpdate} className="pv-btn pv-btn--primary">
+              {t("settings.installUpdate", "Jetzt installieren & Neustarten")}
             </button>
-            {p.updateAvailable && !p.isUpdating && (
-              <button onClick={p.onInstallUpdate} className="pv-btn pv-btn--primary">
-                {t("settings.installUpdate", "Jetzt installieren & Neustarten")}
-              </button>
-            )}
-          </div>
-        </SettingRow>
-      </SettingCard>
-    </div>
+          )}
+        </div>
+      </SettingRow>
+    </SettingCard>
   );
 };
 
@@ -458,6 +463,8 @@ export interface AboutPageProps {
   onExportPerfMetrics: () => void;
   onExportDiagnostics: () => void;
   onReportIssue: () => void;
+  /** The update controls, shown as the page's second group (E10). */
+  updates: UpdatesGroupProps;
   /**
    * Checks the synced deletion log against the cloud and takes back entries
    * whose file still exists (finding 2026-09-20). Absent without a file sync.
@@ -500,6 +507,8 @@ export const AboutPage: React.FC<AboutPageProps> = (p) => {
         </SettingRow>
       </SettingCard>
 
+      <UpdatesGroup {...p.updates} />
+
       <SettingCard label={t("settings.groupDiagnostics", { defaultValue: "Diagnose" })}>
         {/* The deletion log travels to every device and explains absences there
             without a question — so a wrong entry is worth a way to find it
@@ -511,7 +520,7 @@ export const AboutPage: React.FC<AboutPageProps> = (p) => {
             </Button>
           </SettingRow>
         )}
-        <SettingRow label={t("settings.perfMetrics", { defaultValue: "Performance-Messwerte" })} desc={t("settings.perfMetricsDesc", { defaultValue: "Lokale Messpunkte dieser Sitzung (Median/p95 in ms) — verlassen das Gerät nie." })}>
+        <SettingRow label={t("settings.perfMetrics", { defaultValue: "Performance-Messwerte" })} info={t("settings.perfMetricsDesc", { defaultValue: "Lokale Messpunkte dieser Sitzung (Median/p95 in ms) — verlassen das Gerät nie." })}>
           <div style={{ display: "flex", gap: "8px" }}>
             <Button variant="secondary" size="sm" onClick={p.onRefreshPerfStats}>
               {t("settings.perfMetricsRefresh", { defaultValue: "Anzeigen/Aktualisieren" })}

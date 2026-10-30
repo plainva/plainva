@@ -9,7 +9,6 @@ import {
   Palette,
   PanelsTopLeft,
   Pencil,
-  RefreshCw,
   Rocket,
   ShieldCheck,
   Users,
@@ -57,18 +56,9 @@ export const SETTINGS_AREAS: readonly SettingsAreaDef[] = [
   { id: "appearance", world: "app", labelKey: "settings.sectionAppearance", descKey: "settings.pageDescAppearance", icon: Palette },
   { id: "editor", world: "app", labelKey: "settings.sectionEditor", descKey: "settings.pageDescEditor", icon: Pencil },
   { id: "behavior", world: "app", labelKey: "settings.sectionBehavior", descKey: "settings.pageDescBehavior", icon: Rocket },
-  {
-    id: "updates",
-    world: "app",
-    labelKey: "settings.updates",
-    descKey: "settings.pageDescUpdates",
-    icon: RefreshCw,
-    // The phone does not update itself: Play and TestFlight own that, and every
-    // control this page carries on the desktop (check now, install, auto-check)
-    // would be a button without an effect. The About area names the store as
-    // the channel instead, which is the question behind the page.
-    mobileOmitted: "app stores own mobile updates",
-  },
+  // "Updates" was an area of its own until 2026-10-29; it is a group of About
+  // & diagnostics now (settings plan, E10), and the phone, which does not
+  // update itself, lacks only that group (parity catalog in-app-updates).
   { id: "about", world: "app", labelKey: "settings.about", descKey: "settings.pageDescAbout", icon: Info },
   { id: "cloudAccounts", world: "vault", labelKey: "settings.sectionCloudAccounts", descKey: "settings.pageDescCloudAccounts", icon: Users },
   { id: "sync", world: "vault", labelKey: "settings.syncSection", descKey: "settings.pageDescSync", icon: Cloud },

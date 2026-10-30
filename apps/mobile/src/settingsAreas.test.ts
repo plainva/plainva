@@ -42,7 +42,10 @@ describe("mobile settings areas follow the shared catalog", () => {
 
   it("hands the mobile shell the catalog minus the omissions", () => {
     const app = settingsAreas("app", { mobile: true }).map((a) => a.id);
-    expect(app).not.toContain("updates");
+    // The phone lists the same APP areas as the desktop since Updates became a
+    // group of About (settings plan 2026-10-29, E10); only that group is
+    // desktop-only (parity catalog in-app-updates).
+    expect(app).toEqual(settingsAreas("app").map((a) => a.id));
     expect(app).toContain("behavior");
     // Vault areas are complete on the phone since S39.
     expect(settingsAreas("vault", { mobile: true }).map((a) => a.id)).toEqual(

@@ -56,7 +56,7 @@ import { formatBuildLine, formatDiagnosticsExport } from "@plainva/ui";
 import { SettingsNav } from "./settings/SettingsNav";
 import { SecurityNav } from "./settings/SecurityNav";
 import { VaultPickerModal } from "./settings/VaultPickerModal";
-import { AppearancePage, EditorPage, BehaviorPage, UpdatesPage, AboutPage, CustomThemePage } from "./settings/AppPages";
+import { AppearancePage, EditorPage, BehaviorPage, AboutPage, CustomThemePage } from "./settings/AppPages";
 import { SyncPage, type SyncProvider } from "./settings/SyncPage";
 import { PimPage, MailPage, ContentPage, BackupPage, MaintenancePage, clampZipKeep, clampVersionMaxCount } from "./settings/VaultPages";
 import { BarsPage } from "./settings/BarsPage";
@@ -839,17 +839,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       }}
                     />
                   </SettingsPage>
-                  <SettingsPage active={inAppWorld && appPage === "updates"}>
-                    <UpdatesPage
-                      autoUpdateCheckEnabled={autoUpdateCheckEnabled}
-                      onAutoUpdateCheck={(val) => { setAutoUpdateCheckEnabled(val); void setAutoUpdateCheck(val); }}
-                      updateStatus={updateStatus}
-                      updateAvailable={!!updateAvailable && !isUpdating}
-                      isUpdating={isUpdating}
-                      onCheckUpdates={() => { void checkForUpdates(); }}
-                      onInstallUpdate={() => { void installUpdate(); }}
-                    />
-                  </SettingsPage>
                   <SettingsPage active={inAppWorld && appPage === "about"}>
                     <AboutPage
                       aboutLine={aboutInfo ? `Plainva ${aboutInfo.appVersion} (${formatBuildLine()}) · Tauri ${aboutInfo.tauriVersion} · WebView ${webViewVersion} · ${aboutInfo.os}` : "…"}
@@ -859,6 +848,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onExportPerfMetrics={() => { void handleExportPerfMetrics(); }}
                       onExportDiagnostics={() => { void handleExportDiagnostics(); }}
                       onReportIssue={() => { void handleReportIssue(); }}
+                      updates={{
+                        autoUpdateCheckEnabled,
+                        onAutoUpdateCheck: (val) => { setAutoUpdateCheckEnabled(val); void setAutoUpdateCheck(val); },
+                        updateStatus,
+                        updateAvailable: !!updateAvailable && !isUpdating,
+                        isUpdating,
+                        onCheckUpdates: () => { void checkForUpdates(); },
+                        onInstallUpdate: () => { void installUpdate(); },
+                      }}
                       // Only the plain file sync keeps a deletion log; the encrypted
                       // workspace worker stores sealed objects and has none.
                       onCheckDeletionLog={syncWorker?.verifyDeletionJournal

@@ -145,12 +145,13 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
             <Row
               end={<Switch
                 checked={placeStamp}
-                data-testid="place-stamp-switch"
+                testId="place-stamp-switch"
                 label={t("settings.placeStamp")}
                 onChange={(next) => { setPlaceStamp(next); setPlaceStampEnabled(next); }}
               />}
               info={t("settings.placeStampDesc")}
               title={t("settings.placeStamp")}
+              wrap
             />
           </RowList>
         </GroupCard>

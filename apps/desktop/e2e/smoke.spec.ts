@@ -2798,15 +2798,15 @@ test('Settings nav: exactly the clicked area is active; one vault shows no switc
 
   // Pages redesign: a rail click renders that page and highlights exactly its
   // entry (no scroll spy anymore — the highlight IS the active page).
-  const updates = dialog.getByRole('button', { name: /^Updates$/ });
-  await updates.click();
-  await expect(updates).toHaveCSS('font-weight', '600');
+  const editor = dialog.getByRole('button', { name: /^(Editor & Notizen|Editor & notes)$/ });
+  await editor.click();
+  await expect(editor).toHaveCSS('font-weight', '600');
 
   // Clicking another area hands the highlight over.
   const appearance = dialog.getByRole('button', { name: /^(Erscheinungsbild|Appearance)$/ });
   await appearance.click();
   await expect(appearance).toHaveCSS('font-weight', '600');
-  await expect(updates).toHaveCSS('font-weight', '400');
+  await expect(editor).toHaveCSS('font-weight', '400');
 
   // Single known vault: the identity card is display-only (no switch link).
   await expect(dialog.getByTestId('settings-vault-name')).toBeVisible();
@@ -2832,7 +2832,8 @@ test('Settings window keeps one stable height across areas (sized by the tallest
   // Tallest app page, a short app page and a vault page must all render the
   // window at the SAME height (stacked pages — feedback round 2: no jumping).
   const tall = await heightOn(/^(Erscheinungsbild|Appearance)$/);
-  const short = await heightOn(/^Updates$/);
+  // Editor & notes is the shortest APP page since Updates became a group of About (E10).
+  const short = await heightOn(/^(Editor & Notizen|Editor & notes)$/);
   const vault = await heightOn(/^Backup/);
   expect(tall).toBeGreaterThan(0);
   expect(Math.abs(tall - short)).toBeLessThanOrEqual(1);
@@ -2840,7 +2841,7 @@ test('Settings window keeps one stable height across areas (sized by the tallest
 
   // The active page's content is interactive, the stacked hidden pages not:
   // exactly one visible area heading at a time.
-  await expect(dialog.getByRole('heading', { name: /^Updates$/ })).toBeHidden();
+  await expect(dialog.getByRole('heading', { name: /^(Editor & Notizen|Editor & notes)$/ })).toBeHidden();
   await expect(dialog.getByRole('heading', { name: /^Backup/ })).toBeVisible();
 
   /* And the overflow belongs to the ACTIVE page, not to a shared scroll area
@@ -2861,12 +2862,83 @@ test('Settings window keeps one stable height across areas (sized by the tallest
     });
   };
   const appearance = await state(/^(Erscheinungsbild|Appearance)$/);
-  const updates = await state(/^Updates$/);
+  const editor = await state(/^(Editor & Notizen|Editor & notes)$/);
   expect(appearance.hostScrolls).toBe(false);
-  expect(updates.hostScrolls).toBe(false);
+  expect(editor.hostScrolls).toBe(false);
   expect(appearance.pageScrolls).toBe(true); // the theme gallery does not fit
-  expect(updates.pageScrolls).toBe(false); // two rows: no scrollbar at all
-  expect(updates.modalH).toBe(appearance.modalH); // and still no jump
+  expect(editor.pageScrolls).toBe(false); // five rows: no scrollbar at all
+  expect(editor.modalH).toBe(appearance.modalH); // and still no jump
+});
+
+/* ---- 2026-10-29: the APP pages after the settings plan (appendix 2.1-2.6) */
+
+test('Settings APP pages: groups as the settings plan orders them, explanations behind the info button', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  const groups = () => dialog.locator('.pv-setpage[data-active="true"] .pv-setgroup-label');
+  const shoot = async (name: string) => {
+    if (!process.env.PLAINVA_EVIDENCE) return;
+    for (const mode of ['light', 'dark']) {
+      await page.evaluate((m) => document.documentElement.setAttribute('data-theme', m), mode);
+      await page.screenshot({ path: testInfo.outputPath(`${name}-${mode}.png`) });
+    }
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+  };
+
+  // The rail: four APP areas, "Updates" is a group of About now (E10). The
+  // APP section says once that its settings stay on this device (Q1).
+  await expect(dialog.getByRole('button', { name: /^Updates$/ })).toHaveCount(0);
+  await dialog.getByRole('button', { name: /^(Mehr zu App|More about App)$/ }).click();
+  await expect(dialog.locator('.pv-infotip-panel')).toContainText(/reisen nicht mit|do not travel/);
+  await page.keyboard.press('Escape');
+  await expect(dialog.locator('.pv-infotip-panel')).toHaveCount(0);
+
+  // Appearance: "Language & display" became three cards; the place stamp left.
+  await dialog.getByRole('button', { name: /^(Erscheinungsbild|Appearance)$/ }).click();
+  await expect(groups()).toHaveText([
+    /^(Design)$/, /^(Schrift|Fonts)$/, /^(Sprache & Region|Language & region)$/, /^(Darstellung|Display)$/, /^(Links & Tags|Links & tags)$/,
+  ]);
+  await expect(dialog.getByTestId('place-stamp-switch')).toBeHidden();
+  const fontsInfo = dialog.getByRole('button', { name: /^(Mehr zu Schrift|More about Fonts)$/ });
+  await fontsInfo.click();
+  await expect(dialog.locator('.pv-infotip-panel')).toContainText(/je Gerät verschieden|differ from device to device/);
+  await shoot('appearance-fonts-info');
+  await page.keyboard.press('Escape');
+  // No visible description repeats the label any more.
+  await expect(dialog.getByText(/Adressen im Internet|Addresses on the internet/)).toHaveCount(0);
+  await dialog.getByTestId('appearance-language-region').scrollIntoViewIfNeeded();
+  await shoot('appearance');
+
+  // Editor & notes: View, Writing (with the links row), Journal (place stamp).
+  await dialog.getByRole('button', { name: /^(Editor & Notizen|Editor & notes)$/ }).click();
+  await expect(groups()).toHaveText([/^(Ansicht|View)$/, /^(Schreiben|Writing)$/, /^(Journal)$/]);
+  await expect(dialog.getByTestId('editor-writing').getByRole('checkbox', { name: /Vor dem Anlegen leerer Links fragen|Ask before creating empty links/ })).toBeVisible();
+  await expect(dialog.getByTestId('editor-journal').getByTestId('place-stamp-switch')).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Mehr zu Ort an Journal-Einträge anhängen können|More about Allow adding a place to journal entries)$/ }).click();
+  await expect(dialog.locator('.pv-infotip-panel')).toContainText(/Koordinaten|coordinates/);
+  await shoot('editor-place-info');
+  await page.keyboard.press('Escape');
+
+  // Startup & behavior: Startup holds the three start rows.
+  await dialog.getByRole('button', { name: /^(Start & Verhalten|Startup & behavior)$/ }).click();
+  await expect(groups().first()).toHaveText(/^(Start|Startup)$/);
+  const start = dialog.getByTestId('behavior-start');
+  await expect(start.getByRole('switch', { name: /Mit dem System starten|Start with the system/ })).toBeVisible();
+  await expect(start.getByRole('checkbox', { name: /Letzten Vault|open the last vault/ })).toBeVisible();
+  await expect(start.getByRole('switch', { name: /Fensteraufteilung wiederherstellen|Restore window layout/ })).toBeVisible();
+  await expect(start.getByText(/Ungesendete Entwürfe|Unsent drafts/)).toBeVisible();
+  await shoot('behavior');
+
+  // About & diagnostics: Application → Updates → Diagnostics.
+  await dialog.getByRole('button', { name: /^(Über & Diagnose|About & diagnostics)$/ }).click();
+  await expect(groups()).toHaveText([/^(Programm|Application)$/, /^(Updates)$/, /^(Diagnose|Diagnostics)$/]);
+  await expect(dialog.getByRole('checkbox', { name: /Beim Start nach Updates suchen|Check for updates on startup/ })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /^(Nach Updates suchen|Check for Updates)$/ })).toBeVisible();
+  await shoot('about');
 });
 
 /* -------------------- 2026-07-18: unresolved wiki links create the target note (Obsidian parity) */

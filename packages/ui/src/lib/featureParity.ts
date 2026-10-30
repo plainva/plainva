@@ -1044,6 +1044,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-23",
   },
   {
+    id: "in-app-updates",
+    title: "Checking for and installing updates from inside the app",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "On the desktop this is the group Updates of About & diagnostics (the page " +
+      "of its own dissolved there, settings plan 2026-10-29, E10). The phone does " +
+      "not update itself: Google Play and TestFlight own that, and every control the " +
+      "group carries - check now, install, check on start - would be a button without " +
+      "an effect. The phone's About & diagnostics therefore has no Updates group.",
+    verified: "2026-10-29",
+  },
+  {
     id: "keyboard-shortcuts",
     title: "Keyboard shortcuts and the overview that lists them",
     area: "platform",
