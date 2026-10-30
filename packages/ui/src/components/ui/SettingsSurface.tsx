@@ -3,7 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { ICON } from "../../lib/iconSizes";
 import { cx } from "./cx";
 import { DeviceOnlyBadge } from "./DeviceOnlyBadge";
-import { InfoTip, type InfoContent } from "./InfoTip";
+import { InfoLabel, InfoTip, type InfoContent } from "./InfoTip";
 
 /**
  * Settings surface primitives (settings redesign 2026-07-18, P1 — variant
@@ -86,8 +86,7 @@ export function SettingCard({ label, info, deviceOnly, collapsible, className, t
     <section className={cx("pv-setgroup", className)} data-testid={testId}>
       {label && (
         <div className="pv-setgroup-label">
-          {label}
-          {info !== undefined && <InfoTip label={label} info={info} testId={testId ? `${testId}-info` : "setgroup-info"} />}
+          <InfoLabel name={label} info={info} testId={testId ? `${testId}-info` : "setgroup-info"}>{label}</InfoLabel>
           {deviceOnly && <> <DeviceOnlyBadge /></>}
         </div>
       )}
@@ -119,8 +118,7 @@ export function SettingRow({ label, desc, info, deviceOnly, wide, children }: Se
     <div className={cx("pv-setrow", wide && "pv-setrow--wide")}>
       <div className="pv-setrow-main">
         <div className="pv-setrow-label">
-          {label}
-          {info !== undefined && <InfoTip label={label} info={info} testId="setrow-info" />}
+          <InfoLabel name={label} info={info} testId="setrow-info">{label}</InfoLabel>
         </div>
         {deviceOnly && <div className="pv-setrow-desc"><DeviceOnlyBadge /></div>}
         {desc && <div className="pv-setrow-desc">{desc}</div>}

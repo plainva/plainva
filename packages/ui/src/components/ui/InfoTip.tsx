@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent, type RefObject } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
 import { Info } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ICON } from "../../lib/iconSizes";
@@ -144,6 +144,45 @@ export function InfoTip({ label, info, testId = "info-tip", className }: InfoTip
           )}
         </Sheet>
       )}
+    </span>
+  );
+}
+
+export interface InfoLabelProps {
+  /** The visible label; it wraps like any text. */
+  children: ReactNode;
+  /** What stands behind the button; without it the label stands alone. */
+  info?: InfoContent;
+  /** The button's name (the label as text). */
+  name: string;
+  testId?: string;
+}
+
+/**
+ * A label with its info button at the end, the button glued to the label's
+ * last word (finding 2026-10-30: under six settings the ⓘ dropped alone onto a
+ * line of its own).
+ *
+ * The label still wraps between its words; its last word and the button sit
+ * in one span that does not wrap (`.pv-infotip-glue`), so a line breaks before
+ * that word, never between it and the button. Only a span that holds both
+ * does this in every engine: a `nowrap` parent around a wrapping label still
+ * let Chromium break at the label's end. A label that is markup cannot be
+ * split; it keeps the button after it.
+ */
+export function InfoLabel({ children, info, name, testId }: InfoLabelProps) {
+  if (info === undefined) return <>{children}</>;
+  const button = <InfoTip label={name} info={info} testId={testId} />;
+  if (typeof children !== "string") return <>{children}{button}</>;
+  const text = children.trimEnd();
+  // Back from the end to the last whitespace: where the last word starts.
+  let at = text.length;
+  while (at > 0 && !/\s/.test(text[at - 1])) at -= 1;
+  // One span around both parts, so a flex heading (`SectionLabel`) sees one item, not two.
+  return (
+    <span className="pv-infotip-label">
+      {text.slice(0, at)}
+      <span className="pv-infotip-glue">{text.slice(at)}{button}</span>
     </span>
   );
 }

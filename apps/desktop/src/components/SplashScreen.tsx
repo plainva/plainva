@@ -4,7 +4,7 @@ import { FolderOpen, Cloud, Folder, Laptop, Plus, X, FilePlus2, Database, Downlo
 import { useTranslation } from "react-i18next";
 import { OnlineVaultSetup } from "./OnlineVaultSetup";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Checkbox, ICON } from "@plainva/ui";
+import { Checkbox, ICON, Switch } from "@plainva/ui";
 import { ScrollEdge } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
@@ -442,12 +442,12 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
             </div>
 
             <div style={{ marginTop: "16px", color: "var(--text-muted)" }}>
-              <Checkbox
-                checked={autoOpenLastVault}
-                onChange={(e) => setAutoOpenLastVault(e.target.checked)}
-              >
-                {t("splash.autoOpenLastVault")}
-              </Checkbox>
+              {/* The same setting as in Startup & behavior, so the same control:
+                  a switch, with its words beside it (finding 2026-10-30). */}
+              <label className="pv-checkrow" data-testid="splash-auto-open">
+                <Switch checked={autoOpenLastVault} onChange={setAutoOpenLastVault} label={t("splash.autoOpenLastVault")} />
+                <span>{t("splash.autoOpenLastVault")}</span>
+              </label>
             </div>
           </>
         )}

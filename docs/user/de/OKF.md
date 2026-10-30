@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Stand: 2026-10-29
+Stand: 2026-10-30
 
 OKF (Open Knowledge Format) ist eine offene Konvention für Markdown-Wissenssammlungen: reine Markdown-Dateien mit einem kleinen, einheitlichen Frontmatter-Kopf. Diese Seite erklärt, was OKF ist, was Plainva dafür automatisch tut — und warum Du nichts davon nutzen *musst*.
 
@@ -34,7 +34,7 @@ Reines Markdown ist wunderbar portabel — hat für sich genommen aber keine ver
 
 ## Was Plainva automatisch macht
 
-**Neue Dateien** bekommen den OKF-Kopf automatisch: Jede in Plainva angelegte Notiz erhält `type` ins Frontmatter — die Versionsangabe `okf_version` steht seit OKF 0.2 nur noch einmal in der Wurzel-`index.md`, nicht mehr in jeder Notiz. Welche Werte, stellst Du pro Vault ein: **type für neue Notizen** (Standard `Note`) unter **Einstellungen → Vault → Notizen & Ablage → Neue Notizen** und **type für Daily Notes** (Standard `Daily Note`) unter **Einstellungen → Vault → Tagesnotizen & Journal → Tagesnotizen**. Bringt eine Vorlage ein eigenes `type` mit, gewinnt die Vorlage.
+**Neue Dateien** bekommen den OKF-Kopf automatisch: Jede in Plainva angelegte Notiz erhält `type` ins Frontmatter — die Versionsangabe `okf_version` steht seit OKF 0.2 nur noch einmal in der Wurzel-`index.md`, nicht mehr in jeder Notiz. Welche Werte, stellst Du pro Vault ein: **type für neue Notizen** (Standard `Note`) unter **Einstellungen → Vault → Notizen & Ablage → Neue Notizen** und **type für Tagesnotizen** (Standard `Daily Note`) unter **Einstellungen → Vault → Tagesnotizen & Journal → Tagesnotizen**. Bringt eine Vorlage ein eigenes `type` mit, gewinnt die Vorlage.
 
 **Bestehende Dateien werden nie ungefragt verändert.** Plainva ergänzt OKF-Felder nur beim Anlegen neuer Dateien oder wenn Du die Konvertierung ausdrücklich startest.
 

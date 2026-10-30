@@ -335,12 +335,11 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
           label={t("settings.askBeforeCreateLink", { defaultValue: "Vor dem Anlegen leerer Links fragen" })}
           info={t("settings.askBeforeCreateLinkDesc", { defaultValue: "Ein Klick auf einen Link zu einer noch nicht existierenden Notiz legt sie normalerweise sofort an. Mit dieser Option wird vorher gefragt." })}
         >
-          <input
-            type="checkbox"
-            id="askBeforeCreateLink"
-            aria-label={t("settings.askBeforeCreateLink", { defaultValue: "Vor dem Anlegen leerer Links fragen" })}
+          <Switch
+            testId="askBeforeCreateLink"
+            label={t("settings.askBeforeCreateLink", { defaultValue: "Vor dem Anlegen leerer Links fragen" })}
             checked={p.askBeforeCreateLink}
-            onChange={(e) => p.onAskBeforeCreateLink(e.target.checked)}
+            onChange={p.onAskBeforeCreateLink}
           />
         </SettingRow>
       </SettingCard>
@@ -379,7 +378,7 @@ export const BehaviorPage: React.FC<BehaviorPageProps> = (p) => {
       <SettingCard label={t("settings.groupStart", { defaultValue: "Start" })} testId="behavior-start">
         <AutostartRow />
         <SettingRow label={t("splash.autoOpenLastVault")} info={t("settings.autoOpenLastVaultDesc")}>
-          <input type="checkbox" id="autoOpenLastVault" aria-label={t("splash.autoOpenLastVault")} checked={p.autoOpenLastVault} onChange={(e) => p.onAutoOpenLastVault(e.target.checked)} />
+          <Switch testId="autoOpenLastVault" label={t("splash.autoOpenLastVault")} checked={p.autoOpenLastVault} onChange={p.onAutoOpenLastVault} />
         </SettingRow>
         <WindowRestoreRow />
       </SettingCard>
@@ -387,9 +386,9 @@ export const BehaviorPage: React.FC<BehaviorPageProps> = (p) => {
       <QuickCaptureSettings />
       <SettingCard label={t("settings.groupHints", { defaultValue: "Hinweise" })}>
         <SettingRow label={t("settings.showCompatWarning")}>
-          <input type="checkbox" id="showCompat" aria-label={t("settings.showCompatWarning")} checked={p.showCompatibilityWarning} onChange={(e) => p.onShowCompatibilityWarning(e.target.checked)} />
+          <Switch testId="showCompat" label={t("settings.showCompatWarning")} checked={p.showCompatibilityWarning} onChange={p.onShowCompatibilityWarning} />
         </SettingRow>
-        <SettingRow label={t("settings.showWhatsNew", "Release-Highlights erneut anzeigen")}>
+        <SettingRow label={t("settings.showWhatsNew", "Neuerungen erneut anzeigen")}>
           <Button variant="secondary" size="sm" onClick={() => {
             p.onShowWhatsNew?.();
             window.dispatchEvent(new CustomEvent("plainva-show-whats-new"));
@@ -433,7 +432,7 @@ const UpdatesGroup: React.FC<UpdatesGroupProps> = (p) => {
   return (
     <SettingCard label={t("settings.updates", "Updates")} testId="about-updates">
       <SettingRow label={t("settings.autoUpdateCheck")} info={t("settings.autoUpdateCheckDesc")}>
-        <input type="checkbox" id="autoUpdateCheck" aria-label={t("settings.autoUpdateCheck")} checked={p.autoUpdateCheckEnabled} onChange={(e) => p.onAutoUpdateCheck(e.target.checked)} />
+        <Switch testId="autoUpdateCheck" label={t("settings.autoUpdateCheck")} checked={p.autoUpdateCheckEnabled} onChange={p.onAutoUpdateCheck} />
       </SettingRow>
       <SettingRow label={t("settings.groupUpdate", { defaultValue: "Aktualisierung" })} desc={p.updateStatus || undefined}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>

@@ -2580,6 +2580,12 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
 .pv-rowfield-head { display: flex; align-items: center; min-width: 0; }
 /* A group heading already spaces its parts with its gap. */
 .pv-grouplabel > .pv-infotip-wrap { margin-inline-start: 0; }
+/* The label's last word and its info button as one piece that does not wrap
+   (finding 2026-10-30: the ⓘ dropped alone under six labels). The label wraps
+   before that word, never between it and the button. */
+.pv-infotip-glue { white-space: nowrap; }
+/* The whole label: inline in a block line, ONE item in a flex heading. */
+.pv-infotip-label { min-width: 0; }
 .pv-setrow-main {
   min-width: 0;
 }
@@ -2604,6 +2610,12 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
+}
+/* A lone switch needs no 300px column: the label takes the width instead and
+   does not wrap early (finding 2026-10-30). */
+.pv-setrow-ctrl:has(> .pv-switch:only-child) {
+  flex: 0 0 auto;
+  max-width: none;
 }
 .pv-setrow--wide .pv-setrow-ctrl {
   flex: initial;
@@ -3069,6 +3081,10 @@ ol.pv-wizsteps { margin: 0; padding: 0; list-style: none; }
 .pv-svcstat--err .pv-svcstat-sub { color: var(--error-text); }
 /* The failure's own words under its sentence (plan "Verbinden-Assistent", E7). */
 .pv-svcstat-raw { display: block; margin-top: 2px; font-size: var(--text-xs); opacity: 0.85; overflow-wrap: anywhere; }
+/* A calendar account's failure (finding 2026-10-30): sender, sentence and the
+   failure's own words stacked inside the error banner, never loose lines. */
+.pv-acctfail-text { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.pv-acctfail-text > .pv-svcstat-raw { margin-top: 0; }
 
 /* ── Cascade deletion dialog (plan Kaskadenloeschung 2026-07-21) ─────────────
    One danger dialog rendered from the precomputed deletion plan. Cards reuse

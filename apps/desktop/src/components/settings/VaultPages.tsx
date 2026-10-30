@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Folder, X } from "lucide-react";
-import { Button, CommittedTextInput, DAY_END_CHOICES, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, boundaryLabel, clampBoundary, okfBundleStatusLines, sanitizeDailyNoteFormat, travelsWithVault, type CloudServiceId } from "@plainva/ui";
+import { Button, CommittedTextInput, DAY_END_CHOICES, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, Switch, boundaryLabel, clampBoundary, okfBundleStatusLines, sanitizeDailyNoteFormat, travelsWithVault, type CloudServiceId } from "@plainva/ui";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { ReminderSettings } from "../pim/ReminderSettings";
@@ -313,7 +313,7 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
           </div>
         </SettingRow>
         <SettingRow label={t("settings.allowExtendedDb")} desc={t("settings.allowExtendedDbDesc")} info={t("settings.allowExtendedDbInfo")}>
-          <input type="checkbox" id="extDb" checked={p.extendedDatabases} onChange={(e) => p.onExtendedDatabases(e.target.checked)} />
+          <Switch testId="extDb" label={t("settings.allowExtendedDb")} checked={p.extendedDatabases} onChange={p.onExtendedDatabases} />
         </SettingRow>
       </SettingCard>
 
@@ -325,7 +325,7 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
           <CommittedTextInput autoComplete="off" value={p.verifierName} onSave={p.onVerifierName} placeholder={t("trust.verifierPlaceholder")} style={{ width: "100%" }} data-testid="verifier-name" />
         </SettingRow>
         <SettingRow label={t("settings.commentAnchors")} desc={t("settings.commentAnchorsHint")} info={t("settings.commentAnchorsDesc")} deviceOnly={deviceOnly("commentAnchors")}>
-          <input type="checkbox" id="commentAnchors" checked={p.commentAnchors} onChange={(e) => p.onCommentAnchors(e.target.checked)} />
+          <Switch testId="commentAnchors" label={t("settings.commentAnchors")} checked={p.commentAnchors} onChange={p.onCommentAnchors} />
         </SettingRow>
         {p.isActiveVault && <CommentNotificationRows deviceOnly={deviceOnly(undefined)} />}
       </SettingCard>
@@ -451,12 +451,7 @@ export const BackupPage: React.FC<BackupPageProps> = (p) => {
 
       <SettingCard label={t("settings.groupZipBackups", { defaultValue: "ZIP-Backups" })}>
         <SettingRow label={t("settings.backupZipEnabled")} info={t("settings.backupZipEnabledDesc")}>
-          <input
-            type="checkbox"
-            data-testid="backup-zip-enabled"
-            checked={p.zipEnabled}
-            onChange={(e) => p.onZipEnabled(e.target.checked)}
-          />
+          <Switch testId="backup-zip-enabled" label={t("settings.backupZipEnabled")} checked={p.zipEnabled} onChange={p.onZipEnabled} />
         </SettingRow>
         <SettingRow label={t("settings.backupZipDest")} desc={p.zipDest || p.zipDefaultDest || undefined} deviceOnly={deviceOnly(undefined)}>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "flex-end" }}>

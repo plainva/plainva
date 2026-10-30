@@ -123,7 +123,6 @@ const BUDGET: Record<string, Counts> = {
    */
   "components/CloudFolderPickerSheet.tsx": { gapBare: 1 },
   "components/NoteContextSheet.tsx": { spacingBare: 1 },
-  "screens/PimAccountsScreen.tsx": { spacingBare: 1 },
   "screens/PimCalendarScreen.tsx": { spacingRaw: 2, sizeBare: 3 },
 };
 

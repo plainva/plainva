@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Users } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, familyOfMailAccount, serviceConnectionMessage, toast, type CloudServiceId, InfoTip } from "@plainva/ui";
+import { Banner, Button, EmptyState, ICON, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, Switch, familyOfMailAccount, serviceConnectionMessage, toast, type CloudServiceId, InfoTip } from "@plainva/ui";
 import { RulesSettings } from "./RulesSettings";
 import { VacationSettings } from "./VacationSettings";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
@@ -396,12 +396,11 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
           desc={`${t("mail.loadRemoteImagesShort")} ${t("mail.loadRemoteImagesJunkShort")}`}
           info={[t("mail.loadRemoteImagesHint"), t("mail.loadRemoteImagesJunk")].join("\n\n")}
         >
-          <input
-            type="checkbox"
+          <Switch
             checked={remoteImages}
-            onChange={(e) => void persistRemoteImages(e.target.checked)}
-            data-testid="mail-remote-images"
-            className="pv-check"
+            onChange={(on) => void persistRemoteImages(on)}
+            label={t("mail.loadRemoteImages", { defaultValue: "Externe Bilder immer laden" })}
+            testId="mail-remote-images"
           />
         </SettingRow>
       </SettingCard>

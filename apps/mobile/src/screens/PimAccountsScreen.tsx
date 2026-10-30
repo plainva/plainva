@@ -3,7 +3,7 @@ import { devicePermissionKey } from "../services/pim/devicePermission";
 import { devicePimAuthorization, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Circle, Plus } from "lucide-react";
-import { Banner, Button, calendarTargetForFamily, classifyAuthError, foldMachineText, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, listTemplates, MEETING_TEMPLATE_TOKENS, minutesToTime, reminderDiagnosis, Row, RowList, SectionLabel, SettingField, Switch, TextInput, toast, type CloudProviderFamily, InfoTip, travelsWithVault } from "@plainva/ui";
+import { AccountFailureNote, Banner, Button, calendarTargetForFamily, foldMachineText, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, listTemplates, MEETING_TEMPLATE_TOKENS, minutesToTime, reminderDiagnosis, Row, RowList, SectionLabel, SettingField, Switch, TextInput, toast, type CloudProviderFamily, InfoTip, pimAccountFailure, pimProviderName, travelsWithVault } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { accessProblemKey, isGoogleAuthorizationCancelled, serviceConnectionMessage, type AccessFamily, type AccessResolution } from "@plainva/ui";
 import { getReminderState, subscribeReminderState } from "../services/reminderScheduler";
@@ -661,29 +661,61 @@ export function PimAccountsScreen({
             const failure = errors.get(a.id);
             const state = accountRowState(signIn.get(a.id) ?? "active", failure);
             return (
-              <div key={a.id} style={{ marginBottom: 16 }}>
-                <div className="m-acct" data-testid={`pim-account-${a.id}`}>
-                  <span className="m-acct-name">{a.label}</span>
-                  <DeviceSignInBadge state={state} />
-                  <span className="m-acct-provider">{a.provider === "device" ? t("cloudAccounts.familyDevice") : a.provider}</span>
-                </div>
+              <div key={a.id} className="m-pimacct">
+                {/* The account is ONE card (finding 2026-10-30): its own row first —
+                    the address, the provider by name, the sign-in state at the end —
+                    then what is wrong with it, then its calendars. The line above the
+                    card, its pill touching the provider, and the failure as two loose
+                    lines are gone; the desktop draws the same parts. */}
+                <GroupCard>
+                  <RowList>
+                    <Row
+                      data-testid={`pim-account-${a.id}`}
+                      title={a.label}
+                      subtitle={pimProviderName(a.provider, t)}
+                      end={<DeviceSignInBadge state={state} />}
+                    />
+                    {calendarRun ? null : (
+                      <Row
+                        data-testid={`pim-account-calendars-${a.id}`}
+                        title={t("cloudAccounts.openAccountCalendar")}
+                        subtitle={t("cloudAccounts.calendarSummary", {
+                          calendars: cals.filter((c) => c.selected).length,
+                          lists: taskLists.filter((l) => l.accountId === a.id && l.selected).length,
+                        })}
+                        end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                        onClick={() => onOpenAccountCalendar?.(a.id)}
+                      />
+                    )}
+                  </RowList>
+                </GroupCard>
                 {a.provider === "device" && deviceStatus && deviceStatus.events !== "fullAccess" && (
                   /* The device account's "sign-in" is the permission: the hint names
                      its state and offers the system settings, never a second dialog. */
-                  <>
-                    <p className="m-hint m-acct-hint" data-testid={`pim-account-hint-${a.id}`}>
-                      {t(devicePermissionKey(deviceStatus.events))} — {t("pim.deviceAccessNeeded")}
-                    </p>
+                  <Banner kind="warning" rounded actions={
                     <Button onClick={() => void openDevicePimSettings()} size="sm" variant="tonal">
                       {t("pim.deviceOpenSettings")}
                     </Button>
-                  </>
+                  }>
+                    <span data-testid={`pim-account-hint-${a.id}`}>
+                      {t(devicePermissionKey(deviceStatus.events))} — {t("pim.deviceAccessNeeded")}
+                    </span>
+                  </Banner>
                 )}
                 {a.provider !== "device" && state !== "active" && (
-                  /* The row alone would only say something is wrong — this says
+                  /* The pill alone would only say something is wrong — this says
                      what, and offers the one action that fixes it. */
-                  <>
-                    <p className="m-hint m-acct-hint" data-testid={`pim-account-hint-${a.id}`}>
+                  <Banner kind="warning" rounded actions={
+                    <Button
+                      size="sm"
+                      variant="tonal"
+                      data-testid={`pim-account-reauth-${a.id}`}
+                      onClick={() => void signInAgain(a)}
+                    >
+                      {t("cloudAccounts.reconnect")}
+                    </Button>
+                  }>
+                    <span data-testid={`pim-account-hint-${a.id}`}>
                       {state === "expired"
                         ? a.provider === "google"
                           ? t("pim.authExpiredGoogleShort")
@@ -692,30 +724,19 @@ export function PimAccountsScreen({
                           ? t("deviceSignIn.rowHintOauth")
                           : t("deviceSignIn.rowHintStatic")}
                       {state === "expired" && a.provider === "google" && <InfoTip label={a.label} info={t("pim.authExpiredGoogle")} />}
-                    </p>
-                    <Button
-                      variant="tonal"
-                      data-testid={`pim-account-reauth-${a.id}`}
-                      onClick={() => void signInAgain(a)}
-                    >
-                      {t("cloudAccounts.reconnect")}
-                    </Button>
-                  </>
+                    </span>
+                  </Banner>
                 )}
                 {/* A failure that re-signing does NOT fix still has to be
                     visible — a wrong client id or a dead network read as an
-                    empty calendar before, with nothing on screen to explain it.
-                    The provider's own words stay below the advice. */}
+                    empty calendar before. Who failed, what it means, and the
+                    provider's own words small under it, as on the desktop. */}
                 {state === "active" && failure && (
-                  <p className="m-hint m-acct-hint" data-testid={`pim-account-error-${a.id}`}>
-                    {classifyAuthError(failure) === "config"
-                      ? t("pim.authConfig")
-                      : classifyAuthError(failure) === "network"
-                        ? t("pim.authNetwork")
-                        : t("pim.accountFailed")}
-                    <br />
-                    <span style={{ color: "var(--text-faint)" }}>{failure}</span>
-                  </p>
+                  <AccountFailureNote
+                    failure={pimAccountFailure(failure, a.provider, t)}
+                    name={a.label}
+                    testId={`pim-account-error-${a.id}`}
+                  />
                 )}
                 {/* Inside a connect run this IS the step that picks the calendars and
                     lists ("connection.selectResources"). Outside one, the calendars and
@@ -761,23 +782,7 @@ export function PimAccountsScreen({
                       </GroupCard>
                     )}
                   </>
-                ) : (
-                  <GroupCard>
-                    <RowList>
-                      <Row
-                        indent={1}
-                        data-testid={`pim-account-calendars-${a.id}`}
-                        title={t("cloudAccounts.openAccountCalendar")}
-                        subtitle={t("cloudAccounts.calendarSummary", {
-                          calendars: cals.filter((c) => c.selected).length,
-                          lists: taskLists.filter((l) => l.accountId === a.id && l.selected).length,
-                        })}
-                        end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                        onClick={() => onOpenAccountCalendar?.(a.id)}
-                      />
-                    </RowList>
-                  </GroupCard>
-                )}
+                ) : null}
               </div>
             );
           })

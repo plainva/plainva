@@ -3,7 +3,7 @@ import { Check, ChevronRight } from "lucide-react";
 import { ICON } from "../../lib/iconSizes";
 import { cx } from "./cx";
 import { DeviceOnlyBadge } from "./DeviceOnlyBadge";
-import { InfoTip, type InfoContent } from "./InfoTip";
+import { InfoLabel, InfoTip, type InfoContent } from "./InfoTip";
 
 /** The name an info button takes from a label that may be markup. */
 function nameOf(label: ReactNode, infoLabel: string | undefined): string {
@@ -69,9 +69,10 @@ export function SectionLabel({
           <ChevronRight aria-hidden="true" size={ICON.meta} />
         </button>
       ) : (
-        children
+        <InfoLabel name={nameOf(children, infoLabel)} info={info} testId="grouplabel-info">{children}</InfoLabel>
       )}
-      {info !== undefined && <InfoTip label={nameOf(children, infoLabel)} info={info} testId="grouplabel-info" />}
+      {/* A heading that leads somewhere is a button; the info button stands beside it, never inside. */}
+      {onOpen && info !== undefined && <InfoTip label={nameOf(children, infoLabel)} info={info} testId="grouplabel-info" />}
       {deviceOnly && <DeviceOnlyBadge />}
       {end !== undefined && end !== null && end !== "" && <span className="pv-grouplabel-end">{end}</span>}
     </p>
@@ -194,6 +195,9 @@ export function SettingField({
   return (
     <div className={cx("pv-rowfield", className)}>
       <span className="pv-rowfield-head">
+        {/* The <label> names its control, so the button cannot join its last
+            word (InfoLabel); the line is a flex row instead, where the button
+            stands beside the label's box and never on a line of its own. */}
         {target ? <label className="pv-rowfield-label" htmlFor={target}>{label}</label> : <span className="pv-rowfield-label">{label}</span>}
         <InfoTip label={nameOf(label, infoLabel)} info={info} testId="rowfield-info" />
       </span>

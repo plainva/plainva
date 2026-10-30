@@ -4,7 +4,7 @@ import { Check, CircleAlert, Clock } from "lucide-react";
 import {
   Banner,
   Button,
-  Checkbox,
+  Switch,
   ICON,
   MAIL_PRESETS,
   SettingCard,
@@ -106,7 +106,7 @@ export const ConnectFieldsCard: React.FC<{
         if (field.input === "switch") {
           return (
             <SettingRow key={field.id} label={t(field.labelKey)}>
-              <Checkbox checked={value !== "off"} disabled={disabled} onChange={(event) => onChange(field.id, event.target.checked ? "on" : "off")} aria-label={t(field.labelKey)} data-testid={testId} />
+              <Switch checked={value !== "off"} disabled={disabled} onChange={(on) => onChange(field.id, on ? "on" : "off")} label={t(field.labelKey)} testId={testId} />
             </SettingRow>
           );
         }

@@ -1667,10 +1667,11 @@ test('Splash: shows by default despite lastVaultPath (auto-open is opt-in)', asy
   });
   await page.goto('/');
   await expect(page.getByText(/Willkommen bei Plainva|Welcome to Plainva/)).toBeVisible({ timeout: 10000 });
-  // The opt-in checkbox is offered right on the splash and starts unchecked.
-  const checkbox = page.locator('input[type="checkbox"]');
-  await expect(checkbox).toBeVisible();
-  await expect(checkbox).not.toBeChecked();
+  // The opt-in is offered right on the splash, as the same switch as in the
+  // settings (finding 2026-10-30), and starts off.
+  const toggle = page.getByTestId('splash-auto-open').getByRole('switch', { name: /Letzten Vault|open the last vault/ });
+  await expect(toggle).toBeVisible();
+  await expect(toggle).not.toBeChecked();
   // The frameless window must stay movable/closable without the title bar:
   // the splash carries a drag-region strip with the window controls.
   const strip = page.getByTestId('window-chrome-strip');
@@ -2917,7 +2918,7 @@ test('Settings APP pages: groups as the settings plan orders them, explanations 
   // Editor & notes: View, Writing (with the links row), Journal (place stamp).
   await dialog.getByRole('button', { name: /^(Editor & Notizen|Editor & notes)$/ }).click();
   await expect(groups()).toHaveText([/^(Ansicht|View)$/, /^(Schreiben|Writing)$/, /^(Journal)$/]);
-  await expect(dialog.getByTestId('editor-writing').getByRole('checkbox', { name: /Vor dem Anlegen leerer Links fragen|Ask before creating empty links/ })).toBeVisible();
+  await expect(dialog.getByTestId('editor-writing').getByRole('switch', { name: /Vor dem Anlegen leerer Links fragen|Ask before creating empty links/ })).toBeVisible();
   await expect(dialog.getByTestId('editor-journal').getByTestId('place-stamp-switch')).toBeVisible();
   await dialog.getByRole('button', { name: /^(Mehr zu Ort an Journal-Einträge anhängen können|More about Allow adding a place to journal entries)$/ }).click();
   await expect(dialog.locator('.pv-infotip-panel')).toContainText(/Koordinaten|coordinates/);
@@ -2929,7 +2930,7 @@ test('Settings APP pages: groups as the settings plan orders them, explanations 
   await expect(groups().first()).toHaveText(/^(Start|Startup)$/);
   const start = dialog.getByTestId('behavior-start');
   await expect(start.getByRole('switch', { name: /Mit dem System starten|Start with the system/ })).toBeVisible();
-  await expect(start.getByRole('checkbox', { name: /Letzten Vault|open the last vault/ })).toBeVisible();
+  await expect(start.getByRole('switch', { name: /Letzten Vault|open the last vault/ })).toBeVisible();
   await expect(start.getByRole('switch', { name: /Fensteraufteilung wiederherstellen|Restore window layout/ })).toBeVisible();
   await expect(start.getByText(/Ungesendete Entwürfe|Unsent drafts/)).toBeVisible();
   await shoot('behavior');
@@ -2938,8 +2939,8 @@ test('Settings APP pages: groups as the settings plan orders them, explanations 
   // keychain group (OS keychain state + stored access) came from Sync (move 15).
   await dialog.getByRole('button', { name: /^(Über & Diagnose|About & diagnostics)$/ }).click();
   await expect(groups()).toHaveText([/^(Programm|Application)$/, /^(Updates)$/, /^(Schlüsselbund|Keychain)$/, /^(Diagnose|Diagnostics)$/]);
-  await expect(dialog.getByTestId('settings-stored-access')).toContainText(/OS-Keychain|OS keychain/);
-  await expect(dialog.getByRole('checkbox', { name: /Beim Start nach Updates suchen|Check for updates on startup/ })).toBeVisible();
+  await expect(dialog.getByTestId('settings-stored-access')).toContainText(/Schlüsselbund des Systems|OS keychain/);
+  await expect(dialog.getByRole('switch', { name: /Beim Start nach Updates suchen|Check for updates on startup/ })).toBeVisible();
   await expect(dialog.getByRole('button', { name: /^(Nach Updates suchen|Check for Updates)$/ })).toBeVisible();
   await shoot('about');
 });

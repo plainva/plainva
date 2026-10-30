@@ -241,6 +241,11 @@ test.beforeEach(async ({ page }) => {
           // listSyncProblems (K1): what is not being synced. Opt-in rows; read
           // on every call, so a test can clear them and watch the view re-read.
           if (q.includes('FROM pim_state s JOIN pim_accounts')) return (window as any).__pimProblems ?? [];
+          // getScopeState: an account's last failure, opt-in (the settings' account note).
+          if (q.includes('FROM pim_state WHERE account_id = ?')) {
+            const error = (window as any).__pimScopeError;
+            return error && args.values?.[1] === 'account' ? [{ cursor: null, last_sync_ts: null, last_error: error, last_error_kind: 'transient', auth_revision: null }] : [];
+          }
           if (q.includes('FROM pim_accounts')) {
             const custom = (window as any).__pimAccounts;
             if (custom) return custom;
@@ -1747,6 +1752,34 @@ test('an account that is not being synced says so above the calendar, and the ev
   await notice.getByTestId('calendar-sync-retry').click();
   await expect(notice).toHaveCount(0);
   await expect(page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' })).toBeVisible();
+});
+
+test('a calendar account that fails says who failed in the settings, as on the phone', async ({ page }, testInfo) => {
+  // Finding 2026-10-30: the phone showed the sentence and the raw code as two
+  // loose lines; both shells now draw one note — the sender in bold, the
+  // sentence, the failure's own words small — with the actions that help.
+  await page.addInitScript(() => {
+    (window as any).__pimScopeError = 'error sending request for url (https://dav.example.org/calendars/me/)';
+  });
+  await openVault(page);
+  await page.keyboard.press('Control+,');
+  const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dlg).toBeVisible();
+  await dlg.getByRole('button', { name: /^(Kalender|Calendar)$/ }).click();
+
+  const note = dlg.getByTestId('pim-account-error-acc1');
+  await expect(note).toBeVisible();
+  await expect(note.locator('strong')).toHaveText(/^(Keine Verbindung|No connection)$/);
+  await expect(note).toContainText(/Das Konto war nicht erreichbar|could not be reached/);
+  await expect(note.locator('code')).toHaveText('error sending request for url (https://dav.example.org/calendars/me/)');
+  await expect(dlg.getByTestId('pim-retry-acc1')).toBeVisible();
+  if (process.env.PLAINVA_EVIDENCE) {
+    await note.scrollIntoViewIfNeeded();
+    for (const mode of ['light', 'dark']) {
+      await page.evaluate((m) => document.documentElement.setAttribute('data-theme', m), mode);
+      await page.screenshot({ path: testInfo.outputPath(`calendar-account-error-${mode}.png`) });
+    }
+  }
 });
 
 test('the calendar reads again when its window comes back, without a cycle', async ({ page }) => {

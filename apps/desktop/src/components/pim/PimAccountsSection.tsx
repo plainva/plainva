@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, RefreshCw } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, InfoTip, MEETING_TEMPLATE_TOKENS, SettingCard, SettingCardActions, SettingCardBlock, SettingCardNote, SettingRow, TextInput, classifyAuthError, isApiNotEnabled, listTemplates, logDiagnostic, needsReauthorisation, reviewDuplicatePimRows, type CloudServiceId } from "@plainva/ui";
+import { AccountFailureNote, Banner, Button, EmptyState, ICON, MEETING_TEMPLATE_TOKENS, SettingCard, SettingCardActions, SettingCardBlock, SettingCardNote, SettingRow, TextInput, listTemplates, logDiagnostic, needsReauthorisation, pimAccountFailure, pimProviderName, reviewDuplicatePimRows, type CloudServiceId } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar, PimTaskList } from "@plainva/core";
 import { useVault, meetingFolderKey, meetingNoteTemplateKey, templateFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -53,31 +53,6 @@ function logCollections(
 export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccounts?: (accountRef?: string, service?: CloudServiceId) => void }) {
   const { t } = useTranslation();
 
-  /**
-   * What the failure means, in the user's terms. The provider matters for one
-   * case: a BYO Google client whose consent screen is still in "testing"
-   * expires every refresh token after seven days — that is a property of the
-   * user's own Google project, not something the app can fix, and it looks
-   * exactly like a revoked account unless we say so.
-   */
-  const authAdvice = (message: string, provider: string): string => {
-    // Checked before the kind: the registration is right in this one, the API
-    // is simply off in the user's own project.
-    if (isApiNotEnabled(message)) return t("pim.authApiDisabled");
-    switch (classifyAuthError(message)) {
-      case "expired":
-        return provider === "google" ? t("pim.authExpiredGoogleShort") : t("pim.authExpired");
-      case "config":
-        return t("pim.authConfig");
-      case "network":
-        return t("pim.authNetwork");
-      default:
-        return t("pim.accountFailed");
-    }
-  };
-  /** The background of an advice, where there is one: behind the info (3.4 A). */
-  const authAdviceInfo = (message: string, provider: string): string | undefined =>
-    !isApiNotEnabled(message) && classifyAuthError(message) === "expired" && provider === "google" ? t("pim.authExpiredGoogle") : undefined;
   const { pimRuntime, vaultPath, vaultAdapter } = useVault();
   const [accounts, setAccounts] = useState<PimAccountRow[]>([]);
   const duplicates = useMemo(() => reviewDuplicatePimRows(accounts), [accounts]);
@@ -261,10 +236,7 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
     );
   }
 
-  const providerLabel = (p: string) =>
-    // "device" never reaches a desktop (EventKit plan E3) — named anyway, so a row that
-    // did would say what it is instead of "Microsoft".
-    p === "caldav" ? "CalDAV" : p === "google" ? "Google" : p === "microsoft" ? "Microsoft" : p === "device" ? t("cloudAccounts.familyDevice") : p;
+  const providerLabel = (p: string) => pimProviderName(p, t);
 
   /** What the meeting template may use — behind its info, with the guide (3.4 A). */
   const meetingTemplateInfo = [t("pim.meetingTemplateHint"), `${t("pim.meetingTemplatePlaceholders")} ${MEETING_TEMPLATE_TOKENS.map((token) => `{{${token}}}`).join(" ")}`].join("\n\n");
@@ -324,9 +296,13 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
               </SettingRow>
               {accErrors.account && (
                 <SettingCardBlock>
-                  <Banner
-                    kind="error"
-                    rounded
+                  {/* What the failure means in the person's terms, who failed, and the
+                      provider's own words small under it — "400 Bad Request" answered
+                      nothing as a headline (finding 2026-10-30: the same parts as the phone). */}
+                  <AccountFailureNote
+                    failure={pimAccountFailure(accErrors.account, account.provider, t)}
+                    name={account.label}
+                    testId={`pim-account-error-${account.id}`}
                     actions={
                       <>
                         {/* An expired grant cannot be retried into working. The
@@ -347,20 +323,12 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
                         </Button>
                       </>
                     }
-                  >
-                    {authAdvice(accErrors.account, account.provider)}
-                    {authAdviceInfo(accErrors.account, account.provider) && (
-                      <InfoTip label={account.label} info={authAdviceInfo(accErrors.account, account.provider)!} />
-                    )}
-                  </Banner>
-                  {/* The provider's own words stay available, just not as the
-                      headline — "400 Bad Request" answered nothing. */}
+                  />
                   {retriedError[account.id] === accErrors.account && (
                     <p style={{ margin: "var(--space-1) 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }} data-testid={`pim-retry-same-${account.id}`}>
                       {t("pim.retrySameError")}
                     </p>
                   )}
-                  <p style={{ margin: "var(--space-1) 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{accErrors.account}</p>
                   <p style={{ margin: "var(--space-1) 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
                     {t("pim.lastKnownSelection")}
                   </p>

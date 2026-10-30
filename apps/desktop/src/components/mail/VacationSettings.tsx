@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, SettingCard, SettingCardNote, SettingRow, TextArea, TextInput, toast, InfoTip } from "@plainva/ui";
+import { Button, SettingCard, SettingCardNote, SettingRow, Switch, TextArea, TextInput, toast, InfoTip } from "@plainva/ui";
 import { SIEVE_PORT, setVacation, vacationSupport, type MailAccountConfig } from "@plainva/ui/mail";
 
 /**
@@ -86,7 +86,7 @@ export function VacationSettings({ vaultPath, account }: { vaultPath: string; ac
         />
       </SettingCardNote>
       <SettingRow label={t("vacation.enabled", { defaultValue: "Abwesenheitsnotiz aktiv" })}>
-        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="pv-check" data-testid="vacation-enabled" />
+        <Switch checked={enabled} onChange={setEnabled} label={t("vacation.enabled", { defaultValue: "Abwesenheitsnotiz aktiv" })} testId="vacation-enabled" />
       </SettingRow>
 
       <SettingRow label={t("vacation.subject", { defaultValue: "Betreff" })}>

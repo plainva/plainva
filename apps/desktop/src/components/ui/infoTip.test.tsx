@@ -206,11 +206,15 @@ describe("the row primitives carry it at the end of the label", () => {
         <SettingRow label="Plain" />
       </SettingCard>,
     );
+    // The button ends the label, glued to its last word (finding 2026-10-30).
     const heading = container.querySelector(".pv-setgroup-label")!;
-    expect(heading.lastElementChild?.classList.contains("pv-infotip-wrap")).toBe(true);
+    const headGlue = heading.querySelector(".pv-infotip-glue")!;
+    expect(headGlue.lastElementChild?.classList.contains("pv-infotip-wrap")).toBe(true);
+    expect(headGlue.textContent).toBe("index");
     expect(heading.textContent).toBe("Search index");
     const labels = container.querySelectorAll(".pv-setrow-label");
-    expect(labels[0].lastElementChild?.classList.contains("pv-infotip-wrap")).toBe(true);
+    expect(labels[0].querySelector(".pv-infotip-glue")?.lastElementChild?.classList.contains("pv-infotip-wrap")).toBe(true);
+    expect(labels[0].querySelector(".pv-infotip-glue")?.textContent).toBe("Rebuild");
     expect(labels[0].querySelector("button")?.getAttribute("aria-label")).toBe("More about Rebuild");
     expect(labels[1].querySelector("button")).toBeNull();
     // The card's group keeps its plain name.

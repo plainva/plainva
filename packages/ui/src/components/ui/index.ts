@@ -38,7 +38,7 @@ export {
   type SettingRowProps,
   type SettingCardNoteProps,
 } from "./SettingsSurface";
-export { InfoTip, infoText, infoGuide, infoGuideUrl, type InfoTipProps, type InfoContent } from "./InfoTip";
+export { InfoTip, InfoLabel, infoText, infoGuide, infoGuideUrl, type InfoTipProps, type InfoLabelProps, type InfoContent } from "./InfoTip";
 export { DeviceOnlyBadge } from "./DeviceOnlyBadge";
 export { TooltipHost } from "./Tooltip";
 export { FontCatalogPicker, type FontCatalogPickerProps } from "./FontCatalogPicker";
