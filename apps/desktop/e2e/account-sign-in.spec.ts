@@ -598,6 +598,60 @@ test('a Google account leads from the list to its calendar page and back, in fiv
   await expect(dialog.getByTestId('cloudacct-head')).toBeVisible();
 });
 
+test('the account page after the settings plan: explanations behind the info buttons, the end last, the default calendar only marked, the search lands on a row of the account', async ({ page }, testInfo) => {
+  // Settings plan 2026-10-29, appendix 3.1 and E13: the account page keeps the
+  // step and the consequence visible and puts the background behind its ⓘ;
+  // the calendar page marks the default the Calendar page sets.
+  const { seed } = signedInGoogle(ALL_SCOPES);
+  await wire(page, { ...seed, settings: { [`defaultCalendar_${vaultKey}`]: 'pim-anna cal-anna' } });
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  const dialog = await openCloudAccounts(page);
+  const shoot = async (name: string) => {
+    if (!process.env.PLAINVA_EVIDENCE) return;
+    for (const mode of ['light', 'dark']) {
+      await page.evaluate((m) => document.documentElement.setAttribute('data-theme', m), mode);
+      await page.screenshot({ path: testInfo.outputPath(`${name}-${mode}.png`) });
+    }
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+  };
+  await dialog.getByTestId('cloudacct-row').click();
+  await expect(dialog.getByTestId('cloudacct-head')).toBeVisible();
+
+  // "Access on this device" says once, behind its ⓘ, that the choice is this device's.
+  await dialog.getByRole('button', { name: /^(Mehr zu Zugang auf diesem Gerät|More about Access on this device)$/ }).click();
+  await expect(dialog.locator('.pv-infotip-panel')).toContainText(/andere Geräte behalten|other devices keep/);
+  await page.keyboard.press('Escape');
+  // The end is the last group, its difference visible; what signing out keeps is behind its ⓘ.
+  await expect(dialog.locator('.pv-setpage[data-active="true"] .pv-setgroup-label').last()).toHaveText(/^(Ende|End)/);
+  await expect(dialog.getByTestId('cloudacct-end')).toContainText(/Abmelden gilt nur|Signing out applies/);
+  await shoot('account-page');
+
+  // While the sign-in editor is open it IS the access group - no empty card above it.
+  await dialog.getByTestId('cloudacct-access-change').click();
+  await expect(dialog.getByTestId('oauth-access-google')).toBeVisible();
+  await expect(dialog.getByTestId('cloudacct-access-group')).toHaveCount(0);
+  await expect(dialog.getByTestId('oauth-access-google')).toContainText(/Zugang auf diesem Gerät|Access on this device/);
+  await shoot('account-access-editor');
+  await dialog.getByTestId('oauth-access-google').getByRole('button', { name: /^(Abbrechen|Cancel)$/ }).click();
+  await expect(dialog.getByTestId('cloudacct-access-group')).toBeVisible();
+
+  // The calendar page marks the default and offers no second place to set it (E13).
+  await dialog.getByTestId('cloudacct-service-open-calendar').click();
+  await expect(dialog.getByTestId('account-calendar-cal-anna')).toBeVisible({ timeout: 15_000 });
+  await expect(dialog.getByTestId('account-calendar-default')).toHaveCount(0);
+  await expect(dialog.locator('.pv-setrow').filter({ has: page.getByTestId('account-calendar-cal-anna') })).toContainText(/Standardkalender für Termine|Default calendar for events/);
+  await shoot('account-calendar-page');
+
+  // The search over all settings finds a row of the account's files page and lands on it.
+  await dialog.getByTestId('settings-search').fill('sync interval');
+  const hit = dialog.getByTestId('settings-search-hit').filter({ hasText: /Sync-Intervall|Sync Interval/ }).first();
+  await expect(hit).toContainText(/Dateien dieses Kontos|This account's files/);
+  await hit.click();
+  await expect(dialog.getByTestId('account-service-files')).toBeVisible();
+  await expect(dialog.locator('[data-setting-found]')).toContainText(/Sync-Intervall|Sync Interval/);
+  await shoot('search-account-files-row');
+});
+
 test('the check names a service that was never granted, and its action grants it', async ({ page }) => {
   // Signed in through the provider with the calendar left unticked at the consent.
   const { seed } = signedInGoogle('');

@@ -311,6 +311,12 @@ test("a Google account leads from the list to its calendar page and back, in fiv
   await expect(page.getByTestId("cloudacct-check-open")).toBeVisible();
   await expect(page.getByTestId("cloudacct-signout")).toBeVisible();
   await expect(page.getByTestId("cloudacct-remove")).toBeVisible();
+  // As on the desktop (appendix 3.1 B5): the difference between signing out and
+  // removing stands under the end; what signing out keeps is behind its ⓘ.
+  await expect(page.getByTestId("cloudacct-end-hint")).toContainText("Signing out applies to this device only");
+  await page.getByRole("button", { name: "More about Access on this device" }).click();
+  await expect(page.getByTestId("grouplabel-info-sheet")).toContainText("other devices keep their own setting");
+  await page.keyboard.press("Escape");
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("google-account-page.png"), fullPage: true });
 
   // The calendar page of THIS account.
@@ -318,6 +324,8 @@ test("a Google account leads from the list to its calendar page and back, in fiv
   await expect(page.getByTestId("account-service-calendar")).toBeVisible();
   await expect(page.getByTestId("account-service-switch")).toBeVisible();
   await expect(page.getByTestId("account-calendar-primary")).toBeVisible({ timeout: 15000 });
+  // E13: the default calendar is set on the Calendar page only.
+  await expect(page.getByTestId("account-calendar-default")).toHaveCount(0);
   await expect(page.getByTestId("account-service-global")).toBeVisible();
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("google-calendar-page.png"), fullPage: true });
   await page.getByRole("button", { name: "Back" }).first().click();

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { test, expect, type Locator } from '@playwright/test';
+import { test, expect, type Locator, type Page, type TestInfo } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { DatabaseSync } from 'node:sqlite';
 import { segmentedIndexText } from '../../../packages/core/src/vault/spacelessText';
@@ -4212,4 +4212,96 @@ test('List indent: a task typed anew keeps its box where the tasks around it hav
   expect(lefts).toHaveLength(3);
   expect(Math.abs(lefts[1] - lefts[0]), 'the new box against the one above').toBeLessThan(1);
   expect(Math.abs(lefts[1] - lefts[2]), 'the new box against the one below').toBeLessThan(1);
+});
+
+/**
+ * The search over all settings (settings plan 2026-10-29, § 4.3, E2) on the
+ * desktop: a field at the top of the settings rail; a hit is a ROW shown as
+ * page › card; choosing it opens the page, scrolls to the row and lights it
+ * up. It reads the label, the visible line, the ⓘ text and synonyms. A page
+ * hidden in this state (no account carries its service) keeps its hits,
+ * marked, and opens Cloud accounts. The phone runs the same in
+ * `apps/mobile/e2e-prod/settings-search.spec.ts`. (Here, in the smoke suite,
+ * because its fixture boots the app to the welcome screen.)
+ */
+
+async function openSettingsForSearch(page: Page) {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+async function shootSearch(page: Page, testInfo: TestInfo, name: string) {
+  if (!process.env.PLAINVA_EVIDENCE) return;
+  for (const mode of ['light', 'dark']) {
+    await page.evaluate((m) => document.documentElement.setAttribute('data-theme', m), mode);
+    await page.screenshot({ path: testInfo.outputPath(`${name}-${mode}.png`) });
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+}
+
+test('the settings search finds a row by its label and lands on it, lit up', async ({ page }, testInfo) => {
+  const dialog = await openSettingsForSearch(page);
+  const field = dialog.getByTestId('settings-search');
+  await expect(field).toHaveAttribute('placeholder', /Einstellungen suchen|Search settings/);
+
+  await field.fill('week');
+  const hits = dialog.getByTestId('settings-search-hit');
+  await expect(hits.first()).toContainText(/Wochenbeginn|Week starts on/);
+  // Where it lives: page › card.
+  await expect(hits.first()).toContainText(/(Erscheinungsbild|Appearance) › (Sprache & Region|Language & region)/);
+  // The areas give way to the hits while the field holds a query.
+  await expect(dialog.getByRole('button', { name: /^(Wartung|Maintenance)$/ })).toHaveCount(0);
+  await shootSearch(page, testInfo, 'search-hits');
+
+  await hits.first().click();
+  const found = dialog.locator('.pv-setpage[data-active="true"] [data-setting-found]');
+  await expect(found).toContainText(/Wochenbeginn|Week starts on/);
+  await expect(found).toBeInViewport();
+  await expect(found).toBeFocused();
+  await shootSearch(page, testInfo, 'search-landed');
+
+  // Escape clears the field, and the areas come back.
+  await field.click();
+  await page.keyboard.press('Escape');
+  await expect(field).toHaveValue('');
+  await expect(dialog.getByRole('button', { name: /^(Wartung|Maintenance)$/ })).toBeVisible();
+});
+
+test('the settings search reads synonyms and the text behind the ⓘ; Enter opens the first hit; nothing found says so', async ({ page }, testInfo) => {
+  const dialog = await openSettingsForSearch(page);
+  const field = dialog.getByTestId('settings-search');
+  const hits = dialog.getByTestId('settings-search-hit');
+
+  // "dark mode" is no word of the page - a synonym of the mode.
+  await field.fill('dark mode');
+  await expect(hits.first()).toContainText(/^(Modus|Mode)/);
+  await field.press('Enter');
+  await expect(dialog.locator('.pv-setpage[data-active="true"] [data-setting-found]')).toContainText(/^(Modus|Mode)/);
+
+  // Behind the spell check's ⓘ: what it leaves alone.
+  await field.fill('');
+  await field.fill('passwords are never checked');
+  await expect(hits.first()).toContainText(/Rechtschreibprüfung|Spell checking/);
+
+  await field.fill('zzqqxx');
+  await expect(dialog.getByText(/Keine Einstellung gefunden|No setting found/)).toBeVisible();
+  await shootSearch(page, testInfo, 'search-empty');
+});
+
+test('a hit on a page hidden without an account stays, marked, and opens Cloud accounts', async ({ page }, testInfo) => {
+  const dialog = await openSettingsForSearch(page);
+  // Without an account carrying the calendar the Calendar page is not in the rail...
+  await expect(dialog.getByRole('button', { name: /^(Kalender|Calendar)$/ })).toHaveCount(0);
+  await dialog.getByTestId('settings-search').fill('lead time');
+  const hit = dialog.getByTestId('settings-search-hit').filter({ hasText: /Vorlaufzeit|Lead time/ }).first();
+  // ...but its rows are found, and the hit says why the page is missing.
+  await expect(hit).toContainText(/Erscheint, sobald ein Konto diesen Dienst übernimmt|Appears once an account carries this service/);
+  await shootSearch(page, testInfo, 'search-hidden-page');
+  await hit.click();
+  await expect(dialog.locator('.pv-setpage[data-active="true"]').getByRole('heading', { name: /^(Cloud-Konten|Cloud accounts)$/ })).toBeVisible();
 });
