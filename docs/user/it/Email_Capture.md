@@ -47,7 +47,7 @@ Quando un aggiornamento fallisce — niente rete, oppure il provider sta limitan
 
 Tre pulsanti su ogni messaggio:
 
-- **Salva come nota** — crea una nota nella tua cartella e-mail (`AAAA-MM-GG Oggetto.md`) con mittente e data nel frontmatter e il corpo in testo semplice sotto l'intestazione dell'oggetto. Catturare due volte lo stesso messaggio apre la nota esistente invece di duplicarla.
+- **Salva come nota** — crea una nota nella tua cartella e-mail (`AAAA-MM-GG Oggetto.md`) con mittente e data nel frontmatter e il corpo in testo semplice sotto l'intestazione dell'oggetto. Catturare due volte lo stesso messaggio apre la nota esistente invece di duplicarla. Se quella nota non contiene ancora il testo della mail — al massimo il link alla copia originale —, **Salva come nota** lo inserisce ora e te lo dice; una nota che contiene già qualcosa viene solo aperta. Così una nota salvata a suo tempo senza testo lo riceve.
 - **+ .eml** — memorizza inoltre l'originale grezzo accanto alla nota e lo collega. Il file `.eml` contiene tutto, allegati inclusi, e si apre in qualsiasi programma di posta. Se la nota esiste già, la copia originale viene aggiunta — a meno che non ce ne sia già una collegata.
 - **→ Attività** — crea una voce nel tuo [database attività predefinito](Tasks.md) con l'oggetto come titolo, la data odierna come scadenza e lo stato aperto precompilato.
 
@@ -138,7 +138,7 @@ Le regole di Gmail si impostano ancora nelle impostazioni di Google.
 
 **Sul telefono** crei le regole per intero: nelle impostazioni di posta tocca una regola e la vedrai come **Se** e **Allora** — ogni condizione e ogni azione è una riga, e toccandola vengono chiesti campo, confronto e valore su fogli separati. Non è un modulo rimpicciolito, di proposito: cinque controlli affiancati sulla larghezza di un telefono sono il modo in cui una regola viene digitata male. L'ultima condizione non si può togliere: una regola senza condizioni varrebbe per ogni messaggio.
 
-**Salva come nota** è l'azione che nessun programma di posta ha: la regola salva il messaggio come nota nel tuo vault, con mittente, data e testo — la stessa acquisizione del pulsante nel lettore, ma automatica. La stessa mail due volte dà la **stessa** nota, e il messaggio resta nella sua cartella: viene salvata una copia, non si sposta nulla. Una regola con questa azione resta **sempre** locale, anche su una casella che saprebbe eseguire regole. È voluto: salvare il resto della regola presso il provider lascerebbe che il server spostasse il messaggio prima che ci fosse qualcosa da salvare.
+**Salva come nota** è l'azione che nessun programma di posta ha: la regola salva il messaggio come nota nel tuo vault, con mittente, data e testo — la stessa acquisizione del pulsante nel lettore, ma automatica. La stessa mail due volte dà la **stessa** nota, e il messaggio resta nella sua cartella: viene salvata una copia, non si sposta nulla. Una regola non completa mai una nota già esistente; lo fa solo il pulsante nel lettore. Una regola con questa azione resta **sempre** locale, anche su una casella che saprebbe eseguire regole. È voluto: salvare il resto della regola presso il provider lascerebbe che il server spostasse il messaggio prima che ci fosse qualcosa da salvare.
 
 <!-- accounts-tasks-2026-09-11 -->
 ## Amplia gli account esistenti

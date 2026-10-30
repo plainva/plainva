@@ -47,7 +47,7 @@ Quando uma atualização falha — sem rede, ou o provedor está limitando as re
 
 Três botões em cada mensagem:
 
-- **Salvar como nota** — cria uma nota na sua pasta de e-mail (`AAAA-MM-DD Assunto.md`) com o remetente e a data no frontmatter e o corpo em texto simples abaixo do título do assunto. Capturar a mesma mensagem duas vezes abre a nota existente em vez de duplicá-la.
+- **Salvar como nota** — cria uma nota na sua pasta de e-mail (`AAAA-MM-DD Assunto.md`) com o remetente e a data no frontmatter e o corpo em texto simples abaixo do título do assunto. Capturar a mesma mensagem duas vezes abre a nota existente em vez de duplicá-la. Se essa nota ainda não tiver o texto do e-mail — no máximo o link para a cópia original —, **Salvar como nota** insere o texto agora e avisa; uma nota que já tem algum conteúdo é apenas aberta. Assim, uma nota salva antes sem o texto o recebe depois.
 - **+ .eml** — além disso, guarda o original bruto ao lado da nota e o vincula a ela. O `.eml` contém tudo, inclusive os anexos, e abre em qualquer programa de e-mail. Se a nota já existir, a cópia original é adicionada a ela — a menos que já haja uma vinculada.
 - **→ Tarefa** — cria um item no seu [banco de tarefas padrão](Tasks.md) com o assunto como título, a data de hoje como vencimento e o status aberto já preenchido.
 
@@ -138,7 +138,7 @@ As regras do Gmail continuam sendo configuradas nas próprias configurações do
 
 **No telefone** você cria as regras do início ao fim: nas configurações de e-mail, toque em uma regra e ela aparece como **Se** e **Então** — cada condição e cada ação é uma linha, e tocar nela pergunta campo, comparação e valor em folhas próprias. Isso não é um formulário encolhido, de propósito: cinco controles lado a lado na largura de um telefone é como se digita uma regra errada. A última condição não pode ser removida — uma regra sem condição valeria para toda mensagem.
 
-**Salvar como nota** é a ação que nenhum programa de e-mail tem: a regra salva a mensagem como nota no seu cofre, com remetente, data e texto — a mesma captura do botão no leitor, só que automática. O mesmo e-mail duas vezes dá a **mesma** nota, e a mensagem continua na sua pasta: o que se salva é uma cópia, nada é movido. Uma regra com essa ação **sempre** fica local, mesmo em uma caixa que saberia executar regras. É proposital: salvar o resto da regra no provedor deixaria o servidor mover a mensagem antes de haver algo para salvar.
+**Salvar como nota** é a ação que nenhum programa de e-mail tem: a regra salva a mensagem como nota no seu cofre, com remetente, data e texto — a mesma captura do botão no leitor, só que automática. O mesmo e-mail duas vezes dá a **mesma** nota, e a mensagem continua na sua pasta: o que se salva é uma cópia, nada é movido. Uma regra nunca completa uma nota que já existe; só o botão no leitor faz isso. Uma regra com essa ação **sempre** fica local, mesmo em uma caixa que saberia executar regras. É proposital: salvar o resto da regra no provedor deixaria o servidor mover a mensagem antes de haver algo para salvar.
 
 <!-- accounts-tasks-2026-09-11 -->
 ## Ampliar contas existentes

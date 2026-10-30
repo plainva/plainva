@@ -47,7 +47,7 @@ Mislukt een verversing — geen netwerk, of de provider knijpt af —, dan blijf
 
 Drie knoppen bij elk bericht:
 
-- **Opslaan als notitie** — maakt een notitie aan in je e-mailmap (`JJJJ-MM-DD Onderwerp.md`) met de afzender en de datum in de frontmatter en de platte tekst onder de onderwerpkop. Hetzelfde bericht een tweede keer vastleggen opent de bestaande notitie in plaats van hem te dupliceren.
+- **Opslaan als notitie** — maakt een notitie aan in je e-mailmap (`JJJJ-MM-DD Onderwerp.md`) met de afzender en de datum in de frontmatter en de platte tekst onder de onderwerpkop. Hetzelfde bericht een tweede keer vastleggen opent de bestaande notitie in plaats van hem te dupliceren. Staat er in die notitie nog geen tekst van de mail — hooguit de link naar de ruwe kopie —, dan voegt **Opslaan als notitie** de tekst nu toe en meldt dat; een notitie waarin al iets staat, wordt alleen geopend. Zo krijgt een notitie die ooit zonder tekst is vastgelegd haar tekst alsnog.
 - **+ .eml** — bewaart bovendien het ruwe origineel naast de notitie en linkt ernaar. De `.eml` bevat alles, ook de bijlagen, en opent in elk mailprogramma. Bestaat de notitie al, dan wordt de ruwe kopie eraan toegevoegd — tenzij er al een is gekoppeld.
 - **→ Taak** — maakt een item aan in je [standaard takendatabase](Tasks.md) met het onderwerp als titel, de datum van vandaag als vervaldatum en de open status vooraf ingevuld.
 
@@ -138,7 +138,7 @@ Gmail-regels stel je nog steeds in Googles eigen instellingen in.
 
 **Op de telefoon** maak je regels volledig zelf: tik in de mailinstellingen op een regel en je krijgt hem als **Als** en **Dan** — elke voorwaarde en elke actie is een rij, en een tik vraagt veld, vergelijking en waarde op eigen bladen. Dat is bewust geen gekrompen formulier: vijf bedieningselementen naast elkaar op telefoonbreedte is hoe een regel verkeerd wordt ingetikt. De laatste voorwaarde kun je niet verwijderen — een regel zonder voorwaarde zou op elk bericht passen.
 
-**Als notitie opslaan** is de actie die geen enkel mailprogramma heeft: de regel legt het bericht als notitie in je kluis vast, met afzender, datum en tekst — dezelfde vastlegging als de knop in de lezer, maar automatisch. Dezelfde mail twee keer levert **dezelfde** notitie op, en het bericht blijft in zijn map: er wordt een kopie vastgelegd, er wordt niets verplaatst. Een regel met deze actie blijft **altijd** lokaal, ook bij een postbus die regels zou kunnen uitvoeren. Dat is met opzet: de rest van de regel bij de provider opslaan zou de server het bericht laten verplaatsen voordat er iets vast te leggen viel.
+**Als notitie opslaan** is de actie die geen enkel mailprogramma heeft: de regel legt het bericht als notitie in je kluis vast, met afzender, datum en tekst — dezelfde vastlegging als de knop in de lezer, maar automatisch. Dezelfde mail twee keer levert **dezelfde** notitie op, en het bericht blijft in zijn map: er wordt een kopie vastgelegd, er wordt niets verplaatst. Een regel vult een bestaande notitie nooit aan; dat doet alleen de knop in de lezer. Een regel met deze actie blijft **altijd** lokaal, ook bij een postbus die regels zou kunnen uitvoeren. Dat is met opzet: de rest van de regel bij de provider opslaan zou de server het bericht laten verplaatsen voordat er iets vast te leggen viel.
 
 <!-- accounts-tasks-2026-09-11 -->
 ## Bestaande accounts uitbreiden

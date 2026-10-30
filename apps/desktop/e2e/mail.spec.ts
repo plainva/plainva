@@ -581,6 +581,61 @@ test('a message without a text part: reply and forward carry its text, the filed
 });
 
 /**
+ * A note filed while the message had no text gets it from a second "Als Notiz
+ * ablegen" (finding 2026-10-09, decision b): every message of a Microsoft
+ * mailbox was filed that way until 0.8.6. The first capture here is such a
+ * one — the double answers with no text at all —, the second sees the message
+ * as it is. The note is open in the editor between the two, and shows the text
+ * the second one put in. The phone holds the same in
+ * `apps/mobile/e2e-prod/mail-html-message.spec.ts`.
+ */
+test('a second "File as note" fills the note that was filed without the text of the message', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__fullMessage = { text: null, html: null, attachments: [] };
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  const subject = page.getByTestId('mail-subject');
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(subject).toHaveText('Rechnung Q3');
+  const filed = () =>
+    page.evaluate(() => {
+      const fs = (window as any).mockFs;
+      const path = Object.keys(fs).find((p) => p.startsWith('/test-vault/Mail/') && p.endsWith('.md'));
+      return path ? (fs[path] as string) : null;
+    });
+  await page.getByTestId('mail-capture-note').click();
+  await expect.poll(filed).toBeTruthy();
+  // Properties and the title, nothing under it.
+  expect((await filed())!.trimEnd().endsWith('# Rechnung Q3')).toBe(true);
+  await expect(page.locator('.cm-content').getByText('Rechnung Q3').first()).toBeVisible();
+
+  // The message as it really is.
+  await page.evaluate(() => { delete (window as any).__fullMessage; });
+  await page.getByTestId('ribbon-mail').click();
+  const fetched = await page.evaluate(() => (window as any).__fetchAnswered ?? 0);
+  await page.getByTestId('mail-envelope').first().click();
+  await expect.poll(() => page.evaluate(() => (window as any).__fetchAnswered ?? 0)).toBeGreaterThan(fetched);
+  await expect(subject).toHaveText('Rechnung Q3');
+  await expect.poll(() => page.getByTestId('mail-frame').getAttribute('srcdoc')).toContain('anbei die');
+  await page.getByTestId('mail-capture-note').click();
+  await expect.poll(filed).toContain('# Rechnung Q3\n\nHallo,\n\nanbei die Rechnung.\n');
+  await expect(page.locator('.pv-toast').filter({ hasText: /was added to|eingesetzt/ })).toContainText('Rechnung Q3.md');
+  // One note, and the editor that holds it shows the text.
+  expect(await page.evaluate(() => Object.keys((window as any).mockFs).filter((p) => p.startsWith('/test-vault/Mail/') && p.endsWith('.md')).length)).toBe(1);
+  await expect(page.locator('.cm-content').getByText('anbei die Rechnung.')).toBeVisible();
+
+  // Now it holds the text: a third capture only opens it.
+  const before = await filed();
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(subject).toHaveText('Rechnung Q3');
+  await page.getByTestId('mail-capture-note').click();
+  await expect(page.locator('.cm-content').getByText('anbei die Rechnung.')).toBeVisible();
+  expect(await filed()).toBe(before);
+});
+
+/**
  * A form in a message answers to the names of its controls (finding
  * 2026-10-12). In a browser `form.nodeName` is the control of that name, and
  * the reader's sanitizer takes a form whose properties are renamed like that

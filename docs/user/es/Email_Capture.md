@@ -47,7 +47,7 @@ Cuando una actualización falla — sin red, o el proveedor está limitando las 
 
 Tres botones en cada mensaje:
 
-- **Guardar como nota** — crea una nota en tu carpeta de correo (`AAAA-MM-DD Asunto.md`) con el remitente y la fecha en el frontmatter y el cuerpo en texto sin formato debajo del encabezado del asunto. Capturar el mismo mensaje dos veces abre la nota existente en lugar de duplicarla.
+- **Guardar como nota** — crea una nota en tu carpeta de correo (`AAAA-MM-DD Asunto.md`) con el remitente y la fecha en el frontmatter y el cuerpo en texto sin formato debajo del encabezado del asunto. Capturar el mismo mensaje dos veces abre la nota existente en lugar de duplicarla. Si esa nota aún no contiene el texto del correo —como mucho el enlace a la copia original—, **Guardar como nota** lo añade ahora y te lo indica; una nota que ya contiene algo solo se abre. Así recibe su texto una nota que se guardó sin él.
 - **+ .eml** — además guarda el original en bruto junto a la nota y lo enlaza. El `.eml` contiene todo, incluidos los adjuntos, y se abre en cualquier programa de correo. Si la nota ya existe, la copia original se añade a ella, a menos que ya haya una enlazada.
 - **→ Tarea** — crea una entrada en tu [base de datos de tareas predeterminada](Tasks.md) con el asunto como título, la fecha de hoy como fecha límite y el estado abierto prerrellenado.
 
@@ -138,7 +138,7 @@ Las reglas de Gmail se siguen configurando en los ajustes propios de Google.
 
 **En el teléfono** creas las reglas de principio a fin: en los ajustes de correo, toca una regla y la verás como **Si** y **Entonces**: cada condición y cada acción es una fila, y al tocarla se pregunta el campo, la comparación y el valor en hojas separadas. No es un formulario encogido a propósito: cinco controles uno junto a otro en el ancho de un móvil es como se escribe mal una regla. La última condición no se puede quitar: una regla sin condiciones se aplicaría a todos los mensajes.
 
-**Guardar como nota** es la acción que ningún programa de correo tiene: la regla guarda el mensaje como nota en tu bóveda, con remitente, fecha y texto — la misma captura que el botón del lector, pero automática. El mismo correo dos veces da la **misma** nota, y el mensaje se queda en su carpeta: lo que se guarda es una copia, no se mueve nada. Una regla con esta acción **siempre** se queda local, incluso en un buzón que podría ejecutar reglas. Es intencionado: guardar el resto de la regla en el proveedor dejaría que el servidor moviera el mensaje antes de que hubiera algo que guardar.
+**Guardar como nota** es la acción que ningún programa de correo tiene: la regla guarda el mensaje como nota en tu bóveda, con remitente, fecha y texto — la misma captura que el botón del lector, pero automática. El mismo correo dos veces da la **misma** nota, y el mensaje se queda en su carpeta: lo que se guarda es una copia, no se mueve nada. Una regla nunca rellena una nota que ya existe; eso solo lo hace el botón del lector. Una regla con esta acción **siempre** se queda local, incluso en un buzón que podría ejecutar reglas. Es intencionado: guardar el resto de la regla en el proveedor dejaría que el servidor moviera el mensaje antes de que hubiera algo que guardar.
 
 <!-- accounts-tasks-2026-09-11 -->
 ## Ampliar cuentas existentes

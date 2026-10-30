@@ -219,7 +219,7 @@ describe("a message without a plain-text part, at each place that reads its text
       createDir: async () => {},
     };
     const filed = await captureMailAsNote({ adapter, message: htmlOnly(), accountId: "acc1", mailbox: "INBOX", folder: "Mail" });
-    expect(filed).toEqual({ path: "Mail/2026-10-09 Rechnung Oktober.md", created: true });
+    expect(filed).toEqual({ path: "Mail/2026-10-09 Rechnung Oktober.md", created: true, filled: false });
     expect(files.get(filed.path)).toBe(buildEmailNoteContent(htmlOnly(), "acc1", "INBOX", "2026-10-09"));
     expect(files.get(filed.path)).toContain(TEXT);
   });

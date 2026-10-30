@@ -47,7 +47,7 @@ Lorsqu'une actualisation échoue — pas de réseau, ou le fournisseur limite le
 
 Trois boutons sur chaque message :
 
-- **Enregistrer comme note** — crée une note dans votre dossier e-mail (`AAAA-MM-JJ Objet.md`) avec l'expéditeur et la date dans le frontmatter et le corps en texte brut sous le titre de l'objet. Capturer le même message deux fois ouvre la note existante au lieu de la dupliquer.
+- **Enregistrer comme note** — crée une note dans votre dossier e-mail (`AAAA-MM-JJ Objet.md`) avec l'expéditeur et la date dans le frontmatter et le corps en texte brut sous le titre de l'objet. Capturer le même message deux fois ouvre la note existante au lieu de la dupliquer. Si cette note ne contient encore aucun texte de l'e-mail — tout au plus le lien vers la copie brute —, **Enregistrer comme note** l'ajoute maintenant et vous le signale ; une note qui contient déjà quelque chose est seulement ouverte. Une note enregistrée autrefois sans son texte le reçoit ainsi.
 - **+ .eml** — stocke en plus l'original brut à côté de la note et le lie. Le `.eml` contient tout, y compris les pièces jointes, et s'ouvre dans n'importe quel programme de messagerie. Si la note existe déjà, la copie brute y est ajoutée — sauf si une copie est déjà liée.
 - **→ Tâche** — crée une entrée dans votre [base de tâches par défaut](Tasks.md) avec l'objet comme titre, la date du jour comme échéance et le statut ouvert préremplis.
 
@@ -138,7 +138,7 @@ Les règles Gmail se configurent toujours dans les propres réglages de Google.
 
 **Sur le téléphone**, vous créez les règles de bout en bout : dans les réglages de messagerie, touchez une règle et elle s'affiche en **Si** et **Alors** — chaque condition et chaque action est une ligne, et un appui demande le champ, la comparaison et la valeur sur des feuilles distinctes. Ce n'est volontairement pas un formulaire réduit : cinq contrôles côte à côte sur la largeur d'un téléphone, c'est ainsi qu'on saisit une règle de travers. La dernière condition ne peut pas être supprimée — une règle sans condition s'appliquerait à tous les messages.
 
-**Classer comme note** est l'action qu'aucun logiciel de messagerie n'a : la règle enregistre le message comme note dans votre coffre, avec l'expéditeur, la date et le texte — la même capture que le bouton du lecteur, en automatique. Le même courriel deux fois donne la **même** note, et le message reste dans son dossier : c'est une copie qui est classée, rien n'est déplacé. Une règle avec cette action reste **toujours locale**, même sur une boîte capable d'exécuter des règles. C'est voulu : enregistrer le reste de la règle chez le fournisseur laisserait le serveur déplacer le message avant qu'il n'y ait quoi que ce soit à classer.
+**Classer comme note** est l'action qu'aucun logiciel de messagerie n'a : la règle enregistre le message comme note dans votre coffre, avec l'expéditeur, la date et le texte — la même capture que le bouton du lecteur, en automatique. Le même courriel deux fois donne la **même** note, et le message reste dans son dossier : c'est une copie qui est classée, rien n'est déplacé. Une règle ne complète jamais une note existante ; seul le bouton du lecteur le fait. Une règle avec cette action reste **toujours locale**, même sur une boîte capable d'exécuter des règles. C'est voulu : enregistrer le reste de la règle chez le fournisseur laisserait le serveur déplacer le message avant qu'il n'y ait quoi que ce soit à classer.
 
 <!-- accounts-tasks-2026-09-11 -->
 ## Compléter les comptes existants
