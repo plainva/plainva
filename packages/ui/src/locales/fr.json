@@ -345,6 +345,8 @@
     "allowExtendedDb": "Autoriser les extensions Plainva pour les fichiers .base",
     "allowExtendedDbDesc": "Obsidian ne connaît pas entièrement ces fonctions.",
     "allowExtendedDbInfo": "Active des fonctions avancées pour les fichiers .base. Que Plainva les signale à l'ouverture dépend de « Avertissements de compatibilité pour les extensions Plainva » sous Démarrage et comportement.",
+    "allowExtendedDbInfoMobile": "Propose aussi Kanban, Calendrier, Chronologie, Graphe et Tableau d'affichage comme type de vue.",
+    "vaultExportDone": "Coffre exporté : {{path}}",
     "commentAnchors": "Marquer les passages commentés dans la note",
     "commentAnchorsDesc": "Ainsi le commentaire continue de désigner le passage après modification. Désactivé, les commentaires retombent sur le texte cité.",
     "commentAnchorsHint": "Écrit un commentaire HTML invisible dans la note.",

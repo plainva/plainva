@@ -5,7 +5,7 @@ import { Settings2, Trash2, X, Plus, GripVertical, ArrowUp, ArrowDown, Filter, E
 import { Select, type SelectOption } from "../Select";
 import { DatabaseSourceConfig } from "../DatabaseSourceConfig";
 import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
-import { BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, columnsForBaseSelector, ICON, TextInput, type BaseConfigAreaId } from "@plainva/ui";
+import { BASE_CONFIG_AREAS, baseConfigArea, baseViewTypeMeta, columnsForBaseSelector, ICON, offeredViewTypes, TextInput, type BaseConfigAreaId } from "@plainva/ui";
 import { ColumnSummarySelect, useFilterRuleDraft } from "@plainva/ui";
 import { baseFilterCatalog, baseFilterKind, baseFilterOperators, baseFilterOpLabels, MetadataFilterValue, type BaseFilterField } from "@plainva/ui";
 import {
@@ -909,7 +909,7 @@ export function BaseConfigPanel({
         <div className="base-cfg-group">
         <div className="base-cfg-grouplabel">{t("database.viewType", "Ansichtstyp")}</div>
         <div className="base-cfg-typegrid" role="radiogroup" aria-label={t("database.viewType", "Ansichtstyp")}>
-          {BASE_VIEW_TYPES.filter((v) => extendedDbEnabled || !v.extended).map((v) => {
+          {offeredViewTypes(extendedDbEnabled).map((v) => {
             const TileIcon = v.icon;
             const label = defaultViewName(t, v.type);
             return (

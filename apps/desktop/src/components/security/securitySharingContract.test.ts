@@ -51,6 +51,12 @@ describe("security centre: what the source still wires (source guard, not behavi
     const nav = readFileSync(new URL("../settings/SecurityNav.tsx", import.meta.url), "utf8");
     expect(nav).toContain("SECURITY_AREA_GROUPS");
     expect(nav).toContain("workspaceSecurity.overview");
+    // Both rails render through the one rail with the settings search on top
+    // (Sammelplan § 3.169 Nr. 2): the second level kept no search of its own.
+    expect(nav).toContain("<SettingsRail");
+    const firstLevel = readFileSync(new URL("../settings/SettingsNav.tsx", import.meta.url), "utf8");
+    expect(firstLevel).toContain("<SettingsRail");
+    expect(firstLevel).not.toContain("searchSettings(");
     // Member rotation depth (future vs full) still routes through the gateway.
     // Since P5 it arrives as the mode a labelled choice produced, not as two
     // differently coloured buttons whose difference was explained afterwards.

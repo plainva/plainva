@@ -2,8 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Folder } from "lucide-react";
 import { ICON, Modal } from "@plainva/ui";
-
-const basename = (p: string) => p.split(/[/\\]/).pop() || p;
+import { useVaultLabels } from "../../services/vaultNames";
 
 /**
  * Vault picker for the rail's "switch" link (redesign 2026-07-18, P2).
@@ -23,6 +22,8 @@ export interface VaultPickerModalProps {
 
 export const VaultPickerModal: React.FC<VaultPickerModalProps> = ({ vaults, selected, activeVaultPath, onSelect, onClose }) => {
   const { t } = useTranslation();
+  // The name each vault goes by in Plainva (its own, else its folder's).
+  const label = useVaultLabels(vaults);
   return (
     <Modal onClose={onClose} title={t("settings.vaultSelect", { defaultValue: "Vault wählen" })} size="sm">
       <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }} data-testid="vault-picker-list">
@@ -37,7 +38,7 @@ export const VaultPickerModal: React.FC<VaultPickerModalProps> = ({ vaults, sele
             >
               <Folder size={ICON.ui} aria-hidden />
               <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-                <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}>{basename(v)}</span>
+                <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}>{label(v)}</span>
                 <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "var(--text-sm)", color: "var(--text-muted)", fontWeight: 400 }}>{v}</span>
               </span>
               {v === activeVaultPath && <span className="pv-vaultcard-dot" data-tip={t("settings.activeVault")} />}

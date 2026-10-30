@@ -347,6 +347,8 @@
     "allowExtendedDb": "Zezwól na rozszerzenia Plainva dla plików .base",
     "allowExtendedDbDesc": "Obsidian nie zna w pełni tych funkcji.",
     "allowExtendedDbInfo": "Włącza zaawansowane funkcje dla plików .base. To, czy Plainva wskazuje je przy otwieraniu, ustawia „Ostrzeżenia o zgodności dla rozszerzeń Plainva” w sekcji Uruchamianie i zachowanie.",
+    "allowExtendedDbInfoMobile": "Oferuje jako typ widoku także Tablicę, Kalendarz, Oś czasu, Graf i Tablicę korkową.",
+    "vaultExportDone": "Sejf wyeksportowany: {{path}}",
     "commentAnchors": "Oznaczaj skomentowane fragmenty w notatce",
     "commentAnchorsDesc": "Dzięki temu komentarz wskazuje fragment także po zmianach. Wyłączone — komentarze opierają się na zacytowanym tekście.",
     "commentAnchorsHint": "Zapisuje w notatce niewidoczny komentarz HTML.",

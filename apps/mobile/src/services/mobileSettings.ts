@@ -25,6 +25,7 @@ import {
   setCustomTheme,
   recoverPersonalDesign,
   setDayBoundary,
+  setExtraTextExtensions,
   type CustomThemeSpec,
   type CustomThemeDesign,
 } from "@plainva/ui";
@@ -351,6 +352,10 @@ function followThemeWithStatusBar(): void {
 function applySettings(): void {
   applyTheme();
   setDayBoundary(live().dayEndsAt);
+  // The vault's own text extensions (C15): one rule for every path that opens
+  // a file, set wherever the vault's settings change — as the desktop does on
+  // vault load and on save (Sammelplan § 3.169 Nr. 3).
+  setExtraTextExtensions(live().textFileExtensions);
   // Open editors and mounted fields follow the switch at once.
   setSpellcheckOn(live().spellcheck === true);
 }

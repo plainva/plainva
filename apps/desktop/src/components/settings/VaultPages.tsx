@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Folder, X } from "lucide-react";
-import { Button, CommittedTextInput, DAY_END_CHOICES, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, Switch, boundaryLabel, clampBoundary, okfBundleStatusLines, sanitizeDailyNoteFormat, travelsWithVault, type CloudServiceId } from "@plainva/ui";
+import { Button, choicesWith, CommittedTextInput, DAY_END_CHOICES, VERSION_INTERVAL_CHOICES, VERSION_MAX_AGE_CHOICES, versionIntervalLabel, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, Switch, boundaryLabel, clampBoundary, okfBundleStatusLines, sanitizeDailyNoteFormat, travelsWithVault, type CloudServiceId } from "@plainva/ui";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { ReminderSettings } from "../pim/ReminderSettings";
@@ -499,13 +499,12 @@ export const BackupPage: React.FC<BackupPageProps> = (p) => {
             value={p.snapshotIntervalSec}
             minWidth={180}
             align="right"
-            options={[
-              { value: "0", label: t("settings.versionIntervalEvery") },
-              { value: "30", label: "30 s" },
-              { value: "120", label: "2 min" },
-              { value: "300", label: "5 min" },
-              { value: "600", label: "10 min" },
-            ]}
+            // The phone's choices too (`backupChoices.ts`), and a value set
+            // elsewhere stays among them.
+            options={choicesWith(VERSION_INTERVAL_CHOICES, Number(p.snapshotIntervalSec)).map((sec) => ({
+              value: String(sec),
+              label: versionIntervalLabel(sec, t("settings.versionIntervalEvery")),
+            }))}
             onChange={p.onSnapshotInterval}
           />
         </SettingRow>
@@ -525,13 +524,10 @@ export const BackupPage: React.FC<BackupPageProps> = (p) => {
             value={p.versionMaxAgeDays}
             minWidth={180}
             align="right"
-            options={[
-              { value: "30", label: t("settings.versionAgeDays", { days: 30 }) },
-              { value: "90", label: t("settings.versionAgeDays", { days: 90 }) },
-              { value: "180", label: t("settings.versionAgeDays", { days: 180 }) },
-              { value: "365", label: t("settings.versionAgeDays", { days: 365 }) },
-              { value: "0", label: t("settings.versionAgeUnlimited") },
-            ]}
+            options={choicesWith(VERSION_MAX_AGE_CHOICES, Number(p.versionMaxAgeDays), "last").map((days) => ({
+              value: String(days),
+              label: days === 0 ? t("settings.versionAgeUnlimited") : t("settings.versionAgeDays", { days }),
+            }))}
             onChange={p.onVersionMaxAge}
           />
         </SettingRow>

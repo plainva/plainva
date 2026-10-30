@@ -7,6 +7,7 @@ import { backupZipDestKey, defaultZipDestination, vaultFolderName } from "./back
 import { zipNamePattern } from "./vaultZipBackup";
 import { credentialManager } from "./CredentialManager";
 import { allVaultSlots, vaultSlotIds } from "./keychainSlots";
+import { forgetVaultName } from "./vaultNames";
 
 /**
  * "Forget this vault" (splash remove dialog, maintainer decision E1
@@ -256,4 +257,23 @@ export async function forgetVaultData(
   });
 
   return { ok: errors.length === 0, errors };
+}
+
+/**
+ * "Forget this vault", wherever it is asked — the start screen's remove dialog
+ * and the vault's own page in the settings (Sammelplan § 3.169 Nr. 3): every
+ * piece of per-vault app data goes (`forgetVaultData`), the vault leaves the
+ * list of known vaults, and the name it had in Plainva goes with it. The
+ * folder with the notes is never touched. One function, so the two places
+ * cannot come to forget different things.
+ */
+export async function forgetVaultEverywhere(
+  vaultPath: string,
+  opts: { deleteZipBackups: boolean },
+  removeRecentVault: (vaultPath: string) => Promise<void>,
+): Promise<ForgetVaultResult> {
+  const result = await forgetVaultData(vaultPath, opts);
+  await removeRecentVault(vaultPath);
+  forgetVaultName(vaultPath);
+  return result;
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, ChevronRight, Layers, Play } from "lucide-react";
-import { Banner, Button, GroupCard, ICON, InfoTip, Row, RowList, SectionLabel, Switch } from "@plainva/ui";
+import { Banner, Button, choicesWith, GroupCard, ICON, InfoTip, Row, RowList, SectionLabel, Switch, ZIP_KEEP_CHOICES } from "@plainva/ui";
 import { mSelect } from "../services/mobileDialogs";
 import { applyVaultSettings } from "../services/mobileSettings";
 import { backupFolderFor, backupState, backupVaultNow, dismissUnreadableBackups, listBackups } from "../services/vaultBackup";
@@ -87,7 +87,9 @@ export function ZipBackupGroup({ vault }: { vault: MobileVault }) {
               onClick={() => {
                 void mSelect({
                   title: t("settings.backupZipKeep"),
-                  options: [3, 7, 14, 30].map((n) => ({ value: String(n), label: String(n) })),
+                  // The same choices as everywhere (`backupChoices.ts`), with
+                  // a number the desktop's free field set among them.
+                  options: choicesWith(ZIP_KEEP_CHOICES, zipKeep).map((n) => ({ value: String(n), label: String(n) })),
                   value: String(zipKeep),
                 }).then(async (picked) => {
                   if (picked === null) return;

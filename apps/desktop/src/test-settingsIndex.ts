@@ -85,6 +85,8 @@ export const SETTINGS_SOURCES: readonly SettingsSource[] = [
   { file: `${D}/settings/BarsPage.tsx`, shell: "desktop", area: "bars" },
   { file: `${D}/settings/VaultPages.tsx`, shell: "desktop", component: "BackupPage", area: "backup" },
   { file: `${D}/settings/VaultPages.tsx`, shell: "desktop", component: "MaintenancePage", area: "maintenance" },
+  // The vault's own page (rename, export, delete), the phone's `VaultDetailScreen` (Sammelplan § 3.169 Nr. 3).
+  { file: `${D}/settings/VaultDetailsPage.tsx`, shell: "desktop", area: "vaultDetails" },
   // ---------- phone: APP ----------
   { file: `${M}/screens/AppearanceScreen.tsx`, shell: "mobile", area: "appearance" },
   { file: `${M}/screens/CustomThemeScreen.tsx`, shell: "mobile", area: "appearance", sub: "customTheme" },

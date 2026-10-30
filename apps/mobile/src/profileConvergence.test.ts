@@ -122,6 +122,8 @@ function fullProfile(): Record<string, unknown> {
   values.defaultCalendar = "acct-1 work";
   values.folderTemplates = [{ folder: "Projekte", template: "Projekt.md" }];
   values.typeTemplates = [{ type: "Meeting", template: "Besprechung.md" }];
+  // The vault's extra text extensions, the phone's own since Sammelplan § 3.169 Nr. 3.
+  values.textFileExtensions = ["fountain", "adoc"];
   values.calendarOverlays = ["Plan.base#Termine"];
   values.barLayoutMobileBar = { order: ["notes", "mail", "today"], visibleCount: 3 };
   values.bookmarks = ["Projekte/Plainva.md", "Journal/2026-09-04.md"];
@@ -158,7 +160,7 @@ describe("mobile profile port round trip (2026-09-04)", () => {
     for (const field of storeBackedFields("mobile")) {
       expect(first[field.logical], field.logical).toEqual(canonical[field.logical]);
     }
-    for (const key of ["folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar", "bookmarks", "bookmarkFolders", "personalDesign"]) {
+    for (const key of ["folderTemplates", "typeTemplates", "textFileExtensions", "calendarOverlays", "barLayoutMobileBar", "bookmarks", "bookmarkFolders", "personalDesign"]) {
       expect(first, key).toHaveProperty(key);
     }
   });

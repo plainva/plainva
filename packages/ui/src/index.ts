@@ -50,6 +50,7 @@ export * from "./lib/templateActions";
 export * from "./lib/dayAgenda";
 export * from "./lib/renameTagVault";
 export * from "./lib/zipBackup";
+export * from "./lib/backupChoices";
 export * from "./services/graphState";
 export * from "./services/graphActions";
 export * from "./services/graphRelationTargets";

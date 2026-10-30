@@ -667,6 +667,14 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
       // applied, so the phone is not a hole the rules fall into.
       if (s.folderTemplates.length > 0) values.folderTemplates = s.folderTemplates;
       if (s.typeTemplates.length > 0) values.typeTemplates = s.typeTemplates;
+      // The vault's extra text extensions (C15), carried the same way: a
+      // `json` list. Before the phone had a row for it the list passed through
+      // here untouched, as an unknown value; now it is this device's own and
+      // published as such (Sammelplan § 3.169 Nr. 3). An empty list leaves an
+      // unknown value standing: a phone updated before its first import since
+      // still holds the desktop's list only there, and publishing "none" would
+      // take it from every device. The next import moves it into the settings.
+      if (s.textFileExtensions.length > 0) values.textFileExtensions = s.textFileExtensions;
 
       // Which database views the calendar shows (S18b). Carried the same way
       // and for the same reason: a `json` field the generic binding cannot
@@ -752,6 +760,11 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
         // Same treatment for the calendar's database selection (S18b). A member
         // that is not a string is dropped rather than passed on: a malformed key
         // from a newer desktop must not be able to empty this calendar.
+        // The vault's extra text extensions: strings only; the rule cleans each
+        // entry (`setExtraTextExtensions`) when it is applied.
+        rulePatch.textFileExtensions = Array.isArray(canonical.textFileExtensions)
+          ? (canonical.textFileExtensions as unknown[]).filter((v): v is string => typeof v === "string")
+          : profileDefault<VaultSettings["textFileExtensions"]>("textFileExtensions");
         rulePatch.calendarOverlays = Array.isArray(canonical.calendarOverlays)
           ? (canonical.calendarOverlays as unknown[]).filter((v): v is string => typeof v === "string")
           : profileDefault<VaultSettings["calendarOverlays"]>("calendarOverlays");
@@ -768,7 +781,7 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
           await saveBarLayout("mobileBar", vaultId, sanitizeAreaOrder(canonical.barLayoutMobileBar, barDef("mobileBar").spec));
         }
 
-        const known = new Set([...Object.keys(mobileBinding()), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "bookmarkFolders", "folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar", "personalDesign", "removedAccounts", "accountActs"]);
+        const known = new Set([...Object.keys(mobileBinding()), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "bookmarkFolders", "folderTemplates", "typeTemplates", "textFileExtensions", "calendarOverlays", "barLayoutMobileBar", "personalDesign", "removedAccounts", "accountActs"]);
         const unknown = Object.fromEntries(Object.entries(canonical).filter(([key]) => !known.has(key)));
         const store = await settingsStore();
         await store.set(unknownKey(vaultId), unknown);

@@ -4306,3 +4306,32 @@ test('a hit on a page hidden without an account stays, marked, and opens Cloud a
   await hit.click();
   await expect(dialog.locator('.pv-setpage[data-active="true"]').getByRole('heading', { name: /^(Cloud-Konten|Cloud accounts)$/ })).toBeVisible();
 });
+
+test('the settings search stays on the rail of the second level of Security & Sharing', async ({ page }, testInfo) => {
+  // Sammelplan § 3.169 Nr. 2: the field belonged to the first-level rail and
+  // left with it when the second level of Security & Sharing replaced it.
+  const dialog = await openSettingsForSearch(page);
+  const field = dialog.getByTestId('settings-search');
+  // A hit on a row of the recovery area opens the second level.
+  await field.fill('fingerprint');
+  await dialog.getByTestId('settings-search-hit').filter({ hasText: /Fingerprint/ }).first().click();
+  const securityRail = dialog.getByTestId('settings-security-nav');
+  await expect(securityRail).toBeVisible();
+  await expect(dialog.getByTestId('settings-nav')).toHaveCount(0);
+  // The same field, with the query it held, on top of the second-level rail.
+  await expect(securityRail.getByTestId('settings-search')).toHaveValue('fingerprint');
+  await field.click();
+  await page.keyboard.press('Escape');
+  await expect(securityRail.getByRole('button', { name: /^(Übersicht|Overview)$/ })).toBeVisible();
+  await shootSearch(page, testInfo, 'search-security-level2');
+
+  // Searching from there lists hits in place of the second-level areas, and a hit leaves the level.
+  await securityRail.getByTestId('settings-search').fill('week');
+  const hits = dialog.getByTestId('settings-search-hit');
+  await expect(hits.first()).toContainText(/Wochenbeginn|Week starts on/);
+  await expect(securityRail.getByRole('button', { name: /^(Übersicht|Overview)$/ })).toHaveCount(0);
+  await shootSearch(page, testInfo, 'search-security-level2-hits');
+  await hits.first().click();
+  await expect(dialog.getByTestId('settings-nav')).toBeVisible();
+  await expect(dialog.locator('.pv-setpage[data-active="true"] [data-setting-found]')).toContainText(/Wochenbeginn|Week starts on/);
+});

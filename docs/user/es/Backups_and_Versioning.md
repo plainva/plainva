@@ -1,6 +1,6 @@
 # Copias de seguridad y versionado
 
-Última actualización: 2026-10-29
+Última actualización: 2026-10-30
 
 Plainva protege tu trabajo en dos niveles: **versiones de archivo** (snapshots automáticos de cada archivo individual al editar y eliminar) y **copias de seguridad del vault** (archivos ZIP periódicos de todo el vault, guardados fuera de la carpeta del vault). Ambos funcionan en segundo plano sin ninguna configuración y se pueden ajustar en la configuración bajo **Copias de seguridad y versionado**.
 
@@ -10,7 +10,7 @@ Antes de cada guardado, Plainva almacena un snapshot del estado anterior — com
 
 Retención (configurable por vault):
 
-- **Intervalo de snapshots**: En cada cambio / 30 s / 2 min / 5 min / 10 min
+- **Intervalo de snapshots**: En cada cambio / 30 s / 1 min / 2 min / 5 min / 10 min
 - **Versiones por archivo**: predeterminado 100 — por encima de esa cifra se eliminan las más antiguas
 - **Antigüedad máxima**: predeterminado 90 días — las versiones más antiguas se eliminan **permanentemente** en una limpieza diaria ("Ilimitado" desactiva esto)
 - **Archivos grandes**: por encima de 5 MB solo se conserva la versión más reciente — véase más abajo

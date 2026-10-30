@@ -137,6 +137,21 @@ export interface VaultScopedSettings {
   /** Whether a comment may write its anchor pair into the Markdown (Stufe D, SD2). */
   commentAnchors: boolean;
   /**
+   * Which extra file types open inside Plainva as text (C15) — the vault's
+   * list, the same the desktop edits ("More text files"). Carried by the
+   * phone itself in the settings profile, like the template rules: the field
+   * is `json`. Applied through `setExtraTextExtensions` whenever the settings
+   * change, so a `.fountain` opens as text here exactly where it does on the
+   * desktop (Sammelplan § 3.169 Nr. 3).
+   */
+  textFileExtensions: string[];
+  /**
+   * Whether the Plainva-only view types of a `.base` (board, calendar,
+   * timeline, graph, pinboard) are offered when a view's type is chosen —
+   * the desktop's "Allow Plainva extensions for .base files".
+   */
+  extendedDatabases: boolean;
+  /**
    * Group the message list into conversations (findings P9.3). Default OFF, so
    * an update never rearranges someone's mail; per vault and syncable with the
    * same meaning as the desktop's own switch, because a mailbox should not look
@@ -242,6 +257,8 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "mailFolder",
   "mailRemoteImages",
   "commentAnchors",
+  "textFileExtensions",
+  "extendedDatabases",
   "mailThreads",
   "mailSnoozed",
   "mailAccountId",
@@ -309,6 +326,8 @@ export function vaultDefaults(): VaultScopedSettings {
     calendarColors: {},
     mailRemoteImages: profileDefault<boolean>("mailRemoteImages")!,
     commentAnchors: profileDefault<boolean>("commentAnchors")!,
+    textFileExtensions: profileDefault<string[]>("textFileExtensions")!,
+    extendedDatabases: profileDefault<boolean>("extendedDatabases")!,
     // Off until asked for: switching on is what draws the baseline (FB3), and
     // a notification nobody asked for is the second inbox this plan avoids.
     // The defaults match the desktop's - one product, one behaviour.
@@ -368,6 +387,8 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     calendarColors: src.calendarColors ?? d.calendarColors,
     mailRemoteImages: src.mailRemoteImages ?? d.mailRemoteImages,
     commentAnchors: src.commentAnchors ?? d.commentAnchors,
+    textFileExtensions: src.textFileExtensions ?? d.textFileExtensions,
+    extendedDatabases: src.extendedDatabases ?? d.extendedDatabases,
     commentNotifyEnabled: src.commentNotifyEnabled ?? d.commentNotifyEnabled,
     commentNotifyLevel: src.commentNotifyLevel ?? d.commentNotifyLevel,
     commentNotifyPreview: src.commentNotifyPreview ?? d.commentNotifyPreview,

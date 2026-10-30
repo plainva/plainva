@@ -280,8 +280,10 @@ describe('"On this device only" (E3, E14)', () => {
     expect(travelsWithVault("dailyNotesFolder", "desktop")).toBe(true);
     expect(travelsWithVault("dailyNotesFolder", "mobile")).toBe(true);
     // A field one shell does not carry stays on that shell's device.
-    expect(travelsWithVault("extendedDatabases", "desktop")).toBe(true);
-    expect(travelsWithVault("extendedDatabases", "mobile")).toBe(false);
+    expect(travelsWithVault("barLayoutRibbon", "desktop")).toBe(true);
+    expect(travelsWithVault("barLayoutRibbon", "mobile")).toBe(false);
+    // The .base switch travels in both since the phone has it (Sammelplan § 3.169 Nr. 3).
+    expect(travelsWithVault("extendedDatabases", "mobile")).toBe(true);
     // Mail signatures travel inside the mailbox field.
     expect(travelsWithVault("mailAccounts", "desktop")).toBe(true);
     expect(travelsWithVault("mailAccounts", "mobile")).toBe(true);

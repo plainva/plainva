@@ -465,19 +465,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-29",
   },
   {
-    id: "settings-base-extensions",
-    title: "\"Allow Plainva extensions for .base files\" in Notes & filing › Databases",
-    area: "database",
-    kind: "gap",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "No row on the phone: the switch exists in the desktop's vault settings only. " +
-      "Found by the settings plan of 2026-10-29 (F9), deferred to the open-items " +
-      "plan - the plan reordered settings, it did not add features.",
-    verified: "2026-10-30",
-  },
-  {
     id: "tag-colors-table-cell",
     title: "Coloured tags in a database table cell",
     area: "database",
@@ -1681,16 +1668,20 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-30",
   },
   {
-    id: "settings-comment-anchors",
-    title: "\"Mark commented passages in the note\" in Notes & filing › Annotations",
+    id: "settings-backup-zip-destination",
+    title: "Where the daily ZIP archive goes: choose, reset and open the folder (Backup & version history)",
     area: "vault",
     kind: "gap",
     desktop: "yes",
     mobile: "partial",
     mobileReason:
-      "The phone's editor honours the setting (it travels with the settings profile " +
-      "and EditorHost reads it), but the phone has no row to change it. Found by the " +
-      "settings plan of 2026-10-29 (F9), deferred to the open-items plan.",
+      "The phone writes its archives into its own documents folder (\"Plainva Backups/<vault>\", " +
+      "visible in the Files app) and offers no row to choose another one or to open it. The " +
+      "rest of the card is the same since the check of 2026-10-30 (Sammelplan § 3.169 Nr. 3): " +
+      "the switch, the archives kept, \"Back up now\" and the three version pickers, with one " +
+      "list of choices (backupChoices.ts). A folder of one's own needs the persistent folder " +
+      "grant of the external-folder vaults for an unattended write - deferred to the open-items " +
+      "plan, § 3.169.",
     verified: "2026-10-30",
   },
   {
@@ -1708,35 +1699,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "external-change-watcher). A settings row for it would be a second way to " +
       "the same reconcile, so the phone keeps the gesture.",
     verified: "2026-10-29",
-  },
-  {
-    id: "settings-text-file-extensions",
-    title: "\"More text files\" in Notes & filing › New notes",
-    area: "vault",
-    kind: "gap",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "The phone has no row for the extra extensions that open as text: the list " +
-      "travels with the settings profile (profileFields, mobile \"own\"), but only " +
-      "the desktop's vault settings edit it. Found by the settings plan of " +
-      "2026-10-29 (F9), deferred to the open-items plan - the plan reordered " +
-      "settings, it did not add features.",
-    verified: "2026-10-30",
-  },
-  {
-    id: "settings-vault-details",
-    title: "Vault details: rename, export and delete a vault from the settings",
-    area: "vault",
-    kind: "gap",
-    desktop: "partial",
-    desktopReason:
-      "The phone has a vault screen (rename, export, delete) under \"Active vault\"; " +
-      "the desktop's settings show the vault as an identity card with a switch " +
-      "link and no management of its own. Found by the settings plan of " +
-      "2026-10-29 (F9), deferred to the open-items plan.",
-    mobile: "yes",
-    verified: "2026-10-30",
   },
   {
     id: "version-image-preview",

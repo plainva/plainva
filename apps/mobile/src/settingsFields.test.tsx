@@ -23,7 +23,8 @@ const store = vi.hoisted(() => {
     dailyFolder: "Daily", inboxFolder: "Inbox", attachmentFolder: "", templateFolder: "Templates",
     dailyTemplate: "", taskDatabase: "", dayEndsAt: 0, dailyFormat: "YYYY-MM-DD", dailyNoteType: "",
     journalMoodProperty: "", journalHeading: "", defaultNoteType: "", verifierName: "",
-    folderTemplates: [], typeTemplates: [], commentNotify: false, commentNotifyLevel: "mentions",
+    folderTemplates: [], typeTemplates: [], textFileExtensions: [], extendedDatabases: true, commentAnchors: true,
+    commentNotify: false, commentNotifyLevel: "mentions",
     commentNotifyPrivate: true, contentFontSize: 16,
   };
   return {

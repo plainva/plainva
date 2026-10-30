@@ -932,7 +932,8 @@ describe("a database offers the view types it can render", () => {
   const src = () => stripComments(readFileSync(join(SRC, "screens/base/BaseConfigSheet.tsx"), "utf8"));
 
   it("takes the types and their labels from the catalog", () => {
-    expect(src()).toMatch(/BASE_VIEW_TYPES\.map/);
+    // Through the shared filter of the .base switch (Sammelplan § 3.169 Nr. 3).
+    expect(src()).toMatch(/offeredViewTypes\(/);
     expect(src()).toMatch(/baseViewTypeMeta\(type\)\.labelKey/);
   });
 

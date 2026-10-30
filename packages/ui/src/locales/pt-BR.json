@@ -345,6 +345,8 @@
     "allowExtendedDb": "Permitir extensões do Plainva para arquivos .base",
     "allowExtendedDbDesc": "O Obsidian não conhece totalmente esses recursos.",
     "allowExtendedDbInfo": "Ativa recursos avançados para arquivos .base. Se o Plainva os aponta ao abrir é definido por “Avisos de compatibilidade para extensões do Plainva” em Inicialização e comportamento.",
+    "allowExtendedDbInfoMobile": "Oferece também Quadro, Calendário, Linha do tempo, Grafo e Mural como tipo de visualização.",
+    "vaultExportDone": "Vault exportado: {{path}}",
     "commentAnchors": "Marcar os trechos comentados na nota",
     "commentAnchorsDesc": "Assim o comentário continua apontando para o trecho após edições. Desativado, os comentários recorrem ao texto citado.",
     "commentAnchorsHint": "Escreve um comentário HTML invisível na nota.",

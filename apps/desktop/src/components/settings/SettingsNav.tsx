@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeftRight, Cloud, Folder, Keyboard, Search, Settings2 } from "lucide-react";
-import { EmptyState, ICON, InfoTip, Row, RowList, SearchField, searchSettings, settingsAreas, type SettingsSearchHit, type SettingsWorld } from "@plainva/ui";
+import { ArrowLeftRight, Cloud, Folder, FolderCog, Keyboard, Settings2 } from "lucide-react";
+import { ICON, InfoTip, settingsAreas, type SettingsSearchHit, type SettingsWorld } from "@plainva/ui";
+import { SettingsRail } from "./SettingsRail";
 
 /**
  * Left settings rail (redesign 2026-07-18, P2 — variant "quiet cards").
@@ -33,6 +34,12 @@ export interface SettingsNavProps {
   hiddenAreaIds?: string[];
   /** Opens what a search hit names (settings plan 2026-10-29, § 4.3). */
   onOpenHit: (hit: SettingsSearchHit) => void;
+  /** The search over all settings; held by the window so it outlives a swap of the rail (`SettingsRail`). */
+  searchQuery: string;
+  onSearchQuery: (query: string) => void;
+  /** Opens the vault's own page: name, export, deletion (the phone's vault page). */
+  onOpenVaultDetails: () => void;
+  vaultDetailsActive?: boolean;
 }
 
 export const SettingsNav: React.FC<SettingsNavProps> = ({
@@ -48,15 +55,13 @@ export const SettingsNav: React.FC<SettingsNavProps> = ({
   onShowShortcuts,
   hiddenAreaIds,
   onOpenHit,
+  searchQuery,
+  onSearchQuery,
+  onOpenVaultDetails,
+  vaultDetailsActive,
 }) => {
   const { t } = useTranslation();
-  // The search over all settings (E2): while the field holds a query, the rail
-  // lists the hits - rows, as page › card › row - in place of the areas.
-  const [query, setQuery] = useState("");
-  const hits = useMemo(
-    () => (query.trim() ? searchSettings(query, { shell: "desktop", t, worlds: vaultName ? ["app", "vault"] : ["app"], hiddenAreas: hiddenAreaIds }) : []),
-    [query, t, vaultName, hiddenAreaIds],
-  );
+  const searchWorlds = useMemo<SettingsWorld[]>(() => (vaultName ? ["app", "vault"] : ["app"]), [vaultName]);
 
   const groupLabel: React.CSSProperties = {
     padding: "0 0.4rem 0.25rem",
@@ -90,58 +95,29 @@ export const SettingsNav: React.FC<SettingsNavProps> = ({
     });
 
   return (
-    <div
-      className="custom-scrollbar"
-      style={{
-        width: "220px",
-        flexShrink: 0,
-        borderRight: "1px solid var(--border-color)",
-        background: "var(--bg-secondary)",
-        padding: "0.75rem",
-        overflowY: "auto",
-        display: "flex",
-        flexDirection: "column",
-        gap: "0.25rem",
-      }}
+    // The search on top of the rail is the window's (`SettingsRail`): the same
+    // field stands on the second level of Security & Sharing.
+    <SettingsRail
+      query={searchQuery}
+      onQuery={onSearchQuery}
+      worlds={searchWorlds}
+      hiddenAreaIds={hiddenAreaIds}
+      onOpenHit={onOpenHit}
+      testId="settings-nav"
+      footer={
+        <div style={{ marginTop: "auto", paddingTop: "1rem" }}>
+          <button
+            onClick={onShowShortcuts}
+            className="pv-navlink"
+            style={{ color: "var(--text-muted)", fontSize: "var(--text-ui)", padding: "0.4rem" }}
+          >
+            <Keyboard size={ICON.ui} style={{ flexShrink: 0 }} />
+            <span style={{ flex: 1, textAlign: "left" }}>{t("settings.showShortcuts")}</span>
+            <kbd style={{ fontSize: "var(--text-xs)", fontFamily: "monospace", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", padding: "0 4px", color: "var(--text-faint)", flexShrink: 0 }}>F1</kbd>
+          </button>
+        </div>
+      }
     >
-      <SearchField
-        className="pv-setsearch"
-        value={query}
-        onValueChange={setQuery}
-        placeholder={t("settings.searchPlaceholder")}
-        aria-label={t("settings.searchPlaceholder")}
-        clearLabel={t("sidebar.clearSearch")}
-        data-testid="settings-search"
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && hits[0]) {
-            e.preventDefault();
-            onOpenHit(hits[0]);
-          }
-        }}
-      />
-      {query.trim() ? (
-        hits.length > 0 ? (
-          // The same row the phone draws for a hit (one definition per interaction).
-          <div className="pv-setsearch-hits" role="group" aria-label={t("settings.searchHits")} data-testid="settings-search-hits">
-            <RowList>
-              {hits.map((hit) => (
-                <Row
-                  key={hit.id}
-                  data-testid="settings-search-hit"
-                  data-kind={hit.kind}
-                  title={hit.title}
-                  subtitle={[hit.path, hit.hidden ? t("settings.searchNeedsAccount") : ""].filter(Boolean).join(" · ") || undefined}
-                  wrap
-                  onClick={() => onOpenHit(hit)}
-                />
-              ))}
-            </RowList>
-          </div>
-        ) : (
-          <EmptyState icon={<Search size={ICON.empty} />}>{t("settings.searchNoHits")}</EmptyState>
-        )
-      ) : (
-      <>
       <div style={groupLabel}>
         <Settings2 size={ICON.ui} color="var(--accent-color)" style={{ flexShrink: 0 }} />
         {t("settings.sectionApp", { defaultValue: "App" })}
@@ -164,30 +140,31 @@ export const SettingsNav: React.FC<SettingsNavProps> = ({
               {vaultHasSync && <Cloud size={ICON.ui} color="var(--text-muted)" style={{ flexShrink: 0 }} aria-hidden />}
               {vaultIsActive && <span className="pv-vaultcard-dot" data-tip={t("settings.activeVault")} />}
             </div>
-            {canSwitchVault && (
-              <button type="button" className="pv-vaultcard-switch" onClick={onSwitchVault}>
-                <ArrowLeftRight size={ICON.ui} aria-hidden />
-                {t("settings.switchVault", { defaultValue: "Wechseln" })}
+            {/* The card's links: switching (with more than one vault) and the
+                vault's own page — rename, export, delete, the phone's vault
+                page (Sammelplan § 3.169 Nr. 3). */}
+            {[
+              ...(canSwitchVault
+                ? [{ id: "switch", icon: <ArrowLeftRight size={ICON.ui} aria-hidden />, label: t("settings.switchVault", { defaultValue: "Wechseln" }), onClick: onSwitchVault, current: false }]
+                : []),
+              { id: "details", icon: <FolderCog size={ICON.ui} aria-hidden />, label: t("mobile.vaultDetails"), onClick: onOpenVaultDetails, current: !!vaultDetailsActive },
+            ].map((link) => (
+              <button
+                key={link.id}
+                type="button"
+                className="pv-vaultcard-switch"
+                onClick={link.onClick}
+                aria-current={link.current ? "page" : undefined}
+                data-testid={`settings-vault-${link.id}-link`}
+              >
+                {link.icon}
+                {link.label}
               </button>
-            )}
+            ))}
           </div>
           {renderArea("vault")}
         </>
       )}
-      </>
-      )}
-
-      <div style={{ marginTop: "auto", paddingTop: "1rem" }}>
-        <button
-          onClick={onShowShortcuts}
-          className="pv-navlink"
-          style={{ color: "var(--text-muted)", fontSize: "var(--text-ui)", padding: "0.4rem" }}
-        >
-          <Keyboard size={ICON.ui} style={{ flexShrink: 0 }} />
-          <span style={{ flex: 1, textAlign: "left" }}>{t("settings.showShortcuts")}</span>
-          <kbd style={{ fontSize: "var(--text-xs)", fontFamily: "monospace", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", padding: "0 4px", color: "var(--text-faint)", flexShrink: 0 }}>F1</kbd>
-        </button>
-      </div>
-    </div>
+    </SettingsRail>
   );
 };

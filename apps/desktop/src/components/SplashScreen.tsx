@@ -8,7 +8,8 @@ import { Checkbox, ICON, Switch } from "@plainva/ui";
 import { ScrollEdge } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
-import { forgetVaultData } from "../services/vaultForget";
+import { forgetVaultEverywhere } from "../services/vaultForget";
+import { useVaultLabels } from "../services/vaultNames";
 import { ImportWizardModal } from "./import/ImportWizardModal";
 import { FirstRunModal } from "./onboarding/FirstRunModal";
 import { toast } from "@plainva/ui";
@@ -66,6 +67,9 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
   const [forgetting, setForgetting] = useState(false);
 
   const getBasename = (path: string) => path.split(/[/\\]/).pop() || path;
+  // What each known vault is called in Plainva — its own name where it was
+  // given one (the settings' vault page), else its folder's.
+  const vaultLabel = useVaultLabels(recentVaults);
 
   /**
    * Opens a known vault in its own window, straight from the chooser (stage D).
@@ -95,8 +99,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
     const path = removeTarget;
     setForgetting(true);
     try {
-      const result = await forgetVaultData(path, { deleteZipBackups: forgetZips });
-      await removeRecentVault(path);
+      const result = await forgetVaultEverywhere(path, { deleteZipBackups: forgetZips }, removeRecentVault);
       if (result.ok) {
         toast.info(t("splash.removeForgotten", { name: getBasename(path) }));
       } else {
@@ -381,7 +384,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
                       >
                         <Folder size={ICON.head} color="var(--accent-color)" style={{ flexShrink: 0 }} />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>{getBasename(path)}</div>
+                          <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>{vaultLabel(path)}</div>
                           <div style={{ fontSize: "var(--text-sm)", color: "var(--text-faint)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{path}</div>
                         </div>
                       </button>
@@ -487,7 +490,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
           }
         >
           <p style={{ margin: "0 0 12px", lineHeight: 1.5 }}>
-            {t("splash.removeDialogBody", { name: getBasename(removeTarget) })}
+            {t("splash.removeDialogBody", { name: vaultLabel(removeTarget) })}
           </p>
           <Checkbox checked={forgetZips} onChange={(e) => setForgetZips(e.target.checked)} disabled={forgetting}>
             {t("splash.removeForgetZips")}

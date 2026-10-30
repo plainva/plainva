@@ -1,6 +1,6 @@
 # Backup e cronologia delle versioni
 
-Ultimo aggiornamento: 2026-10-29
+Ultimo aggiornamento: 2026-10-30
 
 Plainva protegge il tuo lavoro su due livelli: **versioni dei file** (snapshot automatici di ogni singolo file durante la modifica e l'eliminazione) e **backup del vault** (archivi ZIP regolari dell'intero vault, salvati fuori dalla cartella del vault). Entrambi funzionano in background senza alcuna configurazione e possono essere regolati nelle impostazioni sotto **Backup e cronologia delle versioni**.
 
@@ -10,7 +10,7 @@ Prima di ogni salvataggio, Plainva memorizza uno snapshot dello stato precedente
 
 Conservazione (configurabile per vault):
 
-- **Intervallo degli snapshot**: A ogni modifica / 30 s / 2 min / 5 min / 10 min
+- **Intervallo degli snapshot**: A ogni modifica / 30 s / 1 min / 2 min / 5 min / 10 min
 - **Versioni per file**: predefinito 100 — oltre questo numero vengono rimosse le più vecchie
 - **Età massima**: predefinito 90 giorni — le versioni più vecchie vengono rimosse **definitivamente** da una pulizia giornaliera ("Illimitata" disattiva questo limite)
 - **File di grandi dimensioni**: oltre 5 MB viene conservata solo la versione più recente — vedi sotto

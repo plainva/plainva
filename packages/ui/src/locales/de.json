@@ -343,6 +343,8 @@
     "allowExtendedDb": "Plainva-Erweiterungen für .base Dateien erlauben",
     "allowExtendedDbDesc": "Diese Funktionen kennt Obsidian nicht vollständig.",
     "allowExtendedDbInfo": "Aktiviert erweiterte Funktionen für .base-Dateien. Ob Plainva beim Öffnen auf sie hinweist, steuert „Kompatibilitäts-Hinweise für Plainva-Erweiterungen“ unter Start & Verhalten.",
+    "allowExtendedDbInfoMobile": "Bietet beim Ansichtstyp auch Board, Kalender, Zeitleiste, Graph und Pinnwand an.",
+    "vaultExportDone": "Vault exportiert: {{path}}",
     "commentAnchors": "Kommentierte Stellen in der Notiz markieren",
     "commentAnchorsDesc": "Damit zeigt der Kommentar auch nach Änderungen auf die Stelle. Aus fallen Kommentare auf den zitierten Text zurück.",
     "commentAnchorsHint": "Schreibt einen unsichtbaren HTML-Kommentar in die Notiz.",

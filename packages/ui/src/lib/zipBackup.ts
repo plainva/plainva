@@ -81,3 +81,18 @@ export function selectZipsToDelete(fileNames: string[], vaultName: string, keep:
 export function shouldRunZip(s: { enabled: boolean; lastRun: number; now: number; running: boolean }): boolean {
   return s.enabled && !s.running && s.now - s.lastRun > ZIP_INTERVAL_MS;
 }
+
+/**
+ * The name of a vault EXPORT — `<label>-YYYY-MM-DD.zip`, the label reduced to
+ * letters, digits, dot, dash and underscore. One name for both shells: the
+ * phone hands the file to the share sheet, the desktop proposes it in its
+ * save dialog (Sammelplan § 3.169 Nr. 3), and an export taken on either one
+ * is the same ZIP (the vault minus `ZIP_EXCLUDED_DIR_NAMES`) with the same
+ * name. Distinct from the scheduled archive's name (`buildZipFileName`), whose
+ * pattern the rotation matches — an export must never be taken for an old
+ * archive and deleted.
+ */
+export function vaultExportFileName(label: string, when: Date = new Date()): string {
+  const stamp = when.toISOString().slice(0, 10);
+  return `${label.replace(/[^\w.-]+/g, "_") || "vault"}-${stamp}.zip`;
+}

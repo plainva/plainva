@@ -343,6 +343,8 @@
     "allowExtendedDb": "Plainva-extensies voor .base-bestanden toestaan",
     "allowExtendedDbDesc": "Obsidian kent deze functies niet helemaal.",
     "allowExtendedDbInfo": "Schakelt geavanceerde functies voor .base-bestanden in. Of Plainva ze bij het openen aangeeft, bepaalt „Compatibiliteitswaarschuwingen voor Plainva-extensies” onder Opstarten en gedrag.",
+    "allowExtendedDbInfoMobile": "Biedt als weergavetype ook Bord, Kalender, Tijdlijn, Graaf en Prikbord aan.",
+    "vaultExportDone": "Kluis geëxporteerd: {{path}}",
     "commentAnchors": "Becommentarieerde passages in de notitie markeren",
     "commentAnchorsDesc": "Zo blijft de opmerking na bewerkingen naar de passage verwijzen. Uit vallen opmerkingen terug op de geciteerde tekst.",
     "commentAnchorsHint": "Schrijft een onzichtbare HTML-opmerking in de notitie.",

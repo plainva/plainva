@@ -1,6 +1,6 @@
 # Sauvegardes & historique des versions
 
-Dernière mise à jour : 2026-10-29
+Dernière mise à jour : 2026-10-30
 
 Plainva protège votre travail à deux niveaux : les **versions de fichiers** (instantanés automatiques de chaque fichier lors de l'édition et de la suppression) et les **sauvegardes du vault** (archives ZIP régulières de tout le vault, stockées en dehors du dossier du vault). Les deux fonctionnent en arrière-plan sans aucune configuration et peuvent être ajustés dans les paramètres sous **Sauvegarde & historique des versions**.
 
@@ -10,7 +10,7 @@ Avant chaque enregistrement, Plainva stocke un instantané de l'état précéden
 
 Conservation (configurable par vault) :
 
-- **Intervalle des instantanés** : À chaque modification / 30 s / 2 min / 5 min / 10 min
+- **Intervalle des instantanés** : À chaque modification / 30 s / 1 min / 2 min / 5 min / 10 min
 - **Versions par fichier** : par défaut 100 — au-delà, les plus anciennes sont supprimées
 - **Âge maximal** : par défaut 90 jours — les versions plus anciennes sont supprimées **définitivement** par un nettoyage quotidien (« Illimité » désactive cette limite)
 - **Fichiers volumineux** : au-delà de 5 Mo, seule la version la plus récente est conservée — voir ci-dessous

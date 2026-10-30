@@ -6,7 +6,7 @@ import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
 import { DeletedFilesSheet } from "../components/DeletedFilesSheet";
 import { ZipBackupGroup } from "../components/ZipBackupGroup";
-import { placeStampEnabled, setPlaceStampEnabled, createTaskDatabase, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, SettingField, Switch, CommittedTextInput, travelsWithVault } from "@plainva/ui";
+import { placeStampEnabled, setPlaceStampEnabled, createTaskDatabase, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, SettingField, Switch, CommittedTextInput, splitTextFileExtensions, travelsWithVault, choicesWith, VERSION_INTERVAL_CHOICES, VERSION_MAX_AGE_CHOICES, VERSION_MAX_COUNT_CHOICES, versionIntervalLabel } from "@plainva/ui";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { type DefaultView, NOTE_HEAD_BUTTONS, type NoteHeadButton } from "../services/mobileSettings";
 import { noteTypeOf } from "../services/newNote";
@@ -289,6 +289,17 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
                 value={settings.defaultNoteType}
               />
             </SettingField>
+            {/* C15: which extra file types open in Plainva as text — the vault's
+                list, the same the desktop edits, applied to every path that
+                opens a file (`setExtraTextExtensions`, Sammelplan § 3.169). */}
+            <SettingField hint={t("settings.textFileExtensionsHint")} info={t("settings.textFileExtensionsDesc")} label={t("settings.textFileExtensions")}>
+              <CommittedTextInput
+                data-testid="text-file-extensions"
+                onSave={(v) => update({ textFileExtensions: splitTextFileExtensions(v) })}
+                placeholder="fountain, adoc"
+                value={settings.textFileExtensions.join(", ")}
+              />
+            </SettingField>
           </RowList>
         </GroupCard>
 
@@ -300,6 +311,21 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
               info={t("settings.taskDatabaseDesc")}
               onClick={pickTaskDatabase}
               title={t("settings.taskDatabase")}
+            />
+            {/* Whether a view's type offers board, calendar, timeline, graph and
+                pinboard — the desktop's switch, the same stored value. */}
+            <Row
+              end={<Switch
+                checked={settings.extendedDatabases}
+                label={t("settings.allowExtendedDb")}
+                onChange={(next) => void update({ extendedDatabases: next })}
+                testId="extDb"
+              />}
+              info={t("settings.allowExtendedDbInfoMobile")}
+              subtitle={t("settings.allowExtendedDbDesc")}
+              title={t("settings.allowExtendedDb")}
+              // The long label breaks rather than clips, as the archive switch does.
+              wrap
             />
           </RowList>
         </GroupCard>
@@ -319,6 +345,21 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
                 value={settings.verifierName}
               />
             </SettingField>
+            {/* The editor has honoured it all along (EditorHost); now it can be
+                changed here as on the desktop. A vault setting: it travels. */}
+            <Row
+              end={<Switch
+                checked={settings.commentAnchors}
+                label={t("settings.commentAnchors")}
+                onChange={(next) => void update({ commentAnchors: next })}
+                testId="commentAnchors"
+              />}
+              info={t("settings.commentAnchorsDesc")}
+              subtitle={t("settings.commentAnchorsHint")}
+              title={t("settings.commentAnchors")}
+              // The long label breaks rather than clips, as the archive switch does.
+              wrap
+            />
             <Row
               deviceOnly={deviceOnly(undefined)}
               end={<Switch
@@ -393,9 +434,11 @@ export function BackupAreaScreen({ vault, onBack }: { vault: MobileVault; onBack
     void mSelect({
       title: t("settings.versionInterval"),
       message: t("settings.versionIntervalDesc"),
-      options: [0, 60, 120, 300, 600].map((sec) => ({
+      // The desktop's choices too (`backupChoices.ts`); a value set there
+      // stays among them.
+      options: choicesWith(VERSION_INTERVAL_CHOICES, settings.backupIntervalSeconds).map((sec) => ({
         value: String(sec),
-        label: sec === 0 ? t("settings.versionIntervalEvery") : `${sec / 60} min`,
+        label: versionIntervalLabel(sec, t("settings.versionIntervalEvery")),
       })),
       value: String(settings.backupIntervalSeconds),
     }).then((v) => {
@@ -406,7 +449,7 @@ export function BackupAreaScreen({ vault, onBack }: { vault: MobileVault; onBack
     void mSelect({
       title: t("settings.versionMaxCount"),
       message: t("settings.versionMaxCountDesc"),
-      options: [20, 50, 100, 200].map((n) => ({ value: String(n), label: String(n) })),
+      options: choicesWith(VERSION_MAX_COUNT_CHOICES, settings.backupMaxPerFile).map((n) => ({ value: String(n), label: String(n) })),
       value: String(settings.backupMaxPerFile),
     }).then((v) => {
       if (v !== null) update({ backupMaxPerFile: Number(v) });
@@ -416,7 +459,7 @@ export function BackupAreaScreen({ vault, onBack }: { vault: MobileVault; onBack
     void mSelect({
       title: t("settings.versionMaxAge"),
       message: t("settings.versionMaxAgeDesc"),
-      options: [0, 30, 90, 365].map((d) => ({
+      options: choicesWith(VERSION_MAX_AGE_CHOICES, settings.backupMaxAgeDays, "last").map((d) => ({
         value: String(d),
         label: d === 0 ? t("settings.versionAgeUnlimited") : t("settings.versionAgeDays", { days: d }),
       })),
@@ -435,7 +478,7 @@ export function BackupAreaScreen({ vault, onBack }: { vault: MobileVault; onBack
         <GroupCard>
           <RowList>
             <Row
-              end={<><span className="m-prop-val">{settings.backupIntervalSeconds === 0 ? t("settings.versionIntervalEvery") : `${settings.backupIntervalSeconds / 60} min`}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              end={<><span className="m-prop-val">{versionIntervalLabel(settings.backupIntervalSeconds, t("settings.versionIntervalEvery"))}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
               info={t("settings.versionIntervalDesc")}
               onClick={pickBackupInterval}
               title={t("settings.versionInterval")}

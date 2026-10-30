@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { getSettingsStore } from "../services/settingsStore";
 import { listVaultFolders as sharedListVaultFolders } from "../services/vaultFolders";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
-import { clampBoundary, placeStampEnabled, setExtraTextExtensions, setPlaceStampEnabled, toast } from "@plainva/ui";
+import { clampBoundary, placeStampEnabled, setExtraTextExtensions, setPlaceStampEnabled, splitTextFileExtensions, toast } from "@plainva/ui";
 import { listTemplates } from "../services/newItemFlow";
 import { requestWelcomeOnNextStart } from "../services/whatsNew";
 import { mkdir } from "@tauri-apps/plugin-fs";
@@ -54,6 +54,8 @@ import { checkForAppUpdate, downloadAndInstallUpdate, getAutoUpdateCheck, setAut
 import { formatBuildLine, formatDiagnosticsExport } from "@plainva/ui";
 import { SettingsNav } from "./settings/SettingsNav";
 import { SecurityNav } from "./settings/SecurityNav";
+import { VaultDetailsPage } from "./settings/VaultDetailsPage";
+import { useVaultLabels } from "../services/vaultNames";
 import { VaultPickerModal } from "./settings/VaultPickerModal";
 import { AppearancePage, EditorPage, BehaviorPage, AboutPage, CustomThemePage } from "./settings/AppPages";
 import { SyncPage, type SyncProvider } from "./settings/SyncPage";
@@ -93,12 +95,14 @@ const SettingsPage: React.FC<{ active: boolean; children: React.ReactNode }> = (
 );
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialProvider, initialArea, initialAccountId, initialConnect }) => {
-  const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker, refreshVault, rebuildIndex } = useVault();
+  const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker, refreshVault, rebuildIndex, openVault, closeVault, removeRecentVault } = useVault();
   const [reindexRunning, setReindexRunning] = useState(false);
   const [syncQueueSnapshot, setSyncQueueSnapshot] = useState<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> } | null>(null);
   const { t, i18n } = useTranslation();
 
   const vaults = Array.from(new Set([vaultPath, ...recentVaults].filter(Boolean) as string[]));
+  // What each vault is called in Plainva: its own name, else its folder's.
+  const vaultLabelOf = useVaultLabels(vaults);
 
   const [section, setSection] = useState<string>(vaultPath || GENERAL);
   // Which vault the VAULT areas show (two-worlds nav); the identity card's
@@ -698,6 +702,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
 
   /** Opens or closes Sync's own sub-page (the chain) for a search hit; the nonce applies each once. */
   const [syncChainRequest, setSyncChainRequest] = useState<{ open: boolean; nonce: number } | null>(null);
+  // The search over all settings belongs to the window, not to one rail: the
+  // second level of Security & Sharing swaps the rail, and the query stays.
+  const [settingsQuery, setSettingsQuery] = useState("");
 
   /**
    * A search hit (settings plan 2026-10-29, § 4.3): open its page - and the
@@ -790,13 +797,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
               area={securityArea}
               onSelect={setSecurityArea}
               onBack={() => setSecurityArea(null)}
+              searchQuery={settingsQuery}
+              onSearchQuery={setSettingsQuery}
+              hiddenAreaIds={hiddenVaultAreas}
+              onOpenHit={openSearchHit}
             />
           ) : (
             <SettingsNav
               world={section === GENERAL ? "app" : "vault"}
               page={section === GENERAL ? (appPage === "customTheme" ? "appearance" : appPage) : vaultPage}
               onOpenArea={openArea}
-              vaultName={selectedVault ? basename(selectedVault) : null}
+              vaultName={selectedVault ? vaultLabelOf(selectedVault) : null}
               vaultPath={selectedVault || null}
               vaultIsActive={selectedVault === vaultPath}
               vaultHasSync={configuredVaults.has(selectedVault)}
@@ -805,6 +816,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
               onShowShortcuts={() => setShowShortcuts(true)}
               hiddenAreaIds={hiddenVaultAreas}
               onOpenHit={openSearchHit}
+              searchQuery={settingsQuery}
+              onSearchQuery={setSettingsQuery}
+              onOpenVaultDetails={() => openArea("vault", "vaultDetails")}
+              vaultDetailsActive={!inAppWorld && vaultPage === "vaultDetails"}
             />
           )}
 
@@ -956,10 +971,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       textFileExtensions={textFileExtensions}
                       onTextFileExtensions={(v) => {
                         setTextFileExtensions(v);
-                        // Split on what people type between entries; the rule
-                        // itself sanitises (dot, case, junk) so both callers
-                        // cannot disagree about what an extension is.
-                        const list = v.split(/[\s,;]+/).map((e) => e.trim()).filter(Boolean);
+                        // Split on what people type between entries — the same
+                        // split as the phone's row; the rule itself sanitises
+                        // (dot, case, junk) so no caller can disagree about
+                        // what an extension is.
+                        const list = splitTextFileExtensions(v);
                         void persistFeature(section, textFileExtensionsKey(section), list);
                         setExtraTextExtensions(list);
                       }}
@@ -1052,6 +1068,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onVersionMaxAge={(v) => { setVersionMaxAgeDays(v); void persistBackupSetting(section, backupMaxAgeDaysKey(section), parseInt(v, 10)); }}
                       onShowDeletedFiles={() => { window.dispatchEvent(new CustomEvent("plainva-show-deleted-files")); onClose(); }}
                     />
+                  </SettingsPage>
+                  {/* The vault itself — the phone's vault page (Sammelplan § 3.169 Nr. 3). */}
+                  <SettingsPage active={!inAppWorld && vaultPage === "vaultDetails"}>
+                    {selectedVault && (
+                      <VaultDetailsPage
+                        vaultPath={selectedVault}
+                        isActiveVault={isActiveVault}
+                        hasSync={configuredVaults.has(selectedVault)}
+                        onOpenSync={() => openArea("vault", "sync")}
+                        onUse={() => { void openVault(selectedVault); onClose(); }}
+                        onCloseActive={() => { onClose(); closeVault(); }}
+                        removeRecentVault={removeRecentVault}
+                        onDeleted={(gone) => {
+                          const next = vaults.find((v) => v !== gone) ?? "";
+                          setSelectedVault(next);
+                          if (next) { setSection(next); setVaultPage(firstSettingsArea("vault").id); }
+                          else { setSection(GENERAL); setAppPage(firstSettingsArea("app").id); }
+                        }}
+                      />
+                    )}
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "maintenance"}>
                     <MaintenancePage

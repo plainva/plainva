@@ -233,8 +233,9 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   // them in its vault settings (`TemplateRules`).
   { logical: "folderTemplates", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: "own" },
   { logical: "typeTemplates", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: "own" },
-  { logical: "extendedDatabases", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: null,
-    mobileGap: "extended databases are a desktop-only configuration surface" },
+  // A switch (the desktop has always stored and imported it as a boolean);
+  // the phone honours it in the view-type choice since Sammelplan § 3.169.
+  { logical: "extendedDatabases", scope: "vault", kind: "boolean", area: "content", desktop: "store", mobile: "extendedDatabases" },
   // Whether a comment may write its anchor pair into the Markdown (Stufe D,
   // SD2). A VAULT field, not a member one: the markers land in the note itself,
   // so one device writing them while another does not would leave the same vault
