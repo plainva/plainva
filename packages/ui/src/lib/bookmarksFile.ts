@@ -152,19 +152,67 @@ export function applyBookmarkProfileOnDisk(io: BookmarksIO, values: Record<strin
 const laneScopes = new WeakMap<BookmarksIO, string>();
 export function setBookmarksLaneScope(io: BookmarksIO, scope: string) { laneScopes.set(io, scope); }
 const lanes = new Map<BookmarksIO | string, Promise<unknown>>();
-async function updateBookmarksOnDisk(io: BookmarksIO, change: (current: BookmarkEntry[]) => BookmarkEntry[]): Promise<BookmarkEntry[]> {
+/** Runs `work` after every earlier change of this list has landed, and before any later one starts. */
+function onBookmarksLane<T>(io: BookmarksIO, work: () => Promise<T>): Promise<T> {
   // All desktop clients delegate mutations to the same owner adapter. The
   // whole read-modify-write must share a lane, not just the final file write.
   const lane = laneScopes.get(io) ?? io;
-  const run = (lanes.get(lane) ?? Promise.resolve()).catch(() => {}).then(async () => {
+  const run = (lanes.get(lane) ?? Promise.resolve()).catch(() => {}).then(work);
+  lanes.set(lane, run);
+  void run.finally(() => { if (lanes.get(lane) === run) lanes.delete(lane); }).catch(() => {});
+  return run;
+}
+function updateBookmarksOnDisk(io: BookmarksIO, change: (current: BookmarkEntry[]) => BookmarkEntry[]): Promise<BookmarkEntry[]> {
+  return onBookmarksLane(io, async () => {
     const current = await readBookmarksOnDisk(io);
     const next = deduplicateBookmarks(change(current));
     if (!sameStoredValue(current, next)) await io.writeTextFile(BOOKMARKS_FILE, serializeBookmarksFile(next));
     return next;
   });
-  lanes.set(lane, run);
-  void run.finally(() => { if (lanes.get(lane) === run) lanes.delete(lane); }).catch(() => {});
-  return run;
+}
+
+/**
+ * The bookmarks file as it stood before a settings import, to go back to
+ * when the import does not finish: the whole TEXT, not the parsed entries.
+ * A snapshot of parsed entries keeps what this version understands — the
+ * phone's kept only the file bookmarks, and its rollback deleted every
+ * folder bookmark, which the next profile upload then carried to every
+ * device as an explicit `bookmarkFolders: []` (Sammelplan § 3.127 Nr. 1).
+ */
+export interface BookmarksFileSnapshot {
+  existed: boolean;
+  text?: string;
+  /** Only in a phone journal written before the snapshot kept the text: the file bookmarks, nothing else. */
+  paths?: string[];
+}
+export interface BookmarksFileIO extends BookmarksIO {
+  exists: (path: string) => Promise<boolean>;
+  deleteItem: (path: string) => Promise<void>;
+}
+export function snapshotBookmarksFile(io: BookmarksFileIO): Promise<BookmarksFileSnapshot> {
+  return onBookmarksLane(io, async () => (await io.exists(BOOKMARKS_FILE)
+    ? { existed: true, text: await io.readTextFile(BOOKMARKS_FILE) }
+    : { existed: false }));
+}
+/**
+ * Puts the file back as the snapshot found it, on the lane every other
+ * writer of the list shares: a star clicked in the same moment lands before
+ * or after the rollback, never between its read and its write. A snapshot
+ * of the old phone form knew only the file bookmarks, so it gives those back
+ * and leaves the folder bookmarks as they are — it never saw them.
+ */
+export function restoreBookmarksFile(io: BookmarksFileIO, snapshot: BookmarksFileSnapshot): Promise<void> {
+  if (snapshot.existed && snapshot.text === undefined) {
+    const files = snapshot.paths ?? [];
+    return updateBookmarksOnDisk(io, (current) => [
+      ...files.map((path) => ({ path, type: "file" as const })),
+      ...current.filter((e) => e.type === "folder"),
+    ]).then(() => undefined);
+  }
+  return onBookmarksLane(io, async () => {
+    if (snapshot.existed) await io.writeTextFile(BOOKMARKS_FILE, snapshot.text ?? "");
+    else if (await io.exists(BOOKMARKS_FILE)) await io.deleteItem(BOOKMARKS_FILE);
+  });
 }
 
 /** Where the list lives; carried by the settings profile, never note sync. */

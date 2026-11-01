@@ -53,7 +53,7 @@ import {
   forgetRemovedLocalAccount,
   importAccountMetadata as sharedImportAccountMetadata,
   parseBookmarksFile,
-  applyBookmarkProfileOnDisk, validBookmarkPaths, setBookmarksLaneScope,
+  applyBookmarkProfileOnDisk, validBookmarkPaths, setBookmarksLaneScope, snapshotBookmarksFile, restoreBookmarksFile, type BookmarksFileSnapshot,
   forgetReportedOnce,
   shouldReportOnce,
   shouldReportWaitingAccounts,
@@ -407,7 +407,7 @@ interface ProfileImportSnapshot {
   cloudAccounts?: CloudAccountRecord[];
   pimAccounts?: PimAccountRow[];
   pimSelections?: ProfilePimSelections;
-  bookmarks?: { existed: boolean; text?: string };
+  bookmarks?: BookmarksFileSnapshot;
 }
 
 interface ProfileImportJournal {
@@ -611,8 +611,8 @@ async function captureProfileSnapshot(store: ISettingsStore, vaultPath: string, 
     };
   }
   if (context.rawVault) {
-    const existed = await context.rawVault.exists(".plainva/bookmarks.json");
-    snapshot.bookmarks = { existed, ...(existed ? { text: await context.rawVault.readTextFile(".plainva/bookmarks.json") } : {}) };
+    setBookmarksLaneScope(context.rawVault, `desktop:${vaultPath}`);
+    snapshot.bookmarks = await snapshotBookmarksFile(context.rawVault);
   }
   return snapshot;
 }
@@ -673,8 +673,10 @@ async function restoreProfileSnapshot(store: ISettingsStore, vaultPath: string, 
     for (const list of snapshot.pimSelections?.taskLists ?? []) await context.pimRuntime.cache.setTaskListSelected(list.accountId, list.id, list.selected);
   }
   if (context.rawVault && snapshot.bookmarks) {
-    if (snapshot.bookmarks.existed) await context.rawVault.writeTextFile(".plainva/bookmarks.json", snapshot.bookmarks.text ?? "");
-    else if (await context.rawVault.exists(".plainva/bookmarks.json")) await context.rawVault.deleteItem(".plainva/bookmarks.json");
+    // On the lane the star clicks share: a click in the same moment cannot
+    // write the import's list back over the rollback (Sammelplan § 3.127 Nr. 1).
+    setBookmarksLaneScope(context.rawVault, `desktop:${vaultPath}`);
+    await restoreBookmarksFile(context.rawVault, snapshot.bookmarks);
   }
   await store.save();
 }

@@ -120,8 +120,8 @@ const SITES: Record<string, Site[]> = {
     ["handed to keyfile.run", 1, SIDEBAND],
   ],
   "services/profileImportJournal.ts": [
-    ["calls writeTextFile", 1, `${BOOKMARKS} (the bookmarks an interrupted import had found are put back)`],
-    ["calls deleteItem", 1, `${BOOKMARKS} (…or taken away again, where there had been none)`],
+    ["handed to snapshotBookmarksFile", 1, `${BOOKMARKS} (the whole file, as an import finds it)`],
+    ["handed to restoreBookmarksFile", 1, `${BOOKMARKS} (put back as an interrupted import found it — or taken away again, where there had been none)`],
   ],
   "services/syncService.ts": [
     ["builds CapacitorVaultAdapter", 1, NOT_OPEN],
