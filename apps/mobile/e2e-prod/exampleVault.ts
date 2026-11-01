@@ -16,6 +16,18 @@ export async function waitForVaultDirectory(page: Page) {
   }), { timeout: 20_000 }).toBe("directory");
 }
 
+/**
+ * Wait until the index database's schema is complete before test code writes
+ * into it. The schema creates its tables one statement at a time and adds
+ * columns afterwards (`pim_state.auth_revision`), so one table existing says
+ * nothing about the next: specs that waited for `pim_calendars` and then wrote
+ * `pim_state` failed now and then with "no such table". The format version in
+ * `meta` is the schema setup's last write the tables depend on.
+ */
+export async function waitForIndexSchema(sql: { count(dbName: string, table: string): number }, dbName: string) {
+  await expect.poll(() => sql.count(dbName, "meta WHERE key = 'index_format_version'"), { timeout: 20_000 }).toBe(1);
+}
+
 /** What the web shell reports when the app goes away (`true`) or comes back. */
 async function reportHidden(page: Page, states: boolean[]) {
   await page.evaluate((steps) => {

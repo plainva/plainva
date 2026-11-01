@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, waitForIndexSchema } from "./exampleVault";
 
 /**
  * Blockers on the phone (plan Befunde 2026-10-06, K3).
@@ -30,7 +30,7 @@ test("a blocker carries the chain mark, asks what a change was meant for, and a 
   try {
     await page.goto("/");
     await waitForVaultDirectory(page);
-    await expect.poll(() => sql.count("plainva-index", "sqlite_master WHERE name = 'pim_calendars'"), { timeout: 20_000 }).toBe(1);
+    await waitForIndexSchema(sql, "plainva-index");
     sql.seedPim("plainva-index");
 
     // A second calendar, an event in the first and its blocker in the second —

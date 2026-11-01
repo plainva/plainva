@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, waitForIndexSchema } from "./exampleVault";
 
 const LOCALES = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "packages", "ui", "src", "locales");
 const de = JSON.parse(readFileSync(join(LOCALES, "de.json"), "utf8"));
@@ -46,7 +46,7 @@ test("a calendar account is one card, and its failure a note that says who faile
   try {
     await page.goto("/");
     await waitForVaultDirectory(page);
-    await expect.poll(() => sql.count("plainva-index", "sqlite_master WHERE name = 'pim_calendars'"), { timeout: 20_000 }).toBe(1);
+    await waitForIndexSchema(sql, "plainva-index");
     sql.seedPim("plainva-index");
     // The phone's native HTTP layer found no network on the last cycle.
     sql.run(

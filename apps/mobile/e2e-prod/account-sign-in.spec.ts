@@ -1,7 +1,7 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { FakeOAuthProvider, type FakeConsentChoice } from "../../../packages/ui/src/testing/fakeOAuthProvider";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, waitForIndexSchema } from "./exampleVault";
 import { E2E_STANDARD_GOOGLE_IOS_CLIENT_ID } from "../scripts/e2e-build-env.mjs";
 import { PLAINVA_ONEDRIVE_CLIENT_ID } from "../../../packages/ui/src/services/providerDefaults";
 
@@ -151,7 +151,7 @@ async function boot(context: BrowserContext, page: Page, seed?: (storage: Record
   await waitForVaultDirectory(page);
   if (withCalendar) {
     // The fixture's Google calendar row (pim-fixture-1), in the vault's index once it exists.
-    await expect.poll(() => sql.count("plainva-index", "sqlite_master WHERE name = 'pim_calendars'"), { timeout: 20_000 }).toBe(1);
+    await waitForIndexSchema(sql, "plainva-index");
     sql.seedPim("plainva-index");
     await page.reload();
     await waitForVaultDirectory(page);

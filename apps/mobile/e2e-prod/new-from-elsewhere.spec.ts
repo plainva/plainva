@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, waitForIndexSchema } from "./exampleVault";
 
 /**
  * "New event" in the ＋ menu of another tab (plan Befunde 2026-09-24, E28 —
@@ -24,7 +24,7 @@ test("New event from another tab opens the event sheet on Today when the vault h
     await waitForVaultDirectory(page);
     // A calendar account with a writable calendar, in the index database the
     // first start created.
-    await expect.poll(() => sql.count("plainva-index", "sqlite_master WHERE name = 'pim_calendars'"), { timeout: 20_000 }).toBe(1);
+    await waitForIndexSchema(sql, "plainva-index");
     sql.seedPim("plainva-index");
     await page.reload();
     await expect(page.locator(".m-tabbar")).toBeVisible({ timeout: 20_000 });

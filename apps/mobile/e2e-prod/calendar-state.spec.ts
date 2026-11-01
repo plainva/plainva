@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, waitForIndexSchema } from "./exampleVault";
 
 /**
  * What the phone's calendar says about itself (plan Befunde 2026-10-06, K1/K2).
@@ -32,7 +32,7 @@ test("an account that is not synced says so above the calendar, the events stay;
   try {
     await page.goto("/");
     await waitForVaultDirectory(page);
-    await expect.poll(() => sql.count("plainva-index", "sqlite_master WHERE name = 'pim_calendars'"), { timeout: 20_000 }).toBe(1);
+    await waitForIndexSchema(sql, "plainva-index");
     sql.seedPim("plainva-index");
 
     // Today, in the phone's own clock: four appointments and a working
