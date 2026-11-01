@@ -51,6 +51,8 @@ Drei Knöpfe an jeder Nachricht:
 - **+ .eml** — legt zusätzlich das rohe Original neben die Notiz und verlinkt es. Die `.eml` enthält alles, auch die Anhänge, und öffnet sich in jedem Mail-Programm. Existiert die Notiz schon, wird die Rohkopie ergänzt — es sei denn, es ist bereits eine verlinkt.
 - **→ Aufgabe** — erstellt einen Eintrag in Deiner [Standard-Aufgabendatenbank](Tasks.md) mit dem Betreff als Titel, dem heutigen Datum als Fälligkeit und dem offenen Status vorbefüllt.
 
+Ein Bild, das die Nachricht aus dem Netz einbettet (`![…](https://…)`), steht in der Notiz als Link auf dieselbe Adresse. Der Editor und der **Lesemodus** würden es sonst bei jedem Öffnen der Notiz laden — und der Absender erführe, wann Du sie liest. **Antwort als Notiz** zitiert es ebenso; alles andere im Text bleibt, wie der Absender es geschrieben hat.
+
 ## Verfassen und senden
 
 Sobald ein Konto senden kann — ein **Microsoft**-Konto oder ein **IMAP**-Konto mit hinterlegtem **SMTP-Host** —, kannst Du in Plainva Mails schreiben und senden:

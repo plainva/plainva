@@ -515,6 +515,56 @@ test('mail tab lists envelopes, sandboxes the message and captures it as an anch
 });
 
 /**
+ * A picture from the web in a message's text (open-items plan 3.79, decision
+ * E1). The editor and the reading view load a picture a note embeds from the
+ * web (`parse-budget.spec.ts`): filed unchanged, a tracking picture in the
+ * sender's text would be fetched each time the note opens. The filed note
+ * holds it as a link, and opening the note fetches nothing — in the editor and
+ * in the reading view. The phone holds the same in
+ * `apps/mobile/e2e-prod/mail-html-message.spec.ts`.
+ */
+test('a filed mail with pictures from the web: the note holds links, and opening it fetches nothing', async ({ page }, testInfo) => {
+  const fetched: string[] = [];
+  await page.route('https://pixel.example.org/**', (route: any) => {
+    fetched.push(new URL(route.request().url()).pathname);
+    return route.fulfill({ status: 200, contentType: 'image/png', body: '' });
+  });
+  await page.addInitScript(() => {
+    (window as any).__fullMessage = {
+      text: 'Hallo Marco,\n\n![](https://pixel.example.org/open.png?id=42)\n\nUnser Logo: ![Logo](https://pixel.example.org/logo.png)\n\n![[https://pixel.example.org/wiki.png]]\n\nGruß\n',
+      html: null,
+      attachments: [],
+    };
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await page.getByTestId('mail-capture-note').click();
+  const filed = () =>
+    page.evaluate(() => {
+      const fs = (window as any).mockFs;
+      const path = Object.keys(fs).find((p) => p.startsWith('/test-vault/Mail/') && p.endsWith('.md'));
+      return path ? (fs[path] as string) : null;
+    });
+  await expect.poll(filed).toBeTruthy();
+  const note = (await filed())!;
+  expect(note).toContain('# Rechnung Q3\n\nHallo Marco,\n\n[https://pixel.example.org/open.png?id=42](https://pixel.example.org/open.png?id=42)\n\nUnser Logo: [Logo](https://pixel.example.org/logo.png)\n\n[https://pixel.example.org/wiki.png](https://pixel.example.org/wiki.png)\n\nGruß\n');
+  // The note opens in the editor: the links are there, nothing was fetched.
+  await expect(page.locator('.cm-content').getByText('Gruß')).toBeVisible({ timeout: 15000 });
+  await expect(page.locator('.cm-content').getByText('Logo', { exact: true })).toBeVisible();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('mail-filed-links-editor.png') });
+  await page.locator('[data-tip="Lesemodus"], [data-tip="Read Mode"]').first().click();
+  const reader = page.locator('.markdown-reader').first();
+  await expect(reader.locator('a', { hasText: 'Logo' })).toHaveAttribute('href', 'https://pixel.example.org/logo.png');
+  await expect(reader.locator('img')).toHaveCount(0);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('mail-filed-links-reader.png') });
+  // Long enough for a picture to have been asked for.
+  await page.waitForTimeout(1500);
+  expect(fetched).toEqual([]);
+});
+
+/**
  * A message without a plain-text part (finding 2026-10-09).
  *
  * Microsoft Graph hands a body over as HTML, and a sender is free to write

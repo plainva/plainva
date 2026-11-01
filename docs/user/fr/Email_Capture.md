@@ -51,6 +51,8 @@ Trois boutons sur chaque message :
 - **+ .eml** — stocke en plus l'original brut à côté de la note et le lie. Le `.eml` contient tout, y compris les pièces jointes, et s'ouvre dans n'importe quel programme de messagerie. Si la note existe déjà, la copie brute y est ajoutée — sauf si une copie est déjà liée.
 - **→ Tâche** — crée une entrée dans votre [base de tâches par défaut](Tasks.md) avec l'objet comme titre, la date du jour comme échéance et le statut ouvert préremplis.
 
+Une image que le message intègre depuis le web (`![…](https://…)`) arrive dans la note sous forme de lien vers la même adresse. Sinon, l'éditeur et le **Mode lecture** la chargeraient à chaque ouverture de la note — et l'expéditeur saurait quand vous la lisez. **Répondre comme note** la cite de la même manière ; tout le reste du texte reste tel que l'expéditeur l'a écrit.
+
 ## Rédiger et envoyer
 
 Dès qu'un compte peut envoyer — un compte **Microsoft**, ou un compte **IMAP** avec un **hôte SMTP** configuré —, vous pouvez écrire et envoyer des e-mails depuis Plainva :

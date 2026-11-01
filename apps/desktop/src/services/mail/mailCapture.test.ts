@@ -164,6 +164,16 @@ describe("a second capture fills a note that holds no text of its message", () =
     expect(files.get(PATH)).toBe(buildEmailNoteContent(msg(), "acc1", "INBOX", "2026-07-20"));
   });
 
+  it("fills with the text a fresh capture writes: a picture from the web becomes a link there too", async () => {
+    const remote = msg({ text: "Hallo,\n\n![Logo](https://tracker.example/pixel.png)\n\nGruss" });
+    const { adapter, files } = fakeAdapter({ [PATH]: emptyNote(remote) });
+    expect((await capture(adapter, true, remote)).filled).toBe(true);
+    const filled = files.get(PATH) as string;
+    expect(filled).toBe(buildEmailNoteContent(remote, "acc1", "INBOX", "2026-07-20"));
+    expect(filled).not.toContain("![Logo](https://tracker.example/pixel.png)");
+    expect(filled).toContain("[Logo](https://tracker.example/pixel.png)");
+  });
+
   it("counts a note with nothing but the link to the raw copy as empty, and keeps the link behind the text", async () => {
     const withLink = `${emptyNote()}\n[[Mail/2026-07-20 Rechnung Q3.eml]]\n`;
     expect(isEmptyMailNote(withLink)).toBe(true);

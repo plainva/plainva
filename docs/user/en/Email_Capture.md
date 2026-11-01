@@ -51,6 +51,8 @@ Three buttons on every message:
 - **+ .eml** — additionally stores the raw original next to the note and links it. The `.eml` contains everything, including attachments, and opens in any mail program. If the note already exists, the raw copy is added to it — unless one is already linked.
 - **→ Task** — creates an entry in your [standard task database](Tasks.md) with the subject as the title, today's date as the due date and the open status pre-filled.
 
+A picture the message embeds from the web (`![…](https://…)`) arrives in the note as a link to the same address. The editor and **Read Mode** would otherwise load it every time you open the note — and the sender would learn when you read it. **Reply as note** quotes it the same way; everything else in the text stays as the sender wrote it.
+
 ## Composing and sending
 
 Once an account can send — a **Microsoft** account, or an **IMAP** account with an **SMTP host** configured — you can write and send mail from Plainva:

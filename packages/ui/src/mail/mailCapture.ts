@@ -4,6 +4,7 @@ import { buildNewNoteContent } from "../lib/newNoteContent";
 import { safeFileStem } from "../lib/fileStem";
 import { generatedStamp } from "../lib/okfProvenance";
 import { mailMessageText } from "./messageText";
+import { defuseRemoteImages } from "../lib/remoteImages";
 import type { MailMessage } from "./types";
 
 /**
@@ -107,7 +108,8 @@ export function buildEmailNoteContent(
       /* stamp best-effort */
     }
   }
-  const body = mailMessageText(message).trim();
+  // A picture from the web in the sender's text becomes a link: opening the note fetches nothing (open-items plan 3.79).
+  const body = defuseRemoteImages(mailMessageText(message)).trim();
   if (body) content = (content.trimEnd() + "\n\n") + body + "\n";
   return content;
 }
@@ -245,7 +247,8 @@ export async function captureMailAsNote(opts: CaptureMailOptions): Promise<Captu
  * message has no text either.
  */
 async function fillEmptyMailNote(adapter: MailCaptureAdapter, path: string, message: MailMessage): Promise<boolean> {
-  const text = mailMessageText(message).trim();
+  // The same text a fresh capture writes (web pictures made links, § 3.79).
+  const text = defuseRemoteImages(mailMessageText(message)).trim();
   if (!text) return false;
   const update = await updateVaultText(adapter, path, (current) => (isEmptyMailNote(current) ? withMailText(current, text) : null));
   return update.changed || !!update.conflict?.changed;

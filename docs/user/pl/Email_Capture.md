@@ -51,6 +51,8 @@ Trzy przyciski przy każdej wiadomości:
 - **+ .eml** — dodatkowo zapisuje surowy oryginał obok notatki i go linkuje. Plik `.eml` zawiera wszystko, łącznie z załącznikami, i otwiera się w dowolnym programie pocztowym. Jeśli notatka już istnieje, kopia źródłowa zostanie do niej dodana — chyba że jakaś jest już podlinkowana.
 - **→ Zadanie** — tworzy wpis w Twojej [domyślnej bazie zadań](Tasks.md) z tematem jako tytułem, dzisiejszą datą jako terminem i wstępnie ustawionym statusem otwarte.
 
+Obraz, który wiadomość osadza z sieci (`![…](https://…)`), trafia do notatki jako link do tego samego adresu. W przeciwnym razie edytor i **Tryb czytania** ładowałyby go przy każdym otwarciu notatki, a nadawca dowiadywałby się, kiedy ją czytasz. **Odpowiedz jako notatka** cytuje go tak samo; reszta tekstu pozostaje taka, jak napisał ją nadawca.
+
 ## Pisanie i wysyłanie
 
 Gdy tylko konto może wysyłać — konto **Microsoft** albo konto **IMAP** ze skonfigurowanym **hostem SMTP** — możesz pisać i wysyłać wiadomości z Plainva:

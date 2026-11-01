@@ -51,6 +51,8 @@ Drie knoppen bij elk bericht:
 - **+ .eml** — bewaart bovendien het ruwe origineel naast de notitie en linkt ernaar. De `.eml` bevat alles, ook de bijlagen, en opent in elk mailprogramma. Bestaat de notitie al, dan wordt de ruwe kopie eraan toegevoegd — tenzij er al een is gekoppeld.
 - **→ Taak** — maakt een item aan in je [standaard takendatabase](Tasks.md) met het onderwerp als titel, de datum van vandaag als vervaldatum en de open status vooraf ingevuld.
 
+Een afbeelding die het bericht van het web insluit (`![…](https://…)`), komt in de notitie terecht als link naar hetzelfde adres. Anders zouden de editor en de **Leesmodus** haar bij elke keer openen van de notitie laden — en zou de afzender te weten komen wanneer je haar leest. **Beantwoorden als notitie** citeert haar op dezelfde manier; de rest van de tekst blijft zoals de afzender hem schreef.
+
 ## Opstellen en verzenden
 
 Zodra een account kan verzenden — een **Microsoft**-account, of een **IMAP**-account met een ingestelde **SMTP-host** —, kun je vanuit Plainva mail schrijven en versturen:

@@ -179,6 +179,7 @@ export * from "./lib/listSort";
 export * from "./lib/scrollMemory";
 export * from "./lib/imageTarget";
 export * from "./lib/boundedMarkdown";
+export * from "./lib/remoteImages";
 export * from "./lib/dailyNotes";
 export * from "./lib/dailyNoteCreate";
 export * from "./lib/journalWrite";

@@ -51,6 +51,8 @@ Três botões em cada mensagem:
 - **+ .eml** — além disso, guarda o original bruto ao lado da nota e o vincula a ela. O `.eml` contém tudo, inclusive os anexos, e abre em qualquer programa de e-mail. Se a nota já existir, a cópia original é adicionada a ela — a menos que já haja uma vinculada.
 - **→ Tarefa** — cria um item no seu [banco de tarefas padrão](Tasks.md) com o assunto como título, a data de hoje como vencimento e o status aberto já preenchido.
 
+Uma imagem que a mensagem incorpora da web (`![…](https://…)`) chega à nota como um link para o mesmo endereço. Caso contrário, o editor e o **Modo de leitura** a carregariam toda vez que você abrisse a nota — e o remetente saberia quando você a lê. **Responder como nota** a cita da mesma forma; todo o resto do texto fica como o remetente escreveu.
+
 ## Redigir e enviar
 
 Assim que uma conta puder enviar — uma conta **Microsoft**, ou uma conta **IMAP** com um **host SMTP** configurado —, você pode escrever e enviar e-mails a partir do Plainva:

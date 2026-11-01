@@ -8,6 +8,7 @@ import { mailAccountKind, mailSendRoute } from "./mailAccounts";
 import { withMailCredentials } from "./mailCredentials";
 import { buildQuoteBlock, quoteText, FORWARD_SEPARATOR } from "./replyQuote";
 import { mailMessageText } from "./messageText";
+import { defuseRemoteImages } from "../lib/remoteImages";
 import type { MailMessage } from "./types";
 import { graphSendMail, graphAppendDraft } from "./graphMail";
 import { mailTransport } from "./transport";
@@ -203,7 +204,8 @@ export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "fr
   } catch {
     /* best effort */
   }
-  const quoted = quoteText(mailMessageText(message));
+  // The quote is a note's text: a picture from the web in it becomes a link, as in a filed mail.
+  const quoted = quoteText(defuseRemoteImages(mailMessageText(message)));
   content = (content.trimEnd() + "\n\n") + (quoted ? `\n${quoted}\n` : "");
   return content;
 }
