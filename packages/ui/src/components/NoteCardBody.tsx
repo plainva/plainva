@@ -1,6 +1,7 @@
 import type React from "react";
 import type { InlineNode } from "../lib/inlineMarkdown";
 import type { NoteCardBlock } from "../lib/noteCardModel";
+import type { PlannerTaskLine } from "../lib/taskPlanner";
 
 /**
  * Shared renderer of a parsed note card (plan Pinboard P3, decision E6) —
@@ -38,8 +39,11 @@ function renderInlineNodes(nodes: InlineNode[], keyPrefix = ""): React.ReactNode
 
 export interface NoteCardBodyProps {
   blocks: NoteCardBlock[];
-  /** Toggle the task with this document ordinal; absent = read-only checkboxes. */
-  onToggleTask?: (ordinal: number, checked: boolean) => void;
+  /** Toggle this task — named by its place AND its line's text, so the tick
+   * finds its line in the note as it is when it is written (`noteTaskTick`),
+   * never by a place an older state of the note had (Sammelplan § 3.87 Nr. 4);
+   * absent = read-only checkboxes. */
+  onToggleTask?: (task: PlannerTaskLine, checked: boolean) => void;
   /** Shell-specific image rendering (blob loading differs per shell). */
   renderImage?: (target: string, alt: string) => React.ReactNode;
   /** Shell-specific sound rendering - the same split, for the same reason (X3). */
@@ -88,7 +92,7 @@ export function NoteCardBody({ blocks, onToggleTask, renderImage, renderAudio, l
                   disabled={!onToggleTask}
                   onClick={(e) => e.stopPropagation()}
                   onPointerDown={(e) => e.stopPropagation()}
-                  onChange={(e) => onToggleTask?.(b.ordinal, e.currentTarget.checked)}
+                  onChange={(e) => onToggleTask?.({ ordinal: b.ordinal, text: b.text }, e.currentTarget.checked)}
                   style={{ marginTop: 3, flexShrink: 0, accentColor: "var(--accent-color)", cursor: onToggleTask ? "pointer" : "default" }}
                   aria-label={undefined}
                 />

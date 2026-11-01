@@ -23,7 +23,10 @@ import { TASK_LINE_RE } from "./taskToggle";
 export type NoteCardBlock =
   | { kind: "heading"; depth: number; inline: InlineNode[] }
   | { kind: "para"; inline: InlineNode[] }
-  | { kind: "task"; ordinal: number; done: boolean; closed: boolean; indent: number; inline: InlineNode[] }
+  /** `text` is the line's source after the box, as `listTaskLines` reads it: with
+   * the ordinal it names the box, so a tick finds its line in the note as it is
+   * when it is written, not by a place an older state of the note had (§ 3.87 Nr. 4). */
+  | { kind: "task"; ordinal: number; text: string; done: boolean; closed: boolean; indent: number; inline: InlineNode[] }
   | { kind: "bullet"; indent: number; ordered: boolean; inline: InlineNode[] }
   | { kind: "quote"; inline: InlineNode[] }
   | { kind: "image"; target: string; alt: string }
@@ -182,6 +185,7 @@ export function parseNoteCard(
         push({
           kind: "task",
           ordinal,
+          text: line.slice(taskMatch[0].length).trim(),
           done: taskMatch[2].toLowerCase() === "x",
           // `[-]` cancelled is closed like a done task; `[/]` in progress is open (E12).
           closed: taskMatch[2] !== " " && taskMatch[2] !== "/",

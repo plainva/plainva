@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
-import { mimeTypeForPath, readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
-import { AudioEmbed, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, listTaskLines, errorText, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, scrollerOf, SectionLabel, spliceIntoSequence, splitMultiValue } from "@plainva/ui";
+import { mimeTypeForPath, readFrontmatterPath, resolveTaskOrdinal, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
+import { AudioEmbed, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, noteTaskTick, type PlannerTaskLine, errorText, toast, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, scrollerOf, SectionLabel, spliceIntoSequence, splitMultiValue } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { mActions, mMultiSelect, mSelect } from "../../services/mobileDialogs";
 import { confirmDeleteFile } from "../../lib/deleteFile";
@@ -319,23 +319,29 @@ export function PinboardView({
   // ── Card writes (shared semantics with the desktop view): every change
   //    goes into the note as it lies there when it is written
   //    (`vaultOps.update` — one step of the vault's chain, then the index) ──
-  const handleToggleTask = useCallback(async (path: string, ordinal: number, checked: boolean) => {
+  const handleToggleTask = useCallback(async (path: string, task: PlannerTaskLine, checked: boolean) => {
     try {
-      // The box is found by its line's text as well as by its place: where the
-      // note has an open conflict, the person's own version takes the tick
-      // too, and there another line may stand at that place.
-      const listed = listTaskLines(await vault.files.readTextFile(path))[ordinal];
-      if (!listed) return;
-      const update = await vaultOps.update(vault, path, (fresh) => {
-        if (listTaskLines(fresh)[ordinal]?.text !== listed.text) return null;
-        const res = toggleTaskAtIndex(fresh, ordinal, checked);
-        return res.changed ? res.content : null;
-      });
-      if (update.changed) onMutated();
+      // The box is found in the note as it is when the tick is written, by
+      // its place AND its line's text — the one rule of every tick on a task
+      // row (`noteTaskTick`). The card may be drawn from an older state of
+      // the note (a stale index), and by its place alone it ticked whatever
+      // line stood there now (Sammelplan § 3.87 Nr. 4). With an open
+      // conflict, the person's own version takes the tick too, where its
+      // line reads the same there.
+      const update = await vaultOps.update(vault, path, noteTaskTick(task, checked));
+      if (update.changed) {
+        onMutated();
+      } else if (resolveTaskOrdinal(update.before, task) < 0) {
+        // The line is gone or reads otherwise: nothing was ticked. Say so and
+        // draw the card from the note as it is.
+        toast.info(t("tasks.promoteStale"));
+        await vault.reindexPaths([path]).catch(() => {});
+        onMutated();
+      }
     } catch (e: any) {
       toast.error(String(e?.message ?? e));
     }
-  }, [vault, onMutated]);
+  }, [vault, onMutated, t]);
 
   const persistSections = useCallback((next: { order?: string[]; pinned?: string[] }) => {
     const patch: Record<string, unknown> = {};
@@ -634,7 +640,7 @@ export function PinboardView({
           <NoteCardBody
             blocks={vm.parsed.blocks}
             labels={cardLabels}
-            onToggleTask={(ordinal, checked) => void handleToggleTask(path, ordinal, checked)}
+            onToggleTask={(task, checked) => void handleToggleTask(path, task, checked)}
             renderImage={(target, alt) => <CardImage vault={vault} target={target} alt={alt} notePath={path} />}
             renderAudio={(target, alt) => <CardAudio vault={vault} target={target} alt={alt} notePath={path} />}
           />

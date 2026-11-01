@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type React from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
-import { appendTaskLine, Checkbox, ICON, IconButton, listTaskLines, parseTaskProgress, TextInput, toast, toggleTaskAtIndex, type TaskLine } from "@plainva/ui";
+import { appendTaskLine, Checkbox, ICON, IconButton, listTaskLines, parseTaskProgress, TextInput, toast, noteTaskTick, type TaskLine } from "@plainva/ui";
 import { vaultOps, type MobileVault } from "../../services/vaultService";
 
 /**
@@ -88,14 +88,11 @@ export function CardChecklist({ vault, path, progress, onChanged }: { vault: Mob
                 // React has reset the controlled box to the old value — read late,
                 // the toggle saw "unchanged" and never wrote (E2E finding 2026-09-06).
                 const checked = e.target.checked;
-                void write((fresh) => {
-                  // Its line, by text as well as by place: where the note has an open
-                  // conflict the person's own version takes the tick too, and there
-                  // another line may stand at that place.
-                  if (listTaskLines(fresh)[l.ordinal]?.text !== l.text) return null;
-                  const r = toggleTaskAtIndex(fresh, l.ordinal, checked);
-                  return r.changed ? r.content : null;
-                });
+                // Its line, by text as well as by place — the one rule of every
+                // tick on a task row (`noteTaskTick`): where the note has an open
+                // conflict the person's own version takes the tick too, and there
+                // another line may stand at that place.
+                void write(noteTaskTick(l, checked));
               }}
             >
               <span className={l.done || l.state === "cancelled" ? "is-done" : undefined}>{l.text}</span>

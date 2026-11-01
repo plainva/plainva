@@ -2643,6 +2643,39 @@ test('pinboard: cards render note bodies; checkbox and pin write back to the fil
     .toContain('Zettel/Idee.md');
 });
 
+// Sammelplan 3.87 Nr. 4: a card is drawn from what was read before; a tick
+// named its box by the place alone, so a note that moved on underneath got
+// whatever line stood at that place now.
+test('pinboard: a card drawn before its note changed ticks its own line or none, never the one now at its place', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+  const einkauf = page.locator('[data-pinboard-card]').filter({ hasText: 'Milch' });
+  const boxes = einkauf.locator('input[type="checkbox"]');
+  await expect(boxes).toHaveCount(2);
+
+  // Another program puts a line on top of the list; the card still shows "Milch" first.
+  await page.evaluate(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Zettel/Einkauf.md'] = fs['/test-vault/Zettel/Einkauf.md'].replace('- [ ] Milch', '- [ ] Eier\n- [ ] Milch');
+  });
+  await expect(boxes.first()).not.toBeChecked();
+  await boxes.first().click();
+
+  // That place names "Eier" now: nothing is ticked, and the card says so. (It
+  // is then drawn anew from the index; this fixture's index keeps the old
+  // revision, so the card itself stays as it was here.)
+  const told = page.getByText(/^(Die Notiz hat sich geändert — Liste aktualisiert\.|The note changed — list refreshed\.)$/);
+  await expect(told).toBeVisible();
+  const unchanged = '- [ ] Eier\n- [ ] Milch\n- [x] Brot';
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Einkauf.md'] as string)).toContain(unchanged);
+  await einkauf.screenshot({ path: test.info().outputPath('stale-card-refused.png') });
+
+  // The same for the second box: its place is "Milch" now, which the card does not show there.
+  await boxes.nth(1).click();
+  await expect(told.first()).toBeVisible();
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Einkauf.md'] as string)).toContain(unchanged);
+});
+
 test('pinboard: renaming a note in the tree retargets its pinned arrangement in the .base (P5 sweep)', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Pinnwand');

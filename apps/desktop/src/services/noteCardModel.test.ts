@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { parseNoteCard, toggleTaskAtIndex, inlineToPlain } from "@plainva/ui";
+import { parseNoteCard, toggleTaskAtIndex, inlineToPlain, noteTaskTick } from "@plainva/ui";
+import { resolveTaskOrdinal } from "@plainva/core";
 
 // Plan Pinboard P3 (E6): the card parser covers the Keep "Zettel" subset and
 // its task ordinals MUST match toggleTaskAtIndex exactly.
@@ -84,5 +85,22 @@ describe("parseNoteCard", () => {
     const p = parseNoteCard("erste Zeile\nzweite Zeile\n\nneuer Absatz");
     expect(p.blocks).toHaveLength(2);
     expect(inlineToPlain((p.blocks[0] as { inline: any[] }).inline)).toBe("erste Zeile zweite Zeile");
+  });
+
+  // Sammelplan § 3.87 Nr. 4: a card is drawn from what the index held, and a
+  // tick named the box by its place alone. Where the note moved on — a line
+  // above inserted elsewhere — that place is another line now.
+  it("names each box by its line's text too, so a tick never lands on another line", () => {
+    const shown = ["---", "title: Einkauf", "---", "- [ ] Milch", "- [x] Brot **frisch**", ""].join("\n");
+    const tasks = parseNoteCard(shown).blocks.filter((b) => b.kind === "task") as Extract<ReturnType<typeof parseNoteCard>["blocks"][number], { kind: "task" }>[];
+    expect(tasks.map((t) => [t.ordinal, t.text])).toEqual([[0, "Milch"], [1, "Brot **frisch**"]]);
+    // The text is the one the tick finds the line by in the note as it is.
+    expect(tasks.every((t) => resolveTaskOrdinal(shown, t) === t.ordinal)).toBe(true);
+
+    const now = ["---", "title: Einkauf", "---", "- [ ] Eier", "- [ ] Milch", "- [x] Brot **frisch**", ""].join("\n");
+    // The stale place names "Eier" now: nothing is ticked, not the wrong line.
+    expect(noteTaskTick(tasks[0]!, true)(now)).toBeNull();
+    // Unchanged where it stood: ticked as before.
+    expect(noteTaskTick(tasks[0]!, true)(shown)).toContain("- [x] Milch");
   });
 });
