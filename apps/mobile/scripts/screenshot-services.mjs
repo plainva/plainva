@@ -118,8 +118,11 @@ const DEFAULT_ATTACHMENTS = [{ id: "attachment-1", name: "Projektübersicht.txt"
  * way); `observed.listed` names each folder whose list has been answered.
  * `failList` makes the list of a folder fail, by folder id, with the given
  * status; `failListFor` every list of one sign-in, by its refresh token. */
-export async function installMailFixture(context, { extra = {}, attachments = DEFAULT_ATTACHMENTS, refuseSends = { times: 0, status: 413 }, signIns = {}, flaggedDelay = 0, listDelay = {}, failList = {}, failListFor = {} } = {}) {
+export async function installMailFixture(context, { extra = {}, attachments = DEFAULT_ATTACHMENTS, refuseSends = { times: 0, status: 413 }, signIns = {}, flaggedDelay = 0, listDelay = {}, failList = {}, failListFor = {}, folderNames = {} } = {}) {
   const messages = structuredClone(MESSAGES);
+  // A folder can carry another name (`folderNames`, by its id) — German
+  // Outlook calls its trash "Gelöschte Elemente".
+  const folders = FOLDERS.map((f) => ({ ...f, displayName: folderNames[f.id] ?? f.displayName }));
   const files = attachments.map((file) => ({ ...file, failsLeft: file.failTimes ?? 0 }));
   const listed = (file) => ({ id: file.id, "@odata.type": file.type ?? FILE_ATTACHMENT, name: file.name, contentType: file.contentType, size: file.size ?? file.content?.length ?? 0 });
   const drafts = new Map();
@@ -147,7 +150,22 @@ export async function installMailFixture(context, { extra = {}, attachments = DE
     })) : null,
   }]));
   const everything = () => [...messages, ...Object.values(others).flat(), ...[...accounts.values()].flatMap(a => a.inbox ?? [])];
-  const observed = { lists: 0, listed: [], bodies: 0, searches: [], flaggedQueries: [], flaggedAnswered: 0, sent: [], sentWith: [], attachmentFetches: [], tokenRefreshes: 0, tokenRequests: [], requests: [], unexpected: [], uploads: [] };
+  const observed = { lists: 0, listed: [], bodies: 0, searches: [], flaggedQueries: [], flaggedAnswered: 0, sent: [], sentWith: [], attachmentFetches: [], tokenRefreshes: 0, tokenRequests: [], requests: [], unexpected: [], uploads: [], moves: [], deletes: [] };
+  /**
+   * The list of a folder (by id) of the fixture's own mailbox: the inbox is
+   * `messages`, every other folder a list in `others`, made when first moved
+   * into. A move gives the message a NEW id, as Graph does — the id is the
+   * message's place, and what comes back from the trash is another id.
+   */
+  const folderList = (id) => (id === "inbox" ? messages : (others[id] ??= []));
+  const placeOf = (id) => {
+    for (const [folderId, list] of [["inbox", messages], ...Object.entries(others)]) {
+      const index = list.findIndex((m) => m.id === id);
+      if (index >= 0) return { folderId, list, index };
+    }
+    return null;
+  };
+  let moveCount = 0;
   // Upload sessions by their address: the draft, the file's item and the bytes so far.
   const sessions = new Map();
   await context.route("https://outlook.office.com/**", async (route) => {
@@ -193,9 +211,9 @@ export async function installMailFixture(context, { extra = {}, attachments = DE
           ? { id: account.id, mail: account.address, userPrincipalName: account.address, displayName: account.address }
           : { id: "fixture-anna", mail: "anna@example.org", userPrincipalName: "anna@example.org", displayName: "Anna Beispiel" } });
       }
-      if (path === "/me/mailFolders") return route.fulfill({ json: { value: FOLDERS } });
+      if (path === "/me/mailFolders") return route.fulfill({ json: { value: folders } });
       const folder = /^\/me\/mailFolders\/([^/]+)$/.exec(path);
-      if (folder) return route.fulfill({ json: FOLDERS.find(f => f.id === folder[1]) ?? { id: folder[1], unreadItemCount: 0 } });
+      if (folder) return route.fulfill({ json: folders.find(f => f.id === folder[1]) ?? { id: folder[1], unreadItemCount: 0 } });
       const list = /^\/me\/mailFolders\/([^/]+)\/messages$/.exec(path);
       if (list) {
         const inFolder = list[1] === "inbox" ? account?.inbox ?? messages : others[list[1]] ?? [];
@@ -236,6 +254,28 @@ export async function installMailFixture(context, { extra = {}, attachments = DE
         }
         return route.fulfill({ json: { ...listed(file), ...(file.content ? { contentBytes: file.content.toString("base64") } : {}) } });
       }
+    }
+    // Moving and deleting, in the fixture's own mailbox.
+    const moving = /^\/me\/messages\/([^/]+)\/move$/.exec(path);
+    if (request.method() === "POST" && moving) {
+      const at = placeOf(moving[1]);
+      const { destinationId } = request.postDataJSON();
+      observed.moves.push({ id: moving[1], from: at?.folderId ?? null, to: destinationId, authorization });
+      if (!at) return route.fulfill({ status: 404, json: { error: { code: "ErrorItemNotFound" } } });
+      const [item] = at.list.splice(at.index, 1);
+      const next = { ...item, id: `${item.id}-moved-${++moveCount}` };
+      const target = folderList(destinationId);
+      target.push(next);
+      target.sort((a, b) => String(b.receivedDateTime).localeCompare(String(a.receivedDateTime)));
+      return route.fulfill({ status: 201, json: next });
+    }
+    if (request.method() === "DELETE" && /^\/me\/messages\/[^/]+$/.test(path) && !/^\/me\/messages\/draft-\d+$/.test(path)) {
+      const id = path.slice("/me/messages/".length);
+      const at = placeOf(id);
+      observed.deletes.push({ id, from: at?.folderId ?? null, authorization });
+      if (!at) return route.fulfill({ status: 404, json: { error: { code: "ErrorItemNotFound" } } });
+      at.list.splice(at.index, 1);
+      return route.fulfill({ status: 204, body: "" });
     }
     if (request.method() === "PATCH") {
       const item = everything().find(m => path === `/me/messages/${m.id}`);

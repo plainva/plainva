@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFrontmatterPath } from "@plainva/core";
-import { buildMailtoUrl, buildReplyNoteContent, buildReplyBody, replyAllRecipients, bytesToBase64, guessAttachmentMime, guessDraftsMailbox, resolveDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders, decodeImapUtf7, pickInboxFolder, pickTrashFolder, classifyFolderRole } from "@plainva/ui/mail";
+import { buildMailtoUrl, buildReplyNoteContent, buildReplyBody, replyAllRecipients, bytesToBase64, guessAttachmentMime, guessDraftsMailbox, resolveDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders, decodeImapUtf7, pickInboxFolder, pickTrashFolder, classifyFolderRole, isTrashMailbox } from "@plainva/ui/mail";
 
 describe("mail-out helpers (stage 6)", () => {
   it("builds mailto URLs with encoded subject/body and %20 spaces", () => {
@@ -117,6 +117,24 @@ describe("mail-out helpers (stage 6)", () => {
     expect(guessTrashMailbox(["INBOX", "Papierkorb"])).toBe("Papierkorb");
     expect(guessTrashMailbox(["INBOX", "[Gmail]/Trash"])).toBe("[Gmail]/Trash");
     expect(guessTrashMailbox(["INBOX", "Sent", "Drafts"])).toBeNull();
+  });
+
+  it("knows the trash under the name Outlook and Exchange give it, in their languages (3.110 no. 7)", () => {
+    // A Microsoft mailbox that states no role: the phone said "no trash".
+    for (const name of ["Gelöschte Elemente", "Deleted Items", "Éléments supprimés", "Elementos eliminados", "Posta eliminata", "Verwijderde items", "Itens Excluídos", "Elementy usunięte", "Odstraněná pošta", "削除済みアイテム", "지운 편지함"]) {
+      expect(guessTrashMailbox(["Posteingang", "Gesendete Elemente", name]), name).toBe(name);
+    }
+    expect(classifyFolderRole("Gesendete Elemente")).toBe("sent");
+  });
+
+  it("calls a folder the trash only when Delete would move there — the stated role first (plan P1)", () => {
+    const boxes = [{ name: "Posteingang", role: "inbox" }, { name: "Gelöschte Elemente", role: "trash" }, { name: "Trash" }];
+    expect(isTrashMailbox("Gelöschte Elemente", boxes)).toBe(true);
+    // An older folder named "Trash" beside the stated one is not where Delete goes.
+    expect(isTrashMailbox("Trash", boxes)).toBe(false);
+    expect(isTrashMailbox("Posteingang", boxes)).toBe(false);
+    expect(isTrashMailbox("Gelöschte Elemente", [{ name: "Posteingang" }, { name: "Gelöschte Elemente" }])).toBe(true);
+    expect(isTrashMailbox("INBOX", [])).toBe(false);
   });
 
   it("classifies special-use folders across the catalog's languages (A3)", () => {

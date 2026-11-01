@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-10-30
+Última revisão: 2026-11-01
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -31,7 +31,7 @@ Abra a aba de e-mail pela barra de ações à esquerda (ícone de e-mail) ou pel
 - Scripts e formulários nunca são executados. A mensagem é renderizada em um frame isolado com uma política de conteúdo estrita.
 - **Mensagens largas são ajustadas** — muitos boletins são feitos para uma largura de coluna fixa e não podem ser redistribuídos. Em vez de cortar uma mensagem assim na borda esquerda, o Plainva a reduz à largura do frame; no telefone o frame cresce junto, então você rola a página como de costume.
 - **Conversas** — o botão acima da lista (ícone de balão) junta mensagens relacionadas em uma única linha: participantes, quantidade e o assunto com que a troca começou. Um toque a expande; cada mensagem mantém sua pasta e a informa quando não é a aberta. Para isso o Plainva também lê **Enviados**, de modo que suas próprias respostas façam parte da conversa. Desligado, tudo fica como antes — uma lista plana — e a escolha é lembrada por vault, nos dois dispositivos. O agrupamento segue a cadeia de respostas das mensagens (na Microsoft, a conversa que o próprio provedor mantém); só quando uma resposta não carrega essa cadeia é que o assunto ajuda, e então apenas para uma resposta reconhecível (“Re:”, “Enc:”) dentro de 30 dias, para que duas mensagens que apenas compartilham o assunto não se juntem.
-- **Todas as caixas de entrada** — a primeira entrada acima da lista de pastas mostra as caixas de entrada de **todas** as contas em uma única lista, as mais recentes primeiro, e cada linha diz a qual conta pertence. Lido/não lido e sinalizar também funcionam aqui; mover e excluir continuam pertencendo a cada caixa, porque cada conta tem sua própria pasta de destino — abra a mensagem e você age na caixa dela. Uma conta cujo login está faltando é nomeada e não esvazia a lista das demais.
+- **Todas as caixas de entrada** — a primeira entrada acima da lista de pastas mostra as caixas de entrada de **todas** as contas em uma única lista, as mais recentes primeiro, e cada linha diz a qual conta pertence. Lido/não lido e sinalizar também funcionam aqui; mover e excluir continuam pertencendo a cada caixa, porque cada conta tem sua própria pasta de destino — abra a mensagem e você age na caixa dela. No celular, pressionar e segurar uma linha abre também aqui o menu dela, e **Selecionar vários** escolhe linhas de várias caixas — a barra então oferece lido e não lido. Uma conta cujo login está faltando é nomeada e não esvazia a lista das demais.
 - **Selecionar vários** — Ctrl+clique (macOS: ⌘+clique) escolhe mensagens isoladas, Shift+clique um intervalo; na visão de conversas, um Ctrl+clique na conversa escolhe a troca inteira, e cada mensagem mantém a própria pasta.
 - **Pelo teclado na lista** — Seta para cima/baixo seleciona a mensagem anterior/seguinte e a mostra no leitor — se a seta chegar a uma conversa recolhida, ela a expande e seleciona a primeira (para baixo) ou a última (para cima) mensagem; dentro de uma conversa expandida, as setas percorrem mensagem por mensagem —, Shift+seta estende a seleção, Home/End saltam para a primeira/última mensagem, seta esquerda/direita recolhe/expande uma conversa, Enter abre a mensagem no leitor, Delete a move para a lixeira (com a mesma confirmação do botão). Todos estão na janela de atalhos (F1) em **E-mail**.
 
@@ -92,7 +92,7 @@ Na página de e-mail da sua conta — **Contas na nuvem** → a conta → **E-ma
 
 ## Ações da caixa de correio
 
-Estrelas/marcações são sincronizadas via IMAP e Microsoft; **Sinalizadas** mostra a seleção do servidor. As mensagens podem ser movidas individualmente ou em grupo. Fora da lixeira, **Excluir** sempre significa “mover para a lixeira”; somente nela aparece **Excluir permanentemente** após confirmação. No Gmail, mover altera rótulos e ações em **Todos os e-mails** podem afetar a mensagem em todos os rótulos; o Plainva avisa antes.
+Estrelas/marcações são sincronizadas via IMAP e Microsoft; **Marcadas** mostra a seleção do servidor. As mensagens podem ser movidas individualmente ou em grupo. Fora da lixeira, **Excluir** sempre significa “mover para a lixeira”; somente nela aparece **Excluir permanentemente** após confirmação. Vale a pasta em que a mensagem está, não a que aparece na tela: em uma conversa exibida na lixeira, a sua resposta de Enviados é movida para a lixeira, não excluída permanentemente. No Gmail, mover altera rótulos e ações em **Todos os e-mails** podem afetar a mensagem em todos os rótulos; o Plainva avisa antes.
 
 ## Cancelar inscrição e desfazer o envio
 
@@ -104,7 +104,7 @@ Quando uma mensagem traz o cabeçalho `List-Unsubscribe`, o Plainva mostra no le
 
 Há correio que não é urgente nem está resolvido. **Adiar** tira uma mensagem da lista até um momento que você escolhe — mais tarde hoje, amanhã de manhã, no fim de semana ou na semana que vem. A semana que vem é o primeiro dia da próxima semana conforme **Início da semana** — o mesmo dia do prazo de uma tarefa. No computador a opção fica no menu de contexto da linha; no celular é também um gesto de deslizar. O botão **Adiados** os traz de volta à vista; a partir dali, **Trazer agora** devolve a mensagem à lista imediatamente.
 
-Duas coisas que merecem ser ditas com clareza. Primeiro, adiar é um **marcador do próprio Plainva**, não um recurso do servidor: nem IMAP nem Microsoft têm algo assim. O marcador viaja com a sincronização de configurações, então uma mensagem adiada no celular também descansa no computador — em outro programa de e-mail ela está na caixa de entrada como sempre. Segundo, adiar esconde apenas a **lista da pasta** em que você fez isso: a busca e "Todas as caixas de entrada" continuam mostrando a mensagem. Adiado significa "fora do caminho", não "sumiu".
+Duas coisas que merecem ser ditas com clareza. Primeiro, adiar é um **marcador do próprio Plainva**, não um recurso do servidor: nem IMAP nem Microsoft têm algo assim. O marcador viaja com a sincronização de configurações, então uma mensagem adiada no celular também descansa no computador — em outro programa de e-mail ela está na caixa de entrada como sempre. Segundo, adiar esconde a mensagem apenas na pasta em que ela está — onde quer que essa pasta seja exibida, em "Todas as caixas de entrada" e também em uma conversa; a busca e **Marcadas** continuam mostrando a mensagem. Adiado significa "fora do caminho", não "sumiu".
 
 ## Denunciar spam
 

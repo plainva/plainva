@@ -242,8 +242,13 @@ export function groupThreads<T extends ThreadableMessage>(messages: T[]): MailTh
   const union = new Union();
   // Oldest first: the subject pass below wants to see an existing conversation
   // before the reply that tries to join it, and iterating in a fixed order keeps
-  // the whole function deterministic.
-  const ordered = [...messages].sort((a, b) => a.dateTs - b.dateTs || a.id.localeCompare(b.id));
+  // the whole function deterministic. Equal times keep the order they were
+  // given in (the sort is stable): that order is how a caller says which copy
+  // of a message seen in two folders wins (below). It was the id, and a row
+  // named by its address sorts by its folder's name — "Gesendete Elemente"
+  // before "Posteingang" — so Sent's copy won and the conversation lost its
+  // place in the inbox (plan P1).
+  const ordered = [...messages].sort((a, b) => a.dateTs - b.dateTs);
 
   // Every key carries its account, so no union can ever cross one. NUL is not
   // valid in an account id, a message id or a Graph conversation id, so the

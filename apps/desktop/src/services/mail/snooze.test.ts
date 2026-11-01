@@ -7,7 +7,10 @@ import {
   parseSnoozeState,
   pruneSnoozes,
   removeSnooze,
+  filterSnoozedRows,
+  snoozeEntryFor,
   snoozeUntil,
+  unifiedId,
   type SnoozeEntry,
 } from "@plainva/ui/mail";
 import { dueQuickDay, type WeekStartDay } from "@plainva/ui";
@@ -129,7 +132,16 @@ describe("the list", () => {
   it("keeps entries of other accounts with the same id apart", () => {
     const state = addSnooze(addSnooze([], entry()), entry({ account: "a2" }));
     expect(state).toHaveLength(2);
-    expect(removeSnooze(state, "a1", "42")).toHaveLength(1);
+    expect(removeSnooze(state, { account: "a1", folder: "INBOX", id: "42" })).toHaveLength(1);
+  });
+
+  it("keeps the same number in two folders of one account apart (plan P1)", () => {
+    // An IMAP number is folder-local: your reply in Sent can carry the number
+    // of a message in the inbox. Putting it aside replaced the inbox's entry,
+    // and bringing it back took that one back too.
+    const state = addSnooze(addSnooze([], entry()), entry({ folder: "Sent" }));
+    expect(state).toHaveLength(2);
+    expect(removeSnooze(state, { account: "a1", folder: "Sent", id: "42" })).toEqual([entry()]);
   });
 
   it("reports due entries without removing them — a read must not write", () => {
@@ -140,8 +152,9 @@ describe("the list", () => {
 
   it("says a message is snoozed only while its time is ahead", () => {
     const state = [entry({ until: 500 })];
-    expect(isSnoozed(state, "a1", "42", 400)).toBe(true);
-    expect(isSnoozed(state, "a1", "42", 600)).toBe(false);
+    expect(isSnoozed(state, { account: "a1", folder: "INBOX", id: "42" }, 400)).toBe(true);
+    expect(isSnoozed(state, { account: "a1", folder: "INBOX", id: "42" }, 600)).toBe(false);
+    expect(isSnoozed(state, { account: "a1", folder: "Sent", id: "42" }, 400)).toBe(false);
   });
 });
 
@@ -174,6 +187,31 @@ describe("filterSnoozed", () => {
     const state = [entry({ account: "a2", id: "1", until: 900 })];
     const out = filterSnoozed(rows, { state, now: 100, folder: "INBOX", ...opts });
     expect(out).toEqual([rows[0], rows[1]]);
+  });
+});
+
+describe("filterSnoozedRows — rows named by their address (plan P1)", () => {
+  const row = (accountId: string, mailbox: string, uid: string) => ({ id: unifiedId({ accountId, mailbox, uid }) });
+  const inbox = row("a1", "INBOX", "42");
+  const sent = row("a1", "Sent", "42");
+  const other = row("a2", "Posteingang", "42");
+
+  it("reads the entry of a row off its own address, wherever the list stands", () => {
+    // A row of "All inboxes" was put aside under the OPEN mailbox and the
+    // folder behind the list: it was hidden nowhere it actually lies.
+    const put = snoozeEntryFor(other.id, 900)!;
+    expect(put).toEqual({ account: "a2", folder: "Posteingang", id: "42", until: 900 });
+    expect(filterSnoozedRows([inbox, sent, other], [put], 100)).toEqual([inbox, sent]);
+  });
+
+  it("hides the message in its own folder only — not the one with its number in another", () => {
+    expect(filterSnoozedRows([inbox, sent], [snoozeEntryFor(sent.id, 900)!], 100)).toEqual([inbox]);
+  });
+
+  it("shows it again once its time has passed, and keeps a row without an address", () => {
+    expect(filterSnoozedRows([inbox], [snoozeEntryFor(inbox.id, 50)!], 100)).toEqual([inbox]);
+    expect(filterSnoozedRows([{ id: "42" }], [entry({ until: 900 })], 100)).toEqual([{ id: "42" }]);
+    expect(snoozeEntryFor("42", 900)).toBeNull();
   });
 });
 

@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-10-30
+Stan na: 2026-11-01
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -31,7 +31,7 @@ Otwórz kartę e-mail przez lewy pasek akcji (ikona koperty) lub paletę polece�
 - Skrypty i formularze nigdy się nie uruchamiają. Wiadomość jest renderowana w izolowanej ramce z restrykcyjną polityką treści.
 - **Szerokie wiadomości są dopasowywane** — wiele newsletterów powstaje dla stałej szerokości kolumny i nie da się ich przełamać. Zamiast ucinać taką wiadomość przy lewej krawędzi, Plainva zmniejsza ją do szerokości ramki; na telefonie ramka rośnie razem z nią, więc przewijasz stronę jak zwykle.
 - **Konwersacje** — przełącznik nad listą (ikona dymku) zwija powiązane wiadomości w jeden wiersz: uczestnicy, liczba i temat, od którego wymiana się zaczęła. Dotknięcie go rozwija; każda wiadomość zachowuje swój folder i podaje go, gdy nie jest tym otwartym. Plainva czyta przy tym także **Wysłane**, aby Twoje własne odpowiedzi były częścią rozmowy. Wyłączone — wszystko zostaje jak dotąd, płaska lista — a wybór jest pamiętany dla każdego vaultu, na obu urządzeniach. Grupowanie idzie za łańcuchem odpowiedzi wiadomości (u Microsoftu za konwersacją, którą prowadzi sam dostawca); tylko gdy odpowiedź nie niesie tego łańcucha, pomaga temat — i wtedy jedynie przy rozpoznawalnej odpowiedzi („Re:”, „Odp:”) i w ciągu 30 dni, żeby dwie wiadomości o tym samym temacie się nie zlały.
-- **Wszystkie skrzynki odbiorcze** — pierwsza pozycja nad listą folderów pokazuje skrzynki odbiorcze **wszystkich** kont na jednej liście, od najnowszych, a każdy wiersz podaje konto, do którego należy. Przeczytane/nieprzeczytane i oznaczanie działają również tutaj; przenoszenie i usuwanie pozostają przy pojedynczej skrzynce, bo każde konto ma własny folder docelowy — otwórz wiadomość, a działasz w jej skrzynce. Konto bez zapisanego logowania zostaje wymienione z nazwy i nie opróżnia listy pozostałych.
+- **Wszystkie skrzynki odbiorcze** — pierwsza pozycja nad listą folderów pokazuje skrzynki odbiorcze **wszystkich** kont na jednej liście, od najnowszych, a każdy wiersz podaje konto, do którego należy. Przeczytane/nieprzeczytane i oznaczanie działają również tutaj; przenoszenie i usuwanie pozostają przy pojedynczej skrzynce, bo każde konto ma własny folder docelowy — otwórz wiadomość, a działasz w jej skrzynce. Na telefonie długie przytrzymanie wiersza otwiera tu również jego menu, a **Zaznacz kilka** wybiera wiersze z różnych skrzynek — pasek oferuje wtedy przeczytane i nieprzeczytane. Konto bez zapisanego logowania zostaje wymienione z nazwy i nie opróżnia listy pozostałych.
 - **Zaznaczanie wielu** — Ctrl+kliknięcie (macOS: ⌘+kliknięcie) wybiera pojedyncze wiadomości, Shift+kliknięcie zakres; w widoku konwersacji Ctrl+kliknięcie na konwersacji wybiera całą wymianę, a każda wiadomość zachowuje przy tym własny folder.
 - **Klawiaturą po liście** — Strzałka w górę/w dół wybiera poprzednią/następną wiadomość i pokazuje ją w czytniku — jeśli strzałka trafi na zwiniętą konwersację, rozwija ją i wybiera jej pierwszą (w dół) lub ostatnią (w górę) wiadomość; w rozwiniętej konwersacji strzałki przechodzą od wiadomości do wiadomości —, Shift+strzałka rozszerza zaznaczenie, Home/End skaczą do pierwszej/ostatniej wiadomości, strzałka w lewo/w prawo zwija/rozwija konwersację, Enter otwiera wiadomość w czytniku, Delete przenosi ją do kosza (z takim samym potwierdzeniem jak przycisk). Wszystkie skróty są w oknie skrótów (F1) w sekcji **E-mail**.
 
@@ -92,7 +92,7 @@ Na stronie poczty swojego konta — **Konta w chmurze** → konto → **E-mail**
 
 ## Działania w skrzynce
 
-Gwiazdki/flagi synchronizują się przez IMAP i Microsoft; **Oflagowane** pokazuje wybór serwera. Wiadomości można przenosić pojedynczo lub grupowo. Poza koszem **Usuń** zawsze oznacza „przenieś do kosza”; tylko w koszu dostępne jest **Usuń trwale** po potwierdzeniu. W Gmailu przenoszenie zmienia etykiety, a działania w **Wszystkie** mogą wpłynąć na wiadomość we wszystkich etykietach; Plainva ostrzega przed operacją.
+Gwiazdki/flagi synchronizują się przez IMAP i Microsoft; **Oflagowane** pokazuje wybór serwera. Wiadomości można przenosić pojedynczo lub grupowo. Poza koszem **Usuń** zawsze oznacza „przenieś do kosza”; tylko w koszu dostępne jest **Usuń trwale** po potwierdzeniu. Liczy się folder, w którym leży wiadomość, a nie ten pokazany na ekranie: w konwersacji pokazanej w koszu Twoja odpowiedź z Wysłanych zostaje przeniesiona do kosza, a nie usunięta trwale. W Gmailu przenoszenie zmienia etykiety, a działania w **Wszystkie** mogą wpłynąć na wiadomość we wszystkich etykietach; Plainva ostrzega przed operacją.
 
 ## Wypisywanie się i cofanie wysyłki
 
@@ -104,7 +104,7 @@ Gdy wiadomość niesie nagłówek `List-Unsubscribe`, Plainva pokazuje w czytnik
 
 Bywa poczta, która nie jest pilna, ale też nie jest załatwiona. **Odłóż** usuwa wiadomość z listy do wybranego momentu — później dzisiaj, jutro rano, w weekend albo w przyszłym tygodniu. Przyszły tydzień to pierwszy dzień następnego tygodnia według ustawienia **Początek tygodnia** — ten sam dzień co przy terminie zadania. Na komputerze pozycja jest w menu kontekstowym wiersza, na telefonie dodatkowo jako gest przesunięcia. Przycisk **Odłożone** przywraca je do widoku; stamtąd **Przywróć teraz** natychmiast wraca wiadomość na listę.
 
-Dwie rzeczy warto powiedzieć wprost. Po pierwsze, odkładanie to **własny znacznik Plainvy**, nie funkcja serwera: ani IMAP, ani Microsoft czegoś takiego nie mają. Znacznik podróżuje z synchronizacją ustawień, więc wiadomość odłożona na telefonie odpoczywa też na komputerze — w innym programie pocztowym leży normalnie w skrzynce odbiorczej. Po drugie, odkładanie ukrywa tylko **listę tego folderu**, w którym to zrobiłeś: wyszukiwanie i „Wszystkie skrzynki" nadal pokazują wiadomość. Odłożone znaczy „nie na drodze", a nie „zniknęło".
+Dwie rzeczy warto powiedzieć wprost. Po pierwsze, odkładanie to **własny znacznik Plainvy**, nie funkcja serwera: ani IMAP, ani Microsoft czegoś takiego nie mają. Znacznik podróżuje z synchronizacją ustawień, więc wiadomość odłożona na telefonie odpoczywa też na komputerze — w innym programie pocztowym leży normalnie w skrzynce odbiorczej. Po drugie, odkładanie ukrywa wiadomość tylko w tym folderze, w którym leży — gdziekolwiek ten folder jest pokazywany, także we „Wszystkie skrzynki" i w konwersacji; wyszukiwanie i **Oflagowane** nadal ją pokazują. Odłożone znaczy „nie na drodze", a nie „zniknęło".
 
 ## Zgłaszanie spamu
 

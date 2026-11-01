@@ -110,9 +110,8 @@ const back = (page: Page) => page.getByRole("button", { name: /^Back$/ }).first(
 const rows = (page: Page) => page.locator("button.m-mailrow");
 
 /**
- * The merged list, with this many rows in it. Chosen again after every
- * message: the list is built anew when the reader closes, and "All inboxes" is
- * a way of looking, not a place the list remembers.
+ * The merged list, with this many rows in it. Chosen again after a message as
+ * well: kept while the app runs, it is read again when chosen once more.
  */
 async function showAllInboxes(page: Page, count: number) {
   await page.locator(".m-mboxline").click();
@@ -397,6 +396,127 @@ test("all inboxes: a row offers what it offers on the desktop — no move, spam 
     await page.getByTestId("mail-threads-toggle").click();
     const ownThread = page.locator(".m-swipe").filter({ has: page.getByTestId("mail-thread-row").filter({ hasText: "Projektübersicht" }) });
     await expect(await swipeOpen(page, ownThread)).toHaveText([/Delete/]);
+  } finally {
+    await sql.close();
+  }
+});
+
+/** A finger held on a row for longer than the app's hold: its sheet opens. */
+async function hold(page: Page, row: Locator) {
+  const box = (await row.boundingBox())!;
+  const cdp = await page.context().newCDPSession(page);
+  const point = { x: Math.round(box.x + box.width / 3), y: Math.round(box.y + box.height / 2), id: 1 };
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
+  await page.waitForTimeout(750);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await cdp.detach();
+}
+
+const patchedWith = (mail: Observed, id: string) =>
+  (mail.requests as GraphRequest[]).filter((r) => r.method === "PATCH" && r.path === `/me/messages/${id}`).map((r) => r.authorization);
+
+test("all inboxes: a row names its mailbox, its sheet opens, and read, star and a selection act in the row's own mailbox", async ({ page, context }) => {
+  // The selection there held no row of the merged list — its id put the open
+  // account in front of the row's address — so a hold opened no sheet, and
+  // read and the star were reached only through the opened message (plan P1,
+  // open-items plan 3.110 no. 1); and no row said whose mailbox it is in
+  // (no. 2), though the user guide says each does.
+  test.setTimeout(120_000);
+  const { mail, sql } = await bootTwoMailboxes(context, page);
+  try {
+    await showAllInboxes(page, 7);
+    const statement = rows(page).filter({ hasText: "Kontoauszug" });
+    await expect(statement.getByTestId("mail-row-account")).toHaveText(SECOND_BOX.address);
+    await expect(rows(page).filter({ hasText: "Newsletter September" }).getByTestId("mail-row-account")).toHaveText(FIRST_BOX.address);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("all-inboxes-row-account.png") });
+
+    await hold(page, statement);
+    await page.getByTestId("mail-sheet-flag").click();
+    await expect.poll(() => patchedWith(mail, "second-1")).toEqual([SECOND_BOX.bearer]);
+    await expect(statement.locator(".m-mailrow-flag")).toHaveCount(1);
+
+    // Picked from the sheet, and one more by a tap: the bar offers what works
+    // across mailboxes — read and unread — and each goes to its own.
+    await hold(page, statement);
+    await page.getByTestId("mail-sheet-select-many").click();
+    await rows(page).filter({ hasText: "Newsletter September" }).click();
+    const bar = page.locator(".m-selectbar--mail");
+    await expect(bar).toContainText("2");
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("all-inboxes-selection.png") });
+    await expect(bar.getByRole("button", { name: "Move to…" })).toHaveCount(0);
+    await bar.getByRole("button", { name: /Mark as (un)?read/ }).click();
+    await expect.poll(() => patchedWith(mail, "second-1").length).toBe(2);
+    expect(patchedWith(mail, "second-1")).toEqual([SECOND_BOX.bearer, SECOND_BOX.bearer]);
+    await expect.poll(() => patchedWith(mail, "fixture-1")).toEqual([FIRST_BOX.bearer]);
+  } finally {
+    await sql.close();
+  }
+});
+
+test("all inboxes: a row put aside leaves the merged list and its own inbox", async ({ page, context }) => {
+  // Put aside in the merged list, a row was noted under the OPEN mailbox and
+  // the folder behind the list: it went from the merged list only while that
+  // folder stood behind it, and never from its own (open-items plan 3.137 no. 5).
+  test.setTimeout(120_000);
+  const { sql } = await bootTwoMailboxes(context, page);
+  try {
+    await showAllInboxes(page, 7);
+    const offered = await swipeOpen(page, page.locator(".m-swipe").filter({ hasText: "Kontoauszug" }));
+    await offered.filter({ hasText: /Snooze/ }).click();
+    await page.getByRole("button", { name: "Later today" }).click();
+    await expect(rows(page)).toHaveCount(6);
+    await expect(rows(page).filter({ hasText: "Kontoauszug" })).toHaveCount(0);
+    // In its own mailbox's inbox it is put aside too.
+    await page.locator(".m-mboxline").click();
+    await page.locator(".m-row", { hasText: SECOND_BOX.address }).click();
+    await expect(page.locator(".m-mboxline-acct")).toHaveText(SECOND_BOX.address);
+    await expect(rows(page)).toHaveCount(3, { timeout: 15000 });
+    await expect(rows(page).filter({ hasText: "Kontoauszug" })).toHaveCount(0);
+  } finally {
+    await sql.close();
+  }
+});
+
+test("all inboxes: back from a message, the merged list is still what is shown", async ({ page, context }) => {
+  // The list is built anew when the reader closes, and it came back as the
+  // first mailbox's inbox (open-items plan 3.110 no. 3).
+  test.setTimeout(120_000);
+  const { sql } = await bootTwoMailboxes(context, page);
+  try {
+    await showAllInboxes(page, 7);
+    await rows(page).filter({ hasText: "Kontoauszug" }).click();
+    await expect(page.getByTestId("mail-text")).toContainText("Ihr Kontoauszug für September liegt bereit.", { timeout: 15000 });
+    await back(page);
+    await expect(page.locator(".m-mboxline-name")).toHaveText("All inboxes");
+    await expect(rows(page)).toHaveCount(7, { timeout: 15000 });
+  } finally {
+    await sql.close();
+  }
+});
+
+test("all inboxes: a pull that is still reading goes with the merged list, and the folder takes a pull at once", async ({ page, context }) => {
+  // The circle ran until the read it was pulled for had ended — over the
+  // folder chosen meanwhile, which took no pull of its own until then
+  // (open-items plan 3.137 no. 6).
+  test.setTimeout(120_000);
+  const delay: Record<string, number> = {};
+  const { mail, sql } = await bootTwoMailboxes(context, page, { listDelay: delay });
+  try {
+    await showAllInboxes(page, 7);
+    delay.inbox = 10_000;
+    const line = (await page.locator(".m-mboxline").boundingBox())!;
+    await pullDown(page, Math.round(line.x + line.width / 2), Math.round(line.y + line.height + 30), 200);
+    const spinning = page.locator(".m-ptr-circle.is-spin");
+    await expect(spinning).toHaveCount(1);
+    await page.locator(".m-mboxline").click();
+    await page.locator(".m-sheet button.m-row", { hasText: "Archiv" }).click();
+    await expect(page.locator(".m-mboxline-name")).toHaveText("Archiv");
+    // Well before the merged read ends.
+    await expect(spinning).toHaveCount(0, { timeout: 2000 });
+    const listed = mail.listed.filter((f: string) => f === "archive").length;
+    const at = (await page.locator(".m-mboxline").boundingBox())!;
+    await pullDown(page, Math.round(at.x + at.width / 2), Math.round(at.y + at.height + 30), 200);
+    await expect.poll(() => mail.listed.filter((f: string) => f === "archive").length, { timeout: 5000 }).toBeGreaterThan(listed);
   } finally {
     await sql.close();
   }

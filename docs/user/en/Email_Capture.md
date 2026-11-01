@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-10-30
+Last reviewed: 2026-11-01
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -31,7 +31,7 @@ Open the mail tab from the left action rail (mail icon) or the command palette (
 - Scripts and forms never run. The message is rendered in an isolated frame with a strict content policy.
 - **Wide messages are fitted** — many newsletters are built for a fixed column width and cannot be reflowed. Rather than cutting such a message off at the left edge, Plainva scales it down to the width of the frame; on the phone the frame grows with it, so you scroll the page as usual.
 - **Conversations** — the switch above the list (speech-bubble icon) folds related messages into one row: participants, count and the subject the exchange started with. A tap unfolds it; every message keeps its folder and names it when that is not the open one. Plainva reads **Sent** along for this, so your own replies are part of the conversation. Switched off, everything stays as it was — a flat list — and the switch is remembered per vault, on both devices. Grouping follows the messages' own reply chain (on Microsoft, the conversation the provider itself keeps); only when a reply fails to carry that chain does the subject help out, and then only for a recognisable reply (“Re:”, “Fwd:”) within 30 days, so two mails that merely share a subject do not merge.
-- **All inboxes** — the first entry above the folder list shows the inboxes of **every** account in one list, newest first, and each row names the account it belongs to. Read/unread and flagging work here too; moving and deleting stay with the individual mailbox, because every account has its own target folder — open the message and you act in its mailbox. An account whose sign-in is missing is named, and does not empty the list of the others.
+- **All inboxes** — the first entry above the folder list shows the inboxes of **every** account in one list, newest first, and each row names the account it belongs to. Read/unread and flagging work here too; moving and deleting stay with the individual mailbox, because every account has its own target folder — open the message and you act in its mailbox. On the phone, holding a row opens its menu here as well, and **Select several** picks rows across mailboxes — the bar then offers read and unread. An account whose sign-in is missing is named, and does not empty the list of the others.
 - **Selecting several** — Ctrl-click (macOS: ⌘-click) picks individual messages, Shift-click a range; in the conversation view a Ctrl-click on the conversation picks the whole exchange, and every message in it keeps its own folder.
 - **Keyboard through the list** — Arrow up/down selects the previous/next message and shows it in the reader — landing on a folded conversation unfolds it and picks its first (down) or last (up) message; through an unfolded conversation the arrow keys walk from message to message —, Shift+arrow extends the selection, Home/End jump to the first/last message, arrow left/right collapses/expands a conversation, Enter opens the message in the reader, Delete moves it to the trash (with the same confirmation as the button). All of them are listed in the shortcuts window (F1) under **Email**.
 
@@ -92,7 +92,7 @@ On the mail page of its account — **Cloud accounts** → the account → **Ema
 
 ## Mailbox actions
 
-Stars/flags sync through IMAP and Microsoft; **Flagged** shows the server-side selection. Messages can be moved individually or in bulk. Outside Trash, **Delete** always means “move to Trash”; only Trash offers **Delete permanently** after confirmation. With Gmail, moving is a label change, and actions in **All Mail** can affect the message across every label—Plainva warns before the action.
+Stars/flags sync through IMAP and Microsoft; **Flagged** shows the server-side selection. Messages can be moved individually or in bulk. Outside Trash, **Delete** always means “move to Trash”; only Trash offers **Delete permanently** after confirmation. What counts is the folder the message lies in, not the one on screen: in a conversation shown in Trash, your reply from Sent is moved to Trash, not deleted permanently. With Gmail, moving is a label change, and actions in **All Mail** can affect the message across every label—Plainva warns before the action.
 
 ## Unsubscribing and undoing a send
 
@@ -104,7 +104,7 @@ When a message carries a `List-Unsubscribe` header, Plainva shows an **Unsubscri
 
 Some mail is not urgent and not done either. **Snooze** takes a message out of the list until a moment you pick — later today, tomorrow morning, this weekend or next week. Next week is the first day of next week as set under **Week starts on** — the same day a task's due date means by it. On the desktop the entry sits in the row's context menu, on the phone it is a swipe action as well. The **Snoozed** button brings them back into view; from there **Bring back now** returns a message to the list immediately.
 
-Two things about it that deserve saying plainly. First, snoozing is **Plainva's own marker**, not a server feature: neither IMAP nor Microsoft has such a thing. The marker travels with the settings sync, so a message snoozed on the phone rests on the desktop too — in another mail program it sits in the inbox as usual. Second, snoozing only hides the **list of the folder** you did it in: search and "All inboxes" still show the message. Snoozed means "not in my way", not "gone".
+Two things about it that deserve saying plainly. First, snoozing is **Plainva's own marker**, not a server feature: neither IMAP nor Microsoft has such a thing. The marker travels with the settings sync, so a message snoozed on the phone rests on the desktop too — in another mail program it sits in the inbox as usual. Second, snoozing hides the message only in the folder it lies in — wherever that folder is shown, in "All inboxes" and in a conversation too; search and **Flagged** still show it. Snoozed means "not in my way", not "gone".
 
 ## Reporting spam
 

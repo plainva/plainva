@@ -2600,6 +2600,165 @@ test('conversations: a reply from Sent with the number of an unread message of t
   expect(await page.evaluate(() => (window as any).__seenCalls ?? [])).toEqual([]);
 });
 
+/**
+ * One number in two folders (plan P1).
+ *
+ * IMAP numbers each folder on its own: your reply in Sent can carry the number
+ * of a message in the inbox (`__sentReplyUid = 3` gives it the number of the
+ * inbox's unread "Re: Rechnung Q3"). With conversations on, both stand in one
+ * thread. Every row is named by its address — account, folder, number — so
+ * what is done to the one in Sent reaches Sent, and the one in the inbox stays
+ * as it was; and the other way round. The reader's bar, the row menu and the
+ * selection named the open message by its bare number and acted in the folder
+ * on screen: the inbox's message was marked, starred, moved or reported.
+ */
+async function openSharedNumberThread(page: any, knobs: Record<string, unknown> = {}) {
+  await page.addInitScript((given: Record<string, unknown>) => {
+    (window as any).__threadFixture = true;
+    (window as any).__sentReplyUid = 3;
+    Object.assign(window, given);
+  }, knobs);
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-filter-threads').click();
+  await page.getByTestId('mail-thread-row').first().click();
+  const fromSent = page.getByTestId('mail-thread-message').filter({ has: page.getByTestId('mail-thread-folder') });
+  // The inbox's "Re: Rechnung Q3" — number 3 there, unread; the newest of the thread.
+  const inboxReply = page.getByTestId('mail-thread-message').filter({ hasNot: page.getByTestId('mail-thread-folder') }).last();
+  await expect(fromSent).toHaveCount(1);
+  await expect(inboxReply).not.toHaveClass(/(^|\s)read(\s|$)/);
+  return { fromSent, inboxReply };
+}
+
+const lastBulk = (page: any) => page.evaluate(() => ((window as any).__bulkCalls ?? []).at(-1) ?? null);
+
+test('one number in two folders: read, star and delete on the reply in Sent reach Sent, and leave the inbox message alone', async ({ page }) => {
+  const { fromSent, inboxReply } = await openSharedNumberThread(page);
+  await fromSent.click();
+  await expect(page.getByTestId('mail-subject')).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__fetchCalls.at(-1))).toEqual({ user: 'marco@example.org', mailbox: 'Sent', uid: 3 });
+  // Its row is the open one, and only it: the inbox's number 3 is another row.
+  await expect(page.locator('[data-testid="mail-thread-message"].on')).toHaveCount(1);
+  await expect(fromSent).toHaveClass(OPEN_ROW);
+
+  // The reply is read, so the bar offers "unread" — read off ITS row, not the
+  // inbox's unread number 3.
+  const seen = page.getByTestId('mail-mark-seen');
+  await expect(seen).toHaveAttribute('aria-label', /unread|ungelesen/i);
+  await seen.click();
+  await expect.poll(() => lastBulk(page)).toMatchObject({ mailbox: 'Sent', uids: [3], action: { kind: 'seen', value: false } });
+
+  await page.getByTestId('mail-flag').click();
+  await expect.poll(() => lastBulk(page)).toMatchObject({ mailbox: 'Sent', uids: [3], action: { kind: 'flagged', value: true } });
+  expect((await page.evaluate(() => (window as any).__bulkCalls)).every((c: any) => c.mailbox === 'Sent')).toBe(true);
+
+  await page.getByTestId('mail-delete').click();
+  await confirmDelete(page);
+  await expect.poll(() => lastBulk(page)).toMatchObject({ mailbox: 'Sent', uids: [3], action: { kind: 'move', target: 'Trash' } });
+  // The reply has left the conversation; the inbox message with the same
+  // number is still there, unread, and nothing was asked of the inbox.
+  await expect(fromSent).toHaveCount(0);
+  await expect(inboxReply).toBeVisible();
+  await expect(inboxReply).not.toHaveClass(/(^|\s)read(\s|$)/);
+  expect((await page.evaluate(() => (window as any).__bulkCalls)).filter((c: any) => c.mailbox === 'INBOX')).toEqual([]);
+});
+
+test('one number in two folders: the inbox message is acted on in the inbox, and the reply in Sent stays', async ({ page }) => {
+  const { fromSent, inboxReply } = await openSharedNumberThread(page);
+  await inboxReply.click({ button: 'right' });
+  await page.getByTestId('mail-ctx-read').click();
+  await expect.poll(() => lastBulk(page)).toMatchObject({ mailbox: 'INBOX', uids: [3], action: { kind: 'seen', value: true } });
+  await inboxReply.click({ button: 'right' });
+  await page.getByTestId('mail-ctx-move').click();
+  await page.getByRole('menuitem', { name: /Entwürfe/ }).click();
+  await expect.poll(() => lastBulk(page)).toMatchObject({ mailbox: 'INBOX', uids: [3], action: { kind: 'move' } });
+  await expect(fromSent).toHaveCount(1);
+  expect((await page.evaluate(() => (window as any).__bulkCalls)).filter((c: any) => c.mailbox === 'Sent')).toEqual([]);
+});
+
+test('one number in two folders: Move from the bar and Spam take the reply out of Sent', async ({ page }) => {
+  const { fromSent } = await openSharedNumberThread(page, { __withJunk: true });
+  await fromSent.click();
+  await expect(page.getByTestId('mail-subject')).toBeVisible();
+  await page.getByTestId('mail-junk').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__moved ?? null)).toEqual({ user: 'marco@example.org', mailbox: 'Sent', uid: 3, target: 'Junk' });
+  expect(await page.evaluate(() => (window as any).__junk)).toEqual([{ mailbox: 'Sent', uid: 3, junk: true }]);
+});
+
+test('one number in two folders: Move from the reader moves the reply out of Sent', async ({ page }) => {
+  const { fromSent } = await openSharedNumberThread(page);
+  await fromSent.click();
+  await expect(page.getByTestId('mail-subject')).toBeVisible();
+  await page.getByTestId('mail-move').click();
+  // Sent is where it lies — not offered; the inbox is.
+  await expect(page.getByRole('menuitem', { name: /^Sent$/ })).toHaveCount(0);
+  await page.getByRole('menuitem', { name: /^INBOX$/ }).click();
+  await expect.poll(() => lastBulk(page)).toMatchObject({ mailbox: 'Sent', uids: [3], action: { kind: 'move', target: 'INBOX' } });
+});
+
+test('a conversation in the trash: Delete on your reply from Sent moves it to the trash, it is not deleted for good', async ({ page }) => {
+  // In the trash, Delete removes for good — what lies in the trash. Your reply
+  // read along from Sent does not: it was offered "Delete permanently" and
+  // deleted at its address in Sent, past the trash (open-items plan 3.137 no. 1).
+  await page.addInitScript(() => { (window as any).__threadFixture = true; });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.locator('[data-testid="mail-folder"][data-tip="Trash"]').click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Trash/);
+  await page.getByTestId('mail-filter-threads').click();
+  await page.getByTestId('mail-thread-row').first().click();
+  const fromSent = page.getByTestId('mail-thread-message').filter({ has: page.getByTestId('mail-thread-folder') });
+  await fromSent.click();
+  await expect(page.getByTestId('mail-subject')).toBeVisible();
+  await expect(page.getByTestId('mail-delete')).toHaveAttribute('aria-label', /^(Delete|Löschen)$/);
+  await page.getByTestId('mail-delete').click();
+  await confirmDelete(page);
+  await expect.poll(() => lastBulk(page)).toMatchObject({ mailbox: 'Sent', uids: [91], action: { kind: 'move', target: 'Trash' } });
+  // A message that lies in the trash is still deleted for good from there.
+  const inTrash = page.getByTestId('mail-thread-message').filter({ hasNot: page.getByTestId('mail-thread-folder') }).first();
+  await inTrash.click();
+  await expect(page.getByTestId('mail-delete')).toHaveAttribute('aria-label', /permanently|Endgültig/i);
+});
+
+test('all inboxes with conversations: picked rows are read where they lie, in each mailbox', async ({ page }) => {
+  // The selection id put the OPEN account in front of a row's address — an
+  // address inside an address. Marking read sent nothing and reported the
+  // row as unconfirmed under the first mailbox (open-items plan 3.110 no. 1).
+  await openFirstMailbox(page);
+  await page.getByTestId('mail-filter-threads').click();
+  await page.getByTestId('mail-all-inboxes').click();
+  const unread = page.getByTestId('mail-envelope').filter({ hasText: 'Rechnung Q3' });
+  await expect(unread).toHaveCount(2);
+  await unread.nth(0).click({ modifiers: ['ControlOrMeta'] });
+  await unread.nth(1).click({ modifiers: ['ControlOrMeta'] });
+  await page.getByTestId('mail-bulk-read').click();
+  await expect.poll(() => page.evaluate(() => ((window as any).__bulkCalls ?? []).map((c: any) => `${c.user}|${c.mailbox}|${c.uids.join(',')}`).sort()))
+    .toEqual(['marco@example.org|INBOX|2', 'zweit@example.net|Posteingang|2']);
+  await expect(page.getByTestId('mail-bulk-report')).toHaveCount(0);
+});
+
+test('all inboxes: a row put aside leaves the merged list and its own folder, and nothing else', async ({ page }) => {
+  // Snoozing in the merged list noted the OPEN mailbox and the folder behind
+  // the list, under the merged row's id: the row stayed, behind a notice that
+  // it was put aside (open-items plan 3.137 no. 5).
+  await openFirstMailbox(page, { __secondTrash: true });
+  await showAllInboxes(page);
+  await rowOf(page, 'Privat').click({ button: 'right' });
+  await page.getByTestId('mail-ctx-snooze').click();
+  await page.getByTestId('mail-snooze-laterToday').click();
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(3);
+  await expect(rowOf(page, 'Privat')).toHaveCount(0);
+  await expect(rowOf(page, 'Arbeit')).toHaveCount(1);
+  // In its own folder it is put aside too; the first mailbox's number 2 is not.
+  await page.getByTestId('mail-all-inboxes').click();
+  await expect(page.getByTestId('mail-envelope').filter({ hasText: 'Rechnung Q3' })).toHaveCount(1);
+  await accountChooser(page).click();
+  await page.getByRole('option', { name: 'Privat', exact: true }).click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Posteingang/);
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(1);
+  await expect(page.getByTestId('mail-envelope').filter({ hasText: 'Rechnung Q3' })).toHaveCount(0);
+});
+
 test('a folder with no messages says so — again after another folder, and after a refresh', async ({ page }) => {
   // "No messages." waits for the list of the folder that is shown; once that
   // list is in, it must come, every time.
@@ -2705,7 +2864,8 @@ test('conversations: Open in the menu of a message from Sent opens it in Sent, w
   // Its row in Sent is the open one, and the reader never closed on the way …
   const thread = page.getByTestId('mail-thread-row').filter({ hasText: 'Rechnung Q3' });
   if ((await thread.getAttribute('aria-expanded')) !== 'true') await thread.click();
-  await expect(page.locator('[data-testid="mail-thread-message"][data-nav-id="91"]')).toHaveClass(OPEN_ROW);
+  // In Sent it is a row of the folder on screen (no folder tag): your reply, by its sender.
+  await expect(page.getByTestId('mail-thread-message').filter({ hasText: 'Marco' })).toHaveClass(OPEN_ROW);
   expect((await readerCount(page)).closed).toBe(0);
   // … and the bar acts on it there: the reply is read, so it offers "unread".
   const seen = page.getByTestId('mail-mark-seen');

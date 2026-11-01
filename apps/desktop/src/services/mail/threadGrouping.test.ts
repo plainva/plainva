@@ -176,6 +176,17 @@ describe("groupThreads — across folders", () => {
     expect(threads[0].messages[0].mailbox).toBe("Sent"); // first one given wins
   });
 
+  it("lets the first copy given win when the rows are named by their address (plan P1)", () => {
+    // Rows are named by account, folder and number. Equal in time, they were
+    // ordered by that id — by the folder's NAME — so Sent's copy ("Gesendete
+    // Elemente") won over the inbox's ("Posteingang"), and a conversation
+    // anchored to the inbox lost its only message there.
+    const inbox = mail("acc\u0000Posteingang\u00007", "Angebot", T0, { messageId: "<a@x>" }, { mailbox: "Posteingang" });
+    const sent = mail("acc\u0000Gesendete Elemente\u00003", "Angebot", T0, { messageId: "<a@x>" }, { mailbox: "Gesendete Elemente" });
+    const threads = groupThreads([inbox, sent]);
+    expect(threads[0].messages.map((m) => m.mailbox)).toEqual(["Posteingang"]);
+  });
+
   it("never merges two accounts", () => {
     // A combined inbox mixes accounts; "Re: Rechnung" at work is not the
     // conversation of the same name in the private account. Same ids on

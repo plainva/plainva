@@ -89,7 +89,7 @@ describe("the flagged filter does not outlive its question", () => {
     expect(text, "leaving the filter drops its rows and turns its answer away").toMatch(
       /const leaveFlagged = \(\) => \{\s*flaggedSeq\.current\+\+;\s*setFlaggedRows\(null\);/,
     );
-    expect(text, "only the newest question may answer").toMatch(/if \(seq === flaggedSeq\.current\) setFlaggedRows\(starred\)/);
+    expect(text, "only the newest question may answer").toMatch(/if \(seq === flaggedSeq\.current\) setFlaggedRows\(addressRows\(starred, /);
     for (const [what, anchor] of [
       ["folder", /setMailbox\(name\);[\s\S]{0,200}?leaveFlagged\(\)/],
       ["account", /setAccountId\(a\.id\);[\s\S]{0,200}?leaveFlagged\(\)/],

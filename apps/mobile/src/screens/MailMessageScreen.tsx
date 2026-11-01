@@ -28,7 +28,8 @@ import {
   saveMailAttachment,
   deleteMessagePermanently,
   fetchMessage,
-  guessTrashMailbox,
+  isTrashMailbox,
+  pickTrashFolder,
   isJunkFolder,
   listMailboxesFor,
   mailFolderLabel,
@@ -423,8 +424,11 @@ export function MailMessageScreen({
     setBusy(true);
     try {
       const boxes = await listMailboxesFor(vaultId, account);
-      const trash = guessTrashMailbox(boxes.map((b) => b.name), boxes[0]?.delimiter);
-      const inTrash = trash !== null && trash === mailbox;
+      // One rule with the list and the desktop: the role the server states
+      // first, then the name (`pickTrashFolder`) — German Outlook's
+      // "Gelöschte Elemente" was no trash here (open-items plan 3.110 no. 7).
+      const trash = pickTrashFolder(boxes);
+      const inTrash = isTrashMailbox(mailbox, boxes);
       if (inTrash) {
         if (!(await mConfirm({ title: t("mail.deleteForeverConfirm"), danger: true }))) return;
         await deleteMessagePermanently(vaultId, account, mailbox, messageId);
