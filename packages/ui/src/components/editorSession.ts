@@ -20,6 +20,7 @@ import { selectAllBridge } from "./selectAllBridge";
 import { mathInlinePlugin, mathMermaidBlockField } from "./mathMermaidLive";
 import { tasksQueryBlockField, type TasksQueryHost } from "./tasksQueryLive";
 import { anchorAwareHtmlBlock } from "./anchorBlockParser";
+import { boundedInlineSyntax } from "../lib/boundedMarkdown";
 import { wikiLinkPlugin, type LinkKind } from "./WikiLinkPlugin";
 import { tagPillPlugin } from "./TagPillPlugin";
 import { anchorHighlightExtension, commentAnchorHandlers, setAnchorHighlights, suggestionActionHandlers, type AnchorFrameHint, type AnchorHighlight } from "./anchorHighlight";
@@ -563,7 +564,9 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     // the matching grammar for ```lang fences.
     // A comment anchor never starts an HTML block (finding 2026-09-03): the
     // list item behind a marker keeps its bullet, indent and formatting.
-    markdown({ base: markdownLanguage, codeLanguages, extensions: [anchorAwareHtmlBlock] }),
+    // A block whose inline syntax is over the parse budget is read as written,
+    // as in the reading view (open-items plan 3.133 no. 4).
+    markdown({ base: markdownLanguage, codeLanguages, extensions: [anchorAwareHtmlBlock, boundedInlineSyntax] }),
     EditorView.lineWrapping,
     // Right-to-left text (issue 111): each line runs the way its block's
     // first strong character says, read from the source behind the Markdown

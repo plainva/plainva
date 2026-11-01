@@ -105,7 +105,9 @@ describe("the reading view's own parse never meets a mark", () => {
   it("is wired so: the renderer gets that text, and a heading its id by the line the source map names", () => {
     const reader = sourceFile("apps/desktop/src/components/MarkdownReader.tsx");
     expect(reader).toContain("const source = useMemo(() => prepareReaderSource(content, {");
-    expect(reader).toContain("const processedContent = source.text;");
+    // Bounded by the parse budget (open-items plan 3.133 no. 4): the same text, character for character, a stretch over the budget read as written.
+    expect(reader).toContain("const bounded = useMemo(() => boundReaderMarkdown(source.text), [source]);");
+    expect(reader).toContain("const processedContent = bounded.text;");
     expect(reader).toMatch(/\{processedContent\}\s+<\/ReactMarkdown>/);
     // The only text a ReactMarkdown of this file is ever handed.
     expect(reader.match(/<ReactMarkdown\b/g)).toHaveLength(1);

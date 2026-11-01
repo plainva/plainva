@@ -2,6 +2,7 @@ export * from "./crypto/index.js";
 export * from "./workspace/index.js";
 export * from "./markdown-ast.js";
 export * from "./markdown-parser.js";
+export * from "./inlineParseBudget.js";
 export * from "./noteSource.js";
 export * from "./journal.js";
 export * from "./vault/searchOccurrences.js";

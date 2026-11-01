@@ -1,6 +1,7 @@
 /** Public package API. The apps' larger internal barrel is src/index.ts. */
 export * from "./markdown-ast.js";
 export * from "./markdown-parser.js";
+export * from "./inlineParseBudget.js";
 export * from "./markdown-serializer.js";
 export * from "./noteSource.js";
 export * from "./metadata.js";
