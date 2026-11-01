@@ -1059,26 +1059,27 @@ export function BaseViewer({
   /**
    * Upward scope: the owning link lives on the host — link it to the new
    * target, appending for unlimited and setting an empty limit-one slot; a
-   * full limit-one slot is left untouched (no silent reassign).
+   * full limit-one slot is left untouched (no silent reassign). Whether the
+   * slot is full is decided in the write itself, from the note's text: asked
+   * of the index, a host the index was behind on — or whose block it does
+   * not take — lost the link it carried (Sammelplan § 3.134 Nr. 1).
    */
   const linkHostTo = async (path: string): Promise<boolean> => {
     const scopeRel = activeScopeRelation;
     if (!(scopeRel && scopeRel.direction === "up" && scopeRel.hostProperty && hostPath && queryService && vaultAdapter)) return false;
-    const props = await queryService.getFileProperties(hostPath);
-    const existing = props[scopeRel.hostProperty];
-    const hasValue = Array.isArray(existing) ? existing.length > 0 : existing != null && existing !== "";
-    if (scopeRel.limitOne && hasValue) {
-      toast.info(t("database.embedLinkSkipped", { defaultValue: "Nicht verknüpft — bereits zugeordnet.", host: hostTitle }));
-      return false;
-    }
+    let linked: string | null;
     try {
-      await writeRelationLink(vaultAdapter, queryService, hostPath, path, scopeRel.hostProperty, scopeRel.limitOne);
+      linked = await writeRelationLink(vaultAdapter, queryService, hostPath, path, scopeRel.hostProperty, scopeRel.limitOne, { keepTaken: true });
     } catch (e) {
       // The entry exists; what did not reach its note is the link in the host
       // (finding 2026-10-12). Thrown on, it ended "new entry" in a catch that
       // only logs: the note was written and never shown, and nothing was said.
       console.error("[BaseViewer] linking the new entry to its host failed", e);
       toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+      return false;
+    }
+    if (linked === null) {
+      toast.info(t("database.embedLinkSkipped", { defaultValue: "Nicht verknüpft — bereits zugeordnet.", host: hostTitle }));
       return false;
     }
     return true;
