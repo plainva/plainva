@@ -58,7 +58,11 @@ const depthOf = (p: string): number => (p ? p.split("/").length : 0);
 export class PathSpellings {
   /** identity -> stored spelling, for paths with variants. */
   private readonly spellingOf = new Map<string, string>();
-  /** stored spelling -> identity, only where the two differ. */
+  /**
+   * stored spelling -> identity, where the two differ — and for a twin that
+   * keeps its own bytes as its identity: without that entry the twin would be
+   * named by its NFC form, the identity of the folder beside it (§ 3.122).
+   */
   private readonly identityOf = new Map<string, string>();
 
   /** Forgets everything (a fresh full listing replaces what a store holds). */
@@ -162,7 +166,12 @@ export class PathSpellings {
     for (const [raw, id] of ids) {
       if (raw === id && !hasSpellingVariants(raw)) continue;
       this.spellingOf.set(id, raw);
-      if (raw !== id) this.identityOf.set(raw, id);
+      // A spelling that is its own identity although its NFC form differs is
+      // a twin (or lies in one): it is remembered as itself, so a lookup
+      // without a listing does not fall back to the composed form — the
+      // other folder's identity (Sammelplan § 3.122). Everything else that is
+      // its own identity needs no entry.
+      if (raw !== id || raw !== toPathIdentity(raw)) this.identityOf.set(raw, id);
       else this.identityOf.delete(raw);
     }
     return ids;
