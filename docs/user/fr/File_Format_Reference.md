@@ -1,6 +1,6 @@
 # Référence du format de fichier
 
-Dernière mise à jour : 2026-10-29
+Dernière mise à jour : 2026-11-02
 
 Cette page est le contrat précis, tel qu'il est stocké sur le disque, pour **chaque fichier d'un vault Plainva**. Elle est écrite pour qu'un outil — un autre programme, un script ou un assistant IA — puisse lire et modifier en toute sécurité les fichiers du vault directement, sans passer par l'interface de Plainva. Si vous utilisez seulement l'application, vous n'avez jamais besoin de cette page ; les [autres pages du guide](README.md) couvrent l'usage normal.
 
@@ -300,7 +300,7 @@ Une colonne **`rating`** garde dans le fichier un simple **nombre** — `humeur:
 
 Le tri et le filtre sont ceux de `number`. Obsidian ne connaît pas `rating` et affiche la colonne comme un nombre — ce qu'elle est.
 
-**`file.day`** est un champ virtuel : le jour que représente le **nom de fichier** d'une note quotidienne, selon le dossier et le format du coffre. Il ne figure dans **aucune** note, il est calculé à l'interrogation et il est en lecture seule ; le seul endroit où il sert est le `dateField` d'une vue calendrier ou frise. Obsidian ne le connaît pas — une vue qui l'utilise y reste vide.
+**`file.day`** est un champ virtuel : le jour que représente le **nom de fichier** d'une note quotidienne, selon le dossier et le format du vault. Il ne figure dans **aucune** note, il est calculé à l'interrogation et il est en lecture seule ; le seul endroit où il sert est le `dateField` d'une vue calendrier ou frise. Obsidian ne le connaît pas — une vue qui l'utilise y reste vide.
 
 ### Agrégation
 

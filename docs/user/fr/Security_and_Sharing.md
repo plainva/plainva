@@ -10,7 +10,7 @@ Créez un Vault Slice avec les quatre étapes **Détails → Contenu → Autoris
 
 Une publication assainie juge les propriétés d’une note d’après leurs noms et ne laisse passer que celles qui figurent sur sa liste. Une note dont le bloc initial ne peut pas être lu comme des propriétés — du texte ou une liste entre les deux lignes `---`, ou du YAML comportant une erreur — n’est donc pas publiée telle quelle, et rien de ce bloc ne quitte le vault. L’aperçu — l’étape **Vérification** sur le bureau, **Aperçu** sur le téléphone — nomme alors la note au lieu d’afficher des chiffres, et une publication existante affiche **Échec de l’actualisation** avec le nom de la note. Corrigez le bloc dans le texte de la note : l’actualisation suivante la publie. D’ici là, l’actualisation s’arrête à cette note et les modifications d’autres notes attendent derrière elle ; une note qui a quitté la tranche est retirée malgré tout. Une publication exacte remet chaque note telle quelle et n’est pas concernée.
 
-Dernière vérification : 2026-10-29
+Dernière vérification : 2026-11-02
 
 Plainva conserve le vault sous forme de fichiers lisibles sur l’appareil et stocke sa copie cloud comme objets chiffrés opaques. Après avoir connecté un compte, ouvrez **Paramètres → votre vault → Sécurité et partage**.
 
@@ -52,11 +52,11 @@ Si la définition d’un slice n’est plus lisible — une entrée modifiée à
 
 ## Commentaires, versions et quarantaine
 
-Les commentaires et les suggestions — la colonne, les ancres, le mode suggestion, la vue d’ensemble et les notifications — sont décrits dans [Commentaires et suggestions](Comments_and_Suggestions.md) ; ils fonctionnent dans chaque coffre. Cette page ne garde que ce qui tient à l’espace de travail.
+Les commentaires et les suggestions — la colonne, les ancres, le mode suggestion, la vue d’ensemble et les notifications — sont décrits dans [Commentaires et suggestions](Comments_and_Suggestions.md) ; ils fonctionnent dans chaque vault. Cette page ne garde que ce qui tient à l’espace de travail.
 
 Les destinataires ouvrent la publication comme un espace de travail indépendant. La lecture ne permet aucun retour ; commenter permet des remarques, et suggérer permet aussi de proposer des modifications dans une copie. L’original reste en lecture seule. Ordinateur et mobile appliquent les mêmes droits et conservent les retours non envoyés pour une nouvelle tentative.
 
-Les retours apparaissent avec la note originale sur ordinateur et mobile, regroupés par publication avec les noms des destinataires. Les propositions applicables issues d’une copie exacte peuvent être acceptées ou refusées par le processus habituel d’enregistrement vérifié. La décision est conservée avec l’original dans votre propre coffre ; elle n’envoie pas de réponse aux destinataires. Les copies épurées et les passages impossibles à retrouver avec certitude ne permettent pas d’application automatique. Les retours créés avec les clients actuels restent lisibles par le propriétaire après la révocation d’un destinataire. Les anciens retours chiffrés uniquement pour une clé de destinataire retirée ne sont pas réécrits. Une publication dont la clé manque sur cet appareil reste masquée.
+Les retours apparaissent avec la note originale sur ordinateur et mobile, regroupés par publication avec les noms des destinataires. Les propositions applicables issues d’une copie exacte peuvent être acceptées ou refusées par le processus habituel d’enregistrement vérifié. La décision est conservée avec l’original dans votre propre vault ; elle n’envoie pas de réponse aux destinataires. Les copies épurées et les passages impossibles à retrouver avec certitude ne permettent pas d’application automatique. Les retours créés avec les clients actuels restent lisibles par le propriétaire après la révocation d’un destinataire. Les anciens retours chiffrés uniquement pour une clé de destinataire retirée ne sont pas réécrits. Une publication dont la clé manque sur cet appareil reste masquée.
 
 **Historique des versions** lit les révisions chiffrées du workspace et restaure une révision plus ancienne comme nouvelle modification signée ou comme copie.
 
@@ -89,12 +89,12 @@ Supprimer un vault avec **Oublier les données d’application** (Splash → ret
 
 ## Ce que Plainva demande à l'appareil
 
-Deux fonctions ont besoin d'une autorisation du système. Les deux sont demandées **au premier appui**, jamais au démarrage, et les deux écrivent uniquement dans votre coffre.
+Deux fonctions ont besoin d'une autorisation du système. Les deux sont demandées **au premier appui**, jamais au démarrage, et les deux écrivent uniquement dans votre vault.
 
 - **Microphone** — pour les **notes vocales** (saisie du journal, l'icône du micro). Plainva n'enregistre que pendant une prise en cours ; **Supprimer** la jette, **Joindre** l'écrit comme fichier dans le dossier des pièces jointes. Pas de transcription, pas d'envoi, aucun service qui écoute. Si vous refusez, le bouton le dit et le reste de la saisie continue de fonctionner.
 - **Position** — pour le **cachet de lieu**, qui a en plus un interrupteur par appareil **désactivé par défaut** (Paramètres → Éditeur et notes → Journal). Le bouton n'apparaît qu'une fois l'interrupteur activé ; le système ne demande qu'au moment où vous appuyez. Ce qui est écrit est **une ligne** — `📍 52.5200, 13.4050` — à quatre décimales, environ onze mètres. Pas d'historique, pas de carte, pas de suivi en arrière-plan et aucun service en ligne pour transformer des coordonnées en nom.
 
-L'appareil photo et la photothèque sont demandés comme avant : à l'insertion d'une photo et au scan d'un QR code d'appairage. Aucune de ces autorisations ne quitte l'appareil : ce qu'elles produisent devient un fichier ou une ligne de votre coffre — et celui-ci est à vous.
+L'appareil photo et la photothèque sont demandés comme avant : à l'insertion d'une photo et au scan d'un QR code d'appairage. Aucune de ces autorisations ne quitte l'appareil : ce qu'elles produisent devient un fichier ou une ligne de votre vault — et celui-ci est à vous.
 
 <!-- widgets-2026-09-23 -->
 ## Ce qu’un widget peut afficher

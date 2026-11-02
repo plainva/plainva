@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-10-29
+Dernière mise à jour : 2026-11-02
 
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
@@ -218,7 +218,7 @@ Les tâches natives de base de données sautent toujours les périodes manquées
 
 ## Retrouver les filtres des tâches
 
-Le statut, le texte recherché, le dossier, l’étiquette, les tâches avec échéance et l’affichage des tâches masquées sont mémorisés par coffre sur cet appareil, même après ouverture d’une note ou redémarrage. « Réinitialiser les filtres » revient aux tâches ouvertes sans autre filtre. Les dossiers et étiquettes indisponibles restent visibles et peuvent être retirés dans leur sélecteur. Oublier le coffre efface cet état. La base de tâches par défaut reste le réglage du coffre ; les filtres ne sont pas synchronisés.
+Le statut, le texte recherché, le dossier, l’étiquette, les tâches avec échéance et l’affichage des tâches masquées sont mémorisés par vault sur cet appareil, même après ouverture d’une note ou redémarrage. « Réinitialiser les filtres » revient aux tâches ouvertes sans autre filtre. Les dossiers et étiquettes indisponibles restent visibles et peuvent être retirés dans leur sélecteur. Oublier le vault efface cet état. La base de tâches par défaut reste le réglage du vault ; les filtres ne sont pas synchronisés.
 
 <!-- planner-capture-2026-09-20 -->
 ## Planificateur, saisie rapide, priorité et états

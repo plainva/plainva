@@ -1,6 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-10-30
+Dernière mise à jour : 2026-11-02
 
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
@@ -143,15 +143,15 @@ Ouvrez **Paramètres → Vault → Synchronisation → Comptes sur tous vos appa
 
 La clé déverrouillée est mise en cache sur chaque appareil. Activez **Demander la phrase secrète à chaque démarrage** pour la ressaisir après chaque redémarrage à la place, et utilisez **Verrouiller** pour supprimer la clé mise en cache sur cet appareil.
 
-**Comptes sur tous vos appareils** se compose de trois étapes. **1 · Réglages et comptes** : place les réglages du coffre *et vos comptes* (agendas, boîtes mail, sélection d’agendas) dans un petit fichier du coffre — tant qu'aucune phrase de passe n'est configurée, cela n'en nécessite **aucune** ; dès qu'il en existe une, chaque appareil doit la saisir avant que les réglages ne circulent depuis lui. Cette étape est **activée par défaut** — les réglages et les comptes ne sont pas des secrets ; vous pouvez la désactiver par coffre à tout moment. **2 · Phrase de passe de synchronisation** (facultatif) : nécessaire seulement si les connexions doivent voyager elles aussi ; elle chiffre en plus les réglages de l’étape 1. **3 · Emporter les connexions** : emporte en plus les mots de passe IMAP et CalDAV statiques, chiffrés, et ne peut être activé qu’une fois l’étape 1 en marche et la phrase de passe déverrouillée — un mot de passe ne peut rejoindre qu’un compte que l’appareil connaît déjà. Ne sont pas emportés : les chemins propres à l’appareil et les connexions OAuth (Microsoft, Google) ; leurs jetons sont liés à l’appareil, le compte apparaît donc sur le nouvel appareil et y demande une fois **Se connecter**.
+**Comptes sur tous vos appareils** se compose de trois étapes. **1 · Réglages et comptes** : place les réglages du vault *et vos comptes* (agendas, boîtes mail, sélection d’agendas) dans un petit fichier du vault — tant qu'aucune phrase de passe n'est configurée, cela n'en nécessite **aucune** ; dès qu'il en existe une, chaque appareil doit la saisir avant que les réglages ne circulent depuis lui. Cette étape est **activée par défaut** — les réglages et les comptes ne sont pas des secrets ; vous pouvez la désactiver par vault à tout moment. **2 · Phrase de passe de synchronisation** (facultatif) : nécessaire seulement si les connexions doivent voyager elles aussi ; elle chiffre en plus les réglages de l’étape 1. **3 · Emporter les connexions** : emporte en plus les mots de passe IMAP et CalDAV statiques, chiffrés, et ne peut être activé qu’une fois l’étape 1 en marche et la phrase de passe déverrouillée — un mot de passe ne peut rejoindre qu’un compte que l’appareil connaît déjà. Ne sont pas emportés : les chemins propres à l’appareil et les connexions OAuth (Microsoft, Google) ; leurs jetons sont liés à l’appareil, le compte apparaît donc sur le nouvel appareil et y demande une fois **Se connecter**.
 
 Sur le **téléphone**, la même chaîne figure sous **Synchronisation** → **Comptes sur tous vos appareils**, où la ligne indique son état — mêmes trois étapes, même verrouillage. Les comptes venant d’un autre appareil y sont créés ; vous ne les ressaisissez plus. **Récupérer depuis un autre appareil** les obtient immédiatement, sans attendre la synchronisation suivante.
 
-Si Plainva signale qu’une **ancienne version publie encore des données de compte retirées**, mettez Plainva à jour sur chaque appareil qui utilise ce coffre. L’appareil actuel ignore les anciens identifiants client Google et conserve sa connexion locale fonctionnelle. Ne confirmez la suppression des anciennes données distantes qu’une fois tous les appareils participants mis à jour. Plainva propose le bouton dans l'avis sous **Paramètres → Vault → Synchronisation → Diagnostic** : **Supprimer les entrées retirées** — la question posée est précisément cette confirmation.
+Si Plainva signale qu’une **ancienne version publie encore des données de compte retirées**, mettez Plainva à jour sur chaque appareil qui utilise ce vault. L’appareil actuel ignore les anciens identifiants client Google et conserve sa connexion locale fonctionnelle. Ne confirmez la suppression des anciennes données distantes qu’une fois tous les appareils participants mis à jour. Plainva propose le bouton dans l'avis sous **Paramètres → Vault → Synchronisation → Diagnostic** : **Supprimer les entrées retirées** — la question posée est précisément cette confirmation.
 
 L'endroit de cette **connexion** dépend du service : une boîte aux lettres affiche le bouton **Se connecter** sur sa propre ligne dans la zone **E-mail**, un compte d'agenda ou de fichiers le fait dans **Comptes cloud**. Une boîte Microsoft mène toujours à **Comptes cloud**, car sa connexion se déroule dans le navigateur.
 
-Si vous mettez le chiffrement en place **pour la première fois**, l'étape 3 est active d'emblée — sinon chaque appareil supplémentaire resterait durablement sans connexions. Pour un coffre que vous utilisez déjà, rien ne change en silence : Plainva pose la question une fois et retient votre réponse.
+Si vous mettez le chiffrement en place **pour la première fois**, l'étape 3 est active d'emblée — sinon chaque appareil supplémentaire resterait durablement sans connexions. Pour un vault que vous utilisez déjà, rien ne change en silence : Plainva pose la question une fois et retient votre réponse.
 
 Si un compte apparaît sous forme de **deux fiches**, c'est que Plainva n'a pas pu récupérer l'identité auprès du fournisseur — et il ne doit pas deviner. Ouvrez l'une des deux dans **Comptes cloud** et indiquez avec **Fusionner** qu'il s'agit du même compte ; Plainva affiche au préalable ce qui sera repris.
 
@@ -165,17 +165,17 @@ Si **Examiner les comptes en double** apparaît sous **Comptes cloud**, Plainva 
 
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 
-| Voyage avec le coffre | Reste sur cet appareil |
+| Voyage avec le vault | Reste sur cet appareil |
 | --- | --- |
-| Comptes — calendriers, boîtes aux lettres, comptes cloud, signets | Chemins absolus — emplacement du coffre, destination des sauvegardes |
+| Comptes — calendriers, boîtes aux lettres, comptes cloud, signets | Chemins absolus — emplacement du vault, destination des sauvegardes |
 | Dossiers et modèles — notes du jour, dossier de modèles, dossier de la boîte de réception, dossier des pièces jointes, base de tâches | Jetons de connexion Microsoft et Google |
 | Paramètres du calendrier — dossier des réunions, calendrier par défaut | La boîte aux lettres et le dossier ouverts en dernier |
-| Paramètres de messagerie — dossier de classement, images distantes | La disposition de départ de cet appareil pour les nouveaux coffres |
+| Paramètres de messagerie — dossier de classement, images distantes | La disposition de départ de cet appareil pour les nouveaux vaults |
 | Règles de sauvegarde — intervalle d'instantanés, conservation, archives | Mots de passe statiques — sauf si l'étape 3 est activée |
 | Intervalle de synchronisation |  |
 | Disposition des barres (ordinateur) |  |
 
-Le téléphone en transporte un peu moins : la disposition des quatre barres de **bureau** reste sur l'ordinateur — sa propre barre de navigation voyage bel et bien, tout comme le dossier des réunions. Sa propre chaîne sous **Synchronisation** indique ce qu'il transporte, et les deux appareils indiquent, dans le groupe **Diagnostic**, ce que la synchronisation a réellement fait en dernier — en nommant les paramètres qui ont voyagé et, lors d'une réception, ceux qui ont changé. Le message « Paramètres reçus d'un autre appareil » n'apparaît qu'une fois par session, et seulement en cas de changement réel — ensuite, ce sont ces lignes qui l'indiquent. Nouveau depuis cette version : le téléphone reprend aussi le format de nom des notes du jour, le type OKF des nouvelles notes et vos signets — auparavant, un coffre configuré avec un autre format de date obtenait une deuxième note du jour pour le même jour dès que le téléphone y touchait.
+Le téléphone en transporte un peu moins : la disposition des quatre barres de **bureau** reste sur l'ordinateur — sa propre barre de navigation voyage bel et bien, tout comme le dossier des réunions. Sa propre chaîne sous **Synchronisation** indique ce qu'il transporte, et les deux appareils indiquent, dans le groupe **Diagnostic**, ce que la synchronisation a réellement fait en dernier — en nommant les paramètres qui ont voyagé et, lors d'une réception, ceux qui ont changé. Le message « Paramètres reçus d'un autre appareil » n'apparaît qu'une fois par session, et seulement en cas de changement réel — ensuite, ce sont ces lignes qui l'indiquent. Nouveau depuis cette version : le téléphone reprend aussi le format de nom des notes du jour, le type OKF des nouvelles notes et vos signets — auparavant, un vault configuré avec un autre format de date obtenait une deuxième note du jour pour le même jour dès que le téléphone y touchait.
 
 Le diagnostic distingue désormais **dernière vérification** (champs de profil locaux), **dernier téléchargement**, **dernière application** et **dernier envoi réel**. « Envoyé » ne change qu’après une écriture cloud réussie ; les cycles inchangés actualisent donc la vérification et le téléchargement, pas l’heure d’envoi. Les résultats des secrets sont affichés séparément sous forme de nombres importés, inchangés, refusés, obsolètes, en erreur ou en attente d’un compte. Ils ne contiennent que des codes de motif stables — jamais d’identifiant de compte, mot de passe, jeton ou erreur brute. Un avertissement d’ancien client signifie qu’il faut mettre Plainva à jour sur tous les appareils participants ; cet appareil ignore les anciennes données client Google.
 
@@ -222,7 +222,7 @@ La connexion est temporairement indisponible. Plainva réessaiera automatiquemen
 
 Reconnectez-vous au compte de synchronisation. Les modifications en attente restent sur cet appareil jusqu’au rétablissement de l’accès.
 
-Plainva ne peut pas vérifier le coffre chiffré. La synchronisation est suspendue ; les données locales et les modifications en attente sont conservées. Ouvrez Sécurité et partage, restaurez une copie vérifiable si elle existe, puis vérifiez à nouveau.
+Plainva ne peut pas vérifier le vault chiffré. La synchronisation est suspendue ; les données locales et les modifications en attente sont conservées. Ouvrez Sécurité et partage, restaurez une copie vérifiable si elle existe, puis vérifiez à nouveau.
 
 Sur un appareil disposant encore de l’historique complet et vérifiable, choisissez Synchroniser maintenant. Plainva peut restaurer les opérations signées manquantes depuis cette copie. Vérifiez ensuite à nouveau sur Plainva. Sans copie valide, conservez ou exportez les données locales ; la vérification n’est jamais réinitialisée pour contourner la lacune.
 

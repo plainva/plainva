@@ -1,6 +1,6 @@
 # Komentarze i propozycje
 
-Stand: 2026-10-29
+Stan na: 2026-11-02
 
 Komentarze i propozycje istnieją w **każdym** sejfie — z synchronizacją lub bez, z szyfrowaniem lub bez. W szyfrowanym workspace są podpisanymi obiektami (zob. [Bezpieczeństwo i udostępnianie](Security_and_Sharing.md)); wszędzie indziej noszą imię z pola **Twoje imię (uwagi i przeglądy)** w ustawieniach. Propozycja to komentarz z tekstem zastępczym: oba przechodzą przez ten sam magazyn, tę samą kolumnę, ten sam arkusz. Jeśli imienia brakuje, Plainva pyta o nie raz przy pierwszym komentarzu; bez odpowiedzi urządzenie podpisuje własną etykietą (np. „Urządzenie Windows 4f3a”). Twoje własne uwagi widnieją jako **Ty**.
 

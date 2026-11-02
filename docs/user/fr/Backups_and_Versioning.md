@@ -1,6 +1,6 @@
 # Sauvegardes & historique des versions
 
-Dernière mise à jour : 2026-10-30
+Dernière mise à jour : 2026-11-02
 
 Plainva protège votre travail à deux niveaux : les **versions de fichiers** (instantanés automatiques de chaque fichier lors de l'édition et de la suppression) et les **sauvegardes du vault** (archives ZIP régulières de tout le vault, stockées en dehors du dossier du vault). Les deux fonctionnent en arrière-plan sans aucune configuration et peuvent être ajustés dans les paramètres sous **Sauvegarde & historique des versions**.
 
@@ -17,7 +17,7 @@ Conservation (configurable par vault) :
 
 Lorsque vous renommez ou déplacez un fichier, son historique de versions le suit.
 
-**Pourquoi les fichiers volumineux sont traités différemment :** une pièce jointe de 90 Mo modifiée à répétition pourrait sinon remplir le coffre de cent copies — neuf gigaoctets pour un seul fichier. Au-delà de la limite, Plainva conserve la version la plus récente plutôt que tout l'historique, et le signale une fois par coffre. Les notes et les images ordinaires sont bien en dessous et ne sont pas concernées. **Une suppression est toujours sauvegardée intégralement**, quelle que soit la taille : la nouvelle version d'un fichier enregistré est encore sur le disque, un fichier supprimé ne l'est plus — l'instantané est alors le seul retour possible.
+**Pourquoi les fichiers volumineux sont traités différemment :** une pièce jointe de 90 Mo modifiée à répétition pourrait sinon remplir le vault de cent copies — neuf gigaoctets pour un seul fichier. Au-delà de la limite, Plainva conserve la version la plus récente plutôt que tout l'historique, et le signale une fois par vault. Les notes et les images ordinaires sont bien en dessous et ne sont pas concernées. **Une suppression est toujours sauvegardée intégralement**, quelle que soit la taille : la nouvelle version d'un fichier enregistré est encore sur le disque, un fichier supprimé ne l'est plus — l'instantané est alors le seul retour possible.
 
 ## Consulter et restaurer des versions
 

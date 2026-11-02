@@ -1,6 +1,6 @@
 # Guide utilisateur de Plainva
 
-Dernière mise à jour : 2026-09-20
+Dernière mise à jour : 2026-11-02
 
 Cette traduction a été générée automatiquement — les corrections sont les bienvenues.
 
@@ -21,7 +21,7 @@ Plainva est un éditeur de vault Markdown : vos notes sont de simples fichiers M
 | [L'application mobile](Mobile_App.md) | Plainva sur Android et iOS : structure, édition, bases de données, synchronisation et filet de sécurité |
 | [Configurer la synchronisation](Sync_Setup.md) | Étape par étape selon le fournisseur : WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3 |
 | [Sécurité et partage](Security_and_Sharing.md) | Espace personnel chiffré, récupération, migration et verrouillage |
-| [Commentaires et suggestions](Comments_and_Suggestions.md) | Commentaires, mode suggestion, vue d’ensemble et notifications — dans chaque coffre, avec ou sans chiffrement |
+| [Commentaires et suggestions](Comments_and_Suggestions.md) | Commentaires, mode suggestion, vue d’ensemble et notifications — dans chaque vault, avec ou sans chiffrement |
 | [Compatibilité de synchronisation](Sync_Compatibility.md) | Quels services fonctionnent aujourd'hui — directement, via WebDAV, ou via le client de bureau du fournisseur |
 | [Google Drive (BYO)](Google_Drive_BYO_Guide.md) | Configurer la synchronisation Google Drive avec vos propres identifiants |
 | [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md) | Configurer la synchronisation OneDrive et Dropbox avec votre propre inscription d'application |
@@ -30,7 +30,7 @@ Plainva est un éditeur de vault Markdown : vos notes sont de simples fichiers M
 | [Journal](Journal.md) | L'entrée rapide dans la note quotidienne d'aujourd'hui : capturer de partout, la vue du journal sur tous les jours, comment les entrées sont enregistrées, et le raccourci global optionnel |
 | [Calendrier & tâches externes](Calendar_and_Tasks.md) | Connecter des calendriers CalDAV/Google/Microsoft, l'onglet calendrier, les notes de réunion, et synchroniser des listes de tâches externes dans la base de tâches |
 | [Capture d'e-mails](Email_Capture.md) | IMAP en lecture seule : la visionneuse cloisonnée, enregistrer des e-mails comme notes/.eml/tâches, et faire sortir du contenu sans envoyer |
-| [Graphe](Graph.md) | Graphe contextuel, carte du coffre avec mode de nettoyage et voyage dans le temps, le graphe comme vue de base de données |
+| [Graphe](Graph.md) | Graphe contextuel, carte du vault avec mode de nettoyage et voyage dans le temps, le graphe comme vue de base de données |
 | [Raccourcis clavier](Keyboard_Shortcuts.md) | Tous les raccourcis clavier en un coup d'œil |
 | [FAQ & dépannage](FAQ.md) | Questions courantes : compatibilité Obsidian, fichiers en conflit, sauvegardes et plus |
 
