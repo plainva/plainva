@@ -728,6 +728,12 @@ test("the due day on the phone: a box a finger can hit, a tap on the date opens 
     await expect.poll(() => readFile(page, "Haushalt.md")).toBe(CHORES.replace("2026-09-19", "2026-09-21"));
 
     // The row's own sheet carries the same picker — the way a task without a date gets one.
+    // The notices of the moves above stand over the last rows now - above the
+    // bar and the "+", not over them (Sammelplan § 3.48) -, so they are put
+    // away first, as a finger would.
+    const notices = page.locator(".pv-toast");
+    for (let i = 0; i < 5 && (await notices.count()) > 0; i++) await notices.first().getByRole("button", { name: "Close" }).click();
+    await expect(notices).toHaveCount(0);
     const undated = page.getByTestId("task-row").filter({ hasText: "Ohne Datum" });
     const at = (await undated.locator(".pv-grouprow-title").boundingBox())!;
     const cdp = await page.context().newCDPSession(page);
