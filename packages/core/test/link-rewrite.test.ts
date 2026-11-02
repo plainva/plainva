@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { within } from "./helpers/timeBudget.js";
 import { extractLinksAndTags } from "../src/ast-scanner.js";
 import { readNoteLinks, renameNoteLinks, rewriteNoteLinks, wikiLinkCanName } from "../src/linkRewrite.js";
 import { parseMarkdownAst } from "../src/markdown-parser.js";
@@ -529,12 +530,10 @@ describe("the links as they are read", () => {
     const lines: string[] = [];
     for (let i = 0; i < 3_000; i++) lines.push(`- line ${i} with [[Old]], [[Other ${i}|alias]] and [a link](Old.md) \\[ [ [[`);
     const note = lines.join("\n");
-    const started = Date.now();
-    const result = rename(note, { Old: "New", "Old.md": "New.md" });
+    // Parsing dominates; a rewrite that searched the note again for every link would not get here.
+    const result = within(15_000, () => rename(note, { Old: "New", "Old.md": "New.md" }));
     expect(result.renamed).toBe(6_000);
     expect(result.content).toBe(swapped(swapped(note, "[[Old]]", "[[New]]"), "(Old.md)", "(New.md)"));
-    // Parsing dominates; a rewrite that searched the note again for every link would not get here.
-    expect(Date.now() - started).toBeLessThan(15_000);
   });
 });
 

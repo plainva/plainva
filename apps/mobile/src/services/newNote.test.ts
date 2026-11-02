@@ -146,6 +146,32 @@ describe("one place names the type of a new note", () => {
     expect(offenders).toEqual([]);
   });
 
+  /**
+   * The shared package makes notes for the phone too (Sammelplan § 3.151
+   * Nr. 3): on the AI harness branch the notes the assistant made carried a
+   * fixed `type: Note` from there, unseen by the test above. Where the shared
+   * package names a default type, this list says why; a type of its own —
+   * `buildNewNoteContent("Email", …)` for a filed mail — is no default and free.
+   */
+  const SHARED_DEFAULT_NAMED: Record<string, string> = {
+    "packages/ui/src/lib/profileFields.ts": "the settings' own defaults, which every reader of the two settings falls back to",
+    "packages/ui/src/vaultTemplates/types.ts": "the daily-note type a vault template starts with, before the vault has a setting",
+    "packages/ui/src/vaultTemplates/scaffold.ts": "the type of a template's sample notes that carry none, written when a new, empty vault is made",
+    "packages/ui/src/vaultTemplates/tourLearning.ts": "the tour vault's sample journal days, made with the vault before it has a setting",
+  };
+
+  it("the shared package names a default type only where this list says why", () => {
+    const DEFAULTS = [vaultDefaults().defaultNoteType, vaultDefaults().dailyNoteType];
+    const UI = "packages/ui/src/";
+    const shared = shippedSources(join(process.cwd(), "..", "..", "packages", "ui", "src"), UI);
+    expect(shared.length, "the shared package's sources are read").toBeGreaterThan(100);
+    const naming = [...new Set(shared
+      .flatMap((file) => places(file, (node) => ts.isStringLiteralLike(node) && DEFAULTS.includes(node.text)))
+      .map((place) => place.replace(/:\d+$/, "")))];
+    expect(naming.sort(), "a shared file names the default type itself: hand the vault's type in, or enter the file here with why").toEqual(Object.keys(SHARED_DEFAULT_NAMED).sort());
+    for (const [file, why] of Object.entries(SHARED_DEFAULT_NAMED)) expect(why.length, file).toBeGreaterThan(20);
+  });
+
   it("finds what it is looking for", () => {
     const probe = (text: string) => ts.createSourceFile("probe.ts", text, ts.ScriptTarget.Latest, true);
     expect(places(probe("const a = getMobileSettings().defaultNoteType;\nconst b = ms.dailyNoteType;"), namesASetting)).toEqual(["probe.ts:1", "probe.ts:2"]);

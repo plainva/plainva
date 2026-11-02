@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within, withinAsync } from "./helpers/timeBudget.js";
 import { bracketLinks, nextWhere, replaceBracketLinks, wikiLinks } from "../src/linkScan.js";
 import { parseMarkdownTree } from "../src/markdown-parser.js";
 import { prepareReaderSource } from "../src/noteSource.js";
@@ -17,12 +18,6 @@ import { RoamImporter } from "../src/import/adapters/roam.js";
  * taken from the old patterns, and the sites' own tests ran unchanged.
  */
 const N = 100_000;
-const within = (budgetMs: number, run: () => void) => {
-  const start = performance.now();
-  run();
-  expect(performance.now() - start).toBeLessThan(budgetMs);
-};
-
 describe("linkScan", () => {
   it("nextWhere reuses a rising answer and still answers an earlier position", () => {
     const text = "ab.cd.";
@@ -136,9 +131,7 @@ describe("the sites", () => {
     const httpFetch = async (url: string) => { fetched.push(url); return { ok: false }; };
     await roam.takeAttachments("![a](https://firebasestorage.googleapis.com/f.png) [b](https://example.com/x)", {}, { httpFetch }, "files");
     expect(fetched).toEqual(["https://firebasestorage.googleapis.com/f.png"]);
-    const start = performance.now();
-    await roam.takeAttachments("![".repeat(N / 2) + "](https://" + "x".repeat(N / 2), {}, { httpFetch }, "files");
-    expect(performance.now() - start).toBeLessThan(1_000);
+    await withinAsync(1_000, () => roam.takeAttachments("![".repeat(N / 2) + "](https://" + "x".repeat(N / 2), {}, { httpFetch }, "files"));
   });
 
   it("the publication projection reads every link shape in one pass", () => {

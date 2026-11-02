@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "../../../../packages/core/test/helpers/timeBudget";
 import { describeHttpLink, describeLink, hostNamedByText, registrableHost } from "@plainva/ui";
 
 /**
@@ -175,8 +176,8 @@ describe("the pieces", () => {
   });
 
   it("stays linear on a hostile text", () => {
-    const start = performance.now();
-    for (let i = 0; i < 200; i++) describeLink("https://evil.example/", ".".repeat(1900) + "a");
-    expect(performance.now() - start).toBeLessThan(1000);
+    within(1000, () => {
+      for (let i = 0; i < 200; i++) describeLink("https://evil.example/", ".".repeat(1900) + "a");
+    });
   });
 });

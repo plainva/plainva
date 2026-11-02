@@ -308,14 +308,26 @@ describe("the internal-path rules are data, shared with the native walk", () => 
 
 describe("createYielder", () => {
   it("is free while the loop is young and lets go once it has run for its budget", async () => {
-    const pause = createYielder(5, 4);
-    for (let i = 0; i < 40; i++) expect(pause()).toBeUndefined();
-    const until = performance.now() + 12;
-    while (performance.now() < until) { /* a loop that holds the thread */ }
+    // Its own clock: on the wall clock forty calls had to finish within the
+    // 5 ms budget, and on a loaded runner they did not (§ 3.129 Nr. 4).
+    let clock = 1_000;
+    const pause = createYielder(5, 4, () => clock);
+    for (let i = 0; i < 40; i++) {
+      clock += 0.1;
+      expect(pause()).toBeUndefined();
+    }
+    // The loop has held the thread past its budget since it last let go.
+    clock += 12;
     let yielded: Promise<void> | void = undefined;
     for (let i = 0; i < 4 && !yielded; i++) yielded = pause();
     expect(yielded).toBeInstanceOf(Promise);
     await yielded;
     for (let i = 0; i < 8; i++) expect(pause()).toBeUndefined();
+    // Past the budget again from where it let go, it lets go again.
+    clock += 6;
+    let again: Promise<void> | void = undefined;
+    for (let i = 0; i < 4 && !again; i++) again = pause();
+    expect(again).toBeInstanceOf(Promise);
+    await again;
   });
 });

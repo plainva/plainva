@@ -3,6 +3,7 @@ import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { describe, expect, it } from "vitest";
+import { within } from "./helpers/timeBudget.js";
 import { extractLinksAndTags } from "../src/ast-scanner.js";
 import { initializeSchema } from "../src/db/Schema.js";
 import { markNotesForWikiLinkReading, wikiLinkReadingMayDiffer } from "../src/db/wikiLinkReadingMigration.js";
@@ -173,9 +174,7 @@ describe("which notes the format step hands to the next full scan", () => {
     // not looked for again from every link back to the line's start — which
     // took seconds for these lines, each just under the indexer's limit.
     const note = `${"[[a]]".repeat(1_900)}\n`.repeat(500);
-    const started = performance.now();
-    expect(wikiLinkReadingMayDiffer(note)).toBe(false);
-    expect(performance.now() - started).toBeLessThan(1_000);
+    within(1_000, () => expect(wikiLinkReadingMayDiffer(note)).toBe(false));
     // A note with a line the indexer reads no link from has no rows in either reading.
     expect(wikiLinkReadingMayDiffer(`[[_x_]] ${"y".repeat(10_001)}`)).toBe(false);
     expect(wikiLinkReadingMayDiffer(`[[_x_]] ${"y".repeat(9_000)}`)).toBe(true);

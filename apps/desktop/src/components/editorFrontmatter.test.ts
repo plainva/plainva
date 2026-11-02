@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { within } from "../../../../packages/core/test/helpers/timeBudget";
 import { EditorState, Text, type TextIterator } from "@codemirror/state";
 import { frontmatterSpan } from "@plainva/core";
 import { frontmatterHidePlugin } from "@plainva/ui";
@@ -165,9 +166,7 @@ describe("what asking costs", () => {
     const lines = ["---"];
     for (let i = 0; i < 200_000; i++) lines.push("a line of text that is not a fence");
     const doc = Text.of(lines);
-    const started = performance.now();
-    expect(frontmatterLines(doc)).toBeNull();
-    expect(performance.now() - started).toBeLessThan(2_000);
+    within(2_000, () => expect(frontmatterLines(doc)).toBeNull());
   });
 
   it("stops at the closing fence, however long the note behind it is", () => {

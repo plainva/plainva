@@ -20,6 +20,8 @@ export default defineConfig({
     // failed the run with "Closing rpc while onUserConsoleLog was pending"
     // although every test had passed (Sammelplan 3.153 Nr. 9).
     disableConsoleIntercept: true,
+    // `vi.waitFor` waits ten seconds unless a test says otherwise, as in both shells (Sammelplan 3.160 Nr. 3).
+    setupFiles: ["./test/setup.ts"],
     // See the desktop config: PLAINVA_TEST_WORKERS=<n> caps the workers on a loaded machine.
     ...(process.env.PLAINVA_TEST_WORKERS ? { maxWorkers: Number(process.env.PLAINVA_TEST_WORKERS) } : {}),
   },

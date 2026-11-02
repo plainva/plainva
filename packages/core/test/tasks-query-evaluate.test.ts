@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { coreSlowdown } from "./helpers/timeBudget.js";
 import {
   evaluateTasksQuery,
   explainTasksQuery,
@@ -225,7 +226,8 @@ describe("timing over 20 000 tasks (plan E6)", () => {
         if (result.status === "ok") total = result.total;
       }
       console.log(`[tasks-query timing] ${name}: cold ${cold.toFixed(1)} ms, warm ${warm.toFixed(1)} ms for 20 000 tasks (${total} match); scanning the notes took ${scanMs.toFixed(0)} ms`);
-      expect(cold).toBeLessThan(strict ? 50 : 2000);
+      // The generous bound is on the reference core; a slower core right now gets more (helpers/timeBudget.ts).
+      expect(cold).toBeLessThan(strict ? 50 : cold < 2000 ? 2000 : 2000 * coreSlowdown());
     });
   }
 

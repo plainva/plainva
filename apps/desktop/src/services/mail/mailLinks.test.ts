@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { within } from "../../../../../packages/core/test/helpers/timeBudget";
 import type { LinkTarget } from "@plainva/ui";
 import { attachMailLinks, mailTextSegments } from "@plainva/ui/mail";
 
@@ -227,9 +228,7 @@ describe("links in a plain-text body", () => {
   });
 
   it("stays linear on a body of nothing but address starts", () => {
-    const start = performance.now();
-    const segments = mailTextSegments("http://".repeat(50_000));
-    expect(performance.now() - start).toBeLessThan(1500);
+    const segments = within(1500, () => mailTextSegments("http://".repeat(50_000)));
     expect(segments.map((s) => s.text).join("").length).toBe(350_000);
   });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "./helpers/timeBudget.js";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
@@ -205,9 +206,7 @@ describe("frontmatterSpan", () => {
     const parts = ["---", lineEnd(0)];
     for (let i = 1; i <= 200_000; i++) parts.push("a line of text that is not a fence", lineEnd(i));
     const note = parts.join("");
-    const started = performance.now();
-    expect(frontmatterSpan(note)).toBeNull();
-    expect(performance.now() - started).toBeLessThan(2_000);
+    within(2_000, () => expect(frontmatterSpan(note)).toBeNull());
   });
 });
 

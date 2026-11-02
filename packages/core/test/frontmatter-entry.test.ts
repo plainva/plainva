@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "./helpers/timeBudget.js";
 import { parse as parseYaml, parseDocument } from "yaml";
 import {
   FrontmatterSurgicalError,
@@ -318,13 +319,13 @@ describe("lists, item by item", () => {
   it("a long list with one change costs one walk", () => {
     const items = Array.from({ length: 20_000 }, (_, i) => `tag-${i}`);
     const note = `---\ntitle: x\ntags:\n${items.map((tag) => `  - ${tag}\n`).join("")}status: open\n---\nBody\n`;
-    const started = performance.now();
-    expect(set(note, ["tags"], [...items, "new"])).toBe(note.replace("status: open", "  - new\nstatus: open"));
-    expect(set(note, ["tags"], items.filter((_, i) => i !== 10_000))).toBe(note.replace("  - tag-10000\n", ""));
-    expect(set(note, ["status"], "done")).toBe(note.replace("status: open", "status: done"));
-    expect(renameFrontmatterTag(note, "tag-777", "renamed").content).toBe(note.replace("  - tag-777\n", "  - renamed\n"));
     // Reading the block twice dominates; searched pair by pair, twenty thousand items would take minutes.
-    expect(performance.now() - started).toBeLessThan(20_000);
+    within(20_000, () => {
+      expect(set(note, ["tags"], [...items, "new"])).toBe(note.replace("status: open", "  - new\nstatus: open"));
+      expect(set(note, ["tags"], items.filter((_, i) => i !== 10_000))).toBe(note.replace("  - tag-10000\n", ""));
+      expect(set(note, ["status"], "done")).toBe(note.replace("status: open", "status: done"));
+      expect(renameFrontmatterTag(note, "tag-777", "renamed").content).toBe(note.replace("  - tag-777\n", "  - renamed\n"));
+    });
   });
 
   it("an item that only moves keeps its characters, in a list of any length", () => {

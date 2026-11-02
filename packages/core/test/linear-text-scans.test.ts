@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "./helpers/timeBudget.js";
 import { insertJournalEntry, parseJournal, readJournalLine } from "../src/journal.js";
 import { findInlineTagsInLine } from "../src/tagRule.js";
 import { EDITOR_LIST_ITEM, MARKDOWN_LIST_ITEM, readMarkdownListItem } from "../src/markdownListItem.js";
@@ -12,12 +13,6 @@ import { trimSpaceBeforeLineEnds, trimStartChars } from "../src/textScan.js";
  * their own tests (journal, journal-merge, tag-rule), which ran unchanged.
  */
 const N = 100_000;
-const within = (budgetMs: number, run: () => void) => {
-  const start = performance.now();
-  run();
-  expect(performance.now() - start).toBeLessThan(budgetMs);
-};
-
 describe("textScan helpers", () => {
   it("trimStartChars takes only the given characters off the front", () => {
     expect(trimStartChars(" \t x \t", " \t")).toBe("x \t");

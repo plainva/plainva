@@ -16,7 +16,13 @@ import ts from "typescript";
  * copy.
  *
  * Read from the syntax tree, so a call spread over several lines says the same
- * as one on a single line. Two shapes:
+ * as one on a single line. A read or write is a method call (`files.read(p)`,
+ * `adapter.writeTextFile(p, t)`) or a call of a free function by the same
+ * name (`read(p)`, `writeTextFile(p, t)`): a function handed a reader, or one
+ * imported from the file system plugin, reads the file all the same — on the
+ * AI harness branch the rule of a note and "keep on this device" read that
+ * way and wrote back by themselves, in both shells, unseen by this helper
+ * (Sammelplan § 3.151 Nr. 1). Two shapes:
  *
  *   reads and writes <path> in <function>   · one function calls a read and a
  *       write of a text file with the same path expression
@@ -58,6 +64,14 @@ function nameOf(fn: FunctionLike, source: ts.SourceFile): string {
 }
 const contains = (outer: ts.Node, inner: ts.Node): boolean => inner.pos >= outer.pos && inner.end <= outer.end;
 
+/** The name a call goes by: a method's (`x.read(…)`, `x?.read(…)`) or a free function's (`read(…)`). */
+function calledName(call: ts.CallExpression): string | null {
+  const callee = call.expression;
+  if (ts.isPropertyAccessExpression(callee)) return callee.name.text;
+  if (ts.isIdentifier(callee)) return callee.text;
+  return null;
+}
+
 /**
  * The path a read or write names. An adapter's methods take it first
  * (`readTextFile(path)`, `writeTextFile(path, text)`); the phone's `vaultOps`
@@ -83,8 +97,8 @@ export function readsAndWrites(file: string, text: string): Finding[] {
     const written = new Map<string, number>();
     const walk = (node: ts.Node): void => {
       if (isFunctionLike(node) && node !== fn) return;
-      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
-        const method = node.expression.name.text;
+      const method = ts.isCallExpression(node) ? calledName(node) : null;
+      if (ts.isCallExpression(node) && method !== null) {
         const isRead = READS.has(method), isWrite = WRITES.has(method);
         if (isRead || isWrite) {
           const path = pathOf(node, method, isWrite, source);

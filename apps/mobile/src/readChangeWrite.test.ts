@@ -78,7 +78,8 @@ describe("a change of a file that exists goes through the chain's one entry", ()
         "`vaultTextFiles(vault)`. For a text that is held or made whole — an editor, a new file — enter the place in SITES " +
         "with why it may stay.",
     ).toEqual(listed.sort());
-  });
+    // It parses every shipped file of its trees: its own limit, not the 20 s meant for one test (Sammelplan § 3.162 Nr. 2).
+  }, 60_000);
 
   it("every entry says why", () => {
     for (const [file, sites] of Object.entries(SITES)) {

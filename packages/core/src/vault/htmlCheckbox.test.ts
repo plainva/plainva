@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { within } from "../../test/helpers/timeBudget.js";
 import { readHtmlCheckbox, setHtmlCheckboxChecked } from "./taskMutation.js";
 import { setChecklistTaskDone } from "./taskMutation.js";
 
@@ -122,12 +123,6 @@ describe("setHtmlCheckboxChecked writes the same bytes as before", () => {
 });
 
 describe("hostile tags take linear time (plan Befunde 24.09., E6)", () => {
-  const within = (budgetMs: number, run: () => void) => {
-    const start = performance.now();
-    run();
-    expect(performance.now() - start).toBeLessThan(budgetMs);
-  };
-
   it("an attribute list that every value could read two ways", () => {
     // `""` is a quoted AND a bare value; the old pattern tried 2^n readings
     // before giving up at the `!`. Forty attributes were already hours.

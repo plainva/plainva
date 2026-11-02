@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { within } from "./helpers/timeBudget.js";
 import { htmlToVisibleText } from "../src/pim/htmlVisibleText.js";
 
 /**
@@ -203,9 +204,7 @@ describe("htmlToVisibleText", () => {
     // line ended in a blank was asked of the line itself, which flattened the
     // growing string once per text: a quarter of a minute for this one.
     const pieces = Array.from({ length: 200_000 }, () => ({ nodeName: "b", attrs: [], childNodes: [{ nodeName: "#text", value: " a" }] }));
-    const start = performance.now();
-    const text = htmlToVisibleText("", () => ({ nodeName: "#root", childNodes: pieces }));
-    expect(performance.now() - start).toBeLessThan(2_000);
+    const text = within(2_000, () => htmlToVisibleText("", () => ({ nodeName: "#root", childNodes: pieces })));
     expect(text.length).toBe(2 * 200_000 - 1);
     expect(text.startsWith("a a a ")).toBe(true);
     expect(text.endsWith(" a a")).toBe(true);

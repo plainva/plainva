@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "./helpers/timeBudget.js";
 import {
   boundMarkdownForParse,
   exceedsInlineParseBudget,
@@ -29,12 +30,6 @@ import { analyzeNoteOutline, analyzeNoteSource } from "../src/noteSource.ts";
 
 const SECONDS = 1000;
 
-function timed<T>(work: () => T): { result: T; ms: number } {
-  const start = performance.now();
-  const result = work();
-  return { result, ms: performance.now() - start };
-}
-
 function textsOf(node: MarkdownTreeNode, into: string[] = []): string[] {
   if (typeof node.value === "string") into.push(node.value);
   for (const child of node.children ?? []) textsOf(child, into);
@@ -54,8 +49,7 @@ const EMPHASIS_RUN = "*a".repeat(50_000);
 describe("the inline parse budget", () => {
   it("reads a line of 100 000 `]` in a moment, and the note around it as before", () => {
     const note = `# Title\n\nBefore [[Kept]] and *em*.\n\n${LONG_LINE}\n\n## After\n\nA [[Link]] behind it.\n`;
-    const { result: tree, ms } = timed(() => parseMarkdownTree(note));
-    expect(ms).toBeLessThan(5 * SECONDS);
+    const tree = within(5 * SECONDS, () => parseMarkdownTree(note));
     const blocks = (tree.children ?? []).map((node) => node.type);
     expect(blocks).toEqual(["heading", "paragraph", "paragraph", "heading", "paragraph"]);
     // The line is text, character for character, at its place.
@@ -69,21 +63,19 @@ describe("the inline parse budget", () => {
   }, 120 * SECONDS);
 
   it("bounds a paragraph of short lines the same way: the work belongs to the paragraph", () => {
-    const { result: tree, ms } = timed(() => parseMarkdownTree(`${SHORT_LINES}\n\nafter *em*`));
-    expect(ms).toBeLessThan(5 * SECONDS);
+    const tree = within(5 * SECONDS, () => parseMarkdownTree(`${SHORT_LINES}\n\nafter *em*`));
     expect(textsOf(tree.children![0]).join("")).toBe(SHORT_LINES);
     expect(typesOf(tree.children![1])).toContain("emphasis");
   }, 120 * SECONDS);
 
   it("bounds emphasis runs, the outline and the journal's reading of the note", () => {
     const note = `# One\n\n${EMPHASIS_RUN}\n\n## Two\n\ntext ^block\n`;
-    const { ms } = timed(() => {
+    within(10 * SECONDS, () => {
       parseMarkdownAst(note, { preserveObsidianSyntax: true });
       analyzeNoteSource(note);
       analyzeNoteOutline(note);
       parseCommonMarkTree(note);
     });
-    expect(ms).toBeLessThan(10 * SECONDS);
     const source = analyzeNoteSource(note);
     expect(source.headings.map((h) => h.text)).toEqual(["One", "Two"]);
     expect(source.blocks.map((b) => b.id)).toEqual(["block"]);
@@ -93,8 +85,7 @@ describe("the inline parse budget", () => {
     const rows = Array.from({ length: 8_000 }, (_, i) => `| row ${i} | [[n${i}]] |`);
     const table = ["| a | b |", "|---|---|", ...rows].join("\n");
     const note = `# Data\n\n${table}\n\nbelow [[Link]]\n`;
-    const { result: tree, ms } = timed(() => parseMarkdownTree(note));
-    expect(ms).toBeLessThan(10 * SECONDS);
+    const tree = within(10 * SECONDS, () => parseMarkdownTree(note));
     expect(tree.children!.map((node) => node.type)).toEqual(["heading", "paragraph", "paragraph"]);
     expect(textsOf(tree.children![1]).join("")).toBe(table);
     expect(typesOf(tree.children![2])).toContain("wikiLink");

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "../../../packages/core/test/helpers/timeBudget";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -24,12 +25,6 @@ import {
  * markdownToPlainText), which ran unchanged across the rewrite.
  */
 const N = 100_000;
-const within = (budgetMs: number, run: () => void) => {
-  const start = performance.now();
-  run();
-  expect(performance.now() - start).toBeLessThan(budgetMs);
-};
-
 const LOCALES = join(__dirname, "../../../packages/ui/src/locales");
 function englishVocabulary() {
   const tasks = JSON.parse(readFileSync(join(LOCALES, "en.json"), "utf8")).tasks as Record<string, string>;

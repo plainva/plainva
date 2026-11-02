@@ -185,6 +185,14 @@ export interface VaultIndexerOptions {
   onFullScan?: (info: FullScanInfo) => void;
   /** Called once for a full scan that failed, not for one that was cancelled (issue #125). */
   onFullScanFailed?: (info: FullScanFailure) => void;
+  /**
+   * How many statements a full scan collects before it hands them over as
+   * one batch (default 4000). Only a test sets it: the scan's handling of a
+   * batch that fails is the same for forty statements as for four thousand,
+   * and a scene of 560 real notes on disk ran into the 20 s limit under a
+   * loaded commit hook (Sammelplan § 3.142 Nr. 1).
+   */
+  scanBatchStatements?: number;
 }
 
 /**
@@ -1871,7 +1879,7 @@ export class VaultIndexer {
       // desktop a batch that went through stays when the scan ends there —
       // the app was closed, the process ended — and no failure is ever said.
       if (startsEmpty) batch.push({ sql: `INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, params: [INDEX_OWED_KEY] });
-      const FLUSH_AT = 4000;
+      const FLUSH_AT = this.options?.scanBatchStatements ?? 4000;
       // The flushes run inside this very transaction, and say so: where a
       // batch is a transaction of its own (the phone's single connection), one
       // that did not would wait for the scan it belongs to.

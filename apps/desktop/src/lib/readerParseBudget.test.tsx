@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
+import { within } from "../../../../packages/core/test/helpers/timeBudget";
 import { renderToStaticMarkup } from "react-dom/server";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -37,9 +38,7 @@ function read(content: string) {
 
 describe("the reading view and a stretch over the parse budget", () => {
   it("shows a line of 100 000 `]` as written, in a moment, and the note around it as before", () => {
-    const start = performance.now();
-    const container = read(NOTE);
-    expect(performance.now() - start).toBeLessThan(10_000);
+    const container = within(10_000, () => read(NOTE));
     const paragraphs = [...container.querySelectorAll("p")];
     expect(paragraphs[1].textContent).toBe(LONG_LINE);
     expect(container.querySelector("h1")?.textContent).toBe("Title");
@@ -87,9 +86,7 @@ describe("the editor's parser and a block over the parse budget", () => {
   it("reads a long run of `*a` as text, and the block after it as Markdown", () => {
     const run = "*a".repeat(150_000);
     const doc = `${run}\n\nafter *em* and [[x]] [y](z)\n`;
-    const start = performance.now();
-    const tree = parser.parse(doc);
-    expect(performance.now() - start).toBeLessThan(10_000);
+    const tree = within(10_000, () => parser.parse(doc));
     expect(names(tree, 0, run.length).has("Emphasis")).toBe(false);
     const after = names(tree, run.length + 2, doc.length);
     expect(after.has("Emphasis")).toBe(true);
@@ -99,9 +96,7 @@ describe("the editor's parser and a block over the parse budget", () => {
   it("reads a block with more links than any person writes as text: each closing link looked back over the block", () => {
     const block = Array.from({ length: 24_000 }, (_, i) => `row ${i} [a](b) [[c]]`).join("\n");
     const doc = `${block}\n\nafter [y](z)\n`;
-    const start = performance.now();
-    const tree = parser.parse(doc);
-    expect(performance.now() - start).toBeLessThan(10_000);
+    const tree = within(10_000, () => parser.parse(doc));
     expect(names(tree, 0, block.length).has("Link")).toBe(false);
     expect(names(tree, block.length + 2, doc.length).has("Link")).toBe(true);
   }, 300_000);

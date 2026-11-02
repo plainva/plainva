@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { within } from "./helpers/timeBudget.js";
 import {
   upsertFrontmatterKeys,
   setFrontmatterPath,
@@ -663,13 +664,10 @@ describe("renameFrontmatterWikiLinks", () => {
 
     it("stays linear over a long list of links", () => {
       const note = `---\nrelated:\n${'  - "[[Alt]]"\n'.repeat(20_000)}---\n`;
-      const started = performance.now();
-      const res = renameFrontmatterWikiLinks(note, [{ key: "related", oldTarget: "Alt", newTarget: "Neu" }]);
-      const took = performance.now() - started;
+      // Reading the block dominates; putting the note together again for every link took twenty times as long.
+      const res = within(3_000, () => renameFrontmatterWikiLinks(note, [{ key: "related", oldTarget: "Alt", newTarget: "Neu" }]));
       expect(res.renamed).toBe(20_000);
       expect(res.content).toBe(note.split("[[Alt]]").join("[[Neu]]"));
-      // Reading the block dominates; putting the note together again for every link took twenty times as long.
-      expect(took).toBeLessThan(3_000);
     });
   });
 });
