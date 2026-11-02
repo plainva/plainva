@@ -729,24 +729,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-04",
   },
   {
-    id: "entry-follows-its-event",
-    title: "A database entry follows the calendar event it was put into",
-    area: "pim",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "Both shells put an entry into a calendar (createEntryEvent, the anchor " +
-      "plainva.events). Only the desktop lets the entry follow its event after " +
-      "every calendar fetch - the new date into its date column, the anchor " +
-      "gone when the provider drops the event (desktop " +
-      "services/pim/entryEventSync.ts). On the phone nothing calls " +
-      "reconcileEntryEvents, so an entry kept only from the phone keeps its old " +
-      "date. Closing this lifts the reconcile into packages/ui and wires the " +
-      "phone. Written down on 2026-10-30; open-items plan 3.87 no. 16.",
-    verified: "2026-10-30",
-  },
-  {
     id: "mail-attachment-list",
     title: "Which parts of an IMAP message count as its attachments",
     area: "pim",

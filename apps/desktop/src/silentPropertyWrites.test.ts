@@ -95,7 +95,7 @@ const SITES: Site[] = [
     says: [SAID, /day: entry\.day/], within: 600,
   },
   {
-    file: "apps/desktop/src/services/pim/entryEventSync.ts", writer: "withNoteProperty", calls: 1,
+    file: "packages/ui/src/pim/entryEventSync.ts", writer: "withNoteProperty", calls: 1,
     // Decided, not forgotten: this runs after every calendar cycle without
     // anyone asking for it, and a note that cannot follow its appointment
     // fails again on the next one — a message per cycle would never stop. The
@@ -726,7 +726,7 @@ const STRETCHES: Stretch[] = [
     says: [/catch \{/],
   },
   {
-    file: "apps/desktop/src/services/pim/entryEventSync.ts", at: "export async function runEntryEventSync(", until: "\n}\n", calls: { [set]: 1 },
+    file: "packages/ui/src/pim/entryEventSync.ts", at: "export async function runEntryEventSync(", until: "\n}\n", calls: { [set]: 1, [del]: 1 },
     how: "no message — a background reconcile: collected in errors for the caller, tried again every cycle",
     says: [/result\.errors\.push\(/],
   },

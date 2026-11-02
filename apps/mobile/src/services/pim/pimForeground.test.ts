@@ -35,6 +35,7 @@ vi.mock("./taskSyncRuntime", () => ({
   startTaskSyncRuntime: vi.fn(),
   stopTaskSyncRuntime: vi.fn(),
   runMobileTaskSync: vi.fn(),
+  runMobileEntryEventSync: vi.fn(),
 }));
 
 // The runtime takes exactly two things from the core, so the fakes ARE the

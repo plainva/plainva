@@ -768,8 +768,9 @@ export async function pimSeriesMaster(event: PimEventRow): Promise<PimEventRow |
 
 /**
  * What "delete all events" of a series is written against (issue 119): the
- * series' own row, or - where the cache lacks it - the occurrence, except on
- * the device's own calendars, which cannot delete a series that way.
+ * series' own row, or - where the cache lacks it - the series id the
+ * occurrence carries; the device's own calendars delete the whole series by
+ * that id too (3.130 no. 3).
  */
 export async function pimSeriesDeleteSubject(event: PimEventRow): Promise<PimEventRow | null> {
   const master = await pimSeriesMaster(event);

@@ -271,7 +271,12 @@ public class DevicePimPlugin: CAPPlugin, CAPBridgedPlugin {
         // Already gone is the goal reached.
         guard let ev = findEvent(id: id, occurrenceStartTs: ts) else { call.resolve(); return }
         do {
-            try store.remove(ev, span: .thisEvent, commit: true)
+            // With an occurrence's start: that occurrence. Without one the id
+            // names the whole event - for a series EventKit hands out its FIRST
+            // occurrence, and "this and all following" from there is the series
+            // ("All events", open-items plan 3.130 no. 3; it removed the first
+            // occurrence alone, as Android's delete of the event row does not).
+            try store.remove(ev, span: ts == nil ? .futureEvents : .thisEvent, commit: true)
             call.resolve()
         } catch {
             call.reject(error.localizedDescription)

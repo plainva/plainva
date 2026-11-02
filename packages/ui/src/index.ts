@@ -107,6 +107,7 @@ export * from "./pim/reminderDiagnosis";
 export * from "./pim/eventChanges";
 export * from "./pim/baseOverlay";
 export * from "./pim/entryEvent";
+export * from "./pim/entryEventSync";
 export * from "./pim/statusEvents";
 export * from "./pim/syncProblems";
 export * from "./pim/allDayRows";

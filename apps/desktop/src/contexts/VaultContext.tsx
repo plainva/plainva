@@ -24,7 +24,7 @@ import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown
 import { LoadStarts } from "../services/loadStarts";
 import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
-import { createIndexNotices, createLimiter, formatListingReport, formatTaskSync, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
+import { createIndexNotices, createLimiter, entryEventWindow, runEntryEventSync, formatListingReport, formatTaskSync, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
@@ -67,7 +67,6 @@ import { createIncrementalIndexQueue, IncrementalIndexQueue } from "../services/
 import { createWatchBatchCollector, toEnqueueArgs } from "../services/watchBatch";
 import { AUTO_REFRESH_LIMITS, buildRefreshToast, planAutoRefresh, runVaultRefresh, type VaultRefreshResult } from "@plainva/ui";
 import { createPimRuntime, type PimRuntime } from "../services/pim/pimRuntime";
-import { runEntryEventSync } from "../services/pim/entryEventSync";
 import { runTaskSync } from "../services/pim/taskSync";
 import {
   initTaskDeletion,
@@ -1194,18 +1193,13 @@ export const VaultProvider: React.FC<{
           // The writing connection (S19): entries that were put in the calendar
           // follow their appointment. Runs on the same hook and independently of
           // the task database — an entry needs no task database to be scheduled.
-          const day = (offset: number) => {
-            const d = new Date();
-            d.setDate(d.getDate() + offset);
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          };
           const ev = await runEntryEventSync({
             adapter: vaultAdapter,
             db: queryService.db,
             cache: pimRuntime.cache,
             // The same window the worker fills the cache for — outside it an
             // absent appointment means "not looked at", not "deleted".
-            window: { startDay: day(-60), endDay: day(400) },
+            window: entryEventWindow(),
           });
           if (ev.changedNotes.length > 0) {
             indexQueue.enqueue(ev.changedNotes, { source: "tasks" });

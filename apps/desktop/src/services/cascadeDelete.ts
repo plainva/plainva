@@ -20,11 +20,10 @@ import {
 import { taskDatabaseKey } from "../contexts/VaultContext";
 import { getSettingsStore } from "./settingsStore";
 import { getTaskDatabasePath } from "./taskDatabase";
-import { readProviderTaskAnchor, type ProviderTaskAnchor } from "@plainva/ui";
+import { loadAnchoredNotes, readProviderTaskAnchor, type ProviderTaskAnchor } from "@plainva/ui";
 import { requestTaskDeletion } from "./pim/taskDeletion";
 import { getTemplateFolder } from "./newItemFlow";
 import { removeRelationLinksToNote } from "./relations";
-import { loadAnchoredNotes } from "./pim/entryEventSync";
 import { requestSaveFlush } from "./saveFlush";
 import type { IndexerApi } from "./remoteIndexer";
 

@@ -19,7 +19,7 @@ vi.mock("../../platform/capacitorPlatform", () => ({ capacitorCredentialStore: {
 vi.mock("../reminderScheduler", () => ({ rescheduleReminders: vi.fn() }));
 vi.mock("../vaultService", () => ({ getMobileVault: () => null }));
 vi.mock("../mobileSettingsSync", () => ({ noteAccountRemovedLocally: vi.fn() }));
-vi.mock("./taskSyncRuntime", () => ({ startTaskSyncRuntime: vi.fn(), stopTaskSyncRuntime: vi.fn(), runMobileTaskSync: vi.fn() }));
+vi.mock("./taskSyncRuntime", () => ({ startTaskSyncRuntime: vi.fn(), stopTaskSyncRuntime: vi.fn(), runMobileTaskSync: vi.fn(), runMobileEntryEventSync: vi.fn() }));
 vi.mock("../../platform/devicePim", () => ({ isDevicePimSupported: () => false }));
 vi.mock("../../adapters/webdavHttp", () => ({
   allowHttpOrigin: async () => {},

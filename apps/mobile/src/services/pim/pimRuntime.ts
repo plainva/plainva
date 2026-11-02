@@ -1,6 +1,6 @@
 import { PimCacheRepository, PimWorker, type IPimTarget, type PimAccountRow, type PimCycleInfo, type PimStatus } from "@plainva/core";
 import { isDevicePimSupported, onDevicePimChanged } from "../../platform/devicePim";
-import { startTaskSyncRuntime, stopTaskSyncRuntime, runMobileTaskSync } from "./taskSyncRuntime";
+import { startTaskSyncRuntime, stopTaskSyncRuntime, runMobileTaskSync, runMobileEntryEventSync } from "./taskSyncRuntime";
 import type { MobileVault } from "../vaultService";
 
 /**
@@ -107,7 +107,11 @@ export async function startPimRuntime(vault: MobileVault, wiring: PimRuntimeWiri
       // `onDataChanged`. That one only fires when the provider wrote something,
       // so a task ticked off here while the provider is quiet would never be
       // pushed. Same wiring as the desktop's pimRuntime, same reason.
-      if (status !== "syncing") void runMobileTaskSync();
+      if (status !== "syncing") {
+        void runMobileTaskSync();
+        // Entries put in the calendar follow their appointment (3.87 no. 16).
+        void runMobileEntryEventSync();
+      }
     },
   });
   runtime = { cache, worker, vaultId: vault.vaultId, buildTarget };

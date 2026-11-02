@@ -1,16 +1,24 @@
 import {
-  entryDateValue,
-  eventDayKeys,
-  readEntryEvents,
-  reconcileEntryEvents,
-  withNoteProperty,
-  type EntryEventAnchor,
-} from "@plainva/ui";
-import { setFrontmatterPath, PLAINVA_NAMESPACE_KEY, updateVaultText, type IVaultAdapter, type PimEventRow } from "@plainva/core";
+  deleteFrontmatterPath,
+  setFrontmatterPath,
+  PIM_WINDOW_FUTURE_DAYS,
+  PIM_WINDOW_PAST_DAYS,
+  PLAINVA_NAMESPACE_KEY,
+  updateVaultText,
+  type IVaultAdapter,
+  type PimEventRow,
+} from "@plainva/core";
+import { withNoteProperty } from "../base/writeProperty";
+import { entryDateValue, readEntryEvents, reconcileEntryEvents, type EntryEventAnchor } from "./entryEvent";
+import { eventDayKeys } from "./eventDays";
 
 /**
  * The write-back of the writing connection (S19, plan P9b): an entry that was
  * put in the calendar follows its appointment.
+ *
+ * Both shells run it (open-items plan 3.87 no. 16): it lived in the desktop,
+ * and on the phone nobody called it, so an entry kept only from the phone
+ * kept its old date and an anchor whose appointment was gone.
  *
  * It runs on the same hook as the task reconciler (after every completed PIM
  * cycle) and touches ONLY notes that carry a `plainva.events` anchor — found in
@@ -88,6 +96,20 @@ function dateOfStart(start: string): string {
   if (!time) return day;
   const [hours, minutes] = time.split(":").map(Number);
   return entryDateValue({ day, minutes: hours * 60 + minutes });
+}
+
+/**
+ * The days of the window the PIM worker fills its cache for (`PimWorker.windowRange`),
+ * as local day keys: outside it an absent appointment means "not looked at", not "gone".
+ * One answer for both shells, read from the worker's own numbers.
+ */
+export function entryEventWindow(now: Date = new Date()): { startDay: string; endDay: string } {
+  const dayOf = (offset: number) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() + offset);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  return { startDay: dayOf(-PIM_WINDOW_PAST_DAYS), endDay: dayOf(PIM_WINDOW_FUTURE_DAYS) };
 }
 
 export async function runEntryEventSync(deps: EntryEventSyncDeps): Promise<EntryEventSyncResult> {
@@ -171,7 +193,12 @@ export async function runEntryEventSync(deps: EntryEventSyncDeps): Promise<Entry
             next.push(anchor);
           }
         }
-        return touched ? setFrontmatterPath(text, ["plainva", "events"], next.length > 0 ? next : undefined) : null;
+        if (!touched) return null;
+        // The last anchor gone takes its key with it (3.87 no. 18): setting the
+        // path to nothing wrote `events: null` into the note.
+        return next.length > 0
+          ? setFrontmatterPath(text, ["plainva", "events"], next)
+          : deleteFrontmatterPath(text, ["plainva", "events"]);
       });
       result.changedNotes.push(path);
       if (update.conflict?.changed) result.changedNotes.push(update.conflict.workingCopyPath);

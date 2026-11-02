@@ -146,9 +146,9 @@ describe("pending calendar writes (issue 119)", () => {
     const master = row("s1", { recurrence: "RRULE:FREQ=WEEKLY" });
     expect(seriesDeleteSubject(caldav, master)).toBe(master);
     expect(seriesDeleteSubject(row("single"), null)).toBeNull();
-    // The device's calendar store addresses a series only through an
-    // occurrence: its series id would delete the first occurrence alone.
-    expect(seriesDeleteSubject(row("e1@1700000000000", { seriesMaster: "e1" }), null, "device")).toBeNull();
+    // The device's own calendars delete a whole series by its id alone
+    // (3.130 no. 3): "All events" there failed every time.
+    expect(seriesDeleteSubject(row("e1@1700000000000", { seriesMaster: "e1" }), null, "device")).toMatchObject({ uid: "e1", seriesMaster: undefined, etag: undefined });
   });
 
   it("a series addressed through its occurrence is a series whose rule and start are not known here (R2)", () => {

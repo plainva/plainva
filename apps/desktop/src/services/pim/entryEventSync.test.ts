@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { loadAnchoredNotes, runEntryEventSync } from "./entryEventSync";
+import { entryEventWindow, loadAnchoredNotes, runEntryEventSync } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 
 /**
@@ -132,6 +132,10 @@ describe("runEntryEventSync — direction 3: the appointment is gone", () => {
     // And the note itself is still there, with its body.
     expect(out).toContain("# Release");
     expect(out).toContain("remote-task-1");
+    // The last anchor takes its key with it (3.87 no. 18): no `events: null`
+    // left behind in the note.
+    expect(out).not.toMatch(/events:/);
+    expect(out).toContain(["plainva:", "  pim:", "    uid: remote-task-1", "---"].join("\n"));
   });
 
   it("keeps an anchor whose day lies OUTSIDE the loaded window", async () => {
@@ -334,5 +338,11 @@ describe("runEntryEventSync — the task reconciler stays untouched", () => {
     expect(res.changedNotes).toEqual([]);
     expect(res.errors).toHaveLength(1);
     expect(res.errors[0]).toContain("Projekte/Release.md");
+  });
+});
+
+describe("entryEventWindow", () => {
+  it("is the window the PIM worker fills its cache for, as local days", () => {
+    expect(entryEventWindow(new Date(2026, 9, 30, 12))).toEqual({ startDay: "2026-08-31", endDay: "2027-12-04" });
   });
 });
