@@ -59,12 +59,13 @@ describe("useFieldDraft", () => {
   let setStored: (v: string) => void = () => {};
 
   /** A field over a stored value, like every settings page has one. */
-  function Field({ multiline, normalize }: { multiline?: boolean; normalize?: (v: string) => string }) {
+  function Field({ multiline, normalize, refuse }: { multiline?: boolean; normalize?: (v: string) => string; refuse?: (v: string) => boolean }) {
     const [stored, set] = useState("Daily");
     setStored = set;
     const draft = useFieldDraft({
       value: stored,
       normalize,
+      refuse,
       onSave: (v) => {
         saves.push(v);
         if (failNext) {
@@ -137,6 +138,32 @@ describe("useFieldDraft", () => {
     await act(async () => { edit(el, "Arch", 4); });
     await act(async () => { root.render(<></>); });
     expect(saves).toEqual(["Arch"]);
+  });
+
+  it("does not save a value it refuses, says why once, and shows the stored value when left (3.127 no. 4)", async () => {
+    const reasons: string[] = [];
+    const refuse = (v: string) => {
+      if (!v.startsWith(".plainva")) return false;
+      reasons.push(v);
+      return true;
+    };
+    await act(async () => { root.render(<Field refuse={refuse} />); });
+    const el = field();
+    el.focus();
+    await act(async () => { edit(el, ".plainva/Daily", 14); });
+    // A pause while typing: refused, and the text stays under the fingers.
+    await act(async () => { vi.advanceTimersByTime(FIELD_DRAFT_DELAY_MS); });
+    expect(saves).toEqual([]);
+    expect(el.value).toBe(".plainva/Daily");
+    await act(async () => { el.blur(); });
+    expect(saves).toEqual([]);
+    expect(reasons).toEqual([".plainva/Daily"]);
+    expect(el.value).toBe("Daily");
+    // A value it takes is saved as before.
+    el.focus();
+    await act(async () => { edit(el, "Journal", 7); });
+    await act(async () => { el.blur(); });
+    expect(saves).toEqual(["Journal"]);
   });
 
   it("takes over a change from elsewhere while idle — never under the caret", async () => {

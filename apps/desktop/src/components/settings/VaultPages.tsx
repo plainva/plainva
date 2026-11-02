@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Folder, X } from "lucide-react";
-import { Button, choicesWith, CommittedTextInput, DAY_END_CHOICES, VERSION_INTERVAL_CHOICES, VERSION_MAX_AGE_CHOICES, versionIntervalLabel, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, Switch, boundaryLabel, clampBoundary, okfBundleStatusLines, sanitizeDailyNoteFormat, travelsWithVault, type CloudServiceId } from "@plainva/ui";
+import { Button, choicesWith, CommittedTextInput, refuseVaultPathSetting, DAY_END_CHOICES, VERSION_INTERVAL_CHOICES, VERSION_MAX_AGE_CHOICES, versionIntervalLabel, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, Switch, boundaryLabel, clampBoundary, okfBundleStatusLines, sanitizeDailyNoteFormat, travelsWithVault, type CloudServiceId } from "@plainva/ui";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { ReminderSettings } from "../pim/ReminderSettings";
@@ -73,7 +73,7 @@ const FolderInput: React.FC<{
   const { t } = useTranslation();
   return (
     <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
-      <CommittedTextInput autoComplete="off" value={value} onSave={onSave} placeholder={placeholder} style={{ flex: 1, minWidth: 0 }} data-testid={inputTestId} />
+      <CommittedTextInput autoComplete="off" value={value} onSave={onSave} refuse={refuseVaultPathSetting} placeholder={placeholder} style={{ flex: 1, minWidth: 0 }} data-testid={inputTestId} />
       <IconButton label={t("settings.browseFolders")} data-testid={browseTestId} disabled={disabled} onClick={onBrowse}>
         <Folder size={ICON.ui} />
       </IconButton>
@@ -172,6 +172,7 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
                   autoComplete="off"
                   className="pv-rule-from"
                   value={rule.folder}
+                  refuse={refuseVaultPathSetting}
                   placeholder={t("settings.ruleFolderPlaceholder", { defaultValue: "Ordner …" })}
                   aria-label={t("settings.folderTemplates", { defaultValue: "Vorlagen je Ordner" })}
                   onSave={(folder) =>
@@ -299,7 +300,7 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
                 />
               </div>
             ) : (
-              <CommittedTextInput autoComplete="off" value={p.taskDatabase} onSave={p.onTaskDatabase} placeholder="Tasks.base" style={{ flex: 1, minWidth: 0 }} />
+              <CommittedTextInput autoComplete="off" value={p.taskDatabase} onSave={p.onTaskDatabase} refuse={refuseVaultPathSetting} placeholder="Tasks.base" style={{ flex: 1, minWidth: 0 }} />
             )}
             <button
               onClick={p.onCreateTaskDb}
@@ -387,7 +388,7 @@ export const JournalPage: React.FC<JournalPageProps> = (p) => {
               options={[{ value: "", label: "—" }, ...p.templateFiles.map((f) => ({ value: f, label: f }))]}
             />
           ) : (
-            <CommittedTextInput autoComplete="off" value={p.dailyNoteTemplate} onSave={p.onDailyNoteTemplate} placeholder="DailyTemplate.md" style={{ width: "100%" }} />
+            <CommittedTextInput autoComplete="off" value={p.dailyNoteTemplate} onSave={p.onDailyNoteTemplate} refuse={refuseVaultPathSetting} placeholder="DailyTemplate.md" style={{ width: "100%" }} />
           )}
         </SettingRow>
         <SettingRow label={t("settings.dailyNoteType")} info={t("settings.dailyNoteTypeDesc")}>

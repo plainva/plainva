@@ -19,6 +19,13 @@ export interface FieldDraftOptions {
   normalize?: (draft: string) => string;
   /** Debounce while typing; blur, Enter and unmount save at once. */
   delay?: number;
+  /**
+   * Says why a (normalized) value cannot be stored and answers true, or
+   * answers false (3.127 no. 4: a vault path into `.plainva`). A refused
+   * value is not saved; once the field is left it shows the stored value
+   * again. Asked once per refused value, so the reason is said once.
+   */
+  refuse?: (value: string) => boolean;
 }
 
 /** Props for any text control: spread them onto an `<input>` or `TextInput`. */
@@ -52,7 +59,7 @@ export interface FieldDraftProps {
  * `settingsFieldDraft.test.tsx` (desktop) keep a stored value from being bound
  * to a field, or rewritten under the caret, again.
  */
-export function useFieldDraft({ value, onSave, normalize, delay = FIELD_DRAFT_DELAY_MS }: FieldDraftOptions): FieldDraftProps & { flush: () => string } {
+export function useFieldDraft({ value, onSave, normalize, delay = FIELD_DRAFT_DELAY_MS, refuse }: FieldDraftOptions): FieldDraftProps & { flush: () => string } {
   const [draft, setDraft] = useState(value);
   const draftRef = useRef(value);
   /** The value known to be stored: the last one received or saved; null after a failed save. */
@@ -63,9 +70,15 @@ export function useFieldDraft({ value, onSave, normalize, delay = FIELD_DRAFT_DE
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const saveRef = useRef(onSave);
   const normalizeRef = useRef(normalize);
+  const refuseRef = useRef(refuse);
+  /** The stored value as last received: what a refused draft goes back to. */
+  const storedRef = useRef(value);
+  /** The last value refused, so its reason is said once. */
+  const refusedRef = useRef<string | null>(null);
   useEffect(() => {
     saveRef.current = onSave;
     normalizeRef.current = normalize;
+    refuseRef.current = refuse;
   });
 
   /**
@@ -79,6 +92,13 @@ export function useFieldDraft({ value, onSave, normalize, delay = FIELD_DRAFT_DE
     if (!dirtyRef.current) return savedRef.current ?? draftRef.current;
     dirtyRef.current = false;
     const out = normalizeRef.current ? normalizeRef.current(draftRef.current) : draftRef.current;
+    if (refuseRef.current && out !== savedRef.current) {
+      if (out === refusedRef.current || refuseRef.current(out)) {
+        refusedRef.current = out;
+        return storedRef.current;
+      }
+      refusedRef.current = null;
+    }
     if (out !== savedRef.current) {
       savedRef.current = out;
       const save = saveRef.current;
@@ -102,6 +122,7 @@ export function useFieldDraft({ value, onSave, normalize, delay = FIELD_DRAFT_DE
   // only the bookkeeping follows: the text under the caret stays the person's.
   useEffect(() => {
     savedRef.current = value;
+    storedRef.current = value;
     if (focusedRef.current || dirtyRef.current) return;
     draftRef.current = value;
     setDraft(value);

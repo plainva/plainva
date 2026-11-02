@@ -44,6 +44,7 @@ export * from "./lib/recentSearches";
 export * from "./lib/rowSelection";
 export * from "./lib/quarantineGroups";
 export * from "./lib/profileFields";
+export * from "./lib/vaultPathSetting";
 export * from "./lib/syncDiagnostics";
 export * from "./lib/taskList";
 export * from "./lib/templateActions";

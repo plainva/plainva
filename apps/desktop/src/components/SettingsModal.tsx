@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { getSettingsStore } from "../services/settingsStore";
 import { listVaultFolders as sharedListVaultFolders } from "../services/vaultFolders";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
-import { clampBoundary, placeStampEnabled, setExtraTextExtensions, setPlaceStampEnabled, splitTextFileExtensions, toast } from "@plainva/ui";
+import { clampBoundary, placeStampEnabled, refuseVaultPathSetting, setExtraTextExtensions, setPlaceStampEnabled, splitTextFileExtensions, toast } from "@plainva/ui";
 import { listTemplates } from "../services/newItemFlow";
 import { requestWelcomeOnNextStart } from "../services/whatsNew";
 import { mkdir } from "@tauri-apps/plugin-fs";
@@ -1137,6 +1137,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
           rootLabel={basename(section)}
           listFolders={listVaultFolders}
           onSelect={(picked) => {
+            // The browser lists `.plainva` as well: no folder setting may point there (3.127 no. 4).
+            if (refuseVaultPathSetting(picked)) return;
             if (typeof vaultFolderPicker === "object") {
               const index = vaultFolderPicker.rule;
               const next = folderTemplates.map((r, i) => (i === index ? { ...r, folder: picked } : r));

@@ -1,4 +1,4 @@
-import { setForeignLegacyComments } from "@plainva/ui";
+import { isVaultPathSetting, setForeignLegacyComments } from "@plainva/ui";
 /**
  * Desktop profile-sync port (settings-sync plan P1). Bridges the vault's
  * syncable per-vault settings (content placement, backup retention, sync
@@ -695,12 +695,9 @@ const PATH_FIELDS = new Set(["dailyNotesFolder", "dailyNoteTemplate", "templateF
 const BOOLEAN_FIELDS = new Set(["extendedDatabases", "mailRemoteImages", "backupZipEnabled", "commentAnchors"]);
 const NUMBER_FIELDS = new Set(["syncIntervalSeconds", "backupSnapshotIntervalSeconds", "backupMaxCountPerFile", "backupMaxAgeDays", "backupZipKeep"]);
 
+/** One rule for both shells, typed in or carried over (`isVaultPathSetting`, 3.127 no. 4). */
 function validVaultPath(value: string): boolean {
-  if (value === "") return true; // explicit "disabled / use default" setting
-  if (value.length > 1024 || value.includes("\0") || value.includes("\\")) return false;
-  if (/^(?:[a-z]+:|\/|[A-Za-z]:|\\\\)/.test(value)) return false;
-  const parts = value.split("/");
-  return !parts.some((part) => part === ".." || part === ".") && parts[0] !== ".plainva";
+  return isVaultPathSetting(value);
 }
 
 /**

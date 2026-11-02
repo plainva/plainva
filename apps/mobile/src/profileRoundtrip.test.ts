@@ -39,6 +39,17 @@ describe("profile roundtrip into mobile settings", () => {
     expect(skipped[0]).toContain("dailyNotesFolder");
   });
 
+  it("refuses a folder or file setting under .plainva or out of the vault, as the desktop does (3.127 no. 4)", () => {
+    // The phone refused only a leading "/": a daily-notes folder under the
+    // app's own folder came over from another device.
+    for (const bad of [".plainva/Daily", "../Outside", "Daily\\Sub", "C:/Vault/Daily", "./Daily"]) {
+      const { patch, skipped } = importVaultSettings({ dailyNotesFolder: bad, templateFolder: bad });
+      expect(patch, bad).toEqual({});
+      expect(skipped, bad).toEqual(["invalid vault-relative path in dailyNotesFolder", "invalid vault-relative path in templateFolder"]);
+    }
+    expect(importVaultSettings({ dailyNotesFolder: "Journal/2026" }).patch).toEqual({ dailyFolder: "Journal/2026" });
+  });
+
   it("drops a number below its floor rather than clamping it", () => {
     // A wrong value from elsewhere should not silently become a valid-looking
     // local one; two seconds between cycles is not a setting we quietly accept.

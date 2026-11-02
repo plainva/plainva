@@ -1,5 +1,5 @@
 import { FolderSearch } from "lucide-react";
-import { CommittedTextInput, ICON, IconButton, SettingField, type InfoContent } from "@plainva/ui";
+import { CommittedTextInput, ICON, IconButton, refuseVaultPathSetting, SettingField, type InfoContent } from "@plainva/ui";
 
 /**
  * A vault path as a card row: free text plus the vault-internal folder browser.
@@ -50,7 +50,8 @@ export function FolderField({
       info={info}
       label={label}
     >
-      <CommittedTextInput normalize={normalize} onSave={onSave} placeholder={placeholder} value={value} />
+      {/* No folder under .plainva or outside the vault (3.127 no. 4). */}
+      <CommittedTextInput normalize={normalize} onSave={onSave} refuse={refuseVaultPathSetting} placeholder={placeholder} value={value} />
     </SettingField>
   );
 }

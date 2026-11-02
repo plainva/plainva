@@ -3007,6 +3007,42 @@ test('Settings VAULT pages: notes & filing and the journal are two pages, OKF an
 
 /* -------------------- 2026-07-18: unresolved wiki links create the target note (Obsidian parity) */
 
+/**
+ * No folder setting points under `.plainva` or out of the vault (open-items
+ * plan 3.127 no. 4). Typed in by hand, the desktop's folder fields took such a
+ * path: notes there are not indexed, not synced and get no versions. The field
+ * now says why and goes back to what is stored; a path inside the vault is
+ * saved as before.
+ */
+test('a folder setting under .plainva is refused and said; one inside the vault is kept', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Notizen & Ablage|Notes & filing)$/ }).click();
+
+  const inbox = dialog.getByTestId('inbox-folder');
+  await expect(inbox).toBeVisible();
+  const before = await inbox.inputValue();
+
+  await inbox.fill('.plainva/Inbox');
+  await inbox.press('Tab');
+  const toast = page.locator('.pv-toast').filter({ hasText: '.plainva/Inbox' });
+  await expect(toast).toBeVisible();
+  await expect(inbox).toHaveValue(before);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('vault-path-refused.png') });
+
+  await inbox.fill('Eingang');
+  await inbox.press('Tab');
+  await expect(inbox).toHaveValue('Eingang');
+  // Saved: the page shows it again after a round through another page.
+  await dialog.getByRole('button', { name: /^(Tagesnotizen & Journal|Daily notes & journal)$/ }).click();
+  await dialog.getByRole('button', { name: /^(Notizen & Ablage|Notes & filing)$/ }).click();
+  await expect(dialog.getByTestId('inbox-folder')).toHaveValue('Eingang');
+});
+
 test('Clicking an unresolved wiki link creates and opens the note', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).mockFs['/test-vault/LinkTest.md'] = '# Link Test\n\nGo to [[Ghost]] now.\n';

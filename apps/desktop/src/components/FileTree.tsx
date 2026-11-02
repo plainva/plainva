@@ -841,7 +841,7 @@ export const FileTree: React.FC<{
         isFolder,
         // .base renames sweep templateFor assignments in the template folder (plan P4).
         templateFolder:
-          !isFolder && oldPath.toLowerCase().endsWith(".base") && vaultPath
+          (isFolder || oldPath.toLowerCase().endsWith(".base")) && vaultPath
             ? await getTemplateFolder(vaultPath)
             : undefined,
       });
@@ -1085,13 +1085,14 @@ export const FileTree: React.FC<{
       else toast.error(t("dialogs.renameErrorMsg", { error: errorText(err) }));
       return;
     }
-    const { moved, errors, followUpErrors } = await moveItems(
+    const { moved, errors, followUpErrors, linkUpdateFailed } = await moveItems(
       {
         adapter: vaultAdapter,
         queryService,
         indexer,
         isFolder: (path) => folderPaths.has(path),
         onMoved: (from, to) => onRenameTabPrefix?.(from, to),
+        templateFolder: async () => (vaultPath ? await getTemplateFolder(vaultPath) : undefined),
       },
       candidates,
       targetFolderPath,
@@ -1106,6 +1107,8 @@ export const FileTree: React.FC<{
     for (const { name, error } of followUpErrors) {
       toast.warning(t("dialogs.movedWithFollowUpError", { name, error }));
     }
+    // A template that names a moved database could not follow it (3.71 no. 4).
+    if (linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));
   });
 
   const handleDrop = useStableHandler(async (e: React.DragEvent, targetFolderPath: string) => {

@@ -246,6 +246,12 @@ export interface TemplateForSweepResult {
   failed: string[];
 }
 
+/** One path that changed: a file, or a folder with everything under it. */
+export interface VaultPathMove {
+  from: string;
+  to: string;
+}
+
 /**
  * Carries `plainva.templateFor` assignments across a `.base` rename (plan P4):
  * the plainva namespace is deliberately absent from the link index, so the
@@ -264,27 +270,105 @@ export async function retargetTemplateForInFolder(opts: {
    * fine — oldBasePath is swapped for newBasePath internally. */
   allFilePaths: readonly string[];
 }): Promise<TemplateForSweepResult> {
-  const { adapter, folder, oldBasePath, newBasePath } = opts;
-  const adjusted = opts.allFilePaths.map((p) => (p === oldBasePath ? newBasePath : p));
-  const bareTarget = wikiTargetForFile(newBasePath, adjusted);
+  return retargetTemplateForMoves({
+    adapter: opts.adapter,
+    folder: opts.folder,
+    moves: [{ from: opts.oldBasePath, to: opts.newBasePath }],
+    allFilePaths: opts.allFilePaths,
+  });
+}
+
+/**
+ * What every path change of a file or folder calls in both shells: the
+ * template assignments follow the databases that moved. The databases come
+ * from the index as it was before the move; without a template folder or an
+ * index, or for moves that carry no database, nothing is read.
+ */
+export async function carryTemplateAssignments(
+  deps: {
+    adapter: ScopedTemplateListAdapter & TextUpdateFiles;
+    queryService: { listBaseFilePaths(): Promise<string[]> } | null | undefined;
+  },
+  folder: string | undefined,
+  moves: readonly VaultPathMove[],
+): Promise<TemplateForSweepResult> {
+  const nothing: TemplateForSweepResult = { changedPaths: [], renamed: 0, failed: [] };
+  if (!folder?.trim() || !deps.queryService || moves.length === 0) return nothing;
+  const bases = new Set(await deps.queryService.listBaseFilePaths());
+  for (const move of moves) if (move.from.toLowerCase().endsWith(".base")) bases.add(move.from);
+  return retargetTemplateForMoves({ adapter: deps.adapter, folder: folder.trim(), moves, allFilePaths: [...bases] });
+}
+
+/**
+ * The same sweep for every way a `.base` changes its path (open-items plan
+ * 3.71 no. 4): renamed, moved to another folder, or carried along when its
+ * folder is renamed or moved — in both shells. Only the in-folder rename of
+ * the desktop carried the assignments; a move left a qualified entry
+ * (`[[Projects/Tasks.base]]`) naming a file that was no longer there, and the
+ * phone carried none at all.
+ *
+ * `moves` are the paths as they were and are now; a folder move covers every
+ * `.base` of `allFilePaths` under it. A bare entry changes only when the name
+ * changed (a bare name still finds a database that only moved); a qualified
+ * entry changes whenever the path did.
+ */
+export async function retargetTemplateForMoves(opts: {
+  adapter: ScopedTemplateListAdapter & TextUpdateFiles;
+  folder: string;
+  moves: readonly VaultPathMove[];
+  /** Vault file list as before the moves, for collision-safe bare targets. */
+  allFilePaths: readonly string[];
+}): Promise<TemplateForSweepResult> {
+  const { adapter, folder } = opts;
   const changedPaths: string[] = [];
   const failed: string[] = [];
   let renamed = 0;
+
+  // Every database that changed its path, old path to new.
+  const baseMoves = new Map<string, string>();
+  const known = new Set(opts.allFilePaths);
+  for (const move of opts.moves) {
+    if (move.from === move.to) continue;
+    if (move.from.toLowerCase().endsWith(".base")) baseMoves.set(move.from, move.to);
+    const prefix = `${move.from}/`;
+    for (const path of known) {
+      if (path.startsWith(prefix) && path.toLowerCase().endsWith(".base")) baseMoves.set(path, `${move.to}/${path.slice(prefix.length)}`);
+    }
+  }
+  if (baseMoves.size === 0) return { changedPaths, renamed, failed };
+  const adjusted = opts.allFilePaths.map((p) => baseMoves.get(p) ?? p);
+  const nameOf = (p: string) => p.split("/").pop() ?? p;
+
+  /** What an entry names now: its new link text, or null where it names none of the moved databases. */
+  const movedTarget = (target: string): string | null => {
+    const qualified = target.includes("/") || target.includes("\\");
+    for (const [from, to] of baseMoves) {
+      if (!templateMatchesBase([target], from)) continue;
+      if (qualified) return `[[${to}]]`;
+      // A bare name still finds a database that only moved.
+      if (normalizedVaultPath(nameOf(from)) === normalizedVaultPath(nameOf(to))) return null;
+      return `[[${wikiTargetForFile(to, adjusted)}]]`;
+    }
+    return null;
+  };
 
   const retargeted = (content: string): { hits: number; next: string | null } => {
     const raw = rawTemplateForOf(content);
     let hits = 0;
     const next = (raw?.values ?? []).map((value) => {
       const target = templateForTargetOf(value);
-      if (target === null || !templateMatchesBase([target], oldBasePath)) return value;
+      const moved = target === null ? null : movedTarget(target);
+      if (moved === null) return value;
       hits++;
-      const qualified = target.includes("/") || target.includes("\\");
-      return `[[${qualified ? newBasePath : bareTarget}]]`;
+      return moved;
     });
     return { hits, next: !raw || hits === 0 ? null : setFrontmatterPath(content, TEMPLATE_FOR_PATH, raw.scalar ? next[0] : next) };
   };
 
-  for (const item of await listTemplates(adapter, folder)) {
+  // The template folder itself may be among the moves: its templates are read where they are now.
+  const movedFolder = opts.moves.find((m) => folder === m.from || folder.startsWith(`${m.from}/`));
+  const folderNow = movedFolder ? `${movedFolder.to}${folder.slice(movedFolder.from.length)}` : folder;
+  for (const item of await listTemplates(adapter, folderNow)) {
     try {
       // Counted on the template as it was changed; a working copy of an open conflict is retargeted the same way.
       const update = await updateVaultText(adapter, item.path, (content) => retargeted(content).next);
@@ -293,7 +377,7 @@ export async function retargetTemplateForInFolder(opts: {
       changedPaths.push(item.path);
       renamed += hits;
     } catch (e) {
-      // The rename itself must go through. A template that is gone since it
+      // The move itself must go through. A template that is gone since it
       // was listed names no database any more; one that is there and could
       // not be read or written may still name the old file.
       if (!isFileNotFound(e)) failed.push(item.path);

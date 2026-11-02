@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Users } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, Switch, familyOfMailAccount, serviceConnectionMessage, toast, type CloudServiceId, InfoTip } from "@plainva/ui";
+import { Banner, Button, EmptyState, ICON, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, Switch, familyOfMailAccount, refuseVaultPathSetting, serviceConnectionMessage, toast, type CloudServiceId, InfoTip } from "@plainva/ui";
 import { RulesSettings } from "./RulesSettings";
 import { VacationSettings } from "./VacationSettings";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
@@ -316,6 +316,11 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
   const persistMailFolder = useCallback(async () => {
     if (!vaultPath) return;
     const store = await getSettingsStore();
+    // No folder under .plainva or outside the vault (3.127 no. 4): the field goes back to what is stored.
+    if (refuseVaultPathSetting(mailFolder.trim())) {
+      setMailFolder((await store.get<string>(mailFolderKey(vaultPath))) ?? "");
+      return;
+    }
     await store.set(mailFolderKey(vaultPath), mailFolder.trim());
     await store.save();
   }, [vaultPath, mailFolder]);

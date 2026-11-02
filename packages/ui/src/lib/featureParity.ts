@@ -1511,25 +1511,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-26",
   },
   {
-    id: "profile-import-folder-check",
-    title: "A settings profile cannot point a folder setting into .plainva",
-    area: "vault",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "The desktop's profile import refuses a folder or file setting that " +
-      "points into the app's own folder (validVaultPath in settingsProfile.ts). " +
-      "The phone's import refuses only a leading slash " +
-      "(mobileSettingsSync.ts), so a daily-notes, template or meeting folder " +
-      "under .plainva from another device is taken over; notes there are not " +
-      "indexed, not synced and get no versions. Typed in by hand, the desktop's " +
-      "fields take such a path as well - the same check belongs to every such " +
-      "field in both shells. Written down on 2026-10-30; open-items plan 3.127 " +
-      "no. 4.",
-    verified: "2026-10-30",
-  },
-  {
     id: "settings-backup-zip-destination",
     title: "Where the daily ZIP archive goes: choose, reset and open the folder (Backup & version history)",
     area: "vault",

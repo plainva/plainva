@@ -653,8 +653,8 @@ const STRETCHES: Stretch[] = [
     says: [/\} catch \{\s*\}\s*\}\s*return text;/],
   },
   {
-    file: "packages/ui/src/base/templateFiles.ts", at: "export async function retargetTemplateForInFolder(", span: 1900, calls: { [set]: 1 },
-    how: "the sweep behind a database's rename: a template that could not be written is answered in failed, and the rename says that not every link could be updated",
+    file: "packages/ui/src/base/templateFiles.ts", at: "export async function retargetTemplateForMoves(", until: "\n}\n", calls: { [set]: 1 },
+    how: "the sweep behind a database's rename or move (3.71 no. 4): a template that could not be written is answered in failed, and the rename or move says that not every link could be updated",
     says: [/if \(!isFileNotFound\(e\)\) failed\.push\(item\.path\);/, /return \{ changedPaths, renamed, failed \};/],
   },
   {

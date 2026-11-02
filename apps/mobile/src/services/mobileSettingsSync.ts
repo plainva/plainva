@@ -1,4 +1,4 @@
-import { setForeignLegacyComments } from "@plainva/ui";
+import { isVaultPathSetting, setForeignLegacyComments } from "@plainva/ui";
 import {
   ENCRYPTION_MANIFEST_PATH,
   EncryptingSyncTarget,
@@ -583,7 +583,9 @@ export function importVaultSettings(
     if (value === undefined) continue;
     if (field.kind === "vaultPath" || field.kind === "text") {
       if (typeof value !== "string") skipped.push(`invalid text in ${field.logical}`);
-      else if (field.kind === "vaultPath" && value.startsWith("/")) skipped.push(`invalid vault-relative path in ${field.logical}`);
+      // The desktop's rule, one for both shells (3.127 no. 4): a leading "/" was
+      // all the phone refused, so a folder under .plainva came over.
+      else if (field.kind === "vaultPath" && !isVaultPathSetting(value)) skipped.push(`invalid vault-relative path in ${field.logical}`);
       else set(prop, value);
     } else if (field.kind === "number") {
       const floor = field.logical === "syncIntervalSeconds" ? MIN_SYNC_INTERVAL_SECONDS : (field.min ?? 0);
@@ -751,11 +753,13 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
         // a profile that carries folder rules but no type rules must not imply
         // anything about the other one.
         const rulePatch: Partial<VaultSettings> = {};
+        // A rule whose folder or template is no path in the vault is dropped,
+        // as the desktop's import drops it (3.127 no. 4).
         rulePatch.folderTemplates = canonical.folderTemplates !== undefined
-          ? parseFolderTemplateRules(canonical.folderTemplates)
+          ? parseFolderTemplateRules(canonical.folderTemplates).filter((rule) => isVaultPathSetting(rule.folder) && isVaultPathSetting(rule.template))
           : profileDefault<VaultSettings["folderTemplates"]>("folderTemplates");
         rulePatch.typeTemplates = canonical.typeTemplates !== undefined
-          ? parseTypeTemplateRules(canonical.typeTemplates)
+          ? parseTypeTemplateRules(canonical.typeTemplates).filter((rule) => isVaultPathSetting(rule.template))
           : profileDefault<VaultSettings["typeTemplates"]>("typeTemplates");
         // Same treatment for the calendar's database selection (S18b). A member
         // that is not a string is dropped rather than passed on: a malformed key

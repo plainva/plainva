@@ -8,6 +8,7 @@ import {
   parseTemplateForTargets,
   removeTemplateForAssignment,
   retargetTemplateForInFolder,
+  retargetTemplateForMoves,
   templateAsNewNote,
   templateMatchesBase,
   type ScopedTemplateItem,
@@ -266,5 +267,51 @@ describe("retargetTemplateForInFolder (a database renamed)", () => {
     const { store, adapter } = folder({ "Templates/Task.md": TASK, "Templates/Locked.md": LOCKED }, { held: ["Templates/Locked.md"] });
     expect(await rename(adapter)).toEqual({ changedPaths: ["Templates/Task.md"], renamed: 1, failed: ["Templates/Locked.md"] });
     expect(store.get("Templates/Locked.md")).toBe(LOCKED);
+  });
+});
+
+describe("retargetTemplateForMoves (a database moved, or its folder) — 3.71 no. 4", () => {
+  // Only the in-folder rename of the desktop carried the assignments: a move
+  // (a file dragged into another folder, a folder renamed or moved, on either
+  // shell) left a qualified entry naming a file that was no longer there.
+  const QUALIFIED = '---\nplainva:\n  templateFor: "[[Projects/Tasks.base]]"\n---\n# {{title}}\n';
+  const BARE = '---\nplainva:\n  templateFor: "[[Tasks.base]]"\n---\n# {{title}}\n';
+  function folder(files: Record<string, string>) {
+    const store = new Map(Object.entries(files));
+    const adapter = {
+      exists: async () => true,
+      listDir: async () => [...store.keys()].map((path) => ({ path, isDirectory: false })),
+      readTextFile: async (path: string) => store.get(path)!,
+      writeTextFile: async (path: string, text: string) => { store.set(path, text); },
+    };
+    return { store, adapter };
+  }
+  const all = ["Projects/Tasks.base", "Notes.base"];
+
+  it("a database moved to another folder: the qualified entry follows, the bare one still finds it", async () => {
+    const { store, adapter } = folder({ "Templates/Q.md": QUALIFIED, "Templates/B.md": BARE });
+    const result = await retargetTemplateForMoves({ adapter, folder: "Templates", moves: [{ from: "Projects/Tasks.base", to: "Archive/Tasks.base" }], allFilePaths: all });
+    expect(result).toEqual({ changedPaths: ["Templates/Q.md"], renamed: 1, failed: [] });
+    expect(parseTemplateForTargets(store.get("Templates/Q.md")!)).toEqual(["Archive/Tasks.base"]);
+    expect(store.get("Templates/B.md")).toBe(BARE);
+  });
+
+  it("a folder renamed or moved carries the databases under it", async () => {
+    const { store, adapter } = folder({ "Templates/Q.md": QUALIFIED });
+    const result = await retargetTemplateForMoves({ adapter, folder: "Templates", moves: [{ from: "Projects", to: "Areas/Work" }], allFilePaths: all });
+    expect(result.renamed).toBe(1);
+    expect(parseTemplateForTargets(store.get("Templates/Q.md")!)).toEqual(["Areas/Work/Tasks.base"]);
+  });
+
+  it("renamed and moved at once: the bare entry takes the new name", async () => {
+    const { store, adapter } = folder({ "Templates/B.md": BARE });
+    await retargetTemplateForMoves({ adapter, folder: "Templates", moves: [{ from: "Projects/Tasks.base", to: "Archive/Work.base" }], allFilePaths: all });
+    expect(parseTemplateForTargets(store.get("Templates/B.md")!)).toEqual(["Work.base"]);
+  });
+
+  it("finds the templates where they are now when the template folder moved along", async () => {
+    const { store, adapter } = folder({ "Work/Templates/Q.md": '---\nplainva:\n  templateFor: "[[Work/Tasks.base]]"\n---\n' });
+    await retargetTemplateForMoves({ adapter, folder: "Work/Templates", moves: [{ from: "Work", to: "Done/Work" }], allFilePaths: ["Work/Tasks.base", "Work/Templates/Q.md"] });
+    expect(parseTemplateForTargets(store.get("Work/Templates/Q.md")!)).toEqual(["Done/Work/Tasks.base"]);
   });
 });

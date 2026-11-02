@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, RefreshCw } from "lucide-react";
-import { AccountFailureNote, Banner, Button, EmptyState, ICON, MEETING_TEMPLATE_TOKENS, SettingCard, SettingCardActions, SettingCardBlock, SettingCardNote, SettingRow, TextInput, listTemplates, logDiagnostic, needsReauthorisation, pimAccountFailure, pimProviderName, reviewDuplicatePimRows, type CloudServiceId } from "@plainva/ui";
+import { AccountFailureNote, Banner, Button, EmptyState, ICON, MEETING_TEMPLATE_TOKENS, SettingCard, SettingCardActions, SettingCardBlock, SettingCardNote, SettingRow, TextInput, listTemplates, logDiagnostic, needsReauthorisation, pimAccountFailure, pimProviderName, refuseVaultPathSetting, reviewDuplicatePimRows, type CloudServiceId } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar, PimTaskList } from "@plainva/core";
 import { useVault, meetingFolderKey, meetingNoteTemplateKey, templateFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -111,6 +111,11 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
   const persistMeetingFolder = useCallback(async () => {
     if (!vaultPath) return;
     const store = await getSettingsStore();
+    // No folder under .plainva or outside the vault (3.127 no. 4): the field goes back to what is stored.
+    if (refuseVaultPathSetting(meetingFolder.trim())) {
+      setMeetingFolder((await store.get<string>(meetingFolderKey(vaultPath))) ?? "");
+      return;
+    }
     await store.set(meetingFolderKey(vaultPath), meetingFolder.trim());
     await store.save();
   }, [vaultPath, meetingFolder]);
@@ -140,6 +145,10 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
     async (value: string) => {
       if (!vaultPath) return;
       const store = await getSettingsStore();
+      if (refuseVaultPathSetting(value.trim())) {
+        setMeetingTemplate((await store.get<string>(meetingNoteTemplateKey(vaultPath))) ?? "");
+        return;
+      }
       await store.set(meetingNoteTemplateKey(vaultPath), value.trim());
       await store.save();
     },

@@ -84,6 +84,7 @@ import {
   serializeRecentsFile,
   parkTemplateCaret,
   sweepPinboardRefs,
+  carryTemplateAssignments,
   toast,
   isImagePath,
   wikiTargetToPath,
@@ -1038,6 +1039,25 @@ function reportFollowUp(to: string, error: string | undefined): void {
   if (error) toast.warning(i18n.t("dialogs.movedWithFollowUpError", { name: moveItemName(to), error }));
 }
 
+/**
+ * The template assignments (`plainva.templateFor`) of the databases a move
+ * carried follow them (open-items plan 3.71 no. 4) — the sweep the desktop
+ * runs, from @plainva/ui. A template that could not follow is said with the
+ * sentence of a rename whose links could not all be updated. Returns the
+ * templates it changed, for the index.
+ */
+async function carryTemplatesAfterMove(v: MobileVault, moves: Array<{ from: string; to: string }>): Promise<string[]> {
+  try {
+    const sweep = await carryTemplateAssignments({ adapter: v.files, queryService: v.queryService }, getMobileSettings().templateFolder, moves);
+    if (sweep.failed.length > 0) toast.warning(i18n.t("dialogs.renameLinksFailed"));
+    return sweep.changedPaths;
+  } catch (e) {
+    console.warn("[vaultService] templateFor sweep after move failed", e);
+    toast.warning(i18n.t("dialogs.renameLinksFailed"));
+    return [];
+  }
+}
+
 /** Callers of a move: the refusal was already said; everything else is a failed move. */
 export function reportMoveFailure(error: unknown): void {
   if (error instanceof MoveBlockedError) return;
@@ -1226,6 +1246,10 @@ export const vaultOps = {
     // Pinboard arrangements store vault-relative paths (plan Pinboard P5):
     // rewrite them by prefix so cards under the folder keep position and pin.
     await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [], [{ from: oldPath, to: newPath }]).catch(() => {});
+    // The databases in the folder take their template assignments along
+    // (3.71 no. 4); before, the phone carried none, and a qualified entry
+    // named a file that was no longer there. The full pass below indexes them.
+    await carryTemplatesAfterMove(v, [{ from: oldPath, to: newPath }]);
     if (v.indexer) {
       // Rows follow first, so the full pass finds every note at its new place
       // and reports nothing as vanished (issue 113).
@@ -1260,6 +1284,8 @@ export const vaultOps = {
     const followUpError = await moveStep(v, path, newPath, () => v.files.renameItem(path, newPath));
     // Retarget pinboard arrangements (vault-relative paths, plan Pinboard P5).
     const sweptBases = await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [{ from: path, to: newPath }]).catch(() => [] as string[]);
+    // A database that moved takes its template assignments along (3.71 no. 4).
+    sweptBases.push(...(await carryTemplatesAfterMove(v, [{ from: path, to: newPath }])));
     if (v.indexer) {
       // Follows the move as a rename, never as a deletion (issue 113). The
       // databases whose pinboard places were rewritten are files like any

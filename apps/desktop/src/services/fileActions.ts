@@ -1,6 +1,6 @@
 import { retargetDesktopBookmarks } from "./bookmarks";
 import { copyFileContent, frontmatterSpan, toPathIdentity, updateVaultText, type VaultQueryService } from "@plainva/core";
-import { errorText, landedAtDestination, moveItemName, retargetTemplateForInFolder, sweepPinboardRefs, type PinboardSweepDeps } from "@plainva/ui";
+import { carryTemplateAssignments, errorText, landedAtDestination, moveItemName, retargetTemplateForInFolder, sweepPinboardRefs, type PinboardSweepDeps } from "@plainva/ui";
 import { copyCandidate, parentOf } from "../components/fileTreeModel";
 import { renameFileWithLinkUpdates, type RenameAdapter } from "./renameNote";
 
@@ -151,7 +151,7 @@ export async function renameToName(opts: {
   oldPath: string;
   newName: string;
   isFolder: boolean;
-  /** Vault-relative template folder for the `.base` templateFor sweep; omit to skip it. */
+  /** Vault-relative template folder for the templateFor sweep of a `.base` or a folder; omit to skip it. */
   templateFolder?: string;
   /**
    * Carry a mirrored H1 along (issue #34). A note created from a database gets
@@ -248,7 +248,23 @@ export async function renameToName(opts: {
   } catch (e) {
     console.warn("[fileActions] pinboard sweep after rename failed", e);
   }
-  return { ok: true, newPath, renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false, changedPaths, ...(followUpError ? { followUpError } : {}) };
+  // The databases in a renamed folder take their template assignments along (3.71 no. 4).
+  let renamedLinks = 0;
+  let changedFiles = 0;
+  let linkUpdateFailed = false;
+  if (isFolder) {
+    try {
+      const sweep = await carryTemplateAssignments({ adapter, queryService }, opts.templateFolder, [{ from: oldPath, to: newPath }]);
+      renamedLinks = sweep.renamed;
+      changedFiles = sweep.changedPaths.length;
+      for (const p of sweep.changedPaths) if (!changedPaths.includes(p)) changedPaths.push(p);
+      if (sweep.failed.length > 0) linkUpdateFailed = true;
+    } catch (e) {
+      console.warn("[fileActions] templateFor sweep after folder rename failed", e);
+      linkUpdateFailed = true;
+    }
+  }
+  return { ok: true, newPath, renamedLinks, changedFiles, linkUpdateFailed, changedPaths, ...(followUpError ? { followUpError } : {}) };
 }
 
 /** Runs a step that follows a completed move; its failure is reported, not thrown (V4). */
@@ -434,6 +450,8 @@ export interface MoveItemsDeps {
   isFolder: (path: string) => boolean;
   /** Hears every executed move, so open tabs can follow the file. */
   onMoved?: (from: string, to: string) => void;
+  /** Vault-relative template folder, resolved when a move carries a database (3.71 no. 4). */
+  templateFolder?: () => Promise<string | undefined>;
 }
 
 export interface MoveItemsResult {
@@ -446,8 +464,10 @@ export interface MoveItemsResult {
    * never as a failed move.
    */
   followUpErrors: Array<{ name: string; error: string }>;
-  /** Pinboard .base files rewritten because they referenced a moved path. */
+  /** Pinboard .base files rewritten because they referenced a moved path, and templates whose assignments followed. */
   sweptBases: string[];
+  /** A template that names a moved database could not follow it (3.71 no. 4). */
+  linkUpdateFailed: boolean;
 }
 
 /**
@@ -499,6 +519,7 @@ export async function moveItems(deps: MoveItemsDeps, sources: readonly string[],
     moved.push({ type: "move", from, to, isFolder: deps.isFolder(from) });
   }
   let sweptBases: string[] = [];
+  let linkUpdateFailed = false;
   if (moved.length > 0) {
     try {
       sweptBases = await sweepPinboardRefs(
@@ -508,6 +529,22 @@ export async function moveItems(deps: MoveItemsDeps, sources: readonly string[],
       );
     } catch (err) {
       console.warn("[fileActions] pinboard sweep after move failed", err);
+    }
+    // A moved database, or one in a moved folder, takes its template
+    // assignments along (3.71 no. 4); a template that could not follow is said.
+    if (deps.templateFolder && moved.some((o) => o.isFolder || o.to.toLowerCase().endsWith(".base"))) {
+      try {
+        const sweep = await carryTemplateAssignments(
+          { adapter: deps.adapter, queryService: deps.queryService },
+          await deps.templateFolder(),
+          moved.map((o) => ({ from: o.from, to: o.to })),
+        );
+        for (const p of sweep.changedPaths) if (!sweptBases.includes(p)) sweptBases.push(p);
+        if (sweep.failed.length > 0) linkUpdateFailed = true;
+      } catch (err) {
+        console.warn("[fileActions] templateFor sweep after move failed", err);
+        linkUpdateFailed = true;
+      }
     }
     if (deps.indexer) {
       // A moved folder changes many descendant paths → full scan; moved files
@@ -521,5 +558,5 @@ export async function moveItems(deps: MoveItemsDeps, sources: readonly string[],
       if (indexError) followUpErrors.push({ name: moved.map((o) => o.to.split("/").pop()).join(", "), error: indexError });
     }
   }
-  return { moved, errors, followUpErrors, sweptBases };
+  return { moved, errors, followUpErrors, sweptBases, linkUpdateFailed };
 }

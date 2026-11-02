@@ -26,6 +26,9 @@ import {
   recoverPersonalDesign,
   setDayBoundary,
   setExtraTextExtensions,
+  refusedVaultPaths,
+  refuseVaultPathSetting,
+  VAULT_PATH_SETTINGS_MOBILE,
   type CustomThemeSpec,
   type CustomThemeDesign,
 } from "@plainva/ui";
@@ -463,6 +466,19 @@ function writeSettings<T>(work: () => Promise<T>): Promise<T> {
 }
 
 export function updateMobileSettings(patch: Partial<Omit<MobileSettings, "customTheme">> & { customTheme?: CustomThemeSpec | CustomThemeDesign }): Promise<void> {
+  // One gate for every place that sets a vault path — a field, a folder picked
+  // in the browser, a template chosen from the list (3.127 no. 4): no folder
+  // or file setting points under .plainva or out of the vault. The field asks
+  // first (`FolderField`); what still arrives here is refused and said.
+  const refused = refusedVaultPaths(patch as Record<string, unknown>, (key) => VAULT_PATH_SETTINGS_MOBILE.has(key));
+  if (refused.length > 0) {
+    for (const key of refused) refuseVaultPathSetting(String((patch as Record<string, unknown>)[key]));
+    patch = Object.fromEntries(Object.entries(patch).filter(([key]) => !refused.includes(key))) as typeof patch;
+    if (Object.keys(patch).length === 0) {
+      window.dispatchEvent(new CustomEvent("m-settings-changed"));
+      return Promise.resolve();
+    }
+  }
   const targetVault = activeVaultId;
   return writeSettings(async () => {
     const design = patch.customTheme === undefined ? live().customTheme : parseCustomThemeDesign(patch.customTheme);
