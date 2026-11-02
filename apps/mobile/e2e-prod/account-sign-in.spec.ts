@@ -153,6 +153,10 @@ async function boot(context: BrowserContext, page: Page, seed?: (storage: Record
     // The fixture's Google calendar row (pim-fixture-1), in the vault's index once it exists.
     await waitForIndexSchema(sql, "plainva-index");
     sql.seedPim("plainva-index");
+    // The cards as seeded: the first start ran without the calendar row, and the
+    // phone's reconcile (Sammelplan § 3.105) rightly took the card's reference to
+    // a row that was not there. The fixture is one state - row and card together.
+    await page.evaluate((cards) => localStorage.setItem("CapacitorStorage.cloudAccounts_local", JSON.stringify(cards)), storage.cloudAccounts_local);
     await page.reload();
     await waitForVaultDirectory(page);
   }
@@ -165,7 +169,8 @@ async function boot(context: BrowserContext, page: Page, seed?: (storage: Record
 async function openGoogleCard(page: Page) {
   await page.locator('[data-testid="nav-settings"]').first().click();
   await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
-  await page.getByTestId("cloudacct-row").filter({ hasText: ANNA.email }).click();
+  // The card named exactly so: another row of the account may carry the address in other letters.
+  await page.getByTestId("cloudacct-row").filter({ has: page.getByText(ANNA.email, { exact: true }) }).click();
   await expect(page.getByTestId("cloudacct-detail")).toBeVisible();
 }
 
@@ -613,7 +618,14 @@ test("a calendar not signed in under a signed-in card says so on its row, and si
   harness.sql.run("plainva-index", "INSERT OR REPLACE INTO pim_accounts (id, provider, label, config, enabled) VALUES (?, ?, ?, ?, 1)", ["pim-a-old", "google", "Anna@gmail.com", JSON.stringify({ clientId: "fixture-client" })]);
   await page.reload();
   await waitForVaultDirectory(page);
-  await openGoogleCard(page);
+  // The phone reconciles its cards as the desktop does (Sammelplan § 3.105): the
+  // older row is no part of the card - it has a card of its own that asks for its
+  // sign-in, and the card's calendar is the row the card names.
+  await page.locator('[data-testid="nav-settings"]').first().click();
+  await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
+  await expect(page.getByTestId("cloudacct-row").filter({ has: page.getByText("Anna@gmail.com", { exact: true }) })).toBeVisible({ timeout: 15000 });
+  await page.getByTestId("cloudacct-row").filter({ has: page.getByText(ANNA.email, { exact: true }) }).click();
+  await expect(page.getByTestId("cloudacct-detail")).toBeVisible();
   await page.getByTestId("cloudacct-signin").click();
   await expect(page.getByTestId("cloudacct-state")).toHaveAttribute("data-state", "connected", { timeout: 15000 });
   // The card keeps its sign-in; its calendar's sign-in on this phone is gone.
