@@ -18,7 +18,10 @@ const inFlight = new Map<string, Promise<void>>();
 
 /** Parks a teardown so the next open of this vault can wait for it. */
 export function noteVaultTeardown(vaultPath: string, run: Promise<void>): void {
-  const settled = run.catch(() => undefined).then(() => {
+  // Another teardown of the same vault may still be running - a load that was
+  // called off parks one too (loadStarts.ts) - so the next open waits for both.
+  const before = inFlight.get(vaultPath);
+  const settled = Promise.all([before, run.catch(() => undefined)]).then(() => {
     if (inFlight.get(vaultPath) === settled) inFlight.delete(vaultPath);
   });
   inFlight.set(vaultPath, settled);

@@ -287,6 +287,21 @@ describe("an encrypted workspace's start that a stop overtakes (fourth review, f
   });
 });
 
+describe("an encrypted workspace's first cycle (3.119)", () => {
+  it("lifts the deferral of new files, as the plain worker's does", async () => {
+    // Until it did, a file another app put beside the app reached the
+    // workspace queue only through the reconcile at the next start.
+    const markFirstSyncComplete = vi.fn();
+    const workspaceVault = { ...vault, workspaceRuntime: {}, workspaceState: {}, markFirstSyncComplete } as unknown as MobileVault;
+    await startSyncIfConfigured(workspaceVault);
+    const encrypted = state.workerHooks[state.workerHooks.length - 1];
+    expect(encrypted?.onFirstCycleComplete).toBeTypeOf("function");
+    expect(markFirstSyncComplete).not.toHaveBeenCalled();
+    encrypted!.onFirstCycleComplete!({ skipped: [], conflictCopies: [] });
+    expect(markFirstSyncComplete).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("a vault that synced before stays one, whatever its records say (fifth review, finding 2)", () => {
   it("after a reset and a cycle that confirmed nothing, the next start creates no folder", async () => {
     // Synced with folder A.

@@ -21,6 +21,7 @@ import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from ".
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
 import { settlePendingWrites } from "../services/pendingWrites";
 import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown";
+import { LoadStarts } from "../services/loadStarts";
 import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
 import { createIndexNotices, createLimiter, formatListingReport, formatTaskSync, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
@@ -741,6 +742,9 @@ export const VaultProvider: React.FC<{
     activeLoadPathRef.current = path;
     loadAbortRef.current = new AbortController();
     const currentAbortSignal = loadAbortRef.current.signal;
+    // What this load starts on its way; a load that is called off stops it
+    // again instead of leaving it running for a vault nobody has open (3.120).
+    const loadStarts = new LoadStarts(path, currentAbortSignal);
 
     try {
       setState(s => ({ ...s, isLoading: true, error: null, loadingProgress: undefined, loadingPath: path }));
@@ -1106,6 +1110,10 @@ export const VaultProvider: React.FC<{
           }
         },
       });
+      // The index's own runs end at their next look at the signal; the next
+      // open waits until they have, and until the queue has let go.
+      loadStarts.adopt({ stop: () => indexQueue.stop(), stopAndDrain: () => indexQueue.whenIdle() });
+      loadStarts.adopt({ stop: () => {}, stopAndDrain: () => indexer.whenIdle() });
 
       // PIM runtime (calendar/task cache + pull worker). The worker only runs
       // when the vault actually has accounts — an unconfigured vault pays
@@ -1230,7 +1238,7 @@ export const VaultProvider: React.FC<{
       );
       const pimRuntime = createPimRuntime({ db: dbAdapter, vaultPath: path, onCycleEnd: () => void runTaskSyncNow() });
       try {
-        if ((await pimRuntime.cache.listAccounts()).length > 0) pimRuntime.worker.start();
+        if ((await pimRuntime.cache.listAccounts()).length > 0) loadStarts.start(pimRuntime, () => pimRuntime.worker.start());
       } catch (e) {
         console.warn("[VaultContext] starting the PIM worker failed", e);
       }
@@ -1432,9 +1440,21 @@ export const VaultProvider: React.FC<{
             syncTargetRef.current = null;
             syncProviderRef.current = null;
             const runner = await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, ...(workspaceRuntime ? { memberId: workspaceRuntime.memberId } : {}) });
-            if (runner && !currentAbortSignal.aborted) {
-              settingsOnlyRef.current = new SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs);
-              settingsOnlyRef.current.start();
+            if (runner) {
+              const settingsOnly = new SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs);
+              loadStarts.start(
+                {
+                  stop: () => {
+                    settingsOnly.stop();
+                    if (settingsOnlyRef.current === settingsOnly) settingsOnlyRef.current = null;
+                  },
+                  stopAndDrain: () => settingsOnly.stopAndDrain(),
+                },
+                () => {
+                  settingsOnlyRef.current = settingsOnly;
+                  settingsOnly.start();
+                },
+              );
             }
           } else if (workspaceSecurityStatus && workspaceStateStore) {
             const runtime = workspaceRuntime;
@@ -1529,8 +1549,7 @@ export const VaultProvider: React.FC<{
                     }
                   }
                 };
-                if (currentAbortSignal.aborted) return null;
-                worker.start();
+                if (!loadStarts.start(worker, () => worker.start())) return null;
                 return worker;
               };
               if (deferWorkspaceReconcile) {
@@ -1740,7 +1759,7 @@ export const VaultProvider: React.FC<{
                 toast.info(kept);
               }
             };
-            syncWorker.start();
+            loadStarts.start(fileWorker, () => fileWorker.start());
           }
         }
       } catch (e) {
@@ -1753,7 +1772,10 @@ export const VaultProvider: React.FC<{
         }
       }
 
-      if (currentAbortSignal.aborted) return;
+      if (currentAbortSignal.aborted) {
+        void loadStarts.abandon();
+        return;
+      }
 
       // Preserve the explicit locked status when an encrypted workspace has no
       // key material. The final load-state update below must not turn it idle.
@@ -1802,11 +1824,20 @@ export const VaultProvider: React.FC<{
         loadingPath: null,
       }));
       
+      // The open vault owns what this load started now; its teardown stops it.
+      loadStarts.settle();
+
       if (activeLoadPathRef.current === path) {
         activeLoadPathRef.current = null;
       }
     } catch (error: any) {
-      if (currentAbortSignal.aborted) return;
+      if (currentAbortSignal.aborted) {
+        void loadStarts.abandon();
+        return;
+      }
+      // A load that failed leaves no open vault behind either: nothing it
+      // started may keep running.
+      void loadStarts.abandon();
       console.error("Failed to load vault", error);
       setState(s => ({ ...s, isLoading: false, error: error.message || String(error), loadingProgress: undefined }));
       if (activeLoadPathRef.current === path) {

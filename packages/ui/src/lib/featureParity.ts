@@ -1380,25 +1380,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-03",
   },
   {
-    id: "workspace-new-file-queue",
-    title: "A new file found beside the app goes into the workspace queue at once",
-    area: "security",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "On the phone a new file the index finds queues nothing while the " +
-      "first-sync deferral holds (vaultService.ts, onNewLocalFile), and only " +
-      "the regular sync worker lifts it after its first cycle " +
-      "(markFirstSyncComplete in syncService.ts); with an encrypted workspace's " +
-      "worker it stays, so a file another app put into a picked folder reaches " +
-      "the workspace queue only through the reconcile at the next start. " +
-      "Changes and deletions are not affected. The desktop lifts the deferral " +
-      "after its first index run. Experimental part. Written down on " +
-      "2026-10-30; open-items plan 3.119.",
-    verified: "2026-10-30",
-  },
-  {
     id: "workspace-passphrase-change",
     title: "Change the passphrase that seals the keys on this device",
     area: "security",

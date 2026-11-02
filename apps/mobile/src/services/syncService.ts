@@ -1169,6 +1169,9 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     });
     encrypted.onProgress = (progress) => setProgress(progress ? { current: progress.current, total: progress.total } : null);
     encrypted.onFilesChanged = (paths) => { void v.reindexPaths(paths); notifyPulledFiles(paths); };
+    // The first cycle has looked: a file the index finds as new from now on
+    // goes into the workspace queue at once, as with the plain worker (3.119).
+    encrypted.onFirstCycleComplete = () => v.markFirstSyncComplete();
     worker = encrypted;
     setMobileCommentWorker(v, encrypted);
     setState({ status: "idle", message: null });

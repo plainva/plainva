@@ -1535,11 +1535,37 @@ export class VaultIndexer {
   /**
    * `trigger` names why the scan runs, for the diagnostics line (`onFullScan`):
    * a short token such as "open", "manual refresh" or "watcher: folder
-   * created or renamed" — never a path. A caller that joins a scan already
-   * under way gets that scan's report; its own trigger is not recorded.
+   * created or renamed" — never a path.
+   *
+   * A caller gets a scan that BEGAN after its call (open-items plan 3.118).
+   * Whoever asks for a full scan has usually just changed something - moved
+   * or removed a folder, written a daily note, converted notes - and wants
+   * the index to see it. A scan already under way may have read the index and
+   * listed the disk before that change, so it is not handed out; the caller
+   * gets the scan that follows it. Every caller arriving during one scan
+   * shares that one follow-up (its trigger is the first one's), so a burst
+   * of requests still costs at most one extra scan.
    */
   indexVaultFull(trigger = "unspecified"): Promise<IndexScanReport> {
-    if (this.fullScan) return this.fullScan;
+    if (!this.fullScan) return this.startFullScan(trigger);
+    if (!this.nextFullScan) {
+      const next: Promise<IndexScanReport> = this.fullScan
+        .catch(() => undefined)
+        .then(() => {
+          if (this.nextFullScan === next) this.nextFullScan = null;
+          // A scan that somebody started in the moment between the two began
+          // after every call that is waiting here: joining it is enough.
+          return this.fullScan ?? this.startFullScan(trigger);
+        });
+      this.nextFullScan = next;
+    }
+    return this.nextFullScan;
+  }
+
+  /** The scan that follows the one under way, shared by everyone who asked during it (indexVaultFull). */
+  private nextFullScan: Promise<IndexScanReport> | null = null;
+
+  private startFullScan(trigger: string): Promise<IndexScanReport> {
     const run = this.inPass((pass) => this.indexVaultFullInternal(pass))
       .then((report) => {
         // Like a failure, not said for a vault that is being closed: a scan
@@ -1568,7 +1594,13 @@ export class VaultIndexer {
   }
 
   /** The owner closes the shared database only after an already-started commit. */
-  async whenIdle(): Promise<void> { await this.fullScan?.catch(() => {}); }
+  async whenIdle(): Promise<void> {
+    // The scan that follows the one under way is part of being busy: a caller
+    // is waiting on it, and it reads the index the owner wants to close.
+    while (this.fullScan || this.nextFullScan) {
+      await (this.nextFullScan ?? this.fullScan)!.catch(() => {});
+    }
+  }
 
   /**
    * Whether a full scan has gone through on this index since it was empty
@@ -1863,6 +1895,10 @@ export class VaultIndexer {
         if (i % 10 === 0) {
           // Yield to event loop to allow UI updates
           await new Promise(r => setTimeout(r, 0));
+          // A vault that is being left is not written any further (3.120):
+          // the loop used to run to its end for a vault nobody had open, and
+          // the open that was called off went on behind it.
+          signal?.throwIfAborted();
         }
         i++;
         const reading = await this.readOrLeaveOut(file, unreadable);
@@ -1875,7 +1911,10 @@ export class VaultIndexer {
       // Process attachment registration (lightweight, no parsing/FTS)
       let j = 0;
       for (const file of attachmentsToIndex) {
-        if (j % 20 === 0) await new Promise(r => setTimeout(r, 0));
+        if (j % 20 === 0) {
+          await new Promise(r => setTimeout(r, 0));
+          signal?.throwIfAborted();
+        }
         j++;
         const reading = await this.readOrLeaveOut(file, unreadable);
         if (!reading) continue;
