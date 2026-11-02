@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-10-30
+Stan na: 2026-11-02
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -113,7 +113,7 @@ Ustaw **Folder szablonów** w **Ustawienia → Vault → Notatki i archiwizacja*
 | `{{date+7}}`, `{{date-1}}` | Przesuniętą datę, którą można łączyć z formatem |
 | `{{yesterday}}`, `{{tomorrow}}` | Dzień wcześniej, dzień później |
 | `{{weekday:monday}}`, `{{weekday:next friday}}` | Ten dzień tygodnia w tym lub następnym tygodniu; format następuje po drugim dwukropku: `{{weekday:monday:DD.MM.}}`. Początek tygodnia zależy od Twojego ustawienia kalendarza |
-| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Link do dzisiejszej, jutrzejszej lub wczorajszej notatki dziennej; z własną etykietą: `{{daily+1:Jutro}}` |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Link do dzisiejszej, jutrzejszej lub wczorajszej notatki dziennej; z własną etykietą: `{{daily+1:Jutro}}` — „dziś” to dzień, który trwa według ustawienia **Dzień kończy się o**; w notatce dziennej lub ze spotkania – dzień tej notatki |
 | `{{folder}}`, `{{vault}}` | Folder notatki, nazwę vaulta |
 | `{{cursor}}` | Brak tekstu — oznacza, gdzie potem trafi kursor |
 | `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Prosi Cię o tekst (wyświetlany jako *Label*) |

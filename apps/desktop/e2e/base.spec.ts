@@ -2124,6 +2124,47 @@ test('Base "Neu": a single folder source stores the item there and opens the pee
   expect(file).toContain('# Cockpit_4'); // template-less items start with an H1 (UI-UX P6)
 });
 
+// Sammelplan § 3.136 Nr. 2: "+ Entry" took the database's template or none,
+// so an entry in a folder with a rule began with a heading; the phone and every
+// other way to a new note apply the folder and type rules.
+test('Base "Neu": without a template of the database, the folder rule and then the type rule decide', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Templates'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Templates/Projekt.md'] = '---\ntype: Projekt\n---\n\n# {{title}}\n\nAus der Ordnerregel\n';
+    const b64 = (s: string) => btoa(unescape(encodeURIComponent(s)));
+    (window as any).__E2E_STORE_SEED = {
+      [`folderTemplates_${b64('/test-vault')}`]: [{ folder: 'Projekte', template: 'Projekt.md' }],
+    };
+  });
+  await page.goto('/');
+  await openBase(page, 'Cockpit');
+  await expect(page.locator('table').getByText('Alpha')).toBeVisible();
+  await page.locator('[data-tip="Neues Element anlegen"], [data-tip="Create a new item"]').click();
+  await expect(page.locator('.pv-peek-title')).toContainText('Cockpit_4');
+  const file = await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Cockpit_4.md']);
+  expect(file).toContain('type: Projekt');
+  expect(file).toContain('# Cockpit_4');
+  expect(file).toContain('Aus der Ordnerregel');
+});
+
+test('Base "Neu": a type rule gives an entry its template where no folder rule reaches', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Templates'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Templates/Standard.md'] = '---\nquelle: Typregel\n---\n\n# {{title}}\n\nAus der Typregel\n';
+    const b64 = (s: string) => btoa(unescape(encodeURIComponent(s)));
+    (window as any).__E2E_STORE_SEED = {
+      [`typeTemplates_${b64('/test-vault')}`]: [{ type: 'Note', template: 'Standard.md' }],
+    };
+  });
+  await page.goto('/');
+  await openBase(page, 'Cockpit');
+  await expect(page.locator('table').getByText('Alpha')).toBeVisible();
+  await page.locator('[data-tip="Neues Element anlegen"], [data-tip="Create a new item"]').click();
+  await expect(page.locator('.pv-peek-title')).toContainText('Cockpit_4');
+  const file = await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Cockpit_4.md']);
+  expect(file).toContain('Aus der Typregel');
+});
+
 test('Base "Neu": several folder sources ask once and persist the choice in the .base', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'MultiSrc');

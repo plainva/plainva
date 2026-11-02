@@ -1,4 +1,4 @@
-import { scanTemplate, replaceTemplateTokens, type TemplateToken } from "./templateEngine";
+import { isAnswerableToken, isCursorToken, scanTemplate, replaceTemplateTokens, type ResolvedTemplate, type TemplateToken } from "./templateEngine";
 import { parse as parseYaml } from "yaml";
 import { deleteFrontmatterPath, editorTextOf, wikiLinkParts, noteBodyOf, setFrontmatterPath, updateVaultText, wikiTargetForFile, type TextUpdateFiles } from "@plainva/core";
 import { frontmatterBlockOf } from "../services/docMeta";
@@ -24,13 +24,8 @@ export type TemplateListAdapter = {
 /** Templater-lite tokens resolved at INSERT time — they need per-insert input,
  * unlike date/time/title: a caret marker and named value prompts. */
 const CURSOR_TOKEN = "{{cursor}}";
-/** Every token that carries an answer, in the one grammar of the engine:
- *  `{{prompt:Label}}`, `{{prompt:Label|Default}}`, `{{select:Label|A,B}}`,
- *  `{{date_prompt:Label}}`. The label is the answer key. */
-const ANSWERABLE = new Set(["prompt", "select", "date_prompt"]);
-function isAnswerable(token: TemplateToken): boolean {
-  return token.arg !== null && ANSWERABLE.has(token.name) && token.raw.startsWith((token.escaped ? "\\" : "") + "{{" + token.name + ":");
-}
+/** Every token that carries an answer, in the one grammar of the engine. The label is the answer key. */
+const isAnswerable = (token: TemplateToken): boolean => isAnswerableToken(token);
 
 /** Label of an answerable token: everything before the first `|`. */
 function labelOf(arg: string): string {
@@ -66,8 +61,16 @@ export interface FinalizedTemplate {
  * {{cursor}} as a caret offset; ALL {{cursor}} markers are stripped so no
  * literal token can leak into a note. An escaped `\{{prompt:…}}` keeps its
  * text (minus the backslash) — that is how the token can be written down.
- * Pure — assumes resolveTemplate has already run. */
-export function finalizeTemplate(text: string, answers: Record<string, string> = {}): FinalizedTemplate {
+ * Pure — assumes resolveTemplate has already run.
+ *
+ * Given what `resolveTemplate` returned, only the tokens it left for this step
+ * are filled (Sammelplan § 3.143 Nr. 1): it has already taken the backslash
+ * off an escaped `\{{cursor}}` or `\{{prompt:Name}}`, and it has put a
+ * selection, a title or a description into the text that may carry such a
+ * token as text — read again here, the first set the caret and vanished, the
+ * second became an answer or nothing. An answer is never read again either. */
+export function finalizeTemplate(text: string | ResolvedTemplate, answers: Record<string, string> = {}): FinalizedTemplate {
+  if (typeof text !== "string") return finalizeResolved(text, answers);
   const filled = replaceTemplateTokens(text, token => {
     if (!isAnswerable(token)) return token.raw;
     if (token.escaped) return token.raw.slice(1);
@@ -76,6 +79,32 @@ export function finalizeTemplate(text: string, answers: Record<string, string> =
   });
   const at = filled.indexOf(CURSOR_TOKEN);
   return { text: filled.split(CURSOR_TOKEN).join(""), cursor: at < 0 ? null : at };
+}
+
+function finalizeResolved(resolved: ResolvedTemplate, answers: Record<string, string>): FinalizedTemplate {
+  const parts: string[] = [];
+  let length = 0;
+  let at = 0;
+  let cursor: number | null = null;
+  for (const late of resolved.late) {
+    const before = resolved.text.slice(at, late.index);
+    parts.push(before);
+    length += before.length;
+    at = late.index + late.raw.length;
+    const token = scanTemplate(late.raw)[0];
+    let value = late.raw;
+    if (token && isCursorToken(token)) {
+      if (cursor === null) cursor = length;
+      value = "";
+    } else if (token && isAnswerable(token)) {
+      const label = labelOf(token.arg!);
+      value = Object.prototype.hasOwnProperty.call(answers, label) ? answers[label] : "";
+    }
+    parts.push(value);
+    length += value.length;
+  }
+  parts.push(resolved.text.slice(at));
+  return { text: parts.join(""), cursor };
 }
 
 /** Placeholders for creating/seeding a note: date/time/title PLUS the
@@ -96,7 +125,7 @@ export function applyTemplatePlaceholders(
   extra: Omit<Partial<TemplateContext>, "title" | "now"> = {}
 ): string {
   const resolved = resolveTemplate(content, { ...extra, title, now }, "headless");
-  return finalizeTemplate(resolved.text).text;
+  return finalizeTemplate(resolved).text;
 }
 
 /** OKF reserved note names — folder infrastructure, never a fill-in template. */

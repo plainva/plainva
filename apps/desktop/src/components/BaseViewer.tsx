@@ -34,6 +34,7 @@ import { planPinboardEntry, pinboardDraftLedger, pinboardLabelProperty, viewPref
 import { desktopDraftFiles } from "../services/pinboardDrafts";
 import { addTemplateForAssignment, finalizeItemContent, parkTemplateCaret, removeTemplateForAssignment, templateAsNewNote, templateCaretInNote } from "@plainva/ui";
 import { getConfiguredNoteType } from "../services/newNote";
+import { ruleTemplateFor } from "../services/newNoteTemplate";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { resolveGoverningBase } from "../services/baseSchema";
 import { detectEmbedScopeRelations, computeScopePaths, computeContextScope, buildContextScopeRelation, getContextFilters, buildEmbedScopeOptions, type EmbedScopeRelation } from "@plainva/ui";
@@ -1094,6 +1095,11 @@ export function BaseViewer({
         vaultAdapter.exists((dir ? dir + "/" : "") + n + ".md").catch(() => false)
       );
       const path = (dir ? dir + "/" : "") + name + ".md";
+      const noteType = await getConfiguredNoteType(vaultPath);
+      // The database's own template, or the one picked in its menu; without
+      // one, the folder and type rules every new note follows — as on the
+      // phone (Sammelplan § 3.136 Nr. 2).
+      template ??= await ruleTemplateFor(vaultPath, vaultAdapter, dir, noteType);
       let templateText: string | null = null;
       if (template) {
         try {
@@ -1109,7 +1115,6 @@ export function BaseViewer({
       // A template with questions asks them once, here, before the file is
       // written (plan Vorlagen-Engine P3 / decision E3). A template WITHOUT
       // questions never opens a dialog — "+ entry" stays a single click.
-      const noteType = await getConfiguredNoteType(vaultPath);
       let made: { content: string; caret: number | null } | null = null;
       if (templateText !== null) {
         const answered = await applyTemplateInteractive(

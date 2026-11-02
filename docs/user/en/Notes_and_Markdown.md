@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-10-30
+Last updated: 2026-11-02
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -113,7 +113,7 @@ Set a **Template Folder** under **Settings → Vault → Notes & filing** (**Cho
 | `{{date+7}}`, `{{date-1}}` | A shifted date, combinable with a format |
 | `{{yesterday}}`, `{{tomorrow}}` | The day before, the day after |
 | `{{weekday:monday}}`, `{{weekday:next friday}}` | That weekday of this or the following week; a format follows a second colon: `{{weekday:monday:DD.MM.}}`. Where the week begins follows your calendar setting |
-| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | A link to today's, tomorrow's or yesterday's daily note; with your own label: `{{daily+1:Tomorrow}}` |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | A link to today's, tomorrow's or yesterday's daily note; with your own label: `{{daily+1:Tomorrow}}` — "today" is the day that is running by **The day ends at**; in a daily or meeting note, the day of that note |
 | `{{folder}}`, `{{vault}}` | The note's folder, the vault's name |
 | `{{cursor}}` | No text — marks where the caret lands afterwards |
 | `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Asks you for text (shown as *Label*) |

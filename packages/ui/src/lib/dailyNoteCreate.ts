@@ -124,6 +124,7 @@ export async function ensureDailyNote(
       ...options.templateContext,
       title,
       now: stamp,
+      day: date,
     };
     if (options.resolveTemplate) {
       const answered = await options.resolveTemplate(raw, ctx);

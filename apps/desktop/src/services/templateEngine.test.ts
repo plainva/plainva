@@ -350,3 +350,38 @@ describe("resolveTemplate — the meeting-note tokens (plan Befunde 24.09., E24)
     expect(head("{{title}}", { event, title: "Planung" })).toBe("Planung");
   });
 });
+
+/**
+ * Sammelplan § 3.143 Nr. 1: the engine fills in two steps, and the second read
+ * the text of the first again. An escaped `\{{prompt:Name}}` or `\{{cursor}}`
+ * lost its backslash in the first step and was filled in the second — the
+ * handbook promises `\{{…}}` writes the placeholder itself. A selection, a
+ * title or an answer carrying such a token was read as one too.
+ */
+describe("what the second step fills", () => {
+  const both = (text: string, extra: Partial<TemplateContext> = {}, answers: Record<string, string> = {}) =>
+    finalizeTemplate(resolveTemplate(text, ctx(extra), "interactive"), answers);
+
+  it("writes an escaped question and an escaped caret as text, on every way", () => {
+    expect(both("A \\{{prompt:Name}} B \\{{cursor}} C", {}, { Name: "Kim" })).toEqual({ text: "A {{prompt:Name}} B {{cursor}} C", cursor: null });
+    expect(applyTemplatePlaceholders("\\{{prompt:Name|x}} \\{{cursor}}", "T", NOW)).toBe("{{prompt:Name|x}} {{cursor}}");
+    expect(applyTemplatePlaceholders("\\{{select:S|a,b}} \\{{date_prompt:D}}", "T", NOW)).toBe("{{select:S|a,b}} {{date_prompt:D}}");
+  });
+
+  it("still fills the live tokens beside them", () => {
+    expect(both("\\{{cursor}} {{prompt:Name}}{{cursor}} \\{{prompt:Name}}", {}, { Name: "Kim" })).toEqual({ text: "{{cursor}} Kim {{prompt:Name}}", cursor: "{{cursor}} Kim".length });
+  });
+
+  it("keeps a token that a selection, a title or an answer brings as text", () => {
+    const selection = () => "Markiert {{cursor}} und {{prompt:Name}}";
+    expect(both("{{selection}}|{{title}}|{{prompt:Q}}|{{cursor}}", { title: "Titel {{cursor}}", selection }, { Q: "Antwort {{cursor}}", Name: "nein" })).toEqual({
+      text: "Markiert {{cursor}} und {{prompt:Name}}|Titel {{cursor}}|Antwort {{cursor}}|",
+      cursor: "Markiert {{cursor}} und {{prompt:Name}}|Titel {{cursor}}|Antwort {{cursor}}|".length,
+    });
+    expect(applyTemplatePlaceholders("{{title}} {{selection}}", "Titel {{cursor}}", NOW, { selection })).toBe("Titel {{cursor}} Markiert {{cursor}} und {{prompt:Name}}");
+  });
+
+  it("asks the clipboard's question in the second step", () => {
+    expect(both("{{clipboard:Ablage}}", { clipboard: () => "kopiert" }, { Ablage: "geändert" })).toEqual({ text: "geändert", cursor: null });
+  });
+});

@@ -3,6 +3,7 @@ import { finalizeTemplate, type FinalizedTemplate } from "../base/templateFiles"
 import { getWeekStartSetting, weekStartDayOf } from "../services/weekStart";
 import { buildDailyNotePath } from "./dailyNotePath";
 import { DEFAULT_DAILY_NOTE_FORMAT } from "./dailyNotes";
+import { journalToday } from "./today";
 
 /**
  * What a template is resolved WITH, and the one place each piece of it comes
@@ -52,19 +53,23 @@ export function dailyPathFrom(now: Date, vault: Pick<TemplateVault, "dailyFolder
 
 /**
  * The pieces every template is owed, asked or not: the vault's name, the daily
- * notes counted from the day of `ctx.now`, and the first day of the week as
- * this device is set (`{{weekday:…}}`). Whatever the caller set stays. Without
- * a vault (none is open) only the week start is added.
+ * notes, and the first day of the week as this device is set
+ * (`{{weekday:…}}`). Whatever the caller set stays. Without a vault (none is
+ * open) only the week start is added.
  *
- * `ctx.now` is the day a note is FOR — a daily note's day, a meeting's day —
- * so `{{daily}}` in such a note names that day's daily note, as `{{date}}`
- * names that day.
+ * `{{daily}}` counts from `ctx.day`, the day a note is FOR — a daily note's
+ * day, a meeting's day —, so in such a note it names that day's daily note,
+ * as `{{date}}` names that day. A note without a day of its own — a new note,
+ * a database entry, a task — links the daily note **Today** opens: the diary
+ * day of `ctx.now`, by the vault's day boundary (Sammelplan § 3.143 Nr. 2). At
+ * 01:30 with a day that ends at 04:00, that is yesterday's note, not the new
+ * calendar day's that nobody writes in yet.
  */
 export async function withVaultContext(ctx: TemplateContext, vault: TemplateVault | null): Promise<TemplateContext> {
   const next: TemplateContext = { ...ctx };
   if (vault) {
     if (next.vaultName === undefined) next.vaultName = vault.name;
-    if (next.dailyPath === undefined) next.dailyPath = dailyPathFrom(next.now, vault);
+    if (next.dailyPath === undefined) next.dailyPath = dailyPathFrom(next.day ?? journalToday(next.now), vault);
   }
   // The shared setting reports Monday when it cannot be read; a template must
   // not fail over it.
@@ -129,5 +134,5 @@ export async function runTemplateInteractive(raw: string, ctx: TemplateContext, 
     if (given === null) return null;
     answers = given;
   }
-  return finalizeTemplate(resolved.text, answers);
+  return finalizeTemplate(resolved, answers);
 }
