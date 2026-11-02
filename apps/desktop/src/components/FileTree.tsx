@@ -5,7 +5,7 @@ import { requestCascadeDelete } from "../services/cascadeDelete";
 import { EmptyState, ICON, toast, errorText, useSearchPages, Button, MoveBlockedError, moveItemName } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
-import { isInternalPath, toPathIdentity, VaultQueryService, type SearchOccurrence } from "@plainva/core";
+import { isHiddenPath, isInternalPath, toPathIdentity, VaultQueryService, type SearchOccurrence } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import {
   FileText, ChevronRight, ChevronDown, Folder, AlertTriangle, Paperclip, Database, SearchX,
@@ -447,7 +447,8 @@ export const FileTree: React.FC<{
       try {
         const diskFiles = await vaultAdapter.listDir("", true);
         const folders = diskFiles
-          .filter(f => f.isDirectory && !isInternalPath(f.path))
+          // A dot folder is hidden (E8), like every internal one.
+          .filter(f => f.isDirectory && !isInternalPath(f.path) && !isHiddenPath(f.path))
           .map(f => ({ path: f.path, title: f.name, isDir: true as const }));
         if (!cancelled) setDiskFolders(folders);
       } catch (err) {
@@ -484,8 +485,9 @@ export const FileTree: React.FC<{
             }
           }
 
+          // The index holds hidden files (the sync needs them); the tree does not show them (E8).
           const allFiles: { path: string; title: string; mode?: string; isDir?: boolean; mtime?: number | null; ctime?: number | null }[] =
-            [...dbFiles.map((f) => ({ ...f, ...(times.get(f.path) ?? {}) })), ...diskFolders];
+            [...dbFiles.filter((f) => !isHiddenPath(f.path)).map((f) => ({ ...f, ...(times.get(f.path) ?? {}) })), ...diskFolders];
 
           // Keep the previous reference when nothing tree-relevant changed, so a
           // content-only autosave does not rebuild + re-render the whole tree.

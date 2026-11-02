@@ -363,6 +363,42 @@ test("the pins of the map are this computer's own and survive a restart (E7)", a
   expect(await page.evaluate((sharedPath) => (window as any).mockFs[sharedPath], SHARED)).toBe(shared);
 });
 
+/**
+ * Decision E8 (Sammelplan § 3.121): a dot file and a dot folder belong to the
+ * vault — the index holds them, so the sync carries their changes — but no
+ * surface shows them, as in Obsidian. Here the index answers with them (the
+ * fixture's queries ignore the rule's SQL), so what is asserted is the rule
+ * each of these surfaces applies itself: the tree, the quick switcher and the
+ * map.
+ */
+test('dot files and dot folders are in the vault but on none of its surfaces (E8)', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/.notizen.md'] = '# Notizen\nVerweis auf [[Projekt X]].';
+    (window as any).mockFs['/test-vault/.attachments'] = { isDir: true };
+    (window as any).mockFs['/test-vault/.attachments/Scanbeleg.md'] = '# Scanbeleg';
+  });
+  await openVault(page);
+  await expect(page.getByText('linked', { exact: true }).first()).toBeVisible();
+  // The tree: neither the dot file nor the dot folder nor what lies in it.
+  await expect(page.getByText(/notizen|\.attachments|Scanbeleg/)).toHaveCount(0);
+
+  // The quick switcher offers neither name.
+  await page.keyboard.press('Control+o');
+  const input = page.locator('.pv-palette-input');
+  await expect(input).toBeVisible();
+  await input.fill('Scanbeleg');
+  const palette = page.locator('.pv-palette');
+  await expect(palette.getByText('Scanbeleg', { exact: true })).toHaveCount(0);
+  await input.fill('notizen');
+  await expect(palette.getByText(/^\.?notizen$/)).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  // The map: the same four notes as without them.
+  await openVaultMap(page);
+  await expect(page.getByTestId('graph-stat-notes')).toContainText('4');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('dot-files-hidden.png') });
+});
+
 test('unfolding a folder wraps its notes in a container circle; collapsing removes it', async ({ page }) => {
   await openVault(page);
   await openVaultMap(page);

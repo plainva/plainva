@@ -29,6 +29,8 @@ Een vault is een gewone map. De bestandstypen die je tegenkomt:
 
 De gereserveerde namen `index.md` en `log.md` zijn nooit gewone notities; maak onder die namen geen gewone inhoud aan.
 
+Bestanden en mappen waarvan de naam met een punt begint — zoals `.notities.md` of `.attachments/` — horen bij de kluis: Plainva houdt ze in zijn index en synchroniseert ze zoals elk ander bestand, maar toont ze niet, net als Obsidian. Ze verschijnen in geen enkele zoekopdracht, bestandslijst, graaf, suggestie, lijst met backlinks, tag- of takenlijst en in geen database. Een link die zo'n bestand noemt, opent het toch. Plainva's eigen `.plainva/` en Obsidians `.obsidian/` houden hun eigen regels.
+
 ---
 
 ## Notities (`.md`)

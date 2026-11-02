@@ -193,7 +193,7 @@ export function NoteContextSheet({
       }
       const q = vault.queryService;
       if (q) {
-        const links = await q.getBacklinks(path);
+        const links = await q.getBacklinks(path, { visibleOnly: true });
         // One row per source with its places (P7): the same grouping and the
         // same outline context the desktop panel shows.
         const bl = [];

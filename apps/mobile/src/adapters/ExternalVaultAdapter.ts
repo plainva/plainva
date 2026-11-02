@@ -1,4 +1,4 @@
-import { textOfFileBytes, trimChars, PathSpellings, withStoredSpelling, type SpellingSource } from "@plainva/core";
+import { isInternalSegment, textOfFileBytes, trimChars, PathSpellings, withStoredSpelling, type SpellingSource } from "@plainva/core";
 import { VaultFileExistsError, VaultFileNotFoundError, type IVaultAdapter, type VaultFileInfo, type VaultListing, type VaultWalkOptions, type VaultWalkSkip } from "@plainva/core";
 import type { VaultFolderAccess, VaultFolderEntry, VaultFolderNative } from "../platform/vaultFolder";
 import { isMissingFile } from "./fileErrors";
@@ -81,6 +81,8 @@ interface Walk {
    */
   followLinks: boolean;
   includeHidden: boolean;
+  /** The index's walk: dot-named entries that are not internal count (E8); the backup inventory has `includeHidden` instead. */
+  includeDotEntries?: boolean;
   excludeDirNames: readonly string[];
   signal?: AbortSignal;
 }
@@ -234,8 +236,9 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     return identity === info.path ? info : { ...info, path: identity, name: identity.split("/").pop() ?? identity };
   }
 
+  /** The folder as the tree shows it: no dot-named entry, no walk into such a folder. */
   async listDir(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultFileInfo[]> {
-    return (await this.listDirReport(path, recursive, options)).files;
+    return (await this.listDirReport(path, recursive, { ...options, dotEntries: false })).files;
   }
 
   /**
@@ -249,16 +252,23 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     const out: VaultFileInfo[] = [];
     const skipped: VaultWalkSkip[] = [];
     // Without links on request: the snapshot before a recursive delete, which
-    // removes the links and not what they point at. Dot-named entries this
-    // walk never lists (`dotEntries` has nothing to leave out here).
+    // removes the links and not what they point at.
     const followLinks = options?.followLinks ?? true;
+    // The index's walk lists a dot file and what lies in a dot folder, as the
+    // desktop's and the app storage's walks do (E8, Sammelplan § 3.121): such
+    // a file is the user's — the sync learns its changes from the index, and
+    // it is only hidden from what the user reads. Never what is internal
+    // (`.plainva`, `.obsidian`, `.git`, …): the walk does not go into it.
+    // Asked without dot entries — the tree, the snapshot before a recursive
+    // delete — it leaves every one of them out.
+    const dotEntries = options?.dotEntries !== false;
     // A folder that is itself a link holds nothing of its own: what it lists
     // lies where it points, and a delete takes the link alone.
     if (!followLinks && raw) {
       const own = await this.plugin.stat({ handle: this.handle, path: raw }).catch(() => null);
       if (own?.entry?.link && own.entry.isDirectory) return { files: [], skipped: [] };
     }
-    await this.walk(raw, recursive ?? false, out, { skipped, seen: new Set(), followLinks, includeHidden: false, excludeDirNames: [], signal: options?.signal });
+    await this.walk(raw, recursive ?? false, out, { skipped, seen: new Set(), followLinks, includeHidden: false, includeDotEntries: dotEntries, excludeDirNames: [], signal: options?.signal });
     return this.identities(out, raw, skipped);
   }
 
@@ -316,7 +326,7 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     signal?.throwIfAborted();
     if (depth === 0 && res.identity) walk.seen.add(res.identity);
     for (const s of res.skipped ?? []) {
-      if (!s.name || (!walk.includeHidden && s.name.startsWith("."))) continue;
+      if (!s.name || (!walk.includeHidden && s.name.startsWith(".") && !(walk.includeDotEntries && !isInternalSegment(s.name)))) continue;
       const at = rel ? `${rel}/${s.name}` : s.name;
       // A link that points nowhere and an entry that is neither file nor
       // folder hold nothing to pack or to keep: a walk that leaves links out
@@ -335,7 +345,7 @@ export class ExternalVaultAdapter implements IVaultAdapter {
       // tree and the index — here that also covers the OTHER app's markers
       // (`.stfolder`, `.obsidian`) that share the folder with us.
       if (!e.name) { if (walk.includeHidden) throw new Error("Invalid backup entry at " + rel); continue; }
-      if (!walk.includeHidden && e.name.startsWith(".")) continue;
+      if (!walk.includeHidden && e.name.startsWith(".") && !(walk.includeDotEntries && !isInternalSegment(e.name))) continue;
       if (e.isDirectory && walk.excludeDirNames.includes(e.name)) continue;
       if (e.link && !walk.followLinks) continue;
       const childRel = rel ? `${rel}/${e.name}` : e.name;

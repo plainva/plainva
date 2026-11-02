@@ -35,7 +35,7 @@ import {
   formatQueueEntryReport,
   scanChangedNothing,
 } from "@plainva/core";
-import { isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, WORKSPACE_FORKS_FOLDER, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
+import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, WORKSPACE_FORKS_FOLDER, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
 import { copyFileContent, isNotTextFileError, NotTextFileError, type EditorWriteResult } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -1211,7 +1211,8 @@ export const vaultOps = {
     const junk = await Promise.all(
       listed.map((e) => (e.isDirectory ? false : isSystemJunkFile(e.path, (p) => v.adapter.readBinaryFile(p)))),
     );
-    const entries = listed.filter((_, i) => !junk[i]);
+    // A dot file or dot folder is hidden (E8) — whichever adapter listed it.
+    const entries = listed.filter((e, i) => !junk[i] && !e.name.startsWith("."));
     // Note counts per subfolder (mockup 1 "24 Notizen").
     //
     // S21: this counted ONE level with a directory listing, so a folder holding
@@ -1493,7 +1494,7 @@ export const vaultOps = {
   async recent(v: MobileVault, limit: number): Promise<Array<{ path: string; title: string; mtime: number }>> {
     const all = await v.files.listDir("", true);
     return all
-      .filter((e) => !e.isDirectory && /\.md$/i.test(e.name) && !e.path.startsWith("."))
+      .filter((e) => !e.isDirectory && /\.md$/i.test(e.name) && !isHiddenPath(e.path))
       .sort((a, b) => b.mtime - a.mtime)
       .slice(0, limit)
       .map((e) => ({ path: e.path, title: noteTitle(e.path), mtime: e.mtime }));
@@ -1553,7 +1554,7 @@ export const vaultOps = {
   },
 
   async pushRecent(v: MobileVault, path: string): Promise<void> {
-    if (!/\.md$/i.test(path) || path.startsWith(".")) return;
+    if (!/\.md$/i.test(path) || isHiddenPath(path)) return;
     try {
       await pushRecentOnDisk(v.adapter, path, Date.now());
     } catch {

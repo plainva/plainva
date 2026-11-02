@@ -1,4 +1,5 @@
 import { foldPathNormalization } from "../sync/pathIdentity.js";
+import { isHiddenPath } from "./internalPath.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { buildLinkTargetIndex, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, type LinkCorpusFile } from "./LinkResolver.js";
 import { isReservedOkfName } from "../okf-conversion.js";
@@ -221,6 +222,9 @@ export class GraphService {
       // .base files are never nodes, but they must stay resolvable: a link to an
       // EXISTING database is silently dropped, not reported as broken.
       if (path.endsWith(".base")) continue;
+      // Neither is a hidden file (E8) — but it stays in the corpus: a link to
+      // it leads somewhere, so it is no broken link either.
+      if (isHiddenPath(path)) continue;
       const mode = String((row as any).mode ?? (row as any).MODE ?? "obsidian");
       const info: GraphNodeInfo = {
         path,
@@ -297,6 +301,7 @@ export class GraphService {
       }
       if (resolved === source) continue; // self links (anchors) are not edges
       if (resolved.endsWith(".base")) continue;
+      if (isHiddenPath(resolved)) continue; // leads to a hidden file: neither edge nor broken (E8)
       const targetIsAttachment = !nodes.has(resolved);
       if (targetIsAttachment) {
         if (!includeAttachments) continue;

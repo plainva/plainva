@@ -5,6 +5,7 @@ import {
   pickedCompletion,
 } from "@codemirror/autocomplete";
 import i18n from "../i18n";
+import { visiblePathSql } from "@plainva/core";
 import { pathsSharingNames, wikiLinkTextFor } from "../lib/wikiLinkText";
 
 // The editor's `@` mention menu (Notion-style). Typing `@` opens a menu that
@@ -96,7 +97,7 @@ export function atMentionCompletionSource(deps: AtMentionDeps) {
         const like = `%${term}%`;
         const rows = await qs.db.query(
           `SELECT path, title FROM files
-           WHERE (title LIKE ? OR path LIKE ?) AND path LIKE '%.md'
+           WHERE (title LIKE ? OR path LIKE ?) AND path LIKE '%.md' AND ${visiblePathSql("path")}
            ORDER BY (CASE WHEN title LIKE ? THEN 1 ELSE 2 END), mtime_local DESC
            LIMIT 8`,
           [like, like, `${term}%`],
@@ -120,7 +121,7 @@ export function atMentionCompletionSource(deps: AtMentionDeps) {
         // --- Inline database embeds (#8): search .base files, insert ![[path]] ---
         const baseRows = await qs.db.query(
           `SELECT path, title FROM files
-           WHERE (title LIKE ? OR path LIKE ?) AND path LIKE '%.base'
+           WHERE (title LIKE ? OR path LIKE ?) AND path LIKE '%.base' AND ${visiblePathSql("path")}
            ORDER BY (CASE WHEN title LIKE ? THEN 1 ELSE 2 END), mtime_local DESC
            LIMIT 6`,
           [like, like, `${term}%`],

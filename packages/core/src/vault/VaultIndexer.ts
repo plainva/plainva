@@ -1,7 +1,7 @@
 import { IVaultAdapter, VaultFileInfo, VaultListing, VaultWalkSkip } from "./IVaultAdapter.js";
 import { BatchStatement, IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { hasAppleDoubleHeader, isAppleDoubleCompanion, isAppleDoubleName } from "./systemJunk.js";
-import { isInternalPath, isInternalSegment, INTERNAL_PATH_RULES, type InternalPathRules } from "./internalPath.js";
+import { isInternalPath, isInternalSegment, isHiddenPath, visiblePathSql, INTERNAL_PATH_RULES, type InternalPathRules } from "./internalPath.js";
 import { createYielder } from "./yielder.js";
 import { trimChars } from "../textScan.js";
 import { runStatementsAtomic } from "../db/batch.js";
@@ -43,7 +43,7 @@ async function sha256Bytes(bytes: Uint8Array): Promise<string> {
 
 // The internal-path rules live in internalPath.ts (as data, shared with the
 // native vault walk); re-exported so the many existing importers keep their path.
-export { isInternalPath, isInternalSegment, INTERNAL_PATH_RULES, type InternalPathRules };
+export { isInternalPath, isInternalSegment, isHiddenPath, visiblePathSql, INTERNAL_PATH_RULES, type InternalPathRules };
 
 /** Re-exported so the many existing importers keep their path. */
 export { escapeLikePrefix };

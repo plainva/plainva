@@ -24,6 +24,7 @@ import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from 
 import { hasSpacelessText } from "./spacelessText.js";
 import { decodeIndexedProperty } from "./indexedProperty.js";
 import { EDITED_AT_SQL } from "./editedAt.js";
+import { isHiddenPath, visiblePathSql } from "./internalPath.js";
 
 export { EDITED_AT_SQL };
 
@@ -218,6 +219,8 @@ export class VaultQueryService {
       orderBy = `${column} ${order.dir === "asc" ? "ASC" : "DESC"}`;
     }
 
+    // A hidden file (a dot file, a file in a dot folder) is never a hit (E8).
+    where.push(visiblePathSql("f.path"));
     if (parsed.notMatch !== null) {
       where.push(`f.path NOT IN (SELECT path FROM fts_notes WHERE fts_notes MATCH ?)`);
       params.push(parsed.notMatch);
@@ -295,7 +298,7 @@ export class VaultQueryService {
     const sql = `
       SELECT id, path, title, mtime_local, size_bytes
       FROM files
-      WHERE title LIKE ? OR path LIKE ?
+      WHERE (title LIKE ? OR path LIKE ?) AND ${visiblePathSql("path")}
       ORDER BY 
         CASE 
           WHEN title LIKE ? THEN 1
@@ -314,6 +317,7 @@ export class VaultQueryService {
     const sql = `
       SELECT id, path, title, mtime_local, size_bytes
       FROM files
+      WHERE ${visiblePathSql("path")}
       ORDER BY mtime_local DESC
       LIMIT ?
     `;
@@ -363,7 +367,7 @@ export class VaultQueryService {
       `SELECT path, title, edited_at FROM (
          SELECT f.path AS path, f.title AS title, ${EDITED_AT_SQL} AS edited_at
            FROM files f LEFT JOIN sync_state s ON s.path = f.path
-          WHERE f.mode != 'attachment' AND f.path NOT LIKE '%.base'
+          WHERE f.mode != 'attachment' AND f.path NOT LIKE '%.base' AND ${visiblePathSql("f.path")}
        )
        WHERE edited_at >= ? AND edited_at < ?
        ORDER BY edited_at DESC`,
@@ -404,7 +408,7 @@ export class VaultQueryService {
     const rows = await this.db.query<{ folder: string; n: number }>(
       `SELECT substr(rest, 1, instr(rest, '/') - 1) AS folder, COUNT(*) AS n
        FROM (SELECT substr(path, ?) AS rest FROM files
-             WHERE mode != 'attachment' AND path NOT LIKE '%.base' AND path LIKE ? ESCAPE '\\')
+             WHERE mode != 'attachment' AND path NOT LIKE '%.base' AND path LIKE ? ESCAPE '\\' AND ${visiblePathSql("path")})
        WHERE instr(rest, '/') > 0
        GROUP BY folder`,
       [prefix.length + 1, `${escapeLikePrefix(prefix)}%`],
@@ -430,7 +434,7 @@ export class VaultQueryService {
 
   async listBases(): Promise<{ path: string; title: string }[]> {
     const rows = await this.db.query<{ path: string; title: string | null }>(
-      `SELECT path, title FROM files WHERE path LIKE '%.base' ORDER BY path`,
+      `SELECT path, title FROM files WHERE path LIKE '%.base' AND ${visiblePathSql("path")} ORDER BY path`,
       [],
     );
     return rows
@@ -451,7 +455,8 @@ export class VaultQueryService {
     );
     const out: TaskRecord[] = [];
     for (const r of rows) {
-      if (!r.path) continue;
+      // A hidden note's tasks are not listed (E8).
+      if (!r.path || isHiddenPath(r.path)) continue;
       const content = r.content ?? "";
       const scanned = scanTasks(content);
       if (scanned.length === 0) continue;
@@ -602,7 +607,8 @@ export class VaultQueryService {
     );
     const out: VaultFindResult[] = [];
     for (const r of rows) {
-      if (!r.path) continue;
+      // Replace across the vault never reaches into a file the user does not see (E8).
+      if (!r.path || isHiddenPath(r.path)) continue;
       const matches = findMatchesInText(r.content ?? "", query, opts);
       if (matches.length === 0) continue;
       out.push({
@@ -711,8 +717,12 @@ export class VaultQueryService {
 
   /**
    * Finds all files that link to the given path (Backlinks).
+   *
+   * `visibleOnly`: what a backlinks LIST shows — no link out of a hidden file
+   * (E8). A rename or a rewrite asks without it: a link in a hidden note is
+   * still a link, and it must follow the note it leads to.
    */
-  async getBacklinks(targetPath: string): Promise<LinkRecord[]> {
+  async getBacklinks(targetPath: string, options: { visibleOnly?: boolean } = {}): Promise<LinkRecord[]> {
     // 1. The files a link can lead to — the one corpus of the link rule
     // (`linkTargets`). `.base` files are indexed as attachments but ARE
     // legitimate link targets (embeds, template assignments): without them a
@@ -754,7 +764,7 @@ export class VaultQueryService {
         l.target_path, l.link_type, l.anchor, l.line_number, l.property_key
       FROM links l
       JOIN files f ON f.id = l.source_id
-      WHERE ${[...patterns].map(() => `l.target_path LIKE ? ESCAPE '\\'`).join(" OR ")}
+      WHERE (${[...patterns].map(() => `l.target_path LIKE ? ESCAPE '\\'`).join(" OR ")})${options.visibleOnly ? ` AND ${visiblePathSql("f.path")}` : ""}
       ORDER BY f.path COLLATE NOCASE ASC, l.line_number ASC
     `;
     const candidateLinks = await this.db.query<LinkRecord>(sql, [...patterns]);
@@ -999,7 +1009,7 @@ export class VaultQueryService {
       SELECT DISTINCT f.id AS id, f.path AS path, f.title AS title, f.mtime_local AS mtime_local, f.size_bytes AS size_bytes
       FROM tags t
       JOIN files f ON f.id = t.file_id
-      WHERE t.tag = ? OR t.tag LIKE ?
+      WHERE (t.tag = ? OR t.tag LIKE ?) AND ${visiblePathSql("f.path")}
     `;
     return await this.db.query(sql, [tag, `${tag}/%`]);
   }
@@ -1011,6 +1021,7 @@ export class VaultQueryService {
     const sql = `
       SELECT tag, COUNT(DISTINCT file_id) as count
       FROM tags
+      WHERE file_id IN (SELECT id FROM files WHERE ${visiblePathSql("path")})
       GROUP BY tag
       ORDER BY tag ASC
     `;
@@ -1357,7 +1368,14 @@ export class VaultQueryService {
     // from every base view here, in one place (no per-`.base` filter needed;
     // that also keeps the files Obsidian-openable, since Obsidian's Bases has no
     // global `contains()` function to express the exclusion in the filter).
-    const rows = rawRows.filter((r) => !isReservedOkfName(String((r as { path?: unknown }).path ?? "")));
+    //
+    // A hidden file (E8) is no row either: what a database holds is what the
+    // user can see — and what a rewrite or a delete across the database
+    // reaches, so nothing the user cannot see changes through it.
+    const rows = rawRows.filter((r) => {
+      const path = String((r as { path?: unknown }).path ?? "");
+      return !isReservedOkfName(path) && !isHiddenPath(path);
+    });
 
     // Fetch properties for these files in bulk to avoid N+1 queries
     const propsByFileId: Record<string, Record<string, any>> = {};

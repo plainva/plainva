@@ -1,6 +1,7 @@
 import { CompletionContext, CompletionResult, Completion, pickedCompletion } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
 import i18n from "../i18n";
+import { visiblePathSql } from "@plainva/core";
 import { searchEmoji } from "./emojiData";
 import { parseHeadings } from "../lib/outline";
 import { searchLinkTargets, searchTags } from "../lib/inlineTriggers";
@@ -170,7 +171,7 @@ export function embedCompletionSource(deps: EditorTriggerDeps) {
     try {
       const rows = await qs.db.query(
         `SELECT path, title FROM files
-         WHERE title LIKE ? OR path LIKE ?
+         WHERE (title LIKE ? OR path LIKE ?) AND ${visiblePathSql("path")}
          ORDER BY (CASE WHEN title LIKE ? THEN 1 ELSE 2 END), mtime_local DESC
          LIMIT 12`,
         [like, like, `${term}%`],

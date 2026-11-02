@@ -178,6 +178,23 @@ describe("external-folder backup inventory", () => {
     expect((await adapter.listDir("", true)).filter((e) => !e.isDirectory).map((e) => e.path)).toEqual(["Note.md"]);
   });
 
+  it("the index's walk lists a dot file and a dot folder's notes, never what is internal; the tree lists none (E8, § 3.121)", async () => {
+    // A dot file is the user's: the sync learns its changes from the index, so a picked folder indexes it as the
+    // desktop and the app storage do. Before E8 this walk left every dot entry out — the file never synced from here.
+    const files = new Map<string, string | Uint8Array>([
+      ["Note.md", "body"], [".notizen.md", "dot file"], [".attachments/Scan.md", "dot folder"],
+      [".obsidian/app.json", "{}"], [".git/config", "internal"], [".plainva/vault.db", "db"],
+    ]);
+    const { plugin, dirs, calls } = fakePlugin(files);
+    for (const path of [".attachments", ".obsidian", ".git", ".plainva"]) dirs.add(path);
+    const adapter = new ExternalVaultAdapter(plugin, "folder");
+    const indexed = (await adapter.listDirReport("", true)).files.filter((e) => !e.isDirectory).map((e) => e.path).sort();
+    expect(indexed).toEqual([".attachments/Scan.md", ".notizen.md", "Note.md"]);
+    for (const internal of [".obsidian", ".git", ".plainva"]) expect(calls).not.toContain(`list:${internal}`);
+    expect((await adapter.listDir("", true)).map((e) => e.path)).toEqual(["Note.md"]);
+    expect((await adapter.listDirReport("", true, { dotEntries: false })).files.map((e) => e.path)).toEqual(["Note.md"]);
+  });
+
   it("rejects an inaccessible selected folder instead of returning a partial inventory", async () => {
     const { plugin, dirs } = fakePlugin(new Map([["Note.md", "body"]]));
     dirs.add("blocked");

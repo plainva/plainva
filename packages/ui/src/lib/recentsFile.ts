@@ -9,7 +9,7 @@
  * it through the functions at the end of this file.
  */
 
-import type { IVaultAdapter } from "@plainva/core";
+import { isHiddenPath, type IVaultAdapter } from "@plainva/core";
 import { onDeviceFileLane, ownDeviceFilePath, readDeviceOwnText } from "./deviceOwnFiles";
 
 export interface RecentEntry {
@@ -70,7 +70,8 @@ export function dropRecentEntry(entries: RecentEntry[], path: string): RecentEnt
  */
 export async function readRecentsOnDisk(adapter: Pick<IVaultAdapter, "readTextFile" | "exists">): Promise<RecentEntry[]> {
   try {
-    return parseRecentsFile((await readDeviceOwnText(adapter, "recents")).text);
+    // What the list SHOWS: a hidden file (E8), opened through a link, is not offered again here.
+    return parseRecentsFile((await readDeviceOwnText(adapter, "recents")).text).filter((e) => !isHiddenPath(e.path));
   } catch {
     return [];
   }

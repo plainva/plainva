@@ -259,7 +259,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
   useEffect(() => {
     let alive = true;
     if (queryService && activePath && /\.md$/i.test(activePath)) {
-      queryService.getBacklinks(activePath)
+      queryService.getBacklinks(activePath, { visibleOnly: true })
         .then((l) => { if (alive) setBacklinksCount(l.length); })
         .catch(() => { if (alive) setBacklinksCount(0); });
     } else {

@@ -29,6 +29,8 @@ Un vault es una carpeta normal. Los tipos de archivo que encontrarás:
 
 Los nombres reservados `index.md` y `log.md` nunca son notas normales; no crees contenido ordinario bajo esos nombres.
 
+Archivos y carpetas que empiezan por punto — como `.notas.md` o `.attachments/` — forman parte de la bóveda: Plainva los guarda en su índice y los sincroniza como cualquier otro archivo, pero no los muestra, igual que Obsidian. No aparecen en ninguna búsqueda, lista de archivos, grafo, sugerencia, lista de vínculos entrantes, lista de etiquetas o de tareas ni base de datos. Un enlace que nombra uno sigue abriéndolo. La carpeta propia de Plainva `.plainva/` y la de Obsidian `.obsidian/` tienen sus propias reglas.
+
 ---
 
 ## Notas (`.md`)

@@ -86,3 +86,34 @@ export function isInternalSegment(s: string): boolean {
 export function isInternalPath(path: string): boolean {
   return path.replace(/\\/g, "/").split("/").some(isInternalSegment);
 }
+
+/**
+ * Whether a vault file is HIDDEN from the user's surfaces: a path with a
+ * segment that starts with a dot — a dot file (`.notizen.md`) or anything in a
+ * dot folder (`.attachments/`). Decision E8 (Sammelplan § 3.121), as Obsidian
+ * does it.
+ *
+ * Hidden is not internal. Such a file is part of the vault: the index holds
+ * it, because the sync learns local changes from the index and content
+ * encryption re-encrypts from the same table — left out of the index, it
+ * would stop syncing and leave a plaintext copy on the remote. It is only not
+ * SHOWN: search, the graph, link and embed suggestions, the quick switcher,
+ * the file tree and file lists, backlink lists, database rows, tags and task
+ * lists leave it out, in both shells and for every place a vault lies. A link
+ * that names it still leads to it — a hidden file is not a missing file.
+ * Internal paths (`.plainva`, `.obsidian`, `.git`, …) keep their own, stricter
+ * rule above; every one of them is hidden by this rule as well.
+ */
+export function isHiddenPath(path: string): boolean {
+  return path.replace(/\\/g, "/").split("/").some((segment) => segment.length > 1 && segment.startsWith("."));
+}
+
+/**
+ * `isHiddenPath` as an SQL condition that is TRUE for a path the user may see,
+ * for a query that cannot filter afterwards (a page, a LIMIT). `column` is a
+ * literal of the caller's statement, never user input. The index stores paths
+ * with forward slashes.
+ */
+export function visiblePathSql(column: string): string {
+  return `(${column} NOT LIKE '.%' AND ${column} NOT LIKE '%/.%')`;
+}

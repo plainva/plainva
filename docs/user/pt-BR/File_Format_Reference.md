@@ -29,6 +29,8 @@ Um vault é uma pasta comum. Os tipos de arquivo que você vai encontrar:
 
 Os nomes reservados `index.md` e `log.md` nunca são notas comuns; não crie conteúdo comum sob esses nomes.
 
+Arquivos e pastas cujo nome começa com ponto — como `.notas.md` ou `.attachments/` — fazem parte do cofre: o Plainva os mantém no índice e os sincroniza como qualquer outro arquivo, mas não os mostra, assim como o Obsidian. Eles não aparecem em nenhuma busca, lista de arquivos, grafo, sugestão, lista de backlinks, lista de tags ou de tarefas, nem em banco de dados. Um link que aponta para um deles continua abrindo-o. A pasta própria do Plainva `.plainva/` e a `.obsidian/` do Obsidian mantêm suas próprias regras.
+
 ---
 
 ## Notas (`.md`)

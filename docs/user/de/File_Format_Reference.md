@@ -29,6 +29,8 @@ Ein Vault ist ein normaler Ordner. Die Dateitypen, die Dir begegnen:
 
 Die reservierten Namen `index.md` und `log.md` sind nie normale Notizen; lege unter diesen Namen keinen gewöhnlichen Inhalt an.
 
+Dateien und Ordner mit Punkt am Anfang — etwa `.notizen.md` oder `.attachments/` — gehören zum Vault: Plainva hält sie im Index und synchronisiert sie wie jede andere Datei, zeigt sie aber nicht, wie Obsidian. Sie erscheinen in keiner Suche, keiner Dateiliste, keinem Graphen, keinem Vorschlag, keiner Backlink-Liste, keiner Tag- oder Aufgabenliste und in keiner Datenbank. Ein Link, der eine solche Datei nennt, öffnet sie trotzdem. Für Plainvas eigenen Ordner `.plainva/` und Obsidians `.obsidian/` gelten eigene Regeln.
+
 ---
 
 ## Notizen (`.md`)

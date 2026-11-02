@@ -141,7 +141,8 @@ export async function listTemplates(adapter: TemplateListAdapter, folder: string
     if (!(await adapter.exists(folder))) return items;
     for (const f of await adapter.listDir(folder)) {
       const base = f.path.split(/[/\\]/).pop() ?? "";
-      if (!f.isDirectory && f.path.toLowerCase().endsWith(".md") && !RESERVED_TEMPLATE_NAME.test(base)) {
+      // A dot file in the template folder is hidden (E8) — the phone's listing never had it.
+      if (!f.isDirectory && f.path.toLowerCase().endsWith(".md") && !RESERVED_TEMPLATE_NAME.test(base) && !base.startsWith(".")) {
         items.push({ path: f.path, title: base.replace(/\.md$/i, "") || f.path });
       }
     }

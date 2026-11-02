@@ -29,6 +29,8 @@ A vault is an ordinary folder. The file types you will meet:
 
 Reserved names `index.md` and `log.md` are never regular notes; do not create ordinary content under those names.
 
+Dot files and dot folders — a name that starts with a dot, such as `.notes.md` or `.attachments/` — belong to the vault: Plainva keeps them in its index and syncs them like any other file, but does not show them, as in Obsidian. They appear in no search, file list, graph, suggestion, backlinks list, tag list, task list or database. A link that names one still opens it. Plainva's own `.plainva/` and Obsidian's `.obsidian/` keep their own rules.
+
 ---
 
 ## Notes (`.md`)

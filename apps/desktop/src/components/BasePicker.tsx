@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Database, Plus } from "lucide-react";
 import { useVault } from "../contexts/VaultContext";
 import { errorText, ICON, useOutsidePress } from "@plainva/ui";
+import { visiblePathSql } from "@plainva/core";
 
 interface BaseRow {
   path: string;
@@ -36,7 +37,7 @@ export const BasePicker: React.FC<Props> = ({ onPick, onCreate, onClose }) => {
     queryService.db
       .query(
         `SELECT path, title FROM files
-         WHERE (title LIKE ? OR path LIKE ?) AND path LIKE '%.base'
+         WHERE (title LIKE ? OR path LIKE ?) AND path LIKE '%.base' AND ${visiblePathSql("path")}
          ORDER BY (CASE WHEN title LIKE ? THEN 1 ELSE 2 END), mtime_local DESC
          LIMIT 50`,
         [like, like, `${term}%`],

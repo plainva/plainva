@@ -29,6 +29,8 @@ Vault to zwykły folder. Typy plików, które napotkasz:
 
 Zarezerwowane nazwy `index.md` i `log.md` nigdy nie są zwykłymi notatkami; nie twórz zwykłej treści pod tymi nazwami.
 
+Pliki i foldery, których nazwa zaczyna się od kropki — np. `.notatki.md` lub `.attachments/` — należą do sejfu: Plainva trzyma je w indeksie i synchronizuje jak każdy inny plik, ale ich nie pokazuje, tak jak Obsidian. Nie pojawiają się w żadnym wyszukiwaniu, liście plików, grafie, podpowiedzi, liście linków zwrotnych, liście tagów lub zadań ani w bazie danych. Link, który wskazuje taki plik, nadal go otwiera. Własny folder Plainva `.plainva/` i folder Obsidian `.obsidian/` mają własne reguły.
+
 ---
 
 ## Notatki (`.md`)
